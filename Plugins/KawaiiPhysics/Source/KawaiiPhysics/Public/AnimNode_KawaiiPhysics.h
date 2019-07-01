@@ -1,0 +1,289 @@
+#pragma once
+
+#include "CoreMinimal.h"
+
+#include "Animation/AnimNodeBase.h"
+#include "Animation/AnimNodeSpaceConversions.h"
+#include "BoneControllers/AnimNode_ModifyBone.h"
+#include "BoneControllers/AnimNode_AnimDynamics.h"
+
+#include "BoneContainer.h"
+#include "BonePose.h"
+#include "BoneControllers/AnimNode_SkeletalControlBase.h"
+
+#include "AnimNode_KawaiiPhysics.generated.h"
+
+UENUM()
+enum class EPlanarConstraint : uint8
+{
+	None,
+	X,
+	Y,
+	Z,
+};
+
+USTRUCT()
+struct FCollisionLimitBase
+{
+	GENERATED_BODY();
+
+	/** Bone to attach the sphere to */
+	UPROPERTY(EditAnywhere, Category = CollisionLimitBase)
+	FBoneReference DrivingBone;
+
+	UPROPERTY(EditAnywhere, Category = CollisionLimitBase)
+	FVector OffsetLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, Category = CollisionLimitBase, meta = (ClampMin = "-360", ClampMax = "360"))
+	FRotator OffsetRotation = FRotator::ZeroRotator;
+
+	UPROPERTY()
+	FVector Location = FVector::ZeroVector;
+
+	UPROPERTY()
+	FQuat Rotation = FQuat::Identity;
+
+};
+
+USTRUCT()
+struct FSphericalLimit : public FCollisionLimitBase
+{
+	GENERATED_BODY();
+
+	/** Radius of the sphere */
+	UPROPERTY(EditAnywhere, Category = SphericalLimit, meta = (ClampMin = "0"))
+	float Radius = 5.0f;
+
+	/** Whether to lock bodies inside or outside of the sphere */
+	UPROPERTY(EditAnywhere, Category = SphericalLimit)
+	ESphericalLimitType LimitType = ESphericalLimitType::Outer;
+};
+
+USTRUCT()
+struct FCapsuleLimit : public FCollisionLimitBase
+{
+	GENERATED_BODY();
+
+	UPROPERTY(EditAnywhere, Category = CapsuleLimit, meta = (ClampMin = "0"))
+	float Radius = 5.0f;
+
+	UPROPERTY(EditAnywhere, Category = CapsuleLimit, meta = (ClampMin = "0"))
+	float Length = 10.0f;
+};
+
+USTRUCT()
+struct FPlanarLimit : public FCollisionLimitBase
+{
+	GENERATED_BODY();
+
+	UPROPERTY()
+	FPlane Plane;
+};
+
+USTRUCT(BlueprintType)
+struct KAWAIIPHYSICS_API FKawaiiPhysicsSettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"))
+	float Damping = 0.1f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"))
+	float WorldDampingLocation = 0.8f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"))
+	float WorldDampingRotation = 0.8f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"))
+	float Stiffness = 0.05f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"))
+	float Radius = 3.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, ClampMin = "0"))
+	float LimitAngle = 0.0f;
+};
+
+USTRUCT()
+struct KAWAIIPHYSICS_API FKawaiiPhysicsModifyBone
+{
+	GENERATED_USTRUCT_BODY()
+	
+public:
+	UPROPERTY()
+	FBoneReference BoneRef;
+	UPROPERTY()
+	int ParentIndex = -1;
+	UPROPERTY()
+	TArray<int> ChildIndexs;
+
+	UPROPERTY()
+	FKawaiiPhysicsSettings PhysicsSettings;
+
+	UPROPERTY()
+	FVector Location;
+	UPROPERTY()
+	FVector PrevLocation;
+	UPROPERTY()
+	FQuat PrevRotation;
+	UPROPERTY()
+	FVector PoseLocation;
+	UPROPERTY()
+	FQuat PoseRotation;
+	UPROPERTY()
+	float LengthFromRoot;
+	UPROPERTY()
+	bool bDummy = false;
+
+public:
+
+	void UpdatePoseLocationAndRotation(const FBoneContainer& BoneContainer, FCSPose<FCompactPose>& Pose)
+	{
+		auto CompactPoseIndex = BoneRef.GetCompactPoseIndex(BoneContainer);
+		if (CompactPoseIndex < 0)
+		{
+			PoseLocation = FVector::ZeroVector;
+			PoseRotation = FQuat::Identity;
+			return;
+		}
+
+		auto ComponentSpaceTransform = Pose.GetComponentSpaceTransform(CompactPoseIndex);
+		PoseLocation = ComponentSpaceTransform.GetLocation();
+		PoseRotation = ComponentSpaceTransform.GetRotation();
+	}
+};
+
+USTRUCT(BlueprintType)
+struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalControlBase
+{
+	GENERATED_USTRUCT_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, Category = ModifyTarget)
+	FBoneReference RootBone;
+	UPROPERTY(EditAnywhere, Category = ModifyTarget)
+	TArray<FBoneReference> ExcludeBones;
+
+	/** Settings for control of physical behavior */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
+	FKawaiiPhysicsSettings PhysicsSettings;
+	
+	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
+	UCurveFloat* DampingCurve = nullptr;
+
+	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
+	UCurveFloat* WorldDampingLocationCurve = nullptr;
+
+	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
+	UCurveFloat* WorldDampingRotationCurve = nullptr;
+
+	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
+	UCurveFloat* StiffnessCurve = nullptr;
+
+	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
+	UCurveFloat* RadiusCurve = nullptr;
+
+	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
+	UCurveFloat* LimitAngleCurve = nullptr;
+
+	/** Flag to update each frame physical parameter. Disable to improve performance */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Advanced Physics Settings", meta = (PinHiddenByDefault))
+	bool bUpdatePhysicsSettingsInGame = true;
+	
+	/** Add a dummy bone to the end bone if it's above 0. It affects end bone rotation. For example, it rotates well if it is short */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Advanced Physics Settings", meta = (PinHiddenByDefault, ClampMin = "0"))
+	float DummyBoneLength = 0.0f;
+
+	/** Fix the bone on the specified plane  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Advanced Physics Settings", meta = (PinHiddenByDefault))
+	EPlanarConstraint PlanarConstraint = EPlanarConstraint::None;
+
+
+	UPROPERTY(EditAnywhere, Category = "Spherical Limits")
+	TArray< FSphericalLimit> SphericalLimits;
+	UPROPERTY(EditAnywhere, Category = "Capsule Limits")
+	TArray< FCapsuleLimit> CapsuleLimits;
+	UPROPERTY(EditAnywhere, Category = "Planar Limits")
+	TArray< FPlanarLimit> PlanarLimits;
+
+	/** If the movement amount of one frame exceeds the threshold, ignore the movement  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Teleport", meta = (PinHiddenByDefault))
+	float TeleportDistanceThreshold = 300.0f;
+
+	/** If the rotation amount of one frame exceeds the threshold, ignore the rotation  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Teleport", meta = (PinHiddenByDefault))
+	float TeleportRotationThreshold = 10.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce", meta = (PinHiddenByDefault))
+	FVector Gravity = FVector::ZeroVector;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce", meta = (PinHiddenByDefault))
+	FVector Wind = FVector::ZeroVector;
+
+
+	UPROPERTY()
+	TArray< FKawaiiPhysicsModifyBone > ModifyBones;
+
+
+private:
+	UPROPERTY()
+	float TotalBoneLength = 0;
+	UPROPERTY()
+	FTransform PreSkelCompTransform;
+	UPROPERTY()
+	bool bInitPhysicsSettings = false;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	bool bEditing = false;
+#endif
+
+	FVector SkelCompMoveVector;
+	FQuat SkelCompMoveRotation;
+	float DeltaTime;
+
+public:
+	FAnimNode_KawaiiPhysics();
+
+	// FAnimNode_Base interface
+	//virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
+	// End of FAnimNode_Base interface
+
+	// FAnimNode_SkeletalControlBase interface
+	virtual void EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms) override;
+	virtual bool IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones) override;
+	virtual void UpdateInternal(const FAnimationUpdateContext& Context) override;
+	// End of FAnimNode_SkeletalControlBase interface
+
+	// 
+	void InitModifyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer);
+
+private:
+	// FAnimNode_SkeletalControlBase interface
+	virtual void InitializeBoneReferences(const FBoneContainer& RequiredBones) override;
+	// End of FAnimNode_SkeletalControlBase interface
+
+	int AddModifyBone(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, const FReferenceSkeleton& RefSkeleton, int BoneIndex);
+	
+	// clone from FReferenceSkeleton::GetDirectChildBones
+	int32 CollectChildBones(const FReferenceSkeleton& RefSkeleton, int32 ParentBoneIndex, TArray<int32> & Children) const;
+	void CalcBoneLength(FKawaiiPhysicsModifyBone& Bone, const TArray<FTransform>& RefBonePose);
+
+	void UpdatePhysicsSettingsOfModifyBones();
+	void UpdateSphericalLimits(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer);
+	void UpdateCapsuleLimits(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer);
+	void UpdatePlanerLimits(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform);
+
+	void SimulateModfyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform);
+	void AdjustBySphereCollision(FKawaiiPhysicsModifyBone& Bone);
+	void AdjustByCapsuleCollision(FKawaiiPhysicsModifyBone& Bone);
+	void AdjustByPlanerCollision(FKawaiiPhysicsModifyBone& Bone);
+	void AdjustByAngleLimit(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform, FKawaiiPhysicsModifyBone& Bone, FKawaiiPhysicsModifyBone& ParentBone);
+	void AdjustByPlanarConstraint(FKawaiiPhysicsModifyBone& Bone, FKawaiiPhysicsModifyBone& ParentBone);
+	
+
+	void ApplySimuateResult(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, TArray<FBoneTransform>& OutBoneTransforms);
+	
+};

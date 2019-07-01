@@ -1,0 +1,28 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "KawaiiPhysics",
+	"Description": "",
+	"Category": "Animation",
+	"CreatedBy": "pafuhana1213",
+	"CreatedByURL": "https://twitter.com/pafuhana1213",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"Installed": false,
+  "Modules": [
+    {
+      "Name": "KawaiiPhysics",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    },
+    {
+      "Name": "KawaiiPhysicsEd",
+      "Type": "Developer",
+      "LoadingPhase": "PreDefault"
+    }
+  ]
+}

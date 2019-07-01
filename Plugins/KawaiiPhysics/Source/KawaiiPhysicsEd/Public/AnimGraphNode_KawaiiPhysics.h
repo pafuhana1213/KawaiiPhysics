@@ -1,0 +1,50 @@
+#pragma once
+
+#include "AnimGraphNode_Base.h"
+#include "AnimNode_KawaiiPhysics.h"
+#include "AnimGraphNode_SkeletalControlBase.h"
+#include "EdGraph/EdGraphNodeUtils.h"
+
+#include "AnimGraphNode_KawaiiPhysics.generated.h"
+
+UCLASS()
+class UAnimGraphNode_KawaiiPhysics : public UAnimGraphNode_SkeletalControlBase
+{
+	GENERATED_UCLASS_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Settings)
+	FAnimNode_KawaiiPhysics Node;
+
+	UPROPERTY(EditAnywhere, Category = Debug)
+	bool bEnableDebugDrawBone;
+	UPROPERTY(EditAnywhere, Category = Debug)
+	bool bEnableDebugDrawAngleLimit;
+	UPROPERTY(EditAnywhere, Category = Debug)
+	bool bEnableDebugDrawSphereLimit;
+	UPROPERTY(EditAnywhere, Category = Debug)
+	bool bEnableDebugDrawCapsuleLimit;
+	UPROPERTY(EditAnywhere, Category = Debug)
+	bool bEnableDebugDrawPlanerLimit;
+
+public:
+	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
+
+	// UObject interface
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+
+protected:
+
+	// UAnimGraphNode_Base interface
+	virtual FEditorModeID GetEditorMode() const;
+	// End of UAnimGraphNode_Base interface
+
+	//virtual FText GetControllerDescription() const override;
+	virtual FText GetControllerDescription() const override;
+	virtual const FAnimNode_SkeletalControlBase* GetNode() const override { return &Node; }
+	virtual void Draw(FPrimitiveDrawInterface* PDI, USkeletalMeshComponent* SkelMeshComp) const override;
+	// End of UAnimGraphNode_SkeletalControlBase interface
+
+private:
+	/** Constructing FText strings can be costly, so we cache the node's title */
+	FNodeTitleTextTable CachedNodeTitles;
+};
