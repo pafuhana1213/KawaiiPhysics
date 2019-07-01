@@ -29,9 +29,13 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 ## 使い方
 - プロジェクトのPluginsフォルダにKawaiiPhysicsフォルダを入れてください
 
-## サンプルマップ
+## サンプル
 ![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics3.jpg)  
 - Content/KawaiiPhysicsSample/KawaiiPhysicsSample
+- お借りしたキャラクタ：Gray ちゃん http://rarihoma.xvs.jp/products/graychan
+
+## ライセンス
+MIT
 
 ## 作者
 [おかず@pafuhana1213](https://twitter.com/pafuhana1213)
