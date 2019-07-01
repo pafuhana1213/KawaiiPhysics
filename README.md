@@ -28,6 +28,7 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 
 ## 使い方
 - プロジェクトのPluginsフォルダにKawaiiPhysicsフォルダを入れてください
+https://github.com/pafuhana1213/KawaiiPhysics/wiki
 
 ## サンプル
 ![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics3.jpg)  
