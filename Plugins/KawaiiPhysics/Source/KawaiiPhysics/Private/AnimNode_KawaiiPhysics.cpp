@@ -3,6 +3,7 @@
 #include "KawaiiPhysics.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Curves/CurveFloat.h"
 
 
 FAnimNode_KawaiiPhysics::FAnimNode_KawaiiPhysics()
