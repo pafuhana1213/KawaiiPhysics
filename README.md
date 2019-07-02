@@ -12,11 +12,13 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 
 ## 特徴
 ![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics2.jpg)  
+- 元の形状を尊重しつつ、アニメーションやSkeletalMeshComponentの移動・回転を元に物理制御を行います。
 - プラグインに含まれる「KawaiiPhysicsノード」をAnimationBPのAnimGraphで使う形です。
 - 指定したボーンとそれ以下のボーンをキャラクタの動きに合わせて揺らせます。
 - 物理制御用のパラメータは2種類だけなので、エンジン標準の[AnimDynamics](https://docs.unrealengine.com/ja/Engine/Animation/NodeReference/SkeletalControls/AnimDynamics/index.html)に比べて簡単にセットアップできます。
 - 球・カプセル・平面コリジョンを追加することができます
 - アニメーションエディタのビューポート上で各コリジョンの位置・向き・大きさを調整できます
+- 骨の長さを維持するため、仮に計算が破綻しても骨が伸び縮みすることがありません。
 - シンプルなアルゴリズムを使用しているため、エンジン標準の物理システムに比べて負荷が低いです。
 
 物理挙動を実装するにあたって参考にした資料  
