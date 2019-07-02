@@ -1,7 +1,7 @@
 # Kawaii Physics
 ## はじめに
 Kawaii Physicsは UnrealEngine4用に作成した疑似物理プラグインです。  
-髪、スカート、胸などの揺れものを「それっぽく」「かわいく」揺らすことができます。
+髪、スカート、胸などの揺れものを「かんたんに」「かわいく」揺らすことができます。
 
 ![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics1.gif)  
 お借りしたキャラクタ：Gray ちゃん http://rarihoma.xvs.jp/products/graychan
@@ -12,12 +12,14 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 
 ## 特徴
 ![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics2.jpg)  
+- 元の形状を尊重しつつ、アニメーションやSkeletalMeshComponentの移動・回転を元に物理制御を行います。
 - プラグインに含まれる「KawaiiPhysicsノード」をAnimationBPのAnimGraphで使う形です。
 - 指定したボーンとそれ以下のボーンをキャラクタの動きに合わせて揺らせます。
 - 物理制御用のパラメータは2種類だけなので、エンジン標準の[AnimDynamics](https://docs.unrealengine.com/ja/Engine/Animation/NodeReference/SkeletalControls/AnimDynamics/index.html)に比べて簡単にセットアップできます。
 - 球・カプセル・平面コリジョンを追加することができます
 - アニメーションエディタのビューポート上で各コリジョンの位置・向き・大きさを調整できます
-- シンプルなアルゴリズムを使用しているため、エンジン標準の物理システムに比べて負荷が低いです。
+- 骨の長さを維持するため、仮に計算が破綻しても骨が伸び縮みすることがありません。
+- PhysXは使わずにシンプルなアルゴリズムを使用しているため、エンジン標準の物理システムに比べて負荷が低い（はず）です。
 
 物理挙動を実装するにあたって参考にした資料  
 [次期アイドルマスター グラフィクス＆アニメーション プログラミング プレビュー](https://cedil.cesa.or.jp/cedil_sessions/view/416)
@@ -28,6 +30,7 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 
 ## 使い方
 - プロジェクトのPluginsフォルダにKawaiiPhysicsフォルダを入れてください
+- 各パラメータについて：https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E5%90%84%E3%83%91%E3%83%A9%E3%83%A1%E3%83%BC%E3%82%BF%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6
 
 ## サンプル
 ![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics3.jpg)  
