@@ -28,7 +28,7 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 - UE4.22  
 (プラグインを再ビルドすれば過去のバージョンでも動く「かも」しれません)
 
-- UE4.21（Pluginのみ）  
+- UE4.20, 4.21（Pluginのみ）  
 https://github.com/pafuhana1213/KawaiiPhysics/releases/tag/20190702
 
 ## 使い方
