@@ -21,14 +21,13 @@ She is MiraiKomachi https://www.bandainamcostudios.com/works/miraikomachi/
 - 骨の長さを維持するため、仮に計算が破綻しても骨が伸び縮みすることがありません。
 - PhysXは使わずにシンプルなアルゴリズムを使用しているため、エンジン標準の物理システムに比べて負荷が低い（はず）です。
 
-物理挙動を実装するにあたって参考にした資料  
-[次期アイドルマスター グラフィクス＆アニメーション プログラミング プレビュー](https://cedil.cesa.or.jp/cedil_sessions/view/416)
+Reference materials  
+https://cedil.cesa.or.jp/cedil_sessions/view/416
 
 ## Requirement
 - UE4.22  
-(プラグインを再ビルドすれば過去のバージョンでも動く「かも」しれません)
 
-- UE4.20, 4.21（Pluginのみ）  
+- UE4.20, 4.21（Plugin only）  
 https://github.com/pafuhana1213/KawaiiPhysics/releases/tag/20190702
 
 ## Usage
