@@ -1,4 +1,6 @@
 # Kawaii Physics
+English doc : https://github.com/pafuhana1213/KawaiiPhysics/blob/master/README_en.md
+
 ## はじめに
 Kawaii Physicsは UnrealEngine4用に作成した疑似物理プラグインです。  
 髪、スカート、胸などの揺れものを「かんたんに」「かわいく」揺らすことができます。
