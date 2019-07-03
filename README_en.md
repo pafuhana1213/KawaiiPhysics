@@ -1,7 +1,7 @@
 # Kawaii Physics
 ## Description
 Kawaii Physics is a pseudo-physical plug-in created for Unreal Engine 4.  
-You can sway your hair, skirt, chest, etc easily and n a Kawaii way.
+You can sway your hair, skirt, chest, etc easily and in a Kawaii way.
 
 ![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics1.gif)  
 She is Gray-chan http://rarihoma.xvs.jp/products/graychan
