@@ -10,7 +10,7 @@ She is Gray-chan http://rarihoma.xvs.jp/products/graychan
 https://www.youtube.com/watch?v=UvpEIBGegvs  
 She is MiraiKomachi https://www.bandainamcostudios.com/works/miraikomachi/
 
-## 特徴
+## Features
 ![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics2.jpg)  
 - 元の形状を尊重しつつ、アニメーションやSkeletalMeshComponentの移動・回転を元に物理制御を行います。
 - プラグインに含まれる「KawaiiPhysicsノード」をAnimationBPのAnimGraphで使う形です。
@@ -24,28 +24,25 @@ She is MiraiKomachi https://www.bandainamcostudios.com/works/miraikomachi/
 物理挙動を実装するにあたって参考にした資料  
 [次期アイドルマスター グラフィクス＆アニメーション プログラミング プレビュー](https://cedil.cesa.or.jp/cedil_sessions/view/416)
 
-## 動作環境
+## Requirement
 - UE4.22  
 (プラグインを再ビルドすれば過去のバージョンでも動く「かも」しれません)
 
 - UE4.20, 4.21（Pluginのみ）  
 https://github.com/pafuhana1213/KawaiiPhysics/releases/tag/20190702
 
-## 使い方
+## Usage
 - プロジェクトのPluginsフォルダにKawaiiPhysicsフォルダを入れてください
 - 各パラメータについて：https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E5%90%84%E3%83%91%E3%83%A9%E3%83%A1%E3%83%BC%E3%82%BF%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6
 
-## サンプル
+## SampleMap
 ![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics3.jpg)  
 - Content/KawaiiPhysicsSample/KawaiiPhysicsSample
-- お借りしたキャラクタ：Gray ちゃん http://rarihoma.xvs.jp/products/graychan
+- She is Gray-chan http://rarihoma.xvs.jp/products/graychan
 
-## ライセンス
+## License
 MIT
 
-## 作者
-[おかず@pafuhana1213](https://twitter.com/pafuhana1213)
-
-## 履歴
-2019/7/2 公開
+## Author
+[@pafuhana1213](https://twitter.com/pafuhana1213)
 
