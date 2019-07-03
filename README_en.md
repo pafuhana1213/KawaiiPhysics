@@ -16,10 +16,10 @@ She is MiraiKomachi https://www.bandainamcostudios.com/works/miraikomachi/
 - All you need to do is add Kawaii Node to AnimGraph and adjust few parameters.
 - Sway the specified bone and the bone below it according to the movement of the character.
 - Much easier to set up than [AnimDynamics](https://docs.unrealengine.com/en-US/Engine/Animation/NodeReference/SkeletalControls/AnimDynamics/index.html)
-- Can use sphere, capsule, plane collision
-- アニメーションエディタのビューポート上で各コリジョンの位置・向き・大きさを調整できます
-- 骨の長さを維持するため、仮に計算が破綻しても骨が伸び縮みすることがありません。
-- PhysXは使わずにシンプルなアルゴリズムを使用しているため、エンジン標準の物理システムに比べて負荷が低い（はず）です。
+- You can use sphere, capsule, plane collision
+- You can adjust the position, orientation and size of each collision in the animation editor viewport
+- Since the bone length is maintained, even if the calculation is broken, the bone does not expand or contract.
+- Uses a simple algorithm without using PhysX, so the cost is lower compared to the engine's standard physical system.
 
 Reference materials  
 https://cedil.cesa.or.jp/cedil_sessions/view/416
@@ -31,8 +31,8 @@ https://cedil.cesa.or.jp/cedil_sessions/view/416
 https://github.com/pafuhana1213/KawaiiPhysics/releases/tag/20190702
 
 ## Usage
-- プロジェクトのPluginsフォルダにKawaiiPhysicsフォルダを入れてください
-- 各パラメータについて：https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E5%90%84%E3%83%91%E3%83%A9%E3%83%A1%E3%83%BC%E3%82%BF%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6
+- Put the KawaiiPhysics folder in the project's Plugins folder
+- About each parameters：https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E5%90%84%E3%83%91%E3%83%A9%E3%83%A1%E3%83%BC%E3%82%BF%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6
 
 ## SampleMap
 ![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics3.jpg)  
