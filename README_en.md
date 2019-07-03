@@ -12,8 +12,8 @@ She is MiraiKomachi https://www.bandainamcostudios.com/works/miraikomachi/
 
 ## Features
 ![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics2.jpg)  
-- 元の形状を尊重しつつ、アニメーションやSkeletalMeshComponentの移動・回転を元に物理制御を行います。
-- プラグインに含まれる「KawaiiPhysicsノード」をAnimationBPのAnimGraphで使う形です。
+- Controls each bone physically while respecting the pre-physics shape
+- All you need to do is add Kawai Node to AnimGraph and adjust few parameters.
 - 指定したボーンとそれ以下のボーンをキャラクタの動きに合わせて揺らせます。
 - 物理制御用のパラメータは2種類だけなので、エンジン標準の[AnimDynamics](https://docs.unrealengine.com/ja/Engine/Animation/NodeReference/SkeletalControls/AnimDynamics/index.html)に比べて簡単にセットアップできます。
 - 球・カプセル・平面コリジョンを追加することができます
