@@ -25,8 +25,11 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 [次期アイドルマスター グラフィクス＆アニメーション プログラミング プレビュー](https://cedil.cesa.or.jp/cedil_sessions/view/416)
 
 ## 動作環境
-- UE4.22
+- UE4.22  
 (プラグインを再ビルドすれば過去のバージョンでも動く「かも」しれません)
+
+- UE4.20, 4.21（Pluginのみ）  
+https://github.com/pafuhana1213/KawaiiPhysics/releases/tag/20190702
 
 ## 使い方
 - プロジェクトのPluginsフォルダにKawaiiPhysicsフォルダを入れてください
