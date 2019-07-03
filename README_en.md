@@ -13,10 +13,10 @@ She is MiraiKomachi https://www.bandainamcostudios.com/works/miraikomachi/
 ## Features
 ![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics2.jpg)  
 - Controls each bone physically while respecting the pre-physics shape
-- All you need to do is add Kawai Node to AnimGraph and adjust few parameters.
-- 指定したボーンとそれ以下のボーンをキャラクタの動きに合わせて揺らせます。
-- 物理制御用のパラメータは2種類だけなので、エンジン標準の[AnimDynamics](https://docs.unrealengine.com/ja/Engine/Animation/NodeReference/SkeletalControls/AnimDynamics/index.html)に比べて簡単にセットアップできます。
-- 球・カプセル・平面コリジョンを追加することができます
+- All you need to do is add Kawaii Node to AnimGraph and adjust few parameters.
+- Sway the specified bone and the bone below it according to the movement of the character.
+- Much easier to set up than [AnimDynamics](https://docs.unrealengine.com/en-US/Engine/Animation/NodeReference/SkeletalControls/AnimDynamics/index.html)
+- Can use sphere, capsule, plane collision
 - アニメーションエディタのビューポート上で各コリジョンの位置・向き・大きさを調整できます
 - 骨の長さを維持するため、仮に計算が破綻しても骨が伸び縮みすることがありません。
 - PhysXは使わずにシンプルなアルゴリズムを使用しているため、エンジン標準の物理システムに比べて負荷が低い（はず）です。
