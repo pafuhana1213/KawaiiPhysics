@@ -163,7 +163,7 @@ int FAnimNode_KawaiiPhysics::AddModifyBone(FComponentSpacePoseContext& Output, c
 {
 	if (BoneIndex < 0 || RefSkeleton.GetNum() < BoneIndex)
 	{
-		return -1;
+		return INDEX_NONE;
 	}
 
 	FBoneReference BoneRef;
@@ -171,12 +171,16 @@ int FAnimNode_KawaiiPhysics::AddModifyBone(FComponentSpacePoseContext& Output, c
 
 	if (ExcludeBones.Num() > 0 && ExcludeBones.Find(BoneRef) >= 0)
 	{
-		return -1;
+		return INDEX_NONE;
 	}
 
 	FKawaiiPhysicsModifyBone NewModifyBone;
 	NewModifyBone.BoneRef = BoneRef;
 	NewModifyBone.BoneRef.Initialize(BoneContainer);
+	if (NewModifyBone.BoneRef.CachedCompactPoseIndex == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
 
 	auto& RefBonePoseTransform = Output.Pose.GetComponentSpaceTransform(NewModifyBone.BoneRef.CachedCompactPoseIndex);
 	NewModifyBone.Location = RefBonePoseTransform.GetLocation();  
