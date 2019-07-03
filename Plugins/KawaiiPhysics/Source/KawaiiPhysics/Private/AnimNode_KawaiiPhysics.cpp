@@ -618,7 +618,7 @@ void FAnimNode_KawaiiPhysics::ApplySimuateResult(FComponentSpacePoseContext& Out
 		}
 	}
 
-	OutBoneTransforms.RemoveAll([](FBoneTransform BoneTransform) {
+	OutBoneTransforms.RemoveAll([](const FBoneTransform& BoneTransform) {
 		return BoneTransform.BoneIndex < 0;
 	});
 
