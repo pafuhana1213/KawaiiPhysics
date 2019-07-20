@@ -52,5 +52,6 @@ MIT
 [おかず@pafuhana1213](https://twitter.com/pafuhana1213)
 
 ## 履歴
-2019/7/2 公開
+2019/7/20 CollisionのOffsetLocationがボーンのRotationを考慮していない不具合の修正 v1.01
+2019/7/2 公開 v1.0
 
