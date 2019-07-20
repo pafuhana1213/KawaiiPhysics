@@ -16,15 +16,15 @@ class UAnimGraphNode_KawaiiPhysics : public UAnimGraphNode_SkeletalControlBase
 	FAnimNode_KawaiiPhysics Node;
 
 	UPROPERTY(EditAnywhere, Category = Debug)
-	bool bEnableDebugDrawBone;
+	bool bEnableDebugDrawBone = true;
 	UPROPERTY(EditAnywhere, Category = Debug)
-	bool bEnableDebugDrawAngleLimit;
+	bool bEnableDebugDrawAngleLimit = true;
 	UPROPERTY(EditAnywhere, Category = Debug)
-	bool bEnableDebugDrawSphereLimit;
+	bool bEnableDebugDrawSphereLimit = true;
 	UPROPERTY(EditAnywhere, Category = Debug)
-	bool bEnableDebugDrawCapsuleLimit;
+	bool bEnableDebugDrawCapsuleLimit = true;
 	UPROPERTY(EditAnywhere, Category = Debug)
-	bool bEnableDebugDrawPlanerLimit;
+	bool bEnableDebugDrawPlanerLimit = true;
 
 public:
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;

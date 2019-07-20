@@ -6,6 +6,8 @@
 #include "EditorModeManager.h"
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "AnimationRuntime.h"
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysicsEditMode"
 
@@ -381,8 +383,19 @@ void FKawaiiPhysicsEditMode::DoTranslation(FVector& InTranslation)
 		return;
 	}
 
-	CollisionRuntime->OffsetLocation += InTranslation;
+	FVector Offset = FVector::ZeroVector;
+	if (CollisionRuntime->DrivingBone.BoneIndex >= 0)
+	{
+		USkeletalMeshComponent* SkelComp = GetAnimPreviewScene().GetPreviewMeshComponent();
+		Offset = ConvertCSVectorToBoneSpace(SkelComp, InTranslation, RuntimeNode->ForwardedPose, CollisionRuntime->DrivingBone.BoneName, BCS_BoneSpace);
+	}
+	else
+	{
+		Offset = InTranslation;
+	}
+	CollisionRuntime->OffsetLocation += Offset;
 	CollisionGraph->OffsetLocation = CollisionRuntime->OffsetLocation;
+
 }
 
 void FKawaiiPhysicsEditMode::DoRotation(FRotator& InRotation)
@@ -461,7 +474,6 @@ void FKawaiiPhysicsEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FVie
 
 	const float XOffset = 5.0f;
 
-
 	float DrawPositionY = Viewport->GetSizeXY().Y - (3 + FontHeight) - 70;
 	DrawTextItem(LOCTEXT("", "Q : Cycle Transform Coordinate System"), Canvas, XOffset, DrawPositionY, FontHeight);
 	DrawTextItem(LOCTEXT("", "Space : Cycle Between Translate, Rotate and Scale"), Canvas, XOffset, DrawPositionY, FontHeight);
@@ -470,9 +482,30 @@ void FKawaiiPhysicsEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FVie
 	DrawTextItem(LOCTEXT("", "W : Translate Mode"), Canvas, XOffset, DrawPositionY, FontHeight);
 	DrawTextItem(LOCTEXT("", "------------------"), Canvas, XOffset, DrawPositionY, FontHeight);
 	
-	FFormatNamedArguments Arguments;
-	Arguments.Add(TEXT("SelectCollisionIndex"), FText::AsNumber(SelectCollisionIndex));
-	DrawTextItem(FText::Format(LOCTEXT("", "Select Index : {SelectCollisionIndex}"), Arguments), Canvas, XOffset, DrawPositionY, FontHeight);
+
+	FString CollisionDebugInfo = FString(TEXT("Select Collision : "));
+	switch (SelectCollisionType)
+	{
+	case SphericalLimit:
+		CollisionDebugInfo.Append(FString(TEXT("Spherical")));
+		break;
+	case CapsuleLimit:
+		CollisionDebugInfo.Append(FString(TEXT("Capsule")));
+		break;
+	case PlanarLimit:
+		CollisionDebugInfo.Append(FString(TEXT("Planar")));
+		break;
+	default:
+		CollisionDebugInfo.Append(FString(TEXT("None")));
+		break;
+	}
+	if (SelectCollisionIndex >= 0)
+	{
+		CollisionDebugInfo.Append(FString(TEXT("[")));
+		CollisionDebugInfo.Append(FString::FromInt(SelectCollisionIndex));
+		CollisionDebugInfo.Append(FString(TEXT("]")));
+	}
+	DrawTextItem(FText::FromString(CollisionDebugInfo), Canvas, XOffset, DrawPositionY, FontHeight);
 
 	FKawaiiPhysicsEditModeBase::DrawHUD(ViewportClient, Viewport, View, Canvas);
 }

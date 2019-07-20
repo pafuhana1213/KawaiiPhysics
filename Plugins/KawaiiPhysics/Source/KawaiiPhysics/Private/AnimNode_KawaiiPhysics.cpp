@@ -339,9 +339,17 @@ void FAnimNode_KawaiiPhysics::UpdateSphericalLimits(FComponentSpacePoseContext& 
 
 		if (Sphere.DrivingBone.BoneIndex >= 0)
 		{		
-			auto SphereTransform = Output.Pose.GetComponentSpaceTransform(Sphere.DrivingBone.GetCompactPoseIndex(BoneContainer));
-			Sphere.Rotation = SphereTransform.GetRotation() * Sphere.OffsetRotation.Quaternion();
-			Sphere.Location = SphereTransform.GetLocation() + Sphere.OffsetLocation;
+			FCompactPoseBoneIndex CompactPoseIndex = Sphere.DrivingBone.GetCompactPoseIndex(BoneContainer);
+			FTransform BoneTransform = Output.Pose.GetComponentSpaceTransform(CompactPoseIndex);
+			FTransform ComponentTransform = Output.AnimInstanceProxy->GetComponentTransform();
+
+			FAnimationRuntime::ConvertCSTransformToBoneSpace(ComponentTransform, Output.Pose, BoneTransform, CompactPoseIndex, BCS_BoneSpace);
+			BoneTransform.SetRotation(Sphere.OffsetRotation.Quaternion() * BoneTransform.GetRotation());
+			BoneTransform.AddToTranslation(Sphere.OffsetLocation);
+
+			FAnimationRuntime::ConvertBoneSpaceTransformToCS(ComponentTransform, Output.Pose, BoneTransform, CompactPoseIndex, BCS_BoneSpace);
+			Sphere.Location = BoneTransform.GetLocation();
+			Sphere.Rotation = BoneTransform.GetRotation();
 		}
 		else
 		{
@@ -359,10 +367,18 @@ void FAnimNode_KawaiiPhysics::UpdateCapsuleLimits(FComponentSpacePoseContext& Ou
 		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdateCapsuleLimit);
 
 		if (Capsule.DrivingBone.BoneIndex >= 0)
-		{
-			auto CapsuleTransform = Output.Pose.GetComponentSpaceTransform(Capsule.DrivingBone.GetCompactPoseIndex(BoneContainer));
-			Capsule.Rotation = CapsuleTransform.GetRotation() * Capsule.OffsetRotation.Quaternion();
-			Capsule.Location = CapsuleTransform.GetLocation() + Capsule.OffsetLocation;
+		{			
+			FCompactPoseBoneIndex CompactPoseIndex = Capsule.DrivingBone.GetCompactPoseIndex(BoneContainer);
+			FTransform BoneTransform = Output.Pose.GetComponentSpaceTransform(CompactPoseIndex);
+			FTransform ComponentTransform = Output.AnimInstanceProxy->GetComponentTransform();
+
+			FAnimationRuntime::ConvertCSTransformToBoneSpace(ComponentTransform, Output.Pose, BoneTransform, CompactPoseIndex, BCS_BoneSpace);
+			BoneTransform.SetRotation(Capsule.OffsetRotation.Quaternion() * BoneTransform.GetRotation());
+			BoneTransform.AddToTranslation(Capsule.OffsetLocation);
+
+			FAnimationRuntime::ConvertBoneSpaceTransformToCS(ComponentTransform, Output.Pose, BoneTransform, CompactPoseIndex, BCS_BoneSpace);
+			Capsule.Location = BoneTransform.GetLocation();
+			Capsule.Rotation = BoneTransform.GetRotation();
 		}
 		else
 		{			
@@ -382,9 +398,17 @@ void FAnimNode_KawaiiPhysics::UpdatePlanerLimits(FComponentSpacePoseContext& Out
 
 		if (Planar.DrivingBone.BoneIndex >= 0)
 		{
-			auto PlanarTransform = Output.Pose.GetComponentSpaceTransform(Planar.DrivingBone.GetCompactPoseIndex(BoneContainer));
-			Planar.Location = PlanarTransform.GetLocation() + Planar.OffsetLocation;
-			Planar.Rotation = PlanarTransform.GetRotation() * Planar.OffsetRotation.Quaternion();
+			FCompactPoseBoneIndex CompactPoseIndex = Planar.DrivingBone.GetCompactPoseIndex(BoneContainer);
+			FTransform BoneTransform = Output.Pose.GetComponentSpaceTransform(CompactPoseIndex);
+			FTransform ComponentTransform = Output.AnimInstanceProxy->GetComponentTransform();
+
+			FAnimationRuntime::ConvertCSTransformToBoneSpace(ComponentTransform, Output.Pose, BoneTransform, CompactPoseIndex, BCS_BoneSpace);
+			BoneTransform.SetRotation(Planar.OffsetRotation.Quaternion() * BoneTransform.GetRotation());
+			BoneTransform.AddToTranslation(Planar.OffsetLocation);
+
+			FAnimationRuntime::ConvertBoneSpaceTransformToCS(ComponentTransform, Output.Pose, BoneTransform, CompactPoseIndex, BCS_BoneSpace);
+			Planar.Location = BoneTransform.GetLocation();
+			Planar.Rotation = BoneTransform.GetRotation();
 			Planar.Rotation.Normalize();
 			Planar.Plane = FPlane(Planar.Location, Planar.Rotation.GetUpVector());
 		}
