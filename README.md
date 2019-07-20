@@ -1,4 +1,9 @@
 # Kawaii Physics
+English doc :   
+https://github.com/pafuhana1213/KawaiiPhysics/blob/master/README_en.md  
+Forum :   
+https://forums.unrealengine.com/community/released-projects/1638095-kawaii-physics-simple-fake-physics-to-sway-bones-more-easily-and-more-cutely
+
 ## はじめに
 Kawaii Physicsは UnrealEngine4用に作成した疑似物理プラグインです。  
 髪、スカート、胸などの揺れものを「かんたんに」「かわいく」揺らすことができます。
