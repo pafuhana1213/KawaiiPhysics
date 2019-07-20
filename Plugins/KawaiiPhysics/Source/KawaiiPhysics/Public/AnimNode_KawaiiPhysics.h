@@ -272,8 +272,8 @@ private:
 	void CalcBoneLength(FKawaiiPhysicsModifyBone& Bone, const TArray<FTransform>& RefBonePose);
 
 	void UpdatePhysicsSettingsOfModifyBones();
-	void UpdateSphericalLimits(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer);
-	void UpdateCapsuleLimits(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer);
+	void UpdateSphericalLimits(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform);
+	void UpdateCapsuleLimits(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform);
 	void UpdatePlanerLimits(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform);
 
 	void SimulateModfyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform);

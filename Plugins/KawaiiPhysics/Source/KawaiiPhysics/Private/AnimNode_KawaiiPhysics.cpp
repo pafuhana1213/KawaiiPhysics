@@ -76,8 +76,8 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 			bInitPhysicsSettings = true;
 		}
 	}
-	UpdateSphericalLimits(Output, BoneContainer);
-	UpdateCapsuleLimits(Output, BoneContainer); 
+	UpdateSphericalLimits(Output, BoneContainer, ComponentTransform);
+	UpdateCapsuleLimits(Output, BoneContainer, ComponentTransform);
 	UpdatePlanerLimits(Output, BoneContainer, ComponentTransform);
 	for (auto& Bone : ModifyBones)
 	{
@@ -331,7 +331,7 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdateSphericalLimit"), STAT_KawaiiPhysics_UpdateSphericalLimit, STATGROUP_Anim);
 
-void FAnimNode_KawaiiPhysics::UpdateSphericalLimits(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer)
+void FAnimNode_KawaiiPhysics::UpdateSphericalLimits(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform)
 {
 	for (auto& Sphere : SphericalLimits)
 	{
@@ -341,7 +341,6 @@ void FAnimNode_KawaiiPhysics::UpdateSphericalLimits(FComponentSpacePoseContext& 
 		{		
 			FCompactPoseBoneIndex CompactPoseIndex = Sphere.DrivingBone.GetCompactPoseIndex(BoneContainer);
 			FTransform BoneTransform = Output.Pose.GetComponentSpaceTransform(CompactPoseIndex);
-			FTransform ComponentTransform = Output.AnimInstanceProxy->GetComponentTransform();
 
 			FAnimationRuntime::ConvertCSTransformToBoneSpace(ComponentTransform, Output.Pose, BoneTransform, CompactPoseIndex, BCS_BoneSpace);
 			BoneTransform.SetRotation(Sphere.OffsetRotation.Quaternion() * BoneTransform.GetRotation());
@@ -360,7 +359,7 @@ void FAnimNode_KawaiiPhysics::UpdateSphericalLimits(FComponentSpacePoseContext& 
 
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdateCapsuleLimit"), STAT_KawaiiPhysics_UpdateCapsuleLimit, STATGROUP_Anim);
 
-void FAnimNode_KawaiiPhysics::UpdateCapsuleLimits(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer)
+void FAnimNode_KawaiiPhysics::UpdateCapsuleLimits(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform)
 {
 	for (auto& Capsule : CapsuleLimits)
 	{
@@ -370,7 +369,6 @@ void FAnimNode_KawaiiPhysics::UpdateCapsuleLimits(FComponentSpacePoseContext& Ou
 		{			
 			FCompactPoseBoneIndex CompactPoseIndex = Capsule.DrivingBone.GetCompactPoseIndex(BoneContainer);
 			FTransform BoneTransform = Output.Pose.GetComponentSpaceTransform(CompactPoseIndex);
-			FTransform ComponentTransform = Output.AnimInstanceProxy->GetComponentTransform();
 
 			FAnimationRuntime::ConvertCSTransformToBoneSpace(ComponentTransform, Output.Pose, BoneTransform, CompactPoseIndex, BCS_BoneSpace);
 			BoneTransform.SetRotation(Capsule.OffsetRotation.Quaternion() * BoneTransform.GetRotation());
@@ -400,7 +398,6 @@ void FAnimNode_KawaiiPhysics::UpdatePlanerLimits(FComponentSpacePoseContext& Out
 		{
 			FCompactPoseBoneIndex CompactPoseIndex = Planar.DrivingBone.GetCompactPoseIndex(BoneContainer);
 			FTransform BoneTransform = Output.Pose.GetComponentSpaceTransform(CompactPoseIndex);
-			FTransform ComponentTransform = Output.AnimInstanceProxy->GetComponentTransform();
 
 			FAnimationRuntime::ConvertCSTransformToBoneSpace(ComponentTransform, Output.Pose, BoneTransform, CompactPoseIndex, BCS_BoneSpace);
 			BoneTransform.SetRotation(Planar.OffsetRotation.Quaternion() * BoneTransform.GetRotation());
