@@ -1,7 +1,7 @@
 {
 	"FileVersion": 3,
 	"Version": 1,
-	"VersionName": "1.0",
+	"VersionName": "1.01",
 	"FriendlyName": "KawaiiPhysics",
 	"Description": "",
 	"Category": "Animation",
@@ -13,16 +13,16 @@
 	"CanContainContent": false,
 	"IsBetaVersion": false,
 	"Installed": false,
-  "Modules": [
-    {
-      "Name": "KawaiiPhysics",
-      "Type": "Runtime",
-      "LoadingPhase": "PostConfigInit"
-    },
-    {
-      "Name": "KawaiiPhysicsEd",
-      "Type": "Developer",
-      "LoadingPhase": "PreDefault"
-    }
-  ]
+	"Modules": [
+		{
+			"Name": "KawaiiPhysics",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit"
+		},
+		{
+			"Name": "KawaiiPhysicsEd",
+			"Type": "Developer",
+			"LoadingPhase": "PreDefault"
+		}
+	]
 }
