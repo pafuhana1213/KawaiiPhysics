@@ -17,6 +17,7 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 
 ## 特徴
 ![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics2.jpg)  
+![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics4.gif)  
 - 元の形状を尊重しつつ、アニメーションやSkeletalMeshComponentの移動・回転を元に物理制御を行います。
 - プラグインに含まれる「KawaiiPhysicsノード」をAnimationBPのAnimGraphで使う形です。
 - 指定したボーンとそれ以下のボーンをキャラクタの動きに合わせて揺らせます。
