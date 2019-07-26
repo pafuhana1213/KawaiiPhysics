@@ -45,6 +45,9 @@ https://github.com/pafuhana1213/KawaiiPhysics/releases/tag/20190702
 - Content/KawaiiPhysicsSample/KawaiiPhysicsSample
 - お借りしたキャラクタ：Gray ちゃん http://rarihoma.xvs.jp/products/graychan
 
+## 内部実装について
+その1 http://pafuhana1213.hatenablog.com/entry/2019/07/26/171046
+
 ## ライセンス
 MIT
 
