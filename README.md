@@ -17,6 +17,7 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 
 ## 特徴
 ![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics2.jpg)  
+![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics4.gif)  
 - 元の形状を尊重しつつ、アニメーションやSkeletalMeshComponentの移動・回転を元に物理制御を行います。
 - プラグインに含まれる「KawaiiPhysicsノード」をAnimationBPのAnimGraphで使う形です。
 - 指定したボーンとそれ以下のボーンをキャラクタの動きに合わせて揺らせます。
@@ -44,6 +45,9 @@ https://github.com/pafuhana1213/KawaiiPhysics/releases/tag/20190702
 ![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics3.jpg)  
 - Content/KawaiiPhysicsSample/KawaiiPhysicsSample
 - お借りしたキャラクタ：Gray ちゃん http://rarihoma.xvs.jp/products/graychan
+
+## 内部実装について
+その1 http://pafuhana1213.hatenablog.com/entry/2019/07/26/171046
 
 ## ライセンス
 MIT
