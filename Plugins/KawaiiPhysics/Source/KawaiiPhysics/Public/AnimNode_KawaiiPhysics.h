@@ -217,8 +217,14 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce", meta = (PinHiddenByDefault))
 	FVector Gravity = FVector::ZeroVector;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce", meta = (PinHiddenByDefault))
-	FVector Wind = FVector::ZeroVector;
+	
+	/** Whether or not wind is enabled for the bodies in this simulation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Wind, meta = (PinHiddenByDefault))
+	bool bEnableWind = false;
+
+	/** Scale to apply to calculated wind velocities in the solver */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Wind, meta = (DisplayAfter = "bEnableWind"), meta = (PinHiddenByDefault))
+	float WindScale = 1.0f;
 
 
 	UPROPERTY()
