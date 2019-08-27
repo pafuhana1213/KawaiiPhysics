@@ -469,7 +469,7 @@ void FAnimNode_KawaiiPhysics::SimulateModfyBones(FComponentSpacePoseContext& Out
 
 			Scene->GetWindParameters_GameThread(ComponentTransform.TransformPosition(Bone.PoseLocation), WindDirection, WindSpeed, WindMinGust, WindMaxGust);
 			WindDirection = ComponentTransform.Inverse().TransformVector(WindDirection);
-			Velocity += WindDirection * WindSpeed * WindScale;
+			Velocity += WindDirection * WindSpeed * WindScale * FMath::FRandRange(0.0f, 2.0f);
 		}
 		
 		Bone.PrevLocation = Bone.Location;
