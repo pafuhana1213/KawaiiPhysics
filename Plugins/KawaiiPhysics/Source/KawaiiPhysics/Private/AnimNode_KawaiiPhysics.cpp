@@ -252,8 +252,7 @@ void FAnimNode_KawaiiPhysics::CalcBoneLength(FKawaiiPhysicsModifyBone& Bone, con
 		if (!Bone.bDummy)
 		{
 			Bone.LengthFromRoot = ModifyBones[Bone.ParentIndex].LengthFromRoot
-				+ (RefBonePose[Bone.BoneRef.BoneIndex].GetLocation()
-					- RefBonePose[ModifyBones[Bone.ParentIndex].BoneRef.BoneIndex].GetLocation()).Size();
+				+ RefBonePose[Bone.BoneRef.BoneIndex].GetLocation().Size();
 		}
 		else
 		{
