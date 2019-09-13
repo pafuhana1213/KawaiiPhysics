@@ -32,7 +32,6 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 
 ## 動作環境
 - UE4.22  
-(プラグインを再ビルドすれば過去のバージョンでも動く「かも」しれません)
 
 UE4.21以前でビルドする場合は、KawaiiPhysicsEditMode.cpp における  
 GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy () を  
