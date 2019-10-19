@@ -83,13 +83,14 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	{
 		if (!Bone.bDummy)
 		{
-			Bone.UpdatePoseLocationAndRotation(BoneContainer, Output.Pose);
+			Bone.UpdatePoseTranform(BoneContainer, Output.Pose);
 		}
 		else
 		{
 			auto ParentBone = ModifyBones[Bone.ParentIndex];
 			Bone.PoseLocation = ParentBone.PoseLocation + ParentBone.PoseRotation.GetForwardVector() * DummyBoneLength;
 			Bone.PoseRotation = ParentBone.PoseRotation;
+			Bone.PoseScale = ParentBone.PoseScale;
 		}
 	}
 	
@@ -188,6 +189,7 @@ int FAnimNode_KawaiiPhysics::AddModifyBone(FComponentSpacePoseContext& Output, c
 	NewModifyBone.PoseLocation = NewModifyBone.Location;
 	NewModifyBone.PrevRotation = RefBonePoseTransform.GetRotation();
 	NewModifyBone.PoseRotation = NewModifyBone.PrevRotation;
+	NewModifyBone.PoseScale = RefBonePoseTransform.GetScale3D();
 	int ModifyBoneIndex = ModifyBones.Add(NewModifyBone);
 
 	TArray<int32> ChildBoneIndexs;
@@ -215,6 +217,7 @@ int FAnimNode_KawaiiPhysics::AddModifyBone(FComponentSpacePoseContext& Output, c
 		DummyModifyBone.PoseLocation = DummyModifyBone.Location;
 		DummyModifyBone.PrevRotation = NewModifyBone.PrevRotation;
 		DummyModifyBone.PoseRotation = DummyModifyBone.PrevRotation;
+		DummyModifyBone.PoseScale = RefBonePoseTransform.GetScale3D();
 
 		int DummyBoneIndex = ModifyBones.Add(DummyModifyBone);
 		ModifyBones[ModifyBoneIndex].ChildIndexs.Add(DummyBoneIndex);
@@ -627,7 +630,8 @@ void FAnimNode_KawaiiPhysics::ApplySimuateResult(FComponentSpacePoseContext& Out
 	for (int i = 0; i < ModifyBones.Num(); ++i)
 	{
 		OutBoneTransforms.Add(FBoneTransform(ModifyBones[i].BoneRef.GetCompactPoseIndex(BoneContainer), 
-			FTransform(ModifyBones[i].PoseRotation, ModifyBones[i].PoseLocation)));
+			FTransform(ModifyBones[i].PoseRotation, ModifyBones[i].PoseLocation, ModifyBones[i].PoseScale)));
+		ModifyBones[i].PoseScale = OutBoneTransforms[i].Transform.GetScale3D();
 	}	
 
 	for (int i = 1; i < ModifyBones.Num(); ++i)
