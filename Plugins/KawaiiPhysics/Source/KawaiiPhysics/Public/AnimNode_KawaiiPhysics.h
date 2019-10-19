@@ -126,25 +126,30 @@ public:
 	UPROPERTY()
 	FQuat PoseRotation;
 	UPROPERTY()
+	FVector PoseScale;
+	UPROPERTY()
 	float LengthFromRoot;
 	UPROPERTY()
 	bool bDummy = false;
 
+
 public:
 
-	void UpdatePoseLocationAndRotation(const FBoneContainer& BoneContainer, FCSPose<FCompactPose>& Pose)
+	void UpdatePoseTranform(const FBoneContainer& BoneContainer, FCSPose<FCompactPose>& Pose)
 	{
 		auto CompactPoseIndex = BoneRef.GetCompactPoseIndex(BoneContainer);
 		if (CompactPoseIndex < 0)
 		{
 			PoseLocation = FVector::ZeroVector;
 			PoseRotation = FQuat::Identity;
+			PoseScale = FVector::OneVector;
 			return;
 		}
 
 		auto ComponentSpaceTransform = Pose.GetComponentSpaceTransform(CompactPoseIndex);
 		PoseLocation = ComponentSpaceTransform.GetLocation();
 		PoseRotation = ComponentSpaceTransform.GetRotation();
+		PoseScale = ComponentSpaceTransform.GetScale3D();
 	}
 };
 
