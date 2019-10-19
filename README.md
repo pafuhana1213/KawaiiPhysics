@@ -58,6 +58,9 @@ MIT
 ## 作者
 [おかず@pafuhana1213](https://twitter.com/pafuhana1213)
 
+## ハッシュタグ
+#KawaiiPhysics
+
 ## 履歴
 2019/10/19 v1.1.2 BoneのScaleが(1,1,1)以外の環境に対応できてなかったので修正  
 (shop-0761様、ありがとうございました！)  
