@@ -59,7 +59,7 @@ MIT
 [おかず@pafuhana1213](https://twitter.com/pafuhana1213)
 
 ## ハッシュタグ
-#KawaiiPhysics
+[#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
 2019/10/19 v1.1.2 BoneのScaleが(1,1,1)以外の環境に対応できてなかったので修正  
