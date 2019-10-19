@@ -631,7 +631,6 @@ void FAnimNode_KawaiiPhysics::ApplySimuateResult(FComponentSpacePoseContext& Out
 	{
 		OutBoneTransforms.Add(FBoneTransform(ModifyBones[i].BoneRef.GetCompactPoseIndex(BoneContainer), 
 			FTransform(ModifyBones[i].PoseRotation, ModifyBones[i].PoseLocation, ModifyBones[i].PoseScale)));
-		ModifyBones[i].PoseScale = OutBoneTransforms[i].Transform.GetScale3D();
 	}	
 
 	for (int i = 1; i < ModifyBones.Num(); ++i)
