@@ -62,12 +62,21 @@ MIT
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
-2019/10/19 v1.1.2 BoneのScaleが(1,1,1)以外の環境に対応できてなかったので修正  
+2019/10/26 v1.2.0  
+・簡易可変フレームレート対応。フレームレート低下時の挙動が少し安定するようになったはず  
+(@seiko_dev 様、ありがとうございました！)  
+・基準フレームレートを設定できるようにしました（が、正直テスト不足です。何かあったらissueへ  
+・カーブの調整用に各ボーンの始点からの長さの割合をデバッグ表示するようにしました  
+2019/10/19 v1.1.2   
+BoneのScaleが(1,1,1)以外の環境に対応できてなかったので修正  
 (shop-0761様、ありがとうございました！)  
-2019/9/11 v1.1.1 Bone.LengthFromRoot の計算が間違っていたのを修正  
+2019/9/11 v1.1.1  
+Bone.LengthFromRoot の計算が間違っていたのを修正  
 (KazumasaOhashi様、ありがとうございました！)  
-2019/8/26 v1.1 WindDirectionalSourceに対応しました(注意：従来のWind設定に対して破壊的変更が入ります)  
-2019/7/20 v1.0.1 CollisionのOffsetLocationがボーンのRotationを考慮していない不具合の修正  
+2019/8/26 v1.1   
+WindDirectionalSourceに対応しました(注意：従来のWind設定に対して破壊的変更が入ります)  
+2019/7/20 v1.0.1   
+CollisionのOffsetLocationがボーンのRotationを考慮していない不具合の修正  
 (v1.0 におけるOffsetLocationの挙動が大きく変化します)  
 2019/7/2 v1.0 公開 v1.0
 
