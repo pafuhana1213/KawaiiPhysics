@@ -18,6 +18,8 @@ class UAnimGraphNode_KawaiiPhysics : public UAnimGraphNode_SkeletalControlBase
 	UPROPERTY(EditAnywhere, Category = Debug)
 	bool bEnableDebugDrawBone = true;
 	UPROPERTY(EditAnywhere, Category = Debug)
+	bool bEnableDebugBoneLengthRate= true;
+	UPROPERTY(EditAnywhere, Category = Debug)
 	bool bEnableDebugDrawAngleLimit = true;
 	UPROPERTY(EditAnywhere, Category = Debug)
 	bool bEnableDebugDrawSphereLimit = true;

@@ -507,6 +507,14 @@ void FKawaiiPhysicsEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FVie
 	}
 	DrawTextItem(FText::FromString(CollisionDebugInfo), Canvas, XOffset, DrawPositionY, FontHeight);
 
+	if (GraphNode->bEnableDebugBoneLengthRate)
+	{
+		for (auto& Bone : RuntimeNode->ModifyBones)
+		{
+			Draw3DTextItem(FText::AsNumber(Bone.LengthFromRoot / RuntimeNode->GetTotalBoneLength()), Canvas, View, Bone.Location);
+		}
+	}
+
 	FKawaiiPhysicsEditModeBase::DrawHUD(ViewportClient, Viewport, View, Canvas);
 }
 
@@ -515,6 +523,15 @@ void FKawaiiPhysicsEditMode::DrawTextItem(FText Text, FCanvas* Canvas, float X, 
 	FCanvasTextItem TextItem(FVector2D::ZeroVector, Text, GEngine->GetSmallFont(), FLinearColor::White);
 	Canvas->DrawItem(TextItem, X, Y);
 	Y -= (3 + FontHeight);
+}
+
+void FKawaiiPhysicsEditMode::Draw3DTextItem(FText Text, FCanvas* Canvas, const FSceneView* View, FVector Location)
+{
+	FVector2D Pixel;
+	View->WorldToPixel(Location, Pixel);
+	FCanvasTextItem TextItem(FVector2D::ZeroVector, Text, GEngine->GetLargeFont(), FLinearColor::White);
+	TextItem.Scale *= 1.5f;
+	Canvas->DrawItem(TextItem, Pixel.X, Pixel.Y);
 }
 
 #undef LOCTEXT_NAMESPACE

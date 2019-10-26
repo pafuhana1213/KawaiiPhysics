@@ -70,6 +70,7 @@ private:
 
 	/** Draw text func for DrawHUD */
 	void DrawTextItem(FText Text, FCanvas* Canvas, float X, float& Y, float FontHeight);
+	void Draw3DTextItem(FText Text, FCanvas* Canvas, const FSceneView* View, FVector Location);
 
 private:
 	/** Cache the typed nodes */
