@@ -494,11 +494,11 @@ void FAnimNode_KawaiiPhysics::SimulateModfyBones(FComponentSpacePoseContext& Out
 		}
 
 		// Follow Translation
-		Bone.Location += SkelCompMoveVector * (1.0f - FMath::Pow(Bone.PhysicsSettings.WorldDampingLocation, Exponent));
+        Bone.Location += SkelCompMoveVector * (1.0f - Bone.PhysicsSettings.WorldDampingLocation);
 
 		// Follow Rotation
 		Bone.Location += (SkelCompMoveRotation.RotateVector(Bone.PrevLocation) - Bone.PrevLocation)
-			* (1.0f - FMath::Pow(Bone.PhysicsSettings.WorldDampingRotation, Exponent));
+			* (1.0f - Bone.PhysicsSettings.WorldDampingRotation);
 
 		// Gravity
 		// TODO:Migrate if there are more good method (Currently copying AnimDynamics implementation)
