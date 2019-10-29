@@ -1,8 +1,11 @@
 # Kawaii Physics
 English doc :   
 https://github.com/pafuhana1213/KawaiiPhysics/blob/master/README_en.md  
-Forum :   
-https://forums.unrealengine.com/community/released-projects/1638095-kawaii-physics-simple-fake-physics-to-sway-bones-more-easily-and-more-cutely
+Forum : 
+日本語：
+https://forums.unrealengine.com/international/japan/1679269
+英語：
+https://forums.unrealengine.com/community/released-projects/1638095
 
 ## はじめに
 Kawaii Physicsは UnrealEngine4用に作成した疑似物理プラグインです。  
