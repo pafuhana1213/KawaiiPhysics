@@ -64,6 +64,9 @@ MIT
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
+2019/10/29 v1.2.1  
+・World Damping系を従来処理に差し戻し。30fps時の挙動が更に安定しました  
+(@seiko_dev 様、ありがとうございました！)  
 2019/10/26 v1.2.0  
 ・簡易可変フレームレート対応。フレームレート低下時の挙動が少し安定するようになったはず  
 (@seiko_dev 様、ありがとうございました！)  
