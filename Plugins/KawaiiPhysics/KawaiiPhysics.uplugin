@@ -21,7 +21,7 @@
 		},
 		{
 			"Name": "KawaiiPhysicsEd",
-			"Type": "Developer",
+			"Type": "EditorNoCommandlet",
 			"LoadingPhase": "PreDefault"
 		}
 	]
