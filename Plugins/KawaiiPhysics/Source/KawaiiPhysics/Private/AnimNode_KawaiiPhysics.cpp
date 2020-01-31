@@ -506,7 +506,7 @@ void FAnimNode_KawaiiPhysics::SimulateModfyBones(FComponentSpacePoseContext& Out
 		// TODO:Migrate if there are more good method (Currently copying AnimDynamics implementation)
 		if (CVarEnableOldPhysicsMethodGrayity.GetValueOnAnyThread() == 0)
 		{
-			Bone.Location += Gravity * DeltaTime * DeltaTime;
+			Bone.Location += 0.5 * Gravity * DeltaTime * DeltaTime;
 		}
 		else
 		{
