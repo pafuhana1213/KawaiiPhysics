@@ -33,7 +33,7 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 [次期アイドルマスター グラフィクス＆アニメーション プログラミング プレビュー](https://cedil.cesa.or.jp/cedil_sessions/view/416)
 
 ## 動作環境
-- UE4.22  
+- UE4.24.2  
 
 UE4.21以前でビルドする場合は、KawaiiPhysicsEditMode.cpp における  
 GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy () を  
@@ -64,6 +64,9 @@ MIT
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
+2019/1/31 v1.3.0  
+UE4.24.2 に対応  
+(TheHoodieGuy02 様、ありがとうございました！)  
 2019/10/29 v1.2.1  
 ・World Damping系を従来処理に差し戻し。30fps時の挙動が更に安定しました  
 (@seiko_dev 様、ありがとうございました！)  
