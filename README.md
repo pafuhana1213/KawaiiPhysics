@@ -64,6 +64,9 @@ MIT
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
+2019/1/31 v1.3.1  
+TeleportRotationThresholdの計算にてラジアンと度が混在していたことでWorldRotationのテレポート対応がほぼ機能してなかった不具合を修正  
+(monguri 様、ありがとうございました！)  
 2019/1/31 v1.3.0  
 UE4.24.2 に対応  
 (TheHoodieGuy02 様、ありがとうございました！)  
