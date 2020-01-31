@@ -64,6 +64,9 @@ MIT
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
+2019/1/31 v1.4.1  
+**SphereLimitのLimitTypeがInnerの場合、Outer設定時に異なりBoneのRadius設定を考慮してなかった不具合の修正  
+1.3.1以前の挙動に戻したい方は CVarEnableOldPhysicsMethodSphereLimit を 1 に設定してください**    
 2019/1/31 v1.4.0  
 **重力変数の位置更新の計算がgt^2でなくgtになっていたので修正  
 1.3.1以前の重力計算を使用したい場合は　p.KawaiiPhysics.EnableOldPhysicsMethodGravity を 1 に設定してください**  
