@@ -5,6 +5,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Curves/CurveFloat.h"
 
+TAutoConsoleVariable<int32> CVarEnableOldPhysicsMethodGrayity(TEXT("p.KawaiiPhysics.EnableOldPhysicsMethodGravity"), 0, 
+	TEXT("Enables/Disables old physics method for gravity before v1.3.1. This is the setting for the transition period when changing the physical calculation."));
 
 FAnimNode_KawaiiPhysics::FAnimNode_KawaiiPhysics()
 {
@@ -502,8 +504,15 @@ void FAnimNode_KawaiiPhysics::SimulateModfyBones(FComponentSpacePoseContext& Out
 
 		// Gravity
 		// TODO:Migrate if there are more good method (Currently copying AnimDynamics implementation)
-		Bone.Location += Gravity * DeltaTime;
-
+		if (CVarEnableOldPhysicsMethodGrayity.GetValueOnAnyThread() == 0)
+		{
+			Bone.Location += Gravity * DeltaTime * DeltaTime;
+		}
+		else
+		{
+			Bone.Location += Gravity * DeltaTime;
+		}
+		
 		// Pull to Pose Location
 		FVector BaseLocation = ParentBone.Location + (BonePoseLocation - ParentBonePoseLocation);
 		Bone.Location += (BaseLocation - Bone.Location) *
