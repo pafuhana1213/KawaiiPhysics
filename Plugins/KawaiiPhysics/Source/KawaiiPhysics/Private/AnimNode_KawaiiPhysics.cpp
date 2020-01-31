@@ -106,7 +106,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	}
 
 	SkelCompMoveRotation = ComponentTransform.InverseTransformRotation(PreSkelCompTransform.GetRotation());
-	if (SkelCompMoveRotation.GetAngle() > TeleportRotationThreshold * TeleportRotationThreshold)
+	if ( TeleportRotationThreshold >= 0 && FMath::RadiansToDegrees( SkelCompMoveRotation.GetAngle() ) > TeleportRotationThreshold )
 	{
 		SkelCompMoveRotation = FQuat::Identity;
 	}
