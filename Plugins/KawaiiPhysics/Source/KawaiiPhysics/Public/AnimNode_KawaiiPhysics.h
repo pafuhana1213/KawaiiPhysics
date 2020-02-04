@@ -160,7 +160,8 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 
 public:
 	UPROPERTY(EditAnywhere, Category = ModifyTarget)
-	FBoneReference RootBone;
+	TArray<FBoneReference> RootBones;
+
 	UPROPERTY(EditAnywhere, Category = ModifyTarget)
 	TArray<FBoneReference> ExcludeBones;
 
