@@ -29,7 +29,10 @@ FText UAnimGraphNode_KawaiiPhysics::GetNodeTitle(ENodeTitleType::Type TitleType)
 	{
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("ControllerDescription"), GetControllerDescription());
-		Args.Add(TEXT("RootBoneName"), FText::FromName(Node.RootBone.BoneName));
+		for (auto& RootBone : Node.RootBones)
+		{
+			Args.Add(TEXT("RootBoneName"), FText::FromName(RootBone.BoneName));
+		}
 
 		// FText::Format() is slow, so we cache this to save on performance
 		if (TitleType == ENodeTitleType::ListView || TitleType == ENodeTitleType::MenuTitle)
