@@ -64,6 +64,8 @@ MIT
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
+2019/3/13 v1.4.3  
+Package作成に失敗する不具合を修正  
 2019/2/16 v1.4.2  
 Standalone実行時に正常に動作しない不具合を修正  
 2019/1/31 v1.4.1  
