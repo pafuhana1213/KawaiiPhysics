@@ -60,9 +60,12 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 	FTransform ComponentTransform = Output.AnimInstanceProxy->GetComponentTransform();
 
-	if (!RootBone.IsValidToEvaluate(BoneContainer))
+	for (auto& RootBone : RootBones)
 	{
-		return;
+		if (!RootBone.IsValidToEvaluate(BoneContainer))
+		{
+			return;
+		}
 	}
 
 	if (ModifyBones.Num() == 0)
@@ -124,12 +127,20 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 
 bool FAnimNode_KawaiiPhysics::IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones)
 {
-	return RootBone.IsValidToEvaluate(RequiredBones);
+	bool value = false;
+	for (auto& RootBone : RootBones)
+	{
+		value |= RootBone.IsValidToEvaluate(RequiredBones);
+	}
+	return value;
 }
 
 void FAnimNode_KawaiiPhysics::InitializeBoneReferences(const FBoneContainer& RequiredBones)
 {
-	RootBone.Initialize(RequiredBones);
+	for (auto& RootBone : RootBones)
+	{
+		RootBone.Initialize(RequiredBones);
+	}
 
 	for (auto& Bone : ModifyBones)
 	{
@@ -162,7 +173,10 @@ void FAnimNode_KawaiiPhysics::InitModifyBones(FComponentSpacePoseContext& Output
 	auto& RefSkeleton = Skeleton->GetReferenceSkeleton();
 
 	ModifyBones.Empty();
-	AddModifyBone(Output, BoneContainer, RefSkeleton, RefSkeleton.FindBoneIndex(RootBone.BoneName));
+	for (auto& RootBone : RootBones)
+	{
+		AddModifyBone(Output, BoneContainer, RefSkeleton, RefSkeleton.FindBoneIndex(RootBone.BoneName));
+	}
 	CalcBoneLength( ModifyBones[0], RefSkeleton.GetRefBonePose());
 }
 
@@ -677,6 +691,8 @@ void FAnimNode_KawaiiPhysics::ApplySimuateResult(FComponentSpacePoseContext& Out
 	for (int i = 1; i < ModifyBones.Num(); ++i)
 	{
 		FKawaiiPhysicsModifyBone& Bone = ModifyBones[i];
+		
+		if (Bone.ParentIndex == -1) continue;
 		FKawaiiPhysicsModifyBone& ParentBone = ModifyBones[Bone.ParentIndex];
 
 		if (ParentBone.ChildIndexs.Num() <= 1)
