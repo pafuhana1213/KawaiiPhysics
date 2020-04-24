@@ -453,6 +453,9 @@ void FAnimNode_KawaiiPhysics::SimulateModfyBones(FComponentSpacePoseContext& Out
 	FSceneInterface* Scene = World && World->Scene ? World->Scene : nullptr;
 	const float Exponent = TargetFramerate * DeltaTime;
 
+	//transform gravity to component space
+	FVector GravityCS = ComponentTransform.InverseTransformVector(Gravity);
+
 	for (int i = 0; i < ModifyBones.Num(); ++i)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SimulateModfyBone);
@@ -508,11 +511,11 @@ void FAnimNode_KawaiiPhysics::SimulateModfyBones(FComponentSpacePoseContext& Out
 		// TODO:Migrate if there are more good method (Currently copying AnimDynamics implementation)
 		if (CVarEnableOldPhysicsMethodGrayity.GetValueOnAnyThread() == 0)
 		{
-			Bone.Location += 0.5 * Gravity * DeltaTime * DeltaTime;
+			Bone.Location += 0.5 * GravityCS * DeltaTime * DeltaTime;
 		}
 		else
 		{
-			Bone.Location += Gravity * DeltaTime;
+			Bone.Location += GravityCS * DeltaTime;
 		}
 		
 		// Pull to Pose Location
