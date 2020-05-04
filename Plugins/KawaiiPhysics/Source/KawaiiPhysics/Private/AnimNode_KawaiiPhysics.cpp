@@ -853,10 +853,13 @@ void FAnimNode_KawaiiPhysics::ApplySimuateResult(FComponentSpacePoseContext& Out
 		for (int i = 1; i < ModifyBones.Num(); ++i)
 		{
 			FKawaiiPhysicsModifyBone& Bone = ModifyBones[i];
-			FKawaiiPhysicsModifyBone& ParentBone = ModifyBones[Bone.ParentIndex];
-			auto BoneLength = (Bone.PoseLocation - ParentBone.PoseLocation).Size();
-			auto& ParentTransform = OutBoneTransforms[Bone.ParentIndex].Transform;
-			OutBoneTransforms[i].Transform.SetLocation(ParentTransform.TransformPosition(GetBoneForwardVector(FQuat::Identity) * BoneLength));
+			if (Bone.BoneRef.BoneIndex >= 0 && Bone.ParentIndex >= 0 && !Bone.bDummy)
+			{
+				FKawaiiPhysicsModifyBone& ParentBone = ModifyBones[Bone.ParentIndex];
+				auto BoneLength = (Bone.PoseLocation - ParentBone.PoseLocation).Size();
+				auto& ParentTransform = OutBoneTransforms[Bone.ParentIndex].Transform;
+				OutBoneTransforms[i].Transform.SetLocation(ParentTransform.TransformPosition(GetBoneForwardVector(FQuat::Identity)* BoneLength));
+			}
 		}
 	}
 
