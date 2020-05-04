@@ -737,8 +737,20 @@ void FAnimNode_KawaiiPhysics::ApplySimuateResult(FComponentSpacePoseContext& Out
 					// decomposition to swing and twist
 					// http://twvideo01.ubm-us.net/o1/vault/gdc2016/Presentations/VanDenBergen_Gino_Rotational_Joint_Limits.pdf
 					auto s = FMath::Sqrt(q.W * q.W + q.X * q.X);
-					FQuat twist(q.X / s, 0, 0, q.W / s);
-					FQuat swing(0, (q.W * q.Y - q.X * q.Z) / s, (q.W * q.Z + q.X * q.Y) / s, s);
+
+					FQuat twist;
+					FQuat swing;
+					if(s > FLT_EPSILON) {
+						twist = FQuat(q.X / s, 0, 0, q.W / s);
+						swing = FQuat(0, (q.W * q.Y - q.X * q.Z) / s, (q.W * q.Z + q.X * q.Y) / s, s);
+
+						twist.Normalize();
+						swing.Normalize();
+					}
+					else {
+						twist = FQuat::Identity;
+						swing = q;
+					}
 
 					if (twist.X < 0)
 					{
@@ -774,7 +786,6 @@ void FAnimNode_KawaiiPhysics::ApplySimuateResult(FComponentSpacePoseContext& Out
 					{
 						swing1 = FQuat::Identity;
 						swing2 = swing;
-						swing2.Normalize();
 					}
 
 					if (swing1.Y < 0)

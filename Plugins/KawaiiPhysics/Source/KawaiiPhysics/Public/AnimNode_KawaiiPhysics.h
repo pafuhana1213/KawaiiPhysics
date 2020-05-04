@@ -106,7 +106,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSettings
 	float Stiffness = 0.05f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), category = "KawaiiPhysics")
 	float Radius = 3.0f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, UIMin = "0", UIMax = "90", ClampMin = "0", ClampMax = "90"), category = "KawaiiPhysics")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, UIMin = "0", UIMax = "180", ClampMin = "0", ClampMax = "180"), category = "KawaiiPhysics")
 	float LimitAngle = 0.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault), category = "KawaiiPhysics")
 	bool bUseSplitAxisLimit = false;
@@ -222,7 +222,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Advanced Physics Settings", meta = (PinHiddenByDefault, ClampMin = "0"))
 	float DummyBoneLength = 0.0f;
 
-	/** Is bone forward direction -X ? */
+	/** Bone forward direction */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Advanced Physics Settings", meta = (PinHiddenByDefault))
 	EBoneForwardAxis BoneForwardAxis = EBoneForwardAxis::X_Positive;
 
