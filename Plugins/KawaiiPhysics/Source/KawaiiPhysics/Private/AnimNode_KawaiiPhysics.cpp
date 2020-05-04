@@ -95,7 +95,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		else
 		{
 			auto ParentBone = ModifyBones[Bone.ParentIndex];
-			Bone.PoseLocation = ParentBone.PoseLocation + ParentBone.PoseRotation.GetForwardVector() * DummyBoneLength;
+			Bone.PoseLocation = ParentBone.PoseLocation + GetBoneForwardVector(ParentBone.PoseRotation) * DummyBoneLength;
 			Bone.PoseRotation = ParentBone.PoseRotation;
 			Bone.PoseScale = ParentBone.PoseScale;
 		}
@@ -118,7 +118,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	PreSkelCompTransform = ComponentTransform;
 
 	// Simulate Physics and Apply
-	SimulateModfyBones(Output, BoneContainer, ComponentTransform);
+	SimulateModifyBones(Output, BoneContainer, ComponentTransform);
 	ApplySimuateResult(Output, BoneContainer, OutBoneTransforms);
 }
 
@@ -219,7 +219,7 @@ int FAnimNode_KawaiiPhysics::AddModifyBone(FComponentSpacePoseContext& Output, c
 		// Add dummy modify bone
 		FKawaiiPhysicsModifyBone DummyModifyBone;
 		DummyModifyBone.bDummy = true;
-		DummyModifyBone.Location = NewModifyBone.Location + NewModifyBone.PrevRotation.GetForwardVector() * DummyBoneLength;
+		DummyModifyBone.Location = NewModifyBone.Location + GetBoneForwardVector(NewModifyBone.PrevRotation) * DummyBoneLength;
 		DummyModifyBone.PrevLocation = DummyModifyBone.Location;
 		DummyModifyBone.PoseLocation = DummyModifyBone.Location;
 		DummyModifyBone.PrevRotation = NewModifyBone.PrevRotation;
@@ -433,7 +433,7 @@ DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimulateModfyBone"), STAT_KawaiiPhysics_S
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_AdjustBone"), STAT_KawaiiPhysics_AdjustBone, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_Wind"), STAT_KawaiiPhysics_Wind, STATGROUP_Anim);
 
-void FAnimNode_KawaiiPhysics::SimulateModfyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform)
+void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform)
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SimulateModfyBones);
 
@@ -636,7 +636,7 @@ void FAnimNode_KawaiiPhysics::AdjustByAngleLimit(FComponentSpacePoseContext& Out
 	FVector PoseDir = (Bone.PoseLocation - ParentBone.PoseLocation).GetSafeNormal();
 	FVector Axis = FVector::CrossProduct(PoseDir, BoneDir);
 	float Angle = FMath::Atan2(Axis.Size(), FVector::DotProduct(PoseDir, BoneDir));
-	float AngleOverLimit= FMath::RadiansToDegrees(Angle) - Bone.PhysicsSettings.LimitAngle;
+	float AngleOverLimit = FMath::RadiansToDegrees(Angle) - Bone.PhysicsSettings.LimitAngle;
 
 	if (AngleOverLimit > 0.0f)
 	{
@@ -672,7 +672,7 @@ void FAnimNode_KawaiiPhysics::ApplySimuateResult(FComponentSpacePoseContext& Out
 	{
 		OutBoneTransforms.Add(FBoneTransform(ModifyBones[i].BoneRef.GetCompactPoseIndex(BoneContainer), 
 			FTransform(ModifyBones[i].PoseRotation, ModifyBones[i].PoseLocation, ModifyBones[i].PoseScale)));
-	}	
+	}
 
 	for (int i = 1; i < ModifyBones.Num(); ++i)
 	{
@@ -691,15 +691,188 @@ void FAnimNode_KawaiiPhysics::ApplySimuateResult(FComponentSpacePoseContext& Out
 					continue;
 				}
 
+				if (BoneForwardAxis == EBoneForwardAxis::X_Negative || BoneForwardAxis == EBoneForwardAxis::Y_Negative || BoneForwardAxis == EBoneForwardAxis::Z_Negative)
+				{
+					PoseVector *= -1;
+					SimulateVector *= -1;
+				}
+
 				FQuat SimulateRotation = FQuat::FindBetweenVectors(PoseVector, SimulateVector) * ParentBone.PoseRotation;
+
+				ParentBone.PrevRotation = SimulateRotation; // Store pre-clamped value to keep momentum.
+
+				if (PhysicsSettings.bUseSplitAxisLimit)
+				{
+					FQuat q = ParentBone.PoseRotation.Inverse() * SimulateRotation;
+					FVector PositiveMax;
+					FVector NegativeMax;
+					// swap axis if bone axis is not X axis
+					if (BoneForwardAxis == EBoneForwardAxis::Y_Positive || BoneForwardAxis == EBoneForwardAxis::Y_Negative)
+					{
+						auto q2 = q;
+						q.X = q2.Y;
+						q.Y = q2.Z;
+						q.Z = q2.X;
+
+						PositiveMax.X = PhysicsSettings.AngularLimitPositiveMax.Y;
+						PositiveMax.Y = PhysicsSettings.AngularLimitPositiveMax.Z;
+						PositiveMax.Z = PhysicsSettings.AngularLimitPositiveMax.X;
+						NegativeMax.X = PhysicsSettings.AngularLimitNegativeMax.Y;
+						NegativeMax.Y = PhysicsSettings.AngularLimitNegativeMax.Z;
+						NegativeMax.Z = PhysicsSettings.AngularLimitNegativeMax.X;
+					}
+					else if (BoneForwardAxis == EBoneForwardAxis::Z_Positive || BoneForwardAxis == EBoneForwardAxis::Z_Negative)
+					{
+						auto q2 = q;
+						q.X = q2.Z;
+						q.Y = q2.X;
+						q.Z = q2.Y;
+
+						PositiveMax.X = PhysicsSettings.AngularLimitPositiveMax.Z;
+						PositiveMax.Y = PhysicsSettings.AngularLimitPositiveMax.X;
+						PositiveMax.Z = PhysicsSettings.AngularLimitPositiveMax.Y;
+						NegativeMax.X = PhysicsSettings.AngularLimitNegativeMax.Z;
+						NegativeMax.Y = PhysicsSettings.AngularLimitNegativeMax.X;
+						NegativeMax.Z = PhysicsSettings.AngularLimitNegativeMax.Y;
+					}
+					else {
+						PositiveMax = PhysicsSettings.AngularLimitPositiveMax;
+						NegativeMax = PhysicsSettings.AngularLimitNegativeMax;
+					}
+
+					// decomposition to swing and twist
+					// http://twvideo01.ubm-us.net/o1/vault/gdc2016/Presentations/VanDenBergen_Gino_Rotational_Joint_Limits.pdf
+					auto s = FMath::Sqrt(q.W * q.W + q.X * q.X);
+
+					FQuat twist;
+					FQuat swing;
+					if(s >= SMALL_NUMBER) {
+						twist = FQuat(q.X / s, 0, 0, q.W / s);
+						swing = FQuat(0, (q.W * q.Y - q.X * q.Z) / s, (q.W * q.Z + q.X * q.Y) / s, s);
+						swing.Normalize();
+					}
+					else {
+						twist = FQuat::Identity;
+						swing = q;
+					}
+
+					if (twist.X < 0)
+					{
+						auto max = FMath::Sin(0.5f * FMath::DegreesToRadians(-NegativeMax.X));
+						if (twist.X < max)
+						{
+							twist.X = max;
+							twist.W = FMath::Sqrt(1.0f - max * max);
+						}
+					}
+					else
+					{
+						auto max = FMath::Sin(0.5f * FMath::DegreesToRadians(PositiveMax.X));
+						if (twist.X > max)
+						{
+							twist.X = max;
+							twist.W = FMath::Sqrt(1.0f - max * max);
+						}
+					}
+
+					FQuat swing1;
+					FQuat swing2;
+					s = FMath::Sqrt(swing.W * swing.W + swing.Y * swing.Y);
+					if (s >= SMALL_NUMBER)
+					{
+						swing1 = FQuat(0, swing.Y / s, 0, swing.W / s);
+						swing2 = FQuat(0, 0, swing.W * swing.Z / s, s);
+						swing2.Normalize();
+					}
+					else
+					{
+						swing1 = FQuat::Identity;
+						swing2 = swing;
+					}
+
+					if (swing1.Y < 0)
+					{
+						auto max = FMath::Sin(0.5f * FMath::DegreesToRadians(-NegativeMax.Y));
+						if (swing1.Y < max)
+						{
+							swing1.Y = max;
+							swing1.W = FMath::Sqrt(1.0f - max * max);
+						}
+					}
+					else
+					{
+						auto max = FMath::Sin(0.5f * FMath::DegreesToRadians(PositiveMax.Y));
+						if (swing1.Y > max)
+						{
+							swing1.Y = max;
+							swing1.W = FMath::Sqrt(1.0f - max * max);
+						}
+					}
+
+					if (swing2.Z < 0)
+					{
+						auto max = FMath::Sin(0.5f * FMath::DegreesToRadians(-NegativeMax.Z));
+						if (swing2.Z < max)
+						{
+							swing2.Z = max;
+							swing2.W = FMath::Sqrt(1.0f - max * max);
+						}
+					}
+					else
+					{
+						auto max = FMath::Sin(0.5f * FMath::DegreesToRadians(PositiveMax.Z));
+						if (swing2.Z > max)
+						{
+							swing2.Z = max;
+							swing2.W = FMath::Sqrt(1.0f - max * max);
+						}
+					}
+
+					q = swing2 * swing1 * twist;
+
+					// revert swaping axis if bone axis is not X axis
+					if (BoneForwardAxis == EBoneForwardAxis::Y_Positive || BoneForwardAxis == EBoneForwardAxis::Y_Negative)
+					{
+						auto q2 = q;
+						q.X = q2.Z;
+						q.Y = q2.X;
+						q.Z = q2.Y;
+					}
+					else if (BoneForwardAxis == EBoneForwardAxis::Z_Positive || BoneForwardAxis == EBoneForwardAxis::Z_Negative)
+					{
+						auto q2 = q;
+						q.X = q2.Y;
+						q.Y = q2.Z;
+						q.Z = q2.X;
+					}
+
+					SimulateRotation = ParentBone.PoseRotation * q;
+				}
+				
 				OutBoneTransforms[Bone.ParentIndex].Transform.SetRotation(SimulateRotation);
-				ParentBone.PrevRotation = SimulateRotation;
 			}
 		}
 
 		if (Bone.BoneRef.BoneIndex >= 0 && !Bone.bDummy)
 		{
 			OutBoneTransforms[i].Transform.SetLocation(Bone.Location);
+		}
+	}
+
+	if (PhysicsSettings.bUseSplitAxisLimit)
+	{
+		// Recalc positon
+		// don't change simulated location to keep momentum.
+		for (int i = 1; i < ModifyBones.Num(); ++i)
+		{
+			FKawaiiPhysicsModifyBone& Bone = ModifyBones[i];
+			if (Bone.BoneRef.BoneIndex >= 0 && Bone.ParentIndex >= 0 && !Bone.bDummy)
+			{
+				FKawaiiPhysicsModifyBone& ParentBone = ModifyBones[Bone.ParentIndex];
+				auto BoneLength = (Bone.PoseLocation - ParentBone.PoseLocation).Size();
+				auto& ParentTransform = OutBoneTransforms[Bone.ParentIndex].Transform;
+				OutBoneTransforms[i].Transform.SetLocation(ParentTransform.TransformPosition(GetBoneForwardVector(FQuat::Identity)* BoneLength));
+			}
 		}
 	}
 
