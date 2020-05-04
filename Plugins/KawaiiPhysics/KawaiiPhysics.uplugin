@@ -19,10 +19,10 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit"
 		},
-    {
-      "Name": "KawaiiPhysicsEd",
-      "Type": "UncookedOnly",
-      "LoadingPhase": "PreDefault"
-    }
+		{
+			"Name": "KawaiiPhysicsEd",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "PreDefault"
+		}
 	]
 }
