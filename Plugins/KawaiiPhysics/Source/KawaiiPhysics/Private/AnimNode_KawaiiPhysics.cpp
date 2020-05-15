@@ -163,7 +163,10 @@ void FAnimNode_KawaiiPhysics::InitModifyBones(FComponentSpacePoseContext& Output
 
 	ModifyBones.Empty();
 	AddModifyBone(Output, BoneContainer, RefSkeleton, RefSkeleton.FindBoneIndex(RootBone.BoneName));
-	CalcBoneLength( ModifyBones[0], RefSkeleton.GetRefBonePose());
+	if (ModifyBones.Num() > 0)
+	{
+		CalcBoneLength(ModifyBones[0], RefSkeleton.GetRefBonePose());
+	}
 }
 
 int FAnimNode_KawaiiPhysics::AddModifyBone(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, 

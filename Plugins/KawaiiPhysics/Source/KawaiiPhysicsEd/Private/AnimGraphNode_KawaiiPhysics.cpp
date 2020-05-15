@@ -1,5 +1,5 @@
 #include "AnimGraphNode_KawaiiPhysics.h"
-
+#include "Kismet2/CompilerResultsLog.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysics"
@@ -107,6 +107,25 @@ void UAnimGraphNode_KawaiiPhysics::Draw(FPrimitiveDrawInterface* PDI, USkeletalM
 				Bone.PhysicsSettings.LimitAngle, 16, FColor::Green, SDPG_World);
 		}
 	}
+}
+
+void UAnimGraphNode_KawaiiPhysics::ValidateAnimNodePostCompile(FCompilerResultsLog& MessageLog, UAnimBlueprintGeneratedClass* CompiledClass, int32 CompiledNodeIndex)
+{
+	UAnimGraphNode_SkeletalControlBase::ValidateAnimNodePostCompile(MessageLog, CompiledClass, CompiledNodeIndex);
+
+	Node.RootBone.Initialize(CompiledClass->TargetSkeleton);
+	if (Node.RootBone.BoneIndex >= 0)
+	{
+		if (Node.ExcludeBones.Contains(Node.RootBone))
+		{
+			MessageLog.Warning(TEXT("@@ ExcludeBones should NOT has RootBone."), this);
+		}
+	}
+	else
+	{
+		MessageLog.Warning(TEXT("@@ RootBone is empty."), this);
+	}
+	
 }
 
 

@@ -7,6 +7,8 @@
 
 #include "AnimGraphNode_KawaiiPhysics.generated.h"
 
+class FCompilerResultsLog;
+
 UCLASS()
 class UAnimGraphNode_KawaiiPhysics : public UAnimGraphNode_SkeletalControlBase
 {
@@ -38,6 +40,7 @@ protected:
 
 	// UAnimGraphNode_Base interface
 	virtual FEditorModeID GetEditorMode() const;
+	virtual void ValidateAnimNodePostCompile(FCompilerResultsLog& MessageLog, UAnimBlueprintGeneratedClass* CompiledClass, int32 CompiledNodeIndex) override;
 	// End of UAnimGraphNode_Base interface
 
 	//virtual FText GetControllerDescription() const override;
