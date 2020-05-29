@@ -67,6 +67,14 @@ https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E6%8E%A1%E7%94%A8%E5%AE%9F%E
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
+- 2020/5/29 v1.5.1
+  - bEnableDebugBoneLengthRate によるデバッグ表示の表示位置がズレていた不具合の修正
+  - ↑のデバッグ表示のテキスト形式をエンジン標準のボーン名表示と同じに
+    - https://twitter.com/pafuhana1213/status/1266264162788765696
+- 2020/5/29 v1.5.0
+  - ボーンの向きを設定するBoneForwardAxisプロパティを追加。これはDummyBoneの挙動にのみ影響します  
+  (SAM-tak 様、ありがとうございました！)
+    - https://twitter.com/pafuhana1213/status/1266224108657762307
 - 2020/5/15 v1.4.6  
   - Rootと同じボーンをExcludeBoneに指定するとクラッシュする不具合を修正  
   - 不正な設定の場合はノードをWarning または Error表示にする処理を追加
