@@ -509,9 +509,15 @@ void FKawaiiPhysicsEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FVie
 
 	if (GraphNode->bEnableDebugBoneLengthRate)
 	{
-		for (auto& Bone : RuntimeNode->ModifyBones)
+		UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene().GetPreviewMeshComponent();
+		if (PreviewMeshComponent != nullptr && PreviewMeshComponent->MeshObject != nullptr)
 		{
-			Draw3DTextItem(FText::AsNumber(Bone.LengthFromRoot / RuntimeNode->GetTotalBoneLength()), Canvas, View, Bone.Location);
+			for (auto& Bone : RuntimeNode->ModifyBones)
+			{
+				// Refer to FAnimationViewportClient::ShowBoneNames
+				const FVector BonePos = PreviewMeshComponent->GetComponentTransform().TransformPosition(PreviewMeshComponent->GetDrawTransform(Bone.BoneRef.BoneIndex).GetLocation());
+				Draw3DTextItem(FText::AsNumber(Bone.LengthFromRoot / RuntimeNode->GetTotalBoneLength()), Canvas, View, Viewport, BonePos );
+			}
 		}
 	}
 
@@ -525,13 +531,21 @@ void FKawaiiPhysicsEditMode::DrawTextItem(FText Text, FCanvas* Canvas, float X, 
 	Y -= (3 + FontHeight);
 }
 
-void FKawaiiPhysicsEditMode::Draw3DTextItem(FText Text, FCanvas* Canvas, const FSceneView* View, FVector Location)
+void FKawaiiPhysicsEditMode::Draw3DTextItem(FText Text, FCanvas* Canvas, const FSceneView* View, FViewport* Viewport, FVector Location)
 {
-	FVector2D Pixel;
-	View->WorldToPixel(Location, Pixel);
-	FCanvasTextItem TextItem(FVector2D::ZeroVector, Text, GEngine->GetLargeFont(), FLinearColor::White);
-	TextItem.Scale *= 1.5f;
-	Canvas->DrawItem(TextItem, Pixel.X, Pixel.Y);
+	const int32 HalfX = Viewport->GetSizeXY().X / 2 / Canvas->GetDPIScale();
+	const int32 HalfY = Viewport->GetSizeXY().Y / 2 / Canvas->GetDPIScale();
+	
+	const FPlane proj = View->Project(Location);
+	if (proj.W > 0.f)
+	{
+		const int32 XPos = HalfX + (HalfX * proj.X);
+		const int32 YPos = HalfY + (HalfY * (proj.Y * -1));
+		FCanvasTextItem TextItem(FVector2D(XPos, YPos), Text, GEngine->GetSmallFont(), FLinearColor::White);
+		TextItem.EnableShadow(FLinearColor::Black);
+		Canvas->DrawItem(TextItem);
+	}
+
 }
 
 #undef LOCTEXT_NAMESPACE
