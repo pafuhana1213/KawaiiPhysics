@@ -67,6 +67,8 @@ https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E6%8E%A1%E7%94%A8%E5%AE%9F%E
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
+- 2020/5/29 v1.5.2  
+  - v1.5.1 における対応がDummyBoneを考慮してなかった不具合の修正
 - 2020/5/29 v1.5.1
   - bEnableDebugBoneLengthRate によるデバッグ表示の表示位置がズレていた不具合の修正
   - ↑のデバッグ表示のテキスト形式をエンジン標準のボーン名表示と同じに
