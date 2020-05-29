@@ -67,6 +67,13 @@ https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E6%8E%A1%E7%94%A8%E5%AE%9F%E
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
+- 2020/5/15 v1.4.6  
+  - Rootと同じボーンをExcludeBoneに指定するとクラッシュする不具合を修正  
+  - 不正な設定の場合はノードをWarning または Error表示にする処理を追加
+    - 技術解説：http://pafuhana1213.hatenablog.com/entry/2020/05/16/173837
+- 2020/5/15 v1.4.5
+  - GravityをComponentSpaceで動作するように変更  
+  (dxd39 様、ありがとうございました！)
 - 2020/3/13 v1.4.4  
   - MacOSでビルドに失敗する不具合の修正  
   (melMass 様、ありがとうございました！)  
