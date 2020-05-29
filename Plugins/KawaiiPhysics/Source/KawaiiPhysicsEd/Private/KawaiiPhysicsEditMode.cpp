@@ -515,7 +515,7 @@ void FKawaiiPhysicsEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FVie
 			for (auto& Bone : RuntimeNode->ModifyBones)
 			{
 				// Refer to FAnimationViewportClient::ShowBoneNames
-				const FVector BonePos = PreviewMeshComponent->GetComponentTransform().TransformPosition(PreviewMeshComponent->GetDrawTransform(Bone.BoneRef.BoneIndex).GetLocation());
+				const FVector BonePos = PreviewMeshComponent->GetComponentTransform().TransformPosition(Bone.Location);
 				Draw3DTextItem(FText::AsNumber(Bone.LengthFromRoot / RuntimeNode->GetTotalBoneLength()), Canvas, View, Viewport, BonePos );
 			}
 		}
