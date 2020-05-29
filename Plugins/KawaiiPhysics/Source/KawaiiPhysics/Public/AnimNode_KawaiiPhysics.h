@@ -213,11 +213,11 @@ public:
 	bool bUpdatePhysicsSettingsInGame = true;
 	
 	/** Add a dummy bone to the end bone if it's above 0. It affects end bone rotation. For example, it rotates well if it is short */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Advanced Physics Settings", meta = (PinHiddenByDefault, ClampMin = "0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DummyBone", meta = (PinHiddenByDefault, ClampMin = "0"))
 	float DummyBoneLength = 0.0f;
 
 	/** Bone forward direction */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Advanced Physics Settings", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DummyBone", meta = (PinHiddenByDefault))
 	EBoneForwardAxis BoneForwardAxis = EBoneForwardAxis::X_Positive;
 
 	/** Fix the bone on the specified plane  */

@@ -431,14 +431,14 @@ void FAnimNode_KawaiiPhysics::UpdatePlanerLimits(FComponentSpacePoseContext& Out
 	}
 }
 
-DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimulateModfyBones"), STAT_KawaiiPhysics_SimulateModfyBones, STATGROUP_Anim);
-DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimulateModfyBone"), STAT_KawaiiPhysics_SimulateModfyBone, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimulatemodifyBones"), STAT_KawaiiPhysics_SimulatemodifyBones, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimulatemodifyBone"), STAT_KawaiiPhysics_SimulatemodifyBone, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_AdjustBone"), STAT_KawaiiPhysics_AdjustBone, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_Wind"), STAT_KawaiiPhysics_Wind, STATGROUP_Anim);
 
 void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform)
 {
-	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SimulateModfyBones);
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SimulatemodifyBones);
 
 	if (DeltaTime <= 0.0f)
 	{
@@ -461,7 +461,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 
 	for (int i = 0; i < ModifyBones.Num(); ++i)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SimulateModfyBone);
+		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SimulatemodifyBone);
 
 		auto& Bone = ModifyBones[i];
 		if (Bone.BoneRef.BoneIndex < 0 && !Bone.bDummy)

@@ -2,5 +2,12 @@
 	"FileVersion": 3,
 	"EngineAssociation": "4.24",
 	"Category": "",
-	"Description": ""
+	"Description": "",
+	"Modules": [
+		{
+			"Name": "KawaiiPhysicsSample",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
 }
