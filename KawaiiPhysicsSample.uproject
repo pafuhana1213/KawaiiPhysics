@@ -3,11 +3,4 @@
 	"EngineAssociation": "4.24",
 	"Category": "",
 	"Description": "",
-	"Modules": [
-		{
-			"Name": "KawaiiPhysicsSample",
-			"Type": "Runtime",
-			"LoadingPhase": "Default"
-		}
-	]
 }
