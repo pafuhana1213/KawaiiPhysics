@@ -22,6 +22,17 @@ enum class EPlanarConstraint : uint8
 	Z,
 };
 
+UENUM()
+enum class EBoneForwardAxis : uint8
+{
+	X_Positive,
+	X_Negative,
+	Y_Positive,
+	Y_Negative,
+	Z_Positive,
+	Z_Negative,
+};
+
 USTRUCT()
 struct FCollisionLimitBase
 {
@@ -205,6 +216,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Advanced Physics Settings", meta = (PinHiddenByDefault, ClampMin = "0"))
 	float DummyBoneLength = 0.0f;
 
+	/** Bone forward direction */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Advanced Physics Settings", meta = (PinHiddenByDefault))
+	EBoneForwardAxis BoneForwardAxis = EBoneForwardAxis::X_Positive;
+
 	/** Fix the bone on the specified plane  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Advanced Physics Settings", meta = (PinHiddenByDefault))
 	EPlanarConstraint PlanarConstraint = EPlanarConstraint::None;
@@ -282,6 +297,24 @@ public:
 	}
 
 private:
+	FVector GetBoneForwardVector(const FQuat& Rotation)
+	{
+		switch(BoneForwardAxis) {
+		default:
+		case EBoneForwardAxis::X_Positive:
+			return Rotation.GetAxisX();
+		case EBoneForwardAxis::X_Negative:
+			return -Rotation.GetAxisX();
+		case EBoneForwardAxis::Y_Positive:
+			return Rotation.GetAxisY();
+		case EBoneForwardAxis::Y_Negative:
+			return -Rotation.GetAxisY();
+		case EBoneForwardAxis::Z_Positive:
+			return Rotation.GetAxisZ();
+		case EBoneForwardAxis::Z_Negative:
+			return -Rotation.GetAxisZ();
+		}
+	}
 	// FAnimNode_SkeletalControlBase interface
 	virtual void InitializeBoneReferences(const FBoneContainer& RequiredBones) override;
 	// End of FAnimNode_SkeletalControlBase interface
@@ -297,7 +330,7 @@ private:
 	void UpdateCapsuleLimits(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform);
 	void UpdatePlanerLimits(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform);
 
-	void SimulateModfyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform);
+	void SimulateModifyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform);
 	void AdjustBySphereCollision(FKawaiiPhysicsModifyBone& Bone);
 	void AdjustByCapsuleCollision(FKawaiiPhysicsModifyBone& Bone);
 	void AdjustByPlanerCollision(FKawaiiPhysicsModifyBone& Bone);
