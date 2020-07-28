@@ -70,6 +70,10 @@ https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E6%8E%A1%E7%94%A8%E5%AE%9F%E
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
+- 2020/7/28 v1.5.3
+  - MeshとSkeletonのBoneIndexが違う場合に、正しい長さが取得できなくて、カーブでのパラメータが正常に動作しなくなる不具合修正
+    - https://github.com/pafuhana1213/KawaiiPhysics/pull/21
+    - nkinta 様ありがとうございました！
 - 2020/5/29 v1.5.2  
   - v1.5.1 における対応がDummyBoneを考慮してなかった不具合の修正
 - 2020/5/29 v1.5.1
