@@ -33,7 +33,7 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 [次期アイドルマスター グラフィクス＆アニメーション プログラミング プレビュー](https://cedil.cesa.or.jp/cedil_sessions/view/416)
 
 ## 動作環境
-- UE4.24.3, 4.25.0
+- UE4.24.3, 4.25.2
 
 UE4.21以前でビルドする場合は、KawaiiPhysicsEditMode.cpp における  
 GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy () を  
