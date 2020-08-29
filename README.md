@@ -33,7 +33,7 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 [次期アイドルマスター グラフィクス＆アニメーション プログラミング プレビュー](https://cedil.cesa.or.jp/cedil_sessions/view/416)
 
 ## 動作環境
-- UE4.24.3, 4.25.2
+- 4.25.3
 
 UE4.21以前でビルドする場合は、KawaiiPhysicsEditMode.cpp における  
 GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy () を  
@@ -70,6 +70,11 @@ https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E6%8E%A1%E7%94%A8%E5%AE%9F%E
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
+- 2020/8/29 v1.6.0
+  - 専用のDataAsset(KawaiiPhysicsLimitsDataAsset)でコリジョン設定を管理・流用できるようになりました
+    - 使い方：https://youtu.be/jnJqRu7zn3c
+    - 動作実績があまりないのでExperimentalということでお願いします
+  - UE4.25.3をデフォルトにしました
 - 2020/7/28 v1.5.3
   - MeshとSkeletonのBoneIndexが違う場合に、正しい長さが取得できなくて、カーブでのパラメータが正常に動作しなくなる不具合修正
     - https://github.com/pafuhana1213/KawaiiPhysics/pull/21
