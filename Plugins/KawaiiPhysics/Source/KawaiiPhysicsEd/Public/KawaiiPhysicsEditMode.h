@@ -5,20 +5,14 @@
 #include "KawaiiPhysicsEditModeBase.h"
 #include "AnimNodeEditMode.h"
 #include "AnimGraphNode_KawaiiPhysics.h"
+#include "AnimNode_KawaiiPhysics.h"
 
 class FEditorViewportClient;
 class FPrimitiveDrawInterface;
 class USkeletalMeshComponent;
 struct FViewportClick;
 
-/** Bone selection mode */
-enum ESelectCollisionType
-{
-	SphericalLimit,
-	CapsuleLimit,
-	PlanarLimit,
-	Max
-};
+
 
 class FKawaiiPhysicsEditMode : public FKawaiiPhysicsEditModeBase
 {
@@ -57,7 +51,7 @@ private:
 	void RenderPlanerLimit(FPrimitiveDrawInterface* PDI);
 
 	/** Helper funciton for GetWidgetLocation() and joint rendering */
-	FVector GetWidgetLocation(ESelectCollisionType CollisionType, int Index) const;
+	FVector GetWidgetLocation(ECollisionLimitType CollisionType, int Index) const;
 
 	// methods to find a valid widget mode for gizmo because doesn't need to show gizmo when the mode is "Ignore"
 	FWidget::EWidgetMode FindValidWidgetMode(FWidget::EWidgetMode InWidgetMode) const;
@@ -78,8 +72,9 @@ private:
 	UAnimGraphNode_KawaiiPhysics* GraphNode;
 
 	/** The current bone selection mode */
-	ESelectCollisionType SelectCollisionType = ESelectCollisionType::Max;
+	ECollisionLimitType SelectCollisionType = ECollisionLimitType::None;
 	int SelectCollisionIndex = -1;
+	bool SelectCollisionIsFromDataAsset;
 
 	// storing current widget mode 
 	mutable FWidget::EWidgetMode CurWidgetMode;
