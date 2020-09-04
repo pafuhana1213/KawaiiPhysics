@@ -73,7 +73,7 @@ struct FCollisionLimitBase
 	UPROPERTY()
 	bool bFromDataAsset = false;
 
-	UPROPERTY(VisibleAnywhere, meta = (IgnoreForMemberInitializationTest))
+	UPROPERTY(VisibleAnywhere, Category = Debug, meta = (IgnoreForMemberInitializationTest))
 	FGuid Guid = FGuid::NewGuid();
 
 	UPROPERTY()

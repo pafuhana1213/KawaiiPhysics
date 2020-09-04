@@ -23,13 +23,13 @@ struct FCollisionLimitDataBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CollisionLimitBase, meta = (ClampMin = "-360", ClampMax = "360"))
 	FRotator OffsetRotation = FRotator::ZeroRotator;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, Category = CollisionLimitBase, BlueprintReadWrite)
 	FVector Location = FVector::ZeroVector;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, Category = CollisionLimitBase, BlueprintReadWrite)
 	FQuat Rotation = FQuat::Identity;
 
-	UPROPERTY(VisibleAnywhere, meta = (IgnoreForMemberInitializationTest))
+	UPROPERTY(VisibleAnywhere, Category = Debug, meta = (IgnoreForMemberInitializationTest))
 	FGuid Guid = FGuid::NewGuid();
 
 public:
@@ -125,7 +125,7 @@ struct FPlanarLimitData : public FCollisionLimitDataBase
 {
 	GENERATED_BODY();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, Category = PlanarLimit, BlueprintReadWrite)
 	FPlane Plane;
 
 	void Update(FPlanarLimit* Limit)
