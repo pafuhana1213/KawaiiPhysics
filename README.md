@@ -70,6 +70,8 @@ https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E6%8E%A1%E7%94%A8%E5%AE%9F%E
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
+- 2020/9/4 v1.6.1  
+  - プロパティのカテゴリ指定忘れによるパッケージ作成エラーの修正
 - 2020/8/29 v1.6.0
   - 専用のDataAsset(KawaiiPhysicsLimitsDataAsset)でコリジョン設定を管理・流用できるようになりました
     - 使い方：https://youtu.be/jnJqRu7zn3c
