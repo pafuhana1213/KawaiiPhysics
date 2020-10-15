@@ -184,6 +184,8 @@ void FAnimNode_KawaiiPhysics::InitModifyBones(FComponentSpacePoseContext& Output
 }
 
 
+
+
 void FAnimNode_KawaiiPhysics::ApplyLimitsDataAsset(const FBoneContainer& RequiredBones)
 {
 	SphericalLimitsData.Empty();
@@ -480,6 +482,7 @@ DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimulatemodifyBones"), STAT_KawaiiPhysics
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimulatemodifyBone"), STAT_KawaiiPhysics_SimulatemodifyBone, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_AdjustBone"), STAT_KawaiiPhysics_AdjustBone, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_Wind"), STAT_KawaiiPhysics_Wind, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_WorldCollision"), STAT_KawaiiPhysics_WorldCollision, STATGROUP_Anim);
 void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform)
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SimulatemodifyBones);
@@ -580,6 +583,11 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 			AdjustByCapsuleCollision(Bone, CapsuleLimitsData);
 			AdjustByPlanerCollision(Bone, PlanarLimits);
 			AdjustByPlanerCollision(Bone, PlanarLimitsData);
+			if (bAllowWorldCollision)
+			{
+				SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_WorldCollision);
+				AdjustByWorldCollision(Bone, SkelComp, BoneContainer);
+			}
 			// Adjust by angle limit
 			AdjustByAngleLimit(Output, BoneContainer, ComponentTransform, Bone, ParentBone);
 
@@ -593,6 +601,104 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 	}
 	DeltaTimeOld = DeltaTime;
 }
+
+void FAnimNode_KawaiiPhysics::AdjustByWorldCollision(FKawaiiPhysicsModifyBone& Bone, const USkeletalMeshComponent* OwningComp, const FBoneContainer& BoneContainer)
+{
+	if (!OwningComp || Bone.ParentIndex < 0) return;
+	/** the trace is not done in game thread, so TraceTag does not draw debug traces*/
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(KawaiiCollision));
+	if (bIgnoreSelfComponent) Params.AddIgnoredComponent(OwningComp);
+
+	// Get collision settings from component	
+	ECollisionChannel TraceChannel = bOverrideCollisionParams ? CollisionChannelSettings.GetObjectType():OwningComp->GetCollisionObjectType();
+	FCollisionResponseParams ResponseParams = bOverrideCollisionParams ? FCollisionResponseParams(CollisionChannelSettings.GetResponseToChannels()):FCollisionResponseParams(OwningComp->GetCollisionResponseToChannels());
+	auto CompTransform = OwningComp->GetComponentTransform();
+	CompTransform.TransformPosition(Bone.PrevLocation);
+
+	const UWorld* World = OwningComp->GetWorld();
+	if (World)
+	{
+		if (bIgnoreSelfComponent)
+		{
+			// Do sphere sweep
+			FHitResult Result;
+			bool bHit = World->SweepSingleByChannel(Result, CompTransform.TransformPosition(Bone.PrevLocation), CompTransform.TransformPosition(Bone.Location), FQuat::Identity, TraceChannel, FCollisionShape::MakeSphere(Bone.PhysicsSettings.Radius), Params, ResponseParams);
+			if (bHit) {
+				if (Result.bStartPenetrating)
+				{
+					Bone.Location = CompTransform.InverseTransformPosition(CompTransform.TransformPosition(Bone.Location) + (Result.Normal * Result.PenetrationDepth));
+				}
+				else
+				{
+					Bone.Location = CompTransform.InverseTransformPosition(Result.Location);
+				}
+			}
+		}
+		else
+		{
+			// Do sphere sweep and ignore bones later
+			TArray<FHitResult> Results;
+			bool bHit = World->SweepMultiByChannel(Results, CompTransform.TransformPosition(Bone.PrevLocation), CompTransform.TransformPosition(Bone.Location), FQuat::Identity, TraceChannel, FCollisionShape::MakeSphere(Bone.PhysicsSettings.Radius), Params, ResponseParams);
+			if (bHit)
+			{
+				auto Skeleton = BoneContainer.GetSkeletonAsset();
+				auto& RefSkeleton = Skeleton->GetReferenceSkeleton();
+				bool IsIgnoreHit;
+				for (const auto &Hit : Results)
+				{
+					if (Hit.bBlockingHit)
+					{
+						//should we ignore this hit?
+						IsIgnoreHit = false;
+						if (Hit.Component == OwningComp && Hit.BoneName != NAME_None)
+						{
+							IsIgnoreHit = Hit.BoneName == Bone.BoneRef.BoneName;
+							if (!IsIgnoreHit)
+							{
+								for (auto BoneRef : IgnoreBones)
+								{
+									if (BoneRef.BoneName == Hit.BoneName)
+									{
+										IsIgnoreHit = true;
+										break;
+									}
+								}
+							}
+							if (!IsIgnoreHit)
+							{
+								for (auto BoneNamePrefix : IgnoreBoneNamePrefix)
+								{
+									if (Hit.BoneName.ToString().StartsWith(BoneNamePrefix.ToString()))
+									{
+										IsIgnoreHit = true;
+										break;
+									}
+								}
+							}
+						}
+						//found the blocking hit we shouldn't ignore!
+						if (!IsIgnoreHit)
+						{
+							if (Hit.bStartPenetrating)
+							{
+								Bone.Location = CompTransform.InverseTransformPosition(CompTransform.TransformPosition(Bone.Location) + (Hit.Normal * Hit.PenetrationDepth));
+							}
+							else
+							{
+								Bone.Location = CompTransform.InverseTransformPosition(Hit.Location);
+							}
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	
+	
+}
+
 
 void FAnimNode_KawaiiPhysics::AdjustBySphereCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FSphericalLimit>& Limits)
 {
