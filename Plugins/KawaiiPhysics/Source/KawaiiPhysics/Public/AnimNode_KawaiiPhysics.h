@@ -211,6 +211,8 @@ public:
 		PoseRotation = ComponentSpaceTransform.GetRotation();
 		PoseScale = ComponentSpaceTransform.GetScale3D();
 	}
+	FKawaiiPhysicsModifyBone(){}
+
 };
 
 USTRUCT(BlueprintType)
