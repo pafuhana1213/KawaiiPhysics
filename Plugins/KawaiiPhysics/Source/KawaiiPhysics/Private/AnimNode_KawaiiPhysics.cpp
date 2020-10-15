@@ -1,4 +1,4 @@
-#include "AnimNode_KawaiiPhysics.h"
+﻿#include "AnimNode_KawaiiPhysics.h"
 
 #include "KawaiiPhysics.h"
 #include "AnimationRuntime.h"
@@ -246,9 +246,10 @@ int FAnimNode_KawaiiPhysics::AddModifyBone(FComponentSpacePoseContext& Output, c
 
 	TArray<int32> ChildBoneIndexs;
 	CollectChildBones(RefSkeleton, BoneIndex, ChildBoneIndexs);
-
+	bool AddedChildBone = false;
 	if (ChildBoneIndexs.Num() > 0)
 	{
+		//for some mesh where tip bone is empty (without any skinning weight in the mesh), ChildBoneIndexs > 0 but no actual child bones are created
 		for (auto ChildBoneIndex : ChildBoneIndexs)
 		{
 			auto ChildModifyBoneIndex = AddModifyBone(Output, BoneContainer, RefSkeleton, ChildBoneIndex);
@@ -256,10 +257,12 @@ int FAnimNode_KawaiiPhysics::AddModifyBone(FComponentSpacePoseContext& Output, c
 			{
 				ModifyBones[ModifyBoneIndex].ChildIndexs.Add(ChildModifyBoneIndex);
 				ModifyBones[ChildModifyBoneIndex].ParentIndex = ModifyBoneIndex;
+				AddedChildBone = true;
 			}
 		}
 	}
-	else if(DummyBoneLength > 0.0f)
+
+	if(!AddedChildBone && DummyBoneLength > 0.0f)
 	{
 		// Add dummy modify bone
 		FKawaiiPhysicsModifyBone DummyModifyBone;
@@ -477,7 +480,6 @@ DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimulatemodifyBones"), STAT_KawaiiPhysics
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimulatemodifyBone"), STAT_KawaiiPhysics_SimulatemodifyBone, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_AdjustBone"), STAT_KawaiiPhysics_AdjustBone, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_Wind"), STAT_KawaiiPhysics_Wind, STATGROUP_Anim);
-
 void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform)
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SimulatemodifyBones);
@@ -578,7 +580,6 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 			AdjustByCapsuleCollision(Bone, CapsuleLimitsData);
 			AdjustByPlanerCollision(Bone, PlanarLimits);
 			AdjustByPlanerCollision(Bone, PlanarLimitsData);
-
 			// Adjust by angle limit
 			AdjustByAngleLimit(Output, BoneContainer, ComponentTransform, Bone, ParentBone);
 
