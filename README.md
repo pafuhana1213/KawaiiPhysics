@@ -72,6 +72,7 @@ https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E6%8E%A1%E7%94%A8%E5%AE%9F%E
 ## 履歴
 - 2020/12/2 v1.7.0
   - UAnimInstance::ResetDynamics(ETeleportType::ResetPhysics)呼び出しでのリセットに対応
+    - 説明：https://twitter.com/pafuhana1213/status/1334141624666910722
     - https://github.com/pafuhana1213/KawaiiPhysics/pull/30
       - KazumasaOhashi様、ありがとうございました！
     - サンプルレベルの2キーでテストできるようにしました
