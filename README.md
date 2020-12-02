@@ -70,6 +70,11 @@ https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E6%8E%A1%E7%94%A8%E5%AE%9F%E
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
+- 2020/12/2 v1.7.0
+  - UAnimInstance::ResetDynamics(ETeleportType::ResetPhysics)呼び出しでのリセットに対応
+    - https://github.com/pafuhana1213/KawaiiPhysics/pull/30
+      - KazumasaOhashi様、ありがとうございました！
+    - サンプルレベルの2キーでテストできるようにしました
 - 2020/11/17 v.1.6.2
   - FKawaiiPhysicsEditMode::DrawHUDが正常に動作していない不具合を修正
 - 2020/9/4 v1.6.1  
