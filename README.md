@@ -33,7 +33,10 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 [次期アイドルマスター グラフィクス＆アニメーション プログラミング プレビュー](https://cedil.cesa.or.jp/cedil_sessions/view/416)
 
 ## 動作環境
-- 4.25.3
+- 4.25.4
+
+- UE4.20~4.26（Pluginのみ）  
+https://github.com/pafuhana1213/KawaiiPhysics/releases/
 
 UE4.21以前でビルドする場合は、KawaiiPhysicsEditMode.cpp における  
 GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy () を  
@@ -41,9 +44,6 @@ GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy (false)　に修正す
 
 UE4.23以前でビルドする場合は、awaiiPhysics.uplugin における  
 "Type": "UncookedOnly",　を "Type": "DeveloperTool", に修正する必要があります（たぶん）。
-
-- UE4.20~4.25（Pluginのみ）  
-https://github.com/pafuhana1213/KawaiiPhysics/releases/
 
 ## 使い方
 - プロジェクトのPluginsフォルダにKawaiiPhysicsフォルダを入れてください
