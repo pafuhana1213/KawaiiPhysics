@@ -30,6 +30,8 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 	// For Avoiding Zero Divide in the first frame
 	DeltaTimeOld = 1.0f / TargetFramerate;
 
+	bResetDynamics = false;
+
 #if WITH_EDITOR
 	auto World = Context.AnimInstanceProxy->GetSkelMeshComponent()->GetWorld();
 	if (World->WorldType == EWorldType::Editor ||
@@ -46,6 +48,11 @@ void FAnimNode_KawaiiPhysics::CacheBones_AnyThread(const FAnimationCacheBonesCon
 
 }
 
+void FAnimNode_KawaiiPhysics::ResetDynamics(ETeleportType InTeleportType)
+{
+	bResetDynamics |= (ETeleportType::ResetPhysics == InTeleportType);
+}
+
 void FAnimNode_KawaiiPhysics::UpdateInternal(const FAnimationUpdateContext& Context)
 {
 	FAnimNode_SkeletalControlBase::UpdateInternal(Context);
@@ -60,6 +67,12 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_Eval);
 
 	check(OutBoneTransforms.Num() == 0);
+
+	if(bResetDynamics)
+	{
+		ModifyBones.Empty(ModifyBones.Num());
+		bResetDynamics = false;
+	}
 
 	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 	FTransform ComponentTransform = Output.AnimInstanceProxy->GetComponentTransform();

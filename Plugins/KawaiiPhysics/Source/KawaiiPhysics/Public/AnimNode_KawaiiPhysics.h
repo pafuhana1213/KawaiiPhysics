@@ -356,6 +356,7 @@ private:
 	FQuat SkelCompMoveRotation;
 	float DeltaTime;
 	float DeltaTimeOld;
+	bool bResetDynamics;
 
 public:
 	FAnimNode_KawaiiPhysics();
@@ -364,6 +365,8 @@ public:
 	//virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
 	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
+	virtual bool NeedsDynamicReset() const override { return true; }
+	virtual void ResetDynamics(ETeleportType InTeleportType) override;
 	// End of FAnimNode_Base interface
 
 	// FAnimNode_SkeletalControlBase interface

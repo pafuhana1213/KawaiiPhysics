@@ -33,7 +33,10 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 [次期アイドルマスター グラフィクス＆アニメーション プログラミング プレビュー](https://cedil.cesa.or.jp/cedil_sessions/view/416)
 
 ## 動作環境
-- 4.25.3
+- 4.25.4
+
+- UE4.20~4.26（Pluginのみ）  
+https://github.com/pafuhana1213/KawaiiPhysics/releases/
 
 UE4.21以前でビルドする場合は、KawaiiPhysicsEditMode.cpp における  
 GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy () を  
@@ -41,9 +44,6 @@ GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy (false)　に修正す
 
 UE4.23以前でビルドする場合は、awaiiPhysics.uplugin における  
 "Type": "UncookedOnly",　を "Type": "DeveloperTool", に修正する必要があります（たぶん）。
-
-- UE4.20~4.25（Pluginのみ）  
-https://github.com/pafuhana1213/KawaiiPhysics/releases/
 
 ## 使い方
 - プロジェクトのPluginsフォルダにKawaiiPhysicsフォルダを入れてください
@@ -70,6 +70,14 @@ https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E6%8E%A1%E7%94%A8%E5%AE%9F%E
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
+- 2020/12/2 v1.7.0
+  - UAnimInstance::ResetDynamics(ETeleportType::ResetPhysics)呼び出しでのリセットに対応
+    - 説明：https://twitter.com/pafuhana1213/status/1334141624666910722
+    - https://github.com/pafuhana1213/KawaiiPhysics/pull/30
+      - KazumasaOhashi様、ありがとうございました！
+    - サンプルレベルの2キーでテストできるようにしました
+- 2020/11/17 v.1.6.2
+  - FKawaiiPhysicsEditMode::DrawHUDが正常に動作していない不具合を修正
 - 2020/9/4 v1.6.1  
   - プロパティのカテゴリ指定忘れによるパッケージ作成エラーの修正
 - 2020/8/29 v1.6.0
