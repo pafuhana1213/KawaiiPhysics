@@ -133,6 +133,7 @@ struct FKawaiiPhysicsVersion
 	enum Type
 	{
 		BeforeCustomVersionWasAdded,
+		UseRuntimeFloatCurve,
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
@@ -155,7 +156,7 @@ void UAnimGraphNode_KawaiiPhysics::Serialize(FArchive& Ar)
 
 	Ar.UsingCustomVersion(FKawaiiPhysicsVersion::GUID);
 
-	if (Ar.CustomVer(FKawaiiPhysicsVersion::GUID) < FKawaiiPhysicsVersion::BeforeCustomVersionWasAdded)
+	if (Ar.CustomVer(FKawaiiPhysicsVersion::GUID) < FKawaiiPhysicsVersion::UseRuntimeFloatCurve)
 	{
 		Node.DampingCurveData.ExternalCurve = Node.DampingCurve_DEPRECATED;
 		Node.WorldDampingLocationCurveData.ExternalCurve = Node.WorldDampingLocationCurve_DEPRECATED;
@@ -164,6 +165,7 @@ void UAnimGraphNode_KawaiiPhysics::Serialize(FArchive& Ar)
 		Node.RadiusCurveData.ExternalCurve = Node.RadiusCurve_DEPRECATED;
 		Node.LimitAngleCurveData.ExternalCurve = Node.LimitAngleCurve_DEPRECATED;
 	}
+
 
 }
 
