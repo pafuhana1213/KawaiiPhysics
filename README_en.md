@@ -28,10 +28,13 @@ Reference materials
 https://cedil.cesa.or.jp/cedil_sessions/view/416
 
 ## Requirement
-- UE4.24.2
+- UE4.25.4
 
-- UE4.20~4.23(Only Plugin)
+- UE4.20~4.26(Only Plugin)
 https://github.com/pafuhana1213/KawaiiPhysics/releases/
+- UE5 EA(Only Plugin)  
+https://github.com/pafuhana1213/KawaiiPhysics/releases/  
+https://pafuhana1213.hatenablog.com/entry/KawaiiPhysics-UE5-EA  
 
 ## Usage
 - Put the KawaiiPhysics folder in the project's Plugins folder
