@@ -234,28 +234,53 @@ public:
 	FKawaiiPhysicsSettings PhysicsSettings;
 	
 	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
+	UPROPERTY()
+	UCurveFloat* DampingCurve_DEPRECATED = nullptr;
+
+	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
+	UPROPERTY()
+	UCurveFloat* WorldDampingLocationCurve_DEPRECATED = nullptr;
+
+	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
+	UPROPERTY()
+	UCurveFloat* WorldDampingRotationCurve_DEPRECATED = nullptr;
+
+	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
+	UPROPERTY()
+	UCurveFloat* StiffnessCurve_DEPRECATED = nullptr;
+
+	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
+	UPROPERTY()
+	UCurveFloat* RadiusCurve_DEPRECATED = nullptr;
+
+	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
+	UPROPERTY()
+	UCurveFloat* LimitAngleCurve_DEPRECATED = nullptr;
+
+	//  START SKYBLUE MOD
+	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
-	UCurveFloat* DampingCurve = nullptr;
+	FRuntimeFloatCurve DampingCurveData;
 
 	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
-	UCurveFloat* WorldDampingLocationCurve = nullptr;
+	FRuntimeFloatCurve WorldDampingLocationCurveData;
 
 	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
-	UCurveFloat* WorldDampingRotationCurve = nullptr;
+	FRuntimeFloatCurve WorldDampingRotationCurveData;
 
 	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
-	UCurveFloat* StiffnessCurve = nullptr;
+	FRuntimeFloatCurve StiffnessCurveData;
 
 	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
-	UCurveFloat* RadiusCurve = nullptr;
+	FRuntimeFloatCurve RadiusCurveData;
 
 	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
-	UCurveFloat* LimitAngleCurve = nullptr;
+	FRuntimeFloatCurve LimitAngleCurveData;
 
 	/** Flag to update each frame physical parameter. Disable to improve performance */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Advanced Physics Settings", meta = (PinHiddenByDefault))

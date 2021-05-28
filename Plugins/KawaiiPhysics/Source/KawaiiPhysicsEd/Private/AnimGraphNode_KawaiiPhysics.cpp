@@ -128,5 +128,45 @@ void UAnimGraphNode_KawaiiPhysics::ValidateAnimNodePostCompile(FCompilerResultsL
 	
 }
 
+struct FKawaiiPhysicsVersion
+{
+	enum Type
+	{
+		BeforeCustomVersionWasAdded,
+		UseRuntimeFloatCurve,
+		// -----<new versions can be added above this line>-------------------------------------------------
+		VersionPlusOne,
+		LatestVersion = VersionPlusOne - 1
+	};
+
+	// The GUID for this custom version number
+	const static FGuid GUID;
+
+private:
+	FKawaiiPhysicsVersion() {};
+};
+
+const FGuid FKawaiiPhysicsVersion::GUID(0x4B2D3E25, 0xCD681D29, 0x2DB298D7, 0xAD3E55FA);
+
+const FCustomVersionRegistration GRegisterKawaiiPhysCustomVersion(FKawaiiPhysicsVersion::GUID, FKawaiiPhysicsVersion::LatestVersion, TEXT("Kawaii-Phys"));
+
+void UAnimGraphNode_KawaiiPhysics::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FKawaiiPhysicsVersion::GUID);
+
+	if (Ar.CustomVer(FKawaiiPhysicsVersion::GUID) < FKawaiiPhysicsVersion::UseRuntimeFloatCurve)
+	{
+		Node.DampingCurveData.ExternalCurve = Node.DampingCurve_DEPRECATED;
+		Node.WorldDampingLocationCurveData.ExternalCurve = Node.WorldDampingLocationCurve_DEPRECATED;
+		Node.WorldDampingRotationCurveData.ExternalCurve = Node.WorldDampingRotationCurve_DEPRECATED;
+		Node.StiffnessCurveData.ExternalCurve = Node.StiffnessCurve_DEPRECATED;
+		Node.RadiusCurveData.ExternalCurve = Node.RadiusCurve_DEPRECATED;
+		Node.LimitAngleCurveData.ExternalCurve = Node.LimitAngleCurve_DEPRECATED;
+	}
+
+
+}
 
 #undef LOCTEXT_NAMESPACE
