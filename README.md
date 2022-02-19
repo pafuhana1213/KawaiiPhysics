@@ -35,7 +35,7 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 ## 動作環境
 - 4.25.4
 
-- UE4.20~4.26（Pluginのみ）  
+- UE4.20~4.27（Pluginのみ）  
 https://github.com/pafuhana1213/KawaiiPhysics/releases/
 
 UE4.21以前でビルドする場合は、KawaiiPhysicsEditMode.cpp における  
