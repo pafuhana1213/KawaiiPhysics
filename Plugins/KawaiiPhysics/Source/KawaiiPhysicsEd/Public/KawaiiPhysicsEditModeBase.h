@@ -9,6 +9,14 @@
 #include "UnrealWidget.h"
 #include "IAnimNodeEditMode.h"
 #include "BonePose.h"
+#include "Runtime/Launch/Resources/Version.h"
+
+
+#if	ENGINE_MAJOR_VERSION == 5
+#define UE_WIDGET UE::Widget
+#else
+#define UE_WIDGET FWidget
+#endif
 
 class FCanvas;
 class FEditorViewportClient;
@@ -25,9 +33,11 @@ public:
 
 	/** IAnimNodeEditMode interface */
 	virtual ECoordSystem GetWidgetCoordinateSystem() const override;
-	virtual FWidget::EWidgetMode GetWidgetMode() const override;
-	virtual FWidget::EWidgetMode ChangeToNextWidgetMode(FWidget::EWidgetMode CurWidgetMode) override;
-	virtual bool SetWidgetMode(FWidget::EWidgetMode InWidgetMode) override;
+
+	virtual UE_WIDGET::EWidgetMode GetWidgetMode() const override;
+	virtual UE_WIDGET::EWidgetMode ChangeToNextWidgetMode(UE_WIDGET::EWidgetMode CurWidgetMode) override;
+
+	virtual bool SetWidgetMode(UE_WIDGET::EWidgetMode InWidgetMode) override;
 	virtual FName GetSelectedBone() const override;
 	virtual void DoTranslation(FVector& InTranslation) override;
 	virtual void DoRotation(FRotator& InRotation) override;

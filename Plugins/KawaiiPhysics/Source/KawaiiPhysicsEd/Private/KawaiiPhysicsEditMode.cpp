@@ -39,7 +39,7 @@ IMPLEMENT_HIT_PROXY(HKawaiiPhysicsHitProxy, HHitProxy);
 FKawaiiPhysicsEditMode::FKawaiiPhysicsEditMode()
 	: RuntimeNode(nullptr)
 	, GraphNode(nullptr)
-	, CurWidgetMode(FWidget::WM_Translate)
+	, CurWidgetMode(UE_WIDGET::EWidgetMode::WM_Translate)
 {
 }
 
@@ -70,7 +70,7 @@ void FKawaiiPhysicsEditMode::ExitMode()
 void FKawaiiPhysicsEditMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
 	USkeletalMeshComponent* SkelMeshComp = GetAnimPreviewScene().GetPreviewMeshComponent();
-	if (SkelMeshComp && SkelMeshComp->SkeletalMesh && SkelMeshComp->SkeletalMesh->Skeleton)
+	if (SkelMeshComp && SkelMeshComp->SkeletalMesh && SkelMeshComp->SkeletalMesh->GetSkeleton())
 	{
 		RenderSphericalLimits(PDI);
 		RenderCapsuleLimit(PDI);
@@ -261,7 +261,7 @@ bool FKawaiiPhysicsEditMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix,
 	return true;
 }
 
-FWidget::EWidgetMode FKawaiiPhysicsEditMode::GetWidgetMode() const
+UE_WIDGET::EWidgetMode FKawaiiPhysicsEditMode::GetWidgetMode() const
 {
 	FCollisionLimitBase* Collision = GetSelectCollisionLimitRuntime();
 	if (Collision)
@@ -270,27 +270,27 @@ FWidget::EWidgetMode FKawaiiPhysicsEditMode::GetWidgetMode() const
 		return CurWidgetMode;
 	}
 
-	return FWidget::WM_Translate;
+	return UE_WIDGET::EWidgetMode::WM_Translate;
 }
 
-FWidget::EWidgetMode FKawaiiPhysicsEditMode::FindValidWidgetMode(FWidget::EWidgetMode InWidgetMode) const
+UE_WIDGET::EWidgetMode FKawaiiPhysicsEditMode::FindValidWidgetMode(UE_WIDGET::EWidgetMode InWidgetMode) const
 {
-	if (InWidgetMode == FWidget::WM_None)
+	if (InWidgetMode == UE_WIDGET::EWidgetMode::WM_None)
 	{	
-		return FWidget::WM_Translate;
+		return UE_WIDGET::EWidgetMode::WM_Translate;
 	}
 
 	switch (InWidgetMode)
 	{
-	case FWidget::WM_Translate:
-		return FWidget::WM_Rotate;
-	case FWidget::WM_Rotate:
-		return FWidget::WM_Scale;
-	case FWidget::WM_Scale:
-		return FWidget::WM_Translate;
+	case UE_WIDGET::EWidgetMode::WM_Translate:
+		return UE_WIDGET::EWidgetMode::WM_Rotate;
+	case UE_WIDGET::EWidgetMode::WM_Rotate:
+		return UE_WIDGET::EWidgetMode::WM_Scale;
+	case UE_WIDGET::EWidgetMode::WM_Scale:
+		return UE_WIDGET::EWidgetMode::WM_Translate;
 	}
 
-	return FWidget::WM_None;
+	return UE_WIDGET::EWidgetMode::WM_None;
 }
 
 bool FKawaiiPhysicsEditMode::HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click)
@@ -365,7 +365,7 @@ void FKawaiiPhysicsEditMode::OnExternalNodePropertyChange(FPropertyChangedEvent&
 	{
 		SelectCollisionIndex = -1;
 		SelectCollisionType = ECollisionLimitType::None;
-		CurWidgetMode = FWidget::WM_None;
+		CurWidgetMode = UE_WIDGET::EWidgetMode::WM_None;
 	}
 }
 

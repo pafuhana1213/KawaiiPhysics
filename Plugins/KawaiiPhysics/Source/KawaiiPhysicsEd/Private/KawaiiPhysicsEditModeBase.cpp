@@ -58,33 +58,33 @@ ECoordSystem FKawaiiPhysicsEditModeBase::GetWidgetCoordinateSystem() const
 	return ECoordSystem::COORD_None;
 }
 
-FWidget::EWidgetMode FKawaiiPhysicsEditModeBase::GetWidgetMode() const
+UE_WIDGET::EWidgetMode FKawaiiPhysicsEditModeBase::GetWidgetMode() const
 {
 	UAnimGraphNode_SkeletalControlBase* SkelControl = Cast<UAnimGraphNode_SkeletalControlBase>(AnimNode);
 	if (SkelControl != nullptr)
 	{
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			return (FWidget::EWidgetMode)SkelControl->GetWidgetMode(GetAnimPreviewScene().GetPreviewMeshComponent());
+			return (UE_WIDGET::EWidgetMode)SkelControl->GetWidgetMode(GetAnimPreviewScene().GetPreviewMeshComponent());
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	return FWidget::EWidgetMode::WM_None;
+	return UE_WIDGET::EWidgetMode::WM_None;
 }
 
-FWidget::EWidgetMode FKawaiiPhysicsEditModeBase::ChangeToNextWidgetMode(FWidget::EWidgetMode CurWidgetMode)
+UE_WIDGET::EWidgetMode FKawaiiPhysicsEditModeBase::ChangeToNextWidgetMode(UE_WIDGET::EWidgetMode CurWidgetMode)
 {
 	UAnimGraphNode_SkeletalControlBase* SkelControl = Cast<UAnimGraphNode_SkeletalControlBase>(AnimNode);
 	if (SkelControl != nullptr)
 	{
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			return (FWidget::EWidgetMode)SkelControl->ChangeToNextWidgetMode(GetAnimPreviewScene().GetPreviewMeshComponent(), CurWidgetMode);
+			return (UE_WIDGET::EWidgetMode)SkelControl->ChangeToNextWidgetMode(GetAnimPreviewScene().GetPreviewMeshComponent(), CurWidgetMode);
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	return FWidget::EWidgetMode::WM_None;
+	return UE_WIDGET::EWidgetMode::WM_None;
 }
 
-bool FKawaiiPhysicsEditModeBase::SetWidgetMode(FWidget::EWidgetMode InWidgetMode)
+bool FKawaiiPhysicsEditModeBase::SetWidgetMode(UE_WIDGET::EWidgetMode InWidgetMode)
 {
 	UAnimGraphNode_SkeletalControlBase* SkelControl = Cast<UAnimGraphNode_SkeletalControlBase>(AnimNode);
 	if (SkelControl != nullptr)
@@ -229,9 +229,9 @@ bool FKawaiiPhysicsEditModeBase::InputKey(FEditorViewportClient* InViewportClien
 	// Handle switching modes - only allowed when not already manipulating
 	if ((InEvent == IE_Pressed) && (InKey == EKeys::SpaceBar) && !bManipulating)
 	{
-		FWidget::EWidgetMode WidgetMode = (FWidget::EWidgetMode)ChangeToNextWidgetMode(GetModeManager()->GetWidgetMode());
+		UE_WIDGET::EWidgetMode WidgetMode = (UE_WIDGET::EWidgetMode)ChangeToNextWidgetMode(GetModeManager()->GetWidgetMode());
 		GetModeManager()->SetWidgetMode(WidgetMode);
-		if (WidgetMode == FWidget::WM_Scale)
+		if (WidgetMode == UE_WIDGET::EWidgetMode::WM_Scale)
 		{
 			GetModeManager()->SetCoordSystem(COORD_Local);
 		}
@@ -250,7 +250,7 @@ bool FKawaiiPhysicsEditModeBase::InputKey(FEditorViewportClient* InViewportClien
 bool FKawaiiPhysicsEditModeBase::InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale)
 {
 	const EAxisList::Type CurrentAxis = InViewportClient->GetCurrentWidgetAxis();
-	const FWidget::EWidgetMode WidgetMode = InViewportClient->GetWidgetMode();
+	const UE_WIDGET::EWidgetMode WidgetMode = InViewportClient->GetWidgetMode();
 
 	bool bHandled = false;
 
@@ -260,9 +260,9 @@ bool FKawaiiPhysicsEditModeBase::InputDelta(FEditorViewportClient* InViewportCli
 	{
 		bHandled = true;
 
-		const bool bDoRotation = WidgetMode == FWidget::WM_Rotate || WidgetMode == FWidget::WM_TranslateRotateZ;
-		const bool bDoTranslation = WidgetMode == FWidget::WM_Translate || WidgetMode == FWidget::WM_TranslateRotateZ;
-		const bool bDoScale = WidgetMode == FWidget::WM_Scale;
+		const bool bDoRotation = WidgetMode == UE_WIDGET::EWidgetMode::WM_Rotate || WidgetMode == UE_WIDGET::EWidgetMode::WM_TranslateRotateZ;
+		const bool bDoTranslation = WidgetMode == UE_WIDGET::EWidgetMode::WM_Translate || WidgetMode == UE_WIDGET::EWidgetMode::WM_TranslateRotateZ;
+		const bool bDoScale = WidgetMode == UE_WIDGET::EWidgetMode::WM_Scale;
 
 		if (bDoRotation)
 		{
@@ -359,7 +359,7 @@ void FKawaiiPhysicsEditModeBase::Tick(FEditorViewportClient* ViewportClient, flo
 
 void FKawaiiPhysicsEditModeBase::ConvertToComponentSpaceTransform(const USkeletalMeshComponent* SkelComp, const FTransform & InTransform, FTransform & OutCSTransform, int32 BoneIndex, EBoneControlSpace Space)
 {
-	USkeleton* Skeleton = SkelComp->SkeletalMesh->Skeleton;
+	USkeleton* Skeleton = SkelComp->SkeletalMesh->GetSkeleton();
 
 	switch (Space)
 	{
@@ -429,7 +429,7 @@ void FKawaiiPhysicsEditModeBase::ConvertToComponentSpaceTransform(const USkeleta
 
 void FKawaiiPhysicsEditModeBase::ConvertToBoneSpaceTransform(const USkeletalMeshComponent* SkelComp, const FTransform & InCSTransform, FTransform & OutBSTransform, int32 BoneIndex, EBoneControlSpace Space)
 {
-	USkeleton* Skeleton = SkelComp->SkeletalMesh->Skeleton;
+	USkeleton* Skeleton = SkelComp->SkeletalMesh->GetSkeleton();
 
 	switch (Space)
 	{
@@ -693,7 +693,7 @@ FVector FKawaiiPhysicsEditModeBase::ConvertWidgetLocation(const USkeletalMeshCom
 	{
 		if (InMeshBases.GetPose().IsValid())
 		{
-			USkeleton* Skeleton = InSkelComp->SkeletalMesh->Skeleton;
+			USkeleton* Skeleton = InSkelComp->SkeletalMesh->GetSkeleton();
 			const int32 MeshBoneIndex = InSkelComp->GetBoneIndex(InBoneName);
 			if (MeshBoneIndex != INDEX_NONE)
 			{

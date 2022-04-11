@@ -24,7 +24,7 @@ public:
 	virtual void EnterMode(class UAnimGraphNode_Base* InEditorNode, struct FAnimNode_Base* InRuntimeNode) override;
 	virtual void ExitMode() override;
 	virtual FVector GetWidgetLocation() const override;
-	virtual FWidget::EWidgetMode GetWidgetMode() const override;
+	virtual UE_WIDGET::EWidgetMode GetWidgetMode() const override;
 	virtual ECoordSystem GetWidgetCoordinateSystem() const override;
 	virtual void DoTranslation(FVector& InTranslation) override;
 	virtual void DoRotation(FRotator& InRotation) override;
@@ -54,7 +54,7 @@ private:
 	FVector GetWidgetLocation(ECollisionLimitType CollisionType, int Index) const;
 
 	// methods to find a valid widget mode for gizmo because doesn't need to show gizmo when the mode is "Ignore"
-	FWidget::EWidgetMode FindValidWidgetMode(FWidget::EWidgetMode InWidgetMode) const;
+	UE_WIDGET::EWidgetMode FindValidWidgetMode(UE_WIDGET::EWidgetMode InWidgetMode) const;
 
 	/** Checking if a collision is selected and the collision is valid */
 	bool IsValidSelectCollision() const;
@@ -77,5 +77,5 @@ private:
 	bool SelectCollisionIsFromDataAsset;
 
 	// storing current widget mode 
-	mutable FWidget::EWidgetMode CurWidgetMode;
+	mutable UE_WIDGET::EWidgetMode CurWidgetMode;
 };
