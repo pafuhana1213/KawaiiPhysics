@@ -35,7 +35,7 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 ## 動作環境
 - 4.25.4
 
-- UE4.20~4.26（Pluginのみ）  
+- UE4.20~4.27（Pluginのみ）  
 https://github.com/pafuhana1213/KawaiiPhysics/releases/
 
 UE4.21以前でビルドする場合は、KawaiiPhysicsEditMode.cpp における  
@@ -44,6 +44,10 @@ GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy (false)　に修正す
 
 UE4.23以前でビルドする場合は、awaiiPhysics.uplugin における  
 "Type": "UncookedOnly",　を "Type": "DeveloperTool", に修正する必要があります（たぶん）。
+
+- UE5 早期アクセス版（Pluginのみ）   
+https://github.com/pafuhana1213/KawaiiPhysics/releases/  
+解説記事：https://pafuhana1213.hatenablog.com/entry/KawaiiPhysics-UE5-EA
 
 ## 使い方
 - プロジェクトのPluginsフォルダにKawaiiPhysicsフォルダを入れてください
