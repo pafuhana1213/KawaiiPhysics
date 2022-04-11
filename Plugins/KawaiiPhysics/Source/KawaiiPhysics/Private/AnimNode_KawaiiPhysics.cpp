@@ -72,6 +72,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	{
 		ModifyBones.Empty(ModifyBones.Num());
 		bResetDynamics = false;
+		bInitPhysicsSettings = false;
 	}
 
 	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
