@@ -355,49 +355,49 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 
 		// Damping
 		Bone.PhysicsSettings.Damping = PhysicsSettings.Damping;
-		if (TotalBoneLength > 0 && DampingCurve && DampingCurve->GetCurves().Num() > 0)
+		if (TotalBoneLength > 0 && !DampingCurveData.GetRichCurve()->IsEmpty())
 		{
-			Bone.PhysicsSettings.Damping *= DampingCurve->GetFloatValue(LengthRate);
+			Bone.PhysicsSettings.Damping *= DampingCurveData.GetRichCurve()->Eval(LengthRate);
 		}
 		Bone.PhysicsSettings.Damping = FMath::Clamp<float>(Bone.PhysicsSettings.Damping, 0.0f, 1.0f);
 
 		// WorldLocationDamping
 		Bone.PhysicsSettings.WorldDampingLocation = PhysicsSettings.WorldDampingLocation;
-		if (TotalBoneLength > 0 && WorldDampingLocationCurve && WorldDampingLocationCurve->GetCurves().Num() > 0)
+		if (TotalBoneLength > 0 && !WorldDampingLocationCurveData.GetRichCurve()->IsEmpty())
 		{
-			Bone.PhysicsSettings.WorldDampingLocation *= WorldDampingLocationCurve->GetFloatValue(LengthRate);
+			Bone.PhysicsSettings.WorldDampingLocation *= WorldDampingLocationCurveData.GetRichCurve()->Eval(LengthRate);
 		}
 		Bone.PhysicsSettings.WorldDampingLocation = FMath::Clamp<float>(Bone.PhysicsSettings.WorldDampingLocation, 0.0f, 1.0f);
 
 		// WorldRotationDamping
 		Bone.PhysicsSettings.WorldDampingRotation = PhysicsSettings.WorldDampingRotation;
-		if (TotalBoneLength > 0 && WorldDampingRotationCurve && WorldDampingRotationCurve->GetCurves().Num() > 0)
+		if (TotalBoneLength > 0 && !WorldDampingRotationCurveData.GetRichCurve()->IsEmpty())
 		{
-			Bone.PhysicsSettings.WorldDampingRotation *= WorldDampingRotationCurve->GetFloatValue(LengthRate);
+			Bone.PhysicsSettings.WorldDampingRotation *= WorldDampingRotationCurveData.GetRichCurve()->Eval(LengthRate);
 		}
 		Bone.PhysicsSettings.WorldDampingRotation = FMath::Clamp<float>(Bone.PhysicsSettings.WorldDampingRotation, 0.0f, 1.0f);
 
 		// Stiffness
 		Bone.PhysicsSettings.Stiffness = PhysicsSettings.Stiffness;
-		if (TotalBoneLength > 0 && StiffnessCurve && StiffnessCurve->GetCurves().Num() > 0)
+		if (TotalBoneLength > 0 && !StiffnessCurveData.GetRichCurve()->IsEmpty())
 		{
-			Bone.PhysicsSettings.Stiffness *= StiffnessCurve->GetFloatValue(LengthRate);
+			Bone.PhysicsSettings.Stiffness *= StiffnessCurveData.GetRichCurve()->Eval(LengthRate);
 		}
 		Bone.PhysicsSettings.Stiffness = FMath::Clamp<float>(Bone.PhysicsSettings.Stiffness, 0.0f, 1.0f);
 
 		// Radius
 		Bone.PhysicsSettings.Radius = PhysicsSettings.Radius;
-		if (TotalBoneLength > 0 && RadiusCurve && RadiusCurve->GetCurves().Num() > 0)
+		if (TotalBoneLength > 0 && !RadiusCurveData.GetRichCurve()->IsEmpty())
 		{
-			Bone.PhysicsSettings.Radius *= RadiusCurve->GetFloatValue(LengthRate);
+			Bone.PhysicsSettings.Radius *= RadiusCurveData.GetRichCurve()->Eval(LengthRate);
 		}
 		Bone.PhysicsSettings.Radius = FMath::Max<float>(Bone.PhysicsSettings.Radius, 0.0f);
 
 		// LimitAngle
 		Bone.PhysicsSettings.LimitAngle = PhysicsSettings.LimitAngle;
-		if (TotalBoneLength > 0 && LimitAngleCurve && LimitAngleCurve->GetCurves().Num() > 0)
+		if (TotalBoneLength > 0 && !LimitAngleCurveData.GetRichCurve()->IsEmpty())
 		{
-			Bone.PhysicsSettings.LimitAngle *= LimitAngleCurve->GetFloatValue(LengthRate);
+			Bone.PhysicsSettings.LimitAngle *= LimitAngleCurveData.GetRichCurve()->Eval(LengthRate);
 		}
 		Bone.PhysicsSettings.LimitAngle = FMath::Max<float>(Bone.PhysicsSettings.LimitAngle, 0.0f);
 	}
