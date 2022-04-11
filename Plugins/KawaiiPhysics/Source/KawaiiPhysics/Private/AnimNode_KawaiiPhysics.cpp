@@ -624,10 +624,18 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 
 void FAnimNode_KawaiiPhysics::AdjustByWorldCollision(FKawaiiPhysicsModifyBone& Bone, const USkeletalMeshComponent* OwningComp, const FBoneContainer& BoneContainer)
 {
-	if (!OwningComp || Bone.ParentIndex < 0) return;
+	if (!OwningComp || Bone.ParentIndex < 0) 
+	{
+		return;
+	}
+
 	/** the trace is not done in game thread, so TraceTag does not draw debug traces*/
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(KawaiiCollision));
-	if (bIgnoreSelfComponent) Params.AddIgnoredComponent(OwningComp);
+	
+	if (bIgnoreSelfComponent)
+	{
+		Params.AddIgnoredComponent(OwningComp);
+	}
 
 	// Get collision settings from component	
 	ECollisionChannel TraceChannel = bOverrideCollisionParams ? CollisionChannelSettings.GetObjectType():OwningComp->GetCollisionObjectType();
@@ -643,7 +651,8 @@ void FAnimNode_KawaiiPhysics::AdjustByWorldCollision(FKawaiiPhysicsModifyBone& B
 			// Do sphere sweep
 			FHitResult Result;
 			bool bHit = World->SweepSingleByChannel(Result, CompTransform.TransformPosition(Bone.PrevLocation), CompTransform.TransformPosition(Bone.Location), FQuat::Identity, TraceChannel, FCollisionShape::MakeSphere(Bone.PhysicsSettings.Radius), Params, ResponseParams);
-			if (bHit) {
+			if (bHit) 
+			{
 				if (Result.bStartPenetrating)
 				{
 					Bone.Location = CompTransform.InverseTransformPosition(CompTransform.TransformPosition(Bone.Location) + (Result.Normal * Result.PenetrationDepth));
@@ -714,9 +723,6 @@ void FAnimNode_KawaiiPhysics::AdjustByWorldCollision(FKawaiiPhysicsModifyBone& B
 			}
 		}
 	}
-	
-	
-	
 }
 
 
