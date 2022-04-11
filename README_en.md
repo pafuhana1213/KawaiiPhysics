@@ -37,8 +37,9 @@ https://github.com/pafuhana1213/KawaiiPhysics/releases/
 https://github.com/pafuhana1213/KawaiiPhysics/releases/tag/20201202-v1.7.0
 
 ## Usage
-- Put the KawaiiPhysics folder in the project's Plugins folder
+- Put the KawaiiPhysics folder in the PROJECT's Plugins folder
 - About each parameters：https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E5%90%84%E3%83%91%E3%83%A9%E3%83%A1%E3%83%BC%E3%82%BF%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6
+- In case of BP project, an error occurs when packaging. Try converting your prohject to C ++ project
 
 ## SampleMap
 ![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics3.jpg)  
