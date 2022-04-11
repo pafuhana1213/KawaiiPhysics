@@ -77,6 +77,12 @@ https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E6%8E%A1%E7%94%A8%E5%AE%9F%E
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
+- 2022/4/11 v1.9.0
+  -  カーブアセットを作らなくても、カーブでのパラメーター編集ができるようになりました　https://github.com/pafuhana1213/KawaiiPhysics/pull/32 
+  -  ワールドコリジョン機能が入りました。サンプルにも追加してます　https://github.com/pafuhana1213/KawaiiPhysics/pull/26 
+  -  LOD設定などにより末端のボーンが機能しない場合、DummyBoneが生成されない不具合を修正しました　https://github.com/pafuhana1213/KawaiiPhysics/pull/26 
+  -  ResetPhysics時に物理設定がリセットされる不具合を修正しました　https://github.com/pafuhana1213/KawaiiPhysics/issues/38
+  -  LOD切り替え時のあらぶりを抑える（かもしれない）処理を追加しました。ResetBoneTransformWhenBoneNotFoundを有効にしたら以前の処理に戻ります　https://github.com/pafuhana1213/KawaiiPhysics/issues/44 
 - 2022/4/11 v1.8.0
   - UE5正式版に対応
   - UE4.26以下のサポートを一旦切りました。  
