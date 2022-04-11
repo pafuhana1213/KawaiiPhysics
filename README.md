@@ -54,6 +54,8 @@ UE4.23以前でビルドする場合は、awaiiPhysics.uplugin における
 - **プロジェクト**のPluginsフォルダにKawaiiPhysicsフォルダを入れてください
 - 各パラメータについて：https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E5%90%84%E3%83%91%E3%83%A9%E3%83%A1%E3%83%BC%E3%82%BF%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6
 
+- BPプロジェクトの場合、パッケージ時にエラーが発生します。お手数ですがC++プロジェクトに変換してみてください
+
 ## サンプル
 ![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics3.jpg)  
 - Content/KawaiiPhysicsSample/KawaiiPhysicsSample
