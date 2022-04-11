@@ -33,10 +33,15 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 [次期アイドルマスター グラフィクス＆アニメーション プログラミング プレビュー](https://cedil.cesa.or.jp/cedil_sessions/view/416)
 
 ## 動作環境
-- 4.25.4
+- UE4.27.2, UE5.0
 
-- UE4.20~4.27（Pluginのみ）  
+- UE4.27, UE5.0以降（Pluginのみ）  
 https://github.com/pafuhana1213/KawaiiPhysics/releases/
+
+- UE4.26以前（Pluginのみ）  
+https://github.com/pafuhana1213/KawaiiPhysics/releases/tag/20201202-v1.7.0
+
+UE4.26以前でビルドする際は、GetSkeleton()をSkeletonに修正する必要があります。
 
 UE4.21以前でビルドする場合は、KawaiiPhysicsEditMode.cpp における  
 GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy () を  
@@ -45,12 +50,8 @@ GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy (false)　に修正す
 UE4.23以前でビルドする場合は、awaiiPhysics.uplugin における  
 "Type": "UncookedOnly",　を "Type": "DeveloperTool", に修正する必要があります（たぶん）。
 
-- UE5 早期アクセス版（Pluginのみ）   
-https://github.com/pafuhana1213/KawaiiPhysics/releases/  
-解説記事：https://pafuhana1213.hatenablog.com/entry/KawaiiPhysics-UE5-EA
-
 ## 使い方
-- プロジェクトのPluginsフォルダにKawaiiPhysicsフォルダを入れてください
+- **プロジェクト**のPluginsフォルダにKawaiiPhysicsフォルダを入れてください
 - 各パラメータについて：https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E5%90%84%E3%83%91%E3%83%A9%E3%83%A1%E3%83%BC%E3%82%BF%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6
 
 ## サンプル
@@ -74,6 +75,9 @@ https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E6%8E%A1%E7%94%A8%E5%AE%9F%E
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
+- 2022/4/11 v1.8.0
+  - UE5正式版に対応
+  - UE4.26以下のサポートを一旦切りました。  
 - 2020/12/2 v1.7.0
   - UAnimInstance::ResetDynamics(ETeleportType::ResetPhysics)呼び出しでのリセットに対応
     - 説明：https://twitter.com/pafuhana1213/status/1334141624666910722
