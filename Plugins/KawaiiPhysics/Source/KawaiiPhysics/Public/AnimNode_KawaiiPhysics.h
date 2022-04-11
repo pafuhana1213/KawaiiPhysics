@@ -211,6 +211,8 @@ public:
 		PoseRotation = ComponentSpaceTransform.GetRotation();
 		PoseScale = ComponentSpaceTransform.GetScale3D();
 	}
+	FKawaiiPhysicsModifyBone(){}
+
 };
 
 USTRUCT(BlueprintType)
@@ -335,6 +337,30 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Wind, meta = (DisplayAfter = "bEnableWind"), meta = (PinHiddenByDefault))
 	float WindScale = 1.0f;
 
+	/**
+	 *	EXPERIMENTAL. Perform sweeps for each simulating bodies to avoid collisions with the world.
+	 *	This greatly increases the cost of the physics simulation.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Collision, meta = (PinHiddenByDefault))
+	bool bAllowWorldCollision = false;
+	//use component collision channel settings by default
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Collision, meta = (PinHiddenByDefault, EditCondition = "bAllowWorldCollision"))
+	bool bOverrideCollisionParams = false;
+	/** Types of objects that this physics objects will collide with. */
+	UPROPERTY(EditAnywhere, Category = Collision, meta = (FullyExpand = "true", EditCondition = "bAllowWorldCollision&&bOverrideCollisionParams"))
+	FBodyInstance CollisionChannelSettings;
+
+
+	/** Self collision is best done by setting the "Limits" in this node, but if you really need using PhysicsAsset collision, uncheck this!*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision", meta = (PinHiddenByDefault, EditCondition = "bAllowWorldCollision"))
+	bool bIgnoreSelfComponent = true;
+	/** Self bone is always ignored*/
+	UPROPERTY(EditAnywhere, Category = "Collision", meta = (EditCondition = "!bIgnoreSelfComponent"))
+	TArray<FBoneReference> IgnoreBones;
+	/** If the bone starts with this name, will be ignored (Self bone is always ignored)*/
+	UPROPERTY(EditAnywhere, Category = "Collision", meta = (EditCondition = "!bIgnoreSelfComponent"))
+	TArray<FName> IgnoreBoneNamePrefix;
+
 	UPROPERTY()
 	TArray< FKawaiiPhysicsModifyBone > ModifyBones;
 
@@ -381,7 +407,6 @@ public:
 		return TotalBoneLength;
 	}
 	
-
 private:
 	FVector GetBoneForwardVector(const FQuat& Rotation)
 	{
@@ -419,6 +444,7 @@ private:
 	void UpdatePlanerLimits(TArray<FPlanarLimit>& Limits, FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform);
 
 	void SimulateModifyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform);
+	void AdjustByWorldCollision(FKawaiiPhysicsModifyBone& Bone, const USkeletalMeshComponent* OwningComp, const FBoneContainer& BoneContainer);
 	void AdjustBySphereCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FSphericalLimit>& Limits);
 	void AdjustByCapsuleCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FCapsuleLimit>& Limits);
 	void AdjustByPlanerCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FPlanarLimit>& Limits);
