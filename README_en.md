@@ -3,7 +3,7 @@ Forum :
 https://forums.unrealengine.com/community/released-projects/1638095-kawaii-physics-simple-fake-physics-to-sway-bones-more-easily-and-more-cutely
 
 ## Description
-Kawaii Physics is a pseudo-physical plug-in created for Unreal Engine 4.  
+Kawaii Physics is a pseudo-physical plug-in created for Unreal Engine 4 & 5.  
 You can sway your hair, skirt, chest, etc easily and in a Kawaii way.
 
 ![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics1.gif)  
@@ -28,13 +28,13 @@ Reference materials
 https://cedil.cesa.or.jp/cedil_sessions/view/416
 
 ## Requirement
-- UE4.25.4
+- UE4.27, UE5
 
-- UE4.20~4.26(Only Plugin)
+- UE4.27, UE5(Only Plugin)
 https://github.com/pafuhana1213/KawaiiPhysics/releases/
-- UE5 EA(Only Plugin)  
-https://github.com/pafuhana1213/KawaiiPhysics/releases/  
-https://pafuhana1213.hatenablog.com/entry/KawaiiPhysics-UE5-EA  
+
+- UE4.24~4.26(Only Plugin)
+https://github.com/pafuhana1213/KawaiiPhysics/releases/tag/20201202-v1.7.0
 
 ## Usage
 - Put the KawaiiPhysics folder in the project's Plugins folder
