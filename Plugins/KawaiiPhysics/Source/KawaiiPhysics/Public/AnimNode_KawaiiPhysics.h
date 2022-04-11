@@ -195,14 +195,18 @@ public:
 
 public:
 
-	void UpdatePoseTranform(const FBoneContainer& BoneContainer, FCSPose<FCompactPose>& Pose)
+	void UpdatePoseTranform(const FBoneContainer& BoneContainer, FCSPose<FCompactPose>& Pose, bool ResetBoneTransformWhenBoneNotFound)
 	{
 		auto CompactPoseIndex = BoneRef.GetCompactPoseIndex(BoneContainer);
 		if (CompactPoseIndex < 0)
 		{
-			PoseLocation = FVector::ZeroVector;
-			PoseRotation = FQuat::Identity;
-			PoseScale = FVector::OneVector;
+			// Reset bone location and rotation may cause trouble when switching between skeleton LODs #44
+			if(ResetBoneTransformWhenBoneNotFound)
+			{
+				PoseLocation = FVector::ZeroVector;
+				PoseRotation = FQuat::Identity;
+				PoseScale = FVector::OneVector;
+			}
 			return;
 		}
 
@@ -300,6 +304,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Advanced Physics Settings", meta = (PinHiddenByDefault))
 	EPlanarConstraint PlanarConstraint = EPlanarConstraint::None;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Advanced Physics Settings", meta = (PinHiddenByDefault))
+	bool ResetBoneTransformWhenBoneNotFound = false;
+
 
 	UPROPERTY(EditAnywhere, Category = "Spherical Limits")
 	TArray< FSphericalLimit> SphericalLimits;
@@ -330,24 +337,24 @@ public:
 	FVector Gravity = FVector::ZeroVector;
 	
 	/** Whether or not wind is enabled for the bodies in this simulation */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Wind, meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind", meta = (PinHiddenByDefault))
 	bool bEnableWind = false;
 
 	/** Scale to apply to calculated wind velocities in the solver */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Wind, meta = (DisplayAfter = "bEnableWind"), meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind", meta = (DisplayAfter = "bEnableWind"), meta = (PinHiddenByDefault))
 	float WindScale = 1.0f;
 
 	/**
 	 *	EXPERIMENTAL. Perform sweeps for each simulating bodies to avoid collisions with the world.
 	 *	This greatly increases the cost of the physics simulation.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Collision, meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision", meta = (PinHiddenByDefault))
 	bool bAllowWorldCollision = false;
 	//use component collision channel settings by default
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Collision, meta = (PinHiddenByDefault, EditCondition = "bAllowWorldCollision"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision", meta = (PinHiddenByDefault, EditCondition = "bAllowWorldCollision"))
 	bool bOverrideCollisionParams = false;
 	/** Types of objects that this physics objects will collide with. */
-	UPROPERTY(EditAnywhere, Category = Collision, meta = (FullyExpand = "true", EditCondition = "bAllowWorldCollision&&bOverrideCollisionParams"))
+	UPROPERTY(EditAnywhere, Category = "Collision", meta = (FullyExpand = "true", EditCondition = "bAllowWorldCollision&&bOverrideCollisionParams"))
 	FBodyInstance CollisionChannelSettings;
 
 

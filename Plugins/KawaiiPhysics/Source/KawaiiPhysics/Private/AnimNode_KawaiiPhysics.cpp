@@ -118,7 +118,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	{
 		if (!Bone.bDummy)
 		{
-			Bone.UpdatePoseTranform(BoneContainer, Output.Pose);
+			Bone.UpdatePoseTranform(BoneContainer, Output.Pose, ResetBoneTransformWhenBoneNotFound);
 		}
 		else
 		{
