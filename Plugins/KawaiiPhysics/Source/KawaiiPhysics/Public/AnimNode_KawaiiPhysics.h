@@ -176,19 +176,19 @@ public:
 	FKawaiiPhysicsSettings PhysicsSettings;
 
 	UPROPERTY()
-	FVector Location;
+	FVector Location = FVector::Zero();
 	UPROPERTY()
-	FVector PrevLocation;
+	FVector PrevLocation = FVector::Zero();
 	UPROPERTY()
-	FQuat PrevRotation;
+	FQuat PrevRotation = FQuat::Identity;
 	UPROPERTY()
-	FVector PoseLocation;
+	FVector PoseLocation = FVector::Zero();
 	UPROPERTY()
-	FQuat PoseRotation;
+	FQuat PoseRotation = FQuat::Identity;
 	UPROPERTY()
-	FVector PoseScale;
+	FVector PoseScale = FVector::Zero();
 	UPROPERTY()
-	float LengthFromRoot;
+	float LengthFromRoot = 0.0;
 	UPROPERTY()
 	bool bDummy = false;
 
