@@ -30,6 +30,12 @@ class FKawaiiPhysicsEditModeBase : public IAnimNodeEditMode
 {
 public:
 	FKawaiiPhysicsEditModeBase();
+	
+	virtual void RegisterPoseWatchedNode(UAnimGraphNode_Base* InEditorNode, FAnimNode_Base* In) override;
+	
+	virtual void Exit() override;
+    	virtual void Enter() override;
+    	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
 	/** IAnimNodeEditMode interface */
 	virtual ECoordSystem GetWidgetCoordinateSystem() const override;

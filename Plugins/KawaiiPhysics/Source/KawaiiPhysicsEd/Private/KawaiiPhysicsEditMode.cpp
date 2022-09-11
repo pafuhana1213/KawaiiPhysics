@@ -38,10 +38,23 @@ IMPLEMENT_HIT_PROXY(HKawaiiPhysicsHitProxy, HHitProxy);
 
 FKawaiiPhysicsEditMode::FKawaiiPhysicsEditMode()
 	: RuntimeNode(nullptr)
-	, GraphNode(nullptr)
-	, CurWidgetMode(UE_WIDGET::EWidgetMode::WM_Translate)
+	  , GraphNode(nullptr)
+	  , SelectCollisionIsFromDataAsset(false), CurWidgetMode(UE_WIDGET::EWidgetMode::WM_Translate)
 {
 }
+
+void FKawaiiPhysicsEditMode::Enter()
+{
+}
+
+void FKawaiiPhysicsEditMode::Exit()
+{
+}
+
+void FKawaiiPhysicsEditMode::AddReferencedObjects(FReferenceCollector& Collector)
+{
+}
+
 
 void FKawaiiPhysicsEditMode::EnterMode(UAnimGraphNode_Base* InEditorNode, FAnimNode_Base* InRuntimeNode)
 {
@@ -639,6 +652,12 @@ void FKawaiiPhysicsEditMode::Draw3DTextItem(FText Text, FCanvas* Canvas, const F
 		TextItem.EnableShadow(FLinearColor::Black);
 		Canvas->DrawItem(TextItem);
 	}
+
+}
+
+void FKawaiiPhysicsEditMode::RegisterPoseWatchedNode(UAnimGraphNode_Base* InEditorNode, FAnimNode_Base* In)
+{
+
 
 }
 

@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "UnrealWidget.h"
 #include "KawaiiPhysicsEditModeBase.h"
-#include "AnimNodeEditMode.h"
+
 #include "AnimGraphNode_KawaiiPhysics.h"
 #include "AnimNode_KawaiiPhysics.h"
 
@@ -19,6 +19,13 @@ class FKawaiiPhysicsEditMode : public FKawaiiPhysicsEditModeBase
 public:
 
 	FKawaiiPhysicsEditMode();
+	
+	virtual void Exit() override;
+        	virtual void Enter() override;
+        	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	
+	virtual void RegisterPoseWatchedNode(UAnimGraphNode_Base* InEditorNode, FAnimNode_Base* In) override;
+
 	
 	/** IAnimNodeEditMode interface */
 	virtual void EnterMode(class UAnimGraphNode_Base* InEditorNode, struct FAnimNode_Base* InRuntimeNode) override;

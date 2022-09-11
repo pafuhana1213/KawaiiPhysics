@@ -685,6 +685,26 @@ FVector FKawaiiPhysicsEditModeBase::ConvertWidgetLocation(const USkeletalMeshCom
 
 	return WidgetLoc;
 }
+
+void FKawaiiPhysicsEditModeBase::RegisterPoseWatchedNode(UAnimGraphNode_Base* InEditorNode, FAnimNode_Base* In)
+{
+
+
+}
+
+void FKawaiiPhysicsEditModeBase::Enter()
+{
+}
+
+void FKawaiiPhysicsEditModeBase::Exit()
+{
+}
+
+void FKawaiiPhysicsEditModeBase::AddReferencedObjects(FReferenceCollector& Collector)
+{
+}
+
+
 FVector FKawaiiPhysicsEditModeBase::ConvertWidgetLocation(const USkeletalMeshComponent* SkelComp, FCSPose<FCompactHeapPose>& MeshBases, const FName& BoneName, const FVector& Location, const EBoneControlSpace Space)
 {
 	FVector WidgetLoc = FVector::ZeroVector;
