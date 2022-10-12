@@ -7,7 +7,6 @@ public class KawaiiPhysics : ModuleRules
 	public KawaiiPhysics(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-		bUseUnity = false;
 		
 		PublicIncludePaths.AddRange(
 			new string[] {
