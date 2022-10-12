@@ -7,16 +7,21 @@ public class KawaiiPhysicsEd : ModuleRules
 	public KawaiiPhysicsEd(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+		bUseUnity = false;
 
         PrivateDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "KawaiiPhysics" });
         PrivateDependencyModuleNames.AddRange(new string[] { "AnimGraph", "BlueprintGraph", "Persona", "UnrealEd", "AnimGraphRuntime", "SlateCore"});
 
-        BuildVersion Version;
-        if (BuildVersion.TryRead(BuildVersion.GetDefaultFileName(), out Version))
+        if (BuildVersion.TryRead(BuildVersion.GetDefaultFileName(), out var Version))
         {
             if (Version.MajorVersion == 5)
             {
 				PrivateDependencyModuleNames.AddRange(new string[] { "EditorFramework" });
+
+				if (Version.MinorVersion >= 1)
+				{
+					PrivateDependencyModuleNames.AddRange(new string[] { "AnimationEditMode" });
+				}
 			}
         }
 

@@ -19,6 +19,11 @@ class FKawaiiPhysicsEditMode : public FKawaiiPhysicsEditModeBase
 public:
 
 	FKawaiiPhysicsEditMode();
+
+	virtual void Enter() override {}
+	virtual void Exit() override {}
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override {}
+	
 	
 	/** IAnimNodeEditMode interface */
 	virtual void EnterMode(class UAnimGraphNode_Base* InEditorNode, struct FAnimNode_Base* InRuntimeNode) override;

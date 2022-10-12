@@ -32,11 +32,8 @@ struct FCollisionLimitDataBase
 	UPROPERTY(VisibleAnywhere, Category = Debug, meta = (IgnoreForMemberInitializationTest))
 	FGuid Guid = FGuid::NewGuid();
 
-public:
-
 protected:
-
-	void UpdateBase(FCollisionLimitBase* Limit)
+	void UpdateBase(const FCollisionLimitBase* Limit)
 	{
 		DrivingBoneName = Limit->DrivingBone.BoneName;
 		OffsetLocation = Limit->OffsetLocation;
@@ -45,7 +42,7 @@ protected:
 		Rotation = Limit->Rotation;
 	}
 
-	void ConvertBase(FCollisionLimitBase& Limit)
+	void ConvertBase(FCollisionLimitBase& Limit) const
 	{
 		Limit.DrivingBone.BoneName = DrivingBoneName;
 		Limit.OffsetLocation = OffsetLocation;
@@ -73,14 +70,14 @@ struct FSphericalLimitData : public FCollisionLimitDataBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SphericalLimit)
 	ESphericalLimitType LimitType = ESphericalLimitType::Outer;
 
-	void Update(FSphericalLimit* Limit) 
+	void Update(const FSphericalLimit* Limit) 
 	{
 		UpdateBase(Limit);
 		Radius = Limit->Radius;
 		LimitType = Limit->LimitType;
 	}
 
-	FSphericalLimit Convert()
+	FSphericalLimit Convert() const
 	{
 		FSphericalLimit Limit;
 		ConvertBase(Limit);
@@ -102,14 +99,14 @@ struct FCapsuleLimitData : public FCollisionLimitDataBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CapsuleLimit, meta = (ClampMin = "0"))
 	float Length = 10.0f;
 
-	void Update(FCapsuleLimit* Limit)
+	void Update(const FCapsuleLimit* Limit)
 	{
 		UpdateBase(Limit);
 		Radius = Limit->Radius;
 		Length = Limit->Length;
 	}
 
-	FCapsuleLimit Convert()
+	FCapsuleLimit Convert() const
 	{
 		FCapsuleLimit Limit;
 		ConvertBase(Limit);
@@ -125,16 +122,20 @@ struct FPlanarLimitData : public FCollisionLimitDataBase
 {
 	GENERATED_BODY();
 
+	FPlanarLimitData()
+		: Plane(FPlane::ZeroVector)
+	{}
+
 	UPROPERTY(EditAnywhere, Category = PlanarLimit, BlueprintReadWrite)
 	FPlane Plane;
 
-	void Update(FPlanarLimit* Limit)
+	void Update(const FPlanarLimit* Limit)
 	{
 		UpdateBase(Limit);
 		Plane = Limit->Plane;
 	}
 
-	FPlanarLimit Convert()
+	FPlanarLimit Convert() const
 	{
 		FPlanarLimit Limit;
 		ConvertBase(Limit);

@@ -37,6 +37,8 @@ public:
 	virtual UE_WIDGET::EWidgetMode GetWidgetMode() const override;
 	virtual UE_WIDGET::EWidgetMode ChangeToNextWidgetMode(UE_WIDGET::EWidgetMode CurWidgetMode) override;
 
+	virtual void RegisterPoseWatchedNode(UAnimGraphNode_Base* InEditorNode, FAnimNode_Base* InRuntimeNode) override {}
+	
 	virtual bool SetWidgetMode(UE_WIDGET::EWidgetMode InWidgetMode) override;
 	virtual FName GetSelectedBone() const override;
 	virtual void DoTranslation(FVector& InTranslation) override;

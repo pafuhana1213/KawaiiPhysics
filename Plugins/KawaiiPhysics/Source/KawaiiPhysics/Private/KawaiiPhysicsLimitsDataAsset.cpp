@@ -26,7 +26,6 @@ void UKawaiiPhysicsLimitsDataAsset::UpdateLimit(FCollisionLimitBase* Limit)
 			{
 				SphericalLimits.Add(Data.Convert());
 			}
-
 		break;
 		case ECollisionLimitType::Capsule:
 
@@ -44,10 +43,8 @@ void UKawaiiPhysicsLimitsDataAsset::UpdateLimit(FCollisionLimitBase* Limit)
 			{
 				CapsuleLimits.Add(Data.Convert());
 			}
-
 		break;
 		case ECollisionLimitType::Planar:
-
 			for (FPlanarLimitData& LimitData : PlanarLimitsData)
 			{
 				if (LimitData.Guid == Limit->Guid)
@@ -63,7 +60,9 @@ void UKawaiiPhysicsLimitsDataAsset::UpdateLimit(FCollisionLimitBase* Limit)
 				PlanarLimits.Add(Data.Convert());
 			}
 
-		break;;
+		break;
+		default:
+			break;
 	}
 
 	MarkPackageDirty();

@@ -39,6 +39,7 @@ IMPLEMENT_HIT_PROXY(HKawaiiPhysicsHitProxy, HHitProxy);
 FKawaiiPhysicsEditMode::FKawaiiPhysicsEditMode()
 	: RuntimeNode(nullptr)
 	, GraphNode(nullptr)
+	, SelectCollisionIsFromDataAsset(false)
 	, CurWidgetMode(UE_WIDGET::EWidgetMode::WM_Translate)
 {
 }
@@ -69,8 +70,8 @@ void FKawaiiPhysicsEditMode::ExitMode()
 
 void FKawaiiPhysicsEditMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
-	USkeletalMeshComponent* SkelMeshComp = GetAnimPreviewScene().GetPreviewMeshComponent();
-	if (SkelMeshComp && SkelMeshComp->SkeletalMesh && SkelMeshComp->SkeletalMesh->GetSkeleton())
+	const USkeletalMeshComponent* SkelMeshComp = GetAnimPreviewScene().GetPreviewMeshComponent();
+	if (SkelMeshComp && SkelMeshComp->GetSkinnedAsset() && SkelMeshComp->GetSkinnedAsset()->GetSkeleton())
 	{
 		RenderSphericalLimits(PDI);
 		RenderCapsuleLimit(PDI);
