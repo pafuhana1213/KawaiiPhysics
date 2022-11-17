@@ -655,6 +655,11 @@ void FKawaiiPhysicsEditMode::Draw3DTextItem(FText Text, FCanvas* Canvas, const F
 
 }
 
+bool FKawaiiPhysicsEditMode::SupportsPoseWatch()
+{
+	return true;
+}
+
 void FKawaiiPhysicsEditMode::RegisterPoseWatchedNode(UAnimGraphNode_Base* InEditorNode, FAnimNode_Base* In)
 {
 

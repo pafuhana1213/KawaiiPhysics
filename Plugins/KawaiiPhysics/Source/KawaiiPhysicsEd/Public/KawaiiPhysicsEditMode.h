@@ -73,6 +73,9 @@ private:
 	void DrawTextItem(FText Text, FCanvas* Canvas, float X, float& Y, float FontHeight);
 	void Draw3DTextItem(FText Text, FCanvas* Canvas, const FSceneView* View, FViewport* Viewport, FVector Location);
 
+public:
+	virtual bool SupportsPoseWatch() override;
+
 private:
 	/** Cache the typed nodes */
 	struct FAnimNode_KawaiiPhysics* RuntimeNode;
