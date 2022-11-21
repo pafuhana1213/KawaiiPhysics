@@ -29,6 +29,8 @@ public:
 	virtual void DoTranslation(FVector& InTranslation) override;
 	virtual void DoRotation(FRotator& InRotation) override;
 	virtual void DoScale(FVector& InScale) override;
+	virtual bool SupportsPoseWatch() override {return false;}	
+	virtual void RegisterPoseWatchedNode(UAnimGraphNode_Base* InEditorNode, FAnimNode_Base* InRuntimeNode) override;
 
 	/** FEdMode interface */
 	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;

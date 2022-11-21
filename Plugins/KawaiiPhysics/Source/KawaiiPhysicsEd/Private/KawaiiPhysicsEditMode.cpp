@@ -642,4 +642,9 @@ void FKawaiiPhysicsEditMode::Draw3DTextItem(FText Text, FCanvas* Canvas, const F
 
 }
 
+void FKawaiiPhysicsEditMode::RegisterPoseWatchedNode(UAnimGraphNode_Base* InEditorNode, FAnimNode_Base* InRuntimeNode)
+{
+	
+}
+
 #undef LOCTEXT_NAMESPACE
