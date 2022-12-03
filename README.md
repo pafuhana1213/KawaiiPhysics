@@ -6,6 +6,10 @@ Forum :
 日本語  https://forums.unrealengine.com/international/japan/1679269  
 英語  https://forums.unrealengine.com/community/released-projects/1638095
 
+ディスカッション：  
+[Tell me about your work! - あなたの作品を教えてください！](https://github.com/pafuhana1213/KawaiiPhysics/discussions/65)  
+
+
 ## はじめに
 Kawaii Physicsは UnrealEngine4,5用に作成した疑似物理プラグインです。  
 髪、スカート、胸などの揺れものを「かんたんに」「かわいく」揺らすことができます。
