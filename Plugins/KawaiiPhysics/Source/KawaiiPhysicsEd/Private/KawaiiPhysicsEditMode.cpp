@@ -82,7 +82,7 @@ void FKawaiiPhysicsEditMode::Render(const FSceneView* View, FViewport* Viewport,
 {
 	const USkeletalMeshComponent* SkelMeshComp = GetAnimPreviewScene().GetPreviewMeshComponent();
 
-#if	ENGINE_MAJOR_VERSION == 5
+#if	ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 1
 	if (SkelMeshComp && SkelMeshComp->GetSkeletalMeshAsset() && SkelMeshComp->GetSkeletalMeshAsset()->GetSkeleton())
 #else
 	if (SkelMeshComp && SkelMeshComp->SkeletalMesh && SkelMeshComp->SkeletalMesh->GetSkeleton())
@@ -339,10 +339,10 @@ bool FKawaiiPhysicsEditMode::InputKey(FEditorViewportClient* InViewportClient, F
 {
 	bool bHandled = false;
 
-#if	ENGINE_MAJOR_VERSION == 5
+#if	ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 1
 	if ((InEvent == IE_Pressed) && !IsManipulatingWidget())
 #else
-	if ((InEvent == IE_Pressed) && !bManipulating)
+	if ((InEvent == IE_Pressed)) //&& !bManipulating)
 #endif
 	{
 		if (InKey == EKeys::SpaceBar)
