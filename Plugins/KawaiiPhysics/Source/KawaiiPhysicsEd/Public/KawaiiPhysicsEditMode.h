@@ -7,14 +7,20 @@
 #include "AnimGraphNode_KawaiiPhysics.h"
 #include "AnimNode_KawaiiPhysics.h"
 
+#if	ENGINE_MAJOR_VERSION == 5
+#define UE_WIDGET UE::Widget
+#endif
+
 class FEditorViewportClient;
 class FPrimitiveDrawInterface;
 class USkeletalMeshComponent;
 struct FViewportClick;
 
-
-
+#if	ENGINE_MAJOR_VERSION == 5
+class FKawaiiPhysicsEditMode : public FAnimNodeEditMode
+#else
 class FKawaiiPhysicsEditMode : public FKawaiiPhysicsEditModeBase
+#endif
 {
 public:
 

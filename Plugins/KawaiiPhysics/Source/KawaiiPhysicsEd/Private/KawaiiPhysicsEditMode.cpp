@@ -54,7 +54,12 @@ void FKawaiiPhysicsEditMode::EnterMode(UAnimGraphNode_Base* InEditorNode, FAnimN
 
 	NodePropertyDelegateHandle = GraphNode->OnNodePropertyChanged().AddSP(this, &FKawaiiPhysicsEditMode::OnExternalNodePropertyChange);
 
+#if	ENGINE_MAJOR_VERSION == 5
+	FAnimNodeEditMode::EnterMode(InEditorNode, InRuntimeNode);
+#else
 	FKawaiiPhysicsEditModeBase::EnterMode(InEditorNode, InRuntimeNode);
+#endif
+	
 }
 
 void FKawaiiPhysicsEditMode::ExitMode()
@@ -64,13 +69,18 @@ void FKawaiiPhysicsEditMode::ExitMode()
 	GraphNode = nullptr;
 	RuntimeNode = nullptr;
 
+#if	ENGINE_MAJOR_VERSION == 5
+	FAnimNodeEditMode::ExitMode();
+#else
 	FKawaiiPhysicsEditModeBase::ExitMode();
+#endif
+	
 }
 
 void FKawaiiPhysicsEditMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
 	USkeletalMeshComponent* SkelMeshComp = GetAnimPreviewScene().GetPreviewMeshComponent();
-	if (SkelMeshComp && SkelMeshComp->SkeletalMesh && SkelMeshComp->SkeletalMesh->GetSkeleton())
+	if (SkelMeshComp && SkelMeshComp->GetSkeletalMeshAsset() && SkelMeshComp->GetSkeletalMeshAsset()->GetSkeleton())
 	{
 		RenderSphericalLimits(PDI);
 		RenderCapsuleLimit(PDI);
@@ -96,7 +106,13 @@ void FKawaiiPhysicsEditMode::Render(const FSceneView* View, FViewport* Viewport,
 			}
 		}
 	}
+
+#if	ENGINE_MAJOR_VERSION == 5
+	FAnimNodeEditMode::Render(View, Viewport, PDI);
+#else
 	FKawaiiPhysicsEditModeBase::Render(View, Viewport, PDI);
+#endif
+	
 }
 
 void FKawaiiPhysicsEditMode::RenderSphericalLimits(FPrimitiveDrawInterface* PDI)
@@ -295,7 +311,11 @@ UE_WIDGET::EWidgetMode FKawaiiPhysicsEditMode::FindValidWidgetMode(UE_WIDGET::EW
 
 bool FKawaiiPhysicsEditMode::HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click)
 {
+#if	ENGINE_MAJOR_VERSION == 5
+	bool bResult = FAnimNodeEditMode::HandleClick(InViewportClient, HitProxy, Click);
+#else
 	bool bResult = FKawaiiPhysicsEditModeBase::HandleClick(InViewportClient, HitProxy, Click);
+#endif
 
 	if (HitProxy != nullptr && HitProxy->IsA(HKawaiiPhysicsHitProxy::StaticGetType()))
 	{
@@ -316,7 +336,11 @@ bool FKawaiiPhysicsEditMode::InputKey(FEditorViewportClient* InViewportClient, F
 {
 	bool bHandled = false;
 
+#if	ENGINE_MAJOR_VERSION == 5
+	if ((InEvent == IE_Pressed) && !IsManipulatingWidget())
+#else
 	if ((InEvent == IE_Pressed) && !bManipulating)
+#endif
 	{
 		if (InKey == EKeys::SpaceBar)
 		{
@@ -614,7 +638,12 @@ void FKawaiiPhysicsEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FVie
 		}
 	}
 
+#if	ENGINE_MAJOR_VERSION == 5
+	FAnimNodeEditMode::DrawHUD(ViewportClient, Viewport, View, Canvas);
+#else
 	FKawaiiPhysicsEditModeBase::DrawHUD(ViewportClient, Viewport, View, Canvas);
+#endif
+	
 }
 
 void FKawaiiPhysicsEditMode::DrawTextItem(FText Text, FCanvas* Canvas, float X, float& Y, float FontHeight)

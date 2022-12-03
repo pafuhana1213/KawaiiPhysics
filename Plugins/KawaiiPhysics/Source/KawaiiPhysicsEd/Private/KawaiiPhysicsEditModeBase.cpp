@@ -1,3 +1,7 @@
+// In UE4, FAnimNodeEditMode didn't have a module API, so I had to copy-paste the contents of FAnimNodeEditMode to an external module
+// I will remove this class in the future when I turn off UE4 support.
+#if	ENGINE_MAJOR_VERSION == 4
+
 /** Copy from FAnimNodeEditMode to override **/
 
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
@@ -746,3 +750,5 @@ FVector FKawaiiPhysicsEditModeBase::ConvertWidgetLocation(const USkeletalMeshCom
 }
 
 #undef LOCTEXT_NAMESPACE
+
+#endif
