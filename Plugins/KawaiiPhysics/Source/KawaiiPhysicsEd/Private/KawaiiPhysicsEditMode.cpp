@@ -16,7 +16,7 @@ struct HKawaiiPhysicsHitProxy : public HHitProxy
 {
 	DECLARE_HIT_PROXY()
 
-	HKawaiiPhysicsHitProxy(ECollisionLimitType InType, int InIndex, bool InFromDataAsset = false)
+	HKawaiiPhysicsHitProxy(ECollisionLimitType InType, int32 InIndex, bool InFromDataAsset = false)
 		: HHitProxy(HPP_Wireframe)
 		, CollisionType(InType)
 		, CollisionIndex(InIndex)
@@ -30,7 +30,7 @@ struct HKawaiiPhysicsHitProxy : public HHitProxy
 	}
 
 	ECollisionLimitType CollisionType;
-	int CollisionIndex;
+	int32 CollisionIndex;
 	bool bFromDataAsset;
 };
 IMPLEMENT_HIT_PROXY(HKawaiiPhysicsHitProxy, HHitProxy);
@@ -119,7 +119,7 @@ void FKawaiiPhysicsEditMode::RenderSphericalLimits(FPrimitiveDrawInterface* PDI)
 {
 	if (GraphNode->bEnableDebugDrawSphereLimit)
 	{
-		for( int i=0; i< RuntimeNode->SphericalLimits.Num(); i++)
+		for( int32 i=0; i< RuntimeNode->SphericalLimits.Num(); i++)
 		{
 			auto& Sphere = RuntimeNode->SphericalLimits[i];
 			if (Sphere.Radius > 0)
@@ -134,7 +134,7 @@ void FKawaiiPhysicsEditMode::RenderSphericalLimits(FPrimitiveDrawInterface* PDI)
 			}
 		}
 
-		for (int i = 0; i < RuntimeNode->SphericalLimitsData.Num(); i++)
+		for (int32 i = 0; i < RuntimeNode->SphericalLimitsData.Num(); i++)
 		{
 			auto& Sphere = RuntimeNode->SphericalLimitsData[i];
 			if (Sphere.Radius > 0)
@@ -155,7 +155,7 @@ void FKawaiiPhysicsEditMode::RenderCapsuleLimit(FPrimitiveDrawInterface* PDI)
 {
 	if (GraphNode->bEnableDebugDrawCapsuleLimit)
 	{
-		for (int i = 0; i < RuntimeNode->CapsuleLimits.Num(); i++)
+		for (int32 i = 0; i < RuntimeNode->CapsuleLimits.Num(); i++)
 		{
 			auto& Capsule = RuntimeNode->CapsuleLimits[i];
 			if (Capsule.Radius > 0 && Capsule.Length > 0)
@@ -180,7 +180,7 @@ void FKawaiiPhysicsEditMode::RenderCapsuleLimit(FPrimitiveDrawInterface* PDI)
 			}
 		}
 
-		for (int i = 0; i < RuntimeNode->CapsuleLimitsData.Num(); i++)
+		for (int32 i = 0; i < RuntimeNode->CapsuleLimitsData.Num(); i++)
 		{
 			auto& Capsule = RuntimeNode->CapsuleLimitsData[i];
 			if (Capsule.Radius > 0 && Capsule.Length > 0)
@@ -211,7 +211,7 @@ void FKawaiiPhysicsEditMode::RenderPlanerLimit(FPrimitiveDrawInterface* PDI)
 {
 	if (GraphNode->bEnableDebugDrawPlanerLimit)
 	{
-		for (int i = 0; i < RuntimeNode->PlanarLimits.Num(); i++)
+		for (int32 i = 0; i < RuntimeNode->PlanarLimits.Num(); i++)
 		{
 			auto& Plane = RuntimeNode->PlanarLimits[i];
 			
@@ -223,7 +223,7 @@ void FKawaiiPhysicsEditMode::RenderPlanerLimit(FPrimitiveDrawInterface* PDI)
 			DrawDirectionalArrow(PDI, FRotationMatrix(FRotator(90.0f, 0.0f, 0.0f)) * PlaneTransform.ToMatrixWithScale(), FLinearColor::Blue, 50.0f, 20.0f, SDPG_Foreground, 0.5f);
 		}
 
-		for (int i = 0; i < RuntimeNode->PlanarLimitsData.Num(); i++)
+		for (int32 i = 0; i < RuntimeNode->PlanarLimitsData.Num(); i++)
 		{
 			auto& Plane = RuntimeNode->PlanarLimitsData[i];
 
@@ -237,7 +237,7 @@ void FKawaiiPhysicsEditMode::RenderPlanerLimit(FPrimitiveDrawInterface* PDI)
 	}
 }
 
-FVector FKawaiiPhysicsEditMode::GetWidgetLocation(ECollisionLimitType CollisionType, int Index) const
+FVector FKawaiiPhysicsEditMode::GetWidgetLocation(ECollisionLimitType CollisionType, int32 Index) const
 {
 	if (!IsValidSelectCollision())
 	{

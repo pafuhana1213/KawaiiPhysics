@@ -234,8 +234,8 @@ void FAnimNode_KawaiiPhysics::ApplyLimitsDataAsset(const FBoneContainer& Require
 	}
 }
 
-int FAnimNode_KawaiiPhysics::AddModifyBone(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, 
-	const FReferenceSkeleton& RefSkeleton, int BoneIndex)
+int32 FAnimNode_KawaiiPhysics::AddModifyBone(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, 
+	const FReferenceSkeleton& RefSkeleton, int32 BoneIndex)
 {
 	if (BoneIndex < 0 || RefSkeleton.GetNum() < BoneIndex)
 	{
@@ -265,7 +265,7 @@ int FAnimNode_KawaiiPhysics::AddModifyBone(FComponentSpacePoseContext& Output, c
 	NewModifyBone.PrevRotation = RefBonePoseTransform.GetRotation();
 	NewModifyBone.PoseRotation = NewModifyBone.PrevRotation;
 	NewModifyBone.PoseScale = RefBonePoseTransform.GetScale3D();
-	int ModifyBoneIndex = ModifyBones.Add(NewModifyBone);
+	int32 ModifyBoneIndex = ModifyBones.Add(NewModifyBone);
 
 	TArray<int32> ChildBoneIndexs;
 	CollectChildBones(RefSkeleton, BoneIndex, ChildBoneIndexs);
@@ -297,7 +297,7 @@ int FAnimNode_KawaiiPhysics::AddModifyBone(FComponentSpacePoseContext& Output, c
 		DummyModifyBone.PoseRotation = DummyModifyBone.PrevRotation;
 		DummyModifyBone.PoseScale = RefBonePoseTransform.GetScale3D();
 
-		int DummyBoneIndex = ModifyBones.Add(DummyModifyBone);
+		int32 DummyBoneIndex = ModifyBones.Add(DummyModifyBone);
 		ModifyBones[ModifyBoneIndex].ChildIndexs.Add(DummyBoneIndex);
 		ModifyBones[DummyBoneIndex].ParentIndex = ModifyBoneIndex;
 	}
@@ -343,7 +343,7 @@ void FAnimNode_KawaiiPhysics::CalcBoneLength(FKawaiiPhysicsModifyBone& Bone, con
 		TotalBoneLength = FMath::Max(TotalBoneLength, Bone.LengthFromRoot);
 	}
 
-	for (int ChildIndex : Bone.ChildIndexs)
+	for (int32 ChildIndex : Bone.ChildIndexs)
 	{
 		CalcBoneLength(ModifyBones[ChildIndex], RefBonePose);
 	}
@@ -527,7 +527,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 	//transform gravity to component space
 	FVector GravityCS = ComponentTransform.InverseTransformVector(Gravity);
 
-	for (int i = 0; i < ModifyBones.Num(); ++i)
+	for (int32 i = 0; i < ModifyBones.Num(); ++i)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SimulatemodifyBone);
 
@@ -853,13 +853,13 @@ void FAnimNode_KawaiiPhysics::AdjustByPlanarConstraint(FKawaiiPhysicsModifyBone&
 
 void FAnimNode_KawaiiPhysics::ApplySimuateResult(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, TArray<FBoneTransform>& OutBoneTransforms)
 {
-	for (int i = 0; i < ModifyBones.Num(); ++i)
+	for (int32 i = 0; i < ModifyBones.Num(); ++i)
 	{
 		OutBoneTransforms.Add(FBoneTransform(ModifyBones[i].BoneRef.GetCompactPoseIndex(BoneContainer), 
 			FTransform(ModifyBones[i].PoseRotation, ModifyBones[i].PoseLocation, ModifyBones[i].PoseScale)));
 	}	
 
-	for (int i = 1; i < ModifyBones.Num(); ++i)
+	for (int32 i = 1; i < ModifyBones.Num(); ++i)
 	{
 		FKawaiiPhysicsModifyBone& Bone = ModifyBones[i];
 		FKawaiiPhysicsModifyBone& ParentBone = ModifyBones[Bone.ParentIndex];

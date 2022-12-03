@@ -168,9 +168,9 @@ public:
 	UPROPERTY()
 	FBoneReference BoneRef;
 	UPROPERTY()
-	int ParentIndex = -1;
+	int32 ParentIndex = -1;
 	UPROPERTY()
-	TArray<int> ChildIndexs;
+	TArray<int32> ChildIndexs;
 
 	UPROPERTY()
 	FKawaiiPhysicsSettings PhysicsSettings;
@@ -231,7 +231,7 @@ public:
 	TArray<FBoneReference> ExcludeBones;
 
 	UPROPERTY(EditAnywhere, Category = TargetFramerate, meta = (EditCondition = "OverrideTargetFramerate"))
-	int TargetFramerate = 60;
+	int32 TargetFramerate = 60;
 	UPROPERTY(EditAnywhere, Category = TargetFramerate, meta = (InlineEditConditionToggle))
 	bool OverrideTargetFramerate = false;
 
@@ -439,7 +439,7 @@ private:
 
 	void ApplyLimitsDataAsset(const FBoneContainer& RequiredBones);
 
-	int AddModifyBone(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, const FReferenceSkeleton& RefSkeleton, int BoneIndex);
+	int32 AddModifyBone(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, const FReferenceSkeleton& RefSkeleton, int32 BoneIndex);
 	
 	// clone from FReferenceSkeleton::GetDirectChildBones
 	int32 CollectChildBones(const FReferenceSkeleton& RefSkeleton, int32 ParentBoneIndex, TArray<int32> & Children) const;

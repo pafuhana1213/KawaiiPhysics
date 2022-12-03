@@ -57,7 +57,7 @@ private:
 	void RenderPlanerLimit(FPrimitiveDrawInterface* PDI);
 
 	/** Helper funciton for GetWidgetLocation() and joint rendering */
-	FVector GetWidgetLocation(ECollisionLimitType CollisionType, int Index) const;
+	FVector GetWidgetLocation(ECollisionLimitType CollisionType, int32 Index) const;
 
 	// methods to find a valid widget mode for gizmo because doesn't need to show gizmo when the mode is "Ignore"
 	UE_WIDGET::EWidgetMode FindValidWidgetMode(UE_WIDGET::EWidgetMode InWidgetMode) const;
@@ -79,7 +79,7 @@ private:
 
 	/** The current bone selection mode */
 	ECollisionLimitType SelectCollisionType = ECollisionLimitType::None;
-	int SelectCollisionIndex = -1;
+	int32 SelectCollisionIndex = -1;
 	bool SelectCollisionIsFromDataAsset;
 
 	// storing current widget mode 
