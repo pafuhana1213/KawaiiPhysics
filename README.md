@@ -33,7 +33,7 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 [次期アイドルマスター グラフィクス＆アニメーション プログラミング プレビュー](https://cedil.cesa.or.jp/cedil_sessions/view/416)
 
 ## 動作環境
-- UE4.27.2, UE5.0
+- UE4.27.2, UE5.0, UE5.1
 
 - UE4.27, UE5.0以降（Pluginのみ）  
 https://github.com/pafuhana1213/KawaiiPhysics/releases/
@@ -77,6 +77,10 @@ https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E6%8E%A1%E7%94%A8%E5%AE%9F%E
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
+- 2022/12/03 v1.10.0
+  - UE5.1に対応 
+  - LODでボーン除去している場合に発生するクラッシュの修正
+  - 一部コードをRider様によってリファクタリング
 - 2022/4/11 v1.9.0
   -  カーブアセットを作らなくても、カーブでのパラメーター編集ができるようになりました　https://github.com/pafuhana1213/KawaiiPhysics/pull/32 
   -  ワールドコリジョン機能が入りました。サンプルにも追加してます　https://github.com/pafuhana1213/KawaiiPhysics/pull/26 
