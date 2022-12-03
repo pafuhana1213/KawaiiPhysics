@@ -2,6 +2,9 @@
 Forum :   
 https://forums.unrealengine.com/community/released-projects/1638095-kawaii-physics-simple-fake-physics-to-sway-bones-more-easily-and-more-cutely
 
+Discussion：    
+[Tell me about your work! - あなたの作品を教えてください！](https://github.com/pafuhana1213/KawaiiPhysics/discussions/65)  
+
 ## Description
 Kawaii Physics is a pseudo-physical plug-in created for Unreal Engine 4 & 5.  
 You can sway your hair, skirt, chest, etc easily and in a Kawaii way.
