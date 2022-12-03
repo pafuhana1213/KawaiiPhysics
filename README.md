@@ -7,7 +7,7 @@ Forum :
 英語  https://forums.unrealengine.com/community/released-projects/1638095
 
 ## はじめに
-Kawaii Physicsは UnrealEngine4用に作成した疑似物理プラグインです。  
+Kawaii Physicsは UnrealEngine4,5用に作成した疑似物理プラグインです。  
 髪、スカート、胸などの揺れものを「かんたんに」「かわいく」揺らすことができます。
 
 ![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics1.gif)  
