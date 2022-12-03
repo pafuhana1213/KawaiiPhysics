@@ -1,21 +1,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
-#include "Animation/AnimNodeBase.h"
-#include "Animation/AnimNodeSpaceConversions.h"
-#include "BoneControllers/AnimNode_ModifyBone.h"
 #include "BoneControllers/AnimNode_AnimDynamics.h"
-
 #include "BoneContainer.h"
 #include "BonePose.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
-//#include "KawaiiPhysicsLimitsDataAsset.h"
-
-class UKawaiiPhysicsLimitsDataAsset;
-
 #include "AnimNode_KawaiiPhysics.generated.h"
 
+class UKawaiiPhysicsLimitsDataAsset;
 
 UENUM()
 enum class EPlanarConstraint : uint8
@@ -36,7 +28,6 @@ enum class EBoneForwardAxis : uint8
 	Z_Positive,
 	Z_Negative,
 };
-
 
 UENUM()
 enum class ECollisionLimitType : uint8
@@ -147,14 +138,19 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSettings
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), category = "KawaiiPhysics")
 	float Damping = 0.1f;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), category = "KawaiiPhysics")
 	float WorldDampingLocation = 0.8f;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), category = "KawaiiPhysics")
 	float WorldDampingRotation = 0.8f;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), category = "KawaiiPhysics")
 	float Stiffness = 0.05f;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), category = "KawaiiPhysics")
 	float Radius = 3.0f;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, ClampMin = "0"), category = "KawaiiPhysics")
 	float LimitAngle = 0.0f;
 };
@@ -195,9 +191,9 @@ public:
 
 public:
 
-	void UpdatePoseTranform(const FBoneContainer& BoneContainer, FCSPose<FCompactPose>& Pose, bool ResetBoneTransformWhenBoneNotFound)
+	void UpdatePoseTransform(const FBoneContainer& BoneContainer, FCSPose<FCompactPose>& Pose, bool ResetBoneTransformWhenBoneNotFound)
 	{
-		auto CompactPoseIndex = BoneRef.GetCompactPoseIndex(BoneContainer);
+		const auto CompactPoseIndex = BoneRef.GetCompactPoseIndex(BoneContainer);
 		if (CompactPoseIndex < 0)
 		{
 			// Reset bone location and rotation may cause trouble when switching between skeleton LODs #44
@@ -210,7 +206,7 @@ public:
 			return;
 		}
 
-		auto ComponentSpaceTransform = Pose.GetComponentSpaceTransform(CompactPoseIndex);
+		const auto ComponentSpaceTransform = Pose.GetComponentSpaceTransform(CompactPoseIndex);
 		PoseLocation = ComponentSpaceTransform.GetLocation();
 		PoseRotation = ComponentSpaceTransform.GetRotation();
 		PoseScale = ComponentSpaceTransform.GetScale3D();
@@ -409,13 +405,13 @@ public:
 
 	// 
 	void InitModifyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer);
-	float GetTotalBoneLength() 
+	float GetTotalBoneLength() const
 	{
 		return TotalBoneLength;
 	}
 	
 private:
-	FVector GetBoneForwardVector(const FQuat& Rotation)
+	FVector GetBoneForwardVector(const FQuat& Rotation) const
 	{
 		switch(BoneForwardAxis) {
 		default:
@@ -446,19 +442,19 @@ private:
 	void CalcBoneLength(FKawaiiPhysicsModifyBone& Bone, const TArray<FTransform>& RefBonePose);
 
 	void UpdatePhysicsSettingsOfModifyBones();
-	void UpdateSphericalLimits(TArray<FSphericalLimit>& Limits, FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform);
-	void UpdateCapsuleLimits(TArray<FCapsuleLimit>& Limits, FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform);
-	void UpdatePlanerLimits(TArray<FPlanarLimit>& Limits, FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform);
+	void UpdateSphericalLimits(TArray<FSphericalLimit>& Limits, FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, const FTransform& ComponentTransform);
+	void UpdateCapsuleLimits(TArray<FCapsuleLimit>& Limits, FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, const FTransform& ComponentTransform);
+	void UpdatePlanerLimits(TArray<FPlanarLimit>& Limits, FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, const FTransform& ComponentTransform);
 
 	void SimulateModifyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform);
 	void AdjustByWorldCollision(FKawaiiPhysicsModifyBone& Bone, const USkeletalMeshComponent* OwningComp, const FBoneContainer& BoneContainer);
 	void AdjustBySphereCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FSphericalLimit>& Limits);
 	void AdjustByCapsuleCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FCapsuleLimit>& Limits);
 	void AdjustByPlanerCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FPlanarLimit>& Limits);
-	void AdjustByAngleLimit(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform, FKawaiiPhysicsModifyBone& Bone, FKawaiiPhysicsModifyBone& ParentBone);
-	void AdjustByPlanarConstraint(FKawaiiPhysicsModifyBone& Bone, FKawaiiPhysicsModifyBone& ParentBone);
+	void AdjustByAngleLimit(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform, FKawaiiPhysicsModifyBone& Bone, const FKawaiiPhysicsModifyBone& ParentBone);
+	void AdjustByPlanarConstraint(FKawaiiPhysicsModifyBone& Bone, const FKawaiiPhysicsModifyBone& ParentBone);
 	
 
-	void ApplySimuateResult(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, TArray<FBoneTransform>& OutBoneTransforms);
+	void ApplySimulateResult(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, TArray<FBoneTransform>& OutBoneTransforms);
 	
 };

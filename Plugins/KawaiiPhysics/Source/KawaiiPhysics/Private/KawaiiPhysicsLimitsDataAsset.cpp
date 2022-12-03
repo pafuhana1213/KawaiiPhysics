@@ -16,7 +16,7 @@ void UKawaiiPhysicsLimitsDataAsset::UpdateLimit(FCollisionLimitBase* Limit)
 			{
 				if (LimitData.Guid == Limit->Guid)
 				{
-					LimitData.Update((FSphericalLimit*)Limit);
+					LimitData.Update(static_cast<FSphericalLimit*>(Limit));
 					break;
 				}
 			}
@@ -34,7 +34,7 @@ void UKawaiiPhysicsLimitsDataAsset::UpdateLimit(FCollisionLimitBase* Limit)
 			{
 				if (LimitData.Guid == Limit->Guid)
 				{
-					LimitData.Update((FCapsuleLimit*)Limit);
+					LimitData.Update(static_cast<FCapsuleLimit*>(Limit));
 					break;
 				}
 			}
@@ -52,7 +52,7 @@ void UKawaiiPhysicsLimitsDataAsset::UpdateLimit(FCollisionLimitBase* Limit)
 			{
 				if (LimitData.Guid == Limit->Guid)
 				{
-					LimitData.Update((FPlanarLimit*)Limit);
+					LimitData.Update(static_cast<FPlanarLimit*>(Limit));
 					break;
 				}
 			}
@@ -63,7 +63,11 @@ void UKawaiiPhysicsLimitsDataAsset::UpdateLimit(FCollisionLimitBase* Limit)
 				PlanarLimits.Add(Data.Convert());
 			}
 
-		break;;
+		break;
+		case ECollisionLimitType::None:
+			break;
+		default:
+			break;
 	}
 
 	MarkPackageDirty();

@@ -82,7 +82,7 @@ void UAnimGraphNode_KawaiiPhysics::Draw(FPrimitiveDrawInterface* PDI, USkeletalM
 				DrawWireSphere(PDI, Bone.Location, Color, Bone.PhysicsSettings.Radius, 16, SDPG_Foreground);
 			}
 
-			for (int32 ChildIndex : Bone.ChildIndexs)
+			for (const int32 ChildIndex : Bone.ChildIndexs)
 			{
 				DrawDashedLine(PDI, Bone.Location, ActiveNode->ModifyBones[ChildIndex].Location,
 					FLinearColor::White, 1, SDPG_Foreground);

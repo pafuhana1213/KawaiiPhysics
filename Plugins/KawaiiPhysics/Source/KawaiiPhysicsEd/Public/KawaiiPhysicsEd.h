@@ -4,8 +4,6 @@
 
 #include "CoreMinimal.h"
 
-#include "Modules/ModuleManager.h"
-
 class FKawaiiPhysicsEdModule : public IModuleInterface
 {
 public:

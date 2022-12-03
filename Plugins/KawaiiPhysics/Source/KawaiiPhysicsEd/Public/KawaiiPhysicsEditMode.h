@@ -52,11 +52,11 @@ protected:
 private:
 
 	/** Render each collisions */
-	void RenderSphericalLimits(FPrimitiveDrawInterface* PDI);
-	void RenderCapsuleLimit(FPrimitiveDrawInterface* PDI);
+	void RenderSphericalLimits(FPrimitiveDrawInterface* PDI) const;
+	void RenderCapsuleLimit(FPrimitiveDrawInterface* PDI) const;
 	void RenderPlanerLimit(FPrimitiveDrawInterface* PDI);
 
-	/** Helper funciton for GetWidgetLocation() and joint rendering */
+	/** Helper function for GetWidgetLocation() and joint rendering */
 	FVector GetWidgetLocation(ECollisionLimitType CollisionType, int32 Index) const;
 
 	// methods to find a valid widget mode for gizmo because doesn't need to show gizmo when the mode is "Ignore"
@@ -70,7 +70,7 @@ private:
 
 	/** Draw text func for DrawHUD */
 	void DrawTextItem(FText Text, FCanvas* Canvas, float X, float& Y, float FontHeight);
-	void Draw3DTextItem(FText Text, FCanvas* Canvas, const FSceneView* View, FViewport* Viewport, FVector Location);
+	void Draw3DTextItem(FText Text, FCanvas* Canvas, const FSceneView* View, const FViewport* Viewport, FVector Location);
 
 private:
 	/** Cache the typed nodes */

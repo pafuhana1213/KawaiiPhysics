@@ -36,7 +36,7 @@ public:
 
 protected:
 
-	void UpdateBase(FCollisionLimitBase* Limit)
+	void UpdateBase(const FCollisionLimitBase* Limit)
 	{
 		DrivingBoneName = Limit->DrivingBone.BoneName;
 		OffsetLocation = Limit->OffsetLocation;
@@ -45,7 +45,7 @@ protected:
 		Rotation = Limit->Rotation;
 	}
 
-	void ConvertBase(FCollisionLimitBase& Limit)
+	void ConvertBase(FCollisionLimitBase& Limit) const
 	{
 		Limit.DrivingBone.BoneName = DrivingBoneName;
 		Limit.OffsetLocation = OffsetLocation;
@@ -73,14 +73,14 @@ struct FSphericalLimitData : public FCollisionLimitDataBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SphericalLimit)
 	ESphericalLimitType LimitType = ESphericalLimitType::Outer;
 
-	void Update(FSphericalLimit* Limit) 
+	void Update(const FSphericalLimit* Limit) 
 	{
 		UpdateBase(Limit);
 		Radius = Limit->Radius;
 		LimitType = Limit->LimitType;
 	}
 
-	FSphericalLimit Convert()
+	FSphericalLimit Convert() const
 	{
 		FSphericalLimit Limit;
 		ConvertBase(Limit);
@@ -102,14 +102,14 @@ struct FCapsuleLimitData : public FCollisionLimitDataBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CapsuleLimit, meta = (ClampMin = "0"))
 	float Length = 10.0f;
 
-	void Update(FCapsuleLimit* Limit)
+	void Update(const FCapsuleLimit* Limit)
 	{
 		UpdateBase(Limit);
 		Radius = Limit->Radius;
 		Length = Limit->Length;
 	}
 
-	FCapsuleLimit Convert()
+	FCapsuleLimit Convert() const
 	{
 		FCapsuleLimit Limit;
 		ConvertBase(Limit);
@@ -126,15 +126,15 @@ struct FPlanarLimitData : public FCollisionLimitDataBase
 	GENERATED_BODY();
 
 	UPROPERTY(EditAnywhere, Category = PlanarLimit, BlueprintReadWrite)
-	FPlane Plane = FPlane::Zero();
+	FPlane Plane{FPlane::Zero()};
 
-	void Update(FPlanarLimit* Limit)
+	void Update(const FPlanarLimit* Limit)
 	{
 		UpdateBase(Limit);
 		Plane = Limit->Plane;
 	}
 
-	FPlanarLimit Convert()
+	FPlanarLimit Convert() const
 	{
 		FPlanarLimit Limit;
 		ConvertBase(Limit);
@@ -143,7 +143,6 @@ struct FPlanarLimitData : public FCollisionLimitDataBase
 		return Limit;
 	}
 };
-//#endif
 
 /**
  * 
@@ -167,12 +166,7 @@ public:
 #endif
 
 #if WITH_EDITOR
-
-	//void UpdateLimit(FSphericalLimit* Limit);
-	//void UpdateLimit(FCapsuleLimit* Limit);
-	//void UpdateLimit(FPlanarLimit* Limit);
 	void UpdateLimit(FCollisionLimitBase* Limit);
-
 #endif
 
 	UPROPERTY()
@@ -185,15 +179,5 @@ public:
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
-
-/*
-#if WITH_EDITORONLY_DATA 
-	UPROPERTY(EditAnywhere)
-	USkeleton* MeshForPreviewBoneHierarchy;
-
-	UPROPERTY()
-	TArray<FName> BoneNameTree;
-#endif
-*/
-
+	
 };

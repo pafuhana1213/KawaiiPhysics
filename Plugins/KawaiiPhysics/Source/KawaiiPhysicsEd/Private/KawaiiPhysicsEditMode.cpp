@@ -39,6 +39,7 @@ IMPLEMENT_HIT_PROXY(HKawaiiPhysicsHitProxy, HHitProxy);
 FKawaiiPhysicsEditMode::FKawaiiPhysicsEditMode()
 	: RuntimeNode(nullptr)
 	, GraphNode(nullptr)
+	, SelectCollisionIsFromDataAsset(false)
 	, CurWidgetMode(UE_WIDGET::EWidgetMode::WM_Translate)
 {
 }
@@ -79,7 +80,7 @@ void FKawaiiPhysicsEditMode::ExitMode()
 
 void FKawaiiPhysicsEditMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
-	USkeletalMeshComponent* SkelMeshComp = GetAnimPreviewScene().GetPreviewMeshComponent();
+	const USkeletalMeshComponent* SkelMeshComp = GetAnimPreviewScene().GetPreviewMeshComponent();
 	if (SkelMeshComp && SkelMeshComp->GetSkeletalMeshAsset() && SkelMeshComp->GetSkeletalMeshAsset()->GetSkeleton())
 	{
 		RenderSphericalLimits(PDI);
@@ -115,7 +116,7 @@ void FKawaiiPhysicsEditMode::Render(const FSceneView* View, FViewport* Viewport,
 	
 }
 
-void FKawaiiPhysicsEditMode::RenderSphericalLimits(FPrimitiveDrawInterface* PDI)
+void FKawaiiPhysicsEditMode::RenderSphericalLimits(FPrimitiveDrawInterface* PDI) const
 {
 	if (GraphNode->bEnableDebugDrawSphereLimit)
 	{
@@ -124,8 +125,6 @@ void FKawaiiPhysicsEditMode::RenderSphericalLimits(FPrimitiveDrawInterface* PDI)
 			auto& Sphere = RuntimeNode->SphericalLimits[i];
 			if (Sphere.Radius > 0)
 			{
-				FTransform SphereTransform = FTransform(Sphere.Location);
-
 				PDI->SetHitProxy(new HKawaiiPhysicsHitProxy(ECollisionLimitType::Spherical, i));
 				DrawSphere(PDI, Sphere.Location, FRotator::ZeroRotator, FVector(Sphere.Radius), 24, 6,
 					GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy(), SDPG_World);
@@ -139,8 +138,6 @@ void FKawaiiPhysicsEditMode::RenderSphericalLimits(FPrimitiveDrawInterface* PDI)
 			auto& Sphere = RuntimeNode->SphericalLimitsData[i];
 			if (Sphere.Radius > 0)
 			{
-				FTransform SphereTransform = FTransform(Sphere.Location);
-
 				PDI->SetHitProxy(new HKawaiiPhysicsHitProxy(ECollisionLimitType::Spherical, i, true));
 				DrawSphere(PDI, Sphere.Location, FRotator::ZeroRotator, FVector(Sphere.Radius), 24, 6,
 					GEngine->ConstraintLimitMaterialZ->GetRenderProxy(), SDPG_World);
@@ -151,7 +148,7 @@ void FKawaiiPhysicsEditMode::RenderSphericalLimits(FPrimitiveDrawInterface* PDI)
 	}
 }
 
-void FKawaiiPhysicsEditMode::RenderCapsuleLimit(FPrimitiveDrawInterface* PDI)
+void FKawaiiPhysicsEditMode::RenderCapsuleLimit(FPrimitiveDrawInterface* PDI) const
 {
 	if (GraphNode->bEnableDebugDrawCapsuleLimit)
 	{
@@ -304,6 +301,11 @@ UE_WIDGET::EWidgetMode FKawaiiPhysicsEditMode::FindValidWidgetMode(UE_WIDGET::EW
 		return UE_WIDGET::EWidgetMode::WM_Scale;
 	case UE_WIDGET::EWidgetMode::WM_Scale:
 		return UE_WIDGET::EWidgetMode::WM_Translate;
+	case UE::Widget::WM_None: break;
+	case UE::Widget::WM_TranslateRotateZ: break;
+	case UE::Widget::WM_2D: break;
+	case UE::Widget::WM_Max: break;
+	default: ;
 	}
 
 	return UE_WIDGET::EWidgetMode::WM_None;
@@ -350,7 +352,7 @@ bool FKawaiiPhysicsEditMode::InputKey(FEditorViewportClient* InViewportClient, F
 		}
 		else if (InKey == EKeys::Q)
 		{
-			auto CoordSystem = GetModeManager()->GetCoordSystem();
+			const auto CoordSystem = GetModeManager()->GetCoordSystem();
 			GetModeManager()->SetCoordSystem(CoordSystem == COORD_Local ? COORD_World : COORD_Local);
 		}
 		else if (InKey == EKeys::Delete && IsValidSelectCollision())
@@ -369,6 +371,8 @@ bool FKawaiiPhysicsEditMode::InputKey(FEditorViewportClient* InViewportClient, F
 				RuntimeNode->PlanarLimits.RemoveAt(SelectCollisionIndex);
 				GraphNode->Node.PlanarLimits.RemoveAt(SelectCollisionIndex);
 				break;
+			case ECollisionLimitType::None: break;
+			default: ;
 			}
 		}
 	}
@@ -383,8 +387,6 @@ ECoordSystem FKawaiiPhysicsEditMode::GetWidgetCoordinateSystem() const
 
 void FKawaiiPhysicsEditMode::OnExternalNodePropertyChange(FPropertyChangedEvent& InPropertyEvent)
 {
-	USkeletalMeshComponent* SkelComponent = GetAnimPreviewScene().GetPreviewMeshComponent();
-
 	if (!IsValidSelectCollision())
 	{
 		SelectCollisionIndex = -1;
@@ -411,6 +413,8 @@ bool FKawaiiPhysicsEditMode::IsValidSelectCollision() const
 	case ECollisionLimitType::Planar:
 		return SelectCollisionIsFromDataAsset ? RuntimeNode->PlanarLimitsData.IsValidIndex(SelectCollisionIndex)
 			: RuntimeNode->PlanarLimits.IsValidIndex(SelectCollisionIndex);
+	case ECollisionLimitType::None: break;
+	default: ;
 	}
 	return false;
 }
@@ -433,6 +437,8 @@ FCollisionLimitBase* FKawaiiPhysicsEditMode::GetSelectCollisionLimitRuntime() co
 	case ECollisionLimitType::Planar:
 		return SelectCollisionIsFromDataAsset ? &(RuntimeNode->PlanarLimitsData[SelectCollisionIndex])
 			: &(RuntimeNode->PlanarLimits[SelectCollisionIndex]);
+	case ECollisionLimitType::None: break;
+	default: ;
 	}
 
 	return nullptr;
@@ -456,6 +462,8 @@ FCollisionLimitBase* FKawaiiPhysicsEditMode::GetSelectCollisionLimitGraph() cons
 	case ECollisionLimitType::Planar:
 		return SelectCollisionIsFromDataAsset ? &(GraphNode->Node.PlanarLimitsData[SelectCollisionIndex])
 			: &(GraphNode->Node.PlanarLimits[SelectCollisionIndex]);
+	case ECollisionLimitType::None: break;
+	default: ;
 	}
 
 	return nullptr;
@@ -475,7 +483,7 @@ void FKawaiiPhysicsEditMode::DoTranslation(FVector& InTranslation)
 		return;
 	}
 
-	FVector Offset = FVector::ZeroVector;
+	FVector Offset;
 	if (CollisionRuntime->DrivingBone.BoneIndex >= 0)
 	{
 		USkeletalMeshComponent* SkelComp = GetAnimPreviewScene().GetPreviewMeshComponent();
@@ -626,7 +634,7 @@ void FKawaiiPhysicsEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FVie
 
 	if (GraphNode->bEnableDebugBoneLengthRate)
 	{
-		UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene().GetPreviewMeshComponent();
+		const UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene().GetPreviewMeshComponent();
 		if (PreviewMeshComponent != nullptr && PreviewMeshComponent->MeshObject != nullptr)
 		{
 			for (auto& Bone : RuntimeNode->ModifyBones)
@@ -654,7 +662,7 @@ void FKawaiiPhysicsEditMode::DrawTextItem(FText Text, FCanvas* Canvas, float X, 
 	Y -= (3 + FontHeight);
 }
 
-void FKawaiiPhysicsEditMode::Draw3DTextItem(FText Text, FCanvas* Canvas, const FSceneView* View, FViewport* Viewport, FVector Location)
+void FKawaiiPhysicsEditMode::Draw3DTextItem(FText Text, FCanvas* Canvas, const FSceneView* View, const FViewport* Viewport, FVector Location)
 {
 	const int32 HalfX = Viewport->GetSizeXY().X / 2 / Canvas->GetDPIScale();
 	const int32 HalfY = Viewport->GetSizeXY().Y / 2 / Canvas->GetDPIScale();

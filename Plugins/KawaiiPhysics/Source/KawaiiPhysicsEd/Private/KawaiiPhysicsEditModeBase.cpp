@@ -363,7 +363,7 @@ void FKawaiiPhysicsEditModeBase::Tick(FEditorViewportClient* ViewportClient, flo
 
 void FKawaiiPhysicsEditModeBase::ConvertToComponentSpaceTransform(const USkeletalMeshComponent* SkelComp, const FTransform & InTransform, FTransform & OutCSTransform, int32 BoneIndex, EBoneControlSpace Space)
 {
-	USkeleton* Skeleton = SkelComp->SkeletalMesh->GetSkeleton();
+	USkeleton* Skeleton = SkelComp->GetSkinnedAsset()->GetSkeleton();
 
 	switch (Space)
 	{
@@ -387,7 +387,7 @@ void FKawaiiPhysicsEditModeBase::ConvertToComponentSpaceTransform(const USkeleta
 			const int32 ParentIndex = Skeleton->GetReferenceSkeleton().GetParentIndex(BoneIndex);
 			if (ParentIndex != INDEX_NONE)
 			{
-				const int32 MeshParentIndex = Skeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkelComp->SkeletalMesh, ParentIndex);
+				const int32 MeshParentIndex = Skeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkelComp->GetSkinnedAsset(), ParentIndex);
 				if (MeshParentIndex != INDEX_NONE)
 				{
 					const FTransform ParentTM = SkelComp->GetBoneTransform(MeshParentIndex);
@@ -404,7 +404,7 @@ void FKawaiiPhysicsEditModeBase::ConvertToComponentSpaceTransform(const USkeleta
 	case BCS_BoneSpace:
 		if (BoneIndex != INDEX_NONE)
 		{
-			const int32 MeshBoneIndex = Skeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkelComp->SkeletalMesh, BoneIndex);
+			const int32 MeshBoneIndex = Skeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkelComp->GetSkinnedAsset(), BoneIndex);
 			if (MeshBoneIndex != INDEX_NONE)
 			{
 				const FTransform BoneTM = SkelComp->GetBoneTransform(MeshBoneIndex);
@@ -418,9 +418,9 @@ void FKawaiiPhysicsEditModeBase::ConvertToComponentSpaceTransform(const USkeleta
 		break;
 
 	default:
-		if (SkelComp->SkeletalMesh)
+		if (SkelComp->GetSkinnedAsset())
 		{
-			UE_LOG(LogAnimation, Warning, TEXT("ConvertToComponentSpaceTransform: Unknown BoneSpace %d  for Mesh: %s"), (uint8)Space, *SkelComp->SkeletalMesh->GetFName().ToString());
+			UE_LOG(LogAnimation, Warning, TEXT("ConvertToComponentSpaceTransform: Unknown BoneSpace %d  for Mesh: %s"), (uint8)Space, *SkelComp->GetSkinnedAsset()->GetFName().ToString());
 		}
 		else
 		{
@@ -433,7 +433,7 @@ void FKawaiiPhysicsEditModeBase::ConvertToComponentSpaceTransform(const USkeleta
 
 void FKawaiiPhysicsEditModeBase::ConvertToBoneSpaceTransform(const USkeletalMeshComponent* SkelComp, const FTransform & InCSTransform, FTransform & OutBSTransform, int32 BoneIndex, EBoneControlSpace Space)
 {
-	USkeleton* Skeleton = SkelComp->SkeletalMesh->GetSkeleton();
+	USkeleton* Skeleton = SkelComp->GetSkinnedAsset()->GetSkeleton();
 
 	switch (Space)
 	{
@@ -457,7 +457,7 @@ void FKawaiiPhysicsEditModeBase::ConvertToBoneSpaceTransform(const USkeletalMesh
 			const int32 ParentIndex = Skeleton->GetReferenceSkeleton().GetParentIndex(BoneIndex);
 			if (ParentIndex != INDEX_NONE)
 			{
-				const int32 MeshParentIndex = Skeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkelComp->SkeletalMesh, ParentIndex);
+				const int32 MeshParentIndex = Skeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkelComp->GetSkinnedAsset(), ParentIndex);
 				if (MeshParentIndex != INDEX_NONE)
 				{
 					const FTransform ParentTM = SkelComp->GetBoneTransform(MeshParentIndex);
@@ -476,7 +476,7 @@ void FKawaiiPhysicsEditModeBase::ConvertToBoneSpaceTransform(const USkeletalMesh
 	{
 		if (BoneIndex != INDEX_NONE)
 		{
-			const int32 MeshBoneIndex = Skeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkelComp->SkeletalMesh, BoneIndex);
+			const int32 MeshBoneIndex = Skeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkelComp->GetSkinnedAsset(), BoneIndex);
 			if (MeshBoneIndex != INDEX_NONE)
 			{
 				FTransform BoneCSTransform = SkelComp->GetBoneTransform(MeshBoneIndex);
@@ -492,7 +492,7 @@ void FKawaiiPhysicsEditModeBase::ConvertToBoneSpaceTransform(const USkeletalMesh
 
 	default:
 	{
-		UE_LOG(LogAnimation, Warning, TEXT("ConvertToBoneSpaceTransform: Unknown BoneSpace %d  for Mesh: %s"), (int32)Space, *GetNameSafe(SkelComp->SkeletalMesh));
+		UE_LOG(LogAnimation, Warning, TEXT("ConvertToBoneSpaceTransform: Unknown BoneSpace %d  for Mesh: %s"), (int32)Space, *GetNameSafe(SkelComp->GetSkinnedAsset()));
 		break;
 	}
 	}
@@ -697,7 +697,7 @@ FVector FKawaiiPhysicsEditModeBase::ConvertWidgetLocation(const USkeletalMeshCom
 	{
 		if (InMeshBases.GetPose().IsValid())
 		{
-			USkeleton* Skeleton = InSkelComp->SkeletalMesh->GetSkeleton();
+			USkeleton* Skeleton = InSkelComp->GetSkinnedAsset()->GetSkeleton();
 			const int32 MeshBoneIndex = InSkelComp->GetBoneIndex(InBoneName);
 			if (MeshBoneIndex != INDEX_NONE)
 			{

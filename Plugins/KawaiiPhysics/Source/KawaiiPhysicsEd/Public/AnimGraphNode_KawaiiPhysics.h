@@ -39,7 +39,7 @@ public:
 protected:
 
 	// UAnimGraphNode_Base interface
-	virtual FEditorModeID GetEditorMode() const;
+	virtual FEditorModeID GetEditorMode() const override;
 	virtual void ValidateAnimNodePostCompile(FCompilerResultsLog& MessageLog, UAnimBlueprintGeneratedClass* CompiledClass, int32 CompiledNodeIndex) override;
 	// End of UAnimGraphNode_Base interface
 
