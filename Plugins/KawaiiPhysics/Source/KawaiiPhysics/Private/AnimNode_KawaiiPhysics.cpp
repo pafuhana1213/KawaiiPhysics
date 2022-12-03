@@ -197,9 +197,7 @@ void FAnimNode_KawaiiPhysics::InitModifyBones(FComponentSpacePoseContext& Output
 	{
 
 #if	ENGINE_MAJOR_VERSION == 5
-		TArray<FTransform> Bones;
-		BoneContainer.FillWithCompactRefPose(Bones);
-		CalcBoneLength(ModifyBones[0], Bones);
+		CalcBoneLength(ModifyBones[0],BoneContainer.GetRefPoseArray());
 #else
 		CalcBoneLength(ModifyBones[0], BoneContainer.GetRefPoseCompactArray());
 #endif
