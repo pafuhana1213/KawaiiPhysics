@@ -81,7 +81,12 @@ void FKawaiiPhysicsEditMode::ExitMode()
 void FKawaiiPhysicsEditMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
 	const USkeletalMeshComponent* SkelMeshComp = GetAnimPreviewScene().GetPreviewMeshComponent();
+
+#if	ENGINE_MAJOR_VERSION == 5
 	if (SkelMeshComp && SkelMeshComp->GetSkeletalMeshAsset() && SkelMeshComp->GetSkeletalMeshAsset()->GetSkeleton())
+#else
+	if (SkelMeshComp && SkelMeshComp->SkeletalMesh && SkelMeshComp->SkeletalMesh->GetSkeleton())
+#endif
 	{
 		RenderSphericalLimits(PDI);
 		RenderCapsuleLimit(PDI);
@@ -301,10 +306,6 @@ UE_WIDGET::EWidgetMode FKawaiiPhysicsEditMode::FindValidWidgetMode(UE_WIDGET::EW
 		return UE_WIDGET::EWidgetMode::WM_Scale;
 	case UE_WIDGET::EWidgetMode::WM_Scale:
 		return UE_WIDGET::EWidgetMode::WM_Translate;
-	case UE::Widget::WM_None: break;
-	case UE::Widget::WM_TranslateRotateZ: break;
-	case UE::Widget::WM_2D: break;
-	case UE::Widget::WM_Max: break;
 	default: ;
 	}
 

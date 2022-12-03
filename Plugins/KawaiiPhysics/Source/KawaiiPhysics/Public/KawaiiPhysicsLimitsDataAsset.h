@@ -126,7 +126,7 @@ struct FPlanarLimitData : public FCollisionLimitDataBase
 	GENERATED_BODY();
 
 	UPROPERTY(EditAnywhere, Category = PlanarLimit, BlueprintReadWrite)
-	FPlane Plane{FPlane::Zero()};
+	FPlane Plane = FPlane(0,0,0,0);
 
 	void Update(const FPlanarLimit* Limit)
 	{

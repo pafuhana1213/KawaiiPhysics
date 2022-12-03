@@ -11,7 +11,8 @@ public class KawaiiPhysicsEd : ModuleRules
         PrivateDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "KawaiiPhysics" });
         PrivateDependencyModuleNames.AddRange(new string[] { "AnimGraph", "BlueprintGraph", "Persona", "UnrealEd", "AnimGraphRuntime", "SlateCore"});
 
-        if (BuildVersion.TryRead(BuildVersion.GetDefaultFileName(), out var Version))
+        BuildVersion Version;
+        if (BuildVersion.TryRead(BuildVersion.GetDefaultFileName(), out Version))
         {
             if (Version.MajorVersion == 5)
             {
