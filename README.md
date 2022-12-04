@@ -1,13 +1,18 @@
 # Kawaii Physics
 English doc :   
-https://github.com/pafuhana1213/KawaiiPhysics/blob/master/README_en.md  
-
-Forum :   
-日本語  https://forums.unrealengine.com/international/japan/1679269  
-英語  https://forums.unrealengine.com/community/released-projects/1638095
+- https://github.com/pafuhana1213/KawaiiPhysics/blob/master/README_en.md  
 
 ディスカッション：  
-[Tell me about your work! - あなたの作品を教えてください！](https://github.com/pafuhana1213/KawaiiPhysics/discussions/65)  
+- [Tell me about your work! - あなたの作品を教えてください！](https://github.com/pafuhana1213/KawaiiPhysics/discussions/65)  
+- [Chat and Discussion about how to use and set up - 活用・設定方法などについての雑談・相談の場](https://github.com/pafuhana1213/KawaiiPhysics/discussions/66)  
+- [Request Features and Samples - 機能やサンプルのリクエスト](https://github.com/pafuhana1213/KawaiiPhysics/discussions/67)  
+
+不具合報告  
+- https://github.com/pafuhana1213/KawaiiPhysics/issues
+
+DevCommunity :   
+- 日本語  https://forums.unrealengine.com/international/japan/1679269  
+- 英語  https://forums.unrealengine.com/community/released-projects/1638095
 
 
 ## はじめに
