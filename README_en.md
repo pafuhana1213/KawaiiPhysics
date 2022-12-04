@@ -1,11 +1,11 @@
 # Kawaii Physics
 
-Discussion：    
+Discussion :     
 - [Tell me about your work! - あなたの作品を教えてください！](https://github.com/pafuhana1213/KawaiiPhysics/discussions/65)  
 - [How to use and set up? - 設定方法などについての雑談・相談の場](https://github.com/pafuhana1213/KawaiiPhysics/discussions/66)  
 - [Request Features and Samples - 機能やサンプルのリクエスト](https://github.com/pafuhana1213/KawaiiPhysics/discussions/67)  
 
-Report Issues:  
+Report Issues :   
 - https://github.com/pafuhana1213/KawaiiPhysics/issues
 
 Devcommunity :   
