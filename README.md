@@ -66,6 +66,13 @@ UE4.23以前でビルドする場合は、awaiiPhysics.uplugin における
 
 - BPプロジェクトの場合、パッケージ時にエラーが発生します。お手数ですがC++プロジェクトに変換してみてください
 
+### BPプロジェクトをC++プロジェクトに変換するには
+「C++ クラス ウィザード」からC++コードを追加することで C++プロジェクトに変換可能です。  
+https://docs.unrealengine.com/5.0/ja/using-the-cplusplus-class-wizard-in-unreal-engine/  
+
+ただし、Visual StudioなどのC++をビルドできる環境を準備する必要があります。  
+https://docs.unrealengine.com/5.0/ja/setting-up-visual-studio-development-environment-for-cplusplus-projects-in-unreal-engine/
+
 ## サンプル
 ![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics3.jpg)  
 - Content/KawaiiPhysicsSample/KawaiiPhysicsSample
