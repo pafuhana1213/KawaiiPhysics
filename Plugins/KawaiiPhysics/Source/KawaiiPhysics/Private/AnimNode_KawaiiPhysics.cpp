@@ -86,6 +86,9 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	{ 
 		ApplyLimitsDataAsset(BoneContainer);
 	}
+
+	// for live editing ( sync before compile )
+	InitializeBoneReferences(BoneContainer);
 #endif
 
 	if (!RootBone.IsValidToEvaluate(BoneContainer))
@@ -155,7 +158,9 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 
 bool FAnimNode_KawaiiPhysics::IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones)
 {
-	return RootBone.IsValidToEvaluate(RequiredBones);
+	// Check with IsValidToEvaluate will run in EvaluateSkeletalControl_AnyThread
+	//return RootBone.IsValidToEvaluate(RequiredBones);
+	return RootBone.BoneName.IsValid();
 }
 
 void FAnimNode_KawaiiPhysics::InitializeBoneReferences(const FBoneContainer& RequiredBones)
@@ -195,7 +200,8 @@ void FAnimNode_KawaiiPhysics::InitModifyBones(FComponentSpacePoseContext& Output
 	AddModifyBone(Output, BoneContainer, RefSkeleton, RefSkeleton.FindBoneIndex(RootBone.BoneName));
 	if (ModifyBones.Num() > 0)
 	{
-
+		TotalBoneLength = 0.0f;
+		
 #if	ENGINE_MAJOR_VERSION == 5
 		CalcBoneLength(ModifyBones[0],BoneContainer.GetRefPoseArray());
 #else

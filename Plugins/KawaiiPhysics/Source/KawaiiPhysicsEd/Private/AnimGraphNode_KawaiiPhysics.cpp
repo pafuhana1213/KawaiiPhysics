@@ -128,6 +128,49 @@ void UAnimGraphNode_KawaiiPhysics::ValidateAnimNodePostCompile(FCompilerResultsL
 	
 }
 
+void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* AnimNode)
+{
+	FAnimNode_KawaiiPhysics* KawaiiPhysics = static_cast<FAnimNode_KawaiiPhysics*>(AnimNode);
+
+	// pushing properties to preview instance, for live editing
+	// Default
+	KawaiiPhysics->RootBone = Node.RootBone;
+	KawaiiPhysics->ExcludeBones = Node.ExcludeBones;
+	KawaiiPhysics->TargetFramerate = Node.TargetFramerate;
+	KawaiiPhysics->OverrideTargetFramerate = Node.OverrideTargetFramerate;
+
+	// Physics Settings
+	KawaiiPhysics->DampingCurveData = Node.DampingCurveData;
+	KawaiiPhysics->WorldDampingLocationCurveData = Node.WorldDampingLocationCurveData;
+	KawaiiPhysics->WorldDampingRotationCurveData = Node.WorldDampingRotationCurveData;
+	KawaiiPhysics->StiffnessCurveData = Node.StiffnessCurveData;
+	KawaiiPhysics->RadiusCurveData = Node.RadiusCurveData;
+	KawaiiPhysics->LimitAngleCurveData = Node.LimitAngleCurveData;
+	KawaiiPhysics->bUpdatePhysicsSettingsInGame = Node.bUpdatePhysicsSettingsInGame;
+	KawaiiPhysics->PlanarConstraint = Node.PlanarConstraint;
+	KawaiiPhysics->ResetBoneTransformWhenBoneNotFound = Node.ResetBoneTransformWhenBoneNotFound;
+
+	// DummyBone
+	KawaiiPhysics->DummyBoneLength = Node.DummyBoneLength;
+	KawaiiPhysics->BoneForwardAxis = Node.BoneForwardAxis;
+
+	// Limits
+	KawaiiPhysics->SphericalLimits = Node.SphericalLimits;
+	KawaiiPhysics->CapsuleLimits = Node.CapsuleLimits;
+	KawaiiPhysics->PlanarLimits = Node.PlanarLimits;
+	KawaiiPhysics->LimitsDataAsset = Node.LimitsDataAsset;
+
+	// ExternalForce
+	KawaiiPhysics->Gravity = Node.Gravity;
+
+	// Wind
+	KawaiiPhysics->bEnableWind = Node.bEnableWind;
+	KawaiiPhysics->WindScale = Node.WindScale;
+
+	// Reset for sync without compile
+	KawaiiPhysics->ModifyBones.Empty();
+}
+
 struct FKawaiiPhysicsVersion
 {
 	enum Type

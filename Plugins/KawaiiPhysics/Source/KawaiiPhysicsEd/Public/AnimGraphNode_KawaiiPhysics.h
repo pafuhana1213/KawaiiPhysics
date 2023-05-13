@@ -41,6 +41,7 @@ protected:
 	// UAnimGraphNode_Base interface
 	virtual FEditorModeID GetEditorMode() const override;
 	virtual void ValidateAnimNodePostCompile(FCompilerResultsLog& MessageLog, UAnimBlueprintGeneratedClass* CompiledClass, int32 CompiledNodeIndex) override;
+	virtual void CopyNodeDataToPreviewNode(FAnimNode_Base* AnimNode) override;
 	// End of UAnimGraphNode_Base interface
 
 	//virtual FText GetControllerDescription() const override;

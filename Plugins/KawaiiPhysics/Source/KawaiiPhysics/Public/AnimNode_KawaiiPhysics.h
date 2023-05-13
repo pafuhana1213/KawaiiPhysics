@@ -258,8 +258,7 @@ public:
 	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
 	UPROPERTY()
 	UCurveFloat* LimitAngleCurve_DEPRECATED = nullptr;
-
-	//  START SKYBLUE MOD
+	
 	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
 	FRuntimeFloatCurve DampingCurveData;
