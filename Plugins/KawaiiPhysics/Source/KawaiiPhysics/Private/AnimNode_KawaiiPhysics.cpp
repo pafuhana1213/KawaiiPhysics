@@ -1,12 +1,17 @@
 ﻿#include "AnimNode_KawaiiPhysics.h"
 
 #include "AnimationRuntime.h"
+#include "KawaiiPhysicsLimitsDataAsset.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Curves/CurveFloat.h"
-#include "KawaiiPhysicsLimitsDataAsset.h"
+
+#if WITH_EDITOR
+#include "UnrealEdGlobals.h"
+#include "Editor/UnrealEdEngine.h"
+#endif
 
 TAutoConsoleVariable<int32> CVarEnableOldPhysicsMethodGravity(TEXT("p.KawaiiPhysics.EnableOldPhysicsMethodGravity"), 0, 
-	TEXT("Enables/Disables old physics method for gravity before v1.3.1. This is the setting for the transition period when changing the physical calculation."));
+                                                              TEXT("Enables/Disables old physics method for gravity before v1.3.1. This is the setting for the transition period when changing the physical calculation."));
 TAutoConsoleVariable<int32> CVarEnableOldPhysicsMethodSphereLimit(TEXT("p.KawaiiPhysics.EnableOldPhysicsMethodSphereLimit"), 0,
 	TEXT("Enables/Disables old physics method for sphere limit before v1.3.1. This is the setting for the transition period when changing the physical calculation."));
 
@@ -87,8 +92,12 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		ApplyLimitsDataAsset(BoneContainer);
 	}
 
-	// for live editing ( sync before compile )
-	InitializeBoneReferences(BoneContainer);
+	if(!GUnrealEd->IsPlayingSessionInEditor())
+	{
+		// for live editing ( sync before compile )
+		InitializeBoneReferences(BoneContainer);
+	}
+	
 #endif
 
 	if (!RootBone.IsValidToEvaluate(BoneContainer))
