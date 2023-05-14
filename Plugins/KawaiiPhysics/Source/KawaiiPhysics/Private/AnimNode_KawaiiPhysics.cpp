@@ -92,7 +92,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		ApplyLimitsDataAsset(BoneContainer);
 	}
 
-	if(!GUnrealEd->IsPlayingSessionInEditor())
+	if(GUnrealEd && !GUnrealEd->IsPlayingSessionInEditor())
 	{
 		// for live editing ( sync before compile )
 		InitializeBoneReferences(BoneContainer);
