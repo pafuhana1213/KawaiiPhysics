@@ -361,16 +361,43 @@ bool FKawaiiPhysicsEditMode::InputKey(FEditorViewportClient* InViewportClient, F
 			switch (SelectCollisionType)
 			{
 			case ECollisionLimitType::Spherical:
-				RuntimeNode->SphericalLimits.RemoveAt(SelectCollisionIndex);
-				GraphNode->Node.SphericalLimits.RemoveAt(SelectCollisionIndex);
+				if(SelectCollisionIsFromDataAsset)
+				{
+					RuntimeNode->LimitsDataAsset->SphericalLimitsData.RemoveAt(SelectCollisionIndex);
+					RuntimeNode->LimitsDataAsset->Sync();
+					RuntimeNode->LimitsDataAsset->MarkPackageDirty();
+				}
+				else
+				{
+					RuntimeNode->SphericalLimits.RemoveAt(SelectCollisionIndex);
+					GraphNode->Node.SphericalLimits.RemoveAt(SelectCollisionIndex);
+				}
 				break;
 			case ECollisionLimitType::Capsule:
-				RuntimeNode->CapsuleLimits.RemoveAt(SelectCollisionIndex);
-				GraphNode->Node.CapsuleLimits.RemoveAt(SelectCollisionIndex);
+				if(SelectCollisionIsFromDataAsset)
+				{
+					RuntimeNode->LimitsDataAsset->CapsuleLimitsData.RemoveAt(SelectCollisionIndex);
+					RuntimeNode->LimitsDataAsset->Sync();
+					RuntimeNode->LimitsDataAsset->MarkPackageDirty();
+				}
+				else
+				{
+					RuntimeNode->CapsuleLimits.RemoveAt(SelectCollisionIndex);
+					GraphNode->Node.CapsuleLimits.RemoveAt(SelectCollisionIndex);
+				}
 				break;
 			case ECollisionLimitType::Planar:
-				RuntimeNode->PlanarLimits.RemoveAt(SelectCollisionIndex);
-				GraphNode->Node.PlanarLimits.RemoveAt(SelectCollisionIndex);
+				if(SelectCollisionIsFromDataAsset)
+				{
+					RuntimeNode->LimitsDataAsset->PlanarLimitsData.RemoveAt(SelectCollisionIndex);
+					RuntimeNode->LimitsDataAsset->Sync();
+					RuntimeNode->LimitsDataAsset->MarkPackageDirty();
+				}
+				else
+				{
+					RuntimeNode->PlanarLimits.RemoveAt(SelectCollisionIndex);
+					GraphNode->Node.PlanarLimits.RemoveAt(SelectCollisionIndex);
+				}
 				break;
 			case ECollisionLimitType::None: break;
 			default: ;
@@ -516,9 +543,18 @@ void FKawaiiPhysicsEditMode::DoRotation(FRotator& InRotation)
 	{
 		return;
 	}
-
-	USkeletalMeshComponent* SkelComp = GetAnimPreviewScene().GetPreviewMeshComponent();
-	FQuat DeltaQuat = ConvertCSRotationToBoneSpace(SkelComp, InRotation, RuntimeNode->ForwardedPose, CollisionRuntime->DrivingBone.BoneName, BCS_BoneSpace);
+	
+	FQuat DeltaQuat;
+	if(CollisionRuntime->DrivingBone.BoneIndex >= 0)
+	{
+		USkeletalMeshComponent* SkelComp = GetAnimPreviewScene().GetPreviewMeshComponent();
+		DeltaQuat = ConvertCSRotationToBoneSpace(SkelComp, InRotation, RuntimeNode->ForwardedPose, CollisionRuntime->DrivingBone.BoneName, BCS_BoneSpace);
+	}
+	else
+	{
+		DeltaQuat = InRotation.Quaternion();
+	}
+	
 	CollisionRuntime->OffsetRotation = FRotator(DeltaQuat * CollisionRuntime->OffsetRotation.Quaternion());
 	CollisionGraph->OffsetRotation = CollisionRuntime->OffsetRotation;
 

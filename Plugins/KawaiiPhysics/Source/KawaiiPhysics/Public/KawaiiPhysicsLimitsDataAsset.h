@@ -166,7 +166,10 @@ public:
 #endif
 
 #if WITH_EDITOR
+	
 	void UpdateLimit(FCollisionLimitBase* Limit);
+	void Sync();
+	
 #endif
 
 	UPROPERTY()

@@ -21,12 +21,6 @@ void UKawaiiPhysicsLimitsDataAsset::UpdateLimit(FCollisionLimitBase* Limit)
 				}
 			}
 
-			SphericalLimits.Empty();
-			for (FSphericalLimitData& Data : SphericalLimitsData)
-			{
-				SphericalLimits.Add(Data.Convert());
-			}
-
 		break;
 		case ECollisionLimitType::Capsule:
 
@@ -37,12 +31,6 @@ void UKawaiiPhysicsLimitsDataAsset::UpdateLimit(FCollisionLimitBase* Limit)
 					LimitData.Update(static_cast<FCapsuleLimit*>(Limit));
 					break;
 				}
-			}
-
-			CapsuleLimits.Empty();
-			for (FCapsuleLimitData& Data : CapsuleLimitsData)
-			{
-				CapsuleLimits.Add(Data.Convert());
 			}
 
 		break;
@@ -57,12 +45,6 @@ void UKawaiiPhysicsLimitsDataAsset::UpdateLimit(FCollisionLimitBase* Limit)
 				}
 			}
 
-			PlanarLimits.Empty();
-			for (FPlanarLimitData& Data : PlanarLimitsData)
-			{
-				PlanarLimits.Add(Data.Convert());
-			}
-
 		break;
 		case ECollisionLimitType::None:
 			break;
@@ -70,7 +52,30 @@ void UKawaiiPhysicsLimitsDataAsset::UpdateLimit(FCollisionLimitBase* Limit)
 			break;
 	}
 
+	Sync();
+	
 	MarkPackageDirty();
+}
+
+void UKawaiiPhysicsLimitsDataAsset::Sync()
+{
+	SphericalLimits.Empty();
+	for (FSphericalLimitData& Data : SphericalLimitsData)
+	{
+		SphericalLimits.Add(Data.Convert());
+	}
+
+	CapsuleLimits.Empty();
+	for (FCapsuleLimitData& Data : CapsuleLimitsData)
+	{
+		CapsuleLimits.Add(Data.Convert());
+	}
+
+	PlanarLimits.Empty();
+	for (FPlanarLimitData& Data : PlanarLimitsData)
+	{
+		PlanarLimits.Add(Data.Convert());
+	}
 }
 
 void UKawaiiPhysicsLimitsDataAsset::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
@@ -83,24 +88,12 @@ void UKawaiiPhysicsLimitsDataAsset::PostEditChangeProperty(struct FPropertyChang
 		{
 			SphericalLimitsData[PropertyChangedEvent.GetArrayIndex(PropertyName.ToString())].Guid = FGuid::NewGuid();
 		}
-
-		SphericalLimits.Empty();
-		for (FSphericalLimitData& Data : SphericalLimitsData)
-		{
-			SphericalLimits.Add(Data.Convert());
-		}
 	}
 	else if (PropertyName == FName(TEXT("CapsuleLimitsData")))
 	{
 		if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Duplicate)
 		{
 			CapsuleLimitsData[PropertyChangedEvent.GetArrayIndex(PropertyName.ToString())].Guid = FGuid::NewGuid();
-		}
-
-		CapsuleLimits.Empty();
-		for (FCapsuleLimitData& Data : CapsuleLimitsData)
-		{
-			CapsuleLimits.Add(Data.Convert());
 		}
 	}
 	else if (PropertyName == FName(TEXT("PlanarLimitsData")))
@@ -109,13 +102,9 @@ void UKawaiiPhysicsLimitsDataAsset::PostEditChangeProperty(struct FPropertyChang
 		{
 			PlanarLimitsData[PropertyChangedEvent.GetArrayIndex(PropertyName.ToString())].Guid = FGuid::NewGuid();
 		}
-
-		PlanarLimits.Empty();
-		for (FPlanarLimitData& Data : PlanarLimitsData)
-		{
-			PlanarLimits.Add(Data.Convert());
-		}
 	}
+
+	Sync();
 }
 
 

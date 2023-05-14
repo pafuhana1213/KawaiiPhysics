@@ -65,6 +65,7 @@ private:
 	/** Checking if a collision is selected and the collision is valid */
 	bool IsValidSelectCollision() const;
 
+	// Get Select Colliison Info
 	FCollisionLimitBase* GetSelectCollisionLimitRuntime() const;
 	FCollisionLimitBase* GetSelectCollisionLimitGraph() const;
 
