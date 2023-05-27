@@ -58,6 +58,9 @@ struct FCollisionLimitBase
 
 	UPROPERTY()
 	FQuat Rotation = FQuat::Identity;
+	
+	UPROPERTY()
+	bool bEnable = true;
 
 #if WITH_EDITORONLY_DATA
 

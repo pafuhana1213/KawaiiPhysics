@@ -428,8 +428,8 @@ void FAnimNode_KawaiiPhysics::UpdateSphericalLimits(TArray<FSphericalLimit>& Lim
 	for (auto& Sphere : Limits)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdateSphericalLimit);
-
-		if (Sphere.DrivingBone.BoneIndex >= 0)
+		
+		if (Sphere.DrivingBone.IsValidToEvaluate(BoneContainer))
 		{
 			const FCompactPoseBoneIndex CompactPoseIndex = Sphere.DrivingBone.GetCompactPoseIndex(BoneContainer);
 			FTransform BoneTransform = Output.Pose.GetComponentSpaceTransform(CompactPoseIndex);
@@ -441,10 +441,12 @@ void FAnimNode_KawaiiPhysics::UpdateSphericalLimits(TArray<FSphericalLimit>& Lim
 			FAnimationRuntime::ConvertBoneSpaceTransformToCS(ComponentTransform, Output.Pose, BoneTransform, CompactPoseIndex, BCS_BoneSpace);
 			Sphere.Location = BoneTransform.GetLocation();
 			Sphere.Rotation = BoneTransform.GetRotation();
+			
+			Sphere.bEnable = true;
 		}
 		else
 		{
-			Sphere.Location = Sphere.OffsetLocation;
+			Sphere.bEnable = false;
 		}
 	}
 }
@@ -457,7 +459,7 @@ void FAnimNode_KawaiiPhysics::UpdateCapsuleLimits(TArray<FCapsuleLimit>& Limits,
 	{
 		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdateCapsuleLimit);
 
-		if (Capsule.DrivingBone.BoneIndex >= 0)
+		if (Capsule.DrivingBone.IsValidToEvaluate(BoneContainer))
 		{
 			const FCompactPoseBoneIndex CompactPoseIndex = Capsule.DrivingBone.GetCompactPoseIndex(BoneContainer);
 			FTransform BoneTransform = Output.Pose.GetComponentSpaceTransform(CompactPoseIndex);
@@ -469,11 +471,12 @@ void FAnimNode_KawaiiPhysics::UpdateCapsuleLimits(TArray<FCapsuleLimit>& Limits,
 			FAnimationRuntime::ConvertBoneSpaceTransformToCS(ComponentTransform, Output.Pose, BoneTransform, CompactPoseIndex, BCS_BoneSpace);
 			Capsule.Location = BoneTransform.GetLocation();
 			Capsule.Rotation = BoneTransform.GetRotation();
+
+			Capsule.bEnable = true;
 		}
 		else
 		{			
-			Capsule.Location = Capsule.OffsetLocation;
-			Capsule.Rotation = Capsule.OffsetRotation.Quaternion();
+			Capsule.bEnable = false;
 		}
 	}
 }
@@ -486,7 +489,7 @@ void FAnimNode_KawaiiPhysics::UpdatePlanerLimits(TArray<FPlanarLimit>& Limits, F
 	{
 		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdatePlanerLimit);
 
-		if (Planar.DrivingBone.BoneIndex >= 0)
+		if (Planar.DrivingBone.IsValidToEvaluate(BoneContainer))
 		{
 			const FCompactPoseBoneIndex CompactPoseIndex = Planar.DrivingBone.GetCompactPoseIndex(BoneContainer);
 			FTransform BoneTransform = Output.Pose.GetComponentSpaceTransform(CompactPoseIndex);
@@ -500,13 +503,12 @@ void FAnimNode_KawaiiPhysics::UpdatePlanerLimits(TArray<FPlanarLimit>& Limits, F
 			Planar.Rotation = BoneTransform.GetRotation();
 			Planar.Rotation.Normalize();
 			Planar.Plane = FPlane(Planar.Location, Planar.Rotation.GetUpVector());
+
+			Planar.bEnable = true;
 		}
 		else
 		{
-			Planar.Location = Planar.OffsetLocation;
-			Planar.Rotation = Planar.OffsetRotation.Quaternion();
-			Planar.Rotation.Normalize();
-			Planar.Plane = FPlane(Planar.Location, Planar.Rotation.GetUpVector());
+			Planar.bEnable = false;
 		}
 	}
 }
@@ -740,7 +742,7 @@ void FAnimNode_KawaiiPhysics::AdjustBySphereCollision(FKawaiiPhysicsModifyBone& 
 {
 	for (auto& Sphere : Limits)
 	{
-		if (Sphere.Radius <= 0.0f)
+		if (!Sphere.bEnable || Sphere.Radius <= 0.0f)
 		{
 			continue;
 		}
@@ -783,7 +785,7 @@ void FAnimNode_KawaiiPhysics::AdjustByCapsuleCollision(FKawaiiPhysicsModifyBone&
 {
 	for (auto& Capsule : Limits)
 	{
-		if (Capsule.Radius <= 0 || Capsule.Length <= 0)
+		if (!Capsule.bEnable || Capsule.Radius <= 0 || Capsule.Length <= 0)
 		{
 			continue;
 		}
@@ -805,6 +807,10 @@ void FAnimNode_KawaiiPhysics::AdjustByPlanerCollision(FKawaiiPhysicsModifyBone& 
 {
 	for (auto& Planar : Limits)
 	{
+		if(!Planar.bEnable)
+		{
+			continue;
+		}
 		FVector PointOnPlane = FVector::PointPlaneProject(Bone.Location, Planar.Plane);
 		const float DistSquared = (Bone.Location - PointOnPlane).SizeSquared();
 
