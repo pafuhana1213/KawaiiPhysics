@@ -216,11 +216,6 @@ void FKawaiiPhysicsEditMode::RenderPlanerLimit(FPrimitiveDrawInterface* PDI)
 		for (int32 i = 0; i < RuntimeNode->PlanarLimits.Num(); i++)
 		{
 			auto& Plane = RuntimeNode->PlanarLimits[i];
-			if(!Plane.bEnable)
-			{
-				continue;
-			}
-			
 			FTransform PlaneTransform = FTransform(Plane.Rotation, Plane.Location);
 			PlaneTransform.NormalizeRotation();
 
@@ -232,11 +227,6 @@ void FKawaiiPhysicsEditMode::RenderPlanerLimit(FPrimitiveDrawInterface* PDI)
 		for (int32 i = 0; i < RuntimeNode->PlanarLimitsData.Num(); i++)
 		{
 			auto& Plane = RuntimeNode->PlanarLimitsData[i];
-			if(!Plane.bEnable)
-			{
-				continue;
-			}
-			
 			FTransform PlaneTransform = FTransform(Plane.Rotation, Plane.Location);
 			PlaneTransform.NormalizeRotation();
 

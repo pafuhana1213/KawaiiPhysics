@@ -30,8 +30,6 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 
 	ApplyLimitsDataAsset(RequiredBones);
 
-	InitializeBoneReferences(RequiredBones);
-
 	ModifyBones.Empty();
 
 	// For Avoiding Zero Divide in the first frame
@@ -508,7 +506,13 @@ void FAnimNode_KawaiiPhysics::UpdatePlanerLimits(TArray<FPlanarLimit>& Limits, F
 		}
 		else
 		{
-			Planar.bEnable = false;
+			Planar.Location = Planar.OffsetLocation;
+			Planar.Rotation = Planar.OffsetRotation.Quaternion();
+			Planar.Rotation.Normalize();
+			Planar.Plane = FPlane(Planar.Location, Planar.Rotation.GetUpVector());
+
+			// Maybe the DrivingBone is set to empty for the floor, so keep Enable
+			// Planar.bEnable = false;
 		}
 	}
 }
@@ -807,10 +811,6 @@ void FAnimNode_KawaiiPhysics::AdjustByPlanerCollision(FKawaiiPhysicsModifyBone& 
 {
 	for (auto& Planar : Limits)
 	{
-		if(!Planar.bEnable)
-		{
-			continue;
-		}
 		FVector PointOnPlane = FVector::PointPlaneProject(Bone.Location, Planar.Plane);
 		const float DistSquared = (Bone.Location - PointOnPlane).SizeSquared();
 
