@@ -43,7 +43,7 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 [次期アイドルマスター グラフィクス＆アニメーション プログラミング プレビュー](https://cedil.cesa.or.jp/cedil_sessions/view/416)
 
 ## 動作環境
-- UE4.27.2, UE5.0, UE5.1
+- UE4.27.2, UE5.0, UE5.1, UE5.2
 
 - UE4.27, UE5.0以降（Pluginのみ）  
 https://github.com/pafuhana1213/KawaiiPhysics/releases/
@@ -94,6 +94,19 @@ https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E6%8E%A1%E7%94%A8%E5%AE%9F%E
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
+- 2022/5/28 v1.11.0
+  - UE5.2に対応
+    - といっても、特に何もしていないです
+  - KawaiiPhysicsとSequencerを併用するサンプルを追加
+    - SkeletalMeshComponentのAnimClassをAnimBlueprintに設定することと、AnimGraphにSlotノードがあるかを要チェック
+  - コンパイルしなくてもプロパティの変更を挙動に反映できるように
+    - CopyNodeDataToPreviewNodeの対応が抜けていたので追加
+  - UE5.1にてコライダー（～Limits系）のプレビューが上手く動作しない不具合（２つ目以降がコンパイルしないと出てこない）を修正 https://github.com/pafuhana1213/KawaiiPhysics/issues/84
+  - コライダー（～Limits系）の回転を編集したときにクラッシュする事がある不具合を修正　https://github.com/pafuhana1213/KawaiiPhysics/issues/86
+  - DataAssetからのLimitsをDeleteで消した際のクラッシュを修正　https://github.com/pafuhana1213/KawaiiPhysics/issues/72
+  - コライダー（～Limits系）のDrivingBoneに指定しているボーンがLODによって除去された際にクラッシュする不具合を修正 https://github.com/pafuhana1213/KawaiiPhysics/issues/87
+  - Control Rig, AnimationLayer と併用した際のクラッシュを（たぶん）修正 https://github.com/pafuhana1213/KawaiiPhysics/issues/56
+  - サンプルのモデルにLOD1・2を追加しました（動作チェック用）
 - 2022/12/03 v1.10.0
   - UE5.1に対応 
   - LODでボーン除去している場合に発生するクラッシュの修正
