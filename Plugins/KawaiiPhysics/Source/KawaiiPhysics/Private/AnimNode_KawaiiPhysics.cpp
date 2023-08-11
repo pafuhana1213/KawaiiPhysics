@@ -855,7 +855,7 @@ void FAnimNode_KawaiiPhysics::AdjustByAngleLimit(FComponentSpacePoseContext& Out
 
 	if (AngleOverLimit > 0.0f)
 	{
-		BoneDir = BoneDir.RotateAngleAxis(-AngleOverLimit, Axis);
+		BoneDir = BoneDir.RotateAngleAxis(-AngleOverLimit, Axis.GetSafeNormal());
 		Bone.Location = BoneDir * (Bone.Location - ParentBone.Location).Size() + ParentBone.Location;
 	}
 }
