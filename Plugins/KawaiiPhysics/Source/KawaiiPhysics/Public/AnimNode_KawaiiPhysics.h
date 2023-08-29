@@ -154,7 +154,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), category = "KawaiiPhysics")
 	float Radius = 3.0f;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, ClampMin = "0"), category = "KawaiiPhysics")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), category = "KawaiiPhysics")
 	float LimitAngle = 0.0f;
 };
 
