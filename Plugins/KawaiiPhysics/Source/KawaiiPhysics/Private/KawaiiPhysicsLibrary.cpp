@@ -14,7 +14,7 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::ConvertToKawaiiPhysics(const FAni
 }
 
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetPhysicsSettings(const FKawaiiPhysicsReference& KawaiiPhysics,
-	FKawaiiPhysicsSettings PhysicsSettings)
+	UPARAM(ref) FKawaiiPhysicsSettings& PhysicsSettings)
 {
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 		TEXT("SetPhysicsSettings"),
@@ -38,6 +38,33 @@ FKawaiiPhysicsSettings UKawaiiPhysicsLibrary::GetPhysicsSettings(const FKawaiiPh
 	});
 
 	return PhysicsSettings;
+}
+
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetDummyBoneLength(
+	const FKawaiiPhysicsReference& KawaiiPhysics, float DummyBoneLength)
+{
+	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+		TEXT("SetDummyBoneLength"),
+		[DummyBoneLength](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			InKawaiiPhysics.DummyBoneLength = DummyBoneLength;
+		});
+
+	return KawaiiPhysics;
+}
+
+float UKawaiiPhysicsLibrary::GetDummyBoneLength(const FKawaiiPhysicsReference& KawaiiPhysics)
+{
+	float DummyBoneLength;
+	
+	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+	TEXT("GetDummyBoneLength"),
+	[&DummyBoneLength](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+	{
+		DummyBoneLength = InKawaiiPhysics.DummyBoneLength;
+	});
+
+	return DummyBoneLength;
 }
 
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetTeleportDistanceThreshold(
