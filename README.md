@@ -43,11 +43,11 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 [次期アイドルマスター グラフィクス＆アニメーション プログラミング プレビュー](https://cedil.cesa.or.jp/cedil_sessions/view/416)
 
 ## 動作環境
-- UE4.27.2, UE5.0, UE5.1, UE5.2
-
-- UE4.27, UE5.0以降（Pluginのみ）  
-https://github.com/pafuhana1213/KawaiiPhysics/releases/
-
+- UE5.0 ~ 5.3  
+https://github.com/pafuhana1213/KawaiiPhysics/releases/  
+  
+- UE4.27  
+https://github.com/pafuhana1213/KawaiiPhysics/releases/tag/20230830-v1.11.1  
 - UE4.26以前（Pluginのみ）  
 https://github.com/pafuhana1213/KawaiiPhysics/releases/tag/20201202-v1.7.0
 
@@ -94,7 +94,14 @@ https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E6%8E%A1%E7%94%A8%E5%AE%9F%E
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
-- 2022/5/28 v1.11.1
+- 2022/9/8 v1.12.0
+  - UE5.3に対応
+    - といっても、特に何もしていないです
+  - AnimNode関数から各パラメータの変更・取得を可能に
+    - ![image](https://github.com/pafuhana1213/KawaiiPhysics/assets/8957600/6ae6098a-64f3-4138-8822-704426dd70f4)
+    - サンプルを追加（AnimBP_GrayChanKawaiiPhysicsAnimNodeFunction）
+  - AnimNode関数への対応に伴い、UE4.27のサポートを終了
+- 2022/8/30 v1.11.1
   - LevelSequence・ControlRigと併用した際のクラッシュを修正 https://github.com/pafuhana1213/KawaiiPhysics/commit/5a2fd868d9ccbd87b3727614faeb861cd7854d8a
   - AdjustByAngleLimitを正規化するように　https://github.com/pafuhana1213/KawaiiPhysics/commit/9a0576cfa06d37eb0c1b35f57757737ac61288b8
   - LimitAngleがピンに公開されてなかった不具合を修正　https://github.com/pafuhana1213/KawaiiPhysics/commit/937a1247f96190700fe06ca7559274059e62d111
