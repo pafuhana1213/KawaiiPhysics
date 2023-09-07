@@ -94,6 +94,10 @@ https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E6%8E%A1%E7%94%A8%E5%AE%9F%E
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
+- 2022/5/28 v1.11.1
+  - LevelSequence・ControlRigと併用した際のクラッシュを修正 https://github.com/pafuhana1213/KawaiiPhysics/commit/5a2fd868d9ccbd87b3727614faeb861cd7854d8a
+  - AdjustByAngleLimitを正規化するように　https://github.com/pafuhana1213/KawaiiPhysics/commit/9a0576cfa06d37eb0c1b35f57757737ac61288b8
+  - LimitAngleがピンに公開されてなかった不具合を修正　https://github.com/pafuhana1213/KawaiiPhysics/commit/937a1247f96190700fe06ca7559274059e62d111
 - 2022/5/28 v1.11.0
   - UE5.2に対応
     - といっても、特に何もしていないです
