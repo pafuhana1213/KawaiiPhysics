@@ -11,6 +11,9 @@ English doc :
 不具合報告  
 - https://github.com/pafuhana1213/KawaiiPhysics/issues
 
+## 採用実績
+https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E6%8E%A1%E7%94%A8%E5%AE%9F%E7%B8%BE-Adoption
+
 DevCommunity :   
 - 日本語  https://forums.unrealengine.com/international/japan/1679269  
 - 英語  https://forums.unrealengine.com/community/released-projects/1638095
@@ -83,9 +86,6 @@ https://docs.unrealengine.com/5.0/ja/setting-up-visual-studio-development-enviro
 
 ## ライセンス
 MIT
-
-## 採用実績
-https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E6%8E%A1%E7%94%A8%E5%AE%9F%E7%B8%BE-Adoption
 
 ## 作者
 [おかず@pafuhana1213](https://twitter.com/pafuhana1213)
