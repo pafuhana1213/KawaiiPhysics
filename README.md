@@ -95,7 +95,14 @@ MIT
 
 ## 履歴
 - 2022/9/15 v1.13.0
-  - 物理の空回し(Warm Up)機能を追加しました
+  - 物理の空回し(Warm Up)機能・サンプルを追加しました
+    - https://www.youtube.com/watch?v=stIOjZQh3Qw
+    - <img width="525" alt="image" src="https://github.com/pafuhana1213/KawaiiPhysics/assets/8957600/e140f3b9-232a-4026-a0b0-c8e1e54a492f">
+    - Need Warm Up が true かつ Warm Up Frame( 空回しするフレーム数 ) が 1以上だと Warm Up 処理が行われます
+    - 実行後は Need Warm Upは false になります
+    - Warm up Frameが大きいほど安定しますが、物理計算の回数がその分増えるので負荷が上がります
+    - ![image](https://github.com/pafuhana1213/KawaiiPhysics/assets/8957600/ef55a7fd-699b-48ba-9bd8-13be62d23961)  
+      v1.12.0から対応したAnimNode関数からWarm Upを有効にすることも可能です
 - 2022/9/8 v1.12.0
   - UE5.3に対応
     - といっても、特に何もしていないです
