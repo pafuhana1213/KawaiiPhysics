@@ -94,6 +94,8 @@ MIT
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
+- 2022/9/15 v1.13.0
+  - 物理の空回し(Warm Up)機能を追加しました
 - 2022/9/8 v1.12.0
   - UE5.3に対応
     - といっても、特に何もしていないです
