@@ -228,3 +228,42 @@ bool UKawaiiPhysicsLibrary::GetAllowWorldCollision(const FKawaiiPhysicsReference
 
 	return AllowWorldCollision;
 }
+
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetNeedWarmUp(const FKawaiiPhysicsReference& KawaiiPhysics,
+	bool NeedWarmUp)
+{
+	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+		TEXT("SetNeedWarmup"),
+		[NeedWarmUp](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			InKawaiiPhysics.bNeedWarmUp = NeedWarmUp;
+		});
+
+	return KawaiiPhysics;
+}
+
+bool UKawaiiPhysicsLibrary::GetNeedWarmUp(const FKawaiiPhysicsReference& KawaiiPhysics)
+{
+	bool NeedWarmUp;
+	
+	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+	TEXT("GetNeedWarmup"),
+	[&NeedWarmUp](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+	{
+		NeedWarmUp = InKawaiiPhysics.bNeedWarmUp;
+	});
+
+	return NeedWarmUp;
+}
+
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::ResetDynamics(const FKawaiiPhysicsReference& KawaiiPhysics)
+{
+	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+		TEXT("ResetDynamics"),
+		[](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			InKawaiiPhysics.ResetDynamics(ETeleportType::ResetPhysics);
+		});
+
+	return KawaiiPhysics;
+}

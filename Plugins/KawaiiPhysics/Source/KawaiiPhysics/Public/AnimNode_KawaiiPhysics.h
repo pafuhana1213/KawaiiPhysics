@@ -229,11 +229,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = ModifyTarget)
 	TArray<FBoneReference> ExcludeBones;
 
-	UPROPERTY(EditAnywhere, Category = TargetFramerate, meta = (EditCondition = "OverrideTargetFramerate"))
+	UPROPERTY(EditAnywhere, Category = "TargetFramerate", meta = (EditCondition = "OverrideTargetFramerate"))
 	int32 TargetFramerate = 60;
-	UPROPERTY(EditAnywhere, Category = TargetFramerate, meta = (InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = "TargetFramerate", meta = (InlineEditConditionToggle))
 	bool OverrideTargetFramerate = false;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WarmUp", meta = (PinHiddenByDefault))
+	bool bNeedWarmUp = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WarmUp", meta = (PinHiddenByDefault, ClampMin = "0"))
+	int32 WarmUpFrames = 0;
+	
 	/** Settings for control of physical behavior */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
 	FKawaiiPhysicsSettings PhysicsSettings;
@@ -398,7 +403,7 @@ public:
 	virtual bool NeedsDynamicReset() const override { return true; }
 	virtual void ResetDynamics(ETeleportType InTeleportType) override;
 	// End of FAnimNode_Base interface
-
+	
 	// FAnimNode_SkeletalControlBase interface
 	virtual void EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms) override;
 	virtual bool IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones) override;
@@ -450,6 +455,9 @@ private:
 	void UpdateCapsuleLimits(TArray<FCapsuleLimit>& Limits, FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, const FTransform& ComponentTransform);
 	void UpdatePlanerLimits(TArray<FPlanarLimit>& Limits, FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, const FTransform& ComponentTransform);
 
+	void UpdateModifyBonesPoseTransform(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer);
+	void UpdateSkelCompMove(const FTransform& ComponentTransform);
+	
 	void SimulateModifyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform);
 	void AdjustByWorldCollision(FKawaiiPhysicsModifyBone& Bone, const USkeletalMeshComponent* OwningComp, const FBoneContainer& BoneContainer);
 	void AdjustBySphereCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FSphericalLimit>& Limits);
@@ -458,7 +466,9 @@ private:
 	void AdjustByAngleLimit(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform, FKawaiiPhysicsModifyBone& Bone, const FKawaiiPhysicsModifyBone& ParentBone);
 	void AdjustByPlanarConstraint(FKawaiiPhysicsModifyBone& Bone, const FKawaiiPhysicsModifyBone& ParentBone);
 	
-
+	void WarmUp(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform);
+	
+	
 	void ApplySimulateResult(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, TArray<FBoneTransform>& OutBoneTransforms);
 	
 };

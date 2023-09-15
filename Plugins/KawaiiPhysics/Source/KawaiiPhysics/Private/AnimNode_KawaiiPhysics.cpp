@@ -118,38 +118,19 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	UpdateCapsuleLimits(CapsuleLimitsData, Output, BoneContainer, ComponentTransform);
 	UpdatePlanerLimits(PlanarLimits,Output, BoneContainer, ComponentTransform);
 	UpdatePlanerLimits(PlanarLimitsData, Output, BoneContainer, ComponentTransform);
-	for (auto& Bone : ModifyBones)
-	{
-		if (!Bone.bDummy)
-		{
-			Bone.UpdatePoseTransform(BoneContainer, Output.Pose, ResetBoneTransformWhenBoneNotFound);
-		}
-		else
-		{
-			auto ParentBone = ModifyBones[Bone.ParentIndex];
-			Bone.PoseLocation = ParentBone.PoseLocation + GetBoneForwardVector(ParentBone.PoseRotation) * DummyBoneLength;
-			Bone.PoseRotation = ParentBone.PoseRotation;
-			Bone.PoseScale = ParentBone.PoseScale;
-		}
-	}
+
+	// Update Bone Pose Transform
+	UpdateModifyBonesPoseTransform(Output, BoneContainer);
 	
-
-	// Calc SkeletalMeshComponent movement in World Space
-	SkelCompMoveVector = ComponentTransform.InverseTransformPosition(PreSkelCompTransform.GetLocation());
-	if (SkelCompMoveVector.SizeSquared() > TeleportDistanceThreshold * TeleportDistanceThreshold)
-	{
-		SkelCompMoveVector = FVector::ZeroVector;
-	}
-
-	SkelCompMoveRotation = ComponentTransform.InverseTransformRotation(PreSkelCompTransform.GetRotation());
-	if ( TeleportRotationThreshold >= 0 && FMath::RadiansToDegrees( SkelCompMoveRotation.GetAngle() ) > TeleportRotationThreshold )
-	{
-		SkelCompMoveRotation = FQuat::Identity;
-	}
-
-	PreSkelCompTransform = ComponentTransform;
+	// Update SkeletalMeshComponent movement in World Space
+	UpdateSkelCompMove(ComponentTransform);
 
 	// Simulate Physics and Apply
+	if(bNeedWarmUp && WarmUpFrames > 0)
+	{
+		WarmUp(Output, BoneContainer, ComponentTransform);
+		bNeedWarmUp = false;
+	}
 	SimulateModifyBones(Output, BoneContainer, ComponentTransform);
 	ApplySimulateResult(Output, BoneContainer, OutBoneTransforms);
 }
@@ -532,6 +513,41 @@ void FAnimNode_KawaiiPhysics::UpdatePlanerLimits(TArray<FPlanarLimit>& Limits, F
 	}
 }
 
+void FAnimNode_KawaiiPhysics::UpdateModifyBonesPoseTransform(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer)
+{
+	for (auto& Bone : ModifyBones)
+	{
+		if (!Bone.bDummy)
+		{
+			Bone.UpdatePoseTransform(BoneContainer, Output.Pose, ResetBoneTransformWhenBoneNotFound);
+		}
+		else
+		{
+			auto ParentBone = ModifyBones[Bone.ParentIndex];
+			Bone.PoseLocation = ParentBone.PoseLocation + GetBoneForwardVector(ParentBone.PoseRotation) * DummyBoneLength;
+			Bone.PoseRotation = ParentBone.PoseRotation;
+			Bone.PoseScale = ParentBone.PoseScale;
+		}
+	}
+}
+
+void FAnimNode_KawaiiPhysics::UpdateSkelCompMove(const FTransform& ComponentTransform)
+{
+	SkelCompMoveVector = ComponentTransform.InverseTransformPosition(PreSkelCompTransform.GetLocation());
+	if (SkelCompMoveVector.SizeSquared() > TeleportDistanceThreshold * TeleportDistanceThreshold)
+	{
+		SkelCompMoveVector = FVector::ZeroVector;
+	}
+
+	SkelCompMoveRotation = ComponentTransform.InverseTransformRotation(PreSkelCompTransform.GetRotation());
+	if ( TeleportRotationThreshold >= 0 && FMath::RadiansToDegrees( SkelCompMoveRotation.GetAngle() ) > TeleportRotationThreshold )
+	{
+		SkelCompMoveRotation = FQuat::Identity;
+	}
+	
+	PreSkelCompTransform = ComponentTransform;
+}
+
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimulatemodifyBones"), STAT_KawaiiPhysics_SimulatemodifyBones, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimulatemodifyBone"), STAT_KawaiiPhysics_SimulatemodifyBone, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_AdjustBone"), STAT_KawaiiPhysics_AdjustBone, STATGROUP_Anim);
@@ -881,6 +897,18 @@ void FAnimNode_KawaiiPhysics::AdjustByPlanarConstraint(FKawaiiPhysicsModifyBone&
 		default: ;
 		}
 		Bone.Location  = FVector::PointPlaneProject(Bone.Location, Plane);
+	}
+}
+
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_WarmUp"), STAT_KawaiiPhysics_WarmUp, STATGROUP_Anim);
+void FAnimNode_KawaiiPhysics::WarmUp(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer,
+	FTransform& ComponentTransform)
+{
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_WarmUp);
+	
+	for(int32 i = 0; i < WarmUpFrames; ++i)
+	{
+		SimulateModifyBones(Output, BoneContainer, ComponentTransform);
 	}
 }
 

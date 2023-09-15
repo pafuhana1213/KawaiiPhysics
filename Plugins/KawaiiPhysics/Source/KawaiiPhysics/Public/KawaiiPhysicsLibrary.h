@@ -93,4 +93,15 @@ class KAWAIIPHYSICS_API UKawaiiPhysicsLibrary : public UBlueprintFunctionLibrary
 	/** Get AllowWorldCollision */
 	UFUNCTION(BlueprintPure, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
 	static bool GetAllowWorldCollision(const FKawaiiPhysicsReference& KawaiiPhysics);
+
+	/** Set NeedWarmUp */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	static FKawaiiPhysicsReference SetNeedWarmUp(const FKawaiiPhysicsReference& KawaiiPhysics,bool NeedWarmUp);
+	/** Get NeedWarmUp */
+	UFUNCTION(BlueprintPure, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	static bool GetNeedWarmUp(const FKawaiiPhysicsReference& KawaiiPhysics);
+
+	/** ResetDynamics */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	static FKawaiiPhysicsReference ResetDynamics(const FKawaiiPhysicsReference& KawaiiPhysics);
 };
