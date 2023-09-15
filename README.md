@@ -3,13 +3,16 @@ English doc :
 - https://github.com/pafuhana1213/KawaiiPhysics/blob/master/README_en.md  
 
 ディスカッション：  
-- [Update Information - 更新情報](https://github.com/pafuhana1213/KawaiiPhysics/discussions/68)  
+- [Update Information - 更新情報](https://github.com/pafuhana1213/KawaiiPhysics/discussions/categories/announcements-%E3%82%A2%E3%83%8A%E3%82%A6%E3%83%B3%E3%82%B9)  
 - [Tell me about your work! - あなたの作品を教えてください！](https://github.com/pafuhana1213/KawaiiPhysics/discussions/65)  
 - [How to use and set up? - 設定方法などについての雑談・相談の場](https://github.com/pafuhana1213/KawaiiPhysics/discussions/66)  
 - [How to request Features and Samples - 機能やサンプルのリクエスト方法について](https://github.com/pafuhana1213/KawaiiPhysics/discussions/67)  
 
 不具合報告  
 - https://github.com/pafuhana1213/KawaiiPhysics/issues
+
+採用実績  
+- https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E6%8E%A1%E7%94%A8%E5%AE%9F%E7%B8%BE-Adoption
 
 DevCommunity :   
 - 日本語  https://forums.unrealengine.com/international/japan/1679269  
@@ -43,11 +46,11 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 [次期アイドルマスター グラフィクス＆アニメーション プログラミング プレビュー](https://cedil.cesa.or.jp/cedil_sessions/view/416)
 
 ## 動作環境
-- UE4.27.2, UE5.0, UE5.1, UE5.2
-
-- UE4.27, UE5.0以降（Pluginのみ）  
-https://github.com/pafuhana1213/KawaiiPhysics/releases/
-
+- UE5.0 ~ 5.3  
+https://github.com/pafuhana1213/KawaiiPhysics/releases/  
+  
+- UE4.27  
+https://github.com/pafuhana1213/KawaiiPhysics/releases/tag/20230830-v1.11.1  
 - UE4.26以前（Pluginのみ）  
 https://github.com/pafuhana1213/KawaiiPhysics/releases/tag/20201202-v1.7.0
 
@@ -84,9 +87,6 @@ https://docs.unrealengine.com/5.0/ja/setting-up-visual-studio-development-enviro
 ## ライセンス
 MIT
 
-## 採用実績
-https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E6%8E%A1%E7%94%A8%E5%AE%9F%E7%B8%BE-Adoption
-
 ## 作者
 [おかず@pafuhana1213](https://twitter.com/pafuhana1213)
 
@@ -94,7 +94,14 @@ https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E6%8E%A1%E7%94%A8%E5%AE%9F%E
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
-- 2022/5/28 v1.11.1
+- 2022/9/8 v1.12.0
+  - UE5.3に対応
+    - といっても、特に何もしていないです
+  - AnimNode関数から各パラメータの変更・取得を可能に
+    - ![image](https://github.com/pafuhana1213/KawaiiPhysics/assets/8957600/6ae6098a-64f3-4138-8822-704426dd70f4)
+    - サンプルを追加（AnimBP_GrayChanKawaiiPhysicsAnimNodeFunction）
+  - AnimNode関数への対応に伴い、UE4.27のサポートを終了
+- 2022/8/30 v1.11.1
   - LevelSequence・ControlRigと併用した際のクラッシュを修正 https://github.com/pafuhana1213/KawaiiPhysics/commit/5a2fd868d9ccbd87b3727614faeb861cd7854d8a
   - AdjustByAngleLimitを正規化するように　https://github.com/pafuhana1213/KawaiiPhysics/commit/9a0576cfa06d37eb0c1b35f57757737ac61288b8
   - LimitAngleがピンに公開されてなかった不具合を修正　https://github.com/pafuhana1213/KawaiiPhysics/commit/937a1247f96190700fe06ca7559274059e62d111
