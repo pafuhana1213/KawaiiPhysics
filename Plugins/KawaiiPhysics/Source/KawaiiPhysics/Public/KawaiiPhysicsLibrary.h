@@ -25,6 +25,7 @@ class KAWAIIPHYSICS_API UKawaiiPhysicsLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
+public:
 	/** Get a KawaiiPhysics from an anim node */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta = (BlueprintThreadSafe, ExpandEnumAsExecs = "Result"))
 	static FKawaiiPhysicsReference ConvertToKawaiiPhysics(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result);
