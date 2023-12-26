@@ -842,6 +842,9 @@ void FAnimNode_KawaiiPhysics::AdjustByPlanerCollision(FKawaiiPhysicsModifyBone& 
 {
 	for (auto& Planar : Limits)
 	{
+		if(!Planar.bEnable)
+			continue;
+
 		FVector PointOnPlane = FVector::PointPlaneProject(Bone.Location, Planar.Plane);
 		const float DistSquared = (Bone.Location - PointOnPlane).SizeSquared();
 
