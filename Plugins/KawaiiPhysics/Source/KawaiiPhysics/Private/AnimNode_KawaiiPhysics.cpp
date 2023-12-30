@@ -4,6 +4,8 @@
 #include "KawaiiPhysicsLimitsDataAsset.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Curves/CurveFloat.h"
+#include "Runtime/Launch/Resources/Version.h"
+#include "SceneInterface.h"
 
 #if WITH_EDITOR
 #include "UnrealEdGlobals.h"
