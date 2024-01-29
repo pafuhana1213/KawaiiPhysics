@@ -6,46 +6,32 @@
 
 #if WITH_EDITOR
 
+template <typename CollisionLimitDataType, typename CollisionLimitType>
+void UpdateCollisionLimit(TArray<CollisionLimitDataType>& CollisionLimitsData, const CollisionLimitType* OutLimit)
+{
+	for (auto& LimitData : CollisionLimitsData)
+	{
+		if (LimitData.Guid == OutLimit->Guid)
+		{
+			LimitData.Update(OutLimit);
+			break;
+		}
+	}
+}
+
 void UKawaiiPhysicsLimitsDataAsset::UpdateLimit(FCollisionLimitBase* Limit)
 {
 	switch (Limit->Type)
 	{
 		case ECollisionLimitType::Spherical:
-
-			for (FSphericalLimitData& LimitData : SphericalLimitsData)
-			{
-				if (LimitData.Guid == Limit->Guid)
-				{
-					LimitData.Update(static_cast<FSphericalLimit*>(Limit));
-					break;
-				}
-			}
-
-		break;
+			UpdateCollisionLimit(SphericalLimitsData, static_cast<FSphericalLimit*>(Limit));
+			break;
 		case ECollisionLimitType::Capsule:
-
-			for (FCapsuleLimitData& LimitData : CapsuleLimitsData)
-			{
-				if (LimitData.Guid == Limit->Guid)
-				{
-					LimitData.Update(static_cast<FCapsuleLimit*>(Limit));
-					break;
-				}
-			}
-
-		break;
+			UpdateCollisionLimit(CapsuleLimitsData, static_cast<FCapsuleLimit*>(Limit));
+			break;
 		case ECollisionLimitType::Planar:
-
-			for (FPlanarLimitData& LimitData : PlanarLimitsData)
-			{
-				if (LimitData.Guid == Limit->Guid)
-				{
-					LimitData.Update(static_cast<FPlanarLimit*>(Limit));
-					break;
-				}
-			}
-
-		break;
+			UpdateCollisionLimit(PlanarLimitsData, static_cast<FPlanarLimit*>(Limit));
+			break;
 		case ECollisionLimitType::None:
 			break;
 		default:
@@ -57,25 +43,21 @@ void UKawaiiPhysicsLimitsDataAsset::UpdateLimit(FCollisionLimitBase* Limit)
 	MarkPackageDirty();
 }
 
+template <typename CollisionLimitDataType, typename CollisionLimitType>
+void SyncCollisionLimits(TArray<CollisionLimitDataType>& CollisionLimitData, TArray<CollisionLimitType>& CollisionLimits)
+{
+	CollisionLimits.Empty();
+	for (const auto& Data : CollisionLimitData)
+	{
+		CollisionLimits.Add(Data.Convert());
+	}
+}
+
 void UKawaiiPhysicsLimitsDataAsset::Sync()
 {
-	SphericalLimits.Empty();
-	for (FSphericalLimitData& Data : SphericalLimitsData)
-	{
-		SphericalLimits.Add(Data.Convert());
-	}
-
-	CapsuleLimits.Empty();
-	for (FCapsuleLimitData& Data : CapsuleLimitsData)
-	{
-		CapsuleLimits.Add(Data.Convert());
-	}
-
-	PlanarLimits.Empty();
-	for (FPlanarLimitData& Data : PlanarLimitsData)
-	{
-		PlanarLimits.Add(Data.Convert());
-	}
+	SyncCollisionLimits(SphericalLimitsData, SphericalLimits);
+	SyncCollisionLimits(CapsuleLimitsData, CapsuleLimits);
+	SyncCollisionLimits(PlanarLimitsData, PlanarLimits);
 }
 
 void UKawaiiPhysicsLimitsDataAsset::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
