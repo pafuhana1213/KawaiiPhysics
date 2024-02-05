@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "KawaiiPhysics.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "FKawaiiPhysicsModule"
 

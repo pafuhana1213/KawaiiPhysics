@@ -56,6 +56,8 @@ private:
 	void RenderCapsuleLimit(FPrimitiveDrawInterface* PDI) const;
 	void RenderPlanerLimit(FPrimitiveDrawInterface* PDI);
 
+	void RenderBoneConstraint(FPrimitiveDrawInterface* PDI) const;
+
 	/** Helper function for GetWidgetLocation() and joint rendering */
 	FVector GetWidgetLocation(ECollisionLimitType CollisionType, int32 Index) const;
 

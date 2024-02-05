@@ -29,6 +29,8 @@ class UAnimGraphNode_KawaiiPhysics : public UAnimGraphNode_SkeletalControlBase
 	bool bEnableDebugDrawCapsuleLimit = true;
 	UPROPERTY(EditAnywhere, Category = Debug)
 	bool bEnableDebugDrawPlanerLimit = true;
+	UPROPERTY(EditAnywhere, Category = Debug)
+	bool bEnableDebugDrawBoneConstraint = true;
 
 public:
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;

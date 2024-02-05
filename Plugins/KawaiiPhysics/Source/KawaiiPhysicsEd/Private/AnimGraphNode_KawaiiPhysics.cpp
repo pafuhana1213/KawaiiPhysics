@@ -167,6 +167,14 @@ void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* Ani
 	KawaiiPhysics->bEnableWind = Node.bEnableWind;
 	KawaiiPhysics->WindScale = Node.WindScale;
 
+	// BoneConstraint
+	KawaiiPhysics->BoneConstraintGlobalComplianceType = Node.BoneConstraintGlobalComplianceType;
+	KawaiiPhysics->BoneConstraintIterationCountBeforeCollision = Node.BoneConstraintIterationCountBeforeCollision;
+	KawaiiPhysics->BoneConstraintIterationCountAfterCollision = Node.BoneConstraintIterationCountAfterCollision;
+	KawaiiPhysics->bAutoAddChildDummyBoneConstraint = Node.bAutoAddChildDummyBoneConstraint;
+	KawaiiPhysics->BoneConstraints = Node.BoneConstraints;
+	KawaiiPhysics->BoneConstraintsDataAsset = Node.BoneConstraintsDataAsset;
+
 	// Reset for sync without compile
 	KawaiiPhysics->ModifyBones.Empty();
 }

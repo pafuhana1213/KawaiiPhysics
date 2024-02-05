@@ -8,6 +8,7 @@
 #include "AnimNode_KawaiiPhysics.generated.h"
 
 class UKawaiiPhysicsLimitsDataAsset;
+class UKawaiiPhysicsBoneConstraintsDataAsset;
 
 UENUM()
 enum class EPlanarConstraint : uint8
@@ -77,7 +78,7 @@ struct FCollisionLimitBase
 
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FSphericalLimit : public FCollisionLimitBase
 {
 	GENERATED_BODY();
@@ -98,7 +99,7 @@ struct FSphericalLimit : public FCollisionLimitBase
 	ESphericalLimitType LimitType = ESphericalLimitType::Outer;
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FCapsuleLimit : public FCollisionLimitBase
 {
 	GENERATED_BODY();
@@ -118,7 +119,7 @@ struct FCapsuleLimit : public FCollisionLimitBase
 	float Length = 10.0f;
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FPlanarLimit : public FCollisionLimitBase
 {
 	GENERATED_BODY();
@@ -190,7 +191,8 @@ public:
 	float LengthFromRoot = 0.0f;
 	UPROPERTY()
 	bool bDummy = false;
-
+	UPROPERTY()
+	bool bSkipSimulate = false;
 
 public:
 
@@ -215,8 +217,79 @@ public:
 		PoseScale = ComponentSpaceTransform.GetScale3D();
 	}
 	FKawaiiPhysicsModifyBone(){}
-
+	
 };
+
+UENUM()
+enum class EXPBDComplianceType : uint8
+{
+	Concrete	UMETA(DisplayName = "Concrete"),
+	Wood		UMETA(DisplayName = "Wood"),
+	Leather		UMETA(DisplayName = "Leather"),
+	Tendon		UMETA(DisplayName = "Tendon"),
+	Rubber		UMETA(DisplayName = "Rubber"),
+	Muscle		UMETA(DisplayName = "Muscle"),
+	Fat			UMETA(DisplayName = "Fat"),
+};
+
+USTRUCT()
+struct FModifyBoneConstraint
+{
+	GENERATED_BODY();
+
+	FModifyBoneConstraint(){}
+
+	UPROPERTY(EditAnywhere, category = "KawaiiPhysics")
+	FBoneReference Bone1;
+
+	UPROPERTY(EditAnywhere, category = "KawaiiPhysics")
+	FBoneReference Bone2;
+
+	UPROPERTY(EditAnywhere, category = "KawaiiPhysics", meta=(InlineEditConditionToggle))
+	bool bOverrideCompliance = false;
+	
+	UPROPERTY(EditAnywhere, category = "KawaiiPhysics", meta=(EditCondition="bOverrideCompliance"))
+	EXPBDComplianceType ComplianceType = EXPBDComplianceType::Leather;
+	
+	UPROPERTY()
+	int32 ModifyBoneIndex1 = -1;
+
+	UPROPERTY()
+	int32 ModifyBoneIndex2 = -1;
+
+	UPROPERTY()
+	float Length = -1.0f;
+
+	UPROPERTY()
+	bool bIsDummy = false;
+
+	UPROPERTY()
+	float Lambda = 0.0f;
+
+	FORCEINLINE bool operator ==(const FModifyBoneConstraint& Other) const
+	{
+		return ((Bone1 == Other.Bone1 && Bone2 == Other.Bone2) || (Bone1 == Other.Bone2 && Bone2 == Other.Bone1)) &&
+			ComplianceType == Other.ComplianceType;
+	}
+
+	void InitializeBone(const FBoneContainer& RequiredBones)
+	{
+		Bone1.Initialize(RequiredBones);
+		Bone2.Initialize(RequiredBones);
+	}
+
+	bool IsBoneReferenceValid() const
+	{
+		//return Bone1.IsValidToEvaluate() && Bone2.IsValidToEvaluate();
+		return ModifyBoneIndex1 >= 0 && ModifyBoneIndex2 >= 0;
+	}
+
+	bool IsValid() const
+	{
+		return Length > 0.0f;
+	}
+};
+
 
 USTRUCT(BlueprintType)
 struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalControlBase
@@ -233,10 +306,10 @@ public:
 	int32 TargetFramerate = 60;
 	UPROPERTY(EditAnywhere, Category = "TargetFramerate", meta = (InlineEditConditionToggle))
 	bool OverrideTargetFramerate = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WarmUp", meta = (PinHiddenByDefault))
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WarmUp", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	bool bNeedWarmUp = false;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WarmUp", meta = (PinHiddenByDefault, ClampMin = "0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WarmUp", meta = (PinHiddenByDefault, EditCondition="bNeedWarmUp", ClampMin = "0"))
 	int32 WarmUpFrames = 0;
 	
 	/** Settings for control of physical behavior */
@@ -318,13 +391,30 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Planar Limits")
 	TArray< FPlanarLimit> PlanarLimits;
 
-	UPROPERTY(EditAnywhere, Category = "Limits Data(Experimental)")
-	UKawaiiPhysicsLimitsDataAsset* LimitsDataAsset = nullptr;
-	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = "Limits Data(Experimental)")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bone Constraint (Experimental)", meta = (PinHiddenByDefault))
+	EXPBDComplianceType BoneConstraintGlobalComplianceType = EXPBDComplianceType::Leather;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bone Constraint (Experimental)", meta = (PinHiddenByDefault))
+	int32 BoneConstraintIterationCountBeforeCollision = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bone Constraint (Experimental)", meta = (PinHiddenByDefault))
+	int32 BoneConstraintIterationCountAfterCollision = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bone Constraint (Experimental)", meta = (PinHiddenByDefault))
+	bool bAutoAddChildDummyBoneConstraint = true;
+	UPROPERTY(EditAnywhere, Category = "Bone Constraint (Experimental)", meta=(TitleProperty="{Bone1} - {Bone2}"))
+	TArray<FModifyBoneConstraint> BoneConstraints;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bone Constraint (Experimental)", meta = (PinHiddenByDefault))
+	TObjectPtr<UKawaiiPhysicsBoneConstraintsDataAsset> BoneConstraintsDataAsset;
+	UPROPERTY(VisibleAnywhere, Category = "Bone Constraint (Experimental)", AdvancedDisplay, meta=(TitleProperty="{Bone1} - {Bone2}"))
+	TArray<FModifyBoneConstraint> BoneConstraintsData;
+	UPROPERTY()
+	TArray<FModifyBoneConstraint> MergedBoneConstraints;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits Data", meta = (PinHiddenByDefault))
+	TObjectPtr<UKawaiiPhysicsLimitsDataAsset> LimitsDataAsset = nullptr;
+	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = "Limits Data")
 	TArray< FSphericalLimit> SphericalLimitsData;
-	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = "Limits Data(Experimental)")
+	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = "Limits Data")
 	TArray< FCapsuleLimit> CapsuleLimitsData;
-	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = "Limits Data(Experimental)")
+	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = "Limits Data")
 	TArray< FPlanarLimit> PlanarLimitsData;
 
 
@@ -374,7 +464,7 @@ public:
 	UPROPERTY()
 	TArray< FKawaiiPhysicsModifyBone > ModifyBones;
 
-private:
+protected:
 	UPROPERTY()
 	float TotalBoneLength = 0;
 	UPROPERTY()
@@ -412,14 +502,13 @@ public:
 	virtual void UpdateInternal(const FAnimationUpdateContext& Context) override;
 	// End of FAnimNode_SkeletalControlBase interface
 
-	// 
-	void InitModifyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer);
+	// For AnimGraphNode
 	float GetTotalBoneLength() const
 	{
 		return TotalBoneLength;
 	}
-	
-private:
+
+protected:
 	FVector GetBoneForwardVector(const FQuat& Rotation) const
 	{
 		switch(BoneForwardAxis) {
@@ -442,33 +531,38 @@ private:
 	virtual void InitializeBoneReferences(const FBoneContainer& RequiredBones) override;
 	// End of FAnimNode_SkeletalControlBase interface
 
+	// Initialize
+	void InitModifyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer);
+	void InitBoneConstraints();
 	void ApplyLimitsDataAsset(const FBoneContainer& RequiredBones);
-
+	void ApplyBoneConstraintDataAsset(const FBoneContainer& RequiredBones);
 	int32 AddModifyBone(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, const FReferenceSkeleton& RefSkeleton, int32 BoneIndex);
 	
 	// clone from FReferenceSkeleton::GetDirectChildBones
 	int32 CollectChildBones(const FReferenceSkeleton& RefSkeleton, int32 ParentBoneIndex, TArray<int32> & Children) const;
 	void CalcBoneLength(FKawaiiPhysicsModifyBone& Bone, const TArray<FTransform>& RefBonePose);
 
+	// Updates for simulate
 	void UpdatePhysicsSettingsOfModifyBones();
 	void UpdateSphericalLimits(TArray<FSphericalLimit>& Limits, FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, const FTransform& ComponentTransform);
 	void UpdateCapsuleLimits(TArray<FCapsuleLimit>& Limits, FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, const FTransform& ComponentTransform);
 	void UpdatePlanerLimits(TArray<FPlanarLimit>& Limits, FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, const FTransform& ComponentTransform);
-
 	void UpdateModifyBonesPoseTransform(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer);
 	void UpdateSkelCompMove(const FTransform& ComponentTransform);
-	
+
+	// Simulate
 	void SimulateModifyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform);
+	void Simulate(FKawaiiPhysicsModifyBone& Bone, const FSceneInterface* Scene, const FTransform& ComponentTransform, const FVector& GravityCS, const float& Exponent);
 	void AdjustByWorldCollision(FKawaiiPhysicsModifyBone& Bone, const USkeletalMeshComponent* OwningComp, const FBoneContainer& BoneContainer);
 	void AdjustBySphereCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FSphericalLimit>& Limits);
 	void AdjustByCapsuleCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FCapsuleLimit>& Limits);
 	void AdjustByPlanerCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FPlanarLimit>& Limits);
 	void AdjustByAngleLimit(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform, FKawaiiPhysicsModifyBone& Bone, const FKawaiiPhysicsModifyBone& ParentBone);
 	void AdjustByPlanarConstraint(FKawaiiPhysicsModifyBone& Bone, const FKawaiiPhysicsModifyBone& ParentBone);
-	
+	void AdjustByBoneConstraints();
+
+	void ApplySimulateResult(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, TArray<FBoneTransform>& OutBoneTransforms);
 	void WarmUp(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform);
 	
-	
-	void ApplySimulateResult(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, TArray<FBoneTransform>& OutBoneTransforms);
-	
+	FVector GetWindVelocity(const FSceneInterface* Scene, const FTransform& ComponentTransform, const FKawaiiPhysicsModifyBone& Bone) const;
 };
