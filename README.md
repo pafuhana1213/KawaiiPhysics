@@ -94,7 +94,17 @@ MIT
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
-- 2022/9/15 v1.13.0
+- 2024/2/8 v1.14.0
+  - 骨間の距離拘束を行う BoneConstraint機能 を実験的に追加しました
+    - ![image](https://github.com/pafuhana1213/KawaiiPhysics/assets/8957600/af5845e4-65aa-41c1-ba0e-ae466e90d19f)
+    - 指定した骨間（BoneConstraints/Bone1, 2)の距離を維持しようとします（XPBDを使用）。なお、指定する骨はKawaiiPhysicsの制御対象である必要があります。
+    - Bone Constrain Iteration Count Before(After) Collision で拘束処理の実行回数を指定できます（結果を収束させるため）。
+    - DataAssetでも設定可能にしました。試験的にDataAssetに正規表現で拘束対象の骨セットを設定できるようにしています。
+      ![image](https://github.com/pafuhana1213/KawaiiPhysics/assets/8957600/a43faf14-181e-4b95-8d16-5eb4b687dd12)
+  - KawaiiPhysicsのAnimNodeが持つDataAssetをピンに公開できるようにしました
+  - Planar Limitの処理に無駄があったので修正 https://github.com/pafuhana1213/KawaiiPhysics/pull/108
+  - BoneConstraint対応に伴い、物理処理部分のコードをリファクタリング
+- 2023/9/15 v1.13.0
   - 物理の空回し(Warm Up)機能・サンプルを追加しました
     - https://www.youtube.com/watch?v=stIOjZQh3Qw
     - <img width="525" alt="image" src="https://github.com/pafuhana1213/KawaiiPhysics/assets/8957600/e140f3b9-232a-4026-a0b0-c8e1e54a492f">
@@ -103,18 +113,18 @@ MIT
     - Warm up Frameが大きいほど安定しますが、物理計算の回数がその分増えるので負荷が上がります
     - ![image](https://github.com/pafuhana1213/KawaiiPhysics/assets/8957600/ef55a7fd-699b-48ba-9bd8-13be62d23961)  
       v1.12.0から対応したAnimNode関数からWarm Upを有効にすることも可能です
-- 2022/9/8 v1.12.0
+- 2023/9/8 v1.12.0
   - UE5.3に対応
     - といっても、特に何もしていないです
   - AnimNode関数から各パラメータの変更・取得を可能に
     - ![image](https://github.com/pafuhana1213/KawaiiPhysics/assets/8957600/6ae6098a-64f3-4138-8822-704426dd70f4)
     - サンプルを追加（AnimBP_GrayChanKawaiiPhysicsAnimNodeFunction）
   - AnimNode関数への対応に伴い、UE4.27のサポートを終了
-- 2022/8/30 v1.11.1
+- 2023/8/30 v1.11.1
   - LevelSequence・ControlRigと併用した際のクラッシュを修正 https://github.com/pafuhana1213/KawaiiPhysics/commit/5a2fd868d9ccbd87b3727614faeb861cd7854d8a
   - AdjustByAngleLimitを正規化するように　https://github.com/pafuhana1213/KawaiiPhysics/commit/9a0576cfa06d37eb0c1b35f57757737ac61288b8
   - LimitAngleがピンに公開されてなかった不具合を修正　https://github.com/pafuhana1213/KawaiiPhysics/commit/937a1247f96190700fe06ca7559274059e62d111
-- 2022/5/28 v1.11.0
+- 2023/5/28 v1.11.0
   - UE5.2に対応
     - といっても、特に何もしていないです
   - KawaiiPhysicsとSequencerを併用するサンプルを追加
