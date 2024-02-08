@@ -250,7 +250,7 @@ void FKawaiiPhysicsEditMode::RenderBoneConstraint(FPrimitiveDrawInterface* PDI) 
 		
 		for ( const FModifyBoneConstraint& BoneConstraint : RuntimeNode->MergedBoneConstraints)
 		{
-			if (BoneConstraint.IsBoneReferenceValid())
+			if (BoneConstraint.IsBoneReferenceValid() && !RuntimeNode->ModifyBones.IsEmpty())
 			{
 				FTransform BoneTransform1 = FTransform(
 					RuntimeNode->ModifyBones[BoneConstraint.ModifyBoneIndex1].PrevRotation,
