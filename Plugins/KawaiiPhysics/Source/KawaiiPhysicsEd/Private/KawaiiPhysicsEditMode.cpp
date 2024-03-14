@@ -58,6 +58,7 @@ void FKawaiiPhysicsEditMode::EnterMode(UAnimGraphNode_Base* InEditorNode, FAnimN
 	GraphNode->Node.MergedBoneConstraints = RuntimeNode->MergedBoneConstraints;
 
 	NodePropertyDelegateHandle = GraphNode->OnNodePropertyChanged().AddSP(this, &FKawaiiPhysicsEditMode::OnExternalNodePropertyChange);
+	FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FKawaiiPhysicsEditMode::OnObjectPropertyChanged);
 
 #if	ENGINE_MAJOR_VERSION == 5
 	FAnimNodeEditMode::EnterMode(InEditorNode, InRuntimeNode);
@@ -70,6 +71,7 @@ void FKawaiiPhysicsEditMode::EnterMode(UAnimGraphNode_Base* InEditorNode, FAnimN
 void FKawaiiPhysicsEditMode::ExitMode()
 {
 	GraphNode->OnNodePropertyChanged().Remove(NodePropertyDelegateHandle);
+	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
 
 	GraphNode = nullptr;
 	RuntimeNode = nullptr;
@@ -457,6 +459,20 @@ void FKawaiiPhysicsEditMode::OnExternalNodePropertyChange(FPropertyChangedEvent&
 		SelectCollisionIndex = -1;
 		SelectCollisionType = ECollisionLimitType::None;
 		CurWidgetMode = UE_WIDGET::EWidgetMode::WM_None;
+	}
+}
+
+void FKawaiiPhysicsEditMode::OnObjectPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent) const
+{
+	if (ObjectBeingModified && RuntimeNode && GraphNode && ObjectBeingModified->IsA<UKawaiiPhysicsLimitsDataAsset>())
+	{
+		const TObjectPtr<UKawaiiPhysicsLimitsDataAsset> modifiedLimitsDataAsset = Cast<UKawaiiPhysicsLimitsDataAsset>(ObjectBeingModified);
+		if (modifiedLimitsDataAsset == RuntimeNode->LimitsDataAsset)
+		{
+			GraphNode->Node.SphericalLimitsData = modifiedLimitsDataAsset->SphericalLimits;
+			GraphNode->Node.CapsuleLimitsData = modifiedLimitsDataAsset->CapsuleLimits;
+			GraphNode->Node.PlanarLimitsData = modifiedLimitsDataAsset->PlanarLimits;
+		}
 	}
 }
 

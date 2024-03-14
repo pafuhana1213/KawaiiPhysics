@@ -48,6 +48,7 @@ public:
 protected:
 	void OnExternalNodePropertyChange(FPropertyChangedEvent& InPropertyEvent);
 	FDelegateHandle NodePropertyDelegateHandle;
+	void OnObjectPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent) const;
 
 private:
 

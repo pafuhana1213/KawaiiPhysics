@@ -105,6 +105,8 @@ void UKawaiiPhysicsLimitsDataAsset::PostEditChangeProperty(struct FPropertyChang
 	}
 
 	Sync();
+	// Trigger FCoreUObjectDelegates::OnObjectPropertyChanged
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
 
