@@ -108,8 +108,11 @@ void FKawaiiPhysicsEditMode::Render(const FSceneView* View, FViewport* Viewport,
 				FTransform BoneTransform = FTransform::Identity;
 				if (Collision->DrivingBone.BoneIndex >= 0)
 				{
-					BoneTransform = RuntimeNode->ForwardedPose.GetComponentSpaceTransform(
-						Collision->DrivingBone.GetCompactPoseIndex(RuntimeNode->ForwardedPose.GetPose().GetBoneContainer()));
+					if (RuntimeNode->ForwardedPose.GetPose().GetNumBones() > 0)
+					{
+						BoneTransform = RuntimeNode->ForwardedPose.GetComponentSpaceTransform(
+							Collision->DrivingBone.GetCompactPoseIndex(RuntimeNode->ForwardedPose.GetPose().GetBoneContainer()));
+					}
 				}
 				PDI->DrawPoint(BoneTransform.GetLocation(), FLinearColor::White, 10.0f, SDPG_Foreground);
 				DrawDashedLine(PDI, Collision->Location, BoneTransform.GetLocation(),
