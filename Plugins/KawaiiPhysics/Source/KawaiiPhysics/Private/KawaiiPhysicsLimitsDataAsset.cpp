@@ -62,6 +62,8 @@ void UKawaiiPhysicsLimitsDataAsset::Sync()
 
 void UKawaiiPhysicsLimitsDataAsset::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	
 	const FName PropertyName = PropertyChangedEvent.MemberProperty ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
 
 	if (PropertyName == FName(TEXT("SphericalLimitsData")))
@@ -87,6 +89,7 @@ void UKawaiiPhysicsLimitsDataAsset::PostEditChangeProperty(struct FPropertyChang
 	}
 
 	Sync();
+	OnLimitsChanged.Broadcast(PropertyChangedEvent);
 }
 
 

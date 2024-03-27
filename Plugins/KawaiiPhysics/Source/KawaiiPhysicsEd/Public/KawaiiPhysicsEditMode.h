@@ -48,7 +48,10 @@ public:
 protected:
 	void OnExternalNodePropertyChange(FPropertyChangedEvent& InPropertyEvent);
 	FDelegateHandle NodePropertyDelegateHandle;
-
+	
+	void OnLimitDataAssetPropertyChange(FPropertyChangedEvent& InPropertyEvent);
+	FDelegateHandle LimitsDataAssetPropertyDelegateHandle;
+	
 private:
 
 	/** Render each collisions */

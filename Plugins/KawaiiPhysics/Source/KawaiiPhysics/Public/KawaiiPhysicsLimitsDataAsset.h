@@ -7,6 +7,8 @@
 #include "AnimNode_KawaiiPhysics.h"
 #include "KawaiiPhysicsLimitsDataAsset.generated.h"
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLimitsChanged, struct FPropertyChangedEvent&);
+
 // I chose this design because using FBoneReference with anything other than Persona gives me an error. 
 // I want to make it simpler...
 USTRUCT(BlueprintType)
@@ -180,6 +182,7 @@ public:
 	TArray< FPlanarLimit> PlanarLimits;
 
 #if WITH_EDITOR
+	FOnLimitsChanged OnLimitsChanged;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	

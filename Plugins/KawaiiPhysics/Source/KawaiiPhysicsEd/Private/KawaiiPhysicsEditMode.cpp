@@ -58,7 +58,12 @@ void FKawaiiPhysicsEditMode::EnterMode(UAnimGraphNode_Base* InEditorNode, FAnimN
 	GraphNode->Node.MergedBoneConstraints = RuntimeNode->MergedBoneConstraints;
 
 	NodePropertyDelegateHandle = GraphNode->OnNodePropertyChanged().AddSP(this, &FKawaiiPhysicsEditMode::OnExternalNodePropertyChange);
-
+	if(RuntimeNode->LimitsDataAsset)
+	{
+		LimitsDataAssetPropertyDelegateHandle  =
+			RuntimeNode->LimitsDataAsset->OnLimitsChanged.AddRaw(this, &FKawaiiPhysicsEditMode::OnLimitDataAssetPropertyChange);
+	}
+	
 #if	ENGINE_MAJOR_VERSION == 5
 	FAnimNodeEditMode::EnterMode(InEditorNode, InRuntimeNode);
 #else
@@ -70,6 +75,10 @@ void FKawaiiPhysicsEditMode::EnterMode(UAnimGraphNode_Base* InEditorNode, FAnimN
 void FKawaiiPhysicsEditMode::ExitMode()
 {
 	GraphNode->OnNodePropertyChanged().Remove(NodePropertyDelegateHandle);
+	if(RuntimeNode->LimitsDataAsset)
+	{
+		RuntimeNode->LimitsDataAsset->OnLimitsChanged.Remove(LimitsDataAssetPropertyDelegateHandle);
+	}
 
 	GraphNode = nullptr;
 	RuntimeNode = nullptr;
@@ -104,7 +113,7 @@ void FKawaiiPhysicsEditMode::Render(const FSceneView* View, FViewport* Viewport,
 			if (Collision)
 			{
 				FTransform BoneTransform = FTransform::Identity;
-				if (Collision->DrivingBone.BoneIndex >= 0)
+				if (Collision->DrivingBone.BoneIndex >= 0 && RuntimeNode->ForwardedPose.GetPose().GetNumBones() > 0)
 				{
 					BoneTransform = RuntimeNode->ForwardedPose.GetComponentSpaceTransform(
 						Collision->DrivingBone.GetCompactPoseIndex(RuntimeNode->ForwardedPose.GetPose().GetBoneContainer()));
@@ -458,6 +467,21 @@ void FKawaiiPhysicsEditMode::OnExternalNodePropertyChange(FPropertyChangedEvent&
 		SelectCollisionType = ECollisionLimitType::None;
 		CurWidgetMode = UE_WIDGET::EWidgetMode::WM_None;
 	}
+
+	if( InPropertyEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED( FAnimNode_KawaiiPhysics, LimitsDataAsset ))
+	{
+		if(RuntimeNode->LimitsDataAsset)
+		{
+			RuntimeNode->LimitsDataAsset->OnLimitsChanged.AddRaw(this, &FKawaiiPhysicsEditMode::OnLimitDataAssetPropertyChange);
+		}
+	}
+}
+
+void FKawaiiPhysicsEditMode::OnLimitDataAssetPropertyChange(FPropertyChangedEvent& InPropertyEvent)
+{
+	GraphNode->Node.SphericalLimitsData = RuntimeNode->SphericalLimitsData;
+	GraphNode->Node.CapsuleLimitsData = RuntimeNode->CapsuleLimitsData;
+	GraphNode->Node.PlanarLimitsData = RuntimeNode->PlanarLimitsData;
 }
 
 bool FKawaiiPhysicsEditMode::IsValidSelectCollision() const
