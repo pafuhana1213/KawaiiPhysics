@@ -44,7 +44,7 @@ void UKawaiiPhysicsLimitsDataAsset::UpdateLimit(FCollisionLimitBase* Limit)
 }
 
 template <typename CollisionLimitDataType, typename CollisionLimitType>
-void SyncCollisionLimits(TArray<CollisionLimitDataType>& CollisionLimitData, TArray<CollisionLimitType>& CollisionLimits)
+void SyncCollisionLimits(const TArray<CollisionLimitDataType>& CollisionLimitData, TArray<CollisionLimitType>& CollisionLimits)
 {
 	CollisionLimits.Empty();
 	for (const auto& Data : CollisionLimitData)

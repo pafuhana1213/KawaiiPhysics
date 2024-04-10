@@ -1,4 +1,12 @@
 #include "AnimGraphNode_KawaiiPhysics.h"
+
+#include "DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "KawaiiPhysicsLimitsDataAsset.h"
+#include "Selection.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Dialogs/DlgPickAssetPath.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
@@ -85,7 +93,7 @@ void UAnimGraphNode_KawaiiPhysics::Draw(FPrimitiveDrawInterface* PDI, USkeletalM
 			for (const int32 ChildIndex : Bone.ChildIndexs)
 			{
 				DrawDashedLine(PDI, Bone.Location, ActiveNode->ModifyBones[ChildIndex].Location,
-					FLinearColor::White, 1, SDPG_Foreground);
+				               FLinearColor::White, 1, SDPG_Foreground);
 			}
 		}
 	}
@@ -104,7 +112,7 @@ void UAnimGraphNode_KawaiiPhysics::Draw(FPrimitiveDrawInterface* PDI, USkeletalM
 				FTransform(FQuat::FindBetween(FVector::ForwardVector, Bone.PoseLocation - ParentBone.PoseLocation), ParentBone.Location);
 			TArray<FVector> Verts;
 			DrawWireCone(PDI, Verts, ParentBoneTransform, (Bone.PoseLocation - ParentBone.PoseLocation).Size(),
-				Bone.PhysicsSettings.LimitAngle, 16, FColor::Green, SDPG_World);
+			             Bone.PhysicsSettings.LimitAngle, 16, FColor::Green, SDPG_World);
 		}
 	}
 }
@@ -179,6 +187,38 @@ void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* Ani
 	KawaiiPhysics->ModifyBones.Empty();
 }
 
+void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	Super::CustomizeDetails(DetailBuilder);
+
+	Super::CustomizeDetails(DetailBuilder);
+
+	IDetailCategoryBuilder& ViewportCategory = DetailBuilder.EditCategory(TEXT("Kawaii Physics Tools"));
+	FDetailWidgetRow& WidgetRow = ViewportCategory.AddCustomRow(LOCTEXT("KawaiiPhysics", "KawaiiPhysicsTools"));
+
+	WidgetRow
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SButton)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked_Lambda([this]()
+			             {
+				             this->ExportLimitsDataAsset();
+				             return FReply::Handled();
+			             })
+				.Content()
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(TEXT("Export Limits Data Asset")))
+			]
+		]
+	];
+}
+
 struct FKawaiiPhysicsVersion
 {
 	enum Type
@@ -216,8 +256,51 @@ void UAnimGraphNode_KawaiiPhysics::Serialize(FArchive& Ar)
 		Node.RadiusCurveData.ExternalCurve = Node.RadiusCurve_DEPRECATED;
 		Node.LimitAngleCurveData.ExternalCurve = Node.LimitAngleCurve_DEPRECATED;
 	}
+}
 
+void UAnimGraphNode_KawaiiPhysics::ExportLimitsDataAsset()
+{
+	const FString DefaultAsset = FPackageName::GetLongPackagePath(GetOutermost()->GetName()) + TEXT("/") + GetName() + TEXT("_Collision");
 
+	const TSharedRef<SDlgPickAssetPath> NewAssetDlg =
+		SNew(SDlgPickAssetPath)
+			.Title(LOCTEXT("NewDataAssetDialogTitle", "Choose Location for Collision Data Asset"))
+			.DefaultAssetPath(FText::FromString(DefaultAsset));
+
+	if (NewAssetDlg->ShowModal() == EAppReturnType::Cancel)
+		return;
+
+	const FString Package(NewAssetDlg->GetFullAssetPath().ToString());
+	const FString Name(NewAssetDlg->GetAssetName().ToString());
+
+	UPackage* Pkg = CreatePackage(*Package);
+	UKawaiiPhysicsLimitsDataAsset* NewDataAsset = NewObject<UKawaiiPhysicsLimitsDataAsset>(Pkg, UKawaiiPhysicsLimitsDataAsset::StaticClass(), FName(Name),
+	                                                                                       RF_Public | RF_Standalone);
+	if (NewDataAsset)
+	{
+		// copy data
+		NewDataAsset->SphericalLimitsData.SetNum(Node.SphericalLimits.Num());
+		for(int32 i=0; i<Node.SphericalLimits.Num(); i++)
+			NewDataAsset->SphericalLimitsData[i].Update(&Node.SphericalLimits[i]);
+
+		NewDataAsset->CapsuleLimitsData.SetNum(Node.CapsuleLimits.Num());
+		for(int32 i=0; i<Node.CapsuleLimits.Num(); i++)
+			NewDataAsset->CapsuleLimitsData[i].Update(&Node.CapsuleLimits[i]);
+
+		NewDataAsset->PlanarLimitsData.SetNum(Node.PlanarLimits.Num());
+		for(int32 i=0; i<Node.PlanarLimits.Num(); i++)
+			NewDataAsset->PlanarLimitsData[i].Update(&Node.PlanarLimits[i]);
+
+		NewDataAsset->Sync();
+		
+		// select new asset
+		USelection* SelectionSet = GEditor->GetSelectedObjects();
+		SelectionSet->DeselectAll();
+		SelectionSet->Select(NewDataAsset);
+
+		FAssetRegistryModule::AssetCreated(NewDataAsset);
+		Pkg->MarkPackageDirty();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
