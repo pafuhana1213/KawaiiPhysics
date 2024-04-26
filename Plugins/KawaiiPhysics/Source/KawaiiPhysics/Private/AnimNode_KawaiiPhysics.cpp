@@ -155,9 +155,9 @@ bool FAnimNode_KawaiiPhysics::HasPreUpdate() const
 {
 #if WITH_EDITOR
 	return true;
-#endif
-
+#else
 	return false;
+#endif
 }
 
 void FAnimNode_KawaiiPhysics::PreUpdate(const UAnimInstance* InAnimInstance)
