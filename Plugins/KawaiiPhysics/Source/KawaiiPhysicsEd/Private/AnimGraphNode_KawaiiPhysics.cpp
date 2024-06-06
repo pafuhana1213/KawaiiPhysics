@@ -191,8 +191,6 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 {
 	Super::CustomizeDetails(DetailBuilder);
 
-	Super::CustomizeDetails(DetailBuilder);
-
 	IDetailCategoryBuilder& ViewportCategory = DetailBuilder.EditCategory(TEXT("Kawaii Physics Tools"));
 	FDetailWidgetRow& WidgetRow = ViewportCategory.AddCustomRow(LOCTEXT("KawaiiPhysics", "KawaiiPhysicsTools"));
 
@@ -268,28 +266,37 @@ void UAnimGraphNode_KawaiiPhysics::ExportLimitsDataAsset()
 			.DefaultAssetPath(FText::FromString(DefaultAsset));
 
 	if (NewAssetDlg->ShowModal() == EAppReturnType::Cancel)
+	{
 		return;
-
+	}
+	
 	const FString Package(NewAssetDlg->GetFullAssetPath().ToString());
 	const FString Name(NewAssetDlg->GetAssetName().ToString());
 
 	UPackage* Pkg = CreatePackage(*Package);
-	UKawaiiPhysicsLimitsDataAsset* NewDataAsset = NewObject<UKawaiiPhysicsLimitsDataAsset>(Pkg, UKawaiiPhysicsLimitsDataAsset::StaticClass(), FName(Name),
-	                                                                                       RF_Public | RF_Standalone);
-	if (NewDataAsset)
+	
+	if (UKawaiiPhysicsLimitsDataAsset* NewDataAsset =
+		NewObject<UKawaiiPhysicsLimitsDataAsset>(Pkg, UKawaiiPhysicsLimitsDataAsset::StaticClass(), FName(Name),
+		RF_Public | RF_Standalone))
 	{
 		// copy data
 		NewDataAsset->SphericalLimitsData.SetNum(Node.SphericalLimits.Num());
 		for(int32 i=0; i<Node.SphericalLimits.Num(); i++)
+		{
 			NewDataAsset->SphericalLimitsData[i].Update(&Node.SphericalLimits[i]);
+		}
 
 		NewDataAsset->CapsuleLimitsData.SetNum(Node.CapsuleLimits.Num());
 		for(int32 i=0; i<Node.CapsuleLimits.Num(); i++)
+		{
 			NewDataAsset->CapsuleLimitsData[i].Update(&Node.CapsuleLimits[i]);
+		}
 
 		NewDataAsset->PlanarLimitsData.SetNum(Node.PlanarLimits.Num());
 		for(int32 i=0; i<Node.PlanarLimits.Num(); i++)
+		{
 			NewDataAsset->PlanarLimitsData[i].Update(&Node.PlanarLimits[i]);
+		}
 
 		NewDataAsset->Sync();
 		
