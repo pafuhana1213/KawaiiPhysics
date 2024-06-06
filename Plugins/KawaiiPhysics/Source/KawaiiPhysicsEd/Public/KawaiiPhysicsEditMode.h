@@ -86,7 +86,7 @@ private:
 	/** The current bone selection mode */
 	ECollisionLimitType SelectCollisionType = ECollisionLimitType::None;
 	int32 SelectCollisionIndex = -1;
-	bool SelectCollisionIsFromDataAsset;
+	bool bIsSelectCollisionFromDataAsset;
 
 	// storing current widget mode 
 	mutable UE_WIDGET::EWidgetMode CurWidgetMode;
