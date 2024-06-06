@@ -44,6 +44,7 @@ protected:
 	virtual FEditorModeID GetEditorMode() const override;
 	virtual void ValidateAnimNodePostCompile(FCompilerResultsLog& MessageLog, UAnimBlueprintGeneratedClass* CompiledClass, int32 CompiledNodeIndex) override;
 	virtual void CopyNodeDataToPreviewNode(FAnimNode_Base* AnimNode) override;
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 	// End of UAnimGraphNode_Base interface
 
 	//virtual FText GetControllerDescription() const override;
@@ -59,4 +60,6 @@ protected:
 private:
 	/** Constructing FText strings can be costly, so we cache the node's title */
 	FNodeTitleTextTable CachedNodeTitles;
+
+	void ExportLimitsDataAsset();
 };
