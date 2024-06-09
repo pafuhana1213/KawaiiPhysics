@@ -487,7 +487,8 @@ public:
 	FAnimNode_KawaiiPhysics();
 
 	// FAnimNode_Base interface
-	//virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	virtual void UpdateInternal(const FAnimationUpdateContext& Context) override;
+	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
 	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
 	virtual bool NeedsDynamicReset() const override { return true; }
@@ -499,7 +500,7 @@ public:
 	virtual bool IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones) override;
 	virtual bool HasPreUpdate() const override;
 	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
-	virtual void UpdateInternal(const FAnimationUpdateContext& Context) override;
+	
 	// End of FAnimNode_SkeletalControlBase interface
 
 	// For AnimGraphNode

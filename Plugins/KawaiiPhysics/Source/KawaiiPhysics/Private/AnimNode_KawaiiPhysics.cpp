@@ -13,10 +13,18 @@
 #include "Editor/UnrealEdEngine.h"
 #endif
 
-TAutoConsoleVariable<int32> CVarEnableOldPhysicsMethodGravity(TEXT("p.KawaiiPhysics.EnableOldPhysicsMethodGravity"), 0, 
-                                                              TEXT("Enables/Disables old physics method for gravity before v1.3.1. This is the setting for the transition period when changing the physical calculation."));
-TAutoConsoleVariable<int32> CVarEnableOldPhysicsMethodSphereLimit(TEXT("p.KawaiiPhysics.EnableOldPhysicsMethodSphereLimit"), 0,
-	TEXT("Enables/Disables old physics method for sphere limit before v1.3.1. This is the setting for the transition period when changing the physical calculation."));
+#if ENABLE_ANIM_DEBUG
+static TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsEnable(TEXT("a.AnimNode.KawaiiPhysics.Enable"), true, TEXT("Enable/Disable KawaiiPhysics"));
+static TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsDebug(TEXT("a.AnimNode.KawaiiPhysics.Debug"), false, TEXT("Turn on visualization debugging for KawaiiPhysics"));
+#endif
+
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_Eval"), STAT_KawaiiPhysics_Eval, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimulatemodifyBones"), STAT_KawaiiPhysics_SimulatemodifyBones, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_Simulate"), STAT_KawaiiPhysics_Simulate, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_GetWindVelocity"), STAT_KawaiiPhysics_GetWindVelocity, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_WorldCollision"), STAT_KawaiiPhysics_WorldCollision, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_AdjustByCollision"), STAT_KawaiiPhysics_AdjustByCollision, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_AdjustByBoneConstraint"), STAT_KawaiiPhysics_AdjustByBoneConstraint, STATGROUP_Anim);
 
 FAnimNode_KawaiiPhysics::FAnimNode_KawaiiPhysics()
 	: DeltaTime(0)
@@ -60,7 +68,13 @@ void FAnimNode_KawaiiPhysics::UpdateInternal(const FAnimationUpdateContext& Cont
 	DeltaTime = Context.GetDeltaTime();
 }
 
-DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_Eval"), STAT_KawaiiPhysics_Eval, STATGROUP_Anim);
+void FAnimNode_KawaiiPhysics::GatherDebugData(FNodeDebugData& DebugData)
+{
+#if ENABLE_ANIM_DEBUG
+	// TODO
+#endif
+	Super::GatherDebugData(DebugData);
+}
 
 void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
@@ -142,12 +156,61 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	}
 	SimulateModifyBones(Output, BoneContainer, ComponentTransform);
 	ApplySimulateResult(Output, BoneContainer, OutBoneTransforms);
+
+#if ENABLE_ANIM_DEBUG
+	
+	if (const UWorld* World = Output.AnimInstanceProxy->GetSkelMeshComponent()->GetWorld(); !World->IsPreviewWorld())
+	{
+		if(Output.AnimInstanceProxy->GetSkelMeshComponent()->bRecentlyRendered)
+		{
+			if(CVarAnimNodeKawaiiPhysicsDebug.GetValueOnAnyThread())
+			{
+				for (auto& ModifyBone : ModifyBones)
+				{
+					const FVector LocationWS = Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(ModifyBone.Location);
+					auto Color = ModifyBone.bDummy ? FColor::Red : FColor::Yellow;
+					Output.AnimInstanceProxy->AnimDrawDebugSphere( LocationWS, ModifyBone.PhysicsSettings.Radius, 8, Color);
+				}
+				// Sphere limit
+				for (auto& SphericalLimit : SphericalLimits)
+				{
+					const FVector LocationWS = Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(SphericalLimit.Location);
+					Output.AnimInstanceProxy->AnimDrawDebugSphere( LocationWS, SphericalLimit.Radius, 8, FColor::Orange);
+				}
+				for (auto& SphericalLimit : SphericalLimitsData)
+				{
+					const FVector LocationWS = Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(SphericalLimit.Location);
+					Output.AnimInstanceProxy->AnimDrawDebugSphere( LocationWS, SphericalLimit.Radius, 8, FColor::Blue);
+				}
+				// Capusle limit
+				for (auto& CapsuleLimit : CapsuleLimits)
+				{
+					const FVector LocationWS = Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(CapsuleLimit.Location);
+					//DrawDebugCapsule(World, LocationWS, CapsuleLimit.Length, CapsuleLimit.Radius, CapsuleLimit.Rotation, FColor::Orange);
+					//Output.AnimInstanceProxy->add( LocationWS, SphericalLimit.Radius, 8, FColor::Orange);
+				}
+				for (auto& CapsuleLimit : CapsuleLimitsData)
+				{
+					const FVector LocationWS = Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(CapsuleLimit.Location);
+					//DrawDebugCapsule(World, LocationWS, CapsuleLimit.Length, CapsuleLimit.Radius, CapsuleLimit.Rotation, FColor::Blue);
+					//Output.AnimInstanceProxy->AnimDrawDebugSphere( LocationWS, SphericalLimit.Radius, 8, FColor::Blue);
+				}
+			}
+		}
+	}
+	
+#endif
 }
 
 bool FAnimNode_KawaiiPhysics::IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones)
 {
-	// Check with IsValidToEvaluate will run in EvaluateSkeletalControl_AnyThread
-	//return RootBone.IsValidToEvaluate(RequiredBones);
+#if ENABLE_ANIM_DEBUG
+	if (!CVarAnimNodeKawaiiPhysicsEnable.GetValueOnAnyThread())
+	{
+		return false;
+	}
+#endif
+	
 	return RootBone.BoneName.IsValid();
 }
 
@@ -573,13 +636,6 @@ void FAnimNode_KawaiiPhysics::UpdateSkelCompMove(const FTransform& ComponentTran
 	PreSkelCompTransform = ComponentTransform;
 }
 
-DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimulatemodifyBones"), STAT_KawaiiPhysics_SimulatemodifyBones, STATGROUP_Anim);
-DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_Simulate"), STAT_KawaiiPhysics_Simulate, STATGROUP_Anim);
-DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_GetWindVelocity"), STAT_KawaiiPhysics_GetWindVelocity, STATGROUP_Anim);
-DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_WorldCollision"), STAT_KawaiiPhysics_WorldCollision, STATGROUP_Anim);
-DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_AdjustByCollision"), STAT_KawaiiPhysics_AdjustByCollision, STATGROUP_Anim);
-DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_AdjustByBoneConstraint"), STAT_KawaiiPhysics_AdjustByBoneConstraint, STATGROUP_Anim);
-
 void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform)
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SimulatemodifyBones);
@@ -725,14 +781,7 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 
 	// Gravity
 	// TODO:Migrate if there are more good method (Currently copying AnimDynamics implementation)
-	if (CVarEnableOldPhysicsMethodGravity.GetValueOnAnyThread() == 0)
-	{
-		Bone.Location += 0.5 * GravityCS * DeltaTime * DeltaTime;
-	}
-	else
-	{
-		Bone.Location += GravityCS * DeltaTime;
-	}
+	Bone.Location += 0.5 * GravityCS * DeltaTime * DeltaTime;
 
 	// Pull to Pose Location
 	const FVector BaseLocation = ParentBone.Location + (Bone.PoseLocation - ParentBone.PoseLocation);
@@ -892,14 +941,7 @@ void FAnimNode_KawaiiPhysics::AdjustBySphereCollision(FKawaiiPhysicsModifyBone& 
 			}
 			else
 			{
-				if (CVarEnableOldPhysicsMethodSphereLimit.GetValueOnAnyThread() == 0)
-				{
-					Bone.Location = Sphere.Location + (Sphere.Radius - Bone.PhysicsSettings.Radius) * (Bone.Location - Sphere.Location).GetSafeNormal();
-				}
-				else
-				{
-					Bone.Location = Sphere.Location + Sphere.Radius * (Bone.Location - Sphere.Location).GetSafeNormal();
-				}
+				Bone.Location = Sphere.Location + (Sphere.Radius - Bone.PhysicsSettings.Radius) * (Bone.Location - Sphere.Location).GetSafeNormal();
 			}
 		}
 	}
