@@ -8,7 +8,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Dialogs/DlgPickAssetPath.h"
 #include "Kismet2/CompilerResultsLog.h"
-#include "Materials/MaterialInstanceDynamic.h"
+#include "Widgets/Layout/SUniformGridPanel.h"
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysics"
 
@@ -187,10 +187,8 @@ void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* Ani
 	KawaiiPhysics->ModifyBones.Empty();
 }
 
-void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& DetailBuilder)
 {
-	Super::CustomizeDetails(DetailBuilder);
-
 	IDetailCategoryBuilder& ViewportCategory = DetailBuilder.EditCategory(TEXT("Kawaii Physics Tools"));
 	FDetailWidgetRow& WidgetRow = ViewportCategory.AddCustomRow(LOCTEXT("KawaiiPhysics", "KawaiiPhysicsTools"));
 
@@ -215,6 +213,134 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 			]
 		]
 	];
+}
+
+void UAnimGraphNode_KawaiiPhysics::CustomizeDetailDebugVisualizations(IDetailLayoutBuilder& DetailBuilder)
+{
+	Super::CustomizeDetails(DetailBuilder);
+
+	IDetailCategoryBuilder& ViewportCategory = DetailBuilder.EditCategory(TEXT("Debug Visualization"));
+	FDetailWidgetRow& WidgetRow = ViewportCategory.AddCustomRow(LOCTEXT("ToggleDebugVisualizationButtonRow", "DebugVisualization"));
+	FAnimNode_KawaiiPhysics* const KawaiiPhysicsNode = static_cast<FAnimNode_KawaiiPhysics*>(GetDebuggedAnimNode());
+
+	WidgetRow
+		[
+			SNew(SUniformGridPanel)
+			.SlotPadding(FMargin(2, 0, 2, 0))
+			// Show/Hide Bones button.
+			+SUniformGridPanel::Slot(0,0)
+			[
+				SNew(SButton)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked_Lambda([this](){ this->bEnableDebugDrawBone = !this->bEnableDebugDrawBone; return FReply::Handled(); })
+				.ButtonColorAndOpacity_Lambda([this](){ return this->bEnableDebugDrawBone ?
+					FAppStyle::Get().GetSlateColor("Colors.AccentGreen") : FAppStyle::Get().GetSlateColor("Colors.AccentRed"); })
+				.Content()
+				[
+					SNew(STextBlock)
+					.Text_Lambda([this]() { return LOCTEXT("ShowBoneText", "Bone"); })
+				]
+			]
+			// Show/Hide LengthRate button.
+			+SUniformGridPanel::Slot(1,0)
+			[
+				SNew(SButton)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked_Lambda([this](){ this->bEnableDebugBoneLengthRate = !this->bEnableDebugBoneLengthRate; return FReply::Handled(); })
+				.ButtonColorAndOpacity_Lambda([this](){ return this->bEnableDebugBoneLengthRate ?
+					FAppStyle::Get().GetSlateColor("Colors.AccentGreen") : FAppStyle::Get().GetSlateColor("Colors.AccentRed"); })
+				.Content()
+				[
+					SNew(STextBlock)
+					.Text_Lambda([this]() { return LOCTEXT("ShowLengthRateText", "Length Rate"); })
+				]
+			]
+			// Show/Hide AngleLimit button.
+			+SUniformGridPanel::Slot(2,0)
+			[
+				SNew(SButton)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked_Lambda([this](){ this->bEnableDebugDrawAngleLimit = !this->bEnableDebugDrawAngleLimit; return FReply::Handled(); })
+				.ButtonColorAndOpacity_Lambda([this](){ return this->bEnableDebugDrawAngleLimit ?
+					FAppStyle::Get().GetSlateColor("Colors.AccentGreen") : FAppStyle::Get().GetSlateColor("Colors.AccentRed"); })
+				.Content()
+				[
+					SNew(STextBlock)
+					.Text_Lambda([this]() { return LOCTEXT("ShowAngleLimitText", "Angle Limit"); })
+				]
+			]
+			// Show/Hide SphereLimit button.
+			+SUniformGridPanel::Slot(3,0)
+			[
+				SNew(SButton)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked_Lambda([this](){ this->bEnableDebugDrawSphereLimit = !this->bEnableDebugDrawSphereLimit; return FReply::Handled(); })
+				.ButtonColorAndOpacity_Lambda([this](){ return this->bEnableDebugDrawSphereLimit ?
+					FAppStyle::Get().GetSlateColor("Colors.AccentGreen") : FAppStyle::Get().GetSlateColor("Colors.AccentRed"); })
+				.Content()
+				[
+					SNew(STextBlock)
+					.Text_Lambda([this]() { return LOCTEXT("ShowSphereLimitText", "Sphere Limit"); })
+				]
+			]
+			// Show/Hide CapsuleLimit button.
+			+SUniformGridPanel::Slot(0,1)
+			[
+				SNew(SButton)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked_Lambda([this](){ this->bEnableDebugDrawCapsuleLimit = !this->bEnableDebugDrawCapsuleLimit; return FReply::Handled(); })
+				.ButtonColorAndOpacity_Lambda([this](){ return this->bEnableDebugDrawCapsuleLimit ?
+					FAppStyle::Get().GetSlateColor("Colors.AccentGreen") : FAppStyle::Get().GetSlateColor("Colors.AccentRed"); })
+				.Content()
+				[
+					SNew(STextBlock)
+					.Text_Lambda([this]() { return LOCTEXT("ShowCapsuleLimitText", "Capsule Limit"); })
+				]
+			]
+			// Show/Hide PlanerLimit button.
+			+SUniformGridPanel::Slot(1,1)
+			[
+				SNew(SButton)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked_Lambda([this](){ this->bEnableDebugDrawPlanerLimit = !this->bEnableDebugDrawPlanerLimit; return FReply::Handled(); })
+				.ButtonColorAndOpacity_Lambda([this](){ return this->bEnableDebugDrawPlanerLimit ?
+					FAppStyle::Get().GetSlateColor("Colors.AccentGreen") : FAppStyle::Get().GetSlateColor("Colors.AccentRed"); })
+				.Content()
+				[
+					SNew(STextBlock)
+					.Text_Lambda([this]() { return LOCTEXT("ShowPlanerLimitText", "Planer Limit"); })
+				]
+			]
+			// Show/Hide BoneConstraint button.
+			+SUniformGridPanel::Slot(2,1)
+			[
+				SNew(SButton)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked_Lambda([this](){ this->bEnableDebugDrawBoneConstraint = !this->bEnableDebugDrawBoneConstraint; return FReply::Handled(); })
+				.ButtonColorAndOpacity_Lambda([this](){ return this->bEnableDebugDrawBoneConstraint ?
+					FAppStyle::Get().GetSlateColor("Colors.AccentGreen") : FAppStyle::Get().GetSlateColor("Colors.AccentRed"); })
+				.Content()
+				[
+					SNew(STextBlock)
+					.Text_Lambda([this]() { return LOCTEXT("ShowBoneConstraintText", "Bone Constraint"); })
+				]
+			]
+		];
+}
+
+void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	Super::CustomizeDetails(DetailBuilder);
+
+	CustomizeDetailTools(DetailBuilder);
+	CustomizeDetailDebugVisualizations(DetailBuilder);
 }
 
 struct FKawaiiPhysicsVersion
