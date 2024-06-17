@@ -14,7 +14,7 @@ struct FKawaiiPhysicsReference : public FAnimNodeReference
 {
 	GENERATED_BODY()
 
-	typedef FAnimNode_KawaiiPhysics FInternalNodeType;
+	using FInternalNodeType = FAnimNode_KawaiiPhysics;
 };
 
 /**
@@ -27,12 +27,16 @@ class KAWAIIPHYSICS_API UKawaiiPhysicsLibrary : public UBlueprintFunctionLibrary
 
 public:
 	/** Get a KawaiiPhysics from an anim node */
-	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta = (BlueprintThreadSafe, ExpandEnumAsExecs = "Result"))
-	static FKawaiiPhysicsReference ConvertToKawaiiPhysics(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result);
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta = (BlueprintThreadSafe, ExpandEnumAsExecs = "Result"))
+	static FKawaiiPhysicsReference ConvertToKawaiiPhysics(const FAnimNodeReference& Node,
+	                                                      EAnimNodeReferenceConversionResult& Result);
 
 	/** Get a KawaiiPhysics from an anim node (pure). */
-	UFUNCTION(BlueprintPure, Category = "Kawaii Physics", meta = (BlueprintThreadSafe, DisplayName = "Convert to Kawaii Physics (Pure)"))
-	static void ConvertToKawaiiPhysicsPure(const FAnimNodeReference& Node, FKawaiiPhysicsReference& KawaiiPhysics, bool& Result)
+	UFUNCTION(BlueprintPure, Category = "Kawaii Physics",
+		meta = (BlueprintThreadSafe, DisplayName = "Convert to Kawaii Physics (Pure)"))
+	static void ConvertToKawaiiPhysicsPure(const FAnimNodeReference& Node, FKawaiiPhysicsReference& KawaiiPhysics,
+	                                       bool& Result)
 	{
 		EAnimNodeReferenceConversionResult ConversionResult;
 		KawaiiPhysics = ConvertToKawaiiPhysics(Node, ConversionResult);
@@ -41,42 +45,48 @@ public:
 
 	/** Set RootBone */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
-	static FKawaiiPhysicsReference SetRootBoneName(const FKawaiiPhysicsReference& KawaiiPhysics, UPARAM(ref) FName& RootBoneName );
+	static FKawaiiPhysicsReference SetRootBoneName(const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                               UPARAM(ref) FName& RootBoneName);
 	/** Get RootBone */
 	UFUNCTION(BlueprintPure, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
 	static FName GetRootBoneName(const FKawaiiPhysicsReference& KawaiiPhysics);
 
 	/** Set ExcludeBones */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
-	static FKawaiiPhysicsReference SetExcludeBoneNames(const FKawaiiPhysicsReference& KawaiiPhysics,UPARAM(ref) TArray<FName>& ExcludeBoneNames );
+	static FKawaiiPhysicsReference SetExcludeBoneNames(const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                   UPARAM(ref) TArray<FName>& ExcludeBoneNames);
 	/** Get ExcludeBones */
 	UFUNCTION(BlueprintPure, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
 	static TArray<FName> GetExcludeBoneNames(const FKawaiiPhysicsReference& KawaiiPhysics);
 
 	/** Set PhysicsSettings */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
-	static FKawaiiPhysicsReference SetPhysicsSettings(const FKawaiiPhysicsReference& KawaiiPhysics, UPARAM(ref) FKawaiiPhysicsSettings& PhysicsSettings);
+	static FKawaiiPhysicsReference SetPhysicsSettings(const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                  UPARAM(ref) FKawaiiPhysicsSettings& PhysicsSettings);
 	/** Get PhysicsSettings */
 	UFUNCTION(BlueprintPure, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
 	static FKawaiiPhysicsSettings GetPhysicsSettings(const FKawaiiPhysicsReference& KawaiiPhysics);
 
 	/** Set DummyBoneLength */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
-	static FKawaiiPhysicsReference SetDummyBoneLength(const FKawaiiPhysicsReference& KawaiiPhysics, float DummyBoneLength);
+	static FKawaiiPhysicsReference SetDummyBoneLength(const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                  float DummyBoneLength);
 	/** Get DummyBoneLength */
 	UFUNCTION(BlueprintPure, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
 	static float GetDummyBoneLength(const FKawaiiPhysicsReference& KawaiiPhysics);
-	
+
 	/** Set TeleportDistanceThreshold */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
-	static FKawaiiPhysicsReference SetTeleportDistanceThreshold(const FKawaiiPhysicsReference& KawaiiPhysics, float TeleportDistanceThreshold);
+	static FKawaiiPhysicsReference SetTeleportDistanceThreshold(const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                            float TeleportDistanceThreshold);
 	/** Get TeleportDistanceThreshold */
 	UFUNCTION(BlueprintPure, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
 	static float GetTeleportDistanceThreshold(const FKawaiiPhysicsReference& KawaiiPhysics);
 
 	/** Set TeleportRotationThreshold */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
-	static FKawaiiPhysicsReference SetTeleportRotationThreshold(const FKawaiiPhysicsReference& KawaiiPhysics,float TeleportRotationThreshold);
+	static FKawaiiPhysicsReference SetTeleportRotationThreshold(const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                            float TeleportRotationThreshold);
 	/** Get TeleportRotationThreshold */
 	UFUNCTION(BlueprintPure, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
 	static float GetTeleportRotationThreshold(const FKawaiiPhysicsReference& KawaiiPhysics);
@@ -104,14 +114,15 @@ public:
 
 	/** Set AllowWorldCollision */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
-	static FKawaiiPhysicsReference SetAllowWorldCollision(const FKawaiiPhysicsReference& KawaiiPhysics,bool AllowWorldCollision);
+	static FKawaiiPhysicsReference SetAllowWorldCollision(const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                      bool AllowWorldCollision);
 	/** Get AllowWorldCollision */
 	UFUNCTION(BlueprintPure, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
 	static bool GetAllowWorldCollision(const FKawaiiPhysicsReference& KawaiiPhysics);
 
 	/** Set NeedWarmUp */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
-	static FKawaiiPhysicsReference SetNeedWarmUp(const FKawaiiPhysicsReference& KawaiiPhysics,bool NeedWarmUp);
+	static FKawaiiPhysicsReference SetNeedWarmUp(const FKawaiiPhysicsReference& KawaiiPhysics, bool NeedWarmUp);
 	/** Get NeedWarmUp */
 	UFUNCTION(BlueprintPure, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
 	static bool GetNeedWarmUp(const FKawaiiPhysicsReference& KawaiiPhysics);

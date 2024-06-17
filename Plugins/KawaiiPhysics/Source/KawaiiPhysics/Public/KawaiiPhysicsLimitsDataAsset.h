@@ -14,15 +14,16 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnLimitsChanged, struct FPropertyChangedEve
 USTRUCT(BlueprintType)
 struct FCollisionLimitDataBase
 {
-	GENERATED_BODY();
-	
+	GENERATED_BODY()
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CollisionLimitBase, meta=(DisplayPriority="1"))
 	FName DrivingBoneName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CollisionLimitBase)
 	FVector OffsetLocation = FVector::ZeroVector;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CollisionLimitBase, meta = (ClampMin = "-360", ClampMax = "360"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CollisionLimitBase,
+		meta = (ClampMin = "-360", ClampMax = "360"))
 	FRotator OffsetRotation = FRotator::ZeroRotator;
 
 	UPROPERTY(EditAnywhere, Category = CollisionLimitBase, BlueprintReadWrite)
@@ -37,7 +38,6 @@ struct FCollisionLimitDataBase
 public:
 
 protected:
-
 	void UpdateBase(const FCollisionLimitBase* Limit)
 	{
 		DrivingBoneName = Limit->DrivingBone.BoneName;
@@ -65,7 +65,7 @@ protected:
 USTRUCT(BlueprintType)
 struct FSphericalLimitData : public FCollisionLimitDataBase
 {
-	GENERATED_BODY();
+	GENERATED_BODY()
 
 	/** Radius of the sphere */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SphericalLimit, meta = (ClampMin = "0"))
@@ -75,7 +75,7 @@ struct FSphericalLimitData : public FCollisionLimitDataBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SphericalLimit)
 	ESphericalLimitType LimitType = ESphericalLimitType::Outer;
 
-	void Update(const FSphericalLimit* Limit) 
+	void Update(const FSphericalLimit* Limit)
 	{
 		UpdateBase(Limit);
 		Radius = Limit->Radius;
@@ -96,7 +96,7 @@ struct FSphericalLimitData : public FCollisionLimitDataBase
 USTRUCT(BlueprintType)
 struct FCapsuleLimitData : public FCollisionLimitDataBase
 {
-	GENERATED_BODY();
+	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CapsuleLimit, meta = (ClampMin = "0"))
 	float Radius = 5.0f;
@@ -125,10 +125,10 @@ struct FCapsuleLimitData : public FCollisionLimitDataBase
 USTRUCT(BlueprintType)
 struct FPlanarLimitData : public FCollisionLimitDataBase
 {
-	GENERATED_BODY();
+	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = PlanarLimit, BlueprintReadWrite)
-	FPlane Plane = FPlane(0,0,0,0);
+	FPlane Plane = FPlane(0, 0, 0, 0);
 
 	void Update(const FPlanarLimit* Limit)
 	{
@@ -153,37 +153,35 @@ UCLASS(Blueprintable)
 class KAWAIIPHYSICS_API UKawaiiPhysicsLimitsDataAsset : public UDataAsset
 {
 	GENERATED_BODY()
-	
-public:
 
-#if WITH_EDITORONLY_DATA 
+public:
+#if WITH_EDITORONLY_DATA
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spherical Limits")
-	TArray< FSphericalLimitData> SphericalLimitsData;
+	TArray<FSphericalLimitData> SphericalLimitsData;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Capsule Limits")
-	TArray< FCapsuleLimitData> CapsuleLimitsData;
+	TArray<FCapsuleLimitData> CapsuleLimitsData;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Planar Limits")
-	TArray< FPlanarLimitData> PlanarLimitsData;
+	TArray<FPlanarLimitData> PlanarLimitsData;
 
 #endif
 
 #if WITH_EDITOR
-	
+
 	void UpdateLimit(FCollisionLimitBase* Limit);
 	void Sync();
-	
+
 #endif
 
 	UPROPERTY()
-	TArray< FSphericalLimit> SphericalLimits;
+	TArray<FSphericalLimit> SphericalLimits;
 	UPROPERTY()
-	TArray< FCapsuleLimit> CapsuleLimits;
+	TArray<FCapsuleLimit> CapsuleLimits;
 	UPROPERTY()
-	TArray< FPlanarLimit> PlanarLimits;
+	TArray<FPlanarLimit> PlanarLimits;
 
 #if WITH_EDITOR
 	FOnLimitsChanged OnLimitsChanged;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
-	
 };

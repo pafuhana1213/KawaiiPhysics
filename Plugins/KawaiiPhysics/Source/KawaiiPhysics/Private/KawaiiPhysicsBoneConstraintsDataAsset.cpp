@@ -15,7 +15,7 @@ TArray<FModifyBoneConstraint> UKawaiiPhysicsBoneConstraintsDataAsset::GenerateBo
 		BoneConstraint.Bone2.BoneName = BoneConstraintData.BoneName2;
 		BoneConstraint.bOverrideCompliance = BoneConstraintData.bOverrideCompliance;
 		BoneConstraint.ComplianceType = BoneConstraintData.ComplianceType;
-		
+
 		BoneConstraints.Add(BoneConstraint);
 	}
 
@@ -24,11 +24,12 @@ TArray<FModifyBoneConstraint> UKawaiiPhysicsBoneConstraintsDataAsset::GenerateBo
 
 #if WITH_EDITOR
 #define LOCTEXT_NAMESPACE "KawaiiPhysicsBoneConstraintsDataAsset"
+
 void UKawaiiPhysicsBoneConstraintsDataAsset::ApplyRegex()
 {
 	GEditor->BeginTransaction(FText::FromString("ApplyRegex"));
 	Modify();
-	
+
 	UpdatePreviewBoneList();
 
 	for (FRegexPatternBoneSet& Pattern : RegexPatternList)
@@ -41,7 +42,7 @@ void UKawaiiPhysicsBoneConstraintsDataAsset::ApplyRegex()
 
 		//UE_LOG( LogTemp, Log, TEXT("Regex Result : %s"), *Matcher1.GetCaptureGroup(0));
 		//UE_LOG( LogTemp, Log, TEXT("BoneList : %s"), *PreviewBoneListString);
-		while (Matcher1.FindNext() &&  Matcher2.FindNext())
+		while (Matcher1.FindNext() && Matcher2.FindNext())
 		{
 			//UE_LOG( LogTemp, Log, TEXT("1 : %s"), *Matcher1.GetCaptureGroup(0));
 			//UE_LOG( LogTemp, Log, TEXT("2 : %s"), *Matcher2.GetCaptureGroup(0));
@@ -61,13 +62,13 @@ void UKawaiiPhysicsBoneConstraintsDataAsset::UpdatePreviewBoneList()
 {
 	PreviewBoneList.Empty();
 	PreviewBoneListString.Empty();
-		
-	if(!PrewviewSkeleton.IsValid())
+
+	if (!PrewviewSkeleton.IsValid())
 	{
 		PrewviewSkeleton.LoadSynchronous();
 	}
 
-	if(PrewviewSkeleton.IsValid())
+	if (PrewviewSkeleton.IsValid())
 	{
 		const FReferenceSkeleton& RefSkeleton = PrewviewSkeleton->GetReferenceSkeleton();
 		const TArray<FMeshBoneInfo>& RefBoneInfo = RefSkeleton.GetRefBoneInfo();
@@ -83,7 +84,9 @@ void UKawaiiPhysicsBoneConstraintsDataAsset::UpdatePreviewBoneList()
 
 void UKawaiiPhysicsBoneConstraintsDataAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	const FName PropertyName = PropertyChangedEvent.MemberProperty ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
+	const FName PropertyName = PropertyChangedEvent.MemberProperty
+		                           ? PropertyChangedEvent.MemberProperty->GetFName()
+		                           : NAME_None;
 
 	if (PropertyName == FName(TEXT("PrewviewSkeleton")))
 	{
@@ -94,4 +97,3 @@ void UKawaiiPhysicsBoneConstraintsDataAsset::PostEditChangeProperty(FPropertyCha
 #undef LOCTEXT_NAMESPACE
 
 #endif
-

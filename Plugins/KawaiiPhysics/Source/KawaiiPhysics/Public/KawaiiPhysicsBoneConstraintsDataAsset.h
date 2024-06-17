@@ -20,7 +20,7 @@ struct FModifyBoneConstraintData
 
 	UPROPERTY(EditAnywhere, category = "KawaiiPhysics", meta=(InlineEditConditionToggle))
 	bool bOverrideCompliance = false;
-	
+
 	UPROPERTY(EditAnywhere, category = "KawaiiPhysics", meta=(EditCondition="bOverrideCompliance"))
 	EXPBDComplianceType ComplianceType = EXPBDComplianceType::Leather;
 };
@@ -43,14 +43,14 @@ class KAWAIIPHYSICS_API UKawaiiPhysicsBoneConstraintsDataAsset : public UDataAss
 	GENERATED_BODY()
 
 public:
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bone Constraint (Experimental)", meta=(TitleProperty="{BoneName1} - {BoneName2}"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bone Constraint (Experimental)",
+		meta=(TitleProperty="{BoneName1} - {BoneName2}"))
 	TArray<FModifyBoneConstraintData> BoneConstraintsData;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category="Helper")
 	TArray<FRegexPatternBoneSet> RegexPatternList;
-	
+
 	UPROPERTY(EditAnywhere, Category = "Preview")
 	TSoftObjectPtr<USkeleton> PrewviewSkeleton;
 	UPROPERTY(VisibleAnywhere, Category = "Preview")
@@ -70,5 +70,4 @@ public:
 	void UpdatePreviewBoneList();
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
-	
 };
