@@ -597,4 +597,8 @@ protected:
 
 	FVector GetWindVelocity(const FSceneInterface* Scene, const FTransform& ComponentTransform,
 	                        const FKawaiiPhysicsModifyBone& Bone) const;
+
+#if ENABLE_ANIM_DEBUG
+	void AnimDrawDebug(const FComponentSpacePoseContext& Output);
+#endif
 };

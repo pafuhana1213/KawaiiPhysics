@@ -77,6 +77,72 @@ void FAnimNode_KawaiiPhysics::GatherDebugData(FNodeDebugData& DebugData)
 	Super::GatherDebugData(DebugData);
 }
 
+#if ENABLE_ANIM_DEBUG
+void FAnimNode_KawaiiPhysics::AnimDrawDebug(const FComponentSpacePoseContext& Output)
+{
+	if (const UWorld* World = Output.AnimInstanceProxy->GetSkelMeshComponent()->GetWorld(); !World->IsPreviewWorld())
+	{
+		if (Output.AnimInstanceProxy->GetSkelMeshComponent()->bRecentlyRendered)
+		{
+			if (CVarAnimNodeKawaiiPhysicsDebug.GetValueOnAnyThread())
+			{
+				// Modify Bones
+				for (auto& ModifyBone : ModifyBones)
+				{
+					const FVector LocationWS = Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(
+						ModifyBone.Location);
+					auto Color = ModifyBone.bDummy ? FColor::Red : FColor::Yellow;
+					Output.AnimInstanceProxy->AnimDrawDebugSphere(LocationWS, ModifyBone.PhysicsSettings.Radius, 8,
+					                                              Color, false, -1, 0, SDPG_Foreground);
+
+#if	ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 3
+					// print bone length rate
+					Output.AnimInstanceProxy->AnimDrawDebugInWorldMessage(
+						FString::Printf(TEXT("%.2f"), ModifyBone.LengthFromRoot / GetTotalBoneLength()),
+						ModifyBone.Location, FColor::White, 1.0f);
+#endif
+				}
+				// Sphere limit
+				for (auto& SphericalLimit : SphericalLimits)
+				{
+					const FVector LocationWS = Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(
+						SphericalLimit.Location);
+					Output.AnimInstanceProxy->AnimDrawDebugSphere(LocationWS, SphericalLimit.Radius, 8, FColor::Orange,
+					                                              false, -1, 0, SDPG_Foreground);
+				}
+				for (auto& SphericalLimit : SphericalLimitsData)
+				{
+					const FVector LocationWS = Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(
+						SphericalLimit.Location);
+					Output.AnimInstanceProxy->AnimDrawDebugSphere(LocationWS, SphericalLimit.Radius, 8, FColor::Blue,
+					                                              false, -1, 0, SDPG_Foreground);
+				}
+
+#if	ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 4
+				// Capsule limit
+				for (auto& CapsuleLimit : CapsuleLimits)
+				{
+					const FVector LocationWS = Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(
+						CapsuleLimit.Location);
+					Output.AnimInstanceProxy->AnimDrawDebugCapsule(LocationWS, CapsuleLimit.Length * 0.5f,
+					                                               CapsuleLimit.Radius, CapsuleLimit.Rotation.Rotator(),
+					                                               FColor::Orange);
+				}
+				for (auto& CapsuleLimit : CapsuleLimitsData)
+				{
+					const FVector LocationWS = Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(
+						CapsuleLimit.Location);
+					Output.AnimInstanceProxy->AnimDrawDebugCapsule(LocationWS, CapsuleLimit.Length * 0.5f,
+					                                               CapsuleLimit.Radius, CapsuleLimit.Rotation.Rotator(),
+					                                               FColor::Blue);
+				}
+#endif
+			}
+		}
+	}
+}
+#endif
+
 void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output,
                                                                 TArray<FBoneTransform>& OutBoneTransforms)
 {
@@ -161,66 +227,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 
 #if ENABLE_ANIM_DEBUG
 
-	if (const UWorld* World = Output.AnimInstanceProxy->GetSkelMeshComponent()->GetWorld(); !World->IsPreviewWorld())
-	{
-		if (Output.AnimInstanceProxy->GetSkelMeshComponent()->bRecentlyRendered)
-		{
-			if (CVarAnimNodeKawaiiPhysicsDebug.GetValueOnAnyThread())
-			{
-				// Modify Bones
-				for (auto& ModifyBone : ModifyBones)
-				{
-					const FVector LocationWS = Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(
-						ModifyBone.Location);
-					auto Color = ModifyBone.bDummy ? FColor::Red : FColor::Yellow;
-					Output.AnimInstanceProxy->AnimDrawDebugSphere(LocationWS, ModifyBone.PhysicsSettings.Radius, 8,
-					                                              Color, false, -1, 0, SDPG_Foreground);
-
-#if	ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 3
-					// print bone length rate
-					Output.AnimInstanceProxy->AnimDrawDebugInWorldMessage(
-						FString::Printf(TEXT("%.2f"), ModifyBone.LengthFromRoot / GetTotalBoneLength()),
-						ModifyBone.Location, FColor::White, 1.0f);
-#endif
-				}
-				// Sphere limit
-				for (auto& SphericalLimit : SphericalLimits)
-				{
-					const FVector LocationWS = Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(
-						SphericalLimit.Location);
-					Output.AnimInstanceProxy->AnimDrawDebugSphere(LocationWS, SphericalLimit.Radius, 8, FColor::Orange,
-					                                              false, -1, 0, SDPG_Foreground);
-				}
-				for (auto& SphericalLimit : SphericalLimitsData)
-				{
-					const FVector LocationWS = Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(
-						SphericalLimit.Location);
-					Output.AnimInstanceProxy->AnimDrawDebugSphere(LocationWS, SphericalLimit.Radius, 8, FColor::Blue,
-					                                              false, -1, 0, SDPG_Foreground);
-				}
-
-#if	ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 4
-				// Capsule limit
-				for (auto& CapsuleLimit : CapsuleLimits)
-				{
-					const FVector LocationWS = Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(
-						CapsuleLimit.Location);
-					Output.AnimInstanceProxy->AnimDrawDebugCapsule(LocationWS, CapsuleLimit.Length * 0.5f,
-					                                               CapsuleLimit.Radius, CapsuleLimit.Rotation.Rotator(),
-					                                               FColor::Orange);
-				}
-				for (auto& CapsuleLimit : CapsuleLimitsData)
-				{
-					const FVector LocationWS = Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(
-						CapsuleLimit.Location);
-					Output.AnimInstanceProxy->AnimDrawDebugCapsule(LocationWS, CapsuleLimit.Length * 0.5f,
-					                                               CapsuleLimit.Radius, CapsuleLimit.Rotation.Rotator(),
-					                                               FColor::Blue);
-				}
-#endif
-			}
-		}
-	}
+	AnimDrawDebug(Output);
 
 #endif
 }
