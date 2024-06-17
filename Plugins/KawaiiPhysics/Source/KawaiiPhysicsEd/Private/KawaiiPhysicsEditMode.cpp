@@ -64,12 +64,7 @@ void FKawaiiPhysicsEditMode::EnterMode(UAnimGraphNode_Base* InEditorNode, FAnimN
 			RuntimeNode->LimitsDataAsset->OnLimitsChanged.AddRaw(this, &FKawaiiPhysicsEditMode::OnLimitDataAssetPropertyChange);
 	}
 	
-#if	ENGINE_MAJOR_VERSION == 5
 	FAnimNodeEditMode::EnterMode(InEditorNode, InRuntimeNode);
-#else
-	FKawaiiPhysicsEditModeBase::EnterMode(InEditorNode, InRuntimeNode);
-#endif
-	
 }
 
 void FKawaiiPhysicsEditMode::ExitMode()
@@ -82,13 +77,8 @@ void FKawaiiPhysicsEditMode::ExitMode()
 
 	GraphNode = nullptr;
 	RuntimeNode = nullptr;
-
-#if	ENGINE_MAJOR_VERSION == 5
-	FAnimNodeEditMode::ExitMode();
-#else
-	FKawaiiPhysicsEditModeBase::ExitMode();
-#endif
 	
+	FAnimNodeEditMode::ExitMode();
 }
 
 void FKawaiiPhysicsEditMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
@@ -126,12 +116,8 @@ void FKawaiiPhysicsEditMode::Render(const FSceneView* View, FViewport* Viewport,
 			}
 		}
 	}
-
-#if	ENGINE_MAJOR_VERSION == 5
+	
 	FAnimNodeEditMode::Render(View, Viewport, PDI);
-#else
-	FKawaiiPhysicsEditModeBase::Render(View, Viewport, PDI);
-#endif
 	
 }
 
@@ -360,11 +346,7 @@ UE_WIDGET::EWidgetMode FKawaiiPhysicsEditMode::FindValidWidgetMode(UE_WIDGET::EW
 
 bool FKawaiiPhysicsEditMode::HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click)
 {
-#if	ENGINE_MAJOR_VERSION == 5
 	bool bResult = FAnimNodeEditMode::HandleClick(InViewportClient, HitProxy, Click);
-#else
-	bool bResult = FKawaiiPhysicsEditModeBase::HandleClick(InViewportClient, HitProxy, Click);
-#endif
 
 	if (HitProxy != nullptr && HitProxy->IsA(HKawaiiPhysicsHitProxy::StaticGetType()))
 	{
@@ -766,13 +748,8 @@ void FKawaiiPhysicsEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FVie
 			}
 		}
 	}
-
-#if	ENGINE_MAJOR_VERSION == 5
-	FAnimNodeEditMode::DrawHUD(ViewportClient, Viewport, View, Canvas);
-#else
-	FKawaiiPhysicsEditModeBase::DrawHUD(ViewportClient, Viewport, View, Canvas);
-#endif
 	
+	FAnimNodeEditMode::DrawHUD(ViewportClient, Viewport, View, Canvas);
 }
 
 void FKawaiiPhysicsEditMode::DrawTextItem(FText Text, FCanvas* Canvas, float X, float& Y, float FontHeight)

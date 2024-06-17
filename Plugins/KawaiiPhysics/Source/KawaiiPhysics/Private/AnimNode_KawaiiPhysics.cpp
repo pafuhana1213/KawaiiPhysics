@@ -165,11 +165,17 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		{
 			if(CVarAnimNodeKawaiiPhysicsDebug.GetValueOnAnyThread())
 			{
+				// Modify Bones
 				for (auto& ModifyBone : ModifyBones)
 				{
 					const FVector LocationWS = Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(ModifyBone.Location);
 					auto Color = ModifyBone.bDummy ? FColor::Red : FColor::Yellow;
 					Output.AnimInstanceProxy->AnimDrawDebugSphere( LocationWS, ModifyBone.PhysicsSettings.Radius, 8, Color);
+
+#if	ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 3
+					// print bone length rate
+					Output.AnimInstanceProxy->AnimDrawDebugInWorldMessage(FString::Printf(TEXT("%.2f"), ModifyBone.LengthFromRoot / GetTotalBoneLength()), ModifyBone.Location, FColor::White, 1.0f);
+#endif			
 				}
 				// Sphere limit
 				for (auto& SphericalLimit : SphericalLimits)
@@ -182,19 +188,20 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 					const FVector LocationWS = Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(SphericalLimit.Location);
 					Output.AnimInstanceProxy->AnimDrawDebugSphere( LocationWS, SphericalLimit.Radius, 8, FColor::Blue);
 				}
-				// Capusle limit
+
+#if	ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 4
+				// Capsule limit
 				for (auto& CapsuleLimit : CapsuleLimits)
 				{
 					const FVector LocationWS = Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(CapsuleLimit.Location);
-					//DrawDebugCapsule(World, LocationWS, CapsuleLimit.Length, CapsuleLimit.Radius, CapsuleLimit.Rotation, FColor::Orange);
-					//Output.AnimInstanceProxy->add( LocationWS, SphericalLimit.Radius, 8, FColor::Orange);
+					Output.AnimInstanceProxy->AnimDrawDebugCapsule(LocationWS, CapsuleLimit.Length * 0.5f, CapsuleLimit.Radius, CapsuleLimit.Rotation.Rotator(), FColor::Orange);
 				}
 				for (auto& CapsuleLimit : CapsuleLimitsData)
 				{
 					const FVector LocationWS = Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(CapsuleLimit.Location);
-					//DrawDebugCapsule(World, LocationWS, CapsuleLimit.Length, CapsuleLimit.Radius, CapsuleLimit.Rotation, FColor::Blue);
-					//Output.AnimInstanceProxy->AnimDrawDebugSphere( LocationWS, SphericalLimit.Radius, 8, FColor::Blue);
+					Output.AnimInstanceProxy->AnimDrawDebugCapsule(LocationWS, CapsuleLimit.Length * 0.5f, CapsuleLimit.Radius, CapsuleLimit.Rotation.Rotator(), FColor::Blue);
 				}
+#endif
 			}
 		}
 	}
@@ -281,11 +288,7 @@ void FAnimNode_KawaiiPhysics::InitModifyBones(FComponentSpacePoseContext& Output
 	{
 		TotalBoneLength = 0.0f;
 		
-#if	ENGINE_MAJOR_VERSION == 5
 		CalcBoneLength(ModifyBones[0],BoneContainer.GetRefPoseArray());
-#else
-		CalcBoneLength(ModifyBones[0], BoneContainer.GetRefPoseCompactArray());
-#endif
 	}
 }
 
