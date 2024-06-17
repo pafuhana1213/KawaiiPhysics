@@ -566,4 +566,8 @@ protected:
 	void WarmUp(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform);
 	
 	FVector GetWindVelocity(const FSceneInterface* Scene, const FTransform& ComponentTransform, const FKawaiiPhysicsModifyBone& Bone) const;
+
+#if ENABLE_ANIM_DEBUG
+	void DrawAnimDebug(FComponentSpacePoseContext& Output);
+#endif
 };
