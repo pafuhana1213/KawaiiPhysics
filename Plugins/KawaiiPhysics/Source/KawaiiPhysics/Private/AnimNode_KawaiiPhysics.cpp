@@ -170,7 +170,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 				{
 					const FVector LocationWS = Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(ModifyBone.Location);
 					auto Color = ModifyBone.bDummy ? FColor::Red : FColor::Yellow;
-					Output.AnimInstanceProxy->AnimDrawDebugSphere( LocationWS, ModifyBone.PhysicsSettings.Radius, 8, Color);
+					Output.AnimInstanceProxy->AnimDrawDebugSphere( LocationWS, ModifyBone.PhysicsSettings.Radius, 8, Color, false, -1, 0, SDPG_Foreground);
 
 #if	ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 3
 					// print bone length rate
@@ -181,12 +181,12 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 				for (auto& SphericalLimit : SphericalLimits)
 				{
 					const FVector LocationWS = Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(SphericalLimit.Location);
-					Output.AnimInstanceProxy->AnimDrawDebugSphere( LocationWS, SphericalLimit.Radius, 8, FColor::Orange);
+					Output.AnimInstanceProxy->AnimDrawDebugSphere( LocationWS, SphericalLimit.Radius, 8, FColor::Orange, false, -1, 0, SDPG_Foreground);
 				}
 				for (auto& SphericalLimit : SphericalLimitsData)
 				{
 					const FVector LocationWS = Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(SphericalLimit.Location);
-					Output.AnimInstanceProxy->AnimDrawDebugSphere( LocationWS, SphericalLimit.Radius, 8, FColor::Blue);
+					Output.AnimInstanceProxy->AnimDrawDebugSphere( LocationWS, SphericalLimit.Radius, 8, FColor::Blue, false, -1, 0, SDPG_Foreground);
 				}
 
 #if	ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 4
