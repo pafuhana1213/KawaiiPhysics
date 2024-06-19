@@ -10,7 +10,6 @@ DECLARE_LOG_CATEGORY_EXTERN(LogKawaiiPhysics, Log, All);
 class FKawaiiPhysicsModule : public IModuleInterface
 {
 public:
-
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;

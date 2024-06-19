@@ -13,10 +13,9 @@ UCLASS()
 class UAnimGraphNode_KawaiiPhysics : public UAnimGraphNode_SkeletalControlBase
 {
 	GENERATED_UCLASS_BODY()
-
 	UPROPERTY(EditAnywhere, Category = Settings)
 	FAnimNode_KawaiiPhysics Node;
-	
+
 public:
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 
@@ -24,10 +23,11 @@ public:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 
 protected:
-
 	// UAnimGraphNode_Base interface
 	virtual FEditorModeID GetEditorMode() const override;
-	virtual void ValidateAnimNodePostCompile(FCompilerResultsLog& MessageLog, UAnimBlueprintGeneratedClass* CompiledClass, int32 CompiledNodeIndex) override;
+	virtual void ValidateAnimNodePostCompile(FCompilerResultsLog& MessageLog,
+	                                         UAnimBlueprintGeneratedClass* CompiledClass,
+	                                         int32 CompiledNodeIndex) override;
 	virtual void CopyNodeDataToPreviewNode(FAnimNode_Base* AnimNode) override;
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 	// End of UAnimGraphNode_Base interface
@@ -46,12 +46,12 @@ protected:
 
 private:
 	void ExportLimitsDataAsset();
-	
+
 public:
 	UPROPERTY()
 	bool bEnableDebugDrawBone = true;
 	UPROPERTY()
-	bool bEnableDebugBoneLengthRate= true;
+	bool bEnableDebugBoneLengthRate = true;
 	UPROPERTY()
 	bool bEnableDebugDrawAngleLimit = true;
 	UPROPERTY()
@@ -62,7 +62,7 @@ public:
 	bool bEnableDebugDrawPlanerLimit = true;
 	UPROPERTY()
 	bool bEnableDebugDrawBoneConstraint = true;
-	
+
 private:
 	/** Constructing FText strings can be costly, so we cache the node's title */
 	FNodeTitleTextTable CachedNodeTitles;

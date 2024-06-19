@@ -8,13 +8,13 @@
 DEFINE_LOG_CATEGORY_STATIC(LogKawaiiPhysicsLibrary, Verbose, All);
 
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::ConvertToKawaiiPhysics(const FAnimNodeReference& Node,
-	EAnimNodeReferenceConversionResult& Result)
+                                                                      EAnimNodeReferenceConversionResult& Result)
 {
 	return FAnimNodeReference::ConvertToType<FKawaiiPhysicsReference>(Node, Result);
 }
 
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetRootBoneName(const FKawaiiPhysicsReference& KawaiiPhysics,
-	FName& RootBoneName)
+                                                               FName& RootBoneName)
 {
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 		TEXT("SetRootBoneName"),
@@ -29,19 +29,19 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetRootBoneName(const FKawaiiPhys
 FName UKawaiiPhysicsLibrary::GetRootBoneName(const FKawaiiPhysicsReference& KawaiiPhysics)
 {
 	FName RootBoneName;
-	
+
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-	TEXT("GetRootBoneName"),
-	[&RootBoneName](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
-	{
-		RootBoneName = InKawaiiPhysics.RootBone.BoneName;
-	});
+		TEXT("GetRootBoneName"),
+		[&RootBoneName](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			RootBoneName = InKawaiiPhysics.RootBone.BoneName;
+		});
 
 	return RootBoneName;
 }
 
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetExcludeBoneNames(const FKawaiiPhysicsReference& KawaiiPhysics,
-	TArray<FName>& ExcludeBoneNames)
+                                                                   TArray<FName>& ExcludeBoneNames)
 {
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 		TEXT("SetExcludeBoneNames"),
@@ -51,7 +51,7 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetExcludeBoneNames(const FKawaii
 			for (auto& ExcludeBoneName : ExcludeBoneNames)
 			{
 				InKawaiiPhysics.ExcludeBones.Add(FBoneReference(ExcludeBoneName));
-			};
+			}
 		});
 
 	return KawaiiPhysics;
@@ -60,16 +60,16 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetExcludeBoneNames(const FKawaii
 TArray<FName> UKawaiiPhysicsLibrary::GetExcludeBoneNames(const FKawaiiPhysicsReference& KawaiiPhysics)
 {
 	TArray<FName> ExcludeBoneNames;
-	
+
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-	TEXT("GetExcludeBoneNames"),
-	[&ExcludeBoneNames](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
-	{
-		for (auto& ExcludeBone : InKawaiiPhysics.ExcludeBones)
+		TEXT("GetExcludeBoneNames"),
+		[&ExcludeBoneNames](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 		{
-			ExcludeBoneNames.Add(ExcludeBone.BoneName);
-		};
-	});
+			for (auto& ExcludeBone : InKawaiiPhysics.ExcludeBones)
+			{
+				ExcludeBoneNames.Add(ExcludeBone.BoneName);
+			}
+		});
 
 	return ExcludeBoneNames;
 }
@@ -90,13 +90,13 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetPhysicsSettings(const FKawaiiP
 FKawaiiPhysicsSettings UKawaiiPhysicsLibrary::GetPhysicsSettings(const FKawaiiPhysicsReference& KawaiiPhysics)
 {
 	FKawaiiPhysicsSettings PhysicsSettings;
-	
+
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-	TEXT("GetPhysicsSettings"),
-	[&PhysicsSettings](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
-	{
-		PhysicsSettings = InKawaiiPhysics.PhysicsSettings;
-	});
+		TEXT("GetPhysicsSettings"),
+		[&PhysicsSettings](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			PhysicsSettings = InKawaiiPhysics.PhysicsSettings;
+		});
 
 	return PhysicsSettings;
 }
@@ -117,13 +117,13 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetDummyBoneLength(
 float UKawaiiPhysicsLibrary::GetDummyBoneLength(const FKawaiiPhysicsReference& KawaiiPhysics)
 {
 	float DummyBoneLength;
-	
+
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-	TEXT("GetDummyBoneLength"),
-	[&DummyBoneLength](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
-	{
-		DummyBoneLength = InKawaiiPhysics.DummyBoneLength;
-	});
+		TEXT("GetDummyBoneLength"),
+		[&DummyBoneLength](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			DummyBoneLength = InKawaiiPhysics.DummyBoneLength;
+		});
 
 	return DummyBoneLength;
 }
@@ -144,13 +144,13 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetTeleportDistanceThreshold(
 float UKawaiiPhysicsLibrary::GetTeleportDistanceThreshold(const FKawaiiPhysicsReference& KawaiiPhysics)
 {
 	float TeleportDistanceThreshold;
-	
+
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-	TEXT("GetTeleportDistanceThreshold"),
-	[&TeleportDistanceThreshold](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
-	{
-		TeleportDistanceThreshold = InKawaiiPhysics.TeleportDistanceThreshold;
-	});
+		TEXT("GetTeleportDistanceThreshold"),
+		[&TeleportDistanceThreshold](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			TeleportDistanceThreshold = InKawaiiPhysics.TeleportDistanceThreshold;
+		});
 
 	return TeleportDistanceThreshold;
 }
@@ -171,13 +171,13 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetTeleportRotationThreshold(
 float UKawaiiPhysicsLibrary::GetTeleportRotationThreshold(const FKawaiiPhysicsReference& KawaiiPhysics)
 {
 	float TeleportRotationThreshold;
-	
+
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-	TEXT("GetTeleportRotationThreshold"),
-	[&TeleportRotationThreshold](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
-	{
-		TeleportRotationThreshold = InKawaiiPhysics.TeleportRotationThreshold;
-	});
+		TEXT("GetTeleportRotationThreshold"),
+		[&TeleportRotationThreshold](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			TeleportRotationThreshold = InKawaiiPhysics.TeleportRotationThreshold;
+		});
 
 	return TeleportRotationThreshold;
 }
@@ -198,13 +198,13 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetGravity(
 FVector UKawaiiPhysicsLibrary::GetGravity(const FKawaiiPhysicsReference& KawaiiPhysics)
 {
 	FVector Gravity;
-	
+
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-	TEXT("GetGravity"),
-	[&Gravity](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
-	{
-		Gravity = InKawaiiPhysics.Gravity;
-	});
+		TEXT("GetGravity"),
+		[&Gravity](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			Gravity = InKawaiiPhysics.Gravity;
+		});
 
 	return Gravity;
 }
@@ -225,13 +225,13 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetEnableWind(
 bool UKawaiiPhysicsLibrary::GetEnableWind(const FKawaiiPhysicsReference& KawaiiPhysics)
 {
 	bool EnableWind;
-	
+
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-	TEXT("GetEnableWind"),
-	[&EnableWind](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
-	{
-		EnableWind = InKawaiiPhysics.bEnableWind;
-	});
+		TEXT("GetEnableWind"),
+		[&EnableWind](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			EnableWind = InKawaiiPhysics.bEnableWind;
+		});
 
 	return EnableWind;
 }
@@ -252,13 +252,13 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetWindScale(
 float UKawaiiPhysicsLibrary::GetWindScale(const FKawaiiPhysicsReference& KawaiiPhysics)
 {
 	float WindScale;
-	
+
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-	TEXT("GetWindScale"),
-	[&WindScale](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
-	{
-		WindScale = InKawaiiPhysics.WindScale;
-	});
+		TEXT("GetWindScale"),
+		[&WindScale](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			WindScale = InKawaiiPhysics.WindScale;
+		});
 
 	return WindScale;
 }
@@ -279,19 +279,19 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetAllowWorldCollision(
 bool UKawaiiPhysicsLibrary::GetAllowWorldCollision(const FKawaiiPhysicsReference& KawaiiPhysics)
 {
 	bool AllowWorldCollision;
-	
+
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-	TEXT("GetAllowWorldCollision"),
-	[&AllowWorldCollision](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
-	{
-		AllowWorldCollision = InKawaiiPhysics.bAllowWorldCollision;
-	});
+		TEXT("GetAllowWorldCollision"),
+		[&AllowWorldCollision](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			AllowWorldCollision = InKawaiiPhysics.bAllowWorldCollision;
+		});
 
 	return AllowWorldCollision;
 }
 
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetNeedWarmUp(const FKawaiiPhysicsReference& KawaiiPhysics,
-	bool NeedWarmUp)
+                                                             bool NeedWarmUp)
 {
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 		TEXT("SetNeedWarmup"),
@@ -306,13 +306,13 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetNeedWarmUp(const FKawaiiPhysic
 bool UKawaiiPhysicsLibrary::GetNeedWarmUp(const FKawaiiPhysicsReference& KawaiiPhysics)
 {
 	bool NeedWarmUp;
-	
+
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-	TEXT("GetNeedWarmup"),
-	[&NeedWarmUp](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
-	{
-		NeedWarmUp = InKawaiiPhysics.bNeedWarmUp;
-	});
+		TEXT("GetNeedWarmup"),
+		[&NeedWarmUp](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			NeedWarmUp = InKawaiiPhysics.bNeedWarmUp;
+		});
 
 	return NeedWarmUp;
 }

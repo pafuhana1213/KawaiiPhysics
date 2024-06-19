@@ -17,5 +17,5 @@ void FKawaiiPhysicsModule::ShutdownModule()
 }
 
 #undef LOCTEXT_NAMESPACE
-	
+
 IMPLEMENT_MODULE(FKawaiiPhysicsModule, KawaiiPhysics)

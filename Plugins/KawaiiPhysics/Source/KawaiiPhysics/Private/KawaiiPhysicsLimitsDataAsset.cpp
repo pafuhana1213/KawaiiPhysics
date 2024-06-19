@@ -23,28 +23,29 @@ void UKawaiiPhysicsLimitsDataAsset::UpdateLimit(FCollisionLimitBase* Limit)
 {
 	switch (Limit->Type)
 	{
-		case ECollisionLimitType::Spherical:
-			UpdateCollisionLimit(SphericalLimitsData, static_cast<FSphericalLimit*>(Limit));
-			break;
-		case ECollisionLimitType::Capsule:
-			UpdateCollisionLimit(CapsuleLimitsData, static_cast<FCapsuleLimit*>(Limit));
-			break;
-		case ECollisionLimitType::Planar:
-			UpdateCollisionLimit(PlanarLimitsData, static_cast<FPlanarLimit*>(Limit));
-			break;
-		case ECollisionLimitType::None:
-			break;
-		default:
-			break;
+	case ECollisionLimitType::Spherical:
+		UpdateCollisionLimit(SphericalLimitsData, static_cast<FSphericalLimit*>(Limit));
+		break;
+	case ECollisionLimitType::Capsule:
+		UpdateCollisionLimit(CapsuleLimitsData, static_cast<FCapsuleLimit*>(Limit));
+		break;
+	case ECollisionLimitType::Planar:
+		UpdateCollisionLimit(PlanarLimitsData, static_cast<FPlanarLimit*>(Limit));
+		break;
+	case ECollisionLimitType::None:
+		break;
+	default:
+		break;
 	}
 
 	Sync();
-	
+
 	MarkPackageDirty();
 }
 
 template <typename CollisionLimitDataType, typename CollisionLimitType>
-void SyncCollisionLimits(const TArray<CollisionLimitDataType>& CollisionLimitData, TArray<CollisionLimitType>& CollisionLimits)
+void SyncCollisionLimits(const TArray<CollisionLimitDataType>& CollisionLimitData,
+                         TArray<CollisionLimitType>& CollisionLimits)
 {
 	CollisionLimits.Empty();
 	for (const auto& Data : CollisionLimitData)
@@ -63,8 +64,10 @@ void UKawaiiPhysicsLimitsDataAsset::Sync()
 void UKawaiiPhysicsLimitsDataAsset::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	
-	const FName PropertyName = PropertyChangedEvent.MemberProperty ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
+
+	const FName PropertyName = PropertyChangedEvent.MemberProperty
+		                           ? PropertyChangedEvent.MemberProperty->GetFName()
+		                           : NAME_None;
 
 	if (PropertyName == FName(TEXT("SphericalLimitsData")))
 	{
