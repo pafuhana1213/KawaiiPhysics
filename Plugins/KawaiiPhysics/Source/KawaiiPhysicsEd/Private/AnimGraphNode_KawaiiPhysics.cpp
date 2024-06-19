@@ -65,58 +65,6 @@ FEditorModeID UAnimGraphNode_KawaiiPhysics::GetEditorMode() const
 	return "AnimGraph.SkeletalControl.KawaiiPhysics";
 }
 
-void UAnimGraphNode_KawaiiPhysics::Draw(FPrimitiveDrawInterface* PDI, USkeletalMeshComponent* SkelMeshComp) const
-{
-	if (!SkelMeshComp)
-	{
-		return;
-	}
-
-	FAnimNode_KawaiiPhysics* ActiveNode = GetActiveInstanceNode<FAnimNode_KawaiiPhysics>(SkelMeshComp->GetAnimInstance());
-	if (!ActiveNode)
-	{
-		return;
-	}
-
-	if (bEnableDebugDrawBone)
-	{
-		for (auto& Bone : ActiveNode->ModifyBones)
-		{
-			PDI->DrawPoint(Bone.Location, FLinearColor::White, 5.0f, SDPG_Foreground);
-
-			if (Bone.PhysicsSettings.Radius > 0)
-			{
-				auto Color = Bone.bDummy ? FColor::Red : FColor::Yellow;
-				DrawWireSphere(PDI, Bone.Location, Color, Bone.PhysicsSettings.Radius, 16, SDPG_Foreground);
-			}
-
-			for (const int32 ChildIndex : Bone.ChildIndexs)
-			{
-				DrawDashedLine(PDI, Bone.Location, ActiveNode->ModifyBones[ChildIndex].Location,
-				               FLinearColor::White, 1, SDPG_Foreground);
-			}
-		}
-	}
-
-	if (bEnableDebugDrawAngleLimit)
-	{
-		for (auto& Bone : ActiveNode->ModifyBones)
-		{
-			if (Bone.ParentIndex < 0 || Bone.PhysicsSettings.LimitAngle <= 0)
-			{
-				continue;
-			}
-
-			auto& ParentBone = ActiveNode->ModifyBones[Bone.ParentIndex];
-			FTransform ParentBoneTransform =
-				FTransform(FQuat::FindBetween(FVector::ForwardVector, Bone.PoseLocation - ParentBone.PoseLocation), ParentBone.Location);
-			TArray<FVector> Verts;
-			DrawWireCone(PDI, Verts, ParentBoneTransform, (Bone.PoseLocation - ParentBone.PoseLocation).Size(),
-			             Bone.PhysicsSettings.LimitAngle, 16, FColor::Green, SDPG_World);
-		}
-	}
-}
-
 void UAnimGraphNode_KawaiiPhysics::ValidateAnimNodePostCompile(FCompilerResultsLog& MessageLog, UAnimBlueprintGeneratedClass* CompiledClass, int32 CompiledNodeIndex)
 {
 	UAnimGraphNode_SkeletalControlBase::ValidateAnimNodePostCompile(MessageLog, CompiledClass, CompiledNodeIndex);

@@ -91,6 +91,7 @@ void FKawaiiPhysicsEditMode::Render(const FSceneView* View, FViewport* Viewport,
 	if (SkelMeshComp && SkelMeshComp->SkeletalMesh && SkelMeshComp->SkeletalMesh->GetSkeleton())
 #endif
 	{
+		RenderModifyBones(PDI);
 		RenderSphericalLimits(PDI);
 		RenderCapsuleLimit(PDI);
 		RenderPlanerLimit(PDI);
@@ -119,6 +120,29 @@ void FKawaiiPhysicsEditMode::Render(const FSceneView* View, FViewport* Viewport,
 	
 	FAnimNodeEditMode::Render(View, Viewport, PDI);
 	
+}
+
+void FKawaiiPhysicsEditMode::RenderModifyBones(FPrimitiveDrawInterface* PDI) const
+{
+	if (GraphNode->bEnableDebugDrawBone)
+	{
+		for (auto& Bone : RuntimeNode->ModifyBones)
+		{
+			PDI->DrawPoint(Bone.Location, FLinearColor::White, 5.0f, SDPG_Foreground);
+
+			if (Bone.PhysicsSettings.Radius > 0)
+			{
+				auto Color = Bone.bDummy ? FColor::Red : FColor::Yellow;
+				DrawWireSphere(PDI, Bone.Location, Color, Bone.PhysicsSettings.Radius, 16, SDPG_Foreground);
+			}
+
+			for (const int32 ChildIndex : Bone.ChildIndexs)
+			{
+				DrawDashedLine(PDI, Bone.Location, RuntimeNode->ModifyBones[ChildIndex].Location,
+						   FLinearColor::White, 1, SDPG_Foreground);
+			}
+		}
+	}
 }
 
 void FKawaiiPhysicsEditMode::RenderSphericalLimits(FPrimitiveDrawInterface* PDI) const
