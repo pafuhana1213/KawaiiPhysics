@@ -77,7 +77,8 @@ void UAnimGraphNode_KawaiiPhysics::ValidateAnimNodePostCompile(FCompilerResultsL
 			MessageLog.Warning(TEXT("@@ ExcludeBones should NOT has RootBone."), this);
 		}
 	}
-	else
+	// for template ABP
+	else if( CompiledClass->TargetSkeleton )
 	{
 		MessageLog.Warning(TEXT("@@ RootBone is empty."), this);
 	}
