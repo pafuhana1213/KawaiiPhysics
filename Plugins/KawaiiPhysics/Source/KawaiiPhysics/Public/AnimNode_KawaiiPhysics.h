@@ -300,25 +300,26 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	GENERATED_USTRUCT_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = ModifyTarget)
+	UPROPERTY(EditAnywhere, Category = Bones)
 	FBoneReference RootBone;
-	UPROPERTY(EditAnywhere, Category = ModifyTarget)
+	UPROPERTY(EditAnywhere, Category = Bones)
 	TArray<FBoneReference> ExcludeBones;
 
-	UPROPERTY(EditAnywhere, Category = "TargetFramerate", meta = (EditCondition = "OverrideTargetFramerate"))
+	UPROPERTY(EditAnywhere, Category = "Physics Settings", meta = (EditCondition = "OverrideTargetFramerate"))
 	int32 TargetFramerate = 60;
-	UPROPERTY(EditAnywhere, Category = "TargetFramerate", meta = (InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = "Physics Settings", meta = (InlineEditConditionToggle))
 	bool OverrideTargetFramerate = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WarmUp",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings",
 		meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	bool bNeedWarmUp = false;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WarmUp",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings",
 		meta = (PinHiddenByDefault, EditCondition="bNeedWarmUp", ClampMin = "0"))
 	int32 WarmUpFrames = 0;
 
 	/** Settings for control of physical behavior */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings",
+		meta = (PinHiddenByDefault, DisplayPriority=0))
 	FKawaiiPhysicsSettings PhysicsSettings;
 
 	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
@@ -346,54 +347,60 @@ public:
 	UCurveFloat* LimitAngleCurve_DEPRECATED = nullptr;
 
 	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", AdvancedDisplay,
+		meta = (PinHiddenByDefault))
 	FRuntimeFloatCurve DampingCurveData;
 
 	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", AdvancedDisplay,
+		meta = (PinHiddenByDefault))
 	FRuntimeFloatCurve WorldDampingLocationCurveData;
 
 	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", AdvancedDisplay,
+		meta = (PinHiddenByDefault))
 	FRuntimeFloatCurve WorldDampingRotationCurveData;
 
 	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", AdvancedDisplay,
+		meta = (PinHiddenByDefault))
 	FRuntimeFloatCurve StiffnessCurveData;
 
 	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", AdvancedDisplay,
+		meta = (PinHiddenByDefault))
 	FRuntimeFloatCurve RadiusCurveData;
 
 	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", AdvancedDisplay,
+		meta = (PinHiddenByDefault))
 	FRuntimeFloatCurve LimitAngleCurveData;
 
 	/** Flag to update each frame physical parameter. Disable to improve performance */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Advanced Physics Settings", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
 	bool bUpdatePhysicsSettingsInGame = true;
 
 	/** Add a dummy bone to the end bone if it's above 0. It affects end bone rotation. For example, it rotates well if it is short */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DummyBone", meta = (PinHiddenByDefault, ClampMin = "0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bones", meta = (PinHiddenByDefault, ClampMin = "0"))
 	float DummyBoneLength = 0.0f;
 
 	/** Bone forward direction */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DummyBone", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bones", meta = (PinHiddenByDefault))
 	EBoneForwardAxis BoneForwardAxis = EBoneForwardAxis::X_Positive;
 
 	/** Fix the bone on the specified plane  */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Advanced Physics Settings", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
 	EPlanarConstraint PlanarConstraint = EPlanarConstraint::None;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Advanced Physics Settings", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
 	bool ResetBoneTransformWhenBoneNotFound = false;
 
 
-	UPROPERTY(EditAnywhere, Category = "Spherical Limits")
+	UPROPERTY(EditAnywhere, Category = "Limits")
 	TArray<FSphericalLimit> SphericalLimits;
-	UPROPERTY(EditAnywhere, Category = "Capsule Limits")
+	UPROPERTY(EditAnywhere, Category = "Limits")
 	TArray<FCapsuleLimit> CapsuleLimits;
-	UPROPERTY(EditAnywhere, Category = "Planar Limits")
+	UPROPERTY(EditAnywhere, Category = "Limits")
 	TArray<FPlanarLimit> PlanarLimits;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bone Constraint (Experimental)",
@@ -419,33 +426,34 @@ public:
 	UPROPERTY()
 	TArray<FModifyBoneConstraint> MergedBoneConstraints;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits Data", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits", meta = (PinHiddenByDefault))
 	TObjectPtr<UKawaiiPhysicsLimitsDataAsset> LimitsDataAsset = nullptr;
-	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = "Limits Data")
+	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = "Limits")
 	TArray<FSphericalLimit> SphericalLimitsData;
-	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = "Limits Data")
+	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = "Limits")
 	TArray<FCapsuleLimit> CapsuleLimitsData;
-	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = "Limits Data")
+	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = "Limits")
 	TArray<FPlanarLimit> PlanarLimitsData;
 
 
 	/** If the movement amount of one frame exceeds the threshold, ignore the movement  */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Teleport", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
 	float TeleportDistanceThreshold = 300.0f;
 
 	/** If the rotation amount of one frame exceeds the threshold, ignore the rotation  */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Teleport", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
 	float TeleportRotationThreshold = 10.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce", meta = (PinHiddenByDefault))
 	FVector Gravity = FVector::ZeroVector;
 
 	/** Whether or not wind is enabled for the bodies in this simulation */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce",
+		meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	bool bEnableWind = false;
 
 	/** Scale to apply to calculated wind velocities in the solver */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind", meta = (DisplayAfter = "bEnableWind"),
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce", meta = (EditCondition = "bEnableWind"),
 		meta = (PinHiddenByDefault))
 	float WindScale = 1.0f;
 
@@ -453,27 +461,27 @@ public:
 	 *	EXPERIMENTAL. Perform sweeps for each simulating bodies to avoid collisions with the world.
 	 *	This greatly increases the cost of the physics simulation.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "World Collision", meta = (PinHiddenByDefault))
 	bool bAllowWorldCollision = false;
 	//use component collision channel settings by default
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "World Collision",
 		meta = (PinHiddenByDefault, EditCondition = "bAllowWorldCollision"))
 	bool bOverrideCollisionParams = false;
 	/** Types of objects that this physics objects will collide with. */
-	UPROPERTY(EditAnywhere, Category = "Collision",
+	UPROPERTY(EditAnywhere, Category = "World Collision",
 		meta = (FullyExpand = "true", EditCondition = "bAllowWorldCollision&&bOverrideCollisionParams"))
 	FBodyInstance CollisionChannelSettings;
 
 
 	/** Self collision is best done by setting the "Limits" in this node, but if you really need using PhysicsAsset collision, uncheck this!*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "World Collision",
 		meta = (PinHiddenByDefault, EditCondition = "bAllowWorldCollision"))
 	bool bIgnoreSelfComponent = true;
 	/** Self bone is always ignored*/
-	UPROPERTY(EditAnywhere, Category = "Collision", meta = (EditCondition = "!bIgnoreSelfComponent"))
+	UPROPERTY(EditAnywhere, Category = "World Collision", meta = (EditCondition = "!bIgnoreSelfComponent"))
 	TArray<FBoneReference> IgnoreBones;
 	/** If the bone starts with this name, will be ignored (Self bone is always ignored)*/
-	UPROPERTY(EditAnywhere, Category = "Collision", meta = (EditCondition = "!bIgnoreSelfComponent"))
+	UPROPERTY(EditAnywhere, Category = "World Collision", meta = (EditCondition = "!bIgnoreSelfComponent"))
 	TArray<FName> IgnoreBoneNamePrefix;
 
 	UPROPERTY()

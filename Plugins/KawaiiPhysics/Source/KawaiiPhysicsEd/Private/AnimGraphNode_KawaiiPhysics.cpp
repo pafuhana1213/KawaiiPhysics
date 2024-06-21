@@ -33,21 +33,23 @@ FText UAnimGraphNode_KawaiiPhysics::GetNodeTitle(ENodeTitleType::Type TitleType)
 	}
 	// @TODO: the bone can be altered in the property editor, so we have to 
 	//        choose to mark this dirty when that happens for this to properly work
-	else //if (!CachedNodeTitles.IsTitleCached(TitleType, this))
-	{
-		FFormatNamedArguments Args;
-		Args.Add(TEXT("ControllerDescription"), GetControllerDescription());
-		Args.Add(TEXT("RootBoneName"), FText::FromName(Node.RootBone.BoneName));
+	//if (!CachedNodeTitles.IsTitleCached(TitleType, this))
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("ControllerDescription"), GetControllerDescription());
+	Args.Add(TEXT("RootBoneName"), FText::FromName(Node.RootBone.BoneName));
 
-		// FText::Format() is slow, so we cache this to save on performance
-		if (TitleType == ENodeTitleType::ListView || TitleType == ENodeTitleType::MenuTitle)
-		{
-			CachedNodeTitles.SetCachedTitle(TitleType, FText::Format(LOCTEXT("AnimGraphNode_KawaiiPhysics_ListTitle", "{ControllerDescription} - Root: {RootBoneName}"), Args), this);
-		}
-		else
-		{
-			CachedNodeTitles.SetCachedTitle(TitleType, FText::Format(LOCTEXT("AnimGraphNode_KawaiiPhysics_Title", "{ControllerDescription}\nRoot: {RootBoneName} "), Args), this);
-		}
+	// FText::Format() is slow, so we cache this to save on performance
+	if (TitleType == ENodeTitleType::ListView || TitleType == ENodeTitleType::MenuTitle)
+	{
+		CachedNodeTitles.SetCachedTitle(TitleType, FText::Format(
+			                                LOCTEXT("AnimGraphNode_KawaiiPhysics_ListTitle",
+			                                        "{ControllerDescription} - Root: {RootBoneName}"), Args), this);
+	}
+	else
+	{
+		CachedNodeTitles.SetCachedTitle(TitleType, FText::Format(
+			                                LOCTEXT("AnimGraphNode_KawaiiPhysics_Title",
+			                                        "{ControllerDescription}\nRoot: {RootBoneName} "), Args), this);
 	}
 	return CachedNodeTitles[TitleType];
 }
@@ -65,7 +67,9 @@ FEditorModeID UAnimGraphNode_KawaiiPhysics::GetEditorMode() const
 	return "AnimGraph.SkeletalControl.KawaiiPhysics";
 }
 
-void UAnimGraphNode_KawaiiPhysics::ValidateAnimNodePostCompile(FCompilerResultsLog& MessageLog, UAnimBlueprintGeneratedClass* CompiledClass, int32 CompiledNodeIndex)
+void UAnimGraphNode_KawaiiPhysics::ValidateAnimNodePostCompile(FCompilerResultsLog& MessageLog,
+                                                               UAnimBlueprintGeneratedClass* CompiledClass,
+                                                               int32 CompiledNodeIndex)
 {
 	UAnimGraphNode_SkeletalControlBase::ValidateAnimNodePostCompile(MessageLog, CompiledClass, CompiledNodeIndex);
 
@@ -78,11 +82,10 @@ void UAnimGraphNode_KawaiiPhysics::ValidateAnimNodePostCompile(FCompilerResultsL
 		}
 	}
 	// for template ABP
-	else if( CompiledClass->TargetSkeleton )
+	else if (CompiledClass->TargetSkeleton)
 	{
 		MessageLog.Warning(TEXT("@@ RootBone is empty."), this);
 	}
-	
 }
 
 void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* AnimNode)
@@ -166,121 +169,176 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 
 void UAnimGraphNode_KawaiiPhysics::CustomizeDetailDebugVisualizations(IDetailLayoutBuilder& DetailBuilder)
 {
-	Super::CustomizeDetails(DetailBuilder);
-
 	IDetailCategoryBuilder& ViewportCategory = DetailBuilder.EditCategory(TEXT("Debug Visualization"));
-	FDetailWidgetRow& WidgetRow = ViewportCategory.AddCustomRow(LOCTEXT("ToggleDebugVisualizationButtonRow", "DebugVisualization"));
+	FDetailWidgetRow& WidgetRow = ViewportCategory.AddCustomRow(
+		LOCTEXT("ToggleDebugVisualizationButtonRow", "DebugVisualization"));
 
 	WidgetRow
+	[
+		SNew(SUniformGridPanel)
+		.SlotPadding(FMargin(2, 0, 2, 0))
+		// Show/Hide Bones button.
+		+ SUniformGridPanel::Slot(0, 0)
 		[
-			SNew(SUniformGridPanel)
-			.SlotPadding(FMargin(2, 0, 2, 0))
-			// Show/Hide Bones button.
-			+SUniformGridPanel::Slot(0,0)
-			[
-				SNew(SButton)
+			SNew(SButton)
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
-				.OnClicked_Lambda([this](){ this->bEnableDebugDrawBone = !this->bEnableDebugDrawBone; return FReply::Handled(); })
-				.ButtonColorAndOpacity_Lambda([this](){ return this->bEnableDebugDrawBone ?
-					FAppStyle::Get().GetSlateColor("Colors.AccentGreen") : FAppStyle::Get().GetSlateColor("Colors.AccentRed"); })
+				.OnClicked_Lambda([this]()
+			             {
+				             this->bEnableDebugDrawBone = !this->bEnableDebugDrawBone;
+				             return FReply::Handled();
+			             })
+				.ButtonColorAndOpacity_Lambda([this]()
+			             {
+				             return this->bEnableDebugDrawBone
+					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
+					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
+			             })
 				.Content()
-				[
-					SNew(STextBlock)
-					.Text_Lambda([this]() { return LOCTEXT("ShowBoneText", "Bone"); })
-				]
-			]
-			// Show/Hide LengthRate button.
-			+SUniformGridPanel::Slot(1,0)
 			[
-				SNew(SButton)
+				SNew(STextBlock)
+				.Text_Lambda([this]() { return LOCTEXT("ShowBoneText", "Bone"); })
+			]
+		]
+		// Show/Hide LengthRate button.
+		+ SUniformGridPanel::Slot(1, 0)
+		[
+			SNew(SButton)
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
-				.OnClicked_Lambda([this](){ this->bEnableDebugBoneLengthRate = !this->bEnableDebugBoneLengthRate; return FReply::Handled(); })
-				.ButtonColorAndOpacity_Lambda([this](){ return this->bEnableDebugBoneLengthRate ?
-					FAppStyle::Get().GetSlateColor("Colors.AccentGreen") : FAppStyle::Get().GetSlateColor("Colors.AccentRed"); })
+				.OnClicked_Lambda([this]()
+			             {
+				             this->bEnableDebugBoneLengthRate = !this->bEnableDebugBoneLengthRate;
+				             return FReply::Handled();
+			             })
+				.ButtonColorAndOpacity_Lambda([this]()
+			             {
+				             return this->bEnableDebugBoneLengthRate
+					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
+					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
+			             })
 				.Content()
-				[
-					SNew(STextBlock)
-					.Text_Lambda([this]() { return LOCTEXT("ShowLengthRateText", "Length Rate"); })
-				]
-			]
-			// Show/Hide AngleLimit button.
-			+SUniformGridPanel::Slot(2,0)
 			[
-				SNew(SButton)
+				SNew(STextBlock)
+				.Text_Lambda([this]() { return LOCTEXT("ShowLengthRateText", "Length Rate"); })
+			]
+		]
+		// Show/Hide AngleLimit button.
+		+ SUniformGridPanel::Slot(2, 0)
+		[
+			SNew(SButton)
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
-				.OnClicked_Lambda([this](){ this->bEnableDebugDrawAngleLimit = !this->bEnableDebugDrawAngleLimit; return FReply::Handled(); })
-				.ButtonColorAndOpacity_Lambda([this](){ return this->bEnableDebugDrawAngleLimit ?
-					FAppStyle::Get().GetSlateColor("Colors.AccentGreen") : FAppStyle::Get().GetSlateColor("Colors.AccentRed"); })
+				.OnClicked_Lambda([this]()
+			             {
+				             this->bEnableDebugDrawAngleLimit = !this->bEnableDebugDrawAngleLimit;
+				             return FReply::Handled();
+			             })
+				.ButtonColorAndOpacity_Lambda([this]()
+			             {
+				             return this->bEnableDebugDrawAngleLimit
+					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
+					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
+			             })
 				.Content()
-				[
-					SNew(STextBlock)
-					.Text_Lambda([this]() { return LOCTEXT("ShowAngleLimitText", "Angle Limit"); })
-				]
-			]
-			// Show/Hide SphereLimit button.
-			+SUniformGridPanel::Slot(3,0)
 			[
-				SNew(SButton)
+				SNew(STextBlock)
+				.Text_Lambda([this]() { return LOCTEXT("ShowAngleLimitText", "Angle Limit"); })
+			]
+		]
+		// Show/Hide SphereLimit button.
+		+ SUniformGridPanel::Slot(3, 0)
+		[
+			SNew(SButton)
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
-				.OnClicked_Lambda([this](){ this->bEnableDebugDrawSphereLimit = !this->bEnableDebugDrawSphereLimit; return FReply::Handled(); })
-				.ButtonColorAndOpacity_Lambda([this](){ return this->bEnableDebugDrawSphereLimit ?
-					FAppStyle::Get().GetSlateColor("Colors.AccentGreen") : FAppStyle::Get().GetSlateColor("Colors.AccentRed"); })
+				.OnClicked_Lambda([this]()
+			             {
+				             this->bEnableDebugDrawSphereLimit = !this->bEnableDebugDrawSphereLimit;
+				             return FReply::Handled();
+			             })
+				.ButtonColorAndOpacity_Lambda([this]()
+			             {
+				             return this->bEnableDebugDrawSphereLimit
+					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
+					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
+			             })
 				.Content()
-				[
-					SNew(STextBlock)
-					.Text_Lambda([this]() { return LOCTEXT("ShowSphereLimitText", "Sphere Limit"); })
-				]
-			]
-			// Show/Hide CapsuleLimit button.
-			+SUniformGridPanel::Slot(0,1)
 			[
-				SNew(SButton)
+				SNew(STextBlock)
+				.Text_Lambda([this]() { return LOCTEXT("ShowSphereLimitText", "Sphere Limit"); })
+			]
+		]
+		// Show/Hide CapsuleLimit button.
+		+ SUniformGridPanel::Slot(0, 1)
+		[
+			SNew(SButton)
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
-				.OnClicked_Lambda([this](){ this->bEnableDebugDrawCapsuleLimit = !this->bEnableDebugDrawCapsuleLimit; return FReply::Handled(); })
-				.ButtonColorAndOpacity_Lambda([this](){ return this->bEnableDebugDrawCapsuleLimit ?
-					FAppStyle::Get().GetSlateColor("Colors.AccentGreen") : FAppStyle::Get().GetSlateColor("Colors.AccentRed"); })
+				.OnClicked_Lambda([this]()
+			             {
+				             this->bEnableDebugDrawCapsuleLimit = !this->bEnableDebugDrawCapsuleLimit;
+				             return FReply::Handled();
+			             })
+				.ButtonColorAndOpacity_Lambda([this]()
+			             {
+				             return this->bEnableDebugDrawCapsuleLimit
+					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
+					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
+			             })
 				.Content()
-				[
-					SNew(STextBlock)
-					.Text_Lambda([this]() { return LOCTEXT("ShowCapsuleLimitText", "Capsule Limit"); })
-				]
-			]
-			// Show/Hide PlanerLimit button.
-			+SUniformGridPanel::Slot(1,1)
 			[
-				SNew(SButton)
+				SNew(STextBlock)
+				.Text_Lambda([this]() { return LOCTEXT("ShowCapsuleLimitText", "Capsule Limit"); })
+			]
+		]
+		// Show/Hide PlanerLimit button.
+		+ SUniformGridPanel::Slot(1, 1)
+		[
+			SNew(SButton)
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
-				.OnClicked_Lambda([this](){ this->bEnableDebugDrawPlanerLimit = !this->bEnableDebugDrawPlanerLimit; return FReply::Handled(); })
-				.ButtonColorAndOpacity_Lambda([this](){ return this->bEnableDebugDrawPlanerLimit ?
-					FAppStyle::Get().GetSlateColor("Colors.AccentGreen") : FAppStyle::Get().GetSlateColor("Colors.AccentRed"); })
+				.OnClicked_Lambda([this]()
+			             {
+				             this->bEnableDebugDrawPlanerLimit = !this->bEnableDebugDrawPlanerLimit;
+				             return FReply::Handled();
+			             })
+				.ButtonColorAndOpacity_Lambda([this]()
+			             {
+				             return this->bEnableDebugDrawPlanerLimit
+					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
+					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
+			             })
 				.Content()
-				[
-					SNew(STextBlock)
-					.Text_Lambda([this]() { return LOCTEXT("ShowPlanerLimitText", "Planer Limit"); })
-				]
-			]
-			// Show/Hide BoneConstraint button.
-			+SUniformGridPanel::Slot(2,1)
 			[
-				SNew(SButton)
+				SNew(STextBlock)
+				.Text_Lambda([this]() { return LOCTEXT("ShowPlanerLimitText", "Planer Limit"); })
+			]
+		]
+		// Show/Hide BoneConstraint button.
+		+ SUniformGridPanel::Slot(2, 1)
+		[
+			SNew(SButton)
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
-				.OnClicked_Lambda([this](){ this->bEnableDebugDrawBoneConstraint = !this->bEnableDebugDrawBoneConstraint; return FReply::Handled(); })
-				.ButtonColorAndOpacity_Lambda([this](){ return this->bEnableDebugDrawBoneConstraint ?
-					FAppStyle::Get().GetSlateColor("Colors.AccentGreen") : FAppStyle::Get().GetSlateColor("Colors.AccentRed"); })
+				.OnClicked_Lambda([this]()
+			             {
+				             this->bEnableDebugDrawBoneConstraint = !this->bEnableDebugDrawBoneConstraint;
+				             return FReply::Handled();
+			             })
+				.ButtonColorAndOpacity_Lambda([this]()
+			             {
+				             return this->bEnableDebugDrawBoneConstraint
+					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
+					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
+			             })
 				.Content()
-				[
-					SNew(STextBlock)
-					.Text_Lambda([this]() { return LOCTEXT("ShowBoneConstraintText", "Bone Constraint"); })
-				]
+			[
+				SNew(STextBlock)
+				.Text_Lambda([this]() { return LOCTEXT("ShowBoneConstraintText", "Bone Constraint"); })
 			]
-		];
+		]
+	];
 }
 
 void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
@@ -289,6 +347,33 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 
 	CustomizeDetailTools(DetailBuilder);
 	CustomizeDetailDebugVisualizations(DetailBuilder);
+
+	// Force order of details panel catagories - Must set order for all of them as any that are edited automatically move to the top.
+	{
+		uint32 SortOrder = 0;
+
+		// Tools, Debug
+		DetailBuilder.EditCategory("Kawaii Physics Tools").SetSortOrder(SortOrder++);
+		DetailBuilder.EditCategory("Debug Visualization").SetSortOrder(SortOrder++);
+		DetailBuilder.EditCategory("Functions").SetSortOrder(SortOrder++);
+
+		// Basic
+		DetailBuilder.EditCategory("Bones").SetSortOrder(SortOrder++);
+		DetailBuilder.EditCategory("Physics Settings").SetSortOrder(SortOrder++);
+		DetailBuilder.EditCategory("Physics Settings Advanced").SetSortOrder(SortOrder++);
+
+		// Limits
+		DetailBuilder.EditCategory("Limits").SetSortOrder(SortOrder++);
+		DetailBuilder.EditCategory("Bone Constraint (Experimental)").SetSortOrder(SortOrder++);
+
+		// Other
+		DetailBuilder.EditCategory("World Collision").SetSortOrder(SortOrder++);
+		DetailBuilder.EditCategory("ExternalForce").SetSortOrder(SortOrder++);
+
+		// AnimNode
+		DetailBuilder.EditCategory("Tag").SetSortOrder(SortOrder++);
+		DetailBuilder.EditCategory("Alpha").SetSortOrder(SortOrder++);
+	}
 }
 
 struct FKawaiiPhysicsVersion
@@ -306,12 +391,16 @@ struct FKawaiiPhysicsVersion
 	const static FGuid GUID;
 
 private:
-	FKawaiiPhysicsVersion() {};
+	FKawaiiPhysicsVersion()
+	{
+	};
 };
 
 const FGuid FKawaiiPhysicsVersion::GUID(0x4B2D3E25, 0xCD681D29, 0x2DB298D7, 0xAD3E55FA);
 
-const FCustomVersionRegistration GRegisterKawaiiPhysCustomVersion(FKawaiiPhysicsVersion::GUID, FKawaiiPhysicsVersion::LatestVersion, TEXT("Kawaii-Phys"));
+const FCustomVersionRegistration GRegisterKawaiiPhysCustomVersion(FKawaiiPhysicsVersion::GUID,
+                                                                  FKawaiiPhysicsVersion::LatestVersion,
+                                                                  TEXT("Kawaii-Phys"));
 
 void UAnimGraphNode_KawaiiPhysics::Serialize(FArchive& Ar)
 {
@@ -332,7 +421,8 @@ void UAnimGraphNode_KawaiiPhysics::Serialize(FArchive& Ar)
 
 void UAnimGraphNode_KawaiiPhysics::ExportLimitsDataAsset()
 {
-	const FString DefaultAsset = FPackageName::GetLongPackagePath(GetOutermost()->GetName()) + TEXT("/") + GetName() + TEXT("_Collision");
+	const FString DefaultAsset = FPackageName::GetLongPackagePath(GetOutermost()->GetName()) + TEXT("/") + GetName() +
+		TEXT("_Collision");
 
 	const TSharedRef<SDlgPickAssetPath> NewAssetDlg =
 		SNew(SDlgPickAssetPath)
@@ -343,37 +433,37 @@ void UAnimGraphNode_KawaiiPhysics::ExportLimitsDataAsset()
 	{
 		return;
 	}
-	
+
 	const FString Package(NewAssetDlg->GetFullAssetPath().ToString());
 	const FString Name(NewAssetDlg->GetAssetName().ToString());
 
 	UPackage* Pkg = CreatePackage(*Package);
-	
+
 	if (UKawaiiPhysicsLimitsDataAsset* NewDataAsset =
 		NewObject<UKawaiiPhysicsLimitsDataAsset>(Pkg, UKawaiiPhysicsLimitsDataAsset::StaticClass(), FName(Name),
-		RF_Public | RF_Standalone))
+		                                         RF_Public | RF_Standalone))
 	{
 		// copy data
 		NewDataAsset->SphericalLimitsData.SetNum(Node.SphericalLimits.Num());
-		for(int32 i=0; i<Node.SphericalLimits.Num(); i++)
+		for (int32 i = 0; i < Node.SphericalLimits.Num(); i++)
 		{
 			NewDataAsset->SphericalLimitsData[i].Update(&Node.SphericalLimits[i]);
 		}
 
 		NewDataAsset->CapsuleLimitsData.SetNum(Node.CapsuleLimits.Num());
-		for(int32 i=0; i<Node.CapsuleLimits.Num(); i++)
+		for (int32 i = 0; i < Node.CapsuleLimits.Num(); i++)
 		{
 			NewDataAsset->CapsuleLimitsData[i].Update(&Node.CapsuleLimits[i]);
 		}
 
 		NewDataAsset->PlanarLimitsData.SetNum(Node.PlanarLimits.Num());
-		for(int32 i=0; i<Node.PlanarLimits.Num(); i++)
+		for (int32 i = 0; i < Node.PlanarLimits.Num(); i++)
 		{
 			NewDataAsset->PlanarLimitsData[i].Update(&Node.PlanarLimits[i]);
 		}
 
 		NewDataAsset->Sync();
-		
+
 		// select new asset
 		USelection* SelectionSet = GEditor->GetSelectedObjects();
 		SelectionSet->DeselectAll();
