@@ -39,14 +39,9 @@ void UKawaiiPhysicsBoneConstraintsDataAsset::ApplyRegex()
 
 		FRegexMatcher Matcher1(Pattern1, PreviewBoneListString);
 		FRegexMatcher Matcher2(Pattern2, PreviewBoneListString);
-
-		//UE_LOG( LogTemp, Log, TEXT("Regex Result : %s"), *Matcher1.GetCaptureGroup(0));
-		//UE_LOG( LogTemp, Log, TEXT("BoneList : %s"), *PreviewBoneListString);
+		
 		while (Matcher1.FindNext() && Matcher2.FindNext())
 		{
-			//UE_LOG( LogTemp, Log, TEXT("1 : %s"), *Matcher1.GetCaptureGroup(0));
-			//UE_LOG( LogTemp, Log, TEXT("2 : %s"), *Matcher2.GetCaptureGroup(0));
-
 			FModifyBoneConstraintData BoneConstraintData;
 			BoneConstraintData.BoneName1 = FName(*Matcher1.GetCaptureGroup(0));
 			BoneConstraintData.BoneName2 = FName(*Matcher2.GetCaptureGroup(0));
@@ -63,14 +58,14 @@ void UKawaiiPhysicsBoneConstraintsDataAsset::UpdatePreviewBoneList()
 	PreviewBoneList.Empty();
 	PreviewBoneListString.Empty();
 
-	if (!PrewviewSkeleton.IsValid())
+	if (!PreviewSkeleton.IsValid())
 	{
-		PrewviewSkeleton.LoadSynchronous();
+		PreviewSkeleton.LoadSynchronous();
 	}
 
-	if (PrewviewSkeleton.IsValid())
+	if (PreviewSkeleton.IsValid())
 	{
-		const FReferenceSkeleton& RefSkeleton = PrewviewSkeleton->GetReferenceSkeleton();
+		const FReferenceSkeleton& RefSkeleton = PreviewSkeleton->GetReferenceSkeleton();
 		const TArray<FMeshBoneInfo>& RefBoneInfo = RefSkeleton.GetRefBoneInfo();
 
 		for (const FMeshBoneInfo& BoneInfo : RefBoneInfo)

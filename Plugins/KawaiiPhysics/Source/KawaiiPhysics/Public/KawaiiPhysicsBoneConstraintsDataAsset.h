@@ -52,7 +52,7 @@ public:
 	TArray<FRegexPatternBoneSet> RegexPatternList;
 
 	UPROPERTY(EditAnywhere, Category = "Preview")
-	TSoftObjectPtr<USkeleton> PrewviewSkeleton;
+	TSoftObjectPtr<USkeleton> PreviewSkeleton;
 	UPROPERTY(VisibleAnywhere, Category = "Preview")
 	TArray<FName> PreviewBoneList;
 	UPROPERTY()

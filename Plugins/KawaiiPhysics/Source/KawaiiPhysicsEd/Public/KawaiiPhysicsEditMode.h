@@ -70,8 +70,8 @@ private:
 	FCollisionLimitBase* GetSelectCollisionLimitGraph() const;
 
 	/** Draw text func for DrawHUD */
-	void DrawTextItem(FText Text, FCanvas* Canvas, float X, float& Y, float FontHeight);
-	void Draw3DTextItem(FText Text, FCanvas* Canvas, const FSceneView* View, const FViewport* Viewport, FVector Location);
+	void DrawTextItem(const FText& Text, FCanvas* Canvas, float X, float& Y, float FontHeight);
+	void Draw3DTextItem(const FText& Text, FCanvas* Canvas, const FSceneView* View, const FViewport* Viewport, FVector Location);
 
 private:
 	/** Cache the typed nodes */

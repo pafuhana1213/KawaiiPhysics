@@ -103,8 +103,7 @@ void FKawaiiPhysicsEditMode::Render(const FSceneView* View, FViewport* Viewport,
 
 		if (IsValidSelectCollision())
 		{
-			FCollisionLimitBase* Collision = GetSelectCollisionLimitRuntime();
-			if (Collision)
+			if (const FCollisionLimitBase* Collision = GetSelectCollisionLimitRuntime())
 			{
 				FTransform BoneTransform = FTransform::Identity;
 				if (Collision->DrivingBone.BoneIndex >= 0 && RuntimeNode->ForwardedPose.GetPose().GetNumBones() > 0)
@@ -277,8 +276,6 @@ void FKawaiiPhysicsEditMode::RenderBoneConstraint(FPrimitiveDrawInterface* PDI) 
 {
 	if (GraphNode->bEnableDebugDrawBoneConstraint)
 	{
-		USkeletalMeshComponent* SkelComp = GetAnimPreviewScene().GetPreviewMeshComponent();
-
 		for (const FModifyBoneConstraint& BoneConstraint : RuntimeNode->MergedBoneConstraints)
 		{
 			if (BoneConstraint.IsBoneReferenceValid() && !RuntimeNode->ModifyBones.IsEmpty())
@@ -295,7 +292,7 @@ void FKawaiiPhysicsEditMode::RenderBoneConstraint(FPrimitiveDrawInterface* PDI) 
 				FRotator LookAt = FRotationMatrix::MakeFromX(Dir).Rotator();
 				FTransform DrawArrowTransform = FTransform(LookAt, BoneTransform1.GetLocation(),
 				                                           BoneTransform1.GetScale3D());
-				float Distance = (BoneTransform1.GetLocation() - BoneTransform2.GetLocation()).Size();
+				const float Distance = (BoneTransform1.GetLocation() - BoneTransform2.GetLocation()).Size();
 				DrawDirectionalArrow(PDI, DrawArrowTransform.ToMatrixNoScale(), FLinearColor::Red,
 				                     Distance, 1, SDPG_Foreground);
 				// 2 -> 1
@@ -315,8 +312,7 @@ FVector FKawaiiPhysicsEditMode::GetWidgetLocation(ECollisionLimitType CollisionT
 		return GetAnimPreviewScene().GetPreviewMeshComponent()->GetComponentLocation();
 	}
 
-	FCollisionLimitBase* Collision = GetSelectCollisionLimitRuntime();
-	if (Collision)
+	if (const FCollisionLimitBase* Collision = GetSelectCollisionLimitRuntime())
 	{
 		return Collision->Location;
 	}
@@ -350,8 +346,7 @@ bool FKawaiiPhysicsEditMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix,
 
 UE_WIDGET::EWidgetMode FKawaiiPhysicsEditMode::GetWidgetMode() const
 {
-	FCollisionLimitBase* Collision = GetSelectCollisionLimitRuntime();
-	if (Collision)
+	if (FCollisionLimitBase* Collision = GetSelectCollisionLimitRuntime())
 	{
 		CurWidgetMode = FindValidWidgetMode(CurWidgetMode);
 		return CurWidgetMode;
@@ -628,7 +623,7 @@ void FKawaiiPhysicsEditMode::DoTranslation(FVector& InTranslation)
 	FVector Offset;
 	if (CollisionRuntime->DrivingBone.BoneIndex >= 0)
 	{
-		USkeletalMeshComponent* SkelComp = GetAnimPreviewScene().GetPreviewMeshComponent();
+		const USkeletalMeshComponent* SkelComp = GetAnimPreviewScene().GetPreviewMeshComponent();
 		Offset = ConvertCSVectorToBoneSpace(SkelComp, InTranslation, RuntimeNode->ForwardedPose,
 		                                    CollisionRuntime->DrivingBone.BoneName, BCS_BoneSpace);
 	}
@@ -668,7 +663,7 @@ void FKawaiiPhysicsEditMode::DoRotation(FRotator& InRotation)
 	FQuat DeltaQuat;
 	if (CollisionRuntime->DrivingBone.BoneIndex >= 0)
 	{
-		USkeletalMeshComponent* SkelComp = GetAnimPreviewScene().GetPreviewMeshComponent();
+		const USkeletalMeshComponent* SkelComp = GetAnimPreviewScene().GetPreviewMeshComponent();
 		DeltaQuat = ConvertCSRotationToBoneSpace(SkelComp, InRotation, RuntimeNode->ForwardedPose,
 		                                         CollisionRuntime->DrivingBone.BoneName, BCS_BoneSpace);
 	}
@@ -817,7 +812,7 @@ void FKawaiiPhysicsEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FVie
 	FAnimNodeEditMode::DrawHUD(ViewportClient, Viewport, View, Canvas);
 }
 
-void FKawaiiPhysicsEditMode::DrawTextItem(FText Text, FCanvas* Canvas, float X, float& Y, float FontHeight)
+void FKawaiiPhysicsEditMode::DrawTextItem(const FText& Text, FCanvas* Canvas, float X, float& Y, float FontHeight)
 {
 	FCanvasTextItem TextItem(FVector2D::ZeroVector, Text, GEngine->GetSmallFont(), FLinearColor::White);
 	TextItem.EnableShadow(FLinearColor::Black);
@@ -825,7 +820,7 @@ void FKawaiiPhysicsEditMode::DrawTextItem(FText Text, FCanvas* Canvas, float X, 
 	Y -= (3 + FontHeight);
 }
 
-void FKawaiiPhysicsEditMode::Draw3DTextItem(FText Text, FCanvas* Canvas, const FSceneView* View,
+void FKawaiiPhysicsEditMode::Draw3DTextItem(const FText& Text, FCanvas* Canvas, const FSceneView* View,
                                             const FViewport* Viewport, FVector Location)
 {
 	const int32 HalfX = Viewport->GetSizeXY().X / 2 / Canvas->GetDPIScale();

@@ -575,18 +575,17 @@ protected:
 	void UpdateSkelCompMove(const FTransform& ComponentTransform);
 
 	// Simulate
-	void SimulateModifyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer,
-	                         FTransform& ComponentTransform);
+	void SimulateModifyBones(const FComponentSpacePoseContext& Output,
+	                         const FTransform& ComponentTransform);
 	void Simulate(FKawaiiPhysicsModifyBone& Bone, const FSceneInterface* Scene, const FTransform& ComponentTransform,
 	              const FVector& GravityCS, const float& Exponent);
-	void AdjustByWorldCollision(FKawaiiPhysicsModifyBone& Bone, const USkeletalMeshComponent* OwningComp,
-	                            const FBoneContainer& BoneContainer);
+	void AdjustByWorldCollision(FKawaiiPhysicsModifyBone& Bone, const USkeletalMeshComponent* OwningComp);
 	void AdjustBySphereCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FSphericalLimit>& Limits);
 	void AdjustByCapsuleCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FCapsuleLimit>& Limits);
 	void AdjustByPlanerCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FPlanarLimit>& Limits);
-	void AdjustByAngleLimit(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer,
-	                        FTransform& ComponentTransform, FKawaiiPhysicsModifyBone& Bone,
-	                        const FKawaiiPhysicsModifyBone& ParentBone);
+	void AdjustByAngleLimit(
+		FKawaiiPhysicsModifyBone& Bone,
+		const FKawaiiPhysicsModifyBone& ParentBone);
 	void AdjustByPlanarConstraint(FKawaiiPhysicsModifyBone& Bone, const FKawaiiPhysicsModifyBone& ParentBone);
 	void AdjustByBoneConstraints();
 

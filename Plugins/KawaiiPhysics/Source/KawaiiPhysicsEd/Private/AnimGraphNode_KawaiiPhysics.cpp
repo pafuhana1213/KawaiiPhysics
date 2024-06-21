@@ -169,7 +169,6 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailDebugVisualizations(IDetailLay
 
 	IDetailCategoryBuilder& ViewportCategory = DetailBuilder.EditCategory(TEXT("Debug Visualization"));
 	FDetailWidgetRow& WidgetRow = ViewportCategory.AddCustomRow(LOCTEXT("ToggleDebugVisualizationButtonRow", "DebugVisualization"));
-	FAnimNode_KawaiiPhysics* const KawaiiPhysicsNode = static_cast<FAnimNode_KawaiiPhysics*>(GetDebuggedAnimNode());
 
 	WidgetRow
 		[
