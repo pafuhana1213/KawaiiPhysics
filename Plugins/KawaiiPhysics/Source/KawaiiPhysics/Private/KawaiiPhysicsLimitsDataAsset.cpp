@@ -3,6 +3,35 @@
 
 #include "KawaiiPhysicsLimitsDataAsset.h"
 #include "AnimNode_KawaiiPhysics.h"
+#include "KawaiiPhysics.h"
+
+DEFINE_LOG_CATEGORY(LogKawaiiPhysics);
+
+struct FCollisionLimitDataCustomVersion
+{
+	enum Type
+	{
+		// FNameからFBoneReferenceに移行
+		ChangeToBoneReference = 0,
+
+		// ------------------------------------------------------
+		VersionPlusOne,
+		LatestVersion = VersionPlusOne - 1
+	};
+
+	// The GUID for this custom version number
+	const static FGuid GUID;
+
+private:
+	FCollisionLimitDataCustomVersion()
+	{
+	}
+};
+
+const FGuid FCollisionLimitDataCustomVersion::GUID(0x3A1F7B2E, 0x7B9D6E8C, 0x4C2A9F1D, 0x85B3E4F1);
+FCustomVersionRegistration GRegisterCollisionLimitDataCustomVersion(FCollisionLimitDataCustomVersion::GUID,
+                                                                    FCollisionLimitDataCustomVersion::LatestVersion,
+                                                                    TEXT("CollisionLimitData"));
 
 #if WITH_EDITOR
 
@@ -16,6 +45,36 @@ void UpdateCollisionLimit(TArray<CollisionLimitDataType>& CollisionLimitsData, c
 			LimitData.Update(OutLimit);
 			break;
 		}
+	}
+}
+
+void UKawaiiPhysicsLimitsDataAsset::Serialize(FStructuredArchiveRecord Record)
+{
+	Super::Serialize(Record);
+
+	Record.GetUnderlyingArchive().UsingCustomVersion(FCollisionLimitDataCustomVersion::GUID);
+}
+
+void UKawaiiPhysicsLimitsDataAsset::PostLoad()
+{
+	Super::PostLoad();
+
+	if (GetLinkerCustomVersion(FCollisionLimitDataCustomVersion::GUID) <
+		FCollisionLimitDataCustomVersion::ChangeToBoneReference)
+	{
+		for (auto& Data : SphericalLimitsData)
+		{
+			Data.DrivingBoneReference = FBoneReference(Data.DrivingBoneName);
+		}
+		for (auto& Data : CapsuleLimitsData)
+		{
+			Data.DrivingBoneReference = FBoneReference(Data.DrivingBoneName);
+		}
+		for (auto& Data : PlanarLimitsData)
+		{
+			Data.DrivingBoneReference = FBoneReference(Data.DrivingBoneName);
+		}
+		UE_LOG(LogKawaiiPhysics, Log, TEXT("Update : BoneName -> BoneReference (%s)"), *this->GetName());
 	}
 }
 
@@ -59,6 +118,12 @@ void UKawaiiPhysicsLimitsDataAsset::Sync()
 	SyncCollisionLimits(SphericalLimitsData, SphericalLimits);
 	SyncCollisionLimits(CapsuleLimitsData, CapsuleLimits);
 	SyncCollisionLimits(PlanarLimitsData, PlanarLimits);
+}
+
+USkeleton* UKawaiiPhysicsLimitsDataAsset::GetSkeleton(bool& bInvalidSkeletonIsError,
+                                                      const IPropertyHandle* PropertyHandle)
+{
+	return Skeleton;
 }
 
 void UKawaiiPhysicsLimitsDataAsset::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)

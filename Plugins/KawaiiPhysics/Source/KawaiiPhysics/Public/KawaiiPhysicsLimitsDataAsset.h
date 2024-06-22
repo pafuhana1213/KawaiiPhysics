@@ -5,18 +5,20 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "AnimNode_KawaiiPhysics.h"
+#include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"
 #include "KawaiiPhysicsLimitsDataAsset.generated.h"
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnLimitsChanged, struct FPropertyChangedEvent&);
 
-// I chose this design because using FBoneReference with anything other than Persona gives me an error. 
-// I want to make it simpler...
 USTRUCT(BlueprintType)
 struct FCollisionLimitDataBase
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CollisionLimitBase, meta=(DisplayPriority="1"))
+	UPROPERTY(EditAnywhere, Category = CollisionLimitBase, meta=(DisplayPriority="1"))
+	FBoneReference DrivingBoneReference;
+
+	UPROPERTY(BlueprintReadWrite, meta=(DeprecatedProperty, DeprecationMessage="DrivingBoneName is deprecated"))
 	FName DrivingBoneName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CollisionLimitBase)
@@ -35,12 +37,10 @@ struct FCollisionLimitDataBase
 	UPROPERTY(VisibleAnywhere, Category = Debug, meta = (IgnoreForMemberInitializationTest))
 	FGuid Guid = FGuid::NewGuid();
 
-public:
-
 protected:
 	void UpdateBase(const FCollisionLimitBase* Limit)
 	{
-		DrivingBoneName = Limit->DrivingBone.BoneName;
+		DrivingBoneReference = FBoneReference(Limit->DrivingBone.BoneName);
 		OffsetLocation = Limit->OffsetLocation;
 		OffsetRotation = Limit->OffsetRotation;
 		Location = Limit->Location;
@@ -49,7 +49,7 @@ protected:
 
 	void ConvertBase(FCollisionLimitBase& Limit) const
 	{
-		Limit.DrivingBone.BoneName = DrivingBoneName;
+		Limit.DrivingBone.BoneName = DrivingBoneReference.BoneName;
 		Limit.OffsetLocation = OffsetLocation;
 		Limit.OffsetRotation = OffsetRotation;
 		Limit.Location = Location;
@@ -150,12 +150,15 @@ struct FPlanarLimitData : public FCollisionLimitDataBase
  * 
  */
 UCLASS(Blueprintable)
-class KAWAIIPHYSICS_API UKawaiiPhysicsLimitsDataAsset : public UDataAsset
+class KAWAIIPHYSICS_API UKawaiiPhysicsLimitsDataAsset : public UDataAsset, public IBoneReferenceSkeletonProvider
+
 {
 	GENERATED_BODY()
 
 public:
 #if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeleton")
+	TObjectPtr<USkeleton> Skeleton;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spherical Limits")
 	TArray<FSphericalLimitData> SphericalLimitsData;
@@ -166,6 +169,19 @@ public:
 
 #endif
 
+	UPROPERTY()
+	TArray<FSphericalLimit> SphericalLimits;
+	UPROPERTY()
+	TArray<FCapsuleLimit> CapsuleLimits;
+	UPROPERTY()
+	TArray<FPlanarLimit> PlanarLimits;
+
+public:
+	// Begin UObject Interface.
+	virtual void Serialize(FStructuredArchiveRecord Record) override;
+	virtual void PostLoad() override;
+	// End UObject Interface.
+
 #if WITH_EDITOR
 
 	void UpdateLimit(FCollisionLimitBase* Limit);
@@ -173,12 +189,8 @@ public:
 
 #endif
 
-	UPROPERTY()
-	TArray<FSphericalLimit> SphericalLimits;
-	UPROPERTY()
-	TArray<FCapsuleLimit> CapsuleLimits;
-	UPROPERTY()
-	TArray<FPlanarLimit> PlanarLimits;
+	// IBoneReferenceSkeletonProvider interface
+	virtual USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle) override;
 
 #if WITH_EDITOR
 	FOnLimitsChanged OnLimitsChanged;
