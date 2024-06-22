@@ -2,7 +2,36 @@
 
 
 #include "KawaiiPhysicsBoneConstraintsDataAsset.h"
+
+#include "KawaiiPhysics.h"
 #include "Internationalization/Regex.h"
+
+struct FBoneConstraintDataCustomVersion
+{
+	enum Type
+	{
+		// FNameからFBoneReferenceに移行
+		ChangeToBoneReference = 0,
+
+		// ------------------------------------------------------
+		VersionPlusOne,
+		LatestVersion = VersionPlusOne - 1
+	};
+
+	// The GUID for this custom version number
+	const static FGuid GUID;
+
+private:
+	FBoneConstraintDataCustomVersion()
+	{
+	}
+};
+
+const FGuid FBoneConstraintDataCustomVersion::GUID(0xA1C4D3F6, 0x5B2E7A8D, 0x9F6E4B3C, 0xD7E1A8B2);
+FCustomVersionRegistration GRegisterBoneConstraintDataCustomVersion(FBoneConstraintDataCustomVersion::GUID,
+                                                                    FBoneConstraintDataCustomVersion::LatestVersion,
+                                                                    TEXT("BoneConstraintData"));
+
 
 TArray<FModifyBoneConstraint> UKawaiiPhysicsBoneConstraintsDataAsset::GenerateBoneConstraints()
 {
@@ -11,8 +40,8 @@ TArray<FModifyBoneConstraint> UKawaiiPhysicsBoneConstraintsDataAsset::GenerateBo
 	for (const FModifyBoneConstraintData BoneConstraintData : BoneConstraintsData)
 	{
 		FModifyBoneConstraint BoneConstraint;
-		BoneConstraint.Bone1.BoneName = BoneConstraintData.BoneName1;
-		BoneConstraint.Bone2.BoneName = BoneConstraintData.BoneName2;
+		BoneConstraint.Bone1 = BoneConstraintData.BoneReference1;
+		BoneConstraint.Bone2 = BoneConstraintData.BoneReference2;
 		BoneConstraint.bOverrideCompliance = BoneConstraintData.bOverrideCompliance;
 		BoneConstraint.ComplianceType = BoneConstraintData.ComplianceType;
 
@@ -20,6 +49,36 @@ TArray<FModifyBoneConstraint> UKawaiiPhysicsBoneConstraintsDataAsset::GenerateBo
 	}
 
 	return BoneConstraints;
+}
+
+void UKawaiiPhysicsBoneConstraintsDataAsset::Serialize(FStructuredArchiveRecord Record)
+{
+	Super::Serialize(Record);
+
+	Record.GetUnderlyingArchive().UsingCustomVersion(FBoneConstraintDataCustomVersion::GUID);
+}
+
+void UKawaiiPhysicsBoneConstraintsDataAsset::PostLoad()
+{
+	Super::PostLoad();
+
+	if (GetLinkerCustomVersion(FBoneConstraintDataCustomVersion::GUID) <
+		FBoneConstraintDataCustomVersion::ChangeToBoneReference)
+	{
+		for (auto& Data : BoneConstraintsData)
+		{
+			Data.BoneReference1 = FBoneReference(Data.BoneName1);
+			Data.BoneReference2 = FBoneReference(Data.BoneName2);
+		}
+		UpdatePreviewBoneList();
+		UE_LOG(LogKawaiiPhysics, Log, TEXT("Update : BoneName -> BoneReference (%s)"), *this->GetName());
+	}
+}
+
+USkeleton* UKawaiiPhysicsBoneConstraintsDataAsset::GetSkeleton(bool& bInvalidSkeletonIsError,
+                                                               const IPropertyHandle* PropertyHandle)
+{
+	return PreviewSkeleton.LoadSynchronous();
 }
 
 #if WITH_EDITOR
@@ -39,12 +98,12 @@ void UKawaiiPhysicsBoneConstraintsDataAsset::ApplyRegex()
 
 		FRegexMatcher Matcher1(Pattern1, PreviewBoneListString);
 		FRegexMatcher Matcher2(Pattern2, PreviewBoneListString);
-		
+
 		while (Matcher1.FindNext() && Matcher2.FindNext())
 		{
 			FModifyBoneConstraintData BoneConstraintData;
-			BoneConstraintData.BoneName1 = FName(*Matcher1.GetCaptureGroup(0));
-			BoneConstraintData.BoneName2 = FName(*Matcher2.GetCaptureGroup(0));
+			BoneConstraintData.BoneReference1 = FBoneReference(FName(*Matcher1.GetCaptureGroup(0)));
+			BoneConstraintData.BoneReference2 = FBoneReference(FName(*Matcher2.GetCaptureGroup(0)));
 			BoneConstraintsData.Add(BoneConstraintData);
 		}
 	}
@@ -83,7 +142,7 @@ void UKawaiiPhysicsBoneConstraintsDataAsset::PostEditChangeProperty(FPropertyCha
 		                           ? PropertyChangedEvent.MemberProperty->GetFName()
 		                           : NAME_None;
 
-	if (PropertyName == FName(TEXT("PrewviewSkeleton")))
+	if (PropertyName == FName(TEXT("PreviewSkeleton")))
 	{
 		UpdatePreviewBoneList();
 	}
