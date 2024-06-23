@@ -1,7 +1,7 @@
 {
 	"FileVersion": 3,
 	"Version": 1,
-	"VersionName": "1.15.0",
+	"VersionName": "1.16.0",
 	"FriendlyName": "KawaiiPhysics",
 	"Description": "",
 	"Category": "Animation",
@@ -24,6 +24,12 @@
 			"Name": "KawaiiPhysicsEd",
 			"Type": "UncookedOnly",
 			"LoadingPhase": "PreDefault"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "StructUtils",
+			"Enabled": true
 		}
 	]
 }

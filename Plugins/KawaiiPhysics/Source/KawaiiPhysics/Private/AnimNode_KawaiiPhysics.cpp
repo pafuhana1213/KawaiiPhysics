@@ -2,6 +2,7 @@
 
 #include "AnimationRuntime.h"
 #include "KawaiiPhysicsBoneConstraintsDataAsset.h"
+#include "KawaiiPhysicsCustomExternalForce.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Curves/CurveFloat.h"
@@ -19,7 +20,8 @@ static TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsEnable(
 static TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsDebug(
 	TEXT("a.AnimNode.KawaiiPhysics.Debug"), false, TEXT("Turn on visualization debugging for KawaiiPhysics"));
 static TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsDebugLengthRate(
-	TEXT("a.AnimNode.KawaiiPhysics.Debug.LengthRate"), false, TEXT("Turn on visualization debugging for KawaiiPhysics Bone's LengthRate"));
+	TEXT("a.AnimNode.KawaiiPhysics.Debug.LengthRate"), false,
+	TEXT("Turn on visualization debugging for KawaiiPhysics Bone's LengthRate"));
 #endif
 
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_InitModifyBones"), STAT_KawaiiPhysics_InitModifyBones, STATGROUP_Anim);
@@ -29,7 +31,8 @@ DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_Simulate"), STAT_KawaiiPhysics_Simulate, 
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_GetWindVelocity"), STAT_KawaiiPhysics_GetWindVelocity, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_WorldCollision"), STAT_KawaiiPhysics_WorldCollision, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_AdjustByCollision"), STAT_KawaiiPhysics_AdjustByCollision, STATGROUP_Anim);
-DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_AdjustByBoneConstraint"), STAT_KawaiiPhysics_AdjustByBoneConstraint, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_AdjustByBoneConstraint"), STAT_KawaiiPhysics_AdjustByBoneConstraint,
+                   STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdateSphericalLimit"), STAT_KawaiiPhysics_UpdateSphericalLimit, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdatePlanerLimit"), STAT_KawaiiPhysics_UpdatePlanerLimit, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_WarmUp"), STAT_KawaiiPhysics_WarmUp, STATGROUP_Anim);
@@ -94,7 +97,7 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(const FComponentSpacePoseContext& Ou
 			if (CVarAnimNodeKawaiiPhysicsDebug.GetValueOnAnyThread())
 			{
 				const auto AnimInstanceProxy = Output.AnimInstanceProxy;
-				
+
 				// Modify Bones
 				for (const auto& ModifyBone : ModifyBones)
 				{
@@ -102,12 +105,12 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(const FComponentSpacePoseContext& Ou
 						ModifyBone.Location);
 					auto Color = ModifyBone.bDummy ? FColor::Red : FColor::Yellow;
 					AnimInstanceProxy->AnimDrawDebugSphere(LocationWS, ModifyBone.PhysicsSettings.Radius, 8,
-					                                              Color, false, -1, 0, SDPG_Foreground);
+					                                       Color, false, -1, 0, SDPG_Foreground);
 
 #if	ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 3
 					// print bone length rate
 					// In 5.4, there is an engine issue that AnimDrawDebugInWorldMessage does not respect SkeletalMeshComponent's world coordinates.
-					if(CVarAnimNodeKawaiiPhysicsDebugLengthRate.GetValueOnAnyThread())
+					if (CVarAnimNodeKawaiiPhysicsDebugLengthRate.GetValueOnAnyThread())
 					{
 						AnimInstanceProxy->AnimDrawDebugInWorldMessage(
 							FString::Printf(TEXT("%.2f"), ModifyBone.LengthFromRoot / GetTotalBoneLength()),
@@ -121,14 +124,14 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(const FComponentSpacePoseContext& Ou
 					const FVector LocationWS = AnimInstanceProxy->GetComponentTransform().TransformPosition(
 						SphericalLimit.Location);
 					AnimInstanceProxy->AnimDrawDebugSphere(LocationWS, SphericalLimit.Radius, 8, FColor::Orange,
-					                                              false, -1, 0, SDPG_Foreground);
+					                                       false, -1, 0, SDPG_Foreground);
 				}
 				for (const auto& SphericalLimit : SphericalLimitsData)
 				{
 					const FVector LocationWS = AnimInstanceProxy->GetComponentTransform().TransformPosition(
 						SphericalLimit.Location);
 					AnimInstanceProxy->AnimDrawDebugSphere(LocationWS, SphericalLimit.Radius, 8, FColor::Blue,
-					                                              false, -1, 0, SDPG_Foreground);
+					                                       false, -1, 0, SDPG_Foreground);
 				}
 
 #if	ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 4
@@ -138,16 +141,16 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(const FComponentSpacePoseContext& Ou
 					const FVector LocationWS = AnimInstanceProxy->GetComponentTransform().TransformPosition(
 						CapsuleLimit.Location);
 					AnimInstanceProxy->AnimDrawDebugCapsule(LocationWS, CapsuleLimit.Length * 0.5f,
-					                                               CapsuleLimit.Radius, CapsuleLimit.Rotation.Rotator(),
-					                                               FColor::Orange);
+					                                        CapsuleLimit.Radius, CapsuleLimit.Rotation.Rotator(),
+					                                        FColor::Orange);
 				}
 				for (const auto& CapsuleLimit : CapsuleLimitsData)
 				{
 					const FVector LocationWS = AnimInstanceProxy->GetComponentTransform().TransformPosition(
 						CapsuleLimit.Location);
 					AnimInstanceProxy->AnimDrawDebugCapsule(LocationWS, CapsuleLimit.Length * 0.5f,
-					                                               CapsuleLimit.Radius, CapsuleLimit.Rotation.Rotator(),
-					                                               FColor::Blue);
+					                                        CapsuleLimit.Radius, CapsuleLimit.Rotation.Rotator(),
+					                                        FColor::Blue);
 				}
 #endif
 			}
@@ -290,14 +293,14 @@ void FAnimNode_KawaiiPhysics::InitializeBoneReferences(const FBoneContainer& Req
 		}
 		return true;
 	};
-	
-	
+
+
 	RootBone.Initialize(RequiredBones);
 	for (auto& Bone : ModifyBones)
 	{
 		Bone.BoneRef.Initialize(RequiredBones);
 	}
-	
+
 	Initialize(SphericalLimits);
 	Initialize(CapsuleLimits);
 	Initialize(PlanarLimits);
@@ -335,11 +338,11 @@ void FAnimNode_KawaiiPhysics::ApplyLimitsDataAsset(const FBoneContainer& Require
 		}
 		return true;
 	};
-	
+
 	SphericalLimitsData.Empty();
 	CapsuleLimitsData.Empty();
 	PlanarLimitsData.Empty();
-	
+
 	if (LimitsDataAsset)
 	{
 		SphericalLimitsData = LimitsDataAsset->SphericalLimits;
@@ -483,7 +486,6 @@ void FAnimNode_KawaiiPhysics::CalcBoneLength(FKawaiiPhysicsModifyBone& Bone, con
 }
 
 
-
 void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 {
 	for (auto& Bone : ModifyBones)
@@ -543,7 +545,6 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 		Bone.PhysicsSettings.LimitAngle = FMath::Max<float>(Bone.PhysicsSettings.LimitAngle, 0.0f);
 	}
 }
-
 
 
 void FAnimNode_KawaiiPhysics::UpdateSphericalLimits(TArray<FSphericalLimit>& Limits, FComponentSpacePoseContext& Output,
@@ -734,6 +735,32 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(const FComponentSpacePoseConte
 		Simulate(Bone, Scene, ComponentTransform, GravityCS, Exponent);
 	}
 
+	// CustomExternalForce
+	if (!CustomExternalForces.IsEmpty())
+	{
+		for (auto Force : CustomExternalForces)
+		{
+			if (Force.IsValid())
+			{
+				Force.GetMutable<FKawaiiPhysics_CustomExternalForce>().Apply(*this, Output);
+			}
+		}
+
+		// Pull to Pose Location
+		for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+		{
+			if (Bone.bSkipSimulate)
+			{
+				continue;
+			}
+
+			const FKawaiiPhysicsModifyBone& ParentBone = ModifyBones[Bone.ParentIndex];
+			const FVector BaseLocation = ParentBone.Location + (Bone.PoseLocation - ParentBone.PoseLocation);
+			Bone.Location += (BaseLocation - Bone.Location) *
+				(1.0f - FMath::Pow(1.0f - Bone.PhysicsSettings.Stiffness, Exponent));
+		}
+	}
+
 	// Adjust by Bone Constraints Before Collision
 	if (BoneConstraintIterationCountBeforeCollision > 0)
 	{
@@ -837,7 +864,7 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 	// TODO:Migrate if there are more good method (Currently copying AnimDynamics implementation)
 	Bone.Location += 0.5 * GravityCS * DeltaTime * DeltaTime;
 
-	// Pull to Pose Location
+	// // Pull to Pose Location
 	const FVector BaseLocation = ParentBone.Location + (Bone.PoseLocation - ParentBone.PoseLocation);
 	Bone.Location += (BaseLocation - Bone.Location) *
 		(1.0f - FMath::Pow(1.0f - Bone.PhysicsSettings.Stiffness, Exponent));

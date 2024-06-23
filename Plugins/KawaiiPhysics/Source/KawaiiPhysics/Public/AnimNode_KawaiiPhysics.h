@@ -4,6 +4,7 @@
 #include "BoneControllers/AnimNode_AnimDynamics.h"
 #include "BoneContainer.h"
 #include "BonePose.h"
+#include "InstancedStruct.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "AnimNode_KawaiiPhysics.generated.h"
 
@@ -158,7 +159,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSettings
 	float LimitAngle = 0.0f;
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct KAWAIIPHYSICS_API FKawaiiPhysicsModifyBone
 {
 	GENERATED_USTRUCT_BODY()
@@ -166,31 +167,31 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsModifyBone
 public:
 	UPROPERTY()
 	FBoneReference BoneRef;
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	int32 ParentIndex = -1;
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	TArray<int32> ChildIndexs;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	FKawaiiPhysicsSettings PhysicsSettings;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite)
 	FVector Location = FVector::ZeroVector;
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	FVector PrevLocation = FVector::ZeroVector;
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	FQuat PrevRotation = FQuat::Identity;
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	FVector PoseLocation = FVector::ZeroVector;
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	FQuat PoseRotation = FQuat::Identity;
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	FVector PoseScale = FVector::OneVector;
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	float LengthFromRoot = 0.0f;
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	bool bDummy = false;
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	bool bSkipSimulate = false;
 
 public:
@@ -292,7 +293,6 @@ struct FModifyBoneConstraint
 		return Length > 0.0f;
 	}
 };
-
 
 USTRUCT(BlueprintType)
 struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalControlBase
@@ -457,11 +457,16 @@ public:
 		meta = (PinHiddenByDefault))
 	float WindScale = 1.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce",
+		meta = (BaseStruct = "KawaiiPhysics_CustomExternalForce", ExcludeBaseStruct, PinHiddenByDefault))
+	TArray<FInstancedStruct> CustomExternalForces;
+
 	/**
 	 *	EXPERIMENTAL. Perform sweeps for each simulating bodies to avoid collisions with the world.
 	 *	This greatly increases the cost of the physics simulation.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "World Collision", meta = (PinHiddenByDefault))
+	UPROPERTY
+	(EditAnywhere, BlueprintReadWrite, Category = "World Collision", meta = (PinHiddenByDefault))
 	bool bAllowWorldCollision = false;
 	//use component collision channel settings by default
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "World Collision",
@@ -487,6 +492,8 @@ public:
 	UPROPERTY()
 	TArray<FKawaiiPhysicsModifyBone> ModifyBones;
 
+	float DeltaTime;
+
 protected:
 	UPROPERTY()
 	float TotalBoneLength = 0;
@@ -502,7 +509,7 @@ protected:
 
 	FVector SkelCompMoveVector;
 	FQuat SkelCompMoveRotation;
-	float DeltaTime;
+
 	float DeltaTimeOld;
 	bool bResetDynamics;
 
