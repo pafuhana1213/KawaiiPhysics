@@ -8,6 +8,7 @@
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "AnimNode_KawaiiPhysics.generated.h"
 
+class UKawaiiPhysics_CustomExternalForce;
 class UKawaiiPhysicsLimitsDataAsset;
 class UKawaiiPhysicsBoneConstraintsDataAsset;
 
@@ -457,16 +458,20 @@ public:
 		meta = (PinHiddenByDefault))
 	float WindScale = 1.0f;
 
+#if 0 // Test Instanced Struct
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce",
 		meta = (BaseStruct = "KawaiiPhysics_CustomExternalForce", ExcludeBaseStruct, PinHiddenByDefault))
 	TArray<FInstancedStruct> CustomExternalForces;
+#endif
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Instanced, Category = "ExternalForce", meta = (PinHiddenByDefault))
+	TArray<TObjectPtr<UKawaiiPhysics_CustomExternalForce>> CustomExternalForces;
 
 	/**
 	 *	EXPERIMENTAL. Perform sweeps for each simulating bodies to avoid collisions with the world.
 	 *	This greatly increases the cost of the physics simulation.
 	 */
-	UPROPERTY
-	(EditAnywhere, BlueprintReadWrite, Category = "World Collision", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "World Collision", meta = (PinHiddenByDefault))
 	bool bAllowWorldCollision = false;
 	//use component collision channel settings by default
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "World Collision",
@@ -489,9 +494,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "World Collision", meta = (EditCondition = "!bIgnoreSelfComponent"))
 	TArray<FName> IgnoreBoneNamePrefix;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, Category = "Bones")
 	TArray<FKawaiiPhysicsModifyBone> ModifyBones;
 
+	UPROPERTY(BlueprintReadWrite)
 	float DeltaTime;
 
 protected:

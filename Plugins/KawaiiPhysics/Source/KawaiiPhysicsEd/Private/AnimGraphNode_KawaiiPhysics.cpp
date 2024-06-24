@@ -122,6 +122,7 @@ void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* Ani
 
 	// ExternalForce
 	KawaiiPhysics->Gravity = Node.Gravity;
+	KawaiiPhysics->CustomExternalForces = Node.CustomExternalForces;
 
 	// Wind
 	KawaiiPhysics->bEnableWind = Node.bEnableWind;

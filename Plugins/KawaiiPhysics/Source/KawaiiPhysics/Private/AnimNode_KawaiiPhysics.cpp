@@ -735,14 +735,28 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(const FComponentSpacePoseConte
 		Simulate(Bone, Scene, ComponentTransform, GravityCS, Exponent);
 	}
 
-	// CustomExternalForce
+#if 0 // Test Instanced Struct
 	if (!CustomExternalForces.IsEmpty())
 	{
-		for (auto Force : CustomExternalForces)
+
+		for (auto& Force : CustomExternalForces)
 		{
 			if (Force.IsValid())
 			{
 				Force.GetMutable<FKawaiiPhysics_CustomExternalForce>().Apply(*this, Output);
+			}
+		}
+
+#endif
+
+	if (!CustomExternalForces.IsEmpty())
+	{
+		// NOTE: if use foreach, you may get issue ( Array has changed during ranged-for iteration )
+		for (int i = 0; i < CustomExternalForces.Num(); ++i)
+		{
+			if (CustomExternalForces[i])
+			{
+				CustomExternalForces[i]->Apply(*this, SkelComp);
 			}
 		}
 
