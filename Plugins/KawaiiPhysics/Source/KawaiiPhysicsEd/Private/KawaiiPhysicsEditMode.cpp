@@ -7,6 +7,7 @@
 #include "CanvasTypes.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "KawaiiPhysics.h"
+#include "KawaiiPhysicsCustomExternalForce.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysicsEditMode"
@@ -99,6 +100,8 @@ void FKawaiiPhysicsEditMode::Render(const FSceneView* View, FViewport* Viewport,
 		RenderCapsuleLimit(PDI);
 		RenderPlanerLimit(PDI);
 		RenderBoneConstraint(PDI);
+		RenderExternalForces(PDI);
+
 		PDI->SetHitProxy(nullptr);
 
 		if (IsValidSelectCollision())
@@ -141,7 +144,7 @@ void FKawaiiPhysicsEditMode::RenderModifyBones(FPrimitiveDrawInterface* PDI) con
 			for (const int32 ChildIndex : Bone.ChildIndexs)
 			{
 				DrawDashedLine(PDI, Bone.Location, RuntimeNode->ModifyBones[ChildIndex].Location,
-						   FLinearColor::White, 1, SDPG_Foreground);
+				               FLinearColor::White, 1, SDPG_Foreground);
 			}
 		}
 	}
@@ -300,6 +303,20 @@ void FKawaiiPhysicsEditMode::RenderBoneConstraint(FPrimitiveDrawInterface* PDI) 
 				DrawArrowTransform = FTransform(LookAt, BoneTransform2.GetLocation(), BoneTransform2.GetScale3D());
 				DrawDirectionalArrow(PDI, DrawArrowTransform.ToMatrixNoScale(), FLinearColor::Red,
 				                     Distance, 1, SDPG_Foreground);
+			}
+		}
+	}
+}
+
+void FKawaiiPhysicsEditMode::RenderExternalForces(FPrimitiveDrawInterface* PDI) const
+{
+	if (GraphNode->bEnableDebugDrawExternalForce)
+	{
+		for (auto Force : RuntimeNode->CustomExternalForces)
+		{
+			if (Force)
+			{
+				Force->AnimDrawDebugForEditMode(*RuntimeNode, PDI);
 			}
 		}
 	}

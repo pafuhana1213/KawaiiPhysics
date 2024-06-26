@@ -757,6 +757,10 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(const FComponentSpacePoseConte
 			if (CustomExternalForces[i])
 			{
 				CustomExternalForces[i]->Apply(*this, SkelComp);
+
+#if ENABLE_ANIM_DEBUG
+				CustomExternalForces[i]->AnimDrawDebug(*this, Output);
+#endif
 			}
 		}
 

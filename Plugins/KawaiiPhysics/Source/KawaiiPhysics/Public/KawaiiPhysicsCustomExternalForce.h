@@ -12,20 +12,40 @@ class KAWAIIPHYSICS_API UKawaiiPhysics_CustomExternalForce : public UObject
 	GENERATED_BODY()
 
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1))
+	bool bIsEnabled = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1))
+	bool bDrawDebug = false;
+
+public:
 	UFUNCTION(BlueprintNativeEvent)
 	void Apply(UPARAM(ref) FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp);
 
 	virtual void Apply_Implementation(UPARAM(ref) FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp)
 	PURE_VIRTUAL(,);
 
+	UFUNCTION(BlueprintCallable)
 	virtual bool IsDebugEnabled()
 	{
 		if (const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("a.AnimNode.KawaiiPhysics.Debug")))
 		{
-			return CVar->GetBool();
+			return CVar->GetBool() && bDrawDebug && bIsEnabled;
 		}
 		return false;
 	}
+
+#if ENABLE_ANIM_DEBUG
+	virtual void AnimDrawDebug(const FAnimNode_KawaiiPhysics& Node, const FComponentSpacePoseContext& PoseContext)
+	{
+	}
+#endif
+
+#if WITH_EDITOR
+	virtual void AnimDrawDebugForEditMode(const FAnimNode_KawaiiPhysics& Node, FPrimitiveDrawInterface* PDI)
+	{
+	}
+#endif
 };
 
 UCLASS(DisplayName = "Simple")
@@ -48,27 +68,17 @@ public:
 
 public:
 	virtual void
-	Apply_Implementation(UPARAM(ref) FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp) override
-	{
-		for (FKawaiiPhysicsModifyBone& Bone : Node.ModifyBones)
-		{
-			Bone.Location += Force * Node.DeltaTime;
-		}
+	Apply_Implementation(UPARAM(ref) FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp) override;
 
-		// #if ENABLE_ANIM_DEBUG
-		// 		if (IsDebugEnabled())
-		// 		{
-		// 			const auto AnimInstanceProxy = PoseContext.AnimInstanceProxy;
-		// 			const FVector ModifyRootBoneLocationWS = AnimInstanceProxy->GetComponentTransform().TransformPosition(
-		// 				Node.ModifyBones[0].Location);
-		//
-		// 			AnimInstanceProxy->AnimDrawDebugDirectionalArrow(
-		// 				ModifyRootBoneLocationWS + DebugArrowOffset,
-		// 				ModifyRootBoneLocationWS + DebugArrowOffset + Force.GetSafeNormal() * DebugArrowLength,
-		// 				DebugArrowSize, FColor::Red, false, 0.f, 2);
-		// 		}
-		// #endif
-	}
+#if ENABLE_ANIM_DEBUG
+	virtual void AnimDrawDebug(const FAnimNode_KawaiiPhysics& Node,
+	                           const FComponentSpacePoseContext& PoseContext) override;
+#endif
+
+#if WITH_EDITOR
+	virtual void
+	AnimDrawDebugForEditMode(const FAnimNode_KawaiiPhysics& Node, FPrimitiveDrawInterface* PDI) override;
+#endif
 };
 
 UCLASS(DisplayName = "Gravity")
@@ -96,53 +106,22 @@ public:
 	FVector DebugArrowOffset;
 #endif
 
+private:
+	FVector Gravity;
+
 public:
 	virtual void
-	Apply_Implementation(UPARAM(ref) FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp) override
-	{
-		FVector Gravity = bOverrideGravityDirection ? OverrideGravityDirection : FVector(0, 0, -1.0f);
+	Apply_Implementation(UPARAM(ref) FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp) override;
 
-		if (!bOverrideGravityDirection)
-		{
-			// For Character's Custom Gravity Direction
-			if (const ACharacter* Character = Cast<ACharacter>(SkelComp->GetOwner()))
-			{
-				Gravity = Character->GetGravityDirection();
+#if ENABLE_ANIM_DEBUG
+	virtual void AnimDrawDebug(const FAnimNode_KawaiiPhysics& Node,
+	                           const FComponentSpacePoseContext& PoseContext) override;
+#endif
 
-				if (const UCharacterMovementComponent* CharacterMovementComponent = Character->GetCharacterMovement())
-				{
-					Gravity *= CharacterMovementComponent->GetGravityZ();
-				}
-			}
-		}
-		Gravity *= GravityScale;
-
-		const FTransform ComponentTransform = SkelComp->GetComponentTransform();
-		Gravity = ComponentTransform.InverseTransformVector(Gravity);
-		for (FKawaiiPhysicsModifyBone& Bone : Node.ModifyBones)
-		{
-			if (Bone.bSkipSimulate)
-			{
-				continue;
-			}
-
-			Bone.Location += 0.5 * Gravity * Node.DeltaTime * Node.DeltaTime;
-		}
-
-		// #if ENABLE_ANIM_DEBUG
-		// 		if (IsDebugEnabled())
-		// 		{
-		// 			const auto AnimInstanceProxy = PoseContext.AnimInstanceProxy;
-		// 			const FVector ModifyRootBoneLocationWS = AnimInstanceProxy->GetComponentTransform().TransformPosition(
-		// 				Node.ModifyBones[0].Location);
-		//
-		// 			AnimInstanceProxy->AnimDrawDebugDirectionalArrow(
-		// 				ModifyRootBoneLocationWS + DebugArrowOffset,
-		// 				ModifyRootBoneLocationWS + DebugArrowOffset + Gravity.GetSafeNormal() * DebugArrowLength,
-		// 				DebugArrowSize, FColor::Red, false, 0.f, 2);
-		// 		}
-		// #endif
-	}
+#if WITH_EDITOR
+	virtual void
+	AnimDrawDebugForEditMode(const FAnimNode_KawaiiPhysics& Node, FPrimitiveDrawInterface* PDI) override;
+#endif
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -62,6 +62,8 @@ public:
 	bool bEnableDebugDrawPlanerLimit = true;
 	UPROPERTY()
 	bool bEnableDebugDrawBoneConstraint = true;
+	UPROPERTY()
+	bool bEnableDebugDrawExternalForce = true;
 
 private:
 	/** Constructing FText strings can be costly, so we cache the node's title */

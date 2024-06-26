@@ -339,6 +339,29 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailDebugVisualizations(IDetailLay
 				.Text_Lambda([this]() { return LOCTEXT("ShowBoneConstraintText", "Bone Constraint"); })
 			]
 		]
+		// Show/Hide ExternalForce button.
+		+ SUniformGridPanel::Slot(3, 1)
+		[
+			SNew(SButton)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked_Lambda([this]()
+			             {
+				             this->bEnableDebugDrawExternalForce = !this->bEnableDebugDrawExternalForce;
+				             return FReply::Handled();
+			             })
+				.ButtonColorAndOpacity_Lambda([this]()
+			             {
+				             return this->bEnableDebugDrawExternalForce
+					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
+					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
+			             })
+				.Content()
+			[
+				SNew(STextBlock)
+				.Text_Lambda([this]() { return LOCTEXT("ShowExternalForceText", "External Force"); })
+			]
+		]
 	];
 }
 

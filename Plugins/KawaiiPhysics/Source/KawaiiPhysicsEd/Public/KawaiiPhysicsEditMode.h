@@ -15,9 +15,8 @@ struct FViewportClick;
 class FKawaiiPhysicsEditMode : public FAnimNodeEditMode
 {
 public:
-
 	FKawaiiPhysicsEditMode();
-	
+
 	/** IAnimNodeEditMode interface */
 	virtual void EnterMode(class UAnimGraphNode_Base* InEditorNode, struct FAnimNode_Base* InRuntimeNode) override;
 	virtual void ExitMode() override;
@@ -30,23 +29,23 @@ public:
 
 	/** FEdMode interface */
 	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
-	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click) override;
+	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy,
+	                         const FViewportClick& Click) override;
 	virtual bool GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData) override;
-	virtual bool InputKey(FEditorViewportClient* InViewportClient, FViewport* InViewport, FKey InKey, EInputEvent InEvent) override;
+	virtual bool InputKey(FEditorViewportClient* InViewportClient, FViewport* InViewport, FKey InKey,
+	                      EInputEvent InEvent) override;
 	virtual bool ShouldDrawWidget() const override;
-	virtual void DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas) override;
-
+	virtual void DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View,
+	                     FCanvas* Canvas) override;
 
 protected:
 	void OnExternalNodePropertyChange(FPropertyChangedEvent& InPropertyEvent);
 	FDelegateHandle NodePropertyDelegateHandle;
-	
+
 	void OnLimitDataAssetPropertyChange(FPropertyChangedEvent& InPropertyEvent);
 	FDelegateHandle LimitsDataAssetPropertyDelegateHandle;
-	
-private:
 
-	
+private:
 	void RenderModifyBones(FPrimitiveDrawInterface* PDI) const;
 
 	/** Render each collisions */
@@ -55,6 +54,7 @@ private:
 	void RenderPlanerLimit(FPrimitiveDrawInterface* PDI);
 
 	void RenderBoneConstraint(FPrimitiveDrawInterface* PDI) const;
+	void RenderExternalForces(FPrimitiveDrawInterface* PDI) const;
 
 	/** Helper function for GetWidgetLocation() and joint rendering */
 	FVector GetWidgetLocation(ECollisionLimitType CollisionType, int32 Index) const;
@@ -71,7 +71,8 @@ private:
 
 	/** Draw text func for DrawHUD */
 	void DrawTextItem(const FText& Text, FCanvas* Canvas, float X, float& Y, float FontHeight);
-	void Draw3DTextItem(const FText& Text, FCanvas* Canvas, const FSceneView* View, const FViewport* Viewport, FVector Location);
+	void Draw3DTextItem(const FText& Text, FCanvas* Canvas, const FSceneView* View, const FViewport* Viewport,
+	                    FVector Location);
 
 private:
 	/** Cache the typed nodes */
