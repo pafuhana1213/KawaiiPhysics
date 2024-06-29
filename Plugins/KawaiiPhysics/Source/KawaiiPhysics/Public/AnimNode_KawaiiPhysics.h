@@ -169,6 +169,8 @@ public:
 	UPROPERTY()
 	FBoneReference BoneRef;
 	UPROPERTY(BlueprintReadOnly)
+	int32 Index;
+	UPROPERTY(BlueprintReadOnly)
 	int32 ParentIndex = -1;
 	UPROPERTY(BlueprintReadOnly)
 	TArray<int32> ChildIndexs;
@@ -599,7 +601,8 @@ protected:
 	void SimulateModifyBones(const FComponentSpacePoseContext& Output,
 	                         const FTransform& ComponentTransform);
 	void Simulate(FKawaiiPhysicsModifyBone& Bone, const FSceneInterface* Scene, const FTransform& ComponentTransform,
-	              const FVector& GravityCS, const float& Exponent);
+	              const FVector& GravityCS, const float& Exponent, const USkeletalMeshComponent* SkelComp, const
+	              FComponentSpacePoseContext& Output);
 	void AdjustByWorldCollision(FKawaiiPhysicsModifyBone& Bone, const USkeletalMeshComponent* OwningComp);
 	void AdjustBySphereCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FSphericalLimit>& Limits);
 	void AdjustByCapsuleCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FCapsuleLimit>& Limits);

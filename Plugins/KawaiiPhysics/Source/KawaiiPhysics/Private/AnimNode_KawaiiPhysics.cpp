@@ -399,7 +399,9 @@ int32 FAnimNode_KawaiiPhysics::AddModifyBone(FComponentSpacePoseContext& Output,
 	NewModifyBone.PrevRotation = RefBonePoseTransform.GetRotation();
 	NewModifyBone.PoseRotation = NewModifyBone.PrevRotation;
 	NewModifyBone.PoseScale = RefBonePoseTransform.GetScale3D();
+
 	int32 ModifyBoneIndex = ModifyBones.Add(NewModifyBone);
+	ModifyBones[ModifyBoneIndex].Index = ModifyBoneIndex;
 
 	TArray<int32> ChildBoneIndexs;
 	CollectChildBones(RefSkeleton, BoneIndex, ChildBoneIndexs);
@@ -434,6 +436,7 @@ int32 FAnimNode_KawaiiPhysics::AddModifyBone(FComponentSpacePoseContext& Output,
 
 		int32 DummyBoneIndex = ModifyBones.Add(DummyModifyBone);
 		ModifyBones[ModifyBoneIndex].ChildIndexs.Add(DummyBoneIndex);
+		ModifyBones[DummyBoneIndex].Index = DummyBoneIndex;
 		ModifyBones[DummyBoneIndex].ParentIndex = ModifyBoneIndex;
 	}
 
@@ -721,6 +724,16 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(const FComponentSpacePoseConte
 		Bone.bSkipSimulate = false;
 	}
 
+	// External Force
+	// NOTE: if use foreach, you may get issue ( Array has changed during ranged-for iteration )
+	for (int i = 0; i < CustomExternalForces.Num(); ++i)
+	{
+		if (CustomExternalForces[i])
+		{
+			CustomExternalForces[i]->PreApply(*this, SkelComp);
+		}
+	}
+
 	// Simulate
 	const float Exponent = TargetFramerate * DeltaTime;
 	const FVector GravityCS = ComponentTransform.InverseTransformVector(Gravity);
@@ -732,64 +745,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(const FComponentSpacePoseConte
 		{
 			continue;
 		}
-		Simulate(Bone, Scene, ComponentTransform, GravityCS, Exponent);
-	}
-
-#if 0 // Test Instanced Struct
-	if (!CustomExternalForces.IsEmpty())
-	{
-
-		for (auto& Force : CustomExternalForces)
-		{
-			if (Force.IsValid())
-			{
-				Force.GetMutable<FKawaiiPhysics_CustomExternalForce>().Apply(*this, Output);
-			}
-		}
-
-#endif
-
-	if (!CustomExternalForces.IsEmpty())
-	{
-		// NOTE: if use foreach, you may get issue ( Array has changed during ranged-for iteration )
-		for (int i = 0; i < CustomExternalForces.Num(); ++i)
-		{
-			if (CustomExternalForces[i])
-			{
-				CustomExternalForces[i]->Apply(*this, SkelComp);
-
-#if ENABLE_ANIM_DEBUG
-				CustomExternalForces[i]->AnimDrawDebug(*this, Output);
-#endif
-			}
-		}
-
-		// Pull to Pose Location
-		for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
-		{
-			if (Bone.bSkipSimulate)
-			{
-				continue;
-			}
-
-			const FKawaiiPhysicsModifyBone& ParentBone = ModifyBones[Bone.ParentIndex];
-			const FVector BaseLocation = ParentBone.Location + (Bone.PoseLocation - ParentBone.PoseLocation);
-			Bone.Location += (BaseLocation - Bone.Location) *
-				(1.0f - FMath::Pow(1.0f - Bone.PhysicsSettings.Stiffness, Exponent));
-		}
-	}
-
-	// Adjust by Bone Constraints Before Collision
-	if (BoneConstraintIterationCountBeforeCollision > 0)
-	{
-		for (FModifyBoneConstraint& BoneConstraint : MergedBoneConstraints)
-		{
-			BoneConstraint.Lambda = 0.0f;
-		}
-		for (int i = 0; i < BoneConstraintIterationCountBeforeCollision; ++i)
-		{
-			AdjustByBoneConstraints();
-		}
+		Simulate(Bone, Scene, ComponentTransform, GravityCS, Exponent, SkelComp, Output);
 	}
 
 	// Adjust by collisions
@@ -853,7 +809,8 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(const FComponentSpacePoseConte
 
 void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSceneInterface* Scene,
                                        const FTransform& ComponentTransform, const FVector& GravityCS,
-                                       const float& Exponent)
+                                       const float& Exponent, const USkeletalMeshComponent* SkelComp,
+                                       const FComponentSpacePoseContext& Output)
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_Simulate);
 
@@ -881,6 +838,21 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 	// Gravity
 	// TODO:Migrate if there are more good method (Currently copying AnimDynamics implementation)
 	Bone.Location += 0.5 * GravityCS * DeltaTime * DeltaTime;
+
+	// External Force
+	// NOTE: if use foreach, you may get issue ( Array has changed during ranged-for iteration )
+	for (int i = 0; i < CustomExternalForces.Num(); ++i)
+	{
+		if (CustomExternalForces[i] && CustomExternalForces[i]->bIsEnabled)
+		{
+			CustomExternalForces[i]->Apply(Bone.Index, *this, SkelComp);
+
+#if ENABLE_ANIM_DEBUG
+			CustomExternalForces[i]->AnimDrawDebug(Bone, *this, Output);
+#endif
+		}
+	}
+
 
 	// // Pull to Pose Location
 	const FVector BaseLocation = ParentBone.Location + (Bone.PoseLocation - ParentBone.PoseLocation);

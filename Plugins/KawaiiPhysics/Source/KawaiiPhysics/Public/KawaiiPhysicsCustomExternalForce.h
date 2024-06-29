@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "AnimNode_KawaiiPhysics.h"
+#include "Curves/CurveVector.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
@@ -20,64 +21,45 @@ public:
 
 public:
 	UFUNCTION(BlueprintNativeEvent)
-	void Apply(UPARAM(ref) FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp);
+	void PreApply(UPARAM(ref) FAnimNode_KawaiiPhysics& Node,
+	              const USkeletalMeshComponent* SkelComp);
 
-	virtual void Apply_Implementation(UPARAM(ref) FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp)
-	PURE_VIRTUAL(,);
+	virtual void PreApply_Implementation(
+		UPARAM(ref) FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp)PURE_VIRTUAL(,);
+
+	UFUNCTION(BlueprintNativeEvent)
+	bool Apply(int32 ModifyBoneIndex, UPARAM(ref) FAnimNode_KawaiiPhysics& Node,
+	           const USkeletalMeshComponent* SkelComp);
+
+	virtual bool Apply_Implementation(int32 ModifyBoneIndex,
+	                                  UPARAM(ref) FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp)
+	{
+		return false;
+	}
 
 	UFUNCTION(BlueprintCallable)
 	virtual bool IsDebugEnabled()
 	{
 		if (const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("a.AnimNode.KawaiiPhysics.Debug")))
 		{
-			return CVar->GetBool() && bDrawDebug && bIsEnabled;
+			return CVar->GetBool() && bDrawDebug;
 		}
 		return false;
 	}
 
 #if ENABLE_ANIM_DEBUG
-	virtual void AnimDrawDebug(const FAnimNode_KawaiiPhysics& Node, const FComponentSpacePoseContext& PoseContext)
+	virtual void AnimDrawDebug(
+		const FKawaiiPhysicsModifyBone& ModifyBone, const FAnimNode_KawaiiPhysics& Node,
+		const FComponentSpacePoseContext& PoseContext)
 	{
 	}
 #endif
 
 #if WITH_EDITOR
-	virtual void AnimDrawDebugForEditMode(const FAnimNode_KawaiiPhysics& Node, FPrimitiveDrawInterface* PDI)
+	virtual void AnimDrawDebugForEditMode(const FKawaiiPhysicsModifyBone& ModifyBone,
+	                                      const FAnimNode_KawaiiPhysics& Node, FPrimitiveDrawInterface* PDI)
 	{
 	}
-#endif
-};
-
-UCLASS(DisplayName = "Simple")
-class KAWAIIPHYSICS_API UKawaiiPhysics_CustomExternalForce_Simple : public UKawaiiPhysics_CustomExternalForce
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FVector Force;
-
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(EditDefaultsOnly)
-	float DebugArrowLength = 20.0f;
-	UPROPERTY(EditDefaultsOnly)
-	float DebugArrowSize = 20.0f;
-	UPROPERTY(EditDefaultsOnly)
-	FVector DebugArrowOffset;
-#endif
-
-public:
-	virtual void
-	Apply_Implementation(UPARAM(ref) FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp) override;
-
-#if ENABLE_ANIM_DEBUG
-	virtual void AnimDrawDebug(const FAnimNode_KawaiiPhysics& Node,
-	                           const FComponentSpacePoseContext& PoseContext) override;
-#endif
-
-#if WITH_EDITOR
-	virtual void
-	AnimDrawDebugForEditMode(const FAnimNode_KawaiiPhysics& Node, FPrimitiveDrawInterface* PDI) override;
 #endif
 };
 
@@ -90,19 +72,22 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault))
 	float GravityScale = 1.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bUseCharacterGravity = false;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,
 		meta = (PinHiddenByDefault, editcondition = "bOverrideGravityDirection"))
 	FVector OverrideGravityDirection;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (InlineEditConditionToggle))
-	uint8 bOverrideGravityDirection : 1;
+	bool bOverrideGravityDirection = false;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditDefaultsOnly)
-	float DebugArrowLength = 20.0f;
-	UPROPERTY(EditDefaultsOnly)
-	float DebugArrowSize = 20.0f;
-	UPROPERTY(EditDefaultsOnly)
+	UPROPERTY(EditDefaultsOnly, AdvancedDisplay)
+	float DebugArrowLength = 10.0f;
+	UPROPERTY(EditDefaultsOnly, AdvancedDisplay)
+	float DebugArrowSize = 1.0f;
+	UPROPERTY(EditDefaultsOnly, AdvancedDisplay)
 	FVector DebugArrowOffset;
 #endif
 
@@ -111,16 +96,76 @@ private:
 
 public:
 	virtual void
-	Apply_Implementation(UPARAM(ref) FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp) override;
+	PreApply_Implementation(FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp) override;
+
+	virtual bool
+	Apply_Implementation(int32 ModifyBoneIndex,UPARAM(ref) FAnimNode_KawaiiPhysics& Node,
+	                     const USkeletalMeshComponent* SkelComp) override;
 
 #if ENABLE_ANIM_DEBUG
-	virtual void AnimDrawDebug(const FAnimNode_KawaiiPhysics& Node,
+	virtual void AnimDrawDebug(const FKawaiiPhysicsModifyBone& ModifyBone, const FAnimNode_KawaiiPhysics& Node,
 	                           const FComponentSpacePoseContext& PoseContext) override;
 #endif
 
 #if WITH_EDITOR
 	virtual void
-	AnimDrawDebugForEditMode(const FAnimNode_KawaiiPhysics& Node, FPrimitiveDrawInterface* PDI) override;
+	AnimDrawDebugForEditMode(const FKawaiiPhysicsModifyBone& ModifyBone, const FAnimNode_KawaiiPhysics& Node,
+	                         FPrimitiveDrawInterface* PDI) override;
+#endif
+};
+
+UCLASS(DisplayName = "Curve")
+class KAWAIIPHYSICS_API UKawaiiPhysics_CustomExternalForce_Curve : public UKawaiiPhysics_CustomExternalForce
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault))
+	FVector ForceScale = FVector::OneVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault))
+	float TimeScale = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, XAxisName="Time", YAxisName="Force"))
+	FRuntimeVectorCurve ForceCurve;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,
+		meta = (PinHiddenByDefault, XAxisName="LengthRate", YAxisName="ForceRate"))
+	FRuntimeFloatCurve ForceRateCurve;
+
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditDefaultsOnly)
+	float DebugArrowLength = 5.0f;
+	UPROPERTY(EditDefaultsOnly)
+	float DebugArrowSize = 1.0f;
+	UPROPERTY(EditDefaultsOnly)
+	FVector DebugArrowOffset;
+#endif
+
+	UPROPERTY(VisibleAnywhere)
+	float Time;
+
+private:
+
+
+public:
+	virtual void
+	PreApply_Implementation(FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp) override;
+
+	virtual bool
+	Apply_Implementation(int32 ModifyBoneIndex,UPARAM(ref) FAnimNode_KawaiiPhysics& Node,
+	                     const USkeletalMeshComponent* SkelComp) override;
+
+#if ENABLE_ANIM_DEBUG
+	virtual void AnimDrawDebug(const FKawaiiPhysicsModifyBone& ModifyBone, const FAnimNode_KawaiiPhysics& Node,
+	                           const FComponentSpacePoseContext& PoseContext) override;
+#endif
+
+#if WITH_EDITOR
+	virtual void
+	AnimDrawDebugForEditMode(const FKawaiiPhysicsModifyBone& ModifyBone, const FAnimNode_KawaiiPhysics& Node,
+	                         FPrimitiveDrawInterface* PDI) override;
 #endif
 };
 
@@ -146,48 +191,6 @@ public:
 			return CVar->GetBool();
 		}
 		return false;
-	}
-};
-
-USTRUCT(BlueprintType, DisplayName = "Simple")
-struct KAWAIIPHYSICS_API FKawaiiPhysics_CustomExternalForce_Simple : public FKawaiiPhysics_CustomExternalForce
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FVector Force;
-
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(EditDefaultsOnly)
-	float DebugArrowLength = 20.0f;
-	UPROPERTY(EditDefaultsOnly)
-	float DebugArrowSize = 20.0f;
-	UPROPERTY(EditDefaultsOnly)
-	FVector DebugArrowOffset;
-#endif
-
-public:
-	virtual void Apply(FAnimNode_KawaiiPhysics& Node, const FComponentSpacePoseContext& PoseContext) override
-	{
-		for (FKawaiiPhysicsModifyBone& Bone : Node.ModifyBones)
-		{
-			Bone.Location += Force * Node.DeltaTime;
-		}
-
-#if ENABLE_ANIM_DEBUG
-		if (IsDebugEnabled())
-		{
-			const auto AnimInstanceProxy = PoseContext.AnimInstanceProxy;
-			const FVector ModifyRootBoneLocationWS = AnimInstanceProxy->GetComponentTransform().TransformPosition(
-				Node.ModifyBones[0].Location);
-
-			AnimInstanceProxy->AnimDrawDebugDirectionalArrow(
-				ModifyRootBoneLocationWS + DebugArrowOffset,
-				ModifyRootBoneLocationWS + DebugArrowOffset + Force.GetSafeNormal() * DebugArrowLength,
-				DebugArrowSize, FColor::Red, false, 0.f, 2);
-		}
-#endif
 	}
 };
 
