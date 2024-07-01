@@ -733,6 +733,13 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(const FComponentSpacePoseConte
 			CustomExternalForces[i]->PreApply(*this, SkelComp);
 		}
 	}
+	for (int i = 0; i < ExternalForces.Num(); ++i)
+	{
+		if (ExternalForces[i].IsValid())
+		{
+			ExternalForces[i].GetMutablePtr<FKawaiiPhysics_ExternalForce>()->PreApply(*this, SkelComp);
+		}
+	}
 
 	// Simulate
 	const float Exponent = TargetFramerate * DeltaTime;
@@ -850,6 +857,18 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 #if ENABLE_ANIM_DEBUG
 			CustomExternalForces[i]->AnimDrawDebug(Bone, *this, Output);
 #endif
+		}
+	}
+
+	for (int i = 0; i < ExternalForces.Num(); ++i)
+	{
+		if (ExternalForces[i].IsValid())
+		{
+			if (const auto ExForce = ExternalForces[i].GetMutablePtr<FKawaiiPhysics_ExternalForce>(); ExForce->
+				bIsEnabled)
+			{
+				ExForce->Apply(Bone, *this, Output);
+			}
 		}
 	}
 

@@ -169,7 +169,7 @@ public:
 	UPROPERTY()
 	FBoneReference BoneRef;
 	UPROPERTY(BlueprintReadOnly)
-	int32 Index;
+	int32 Index = -1;
 	UPROPERTY(BlueprintReadOnly)
 	int32 ParentIndex = -1;
 	UPROPERTY(BlueprintReadOnly)
@@ -460,11 +460,10 @@ public:
 		meta = (PinHiddenByDefault))
 	float WindScale = 1.0f;
 
-#if 0 // Test Instanced Struct
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce",
-		meta = (BaseStruct = "KawaiiPhysics_CustomExternalForce", ExcludeBaseStruct, PinHiddenByDefault))
-	TArray<FInstancedStruct> CustomExternalForces;
-#endif
+		meta = (BaseStruct = "/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce", ExcludeBaseStruct, PinHiddenByDefault
+		))
+	TArray<FInstancedStruct> ExternalForces;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Instanced, Category = "ExternalForce", meta = (PinHiddenByDefault))
 	TArray<TObjectPtr<UKawaiiPhysics_CustomExternalForce>> CustomExternalForces;

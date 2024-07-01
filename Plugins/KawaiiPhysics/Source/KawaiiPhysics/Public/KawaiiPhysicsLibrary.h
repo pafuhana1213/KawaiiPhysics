@@ -198,11 +198,27 @@ public:
 		KAWAIIPHYSICS_VALUE_SETTER(bool, bNeedWarmUp);
 	}
 
+	/** NeedWarmUp */
 	UFUNCTION(BlueprintPure, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
 	static bool GetNeedWarmUp(const FKawaiiPhysicsReference& KawaiiPhysics)
 	{
 		KAWAIIPHYSICS_VALUE_GETTER(bool, bNeedWarmUp);
 	}
+
+	// /** Set ExternalForces */
+	// UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	// static FKawaiiPhysicsReference SetExternalForces(const FKawaiiPhysicsReference& KawaiiPhysics,
+	//                                                  UPARAM(ref) TArray<FInstancedStruct>& ExternalForces)
+	// {
+	// 	KAWAIIPHYSICS_VALUE_SETTER(TArray<FInstancedStruct>, ExternalForces);
+	// }
+	//
+	// /** Get ExternalForces */
+	// UFUNCTION(BlueprintPure, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	// static TArray<FInstancedStruct> GetExternalForces(const FKawaiiPhysicsReference& KawaiiPhysics)
+	// {
+	// 	KAWAIIPHYSICS_VALUE_GETTER(TArray<FInstancedStruct>, ExternalForces);
+	// }
 
 	/** ResetDynamics */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
