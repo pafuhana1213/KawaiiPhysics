@@ -75,57 +75,16 @@ TArray<FName> UKawaiiPhysicsLibrary::GetExcludeBoneNames(const FKawaiiPhysicsRef
 	return ExcludeBoneNames;
 }
 
-FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetExternalForceBoolParameter(
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetExternalForceBoolProperty(
 	const FKawaiiPhysicsReference& KawaiiPhysics, int ExternalForceIndex, FName PropertyName, bool Value)
 {
-	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-		TEXT("SetExternalForceBoolParameter"),
-		[&ExternalForceIndex, &PropertyName, &Value](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
-		{
-			if (InKawaiiPhysics.ExternalForces.IsValidIndex(ExternalForceIndex) &&
-				InKawaiiPhysics.ExternalForces[ExternalForceIndex].IsValid())
-			{
-				const auto* ScriptStruct = InKawaiiPhysics.ExternalForces[ExternalForceIndex].GetScriptStruct();
-				auto& Force = InKawaiiPhysics.ExternalForces[ExternalForceIndex].GetMutable<
-					FKawaiiPhysics_ExternalForce>();
-
-				if (const FBoolProperty* BoolProperty = FindFieldChecked<FBoolProperty>(ScriptStruct, PropertyName))
-				{
-					if (void* ValuePtr = BoolProperty->ContainerPtrToValuePtr<uint8>(&Force))
-					{
-						BoolProperty->SetPropertyValue(ValuePtr, Value);
-					}
-				}
-			}
-		});
-
-	return KawaiiPhysics;
+	return SetExternalForceProperty<bool, FBoolProperty>(KawaiiPhysics, ExternalForceIndex, PropertyName, Value);
 }
 
-bool UKawaiiPhysicsLibrary::GetExternalForceBoolParameter(const FKawaiiPhysicsReference& KawaiiPhysics,
-                                                          int ExternalForceIndex, FName PropertyName)
+bool UKawaiiPhysicsLibrary::GetExternalForceBoolProperty(const FKawaiiPhysicsReference& KawaiiPhysics,
+                                                         int ExternalForceIndex, FName PropertyName)
 {
-	bool Result = false;
-
-	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-		TEXT("GetExternalForceBoolParameter"),
-		[&Result, &ExternalForceIndex, &PropertyName](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
-		{
-			if (InKawaiiPhysics.ExternalForces.IsValidIndex(ExternalForceIndex) &&
-				InKawaiiPhysics.ExternalForces[ExternalForceIndex].IsValid())
-			{
-				const auto* ScriptStruct = InKawaiiPhysics.ExternalForces[ExternalForceIndex].GetScriptStruct();
-				const auto& Force = InKawaiiPhysics.ExternalForces[ExternalForceIndex].GetMutable<
-					FKawaiiPhysics_ExternalForce>();
-
-				if (const FBoolProperty* BoolProperty = FindFieldChecked<FBoolProperty>(ScriptStruct, PropertyName))
-				{
-					Result = *(BoolProperty->ContainerPtrToValuePtr<bool>(&Force));
-				}
-			}
-		});
-
-	return Result;
+	return GetExternalForceProperty<bool>(KawaiiPhysics, ExternalForceIndex, PropertyName);
 }
 
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::ResetDynamics(const FKawaiiPhysicsReference& KawaiiPhysics)
