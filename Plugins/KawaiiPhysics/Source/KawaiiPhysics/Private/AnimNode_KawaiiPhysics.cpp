@@ -3,6 +3,7 @@
 #include "AnimationRuntime.h"
 #include "KawaiiPhysicsBoneConstraintsDataAsset.h"
 #include "KawaiiPhysicsCustomExternalForce.h"
+#include "KawaiiPhysicsExternalForce.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Curves/CurveFloat.h"
@@ -737,7 +738,8 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(const FComponentSpacePoseConte
 	{
 		if (ExternalForces[i].IsValid())
 		{
-			ExternalForces[i].GetMutablePtr<FKawaiiPhysics_ExternalForce>()->PreApply(*this, SkelComp);
+			auto& Force = ExternalForces[i].GetMutable<FKawaiiPhysics_ExternalForce>();
+			Force.PreApply(*this, SkelComp);
 		}
 	}
 
@@ -864,8 +866,8 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 	{
 		if (ExternalForces[i].IsValid())
 		{
-			if (const auto ExForce = ExternalForces[i].GetMutablePtr<FKawaiiPhysics_ExternalForce>(); ExForce->
-				bIsEnabled)
+			if (const auto ExForce = ExternalForces[i].GetMutablePtr<FKawaiiPhysics_ExternalForce>();
+				ExForce->bIsEnabled)
 			{
 				ExForce->Apply(Bone, *this, Output);
 			}

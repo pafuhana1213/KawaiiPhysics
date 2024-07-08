@@ -461,11 +461,10 @@ public:
 	float WindScale = 1.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce",
-		meta = (BaseStruct = "/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce", ExcludeBaseStruct, PinHiddenByDefault
-		))
+		meta = (BaseStruct = "/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce", ExcludeBaseStruct))
 	TArray<FInstancedStruct> ExternalForces;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Instanced, Category = "ExternalForce", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Instanced, Category = "ExternalForce")
 	TArray<TObjectPtr<UKawaiiPhysics_CustomExternalForce>> CustomExternalForces;
 
 	/**

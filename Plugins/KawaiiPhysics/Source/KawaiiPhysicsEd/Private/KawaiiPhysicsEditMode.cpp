@@ -8,6 +8,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "KawaiiPhysics.h"
 #include "KawaiiPhysicsCustomExternalForce.h"
+#include "KawaiiPhysicsExternalForce.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysicsEditMode"

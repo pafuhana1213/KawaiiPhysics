@@ -205,6 +205,21 @@ public:
 		KAWAIIPHYSICS_VALUE_GETTER(bool, bNeedWarmUp);
 	}
 
+	/** LimitsDataAsset */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	static FKawaiiPhysicsReference SetLimitsDataAsset(const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                  UKawaiiPhysicsLimitsDataAsset* LimitsDataAsset)
+	{
+		KAWAIIPHYSICS_VALUE_SETTER(TObjectPtr<UKawaiiPhysicsLimitsDataAsset>, LimitsDataAsset);
+	}
+
+	/** LimitsDataAsset */
+	UFUNCTION(BlueprintPure, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	static UKawaiiPhysicsLimitsDataAsset* GetLimitsDataAsset(const FKawaiiPhysicsReference& KawaiiPhysics)
+	{
+		KAWAIIPHYSICS_VALUE_GETTER(TObjectPtr<UKawaiiPhysicsLimitsDataAsset>, LimitsDataAsset);
+	}
+
 	// /** Set ExternalForces */
 	// UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
 	// static FKawaiiPhysicsReference SetExternalForces(const FKawaiiPhysicsReference& KawaiiPhysics,
@@ -219,6 +234,17 @@ public:
 	// {
 	// 	KAWAIIPHYSICS_VALUE_GETTER(TArray<FInstancedStruct>, ExternalForces);
 	// }
+
+	/** Set ExternalForceBoolParameter */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	static FKawaiiPhysicsReference SetExternalForceBoolParameter(const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                             int ExternalForceIndex, FName PropertyName,
+	                                                             bool Value);
+
+	/** Get ExternalForceBoolParameter */
+	UFUNCTION(BlueprintPure, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	static bool GetExternalForceBoolParameter(const FKawaiiPhysicsReference& KawaiiPhysics, int ExternalForceIndex,
+	                                          FName PropertyName);
 
 	/** ResetDynamics */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
