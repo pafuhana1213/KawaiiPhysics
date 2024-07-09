@@ -75,18 +75,6 @@ TArray<FName> UKawaiiPhysicsLibrary::GetExcludeBoneNames(const FKawaiiPhysicsRef
 	return ExcludeBoneNames;
 }
 
-FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetExternalForceBoolProperty(
-	const FKawaiiPhysicsReference& KawaiiPhysics, int ExternalForceIndex, FName PropertyName, bool Value)
-{
-	return SetExternalForceProperty<bool, FBoolProperty>(KawaiiPhysics, ExternalForceIndex, PropertyName, Value);
-}
-
-bool UKawaiiPhysicsLibrary::GetExternalForceBoolProperty(const FKawaiiPhysicsReference& KawaiiPhysics,
-                                                         int ExternalForceIndex, FName PropertyName)
-{
-	return GetExternalForceProperty<bool>(KawaiiPhysics, ExternalForceIndex, PropertyName);
-}
-
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::ResetDynamics(const FKawaiiPhysicsReference& KawaiiPhysics)
 {
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(

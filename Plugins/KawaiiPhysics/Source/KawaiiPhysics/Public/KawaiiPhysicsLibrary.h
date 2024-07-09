@@ -250,12 +250,52 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
 	static FKawaiiPhysicsReference SetExternalForceBoolProperty(const FKawaiiPhysicsReference& KawaiiPhysics,
 	                                                            int ExternalForceIndex, FName PropertyName,
-	                                                            bool Value);
+	                                                            bool Value)
+	{
+		return SetExternalForceProperty<bool, FBoolProperty>(KawaiiPhysics, ExternalForceIndex, PropertyName, Value);
+	}
 
 	/** Get ExternalForceBoolParameter bool */
 	UFUNCTION(BlueprintPure, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
 	static bool GetExternalForceBoolProperty(const FKawaiiPhysicsReference& KawaiiPhysics, int ExternalForceIndex,
-	                                         FName PropertyName);
+	                                         FName PropertyName)
+	{
+		return GetExternalForceProperty<bool>(KawaiiPhysics, ExternalForceIndex, PropertyName);
+	}
+
+	/** Set ExternalForceBoolParameter int */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	static FKawaiiPhysicsReference SetExternalForceIntProperty(const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                           int ExternalForceIndex, FName PropertyName,
+	                                                           int32 Value)
+	{
+		return SetExternalForceProperty<int32, FIntProperty>(KawaiiPhysics, ExternalForceIndex, PropertyName, Value);
+	}
+
+	/** Get ExternalForceBoolParameter int */
+	UFUNCTION(BlueprintPure, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	static int32 GetExternalForceIntProperty(const FKawaiiPhysicsReference& KawaiiPhysics, int ExternalForceIndex,
+	                                         FName PropertyName)
+	{
+		return GetExternalForceProperty<int32>(KawaiiPhysics, ExternalForceIndex, PropertyName);
+	}
+
+	/** Set ExternalForceBoolParameter float */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	static FKawaiiPhysicsReference SetExternalForceFloatProperty(const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                             int ExternalForceIndex, FName PropertyName,
+	                                                             int32 Value)
+	{
+		return SetExternalForceProperty<float, FFloatProperty>(KawaiiPhysics, ExternalForceIndex, PropertyName, Value);
+	}
+
+	/** Get ExternalForceBoolParameter int */
+	UFUNCTION(BlueprintPure, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	static float GetExternalForceFloatProperty(const FKawaiiPhysicsReference& KawaiiPhysics, int ExternalForceIndex,
+	                                           FName PropertyName)
+	{
+		return GetExternalForceProperty<float>(KawaiiPhysics, ExternalForceIndex, PropertyName);
+	}
 
 	/** ResetDynamics */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
