@@ -14,6 +14,19 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::ConvertToKawaiiPhysics(const FAni
 	return FAnimNodeReference::ConvertToType<FKawaiiPhysicsReference>(Node, Result);
 }
 
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::ResetDynamics(const FKawaiiPhysicsReference& KawaiiPhysics)
+{
+	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+		TEXT("ResetDynamics"),
+		[](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			InKawaiiPhysics.ResetDynamics(ETeleportType::ResetPhysics);
+		});
+
+	return KawaiiPhysics;
+}
+
+
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetRootBoneName(const FKawaiiPhysicsReference& KawaiiPhysics,
                                                                FName& RootBoneName)
 {
@@ -75,14 +88,107 @@ TArray<FName> UKawaiiPhysicsLibrary::GetExcludeBoneNames(const FKawaiiPhysicsRef
 	return ExcludeBoneNames;
 }
 
-FKawaiiPhysicsReference UKawaiiPhysicsLibrary::ResetDynamics(const FKawaiiPhysicsReference& KawaiiPhysics)
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetExternalForceVectorProperty(
+	const FKawaiiPhysicsReference& KawaiiPhysics, int ExternalForceIndex, FName PropertyName, FVector Value)
 {
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-		TEXT("ResetDynamics"),
-		[](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		TEXT("SetExternalForceStructProperty"),
+		[&ExternalForceIndex, &PropertyName, &Value](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 		{
-			InKawaiiPhysics.ResetDynamics(ETeleportType::ResetPhysics);
+			if (InKawaiiPhysics.ExternalForces.IsValidIndex(ExternalForceIndex) &&
+				InKawaiiPhysics.ExternalForces[ExternalForceIndex].IsValid())
+			{
+				const auto* ScriptStruct = InKawaiiPhysics.ExternalForces[ExternalForceIndex].GetScriptStruct();
+				auto& Force = InKawaiiPhysics.ExternalForces[ExternalForceIndex].GetMutable<
+					FKawaiiPhysics_ExternalForce>();
+
+				if (const FStructProperty* StructProperty = FindFieldChecked<FStructProperty>(
+					ScriptStruct, PropertyName))
+				{
+					if (StructProperty->Struct == TBaseStructure<FVector>::Get())
+					{
+						if (void* ValuePtr = StructProperty->ContainerPtrToValuePtr<uint8>(&Force))
+						{
+							StructProperty->CopyCompleteValue(ValuePtr, &Value);
+						}
+					}
+				}
+			}
 		});
 
 	return KawaiiPhysics;
+}
+
+FVector UKawaiiPhysicsLibrary::GetExternalForceVectorProperty(const FKawaiiPhysicsReference& KawaiiPhysics,
+                                                              int ExternalForceIndex, FName PropertyName)
+{
+	FVector Result;
+
+	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+		TEXT("GetExternalForceStructProperty"),
+		[&Result, &ExternalForceIndex, &PropertyName](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			if (InKawaiiPhysics.ExternalForces.IsValidIndex(ExternalForceIndex) &&
+				InKawaiiPhysics.ExternalForces[ExternalForceIndex].IsValid())
+			{
+				const auto* ScriptStruct = InKawaiiPhysics.ExternalForces[ExternalForceIndex].GetScriptStruct();
+				const auto& Force = InKawaiiPhysics.ExternalForces[ExternalForceIndex].GetMutable<
+					FKawaiiPhysics_ExternalForce>();
+
+				if (const FStructProperty* StructProperty = FindFieldChecked<FStructProperty>(
+					ScriptStruct, PropertyName))
+				{
+					if (StructProperty->Struct == TBaseStructure<FVector>::Get())
+					{
+						Result = *(StructProperty->ContainerPtrToValuePtr<FVector>(&Force));
+					}
+				}
+			}
+		});
+
+	return Result;
+}
+
+DEFINE_FUNCTION(UKawaiiPhysicsLibrary::execGetExternalForceWildcardProperty)
+{
+	P_GET_STRUCT_REF(FKawaiiPhysicsReference, KawaiiPhysics);
+	P_GET_PROPERTY(FIntProperty, ExternalForceIndex);
+	P_GET_STRUCT_REF(FName, PropertyName);
+
+	// Read wildcard Value input.
+	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
+	Stack.StepCompiledIn<FStructProperty>(nullptr);
+
+	FProperty* StructValueProp = CastField<FProperty>(Stack.MostRecentProperty);
+	void* ValuePtr = Stack.MostRecentPropertyAddress;
+
+	void* Result;
+	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+		TEXT("GetExternalForceWildcardProperty"),
+		[&Result, &ExternalForceIndex, &PropertyName](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			if (InKawaiiPhysics.ExternalForces.IsValidIndex(ExternalForceIndex) &&
+				InKawaiiPhysics.ExternalForces[ExternalForceIndex].IsValid())
+			{
+				const auto* ScriptStruct = InKawaiiPhysics.ExternalForces[ExternalForceIndex].GetScriptStruct();
+				auto& Force = InKawaiiPhysics.ExternalForces[ExternalForceIndex].GetMutable<
+					FKawaiiPhysics_ExternalForce>();
+
+				if (const FProperty* StructProperty = FindFieldChecked<FProperty>(
+					ScriptStruct, PropertyName))
+				{
+					Result = StructProperty->ContainerPtrToValuePtr<void>(&Force);
+				}
+			}
+		});
+
+	P_FINISH;
+
+	if (ValuePtr && Result)
+	{
+		P_NATIVE_BEGIN;
+			StructValueProp->CopyCompleteValue(ValuePtr, Result);
+		P_NATIVE_END;
+	}
 }
