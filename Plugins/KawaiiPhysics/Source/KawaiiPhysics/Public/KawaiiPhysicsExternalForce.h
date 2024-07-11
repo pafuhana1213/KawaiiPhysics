@@ -56,7 +56,9 @@ public:
 	float GravityScale = 1.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bUseCharacterGravity = false;
+	bool bUseCharacterGravityDirection = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bUseCharacterGravityScale = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,
 		meta = (editcondition = "bUseOverrideGravityDirection"))

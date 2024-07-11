@@ -60,6 +60,7 @@ public:
 #endif
 };
 
+#if 0
 UCLASS()
 class KAWAIIPHYSICS_API UKawaiiPhysics_CustomExternalForce_Gravity : public UKawaiiPhysics_CustomExternalForce
 {
@@ -164,4 +165,5 @@ public:
 	AnimDrawDebugForEditMode(const FKawaiiPhysicsModifyBone& ModifyBone, const FAnimNode_KawaiiPhysics& Node,
 	                         FPrimitiveDrawInterface* PDI) override;
 #endif
-};
+}; 
+#endif

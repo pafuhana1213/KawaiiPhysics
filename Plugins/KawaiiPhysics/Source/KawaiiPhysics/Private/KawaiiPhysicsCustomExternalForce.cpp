@@ -3,6 +3,7 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
+#if 0
 void UKawaiiPhysics_CustomExternalForce_Gravity::PreApply_Implementation(FAnimNode_KawaiiPhysics& Node,
                                                                          const USkeletalMeshComponent* SkelComp)
 {
@@ -177,4 +178,5 @@ void UKawaiiPhysics_CustomExternalForce_Curve::AnimDrawDebugForEditMode(const FK
 		}
 	}
 }
+#endif
 #endif

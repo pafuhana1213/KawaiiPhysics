@@ -9,13 +9,16 @@ void FKawaiiPhysics_ExternalForce_Gravity::PreApply(FAnimNode_KawaiiPhysics& Nod
 {
 	Gravity = bUseOverrideGravityDirection ? OverrideGravityDirection : FVector(0, 0, -1.0f);
 
-	if (bUseCharacterGravity)
+	// For Character's Custom Gravity Direction
+	if (const ACharacter* Character = Cast<ACharacter>(SkelComp->GetOwner()))
 	{
-		// For Character's Custom Gravity Direction
-		if (const ACharacter* Character = Cast<ACharacter>(SkelComp->GetOwner()))
+		if (bUseCharacterGravityDirection)
 		{
 			Gravity = Character->GetGravityDirection();
+		}
 
+		if (bUseCharacterGravityScale)
+		{
 			if (const UCharacterMovementComponent* CharacterMovementComponent = Character->
 				GetCharacterMovement())
 			{
@@ -23,6 +26,7 @@ void FKawaiiPhysics_ExternalForce_Gravity::PreApply(FAnimNode_KawaiiPhysics& Nod
 			}
 		}
 	}
+
 	Gravity *= GravityScale;
 
 	const FTransform ComponentTransform = SkelComp->GetComponentTransform();
