@@ -36,10 +36,13 @@ void FKawaiiPhysics_ExternalForce_Gravity::PreApply(FAnimNode_KawaiiPhysics& Nod
 	// For Character's Custom Gravity Direction
 	if (const ACharacter* Character = Cast<ACharacter>(SkelComp->GetOwner()))
 	{
+	
+#if	ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 3
 		if (bUseCharacterGravityDirection)
 		{
 			Force = Character->GetGravityDirection();
 		}
+#endif
 
 		if (bUseCharacterGravityScale)
 		{

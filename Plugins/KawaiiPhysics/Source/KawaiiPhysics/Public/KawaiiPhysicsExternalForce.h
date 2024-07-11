@@ -143,6 +143,7 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bUseCharacterGravityDirection = false;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bUseCharacterGravityScale = false;
 
