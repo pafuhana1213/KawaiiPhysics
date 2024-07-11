@@ -88,6 +88,45 @@ TArray<FName> UKawaiiPhysicsLibrary::GetExcludeBoneNames(const FKawaiiPhysicsRef
 	return ExcludeBoneNames;
 }
 
+DEFINE_FUNCTION(UKawaiiPhysicsLibrary::execSetExternalForceWildcardProperty)
+{
+	P_GET_ENUM_REF(EKawaiiPhysicsAccessExternalForceResult, ExecResult);
+	P_GET_STRUCT_REF(FKawaiiPhysicsReference, KawaiiPhysics);
+	P_GET_PROPERTY(FIntProperty, ExternalForceIndex);
+	P_GET_STRUCT_REF(FName, PropertyName);
+
+	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
+
+	// Read wildcard Value input.
+	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
+	Stack.StepCompiledIn<FStructProperty>(nullptr);
+
+	const FProperty* ValueProp = CastField<FProperty>(Stack.MostRecentProperty);
+	void* ValuePtr = Stack.MostRecentPropertyAddress;
+
+	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+		TEXT("GetExternalForceWildcardProperty"),
+		[&ExecResult, &ExternalForceIndex, &PropertyName, &ValuePtr](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			if (InKawaiiPhysics.ExternalForces.IsValidIndex(ExternalForceIndex) &&
+				InKawaiiPhysics.ExternalForces[ExternalForceIndex].IsValid())
+			{
+				const auto* ScriptStruct = InKawaiiPhysics.ExternalForces[ExternalForceIndex].GetScriptStruct();
+				auto& Force = InKawaiiPhysics.ExternalForces[ExternalForceIndex].GetMutable<
+					FKawaiiPhysics_ExternalForce>();
+
+				if (const FProperty* Property = FindFProperty<FProperty>(ScriptStruct, PropertyName))
+				{
+					Property->CopyCompleteValue(Property->ContainerPtrToValuePtr<uint8>(&Force), ValuePtr);
+					ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
+				}
+			}
+		});
+
+	P_FINISH;
+}
+
 DEFINE_FUNCTION(UKawaiiPhysicsLibrary::execGetExternalForceWildcardProperty)
 {
 	P_GET_ENUM_REF(EKawaiiPhysicsAccessExternalForceResult, ExecResult);

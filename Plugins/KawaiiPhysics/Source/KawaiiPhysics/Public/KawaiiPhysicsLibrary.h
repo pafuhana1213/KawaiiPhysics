@@ -391,6 +391,16 @@ public:
 		return GetExternalForceStructProperty<FTransform>(ExecResult, KawaiiPhysics, ExternalForceIndex, PropertyName);
 	}
 
+	/** Set ExternalForceParameter Wildcard */
+	UFUNCTION(BlueprintCallable, CustomThunk, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult", CustomStructureParam = "Value"))
+	static void SetExternalForceWildcardProperty(EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+	                                             const FKawaiiPhysicsReference& KawaiiPhysics, int ExternalForceIndex,
+	                                             FName PropertyName, const int32& Value)
+	{
+		checkNoEntry();
+	}
+
 
 	/** Get ExternalForceParameter Wildcard */
 	UFUNCTION(BlueprintCallable, CustomThunk, Category = "Kawaii Physics",
@@ -403,6 +413,7 @@ public:
 	}
 
 private:
+	DECLARE_FUNCTION(execSetExternalForceWildcardProperty);
 	DECLARE_FUNCTION(execGetExternalForceWildcardProperty);
 };
 
