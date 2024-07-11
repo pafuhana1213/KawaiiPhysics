@@ -23,6 +23,19 @@ public:
 	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1))
 	TArray<FBoneReference> IgnoreBoneFilter;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditDefaultsOnly)
+	float DebugArrowLength = 5.0f;
+	UPROPERTY(EditDefaultsOnly)
+	float DebugArrowSize = 1.0f;
+	UPROPERTY(EditDefaultsOnly)
+	FVector DebugArrowOffset = FVector::Zero();
+#endif
+
+protected:
+	UPROPERTY()
+	FVector Force = FVector::Zero();;
+
 public:
 	virtual ~FKawaiiPhysics_ExternalForce() = default;
 
@@ -36,11 +49,16 @@ public:
 	};
 
 
-	virtual bool IsDebugEnabled()
+	virtual bool IsDebugEnabled(bool bInPersona = false)
 	{
+		if (bInPersona)
+		{
+			return bDrawDebug && bIsEnabled;
+		}
+
 		if (const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("a.AnimNode.KawaiiPhysics.Debug")))
 		{
-			return CVar->GetBool() && bDrawDebug;
+			return CVar->GetBool() && bDrawDebug && bIsEnabled;
 		}
 		return false;
 	}
@@ -49,6 +67,13 @@ public:
 	virtual void AnimDrawDebugForEditMode(const FKawaiiPhysicsModifyBone& ModifyBone,
 	                                      const FAnimNode_KawaiiPhysics& Node, FPrimitiveDrawInterface* PDI)
 	{
+		if (IsDebugEnabled(true) && CanApply(ModifyBone) && !Force.IsZero())
+		{
+			const FTransform ArrowTransform = FTransform(Force.GetSafeNormal().ToOrientationRotator(),
+			                                             ModifyBone.Location + DebugArrowOffset);
+			DrawDirectionalArrow(PDI, ArrowTransform.ToMatrixNoScale(), FColor::Red, DebugArrowLength, DebugArrowSize,
+			                     SDPG_Foreground, 1.0f);
+		}
 	}
 #endif
 
@@ -81,27 +106,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float ForceScale = 1.0f;
 
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(EditDefaultsOnly)
-	float DebugArrowLength = 5.0f;
-	UPROPERTY(EditDefaultsOnly)
-	float DebugArrowSize = 1.0f;
-	UPROPERTY(EditDefaultsOnly)
-	FVector DebugArrowOffset = FVector::Zero();
-#endif
-
-private:
-	UPROPERTY()
-	FVector Force = FVector::Zero();;
-
 public:
 	virtual void PreApply(FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp) override;
 	virtual void Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
 	                   const FComponentSpacePoseContext& PoseContext) override;
 
 #if WITH_EDITOR
-	virtual void AnimDrawDebugForEditMode(const FKawaiiPhysicsModifyBone& ModifyBone,
-	                                      const FAnimNode_KawaiiPhysics& Node, FPrimitiveDrawInterface* PDI) override;
+	//virtual void AnimDrawDebugForEditMode(const FKawaiiPhysicsModifyBone& ModifyBone,
+	//                                      const FAnimNode_KawaiiPhysics& Node, FPrimitiveDrawInterface* PDI) override;
 #endif
 };
 
@@ -126,18 +138,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (InlineEditConditionToggle))
 	bool bUseOverrideGravityDirection = false;
 
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(EditDefaultsOnly)
-	float DebugArrowLength = 5.0f;
-	UPROPERTY(EditDefaultsOnly)
-	float DebugArrowSize = 1.0f;
-	UPROPERTY(EditDefaultsOnly)
-	FVector DebugArrowOffset = FVector::Zero();
-#endif
-
 private:
-	UPROPERTY()
-	FVector Gravity = FVector::Zero();;
 
 public:
 	virtual void PreApply(FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp) override;
@@ -145,8 +146,8 @@ public:
 	                   const FComponentSpacePoseContext& PoseContext) override;
 
 #if WITH_EDITOR
-	virtual void AnimDrawDebugForEditMode(const FKawaiiPhysicsModifyBone& ModifyBone,
-	                                      const FAnimNode_KawaiiPhysics& Node, FPrimitiveDrawInterface* PDI) override;
+	//virtual void AnimDrawDebugForEditMode(const FKawaiiPhysicsModifyBone& ModifyBone,
+	//                                      const FAnimNode_KawaiiPhysics& Node, FPrimitiveDrawInterface* PDI) override;
 #endif
 };
 
@@ -165,21 +166,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault))
 	float TimeScale = 1.0f;
 
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(EditDefaultsOnly)
-	float DebugArrowLength = 5.0f;
-	UPROPERTY(EditDefaultsOnly)
-	float DebugArrowSize = 1.0f;
-	UPROPERTY(EditDefaultsOnly)
-	FVector DebugArrowOffset = FVector::Zero();
-#endif
-
-	UPROPERTY()
-	float Time;
-
 private:
 	UPROPERTY()
-	FVector Force = FVector::Zero();
+	float Time = 0.0f;
 
 public:
 	virtual void PreApply(FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp) override;
@@ -187,7 +176,7 @@ public:
 	                   const FComponentSpacePoseContext& PoseContext) override;
 
 #if WITH_EDITOR
-	virtual void AnimDrawDebugForEditMode(const FKawaiiPhysicsModifyBone& ModifyBone,
-	                                      const FAnimNode_KawaiiPhysics& Node, FPrimitiveDrawInterface* PDI) override;
+	// virtual void AnimDrawDebugForEditMode(const FKawaiiPhysicsModifyBone& ModifyBone,
+	//                                       const FAnimNode_KawaiiPhysics& Node, FPrimitiveDrawInterface* PDI) override;
 #endif
 };
