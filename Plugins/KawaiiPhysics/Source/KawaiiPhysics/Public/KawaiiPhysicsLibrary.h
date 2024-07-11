@@ -327,8 +327,9 @@ public:
 
 	/** Get ExternalForceBoolParameter Struct */
 	UFUNCTION(BlueprintCallable, CustomThunk, Category = "Kawaii Physics",
-		meta=(BlueprintThreadSafe, CustomStructureParam = "Value"))
-	static void GetExternalForceWildcardProperty(const FKawaiiPhysicsReference& KawaiiPhysics, int ExternalForceIndex,
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult", CustomStructureParam = "Value"))
+	static void GetExternalForceWildcardProperty(EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+	                                             const FKawaiiPhysicsReference& KawaiiPhysics, int ExternalForceIndex,
 	                                             FName PropertyName, int32& Value)
 	{
 		checkNoEntry();

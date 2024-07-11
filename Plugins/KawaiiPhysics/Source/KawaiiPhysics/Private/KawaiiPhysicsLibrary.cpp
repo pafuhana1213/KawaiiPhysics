@@ -158,22 +158,25 @@ FVector UKawaiiPhysicsLibrary::GetExternalForceVectorProperty(EKawaiiPhysicsAcce
 
 DEFINE_FUNCTION(UKawaiiPhysicsLibrary::execGetExternalForceWildcardProperty)
 {
+	P_GET_ENUM_REF(EKawaiiPhysicsAccessExternalForceResult, ExecResult);
 	P_GET_STRUCT_REF(FKawaiiPhysicsReference, KawaiiPhysics);
 	P_GET_PROPERTY(FIntProperty, ExternalForceIndex);
 	P_GET_STRUCT_REF(FName, PropertyName);
+
+	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
 
 	// Read wildcard Value input.
 	Stack.MostRecentPropertyAddress = nullptr;
 	Stack.MostRecentPropertyContainer = nullptr;
 	Stack.StepCompiledIn<FStructProperty>(nullptr);
 
-	FProperty* StructValueProp = CastField<FProperty>(Stack.MostRecentProperty);
+	const FProperty* ValueProp = CastField<FProperty>(Stack.MostRecentProperty);
 	void* ValuePtr = Stack.MostRecentPropertyAddress;
 
-	void* Result;
+	void* Result = nullptr;
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 		TEXT("GetExternalForceWildcardProperty"),
-		[&Result, &ExternalForceIndex, &PropertyName](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		[&Result, &ExecResult, &ExternalForceIndex, &PropertyName](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 		{
 			if (InKawaiiPhysics.ExternalForces.IsValidIndex(ExternalForceIndex) &&
 				InKawaiiPhysics.ExternalForces[ExternalForceIndex].IsValid())
@@ -182,9 +185,10 @@ DEFINE_FUNCTION(UKawaiiPhysicsLibrary::execGetExternalForceWildcardProperty)
 				auto& Force = InKawaiiPhysics.ExternalForces[ExternalForceIndex].GetMutable<
 					FKawaiiPhysics_ExternalForce>();
 
-				if (const FProperty* StructProperty = FindFProperty<FProperty>(ScriptStruct, PropertyName))
+				if (const FProperty* Property = FindFProperty<FProperty>(ScriptStruct, PropertyName))
 				{
-					Result = StructProperty->ContainerPtrToValuePtr<void>(&Force);
+					Result = Property->ContainerPtrToValuePtr<void>(&Force);
+					ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
 				}
 			}
 		});
@@ -194,7 +198,7 @@ DEFINE_FUNCTION(UKawaiiPhysicsLibrary::execGetExternalForceWildcardProperty)
 	if (ValuePtr && Result)
 	{
 		P_NATIVE_BEGIN;
-			StructValueProp->CopyCompleteValue(ValuePtr, Result);
+			ValueProp->CopyCompleteValue(ValuePtr, Result);
 		P_NATIVE_END;
 	}
 }
