@@ -178,7 +178,9 @@ public:
 
 public:
 	// Begin UObject Interface.
+#if WITH_EDITORONLY_DATA
 	virtual void Serialize(FStructuredArchiveRecord Record) override;
+#endif
 	virtual void PostLoad() override;
 	// End UObject Interface.
 

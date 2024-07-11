@@ -23,12 +23,9 @@ public:
 	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1))
 	TArray<FBoneReference> IgnoreBoneFilter;
 
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(EditDefaultsOnly)
+#if ENABLE_ANIM_DEBUG
 	float DebugArrowLength = 5.0f;
-	UPROPERTY(EditDefaultsOnly)
 	float DebugArrowSize = 1.0f;
-	UPROPERTY(EditDefaultsOnly)
 	FVector DebugArrowOffset = FVector::Zero();
 #endif
 
@@ -62,6 +59,24 @@ public:
 		}
 		return false;
 	}
+
+#if ENABLE_ANIM_DEBUG
+	virtual void AnimDrawDebug(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
+	                           const FComponentSpacePoseContext& PoseContext)
+	{
+		if (IsDebugEnabled() && !Force.IsZero())
+		{
+			const auto AnimInstanceProxy = PoseContext.AnimInstanceProxy;
+			const FVector ModifyRootBoneLocationWS = AnimInstanceProxy->GetComponentTransform().TransformPosition(
+				Bone.Location);
+
+			AnimInstanceProxy->AnimDrawDebugDirectionalArrow(
+				ModifyRootBoneLocationWS + DebugArrowOffset,
+				ModifyRootBoneLocationWS + DebugArrowOffset + Force.GetSafeNormal() * DebugArrowLength,
+				DebugArrowSize, FColor::Red, false, 0.f, 2);
+		}
+	}
+#endif
 
 #if WITH_EDITOR
 	virtual void AnimDrawDebugForEditMode(const FKawaiiPhysicsModifyBone& ModifyBone,

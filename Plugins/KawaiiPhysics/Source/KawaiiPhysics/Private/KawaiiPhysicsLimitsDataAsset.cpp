@@ -34,7 +34,6 @@ FCustomVersionRegistration GRegisterCollisionLimitDataCustomVersion(FCollisionLi
                                                                     TEXT("CollisionLimitData"));
 
 #if WITH_EDITOR
-
 template <typename CollisionLimitDataType, typename CollisionLimitType>
 void UpdateCollisionLimit(TArray<CollisionLimitDataType>& CollisionLimitsData, const CollisionLimitType* OutLimit)
 {
@@ -48,35 +47,6 @@ void UpdateCollisionLimit(TArray<CollisionLimitDataType>& CollisionLimitsData, c
 	}
 }
 
-void UKawaiiPhysicsLimitsDataAsset::Serialize(FStructuredArchiveRecord Record)
-{
-	Super::Serialize(Record);
-
-	Record.GetUnderlyingArchive().UsingCustomVersion(FCollisionLimitDataCustomVersion::GUID);
-}
-
-void UKawaiiPhysicsLimitsDataAsset::PostLoad()
-{
-	Super::PostLoad();
-
-	if (GetLinkerCustomVersion(FCollisionLimitDataCustomVersion::GUID) <
-		FCollisionLimitDataCustomVersion::ChangeToBoneReference)
-	{
-		for (auto& Data : SphericalLimitsData)
-		{
-			Data.DrivingBoneReference = FBoneReference(Data.DrivingBoneName);
-		}
-		for (auto& Data : CapsuleLimitsData)
-		{
-			Data.DrivingBoneReference = FBoneReference(Data.DrivingBoneName);
-		}
-		for (auto& Data : PlanarLimitsData)
-		{
-			Data.DrivingBoneReference = FBoneReference(Data.DrivingBoneName);
-		}
-		UE_LOG(LogKawaiiPhysics, Log, TEXT("Update : BoneName -> BoneReference (%s)"), *this->GetName());
-	}
-}
 
 void UKawaiiPhysicsLimitsDataAsset::UpdateLimit(FCollisionLimitBase* Limit)
 {
@@ -120,11 +90,6 @@ void UKawaiiPhysicsLimitsDataAsset::Sync()
 	SyncCollisionLimits(PlanarLimitsData, PlanarLimits);
 }
 
-USkeleton* UKawaiiPhysicsLimitsDataAsset::GetSkeleton(bool& bInvalidSkeletonIsError,
-                                                      const IPropertyHandle* PropertyHandle)
-{
-	return Skeleton;
-}
 
 void UKawaiiPhysicsLimitsDataAsset::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -159,6 +124,48 @@ void UKawaiiPhysicsLimitsDataAsset::PostEditChangeProperty(struct FPropertyChang
 	Sync();
 	OnLimitsChanged.Broadcast(PropertyChangedEvent);
 }
-
-
 #endif
+
+#if WITH_EDITORONLY_DATA
+void UKawaiiPhysicsLimitsDataAsset::Serialize(FStructuredArchiveRecord Record)
+{
+	Super::Serialize(Record);
+
+	Record.GetUnderlyingArchive().UsingCustomVersion(FCollisionLimitDataCustomVersion::GUID);
+}
+#endif
+
+USkeleton* UKawaiiPhysicsLimitsDataAsset::GetSkeleton(bool& bInvalidSkeletonIsError,
+                                                      const IPropertyHandle* PropertyHandle)
+{
+#if WITH_EDITORONLY_DATA
+	return Skeleton;
+#else
+	return nullptr;
+#endif
+}
+
+void UKawaiiPhysicsLimitsDataAsset::PostLoad()
+{
+	Super::PostLoad();
+
+	if (GetLinkerCustomVersion(FCollisionLimitDataCustomVersion::GUID) <
+		FCollisionLimitDataCustomVersion::ChangeToBoneReference)
+	{
+#if WITH_EDITORONLY_DATA
+		for (auto& Data : SphericalLimitsData)
+		{
+			Data.DrivingBoneReference = FBoneReference(Data.DrivingBoneName);
+		}
+		for (auto& Data : CapsuleLimitsData)
+		{
+			Data.DrivingBoneReference = FBoneReference(Data.DrivingBoneName);
+		}
+		for (auto& Data : PlanarLimitsData)
+		{
+			Data.DrivingBoneReference = FBoneReference(Data.DrivingBoneName);
+		}
+		UE_LOG(LogKawaiiPhysics, Log, TEXT("Update : BoneName -> BoneReference (%s)"), *this->GetName());
+#endif
+	}
+}

@@ -24,17 +24,7 @@ void FKawaiiPhysics_ExternalForce_Simple::Apply(FKawaiiPhysicsModifyBone& Bone, 
 	Bone.Location += Force * Node.DeltaTime;
 
 #if ENABLE_ANIM_DEBUG
-	if (IsDebugEnabled() && !Force.IsZero())
-	{
-		const auto AnimInstanceProxy = PoseContext.AnimInstanceProxy;
-		const FVector ModifyRootBoneLocationWS = AnimInstanceProxy->GetComponentTransform().TransformPosition(
-			Bone.Location);
-
-		AnimInstanceProxy->AnimDrawDebugDirectionalArrow(
-			ModifyRootBoneLocationWS + DebugArrowOffset,
-			ModifyRootBoneLocationWS + DebugArrowOffset + Force.GetSafeNormal() * DebugArrowLength,
-			DebugArrowSize, FColor::Red, false, 0.f, 2);
-	}
+	AnimDrawDebug(Bone, Node, PoseContext);
 #endif
 }
 
@@ -78,17 +68,7 @@ void FKawaiiPhysics_ExternalForce_Gravity::Apply(FKawaiiPhysicsModifyBone& Bone,
 	Bone.Location += 0.5f * Force * Node.DeltaTime * Node.DeltaTime;
 
 #if ENABLE_ANIM_DEBUG
-	if (IsDebugEnabled() && !Force.IsZero())
-	{
-		const auto AnimInstanceProxy = PoseContext.AnimInstanceProxy;
-		const FVector ModifyRootBoneLocationWS = AnimInstanceProxy->GetComponentTransform().TransformPosition(
-			Bone.Location);
-
-		AnimInstanceProxy->AnimDrawDebugDirectionalArrow(
-			ModifyRootBoneLocationWS + DebugArrowOffset,
-			ModifyRootBoneLocationWS + DebugArrowOffset + Force.GetSafeNormal() * DebugArrowLength,
-			DebugArrowSize, FColor::Red, false, 0.f, 2);
-	}
+	AnimDrawDebug(Bone, Node, PoseContext);
 #endif
 }
 
@@ -133,16 +113,6 @@ void FKawaiiPhysics_ExternalForce_Curve::Apply(FKawaiiPhysicsModifyBone& Bone, F
 	Bone.Location += Force * Node.DeltaTime;
 
 #if ENABLE_ANIM_DEBUG
-	if (IsDebugEnabled() && !Force.IsZero())
-	{
-		const auto AnimInstanceProxy = PoseContext.AnimInstanceProxy;
-		const FVector ModifyRootBoneLocationWS = AnimInstanceProxy->GetComponentTransform().TransformPosition(
-			Bone.Location);
-
-		AnimInstanceProxy->AnimDrawDebugDirectionalArrow(
-			ModifyRootBoneLocationWS + DebugArrowOffset,
-			ModifyRootBoneLocationWS + DebugArrowOffset + Force.GetSafeNormal() * DebugArrowLength,
-			DebugArrowSize, FColor::Red, false, 0.f, 2);
-	}
+	AnimDrawDebug(Bone, Node, PoseContext);
 #endif
 }

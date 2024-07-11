@@ -70,7 +70,10 @@ void UKawaiiPhysicsBoneConstraintsDataAsset::PostLoad()
 			Data.BoneReference1 = FBoneReference(Data.BoneName1);
 			Data.BoneReference2 = FBoneReference(Data.BoneName2);
 		}
+
+#if WITH_EDITOR
 		UpdatePreviewBoneList();
+#endif
 		UE_LOG(LogKawaiiPhysics, Log, TEXT("Update : BoneName -> BoneReference (%s)"), *this->GetName());
 	}
 }
@@ -78,7 +81,11 @@ void UKawaiiPhysicsBoneConstraintsDataAsset::PostLoad()
 USkeleton* UKawaiiPhysicsBoneConstraintsDataAsset::GetSkeleton(bool& bInvalidSkeletonIsError,
                                                                const IPropertyHandle* PropertyHandle)
 {
+#if WITH_EDITOR
 	return PreviewSkeleton.LoadSynchronous();
+#else
+	return nullptr;
+#endif
 }
 
 #if WITH_EDITOR
