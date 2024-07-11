@@ -9,7 +9,12 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "KawaiiPhysicsLibrary.generated.h"
 
-struct FAnimNode_KawaiiPhysics;
+UENUM()
+enum class EKawaiiPhysicsAccessExternalForceResult : uint8
+{
+	Valid,
+	NotValid,
+};
 
 #define KAWAIIPHYSICS_VALUE_SETTER(PropertyType, PropertyName) \
 { \
@@ -228,79 +233,100 @@ public:
 
 	/** Set ExternalForceBoolParameter */
 	template <typename ValueType, typename PropertyType>
-	static FKawaiiPhysicsReference SetExternalForceProperty(const FKawaiiPhysicsReference& KawaiiPhysics,
+	static FKawaiiPhysicsReference SetExternalForceProperty(EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+	                                                        const FKawaiiPhysicsReference& KawaiiPhysics,
 	                                                        int ExternalForceIndex, FName PropertyName,
 	                                                        ValueType Value);
 	/** Get ExternalForceBoolParameter */
 	template <typename ValueType>
-	static ValueType GetExternalForceProperty(const FKawaiiPhysicsReference& KawaiiPhysics, int ExternalForceIndex,
+	static ValueType GetExternalForceProperty(EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+	                                          const FKawaiiPhysicsReference& KawaiiPhysics, int ExternalForceIndex,
 	                                          FName PropertyName);
 
 	/** Set ExternalForceBoolParameter bool */
-	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
-	static FKawaiiPhysicsReference SetExternalForceBoolProperty(const FKawaiiPhysicsReference& KawaiiPhysics,
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FKawaiiPhysicsReference SetExternalForceBoolProperty(EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+	                                                            const FKawaiiPhysicsReference& KawaiiPhysics,
 	                                                            int ExternalForceIndex, FName PropertyName,
 	                                                            bool Value)
 	{
-		return SetExternalForceProperty<bool, FBoolProperty>(KawaiiPhysics, ExternalForceIndex, PropertyName, Value);
+		return SetExternalForceProperty<bool, FBoolProperty>(ExecResult, KawaiiPhysics, ExternalForceIndex,
+		                                                     PropertyName, Value);
 	}
 
 	/** Get ExternalForceBoolParameter bool */
-	UFUNCTION(BlueprintPure, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
-	static bool GetExternalForceBoolProperty(const FKawaiiPhysicsReference& KawaiiPhysics, int ExternalForceIndex,
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static bool GetExternalForceBoolProperty(EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+	                                         const FKawaiiPhysicsReference& KawaiiPhysics, int ExternalForceIndex,
 	                                         FName PropertyName)
 	{
-		return GetExternalForceProperty<bool>(KawaiiPhysics, ExternalForceIndex, PropertyName);
+		return GetExternalForceProperty<bool>(ExecResult, KawaiiPhysics, ExternalForceIndex, PropertyName);
 	}
 
 	/** Set ExternalForceBoolParameter int */
-	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
-	static FKawaiiPhysicsReference SetExternalForceIntProperty(const FKawaiiPhysicsReference& KawaiiPhysics,
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FKawaiiPhysicsReference SetExternalForceIntProperty(EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+	                                                           const FKawaiiPhysicsReference& KawaiiPhysics,
 	                                                           int ExternalForceIndex, FName PropertyName,
 	                                                           int32 Value)
 	{
-		return SetExternalForceProperty<int32, FIntProperty>(KawaiiPhysics, ExternalForceIndex, PropertyName, Value);
+		return SetExternalForceProperty<int32, FIntProperty>(ExecResult, KawaiiPhysics, ExternalForceIndex,
+		                                                     PropertyName, Value);
 	}
 
 	/** Get ExternalForceBoolParameter int */
-	UFUNCTION(BlueprintPure, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
-	static int32 GetExternalForceIntProperty(const FKawaiiPhysicsReference& KawaiiPhysics, int ExternalForceIndex,
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static int32 GetExternalForceIntProperty(EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+	                                         const FKawaiiPhysicsReference& KawaiiPhysics, int ExternalForceIndex,
 	                                         FName PropertyName)
 	{
-		return GetExternalForceProperty<int32>(KawaiiPhysics, ExternalForceIndex, PropertyName);
+		return GetExternalForceProperty<int32>(ExecResult, KawaiiPhysics, ExternalForceIndex, PropertyName);
 	}
 
 	/** Set ExternalForceBoolParameter float */
-	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
-	static FKawaiiPhysicsReference SetExternalForceFloatProperty(const FKawaiiPhysicsReference& KawaiiPhysics,
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FKawaiiPhysicsReference SetExternalForceFloatProperty(EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+	                                                             const FKawaiiPhysicsReference& KawaiiPhysics,
 	                                                             int ExternalForceIndex, FName PropertyName,
 	                                                             int32 Value)
 	{
-		return SetExternalForceProperty<float, FFloatProperty>(KawaiiPhysics, ExternalForceIndex, PropertyName, Value);
+		return SetExternalForceProperty<float, FFloatProperty>(ExecResult, KawaiiPhysics, ExternalForceIndex,
+		                                                       PropertyName, Value);
 	}
 
 	/** Get ExternalForceBoolParameter float */
-	UFUNCTION(BlueprintPure, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
-	static float GetExternalForceFloatProperty(const FKawaiiPhysicsReference& KawaiiPhysics, int ExternalForceIndex,
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static float GetExternalForceFloatProperty(EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+	                                           const FKawaiiPhysicsReference& KawaiiPhysics, int ExternalForceIndex,
 	                                           FName PropertyName)
 	{
-		return GetExternalForceProperty<float>(KawaiiPhysics, ExternalForceIndex, PropertyName);
+		return GetExternalForceProperty<float>(ExecResult, KawaiiPhysics, ExternalForceIndex, PropertyName);
 	}
 
 	/** Get ExternalForceBoolParameter Vector */
-	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
-	static FKawaiiPhysicsReference SetExternalForceVectorProperty(const FKawaiiPhysicsReference& KawaiiPhysics,
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FKawaiiPhysicsReference SetExternalForceVectorProperty(EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+	                                                              const FKawaiiPhysicsReference& KawaiiPhysics,
 	                                                              int ExternalForceIndex, FName PropertyName,
 	                                                              FVector Value);
 
 	/** Get ExternalForceBoolParameter Vector */
-	UFUNCTION(BlueprintPure, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
-	static FVector GetExternalForceVectorProperty(const FKawaiiPhysicsReference& KawaiiPhysics, int ExternalForceIndex,
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FVector GetExternalForceVectorProperty(EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+	                                              const FKawaiiPhysicsReference& KawaiiPhysics, int ExternalForceIndex,
 	                                              FName PropertyName);
 
 
 	/** Get ExternalForceBoolParameter Struct */
-	UFUNCTION(BlueprintPure, CustomThunk, Category = "Kawaii Physics",
+	UFUNCTION(BlueprintCallable, CustomThunk, Category = "Kawaii Physics",
 		meta=(BlueprintThreadSafe, CustomStructureParam = "Value"))
 	static void GetExternalForceWildcardProperty(const FKawaiiPhysicsReference& KawaiiPhysics, int ExternalForceIndex,
 	                                             FName PropertyName, int32& Value)
@@ -313,13 +339,15 @@ private:
 };
 
 template <typename ValueType, typename PropertyType>
-FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetExternalForceProperty(const FKawaiiPhysicsReference& KawaiiPhysics,
-                                                                        int ExternalForceIndex, FName PropertyName,
-                                                                        ValueType Value)
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetExternalForceProperty(
+	EKawaiiPhysicsAccessExternalForceResult& ExecResult, const FKawaiiPhysicsReference& KawaiiPhysics,
+	int ExternalForceIndex, FName PropertyName, ValueType Value)
 {
+	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
+
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 		TEXT("SetExternalForceProperty"),
-		[&ExternalForceIndex, &PropertyName, &Value](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		[&ExecResult, &ExternalForceIndex, &PropertyName, &Value](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 		{
 			if (InKawaiiPhysics.ExternalForces.IsValidIndex(ExternalForceIndex) &&
 				InKawaiiPhysics.ExternalForces[ExternalForceIndex].IsValid())
@@ -328,11 +356,12 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetExternalForceProperty(const FK
 				auto& Force = InKawaiiPhysics.ExternalForces[ExternalForceIndex].GetMutable<
 					FKawaiiPhysics_ExternalForce>();
 
-				if (const PropertyType* Property = FindFieldChecked<PropertyType>(ScriptStruct, PropertyName))
+				if (const PropertyType* Property = FindFProperty<PropertyType>(ScriptStruct, PropertyName))
 				{
 					if (void* ValuePtr = Property->template ContainerPtrToValuePtr<uint8>(&Force))
 					{
 						Property->SetPropertyValue(ValuePtr, Value);
+						ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
 					}
 				}
 			}
@@ -342,14 +371,16 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetExternalForceProperty(const FK
 }
 
 template <typename ValueType>
-ValueType UKawaiiPhysicsLibrary::GetExternalForceProperty(const FKawaiiPhysicsReference& KawaiiPhysics,
+ValueType UKawaiiPhysicsLibrary::GetExternalForceProperty(EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+                                                          const FKawaiiPhysicsReference& KawaiiPhysics,
                                                           int ExternalForceIndex, FName PropertyName)
 {
 	ValueType Result;
+	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
 
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 		TEXT("GetExternalForceProperty"),
-		[&Result, &ExternalForceIndex, &PropertyName](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		[&Result, &ExecResult, &ExternalForceIndex, &PropertyName](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 		{
 			if (InKawaiiPhysics.ExternalForces.IsValidIndex(ExternalForceIndex) &&
 				InKawaiiPhysics.ExternalForces[ExternalForceIndex].IsValid())
@@ -358,9 +389,10 @@ ValueType UKawaiiPhysicsLibrary::GetExternalForceProperty(const FKawaiiPhysicsRe
 				const auto& Force = InKawaiiPhysics.ExternalForces[ExternalForceIndex].GetMutable<
 					FKawaiiPhysics_ExternalForce>();
 
-				if (const FProperty* Property = FindFieldChecked<FProperty>(ScriptStruct, PropertyName))
+				if (const FProperty* Property = FindFProperty<FProperty>(ScriptStruct, PropertyName))
 				{
 					Result = *(Property->ContainerPtrToValuePtr<ValueType>(&Force));
+					ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
 				}
 			}
 		});

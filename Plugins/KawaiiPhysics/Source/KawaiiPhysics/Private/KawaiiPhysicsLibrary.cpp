@@ -89,11 +89,14 @@ TArray<FName> UKawaiiPhysicsLibrary::GetExcludeBoneNames(const FKawaiiPhysicsRef
 }
 
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetExternalForceVectorProperty(
-	const FKawaiiPhysicsReference& KawaiiPhysics, int ExternalForceIndex, FName PropertyName, FVector Value)
+	EKawaiiPhysicsAccessExternalForceResult& ExecResult, const FKawaiiPhysicsReference& KawaiiPhysics,
+	int ExternalForceIndex, FName PropertyName, FVector Value)
 {
+	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
+
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 		TEXT("SetExternalForceStructProperty"),
-		[&ExternalForceIndex, &PropertyName, &Value](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		[&ExecResult, &ExternalForceIndex, &PropertyName, &Value](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 		{
 			if (InKawaiiPhysics.ExternalForces.IsValidIndex(ExternalForceIndex) &&
 				InKawaiiPhysics.ExternalForces[ExternalForceIndex].IsValid())
@@ -102,7 +105,7 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetExternalForceVectorProperty(
 				auto& Force = InKawaiiPhysics.ExternalForces[ExternalForceIndex].GetMutable<
 					FKawaiiPhysics_ExternalForce>();
 
-				if (const FStructProperty* StructProperty = FindFieldChecked<FStructProperty>(
+				if (const FStructProperty* StructProperty = FindFProperty<FStructProperty>(
 					ScriptStruct, PropertyName))
 				{
 					if (StructProperty->Struct == TBaseStructure<FVector>::Get())
@@ -110,6 +113,7 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetExternalForceVectorProperty(
 						if (void* ValuePtr = StructProperty->ContainerPtrToValuePtr<uint8>(&Force))
 						{
 							StructProperty->CopyCompleteValue(ValuePtr, &Value);
+							ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
 						}
 					}
 				}
@@ -119,14 +123,16 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetExternalForceVectorProperty(
 	return KawaiiPhysics;
 }
 
-FVector UKawaiiPhysicsLibrary::GetExternalForceVectorProperty(const FKawaiiPhysicsReference& KawaiiPhysics,
+FVector UKawaiiPhysicsLibrary::GetExternalForceVectorProperty(EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+                                                              const FKawaiiPhysicsReference& KawaiiPhysics,
                                                               int ExternalForceIndex, FName PropertyName)
 {
 	FVector Result;
+	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
 
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 		TEXT("GetExternalForceStructProperty"),
-		[&Result, &ExternalForceIndex, &PropertyName](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		[&Result, &ExecResult, &ExternalForceIndex, &PropertyName](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 		{
 			if (InKawaiiPhysics.ExternalForces.IsValidIndex(ExternalForceIndex) &&
 				InKawaiiPhysics.ExternalForces[ExternalForceIndex].IsValid())
@@ -135,12 +141,13 @@ FVector UKawaiiPhysicsLibrary::GetExternalForceVectorProperty(const FKawaiiPhysi
 				const auto& Force = InKawaiiPhysics.ExternalForces[ExternalForceIndex].GetMutable<
 					FKawaiiPhysics_ExternalForce>();
 
-				if (const FStructProperty* StructProperty = FindFieldChecked<FStructProperty>(
+				if (const FStructProperty* StructProperty = FindFProperty<FStructProperty>(
 					ScriptStruct, PropertyName))
 				{
 					if (StructProperty->Struct == TBaseStructure<FVector>::Get())
 					{
 						Result = *(StructProperty->ContainerPtrToValuePtr<FVector>(&Force));
+						ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
 					}
 				}
 			}
@@ -175,8 +182,7 @@ DEFINE_FUNCTION(UKawaiiPhysicsLibrary::execGetExternalForceWildcardProperty)
 				auto& Force = InKawaiiPhysics.ExternalForces[ExternalForceIndex].GetMutable<
 					FKawaiiPhysics_ExternalForce>();
 
-				if (const FProperty* StructProperty = FindFieldChecked<FProperty>(
-					ScriptStruct, PropertyName))
+				if (const FProperty* StructProperty = FindFProperty<FProperty>(ScriptStruct, PropertyName))
 				{
 					Result = StructProperty->ContainerPtrToValuePtr<void>(&Force);
 				}
