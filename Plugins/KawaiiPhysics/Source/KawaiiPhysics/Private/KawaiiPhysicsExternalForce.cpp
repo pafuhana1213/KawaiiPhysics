@@ -9,8 +9,11 @@ void FKawaiiPhysics_ExternalForce_Simple::PreApply(FAnimNode_KawaiiPhysics& Node
 {
 	Force = ForceDir * ForceScale;
 
-	const FTransform ComponentTransform = SkelComp->GetComponentTransform();
-	Force = ComponentTransform.InverseTransformVector(Force);
+	if (ExternalForceSpace == EExternalForceSpace::WorldSpace)
+	{
+		const FTransform ComponentTransform = SkelComp->GetComponentTransform();
+		Force = ComponentTransform.InverseTransformVector(Force);
+	}
 }
 
 void FKawaiiPhysics_ExternalForce_Simple::Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
@@ -36,7 +39,6 @@ void FKawaiiPhysics_ExternalForce_Gravity::PreApply(FAnimNode_KawaiiPhysics& Nod
 	// For Character's Custom Gravity Direction
 	if (const ACharacter* Character = Cast<ACharacter>(SkelComp->GetOwner()))
 	{
-	
 #if	ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 3
 		if (bUseCharacterGravityDirection)
 		{
@@ -56,8 +58,11 @@ void FKawaiiPhysics_ExternalForce_Gravity::PreApply(FAnimNode_KawaiiPhysics& Nod
 
 	Force *= GravityScale;
 
-	const FTransform ComponentTransform = SkelComp->GetComponentTransform();
-	Force = ComponentTransform.InverseTransformVector(Force);
+	if (ExternalForceSpace == EExternalForceSpace::WorldSpace)
+	{
+		const FTransform ComponentTransform = SkelComp->GetComponentTransform();
+		Force = ComponentTransform.InverseTransformVector(Force);
+	}
 }
 
 void FKawaiiPhysics_ExternalForce_Gravity::Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
@@ -101,8 +106,11 @@ void FKawaiiPhysics_ExternalForce_Curve::PreApply(FAnimNode_KawaiiPhysics& Node,
 
 	Force = ForceCurve.GetValue(Time) * ForceScale;
 
-	const FTransform ComponentTransform = SkelComp->GetComponentTransform();
-	Force = ComponentTransform.InverseTransformVector(Force);
+	if (ExternalForceSpace == EExternalForceSpace::WorldSpace)
+	{
+		const FTransform ComponentTransform = SkelComp->GetComponentTransform();
+		Force = ComponentTransform.InverseTransformVector(Force);
+	}
 }
 
 void FKawaiiPhysics_ExternalForce_Curve::Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,

@@ -4,6 +4,16 @@
 
 #include "KawaiiPhysicsExternalForce.generated.h"
 
+UENUM()
+enum class EExternalForceSpace : uint8
+{
+	/** Simulate in component space. Moving the entire skeletal mesh will have no affect on velocities */
+	ComponentSpace,
+	/** Simulate in world space. Moving the skeletal mesh will generate velocity changes */
+	WorldSpace,
+	/** Simulate in another bone space. Moving the entire skeletal mesh and individually modifying the base bone will have no affect on velocities */
+	//BaseBoneSpace,
+};
 
 USTRUCT(BlueprintType)
 struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce
@@ -22,6 +32,9 @@ public:
 
 	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1))
 	TArray<FBoneReference> IgnoreBoneFilter;
+
+	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1))
+	EExternalForceSpace ExternalForceSpace = EExternalForceSpace::WorldSpace;
 
 #if ENABLE_ANIM_DEBUG
 	float DebugArrowLength = 5.0f;
