@@ -315,14 +315,6 @@ void FKawaiiPhysicsEditMode::RenderExternalForces(FPrimitiveDrawInterface* PDI) 
 	{
 		for (const auto& Bone : RuntimeNode->ModifyBones)
 		{
-			for (const auto Force : RuntimeNode->CustomExternalForces)
-			{
-				if (Force)
-				{
-					Force->AnimDrawDebugForEditMode(Bone, *RuntimeNode, PDI);
-				}
-			}
-
 			for (auto& Force : RuntimeNode->ExternalForces)
 			{
 				if (Force.IsValid())

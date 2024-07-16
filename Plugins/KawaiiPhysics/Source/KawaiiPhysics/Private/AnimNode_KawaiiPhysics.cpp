@@ -863,11 +863,18 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 	{
 		if (CustomExternalForces[i] && CustomExternalForces[i]->bIsEnabled)
 		{
-			CustomExternalForces[i]->Apply(Bone.Index, *this, SkelComp);
-
-#if ENABLE_ANIM_DEBUG
-			CustomExternalForces[i]->AnimDrawDebug(Bone, *this, Output);
-#endif
+			FTransform BoneTM = FTransform::Identity;
+			if (Bone.bDummy)
+			{
+				BoneTM = Output.Pose.GetComponentSpaceTransform(
+					ParentBone.BoneRef.GetCompactPoseIndex(Output.Pose.GetPose().GetBoneContainer()));
+			}
+			else
+			{
+				BoneTM = Output.Pose.GetComponentSpaceTransform(
+					Bone.BoneRef.GetCompactPoseIndex(Output.Pose.GetPose().GetBoneContainer()));
+			}
+			CustomExternalForces[i]->Apply(*this, Bone.Index, SkelComp, BoneTM);
 		}
 	}
 
@@ -880,7 +887,7 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 			{
 				if (ExForce->ExternalForceSpace == EExternalForceSpace::BoneSpace)
 				{
-					FTransform BoneTM;
+					FTransform BoneTM = FTransform::Identity;
 					if (Bone.bDummy)
 					{
 						BoneTM = Output.Pose.GetComponentSpaceTransform(
