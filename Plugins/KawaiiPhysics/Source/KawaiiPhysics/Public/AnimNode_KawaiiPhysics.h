@@ -596,10 +596,10 @@ protected:
 	void UpdateSkelCompMove(const FTransform& ComponentTransform);
 
 	// Simulate
-	void SimulateModifyBones(const FComponentSpacePoseContext& Output,
+	void SimulateModifyBones(FComponentSpacePoseContext& Output,
 	                         const FTransform& ComponentTransform);
 	void Simulate(FKawaiiPhysicsModifyBone& Bone, const FSceneInterface* Scene, const FTransform& ComponentTransform,
-	              const FVector& GravityCS, const float& Exponent, const USkeletalMeshComponent* SkelComp, const
+	              const FVector& GravityCS, const float& Exponent, const USkeletalMeshComponent* SkelComp,
 	              FComponentSpacePoseContext& Output);
 	void AdjustByWorldCollision(FKawaiiPhysicsModifyBone& Bone, const USkeletalMeshComponent* OwningComp);
 	void AdjustBySphereCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FSphericalLimit>& Limits);

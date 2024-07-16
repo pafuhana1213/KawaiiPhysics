@@ -61,6 +61,15 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 	DeltaTimeOld = 1.0f / TargetFramerate;
 
 	bResetDynamics = false;
+
+	for (int i = 0; i < ExternalForces.Num(); ++i)
+	{
+		if (ExternalForces[i].IsValid())
+		{
+			auto& Force = ExternalForces[i].GetMutable<FKawaiiPhysics_ExternalForce>();
+			Force.Initialize(Context);
+		}
+	}
 }
 
 void FAnimNode_KawaiiPhysics::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
@@ -693,7 +702,7 @@ void FAnimNode_KawaiiPhysics::UpdateSkelCompMove(const FTransform& ComponentTran
 	PreSkelCompTransform = ComponentTransform;
 }
 
-void FAnimNode_KawaiiPhysics::SimulateModifyBones(const FComponentSpacePoseContext& Output,
+void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Output,
                                                   const FTransform& ComponentTransform)
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SimulatemodifyBones);
@@ -819,7 +828,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(const FComponentSpacePoseConte
 void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSceneInterface* Scene,
                                        const FTransform& ComponentTransform, const FVector& GravityCS,
                                        const float& Exponent, const USkeletalMeshComponent* SkelComp,
-                                       const FComponentSpacePoseContext& Output)
+                                       FComponentSpacePoseContext& Output)
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_Simulate);
 
@@ -869,11 +878,29 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 			if (const auto ExForce = ExternalForces[i].GetMutablePtr<FKawaiiPhysics_ExternalForce>();
 				ExForce->bIsEnabled)
 			{
-				ExForce->Apply(Bone, *this, Output);
+				if (ExForce->ExternalForceSpace == EExternalForceSpace::BoneSpace)
+				{
+					FTransform BoneTM;
+					if (Bone.bDummy)
+					{
+						BoneTM = Output.Pose.GetComponentSpaceTransform(
+							ParentBone.BoneRef.GetCompactPoseIndex(Output.Pose.GetPose().GetBoneContainer()));
+					}
+					else
+					{
+						BoneTM = Output.Pose.GetComponentSpaceTransform(
+							Bone.BoneRef.GetCompactPoseIndex(Output.Pose.GetPose().GetBoneContainer()));
+					}
+
+					ExForce->Apply(Bone, *this, Output, BoneTM);
+				}
+				else
+				{
+					ExForce->Apply(Bone, *this, Output);
+				}
 			}
 		}
 	}
-
 
 	// // Pull to Pose Location
 	const FVector BaseLocation = ParentBone.Location + (Bone.PoseLocation - ParentBone.PoseLocation);

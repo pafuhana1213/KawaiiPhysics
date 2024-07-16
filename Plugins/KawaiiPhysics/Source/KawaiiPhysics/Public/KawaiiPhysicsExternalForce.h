@@ -12,7 +12,16 @@ enum class EExternalForceSpace : uint8
 	/** Simulate in world space. Moving the skeletal mesh will generate velocity changes */
 	WorldSpace,
 	/** Simulate in another bone space. Moving the entire skeletal mesh and individually modifying the base bone will have no affect on velocities */
-	//BaseBoneSpace,
+	BoneSpace,
+};
+
+UENUM()
+enum class EExternalForceCurveEvaluateType : uint8
+{
+	Single,
+	Average,
+	Max,
+	Min
 };
 
 USTRUCT(BlueprintType)
@@ -40,6 +49,7 @@ public:
 	float DebugArrowLength = 5.0f;
 	float DebugArrowSize = 1.0f;
 	FVector DebugArrowOffset = FVector::Zero();
+	TMap<FName, FVector> BoneForceMap;
 #endif
 
 protected:
@@ -49,14 +59,18 @@ protected:
 public:
 	virtual ~FKawaiiPhysics_ExternalForce() = default;
 
+	virtual void Initialize(const FAnimationInitializeContext& Context)
+	{
+	}
+
 	virtual void PreApply(FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp)
 	{
-	};
+	}
 
 	virtual void Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
-	                   const FComponentSpacePoseContext& PoseContext)
+	                   const FComponentSpacePoseContext& PoseContext, const FTransform& BoneTM = FTransform::Identity)
 	{
-	};
+	}
 
 
 	virtual bool IsDebugEnabled(bool bInPersona = false)
@@ -85,7 +99,9 @@ public:
 
 			AnimInstanceProxy->AnimDrawDebugDirectionalArrow(
 				ModifyRootBoneLocationWS + DebugArrowOffset,
-				ModifyRootBoneLocationWS + DebugArrowOffset + Force.GetSafeNormal() * DebugArrowLength,
+				ModifyRootBoneLocationWS + DebugArrowOffset + BoneForceMap.Find(Bone.BoneRef.BoneName)->GetSafeNormal()
+				*
+				DebugArrowLength,
 				DebugArrowSize, FColor::Red, false, 0.f, 2);
 		}
 	}
@@ -95,10 +111,12 @@ public:
 	virtual void AnimDrawDebugForEditMode(const FKawaiiPhysicsModifyBone& ModifyBone,
 	                                      const FAnimNode_KawaiiPhysics& Node, FPrimitiveDrawInterface* PDI)
 	{
-		if (IsDebugEnabled(true) && CanApply(ModifyBone) && !Force.IsZero())
+		if (IsDebugEnabled(true) && CanApply(ModifyBone) && !Force.IsNearlyZero() && BoneForceMap.Contains(
+			ModifyBone.BoneRef.BoneName))
 		{
-			const FTransform ArrowTransform = FTransform(Force.GetSafeNormal().ToOrientationRotator(),
-			                                             ModifyBone.Location + DebugArrowOffset);
+			const FTransform ArrowTransform = FTransform(
+				BoneForceMap.Find(ModifyBone.BoneRef.BoneName)->GetSafeNormal().ToOrientationRotator(),
+				ModifyBone.Location + DebugArrowOffset);
 			DrawDirectionalArrow(PDI, ArrowTransform.ToMatrixNoScale(), FColor::Red, DebugArrowLength, DebugArrowSize,
 			                     SDPG_Foreground, 1.0f);
 		}
@@ -122,8 +140,8 @@ protected:
 	}
 };
 
-USTRUCT(BlueprintType, DisplayName = "Simple")
-struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Simple : public FKawaiiPhysics_ExternalForce
+USTRUCT(BlueprintType, DisplayName = "Basic")
+struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Basic : public FKawaiiPhysics_ExternalForce
 {
 	GENERATED_BODY()
 
@@ -137,7 +155,8 @@ public:
 public:
 	virtual void PreApply(FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp) override;
 	virtual void Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
-	                   const FComponentSpacePoseContext& PoseContext) override;
+	                   const FComponentSpacePoseContext& PoseContext,
+	                   const FTransform& BoneTM = FTransform::Identity) override;
 
 #if WITH_EDITOR
 	//virtual void AnimDrawDebugForEditMode(const FKawaiiPhysicsModifyBone& ModifyBone,
@@ -172,7 +191,8 @@ private:
 public:
 	virtual void PreApply(FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp) override;
 	virtual void Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
-	                   const FComponentSpacePoseContext& PoseContext) override;
+	                   const FComponentSpacePoseContext& PoseContext,
+	                   const FTransform& BoneTM = FTransform::Identity) override;
 
 #if WITH_EDITOR
 	//virtual void AnimDrawDebugForEditMode(const FKawaiiPhysicsModifyBone& ModifyBone,
@@ -186,24 +206,34 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Curve : public FKawaiiPhys
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, XAxisName="Time", YAxisName="Force"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (XAxisName="Time", YAxisName="Force"))
 	FRuntimeVectorCurve ForceCurve;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EExternalForceCurveEvaluateType CurveEvaluateType = EExternalForceCurveEvaluateType::Single;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float ForceScale = 1.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float TimeScale = 1.0f;
 
 private:
 	UPROPERTY()
 	float Time = 0.0f;
+	UPROPERTY()
+	float PrevTime = 0.0f;
+	UPROPERTY()
+	float MaxCurveTime = 0.0f;
 
 public:
+	void InitMaxCurveTime();
+
+	virtual void Initialize(const FAnimationInitializeContext& Context) override;
 	virtual void PreApply(FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp) override;
 	virtual void Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
-	                   const FComponentSpacePoseContext& PoseContext) override;
-
+	                   const FComponentSpacePoseContext& PoseContext,
+	                   const FTransform& BoneTM = FTransform::Identity) override;
 #if WITH_EDITOR
 	// virtual void AnimDrawDebugForEditMode(const FKawaiiPhysicsModifyBone& ModifyBone,
 	//                                       const FAnimNode_KawaiiPhysics& Node, FPrimitiveDrawInterface* PDI) override;
