@@ -306,7 +306,7 @@ public:
 	static FKawaiiPhysicsReference SetExternalForceFloatProperty(EKawaiiPhysicsAccessExternalForceResult& ExecResult,
 	                                                             const FKawaiiPhysicsReference& KawaiiPhysics,
 	                                                             int ExternalForceIndex, FName PropertyName,
-	                                                             int32 Value)
+	                                                             float Value)
 	{
 		return SetExternalForceProperty<float, FFloatProperty>(ExecResult, KawaiiPhysics, ExternalForceIndex,
 		                                                       PropertyName, Value);

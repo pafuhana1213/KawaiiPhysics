@@ -4,10 +4,30 @@
 #include "GameFramework/CharacterMovementComponent.h"
 
 
+///
+/// Basic
+///
 void FKawaiiPhysics_ExternalForce_Basic::PreApply(FAnimNode_KawaiiPhysics& Node,
                                                   const USkeletalMeshComponent* SkelComp)
 {
-	Force = ForceDir * ForceScale;
+	PrevTime = Time;
+	Time += Node.DeltaTime;
+	if (Interval > 0.0f)
+	{
+		if (Time > Interval)
+		{
+			Force = ForceDir * ForceScale;
+			Time = FMath::Fmod(Time, Interval);
+		}
+		else
+		{
+			Force = FVector::Zero();
+		}
+	}
+	else
+	{
+		Force = ForceDir * ForceScale;
+	}
 
 	if (ExternalForceSpace == EExternalForceSpace::WorldSpace)
 	{
@@ -43,6 +63,9 @@ void FKawaiiPhysics_ExternalForce_Basic::Apply(FKawaiiPhysicsModifyBone& Bone, F
 	}
 }
 
+///
+/// Gravity
+///
 void FKawaiiPhysics_ExternalForce_Gravity::PreApply(FAnimNode_KawaiiPhysics& Node,
                                                     const USkeletalMeshComponent* SkelComp)
 {
@@ -110,7 +133,9 @@ void FKawaiiPhysics_ExternalForce_Gravity::Apply(FKawaiiPhysicsModifyBone& Bone,
 #endif
 }
 
-
+///
+/// Curve
+///
 void FKawaiiPhysics_ExternalForce_Curve::InitMaxCurveTime()
 {
 	if (const FRichCurve* CurveX = ForceCurve.GetRichCurve(0); CurveX && !CurveX->IsEmpty())
@@ -154,9 +179,9 @@ void FKawaiiPhysics_ExternalForce_Curve::PreApply(FAnimNode_KawaiiPhysics& Node,
 	else
 	{
 		TArray<FVector> CurveValues;
-		const float SubStep = Node.DeltaTime * TimeScale / 10.0f;
+		const float SubStep = Node.DeltaTime * TimeScale / SubstepCount;
 
-		for (int i = 0; i < 10; ++i)
+		for (int i = 0; i < SubstepCount; ++i)
 		{
 			Time += SubStep;
 			if (MaxCurveTime > 0 && Time > MaxCurveTime)
@@ -173,7 +198,7 @@ void FKawaiiPhysics_ExternalForce_Curve::PreApply(FAnimNode_KawaiiPhysics& Node,
 			{
 				Force += CurveValue;
 			}
-			Force /= 10.0f;
+			Force /= SubstepCount;
 			break;
 
 		case EExternalForceCurveEvaluateType::Max:

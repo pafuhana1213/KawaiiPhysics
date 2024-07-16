@@ -4,7 +4,7 @@
 
 #include "KawaiiPhysicsExternalForce.generated.h"
 
-UENUM()
+UENUM(BlueprintType)
 enum class EExternalForceSpace : uint8
 {
 	/** Simulate in component space. Moving the entire skeletal mesh will have no affect on velocities */
@@ -15,7 +15,7 @@ enum class EExternalForceSpace : uint8
 	BoneSpace,
 };
 
-UENUM()
+UENUM(BlueprintType)
 enum class EExternalForceCurveEvaluateType : uint8
 {
 	Single,
@@ -24,6 +24,10 @@ enum class EExternalForceCurveEvaluateType : uint8
 	Min
 };
 
+
+///
+/// Base
+///
 USTRUCT(BlueprintType)
 struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce
 {
@@ -140,6 +144,9 @@ protected:
 	}
 };
 
+///
+/// Basic
+///
 USTRUCT(BlueprintType, DisplayName = "Basic")
 struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Basic : public FKawaiiPhysics_ExternalForce
 {
@@ -152,18 +159,25 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float ForceScale = 1.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Interval = 0.0f;
+
 public:
 	virtual void PreApply(FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp) override;
 	virtual void Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
 	                   const FComponentSpacePoseContext& PoseContext,
 	                   const FTransform& BoneTM = FTransform::Identity) override;
 
-#if WITH_EDITOR
-	//virtual void AnimDrawDebugForEditMode(const FKawaiiPhysicsModifyBone& ModifyBone,
-	//                                      const FAnimNode_KawaiiPhysics& Node, FPrimitiveDrawInterface* PDI) override;
-#endif
+private:
+	UPROPERTY()
+	float Time = 0.0f;
+	UPROPERTY()
+	float PrevTime = 0.0f;
 };
 
+///
+/// Gravity
+///
 USTRUCT(BlueprintType, DisplayName = "Gravity")
 struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Gravity : public FKawaiiPhysics_ExternalForce
 {
@@ -193,13 +207,11 @@ public:
 	virtual void Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
 	                   const FComponentSpacePoseContext& PoseContext,
 	                   const FTransform& BoneTM = FTransform::Identity) override;
-
-#if WITH_EDITOR
-	//virtual void AnimDrawDebugForEditMode(const FKawaiiPhysicsModifyBone& ModifyBone,
-	//                                      const FAnimNode_KawaiiPhysics& Node, FPrimitiveDrawInterface* PDI) override;
-#endif
 };
 
+///
+/// Curve
+///
 USTRUCT(BlueprintType, DisplayName = "Curve")
 struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Curve : public FKawaiiPhysics_ExternalForce
 {
@@ -211,6 +223,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EExternalForceCurveEvaluateType CurveEvaluateType = EExternalForceCurveEvaluateType::Single;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,
+		meta=(EditCondition="CurveEvaluateType!=EExternalForceCurveEvaluateType::Single"))
+	int SubstepCount = 10;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float ForceScale = 1.0f;
@@ -234,8 +250,4 @@ public:
 	virtual void Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
 	                   const FComponentSpacePoseContext& PoseContext,
 	                   const FTransform& BoneTM = FTransform::Identity) override;
-#if WITH_EDITOR
-	// virtual void AnimDrawDebugForEditMode(const FKawaiiPhysicsModifyBone& ModifyBone,
-	//                                       const FAnimNode_KawaiiPhysics& Node, FPrimitiveDrawInterface* PDI) override;
-#endif
 };
