@@ -160,6 +160,9 @@ public:
 	float ForceScale = 1.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FRuntimeFloatCurve ForceRateByLengthRate;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Interval = 0.0f;
 
 public:
@@ -186,6 +189,9 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Gravity : public FKawaiiPh
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float GravityScale = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FRuntimeFloatCurve ForceRateByLengthRate;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bUseCharacterGravityDirection = false;
@@ -229,10 +235,13 @@ public:
 	int SubstepCount = 10;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float TimeScale = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float ForceScale = 1.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float TimeScale = 1.0f;
+	FRuntimeFloatCurve ForceRateByLengthRate;
 
 private:
 	UPROPERTY()
