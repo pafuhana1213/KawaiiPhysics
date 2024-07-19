@@ -40,9 +40,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1))
 	bool bDrawDebug = false;
 
+	/** 
+	* 外力を適応するボーンを指定（＝指定しなかったボーンには適応しない）
+	* Specify the bones to which the external force will be applied (= the force will not be applied to bones that are not specified)
+	*/
 	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1))
 	TArray<FBoneReference> ApplyBoneFilter;
 
+	/** 
+	* 外力を適応しないボーンを指定
+	* Specify the bones to which the external force will be NOT applied
+	*/
 	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1))
 	TArray<FBoneReference> IgnoreBoneFilter;
 
@@ -159,8 +167,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float ForceScale = 1.0f;
 
+	/** 
+	* 各ボーンに適用するForce Rateを補正。
+	* 「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値をForceRateに乗算
+	* Corrects the Force Rate applied to each bone.
+	* Multiplies the ForceRate by the curve value for "Length from RootBone to specific bone / Length from RootBone to end bone" (0.0~1.0)
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FRuntimeFloatCurve ForceRateByLengthRate;
+	FRuntimeFloatCurve ForceRateByBoneLengthRate;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Interval = 0.0f;
@@ -190,12 +204,26 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float GravityScale = 1.0f;
 
+	/** 
+	* 各ボーンに適用するForce Rateを補正。
+	* 「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値をForceRateに乗算
+	* Corrects the Force Rate applied to each bone.
+	* Multiplies the ForceRate by the curve value for "Length from RootBone to specific bone / Length from RootBone to end bone" (0.0~1.0)
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FRuntimeFloatCurve ForceRateByLengthRate;
+	FRuntimeFloatCurve ForceRateByBoneLengthRate;
 
+	/** 
+	* Character側で設定されたCustomGravityDirectionを使用するフラグ(UE5.4以降)
+	* Flag to use CustomGravityDirection set on the Character side (UE5.4 and later)
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bUseCharacterGravityDirection = false;
 
+	/** 
+	* Character側で設定されたGravityScaleを使用するフラグ
+	* Flag to use GravityScale set on the Character side
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bUseCharacterGravityScale = false;
 
@@ -224,12 +252,28 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Curve : public FKawaiiPhys
 	GENERATED_BODY()
 
 public:
+	/** 
+	* 時間に応じて変化する外力をカーブで設定。X軸:Time Y軸:Force
+	* Set the external force that changes over time using a curve. X-axis: Time Y-axis: Force
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (XAxisName="Time", YAxisName="Force"))
 	FRuntimeVectorCurve ForceCurve;
 
+	/** 
+	* カーブの評価方式。
+	* Single以外に設定した場合：前フレームからの経過時間をSubstepCountで分割し、
+	* 分割後の各時間におけるカーブの値の平均・最大値・最小値を外力として使用
+	* Curve evaluation method
+	* If set to anything other than Single: The time elapsed from the previous frame is divided by SubstepCount,
+	* and the Average, Maximum, or Minimum values of the curve at each time point after division are used as external forces.
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EExternalForceCurveEvaluateType CurveEvaluateType = EExternalForceCurveEvaluateType::Single;
 
+	/** 
+	* 経過時間の分割数
+	* Number of divisions of elapsed time
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,
 		meta=(EditCondition="CurveEvaluateType!=EExternalForceCurveEvaluateType::Single"))
 	int SubstepCount = 10;
@@ -240,8 +284,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float ForceScale = 1.0f;
 
+	/** 
+	* 各ボーンに適用するForce Rateを補正。
+	* 「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値をForceRateに乗算
+	* Corrects the Force Rate applied to each bone.
+	* Multiplies the ForceRate by the curve value for "Length from RootBone to specific bone / Length from RootBone to end bone" (0.0~1.0)
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FRuntimeFloatCurve ForceRateByLengthRate;
+	FRuntimeFloatCurve ForceRateByBoneLengthRate;
 
 private:
 	UPROPERTY()

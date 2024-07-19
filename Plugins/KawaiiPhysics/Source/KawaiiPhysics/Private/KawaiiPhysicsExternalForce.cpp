@@ -45,7 +45,7 @@ void FKawaiiPhysics_ExternalForce_Basic::Apply(FKawaiiPhysicsModifyBone& Bone, F
 	}
 
 	float ForceRate = 1.0f;
-	if (const auto Curve = ForceRateByLengthRate.GetRichCurve(); !Curve->IsEmpty())
+	if (const auto Curve = ForceRateByBoneLengthRate.GetRichCurve(); !Curve->IsEmpty())
 	{
 		ForceRate = Curve->Eval(Bone.LengthFromRoot / Node.GetTotalBoneLength());
 	}
@@ -116,7 +116,7 @@ void FKawaiiPhysics_ExternalForce_Gravity::Apply(FKawaiiPhysicsModifyBone& Bone,
 	}
 
 	float ForceRate = 1.0f;
-	if (const auto Curve = ForceRateByLengthRate.GetRichCurve(); !Curve->IsEmpty())
+	if (const auto Curve = ForceRateByBoneLengthRate.GetRichCurve(); !Curve->IsEmpty())
 	{
 		ForceRate = Curve->Eval(Bone.LengthFromRoot / Node.GetTotalBoneLength());
 	}
@@ -252,7 +252,7 @@ void FKawaiiPhysics_ExternalForce_Curve::Apply(FKawaiiPhysicsModifyBone& Bone, F
 	}
 
 	float ForceRate = 1.0f;
-	if (const auto Curve = ForceRateByLengthRate.GetRichCurve(); !Curve->IsEmpty())
+	if (const auto Curve = ForceRateByBoneLengthRate.GetRichCurve(); !Curve->IsEmpty())
 	{
 		ForceRate = Curve->Eval(Bone.LengthFromRoot / Node.GetTotalBoneLength());
 	}
