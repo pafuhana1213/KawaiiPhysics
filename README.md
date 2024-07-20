@@ -46,7 +46,7 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 [次期アイドルマスター グラフィクス＆アニメーション プログラミング プレビュー](https://cedil.cesa.or.jp/cedil_sessions/view/416)
 
 ## 動作環境
-- UE5.0 ~ 5.3  
+- UE5.2 ~ 5.4  
 https://github.com/pafuhana1213/KawaiiPhysics/releases/  
   
 - UE4.27  
@@ -67,7 +67,8 @@ UE4.23以前でビルドする場合は、awaiiPhysics.uplugin における
 - **プロジェクト**のPluginsフォルダにKawaiiPhysicsフォルダを入れてください
 - 各パラメータについて：https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E5%90%84%E3%83%91%E3%83%A9%E3%83%A1%E3%83%BC%E3%82%BF%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6
 
-- BPプロジェクトの場合、パッケージ時にエラーが発生します。お手数ですがC++プロジェクトに変換してみてください
+- BPプロジェクトの場合、パッケージ時にエラーが発生します。お手数ですが、C++プロジェクトに変換するか、下記記事で紹介されている方法をお試しください。  
+[UE5 KawaiiPhysicsをBlueprintプロジェクトでもpkg化する方法 - PaperSloth’s diary -](https://papersloth.hatenablog.com/entry/2024/02/14/201629)
 
 ### BPプロジェクトをC++プロジェクトに変換するには
 「C++ クラス ウィザード」からC++コードを追加することで C++プロジェクトに変換可能です。  
