@@ -84,13 +84,16 @@ https://docs.unrealengine.com/5.0/ja/setting-up-visual-studio-development-enviro
 
 ## 解説記事・動画
 ### 公式
-[揺れ骨用自作AnimNode「Kawaii Physics」の内部実装解説的なもの その1](http://pafuhana1213.hatenablog.com/entry/2019/07/26/171046)
+- [揺れ骨用自作AnimNode「Kawaii Physics」の内部実装解説的なもの その1](http://pafuhana1213.hatenablog.com/entry/2019/07/26/171046)
+- [#ControlRig を使ったスカートの突き抜け対策と#KawaiiPhysics を併用してみるテスト](https://twitter.com/pafuhana1213/status/1300454762542817280)
 
 ### 非公式( ありがとうございます！）
 - [揺れモノ超ド素人がKawaiiPhysicsを使って、感覚を頼りに女性キャラクターモデルのKawaiiを増す方法まとめ](https://qiita.com/YuukiOgino/items/7f3198a90dab43019f26)
+- [揺れものとコントロールリグ UEを使用したバーチャルライブでの実例](https://www.docswell.com/s/indieusgames/K4Q2XJ-2024-06-14-175045)
 - [【UE】揺れ物設定（Kawaii Physics）](https://techblog.sumelagi.co.jp/unrealengine/147/)
   - 補足：骨ごとの影響度調整は「◯◯◯ by bone length rate」プロパティである程度実現可能です
-- [【電書版】UE4物理アセット攻略ガイド～動くバーチャルアイドル～](https://booth.pm/ja/items/1900064)
+- [【UE4】Kawaii Physicsチュートリアル#1](https://www.youtube.com/watch?v=hlgXuVML_is)
+- [How To Setup Kawaii Physics in Unreal Engine 5](https://dev.epicgames.com/community/learning/tutorials/d1Z9/unreal-engine-how-to-setup-kawaii-physics-in-unreal)
 
 ## ライセンス
 MIT
@@ -102,6 +105,13 @@ MIT
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
+- 2024/2/8 v1.16.0　[詳細はこちら](https://github.com/pafuhana1213/KawaiiPhysics/discussions/128)
+  - New External Force
+  - 詳細パネルの整理・機能追加
+  - コンソール変数を追加（レベル上でのデバッグ用）
+  - DataAsset Update
+- 2024/2/8 v1.15.0　[詳細はこちら](https://github.com/pafuhana1213/KawaiiPhysics/discussions/117)
+  - UE5.4に対応しました
 - 2024/2/8 v1.14.0
   - 骨間の距離拘束を行う BoneConstraint機能 を実験的に追加しました
     - ![image](https://github.com/pafuhana1213/KawaiiPhysics/assets/8957600/af5845e4-65aa-41c1-ba0e-ae466e90d19f)
