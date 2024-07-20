@@ -1,12 +1,17 @@
 # Kawaii Physics
-English doc :   
-- https://github.com/pafuhana1213/KawaiiPhysics/blob/master/README_en.md  
+English doc   
+- https://github.com/pafuhana1213/KawaiiPhysics/blob/master/README_en.md
 
-ディスカッション：  
-- [Update Information - 更新情報](https://github.com/pafuhana1213/KawaiiPhysics/discussions/categories/announcements-%E3%82%A2%E3%83%8A%E3%82%A6%E3%83%B3%E3%82%B9)  
-- [Tell me about your work! - あなたの作品を教えてください！](https://github.com/pafuhana1213/KawaiiPhysics/discussions/65)  
-- [How to use and set up? - 設定方法などについての雑談・相談の場](https://github.com/pafuhana1213/KawaiiPhysics/discussions/66)  
-- [How to request Features and Samples - 機能やサンプルのリクエスト方法について](https://github.com/pafuhana1213/KawaiiPhysics/discussions/67)  
+ダウンロード（C++ビルド環境がない方向け）  
+https://github.com/pafuhana1213/KawaiiPhysics/releases/  
+
+ディスカッション  
+- [アップデート情報](https://github.com/pafuhana1213/KawaiiPhysics/discussions/categories/announcements-%E3%82%A2%E3%83%8A%E3%82%A6%E3%83%B3%E3%82%B9)
+- [要望・アイデア](https://github.com/pafuhana1213/KawaiiPhysics/discussions/categories/ideas-%E8%A6%81%E6%9C%9B-%E3%82%A2%E3%82%A4%E3%83%87%E3%82%A2)
+- [質問・Q&A](https://github.com/pafuhana1213/KawaiiPhysics/discussions/categories/q-a)
+- [あなたの作品を教えてください！](https://github.com/pafuhana1213/KawaiiPhysics/discussions/65)  
+- [設定方法などについての雑談・相談の場](https://github.com/pafuhana1213/KawaiiPhysics/discussions/66)  
+- [機能やサンプルのリクエスト方法について](https://github.com/pafuhana1213/KawaiiPhysics/discussions/67)  
 
 不具合報告  
 - https://github.com/pafuhana1213/KawaiiPhysics/issues
