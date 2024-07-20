@@ -150,16 +150,22 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(const FComponentSpacePoseContext& Ou
 				{
 					const FVector LocationWS = AnimInstanceProxy->GetComponentTransform().TransformPosition(
 						CapsuleLimit.Location);
+					const FQuat RotationWS = AnimInstanceProxy->GetComponentTransform().TransformRotation(
+						CapsuleLimit.Rotation);
+
 					AnimInstanceProxy->AnimDrawDebugCapsule(LocationWS, CapsuleLimit.Length * 0.5f,
-					                                        CapsuleLimit.Radius, CapsuleLimit.Rotation.Rotator(),
+					                                        CapsuleLimit.Radius, RotationWS.Rotator(),
 					                                        FColor::Orange);
 				}
 				for (const auto& CapsuleLimit : CapsuleLimitsData)
 				{
 					const FVector LocationWS = AnimInstanceProxy->GetComponentTransform().TransformPosition(
 						CapsuleLimit.Location);
+					const FQuat RotationWS = AnimInstanceProxy->GetComponentTransform().TransformRotation(
+						CapsuleLimit.Rotation);
+
 					AnimInstanceProxy->AnimDrawDebugCapsule(LocationWS, CapsuleLimit.Length * 0.5f,
-					                                        CapsuleLimit.Radius, CapsuleLimit.Rotation.Rotator(),
+					                                        CapsuleLimit.Radius, RotationWS.Rotator(),
 					                                        FColor::Blue);
 				}
 #endif
