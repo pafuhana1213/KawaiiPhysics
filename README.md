@@ -1,6 +1,6 @@
 # Kawaii Physics
 English doc   
-- https://github.com/pafuhana1213/KawaiiPhysics/blob/master/README_en.md
+https://github.com/pafuhana1213/KawaiiPhysics/blob/master/README_en.md
 
 ダウンロード（C++ビルド環境がない方向け）  
 https://github.com/pafuhana1213/KawaiiPhysics/releases/  
