@@ -82,8 +82,15 @@ https://docs.unrealengine.com/5.0/ja/setting-up-visual-studio-development-enviro
 - Content/KawaiiPhysicsSample/KawaiiPhysicsSample
 - お借りしたキャラクタ：Gray ちゃん http://rarihoma.xvs.jp/products/graychan
 
-## 内部実装について
-その1 http://pafuhana1213.hatenablog.com/entry/2019/07/26/171046
+## 解説記事・動画
+### 公式
+[揺れ骨用自作AnimNode「Kawaii Physics」の内部実装解説的なもの その1](http://pafuhana1213.hatenablog.com/entry/2019/07/26/171046)
+
+### 非公式( ありがとうございます！）
+- [揺れモノ超ド素人がKawaiiPhysicsを使って、感覚を頼りに女性キャラクターモデルのKawaiiを増す方法まとめ](https://qiita.com/YuukiOgino/items/7f3198a90dab43019f26)
+- [【UE】揺れ物設定（Kawaii Physics）](https://techblog.sumelagi.co.jp/unrealengine/147/)
+  - 補足：骨ごとの影響度調整は「◯◯◯ by bone length rate」プロパティである程度実現可能です
+- [【電書版】UE4物理アセット攻略ガイド～動くバーチャルアイドル～](https://booth.pm/ja/items/1900064)
 
 ## ライセンス
 MIT
