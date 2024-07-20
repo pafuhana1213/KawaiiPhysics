@@ -64,7 +64,7 @@ void FKawaiiPhysics_ExternalForce_Basic::Apply(FKawaiiPhysicsModifyBone& Bone, F
 		Bone.Location += Force * ForceRate * Node.DeltaTime;
 
 #if ENABLE_ANIM_DEBUG
-		BoneForceMap.Add(Bone.BoneRef.BoneName, Force);
+		BoneForceMap.Add(Bone.BoneRef.BoneName, Force * ForceRate);
 #endif
 	}
 }
@@ -135,12 +135,12 @@ void FKawaiiPhysics_ExternalForce_Gravity::Apply(FKawaiiPhysicsModifyBone& Bone,
 		Bone.Location += 0.5f * Force * ForceRate * Node.DeltaTime * Node.DeltaTime;
 
 #if ENABLE_ANIM_DEBUG
-		BoneForceMap.Add(Bone.BoneRef.BoneName, Force);
+		BoneForceMap.Add(Bone.BoneRef.BoneName, Force * ForceRate);
 #endif
 	}
 
 #if ENABLE_ANIM_DEBUG
-	BoneForceMap.Add(Bone.BoneRef.BoneName, Force);
+	BoneForceMap.Add(Bone.BoneRef.BoneName, Force * ForceRate);
 	AnimDrawDebug(Bone, Node, PoseContext);
 #endif
 }
@@ -263,7 +263,7 @@ void FKawaiiPhysics_ExternalForce_Curve::Apply(FKawaiiPhysicsModifyBone& Bone, F
 		Bone.Location += BoneForce * ForceRate * Node.DeltaTime;
 
 #if ENABLE_ANIM_DEBUG
-		BoneForceMap.Add(Bone.BoneRef.BoneName, BoneForce);
+		BoneForceMap.Add(Bone.BoneRef.BoneName, BoneForce * ForceRate);
 #endif
 	}
 	else
@@ -271,7 +271,7 @@ void FKawaiiPhysics_ExternalForce_Curve::Apply(FKawaiiPhysicsModifyBone& Bone, F
 		Bone.Location += Force * ForceRate * Node.DeltaTime;
 
 #if ENABLE_ANIM_DEBUG
-		BoneForceMap.Add(Bone.BoneRef.BoneName, Force);
+		BoneForceMap.Add(Bone.BoneRef.BoneName, Force * ForceRate);
 #endif
 	}
 
