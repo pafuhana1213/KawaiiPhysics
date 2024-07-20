@@ -1,23 +1,23 @@
 # Kawaii Physics
-English doc :   
-- https://github.com/pafuhana1213/KawaiiPhysics/blob/master/README_en.md  
+English doc   
+https://github.com/pafuhana1213/KawaiiPhysics/blob/master/README_en.md
 
-ディスカッション：  
-- [Update Information - 更新情報](https://github.com/pafuhana1213/KawaiiPhysics/discussions/categories/announcements-%E3%82%A2%E3%83%8A%E3%82%A6%E3%83%B3%E3%82%B9)  
-- [Tell me about your work! - あなたの作品を教えてください！](https://github.com/pafuhana1213/KawaiiPhysics/discussions/65)  
-- [How to use and set up? - 設定方法などについての雑談・相談の場](https://github.com/pafuhana1213/KawaiiPhysics/discussions/66)  
-- [How to request Features and Samples - 機能やサンプルのリクエスト方法について](https://github.com/pafuhana1213/KawaiiPhysics/discussions/67)  
+ダウンロード（C++ビルド環境がない方向け）  
+https://github.com/pafuhana1213/KawaiiPhysics/releases/  
+
+ディスカッション  
+- [アップデート情報](https://github.com/pafuhana1213/KawaiiPhysics/discussions/categories/announcements-%E3%82%A2%E3%83%8A%E3%82%A6%E3%83%B3%E3%82%B9)
+- [要望・アイデア](https://github.com/pafuhana1213/KawaiiPhysics/discussions/categories/ideas-%E8%A6%81%E6%9C%9B-%E3%82%A2%E3%82%A4%E3%83%87%E3%82%A2)
+- [質問・Q&A](https://github.com/pafuhana1213/KawaiiPhysics/discussions/categories/q-a)
+- [あなたの作品を教えてください！](https://github.com/pafuhana1213/KawaiiPhysics/discussions/65)  
+- [設定方法などについての雑談・相談の場](https://github.com/pafuhana1213/KawaiiPhysics/discussions/66)  
+- [機能やサンプルのリクエスト方法について](https://github.com/pafuhana1213/KawaiiPhysics/discussions/67)  
 
 不具合報告  
 - https://github.com/pafuhana1213/KawaiiPhysics/issues
 
 採用実績  
 - https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E6%8E%A1%E7%94%A8%E5%AE%9F%E7%B8%BE-Adoption
-
-DevCommunity :   
-- 日本語  https://forums.unrealengine.com/international/japan/1679269  
-- 英語  https://forums.unrealengine.com/community/released-projects/1638095
-
 
 ## はじめに
 Kawaii Physicsは UnrealEngine4,5用に作成した疑似物理プラグインです。  
@@ -46,7 +46,7 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 [次期アイドルマスター グラフィクス＆アニメーション プログラミング プレビュー](https://cedil.cesa.or.jp/cedil_sessions/view/416)
 
 ## 動作環境
-- UE5.0 ~ 5.3  
+- UE5.2 ~ 5.4  
 https://github.com/pafuhana1213/KawaiiPhysics/releases/  
   
 - UE4.27  
@@ -67,7 +67,8 @@ UE4.23以前でビルドする場合は、awaiiPhysics.uplugin における
 - **プロジェクト**のPluginsフォルダにKawaiiPhysicsフォルダを入れてください
 - 各パラメータについて：https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E5%90%84%E3%83%91%E3%83%A9%E3%83%A1%E3%83%BC%E3%82%BF%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6
 
-- BPプロジェクトの場合、パッケージ時にエラーが発生します。お手数ですがC++プロジェクトに変換してみてください
+- BPプロジェクトの場合、パッケージ時にエラーが発生します。お手数ですが、C++プロジェクトに変換するか、下記記事で紹介されている方法をお試しください。  
+[UE5 KawaiiPhysicsをBlueprintプロジェクトでもpkg化する方法 - PaperSloth’s diary -](https://papersloth.hatenablog.com/entry/2024/02/14/201629)
 
 ### BPプロジェクトをC++プロジェクトに変換するには
 「C++ クラス ウィザード」からC++コードを追加することで C++プロジェクトに変換可能です。  
@@ -81,8 +82,18 @@ https://docs.unrealengine.com/5.0/ja/setting-up-visual-studio-development-enviro
 - Content/KawaiiPhysicsSample/KawaiiPhysicsSample
 - お借りしたキャラクタ：Gray ちゃん http://rarihoma.xvs.jp/products/graychan
 
-## 内部実装について
-その1 http://pafuhana1213.hatenablog.com/entry/2019/07/26/171046
+## 解説記事・動画
+### 公式
+- [揺れ骨用自作AnimNode「Kawaii Physics」の内部実装解説的なもの その1](http://pafuhana1213.hatenablog.com/entry/2019/07/26/171046)
+- [#ControlRig を使ったスカートの突き抜け対策と#KawaiiPhysics を併用してみるテスト](https://twitter.com/pafuhana1213/status/1300454762542817280)
+
+### 非公式( ありがとうございます！）
+- [揺れモノ超ド素人がKawaiiPhysicsを使って、感覚を頼りに女性キャラクターモデルのKawaiiを増す方法まとめ](https://qiita.com/YuukiOgino/items/7f3198a90dab43019f26)
+- [揺れものとコントロールリグ UEを使用したバーチャルライブでの実例](https://www.docswell.com/s/indieusgames/K4Q2XJ-2024-06-14-175045)
+- [【UE】揺れ物設定（Kawaii Physics）](https://techblog.sumelagi.co.jp/unrealengine/147/)
+  - 補足：骨ごとの影響度調整は「◯◯◯ by bone length rate」プロパティである程度実現可能です
+- [【UE4】Kawaii Physicsチュートリアル#1](https://www.youtube.com/watch?v=hlgXuVML_is)
+- [How To Setup Kawaii Physics in Unreal Engine 5](https://dev.epicgames.com/community/learning/tutorials/d1Z9/unreal-engine-how-to-setup-kawaii-physics-in-unreal)
 
 ## ライセンス
 MIT
@@ -94,6 +105,13 @@ MIT
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
+- 2024/2/8 v1.16.0　[詳細はこちら](https://github.com/pafuhana1213/KawaiiPhysics/discussions/128)
+  - New External Force
+  - 詳細パネルの整理・機能追加
+  - コンソール変数を追加（レベル上でのデバッグ用）
+  - DataAsset Update
+- 2024/2/8 v1.15.0　[詳細はこちら](https://github.com/pafuhana1213/KawaiiPhysics/discussions/117)
+  - UE5.4に対応しました
 - 2024/2/8 v1.14.0
   - 骨間の距離拘束を行う BoneConstraint機能 を実験的に追加しました
     - ![image](https://github.com/pafuhana1213/KawaiiPhysics/assets/8957600/af5845e4-65aa-41c1-ba0e-ae466e90d19f)
