@@ -106,12 +106,6 @@ void FKawaiiPhysics_ExternalForce_Gravity::PreApply(FAnimNode_KawaiiPhysics& Nod
 	}
 
 	Force *= FMath::RandRange(RandomForceScale.Min, RandomForceScale.Max);
-
-	if (ExternalForceSpace == EExternalForceSpace::WorldSpace)
-	{
-		const FTransform ComponentTransform = SkelComp->GetComponentTransform();
-		Force = ComponentTransform.InverseTransformVector(Force);
-	}
 }
 
 void FKawaiiPhysics_ExternalForce_Gravity::Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
@@ -131,23 +125,7 @@ void FKawaiiPhysics_ExternalForce_Gravity::Apply(FKawaiiPhysicsModifyBone& Bone,
 		ForceRate = Curve->Eval(Bone.LengthFromRoot / Node.GetTotalBoneLength());
 	}
 
-	if (ExternalForceSpace == EExternalForceSpace::BoneSpace)
-	{
-		const FVector BoneForce = BoneTM.TransformVector(Force);
-		Bone.Location += 0.5f * BoneForce * ForceRate * Node.DeltaTime * Node.DeltaTime;
-
-#if ENABLE_ANIM_DEBUG
-		BoneForceMap.Add(Bone.BoneRef.BoneName, BoneForce);
-#endif
-	}
-	else
-	{
-		Bone.Location += 0.5f * Force * ForceRate * Node.DeltaTime * Node.DeltaTime;
-
-#if ENABLE_ANIM_DEBUG
-		BoneForceMap.Add(Bone.BoneRef.BoneName, Force * ForceRate);
-#endif
-	}
+	Bone.Location += 0.5f * Force * ForceRate * Node.DeltaTime * Node.DeltaTime;
 
 #if ENABLE_ANIM_DEBUG
 	BoneForceMap.Add(Bone.BoneRef.BoneName, Force * ForceRate);

@@ -54,7 +54,7 @@ public:
 	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1))
 	TArray<FBoneReference> IgnoreBoneFilter;
 
-	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1))
+	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1, EditCondition=bUseExternalForceSpace, EditConditionHides))
 	EExternalForceSpace ExternalForceSpace = EExternalForceSpace::WorldSpace;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1))
@@ -69,7 +69,10 @@ public:
 
 protected:
 	UPROPERTY()
-	FVector Force = FVector::Zero();;
+	FVector Force = FVector::Zero();
+
+	UPROPERTY()
+	bool bUseExternalForceSpace = true;
 
 public:
 	virtual ~FKawaiiPhysics_ExternalForce() = default;
@@ -201,6 +204,12 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Gravity : public FKawaiiPh
 	GENERATED_BODY()
 
 public:
+	FKawaiiPhysics_ExternalForce_Gravity()
+	{
+		bUseExternalForceSpace = false;
+		ExternalForceSpace = EExternalForceSpace::ComponentSpace;
+	}
+
 	/** 
 	* 各ボーンに適用するForce Rateを補正。
 	* 「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値をForceRateに乗算
