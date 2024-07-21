@@ -16,7 +16,7 @@ void FKawaiiPhysics_ExternalForce_Basic::PreApply(FAnimNode_KawaiiPhysics& Node,
 	{
 		if (Time > Interval)
 		{
-			Force = ForceDir * ForceScale;
+			Force = ForceDir * FMath::RandRange(RandomForceScale.Min, RandomForceScale.Max);
 			Time = FMath::Fmod(Time, Interval);
 		}
 		else
@@ -26,7 +26,7 @@ void FKawaiiPhysics_ExternalForce_Basic::PreApply(FAnimNode_KawaiiPhysics& Node,
 	}
 	else
 	{
-		Force = ForceDir * ForceScale;
+		Force = ForceDir * FMath::RandRange(RandomForceScale.Min, RandomForceScale.Max);
 	}
 
 	if (ExternalForceSpace == EExternalForceSpace::WorldSpace)
@@ -97,7 +97,7 @@ void FKawaiiPhysics_ExternalForce_Gravity::PreApply(FAnimNode_KawaiiPhysics& Nod
 		}
 	}
 
-	Force *= GravityScale;
+	Force *= FMath::RandRange(RandomForceScale.Min, RandomForceScale.Max);
 
 	if (ExternalForceSpace == EExternalForceSpace::WorldSpace)
 	{
@@ -186,7 +186,7 @@ void FKawaiiPhysics_ExternalForce_Curve::PreApply(FAnimNode_KawaiiPhysics& Node,
 		{
 			Time = FMath::Fmod(Time, MaxCurveTime);
 		}
-		Force = ForceCurve.GetValue(Time) * ForceScale;
+		Force = ForceCurve.GetValue(Time) * FMath::RandRange(RandomForceScale.Min, RandomForceScale.Max);
 	}
 	else
 	{
@@ -233,7 +233,7 @@ void FKawaiiPhysics_ExternalForce_Curve::PreApply(FAnimNode_KawaiiPhysics& Node,
 			break;
 		}
 
-		Force *= ForceScale;
+		Force *= FMath::RandRange(RandomForceScale.Min, RandomForceScale.Max);
 	}
 
 	if (ExternalForceSpace == EExternalForceSpace::WorldSpace)

@@ -57,6 +57,9 @@ public:
 	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1))
 	EExternalForceSpace ExternalForceSpace = EExternalForceSpace::WorldSpace;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1))
+	FFloatInterval RandomForceScale = FFloatInterval(1.0f, 1.0f);
+
 #if ENABLE_ANIM_DEBUG
 	float DebugArrowLength = 5.0f;
 	float DebugArrowSize = 1.0f;
@@ -164,9 +167,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FVector ForceDir = FVector::Zero();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float ForceScale = 1.0f;
-
 	/** 
 	* 各ボーンに適用するForce Rateを補正。
 	* 「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値をForceRateに乗算
@@ -201,9 +201,6 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Gravity : public FKawaiiPh
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float GravityScale = 1.0f;
-
 	/** 
 	* 各ボーンに適用するForce Rateを補正。
 	* 「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値をForceRateに乗算
@@ -280,9 +277,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float TimeScale = 1.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float ForceScale = 1.0f;
 
 	/** 
 	* 各ボーンに適用するForce Rateを補正。
