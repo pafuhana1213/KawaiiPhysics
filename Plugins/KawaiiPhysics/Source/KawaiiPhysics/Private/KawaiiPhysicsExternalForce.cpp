@@ -3,6 +3,12 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ExternalForce_Basic_Apply"), STAT_KawaiiPhysics_ExternalForce_Basic_Apply,
+                   STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ExternalForce_Gravity_Apply"), STAT_KawaiiPhysics_ExternalForce_Gravity_Apply,
+                   STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ExternalForce_Curve_Apply"), STAT_KawaiiPhysics_ExternalForce_Curve_Apply,
+                   STATGROUP_Anim);
 
 ///
 /// Basic
@@ -43,6 +49,8 @@ void FKawaiiPhysics_ExternalForce_Basic::Apply(FKawaiiPhysicsModifyBone& Bone, F
 	{
 		return;
 	}
+
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ExternalForce_Basic_Apply);
 
 	float ForceRate = 1.0f;
 	if (const auto Curve = ForceRateByBoneLengthRate.GetRichCurve(); !Curve->IsEmpty())
@@ -114,6 +122,8 @@ void FKawaiiPhysics_ExternalForce_Gravity::Apply(FKawaiiPhysicsModifyBone& Bone,
 	{
 		return;
 	}
+
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ExternalForce_Gravity_Apply);
 
 	float ForceRate = 1.0f;
 	if (const auto Curve = ForceRateByBoneLengthRate.GetRichCurve(); !Curve->IsEmpty())
@@ -250,6 +260,8 @@ void FKawaiiPhysics_ExternalForce_Curve::Apply(FKawaiiPhysicsModifyBone& Bone, F
 	{
 		return;
 	}
+
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ExternalForce_Curve_Apply);
 
 	float ForceRate = 1.0f;
 	if (const auto Curve = ForceRateByBoneLengthRate.GetRichCurve(); !Curve->IsEmpty())
