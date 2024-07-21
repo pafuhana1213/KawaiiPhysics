@@ -106,6 +106,9 @@ void FKawaiiPhysics_ExternalForce_Gravity::PreApply(FAnimNode_KawaiiPhysics& Nod
 	}
 
 	Force *= FMath::RandRange(RandomForceScale.Min, RandomForceScale.Max);
+
+	const FTransform ComponentTransform = SkelComp->GetComponentTransform();
+	Force = ComponentTransform.InverseTransformVector(Force);
 }
 
 void FKawaiiPhysics_ExternalForce_Gravity::Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,

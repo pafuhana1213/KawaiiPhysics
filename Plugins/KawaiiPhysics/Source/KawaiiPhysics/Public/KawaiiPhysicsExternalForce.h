@@ -54,7 +54,7 @@ public:
 	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1))
 	TArray<FBoneReference> IgnoreBoneFilter;
 
-	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1, EditCondition=bUseExternalForceSpace, EditConditionHides))
+	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1, EditCondition=bUseExternalForceSpace))
 	EExternalForceSpace ExternalForceSpace = EExternalForceSpace::WorldSpace;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1))
@@ -207,7 +207,7 @@ public:
 	FKawaiiPhysics_ExternalForce_Gravity()
 	{
 		bUseExternalForceSpace = false;
-		ExternalForceSpace = EExternalForceSpace::ComponentSpace;
+		ExternalForceSpace = EExternalForceSpace::WorldSpace;
 	}
 
 	/** 
