@@ -233,19 +233,19 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailDebugVisualizations(IDetailLay
 				.VAlign(VAlign_Center)
 				.OnClicked_Lambda([this]()
 			             {
-				             this->bEnableDebugDrawAngleLimit = !this->bEnableDebugDrawAngleLimit;
+				             this->bEnableDebugDrawLimitAngle = !this->bEnableDebugDrawLimitAngle;
 				             return FReply::Handled();
 			             })
 				.ButtonColorAndOpacity_Lambda([this]()
 			             {
-				             return this->bEnableDebugDrawAngleLimit
+				             return this->bEnableDebugDrawLimitAngle
 					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
 					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
 			             })
 				.Content()
 			[
 				SNew(STextBlock)
-				.Text_Lambda([this]() { return LOCTEXT("ShowAngleLimitText", "Angle Limit"); })
+				.Text_Lambda([this]() { return LOCTEXT("ShowLimitAngleText", "Limit Angle"); })
 			]
 		]
 		// Show/Hide SphereLimit button.

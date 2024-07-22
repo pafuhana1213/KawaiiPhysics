@@ -53,7 +53,7 @@ public:
 	UPROPERTY()
 	bool bEnableDebugBoneLengthRate = true;
 	UPROPERTY()
-	bool bEnableDebugDrawAngleLimit = true;
+	bool bEnableDebugDrawLimitAngle = true;
 	UPROPERTY()
 	bool bEnableDebugDrawSphereLimit = true;
 	UPROPERTY()

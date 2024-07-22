@@ -245,6 +245,8 @@ public:
 		PoseScale = ComponentSpaceTransform.GetScale3D();
 	}
 
+	bool HasParent() const { return ParentIndex >= 0; }
+
 	FKawaiiPhysicsModifyBone()
 	{
 	}

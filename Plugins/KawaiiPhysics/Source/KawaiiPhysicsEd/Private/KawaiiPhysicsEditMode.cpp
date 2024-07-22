@@ -97,6 +97,7 @@ void FKawaiiPhysicsEditMode::Render(const FSceneView* View, FViewport* Viewport,
 #endif
 	{
 		RenderModifyBones(PDI);
+		RenderLimitAngle(PDI);
 		RenderSphericalLimits(PDI);
 		RenderCapsuleLimit(PDI);
 		RenderPlanerLimit(PDI);
@@ -146,6 +147,30 @@ void FKawaiiPhysicsEditMode::RenderModifyBones(FPrimitiveDrawInterface* PDI) con
 			{
 				DrawDashedLine(PDI, Bone.Location, RuntimeNode->ModifyBones[ChildIndex].Location,
 				               FLinearColor::White, 1, SDPG_Foreground);
+			}
+		}
+	}
+}
+
+void FKawaiiPhysicsEditMode::RenderLimitAngle(FPrimitiveDrawInterface* PDI) const
+{
+	if (GraphNode->bEnableDebugDrawLimitAngle)
+	{
+		for (auto& Bone : RuntimeNode->ModifyBones)
+		{
+			if (!Bone.bSkipSimulate && Bone.PhysicsSettings.LimitAngle > 0.0f && Bone.HasParent())
+			{
+				FTransform BoneTransform = FTransform(Bone.PrevRotation, Bone.PrevLocation);
+				FTransform ParentBoneTransform = FTransform(RuntimeNode->ModifyBones[Bone.ParentIndex].PrevRotation,
+				                                            RuntimeNode->ModifyBones[Bone.ParentIndex].PrevLocation);
+
+				const float Angle = FMath::DegreesToRadians(Bone.PhysicsSettings.LimitAngle);
+				DrawCone(PDI, FScaleMatrix(5.0f) * FTransform(
+					         (BoneTransform.GetLocation() - ParentBoneTransform.GetLocation()).Rotation(),
+					         ParentBoneTransform.GetLocation()).ToMatrixNoScale(),
+				         Angle,
+				         Angle, 24, true, FLinearColor::White,
+				         GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy(), SDPG_World);
 			}
 		}
 	}
