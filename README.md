@@ -1,5 +1,9 @@
 # Kawaii Physics
-<img alt="" src="https://github.com/user-attachments/assets/0bc33f5c-c7db-49b3-8e98-75dc062a4e2a" width="640px"> 
+<a href="https://youtu.be/0f-l-SP07Mo">
+  <img src="https://github.com/user-attachments/assets/0bc33f5c-c7db-49b3-8e98-75dc062a4e2a" alt="画像" width="640px">
+</a>  
+
+Demo : https://youtu.be/0f-l-SP07Mo
 
 English doc   
 https://github.com/pafuhana1213/KawaiiPhysics/blob/master/README_en.md
