@@ -1,4 +1,6 @@
 # Kawaii Physics
+![KawaiiPhysics_1080p](https://github.com/user-attachments/assets/0bc33f5c-c7db-49b3-8e98-75dc062a4e2a)
+
 English doc   
 https://github.com/pafuhana1213/KawaiiPhysics/blob/master/README_en.md
 
