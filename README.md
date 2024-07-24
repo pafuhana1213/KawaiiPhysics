@@ -9,8 +9,8 @@ English doc
 https://github.com/pafuhana1213/KawaiiPhysics/blob/master/README_en.md
 
 ダウンロード（C++ビルド環境がない方向け）  
-https://github.com/pafuhana1213/KawaiiPhysics/releases/  
-https://pafuhana1213.booth.pm/items/5943534
+Github : https://github.com/pafuhana1213/KawaiiPhysics/releases/  
+Booth : https://pafuhana1213.booth.pm/items/5943534
 
 ディスカッション  
 - [アップデート情報](https://github.com/pafuhana1213/KawaiiPhysics/discussions/categories/announcements-%E3%82%A2%E3%83%8A%E3%82%A6%E3%83%B3%E3%82%B9)
