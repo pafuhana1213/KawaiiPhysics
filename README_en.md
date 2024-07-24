@@ -4,7 +4,8 @@ Japanese doc:
 [Japanese Documentation](https://github.com/pafuhana1213/KawaiiPhysics)
 
 Download (for those without a C++ build environment):  
-[Download Link](https://github.com/pafuhana1213/KawaiiPhysics/releases/)
+Github : https://github.com/pafuhana1213/KawaiiPhysics/releases/  
+Booth : https://pafuhana1213.booth.pm/items/5943534
 
 ## Discussions
 - [Update Information](https://github.com/pafuhana1213/KawaiiPhysics/discussions/categories/announcements-%E3%82%A2%E3%83%8A%E3%82%A6%E3%83%B3%E3%82%B9)
