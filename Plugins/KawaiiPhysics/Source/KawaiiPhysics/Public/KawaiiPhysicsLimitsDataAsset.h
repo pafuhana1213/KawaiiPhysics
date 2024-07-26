@@ -18,7 +18,7 @@ struct FCollisionLimitDataBase
 	UPROPERTY(EditAnywhere, Category = CollisionLimitBase, meta=(DisplayPriority="1"))
 	FBoneReference DrivingBoneReference;
 
-	UPROPERTY(BlueprintReadWrite, meta=(DeprecatedProperty, DeprecationMessage="DrivingBoneName is deprecated"))
+	UPROPERTY(BlueprintReadWrite, meta=(DeprecatedProperty, DeprecationMessage="DrivingBoneName is deprecated"), Category = CollisionLimitBase)
 	FName DrivingBoneName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CollisionLimitBase)
