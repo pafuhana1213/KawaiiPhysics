@@ -10,10 +10,10 @@ class KAWAIIPHYSICS_API UKawaiiPhysics_CustomExternalForce : public UObject
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1), Category="KawaiiPhysics|CustomExternalForce")
 	bool bIsEnabled = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1), Category="KawaiiPhysics|CustomExternalForce")
 	bool bDrawDebug = false;
 
 public:
@@ -34,7 +34,7 @@ public:
 	{
 	}
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category="KawaiiPhysics|CustomExternalForce")
 	virtual bool IsDebugEnabled()
 	{
 		if (const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("a.AnimNode.KawaiiPhysics.Debug")))

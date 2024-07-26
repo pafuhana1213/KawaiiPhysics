@@ -34,30 +34,31 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1), Category="KawaiiPhysics|ExternalForce")
 	bool bIsEnabled = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1), Category="KawaiiPhysics|ExternalForce")
 	bool bDrawDebug = false;
 
 	/** 
 	* 外力を適応するボーンを指定（＝指定しなかったボーンには適応しない）
 	* Specify the bones to which the external force will be applied (= the force will not be applied to bones that are not specified)
 	*/
-	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1))
+	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1), Category="KawaiiPhysics|ExternalForce")
 	TArray<FBoneReference> ApplyBoneFilter;
 
 	/** 
 	* 外力を適応しないボーンを指定
 	* Specify the bones to which the external force will be NOT applied
 	*/
-	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1))
+	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1), Category="KawaiiPhysics|ExternalForce")
 	TArray<FBoneReference> IgnoreBoneFilter;
 
-	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1, EditCondition=bUseExternalForceSpace))
+	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1, EditCondition=bUseExternalForceSpace),
+		Category="KawaiiPhysics|ExternalForce")
 	EExternalForceSpace ExternalForceSpace = EExternalForceSpace::WorldSpace;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1), Category="KawaiiPhysics|ExternalForce")
 	FFloatInterval RandomForceScale = FFloatInterval(1.0f, 1.0f);
 
 #if ENABLE_ANIM_DEBUG
@@ -167,7 +168,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Basic : public FKawaiiPhys
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
 	FVector ForceDir = FVector::Zero();
 
 	/** 
@@ -176,10 +177,10 @@ public:
 	* Corrects the Force Rate applied to each bone.
 	* Multiplies the ForceRate by the curve value for "Length from RootBone to specific bone / Length from RootBone to end bone" (0.0~1.0)
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
 	FRuntimeFloatCurve ForceRateByBoneLengthRate;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
 	float Interval = 0.0f;
 
 public:
@@ -216,28 +217,29 @@ public:
 	* Corrects the Force Rate applied to each bone.
 	* Multiplies the ForceRate by the curve value for "Length from RootBone to specific bone / Length from RootBone to end bone" (0.0~1.0)
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
 	FRuntimeFloatCurve ForceRateByBoneLengthRate;
 
 	/** 
 	* Character側で設定されたCustomGravityDirectionを使用するフラグ(UE5.4以降)
 	* Flag to use CustomGravityDirection set on the Character side (UE5.4 and later)
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
 	bool bUseCharacterGravityDirection = false;
 
 	/** 
 	* Character側で設定されたGravityScaleを使用するフラグ
 	* Flag to use GravityScale set on the Character side
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
 	bool bUseCharacterGravityScale = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,
-		meta = (editcondition = "bUseOverrideGravityDirection"))
+		meta = (editcondition = "bUseOverrideGravityDirection"), Category="KawaiiPhysics|ExternalForce")
 	FVector OverrideGravityDirection = FVector::Zero();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (InlineEditConditionToggle),
+		Category="KawaiiPhysics|ExternalForce")
 	bool bUseOverrideGravityDirection = false;
 
 private:
@@ -262,7 +264,8 @@ public:
 	* 時間に応じて変化する外力をカーブで設定。X軸:Time Y軸:Force
 	* Set the external force that changes over time using a curve. X-axis: Time Y-axis: Force
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (XAxisName="Time", YAxisName="Force"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (XAxisName="Time", YAxisName="Force"),
+		Category="KawaiiPhysics|ExternalForce")
 	FRuntimeVectorCurve ForceCurve;
 
 	/** 
@@ -273,7 +276,7 @@ public:
 	* If set to anything other than Single: The time elapsed from the previous frame is divided by SubstepCount,
 	* and the Average, Maximum, or Minimum values of the curve at each time point after division are used as external forces.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
 	EExternalForceCurveEvaluateType CurveEvaluateType = EExternalForceCurveEvaluateType::Single;
 
 	/** 
@@ -281,7 +284,8 @@ public:
 	* Number of divisions of elapsed time
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,
-		meta=(EditCondition="CurveEvaluateType!=EExternalForceCurveEvaluateType::Single"))
+		meta=(EditCondition="CurveEvaluateType!=EExternalForceCurveEvaluateType::Single"),
+		Category="KawaiiPhysics|ExternalForce")
 	int SubstepCount = 10;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -293,7 +297,7 @@ public:
 	* Corrects the Force Rate applied to each bone.
 	* Multiplies the ForceRate by the curve value for "Length from RootBone to specific bone / Length from RootBone to end bone" (0.0~1.0)
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
 	FRuntimeFloatCurve ForceRateByBoneLengthRate;
 
 private:
