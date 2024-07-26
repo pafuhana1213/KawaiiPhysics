@@ -288,7 +288,7 @@ public:
 		Category="KawaiiPhysics|ExternalForce")
 	int SubstepCount = 10;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category ="KawaiiPhysics|ExternalForce")
 	float TimeScale = 1.0f;
 
 	/** 
