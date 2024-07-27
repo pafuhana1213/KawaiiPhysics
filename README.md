@@ -72,7 +72,7 @@ UE4.23以前でビルドする場合は、awaiiPhysics.uplugin における
 
 ## 使い方
 - **プロジェクト**のPluginsフォルダにKawaiiPhysicsフォルダを入れてください
-- 各パラメータについて：https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E5%90%84%E3%83%91%E3%83%A9%E3%83%A1%E3%83%BC%E3%82%BF%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6
+- 各パラメータについて：[https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E5%90%84%E3%83%91%E3%83%A9%E3%83%A1%E3%83%BC%E3%82%BF%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6](https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E5%90%84%E3%83%91%E3%83%A9%E3%83%A1%E3%83%BC%E3%82%BF%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6--About-each-parameters)
 
 - BPプロジェクトの場合、パッケージ時にエラーが発生します。お手数ですが、C++プロジェクトに変換するか、下記記事で紹介されている方法をお試しください。  
 [UE5 KawaiiPhysicsをBlueprintプロジェクトでもpkg化する方法 - PaperSloth’s diary -](https://papersloth.hatenablog.com/entry/2024/02/14/201629)
