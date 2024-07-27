@@ -62,7 +62,7 @@ When building for UE4.23 and earlier, you need to modify "Type": "UncookedOnly" 
 
 ## How to Use
 - Place the KawaiiPhysics folder in your project's Plugins folder.
-- About each parameter: [Parameter Details](https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E5%90%84%E3%83%91%E3%83%A9%E3%83%A1%E3%83%BC%E3%82%BF%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6)
+- About each parameter: [Parameter Details]([https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E5%90%84%E3%83%91%E3%83%A9%E3%83%A1%E3%83%BC%E3%82%BF%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6](https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E5%90%84%E3%83%91%E3%83%A9%E3%83%A1%E3%83%BC%E3%82%BF%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6--About-each-parameters))
 
 - For BP projects, errors occur during packaging. Please either convert to a C++ project or try the method introduced in the following article.  
 [How to Package UE5 KawaiiPhysics for Blueprint Projects - PaperSloth’s Diary](https://papersloth.hatenablog.com/entry/2024/02/14/201629)
