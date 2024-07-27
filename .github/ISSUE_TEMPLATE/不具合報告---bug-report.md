@@ -14,8 +14,10 @@ A clear and concise description of what the bug is.
 ** 再現手順 - To Reproduce**
 開発者の手元で再現できないと不具合への対応が困難・不可能になるため
 詳細な再現手順を記載してください。
+もし情報が不足していることで再現できなかった場合は対応しない（できない）可能性があります。
 If I can't reproduce the issue, it will be difficult or impossible to address it, 
 so please provide a detailed description of the steps to reproduce it.
+If it is not possible to reproduce due to lack of information, it may not be possible to respond (or I may not be able to respond).
 
 1. 
 2. 
