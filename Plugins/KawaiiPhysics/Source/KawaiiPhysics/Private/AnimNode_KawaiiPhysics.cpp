@@ -338,9 +338,16 @@ void FAnimNode_KawaiiPhysics::InitModifyBones(FComponentSpacePoseContext& Output
 	AddModifyBone(Output, BoneContainer, RefSkeleton, RefSkeleton.FindBoneIndex(RootBone.BoneName));
 	if (ModifyBones.Num() > 0)
 	{
-		TotalBoneLength = 0.0f;
+		float TotalBoneLength = 0.0f;
+		CalcBoneLength(ModifyBones[0], BoneContainer.GetRefPoseArray(), TotalBoneLength);
 
-		CalcBoneLength(ModifyBones[0], BoneContainer.GetRefPoseArray());
+		for (auto& ModifyBone : ModifyBones)
+		{
+			if (ModifyBone.LengthFromRoot > 0.0f)
+			{
+				ModifyBone.LengthRateFromRoot = ModifyBone.LengthFromRoot / TotalBoneLength;
+			}
+		}
 	}
 }
 
@@ -477,7 +484,8 @@ int32 FAnimNode_KawaiiPhysics::CollectChildBones(const FReferenceSkeleton& RefSk
 	return Children.Num();
 }
 
-void FAnimNode_KawaiiPhysics::CalcBoneLength(FKawaiiPhysicsModifyBone& Bone, const TArray<FTransform>& RefBonePose)
+void FAnimNode_KawaiiPhysics::CalcBoneLength(FKawaiiPhysicsModifyBone& Bone, const TArray<FTransform>& RefBonePose,
+                                             float& TotalBoneLength)
 {
 	if (Bone.ParentIndex < 0)
 	{
@@ -500,7 +508,7 @@ void FAnimNode_KawaiiPhysics::CalcBoneLength(FKawaiiPhysicsModifyBone& Bone, con
 
 	for (const int32 ChildIndex : Bone.ChildIndexs)
 	{
-		CalcBoneLength(ModifyBones[ChildIndex], RefBonePose);
+		CalcBoneLength(ModifyBones[ChildIndex], RefBonePose, TotalBoneLength);
 	}
 }
 
@@ -511,11 +519,11 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 	{
 		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdatePhysicsSetting);
 
-		const float LengthRate = Bone.LengthFromRoot / TotalBoneLength;
+		const float LengthRate = Bone.LengthRateFromRoot;
 
 		// Damping
 		Bone.PhysicsSettings.Damping = PhysicsSettings.Damping;
-		if (TotalBoneLength > 0 && !DampingCurveData.GetRichCurve()->IsEmpty())
+		if (!DampingCurveData.GetRichCurve()->IsEmpty())
 		{
 			Bone.PhysicsSettings.Damping *= DampingCurveData.GetRichCurve()->Eval(LengthRate);
 		}
@@ -523,7 +531,7 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 
 		// WorldLocationDamping
 		Bone.PhysicsSettings.WorldDampingLocation = PhysicsSettings.WorldDampingLocation;
-		if (TotalBoneLength > 0 && !WorldDampingLocationCurveData.GetRichCurve()->IsEmpty())
+		if (!WorldDampingLocationCurveData.GetRichCurve()->IsEmpty())
 		{
 			Bone.PhysicsSettings.WorldDampingLocation *= WorldDampingLocationCurveData.GetRichCurve()->Eval(LengthRate);
 		}
@@ -532,7 +540,7 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 
 		// WorldRotationDamping
 		Bone.PhysicsSettings.WorldDampingRotation = PhysicsSettings.WorldDampingRotation;
-		if (TotalBoneLength > 0 && !WorldDampingRotationCurveData.GetRichCurve()->IsEmpty())
+		if (!WorldDampingRotationCurveData.GetRichCurve()->IsEmpty())
 		{
 			Bone.PhysicsSettings.WorldDampingRotation *= WorldDampingRotationCurveData.GetRichCurve()->Eval(LengthRate);
 		}
@@ -541,7 +549,7 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 
 		// Stiffness
 		Bone.PhysicsSettings.Stiffness = PhysicsSettings.Stiffness;
-		if (TotalBoneLength > 0 && !StiffnessCurveData.GetRichCurve()->IsEmpty())
+		if (!StiffnessCurveData.GetRichCurve()->IsEmpty())
 		{
 			Bone.PhysicsSettings.Stiffness *= StiffnessCurveData.GetRichCurve()->Eval(LengthRate);
 		}
@@ -549,7 +557,7 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 
 		// Radius
 		Bone.PhysicsSettings.Radius = PhysicsSettings.Radius;
-		if (TotalBoneLength > 0 && !RadiusCurveData.GetRichCurve()->IsEmpty())
+		if (!RadiusCurveData.GetRichCurve()->IsEmpty())
 		{
 			Bone.PhysicsSettings.Radius *= RadiusCurveData.GetRichCurve()->Eval(LengthRate);
 		}
@@ -557,7 +565,7 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 
 		// LimitAngle
 		Bone.PhysicsSettings.LimitAngle = PhysicsSettings.LimitAngle;
-		if (TotalBoneLength > 0 && !LimitAngleCurveData.GetRichCurve()->IsEmpty())
+		if (!LimitAngleCurveData.GetRichCurve()->IsEmpty())
 		{
 			Bone.PhysicsSettings.LimitAngle *= LimitAngleCurveData.GetRichCurve()->Eval(LengthRate);
 		}

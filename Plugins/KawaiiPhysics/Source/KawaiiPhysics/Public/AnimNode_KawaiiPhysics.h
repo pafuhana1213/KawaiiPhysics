@@ -218,6 +218,8 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
 	float LengthFromRoot = 0.0f;
 	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
+	float LengthRateFromRoot = 0.0f;
+	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
 	bool bDummy = false;
 	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
 	bool bSkipSimulate = false;
@@ -336,6 +338,7 @@ public:
 	*/
 	UPROPERTY(EditAnywhere, Category = "Bones")
 	FBoneReference RootBone;
+
 	/** 
 	* 指定したボーンとそれ以下のボーンを制御対象から除去
 	* Do NOT control the specified bone and the bones below it
@@ -684,8 +687,6 @@ public:
 
 protected:
 	UPROPERTY()
-	float TotalBoneLength = 0;
-	UPROPERTY()
 	FTransform PreSkelCompTransform;
 	UPROPERTY()
 	bool bInitPhysicsSettings = false;
@@ -721,12 +722,6 @@ public:
 	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
 
 	// End of FAnimNode_SkeletalControlBase interface
-
-	// For AnimGraphNode
-	float GetTotalBoneLength() const
-	{
-		return TotalBoneLength;
-	}
 
 protected:
 	FVector GetBoneForwardVector(const FQuat& Rotation) const
@@ -764,7 +759,7 @@ protected:
 	// clone from FReferenceSkeleton::GetDirectChildBones
 	int32 CollectChildBones(const FReferenceSkeleton& RefSkeleton, int32 ParentBoneIndex,
 	                        TArray<int32>& Children) const;
-	void CalcBoneLength(FKawaiiPhysicsModifyBone& Bone, const TArray<FTransform>& RefBonePose);
+	void CalcBoneLength(FKawaiiPhysicsModifyBone& Bone, const TArray<FTransform>& RefBonePose, float& TotalBoneLength);
 
 	// Updates for simulate
 	void UpdatePhysicsSettingsOfModifyBones();
