@@ -137,6 +137,29 @@ struct FPlanarLimit : public FCollisionLimitBase
 };
 
 USTRUCT(BlueprintType)
+struct KAWAIIPHYSICS_API FKawaiiPhysicsRootBoneSetting
+{
+	GENERATED_BODY()
+
+	/** 
+	* 指定ボーンとそれ以下のボーンを制御対象に
+	* Control the specified bone and the bones below it
+	*/
+	UPROPERTY(EditAnywhere, Category = "Bones")
+	FBoneReference RootBone;
+
+	/** 
+	* 指定したボーンとそれ以下のボーンを制御対象から除去
+	* Do NOT control the specified bone and the bones below it
+	*/
+	UPROPERTY(EditAnywhere, Category = "Bones", meta = (EditCondition = "bUseOverrideExcludeBones"))
+	TArray<FBoneReference> OverrideExcludeBones;
+	UPROPERTY(EditAnywhere, Category = "Bones", meta = (InlineEditConditionToggle))
+	bool bUseOverrideExcludeBones = false;
+};
+
+
+USTRUCT(BlueprintType)
 struct KAWAIIPHYSICS_API FKawaiiPhysicsSettings
 {
 	GENERATED_BODY()
@@ -345,6 +368,13 @@ public:
 	*/
 	UPROPERTY(EditAnywhere, Category = "Bones")
 	TArray<FBoneReference> ExcludeBones;
+
+	/** 
+	* 指定ボーンとそれ以下のボーンを制御対象に(追加用)
+	* Control the specified bone and the bones below it (For Addition)
+	*/
+	UPROPERTY(EditAnywhere, Category = "Bones")
+	TArray<FKawaiiPhysicsRootBoneSetting> AdditionalRootBones;
 
 	/** 
 	* 0より大きい場合は、制御ボーンの末端にダミーボーンを追加。ダミーボーンを追加することで、末端のボーンの物理制御を改善
@@ -753,13 +783,16 @@ protected:
 	void InitBoneConstraints();
 	void ApplyLimitsDataAsset(const FBoneContainer& RequiredBones);
 	void ApplyBoneConstraintDataAsset(const FBoneContainer& RequiredBones);
-	int32 AddModifyBone(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer,
-	                    const FReferenceSkeleton& RefSkeleton, int32 BoneIndex);
+	int32 AddModifyBone(TArray<FKawaiiPhysicsModifyBone>& InModifyBones, FComponentSpacePoseContext& Output,
+	                    const FBoneContainer& BoneContainer,
+	                    const FReferenceSkeleton& RefSkeleton, int32 BoneIndex,
+	                    const TArray<FBoneReference>& InExcludeBones);
 
 	// clone from FReferenceSkeleton::GetDirectChildBones
 	int32 CollectChildBones(const FReferenceSkeleton& RefSkeleton, int32 ParentBoneIndex,
 	                        TArray<int32>& Children) const;
-	void CalcBoneLength(FKawaiiPhysicsModifyBone& Bone, const TArray<FTransform>& RefBonePose, float& TotalBoneLength);
+	void CalcBoneLength(FKawaiiPhysicsModifyBone& Bone, TArray<FKawaiiPhysicsModifyBone>& InModifyBones,
+	                    const TArray<FTransform>& RefBonePose, float& TotalBoneLength);
 
 	// Updates for simulate
 	void UpdatePhysicsSettingsOfModifyBones();

@@ -215,6 +215,13 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	{
 		return;
 	}
+	for (auto& AdditionalRootBone : AdditionalRootBones)
+	{
+		if (!AdditionalRootBone.RootBone.IsValidToEvaluate(BoneContainer))
+		{
+			return;
+		}
+	}
 
 	if (ModifyBones.Num() == 0)
 	{
@@ -273,7 +280,20 @@ bool FAnimNode_KawaiiPhysics::IsValidToEvaluate(const USkeleton* Skeleton, const
 	}
 #endif
 
-	return RootBone.BoneName.IsValid();
+	if (!RootBone.BoneName.IsValid())
+	{
+		return false;
+	}
+
+	for (auto& AdditionalRootBone : AdditionalRootBones)
+	{
+		if (!AdditionalRootBone.RootBone.BoneName.IsValid())
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
 bool FAnimNode_KawaiiPhysics::HasPreUpdate() const
@@ -310,8 +330,11 @@ void FAnimNode_KawaiiPhysics::InitializeBoneReferences(const FBoneContainer& Req
 		return true;
 	};
 
-
 	RootBone.Initialize(RequiredBones);
+	for (auto& AdditionalRootBone : AdditionalRootBones)
+	{
+		AdditionalRootBone.RootBone.Initialize(RequiredBones);
+	}
 	for (auto& Bone : ModifyBones)
 	{
 		Bone.BoneRef.Initialize(RequiredBones);
@@ -334,20 +357,45 @@ void FAnimNode_KawaiiPhysics::InitModifyBones(FComponentSpacePoseContext& Output
 	const USkeleton* Skeleton = BoneContainer.GetSkeletonAsset();
 	auto& RefSkeleton = Skeleton->GetReferenceSkeleton();
 
-	ModifyBones.Empty();
-	AddModifyBone(Output, BoneContainer, RefSkeleton, RefSkeleton.FindBoneIndex(RootBone.BoneName));
-	if (ModifyBones.Num() > 0)
+	auto InitRootBone = [&](const FName& RootBoneName, const TArray<FBoneReference>& InExcludeBones)
 	{
-		float TotalBoneLength = 0.0f;
-		CalcBoneLength(ModifyBones[0], BoneContainer.GetRefPoseArray(), TotalBoneLength);
-
-		for (auto& ModifyBone : ModifyBones)
+		TArray<FKawaiiPhysicsModifyBone> Bones;
+		AddModifyBone(Bones, Output, BoneContainer, RefSkeleton, RefSkeleton.FindBoneIndex(RootBoneName),
+		              InExcludeBones);
+		if (Bones.Num() > 0)
 		{
-			if (ModifyBone.LengthFromRoot > 0.0f)
+			float TotalBoneLength = 0.0f;
+			CalcBoneLength(Bones[0], Bones, BoneContainer.GetRefPoseArray(), TotalBoneLength);
+
+			for (auto& Bone : Bones)
 			{
-				ModifyBone.LengthRateFromRoot = ModifyBone.LengthFromRoot / TotalBoneLength;
+				if (Bone.LengthFromRoot > 0.0f)
+				{
+					Bone.LengthRateFromRoot = Bone.LengthFromRoot / TotalBoneLength;
+				}
+
+				Bone.Index += ModifyBones.Num();
+				if (Bone.ParentIndex >= 0)
+				{
+					Bone.ParentIndex += ModifyBones.Num();
+				}
+				for (auto& ChildIndex : Bone.ChildIndexs)
+				{
+					ChildIndex += ModifyBones.Num();
+				}
 			}
+			ModifyBones.Append(Bones);
 		}
+	};
+
+	ModifyBones.Empty();
+	InitRootBone(RootBone.BoneName, ExcludeBones);
+	for (auto& AdditionalRootBone : AdditionalRootBones)
+	{
+		InitRootBone(AdditionalRootBone.RootBone.BoneName,
+		             AdditionalRootBone.bUseOverrideExcludeBones
+			             ? AdditionalRootBone.OverrideExcludeBones
+			             : ExcludeBones);
 	}
 }
 
@@ -391,8 +439,10 @@ void FAnimNode_KawaiiPhysics::ApplyBoneConstraintDataAsset(const FBoneContainer&
 	}
 }
 
-int32 FAnimNode_KawaiiPhysics::AddModifyBone(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer,
-                                             const FReferenceSkeleton& RefSkeleton, int32 BoneIndex)
+int32 FAnimNode_KawaiiPhysics::AddModifyBone(TArray<FKawaiiPhysicsModifyBone>& InModifyBones,
+                                             FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer,
+                                             const FReferenceSkeleton& RefSkeleton, int32 BoneIndex,
+                                             const TArray<FBoneReference>& InExcludeBones)
 {
 	if (BoneIndex < 0 || RefSkeleton.GetNum() < BoneIndex)
 	{
@@ -402,7 +452,7 @@ int32 FAnimNode_KawaiiPhysics::AddModifyBone(FComponentSpacePoseContext& Output,
 	FBoneReference BoneRef;
 	BoneRef.BoneName = RefSkeleton.GetBoneName(BoneIndex);
 
-	if (ExcludeBones.Num() > 0 && ExcludeBones.Find(BoneRef) >= 0)
+	if (InExcludeBones.Num() > 0 && InExcludeBones.Find(BoneRef) >= 0)
 	{
 		return INDEX_NONE;
 	}
@@ -423,8 +473,8 @@ int32 FAnimNode_KawaiiPhysics::AddModifyBone(FComponentSpacePoseContext& Output,
 	NewModifyBone.PoseRotation = NewModifyBone.PrevRotation;
 	NewModifyBone.PoseScale = RefBonePoseTransform.GetScale3D();
 
-	int32 ModifyBoneIndex = ModifyBones.Add(NewModifyBone);
-	ModifyBones[ModifyBoneIndex].Index = ModifyBoneIndex;
+	int32 ModifyBoneIndex = InModifyBones.Add(NewModifyBone);
+	InModifyBones[ModifyBoneIndex].Index = ModifyBoneIndex;
 
 	TArray<int32> ChildBoneIndexs;
 	CollectChildBones(RefSkeleton, BoneIndex, ChildBoneIndexs);
@@ -434,11 +484,12 @@ int32 FAnimNode_KawaiiPhysics::AddModifyBone(FComponentSpacePoseContext& Output,
 		//for some mesh where tip bone is empty (without any skinning weight in the mesh), ChildBoneIndexs > 0 but no actual child bones are created
 		for (auto ChildBoneIndex : ChildBoneIndexs)
 		{
-			auto ChildModifyBoneIndex = AddModifyBone(Output, BoneContainer, RefSkeleton, ChildBoneIndex);
+			auto ChildModifyBoneIndex = AddModifyBone(InModifyBones, Output, BoneContainer, RefSkeleton, ChildBoneIndex,
+			                                          InExcludeBones);
 			if (ChildModifyBoneIndex >= 0)
 			{
-				ModifyBones[ModifyBoneIndex].ChildIndexs.Add(ChildModifyBoneIndex);
-				ModifyBones[ChildModifyBoneIndex].ParentIndex = ModifyBoneIndex;
+				InModifyBones[ModifyBoneIndex].ChildIndexs.Add(ChildModifyBoneIndex);
+				InModifyBones[ChildModifyBoneIndex].ParentIndex = ModifyBoneIndex;
 				AddedChildBone = true;
 			}
 		}
@@ -457,10 +508,10 @@ int32 FAnimNode_KawaiiPhysics::AddModifyBone(FComponentSpacePoseContext& Output,
 		DummyModifyBone.PoseRotation = DummyModifyBone.PrevRotation;
 		DummyModifyBone.PoseScale = RefBonePoseTransform.GetScale3D();
 
-		int32 DummyBoneIndex = ModifyBones.Add(DummyModifyBone);
-		ModifyBones[ModifyBoneIndex].ChildIndexs.Add(DummyBoneIndex);
-		ModifyBones[DummyBoneIndex].Index = DummyBoneIndex;
-		ModifyBones[DummyBoneIndex].ParentIndex = ModifyBoneIndex;
+		int32 DummyBoneIndex = InModifyBones.Add(DummyModifyBone);
+		InModifyBones[ModifyBoneIndex].ChildIndexs.Add(DummyBoneIndex);
+		InModifyBones[DummyBoneIndex].Index = DummyBoneIndex;
+		InModifyBones[DummyBoneIndex].ParentIndex = ModifyBoneIndex;
 	}
 
 
@@ -484,7 +535,9 @@ int32 FAnimNode_KawaiiPhysics::CollectChildBones(const FReferenceSkeleton& RefSk
 	return Children.Num();
 }
 
-void FAnimNode_KawaiiPhysics::CalcBoneLength(FKawaiiPhysicsModifyBone& Bone, const TArray<FTransform>& RefBonePose,
+void FAnimNode_KawaiiPhysics::CalcBoneLength(FKawaiiPhysicsModifyBone& Bone,
+                                             TArray<FKawaiiPhysicsModifyBone>& InModifyBones,
+                                             const TArray<FTransform>& RefBonePose,
                                              float& TotalBoneLength)
 {
 	if (Bone.ParentIndex < 0)
@@ -495,12 +548,12 @@ void FAnimNode_KawaiiPhysics::CalcBoneLength(FKawaiiPhysicsModifyBone& Bone, con
 	{
 		if (!Bone.bDummy)
 		{
-			Bone.LengthFromRoot = ModifyBones[Bone.ParentIndex].LengthFromRoot
+			Bone.LengthFromRoot = InModifyBones[Bone.ParentIndex].LengthFromRoot
 				+ RefBonePose[Bone.BoneRef.BoneIndex].GetLocation().Size();
 		}
 		else
 		{
-			Bone.LengthFromRoot = ModifyBones[Bone.ParentIndex].LengthFromRoot + DummyBoneLength;
+			Bone.LengthFromRoot = InModifyBones[Bone.ParentIndex].LengthFromRoot + DummyBoneLength;
 		}
 
 		TotalBoneLength = FMath::Max(TotalBoneLength, Bone.LengthFromRoot);
@@ -508,7 +561,7 @@ void FAnimNode_KawaiiPhysics::CalcBoneLength(FKawaiiPhysicsModifyBone& Bone, con
 
 	for (const int32 ChildIndex : Bone.ChildIndexs)
 	{
-		CalcBoneLength(ModifyBones[ChildIndex], RefBonePose, TotalBoneLength);
+		CalcBoneLength(InModifyBones[ChildIndex], InModifyBones, RefBonePose, TotalBoneLength);
 	}
 }
 
@@ -1331,9 +1384,14 @@ void FAnimNode_KawaiiPhysics::ApplySimulateResult(FComponentSpacePoseContext& Ou
 		                                                ModifyBones[i].PoseScale)));
 	}
 
-	for (int32 i = 1; i < ModifyBones.Num(); ++i)
+	for (int32 i = 0; i < ModifyBones.Num(); ++i)
 	{
 		FKawaiiPhysicsModifyBone& Bone = ModifyBones[i];
+		if (!Bone.HasParent())
+		{
+			continue;
+		}
+
 		FKawaiiPhysicsModifyBone& ParentBone = ModifyBones[Bone.ParentIndex];
 
 		if (ParentBone.ChildIndexs.Num() <= 1)
