@@ -2,7 +2,7 @@
 name: 機能要望 - Feature request
 about: アイデア・提案 - Suggest an idea for this project
 title: "[Feature Requset]"
-labels: ''
+labels: 要望 Request
 assignees: pafuhana1213
 
 ---

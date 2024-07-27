@@ -2,7 +2,7 @@
 name: 不具合報告 - Bug report
 about: 改善のためのレポート - Create a report to help us improve
 title: "[BUG]"
-labels: bug
+labels: バグ bug
 assignees: pafuhana1213
 
 ---
