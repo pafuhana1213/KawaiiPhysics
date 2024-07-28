@@ -4,6 +4,7 @@
 #include "KawaiiPhysicsBoneConstraintsDataAsset.h"
 
 #include "KawaiiPhysics.h"
+#include "Editor.h"
 #include "Internationalization/Regex.h"
 
 struct FBoneConstraintDataCustomVersion
@@ -37,7 +38,7 @@ TArray<FModifyBoneConstraint> UKawaiiPhysicsBoneConstraintsDataAsset::GenerateBo
 {
 	TArray<FModifyBoneConstraint> BoneConstraints;
 
-	for (const FModifyBoneConstraintData BoneConstraintData : BoneConstraintsData)
+	for (const FModifyBoneConstraintData &BoneConstraintData : BoneConstraintsData)
 	{
 		FModifyBoneConstraint BoneConstraint;
 		BoneConstraint.Bone1 = BoneConstraintData.BoneReference1;
