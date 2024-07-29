@@ -61,6 +61,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1), Category="KawaiiPhysics|ExternalForce")
 	FFloatInterval RandomForceScale = FFloatInterval(1.0f, 1.0f);
 
+	UPROPERTY()
+	TObjectPtr<UObject> ExternalOwner;
+
 #if ENABLE_ANIM_DEBUG
 	float DebugArrowLength = 5.0f;
 	float DebugArrowSize = 1.0f;

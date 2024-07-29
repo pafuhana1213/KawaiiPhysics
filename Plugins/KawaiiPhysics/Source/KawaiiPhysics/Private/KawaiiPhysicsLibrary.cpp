@@ -88,6 +88,32 @@ TArray<FName> UKawaiiPhysicsLibrary::GetExcludeBoneNames(const FKawaiiPhysicsRef
 	return ExcludeBoneNames;
 }
 
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::AddExternalForce(EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+                                                                const FKawaiiPhysicsReference& KawaiiPhysics,
+                                                                FInstancedStruct& ExternalForce, UObject* Owner)
+{
+	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
+
+	if (ExternalForce.IsValid())
+	{
+		if (auto* ExternalForcePtr = ExternalForce.GetMutablePtr<FKawaiiPhysics_ExternalForce>())
+		{
+			ExternalForcePtr->ExternalOwner = Owner;
+
+			KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+				TEXT("AddExternalForce"),
+				[&](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+				{
+					InKawaiiPhysics.ExternalForces.Add(ExternalForce);
+				});
+
+			ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
+		}
+	}
+
+	return KawaiiPhysics;
+}
+
 DEFINE_FUNCTION(UKawaiiPhysicsLibrary::execSetExternalForceWildcardProperty)
 {
 	P_GET_ENUM_REF(EKawaiiPhysicsAccessExternalForceResult, ExecResult);
