@@ -5,6 +5,7 @@
 #include "EditorModeManager.h"
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
+#include "EditorViewportClient.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "KawaiiPhysics.h"
 #include "KawaiiPhysicsCustomExternalForce.h"
