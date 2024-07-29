@@ -4,8 +4,11 @@
 #include "KawaiiPhysicsBoneConstraintsDataAsset.h"
 
 #include "KawaiiPhysics.h"
-#include "Editor.h"
 #include "Internationalization/Regex.h"
+
+#if WITH_EDITOR
+#include "Editor.h"
+#endif
 
 struct FBoneConstraintDataCustomVersion
 {
