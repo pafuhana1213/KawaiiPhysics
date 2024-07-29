@@ -123,7 +123,7 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(const FComponentSpacePoseContext& Ou
 					if (CVarAnimNodeKawaiiPhysicsDebugLengthRate.GetValueOnAnyThread())
 					{
 						AnimInstanceProxy->AnimDrawDebugInWorldMessage(
-							FString::Printf(TEXT("%.2f"), ModifyBone.LengthFromRoot / GetTotalBoneLength()),
+							FString::Printf(TEXT("%.2f"), ModifyBone.LengthFromRoot / ModifyBone.LengthRateFromRoot),
 							ModifyBone.Location, FColor::White, 1.0f);
 					}
 #endif
