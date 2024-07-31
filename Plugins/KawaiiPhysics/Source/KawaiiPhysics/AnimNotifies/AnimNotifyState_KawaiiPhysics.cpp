@@ -9,7 +9,7 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimNodeReference.h"
 
-#define LOCTEXT_NAMESPACE "KawaiiPhysics"
+#define LOCTEXT_NAMESPACE "KawaiiPhysics_AnimNotify"
 
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_AddExternalForce_NotifyBegin"), STAT_KawaiiPhysics_AddExternalForce_NotifyBegin,
                    STATGROUP_Anim);
@@ -158,3 +158,5 @@ void UAnimNotifyState_KawaiiPhysicsAddExternalForce::ValidateAssociatedAssets()
 }
 
 #endif
+
+#undef LOCTEXT_NAMESPACE
