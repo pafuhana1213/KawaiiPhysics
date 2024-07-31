@@ -16,11 +16,11 @@
 #endif
 
 #if ENABLE_ANIM_DEBUG
-static TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsEnable(
+TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsEnable(
 	TEXT("a.AnimNode.KawaiiPhysics.Enable"), true, TEXT("Enable/Disable KawaiiPhysics"));
-static TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsDebug(
+TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsDebug(
 	TEXT("a.AnimNode.KawaiiPhysics.Debug"), false, TEXT("Turn on visualization debugging for KawaiiPhysics"));
-static TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsDebugLengthRate(
+TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsDebugLengthRate(
 	TEXT("a.AnimNode.KawaiiPhysics.Debug.LengthRate"), false,
 	TEXT("Turn on visualization debugging for KawaiiPhysics Bone's LengthRate"));
 #endif

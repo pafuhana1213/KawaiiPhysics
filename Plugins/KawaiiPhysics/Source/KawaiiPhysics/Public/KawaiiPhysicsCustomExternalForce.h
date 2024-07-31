@@ -37,10 +37,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category="KawaiiPhysics|CustomExternalForce")
 	virtual bool IsDebugEnabled()
 	{
-		if (const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("a.AnimNode.KawaiiPhysics.Debug")))
+#if ENABLE_ANIM_DEBUG
+		if (CVarAnimNodeKawaiiPhysicsDebug.GetValueOnAnyThread())
 		{
-			return CVar->GetBool() && bDrawDebug;
+			return bDrawDebug;
 		}
+#endif
+
 		return false;
 	}
 };

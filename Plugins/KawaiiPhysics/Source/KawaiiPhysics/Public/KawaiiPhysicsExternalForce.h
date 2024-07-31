@@ -102,10 +102,13 @@ public:
 			return bDrawDebug && bIsEnabled;
 		}
 
-		if (const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("a.AnimNode.KawaiiPhysics.Debug")))
+#if ENABLE_ANIM_DEBUG
+		if (CVarAnimNodeKawaiiPhysicsDebug.GetValueOnAnyThread())
 		{
-			return CVar->GetBool() && bDrawDebug && bIsEnabled;
+			return bDrawDebug && bIsEnabled;
 		}
+#endif
+
 		return false;
 	}
 

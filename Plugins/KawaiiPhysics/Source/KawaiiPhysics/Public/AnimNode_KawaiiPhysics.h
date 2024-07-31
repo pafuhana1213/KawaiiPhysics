@@ -12,6 +12,13 @@ class UKawaiiPhysics_CustomExternalForce;
 class UKawaiiPhysicsLimitsDataAsset;
 class UKawaiiPhysicsBoneConstraintsDataAsset;
 
+#if ENABLE_ANIM_DEBUG
+extern KAWAIIPHYSICS_API TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsEnable;
+extern KAWAIIPHYSICS_API TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsDebug;
+extern KAWAIIPHYSICS_API TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsDebugLengthRate;
+#endif
+
+
 UENUM()
 enum class EPlanarConstraint : uint8
 {
