@@ -10,13 +10,15 @@
 /**
  * 
  */
-UCLASS(Blueprintable, meta = (DisplayName = "KawaiiPhyiscs Add ExternalForce"))
+UCLASS(Blueprintable, meta = (DisplayName = "KawaiiPhyiscs: Add ExternalForce"))
 class KAWAIIPHYSICS_API UAnimNotifyState_KawaiiPhysicsAddExternalForce : public UAnimNotifyState
 {
 	GENERATED_BODY()
 
 public:
 	UAnimNotifyState_KawaiiPhysicsAddExternalForce(const FObjectInitializer& ObjectInitializer);
+
+	virtual FString GetNotifyName_Implementation() const override;
 
 	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration,
 	                         const FAnimNotifyEventReference& EventReference) override;
@@ -30,4 +32,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce",
 		meta = (BaseStruct = "/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce", ExcludeBaseStruct))
 	TArray<FInstancedStruct> AdditionalExternalForces;
+
+#if WITH_EDITOR
+	virtual void ValidateAssociatedAssets() override;
+#endif
 };

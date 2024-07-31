@@ -4,35 +4,63 @@
 #include "AnimNotifyState_KawaiiPhysics.h"
 
 #include "KawaiiPhysicsLibrary.h"
+#include "UObjectToken.h"
 #include "Animation/AnimClassInterface.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimNodeReference.h"
 
-UAnimNotifyState_KawaiiPhysicsAddExternalForce::UAnimNotifyState_KawaiiPhysicsAddExternalForce(const FObjectInitializer& ObjectInitializer)
+#define LOCTEXT_NAMESPACE "KawaiiPhysics"
+
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_AddExternalForce_NotifyBegin"), STAT_KawaiiPhysics_AddExternalForce_NotifyBegin,
+                   STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_AddExternalForce_NotifyEnd"), STAT_KawaiiPhysics_AddExternalForce_NotifyEnd,
+                   STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_AddExternalForce_InitAnimNodeReferences"),
+                   STAT_KawaiiPhysics_AddExternalForce_InitAnimNodeReferences, STATGROUP_Anim);
+
+UAnimNotifyState_KawaiiPhysicsAddExternalForce::UAnimNotifyState_KawaiiPhysicsAddExternalForce(
+	const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITORONLY_DATA
+	NotifyColor = FColor(255, 170, 0, 255);
+#endif // WITH_EDITORONLY_DATA
 }
 
-void UAnimNotifyState_KawaiiPhysicsAddExternalForce::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
-                                                 float TotalDuration, const FAnimNotifyEventReference& EventReference)
+FString UAnimNotifyState_KawaiiPhysicsAddExternalForce::GetNotifyName_Implementation() const
 {
+	return FString(TEXT("KP: Add ExternalForce"));
+}
+
+void UAnimNotifyState_KawaiiPhysicsAddExternalForce::NotifyBegin(USkeletalMeshComponent* MeshComp,
+                                                                 UAnimSequenceBase* Animation,
+                                                                 float TotalDuration,
+                                                                 const FAnimNotifyEventReference& EventReference)
+{
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_AddExternalForce_NotifyBegin);
+
 	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences = InitAnimNodeReferences(MeshComp);
 
 	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
 	{
 		for (auto& AdditionalExternalForce : AdditionalExternalForces)
 		{
-			EKawaiiPhysicsAccessExternalForceResult ExecResult;
-			UKawaiiPhysicsLibrary::AddExternalForce(ExecResult, KawaiiPhysicsReference, AdditionalExternalForce, this);
+			if (AdditionalExternalForce.IsValid())
+			{
+				UKawaiiPhysicsLibrary::AddExternalForce(KawaiiPhysicsReference, AdditionalExternalForce, this);
+			}
 		}
 	}
 
-	Received_NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
+	Super::NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
 }
 
-void UAnimNotifyState_KawaiiPhysicsAddExternalForce::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
-                                               const FAnimNotifyEventReference& EventReference)
+void UAnimNotifyState_KawaiiPhysicsAddExternalForce::NotifyEnd(USkeletalMeshComponent* MeshComp,
+                                                               UAnimSequenceBase* Animation,
+                                                               const FAnimNotifyEventReference& EventReference)
 {
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_AddExternalForce_NotifyEnd);
+
 	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences = InitAnimNodeReferences(MeshComp);
 	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
 	{
@@ -48,14 +76,17 @@ void UAnimNotifyState_KawaiiPhysicsAddExternalForce::NotifyEnd(USkeletalMeshComp
 			});
 	}
 
-	Received_NotifyEnd(MeshComp, Animation, EventReference);
+	Super::NotifyEnd(MeshComp, Animation, EventReference);
 }
 
 TArray<FKawaiiPhysicsReference> UAnimNotifyState_KawaiiPhysicsAddExternalForce::InitAnimNodeReferences(
 	const USkeletalMeshComponent* MeshComp)
 {
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_AddExternalForce_InitAnimNodeReferences);
+
+	// Collect KawaiiPhysics Nodes from ABP
 	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
-	auto AddAnimNodeRefs = [&](const UAnimInstance* AnimInstance)
+	auto AddAnimNodeRefs = [&](UAnimInstance* AnimInstance)
 	{
 		if (const IAnimClassInterface* AnimClassInterface =
 			IAnimClassInterface::GetFromClass((AnimInstance->GetClass())))
@@ -68,7 +99,7 @@ TArray<FKawaiiPhysicsReference> UAnimNotifyState_KawaiiPhysicsAddExternalForce::
 				{
 					EAnimNodeReferenceConversionResult Result;
 					FKawaiiPhysicsReference KawaiiPhysicsReference = UKawaiiPhysicsLibrary::ConvertToKawaiiPhysics(
-						FAnimNodeReference(MeshComp->GetAnimInstance(), i), Result);
+						FAnimNodeReference(AnimInstance, i), Result);
 
 					if (Result == EAnimNodeReferenceConversionResult::Succeeded)
 					{
@@ -79,15 +110,51 @@ TArray<FKawaiiPhysicsReference> UAnimNotifyState_KawaiiPhysicsAddExternalForce::
 		}
 	};
 
-	if (const UAnimInstance* AnimInstance = MeshComp->GetAnimInstance())
+	if (UAnimInstance* AnimInstance = MeshComp->GetAnimInstance())
 	{
 		AddAnimNodeRefs(AnimInstance);
 	}
 
-	if (const UAnimInstance* PostProcessAnimInstance = MeshComp->GetPostProcessInstance())
+	if (UAnimInstance* PostProcessAnimInstance = MeshComp->GetPostProcessInstance())
 	{
 		AddAnimNodeRefs(PostProcessAnimInstance);
 	}
 
 	return KawaiiPhysicsReferences;
 }
+
+#if WITH_EDITOR
+void UAnimNotifyState_KawaiiPhysicsAddExternalForce::ValidateAssociatedAssets()
+{
+	static const FName NAME_AssetCheck("AssetCheck");
+
+	if (UAnimSequenceBase* ContainingAsset = Cast<UAnimSequenceBase>(GetContainingAsset()))
+	{
+		for (auto& ForceInstancedStruct : AdditionalExternalForces)
+		{
+			if (!ForceInstancedStruct.IsValid())
+			{
+				FMessageLog AssetCheckLog(NAME_AssetCheck);
+
+				const FText MessageLooping = FText::Format(
+					NSLOCTEXT("AnimNotify", "ExternalForce_ShouldSet",
+					          " AnimNotifyState(KawaiiPhysics_AddExternalForce) doesn't have a valid ExternalForce in {0}"),
+					FText::AsCultureInvariant(ContainingAsset->GetPathName()));
+
+				AssetCheckLog.Warning()
+				             ->AddToken(FUObjectToken::Create(ContainingAsset))
+				             ->AddToken(FTextToken::Create(MessageLooping));
+
+				if (GIsEditor)
+				{
+					constexpr bool bForce = true;
+					AssetCheckLog.Notify(MessageLooping, EMessageSeverity::Warning, bForce);
+				}
+			}
+
+			//const auto& ExternalForce = ForceInstancedStruct.Get<FKawaiiPhysics_ExternalForce>();
+		}
+	}
+}
+
+#endif

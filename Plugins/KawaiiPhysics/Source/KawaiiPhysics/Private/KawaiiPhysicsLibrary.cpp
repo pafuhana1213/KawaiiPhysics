@@ -88,11 +88,25 @@ TArray<FName> UKawaiiPhysicsLibrary::GetExcludeBoneNames(const FKawaiiPhysicsRef
 	return ExcludeBoneNames;
 }
 
-FKawaiiPhysicsReference UKawaiiPhysicsLibrary::AddExternalForce(EKawaiiPhysicsAccessExternalForceResult& ExecResult,
-                                                                const FKawaiiPhysicsReference& KawaiiPhysics,
-                                                                FInstancedStruct& ExternalForce, UObject* Owner)
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::AddExternalForceWithExecResult(
+	EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+	const FKawaiiPhysicsReference& KawaiiPhysics,
+	FInstancedStruct& ExternalForce, UObject* Owner)
 {
 	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
+
+	if (AddExternalForce(KawaiiPhysics, ExternalForce, Owner))
+	{
+		ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
+	}
+
+	return KawaiiPhysics;
+}
+
+bool UKawaiiPhysicsLibrary::AddExternalForce(const FKawaiiPhysicsReference& KawaiiPhysics,
+                                             FInstancedStruct& ExternalForce, UObject* Owner)
+{
+	bool bResult = false;
 
 	if (ExternalForce.IsValid())
 	{
@@ -107,11 +121,11 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::AddExternalForce(EKawaiiPhysicsAc
 					InKawaiiPhysics.ExternalForces.Add(ExternalForce);
 				});
 
-			ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
+			bResult = true;
 		}
 	}
 
-	return KawaiiPhysics;
+	return bResult;
 }
 
 DEFINE_FUNCTION(UKawaiiPhysicsLibrary::execSetExternalForceWildcardProperty)

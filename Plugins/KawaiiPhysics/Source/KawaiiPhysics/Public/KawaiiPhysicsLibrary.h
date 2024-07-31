@@ -230,12 +230,17 @@ public:
 		KAWAIIPHYSICS_VALUE_GETTER(TObjectPtr<UKawaiiPhysicsLimitsDataAsset>, LimitsDataAsset);
 	}
 
-	/** Add ExternalForce */
+	/** Add ExternalForce With ExecResult */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
 		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
-	static FKawaiiPhysicsReference AddExternalForce(EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+	static FKawaiiPhysicsReference AddExternalForceWithExecResult(EKawaiiPhysicsAccessExternalForceResult& ExecResult,
 	                                                const FKawaiiPhysicsReference& KawaiiPhysics,
 	                                                FInstancedStruct& ExternalForce, UObject* Owner);
+
+	/** Add ExternalForce */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	static bool AddExternalForce(const FKawaiiPhysicsReference& KawaiiPhysics,
+	                             FInstancedStruct& ExternalForce, UObject* Owner);
 
 
 	/** Set ExternalForceParameter template */
