@@ -4,7 +4,7 @@
 #include "AnimNotifyState_KawaiiPhysics.h"
 
 #include "KawaiiPhysicsLibrary.h"
-#include "UObjectToken.h"
+#include "Misc/UObjectToken.h"
 #include "Animation/AnimClassInterface.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimNodeReference.h"
