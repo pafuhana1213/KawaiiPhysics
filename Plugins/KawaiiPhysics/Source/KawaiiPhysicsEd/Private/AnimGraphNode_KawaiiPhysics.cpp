@@ -374,32 +374,42 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 	CustomizeDetailTools(DetailBuilder);
 	CustomizeDetailDebugVisualizations(DetailBuilder);
 
-	// Force order of details panel catagories - Must set order for all of them as any that are edited automatically move to the top.
+	// Force order of details panel categories - Must set order for all of them as any that are edited automatically move to the top.
+	auto CategorySorter = [](const TMap<FName, IDetailCategoryBuilder*>& Categories)
 	{
-		uint32 SortOrder = 0;
+		int32 Order = 0;
+		auto SafeSetOrder = [&Categories, &Order](const FName& CategoryName)
+		{
+			if (IDetailCategoryBuilder* const* Builder = Categories.Find(CategoryName))
+			{
+				(*Builder)->SetSortOrder(Order++);
+			}
+		};
 
 		// Tools, Debug
-		DetailBuilder.EditCategory("Kawaii Physics Tools").SetSortOrder(SortOrder++);
-		DetailBuilder.EditCategory("Debug Visualization").SetSortOrder(SortOrder++);
-		DetailBuilder.EditCategory("Functions").SetSortOrder(SortOrder++);
+		SafeSetOrder(FName("Kawaii Physics Tools"));
+		SafeSetOrder(FName("Debug Visualization"));
+		SafeSetOrder(FName("Functions"));
 
 		// Basic
-		DetailBuilder.EditCategory("Bones").SetSortOrder(SortOrder++);
-		DetailBuilder.EditCategory("Physics Settings").SetSortOrder(SortOrder++);
-		DetailBuilder.EditCategory("Physics Settings Advanced").SetSortOrder(SortOrder++);
+		SafeSetOrder(FName("Bones"));
+		SafeSetOrder(FName("Physics Settings"));
+		SafeSetOrder(FName("Physics Settings Advanced"));
 
 		// Limits
-		DetailBuilder.EditCategory("Limits").SetSortOrder(SortOrder++);
-		DetailBuilder.EditCategory("Bone Constraint (Experimental)").SetSortOrder(SortOrder++);
+		SafeSetOrder(FName("Limits"));
+		SafeSetOrder(FName("Bone Constraint (Experimental)"));
 
 		// Other
-		DetailBuilder.EditCategory("World Collision").SetSortOrder(SortOrder++);
-		DetailBuilder.EditCategory("ExternalForce").SetSortOrder(SortOrder++);
+		SafeSetOrder(FName("World Collision"));
+		SafeSetOrder(FName("ExternalForce"));
 
 		// AnimNode
-		DetailBuilder.EditCategory("Tag").SetSortOrder(SortOrder++);
-		DetailBuilder.EditCategory("Alpha").SetSortOrder(SortOrder++);
-	}
+		SafeSetOrder(FName("Tag"));
+		SafeSetOrder(FName("Alpha"));
+	};
+
+	DetailBuilder.SortCategories(CategorySorter);
 }
 
 struct FKawaiiPhysicsVersion
