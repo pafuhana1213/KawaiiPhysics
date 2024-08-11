@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "InstancedStruct.h"
 #include "AnimNotifyState_KawaiiPhysics.generated.h"
@@ -32,6 +33,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce",
 		meta = (BaseStruct = "/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce", ExcludeBaseStruct))
 	TArray<FInstancedStruct> AdditionalExternalForces;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce")
+	FGameplayTagContainer FilterTags;
+
+	/** 
+	* Tagのフィルタリングにて完全一致にするか否か（Falseの場合は親Tagも含めます）
+	* Whether to filter tags to exact matches (if False, parent tags will also be included)
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce")
+	bool bFilterExactMatch;
 
 #if WITH_EDITOR
 	virtual void ValidateAssociatedAssets() override;

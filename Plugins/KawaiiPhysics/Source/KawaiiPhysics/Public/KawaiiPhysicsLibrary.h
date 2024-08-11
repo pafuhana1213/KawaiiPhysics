@@ -72,6 +72,12 @@ public:
 		Result = (ConversionResult == EAnimNodeReferenceConversionResult::Succeeded);
 	}
 
+	/** Collect KawaiiPhysics Node References from ABP  */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	static bool CollectKawaiiPhysicsNodes(UPARAM(ref) TArray<FKawaiiPhysicsReference>& Nodes,
+	                                      UAnimInstance* AnimInstance, const FGameplayTagContainer& FilterTags,
+	                                      bool bFilterExactMatch);
+
 	/** ResetDynamics */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
 	static FKawaiiPhysicsReference ResetDynamics(const FKawaiiPhysicsReference& KawaiiPhysics);
@@ -234,8 +240,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
 		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
 	static FKawaiiPhysicsReference AddExternalForceWithExecResult(EKawaiiPhysicsAccessExternalForceResult& ExecResult,
-	                                                const FKawaiiPhysicsReference& KawaiiPhysics,
-	                                                FInstancedStruct& ExternalForce, UObject* Owner);
+	                                                              const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                              FInstancedStruct& ExternalForce, UObject* Owner);
 
 	/** Add ExternalForce */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))

@@ -86,38 +86,17 @@ TArray<FKawaiiPhysicsReference> UAnimNotifyState_KawaiiPhysicsAddExternalForce::
 
 	// Collect KawaiiPhysics Nodes from ABP
 	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
-	auto AddAnimNodeRefs = [&](UAnimInstance* AnimInstance)
-	{
-		if (const IAnimClassInterface* AnimClassInterface =
-			IAnimClassInterface::GetFromClass((AnimInstance->GetClass())))
-		{
-			const TArray<FStructProperty*>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
-			for (int i = 0; i < AnimNodeProperties.Num(); ++i)
-			{
-				if (AnimNodeProperties[i]->Struct->
-				                           IsChildOf(FKawaiiPhysicsReference::FInternalNodeType::StaticStruct()))
-				{
-					EAnimNodeReferenceConversionResult Result;
-					FKawaiiPhysicsReference KawaiiPhysicsReference = UKawaiiPhysicsLibrary::ConvertToKawaiiPhysics(
-						FAnimNodeReference(AnimInstance, i), Result);
-
-					if (Result == EAnimNodeReferenceConversionResult::Succeeded)
-					{
-						KawaiiPhysicsReferences.Add(KawaiiPhysicsReference);
-					}
-				}
-			}
-		}
-	};
 
 	if (UAnimInstance* AnimInstance = MeshComp->GetAnimInstance())
 	{
-		AddAnimNodeRefs(AnimInstance);
+		UKawaiiPhysicsLibrary::CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, AnimInstance, FilterTags,
+		                                                 bFilterExactMatch);
 	}
 
 	if (UAnimInstance* PostProcessAnimInstance = MeshComp->GetPostProcessInstance())
 	{
-		AddAnimNodeRefs(PostProcessAnimInstance);
+		UKawaiiPhysicsLibrary::CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, PostProcessAnimInstance, FilterTags,
+		                                                 bFilterExactMatch);
 	}
 
 	return KawaiiPhysicsReferences;
