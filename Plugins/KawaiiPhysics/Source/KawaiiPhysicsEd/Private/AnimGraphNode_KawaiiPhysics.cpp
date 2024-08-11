@@ -1,5 +1,6 @@
 #include "AnimGraphNode_KawaiiPhysics.h"
 
+#include "AssetToolsModule.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
@@ -472,13 +473,17 @@ void UAnimGraphNode_KawaiiPhysics::Serialize(FArchive& Ar)
 
 void UAnimGraphNode_KawaiiPhysics::ExportLimitsDataAsset()
 {
-	const FString DefaultAsset = FPackageName::GetLongPackagePath(GetOutermost()->GetName()) + TEXT("/") + GetName() +
-		TEXT("_Collision");
+	FString AssetName;
+	FString PackageName;
+	const FString AnimBlueprintPath = GetAnimBlueprint()->GetPackage()->GetName();
+	const FString DefaultSuffix = TEXT("_Collision");
+	const FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools");
+	AssetToolsModule.Get().CreateUniqueAssetName(AnimBlueprintPath, DefaultSuffix, PackageName, AssetName);
 
 	const TSharedRef<SDlgPickAssetPath> NewAssetDlg =
 		SNew(SDlgPickAssetPath)
 			.Title(LOCTEXT("NewDataAssetDialogTitle", "Choose Location for Collision Data Asset"))
-			.DefaultAssetPath(FText::FromString(DefaultAsset));
+			.DefaultAssetPath(FText::FromString(PackageName));
 
 	if (NewAssetDlg->ShowModal() == EAppReturnType::Cancel)
 	{
@@ -494,6 +499,16 @@ void UAnimGraphNode_KawaiiPhysics::ExportLimitsDataAsset()
 		NewObject<UKawaiiPhysicsLimitsDataAsset>(Pkg, UKawaiiPhysicsLimitsDataAsset::StaticClass(), FName(Name),
 		                                         RF_Public | RF_Standalone))
 	{
+		// look for a valid component in the object being debugged,
+		// we might be set to something other than the preview.
+		if (UObject* ObjectBeingDebugged = GetAnimBlueprint()->GetObjectBeingDebugged())
+		{
+			if (const UAnimInstance* InstanceBeingDebugged = Cast<UAnimInstance>(ObjectBeingDebugged))
+			{
+				NewDataAsset->Skeleton = InstanceBeingDebugged->CurrentSkeleton;
+			}
+		}
+
 		// copy data
 		NewDataAsset->SphericalLimitsData.SetNum(Node.SphericalLimits.Num());
 		for (int32 i = 0; i < Node.SphericalLimits.Num(); i++)
