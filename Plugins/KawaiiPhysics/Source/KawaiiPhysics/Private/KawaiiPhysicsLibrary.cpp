@@ -141,7 +141,7 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::AddExternalForceWithExecResult(
 }
 
 bool UKawaiiPhysicsLibrary::AddExternalForce(const FKawaiiPhysicsReference& KawaiiPhysics,
-                                             FInstancedStruct& ExternalForce, UObject* Owner)
+                                             FInstancedStruct& ExternalForce, UObject* Owner, bool bIsOneShot)
 {
 	bool bResult = false;
 
@@ -150,6 +150,7 @@ bool UKawaiiPhysicsLibrary::AddExternalForce(const FKawaiiPhysicsReference& Kawa
 		if (auto* ExternalForcePtr = ExternalForce.GetMutablePtr<FKawaiiPhysics_ExternalForce>())
 		{
 			ExternalForcePtr->ExternalOwner = Owner;
+			ExternalForcePtr->bIsOneShot = bIsOneShot;
 
 			KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 				TEXT("AddExternalForce"),

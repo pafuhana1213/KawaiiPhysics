@@ -75,6 +75,8 @@ void FKawaiiPhysics_ExternalForce_Basic::Apply(FKawaiiPhysicsModifyBone& Bone, F
 		BoneForceMap.Add(Bone.BoneRef.BoneName, Force * ForceRate);
 #endif
 	}
+
+	Super::Apply(Bone, Node, PoseContext, BoneTM);
 }
 
 ///
@@ -134,6 +136,8 @@ void FKawaiiPhysics_ExternalForce_Gravity::Apply(FKawaiiPhysicsModifyBone& Bone,
 	BoneForceMap.Add(Bone.BoneRef.BoneName, Force * ForceRate);
 	AnimDrawDebug(Bone, Node, PoseContext);
 #endif
+
+	Super::Apply(Bone, Node, PoseContext, BoneTM);
 }
 
 ///
@@ -271,4 +275,6 @@ void FKawaiiPhysics_ExternalForce_Curve::Apply(FKawaiiPhysicsModifyBone& Bone, F
 #if ENABLE_ANIM_DEBUG
 	AnimDrawDebug(Bone, Node, PoseContext);
 #endif
+
+	Super::Apply(Bone, Node, PoseContext, BoneTM);
 }

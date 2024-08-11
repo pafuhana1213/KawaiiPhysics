@@ -9,14 +9,14 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimNodeReference.h"
 
-#define LOCTEXT_NAMESPACE "KawaiiPhysics_AnimNotify"
+#define LOCTEXT_NAMESPACE "KawaiiPhysics_AnimNotifyState"
 
-DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_AddExternalForce_NotifyBegin"), STAT_KawaiiPhysics_AddExternalForce_NotifyBegin,
-                   STATGROUP_Anim);
-DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_AddExternalForce_NotifyEnd"), STAT_KawaiiPhysics_AddExternalForce_NotifyEnd,
-                   STATGROUP_Anim);
-DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_AddExternalForce_InitAnimNodeReferences"),
-                   STAT_KawaiiPhysics_AddExternalForce_InitAnimNodeReferences, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ANS_AddExternalForce_NotifyBegin"),
+                   STAT_KawaiiPhysics_ANS_AddExternalForce_NotifyBegin, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ANS_AddExternalForce_NotifyEnd"),
+                   STAT_KawaiiPhysics_ANS_AddExternalForce_NotifyEnd, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ANS_AddExternalForce_InitAnimNodeReferences"),
+                   STAT_KawaiiPhysics_ANS_AddExternalForce_InitAnimNodeReferences, STATGROUP_Anim);
 
 UAnimNotifyState_KawaiiPhysicsAddExternalForce::UAnimNotifyState_KawaiiPhysicsAddExternalForce(
 	const FObjectInitializer& ObjectInitializer)
@@ -37,7 +37,7 @@ void UAnimNotifyState_KawaiiPhysicsAddExternalForce::NotifyBegin(USkeletalMeshCo
                                                                  float TotalDuration,
                                                                  const FAnimNotifyEventReference& EventReference)
 {
-	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_AddExternalForce_NotifyBegin);
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ANS_AddExternalForce_NotifyBegin);
 
 	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences = InitAnimNodeReferences(MeshComp);
 
@@ -59,7 +59,7 @@ void UAnimNotifyState_KawaiiPhysicsAddExternalForce::NotifyEnd(USkeletalMeshComp
                                                                UAnimSequenceBase* Animation,
                                                                const FAnimNotifyEventReference& EventReference)
 {
-	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_AddExternalForce_NotifyEnd);
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ANS_AddExternalForce_NotifyEnd);
 
 	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences = InitAnimNodeReferences(MeshComp);
 	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
@@ -82,7 +82,7 @@ void UAnimNotifyState_KawaiiPhysicsAddExternalForce::NotifyEnd(USkeletalMeshComp
 TArray<FKawaiiPhysicsReference> UAnimNotifyState_KawaiiPhysicsAddExternalForce::InitAnimNodeReferences(
 	const USkeletalMeshComponent* MeshComp)
 {
-	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_AddExternalForce_InitAnimNodeReferences);
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ANS_AddExternalForce_InitAnimNodeReferences);
 
 	// Collect KawaiiPhysics Nodes from ABP
 	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
@@ -107,7 +107,7 @@ void UAnimNotifyState_KawaiiPhysicsAddExternalForce::ValidateAssociatedAssets()
 {
 	static const FName NAME_AssetCheck("AssetCheck");
 
-	if (UAnimSequenceBase* ContainingAsset = Cast<UAnimSequenceBase>(GetContainingAsset()))
+	if (const UAnimSequenceBase* ContainingAsset = Cast<UAnimSequenceBase>(GetContainingAsset()))
 	{
 		for (auto& ForceInstancedStruct : AdditionalExternalForces)
 		{

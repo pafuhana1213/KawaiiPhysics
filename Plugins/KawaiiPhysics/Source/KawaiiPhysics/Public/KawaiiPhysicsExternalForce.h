@@ -64,6 +64,9 @@ public:
 	UPROPERTY()
 	TObjectPtr<UObject> ExternalOwner;
 
+	UPROPERTY()
+	bool bIsOneShot;
+
 #if ENABLE_ANIM_DEBUG
 	float DebugArrowLength = 5.0f;
 	float DebugArrowSize = 1.0f;
@@ -92,6 +95,14 @@ public:
 	virtual void Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
 	                   const FComponentSpacePoseContext& PoseContext, const FTransform& BoneTM = FTransform::Identity)
 	{
+		if (bIsOneShot)
+		{
+			Node.ExternalForces.RemoveAll([&](FInstancedStruct& InstancedStruct)
+			{
+				const auto* ExternalForcePtr = InstancedStruct.GetMutablePtr<FKawaiiPhysics_ExternalForce>();
+				return ExternalForcePtr == this;
+			});
+		}
 	}
 
 

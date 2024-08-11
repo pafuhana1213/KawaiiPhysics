@@ -246,7 +246,7 @@ public:
 	/** Add ExternalForce */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
 	static bool AddExternalForce(const FKawaiiPhysicsReference& KawaiiPhysics,
-	                             FInstancedStruct& ExternalForce, UObject* Owner);
+	                             FInstancedStruct& ExternalForce, UObject* Owner, bool bIsOneShot = false);
 
 
 	/** Set ExternalForceParameter template */
