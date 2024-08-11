@@ -9,14 +9,13 @@
 #include "KawaiiPhysicsBoneConstraintsDataAsset.generated.h"
 
 USTRUCT(BlueprintType)
-struct FModifyBoneConstraintData
+struct KAWAIIPHYSICS_API FModifyBoneConstraintData
 {
 	GENERATED_BODY()
 
 	// deprecated
 	UPROPERTY()
 	FName BoneName1;
-	// deprecated
 	UPROPERTY()
 	FName BoneName2;
 
@@ -31,6 +30,9 @@ struct FModifyBoneConstraintData
 
 	UPROPERTY(EditAnywhere, category = "KawaiiPhysics", meta=(EditCondition="bOverrideCompliance"))
 	EXPBDComplianceType ComplianceType = EXPBDComplianceType::Leather;
+
+public:
+	void Update(const FModifyBoneConstraint& BoneConstraint);
 };
 
 USTRUCT(BlueprintType)

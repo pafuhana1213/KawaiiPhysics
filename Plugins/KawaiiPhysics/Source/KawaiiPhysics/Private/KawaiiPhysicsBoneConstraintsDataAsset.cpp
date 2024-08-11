@@ -36,12 +36,19 @@ FCustomVersionRegistration GRegisterBoneConstraintDataCustomVersion(FBoneConstra
                                                                     FBoneConstraintDataCustomVersion::LatestVersion,
                                                                     TEXT("BoneConstraintData"));
 
+void FModifyBoneConstraintData::Update(const FModifyBoneConstraint& BoneConstraint)
+{
+	BoneReference1 = BoneConstraint.Bone1;
+	BoneReference2 = BoneConstraint.Bone2;
+	bOverrideCompliance = BoneConstraint.bOverrideCompliance;
+	ComplianceType = BoneConstraint.ComplianceType;
+}
 
 TArray<FModifyBoneConstraint> UKawaiiPhysicsBoneConstraintsDataAsset::GenerateBoneConstraints()
 {
 	TArray<FModifyBoneConstraint> BoneConstraints;
 
-	for (const FModifyBoneConstraintData &BoneConstraintData : BoneConstraintsData)
+	for (const FModifyBoneConstraintData& BoneConstraintData : BoneConstraintsData)
 	{
 		FModifyBoneConstraint BoneConstraint;
 		BoneConstraint.Bone1 = BoneConstraintData.BoneReference1;

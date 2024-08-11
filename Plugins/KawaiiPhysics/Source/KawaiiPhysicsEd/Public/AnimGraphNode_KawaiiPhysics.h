@@ -39,13 +39,18 @@ protected:
 
 	// UObject interface
 	virtual void Serialize(FArchive& Ar) override;
+
 	// End of UObject interface
 
 	virtual void CustomizeDetailTools(IDetailLayoutBuilder& DetailBuilder);
 	virtual void CustomizeDetailDebugVisualizations(IDetailLayoutBuilder& DetailBuilder);
 
 private:
+	void CreateExportDataAssetPath(FString& PackageName, const FString& DefaultSuffix) const;
+	UPackage* CreateDataAssetPackage(const FString& DialogTitle, const FString& DefaultSuffix,
+	                                 FString& AssetName) const;
 	void ExportLimitsDataAsset();
+	void ExportBoneConstraintsDataAsset();
 
 public:
 	UPROPERTY()

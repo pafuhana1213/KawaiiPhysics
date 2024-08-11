@@ -4,6 +4,7 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "KawaiiPhysicsBoneConstraintsDataAsset.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
 #include "Selection.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -165,9 +166,9 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 
 	WidgetRow
 	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
+		SNew(SUniformGridPanel)
+		.SlotPadding(FMargin(2, 0, 2, 0))
+		+ SUniformGridPanel::Slot(0, 0)
 		[
 			SNew(SButton)
 				.HAlign(HAlign_Center)
@@ -180,7 +181,23 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 				.Content()
 			[
 				SNew(STextBlock)
-				.Text(FText::FromString(TEXT("Export Limits Data Asset")))
+				.Text(FText::FromString(TEXT("Export Limits")))
+			]
+		]
+		+ SUniformGridPanel::Slot(1, 0)
+		[
+			SNew(SButton)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked_Lambda([this]()
+			             {
+				             this->ExportBoneConstraintsDataAsset();
+				             return FReply::Handled();
+			             })
+				.Content()
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(TEXT("Export BoneConstraints")))
 			]
 		]
 	];
@@ -471,33 +488,49 @@ void UAnimGraphNode_KawaiiPhysics::Serialize(FArchive& Ar)
 	}
 }
 
-void UAnimGraphNode_KawaiiPhysics::ExportLimitsDataAsset()
+void UAnimGraphNode_KawaiiPhysics::CreateExportDataAssetPath(FString& PackageName, const FString& DefaultSuffix) const
 {
 	FString AssetName;
-	FString PackageName;
 	const FString AnimBlueprintPath = GetAnimBlueprint()->GetPackage()->GetName();
-	const FString DefaultSuffix = TEXT("_Collision");
 	const FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools");
 	AssetToolsModule.Get().CreateUniqueAssetName(AnimBlueprintPath, DefaultSuffix, PackageName, AssetName);
+}
+
+UPackage* UAnimGraphNode_KawaiiPhysics::CreateDataAssetPackage(const FString& DialogTitle, const FString& DefaultSuffix,
+                                                               FString& AssetName) const
+{
+	FString PackageName;
+	CreateExportDataAssetPath(PackageName, DefaultSuffix);
 
 	const TSharedRef<SDlgPickAssetPath> NewAssetDlg =
 		SNew(SDlgPickAssetPath)
-			.Title(LOCTEXT("NewDataAssetDialogTitle", "Choose Location for Collision Data Asset"))
+			.Title(FText::FromString(DialogTitle))
 			.DefaultAssetPath(FText::FromString(PackageName));
 
 	if (NewAssetDlg->ShowModal() == EAppReturnType::Cancel)
 	{
+		return nullptr;
+	}
+
+	const FString PackagePath(NewAssetDlg->GetFullAssetPath().ToString());
+	AssetName = NewAssetDlg->GetAssetName().ToString();
+
+	return CreatePackage(*PackagePath);
+}
+
+void UAnimGraphNode_KawaiiPhysics::ExportLimitsDataAsset()
+{
+	FString AssetName;
+	UPackage* Package = CreateDataAssetPackage(
+		TEXT("Choose Location for Collision Data Asset"), TEXT("_Collision"), AssetName);
+	if (!Package)
+	{
 		return;
 	}
 
-	const FString Package(NewAssetDlg->GetFullAssetPath().ToString());
-	const FString Name(NewAssetDlg->GetAssetName().ToString());
-
-	UPackage* Pkg = CreatePackage(*Package);
-
 	if (UKawaiiPhysicsLimitsDataAsset* NewDataAsset =
-		NewObject<UKawaiiPhysicsLimitsDataAsset>(Pkg, UKawaiiPhysicsLimitsDataAsset::StaticClass(), FName(Name),
-		                                         RF_Public | RF_Standalone))
+		NewObject<UKawaiiPhysicsLimitsDataAsset>(Package, UKawaiiPhysicsLimitsDataAsset::StaticClass(),
+		                                         FName(AssetName), RF_Public | RF_Standalone))
 	{
 		// look for a valid component in the object being debugged,
 		// we might be set to something other than the preview.
@@ -536,7 +569,50 @@ void UAnimGraphNode_KawaiiPhysics::ExportLimitsDataAsset()
 		SelectionSet->Select(NewDataAsset);
 
 		FAssetRegistryModule::AssetCreated(NewDataAsset);
-		Pkg->MarkPackageDirty();
+		Package->MarkPackageDirty();
+	}
+}
+
+void UAnimGraphNode_KawaiiPhysics::ExportBoneConstraintsDataAsset()
+{
+	FString AssetName;
+	UPackage* Package = CreateDataAssetPackage(
+		TEXT("Choose Location for BoneConstraints Data Asset"), TEXT("_BoneConstraint"), AssetName);
+	if (!Package)
+	{
+		return;
+	}
+
+	if (UKawaiiPhysicsBoneConstraintsDataAsset* NewDataAsset =
+		NewObject<UKawaiiPhysicsBoneConstraintsDataAsset>(
+			Package, UKawaiiPhysicsBoneConstraintsDataAsset::StaticClass(),
+			FName(AssetName), RF_Public | RF_Standalone))
+	{
+		// look for a valid component in the object being debugged,
+		// we might be set to something other than the preview.
+		if (UObject* ObjectBeingDebugged = GetAnimBlueprint()->GetObjectBeingDebugged())
+		{
+			if (const UAnimInstance* InstanceBeingDebugged = Cast<UAnimInstance>(ObjectBeingDebugged))
+			{
+				NewDataAsset->PreviewSkeleton = InstanceBeingDebugged->CurrentSkeleton;
+				NewDataAsset->UpdatePreviewBoneList();
+			}
+		}
+
+		// copy data
+		NewDataAsset->BoneConstraintsData.SetNum(Node.BoneConstraints.Num());
+		for (int32 i = 0; i < Node.BoneConstraints.Num(); i++)
+		{
+			NewDataAsset->BoneConstraintsData[i].Update(Node.BoneConstraints[i]);
+		}
+
+		// select new asset
+		USelection* SelectionSet = GEditor->GetSelectedObjects();
+		SelectionSet->DeselectAll();
+		SelectionSet->Select(NewDataAsset);
+
+		FAssetRegistryModule::AssetCreated(NewDataAsset);
+		Package->MarkPackageDirty();
 	}
 }
 
