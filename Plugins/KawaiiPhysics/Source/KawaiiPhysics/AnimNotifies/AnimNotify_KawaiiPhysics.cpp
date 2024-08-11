@@ -68,6 +68,7 @@ TArray<FKawaiiPhysicsReference> UAnimNotify_KawaiiPhysicsAddExternalForce::InitA
 	return KawaiiPhysicsReferences;
 }
 
+#if WITH_EDITOR
 void UAnimNotify_KawaiiPhysicsAddExternalForce::ValidateAssociatedAssets()
 {
 	static const FName NAME_AssetCheck("AssetCheck");
@@ -100,3 +101,6 @@ void UAnimNotify_KawaiiPhysicsAddExternalForce::ValidateAssociatedAssets()
 		}
 	}
 }
+#endif
+
+#undef LOCTEXT_NAMESPACE
