@@ -34,7 +34,7 @@ FText UAnimGraphNode_KawaiiPhysics::GetNodeTitle(ENodeTitleType::Type TitleType)
 	// @TODO: the bone can be altered in the property editor, so we have to 
 	//        choose to mark this dirty when that happens for this to properly work
 	//if (!CachedNodeTitles.IsTitleCached(TitleType, this))
-	
+
 	FFormatNamedArguments Args;
 	Args.Add(TEXT("ControllerDescription"), GetControllerDescription());
 	Args.Add(TEXT("RootBoneName"), FText::FromName(Node.RootBone.BoneName));
@@ -115,6 +115,7 @@ void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* Ani
 	KawaiiPhysics->OverrideTargetFramerate = Node.OverrideTargetFramerate;
 
 	// Physics Settings
+	KawaiiPhysics->PhysicsSettings = Node.PhysicsSettings;
 	KawaiiPhysics->DampingCurveData = Node.DampingCurveData;
 	KawaiiPhysics->WorldDampingLocationCurveData = Node.WorldDampingLocationCurveData;
 	KawaiiPhysics->WorldDampingRotationCurveData = Node.WorldDampingRotationCurveData;
