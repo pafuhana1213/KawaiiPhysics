@@ -255,14 +255,14 @@ public:
 	/** Add ExternalForces to SkeletalMeshComponent */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
 	static bool AddExternalForcesToComponent(USkeletalMeshComponent* MeshComp,
-	                                         TArray<FInstancedStruct>& ExternalForces, UObject* Owner,
-	                                         FGameplayTagContainer& FilterTags,
+	                                         UPARAM(ref) TArray<FInstancedStruct>& ExternalForces, UObject* Owner,
+	                                         UPARAM(ref) FGameplayTagContainer& FilterTags,
 	                                         bool bFilterExactMatch = false,
 	                                         bool bIsOneShot = false);
 
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
 	static bool RemoveExternalForcesFromComponent(USkeletalMeshComponent* MeshComp, UObject* Owner,
-	                                              FGameplayTagContainer& FilterTags,
+	                                              UPARAM(ref) FGameplayTagContainer& FilterTags,
 	                                              bool bFilterExactMatch = false);
 
 
