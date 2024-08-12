@@ -20,9 +20,6 @@ public:
 	virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
 	                    const FAnimNotifyEventReference& EventReference) override;
 
-	UFUNCTION(BlueprintCallable)
-	TArray<FKawaiiPhysicsReference> InitAnimNodeReferences(const USkeletalMeshComponent* MeshComp);
-
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce",
 		meta = (BaseStruct = "/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce", ExcludeBaseStruct))

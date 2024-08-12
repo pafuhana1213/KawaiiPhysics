@@ -72,10 +72,14 @@ public:
 		Result = (ConversionResult == EAnimNodeReferenceConversionResult::Succeeded);
 	}
 
-	/** Collect KawaiiPhysics Node References from ABP  */
-	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
-	static bool CollectKawaiiPhysicsNodes(UPARAM(ref) TArray<FKawaiiPhysicsReference>& Nodes,
+	/** Collect KawaiiPhysics Node References from AnimInstance(ABP)  */
+	static bool CollectKawaiiPhysicsNodes(TArray<FKawaiiPhysicsReference>& Nodes,
 	                                      UAnimInstance* AnimInstance, const FGameplayTagContainer& FilterTags,
+	                                      bool bFilterExactMatch);
+
+	/** Collect KawaiiPhysics Node References from SkeletalMeshComponent  */
+	static bool CollectKawaiiPhysicsNodes(TArray<FKawaiiPhysicsReference>& Nodes,
+	                                      USkeletalMeshComponent* MeshComp, const FGameplayTagContainer& FilterTags,
 	                                      bool bFilterExactMatch);
 
 	/** ResetDynamics */
@@ -247,6 +251,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
 	static bool AddExternalForce(const FKawaiiPhysicsReference& KawaiiPhysics,
 	                             FInstancedStruct& ExternalForce, UObject* Owner, bool bIsOneShot = false);
+
+	/** Add ExternalForces to SkeletalMeshComponent */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	static bool AddExternalForcesToComponent(USkeletalMeshComponent* MeshComp,
+	                                         TArray<FInstancedStruct>& ExternalForces, UObject* Owner,
+	                                         FGameplayTagContainer& FilterTags,
+	                                         bool bFilterExactMatch = false,
+	                                         bool bIsOneShot = false);
+
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	static bool RemoveExternalForcesFromComponent(USkeletalMeshComponent* MeshComp, UObject* Owner,
+	                                              FGameplayTagContainer& FilterTags,
+	                                              bool bFilterExactMatch = false);
 
 
 	/** Set ExternalForceParameter template */

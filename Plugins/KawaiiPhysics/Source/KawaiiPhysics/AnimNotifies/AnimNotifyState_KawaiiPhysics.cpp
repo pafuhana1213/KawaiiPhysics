@@ -11,13 +11,6 @@
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysics_AnimNotifyState"
 
-DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ANS_AddExternalForce_NotifyBegin"),
-                   STAT_KawaiiPhysics_ANS_AddExternalForce_NotifyBegin, STATGROUP_Anim);
-DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ANS_AddExternalForce_NotifyEnd"),
-                   STAT_KawaiiPhysics_ANS_AddExternalForce_NotifyEnd, STATGROUP_Anim);
-DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ANS_AddExternalForce_InitAnimNodeReferences"),
-                   STAT_KawaiiPhysics_ANS_AddExternalForce_InitAnimNodeReferences, STATGROUP_Anim);
-
 UAnimNotifyState_KawaiiPhysicsAddExternalForce::UAnimNotifyState_KawaiiPhysicsAddExternalForce(
 	const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -37,21 +30,8 @@ void UAnimNotifyState_KawaiiPhysicsAddExternalForce::NotifyBegin(USkeletalMeshCo
                                                                  float TotalDuration,
                                                                  const FAnimNotifyEventReference& EventReference)
 {
-	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ANS_AddExternalForce_NotifyBegin);
-
-	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences = InitAnimNodeReferences(MeshComp);
-
-	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
-	{
-		for (auto& AdditionalExternalForce : AdditionalExternalForces)
-		{
-			if (AdditionalExternalForce.IsValid())
-			{
-				UKawaiiPhysicsLibrary::AddExternalForce(KawaiiPhysicsReference, AdditionalExternalForce, this);
-			}
-		}
-	}
-
+	UKawaiiPhysicsLibrary::AddExternalForcesToComponent(MeshComp, AdditionalExternalForces, this,
+	                                                    FilterTags, bFilterExactMatch);
 	Super::NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
 }
 
@@ -59,47 +39,9 @@ void UAnimNotifyState_KawaiiPhysicsAddExternalForce::NotifyEnd(USkeletalMeshComp
                                                                UAnimSequenceBase* Animation,
                                                                const FAnimNotifyEventReference& EventReference)
 {
-	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ANS_AddExternalForce_NotifyEnd);
-
-	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences = InitAnimNodeReferences(MeshComp);
-	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
-	{
-		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-			TEXT("RemoveExternalForce"),
-			[&](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
-			{
-				InKawaiiPhysics.ExternalForces.RemoveAll([&](FInstancedStruct& InstancedStruct)
-				{
-					const auto* ExternalForcePtr = InstancedStruct.GetMutablePtr<FKawaiiPhysics_ExternalForce>();
-					return ExternalForcePtr && ExternalForcePtr->ExternalOwner == this;
-				});
-			});
-	}
+	UKawaiiPhysicsLibrary::RemoveExternalForcesFromComponent(MeshComp, this, FilterTags, bFilterExactMatch);
 
 	Super::NotifyEnd(MeshComp, Animation, EventReference);
-}
-
-TArray<FKawaiiPhysicsReference> UAnimNotifyState_KawaiiPhysicsAddExternalForce::InitAnimNodeReferences(
-	const USkeletalMeshComponent* MeshComp)
-{
-	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ANS_AddExternalForce_InitAnimNodeReferences);
-
-	// Collect KawaiiPhysics Nodes from ABP
-	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
-
-	if (UAnimInstance* AnimInstance = MeshComp->GetAnimInstance())
-	{
-		UKawaiiPhysicsLibrary::CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, AnimInstance, FilterTags,
-		                                                 bFilterExactMatch);
-	}
-
-	if (UAnimInstance* PostProcessAnimInstance = MeshComp->GetPostProcessInstance())
-	{
-		UKawaiiPhysicsLibrary::CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, PostProcessAnimInstance, FilterTags,
-		                                                 bFilterExactMatch);
-	}
-
-	return KawaiiPhysicsReferences;
 }
 
 #if WITH_EDITOR

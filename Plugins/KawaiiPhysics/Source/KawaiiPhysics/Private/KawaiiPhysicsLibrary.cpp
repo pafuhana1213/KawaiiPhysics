@@ -51,6 +51,36 @@ bool UKawaiiPhysicsLibrary::CollectKawaiiPhysicsNodes(TArray<FKawaiiPhysicsRefer
 	return bResult;
 }
 
+bool UKawaiiPhysicsLibrary::CollectKawaiiPhysicsNodes(TArray<FKawaiiPhysicsReference>& Nodes,
+                                                      USkeletalMeshComponent* MeshComp,
+                                                      const FGameplayTagContainer& FilterTags, bool bFilterExactMatch)
+{
+	const int NodeNum = Nodes.Num();
+
+
+	if (UAnimInstance* AnimInstance = MeshComp->GetAnimInstance())
+	{
+		CollectKawaiiPhysicsNodes(Nodes, AnimInstance, FilterTags,
+		                          bFilterExactMatch);
+	}
+
+	const TArray<UAnimInstance*>& LinkedInstances = const_cast<const USkeletalMeshComponent*>(MeshComp)->
+		GetLinkedAnimInstances();
+	for (UAnimInstance* LinkedInstance : LinkedInstances)
+	{
+		CollectKawaiiPhysicsNodes(Nodes, LinkedInstance, FilterTags,
+		                          bFilterExactMatch);
+	}
+
+	if (UAnimInstance* PostProcessAnimInstance = MeshComp->GetPostProcessInstance())
+	{
+		CollectKawaiiPhysicsNodes(Nodes, PostProcessAnimInstance, FilterTags,
+		                          bFilterExactMatch);
+	}
+
+	return NodeNum != Nodes.Num();
+}
+
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::ResetDynamics(const FKawaiiPhysicsReference& KawaiiPhysics)
 {
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
@@ -161,6 +191,62 @@ bool UKawaiiPhysicsLibrary::AddExternalForce(const FKawaiiPhysicsReference& Kawa
 
 			bResult = true;
 		}
+	}
+
+	return bResult;
+}
+
+bool UKawaiiPhysicsLibrary::AddExternalForcesToComponent(USkeletalMeshComponent* MeshComp,
+                                                         TArray<FInstancedStruct>& ExternalForces,
+                                                         UObject* Owner,
+                                                         FGameplayTagContainer& FilterTags,
+                                                         bool bFilterExactMatch, bool bIsOneShot)
+{
+	bool bResult = false;
+
+	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
+	CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, MeshComp, FilterTags, bFilterExactMatch);
+	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
+	{
+		for (auto& AExternalForce : ExternalForces)
+		{
+			if (AExternalForce.IsValid())
+			{
+				if (AddExternalForce(KawaiiPhysicsReference, AExternalForce, Owner, bIsOneShot))
+				{
+					bResult = true;
+				}
+			}
+		}
+	}
+
+	return bResult;
+}
+
+bool UKawaiiPhysicsLibrary::RemoveExternalForcesFromComponent(USkeletalMeshComponent* MeshComp, UObject* Owner,
+                                                              FGameplayTagContainer& FilterTags, bool bFilterExactMatch)
+{
+	bool bResult = false;
+
+	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
+	CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, MeshComp, FilterTags, bFilterExactMatch);
+	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
+	{
+		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("RemoveExternalForce"),
+			[&](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				const int32 NumRemoved = InKawaiiPhysics.ExternalForces.RemoveAll([&](FInstancedStruct& InstancedStruct)
+				{
+					const auto* ExternalForcePtr = InstancedStruct.GetMutablePtr<FKawaiiPhysics_ExternalForce>();
+					return ExternalForcePtr && ExternalForcePtr->ExternalOwner == Owner;
+				});
+
+				if (NumRemoved > 0)
+				{
+					bResult = true;
+				}
+			});
 	}
 
 	return bResult;
