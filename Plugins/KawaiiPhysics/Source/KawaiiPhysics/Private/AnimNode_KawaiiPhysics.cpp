@@ -801,7 +801,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		Bone.bSkipSimulate = false;
 	}
 
-	// External Force
+	// External Force : PreApply
 	// NOTE: if use foreach, you may get issue ( Array has changed during ranged-for iteration )
 	for (int i = 0; i < CustomExternalForces.Num(); ++i)
 	{
@@ -831,6 +831,16 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 			continue;
 		}
 		Simulate(Bone, Scene, ComponentTransform, GravityCS, Exponent, SkelComp, Output);
+	}
+
+	// External Force : PostApply
+	for (int i = 0; i < ExternalForces.Num(); ++i)
+	{
+		if (ExternalForces[i].IsValid())
+		{
+			auto& Force = ExternalForces[i].GetMutable<FKawaiiPhysics_ExternalForce>();
+			Force.PostApply(*this);
+		}
 	}
 
 	// Adjust by collisions

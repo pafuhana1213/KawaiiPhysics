@@ -54,12 +54,13 @@ public:
 	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1), Category="KawaiiPhysics|ExternalForce")
 	TArray<FBoneReference> IgnoreBoneFilter;
 
-	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1, EditCondition=bUseExternalForceSpace),
+
+	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1, EditCondition=bCanSelectForceSpace, EditConditionHides),
 		Category="KawaiiPhysics|ExternalForce")
 	EExternalForceSpace ExternalForceSpace = EExternalForceSpace::WorldSpace;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1), Category="KawaiiPhysics|ExternalForce")
-	FFloatInterval RandomForceScale = FFloatInterval(1.0f, 1.0f);
+	FFloatInterval RandomForceScaleRange = FFloatInterval(1.0f, 1.0f);
 
 	UPROPERTY()
 	TObjectPtr<UObject> ExternalOwner;
@@ -76,10 +77,16 @@ public:
 
 protected:
 	UPROPERTY()
+	float RandomizedForceScale = 0.0f;
+
+	UPROPERTY()
 	FVector Force = FVector::Zero();
 
 	UPROPERTY()
-	bool bUseExternalForceSpace = true;
+	FTransform ComponentTransform;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	bool bCanSelectForceSpace = true;
 
 public:
 	virtual ~FKawaiiPhysics_ExternalForce() = default;
@@ -90,10 +97,16 @@ public:
 
 	virtual void PreApply(FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp)
 	{
+		ComponentTransform = SkelComp->GetComponentTransform();
+		RandomizedForceScale = FMath::RandRange(RandomForceScaleRange.Min, RandomForceScaleRange.Max);
 	}
 
 	virtual void Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
 	                   const FComponentSpacePoseContext& PoseContext, const FTransform& BoneTM = FTransform::Identity)
+	{
+	}
+
+	virtual void PostApply(FAnimNode_KawaiiPhysics& Node)
 	{
 		if (bIsOneShot)
 		{
@@ -104,7 +117,6 @@ public:
 			});
 		}
 	}
-
 
 	virtual bool IsDebugEnabled(bool bInPersona = false)
 	{
@@ -224,7 +236,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Gravity : public FKawaiiPh
 public:
 	FKawaiiPhysics_ExternalForce_Gravity()
 	{
-		bUseExternalForceSpace = false;
+		bCanSelectForceSpace = false;
 		ExternalForceSpace = EExternalForceSpace::WorldSpace;
 	}
 
@@ -266,6 +278,8 @@ public:
 	virtual void Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
 	                   const FComponentSpacePoseContext& PoseContext,
 	                   const FTransform& BoneTM = FTransform::Identity) override;
+
+protected:
 };
 
 ///
@@ -333,4 +347,41 @@ public:
 	virtual void Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
 	                   const FComponentSpacePoseContext& PoseContext,
 	                   const FTransform& BoneTM = FTransform::Identity) override;
+};
+
+///
+/// Wind
+///
+USTRUCT(BlueprintType, DisplayName = "Wind")
+struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Wind : public FKawaiiPhysics_ExternalForce
+{
+	GENERATED_BODY()
+
+public:
+	FKawaiiPhysics_ExternalForce_Wind()
+	{
+		bCanSelectForceSpace = false;
+		ExternalForceSpace = EExternalForceSpace::WorldSpace;
+	}
+
+	/** 
+	* 各ボーンに適用するForce Rateを補正。
+	* 「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値をForceRateに乗算
+	* Corrects the Force Rate applied to each bone.
+	* Multiplies the ForceRate by the curve value for "Length from RootBone to specific bone / Length from RootBone to end bone" (0.0~1.0)
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
+	FRuntimeFloatCurve ForceRateByBoneLengthRate;
+
+private:
+	UPROPERTY()
+	UWorld* World;
+
+public:
+	virtual void PreApply(FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp) override;
+	virtual void Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
+	                   const FComponentSpacePoseContext& PoseContext,
+	                   const FTransform& BoneTM = FTransform::Identity) override;
+
+protected:
 };
