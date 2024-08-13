@@ -246,7 +246,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsModifyBone
 	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
 	int32 ParentIndex = -1;
 	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
-	TArray<int32> ChildIndexs;
+	TArray<int32> ChildIndices;
 
 	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
 	FKawaiiPhysicsSettings PhysicsSettings;

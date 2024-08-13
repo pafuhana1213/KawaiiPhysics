@@ -31,7 +31,7 @@ void FKawaiiPhysics_ExternalForce_Basic::PreApply(FAnimNode_KawaiiPhysics& Node,
 		}
 		else
 		{
-			Force = FVector::Zero();
+			Force = FVector::ZeroVector;
 		}
 	}
 	else
@@ -199,7 +199,7 @@ void FKawaiiPhysics_ExternalForce_Curve::PreApply(FAnimNode_KawaiiPhysics& Node,
 			CurveValues.Add(ForceCurve.GetValue(Time));
 		}
 
-		Force = FVector::Zero();
+		Force = FVector::ZeroVector;
 		switch (CurveEvaluateType)
 		{
 		case EExternalForceCurveEvaluateType::Average:
@@ -305,7 +305,7 @@ void FKawaiiPhysics_ExternalForce_Wind::Apply(FKawaiiPhysicsModifyBone& Bone, FA
 	float WindSpeed, WindMinGust, WindMaxGust = 0.0f;
 	Scene->GetWindParameters(ComponentTransform.TransformPosition(Bone.PoseLocation), WindDirection,
 	                         WindSpeed, WindMinGust, WindMaxGust);
-	WindDirection = ComponentTransform.Inverse().TransformVector(WindDirection);
+	WindDirection = ComponentTransform.InverseTransformVector(WindDirection);
 	WindDirection *= WindSpeed;
 
 	Bone.Location += WindDirection * ForceRate * RandomizedForceScale * Node.DeltaTime;

@@ -19,8 +19,12 @@ bool UKawaiiPhysicsLibrary::CollectKawaiiPhysicsNodes(TArray<FKawaiiPhysicsRefer
                                                       UAnimInstance* AnimInstance,
                                                       const FGameplayTagContainer& FilterTags, bool bFilterExactMatch)
 {
-	bool bResult = false;
+	if (!ensure(AnimInstance && AnimInstance->GetClass()))
+	{
+		return false;
+	}
 
+	bool bResult = false;
 	if (const IAnimClassInterface* AnimClassInterface =
 		IAnimClassInterface::GetFromClass((AnimInstance->GetClass())))
 	{
@@ -55,8 +59,12 @@ bool UKawaiiPhysicsLibrary::CollectKawaiiPhysicsNodes(TArray<FKawaiiPhysicsRefer
                                                       USkeletalMeshComponent* MeshComp,
                                                       const FGameplayTagContainer& FilterTags, bool bFilterExactMatch)
 {
-	const int NodeNum = Nodes.Num();
+	if (!ensure(MeshComp))
+	{
+		return false;
+	}
 
+	const int NodeNum = Nodes.Num();
 
 	if (UAnimInstance* AnimInstance = MeshComp->GetAnimInstance())
 	{
@@ -64,8 +72,8 @@ bool UKawaiiPhysicsLibrary::CollectKawaiiPhysicsNodes(TArray<FKawaiiPhysicsRefer
 		                          bFilterExactMatch);
 	}
 
-	const TArray<UAnimInstance*>& LinkedInstances = const_cast<const USkeletalMeshComponent*>(MeshComp)->
-		GetLinkedAnimInstances();
+	const TArray<UAnimInstance*>& LinkedInstances =
+		const_cast<const USkeletalMeshComponent*>(MeshComp)->GetLinkedAnimInstances();
 	for (UAnimInstance* LinkedInstance : LinkedInstances)
 	{
 		CollectKawaiiPhysicsNodes(Nodes, LinkedInstance, FilterTags,

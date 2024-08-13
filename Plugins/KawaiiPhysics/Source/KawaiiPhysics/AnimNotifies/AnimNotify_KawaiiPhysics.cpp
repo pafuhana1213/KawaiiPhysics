@@ -1,7 +1,7 @@
 ﻿#include "AnimNotify_KawaiiPhysics.h"
-
 #include "KawaiiPhysicsLibrary.h"
 #include "Misc/UObjectToken.h"
+#include "Logging/MessageLog.h"
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysics_AnimNotify"
 

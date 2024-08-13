@@ -146,7 +146,7 @@ void FKawaiiPhysicsEditMode::RenderModifyBones(FPrimitiveDrawInterface* PDI) con
 				DrawWireSphere(PDI, Bone.Location, Color, Bone.PhysicsSettings.Radius, 16, SDPG_Foreground);
 			}
 
-			for (const int32 ChildIndex : Bone.ChildIndexs)
+			for (const int32 ChildIndex : Bone.ChildIndices)
 			{
 				DrawDashedLine(PDI, Bone.Location, RuntimeNode->ModifyBones[ChildIndex].Location,
 				               FLinearColor::White, 1, SDPG_Foreground);
