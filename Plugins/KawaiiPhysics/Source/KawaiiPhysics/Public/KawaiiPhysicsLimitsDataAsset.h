@@ -47,7 +47,7 @@ protected:
 		Limit.Rotation = Rotation;
 
 #if  WITH_EDITORONLY_DATA
-		Limit.bFromDataAsset = true;
+		Limit.SourceType = ECollisionSourceType::DataAsset;
 		Limit.Guid = Guid;
 #endif
 	}

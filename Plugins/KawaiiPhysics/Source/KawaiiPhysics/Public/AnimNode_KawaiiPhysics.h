@@ -50,6 +50,15 @@ enum class ECollisionLimitType : uint8
 	Planar,
 };
 
+UENUM()
+enum class ECollisionSourceType : uint8
+{
+	/** Use the value set in the AnimNode */
+	AnimNode,
+	/** Use the value set in the DataAsset */
+	DataAsset,
+};
+
 USTRUCT()
 struct FCollisionLimitBase
 {
@@ -77,7 +86,7 @@ struct FCollisionLimitBase
 #if WITH_EDITORONLY_DATA
 
 	UPROPERTY()
-	bool bFromDataAsset = false;
+	ECollisionSourceType SourceType = ECollisionSourceType::AnimNode;
 
 	UPROPERTY(VisibleAnywhere, Category = Debug, meta = (IgnoreForMemberInitializationTest))
 	FGuid Guid = FGuid::NewGuid();
@@ -96,7 +105,7 @@ struct FCollisionLimitBase
 		Rotation = Other.Rotation;
 		bEnable = Other.bEnable;
 #if WITH_EDITORONLY_DATA
-		bFromDataAsset = Other.bFromDataAsset;
+		SourceType = Other.SourceType;
 		Guid = Other.Guid;
 		Type = Other.Type;
 #endif
