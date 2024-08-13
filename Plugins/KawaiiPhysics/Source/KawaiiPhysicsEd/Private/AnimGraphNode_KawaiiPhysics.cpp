@@ -567,31 +567,10 @@ void UAnimGraphNode_KawaiiPhysics::ExportLimitsDataAsset()
 		}
 
 		// copy data
-		NewDataAsset->SphericalLimitsData.SetNum(Node.SphericalLimits.Num());
-		for (int32 i = 0; i < Node.SphericalLimits.Num(); i++)
-		{
-			NewDataAsset->SphericalLimitsData[i].Update(&Node.SphericalLimits[i]);
-		}
-
-		NewDataAsset->CapsuleLimitsData.SetNum(Node.CapsuleLimits.Num());
-		for (int32 i = 0; i < Node.CapsuleLimits.Num(); i++)
-		{
-			NewDataAsset->CapsuleLimitsData[i].Update(&Node.CapsuleLimits[i]);
-		}
-
-		NewDataAsset->BoxLimitsData.SetNum(Node.BoxLimits.Num());
-		for (int32 i = 0; i < Node.BoxLimits.Num(); i++)
-		{
-			NewDataAsset->BoxLimitsData[i].Update(&Node.BoxLimits[i]);
-		}
-
-		NewDataAsset->PlanarLimitsData.SetNum(Node.PlanarLimits.Num());
-		for (int32 i = 0; i < Node.PlanarLimits.Num(); i++)
-		{
-			NewDataAsset->PlanarLimitsData[i].Update(&Node.PlanarLimits[i]);
-		}
-
-		NewDataAsset->Sync();
+		NewDataAsset->SphericalLimits = Node.SphericalLimits;
+		NewDataAsset->CapsuleLimits = Node.CapsuleLimits;
+		NewDataAsset->BoxLimits = Node.BoxLimits;
+		NewDataAsset->PlanarLimits = Node.PlanarLimits;
 
 		// select new asset
 		USelection* SelectionSet = GEditor->GetSelectedObjects();

@@ -10,44 +10,34 @@
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnLimitsChanged, struct FPropertyChangedEvent&);
 
-USTRUCT(BlueprintType)
+// Deprecated
+USTRUCT()
 struct FCollisionLimitDataBase
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, Category = CollisionLimitBase, meta=(DisplayPriority="1"))
+	UPROPERTY(meta=(DeprecatedProperty))
 	FBoneReference DrivingBoneReference;
 
-	UPROPERTY(BlueprintReadWrite, meta=(DeprecatedProperty, DeprecationMessage="DrivingBoneName is deprecated"),
-		Category = CollisionLimitBase)
+	UPROPERTY(meta=(DeprecatedProperty))
 	FName DrivingBoneName;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CollisionLimitBase)
+	UPROPERTY(meta=(DeprecatedProperty))
 	FVector OffsetLocation = FVector::ZeroVector;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CollisionLimitBase,
-		meta = (ClampMin = "-360", ClampMax = "360"))
+	UPROPERTY(meta=(DeprecatedProperty))
 	FRotator OffsetRotation = FRotator::ZeroRotator;
 
-	UPROPERTY(EditAnywhere, Category = CollisionLimitBase, BlueprintReadWrite)
+	UPROPERTY(meta=(DeprecatedProperty))
 	FVector Location = FVector::ZeroVector;
 
-	UPROPERTY(EditAnywhere, Category = CollisionLimitBase, BlueprintReadWrite)
+	UPROPERTY(meta=(DeprecatedProperty))
 	FQuat Rotation = FQuat::Identity;
 
-	UPROPERTY(VisibleAnywhere, Category = Debug, meta = (IgnoreForMemberInitializationTest))
+	UPROPERTY(meta=(DeprecatedProperty))
 	FGuid Guid = FGuid::NewGuid();
 
 protected:
-	void UpdateBase(const FCollisionLimitBase* Limit)
-	{
-		DrivingBoneReference = FBoneReference(Limit->DrivingBone.BoneName);
-		OffsetLocation = Limit->OffsetLocation;
-		OffsetRotation = Limit->OffsetRotation;
-		Location = Limit->Location;
-		Rotation = Limit->Rotation;
-	}
-
 	void ConvertBase(FCollisionLimitBase& Limit) const
 	{
 		Limit.DrivingBone.BoneName = DrivingBoneReference.BoneName;
@@ -63,25 +53,19 @@ protected:
 	}
 };
 
-USTRUCT(BlueprintType)
+// Deprecated
+USTRUCT()
 struct FSphericalLimitData : public FCollisionLimitDataBase
 {
 	GENERATED_BODY()
 
 	/** Radius of the sphere */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SphericalLimit, meta = (ClampMin = "0"))
+	UPROPERTY(meta=(DeprecatedProperty))
 	float Radius = 5.0f;
 
 	/** Whether to lock bodies inside or outside of the sphere */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SphericalLimit)
+	UPROPERTY(meta=(DeprecatedProperty))
 	ESphericalLimitType LimitType = ESphericalLimitType::Outer;
-
-	void Update(const FSphericalLimit* Limit)
-	{
-		UpdateBase(Limit);
-		Radius = Limit->Radius;
-		LimitType = Limit->LimitType;
-	}
 
 	FSphericalLimit Convert() const
 	{
@@ -94,23 +78,17 @@ struct FSphericalLimitData : public FCollisionLimitDataBase
 	}
 };
 
-USTRUCT(BlueprintType)
+// Deprecated
+USTRUCT()
 struct FCapsuleLimitData : public FCollisionLimitDataBase
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CapsuleLimit, meta = (ClampMin = "0"))
+	UPROPERTY(meta=(DeprecatedProperty))
 	float Radius = 5.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CapsuleLimit, meta = (ClampMin = "0"))
+	UPROPERTY(meta=(DeprecatedProperty))
 	float Length = 10.0f;
-
-	void Update(const FCapsuleLimit* Limit)
-	{
-		UpdateBase(Limit);
-		Radius = Limit->Radius;
-		Length = Limit->Length;
-	}
 
 	FCapsuleLimit Convert() const
 	{
@@ -123,19 +101,14 @@ struct FCapsuleLimitData : public FCollisionLimitDataBase
 	}
 };
 
-USTRUCT(BlueprintType)
+// Deprecated
+USTRUCT()
 struct FBoxLimitData : public FCollisionLimitDataBase
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BoxLimit)
+	UPROPERTY(meta=(DeprecatedProperty))
 	FVector Extent = FVector(5.0f, 5.0f, 5.0f);
-
-	void Update(const FBoxLimit* Limit)
-	{
-		UpdateBase(Limit);
-		Extent = Limit->Extent;
-	}
 
 	FBoxLimit Convert() const
 	{
@@ -147,19 +120,14 @@ struct FBoxLimitData : public FCollisionLimitDataBase
 	}
 };
 
-USTRUCT(BlueprintType)
+// Deprecated
+USTRUCT()
 struct FPlanarLimitData : public FCollisionLimitDataBase
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, Category = PlanarLimit, BlueprintReadWrite)
+	UPROPERTY(meta=(DeprecatedProperty))
 	FPlane Plane = FPlane(0, 0, 0, 0);
-
-	void Update(const FPlanarLimit* Limit)
-	{
-		UpdateBase(Limit);
-		Plane = Limit->Plane;
-	}
 
 	FPlanarLimit Convert() const
 	{
@@ -185,24 +153,25 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeleton")
 	TObjectPtr<USkeleton> Skeleton;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spherical Limits")
+	// Deprecated
+	UPROPERTY(meta=(DeprecatedProperty))
 	TArray<FSphericalLimitData> SphericalLimitsData;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Capsule Limits")
+	UPROPERTY(meta=(DeprecatedProperty))
 	TArray<FCapsuleLimitData> CapsuleLimitsData;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Box Limits")
+	UPROPERTY(meta=(DeprecatedProperty))
 	TArray<FBoxLimitData> BoxLimitsData;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Planar Limits")
+	UPROPERTY(meta=(DeprecatedProperty))
 	TArray<FPlanarLimitData> PlanarLimitsData;
 
 #endif
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spherical Limits")
 	TArray<FSphericalLimit> SphericalLimits;
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Capsule Limits")
 	TArray<FCapsuleLimit> CapsuleLimits;
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Box Limits")
 	TArray<FBoxLimit> BoxLimits;
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Planar Limits")
 	TArray<FPlanarLimit> PlanarLimits;
 
 	// Begin UObject Interface.
@@ -212,18 +181,18 @@ public:
 	virtual void PostLoad() override;
 	// End UObject Interface.
 
-#if WITH_EDITOR
-
-	void UpdateLimit(FCollisionLimitBase* Limit);
-	void Sync();
-
-#endif
-
 	// IBoneReferenceSkeletonProvider interface
 	virtual USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle) override;
 
 #if WITH_EDITOR
+	void UpdateLimit(FCollisionLimitBase* Limit);
+
 	FOnLimitsChanged OnLimitsChanged;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
+private:
+#if WITH_EDITOR
+	void Sync();
 #endif
 };

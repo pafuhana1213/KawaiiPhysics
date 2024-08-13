@@ -86,6 +86,22 @@ struct FCollisionLimitBase
 	ECollisionLimitType Type = ECollisionLimitType::None;
 
 #endif
+
+	FCollisionLimitBase& operator=(const FCollisionLimitBase& Other)
+	{
+		DrivingBone = Other.DrivingBone;
+		OffsetLocation = Other.OffsetLocation;
+		OffsetRotation = Other.OffsetRotation;
+		Location = Other.Location;
+		Rotation = Other.Rotation;
+		bEnable = Other.bEnable;
+#if WITH_EDITORONLY_DATA
+		bFromDataAsset = Other.bFromDataAsset;
+		Guid = Other.Guid;
+		Type = Other.Type;
+#endif
+		return *this;
+	}
 };
 
 USTRUCT(BlueprintType)
@@ -107,6 +123,14 @@ struct FSphericalLimit : public FCollisionLimitBase
 	/** Whether to lock bodies inside or outside of the sphere */
 	UPROPERTY(EditAnywhere, Category = SphericalLimit)
 	ESphericalLimitType LimitType = ESphericalLimitType::Outer;
+
+	FSphericalLimit& operator=(const FSphericalLimit& Other)
+	{
+		FCollisionLimitBase::operator=(Other);
+		Radius = Other.Radius;
+		LimitType = Other.LimitType;
+		return *this;
+	}
 };
 
 USTRUCT(BlueprintType)
@@ -127,6 +151,14 @@ struct FCapsuleLimit : public FCollisionLimitBase
 
 	UPROPERTY(EditAnywhere, Category = CapsuleLimit, meta = (ClampMin = "0"))
 	float Length = 10.0f;
+
+	FCapsuleLimit& operator=(const FCapsuleLimit& Other)
+	{
+		FCollisionLimitBase::operator=(Other);
+		Radius = Other.Radius;
+		Length = Other.Length;
+		return *this;
+	}
 };
 
 USTRUCT(BlueprintType)
@@ -144,6 +176,13 @@ struct FBoxLimit : public FCollisionLimitBase
 
 	UPROPERTY(EditAnywhere, Category = BoxLimit)
 	FVector Extent = FVector(5.0f, 5.0f, 5.0f);
+
+	FBoxLimit& operator=(const FBoxLimit& Other)
+	{
+		FCollisionLimitBase::operator=(Other);
+		Extent = Other.Extent;
+		return *this;
+	}
 };
 
 USTRUCT(BlueprintType)
@@ -160,6 +199,13 @@ struct FPlanarLimit : public FCollisionLimitBase
 
 	UPROPERTY()
 	FPlane Plane = FPlane(0, 0, 0, 0);
+
+	FPlanarLimit& operator=(const FPlanarLimit& Other)
+	{
+		FCollisionLimitBase::operator=(Other);
+		Plane = Other.Plane;
+		return *this;
+	}
 };
 
 USTRUCT(BlueprintType)

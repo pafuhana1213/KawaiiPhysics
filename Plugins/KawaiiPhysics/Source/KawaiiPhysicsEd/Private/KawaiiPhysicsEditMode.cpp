@@ -517,8 +517,7 @@ bool FKawaiiPhysicsEditMode::InputKey(FEditorViewportClient* InViewportClient, F
 			case ECollisionLimitType::Spherical:
 				if (bIsSelectCollisionFromDataAsset)
 				{
-					RuntimeNode->LimitsDataAsset->SphericalLimitsData.RemoveAt(SelectCollisionIndex);
-					RuntimeNode->LimitsDataAsset->Sync();
+					RuntimeNode->LimitsDataAsset->SphericalLimits.RemoveAt(SelectCollisionIndex);
 					RuntimeNode->LimitsDataAsset->MarkPackageDirty();
 				}
 				else
@@ -530,8 +529,7 @@ bool FKawaiiPhysicsEditMode::InputKey(FEditorViewportClient* InViewportClient, F
 			case ECollisionLimitType::Capsule:
 				if (bIsSelectCollisionFromDataAsset)
 				{
-					RuntimeNode->LimitsDataAsset->CapsuleLimitsData.RemoveAt(SelectCollisionIndex);
-					RuntimeNode->LimitsDataAsset->Sync();
+					RuntimeNode->LimitsDataAsset->CapsuleLimits.RemoveAt(SelectCollisionIndex);
 					RuntimeNode->LimitsDataAsset->MarkPackageDirty();
 				}
 				else
@@ -543,8 +541,7 @@ bool FKawaiiPhysicsEditMode::InputKey(FEditorViewportClient* InViewportClient, F
 			case ECollisionLimitType::Box:
 				if (bIsSelectCollisionFromDataAsset)
 				{
-					RuntimeNode->LimitsDataAsset->BoxLimitsData.RemoveAt(SelectCollisionIndex);
-					RuntimeNode->LimitsDataAsset->Sync();
+					RuntimeNode->LimitsDataAsset->BoxLimits.RemoveAt(SelectCollisionIndex);
 					RuntimeNode->LimitsDataAsset->MarkPackageDirty();
 				}
 				else
@@ -557,8 +554,7 @@ bool FKawaiiPhysicsEditMode::InputKey(FEditorViewportClient* InViewportClient, F
 			case ECollisionLimitType::Planar:
 				if (bIsSelectCollisionFromDataAsset)
 				{
-					RuntimeNode->LimitsDataAsset->PlanarLimitsData.RemoveAt(SelectCollisionIndex);
-					RuntimeNode->LimitsDataAsset->Sync();
+					RuntimeNode->LimitsDataAsset->PlanarLimits.RemoveAt(SelectCollisionIndex);
 					RuntimeNode->LimitsDataAsset->MarkPackageDirty();
 				}
 				else
