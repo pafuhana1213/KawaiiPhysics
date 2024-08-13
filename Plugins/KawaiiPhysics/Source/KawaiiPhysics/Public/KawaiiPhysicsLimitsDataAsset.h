@@ -18,7 +18,8 @@ struct FCollisionLimitDataBase
 	UPROPERTY(EditAnywhere, Category = CollisionLimitBase, meta=(DisplayPriority="1"))
 	FBoneReference DrivingBoneReference;
 
-	UPROPERTY(BlueprintReadWrite, meta=(DeprecatedProperty, DeprecationMessage="DrivingBoneName is deprecated"), Category = CollisionLimitBase)
+	UPROPERTY(BlueprintReadWrite, meta=(DeprecatedProperty, DeprecationMessage="DrivingBoneName is deprecated"),
+		Category = CollisionLimitBase)
 	FName DrivingBoneName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CollisionLimitBase)
@@ -123,6 +124,30 @@ struct FCapsuleLimitData : public FCollisionLimitDataBase
 };
 
 USTRUCT(BlueprintType)
+struct FBoxLimitData : public FCollisionLimitDataBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BoxLimit)
+	FVector Extent = FVector(5.0f, 5.0f, 5.0f);
+
+	void Update(const FBoxLimit* Limit)
+	{
+		UpdateBase(Limit);
+		Extent = Limit->Extent;
+	}
+
+	FBoxLimit Convert() const
+	{
+		FBoxLimit Limit;
+		ConvertBase(Limit);
+		Limit.Extent = Extent;
+
+		return Limit;
+	}
+};
+
+USTRUCT(BlueprintType)
 struct FPlanarLimitData : public FCollisionLimitDataBase
 {
 	GENERATED_BODY()
@@ -164,6 +189,8 @@ public:
 	TArray<FSphericalLimitData> SphericalLimitsData;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Capsule Limits")
 	TArray<FCapsuleLimitData> CapsuleLimitsData;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Box Limits")
+	TArray<FBoxLimitData> BoxLimitsData;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Planar Limits")
 	TArray<FPlanarLimitData> PlanarLimitsData;
 
@@ -174,9 +201,10 @@ public:
 	UPROPERTY()
 	TArray<FCapsuleLimit> CapsuleLimits;
 	UPROPERTY()
+	TArray<FBoxLimit> BoxLimits;
+	UPROPERTY()
 	TArray<FPlanarLimit> PlanarLimits;
 
-public:
 	// Begin UObject Interface.
 #if WITH_EDITORONLY_DATA
 	virtual void Serialize(FStructuredArchiveRecord Record) override;

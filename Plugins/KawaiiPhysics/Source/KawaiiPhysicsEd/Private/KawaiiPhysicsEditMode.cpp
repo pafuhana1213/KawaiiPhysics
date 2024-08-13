@@ -15,7 +15,7 @@
 #define LOCTEXT_NAMESPACE "KawaiiPhysicsEditMode"
 DEFINE_LOG_CATEGORY(LogKawaiiPhysics);
 
-struct HKawaiiPhysicsHitProxy : public HHitProxy
+struct HKawaiiPhysicsHitProxy : HHitProxy
 {
 	DECLARE_HIT_PROXY()
 
@@ -57,6 +57,7 @@ void FKawaiiPhysicsEditMode::EnterMode(UAnimGraphNode_Base* InEditorNode, FAnimN
 	// for Sync DetailPanel
 	GraphNode->Node.SphericalLimitsData = RuntimeNode->SphericalLimitsData;
 	GraphNode->Node.CapsuleLimitsData = RuntimeNode->CapsuleLimitsData;
+	GraphNode->Node.BoxLimitsData = RuntimeNode->BoxLimitsData;
 	GraphNode->Node.PlanarLimitsData = RuntimeNode->PlanarLimitsData;
 	GraphNode->Node.BoneConstraintsData = RuntimeNode->BoneConstraintsData;
 	GraphNode->Node.MergedBoneConstraints = RuntimeNode->MergedBoneConstraints;
@@ -101,6 +102,7 @@ void FKawaiiPhysicsEditMode::Render(const FSceneView* View, FViewport* Viewport,
 		RenderLimitAngle(PDI);
 		RenderSphericalLimits(PDI);
 		RenderCapsuleLimit(PDI);
+		RenderBoxLimit(PDI);
 		RenderPlanerLimit(PDI);
 		RenderBoneConstraint(PDI);
 		RenderExternalForces(PDI);
@@ -264,6 +266,48 @@ void FKawaiiPhysicsEditMode::RenderCapsuleLimit(FPrimitiveDrawInterface* PDI) co
 				                SDPG_World);
 
 				DrawCoordinateSystem(PDI, Capsule.Location, Capsule.Rotation.Rotator(), Capsule.Radius, SDPG_World + 1);
+			}
+		}
+	}
+}
+
+void FKawaiiPhysicsEditMode::RenderBoxLimit(FPrimitiveDrawInterface* PDI) const
+{
+	if (GraphNode->bEnableDebugDrawBoxLimit)
+	{
+		for (int32 i = 0; i < RuntimeNode->BoxLimits.Num(); i++)
+		{
+			auto& Box = RuntimeNode->BoxLimits[i];
+			if (Box.bEnable && Box.Extent.Size() > 0)
+			{
+				FTransform BoxTransform(Box.Rotation, Box.Location);
+				FBox BoxBounds(Box.Location - Box.Extent, Box.Location + Box.Extent);
+
+				PDI->SetHitProxy(new HKawaiiPhysicsHitProxy(ECollisionLimitType::Box, i));
+
+				DrawBox(PDI, BoxTransform.ToMatrixWithScale(), Box.Extent,
+				        GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy(), SDPG_World);
+				DrawWireBox(PDI, BoxTransform.ToMatrixWithScale(), FBox(-Box.Extent, Box.Extent), FLinearColor::Black,
+				            SDPG_World);
+				DrawCoordinateSystem(PDI, Box.Location, Box.Rotation.Rotator(), Box.Extent.Size(), SDPG_World + 1);
+			}
+		}
+
+		for (int32 i = 0; i < RuntimeNode->BoxLimitsData.Num(); i++)
+		{
+			auto& Box = RuntimeNode->BoxLimitsData[i];
+			if (Box.bEnable && Box.Extent.Size() > 0)
+			{
+				FTransform BoxTransform(Box.Rotation, Box.Location);
+				FBox BoxBounds(Box.Location - Box.Extent, Box.Location + Box.Extent);
+
+				PDI->SetHitProxy(new HKawaiiPhysicsHitProxy(ECollisionLimitType::Box, i, true));
+
+				DrawBox(PDI, BoxTransform.ToMatrixWithScale(), Box.Extent,
+				        GEngine->ConstraintLimitMaterialZ->GetRenderProxy(), SDPG_World);
+				DrawWireBox(PDI, BoxTransform.ToMatrixWithScale(), FBox(-Box.Extent, Box.Extent), FLinearColor::Black,
+				            SDPG_World);
+				DrawCoordinateSystem(PDI, Box.Location, Box.Rotation.Rotator(), Box.Extent.Size(), SDPG_World + 1);
 			}
 		}
 	}
@@ -496,6 +540,20 @@ bool FKawaiiPhysicsEditMode::InputKey(FEditorViewportClient* InViewportClient, F
 					GraphNode->Node.CapsuleLimits.RemoveAt(SelectCollisionIndex);
 				}
 				break;
+			case ECollisionLimitType::Box:
+				if (bIsSelectCollisionFromDataAsset)
+				{
+					RuntimeNode->LimitsDataAsset->BoxLimitsData.RemoveAt(SelectCollisionIndex);
+					RuntimeNode->LimitsDataAsset->Sync();
+					RuntimeNode->LimitsDataAsset->MarkPackageDirty();
+				}
+				else
+				{
+					RuntimeNode->BoxLimits.RemoveAt(SelectCollisionIndex);
+					GraphNode->Node.BoxLimits.RemoveAt(SelectCollisionIndex);
+				}
+				break;
+
 			case ECollisionLimitType::Planar:
 				if (bIsSelectCollisionFromDataAsset)
 				{
@@ -546,6 +604,7 @@ void FKawaiiPhysicsEditMode::OnLimitDataAssetPropertyChange(FPropertyChangedEven
 {
 	GraphNode->Node.SphericalLimitsData = RuntimeNode->SphericalLimitsData;
 	GraphNode->Node.CapsuleLimitsData = RuntimeNode->CapsuleLimitsData;
+	GraphNode->Node.BoxLimitsData = RuntimeNode->BoxLimitsData;
 	GraphNode->Node.PlanarLimitsData = RuntimeNode->PlanarLimitsData;
 }
 
@@ -567,6 +626,10 @@ bool FKawaiiPhysicsEditMode::IsValidSelectCollision() const
 		return bIsSelectCollisionFromDataAsset
 			       ? RuntimeNode->CapsuleLimitsData.IsValidIndex(SelectCollisionIndex)
 			       : RuntimeNode->CapsuleLimits.IsValidIndex(SelectCollisionIndex);
+	case ECollisionLimitType::Box:
+		return bIsSelectCollisionFromDataAsset
+			       ? RuntimeNode->BoxLimitsData.IsValidIndex(SelectCollisionIndex)
+			       : RuntimeNode->BoxLimits.IsValidIndex(SelectCollisionIndex);
 	case ECollisionLimitType::Planar:
 		return bIsSelectCollisionFromDataAsset
 			       ? RuntimeNode->PlanarLimitsData.IsValidIndex(SelectCollisionIndex)
@@ -594,6 +657,10 @@ FCollisionLimitBase* FKawaiiPhysicsEditMode::GetSelectCollisionLimitRuntime() co
 		return bIsSelectCollisionFromDataAsset
 			       ? &(RuntimeNode->CapsuleLimitsData[SelectCollisionIndex])
 			       : &(RuntimeNode->CapsuleLimits[SelectCollisionIndex]);
+	case ECollisionLimitType::Box:
+		return bIsSelectCollisionFromDataAsset
+			       ? &(RuntimeNode->BoxLimitsData[SelectCollisionIndex])
+			       : &(RuntimeNode->BoxLimits[SelectCollisionIndex]);
 	case ECollisionLimitType::Planar:
 		return bIsSelectCollisionFromDataAsset
 			       ? &(RuntimeNode->PlanarLimitsData[SelectCollisionIndex])
@@ -628,6 +695,15 @@ FCollisionLimitBase* FKawaiiPhysicsEditMode::GetSelectCollisionLimitGraph() cons
 			auto& CollisionLimits = bIsSelectCollisionFromDataAsset
 				                        ? GraphNode->Node.CapsuleLimitsData
 				                        : GraphNode->Node.CapsuleLimits;
+			return CollisionLimits.IsValidIndex(SelectCollisionIndex)
+				       ? &CollisionLimits[SelectCollisionIndex]
+				       : nullptr;
+		}
+	case ECollisionLimitType::Box:
+		{
+			auto& CollisionLimits = bIsSelectCollisionFromDataAsset
+				                        ? GraphNode->Node.BoxLimitsData
+				                        : GraphNode->Node.BoxLimits;
 			return CollisionLimits.IsValidIndex(SelectCollisionIndex)
 				       ? &CollisionLimits[SelectCollisionIndex]
 				       : nullptr;
@@ -785,6 +861,23 @@ void FKawaiiPhysicsEditMode::DoScale(FVector& InScale)
 			RuntimeNode->LimitsDataAsset->UpdateLimit(&CapsuleLimitRuntime);
 		}
 	}
+	else if (SelectCollisionType == ECollisionLimitType::Box)
+	{
+		FBoxLimit& BoxLimitRuntime = *static_cast<FBoxLimit*>(CollisionRuntime);
+		FBoxLimit& BoxLimitGraph = *static_cast<FBoxLimit*>(CollisionGraph);
+
+		BoxLimitRuntime.Extent += InScale;
+		BoxLimitRuntime.Extent.X = FMath::Max(BoxLimitRuntime.Extent.X, 0.0f);
+		BoxLimitRuntime.Extent.Y = FMath::Max(BoxLimitRuntime.Extent.Y, 0.0f);
+		BoxLimitRuntime.Extent.Z = FMath::Max(BoxLimitRuntime.Extent.Z, 0.0f);
+
+		BoxLimitGraph.Extent = BoxLimitRuntime.Extent;
+
+		if (bIsSelectCollisionFromDataAsset)
+		{
+			RuntimeNode->LimitsDataAsset->UpdateLimit(&BoxLimitRuntime);
+		}
+	}
 }
 
 
@@ -826,6 +919,9 @@ void FKawaiiPhysicsEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FVie
 		break;
 	case ECollisionLimitType::Capsule:
 		CollisionDebugInfo.Append(FString(TEXT("Capsule")));
+		break;
+	case ECollisionLimitType::Box:
+		CollisionDebugInfo.Append(FString(TEXT("Box")));
 		break;
 	case ECollisionLimitType::Planar:
 		CollisionDebugInfo.Append(FString(TEXT("Planar")));

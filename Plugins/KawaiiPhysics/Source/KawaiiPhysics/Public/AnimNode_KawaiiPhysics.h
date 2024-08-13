@@ -46,6 +46,7 @@ enum class ECollisionLimitType : uint8
 	None,
 	Spherical,
 	Capsule,
+	Box,
 	Planar,
 };
 
@@ -126,6 +127,23 @@ struct FCapsuleLimit : public FCollisionLimitBase
 
 	UPROPERTY(EditAnywhere, Category = CapsuleLimit, meta = (ClampMin = "0"))
 	float Length = 10.0f;
+};
+
+USTRUCT(BlueprintType)
+struct FBoxLimit : public FCollisionLimitBase
+{
+	GENERATED_BODY()
+
+
+	FBoxLimit()
+	{
+#if WITH_EDITORONLY_DATA
+		Type = ECollisionLimitType::Box;
+#endif
+	}
+
+	UPROPERTY(EditAnywhere, Category = BoxLimit)
+	FVector Extent = FVector(5.0f, 5.0f, 5.0f);
 };
 
 USTRUCT(BlueprintType)
@@ -221,7 +239,6 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsModifyBone
 {
 	GENERATED_USTRUCT_BODY()
 
-public:
 	UPROPERTY()
 	FBoneReference BoneRef;
 	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
@@ -255,7 +272,6 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
 	bool bSkipSimulate = false;
 
-public:
 	void UpdatePoseTransform(const FBoneContainer& BoneContainer, FCSPose<FCompactPose>& Pose,
 	                         bool ResetBoneTransformWhenBoneNotFound)
 	{
@@ -362,7 +378,6 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 {
 	GENERATED_USTRUCT_BODY()
 
-public:
 	/** 
 	* 指定ボーンとそれ以下のボーンを制御対象に
 	* Control the specified bone and the bones below it
@@ -551,6 +566,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Limits")
 	TArray<FCapsuleLimit> CapsuleLimits;
 	/** 
+	* コリジョン（ボックス）
+	* Box Collision
+	*/
+	UPROPERTY(EditAnywhere, Category = "Limits")
+	TArray<FBoxLimit> BoxLimits;
+	/** 
 	* コリジョン（平面）
 	* Planar Collision
 	*/
@@ -575,6 +596,12 @@ public:
 	*/
 	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = "Limits")
 	TArray<FCapsuleLimit> CapsuleLimitsData;
+	/** 
+	* コリジョン設定（DataAsset版）におけるボックスコリジョンのプレビュー
+	* Preview of box collision in collision settings (DataAsset version)
+	*/
+	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = "Limits")
+	TArray<FBoxLimit> BoxLimitsData;
 	/** 
 	* コリジョン設定（DataAsset版）における平面コリジョンのプレビュー
 	* Preview of planar collision in collision settings (DataAsset version)
@@ -816,6 +843,9 @@ protected:
 	                           const FBoneContainer& BoneContainer, const FTransform& ComponentTransform);
 	void UpdateCapsuleLimits(TArray<FCapsuleLimit>& Limits, FComponentSpacePoseContext& Output,
 	                         const FBoneContainer& BoneContainer, const FTransform& ComponentTransform);
+	void AdjustByBoxCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FBoxLimit>& Limits);
+	void UpdateBoxLimits(TArray<FBoxLimit>& Limits, FComponentSpacePoseContext& Output,
+	                     const FBoneContainer& BoneContainer, const FTransform& ComponentTransform);
 	void UpdatePlanerLimits(TArray<FPlanarLimit>& Limits, FComponentSpacePoseContext& Output,
 	                        const FBoneContainer& BoneContainer, const FTransform& ComponentTransform);
 	void UpdateModifyBonesPoseTransform(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer);

@@ -16,7 +16,6 @@ class UAnimGraphNode_KawaiiPhysics : public UAnimGraphNode_SkeletalControlBase
 	UPROPERTY(EditAnywhere, Category = Settings)
 	FAnimNode_KawaiiPhysics Node;
 
-public:
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 
 	// UObject interface
@@ -63,6 +62,8 @@ public:
 	bool bEnableDebugDrawSphereLimit = true;
 	UPROPERTY()
 	bool bEnableDebugDrawCapsuleLimit = true;
+	UPROPERTY()
+	bool bEnableDebugDrawBoxLimit = true;
 	UPROPERTY()
 	bool bEnableDebugDrawPlanerLimit = true;
 	UPROPERTY()

@@ -39,6 +39,7 @@ DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdatePlanerLimit"), STAT_KawaiiPhysics_U
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_WarmUp"), STAT_KawaiiPhysics_WarmUp, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdatePhysicsSetting"), STAT_KawaiiPhysics_UpdatePhysicsSetting, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdateCapsuleLimit"), STAT_KawaiiPhysics_UpdateCapsuleLimit, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdateBoxLimit"), STAT_KawaiiPhysics_UpdateBoxLimit, STATGROUP_Anim);
 
 FAnimNode_KawaiiPhysics::FAnimNode_KawaiiPhysics()
 	: DeltaTime(0)
@@ -144,6 +145,22 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(const FComponentSpacePoseContext& Ou
 					                                       false, -1, 0, SDPG_Foreground);
 				}
 
+				// Box limit
+				for (const auto& BoxLimit : BoxLimits)
+				{
+					const FVector LocationWS = AnimInstanceProxy->GetComponentTransform().TransformPosition(
+						BoxLimit.Location);
+
+					// TODO
+				}
+				for (const auto& BoxLimit : BoxLimitsData)
+				{
+					const FVector LocationWS = AnimInstanceProxy->GetComponentTransform().TransformPosition(
+						BoxLimit.Location);
+
+					// TODO
+				}
+
 #if	ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 4
 				// Capsule limit
 				for (const auto& CapsuleLimit : CapsuleLimits)
@@ -246,6 +263,8 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	UpdateSphericalLimits(SphericalLimitsData, Output, BoneContainer, ComponentTransform);
 	UpdateCapsuleLimits(CapsuleLimits, Output, BoneContainer, ComponentTransform);
 	UpdateCapsuleLimits(CapsuleLimitsData, Output, BoneContainer, ComponentTransform);
+	UpdateBoxLimits(BoxLimits, Output, BoneContainer, ComponentTransform);
+	UpdateBoxLimits(BoxLimitsData, Output, BoneContainer, ComponentTransform);
 	UpdatePlanerLimits(PlanarLimits, Output, BoneContainer, ComponentTransform);
 	UpdatePlanerLimits(PlanarLimitsData, Output, BoneContainer, ComponentTransform);
 
@@ -342,6 +361,7 @@ void FAnimNode_KawaiiPhysics::InitializeBoneReferences(const FBoneContainer& Req
 
 	Initialize(SphericalLimits);
 	Initialize(CapsuleLimits);
+	Initialize(BoxLimits);
 	Initialize(PlanarLimits);
 
 	for (auto& BoneConstraint : BoneConstraints)
@@ -412,17 +432,20 @@ void FAnimNode_KawaiiPhysics::ApplyLimitsDataAsset(const FBoneContainer& Require
 
 	SphericalLimitsData.Empty();
 	CapsuleLimitsData.Empty();
+	BoxLimitsData.Empty();
 	PlanarLimitsData.Empty();
 
 	if (LimitsDataAsset)
 	{
 		SphericalLimitsData = LimitsDataAsset->SphericalLimits;
 		CapsuleLimitsData = LimitsDataAsset->CapsuleLimits;
+		BoxLimitsData = LimitsDataAsset->BoxLimits;
 		PlanarLimitsData = LimitsDataAsset->PlanarLimits;
 	}
 
 	Initialize(SphericalLimitsData);
 	Initialize(CapsuleLimitsData);
+	Initialize(BoxLimitsData);
 	Initialize(PlanarLimitsData);
 }
 
@@ -691,6 +714,38 @@ void FAnimNode_KawaiiPhysics::UpdateCapsuleLimits(TArray<FCapsuleLimit>& Limits,
 	}
 }
 
+void FAnimNode_KawaiiPhysics::UpdateBoxLimits(TArray<FBoxLimit>& Limits, FComponentSpacePoseContext& Output,
+                                              const FBoneContainer& BoneContainer,
+                                              const FTransform& ComponentTransform)
+{
+	for (auto& Box : Limits)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdateBoxLimit);
+
+		if (Box.DrivingBone.IsValidToEvaluate(BoneContainer))
+		{
+			const FCompactPoseBoneIndex CompactPoseIndex = Box.DrivingBone.GetCompactPoseIndex(BoneContainer);
+			FTransform BoneTransform = Output.Pose.GetComponentSpaceTransform(CompactPoseIndex);
+
+			FAnimationRuntime::ConvertCSTransformToBoneSpace(ComponentTransform, Output.Pose, BoneTransform,
+			                                                 CompactPoseIndex, BCS_BoneSpace);
+			BoneTransform.SetRotation(Box.OffsetRotation.Quaternion() * BoneTransform.GetRotation());
+			BoneTransform.AddToTranslation(Box.OffsetLocation);
+
+			FAnimationRuntime::ConvertBoneSpaceTransformToCS(ComponentTransform, Output.Pose, BoneTransform,
+			                                                 CompactPoseIndex, BCS_BoneSpace);
+			Box.Location = BoneTransform.GetLocation();
+			Box.Rotation = BoneTransform.GetRotation();
+
+			Box.bEnable = true;
+		}
+		else
+		{
+			Box.bEnable = false;
+		}
+	}
+}
+
 void FAnimNode_KawaiiPhysics::UpdatePlanerLimits(TArray<FPlanarLimit>& Limits, FComponentSpacePoseContext& Output,
                                                  const FBoneContainer& BoneContainer,
                                                  const FTransform& ComponentTransform)
@@ -857,6 +912,8 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		AdjustBySphereCollision(Bone, SphericalLimitsData);
 		AdjustByCapsuleCollision(Bone, CapsuleLimits);
 		AdjustByCapsuleCollision(Bone, CapsuleLimitsData);
+		AdjustByBoxCollision(Bone, BoxLimits);
+		AdjustByBoxCollision(Bone, BoxLimitsData);
 		AdjustByPlanerCollision(Bone, PlanarLimits);
 		AdjustByPlanerCollision(Bone, PlanarLimitsData);
 		if (bAllowWorldCollision)
@@ -1181,6 +1238,44 @@ void FAnimNode_KawaiiPhysics::AdjustByCapsuleCollision(FKawaiiPhysicsModifyBone&
 		{
 			FVector ClosestPoint = FMath::ClosestPointOnSegment(Bone.Location, StartPoint, EndPoint);
 			Bone.Location = ClosestPoint + (Bone.Location - ClosestPoint).GetSafeNormal() * LimitDistance;
+		}
+	}
+}
+
+void FAnimNode_KawaiiPhysics::AdjustByBoxCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FBoxLimit>& Limits)
+{
+	for (auto& Box : Limits)
+	{
+		FTransform BoxTransform(Box.Rotation, Box.Location);
+		float SphereRadius = Bone.PhysicsSettings.Radius;
+		
+		FVector LocalSphereCenter = BoxTransform.InverseTransformPosition(Bone.Location);
+		FBox LocalBox(-Box.Extent, Box.Extent);
+		if (FMath::SphereAABBIntersection(FSphere(LocalSphereCenter, SphereRadius), LocalBox))
+		{
+			// Calculate the point of the Box closest to the center of the Sphere
+			FVector ClosestPoint = LocalSphereCenter;
+			ClosestPoint.X = FMath::Clamp(ClosestPoint.X, LocalBox.Min.X, LocalBox.Max.X);
+			ClosestPoint.Y = FMath::Clamp(ClosestPoint.Y, LocalBox.Min.Y, LocalBox.Max.Y);
+			ClosestPoint.Z = FMath::Clamp(ClosestPoint.Z, LocalBox.Min.Z, LocalBox.Max.Z);
+			
+			FVector PushOutVector = LocalSphereCenter - ClosestPoint;
+			float Distance = PushOutVector.Size();
+
+			// When the bone sphere is completely buried inside the box, forced to push.
+			if (PushOutVector.IsNearlyZero())
+			{
+				PushOutVector = LocalSphereCenter;
+				Distance = SphereRadius;
+			}
+
+			// push
+			if (Distance <= SphereRadius)
+			{
+				FVector PushOutDirection = PushOutVector.GetSafeNormal();
+				FVector NewLocalSphereCenter = ClosestPoint + PushOutDirection * SphereRadius;
+				Bone.Location = BoxTransform.TransformPosition(NewLocalSphereCenter);
+			}
 		}
 	}
 }
