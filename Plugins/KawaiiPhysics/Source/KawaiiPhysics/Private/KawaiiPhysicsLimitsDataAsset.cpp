@@ -185,7 +185,9 @@ void UKawaiiPhysicsLimitsDataAsset::PostLoad()
 	if (GetLinkerCustomVersion(FCollisionLimitDataCustomVersion::GUID) <
 		FCollisionLimitDataCustomVersion::DeprecateLimitData)
 	{
+#if WITH_EDITORONLY_DATA
 		Sync();
 		UE_LOG(LogKawaiiPhysics, Log, TEXT("Update : Deprecate LimitData (%s)"), *this->GetName());
+#endif
 	}
 }
