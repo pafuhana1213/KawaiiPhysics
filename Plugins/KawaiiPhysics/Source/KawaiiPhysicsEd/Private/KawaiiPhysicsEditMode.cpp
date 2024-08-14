@@ -1,16 +1,15 @@
 #include "KawaiiPhysicsEditMode.h"
-#include "SceneManagement.h"
-#include "IPersonaPreviewScene.h"
-#include "Animation/DebugSkelMeshComponent.h"
-#include "EditorModeManager.h"
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
+#include "EditorModeManager.h"
 #include "EditorViewportClient.h"
-#include "Materials/MaterialInstanceDynamic.h"
+#include "IPersonaPreviewScene.h"
 #include "KawaiiPhysics.h"
-#include "KawaiiPhysicsCustomExternalForce.h"
 #include "KawaiiPhysicsExternalForce.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
+#include "SceneManagement.h"
+#include "Animation/DebugSkelMeshComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysicsEditMode"
 DEFINE_LOG_CATEGORY(LogKawaiiPhysics);
@@ -100,11 +99,7 @@ void FKawaiiPhysicsEditMode::Render(const FSceneView* View, FViewport* Viewport,
 {
 	const USkeletalMeshComponent* SkelMeshComp = GetAnimPreviewScene().GetPreviewMeshComponent();
 
-#if	ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 1
 	if (SkelMeshComp && SkelMeshComp->GetSkeletalMeshAsset() && SkelMeshComp->GetSkeletalMeshAsset()->GetSkeleton())
-#else
-	if (SkelMeshComp && SkelMeshComp->SkeletalMesh && SkelMeshComp->SkeletalMesh->GetSkeleton())
-#endif
 	{
 		RenderModifyBones(PDI);
 		RenderLimitAngle(PDI);
@@ -225,7 +220,11 @@ void FKawaiiPhysicsEditMode::RenderSphericalLimits(FPrimitiveDrawInterface* PDI)
 		}
 		else
 		{
-			DrawSphereLimit(RuntimeNode->SphericalLimitsData[i], i, PhysicsAssetBodyMaterial->GetRenderProxy(), false);
+			if (PhysicsAssetBodyMaterial->IsValidLowLevel())
+			{
+				DrawSphereLimit(RuntimeNode->SphericalLimitsData[i], i, PhysicsAssetBodyMaterial->GetRenderProxy(),
+				                false);
+			}
 		}
 	}
 }
@@ -277,7 +276,10 @@ void FKawaiiPhysicsEditMode::RenderCapsuleLimit(FPrimitiveDrawInterface* PDI) co
 		}
 		else
 		{
-			DrawCapsule(RuntimeNode->CapsuleLimitsData[i], i, PhysicsAssetBodyMaterial->GetRenderProxy(), false);
+			if (PhysicsAssetBodyMaterial->IsValidLowLevel())
+			{
+				DrawCapsule(RuntimeNode->CapsuleLimitsData[i], i, PhysicsAssetBodyMaterial->GetRenderProxy(), false);
+			}
 		}
 	}
 }
@@ -323,7 +325,10 @@ void FKawaiiPhysicsEditMode::RenderBoxLimit(FPrimitiveDrawInterface* PDI) const
 		}
 		else
 		{
-			DrawBoxLimit(RuntimeNode->BoxLimitsData[i], i, PhysicsAssetBodyMaterial->GetRenderProxy(), false);
+			if (PhysicsAssetBodyMaterial->IsValidLowLevel())
+			{
+				DrawBoxLimit(RuntimeNode->BoxLimitsData[i], i, PhysicsAssetBodyMaterial->GetRenderProxy(), false);
+			}
 		}
 	}
 }
@@ -441,9 +446,7 @@ bool FKawaiiPhysicsEditMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix,
 	}
 
 	FQuat Rotation = FQuat::Identity;
-
-	FCollisionLimitBase* Collision = GetSelectCollisionLimitRuntime();
-	if (Collision)
+	if (FCollisionLimitBase* Collision = GetSelectCollisionLimitRuntime())
 	{
 		Rotation = Collision->Rotation;
 	}
@@ -454,7 +457,7 @@ bool FKawaiiPhysicsEditMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix,
 
 UE_WIDGET::EWidgetMode FKawaiiPhysicsEditMode::GetWidgetMode() const
 {
-	if (FCollisionLimitBase* Collision = GetSelectCollisionLimitRuntime())
+	if (GetSelectCollisionLimitRuntime())
 	{
 		CurWidgetMode = FindValidWidgetMode(CurWidgetMode);
 		return CurWidgetMode;
@@ -495,13 +498,13 @@ bool FKawaiiPhysicsEditMode::HandleClick(FEditorViewportClient* InViewportClient
 		SelectCollisionType = KawaiiPhysicsHitProxy->CollisionType;
 		SelectCollisionIndex = KawaiiPhysicsHitProxy->CollisionIndex;
 		SelectCollisionSourceType = KawaiiPhysicsHitProxy->SourceType;
-		return true;
+		bResult = true;
 	}
 
 	SelectCollisionType = ECollisionLimitType::None;
 	SelectCollisionIndex = -1;
 
-	return false;
+	return bResult;
 }
 
 bool FKawaiiPhysicsEditMode::InputKey(FEditorViewportClient* InViewportClient, FViewport* InViewport, FKey InKey,
