@@ -218,18 +218,10 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 
 #if WITH_EDITOR
 	// sync editing on other Nodes
-	if (LimitsDataAsset)
-	{
-		ApplyLimitsDataAsset(BoneContainer);
-	}
-	if (PhysicsAssetForLimits)
-	{
-		ApplyPhysicsAsset(BoneContainer);
-	}
-	if (BoneConstraintsDataAsset)
-	{
-		ApplyBoneConstraintDataAsset(BoneContainer);
-	}
+	ApplyLimitsDataAsset(BoneContainer);
+	ApplyPhysicsAsset(BoneContainer);
+	ApplyBoneConstraintDataAsset(BoneContainer);
+
 
 	if (GUnrealEd && !GUnrealEd->IsPlayingSessionInEditor())
 	{
@@ -458,12 +450,12 @@ void FAnimNode_KawaiiPhysics::ApplyLimitsDataAsset(const FBoneContainer& Require
 		CapsuleLimitsData.Append(LimitsDataAsset->CapsuleLimits);
 		BoxLimitsData.Append(LimitsDataAsset->BoxLimits);
 		PlanarLimitsData.Append(LimitsDataAsset->PlanarLimits);
-	}
 
-	Initialize(SphericalLimitsData);
-	Initialize(CapsuleLimitsData);
-	Initialize(BoxLimitsData);
-	Initialize(PlanarLimitsData);
+		Initialize(SphericalLimitsData);
+		Initialize(CapsuleLimitsData);
+		Initialize(BoxLimitsData);
+		Initialize(PlanarLimitsData);
+	}
 }
 
 void FAnimNode_KawaiiPhysics::ApplyPhysicsAsset(const FBoneContainer& RequiredBones)
@@ -525,16 +517,16 @@ void FAnimNode_KawaiiPhysics::ApplyPhysicsAsset(const FBoneContainer& RequiredBo
 				NewLimit.DrivingBone = DrivingBone;
 				NewLimit.OffsetLocation = BoxElem.Center;
 				NewLimit.OffsetRotation = BoxElem.Rotation;
-				NewLimit.Extent = FVector(BoxElem.X, BoxElem.Y, BoxElem.Z);
+				NewLimit.Extent = FVector(BoxElem.X, BoxElem.Y, BoxElem.Z) / 2.0f;
 				NewLimit.SourceType = ECollisionSourceType::PhysicsAsset;
 				BoxLimitsData.Add(NewLimit);
 			}
 		}
-	}
 
-	Initialize(SphericalLimitsData);
-	Initialize(CapsuleLimitsData);
-	Initialize(BoxLimitsData);
+		Initialize(SphericalLimitsData);
+		Initialize(CapsuleLimitsData);
+		Initialize(BoxLimitsData);
+	}
 }
 
 void FAnimNode_KawaiiPhysics::ApplyBoneConstraintDataAsset(const FBoneContainer& RequiredBones)
