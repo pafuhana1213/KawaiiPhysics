@@ -85,7 +85,7 @@ struct FCollisionLimitBase
 
 #if WITH_EDITORONLY_DATA
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere)
 	ECollisionSourceType SourceType = ECollisionSourceType::AnimNode;
 
 	UPROPERTY(VisibleAnywhere, Category = Debug, meta = (IgnoreForMemberInitializationTest))
@@ -639,6 +639,14 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits", meta = (PinHiddenByDefault))
 	TObjectPtr<UKawaiiPhysicsLimitsDataAsset> LimitsDataAsset = nullptr;
+
+	/** 
+	* コリジョン設定（PhyiscsAsset版）。別AnimNode・ABPで設定を流用したい場合はこちらを推奨
+	* Collision settings (PhyiscsAsset版 version). This is recommended if you want to reuse the settings for another AnimNode or ABP.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits", meta = (PinHiddenByDefault))
+	TObjectPtr<UPhysicsAsset> PhysicsAssetForLimits = nullptr;
+
 	/** 
 	* コリジョン設定（DataAsset版）における球コリジョンのプレビュー
 	* Preview of sphere collision in collision settings (DataAsset version)

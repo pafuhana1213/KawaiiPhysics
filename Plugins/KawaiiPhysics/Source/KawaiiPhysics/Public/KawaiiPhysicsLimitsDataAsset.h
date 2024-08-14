@@ -188,7 +188,7 @@ public:
 	void UpdateLimit(FCollisionLimitBase* Limit);
 
 	FOnLimitsChanged OnLimitsChanged;
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif
 
 private:

@@ -93,42 +93,50 @@ void UKawaiiPhysicsLimitsDataAsset::Sync()
 	SyncCollisionLimits(PlanarLimitsData, PlanarLimits);
 }
 
-
-void UKawaiiPhysicsLimitsDataAsset::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+void UKawaiiPhysicsLimitsDataAsset::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {
-	Super::PostEditChangeProperty(PropertyChangedEvent);
+	Super::PostEditChangeChainProperty(PropertyChangedEvent);
 
-	const FName PropertyName = PropertyChangedEvent.MemberProperty
-		                           ? PropertyChangedEvent.MemberProperty->GetFName()
-		                           : NAME_None;
 
-	if (PropertyName == FName(TEXT("SphericalLimitsData")))
+	FName ArrayPropertyName = PropertyChangedEvent.MemberProperty
+		                          ? PropertyChangedEvent.MemberProperty->GetFName()
+		                          : NAME_None;
+	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet &&
+		PropertyChangedEvent.PropertyChain.GetActiveMemberNode())
 	{
-		if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Duplicate)
-		{
-			SphericalLimits[PropertyChangedEvent.GetArrayIndex(PropertyName.ToString())].Guid = FGuid::NewGuid();
-		}
+		ArrayPropertyName = PropertyChangedEvent.PropertyChain.GetActiveMemberNode()->GetValue()->GetFName();
 	}
-	else if (PropertyName == FName(TEXT("CapsuleLimitsData")))
+
+	auto UpdateLimits = [&](auto& Limits)
 	{
-		if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Duplicate)
+		int32 ArrayIndex = PropertyChangedEvent.GetArrayIndex(ArrayPropertyName.ToString());
+
+		if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd ||
+			PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
 		{
-			CapsuleLimits[PropertyChangedEvent.GetArrayIndex(PropertyName.ToString())].Guid = FGuid::NewGuid();
+			Limits[ArrayIndex].SourceType = ECollisionSourceType::DataAsset;
 		}
+		else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Duplicate)
+		{
+			Limits[ArrayIndex].Guid = FGuid::NewGuid();
+		}
+	};
+
+	if (ArrayPropertyName == GET_MEMBER_NAME_CHECKED(UKawaiiPhysicsLimitsDataAsset, SphericalLimits))
+	{
+		UpdateLimits(SphericalLimits);
 	}
-	else if (PropertyName == FName(TEXT("BoxLimitsData")))
+	else if (ArrayPropertyName == GET_MEMBER_NAME_CHECKED(UKawaiiPhysicsLimitsDataAsset, CapsuleLimits))
 	{
-		if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Duplicate)
-		{
-			BoxLimits[PropertyChangedEvent.GetArrayIndex(PropertyName.ToString())].Guid = FGuid::NewGuid();
-		}
+		UpdateLimits(CapsuleLimits);
 	}
-	else if (PropertyName == FName(TEXT("PlanarLimitsData")))
+	else if (ArrayPropertyName == GET_MEMBER_NAME_CHECKED(UKawaiiPhysicsLimitsDataAsset, BoxLimits))
 	{
-		if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Duplicate)
-		{
-			PlanarLimits[PropertyChangedEvent.GetArrayIndex(PropertyName.ToString())].Guid = FGuid::NewGuid();
-		}
+		UpdateLimits(BoxLimits);
+	}
+	else if (ArrayPropertyName == GET_MEMBER_NAME_CHECKED(UKawaiiPhysicsLimitsDataAsset, PlanarLimits))
+	{
+		UpdateLimits(PlanarLimits);
 	}
 
 	OnLimitsChanged.Broadcast(PropertyChangedEvent);

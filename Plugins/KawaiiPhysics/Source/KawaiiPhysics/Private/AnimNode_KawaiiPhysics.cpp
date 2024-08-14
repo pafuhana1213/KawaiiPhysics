@@ -53,6 +53,11 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 	FAnimNode_SkeletalControlBase::Initialize_AnyThread(Context);
 	const FBoneContainer& RequiredBones = Context.AnimInstanceProxy->GetRequiredBones();
 
+	SphericalLimitsData.Empty();
+	CapsuleLimitsData.Empty();
+	BoxLimitsData.Empty();
+	PlanarLimitsData.Empty();
+	
 	ApplyLimitsDataAsset(RequiredBones);
 	ApplyBoneConstraintDataAsset(RequiredBones);
 
@@ -427,20 +432,27 @@ void FAnimNode_KawaiiPhysics::ApplyLimitsDataAsset(const FBoneContainer& Require
 		{
 			Target.DrivingBone.Initialize(RequiredBones);
 		}
-		return true;
+	};
+	auto RemoveAll = [](auto& Targets)
+	{
+		Targets.RemoveAll([](const FCollisionLimitBase& Limit)
+		{
+			return Limit.SourceType == ECollisionSourceType::DataAsset;
+		});
 	};
 
-	SphericalLimitsData.Empty();
-	CapsuleLimitsData.Empty();
-	BoxLimitsData.Empty();
-	PlanarLimitsData.Empty();
+
+	RemoveAll(SphericalLimitsData);
+	RemoveAll(CapsuleLimitsData);
+	RemoveAll(BoxLimitsData);
+	RemoveAll(PlanarLimitsData);
 
 	if (LimitsDataAsset)
 	{
-		SphericalLimitsData = LimitsDataAsset->SphericalLimits;
-		CapsuleLimitsData = LimitsDataAsset->CapsuleLimits;
-		BoxLimitsData = LimitsDataAsset->BoxLimits;
-		PlanarLimitsData = LimitsDataAsset->PlanarLimits;
+		SphericalLimitsData.Append(LimitsDataAsset->SphericalLimits);
+		CapsuleLimitsData.Append(LimitsDataAsset->CapsuleLimits);
+		BoxLimitsData.Append(LimitsDataAsset->BoxLimits);
+		PlanarLimitsData.Append(LimitsDataAsset->PlanarLimits);
 	}
 
 	Initialize(SphericalLimitsData);
