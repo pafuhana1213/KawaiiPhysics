@@ -9,6 +9,7 @@
 #include "Curves/CurveFloat.h"
 #include "Runtime/Launch/Resources/Version.h"
 #include "SceneInterface.h"
+#include "PhysicsEngine/PhysicsAsset.h"
 
 #if WITH_EDITOR
 #include "UnrealEdGlobals.h"
@@ -57,8 +58,9 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 	CapsuleLimitsData.Empty();
 	BoxLimitsData.Empty();
 	PlanarLimitsData.Empty();
-	
+
 	ApplyLimitsDataAsset(RequiredBones);
+	ApplyPhysicsAsset(RequiredBones);
 	ApplyBoneConstraintDataAsset(RequiredBones);
 
 	ModifyBones.Empty();
@@ -219,6 +221,10 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	if (LimitsDataAsset)
 	{
 		ApplyLimitsDataAsset(BoneContainer);
+	}
+	if (PhysicsAssetForLimits)
+	{
+		ApplyPhysicsAsset(BoneContainer);
 	}
 	if (BoneConstraintsDataAsset)
 	{
@@ -433,7 +439,7 @@ void FAnimNode_KawaiiPhysics::ApplyLimitsDataAsset(const FBoneContainer& Require
 			Target.DrivingBone.Initialize(RequiredBones);
 		}
 	};
-	auto RemoveAll = [](auto& Targets)
+	auto RemoveAllSourceDataAssets = [](auto& Targets)
 	{
 		Targets.RemoveAll([](const FCollisionLimitBase& Limit)
 		{
@@ -441,11 +447,10 @@ void FAnimNode_KawaiiPhysics::ApplyLimitsDataAsset(const FBoneContainer& Require
 		});
 	};
 
-
-	RemoveAll(SphericalLimitsData);
-	RemoveAll(CapsuleLimitsData);
-	RemoveAll(BoxLimitsData);
-	RemoveAll(PlanarLimitsData);
+	RemoveAllSourceDataAssets(SphericalLimitsData);
+	RemoveAllSourceDataAssets(CapsuleLimitsData);
+	RemoveAllSourceDataAssets(BoxLimitsData);
+	RemoveAllSourceDataAssets(PlanarLimitsData);
 
 	if (LimitsDataAsset)
 	{
@@ -459,6 +464,77 @@ void FAnimNode_KawaiiPhysics::ApplyLimitsDataAsset(const FBoneContainer& Require
 	Initialize(CapsuleLimitsData);
 	Initialize(BoxLimitsData);
 	Initialize(PlanarLimitsData);
+}
+
+void FAnimNode_KawaiiPhysics::ApplyPhysicsAsset(const FBoneContainer& RequiredBones)
+{
+	auto Initialize = [&RequiredBones](auto& Targets)
+	{
+		for (auto& Target : Targets)
+		{
+			Target.DrivingBone.Initialize(RequiredBones);
+		}
+	};
+	auto RemoveAllSourcePhysicsAssets = [](auto& Targets)
+	{
+		Targets.RemoveAll([](const FCollisionLimitBase& Limit)
+		{
+			return Limit.SourceType == ECollisionSourceType::PhysicsAsset;
+		});
+	};
+
+	RemoveAllSourcePhysicsAssets(SphericalLimitsData);
+	RemoveAllSourcePhysicsAssets(CapsuleLimitsData);
+	RemoveAllSourcePhysicsAssets(BoxLimitsData);
+
+	if (PhysicsAssetForLimits)
+	{
+		for (const auto BodySetup : PhysicsAssetForLimits->SkeletalBodySetups)
+		{
+			FBoneReference DrivingBone = BodySetup->BoneName;
+			DrivingBone.Initialize(RequiredBones);
+			if (!DrivingBone.IsValidToEvaluate(RequiredBones))
+			{
+				continue;
+			}
+
+			const FKAggregateGeom& AggGeom = BodySetup->AggGeom;
+			for (const auto& SphereElem : AggGeom.SphereElems)
+			{
+				FSphericalLimit NewLimit;
+				NewLimit.DrivingBone = DrivingBone;
+				NewLimit.OffsetLocation = SphereElem.Center;
+				NewLimit.Radius = SphereElem.Radius;
+				NewLimit.SourceType = ECollisionSourceType::PhysicsAsset;
+				SphericalLimitsData.Add(NewLimit);
+			}
+			for (const auto& CapsuleElem : AggGeom.SphylElems)
+			{
+				FCapsuleLimit NewLimit;
+				NewLimit.DrivingBone = DrivingBone;
+				NewLimit.OffsetLocation = CapsuleElem.Center;
+				NewLimit.OffsetRotation = CapsuleElem.Rotation;
+				NewLimit.Length = CapsuleElem.Length;
+				NewLimit.Radius = CapsuleElem.Radius;
+				NewLimit.SourceType = ECollisionSourceType::PhysicsAsset;
+				CapsuleLimitsData.Add(NewLimit);
+			}
+			for (const auto& BoxElem : AggGeom.BoxElems)
+			{
+				FBoxLimit NewLimit;
+				NewLimit.DrivingBone = DrivingBone;
+				NewLimit.OffsetLocation = BoxElem.Center;
+				NewLimit.OffsetRotation = BoxElem.Rotation;
+				NewLimit.Extent = FVector(BoxElem.X, BoxElem.Y, BoxElem.Z);
+				NewLimit.SourceType = ECollisionSourceType::PhysicsAsset;
+				BoxLimitsData.Add(NewLimit);
+			}
+		}
+	}
+
+	Initialize(SphericalLimitsData);
+	Initialize(CapsuleLimitsData);
+	Initialize(BoxLimitsData);
 }
 
 void FAnimNode_KawaiiPhysics::ApplyBoneConstraintDataAsset(const FBoneContainer& RequiredBones)

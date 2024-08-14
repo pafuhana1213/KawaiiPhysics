@@ -43,6 +43,7 @@ protected:
 	FDelegateHandle NodePropertyDelegateHandle;
 
 	void OnLimitDataAssetPropertyChange(FPropertyChangedEvent& InPropertyEvent);
+	bool IsSelectAnimNodeCollision() const;
 	FDelegateHandle LimitsDataAssetPropertyDelegateHandle;
 
 private:
@@ -83,8 +84,11 @@ private:
 	/** The current bone selection mode */
 	ECollisionLimitType SelectCollisionType = ECollisionLimitType::None;
 	int32 SelectCollisionIndex = -1;
-	bool bIsSelectCollisionFromDataAsset;
+	ECollisionSourceType SelectCollisionSourceType = ECollisionSourceType::AnimNode;
 
 	// storing current widget mode 
 	mutable UE_WIDGET::EWidgetMode CurWidgetMode;
+
+	// physics asset body material
+	TObjectPtr<UMaterialInstanceDynamic> PhysicsAssetBodyMaterial;
 };

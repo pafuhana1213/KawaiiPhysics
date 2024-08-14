@@ -138,6 +138,7 @@ void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* Ani
 	KawaiiPhysics->BoxLimits = Node.BoxLimits;
 	KawaiiPhysics->PlanarLimits = Node.PlanarLimits;
 	KawaiiPhysics->LimitsDataAsset = Node.LimitsDataAsset;
+	KawaiiPhysics->PhysicsAssetForLimits = Node.PhysicsAssetForLimits;
 
 	// ExternalForce
 	KawaiiPhysics->Gravity = Node.Gravity;
@@ -567,10 +568,18 @@ void UAnimGraphNode_KawaiiPhysics::ExportLimitsDataAsset()
 		}
 
 		// copy data
-		NewDataAsset->SphericalLimits = Node.SphericalLimits;
-		NewDataAsset->CapsuleLimits = Node.CapsuleLimits;
-		NewDataAsset->BoxLimits = Node.BoxLimits;
-		NewDataAsset->PlanarLimits = Node.PlanarLimits;
+		auto CopyLimits = [&](auto& DataLimits, auto& SourceLimits)
+		{
+			DataLimits = SourceLimits;
+			for (auto& DataLimit : DataLimits)
+			{
+				DataLimit.SourceType = ECollisionSourceType::DataAsset;
+			}
+		};
+		CopyLimits(NewDataAsset->SphericalLimits, Node.SphericalLimits);
+		CopyLimits(NewDataAsset->CapsuleLimits, Node.CapsuleLimits);
+		CopyLimits(NewDataAsset->BoxLimits, Node.BoxLimits);
+		CopyLimits(NewDataAsset->PlanarLimits, Node.PlanarLimits);
 
 		// select new asset
 		USelection* SelectionSet = GEditor->GetSelectedObjects();

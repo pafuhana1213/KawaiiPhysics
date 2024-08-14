@@ -57,6 +57,8 @@ enum class ECollisionSourceType : uint8
 	AnimNode,
 	/** Use the value set in the DataAsset */
 	DataAsset,
+	/** Use the value set in the PhysicsAsset */
+	PhysicsAsset,
 };
 
 USTRUCT()
@@ -83,10 +85,10 @@ struct FCollisionLimitBase
 	UPROPERTY()
 	bool bEnable = true;
 
-#if WITH_EDITORONLY_DATA
-
 	UPROPERTY(VisibleAnywhere)
 	ECollisionSourceType SourceType = ECollisionSourceType::AnimNode;
+
+#if WITH_EDITORONLY_DATA
 
 	UPROPERTY(VisibleAnywhere, Category = Debug, meta = (IgnoreForMemberInitializationTest))
 	FGuid Guid = FGuid::NewGuid();
@@ -888,6 +890,7 @@ protected:
 	void InitModifyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer);
 	void InitBoneConstraints();
 	void ApplyLimitsDataAsset(const FBoneContainer& RequiredBones);
+	void ApplyPhysicsAsset(const FBoneContainer& RequiredBones);
 	void ApplyBoneConstraintDataAsset(const FBoneContainer& RequiredBones);
 	int32 AddModifyBone(TArray<FKawaiiPhysicsModifyBone>& InModifyBones, FComponentSpacePoseContext& Output,
 	                    const FBoneContainer& BoneContainer,
