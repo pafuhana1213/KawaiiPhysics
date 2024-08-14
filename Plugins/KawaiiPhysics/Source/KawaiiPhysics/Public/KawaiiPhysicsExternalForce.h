@@ -1,9 +1,11 @@
 ﻿#pragma once
 #include "AnimNode_KawaiiPhysics.h"
 #include "Curves/CurveVector.h"
-
 #include "KawaiiPhysicsExternalForce.generated.h"
 
+/**
+ * Enum representing the space in which external forces are simulated.
+ */
 UENUM(BlueprintType)
 enum class EExternalForceSpace : uint8
 {
@@ -15,12 +17,19 @@ enum class EExternalForceSpace : uint8
 	BoneSpace,
 };
 
+/**
+ * Enum representing the evaluation type for external force curves.
+ */
 UENUM(BlueprintType)
 enum class EExternalForceCurveEvaluateType : uint8
 {
+	/** Evaluate the curve at a single point */
 	Single,
+	/** Evaluate the curve by averaging multiple points */
 	Average,
+	/** Evaluate the curve by taking the maximum value from multiple points */
 	Max,
+	/** Evaluate the curve by taking the minimum value from multiple points */
 	Min
 };
 
@@ -33,10 +42,11 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce
 {
 	GENERATED_BODY()
 
-public:
+	/** Whether the external force is enabled */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1), Category="KawaiiPhysics|ExternalForce")
 	bool bIsEnabled = true;
 
+	/** Whether to draw debug information for the external force */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1), Category="KawaiiPhysics|ExternalForce")
 	bool bDrawDebug = false;
 
@@ -54,37 +64,51 @@ public:
 	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1), Category="KawaiiPhysics|ExternalForce")
 	TArray<FBoneReference> IgnoreBoneFilter;
 
-
+	/** The space in which the external force is simulated */
 	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1, EditCondition=bCanSelectForceSpace, EditConditionHides),
 		Category="KawaiiPhysics|ExternalForce")
 	EExternalForceSpace ExternalForceSpace = EExternalForceSpace::WorldSpace;
 
+	/** Range for randomizing the force scale */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1), Category="KawaiiPhysics|ExternalForce")
 	FFloatInterval RandomForceScaleRange = FFloatInterval(1.0f, 1.0f);
 
+	/** Owner of the external force */
 	UPROPERTY()
 	TObjectPtr<UObject> ExternalOwner;
 
+	/** Whether the external force is applied only once */
 	UPROPERTY()
 	bool bIsOneShot;
 
 #if ENABLE_ANIM_DEBUG
+	/** Length of the debug arrow */
 	float DebugArrowLength = 5.0f;
+
+	/** Size of the debug arrow */
 	float DebugArrowSize = 1.0f;
+
+	/** Offset for the debug arrow */
 	FVector DebugArrowOffset = FVector::Zero();
+
+	/** Map of bone names to forces for debugging */
 	TMap<FName, FVector> BoneForceMap;
 #endif
 
 protected:
+	/** Randomized scale of the force */
 	UPROPERTY()
 	float RandomizedForceScale = 0.0f;
 
+	/** The force vector */
 	UPROPERTY()
 	FVector Force = FVector::Zero();
 
+	/** Transform of the component */
 	UPROPERTY()
 	FTransform ComponentTransform;
 
+	/** Whether the force space can be selected */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	bool bCanSelectForceSpace = true;
 
@@ -95,17 +119,20 @@ public:
 	{
 	}
 
+	/** Prepares the external force before applying it */
 	virtual void PreApply(FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp)
 	{
 		ComponentTransform = SkelComp->GetComponentTransform();
 		RandomizedForceScale = FMath::RandRange(RandomForceScaleRange.Min, RandomForceScaleRange.Max);
 	}
 
+	/** Applies the external force to a bone */
 	virtual void Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
 	                   const FComponentSpacePoseContext& PoseContext, const FTransform& BoneTM = FTransform::Identity)
 	{
 	}
 
+	/** Finalizes the external force after applying it */
 	virtual void PostApply(FAnimNode_KawaiiPhysics& Node)
 	{
 		if (bIsOneShot)
@@ -118,6 +145,7 @@ public:
 		}
 	}
 
+	/** Checks if debug information should be drawn */
 	virtual bool IsDebugEnabled(bool bInPersona = false)
 	{
 		if (bInPersona)
@@ -136,6 +164,7 @@ public:
 	}
 
 #if ENABLE_ANIM_DEBUG
+	/** Draws debug information for the external force */
 	virtual void AnimDrawDebug(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
 	                           const FComponentSpacePoseContext& PoseContext)
 	{
@@ -156,6 +185,7 @@ public:
 #endif
 
 #if WITH_EDITOR
+	/** Draws debug information for the external force in edit mode */
 	virtual void AnimDrawDebugForEditMode(const FKawaiiPhysicsModifyBone& ModifyBone,
 	                                      const FAnimNode_KawaiiPhysics& Node, FPrimitiveDrawInterface* PDI)
 	{
@@ -172,6 +202,7 @@ public:
 #endif
 
 protected:
+	/** Checks if the external force can be applied to a bone */
 	bool CanApply(const FKawaiiPhysicsModifyBone& Bone) const
 	{
 		if (!ApplyBoneFilter.IsEmpty() && !ApplyBoneFilter.Contains(Bone.BoneRef))
@@ -196,7 +227,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Basic : public FKawaiiPhys
 {
 	GENERATED_BODY()
 
-public:
+	/** Direction of the force */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
 	FVector ForceDir = FVector::Zero();
 
@@ -209,18 +240,21 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
 	FRuntimeFloatCurve ForceRateByBoneLengthRate;
 
+	/** Interval for applying the force */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
 	float Interval = 0.0f;
 
-public:
 	virtual void PreApply(FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp) override;
 	virtual void Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
 	                   const FComponentSpacePoseContext& PoseContext,
 	                   const FTransform& BoneTM = FTransform::Identity) override;
 
 private:
+	/** Current time */
 	UPROPERTY()
 	float Time = 0.0f;
+
+	/** Previous time */
 	UPROPERTY()
 	float PrevTime = 0.0f;
 };
@@ -233,7 +267,6 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Gravity : public FKawaiiPh
 {
 	GENERATED_BODY()
 
-public:
 	FKawaiiPhysics_ExternalForce_Gravity()
 	{
 		bCanSelectForceSpace = false;
@@ -263,23 +296,26 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
 	bool bUseCharacterGravityScale = false;
 
+	/** 
+	 * Direction to override the gravity.
+	 * This direction is used when bUseOverrideGravityDirection is true.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,
-		meta = (editcondition = "bUseOverrideGravityDirection"), Category="KawaiiPhysics|ExternalForce")
+		meta = (EditCondition = "bUseOverrideGravityDirection"), Category="KawaiiPhysics|ExternalForce")
 	FVector OverrideGravityDirection = FVector::Zero();
 
+	/** 
+	 * Flag to determine whether to use the override gravity direction.
+	 * If true, the gravity direction will be overridden by OverrideGravityDirection.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (InlineEditConditionToggle),
 		Category="KawaiiPhysics|ExternalForce")
 	bool bUseOverrideGravityDirection = false;
 
-private:
-
-public:
 	virtual void PreApply(FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp) override;
 	virtual void Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
 	                   const FComponentSpacePoseContext& PoseContext,
 	                   const FTransform& BoneTM = FTransform::Identity) override;
-
-protected:
 };
 
 ///
@@ -290,7 +326,6 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Curve : public FKawaiiPhys
 {
 	GENERATED_BODY()
 
-public:
 	/** 
 	* 時間に応じて変化する外力をカーブで設定。X軸:Time Y軸:Force
 	* Set the external force that changes over time using a curve. X-axis: Time Y-axis: Force
@@ -319,6 +354,10 @@ public:
 		Category="KawaiiPhysics|ExternalForce")
 	int SubstepCount = 10;
 
+	/**
+	 * Scale factor for the time.
+	 * This value is used to scale the time for the external force.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category ="KawaiiPhysics|ExternalForce")
 	float TimeScale = 1.0f;
 
@@ -332,14 +371,32 @@ public:
 	FRuntimeFloatCurve ForceRateByBoneLengthRate;
 
 private:
+	/**
+	 * Current time.
+	 * This value is used to track the current time for the external force.
+	 */
 	UPROPERTY()
 	float Time = 0.0f;
+
+	/**
+	 * Previous time.
+	 * This value is used to track the previous time for the external force.
+	 */
 	UPROPERTY()
 	float PrevTime = 0.0f;
+
+	/**
+	 * Maximum curve time.
+	 * This value is used to track the maximum time for the force curve.
+	 */
 	UPROPERTY()
 	float MaxCurveTime = 0.0f;
 
 public:
+	/**
+	 * Initializes the maximum curve time.
+	 * This function calculates the maximum time value from the ForceCurve and sets it to MaxCurveTime.
+	 */
 	void InitMaxCurveTime();
 
 	virtual void Initialize(const FAnimationInitializeContext& Context) override;
@@ -357,7 +414,6 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Wind : public FKawaiiPhysi
 {
 	GENERATED_BODY()
 
-public:
 	FKawaiiPhysics_ExternalForce_Wind()
 	{
 		bCanSelectForceSpace = false;
@@ -374,6 +430,10 @@ public:
 	FRuntimeFloatCurve ForceRateByBoneLengthRate;
 
 private:
+	/**
+	 * Pointer to the world.
+	 * This is used to access the world context for the external force.
+	 */
 	UPROPERTY()
 	UWorld* World;
 
@@ -382,6 +442,4 @@ public:
 	virtual void Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
 	                   const FComponentSpacePoseContext& PoseContext,
 	                   const FTransform& BoneTM = FTransform::Identity) override;
-
-protected:
 };
