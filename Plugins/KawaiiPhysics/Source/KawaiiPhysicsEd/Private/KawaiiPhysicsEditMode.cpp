@@ -189,8 +189,7 @@ void FKawaiiPhysicsEditMode::RenderSphericalLimits(FPrimitiveDrawInterface* PDI)
 		return;
 	}
 
-	auto DrawSphereLimit = [&](const auto& Sphere, int32 Index, const FMaterialRenderProxy* MaterialProxy,
-	                           bool bUseHit = true)
+	auto DrawSphereLimit = [&](const auto& Sphere, int32 Index, const FMaterialRenderProxy* MaterialProxy, bool bUseHit)
 	{
 		if (Sphere.bEnable && Sphere.Radius > 0)
 		{
@@ -208,7 +207,7 @@ void FKawaiiPhysicsEditMode::RenderSphericalLimits(FPrimitiveDrawInterface* PDI)
 	for (int32 i = 0; i < RuntimeNode->SphericalLimits.Num(); i++)
 	{
 		DrawSphereLimit(RuntimeNode->SphericalLimits[i], i,
-		                GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy());
+		                GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy(), true);
 	}
 
 	for (int32 i = 0; i < RuntimeNode->SphericalLimitsData.Num(); i++)
@@ -216,7 +215,7 @@ void FKawaiiPhysicsEditMode::RenderSphericalLimits(FPrimitiveDrawInterface* PDI)
 		if (RuntimeNode->SphericalLimitsData[i].SourceType == ECollisionSourceType::DataAsset)
 		{
 			DrawSphereLimit(RuntimeNode->SphericalLimitsData[i], i,
-			                GEngine->ConstraintLimitMaterialZ->GetRenderProxy());
+			                GEngine->ConstraintLimitMaterialZ->GetRenderProxy(), true);
 		}
 		else
 		{
@@ -237,7 +236,7 @@ void FKawaiiPhysicsEditMode::RenderCapsuleLimit(FPrimitiveDrawInterface* PDI) co
 	}
 
 	auto DrawCapsule = [&](const auto& Capsule, int32 Index, const FMaterialRenderProxy* MaterialProxy,
-	                       bool bUseHit = true)
+	                       bool bUseHit)
 	{
 		if (Capsule.bEnable && Capsule.Radius > 0 && Capsule.Length > 0)
 		{
@@ -264,7 +263,8 @@ void FKawaiiPhysicsEditMode::RenderCapsuleLimit(FPrimitiveDrawInterface* PDI) co
 
 	for (int32 i = 0; i < RuntimeNode->CapsuleLimits.Num(); i++)
 	{
-		DrawCapsule(RuntimeNode->CapsuleLimits[i], i, GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy());
+		DrawCapsule(RuntimeNode->CapsuleLimits[i], i, GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy(),
+		            true);
 	}
 
 	for (int32 i = 0; i < RuntimeNode->CapsuleLimitsData.Num(); i++)
@@ -272,7 +272,7 @@ void FKawaiiPhysicsEditMode::RenderCapsuleLimit(FPrimitiveDrawInterface* PDI) co
 		if (RuntimeNode->CapsuleLimitsData[i].SourceType == ECollisionSourceType::DataAsset)
 		{
 			DrawCapsule(RuntimeNode->CapsuleLimitsData[i], i,
-			            GEngine->ConstraintLimitMaterialZ->GetRenderProxy());
+			            GEngine->ConstraintLimitMaterialZ->GetRenderProxy(), true);
 		}
 		else
 		{
@@ -500,9 +500,11 @@ bool FKawaiiPhysicsEditMode::HandleClick(FEditorViewportClient* InViewportClient
 		SelectCollisionSourceType = KawaiiPhysicsHitProxy->SourceType;
 		bResult = true;
 	}
-
-	SelectCollisionType = ECollisionLimitType::None;
-	SelectCollisionIndex = -1;
+	else
+	{
+		SelectCollisionType = ECollisionLimitType::None;
+		SelectCollisionIndex = -1;
+	}
 
 	return bResult;
 }
