@@ -112,6 +112,14 @@ MIT
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
+- 2024/8/16 v1.17.0　[詳細はこちら](https://github.com/pafuhana1213/KawaiiPhysics/discussions/137)
+  - Additional RootBones
+  - Box Limit
+  - PhysicsAsset for Limits
+  - AnimNotify / AnimNotifyState for NewExternalForce
+  - BP nodes for NewExternalForce
+  - NewExternalForce Wind
+  - Export BoneConstraint DataAsset
 - 2024/7/19 v1.16.0　[詳細はこちら](https://github.com/pafuhana1213/KawaiiPhysics/discussions/128)
   - New External Force
   - 詳細パネルの整理・機能追加
