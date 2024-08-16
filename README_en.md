@@ -110,7 +110,7 @@ MIT
   - BP nodes for NewExternalForce
   - NewExternalForce Wind
   - Export BoneConstraint DataAsset
-- 2024/2/8 v1.16.0 [Details Here](https://github.com/pafuhana1213/KawaiiPhysics/discussions/128)
+- 2024/7/19 v1.16.0 [Details Here](https://github.com/pafuhana1213/KawaiiPhysics/discussions/128)
   - New External Force
   - Organized and added functions to the Details Panel
   - Added console variables for debugging at the level
