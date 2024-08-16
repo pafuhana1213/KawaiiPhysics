@@ -102,6 +102,14 @@ MIT
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## History
+- 2024/8/16 v1.17.0　[Details Here](https://github.com/pafuhana1213/KawaiiPhysics/discussions/137)
+  - Additional RootBones
+  - Box Limit
+  - PhysicsAsset for Limits
+  - AnimNotify / AnimNotifyState for NewExternalForce
+  - BP nodes for NewExternalForce
+  - NewExternalForce Wind
+  - Export BoneConstraint DataAsset
 - 2024/2/8 v1.16.0 [Details Here](https://github.com/pafuhana1213/KawaiiPhysics/discussions/128)
   - New External Force
   - Organized and added functions to the Details Panel
