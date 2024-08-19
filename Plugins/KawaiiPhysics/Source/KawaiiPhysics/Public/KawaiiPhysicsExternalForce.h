@@ -109,7 +109,7 @@ protected:
 	FTransform ComponentTransform;
 
 	/** Whether the force space can be selected */
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
 	bool bCanSelectForceSpace = true;
 
 public:

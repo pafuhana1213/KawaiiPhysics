@@ -110,7 +110,7 @@ struct FCollisionLimitBase
 	bool bEnable = true;
 
 	/** Source type of the collision limit */
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY(VisibleAnywhere, Category = CollisionLimitBase)
 	ECollisionSourceType SourceType = ECollisionSourceType::AnimNode;
 
 #if WITH_EDITORONLY_DATA
