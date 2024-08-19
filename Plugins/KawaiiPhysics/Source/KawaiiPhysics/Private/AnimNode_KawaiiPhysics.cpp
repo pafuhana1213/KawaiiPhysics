@@ -78,6 +78,10 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 			Force.Initialize(Context);
 		}
 	}
+
+#if WITH_EDITORONLY_DATA
+	LastEvaluatedTime = FPlatformTime::Seconds();
+#endif
 }
 
 void FAnimNode_KawaiiPhysics::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
@@ -290,6 +294,10 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 
 	AnimDrawDebug(Output);
 
+#endif
+
+#if WITH_EDITORONLY_DATA
+	LastEvaluatedTime = FPlatformTime::Seconds();
 #endif
 }
 

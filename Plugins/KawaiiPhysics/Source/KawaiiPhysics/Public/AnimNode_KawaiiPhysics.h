@@ -950,6 +950,10 @@ protected:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	bool bEditing = false;
+
+	UPROPERTY()
+	double LastEvaluatedTime;
+
 #endif
 
 	/**
@@ -991,6 +995,14 @@ public:
 	virtual bool HasPreUpdate() const override;
 	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
 	// End of FAnimNode_SkeletalControlBase interface
+
+#if WITH_EDITORONLY_DATA
+
+	bool IsRecentlyEvaluated() const
+	{
+		return (FPlatformTime::Seconds() - LastEvaluatedTime) < 0.1;
+	}
+#endif
 
 protected:
 	/**
