@@ -92,6 +92,10 @@ void FAnimNode_KawaiiPhysics::CacheBones_AnyThread(const FAnimationCacheBonesCon
 void FAnimNode_KawaiiPhysics::ResetDynamics(ETeleportType InTeleportType)
 {
 	bResetDynamics |= (ETeleportType::ResetPhysics == InTeleportType);
+	if (bUseWarmUpWhenResetDynamics)
+	{
+		bNeedWarmUp = true;
+	}
 }
 
 void FAnimNode_KawaiiPhysics::UpdateInternal(const FAnimationUpdateContext& Context)

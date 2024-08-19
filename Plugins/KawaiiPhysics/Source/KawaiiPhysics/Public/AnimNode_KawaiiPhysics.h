@@ -612,6 +612,14 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings",
 		meta = (PinHiddenByDefault, EditCondition="bNeedWarmUp", ClampMin = "0"))
 	int32 WarmUpFrames = 0;
+	/** 
+	* ResetDynamics時に物理の空回しを行うフラグ
+	* Flags to use warmup physics when ResetDynamics
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings",
+		meta = (PinHiddenByDefault, EditCondition="bNeedWarmUp"))
+	bool bUseWarmUpWhenResetDynamics = true;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings",
 		meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	bool bNeedWarmUp = false;
