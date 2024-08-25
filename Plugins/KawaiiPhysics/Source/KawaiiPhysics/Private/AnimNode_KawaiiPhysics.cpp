@@ -493,7 +493,7 @@ void FAnimNode_KawaiiPhysics::ApplyPhysicsAsset(const FBoneContainer& RequiredBo
 
 	if (PhysicsAssetForLimits)
 	{
-		for (auto BodySetup : PhysicsAssetForLimits->SkeletalBodySetups)
+		for (const auto& BodySetup : PhysicsAssetForLimits->SkeletalBodySetups)
 		{
 			FBoneReference DrivingBone = BodySetup->BoneName;
 			DrivingBone.Initialize(RequiredBones);
