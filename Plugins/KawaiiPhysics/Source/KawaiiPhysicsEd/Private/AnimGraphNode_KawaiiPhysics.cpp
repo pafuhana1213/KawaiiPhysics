@@ -6,7 +6,9 @@
 #include "DetailWidgetRow.h"
 #include "KawaiiPhysicsBoneConstraintsDataAsset.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
+#include "NotificationManager.h"
 #include "Selection.h"
+#include "SNotificationList.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Dialogs/DlgPickAssetPath.h"
 #include "Kismet2/CompilerResultsLog.h"
@@ -543,6 +545,22 @@ UPackage* UAnimGraphNode_KawaiiPhysics::CreateDataAssetPackage(const FString& Di
 	return CreatePackage(*PackagePath);
 }
 
+void UAnimGraphNode_KawaiiPhysics::ShowExportAssetNotification(UObject* NewAsset,
+                                                               FText NotificationText)
+{
+	FNotificationInfo NotificationInfo(NotificationText);
+	NotificationInfo.ExpireDuration = 5.0f;
+	NotificationInfo.Hyperlink = FSimpleDelegate::CreateLambda([NewAsset]()
+	{
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewAsset);
+	});
+	NotificationInfo.HyperlinkText = LOCTEXT("OpenCreatedAsset", "Open Created Asset");
+
+	TSharedPtr<SNotificationItem> NotificationItem = FSlateNotificationManager::Get().AddNotification(
+		NotificationInfo);
+	NotificationItem->SetCompletionState(SNotificationItem::CS_Success);
+}
+
 void UAnimGraphNode_KawaiiPhysics::ExportLimitsDataAsset()
 {
 	FString AssetName;
@@ -588,6 +606,11 @@ void UAnimGraphNode_KawaiiPhysics::ExportLimitsDataAsset()
 
 		FAssetRegistryModule::AssetCreated(NewDataAsset);
 		Package->MarkPackageDirty();
+
+		// Add Notification
+		FText NotificationText = FText::Format(
+			LOCTEXT("ExportedLimitsDataAsset", "Exposted Limits Data Asset: {0}"), FText::FromString(AssetName));
+		ShowExportAssetNotification(NewDataAsset, NotificationText);
 	}
 }
 
@@ -631,6 +654,12 @@ void UAnimGraphNode_KawaiiPhysics::ExportBoneConstraintsDataAsset()
 
 		FAssetRegistryModule::AssetCreated(NewDataAsset);
 		Package->MarkPackageDirty();
+
+		// Add Notification
+		FText NotificationText = FText::Format(
+			LOCTEXT("ExportedBoneConstraintsDataAsset", "Exposted BoneConstraints Data Asset: {0}"),
+			FText::FromString(AssetName));
+		ShowExportAssetNotification(NewDataAsset, NotificationText);
 	}
 }
 

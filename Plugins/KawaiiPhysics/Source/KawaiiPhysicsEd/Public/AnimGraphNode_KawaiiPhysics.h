@@ -50,8 +50,11 @@ private:
 
 	/** Creates the data asset package. */
 	UPackage* CreateDataAssetPackage(const FString& DialogTitle, const FString& DefaultSuffix,
-									 FString& AssetName) const;
-	
+	                                 FString& AssetName) const;
+
+	/** Shows the export asset notification. */
+	void ShowExportAssetNotification(UObject* NewAsset, FText NotificationText);
+
 	/** Exports the limits data asset. */
 	void ExportLimitsDataAsset();
 
