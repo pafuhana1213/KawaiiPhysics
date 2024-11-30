@@ -960,7 +960,7 @@ protected:
 	bool bEditing = false;
 
 	UPROPERTY()
-	double LastEvaluatedTime;
+	double LastEvaluatedTime = 0.0;
 
 #endif
 
