@@ -34,7 +34,7 @@ struct FCollisionLimitDataBase
 	UPROPERTY(meta=(DeprecatedProperty))
 	FQuat Rotation = FQuat::Identity;
 
-	UPROPERTY(meta=(DeprecatedProperty))
+	UPROPERTY(meta=(DeprecatedProperty, IgnoreForMemberInitializationTest))
 	FGuid Guid = FGuid::NewGuid();
 
 protected:
