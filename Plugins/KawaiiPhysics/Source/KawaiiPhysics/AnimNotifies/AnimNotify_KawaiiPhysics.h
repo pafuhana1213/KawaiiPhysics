@@ -1,8 +1,13 @@
 ﻿#pragma once
 
+#include "Misc/EngineVersionComparison.h"
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "InstancedStruct.h"
+#if UE_VERSION_NEWER_THAN(5, 5, 0)
+	#include "StructUtils/InstancedStruct.h"
+#else
+	#include "InstancedStruct.h"
+#endif
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "AnimNotify_KawaiiPhysics.generated.h"
 

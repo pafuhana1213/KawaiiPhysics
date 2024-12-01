@@ -1,10 +1,15 @@
 #pragma once
 
+#include "Misc/EngineVersionComparison.h"
 #include "CoreMinimal.h"
 #include "BoneContainer.h"
 #include "BonePose.h"
 #include "GameplayTagContainer.h"
-#include "InstancedStruct.h"
+#if UE_VERSION_NEWER_THAN(5, 5, 0)
+	#include "StructUtils/InstancedStruct.h"
+#else
+	#include "InstancedStruct.h"
+#endif
 #include "BoneControllers/AnimNode_AnimDynamics.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "AnimNode_KawaiiPhysics.generated.h"

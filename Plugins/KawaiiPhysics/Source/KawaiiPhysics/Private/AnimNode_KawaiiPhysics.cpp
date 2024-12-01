@@ -11,6 +11,10 @@
 #include "SceneInterface.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 
+#if	ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 5
+	#include "PhysicsEngine/SkeletalBodySetup.h"
+#endif
+
 #if WITH_EDITOR
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
