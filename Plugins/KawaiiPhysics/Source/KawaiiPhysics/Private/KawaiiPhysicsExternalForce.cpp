@@ -1,5 +1,6 @@
 ﻿#include "KawaiiPhysicsExternalForce.h"
 
+#include "SceneInterface.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 

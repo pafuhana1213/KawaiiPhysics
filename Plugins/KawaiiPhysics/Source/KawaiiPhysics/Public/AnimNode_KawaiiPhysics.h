@@ -4,9 +4,16 @@
 #include "BoneContainer.h"
 #include "BonePose.h"
 #include "GameplayTagContainer.h"
-#include "InstancedStruct.h"
+
 #include "BoneControllers/AnimNode_AnimDynamics.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
+
+#if	ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 5
+#include "StructUtils/InstancedStruct.h"
+#else
+#include "InstancedStruct.h"  
+#endif
+
 #include "AnimNode_KawaiiPhysics.generated.h"
 
 class UKawaiiPhysics_CustomExternalForce;

@@ -29,10 +29,16 @@ public class KawaiiPhysics : ModuleRules
 			{
 				"Core",
 				// ... add other public dependencies that you statically link with here ...
-				"AnimGraphRuntime", "StructUtils", "GameplayTags"
+				"AnimGraphRuntime",
+				"GameplayTags"
 			}
 		);
-
+		
+		// StructUtils plugin has been integrated into the engine starting from 5.5
+		if (Target.Version.MajorVersion == 5 && Target.Version.MinorVersion <= 4)
+		{
+			PublicDependencyModuleNames.Add("StructUtils");
+		}
 
 		PrivateDependencyModuleNames.AddRange(
 			new[]
