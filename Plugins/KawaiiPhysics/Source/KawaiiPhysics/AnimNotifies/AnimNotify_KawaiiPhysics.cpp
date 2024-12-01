@@ -1,4 +1,6 @@
-﻿#include "AnimNotify_KawaiiPhysics.h"
+﻿// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
+
+#include "AnimNotify_KawaiiPhysics.h"
 #include "KawaiiPhysicsLibrary.h"
 #include "Misc/UObjectToken.h"
 #include "Logging/MessageLog.h"
