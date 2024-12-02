@@ -1,17 +1,21 @@
+// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
+
 #pragma once
 
-#include "Misc/EngineVersionComparison.h"
 #include "CoreMinimal.h"
 #include "BoneContainer.h"
 #include "BonePose.h"
 #include "GameplayTagContainer.h"
-#if UE_VERSION_NEWER_THAN(5, 5, 0)
-	#include "StructUtils/InstancedStruct.h"
-#else
-	#include "InstancedStruct.h"
-#endif
+
 #include "BoneControllers/AnimNode_AnimDynamics.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
+
+#if	ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 5
+#include "StructUtils/InstancedStruct.h"
+#else
+#include "InstancedStruct.h"  
+#endif
+
 #include "AnimNode_KawaiiPhysics.generated.h"
 
 class UKawaiiPhysics_CustomExternalForce;

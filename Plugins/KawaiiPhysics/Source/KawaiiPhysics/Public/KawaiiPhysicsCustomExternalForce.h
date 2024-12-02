@@ -1,4 +1,6 @@
-﻿#pragma once
+﻿// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
+
+#pragma once
 #include "AnimNode_KawaiiPhysics.h"
 #include "Curves/CurveVector.h"
 #include "KawaiiPhysicsCustomExternalForce.generated.h"

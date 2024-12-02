@@ -1,4 +1,6 @@
-﻿#include "AnimNode_KawaiiPhysics.h"
+﻿// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
+
+#include "AnimNode_KawaiiPhysics.h"
 
 #include "AnimationRuntime.h"
 #include "KawaiiPhysicsBoneConstraintsDataAsset.h"
@@ -11,8 +13,8 @@
 #include "SceneInterface.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 
-#if	ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 5
-	#include "PhysicsEngine/SkeletalBodySetup.h"
+#if ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 5
+#include "PhysicsEngine/SkeletalBodySetup.h"
 #endif
 
 #if WITH_EDITOR

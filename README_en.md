@@ -47,7 +47,7 @@ Character used: Mirai Komachi [Mirai Komachi](https://www.bandainamcostudios.com
 [Next Generation Idolmaster Graphics & Animation Programming Preview](https://cedil.cesa.or.jp/cedil_sessions/view/416)
 
 ## Operating Environment
-- UE5.2 ~ 5.4  
+- UE5.3 ~ 5.5  
 [KawaiiPhysics Releases](https://github.com/pafuhana1213/KawaiiPhysics/releases/)
 - UE4.27  
 [KawaiiPhysics Release for UE4.27](https://github.com/pafuhana1213/KawaiiPhysics/releases/tag/20230830-v1.11.1)
@@ -102,6 +102,9 @@ MIT
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## History
+- 2024/12/1 v1.18.0　[Details Here](https://github.com/pafuhana1213/KawaiiPhysics/discussions/150)
+  - UE5.5 support
+  - fix any issues
 - 2024/8/16 v1.17.0　[Details Here](https://github.com/pafuhana1213/KawaiiPhysics/discussions/137)
   - Additional RootBones
   - Box Limit

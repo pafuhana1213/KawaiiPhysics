@@ -1,16 +1,17 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+﻿// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
 
 #pragma once
 
-#include "Misc/EngineVersionComparison.h"
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#if UE_VERSION_NEWER_THAN(5, 5, 0)
-	#include "StructUtils/InstancedStruct.h"
-#else
-	#include "InstancedStruct.h"
-#endif
 #include "Animation/AnimNotifies/AnimNotifyState.h"
+
+#if	ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 5
+#include "StructUtils/InstancedStruct.h"
+#else
+#include "InstancedStruct.h"
+#endif
+
 #include "AnimNotifyState_KawaiiPhysics.generated.h"
 
 /**

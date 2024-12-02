@@ -1,13 +1,18 @@
+// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
+
 #include "AnimGraphNode_KawaiiPhysics.h"
 
+#include "Subsystems/AssetEditorSubsystem.h"
 #include "AssetToolsModule.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "KawaiiPhysicsBoneConstraintsDataAsset.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
+#include "Widgets/Input/SButton.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Selection.h"
+#include "Widgets/Text/STextBlock.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Dialogs/DlgPickAssetPath.h"

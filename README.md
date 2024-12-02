@@ -54,7 +54,7 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 [次期アイドルマスター グラフィクス＆アニメーション プログラミング プレビュー](https://cedil.cesa.or.jp/cedil_sessions/view/416)
 
 ## 動作環境
-- UE5.2 ~ 5.4  
+- UE5.3 ~ 5.5  
 https://github.com/pafuhana1213/KawaiiPhysics/releases/  
   
 - UE4.27  
@@ -113,6 +113,9 @@ MIT
 [#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)
 
 ## 履歴
+- 2024/12/1 v1.18.0 [詳細はこちら](https://github.com/pafuhana1213/KawaiiPhysics/discussions/150)
+  - UE5.5 support
+  - Fix any issues
 - 2024/8/16 v1.17.0　[詳細はこちら](https://github.com/pafuhana1213/KawaiiPhysics/discussions/137)
   - Additional RootBones
   - Box Limit
