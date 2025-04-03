@@ -244,7 +244,19 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	}
 
 #endif
-
+	if(bUseCustomBoneWorldSpace2Simulate && BoneSpaceRefrence.IsValidToEvaluate(BoneContainer))
+	{
+		const FCompactPoseBoneIndex CompactPoseIndex = BoneSpaceRefrence.GetCompactPoseIndex(BoneContainer);
+		FTransform BoneTransform = Output.Pose.GetComponentSpaceTransform(CompactPoseIndex);
+		CustomBoneSpace2ComponentSpace = BoneTransform;
+		ComponentSpace2CustomBoneSpace = BoneTransform.Inverse();
+	}
+	else
+	{
+		CustomBoneSpace2ComponentSpace = FTransform::Identity;
+		ComponentSpace2CustomBoneSpace = FTransform::Identity;
+	}
+	
 	if (!RootBone.IsValidToEvaluate(BoneContainer))
 	{
 		return;
@@ -261,7 +273,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	{
 		InitModifyBones(Output, BoneContainer);
 		InitBoneConstraints();
-		PreSkelCompTransform = ComponentTransform;
+		PreSkelCompTransform = ComponentTransform * CustomBoneSpace2ComponentSpace;
 	}
 
 	// Update each parameters and collision
@@ -379,7 +391,7 @@ void FAnimNode_KawaiiPhysics::InitializeBoneReferences(const FBoneContainer& Req
 	{
 		Bone.BoneRef.Initialize(RequiredBones);
 	}
-
+	BoneSpaceRefrence.Initialize(RequiredBones);
 	Initialize(SphericalLimits);
 	Initialize(CapsuleLimits);
 	Initialize(BoxLimits);
@@ -587,12 +599,13 @@ int32 FAnimNode_KawaiiPhysics::AddModifyBone(TArray<FKawaiiPhysicsModifyBone>& I
 	}
 
 	auto& RefBonePoseTransform = Output.Pose.GetComponentSpaceTransform(NewModifyBone.BoneRef.CachedCompactPoseIndex);
-	NewModifyBone.Location = RefBonePoseTransform.GetLocation();
+	FTransform BoneTransform = RefBonePoseTransform * ComponentSpace2CustomBoneSpace;
+	NewModifyBone.Location = BoneTransform.GetLocation();
 	NewModifyBone.PrevLocation = NewModifyBone.Location;
 	NewModifyBone.PoseLocation = NewModifyBone.Location;
-	NewModifyBone.PrevRotation = RefBonePoseTransform.GetRotation();
+	NewModifyBone.PrevRotation = BoneTransform.GetRotation();
 	NewModifyBone.PoseRotation = NewModifyBone.PrevRotation;
-	NewModifyBone.PoseScale = RefBonePoseTransform.GetScale3D();
+	NewModifyBone.PoseScale = BoneTransform.GetScale3D();
 
 	int32 ModifyBoneIndex = InModifyBones.Add(NewModifyBone);
 	InModifyBones[ModifyBoneIndex].Index = ModifyBoneIndex;
@@ -628,7 +641,7 @@ int32 FAnimNode_KawaiiPhysics::AddModifyBone(TArray<FKawaiiPhysicsModifyBone>& I
 		DummyModifyBone.PoseLocation = DummyModifyBone.Location;
 		DummyModifyBone.PrevRotation = NewModifyBone.PrevRotation;
 		DummyModifyBone.PoseRotation = DummyModifyBone.PrevRotation;
-		DummyModifyBone.PoseScale = RefBonePoseTransform.GetScale3D();
+		DummyModifyBone.PoseScale = BoneTransform.GetScale3D();
 
 		int32 DummyBoneIndex = InModifyBones.Add(DummyModifyBone);
 		InModifyBones[ModifyBoneIndex].ChildIndices.Add(DummyBoneIndex);
@@ -769,6 +782,7 @@ void FAnimNode_KawaiiPhysics::UpdateSphericalLimits(TArray<FSphericalLimit>& Lim
 
 			FAnimationRuntime::ConvertBoneSpaceTransformToCS(ComponentTransform, Output.Pose, BoneTransform,
 			                                                 CompactPoseIndex, BCS_BoneSpace);
+			BoneTransform = BoneTransform * ComponentSpace2CustomBoneSpace;
 			Sphere.Location = BoneTransform.GetLocation();
 			Sphere.Rotation = BoneTransform.GetRotation();
 
@@ -801,6 +815,7 @@ void FAnimNode_KawaiiPhysics::UpdateCapsuleLimits(TArray<FCapsuleLimit>& Limits,
 
 			FAnimationRuntime::ConvertBoneSpaceTransformToCS(ComponentTransform, Output.Pose, BoneTransform,
 			                                                 CompactPoseIndex, BCS_BoneSpace);
+			BoneTransform = BoneTransform * ComponentSpace2CustomBoneSpace;
 			Capsule.Location = BoneTransform.GetLocation();
 			Capsule.Rotation = BoneTransform.GetRotation();
 
@@ -833,6 +848,7 @@ void FAnimNode_KawaiiPhysics::UpdateBoxLimits(TArray<FBoxLimit>& Limits, FCompon
 
 			FAnimationRuntime::ConvertBoneSpaceTransformToCS(ComponentTransform, Output.Pose, BoneTransform,
 			                                                 CompactPoseIndex, BCS_BoneSpace);
+			BoneTransform = BoneTransform * ComponentSpace2CustomBoneSpace;
 			Box.Location = BoneTransform.GetLocation();
 			Box.Rotation = BoneTransform.GetRotation();
 
@@ -865,6 +881,7 @@ void FAnimNode_KawaiiPhysics::UpdatePlanerLimits(TArray<FPlanarLimit>& Limits, F
 
 			FAnimationRuntime::ConvertBoneSpaceTransformToCS(ComponentTransform, Output.Pose, BoneTransform,
 			                                                 CompactPoseIndex, BCS_BoneSpace);
+			BoneTransform = BoneTransform * ComponentSpace2CustomBoneSpace;
 			Planar.Location = BoneTransform.GetLocation();
 			Planar.Rotation = BoneTransform.GetRotation();
 			Planar.Rotation.Normalize();
@@ -892,7 +909,7 @@ void FAnimNode_KawaiiPhysics::UpdateModifyBonesPoseTransform(FComponentSpacePose
 	{
 		if (!Bone.bDummy)
 		{
-			Bone.UpdatePoseTransform(BoneContainer, Output.Pose, ResetBoneTransformWhenBoneNotFound);
+			Bone.UpdatePoseTransform(BoneContainer, Output.Pose, ResetBoneTransformWhenBoneNotFound, bUseCustomBoneWorldSpace2Simulate, ComponentSpace2CustomBoneSpace);
 		}
 		else
 		{
@@ -907,20 +924,20 @@ void FAnimNode_KawaiiPhysics::UpdateModifyBonesPoseTransform(FComponentSpacePose
 
 void FAnimNode_KawaiiPhysics::UpdateSkelCompMove(const FTransform& ComponentTransform)
 {
-	SkelCompMoveVector = ComponentTransform.InverseTransformPosition(PreSkelCompTransform.GetLocation());
+	SkelCompMoveVector = (ComponentTransform * CustomBoneSpace2ComponentSpace).InverseTransformPosition(PreSkelCompTransform.GetLocation());
 	if (SkelCompMoveVector.SizeSquared() > TeleportDistanceThreshold * TeleportDistanceThreshold)
 	{
 		SkelCompMoveVector = FVector::ZeroVector;
 	}
 
-	SkelCompMoveRotation = ComponentTransform.InverseTransformRotation(PreSkelCompTransform.GetRotation());
+	SkelCompMoveRotation = (ComponentTransform * CustomBoneSpace2ComponentSpace).InverseTransformRotation(PreSkelCompTransform.GetRotation());
 	if (TeleportRotationThreshold >= 0 && FMath::RadiansToDegrees(SkelCompMoveRotation.GetAngle()) >
 		TeleportRotationThreshold)
 	{
 		SkelCompMoveRotation = FQuat::Identity;
 	}
 
-	PreSkelCompTransform = ComponentTransform;
+	PreSkelCompTransform = ComponentTransform * CustomBoneSpace2ComponentSpace;
 }
 
 void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Output,
@@ -975,7 +992,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 
 	// Simulate
 	const float Exponent = TargetFramerate * DeltaTime;
-	const FVector GravityCS = ComponentTransform.InverseTransformVector(Gravity);
+	const FVector GravityCS = (ComponentTransform * CustomBoneSpace2ComponentSpace).InverseTransformVector(Gravity);
 	const UWorld* World = SkelComp ? SkelComp->GetWorld() : nullptr;
 	const FSceneInterface* Scene = World ? World->Scene : nullptr;
 	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
@@ -1157,7 +1174,7 @@ FVector FAnimNode_KawaiiPhysics::GetWindVelocity(const FSceneInterface* Scene, c
 	float WindSpeed = 0.0f;
 	float WindMinGust = 0.0f;
 	float WindMaxGust = 0.0f;
-
+	
 	Scene->GetWindParameters_GameThread(ComponentTransform.TransformPosition(Bone.PoseLocation), WindDirection,
 	                                    WindSpeed, WindMinGust, WindMaxGust);
 	WindDirection = ComponentTransform.Inverse().TransformVector(WindDirection);
@@ -1623,10 +1640,18 @@ void FAnimNode_KawaiiPhysics::ApplySimulateResult(FComponentSpacePoseContext& Ou
 				ParentBone.PrevRotation = SimulateRotation;
 			}
 		}
-
+		
 		if (Bone.BoneRef.BoneIndex >= 0 && !Bone.bDummy)
 		{
 			OutBoneTransforms[i].Transform.SetLocation(Bone.Location);
+		}
+	}
+
+	if(bUseCustomBoneWorldSpace2Simulate)
+	{
+		for (int32 i = 0; i < OutBoneTransforms.Num(); ++i)
+		{
+			OutBoneTransforms[i].Transform = OutBoneTransforms[i].Transform * CustomBoneSpace2ComponentSpace;
 		}
 	}
 
