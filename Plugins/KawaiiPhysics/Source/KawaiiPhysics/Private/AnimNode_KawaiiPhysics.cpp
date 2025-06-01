@@ -359,6 +359,21 @@ void FAnimNode_KawaiiPhysics::PreUpdate(const UAnimInstance* InAnimInstance)
 #endif
 }
 
+const FVector& FAnimNode_KawaiiPhysics::GetSkelCompMoveVector() const
+{
+	return this->SkelCompMoveVector;
+}
+
+const FQuat& FAnimNode_KawaiiPhysics::GetSkelCompMoveRotation() const
+{
+	return this->SkelCompMoveRotation;
+}
+
+float FAnimNode_KawaiiPhysics::GetDeltaTimeOld() const
+{
+	return this->DeltaTimeOld;
+}
+
 void FAnimNode_KawaiiPhysics::InitializeBoneReferences(const FBoneContainer& RequiredBones)
 {
 	auto Initialize = [&RequiredBones](auto& Targets)
@@ -908,6 +923,7 @@ void FAnimNode_KawaiiPhysics::UpdateModifyBonesPoseTransform(FComponentSpacePose
 void FAnimNode_KawaiiPhysics::UpdateSkelCompMove(const FTransform& ComponentTransform)
 {
 	SkelCompMoveVector = ComponentTransform.InverseTransformPosition(PreSkelCompTransform.GetLocation());
+	SkelCompMoveVector = SkelCompMoveVector * SkeletalComponentMoveScale + SkeletalComponentFixedMoveOffset;
 	if (SkelCompMoveVector.SizeSquared() > TeleportDistanceThreshold * TeleportDistanceThreshold)
 	{
 		SkelCompMoveVector = FVector::ZeroVector;

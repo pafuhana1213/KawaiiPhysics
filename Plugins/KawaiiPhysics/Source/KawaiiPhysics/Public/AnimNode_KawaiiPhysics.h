@@ -903,6 +903,24 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 		meta=(DisplayName="CustomExternalForces(EXPERIMENTAL)"))
 	TArray<TObjectPtr<UKawaiiPhysics_CustomExternalForce>> CustomExternalForces;
 
+	/**
+	 * 移動ベクトルを計算するときに適用するスケルトン コンポーネントの移動スケール。
+	 * 
+	 * The skeletal component move scale to apply when calculate the move vector.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce",
+		meta = (PinHiddenByDefault))
+	FVector SkeletalComponentMoveScale = FVector::One();
+
+	/**
+	 * 移動ベクトルをスケーリングした後に適用されるボーン コンポーネントの固定移動オフセット。
+	 * 
+	 * The fixed skeletal component move offset to apply after the scaled the move vector.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce",
+		meta = (PinHiddenByDefault))
+	FVector SkeletalComponentFixedMoveOffset = FVector::ZeroVector;
+
 	/** 
 	* レベル上の各コリジョンとの判定を行うフラグ。有効にすると物理処理の負荷が大幅に上がります
 	* Flag for collision detection with each collision on the level. Enabling this will significantly increase the load of physics processing.
@@ -1020,6 +1038,27 @@ public:
 		return (FPlatformTime::Seconds() - LastEvaluatedTime) < 0.1;
 	}
 #endif
+
+	/**
+	 * Gets the vector representing the movement of the skeletal component.
+	 *
+	 * @return The vector representing the movement of the skeletal component.
+	 */
+	const FVector& GetSkelCompMoveVector() const;
+
+	/**
+	 * Gets the quaternion representing the rotation of the skeletal component.
+	 *
+	 * @return The quaternion representing the rotation of the skeletal component.
+	 */
+	const FQuat& GetSkelCompMoveRotation() const;
+
+	/**
+	 * Gets the delta time from the previous frame.
+	 *
+	 * @return The delta time from the previous frame.
+	 */
+	float GetDeltaTimeOld() const;
 
 protected:
 	/**
