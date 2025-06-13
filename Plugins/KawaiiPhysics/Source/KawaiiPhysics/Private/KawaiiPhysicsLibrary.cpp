@@ -2,6 +2,9 @@
 
 #include "KawaiiPhysicsLibrary.h"
 
+#if ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 6
+#include "Animation/AnimInstance.h"
+#endif
 #include "AnimNode_KawaiiPhysics.h"
 #include "BlueprintGameplayTagLibrary.h"
 #include "KawaiiPhysicsExternalForce.h"
