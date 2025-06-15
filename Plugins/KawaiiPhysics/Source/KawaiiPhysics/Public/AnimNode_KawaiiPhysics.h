@@ -32,7 +32,7 @@ extern KAWAIIPHYSICS_API TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsDeb
 /**
  * Enum representing the planar constraint axis in KawaiiPhysics.
  */
-UENUM()
+UENUM(meta=(ScriptName = "KP_PlanarConstraint"))
 enum class EPlanarConstraint : uint8
 {
 	/** No planar constraint */
