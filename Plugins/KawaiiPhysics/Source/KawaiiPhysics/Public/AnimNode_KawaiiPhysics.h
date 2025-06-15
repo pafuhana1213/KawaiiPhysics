@@ -654,6 +654,22 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
 	EPlanarConstraint PlanarConstraint = EPlanarConstraint::None;
 
+	/**
+	* SkeletalMeshComponentの移動量を物理挙動に反映する際に適用されるスケール。
+	* Scale to apply when reflecting the movement of the SkeletalMeshComponent in physical behavior.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings",
+		meta = (PinHiddenByDefault))
+	FVector SkelCompMoveScale = FVector::One();
+
+	/**
+	 * SkeletalMeshComponentの移動量を物理挙動に反映する際に適用される固定オフセット
+	 * Offset applied when reflecting the movement of the SkeletalMeshComponent in physical behavior.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings",
+		meta = (PinHiddenByDefault))
+	FVector SkelCompFixedMoveOffset = FVector::ZeroVector;
+
 	/** 
  	* 各ボーンの物理パラメータを毎フレーム更新するフラグ。
  	* 無効にするとパフォーマンスが僅かに改善するが、実行中に物理パラメータを変更することが不可能に
@@ -902,24 +918,6 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Instanced, Category = "ExternalForce",
 		meta=(DisplayName="CustomExternalForces(EXPERIMENTAL)"))
 	TArray<TObjectPtr<UKawaiiPhysics_CustomExternalForce>> CustomExternalForces;
-
-	/**
-	 * 移動ベクトルを計算するときに適用するスケルトン コンポーネントの移動スケール。
-	 * 
-	 * The skeletal component move scale to apply when calculate the move vector.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce",
-		meta = (PinHiddenByDefault))
-	FVector SkeletalComponentMoveScale = FVector::One();
-
-	/**
-	 * 移動ベクトルをスケーリングした後に適用されるボーン コンポーネントの固定移動オフセット。
-	 * 
-	 * The fixed skeletal component move offset to apply after the scaled the move vector.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce",
-		meta = (PinHiddenByDefault))
-	FVector SkeletalComponentFixedMoveOffset = FVector::ZeroVector;
 
 	/** 
 	* レベル上の各コリジョンとの判定を行うフラグ。有効にすると物理処理の負荷が大幅に上がります
