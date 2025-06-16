@@ -13,6 +13,10 @@
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
+#if ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 6
+#include "SceneView.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "KawaiiPhysicsEditMode"
 DEFINE_LOG_CATEGORY(LogKawaiiPhysics);
 
