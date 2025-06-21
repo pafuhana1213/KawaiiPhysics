@@ -924,14 +924,15 @@ void FAnimNode_KawaiiPhysics::UpdateSkelCompMove(const FTransform& ComponentTran
 {
 	SkelCompMoveVector = ComponentTransform.InverseTransformPosition(PreSkelCompTransform.GetLocation());
 	SkelCompMoveVector = SkelCompMoveVector * SkelCompMoveScale + SkelCompFixedMoveOffset;
-	if (SkelCompMoveVector.SizeSquared() > TeleportDistanceThreshold * TeleportDistanceThreshold)
+	if (TeleportDistanceThreshold > 0 &&
+		SkelCompMoveVector.SizeSquared() > TeleportDistanceThreshold * TeleportDistanceThreshold)
 	{
 		SkelCompMoveVector = FVector::ZeroVector;
 	}
 
 	SkelCompMoveRotation = ComponentTransform.InverseTransformRotation(PreSkelCompTransform.GetRotation());
-	if (TeleportRotationThreshold >= 0 && FMath::RadiansToDegrees(SkelCompMoveRotation.GetAngle()) >
-		TeleportRotationThreshold)
+	if (TeleportRotationThreshold > 0 &&
+		FMath::RadiansToDegrees(SkelCompMoveRotation.GetAngle()) > TeleportRotationThreshold)
 	{
 		SkelCompMoveRotation = FQuat::Identity;
 	}
