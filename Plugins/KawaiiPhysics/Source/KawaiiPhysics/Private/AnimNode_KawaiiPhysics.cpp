@@ -17,6 +17,10 @@
 #include "PhysicsEngine/SkeletalBodySetup.h"
 #endif
 
+#if ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 6
+#include "Animation/AnimInstance.h"
+#endif
+
 #if WITH_EDITOR
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
