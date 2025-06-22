@@ -923,7 +923,7 @@ void FAnimNode_KawaiiPhysics::UpdateModifyBonesPoseTransform(FComponentSpacePose
 void FAnimNode_KawaiiPhysics::UpdateSkelCompMove(const FTransform& ComponentTransform)
 {
 	SkelCompMoveVector = ComponentTransform.InverseTransformPosition(PreSkelCompTransform.GetLocation());
-	SkelCompMoveVector = SkelCompMoveVector * SkelCompMoveScale + SkelCompFixedMoveOffset;
+	SkelCompMoveVector *= SkelCompMoveScale;
 	if (TeleportDistanceThreshold > 0 &&
 		SkelCompMoveVector.SizeSquared() > TeleportDistanceThreshold * TeleportDistanceThreshold)
 	{
