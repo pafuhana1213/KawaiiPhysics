@@ -874,9 +874,17 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* WindDirectionalSourceによる風の影響度。ClothやSpeedTreeとの併用目的
 	* Influence of wind by WindDirectionalSource. For use with Cloth and SpeedTree
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce", meta = (EditCondition = "bEnableWind"),
-		meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce",
+		meta = (EditCondition = "bEnableWind", PinHiddenByDefault))
 	float WindScale = 1.0f;
+
+	/** 
+    * WindDirectionalSourceによる風方向に与えるノイズ（角度）
+    * Noise(Degree) of wind by WindDirectionalSource. For use with Cloth and SpeedTree
+    */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce",
+		meta = (EditCondition = "bEnableWind", Units = "Degrees", ClampMin=0, PinHiddenByDefault))
+	float WindDirectionNoiseAngle = 0.0f;
 
 	/** 
 	* 外力のプリセット。C++で独自のプリセットを追加可能(Instanced Struct)
