@@ -680,19 +680,6 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 		meta = (PinHiddenByDefault))
 	bool ResetBoneTransformWhenBoneNotFound = false;
 
-	UPROPERTY()
-	UCurveFloat* DampingCurve_DEPRECATED = nullptr;
-	UPROPERTY()
-	UCurveFloat* WorldDampingLocationCurve_DEPRECATED = nullptr;
-	UPROPERTY()
-	UCurveFloat* WorldDampingRotationCurve_DEPRECATED = nullptr;
-	UPROPERTY()
-	UCurveFloat* StiffnessCurve_DEPRECATED = nullptr;
-	UPROPERTY()
-	UCurveFloat* RadiusCurve_DEPRECATED = nullptr;
-	UPROPERTY()
-	UCurveFloat* LimitAngleCurve_DEPRECATED = nullptr;
-
 	/** 
 	* 各ボーンに適用するPhysics Settings/ Damping パラメータを補正。
 	* 「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値を各パラメータに乗算
