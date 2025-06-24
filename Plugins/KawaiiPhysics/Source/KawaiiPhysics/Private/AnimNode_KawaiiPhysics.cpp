@@ -1170,6 +1170,11 @@ FVector FAnimNode_KawaiiPhysics::GetWindVelocity(const FSceneInterface* Scene, c
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_GetWindVelocity);
 
+	if (WindScale == 0.0f || !Scene)
+	{
+		return FVector::ZeroVector;
+	}
+
 	FVector WindDirection = FVector::ZeroVector;
 	float WindSpeed = 0.0f;
 	float WindMinGust = 0.0f;
@@ -1178,6 +1183,11 @@ FVector FAnimNode_KawaiiPhysics::GetWindVelocity(const FSceneInterface* Scene, c
 	Scene->GetWindParameters_GameThread(ComponentTransform.TransformPosition(Bone.PoseLocation), WindDirection,
 	                                    WindSpeed, WindMinGust, WindMaxGust);
 	WindDirection = ComponentTransform.Inverse().TransformVector(WindDirection);
+	if (WindDirectionNoiseAngle > 0)
+	{
+		WindDirection = FMath::VRandCone(WindDirection, FMath::DegreesToRadians(WindDirectionNoiseAngle));
+	}
+	
 	FVector WindVelocity = WindDirection * WindSpeed * WindScale;
 
 	// TODO:Migrate if there are more good method (Currently copying AnimDynamics implementation)
