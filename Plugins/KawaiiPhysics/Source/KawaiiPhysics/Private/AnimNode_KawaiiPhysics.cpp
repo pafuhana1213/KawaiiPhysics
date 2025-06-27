@@ -49,9 +49,6 @@ DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdateCapsuleLimit"), STAT_KawaiiPhysics_
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdateBoxLimit"), STAT_KawaiiPhysics_UpdateBoxLimit, STATGROUP_Anim);
 
 FAnimNode_KawaiiPhysics::FAnimNode_KawaiiPhysics()
-	: DeltaTime(0)
-	  , DeltaTimeOld(0)
-	  , bResetDynamics(false)
 {
 }
 
@@ -74,8 +71,6 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 	// For Avoiding Zero Divide in the first frame
 	DeltaTimeOld = 1.0f / TargetFramerate;
 
-	bResetDynamics = false;
-
 	for (int i = 0; i < ExternalForces.Num(); ++i)
 	{
 		if (ExternalForces[i].IsValid())
@@ -97,7 +92,7 @@ void FAnimNode_KawaiiPhysics::CacheBones_AnyThread(const FAnimationCacheBonesCon
 
 void FAnimNode_KawaiiPhysics::ResetDynamics(ETeleportType InTeleportType)
 {
-	bResetDynamics |= (ETeleportType::ResetPhysics == InTeleportType);
+	TeleportType = InTeleportType;
 	if (bUseWarmUpWhenResetDynamics)
 	{
 		bNeedWarmUp = true;
@@ -226,10 +221,10 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 
 	check(OutBoneTransforms.Num() == 0);
 
-	if (bResetDynamics)
+	if (TeleportType == ETeleportType::ResetPhysics)
 	{
 		ModifyBones.Empty(ModifyBones.Num());
-		bResetDynamics = false;
+		TeleportType = ETeleportType::None;
 		bInitPhysicsSettings = false;
 	}
 
@@ -303,8 +298,29 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		WarmUp(Output, BoneContainer, ComponentTransform);
 		bNeedWarmUp = false;
 	}
-	SimulateModifyBones(Output, ComponentTransform);
+
+	// SkipSimulate if Teleport in WorldSpace
+	if (SimulationSpace == ESimulationSpace::WorldSpace &&
+		TeleportType == ETeleportType::TeleportPhysics)
+	{
+		for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+		{
+			FVector PrevLocationCS = PreSkelCompTransform.InverseTransformPosition(Bone.PrevLocation);
+			Bone.Location = ConvertSimulationSpaceLocation(Output, ESimulationSpace::ComponentSpace,
+			                                               SimulationSpace, PrevLocationCS);
+			Bone.PrevLocation = Bone.Location;
+		}
+	}
+	else
+	{
+		SimulateModifyBones(Output, ComponentTransform);
+	}
+	
 	ApplySimulateResult(Output, BoneContainer, OutBoneTransforms);
+
+	DeltaTimeOld = DeltaTime;
+	TeleportType = ETeleportType::None;
+	PreSkelCompTransform = ComponentTransform;
 
 #if ENABLE_ANIM_DEBUG
 
@@ -981,16 +997,14 @@ void FAnimNode_KawaiiPhysics::UpdateSkelCompMove(FComponentSpacePoseContext& Out
 	if (TeleportDistanceThreshold > 0 &&
 		SkelCompMoveVector.SizeSquared() > TeleportDistanceThreshold * TeleportDistanceThreshold)
 	{
-		SkelCompMoveVector = FVector::ZeroVector;
+		TeleportType = ETeleportType::TeleportPhysics;
 	}
 
 	if (TeleportRotationThreshold > 0 &&
 		FMath::RadiansToDegrees(SkelCompMoveRotation.GetAngle()) > TeleportRotationThreshold)
 	{
-		SkelCompMoveRotation = FQuat::Identity;
+		TeleportType = ETeleportType::TeleportPhysics;
 	}
-	
-	PreSkelCompTransform = ComponentTransform;
 }
 
 void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Output,
@@ -1126,8 +1140,6 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		const float BoneLength = (Bone.PoseLocation - ParentBone.PoseLocation).Size();
 		Bone.Location = (Bone.Location - ParentBone.Location).GetSafeNormal() * BoneLength + ParentBone.Location;
 	}
-
-	DeltaTimeOld = DeltaTime;
 }
 
 void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSceneInterface* Scene,
@@ -1152,7 +1164,7 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 	Bone.Location += Velocity * DeltaTime;
 
 	// Follow World Movement
-	if (SimulationSpace != ESimulationSpace::WorldSpace)
+	if (SimulationSpace != ESimulationSpace::WorldSpace && TeleportType != ETeleportType::TeleportPhysics)
 	{
 		// Follow Translation
 		Bone.Location += SkelCompMoveVector * (1.0f - Bone.PhysicsSettings.WorldDampingLocation);

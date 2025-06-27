@@ -942,7 +942,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	TArray<FKawaiiPhysicsModifyBone> ModifyBones;
 
 	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics")
-	float DeltaTime;
+	float DeltaTime = 0.0f;
 
 protected:
 	UPROPERTY()
@@ -962,22 +962,22 @@ protected:
 	/**
 	 * Vector representing the movement of the skeletal component.
 	 */
-	FVector SkelCompMoveVector;
+	FVector SkelCompMoveVector = FVector::ZeroVector;
 
 	/**
 	 * Quaternion representing the rotation of the skeletal component.
 	 */
-	FQuat SkelCompMoveRotation;
+	FQuat SkelCompMoveRotation = FQuat::Identity;
 
 	/**
 	* Stores the delta time from the previous frame.
 	*/
-	float DeltaTimeOld;
+	float DeltaTimeOld = 0.0f;
 
 	/**
-	 * Flag indicating whether to reset the dynamics.
+	 * Flag indicating whether to reset or skip the dynamics.
 	 */
-	bool bResetDynamics;
+	ETeleportType TeleportType = ETeleportType::None;
 
 	/**
 	 * Flag indicating whether to reset the dynamics.
@@ -986,9 +986,11 @@ protected:
 
 private:
 	/**
-	 * 
+	 *	 The last simulation space used for the physics simulation.
 	 */
 	ESimulationSpace LastSimulationSpace = ESimulationSpace::ComponentSpace;
+
+	
 
 public:
 	FAnimNode_KawaiiPhysics();
@@ -1334,43 +1336,21 @@ private:
 	FTransform GetBoneTransformInSimSpace(FComponentSpacePoseContext& Output,
 	                                      const FCompactPoseBoneIndex& BoneIndex) const;
 
-	// // Given a transform in simulation space, convert it back to component space
-	// FTransform GetComponentSpaceTransformFromSimSpace(ESimulationSpace SimSpace, FComponentSpacePoseContext& Output,
-	//                                                   const FTransform& InSimTransform) const;
-	// FTransform GetComponentSpaceTransformFromSimSpace(ESimulationSpace SimSpace, FComponentSpacePoseContext& Output,
-	//                                                   const FTransform& InSimTransform,
-	//                                                   const FTransform& InCompWorldSpaceTM) const;
-	//
+	// Convert a transform from one simulation space to another
 	FTransform ConvertSimulationSpaceTransform(const FComponentSpacePoseContext& Output, ESimulationSpace From,
 	                                           ESimulationSpace To, const FTransform& InTransform) const;
+
+	// Convert a vector from one simulation space to another
 	FVector ConvertSimulationSpaceVector(const FComponentSpacePoseContext& Output, ESimulationSpace From,
 	                                     ESimulationSpace To, const FVector& InVector) const;
+
+	// Convert a location from one simulation space to another
 	FVector ConvertSimulationSpaceLocation(const FComponentSpacePoseContext& Output, ESimulationSpace From,
 	                                       ESimulationSpace To, const FVector& InLocation) const;
+
+	// Convert a rotation from one simulation space to another
 	FQuat ConvertSimulationSpaceRotation(FComponentSpacePoseContext& Output, ESimulationSpace From,
 	                                     ESimulationSpace To, const FQuat& InRotation) const;
-	// //
-	//
-	// FTransform GetSimSpaceTransformFromComponentSpace(ESimulationSpace SimSpace, FComponentSpacePoseContext& Output,
-	//                                                   const FTransform& InComponentTransform) const;
-	//
-	// FTransform GetWorldSpaceTransformFromSimSpace(ESimulationSpace SimSpace, FComponentSpacePoseContext& Output,
-	//                                               const FTransform& InSimTransform) const;
-	//
-	// FVector TransformComponentVectorToSimSpace(FComponentSpacePoseContext& Output,
-	//                                            const FVector& InComponentVector) const;
-	// FQuat TransformComponentRotationToSimSpace(FComponentSpacePoseContext& Output,
-	//                                            const FQuat& InComponentRotation) const;
-	//
-	// FVector TransformSimSpaceVectorToWorldSpace(FComponentSpacePoseContext& Output,
-	//                                             const FVector& InSimVector) const;
-	// FVector TransformSimSpaceLocationToWorldSpace(FComponentSpacePoseContext& Output,
-	//                                               const FVector& InSimLocation) const;
-	// FQuat TransformSimSpaceRotationToComponentSpace(FComponentSpacePoseContext& Output,
-	//                                                 const FQuat& InSimRotation) const;
-	//
-	// FVector TransformWorldVectorToSimSpace(FComponentSpacePoseContext& Output, const FVector& InWorldVec) const;
-	// FVector TransformWorldLocationToSimSpace(FComponentSpacePoseContext& Output, const FVector& InWorldLocation) const;
 
 	void ConvertSimulationSpace(FComponentSpacePoseContext& Output, ESimulationSpace From,
 	                            ESimulationSpace To) const;
