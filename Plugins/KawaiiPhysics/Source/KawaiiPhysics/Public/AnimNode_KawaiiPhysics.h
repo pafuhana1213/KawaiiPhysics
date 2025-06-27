@@ -979,6 +979,11 @@ protected:
 	 */
 	bool bResetDynamics;
 
+	/**
+	 * Flag indicating whether to reset the dynamics.
+	 */
+	FVector GravityInSimSpace = FVector::ZeroVector;
+
 private:
 	/**
 	 * 
@@ -1317,7 +1322,7 @@ protected:
 	 * @param Bone The bone to get the wind velocity for.
 	 * @return The wind velocity vector.
 	 */
-	FVector GetWindVelocity(FComponentSpacePoseContext& Output, const FSceneInterface* Scene,
+	FVector GetWindVelocity(const FComponentSpacePoseContext& Output, const FSceneInterface* Scene,
 	                        const FKawaiiPhysicsModifyBone& Bone) const;
 
 #if ENABLE_ANIM_DEBUG

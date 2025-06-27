@@ -1026,6 +1026,9 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 	}
 
 	// External Force : PreApply
+	GravityInSimSpace = ConvertSimulationSpaceVector(Output, ESimulationSpace::ComponentSpace,
+	                                                 SimulationSpace, Gravity);
+	
 	// NOTE: if use foreach, you may get issue ( Array has changed during ranged-for iteration )
 	for (int i = 0; i < CustomExternalForces.Num(); ++i)
 	{
@@ -1148,7 +1151,7 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 	}
 	Bone.Location += Velocity * DeltaTime;
 
-	// World Movement
+	// Follow World Movement
 	if (SimulationSpace != ESimulationSpace::WorldSpace)
 	{
 		// Follow Translation
@@ -1161,9 +1164,7 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 
 	// Gravity
 	// TODO:Migrate if there are more good method (Currently copying AnimDynamics implementation)
-	// TODO:Reduce call count of ConvertSimulationSpaceVector
-	Bone.Location += 0.5 * ConvertSimulationSpaceVector(Output, ESimulationSpace::WorldSpace, SimulationSpace,
-	                                                    Gravity) * DeltaTime * DeltaTime;
+	Bone.Location += 0.5 * GravityInSimSpace * DeltaTime * DeltaTime;
 
 	// External Force
 	// NOTE: if use foreach, you may get issue ( Array has changed during ranged-for iteration )
@@ -1224,7 +1225,7 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 		(1.0f - FMath::Pow(1.0f - Bone.PhysicsSettings.Stiffness, Exponent));
 }
 
-FVector FAnimNode_KawaiiPhysics::GetWindVelocity(FComponentSpacePoseContext& Output, const FSceneInterface* Scene,
+FVector FAnimNode_KawaiiPhysics::GetWindVelocity(const FComponentSpacePoseContext& Output, const FSceneInterface* Scene,
                                                  const FKawaiiPhysicsModifyBone& Bone) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_GetWindVelocity);
