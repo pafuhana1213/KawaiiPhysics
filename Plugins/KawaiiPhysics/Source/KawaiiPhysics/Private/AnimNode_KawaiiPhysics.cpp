@@ -327,7 +327,6 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	
 	ApplySimulateResult(Output, BoneContainer, OutBoneTransforms);
 
-	DeltaTimeOld = DeltaTime;
 	TeleportType = ETeleportType::None;
 	PreSkelCompTransform = ComponentTransform;
 
@@ -1149,6 +1148,8 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		const float BoneLength = (Bone.PoseLocation - ParentBone.PoseLocation).Size();
 		Bone.Location = (Bone.Location - ParentBone.Location).GetSafeNormal() * BoneLength + ParentBone.Location;
 	}
+
+	DeltaTimeOld = DeltaTime;
 }
 
 void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSceneInterface* Scene,
