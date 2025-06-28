@@ -1705,17 +1705,13 @@ void FAnimNode_KawaiiPhysics::ApplySimulateResult(FComponentSpacePoseContext& Ou
 {
 	for (int32 i = 0; i < ModifyBones.Num(); ++i)
 	{
-		FKawaiiPhysicsModifyBone& Bone = ModifyBones[i];
-		if (Bone.BoneRef.BoneIndex < 0 && !Bone.bDummy)
-		{
-			continue;
-		}
-
-		FTransform BoneTransform = FTransform(Bone.PrevRotation, Bone.Location, Bone.PoseScale);
-		BoneTransform =
-			ConvertSimulationSpaceTransform(Output, SimulationSpace, ESimulationSpace::ComponentSpace, BoneTransform);
-		OutBoneTransforms.Add(FBoneTransform(Bone.BoneRef.GetCompactPoseIndex(BoneContainer), BoneTransform));
+		FTransform PoseTransform = FTransform(ModifyBones[i].PoseRotation, ModifyBones[i].PoseLocation,
+		                                      ModifyBones[i].PoseScale);
+		PoseTransform =
+			ConvertSimulationSpaceTransform(Output, SimulationSpace, ESimulationSpace::ComponentSpace, PoseTransform);
+		OutBoneTransforms.Add(FBoneTransform(ModifyBones[i].BoneRef.GetCompactPoseIndex(BoneContainer), PoseTransform));
 	}
+
 
 	for (int32 i = 0; i < ModifyBones.Num(); ++i)
 	{
@@ -1755,6 +1751,13 @@ void FAnimNode_KawaiiPhysics::ApplySimulateResult(FComponentSpacePoseContext& Ou
 					                               ESimulationSpace::ComponentSpace, SimulateRotation);
 				OutBoneTransforms[Bone.ParentIndex].Transform.SetRotation(SimulateRotation);
 			}
+		}
+	
+		if (Bone.BoneRef.BoneIndex >= 0 && !Bone.bDummy)
+		{
+			OutBoneTransforms[i].Transform.SetLocation(
+				ConvertSimulationSpaceLocation(Output, SimulationSpace, ESimulationSpace::ComponentSpace,
+				                               Bone.Location));
 		}
 	}
 	
