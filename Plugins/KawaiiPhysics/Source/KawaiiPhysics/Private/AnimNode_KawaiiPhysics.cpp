@@ -231,15 +231,6 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 	FTransform ComponentTransform = Output.AnimInstanceProxy->GetComponentTransform();
 
-	if (SimulationSpace == ESimulationSpace::BaseBoneSpace)
-	{
-		if (SimulationBaseBone.IsValidToEvaluate(BoneContainer))
-		{
-			BaseBoneSpace2ComponentSpace =
-				Output.Pose.GetComponentSpaceTransform(SimulationBaseBone.GetCompactPoseIndex(BoneContainer));
-		}
-	}
-
 #if WITH_EDITOR
 	// sync editing on other Nodes
 	ApplyLimitsDataAsset(BoneContainer);
@@ -254,7 +245,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	}
 
 #endif
-
+	
 	if (!RootBone.IsValidToEvaluate(BoneContainer))
 	{
 		return;
@@ -264,6 +255,15 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		if (!AdditionalRootBone.RootBone.IsValidToEvaluate(BoneContainer))
 		{
 			return;
+		}
+	}
+
+	if (SimulationSpace == ESimulationSpace::BaseBoneSpace)
+	{
+		if (SimulationBaseBone.IsValidToEvaluate(BoneContainer))
+		{
+			BaseBoneSpace2ComponentSpace =
+				Output.Pose.GetComponentSpaceTransform(SimulationBaseBone.GetCompactPoseIndex(BoneContainer));
 		}
 	}
 
@@ -820,7 +820,6 @@ void FAnimNode_KawaiiPhysics::UpdateSphericalLimits(TArray<FSphericalLimit>& Lim
 			                                                 CompactPoseIndex, BCS_BoneSpace);
 
 			BoneTransform =
-				//GetSimSpaceTransformFromComponentSpace(SimulationSpace, Output, BoneTransform);
 				ConvertSimulationSpaceTransform(Output, ESimulationSpace::ComponentSpace, SimulationSpace,
 				                                BoneTransform);
 			Sphere.Location = BoneTransform.GetLocation();
@@ -1795,7 +1794,7 @@ FTransform FAnimNode_KawaiiPhysics::ConvertSimulationSpaceTransform(const FCompo
 		case ESimulationSpace::WorldSpace:
 			return InTransform * Output.AnimInstanceProxy->GetComponentTransform();
 		case ESimulationSpace::BaseBoneSpace:
-			return InTransform * BaseBoneSpace2ComponentSpace.Inverse();
+			return InTransform.GetRelativeTransform(BaseBoneSpace2ComponentSpace);
 		default:
 			return InTransform;
 		}
@@ -1805,10 +1804,10 @@ FTransform FAnimNode_KawaiiPhysics::ConvertSimulationSpaceTransform(const FCompo
 		switch (To)
 		{
 		case ESimulationSpace::ComponentSpace:
-			return InTransform * Output.AnimInstanceProxy->GetComponentTransform().Inverse();
+			return InTransform.GetRelativeTransform(Output.AnimInstanceProxy->GetComponentTransform());
 		case ESimulationSpace::BaseBoneSpace:
-			return InTransform * Output.AnimInstanceProxy->GetComponentTransform().Inverse() *
-				BaseBoneSpace2ComponentSpace.Inverse();
+			return InTransform.GetRelativeTransform(
+				BaseBoneSpace2ComponentSpace * Output.AnimInstanceProxy->GetComponentTransform());
 			
 		default:
 			return InTransform;
@@ -1927,8 +1926,8 @@ FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceLocation(const FComponent
 		case ESimulationSpace::ComponentSpace:
 			return BaseBoneSpace2ComponentSpace.TransformPosition(InLocation);
 		case ESimulationSpace::WorldSpace:
-			return BaseBoneSpace2ComponentSpace.TransformPosition(
-				Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(InLocation));
+			return Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(
+				BaseBoneSpace2ComponentSpace.TransformPosition(InLocation));
 		default:
 			return InLocation;
 		}
@@ -1978,8 +1977,8 @@ FQuat FAnimNode_KawaiiPhysics::ConvertSimulationSpaceRotation(FComponentSpacePos
 		case ESimulationSpace::ComponentSpace:
 			return BaseBoneSpace2ComponentSpace.TransformRotation(InRotation);
 		case ESimulationSpace::WorldSpace:
-			return BaseBoneSpace2ComponentSpace.TransformRotation(
-				Output.AnimInstanceProxy->GetComponentTransform().TransformRotation(InRotation));
+			return Output.AnimInstanceProxy->GetComponentTransform().TransformRotation(
+				BaseBoneSpace2ComponentSpace.TransformRotation(InRotation));
 		default:
 			return InRotation;
 		}

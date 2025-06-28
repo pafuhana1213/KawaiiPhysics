@@ -164,6 +164,10 @@ void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* Ani
 	KawaiiPhysics->BoneConstraints = Node.BoneConstraints;
 	KawaiiPhysics->BoneConstraintsDataAsset = Node.BoneConstraintsDataAsset;
 
+	// SimulationSpace
+	KawaiiPhysics->SimulationSpace = Node.SimulationSpace;
+	KawaiiPhysics->SimulationBaseBone = Node.SimulationBaseBone;
+
 	// Reset for sync without compile
 	KawaiiPhysics->ModifyBones.Empty();
 }
