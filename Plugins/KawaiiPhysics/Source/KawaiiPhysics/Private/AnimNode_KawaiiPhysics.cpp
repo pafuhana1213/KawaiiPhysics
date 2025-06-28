@@ -1787,101 +1787,64 @@ FTransform FAnimNode_KawaiiPhysics::ConvertSimulationSpaceTransform(const FCompo
 		return InTransform;
 	}
 
-	if (From == ESimulationSpace::ComponentSpace)
+	FTransform ResultTransform = InTransform;
+
+	// From -> ComponentSpace
+	if (From == ESimulationSpace::WorldSpace)
 	{
-		switch (To)
-		{
-		case ESimulationSpace::WorldSpace:
-			return InTransform * Output.AnimInstanceProxy->GetComponentTransform();
-		case ESimulationSpace::BaseBoneSpace:
-			return InTransform.GetRelativeTransform(BaseBoneSpace2ComponentSpace);
-		default:
-			return InTransform;
-		}
-	}
-	else if (From == ESimulationSpace::WorldSpace)
-	{
-		switch (To)
-		{
-		case ESimulationSpace::ComponentSpace:
-			return InTransform.GetRelativeTransform(Output.AnimInstanceProxy->GetComponentTransform());
-		case ESimulationSpace::BaseBoneSpace:
-			return InTransform.GetRelativeTransform(
-				BaseBoneSpace2ComponentSpace * Output.AnimInstanceProxy->GetComponentTransform());
-			
-		default:
-			return InTransform;
-		}
+		ResultTransform = ResultTransform.GetRelativeTransform(Output.AnimInstanceProxy->GetComponentTransform());
 	}
 	else if (From == ESimulationSpace::BaseBoneSpace)
 	{
-		switch (To)
-		{
-		case ESimulationSpace::ComponentSpace:
-			return InTransform * BaseBoneSpace2ComponentSpace;
-			
-		case ESimulationSpace::WorldSpace:
-			return InTransform * BaseBoneSpace2ComponentSpace * Output.AnimInstanceProxy->GetComponentTransform();
-
-		default:
-			return InTransform;
-		}
+		ResultTransform = ResultTransform * BaseBoneSpace2ComponentSpace;
 	}
 
-	return InTransform;
+	// ComponentSpace -> To
+	if (To == ESimulationSpace::WorldSpace)
+	{
+		ResultTransform = ResultTransform * Output.AnimInstanceProxy->GetComponentTransform();
+	}
+	else if (To == ESimulationSpace::BaseBoneSpace)
+	{
+		ResultTransform = ResultTransform.GetRelativeTransform(BaseBoneSpace2ComponentSpace);
+	}
+
+	return ResultTransform;
 }
 
 FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceVector(const FComponentSpacePoseContext& Output,
                                                               const ESimulationSpace From,
                                                               const ESimulationSpace To, const FVector& InVector) const
 {
-	if (From == To)
 	{
-		return InVector;
-	}
+		if (From == To)
+		{
+			return InVector;
+		}
 
-	if (From == ESimulationSpace::ComponentSpace)
-	{
-		switch (To)
-		{
-		case ESimulationSpace::WorldSpace:
-			return Output.AnimInstanceProxy->GetComponentTransform().TransformVector(InVector);
-		case ESimulationSpace::BaseBoneSpace:
-			return BaseBoneSpace2ComponentSpace.InverseTransformVector(InVector);
-		default:
-			return InVector;
-		}
-	}
-	else if (From == ESimulationSpace::WorldSpace)
-	{
-		switch (To)
-		{
-		case ESimulationSpace::ComponentSpace:
-			return Output.AnimInstanceProxy->GetComponentTransform().InverseTransformVector(InVector);
-		case ESimulationSpace::BaseBoneSpace:
-			// WorldSpace -> ComponentSpace -> BaseBoneSpace
-			return BaseBoneSpace2ComponentSpace.InverseTransformVector(
-				Output.AnimInstanceProxy->GetComponentTransform().InverseTransformVector(InVector));
-		default:
-			return InVector;
-		}
-	}
-	else if (From == ESimulationSpace::BaseBoneSpace)
-	{
-		switch (To)
-		{
-		case ESimulationSpace::ComponentSpace:
-			return BaseBoneSpace2ComponentSpace.TransformVector(InVector);
-		case ESimulationSpace::WorldSpace:
-			// BaseBoneSpace -> ComponentSpace -> WorldSpace
-			return Output.AnimInstanceProxy->GetComponentTransform().TransformVector(
-				BaseBoneSpace2ComponentSpace.TransformVector(InVector));
-		default:
-			return InVector;
-		}
-	}
+		FVector ResultVector = InVector;
 
-	return InVector;
+		// From -> ComponentSpace
+		if (From == ESimulationSpace::WorldSpace)
+		{
+			ResultVector = Output.AnimInstanceProxy->GetComponentTransform().InverseTransformVector(ResultVector);
+		}
+		else if (From == ESimulationSpace::BaseBoneSpace)
+		{
+			ResultVector = BaseBoneSpace2ComponentSpace.TransformVector(ResultVector);
+		}
+
+		// ComponentSpace -> To
+		if (To == ESimulationSpace::WorldSpace)
+		{
+			ResultVector = Output.AnimInstanceProxy->GetComponentTransform().TransformVector(ResultVector);
+		}
+		else if (To == ESimulationSpace::BaseBoneSpace)
+		{
+			ResultVector = BaseBoneSpace2ComponentSpace.InverseTransformVector(ResultVector);
+		}
+		return ResultVector;
+	}
 }
 
 FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceLocation(const FComponentSpacePoseContext& Output,
@@ -1893,47 +1856,29 @@ FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceLocation(const FComponent
 		return InLocation;
 	}
 
-	if (From == ESimulationSpace::ComponentSpace)
+	FVector ResultLocation = InLocation;
+
+	// From -> ComponentSpace
+	if (From == ESimulationSpace::WorldSpace)
 	{
-		switch (To)
-		{
-		case ESimulationSpace::WorldSpace:
-			return Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(InLocation);
-		case ESimulationSpace::BaseBoneSpace:
-			return BaseBoneSpace2ComponentSpace.InverseTransformPosition(InLocation);
-		default:
-			return InLocation;
-		}
-	}
-	else if (From == ESimulationSpace::WorldSpace)
-	{
-		switch (To)
-		{
-		case ESimulationSpace::ComponentSpace:
-			return Output.AnimInstanceProxy->GetComponentTransform().InverseTransformPosition(InLocation);
-		case ESimulationSpace::BaseBoneSpace:
-			// WorldSpace -> ComponentSpace -> BaseBoneSpace
-			return BaseBoneSpace2ComponentSpace.InverseTransformPosition(
-				Output.AnimInstanceProxy->GetComponentTransform().InverseTransformPosition(InLocation));
-		default:
-			return InLocation;
-		}
+		ResultLocation = Output.AnimInstanceProxy->GetComponentTransform().InverseTransformPosition(ResultLocation);
 	}
 	else if (From == ESimulationSpace::BaseBoneSpace)
 	{
-		switch (To)
-		{
-		case ESimulationSpace::ComponentSpace:
-			return BaseBoneSpace2ComponentSpace.TransformPosition(InLocation);
-		case ESimulationSpace::WorldSpace:
-			return Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(
-				BaseBoneSpace2ComponentSpace.TransformPosition(InLocation));
-		default:
-			return InLocation;
-		}
+		ResultLocation = BaseBoneSpace2ComponentSpace.TransformPosition(ResultLocation);
 	}
 
-	return InLocation;
+	// ComponentSpace -> To
+	if (To == ESimulationSpace::WorldSpace)
+	{
+		ResultLocation = Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(ResultLocation);
+	}
+	else if (To == ESimulationSpace::BaseBoneSpace)
+	{
+		ResultLocation = BaseBoneSpace2ComponentSpace.InverseTransformPosition(ResultLocation);
+	}
+
+	return ResultLocation;
 }
 
 FQuat FAnimNode_KawaiiPhysics::ConvertSimulationSpaceRotation(FComponentSpacePoseContext& Output, ESimulationSpace From,
@@ -1944,47 +1889,29 @@ FQuat FAnimNode_KawaiiPhysics::ConvertSimulationSpaceRotation(FComponentSpacePos
 		return InRotation;
 	}
 
-	if (From == ESimulationSpace::ComponentSpace)
+	FQuat ResultRotation = InRotation;
+
+	// From -> ComponentSpace
+	if (From == ESimulationSpace::WorldSpace)
 	{
-		switch (To)
-		{
-		case ESimulationSpace::WorldSpace:
-			return Output.AnimInstanceProxy->GetComponentTransform().TransformRotation(InRotation);
-		case ESimulationSpace::BaseBoneSpace:
-			return BaseBoneSpace2ComponentSpace.InverseTransformRotation(InRotation);
-		default:
-			return InRotation;
-		}
-	}
-	else if (From == ESimulationSpace::WorldSpace)
-	{
-		switch (To)
-		{
-		case ESimulationSpace::ComponentSpace:
-			return Output.AnimInstanceProxy->GetComponentTransform().InverseTransformRotation(InRotation);
-		case ESimulationSpace::BaseBoneSpace:
-			// WorldSpace -> ComponentSpace -> BaseBoneSpace
-			return BaseBoneSpace2ComponentSpace.InverseTransformRotation(
-				Output.AnimInstanceProxy->GetComponentTransform().InverseTransformRotation(InRotation));
-		default:
-			return InRotation;
-		}
+		ResultRotation = Output.AnimInstanceProxy->GetComponentTransform().InverseTransformRotation(ResultRotation);
 	}
 	else if (From == ESimulationSpace::BaseBoneSpace)
 	{
-		switch (To)
-		{
-		case ESimulationSpace::ComponentSpace:
-			return BaseBoneSpace2ComponentSpace.TransformRotation(InRotation);
-		case ESimulationSpace::WorldSpace:
-			return Output.AnimInstanceProxy->GetComponentTransform().TransformRotation(
-				BaseBoneSpace2ComponentSpace.TransformRotation(InRotation));
-		default:
-			return InRotation;
-		}
+		ResultRotation = BaseBoneSpace2ComponentSpace.TransformRotation(ResultRotation);
 	}
 
-	return InRotation;
+	// ComponentSpace -> To
+	if (To == ESimulationSpace::WorldSpace)
+	{
+		ResultRotation = Output.AnimInstanceProxy->GetComponentTransform().TransformRotation(ResultRotation);
+	}
+	else if (To == ESimulationSpace::BaseBoneSpace)
+	{
+		ResultRotation = BaseBoneSpace2ComponentSpace.InverseTransformRotation(ResultRotation);
+	}
+
+	return ResultRotation;
 }
 
 void FAnimNode_KawaiiPhysics::ConvertSimulationSpace(FComponentSpacePoseContext& Output, ESimulationSpace From,
