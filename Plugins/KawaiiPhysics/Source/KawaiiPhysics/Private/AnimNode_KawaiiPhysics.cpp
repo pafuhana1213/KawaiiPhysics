@@ -231,6 +231,15 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 	FTransform ComponentTransform = Output.AnimInstanceProxy->GetComponentTransform();
 
+	if (SimulationSpace == ESimulationSpace::BaseBoneSpace)
+	{
+		if (SimulationBaseBone.IsValidToEvaluate(BoneContainer))
+		{
+			SimulationBaseBoneTransform =
+				Output.Pose.GetComponentSpaceTransform(SimulationBaseBone.GetCompactPoseIndex(BoneContainer));
+		}
+	}
+
 #if WITH_EDITOR
 	// sync editing on other Nodes
 	ApplyLimitsDataAsset(BoneContainer);
@@ -1785,10 +1794,8 @@ FTransform FAnimNode_KawaiiPhysics::ConvertSimulationSpaceTransform(const FCompo
 		case ESimulationSpace::WorldSpace:
 			return InTransform * Output.AnimInstanceProxy->GetComponentTransform();
 		case ESimulationSpace::BaseBoneSpace:
-			{
-				// TODO
-				break;
-			}
+			return InTransform.GetRelativeTransform(SimulationBaseBoneTransform);
+			
 		default:
 			return InTransform;
 		}
@@ -1800,10 +1807,9 @@ FTransform FAnimNode_KawaiiPhysics::ConvertSimulationSpaceTransform(const FCompo
 		case ESimulationSpace::ComponentSpace:
 			return InTransform * Output.AnimInstanceProxy->GetComponentTransform().Inverse();
 		case ESimulationSpace::BaseBoneSpace:
-			{
-				// TODO
-				break;
-			}
+			return InTransform.GetRelativeTransform(
+				SimulationBaseBoneTransform * Output.AnimInstanceProxy->GetComponentTransform());
+			
 		default:
 			return InTransform;
 		}
@@ -1813,15 +1819,13 @@ FTransform FAnimNode_KawaiiPhysics::ConvertSimulationSpaceTransform(const FCompo
 		switch (To)
 		{
 		case ESimulationSpace::ComponentSpace:
-			{
-				// TODO
-				break;
-			}
+			return InTransform * SimulationBaseBoneTransform.Inverse() *
+				Output.AnimInstanceProxy->GetComponentTransform();
+			
 		case ESimulationSpace::WorldSpace:
-			{
-				// TODO
-				break;
-			}
+			return InTransform * SimulationBaseBoneTransform.Inverse() *
+				Output.AnimInstanceProxy->GetComponentTransform().Inverse();
+
 		default:
 			return InTransform;
 		}
@@ -1846,10 +1850,7 @@ FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceVector(const FComponentSp
 		case ESimulationSpace::WorldSpace:
 			return Output.AnimInstanceProxy->GetComponentTransform().TransformVector(InVector);
 		case ESimulationSpace::BaseBoneSpace:
-			{
-				// TODO
-				break;
-			}
+			return InVector - SimulationBaseBoneTransform.GetLocation();
 		default:
 			return InVector;
 		}
@@ -1861,10 +1862,9 @@ FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceVector(const FComponentSp
 		case ESimulationSpace::ComponentSpace:
 			return Output.AnimInstanceProxy->GetComponentTransform().InverseTransformVector(InVector);
 		case ESimulationSpace::BaseBoneSpace:
-			{
-				// TODO
-				break;
-			}
+			// WorldSpace -> ComponentSpace -> BaseBoneSpace
+			return Output.AnimInstanceProxy->GetComponentTransform().InverseTransformVector(InVector) -
+				SimulationBaseBoneTransform.GetLocation();
 		default:
 			return InVector;
 		}
@@ -1874,15 +1874,11 @@ FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceVector(const FComponentSp
 		switch (To)
 		{
 		case ESimulationSpace::ComponentSpace:
-			{
-				// TODO
-				break;
-			}
+			return InVector + SimulationBaseBoneTransform.GetLocation();
 		case ESimulationSpace::WorldSpace:
-			{
-				// TODO
-				break;
-			}
+			// BaseBoneSpace -> ComponentSpace -> WorldSpaceへ
+			return Output.AnimInstanceProxy->GetComponentTransform().TransformVector(
+				InVector + SimulationBaseBoneTransform.GetLocation());
 		default:
 			return InVector;
 		}
@@ -1907,10 +1903,7 @@ FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceLocation(const FComponent
 		case ESimulationSpace::WorldSpace:
 			return Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(InLocation);
 		case ESimulationSpace::BaseBoneSpace:
-			{
-				// TODO
-				break;
-			}
+			return InLocation - SimulationBaseBoneTransform.GetLocation();
 		default:
 			return InLocation;
 		}
@@ -1922,10 +1915,8 @@ FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceLocation(const FComponent
 		case ESimulationSpace::ComponentSpace:
 			return Output.AnimInstanceProxy->GetComponentTransform().InverseTransformPosition(InLocation);
 		case ESimulationSpace::BaseBoneSpace:
-			{
-				// TODO
-				break;
-			}
+			return Output.AnimInstanceProxy->GetComponentTransform().InverseTransformPosition(InLocation) -
+				SimulationBaseBoneTransform.GetLocation();
 		default:
 			return InLocation;
 		}
@@ -1935,15 +1926,10 @@ FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceLocation(const FComponent
 		switch (To)
 		{
 		case ESimulationSpace::ComponentSpace:
-			{
-				// TODO
-				break;
-			}
+			return InLocation + SimulationBaseBoneTransform.GetLocation();
 		case ESimulationSpace::WorldSpace:
-			{
-				// TODO
-				break;
-			}
+			return Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(
+				InLocation + SimulationBaseBoneTransform.GetLocation());
 		default:
 			return InLocation;
 		}
@@ -1967,10 +1953,7 @@ FQuat FAnimNode_KawaiiPhysics::ConvertSimulationSpaceRotation(FComponentSpacePos
 		case ESimulationSpace::WorldSpace:
 			return Output.AnimInstanceProxy->GetComponentTransform().TransformRotation(InRotation);
 		case ESimulationSpace::BaseBoneSpace:
-			{
-				// TODO
-				break;
-			}
+			return (InRotation * SimulationBaseBoneTransform.GetRotation().Inverse());
 		default:
 			return InRotation;
 		}
@@ -1982,10 +1965,8 @@ FQuat FAnimNode_KawaiiPhysics::ConvertSimulationSpaceRotation(FComponentSpacePos
 		case ESimulationSpace::ComponentSpace:
 			return Output.AnimInstanceProxy->GetComponentTransform().InverseTransformRotation(InRotation);
 		case ESimulationSpace::BaseBoneSpace:
-			{
-				// TODO
-				break;
-			}
+			return (Output.AnimInstanceProxy->GetComponentTransform().InverseTransformRotation(InRotation) *
+				SimulationBaseBoneTransform.GetRotation().Inverse());
 		default:
 			return InRotation;
 		}
@@ -1995,15 +1976,10 @@ FQuat FAnimNode_KawaiiPhysics::ConvertSimulationSpaceRotation(FComponentSpacePos
 		switch (To)
 		{
 		case ESimulationSpace::ComponentSpace:
-			{
-				// TODO
-				break;
-			}
+			return (InRotation * SimulationBaseBoneTransform.GetRotation());
 		case ESimulationSpace::WorldSpace:
-			{
-				// TODO
-				break;
-			}
+			return Output.AnimInstanceProxy->GetComponentTransform().TransformRotation(
+				InRotation * SimulationBaseBoneTransform.GetRotation());
 		default:
 			return InRotation;
 		}

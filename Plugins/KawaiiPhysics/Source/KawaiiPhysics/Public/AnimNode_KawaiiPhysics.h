@@ -984,6 +984,11 @@ protected:
 	 */
 	FVector GravityInSimSpace = FVector::ZeroVector;
 
+	/**
+	 * Transform of the base bone used for simulation.
+	 */
+	FTransform SimulationBaseBoneTransform;
+
 private:
 	/**
 	 *	 The last simulation space used for the physics simulation.
