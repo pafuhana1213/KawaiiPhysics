@@ -988,7 +988,7 @@ void FKawaiiPhysicsEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FVie
 	float DrawPositionY = Viewport->GetSizeXY().Y / Canvas->GetDPIScale() - (3 + FontHeight) - 100 / Canvas->
 		GetDPIScale();
 
-	if (!FAnimWeight::IsRelevant(RuntimeNode->GetAlpha()) || !RuntimeNode->IsRecentlyEvaluated())
+	if (!FanimWeight::IsRelevant(RuntimeNode->GetAlpha()) || !RuntimeNode->IsRecentlyEvaluated())
 	{
 		DrawTextItem(
 			LOCTEXT("", "This node does not evaluate recently."), Canvas, XOffset, DrawPositionY,
@@ -1040,8 +1040,15 @@ void FKawaiiPhysicsEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FVie
 		{
 			for (auto& Bone : RuntimeNode->ModifyBones)
 			{
+				FVector BoneLocation = Bone.Location;
+				if (RuntimeNode->SimulationSpace == ESimulationSpace::BaseBoneSpace)
+				{
+					const FTransform& BaseBoneSpace2ComponentSpace = RuntimeNode->GetBaseBoneSpace2ComponentSpace();
+					BoneLocation = BaseBoneSpace2ComponentSpace.TransformPosition(BoneLocation);
+				}
+				
 				// Refer to FAnimationViewportClient::ShowBoneNames
-				const FVector BonePos = PreviewMeshComponent->GetComponentTransform().TransformPosition(Bone.Location);
+				const FVector BonePos = PreviewMeshComponent->GetComponentTransform().TransformPosition(BoneLocation);
 				Draw3DTextItem(FText::AsNumber(Bone.LengthRateFromRoot), Canvas, View,
 				               Viewport, BonePos);
 			}
