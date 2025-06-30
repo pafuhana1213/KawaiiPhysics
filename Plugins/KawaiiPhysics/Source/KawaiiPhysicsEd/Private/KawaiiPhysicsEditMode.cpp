@@ -988,7 +988,7 @@ void FKawaiiPhysicsEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FVie
 	float DrawPositionY = Viewport->GetSizeXY().Y / Canvas->GetDPIScale() - (3 + FontHeight) - 100 / Canvas->
 		GetDPIScale();
 
-	if (!FanimWeight::IsRelevant(RuntimeNode->GetAlpha()) || !RuntimeNode->IsRecentlyEvaluated())
+	if (!FAnimWeight::IsRelevant(RuntimeNode->GetAlpha()) || !RuntimeNode->IsRecentlyEvaluated())
 	{
 		DrawTextItem(
 			LOCTEXT("", "This node does not evaluate recently."), Canvas, XOffset, DrawPositionY,

@@ -1179,8 +1179,21 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 		Bone.Location += SkelCompMoveVector * (1.0f - Bone.PhysicsSettings.WorldDampingLocation);
 
 		// Follow Rotation
-		Bone.Location += (SkelCompMoveRotation.RotateVector(Bone.PrevLocation) - Bone.PrevLocation)
-			* (1.0f - Bone.PhysicsSettings.WorldDampingRotation);
+		if (SimulationSpace == ESimulationSpace::BaseBoneSpace)
+		{
+			const FQuat MoveRotationCS = ConvertSimulationSpaceRotation(Output, ESimulationSpace::BaseBoneSpace,
+																	ESimulationSpace::ComponentSpace, SkelCompMoveRotation);
+			const FVector PrevLocationCS = BaseBoneSpace2ComponentSpace.TransformPosition(Bone.PrevLocation);
+			const FVector RotatedLocationCS = MoveRotationCS.RotateVector(PrevLocationCS);
+			const FVector RotatedLocationBase = BaseBoneSpace2ComponentSpace.InverseTransformPosition(RotatedLocationCS);
+
+			Bone.Location += (RotatedLocationBase - Bone.PrevLocation) * (1.0f - Bone.PhysicsSettings.WorldDampingRotation);
+		}
+		else
+		{
+			Bone.Location += (SkelCompMoveRotation.RotateVector(Bone.PrevLocation) - Bone.PrevLocation)
+				* (1.0f - Bone.PhysicsSettings.WorldDampingRotation);
+		}
 	}
 
 	// Gravity
