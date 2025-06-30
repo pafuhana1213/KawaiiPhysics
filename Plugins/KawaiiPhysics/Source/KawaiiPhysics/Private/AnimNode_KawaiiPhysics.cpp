@@ -992,23 +992,17 @@ void FAnimNode_KawaiiPhysics::UpdateModifyBonesPoseTransform(FComponentSpacePose
 void FAnimNode_KawaiiPhysics::UpdateSkelCompMove(FComponentSpacePoseContext& Output,
                                                  const FTransform& ComponentTransform)
 {
-	const FVector MoveVectorCS = ComponentTransform.InverseTransformPosition(PreSkelCompTransform.GetLocation());
-	const FQuat MoveRotationCS = ComponentTransform.InverseTransformRotation(PreSkelCompTransform.GetRotation());
-
-	SkelCompMoveVector = ConvertSimulationSpaceVector(Output, ESimulationSpace::ComponentSpace,
-	                                                  SimulationSpace, MoveVectorCS) * SkelCompMoveScale;
-	SkelCompMoveRotation =
-		ConvertSimulationSpaceRotation(Output, ESimulationSpace::ComponentSpace,
-		                               SimulationSpace, MoveRotationCS);
+	SkelCompMoveVector = ComponentTransform.InverseTransformPosition(PreSkelCompTransform.GetLocation());
+	SkelCompMoveRotation = ComponentTransform.InverseTransformRotation(PreSkelCompTransform.GetRotation());
 
 	if (TeleportDistanceThreshold > 0 &&
-		MoveVectorCS.SizeSquared() > TeleportDistanceThreshold * TeleportDistanceThreshold)
+		SkelCompMoveVector.SizeSquared() > TeleportDistanceThreshold * TeleportDistanceThreshold)
 	{
 		TeleportType = ETeleportType::TeleportPhysics;
 	}
 
 	if (TeleportRotationThreshold > 0 &&
-		FMath::RadiansToDegrees(MoveRotationCS.GetAngle()) > TeleportRotationThreshold)
+		FMath::RadiansToDegrees(SkelCompMoveRotation.GetAngle()) > TeleportRotationThreshold)
 	{
 		TeleportType = ETeleportType::TeleportPhysics;
 	}
@@ -1176,15 +1170,23 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 	if (SimulationSpace != ESimulationSpace::WorldSpace && TeleportType != ETeleportType::TeleportPhysics)
 	{
 		// Follow Translation
-		Bone.Location += SkelCompMoveVector * (1.0f - Bone.PhysicsSettings.WorldDampingLocation);
-
+		if (SimulationSpace == ESimulationSpace::BaseBoneSpace)
+		{
+			const FVector SkelCompMoveVectorBBS = ConvertSimulationSpaceVector(Output, ESimulationSpace::ComponentSpace,
+			                                                                   ESimulationSpace::BaseBoneSpace,
+			                                                                   SkelCompMoveVector);
+			Bone.Location += SkelCompMoveVectorBBS * (1.0f - Bone.PhysicsSettings.WorldDampingLocation);
+		}
+		else
+		{
+			Bone.Location += SkelCompMoveVector * (1.0f - Bone.PhysicsSettings.WorldDampingLocation);
+		}
+	
 		// Follow Rotation
 		if (SimulationSpace == ESimulationSpace::BaseBoneSpace)
 		{
-			const FQuat MoveRotationCS = ConvertSimulationSpaceRotation(Output, ESimulationSpace::BaseBoneSpace,
-																	ESimulationSpace::ComponentSpace, SkelCompMoveRotation);
 			const FVector PrevLocationCS = BaseBoneSpace2ComponentSpace.TransformPosition(Bone.PrevLocation);
-			const FVector RotatedLocationCS = MoveRotationCS.RotateVector(PrevLocationCS);
+			const FVector RotatedLocationCS = SkelCompMoveRotation.RotateVector(PrevLocationCS);
 			const FVector RotatedLocationBase = BaseBoneSpace2ComponentSpace.InverseTransformPosition(RotatedLocationCS);
 
 			Bone.Location += (RotatedLocationBase - Bone.PrevLocation) * (1.0f - Bone.PhysicsSettings.WorldDampingRotation);
