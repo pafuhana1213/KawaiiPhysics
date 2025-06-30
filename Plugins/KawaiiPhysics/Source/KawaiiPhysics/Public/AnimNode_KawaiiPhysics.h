@@ -944,6 +944,8 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics")
 	float DeltaTime = 0.0f;
 
+	FTransform GetBaseBoneSpace2ComponentSpace() const { return BaseBoneSpace2ComponentSpace; }
+
 protected:
 	UPROPERTY()
 	FTransform PreSkelCompTransform;
