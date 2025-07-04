@@ -578,12 +578,16 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	FKawaiiPhysicsSettings PhysicsSettings;
 
 	/**
-	*
-	*
+	* 物理制御を行う座標系（Component以外の場合は微小のパフォーマンス低下が発生しますが、急激なRootボーンの移動・回転の影響を回避することができます）
+	* Simulation space for physics control (Using anything other than ComponentSpace may cause a slight performance drop, but it can avoid the impact of sudden Root bone movement and rotation)
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
 	ESimulationSpace SimulationSpace = ESimulationSpace::ComponentSpace;
 
+	/**
+	* BaseBone座標系時の基準となるボーン
+	* BaseBone coordinate system reference bone
+	*/
 	UPROPERTY(EditAnywhere, Category = "Physics Settings",
 		meta = (PinHiddenByDefault, EditCondition= "SimulationSpace == ESimulationSpace::BaseBoneSpace",
 			EditConditionHides))
@@ -944,37 +948,26 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics")
 	float DeltaTime = 0.0f;
 
-	FTransform GetBaseBoneSpace2ComponentSpace() const { return BaseBoneSpace2ComponentSpace; }
-
-protected:
-	UPROPERTY()
-	FTransform PreSkelCompTransform;
-	UPROPERTY()
+private:
+	/**
+	 * Flag indicating whether the physics settings have been initialized.
+	 */
 	bool bInitPhysicsSettings = false;
 
-#if WITH_EDITORONLY_DATA
-	UPROPERTY()
-	bool bEditing = false;
-
-	UPROPERTY()
-	double LastEvaluatedTime = 0.0;
-
-#endif
+	/**
+	 * Transform of the skeletal component in last frame.
+	 */
+	FTransform PreSkelCompTransform;
 
 	/**
-	 * Vector representing the movement of the skeletal component.
-	 */
+	* Vector representing the movement of the skeletal component.
+	*/
 	FVector SkelCompMoveVector = FVector::ZeroVector;
 
 	/**
 	 * Quaternion representing the rotation of the skeletal component.
 	 */
 	FQuat SkelCompMoveRotation = FQuat::Identity;
-
-	/**
-	* Stores the delta time from the previous frame.
-	*/
-	float DeltaTimeOld = 0.0f;
 
 	/**
 	 * Flag indicating whether to reset or skip the dynamics.
@@ -985,19 +978,26 @@ protected:
 	 * Flag indicating whether to reset the dynamics.
 	 */
 	FVector GravityInSimSpace = FVector::ZeroVector;
-
-	/**
-	 * 
-	 */
-	FTransform BaseBoneSpace2ComponentSpace = FTransform::Identity;
 	
-private:
 	/**
 	 *	 The last simulation space used for the physics simulation.
 	 */
 	ESimulationSpace LastSimulationSpace = ESimulationSpace::ComponentSpace;
 
-	
+	/**
+	 * Base bone space to component space transform.
+	 */
+	FTransform BaseBoneSpace2ComponentSpace = FTransform::Identity;
+
+	/**
+	* Stores the delta time from the previous frame.
+	*/
+	float DeltaTimeOld = 0.0f;
+
+#if WITH_EDITORONLY_DATA
+	bool bEditing = false;
+	double LastEvaluatedTime = 0.0;
+#endif
 
 public:
 	FAnimNode_KawaiiPhysics();
@@ -1048,6 +1048,11 @@ public:
 	 */
 	float GetDeltaTimeOld() const;
 
+	/**
+	 * Get Transform from BaseBoneSpace to ComponentSpace.
+	 */
+	FTransform GetBaseBoneSpace2ComponentSpace() const { return BaseBoneSpace2ComponentSpace; }
+
 protected:
 	/**
 	 * Gets the forward vector of a bone based on its rotation.
@@ -1055,25 +1060,7 @@ protected:
 	 * @param Rotation The quaternion representing the bone's rotation.
 	 * @return The forward vector of the bone.
 	 */
-	FVector GetBoneForwardVector(const FQuat& Rotation) const
-	{
-		switch (BoneForwardAxis)
-		{
-		default:
-		case EBoneForwardAxis::X_Positive:
-			return Rotation.GetAxisX();
-		case EBoneForwardAxis::X_Negative:
-			return -Rotation.GetAxisX();
-		case EBoneForwardAxis::Y_Positive:
-			return Rotation.GetAxisY();
-		case EBoneForwardAxis::Y_Negative:
-			return -Rotation.GetAxisY();
-		case EBoneForwardAxis::Z_Positive:
-			return Rotation.GetAxisZ();
-		case EBoneForwardAxis::Z_Negative:
-			return -Rotation.GetAxisZ();
-		}
-	}
+	FVector GetBoneForwardVector(const FQuat& Rotation) const;
 
 	// FAnimNode_SkeletalControlBase interface
 	virtual void InitializeBoneReferences(const FBoneContainer& RequiredBones) override;

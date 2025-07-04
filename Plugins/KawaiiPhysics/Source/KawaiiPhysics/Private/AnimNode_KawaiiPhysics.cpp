@@ -406,6 +406,26 @@ float FAnimNode_KawaiiPhysics::GetDeltaTimeOld() const
 	return this->DeltaTimeOld;
 }
 
+FVector FAnimNode_KawaiiPhysics::GetBoneForwardVector(const FQuat& Rotation) const
+{
+	switch (BoneForwardAxis)
+	{
+	default:
+	case EBoneForwardAxis::X_Positive:
+		return Rotation.GetAxisX();
+	case EBoneForwardAxis::X_Negative:
+		return -Rotation.GetAxisX();
+	case EBoneForwardAxis::Y_Positive:
+		return Rotation.GetAxisY();
+	case EBoneForwardAxis::Y_Negative:
+		return -Rotation.GetAxisY();
+	case EBoneForwardAxis::Z_Positive:
+		return Rotation.GetAxisZ();
+	case EBoneForwardAxis::Z_Negative:
+		return -Rotation.GetAxisZ();
+	}
+}
+
 void FAnimNode_KawaiiPhysics::InitializeBoneReferences(const FBoneContainer& RequiredBones)
 {
 	auto Initialize = [&RequiredBones](auto& Targets)
