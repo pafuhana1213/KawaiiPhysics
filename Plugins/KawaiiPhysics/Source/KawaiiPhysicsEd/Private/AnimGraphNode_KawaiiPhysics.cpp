@@ -19,6 +19,8 @@
 #include "Kismet2/CompilerResultsLog.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimGraphNode_KawaiiPhysics)
+
 #define LOCTEXT_NAMESPACE "KawaiiPhysics"
 
 // ----------------------------------------------------------------------------

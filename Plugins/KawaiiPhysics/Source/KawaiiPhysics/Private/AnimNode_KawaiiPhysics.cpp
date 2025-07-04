@@ -22,6 +22,8 @@
 #include "Editor/UnrealEdEngine.h"
 #endif
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_KawaiiPhysics)
+
 #if ENABLE_ANIM_DEBUG
 TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsEnable(
 	TEXT("a.AnimNode.KawaiiPhysics.Enable"), true, TEXT("Enable/Disable KawaiiPhysics"));
