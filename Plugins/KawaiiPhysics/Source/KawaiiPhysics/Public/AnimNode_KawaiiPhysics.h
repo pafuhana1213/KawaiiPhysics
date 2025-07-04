@@ -1346,6 +1346,5 @@ private:
 	FQuat ConvertSimulationSpaceRotation(FComponentSpacePoseContext& Output, ESimulationSpace From,
 	                                     ESimulationSpace To, const FQuat& InRotation) const;
 
-	void ConvertSimulationSpace(FComponentSpacePoseContext& Output, ESimulationSpace From,
-	                            ESimulationSpace To) const;
+	void ConvertSimulationSpace(FComponentSpacePoseContext& Output, ESimulationSpace From, ESimulationSpace To);
 };

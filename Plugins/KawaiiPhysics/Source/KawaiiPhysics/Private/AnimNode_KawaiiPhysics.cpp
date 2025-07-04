@@ -223,24 +223,19 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 
 	check(OutBoneTransforms.Num() == 0);
 
+	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
+	FTransform ComponentTransform = Output.AnimInstanceProxy->GetComponentTransform();
+
 	if (TeleportType == ETeleportType::ResetPhysics)
 	{
 		ModifyBones.Empty(ModifyBones.Num());
 		TeleportType = ETeleportType::None;
 		bInitPhysicsSettings = false;
 	}
-
-	    const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
-	FTransform ComponentTransform = Output.AnimInstanceProxy->GetComponentTransform();
-
+	
 	if (SimulationSpace != LastSimulationSpace)
 	{
-		for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
-		{
-			Bone.Location = ConvertSimulationSpaceLocation(Output, LastSimulationSpace, SimulationSpace, Bone.Location);
-			Bone.PrevLocation = ConvertSimulationSpaceLocation(Output, LastSimulationSpace, SimulationSpace, Bone.PrevLocation);
-			Bone.PrevRotation = ConvertSimulationSpaceRotation(Output, LastSimulationSpace, SimulationSpace, Bone.PrevRotation);
-		}
+		ConvertSimulationSpace(Output, LastSimulationSpace, SimulationSpace);
 	}
 	LastSimulationSpace = SimulationSpace;
 
@@ -1964,7 +1959,12 @@ FQuat FAnimNode_KawaiiPhysics::ConvertSimulationSpaceRotation(FComponentSpacePos
 }
 
 void FAnimNode_KawaiiPhysics::ConvertSimulationSpace(FComponentSpacePoseContext& Output, ESimulationSpace From,
-                                                     ESimulationSpace To) const
+                                                     ESimulationSpace To) 
 {
-	// TODO
+	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+	{
+		Bone.Location = ConvertSimulationSpaceLocation(Output, From, To, Bone.Location);
+		Bone.PrevLocation = ConvertSimulationSpaceLocation(Output, From, To, Bone.PrevLocation);
+		Bone.PrevRotation = ConvertSimulationSpaceRotation(Output, From, To, Bone.PrevRotation);
+	}
 }
