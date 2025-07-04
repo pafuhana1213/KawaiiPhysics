@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "BoneContainer.h"
 #include "BonePose.h"
 #include "GameplayTagContainer.h"
@@ -29,6 +28,16 @@ extern KAWAIIPHYSICS_API TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsDeb
 extern KAWAIIPHYSICS_API TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsDebugLengthRate;
 #endif
 
+UENUM(BlueprintType)
+enum class EKawaiiPhysicsSimulationSpace : uint8
+{
+	/** Simulate in component space */
+	ComponentSpace,
+	/** Simulate in world space. This fixes the issues of root bones moving suddenly */
+	WorldSpace,
+	/** Simulate in another bone space */
+	BaseBoneSpace,
+};
 
 /**
  * Enum representing the planar constraint axis in KawaiiPhysics.
@@ -582,14 +591,14 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* Simulation space for physics control (Using anything other than ComponentSpace may cause a slight performance drop, but it can avoid the impact of sudden Root bone movement and rotation)
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
-	ESimulationSpace SimulationSpace = ESimulationSpace::ComponentSpace;
+	EKawaiiPhysicsSimulationSpace SimulationSpace = EKawaiiPhysicsSimulationSpace::ComponentSpace;
 
 	/**
 	* BaseBone座標系時の基準となるボーン
 	* BaseBone coordinate system reference bone
 	*/
 	UPROPERTY(EditAnywhere, Category = "Physics Settings",
-		meta = (PinHiddenByDefault, EditCondition= "SimulationSpace == ESimulationSpace::BaseBoneSpace",
+		meta = (PinHiddenByDefault, EditCondition= "SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace",
 			EditConditionHides))
 	FBoneReference SimulationBaseBone;
 
@@ -982,7 +991,7 @@ private:
 	/**
 	 *	 The last simulation space used for the physics simulation.
 	 */
-	ESimulationSpace LastSimulationSpace = ESimulationSpace::ComponentSpace;
+	EKawaiiPhysicsSimulationSpace LastSimulationSpace = EKawaiiPhysicsSimulationSpace::ComponentSpace;
 
 	/**
 	 * Base bone space to component space transform.
@@ -1331,20 +1340,20 @@ private:
 	                                      const FCompactPoseBoneIndex& BoneIndex) const;
 
 	// Convert a transform from one simulation space to another
-	FTransform ConvertSimulationSpaceTransform(const FComponentSpacePoseContext& Output, ESimulationSpace From,
-	                                           ESimulationSpace To, const FTransform& InTransform) const;
+	FTransform ConvertSimulationSpaceTransform(const FComponentSpacePoseContext& Output, EKawaiiPhysicsSimulationSpace From,
+	                                           EKawaiiPhysicsSimulationSpace To, const FTransform& InTransform) const;
 
 	// Convert a vector from one simulation space to another
-	FVector ConvertSimulationSpaceVector(const FComponentSpacePoseContext& Output, ESimulationSpace From,
-	                                     ESimulationSpace To, const FVector& InVector) const;
+	FVector ConvertSimulationSpaceVector(const FComponentSpacePoseContext& Output, EKawaiiPhysicsSimulationSpace From,
+	                                     EKawaiiPhysicsSimulationSpace To, const FVector& InVector) const;
 
 	// Convert a location from one simulation space to another
-	FVector ConvertSimulationSpaceLocation(const FComponentSpacePoseContext& Output, ESimulationSpace From,
-	                                       ESimulationSpace To, const FVector& InLocation) const;
+	FVector ConvertSimulationSpaceLocation(const FComponentSpacePoseContext& Output, EKawaiiPhysicsSimulationSpace From,
+	                                       EKawaiiPhysicsSimulationSpace To, const FVector& InLocation) const;
 
 	// Convert a rotation from one simulation space to another
-	FQuat ConvertSimulationSpaceRotation(FComponentSpacePoseContext& Output, ESimulationSpace From,
-	                                     ESimulationSpace To, const FQuat& InRotation) const;
+	FQuat ConvertSimulationSpaceRotation(FComponentSpacePoseContext& Output, EKawaiiPhysicsSimulationSpace From,
+	                                     EKawaiiPhysicsSimulationSpace To, const FQuat& InRotation) const;
 
-	void ConvertSimulationSpace(FComponentSpacePoseContext& Output, ESimulationSpace From, ESimulationSpace To);
+	void ConvertSimulationSpace(FComponentSpacePoseContext& Output, EKawaiiPhysicsSimulationSpace From, EKawaiiPhysicsSimulationSpace To);
 };
