@@ -993,6 +993,7 @@ void FAnimNode_KawaiiPhysics::UpdateSkelCompMove(FComponentSpacePoseContext& Out
                                                  const FTransform& ComponentTransform)
 {
 	SkelCompMoveVector = ComponentTransform.InverseTransformPosition(PreSkelCompTransform.GetLocation());
+	SkelCompMoveVector *= SkelCompMoveScale;
 	SkelCompMoveRotation = ComponentTransform.InverseTransformRotation(PreSkelCompTransform.GetRotation());
 
 	if (TeleportDistanceThreshold > 0 &&
@@ -1155,7 +1156,7 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 	const FKawaiiPhysicsModifyBone& ParentBone = ModifyBones[Bone.ParentIndex];
 
 	// Move using Velocity( = movement amount in pre frame ) and Damping
-	FVector Velocity = (Bone.Location - Bone.PrevLocation) / DeltaTimeOld;
+	FVector Velocity = (Bone.Location - Bone.PrevLocation) / DeltaTimeOld
 	Bone.PrevLocation = Bone.Location;
 	Velocity *= (1.0f - Bone.PhysicsSettings.Damping);
 
@@ -1172,9 +1173,9 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 		// Follow Translation
 		if (SimulationSpace == ESimulationSpace::BaseBoneSpace)
 		{
-			const FVector SkelCompMoveVectorBBS = ConvertSimulationSpaceVector(Output, ESimulationSpace::ComponentSpace,
-			                                                                   ESimulationSpace::BaseBoneSpace,
-			                                                                   SkelCompMoveVector);
+			const FVector SkelCompMoveVectorBBS =
+				ConvertSimulationSpaceVector(Output, ESimulationSpace::ComponentSpace,
+				                             ESimulationSpace::BaseBoneSpace, SkelCompMoveVector);
 			Bone.Location += SkelCompMoveVectorBBS * (1.0f - Bone.PhysicsSettings.WorldDampingLocation);
 		}
 		else
