@@ -230,8 +230,19 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		bInitPhysicsSettings = false;
 	}
 
-	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
+	    const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 	FTransform ComponentTransform = Output.AnimInstanceProxy->GetComponentTransform();
+
+	if (SimulationSpace != LastSimulationSpace)
+	{
+		for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+		{
+			Bone.Location = ConvertSimulationSpaceLocation(Output, LastSimulationSpace, SimulationSpace, Bone.Location);
+			Bone.PrevLocation = ConvertSimulationSpaceLocation(Output, LastSimulationSpace, SimulationSpace, Bone.PrevLocation);
+			Bone.PrevRotation = ConvertSimulationSpaceRotation(Output, LastSimulationSpace, SimulationSpace, Bone.PrevRotation);
+		}
+	}
+	LastSimulationSpace = SimulationSpace;
 
 #if WITH_EDITOR
 	// sync editing on other Nodes
