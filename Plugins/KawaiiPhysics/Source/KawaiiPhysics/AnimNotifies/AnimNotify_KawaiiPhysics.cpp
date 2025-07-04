@@ -5,6 +5,8 @@
 #include "Misc/UObjectToken.h"
 #include "Logging/MessageLog.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotify_KawaiiPhysics)
+
 #define LOCTEXT_NAMESPACE "KawaiiPhysics_AnimNotify"
 
 UAnimNotify_KawaiiPhysicsAddExternalForce::UAnimNotify_KawaiiPhysicsAddExternalForce(

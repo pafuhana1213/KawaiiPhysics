@@ -2,7 +2,6 @@
 
 #pragma once
 #include "AnimNode_KawaiiPhysics.h"
-#include "Curves/CurveVector.h"
 #include "KawaiiPhysicsCustomExternalForce.generated.h"
 
 
