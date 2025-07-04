@@ -1156,7 +1156,7 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 	const FKawaiiPhysicsModifyBone& ParentBone = ModifyBones[Bone.ParentIndex];
 
 	// Move using Velocity( = movement amount in pre frame ) and Damping
-	FVector Velocity = (Bone.Location - Bone.PrevLocation) / DeltaTimeOld
+	FVector Velocity = (Bone.Location - Bone.PrevLocation) / DeltaTimeOld;
 	Bone.PrevLocation = Bone.Location;
 	Velocity *= (1.0f - Bone.PhysicsSettings.Damping);
 
