@@ -8,6 +8,7 @@
 #include "GameplayTagContainer.h"
 
 #include "BoneControllers/AnimNode_AnimDynamics.h"
+#include "BoneControllers/AnimNode_RigidBody.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 
 #if	ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 5
@@ -429,35 +430,6 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsModifyBone
 	bool bSkipSimulate = false;
 
 	/**
-	 * Updates the pose transform of the bone.
-	 *
-	 * @param BoneContainer The bone container containing bone hierarchy information.
-	 * @param Pose The pose to update.
-	 * @param ResetBoneTransformWhenBoneNotFound Flag to reset bone transform when bone is not found.
-	 */
-	void UpdatePoseTransform(const FBoneContainer& BoneContainer, FCSPose<FCompactPose>& Pose,
-	                         bool ResetBoneTransformWhenBoneNotFound)
-	{
-		const auto CompactPoseIndex = BoneRef.GetCompactPoseIndex(BoneContainer);
-		if (CompactPoseIndex < 0)
-		{
-			// Reset bone location and rotation may cause trouble when switching between skeleton LODs #44
-			if (ResetBoneTransformWhenBoneNotFound)
-			{
-				PoseLocation = FVector::ZeroVector;
-				PoseRotation = FQuat::Identity;
-				PoseScale = FVector::OneVector;
-			}
-			return;
-		}
-
-		const auto ComponentSpaceTransform = Pose.GetComponentSpaceTransform(CompactPoseIndex);
-		PoseLocation = ComponentSpaceTransform.GetLocation();
-		PoseRotation = ComponentSpaceTransform.GetRotation();
-		PoseScale = ComponentSpaceTransform.GetScale3D();
-	}
-
-	/**
 	 * Checks if the bone has a parent.
 	 *
 	 * @return True if the bone has a parent, false otherwise.
@@ -604,6 +576,22 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings",
 		meta = (PinHiddenByDefault, DisplayPriority=0))
 	FKawaiiPhysicsSettings PhysicsSettings;
+
+	/**
+	* 物理制御を行う座標系（Component以外の場合は微小のパフォーマンス低下が発生しますが、急激なRootボーンの移動・回転の影響を回避することができます）
+	* Simulation space for physics control (Using anything other than ComponentSpace may cause a slight performance drop, but it can avoid the impact of sudden Root bone movement and rotation)
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
+	ESimulationSpace SimulationSpace = ESimulationSpace::ComponentSpace;
+
+	/**
+	* BaseBone座標系時の基準となるボーン
+	* BaseBone coordinate system reference bone
+	*/
+	UPROPERTY(EditAnywhere, Category = "Physics Settings",
+		meta = (PinHiddenByDefault, EditCondition= "SimulationSpace == ESimulationSpace::BaseBoneSpace",
+			EditConditionHides))
+	FBoneReference SimulationBaseBone;
 
 	/** 
 	* ターゲットとなるフレームレート
@@ -958,42 +946,58 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	TArray<FKawaiiPhysicsModifyBone> ModifyBones;
 
 	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics")
-	float DeltaTime;
+	float DeltaTime = 0.0f;
 
-protected:
-	UPROPERTY()
-	FTransform PreSkelCompTransform;
-	UPROPERTY()
+private:
+	/**
+	 * Flag indicating whether the physics settings have been initialized.
+	 */
 	bool bInitPhysicsSettings = false;
 
-#if WITH_EDITORONLY_DATA
-	UPROPERTY()
-	bool bEditing = false;
-
-	UPROPERTY()
-	double LastEvaluatedTime = 0.0;
-
-#endif
+	/**
+	 * Transform of the skeletal component in last frame.
+	 */
+	FTransform PreSkelCompTransform;
 
 	/**
-	 * Vector representing the movement of the skeletal component.
-	 */
-	FVector SkelCompMoveVector;
+	* Vector representing the movement of the skeletal component.
+	*/
+	FVector SkelCompMoveVector = FVector::ZeroVector;
 
 	/**
 	 * Quaternion representing the rotation of the skeletal component.
 	 */
-	FQuat SkelCompMoveRotation;
+	FQuat SkelCompMoveRotation = FQuat::Identity;
 
 	/**
-	* Stores the delta time from the previous frame.
-	*/
-	float DeltaTimeOld;
+	 * Flag indicating whether to reset or skip the dynamics.
+	 */
+	ETeleportType TeleportType = ETeleportType::None;
 
 	/**
 	 * Flag indicating whether to reset the dynamics.
 	 */
-	bool bResetDynamics;
+	FVector GravityInSimSpace = FVector::ZeroVector;
+	
+	/**
+	 *	 The last simulation space used for the physics simulation.
+	 */
+	ESimulationSpace LastSimulationSpace = ESimulationSpace::ComponentSpace;
+
+	/**
+	 * Base bone space to component space transform.
+	 */
+	FTransform BaseBoneSpace2ComponentSpace = FTransform::Identity;
+
+	/**
+	* Stores the delta time from the previous frame.
+	*/
+	float DeltaTimeOld = 0.0f;
+
+#if WITH_EDITORONLY_DATA
+	bool bEditing = false;
+	double LastEvaluatedTime = 0.0;
+#endif
 
 public:
 	FAnimNode_KawaiiPhysics();
@@ -1044,6 +1048,11 @@ public:
 	 */
 	float GetDeltaTimeOld() const;
 
+	/**
+	 * Get Transform from BaseBoneSpace to ComponentSpace.
+	 */
+	FTransform GetBaseBoneSpace2ComponentSpace() const { return BaseBoneSpace2ComponentSpace; }
+
 protected:
 	/**
 	 * Gets the forward vector of a bone based on its rotation.
@@ -1051,25 +1060,7 @@ protected:
 	 * @param Rotation The quaternion representing the bone's rotation.
 	 * @return The forward vector of the bone.
 	 */
-	FVector GetBoneForwardVector(const FQuat& Rotation) const
-	{
-		switch (BoneForwardAxis)
-		{
-		default:
-		case EBoneForwardAxis::X_Positive:
-			return Rotation.GetAxisX();
-		case EBoneForwardAxis::X_Negative:
-			return -Rotation.GetAxisX();
-		case EBoneForwardAxis::Y_Positive:
-			return Rotation.GetAxisY();
-		case EBoneForwardAxis::Y_Negative:
-			return -Rotation.GetAxisY();
-		case EBoneForwardAxis::Z_Positive:
-			return Rotation.GetAxisZ();
-		case EBoneForwardAxis::Z_Negative:
-			return -Rotation.GetAxisZ();
-		}
-	}
+	FVector GetBoneForwardVector(const FQuat& Rotation) const;
 
 	// FAnimNode_SkeletalControlBase interface
 	virtual void InitializeBoneReferences(const FBoneContainer& RequiredBones) override;
@@ -1160,7 +1151,7 @@ protected:
 	 * @param ComponentTransform The component transform.
 	 */
 	void UpdateSphericalLimits(TArray<FSphericalLimit>& Limits, FComponentSpacePoseContext& Output,
-	                           const FBoneContainer& BoneContainer, const FTransform& ComponentTransform);
+	                           const FBoneContainer& BoneContainer, const FTransform& ComponentTransform) const;
 
 	/**
 	 * Updates the capsule limits for the given bones.
@@ -1171,7 +1162,7 @@ protected:
 	 * @param ComponentTransform The component transform.
 	 */
 	void UpdateCapsuleLimits(TArray<FCapsuleLimit>& Limits, FComponentSpacePoseContext& Output,
-	                         const FBoneContainer& BoneContainer, const FTransform& ComponentTransform);
+	                         const FBoneContainer& BoneContainer, const FTransform& ComponentTransform) const;
 
 
 	/**
@@ -1183,7 +1174,7 @@ protected:
 	 * @param ComponentTransform The component transform.
 	 */
 	void UpdateBoxLimits(TArray<FBoxLimit>& Limits, FComponentSpacePoseContext& Output,
-	                     const FBoneContainer& BoneContainer, const FTransform& ComponentTransform);
+	                     const FBoneContainer& BoneContainer, const FTransform& ComponentTransform) const;
 
 	/**
 	 * Updates the planar limits for the given bones.
@@ -1194,7 +1185,7 @@ protected:
 	 * @param ComponentTransform The component transform.
 	 */
 	void UpdatePlanerLimits(TArray<FPlanarLimit>& Limits, FComponentSpacePoseContext& Output,
-	                        const FBoneContainer& BoneContainer, const FTransform& ComponentTransform);
+	                        const FBoneContainer& BoneContainer, const FTransform& ComponentTransform) const;
 
 	/**
 	 * Updates the pose transform for all modified bones.
@@ -1209,7 +1200,7 @@ protected:
 	 *
 	 * @param ComponentTransform The current component transform.
 	 */
-	void UpdateSkelCompMove(const FTransform& ComponentTransform);
+	void UpdateSkelCompMove(FComponentSpacePoseContext& Output, const FTransform& ComponentTransform);
 
 	/**
 	 * Simulates the physics for all modified bones.
@@ -1232,7 +1223,7 @@ protected:
 	 * @param Output The pose context.
 	 */
 	void Simulate(FKawaiiPhysicsModifyBone& Bone, const FSceneInterface* Scene, const FTransform& ComponentTransform,
-	              const FVector& GravityCS, const float& Exponent, const USkeletalMeshComponent* SkelComp,
+	              const float& Exponent, const USkeletalMeshComponent* SkelComp,
 	              FComponentSpacePoseContext& Output);
 
 	/**
@@ -1241,7 +1232,8 @@ protected:
 	 * @param Bone The bone to adjust.
 	 * @param OwningComp The owning skeletal mesh component.
 	 */
-	void AdjustByWorldCollision(FKawaiiPhysicsModifyBone& Bone, const USkeletalMeshComponent* OwningComp);
+	void AdjustByWorldCollision(FComponentSpacePoseContext& Output, FKawaiiPhysicsModifyBone& Bone,
+	                            const USkeletalMeshComponent* OwningComp);
 
 	/**
 	 * Adjusts the bone position based on spherical collision limits.
@@ -1326,10 +1318,33 @@ protected:
 	 * @param Bone The bone to get the wind velocity for.
 	 * @return The wind velocity vector.
 	 */
-	FVector GetWindVelocity(const FSceneInterface* Scene, const FTransform& ComponentTransform,
+	FVector GetWindVelocity(const FComponentSpacePoseContext& Output, const FSceneInterface* Scene,
 	                        const FKawaiiPhysicsModifyBone& Bone) const;
 
 #if ENABLE_ANIM_DEBUG
-	void AnimDrawDebug(const FComponentSpacePoseContext& Output);
+	void AnimDrawDebug(FComponentSpacePoseContext& Output);
 #endif
+
+private:
+	// Given a bone index, get it's transform in the currently selected simulation space
+	FTransform GetBoneTransformInSimSpace(FComponentSpacePoseContext& Output,
+	                                      const FCompactPoseBoneIndex& BoneIndex) const;
+
+	// Convert a transform from one simulation space to another
+	FTransform ConvertSimulationSpaceTransform(const FComponentSpacePoseContext& Output, ESimulationSpace From,
+	                                           ESimulationSpace To, const FTransform& InTransform) const;
+
+	// Convert a vector from one simulation space to another
+	FVector ConvertSimulationSpaceVector(const FComponentSpacePoseContext& Output, ESimulationSpace From,
+	                                     ESimulationSpace To, const FVector& InVector) const;
+
+	// Convert a location from one simulation space to another
+	FVector ConvertSimulationSpaceLocation(const FComponentSpacePoseContext& Output, ESimulationSpace From,
+	                                       ESimulationSpace To, const FVector& InLocation) const;
+
+	// Convert a rotation from one simulation space to another
+	FQuat ConvertSimulationSpaceRotation(FComponentSpacePoseContext& Output, ESimulationSpace From,
+	                                     ESimulationSpace To, const FQuat& InRotation) const;
+
+	void ConvertSimulationSpace(FComponentSpacePoseContext& Output, ESimulationSpace From, ESimulationSpace To);
 };

@@ -6,6 +6,8 @@
 #include "BlueprintGameplayTagLibrary.h"
 #include "KawaiiPhysicsExternalForce.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(KawaiiPhysicsLibrary)
+
 DEFINE_LOG_CATEGORY_STATIC(LogKawaiiPhysicsLibrary, Verbose, All);
 
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::ConvertToKawaiiPhysics(const FAnimNodeReference& Node,
