@@ -129,7 +129,7 @@ void FKawaiiPhysicsEditMode::Render(const FSceneView* View, FViewport* Viewport,
 
 				FVector CollisionLocation = Collision->Location;
 				FQuat CollisionRotation = Collision->Rotation;
-				if (RuntimeNode->SimulationSpace == ESimulationSpace::BaseBoneSpace)
+				if (RuntimeNode->SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
 				{
 					const FTransform& BaseBoneSpace2ComponentSpace = RuntimeNode->GetBaseBoneSpace2ComponentSpace();
 					CollisionLocation = BaseBoneSpace2ComponentSpace.TransformPosition(CollisionLocation);
@@ -155,7 +155,7 @@ void FKawaiiPhysicsEditMode::RenderModifyBones(FPrimitiveDrawInterface* PDI) con
 		for (auto& Bone : RuntimeNode->ModifyBones)
 		{
 			FVector BoneLocation = Bone.Location;
-			if (RuntimeNode->SimulationSpace == ESimulationSpace::BaseBoneSpace)
+			if (RuntimeNode->SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
 			{
 				const FTransform& BaseBoneSpace2ComponentSpace = RuntimeNode->GetBaseBoneSpace2ComponentSpace();
 				BoneLocation = BaseBoneSpace2ComponentSpace.TransformPosition(BoneLocation);
@@ -172,7 +172,7 @@ void FKawaiiPhysicsEditMode::RenderModifyBones(FPrimitiveDrawInterface* PDI) con
 			for (const int32 ChildIndex : Bone.ChildIndices)
 			{
 				FVector ChildBoneLocation = RuntimeNode->ModifyBones[ChildIndex].Location;
-				if (RuntimeNode->SimulationSpace == ESimulationSpace::BaseBoneSpace)
+				if (RuntimeNode->SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
 				{
 					const FTransform& BaseBoneSpace2ComponentSpace = RuntimeNode->GetBaseBoneSpace2ComponentSpace();
 					ChildBoneLocation = BaseBoneSpace2ComponentSpace.TransformPosition(ChildBoneLocation);
@@ -197,7 +197,7 @@ void FKawaiiPhysicsEditMode::RenderLimitAngle(FPrimitiveDrawInterface* PDI) cons
 				FTransform ParentBoneTransform = FTransform(RuntimeNode->ModifyBones[Bone.ParentIndex].PrevRotation,
 				                                            RuntimeNode->ModifyBones[Bone.ParentIndex].PrevLocation);
 
-				if (RuntimeNode->SimulationSpace == ESimulationSpace::BaseBoneSpace)
+				if (RuntimeNode->SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
 				{
 					const FTransform& BaseBoneSpace2ComponentSpace = RuntimeNode->GetBaseBoneSpace2ComponentSpace();
 					BoneTransform = BoneTransform * BaseBoneSpace2ComponentSpace;
@@ -229,7 +229,7 @@ void FKawaiiPhysicsEditMode::RenderSphericalLimits(FPrimitiveDrawInterface* PDI)
 		{
 			FVector Location = Sphere.Location;
 			FQuat Rotation = Sphere.Rotation;
-			if (RuntimeNode->SimulationSpace == ESimulationSpace::BaseBoneSpace)
+			if (RuntimeNode->SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
 			{
 				const FTransform& BaseBoneSpace2ComponentSpace = RuntimeNode->GetBaseBoneSpace2ComponentSpace();
 				Location = BaseBoneSpace2ComponentSpace.TransformPosition(Location);
@@ -285,7 +285,7 @@ void FKawaiiPhysicsEditMode::RenderCapsuleLimit(FPrimitiveDrawInterface* PDI) co
 		{
 			FVector Location = Capsule.Location;
 			FQuat Rotation = Capsule.Rotation;
-			if (RuntimeNode->SimulationSpace == ESimulationSpace::BaseBoneSpace)
+			if (RuntimeNode->SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
 			{
 				const FTransform& BaseBoneSpace2ComponentSpace = RuntimeNode->GetBaseBoneSpace2ComponentSpace();
 				Location = BaseBoneSpace2ComponentSpace.TransformPosition(Location);
@@ -349,7 +349,7 @@ void FKawaiiPhysicsEditMode::RenderBoxLimit(FPrimitiveDrawInterface* PDI) const
 		if (Box.bEnable && Box.Extent.Size() > 0)
 		{
 			FTransform BoxTransform(Box.Rotation, Box.Location);
-			if (RuntimeNode->SimulationSpace == ESimulationSpace::BaseBoneSpace)
+			if (RuntimeNode->SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
 			{
 				const FTransform& BaseBoneSpace2ComponentSpace = RuntimeNode->GetBaseBoneSpace2ComponentSpace();
 				BoxTransform = BoxTransform * BaseBoneSpace2ComponentSpace;
@@ -398,7 +398,7 @@ void FKawaiiPhysicsEditMode::RenderPlanerLimit(FPrimitiveDrawInterface* PDI)
 		                           bool bUseHit = true)
 		{
 			FTransform PlaneTransform(Plane.Rotation, Plane.Location);
-			if (RuntimeNode->SimulationSpace == ESimulationSpace::BaseBoneSpace)
+			if (RuntimeNode->SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
 			{
 				const FTransform& BaseBoneSpace2ComponentSpace = RuntimeNode->GetBaseBoneSpace2ComponentSpace();
 				PlaneTransform = PlaneTransform * BaseBoneSpace2ComponentSpace;
@@ -444,7 +444,7 @@ void FKawaiiPhysicsEditMode::RenderBoneConstraint(FPrimitiveDrawInterface* PDI) 
 					RuntimeNode->ModifyBones[BoneConstraint.ModifyBoneIndex2].PrevRotation,
 					RuntimeNode->ModifyBones[BoneConstraint.ModifyBoneIndex2].PrevLocation);
 
-				if (RuntimeNode->SimulationSpace == ESimulationSpace::BaseBoneSpace)
+				if (RuntimeNode->SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
 				{
 					const FTransform& BaseBoneSpace2ComponentSpace = RuntimeNode->GetBaseBoneSpace2ComponentSpace();
 					BoneTransform1 = BoneTransform1 * BaseBoneSpace2ComponentSpace;
@@ -1041,7 +1041,7 @@ void FKawaiiPhysicsEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FVie
 			for (auto& Bone : RuntimeNode->ModifyBones)
 			{
 				FVector BoneLocation = Bone.Location;
-				if (RuntimeNode->SimulationSpace == ESimulationSpace::BaseBoneSpace)
+				if (RuntimeNode->SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
 				{
 					const FTransform& BaseBoneSpace2ComponentSpace = RuntimeNode->GetBaseBoneSpace2ComponentSpace();
 					BoneLocation = BaseBoneSpace2ComponentSpace.TransformPosition(BoneLocation);
