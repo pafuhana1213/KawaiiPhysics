@@ -59,22 +59,11 @@ https://www.youtube.com/watch?v=UvpEIBGegvs
 [次期アイドルマスター グラフィクス＆アニメーション プログラミング プレビュー](https://cedil.cesa.or.jp/cedil_sessions/view/416)
 
 ## 動作環境
-- UE5.3 ~ 5.5  
-https://github.com/pafuhana1213/KawaiiPhysics/releases/  
-  
+- UE5.3 ~ 5.6  
+https://github.com/pafuhana1213/KawaiiPhysics/releases/    
 - UE4.27  
 https://github.com/pafuhana1213/KawaiiPhysics/releases/tag/20230830-v1.11.1  
-- UE4.26以前（Pluginのみ）  
-https://github.com/pafuhana1213/KawaiiPhysics/releases/tag/20201202-v1.7.0
 
-UE4.26以前でビルドする際は、GetSkeleton()をSkeletonに修正する必要があります。
-
-UE4.21以前でビルドする場合は、KawaiiPhysicsEditMode.cpp における  
-GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy () を  
-GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy (false)　に修正する必要があります。 
-
-UE4.23以前でビルドする場合は、awaiiPhysics.uplugin における  
-"Type": "UncookedOnly",　を "Type": "DeveloperTool", に修正する必要があります（たぶん）。
 
 ## 使い方
 - **プロジェクト**のPluginsフォルダにKawaiiPhysicsフォルダを入れてください
@@ -107,9 +96,10 @@ https://docs.unrealengine.com/5.0/ja/setting-up-visual-studio-development-enviro
   - 補足：骨ごとの影響度調整は「◯◯◯ by bone length rate」プロパティである程度実現可能です
 - [【UE4】Kawaii Physicsチュートリアル#1](https://www.youtube.com/watch?v=hlgXuVML_is)
 - [How To Setup Kawaii Physics in Unreal Engine 5](https://dev.epicgames.com/community/learning/tutorials/d1Z9/unreal-engine-how-to-setup-kawaii-physics-in-unreal)
+- [５分でわかるKawaii Physicsの使い方！【UE5】【tutorial】](https://www.youtube.com/watch?v=TliP9vSxm4c)
 
 ## ライセンス
-MIT
+[MIT](https://github.com/pafuhana1213/KawaiiPhysics?tab=MIT-1-ov-file#readme)
 
 ## 作者
 [おかず@pafuhana1213](https://twitter.com/pafuhana1213)
