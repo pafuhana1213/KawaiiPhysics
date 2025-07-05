@@ -49,6 +49,11 @@ DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_WarmUp"), STAT_KawaiiPhysics_WarmUp, STAT
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdatePhysicsSetting"), STAT_KawaiiPhysics_UpdatePhysicsSetting, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdateCapsuleLimit"), STAT_KawaiiPhysics_UpdateCapsuleLimit, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdateBoxLimit"), STAT_KawaiiPhysics_UpdateBoxLimit, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ConvertSimulationSpaceTransform"), STAT_KawaiiPhysics_ConvertSimulationSpaceTransform, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ConvertSimulationSpaceVector"), STAT_KawaiiPhysics_ConvertSimulationSpaceVector, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ConvertSimulationSpaceLocation"), STAT_KawaiiPhysics_ConvertSimulationSpaceLocation, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ConvertSimulationSpaceRotation"), STAT_KawaiiPhysics_ConvertSimulationSpaceRotation, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ConvertSimulationSpace"), STAT_KawaiiPhysics_ConvertSimulationSpace, STATGROUP_Anim);
 
 FAnimNode_KawaiiPhysics::FAnimNode_KawaiiPhysics()
 {
@@ -1859,41 +1864,41 @@ FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceVector(const FComponentSp
                                                               const EKawaiiPhysicsSimulationSpace From,
                                                               const EKawaiiPhysicsSimulationSpace To, const FVector& InVector) const
 {
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ConvertSimulationSpaceVector);
+	if (From == To)
 	{
-		if (From == To)
-		{
-			return InVector;
-		}
-
-		FVector ResultVector = InVector;
-
-		// From -> ComponentSpace
-		if (From == EKawaiiPhysicsSimulationSpace::WorldSpace)
-		{
-			ResultVector = Output.AnimInstanceProxy->GetComponentTransform().InverseTransformVector(ResultVector);
-		}
-		else if (From == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
-		{
-			ResultVector = BaseBoneSpace2ComponentSpace.TransformVector(ResultVector);
-		}
-
-		// ComponentSpace -> To
-		if (To == EKawaiiPhysicsSimulationSpace::WorldSpace)
-		{
-			ResultVector = Output.AnimInstanceProxy->GetComponentTransform().TransformVector(ResultVector);
-		}
-		else if (To == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
-		{
-			ResultVector = BaseBoneSpace2ComponentSpace.InverseTransformVector(ResultVector);
-		}
-		return ResultVector;
+		return InVector;
 	}
+
+	FVector ResultVector = InVector;
+
+	// From -> ComponentSpace
+	if (From == EKawaiiPhysicsSimulationSpace::WorldSpace)
+	{
+		ResultVector = Output.AnimInstanceProxy->GetComponentTransform().InverseTransformVector(ResultVector);
+	}
+	else if (From == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
+	{
+		ResultVector = BaseBoneSpace2ComponentSpace.TransformVector(ResultVector);
+	}
+
+	// ComponentSpace -> To
+	if (To == EKawaiiPhysicsSimulationSpace::WorldSpace)
+	{
+		ResultVector = Output.AnimInstanceProxy->GetComponentTransform().TransformVector(ResultVector);
+	}
+	else if (To == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
+	{
+		ResultVector = BaseBoneSpace2ComponentSpace.InverseTransformVector(ResultVector);
+	}
+	return ResultVector;
 }
 
 FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceLocation(const FComponentSpacePoseContext& Output,
                                                                 const EKawaiiPhysicsSimulationSpace From, const EKawaiiPhysicsSimulationSpace To,
                                                                 const FVector& InLocation) const
 {
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ConvertSimulationSpaceLocation);
 	if (From == To)
 	{
 		return InLocation;
@@ -1927,6 +1932,7 @@ FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceLocation(const FComponent
 FQuat FAnimNode_KawaiiPhysics::ConvertSimulationSpaceRotation(FComponentSpacePoseContext& Output, EKawaiiPhysicsSimulationSpace From,
                                                               EKawaiiPhysicsSimulationSpace To, const FQuat& InRotation) const
 {
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ConvertSimulationSpaceRotation);
 	if (From == To)
 	{
 		return InRotation;
@@ -1960,6 +1966,7 @@ FQuat FAnimNode_KawaiiPhysics::ConvertSimulationSpaceRotation(FComponentSpacePos
 void FAnimNode_KawaiiPhysics::ConvertSimulationSpace(FComponentSpacePoseContext& Output, EKawaiiPhysicsSimulationSpace From,
                                                      EKawaiiPhysicsSimulationSpace To) 
 {
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ConvertSimulationSpace);
 	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 	{
 		Bone.Location = ConvertSimulationSpaceLocation(Output, From, To, Bone.Location);
