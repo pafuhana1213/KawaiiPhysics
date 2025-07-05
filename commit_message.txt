@@ -1,0 +1,3 @@
+[update] Handle changes in SimulationSpace
+
+This commit adds logic to handle runtime changes to the `SimulationSpace` property. When `SimulationSpace` is modified, the system now correctly transforms the location, previous location, and previous rotation of each bone to the new coordinate system. This ensures that the physics simulation remains stable and accurate even when dynamically altering the simulation space.
