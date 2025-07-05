@@ -1,3 +1,6 @@
+[日本語](https://github.com/pafuhana1213/KawaiiPhysics/blob/master/README.md) / [English](https://github.com/pafuhana1213/KawaiiPhysics/blob/master/README_en.md)
+
+---
 # Kawaii Physics
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/pafuhana1213/KawaiiPhysics) 
 ![UE Version](https://img.shields.io/badge/Unreal%20Engine-5.3--5.6-0e1128?logo=unrealengine&logoColor=white)
@@ -9,9 +12,6 @@
 </a>  
 
 Demo : https://youtu.be/0f-l-SP07Mo
-
-English doc   
-https://github.com/pafuhana1213/KawaiiPhysics/blob/master/README_en.md
 
 ダウンロード（C++ビルド環境がない方向け）  
 Github : https://github.com/pafuhana1213/KawaiiPhysics/releases/  
