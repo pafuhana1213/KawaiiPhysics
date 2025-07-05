@@ -80,9 +80,15 @@ https://docs.unrealengine.com/5.0/ja/using-the-cplusplus-class-wizard-in-unreal-
 https://docs.unrealengine.com/5.0/ja/setting-up-visual-studio-development-environment-for-cplusplus-projects-in-unreal-engine/
 
 ## サンプル
-![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics3.jpg)  
-- Content/KawaiiPhysicsSample/KawaiiPhysicsSample
-- お借りしたキャラクタ：Gray ちゃん http://rarihoma.xvs.jp/products/graychan
+![sample2](https://github.com/user-attachments/assets/0d866ad2-f803-400b-bd23-2d46ab17b8ae)
+- サンプルレベル：Content/KawaiiPhysicsSample/L_KawaiiPhysicsSample
+- お借りしたキャラクタ：
+  - Grayちゃん
+    - http://rarihoma.xvs.jp/products/graychan
+  - TA式 鷺宮カノ
+    - [株式会社TA](https://xta.co.jp/)様よりセットアップサンプル込みでご提供いただきました！
+    - 利用規約：https://uzurig.com/ja/terms_of_use_jp/
+    - Copyright (c) 2025 株式会社TA (https://xta.co.jp) All rights reserved
 
 ## 解説記事・動画
 ### 公式
