@@ -12,6 +12,7 @@
 #include "Runtime/Launch/Resources/Version.h"
 #include "SceneInterface.h"
 #include "PhysicsEngine/PhysicsAsset.h"
+#include "Engine/World.h"
 
 #if ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 5
 #include "PhysicsEngine/SkeletalBodySetup.h"
