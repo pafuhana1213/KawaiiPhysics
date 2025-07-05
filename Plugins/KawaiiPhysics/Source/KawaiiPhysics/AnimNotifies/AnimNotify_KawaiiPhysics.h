@@ -2,10 +2,11 @@
 
 #pragma once
 
+#include "Misc/EngineVersionComparison.h"
 #include "GameplayTagContainer.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 
-#if	ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 5
+#if UE_VERSION_NEWER_THAN(5, 5, 0)
 #include "StructUtils/InstancedStruct.h"
 #else
 #include "InstancedStruct.h"

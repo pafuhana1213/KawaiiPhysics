@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Misc/EngineVersionComparison.h"
 #include "BoneContainer.h"
 #include "BonePose.h"
 #include "GameplayTagContainer.h"
@@ -10,10 +11,17 @@
 #include "BoneControllers/AnimNode_RigidBody.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 
-#if	ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 5
+#include "Runtime/Launch/Resources/Version.h"
+
+#if UE_VERSION_NEWER_THAN(5, 5, 0)
 #include "StructUtils/InstancedStruct.h"
 #else
 #include "InstancedStruct.h"  
+#endif
+
+#if ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 6
+#include "PhysicsEngine/PhysicsAsset.h"
+#include "PhysicsEngine/BodyInstance.h"
 #endif
 
 #include "AnimNode_KawaiiPhysics.generated.h"

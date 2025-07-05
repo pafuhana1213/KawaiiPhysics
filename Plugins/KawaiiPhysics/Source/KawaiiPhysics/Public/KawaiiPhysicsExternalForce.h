@@ -4,6 +4,11 @@
 #include "AnimNode_KawaiiPhysics.h"
 #include "SceneManagement.h"
 #include "Curves/CurveVector.h"
+
+#if ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 6
+#include "Components/SkeletalMeshComponent.h"
+#endif
+
 #include "KawaiiPhysicsExternalForce.generated.h"
 
 /**
