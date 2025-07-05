@@ -1,4 +1,6 @@
 # Kawaii Physics
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/pafuhana1213/KawaiiPhysics) 
+
 <a href="https://youtu.be/0f-l-SP07Mo">
   <img src="https://github.com/user-attachments/assets/0bc33f5c-c7db-49b3-8e98-75dc062a4e2a" alt="画像" width="640px">
 </a>  
