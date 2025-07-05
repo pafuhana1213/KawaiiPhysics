@@ -11,12 +11,17 @@
   <img src="https://github.com/user-attachments/assets/0bc33f5c-c7db-49b3-8e98-75dc062a4e2a" alt="画像" width="640px">
 </a>  
 
-Demo : https://youtu.be/0f-l-SP07Mo
+デモ動画
+- https://youtu.be/0f-l-SP07Mo
 
 ダウンロード（C++ビルド環境がない方向け）  
-Github : https://github.com/pafuhana1213/KawaiiPhysics/releases/  
-Booth : [https://pafuhana1213.booth.pm/items/5943534](https://pafuhana1213.booth.pm/items/5943534)  
+- Github : https://github.com/pafuhana1213/KawaiiPhysics/releases/  
+- Booth : [https://pafuhana1213.booth.pm/items/5943534](https://pafuhana1213.booth.pm/items/5943534)  
 （ストアアカウントをフォローするとアップデート通知あり）
+
+ドキュメント
+- Wiki：https://github.com/pafuhana1213/KawaiiPhysics/wiki
+- DeepWiki：https://deepwiki.com/pafuhana1213/KawaiiPhysics (AIによる自動生成)
 
 ディスカッション  
 - [アップデート情報](https://github.com/pafuhana1213/KawaiiPhysics/discussions/categories/announcements-%E3%82%A2%E3%83%8A%E3%82%A6%E3%83%B3%E3%82%B9)
@@ -24,7 +29,7 @@ Booth : [https://pafuhana1213.booth.pm/items/5943534](https://pafuhana1213.booth
 - [質問・Q&A](https://github.com/pafuhana1213/KawaiiPhysics/discussions/categories/q-a)
 - [あなたの作品を教えてください！](https://github.com/pafuhana1213/KawaiiPhysics/discussions/65)  
 - [設定方法などについての雑談・相談の場](https://github.com/pafuhana1213/KawaiiPhysics/discussions/66)  
-- [機能やサンプルのリクエスト方法について](https://github.com/pafuhana1213/KawaiiPhysics/discussions/67)  
+- [機能やサンプルのリクエスト方法について](https://github.com/pafuhana1213/KawaiiPhysics/discussions/67)
 
 不具合報告  
 - https://github.com/pafuhana1213/KawaiiPhysics/issues
