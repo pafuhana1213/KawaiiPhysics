@@ -48,6 +48,11 @@ Kawaii Physicsは UnrealEngine4,5用に作成した疑似物理プラグイン�
 キャラクタ：[オリジナル3Dモデル『ルゼブル』-Lzebul-](https://booth.pm/ja/items/4887691)  
 モーション：[ミライ小町 テーマソング「ミライ」MV ダンスアニメーション](https://www.miraikomachi.com/download/)
 
+![danceKano](https://github.com/user-attachments/assets/63faed3c-8aaa-4d4d-ae33-e98f9c8c15fd)  
+キャラクタ：[TA式 鷺宮カノ](https://uzurig.com/ja/uzurig2-rigging-plugin-for-maya-jp/)  
+モーション：[TVアニメ「しかのこのこのここしたんたん」ダンスモーションデータ](https://booth.pm/ja/items/5975857)  
+セットアップ：[株式会社TA様](https://xta.co.jp/)   
+
 ## 特徴
 ![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics2.jpg)  
 ![](https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics4.gif)  
