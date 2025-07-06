@@ -1,4 +1,4 @@
-﻿// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
+﻿// KawaiiPhysics : Copyright (c) 2019-2025 pafuhana1213
 
 #include "AnimNode_KawaiiPhysics.h"
 
