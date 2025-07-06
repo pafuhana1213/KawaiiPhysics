@@ -44,7 +44,8 @@ void FKawaiiPhysics_ExternalForce_Basic::PreApply(FAnimNode_KawaiiPhysics& Node,
 		Force = ForceDir * RandomizedForceScale;
 	}
 
-	if (ExternalForceSpace == EExternalForceSpace::WorldSpace)
+	if (ExternalForceSpace == EExternalForceSpace::WorldSpace &&
+		Node.SimulationSpace != EKawaiiPhysicsSimulationSpace::WorldSpace)
 	{
 		Force = ComponentTransform.InverseTransformVector(Force);
 	}
@@ -116,7 +117,10 @@ void FKawaiiPhysics_ExternalForce_Gravity::PreApply(FAnimNode_KawaiiPhysics& Nod
 	}
 
 	Force *= RandomizedForceScale;
-	Force = ComponentTransform.InverseTransformVector(Force);
+	if (Node.SimulationSpace != EKawaiiPhysicsSimulationSpace::WorldSpace)
+	{
+		Force = ComponentTransform.InverseTransformVector(Force);
+	}
 }
 
 void FKawaiiPhysics_ExternalForce_Gravity::Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
@@ -237,7 +241,8 @@ void FKawaiiPhysics_ExternalForce_Curve::PreApply(FAnimNode_KawaiiPhysics& Node,
 		Force *= RandomizedForceScale;
 	}
 
-	if (ExternalForceSpace == EExternalForceSpace::WorldSpace)
+	if (ExternalForceSpace == EExternalForceSpace::WorldSpace &&
+		Node.SimulationSpace != EKawaiiPhysicsSimulationSpace::WorldSpace)
 	{
 		Force = ComponentTransform.InverseTransformVector(Force);
 	}
@@ -310,7 +315,11 @@ void FKawaiiPhysics_ExternalForce_Wind::Apply(FKawaiiPhysicsModifyBone& Bone, FA
 	float WindSpeed, WindMinGust, WindMaxGust = 0.0f;
 	Scene->GetWindParameters(ComponentTransform.TransformPosition(Bone.PoseLocation), WindDirection,
 	                         WindSpeed, WindMinGust, WindMaxGust);
-	WindDirection = ComponentTransform.InverseTransformVector(WindDirection);
+
+	if (Node.SimulationSpace != EKawaiiPhysicsSimulationSpace::WorldSpace)
+	{
+	    WindDirection = ComponentTransform.InverseTransformVector(WindDirection);
+	}
 	WindDirection *= WindSpeed;
 
 	Bone.Location += WindDirection * ForceRate * RandomizedForceScale * Node.DeltaTime;
