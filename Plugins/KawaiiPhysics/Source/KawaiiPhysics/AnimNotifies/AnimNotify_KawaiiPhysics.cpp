@@ -1,9 +1,11 @@
-﻿// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
+﻿// KawaiiPhysics : Copyright (c) 2019-2025 pafuhana1213
 
 #include "AnimNotify_KawaiiPhysics.h"
 #include "KawaiiPhysicsLibrary.h"
 #include "Misc/UObjectToken.h"
 #include "Logging/MessageLog.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotify_KawaiiPhysics)
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysics_AnimNotify"
 

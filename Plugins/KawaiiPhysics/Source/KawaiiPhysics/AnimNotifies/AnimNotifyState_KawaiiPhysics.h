@@ -1,12 +1,12 @@
-﻿// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
+﻿// KawaiiPhysics : Copyright (c) 2019-2025 pafuhana1213
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Misc/EngineVersionComparison.h"
 #include "GameplayTagContainer.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 
-#if	ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 5
+#if UE_VERSION_NEWER_THAN(5, 5, 0)
 #include "StructUtils/InstancedStruct.h"
 #else
 #include "InstancedStruct.h"

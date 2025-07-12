@@ -1,13 +1,16 @@
-﻿// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
+// KawaiiPhysics : Copyright (c) 2019-2025 pafuhana1213
 
 #include "KawaiiPhysicsLibrary.h"
 
 #if ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 6
 #include "Animation/AnimInstance.h"
 #endif
+
 #include "AnimNode_KawaiiPhysics.h"
 #include "BlueprintGameplayTagLibrary.h"
 #include "KawaiiPhysicsExternalForce.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(KawaiiPhysicsLibrary)
 
 DEFINE_LOG_CATEGORY_STATIC(LogKawaiiPhysicsLibrary, Verbose, All);
 

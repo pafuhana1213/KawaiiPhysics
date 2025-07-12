@@ -1,35 +1,29 @@
 {
-  "FileVersion": 3,
-  "Version": 1.18,
-  "VersionName": "1.18.0",
-  "FriendlyName": "KawaiiPhysics",
-  "Description": "",
-  "Category": "Animation",
-  "CreatedBy": "pafuhana1213",
-  "CreatedByURL": "https://twitter.com/pafuhana1213",
-  "DocsURL": "https://github.com/pafuhana1213/KawaiiPhysics",
-  "MarketplaceURL": "KawaiiPhysics : Simple fake Physics for UnrealEngine4&5",
-  "SupportURL": "https://github.com/pafuhana1213/KawaiiPhysics/issues",
-  "CanContainContent": false,
-  "IsBetaVersion": false,
-  "IsExperimentalVersion": false,
-  "Installed": false,
-  "Modules": [
-    {
-      "Name": "KawaiiPhysics",
-      "Type": "Runtime",
-      "LoadingPhase": "PostConfigInit"
-    },
-    {
-      "Name": "KawaiiPhysicsEd",
-      "Type": "UncookedOnly",
-      "LoadingPhase": "PreDefault"
-    }
-  ],
-  "Plugins": [
-    {
-      "Name": "StructUtils",
-      "Enabled": true
-    }
-  ]
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.19.0",
+	"FriendlyName": "KawaiiPhysics",
+	"Description": "Simple Bone Physics for UnrealEngine4 & 5",
+	"Category": "Animation",
+	"CreatedBy": "pafuhana1213",
+	"CreatedByURL": "https://twitter.com/pafuhana1213",
+	"DocsURL": "https://github.com/pafuhana1213/KawaiiPhysics",
+	"MarketplaceURL": "",
+	"SupportURL": "https://github.com/pafuhana1213/KawaiiPhysics/issues",
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "KawaiiPhysics",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit"
+		},
+		{
+			"Name": "KawaiiPhysicsEd",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "PreDefault"
+		}
+	]
 }

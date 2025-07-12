@@ -1,4 +1,4 @@
-﻿// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
+﻿// KawaiiPhysics : Copyright (c) 2019-2025 pafuhana1213
 
 
 #include "KawaiiPhysicsBoneConstraintsDataAsset.h"
@@ -9,6 +9,8 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(KawaiiPhysicsBoneConstraintsDataAsset)
 
 struct FBoneConstraintDataCustomVersion
 {

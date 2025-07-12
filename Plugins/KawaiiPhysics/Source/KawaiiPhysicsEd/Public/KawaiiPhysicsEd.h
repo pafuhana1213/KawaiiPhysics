@@ -1,8 +1,8 @@
-// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
+// KawaiiPhysics : Copyright (c) 2019-2025 pafuhana1213
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Modules/ModuleInterface.h"
 
 class FKawaiiPhysicsEdModule : public IModuleInterface
 {
