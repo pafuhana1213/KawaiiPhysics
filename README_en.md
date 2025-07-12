@@ -81,7 +81,7 @@ If you do not have a C++ build environment, please download the plugin from the 
 
 - Add and use the `KawaiiPhysics` node in the AnimGraph of the Animation Blueprint.
 - For detailed parameter settings, please refer to the Wiki.
-  - **[About Each Parameter](https://github.com/pafuhana1213/KawaiiPhysics/wiki/About-each-parameters)**
+  - **[About Each Parameter](https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E5%90%84%E3%83%91%E3%83%A9%E3%83%A1%E3%83%BC%E3%82%BF%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6--About-each-parameters)**
 
 > **Note:** An error may occur when packaging a project that only uses Blueprints. In that case, please convert it to a C++ project or refer to [this article](https://papersloth.hatenablog.com/entry/2024/02/14/201629).
 
