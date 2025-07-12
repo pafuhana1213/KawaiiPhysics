@@ -87,7 +87,6 @@ If you do not have a C++ build environment, please download the plugin from the 
 
 ## 📚 Documentation & Community
 
-- **[Wiki](https://github.com/pafuhana1213/KawaiiPhysics/wiki)**: Official documentation (under construction)
 - **[DeepWiki](https://deepwiki.com/pafuhana1213/KawaiiPhysics)**: AI-generated documentation
 - **[Discussions](https://github.com/pafuhana1213/KawaiiPhysics/discussions)**: For questions, requests, and general chat
 - **[Issues](https://github.com/pafuhana1213/KawaiiPhysics/issues)**: Bug reports
@@ -101,13 +100,15 @@ If you do not have a C++ build environment, please download the plugin from the 
 
 ### Unofficial (Thank you!)
 
-- [A Complete Beginner's Guide to Increasing a Female Character's Kawaii with KawaiiPhysics](https://qiita.com/YuukiOgino/items/7f3198a90dab43019f26)
-- [Swaying Objects and Control Rig: A Case Study in Virtual Live Using UE](https://www.docswell.com/s/indieusgames/K4Q2XJ-2024-06-14-175045)
-- [【UE】Swaying Object Settings (Kawaii Physics)](https://techblog.sumelagi.co.jp/unrealengine/147/)
-- [【UE4】Kawaii Physics Tutorial #1](https://www.youtube.com/watch?v=hlgXuVML_is)
 - [How To Setup Kawaii Physics in Unreal Engine 5](https://dev.epicgames.com/community/learning/tutorials/d1Z9/unreal-engine-how-to-setup-kawaii-physics-in-unreal)
-- [Learn Kawaii Physics in 5 minutes!【UE5】【tutorial】](https://www.youtube.com/watch?v=TliP9vSxm4c)
+
 - [The Hidden Physics “Engine” Behind Unreal's Most Stylish Games ...](https://www.youtube.com/watch?v=9ThmoMHnHhw)
+- In Japanese
+  - [A Complete Beginner's Guide to Increasing a Female Character's Kawaii with KawaiiPhysics](https://qiita.com/YuukiOgino/items/7f3198a90dab43019f26)
+  - [Swaying Objects and Control Rig: A Case Study in Virtual Live Using UE](https://www.docswell.com/s/indieusgames/K4Q2XJ-2024-06-14-175045)
+  - [【UE】Swaying Object Settings (Kawaii Physics)](https://techblog.sumelagi.co.jp/unrealengine/147/)
+  - [【UE4】Kawaii Physics Tutorial #1](https://www.youtube.com/watch?v=hlgXuVML_is)
+  - [Learn Kawaii Physics in 5 minutes!【UE5】【tutorial】](https://www.youtube.com/watch?v=TliP9vSxm4c)
 
 ## 🎮 Sample
 
