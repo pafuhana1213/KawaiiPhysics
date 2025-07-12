@@ -114,7 +114,7 @@ If you do not have a C++ build environment, please download the plugin from the 
 
 <img src="https://github.com/user-attachments/assets/0d866ad2-f803-400b-bd23-2d46ab17b8ae" alt="sample2" width="640px">
 
-The project includes a sample level and characters.
+This sample project can be downloaded from Github includes a sample level and characters.
 - **Sample Level**: `Content/KawaiiPhysicsSample/L_KawaiiPhysicsSample`
 - **Characters Used**:
   - **Gray-chan**: http://rarihoma.xvs.jp/products/graychan
