@@ -81,13 +81,12 @@ If you do not have a C++ build environment, please download the plugin from the 
 
 - Add and use the `KawaiiPhysics` node in the AnimGraph of the Animation Blueprint.
 - For detailed parameter settings, please refer to the Wiki.
-  - **[About Each Parameter](https://github.com/pafuhana1213/KawaiiPhysics/wiki/About-each-parameters)**
+  - **[About Each Parameter](https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E5%90%84%E3%83%91%E3%83%A9%E3%83%A1%E3%83%BC%E3%82%BF%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6--About-each-parameters)**
 
 > **Note:** An error may occur when packaging a project that only uses Blueprints. In that case, please convert it to a C++ project or refer to [this article](https://papersloth.hatenablog.com/entry/2024/02/14/201629).
 
 ## 📚 Documentation & Community
 
-- **[Wiki](https://github.com/pafuhana1213/KawaiiPhysics/wiki)**: Official documentation (under construction)
 - **[DeepWiki](https://deepwiki.com/pafuhana1213/KawaiiPhysics)**: AI-generated documentation
 - **[Discussions](https://github.com/pafuhana1213/KawaiiPhysics/discussions)**: For questions, requests, and general chat
 - **[Issues](https://github.com/pafuhana1213/KawaiiPhysics/issues)**: Bug reports
@@ -101,19 +100,21 @@ If you do not have a C++ build environment, please download the plugin from the 
 
 ### Unofficial (Thank you!)
 
-- [A Complete Beginner's Guide to Increasing a Female Character's Kawaii with KawaiiPhysics](https://qiita.com/YuukiOgino/items/7f3198a90dab43019f26)
-- [Swaying Objects and Control Rig: A Case Study in Virtual Live Using UE](https://www.docswell.com/s/indieusgames/K4Q2XJ-2024-06-14-175045)
-- [【UE】Swaying Object Settings (Kawaii Physics)](https://techblog.sumelagi.co.jp/unrealengine/147/)
-- [【UE4】Kawaii Physics Tutorial #1](https://www.youtube.com/watch?v=hlgXuVML_is)
 - [How To Setup Kawaii Physics in Unreal Engine 5](https://dev.epicgames.com/community/learning/tutorials/d1Z9/unreal-engine-how-to-setup-kawaii-physics-in-unreal)
-- [Learn Kawaii Physics in 5 minutes!【UE5】【tutorial】](https://www.youtube.com/watch?v=TliP9vSxm4c)
+
 - [The Hidden Physics “Engine” Behind Unreal's Most Stylish Games ...](https://www.youtube.com/watch?v=9ThmoMHnHhw)
+- In Japanese
+  - [A Complete Beginner's Guide to Increasing a Female Character's Kawaii with KawaiiPhysics](https://qiita.com/YuukiOgino/items/7f3198a90dab43019f26)
+  - [Swaying Objects and Control Rig: A Case Study in Virtual Live Using UE](https://www.docswell.com/s/indieusgames/K4Q2XJ-2024-06-14-175045)
+  - [【UE】Swaying Object Settings (Kawaii Physics)](https://techblog.sumelagi.co.jp/unrealengine/147/)
+  - [【UE4】Kawaii Physics Tutorial #1](https://www.youtube.com/watch?v=hlgXuVML_is)
+  - [Learn Kawaii Physics in 5 minutes!【UE5】【tutorial】](https://www.youtube.com/watch?v=TliP9vSxm4c)
 
 ## 🎮 Sample
 
 <img src="https://github.com/user-attachments/assets/0d866ad2-f803-400b-bd23-2d46ab17b8ae" alt="sample2" width="640px">
 
-The project includes a sample level and characters.
+This sample project can be downloaded from Github includes a sample level and characters.
 - **Sample Level**: `Content/KawaiiPhysicsSample/L_KawaiiPhysicsSample`
 - **Characters Used**:
   - **Gray-chan**: http://rarihoma.xvs.jp/products/graychan
