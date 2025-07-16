@@ -13,7 +13,6 @@ public class KawaiiPhysics : ModuleRules
 			{
 				"Core",
 				"AnimGraphRuntime",
-				"GameplayTags"
 			}
 		);
 
@@ -29,7 +28,8 @@ public class KawaiiPhysics : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"Slate",
-				"SlateCore"
+				"SlateCore",
+				"GameplayTags"
 			}
 		);
 
