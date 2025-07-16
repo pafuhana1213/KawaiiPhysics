@@ -1,7 +1,7 @@
-﻿// KawaiiPhysics : Copyright (c) 2019-2025 pafuhana1213
+﻿// Copyright 2019-2025 pafuhana1213. All Rights Reserved.
 
 
-#include "AnimNotifyState_KawaiiPhysics.h"
+#include "AnimNotifies/AnimNotifyState_KawaiiPhysics.h"
 #include "KawaiiPhysicsLibrary.h"
 #include "Misc/UObjectToken.h"
 
