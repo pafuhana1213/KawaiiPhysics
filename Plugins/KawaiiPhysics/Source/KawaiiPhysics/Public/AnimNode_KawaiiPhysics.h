@@ -1,4 +1,4 @@
-// KawaiiPhysics : Copyright (c) 2019-2025 pafuhana1213
+// Copyright 2019-2025 pafuhana1213. All Rights Reserved.
 
 #pragma once
 
@@ -11,9 +11,7 @@
 #include "BoneControllers/AnimNode_RigidBody.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 
-#include "Runtime/Launch/Resources/Version.h"
-
-#if UE_VERSION_NEWER_THAN(5, 5, 0)
+#if ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 5
 #include "StructUtils/InstancedStruct.h"
 #else
 #include "InstancedStruct.h"  
