@@ -65,6 +65,7 @@ The following materials were used as a reference for implementing the physics be
 If you do not have a C++ build environment, please download the plugin from the following links:
 
 - **[GitHub Releases](https://github.com/pafuhana1213/KawaiiPhysics/releases/)**
+- **[FAB](https://www.fab.com/ja/listings/f870c07e-0a02-4a78-a888-e52a22794572)** 
 - **[Booth](https://pafuhana1213.booth.pm/items/5943534)** (Follow the store to receive update notifications)
 
 ### 2. Supported Versions
@@ -140,3 +141,16 @@ It has been adopted in many projects!
 ## 📅 Changelog
 
 [Announcements](https://github.com/pafuhana1213/KawaiiPhysics/discussions/categories/announcements-%E3%82%A2%E3%83%8A%E3%82%A6%E3%83%B3%E3%82%B9)
+
+---
+
+## ✨ Support Me If You’d Like!
+
+If this plugin has been even a little helpful for your UE projects, I’m truly glad to hear that!
+
+I’ve been developing it solo as both a hobby and a practical tool — squeezing out development time and even covering coffee costs out of my own pocket ☕  
+If you think “Hey, this is pretty good!”, your support via a purchase on FAB or through GitHub Sponsors would mean a lot to me and help keep development going.  
+(You can read more about the background behind the FAB launch [here](https://github.com/pafuhana1213/KawaiiPhysics/discussions/170).)
+
+[💖 **Buy on FAB**](https://www.fab.com/ja/listings/f870c07e-0a02-4a78-a888-e52a22794572)  
+[💖 **Support via GitHub Sponsors**](https://github.com/sponsors/pafuhana1213)
