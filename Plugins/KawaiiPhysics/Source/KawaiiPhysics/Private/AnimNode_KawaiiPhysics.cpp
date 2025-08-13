@@ -39,6 +39,10 @@ TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsDebugLengthRate(
 	TEXT("Turn on visualization debugging for KawaiiPhysics Bone's LengthRate"));
 #endif
 
+TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsUseBoneContainerRefSkeletonWhenInit(
+	TEXT("a.AnimNode.KawaiiPhysics.UseBoneContainerRefSkeletonWhenInit"), true, TEXT(
+		"flag to revert the behavior of RefSkeleton in InitModifyBones to its previous implementation."));
+
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_InitModifyBones"), STAT_KawaiiPhysics_InitModifyBones, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_Eval"), STAT_KawaiiPhysics_Eval, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimulatemodifyBones"), STAT_KawaiiPhysics_SimulatemodifyBones, STATGROUP_Anim);
@@ -480,9 +484,12 @@ void FAnimNode_KawaiiPhysics::InitModifyBones(FComponentSpacePoseContext& Output
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_InitModifyBones);
 
-	const USkeleton* Skeleton = BoneContainer.GetSkeletonAsset();
-	auto& RefSkeleton = Skeleton->GetReferenceSkeleton();
-
+	// https://github.com/pafuhana1213/KawaiiPhysics/issues/174
+	const FReferenceSkeleton& RefSkeleton = (CVarAnimNodeKawaiiPhysicsUseBoneContainerRefSkeletonWhenInit.
+		                                        GetValueOnAnyThread())
+		                                        ? BoneContainer.GetReferenceSkeleton()
+		                                        : BoneContainer.GetSkeletonAsset()->GetReferenceSkeleton();
+	
 	auto InitRootBone = [&](const FName& RootBoneName, const TArray<FBoneReference>& InExcludeBones)
 	{
 		TArray<FKawaiiPhysicsModifyBone> Bones;

@@ -62,8 +62,8 @@ Kawaii Physicsは、Unreal Engine向けのシンプルな疑似物理プラグ�
 ### 1. ダウンロード
 
 C++ビルド環境がない方は、以下のリンクからプラグインをダウンロードしてください。
-
 - **[GitHub Releases](https://github.com/pafuhana1213/KawaiiPhysics/releases/)**
+- **[FAB](https://www.fab.com/ja/listings/f870c07e-0a02-4a78-a888-e52a22794572)** (内容はGitHub版と同じです）
 - **[Booth](https://pafuhana1213.booth.pm/items/5943534)** (ストアをフォローすると更新通知が届きます)
 
 ### 2. 対応バージョン
@@ -139,3 +139,15 @@ C++ビルド環境がない方は、以下のリンクからプラグインを�
 
 [Announcements - アナウンス](https://github.com/pafuhana1213/KawaiiPhysics/discussions/categories/announcements-%E3%82%A2%E3%83%8A%E3%82%A6%E3%83%B3%E3%82%B9)
 
+---
+
+## ✨ よろしければご支援を！
+
+このプラグインが、皆さんのUEプロジェクトに少しでも役立っていれば、とても嬉しいです。
+
+開発は私個人が趣味と実益を兼ねて、開発時間の確保やコーヒー代を自腹でやりくりしながら進めています☕  
+もし「なかなか良いじゃん！」と思っていただけたら、FABでの購入やGitHub Sponsorsで応援していただけると、  
+開発を続ける上で大きな励みになります（[FABでの販売を開始に関して詳細な経緯はこちら](https://github.com/pafuhana1213/KawaiiPhysics/discussions/170)）。  
+
+[💖**FABで購入する**](https://www.fab.com/ja/listings/f870c07e-0a02-4a78-a888-e52a22794572)  
+[💖 **GitHub Sponsorsで応援する**](https://github.com/sponsors/pafuhana1213)
