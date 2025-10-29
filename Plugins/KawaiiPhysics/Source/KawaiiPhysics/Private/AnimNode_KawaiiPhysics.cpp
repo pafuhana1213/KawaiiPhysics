@@ -1086,7 +1086,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 	}
 
 	// External Force : PreApply
-	GravityInSimSpace = ConvertSimulationSpaceVector(Output, EKawaiiPhysicsSimulationSpace::ComponentSpace,
+	GravityInSimSpace = ConvertSimulationSpaceVector(Output, EKawaiiPhysicsSimulationSpace::WorldSpace,
 	                                                 SimulationSpace, Gravity);
 	
 	// NOTE: if use foreach, you may get issue ( Array has changed during ranged-for iteration )
