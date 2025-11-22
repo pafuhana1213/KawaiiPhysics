@@ -174,6 +174,9 @@ void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* Ani
 	KawaiiPhysics->SimulationSpace = Node.SimulationSpace;
 	KawaiiPhysics->SimulationBaseBone = Node.SimulationBaseBone;
 
+	// SyncBone
+	KawaiiPhysics->SyncBones = Node.SyncBones;
+
 	// Reset for sync without compile
 	KawaiiPhysics->ModifyBones.Empty();
 }

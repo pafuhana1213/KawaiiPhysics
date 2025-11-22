@@ -292,6 +292,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	if (ModifyBones.Num() == 0)
 	{
 		InitModifyBones(Output, BoneContainer);
+		InitSyncBones(Output);
 		InitBoneConstraints();
 		PreSkelCompTransform = ComponentTransform;
 	}
@@ -319,6 +320,9 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 
 	// Update Bone Pose Transform
 	UpdateModifyBonesPoseTransform(Output, BoneContainer);
+
+	// Apply Sync Bones
+	ApplySyncBones(Output, BoneContainer);
 
 	// Update SkeletalMeshComponent movement in World Space
 	UpdateSkelCompMove(Output, ComponentTransform);
@@ -477,6 +481,15 @@ void FAnimNode_KawaiiPhysics::InitializeBoneReferences(const FBoneContainer& Req
 	for (auto& BoneConstraint : BoneConstraints)
 	{
 		BoneConstraint.InitializeBone(RequiredBones);
+	}
+
+	for (auto& SyncBone : SyncBones)
+	{
+		SyncBone.Bone.Initialize(RequiredBones);
+		for (auto& Target : SyncBone.Targets)
+		{
+			Target.Bone.Initialize(RequiredBones);
+		}
 	}
 }
 
@@ -759,16 +772,18 @@ void FAnimNode_KawaiiPhysics::CalcBoneLength(FKawaiiPhysicsModifyBone& Bone,
 	if (Bone.ParentIndex < 0)
 	{
 		Bone.LengthFromRoot = 0.0f;
+		Bone.BoneLength = 0.0f;
 	}
 	else
 	{
 		if (!Bone.bDummy)
 		{
-			Bone.LengthFromRoot = InModifyBones[Bone.ParentIndex].LengthFromRoot
-				+ RefBonePose[Bone.BoneRef.BoneIndex].GetLocation().Size();
+			Bone.BoneLength = RefBonePose[Bone.BoneRef.BoneIndex].GetLocation().Size();
+			Bone.LengthFromRoot = InModifyBones[Bone.ParentIndex].LengthFromRoot + Bone.BoneLength;
 		}
 		else
 		{
+			Bone.BoneLength = DummyBoneLength;
 			Bone.LengthFromRoot = InModifyBones[Bone.ParentIndex].LengthFromRoot + DummyBoneLength;
 		}
 
@@ -1984,5 +1999,152 @@ void FAnimNode_KawaiiPhysics::ConvertSimulationSpace(FComponentSpacePoseContext&
 		Bone.Location = ConvertSimulationSpaceLocation(Output, From, To, Bone.Location);
 		Bone.PrevLocation = ConvertSimulationSpaceLocation(Output, From, To, Bone.PrevLocation);
 		Bone.PrevRotation = ConvertSimulationSpaceRotation(Output, From, To, Bone.PrevRotation);
+	}
+}
+
+void FAnimNode_KawaiiPhysics::InitSyncBones(FComponentSpacePoseContext& Output)
+{
+	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
+
+	for (auto& SyncBone : SyncBones)
+	{
+		InitSyncBone(Output, BoneContainer, SyncBone);
+	}
+}
+
+void FAnimNode_KawaiiPhysics::InitSyncBone(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer,
+                                           FKawaiiPhysicsSyncBone& SyncBone)
+{
+	// Initialize the SyncBone's initial pose location if valid
+	if (SyncBone.Bone.IsValidToEvaluate(BoneContainer))
+	{
+		SyncBone.InitialPoseLocation =
+			FAnimationRuntime::GetComponentSpaceTransformRefPose(BoneContainer.GetReferenceSkeleton(),
+			                                                     SyncBone.Bone.BoneIndex).GetLocation();
+	}
+
+	// cleanup
+	SyncBone.Targets.RemoveAll([&](const FKawaiiPhysicsSyncTarget& Target)
+	{
+		return !Target.Bone.IsValidToEvaluate(BoneContainer);
+	});
+
+	// Collect child bones and add to SyncBone targets
+	TArray<FKawaiiPhysicsSyncTarget> AdditionTargets;
+
+	for (auto& Target : SyncBone.Targets)
+	{
+		Target.ModifyBoneIndex = ModifyBones.IndexOfByPredicate(
+			[&](const FKawaiiPhysicsModifyBone& ModifyBone) { return ModifyBone.BoneRef == Target.Bone; });
+
+		if (Target.ModifyBoneIndex == INDEX_NONE || !Target.bIncludeChildBones)
+		{
+			continue;
+		}
+
+		TArray<int32> IndicesToProcess = ModifyBones[Target.ModifyBoneIndex].ChildIndices;
+		while (!IndicesToProcess.IsEmpty())
+		{
+			const int32 CurrentIndex = IndicesToProcess.Pop();
+			if (!ModifyBones.IsValidIndex(CurrentIndex))
+			{
+				continue;
+			}
+
+			AdditionTargets.AddUnique({ModifyBones[CurrentIndex].BoneRef, Target.Alpha, true, CurrentIndex});
+			IndicesToProcess.Append(ModifyBones[CurrentIndex].ChildIndices);
+		}
+	}
+
+	SyncBone.Targets.Append(AdditionTargets);
+}
+
+
+void FAnimNode_KawaiiPhysics::ApplySyncBones(FComponentSpacePoseContext& Output,
+                                             const FBoneContainer& BoneContainer)
+{
+	if (SyncBones.Num() == 0)
+	{
+		return;
+	}
+
+	// Apply the transition to the target bone's pose location
+	// for making the bones move together like constraint
+	auto ApplyDirection = [&](double& BlendedDelta, const double& Delta, const float& InAlpha,
+	                          const ESyncBoneDirection Direction)
+	{
+		if (Direction != ESyncBoneDirection::None &&
+			(Direction == ESyncBoneDirection::Both ||
+				(Direction == ESyncBoneDirection::Positive && Delta > 0) ||
+				(Direction == ESyncBoneDirection::Negative && Delta < 0)))
+		{
+			BlendedDelta = FMath::Lerp(0.0f, Delta, InAlpha);
+		}
+	};
+
+	auto ApplyTransition = [&](const FKawaiiPhysicsSyncBone& SyncBone, const FVector& DeltaLocation,
+	                           FKawaiiPhysicsModifyBone& Bone, const FVector& InAlpha)
+	{
+		if (InAlpha.IsNearlyZero() || Bone.bSkipSimulate)
+		{
+			return;
+		}
+
+		FVector BlendedDeltaLocation = FVector::ZeroVector;
+
+		ApplyDirection(BlendedDeltaLocation.X, DeltaLocation.X, InAlpha.X, SyncBone.ApplyDirectionX);
+		ApplyDirection(BlendedDeltaLocation.Y, DeltaLocation.Y, InAlpha.Y, SyncBone.ApplyDirectionY);
+		ApplyDirection(BlendedDeltaLocation.Z, DeltaLocation.Z, InAlpha.Z, SyncBone.ApplyDirectionZ);
+
+		if (Bone.ParentIndex >= 0)
+		{
+			const auto& ParentBone = ModifyBones[Bone.ParentIndex];
+			const FVector NewPoseLocation = Bone.PoseLocation + BlendedDeltaLocation;
+			Bone.PoseLocation = (NewPoseLocation - ParentBone.PoseLocation).GetSafeNormal() * Bone.BoneLength +
+				ParentBone.PoseLocation;
+		}
+		else
+		{
+			Bone.PoseLocation += BlendedDeltaLocation;
+		}
+	};
+
+
+	for (auto& SyncBone : SyncBones)
+	{
+		if (!SyncBone.Bone.IsValidToEvaluate(BoneContainer))
+		{
+			continue;
+		}
+
+		// memo: This implementation will not work correctly if SimulationSpace is WorldSpace,
+		// as the character's movement will also be reflected.
+		const FVector SyncBoneLocation = GetBoneTransformInSimSpace(
+			Output, SyncBone.Bone.GetCompactPoseIndex(BoneContainer)).GetLocation();
+		const FVector DeltaLocation = SyncBoneLocation - SyncBone.InitialPoseLocation;
+
+		if (SyncBone.Targets.Num() > 0)
+		{
+			for (const auto& Target : SyncBone.Targets)
+			{
+				if (Target.ModifyBoneIndex != INDEX_NONE && ModifyBones.
+					IsValidIndex(Target.ModifyBoneIndex))
+				{
+					ApplyTransition(SyncBone, DeltaLocation, ModifyBones[Target.ModifyBoneIndex],
+					                Target.Alpha * SyncBone.GlobalAlpha);
+				}
+			}
+		}
+		else
+		{
+			for (auto& Bone : ModifyBones)
+			{
+				if (Bone.bSkipSimulate)
+				{
+					continue;
+				}
+				ApplyTransition(SyncBone, DeltaLocation, Bone, SyncBone.GlobalAlpha);
+			}
+		}
 	}
 }
