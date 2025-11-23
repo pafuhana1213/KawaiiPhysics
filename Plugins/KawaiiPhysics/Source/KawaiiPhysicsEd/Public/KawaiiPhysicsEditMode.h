@@ -50,6 +50,7 @@ protected:
 private:
 	void RenderModifyBones(FPrimitiveDrawInterface* PDI) const;
 	void RenderLimitAngle(FPrimitiveDrawInterface* PDI) const;
+	void RenderSyncBone(FPrimitiveDrawInterface* PDI) const;
 
 	/** Render each collisions */
 	void RenderSphericalLimits(FPrimitiveDrawInterface* PDI) const;

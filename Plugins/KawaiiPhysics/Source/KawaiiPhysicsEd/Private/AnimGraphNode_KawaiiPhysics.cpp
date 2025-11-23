@@ -196,10 +196,10 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.OnClicked_Lambda([this]()
-			{
-				this->ExportLimitsDataAsset();
-				return FReply::Handled();
-			})
+			             {
+				             this->ExportLimitsDataAsset();
+				             return FReply::Handled();
+			             })
 			.Content()
 			[
 				SNew(STextBlock)
@@ -212,10 +212,10 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.OnClicked_Lambda([this]()
-			{
-				this->ExportBoneConstraintsDataAsset();
-				return FReply::Handled();
-			})
+			             {
+				             this->ExportBoneConstraintsDataAsset();
+				             return FReply::Handled();
+			             })
 			.Content()
 			[
 				SNew(STextBlock)
@@ -242,16 +242,16 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailDebugVisualizations(IDetailLay
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.OnClicked_Lambda([this]()
-			{
-				this->bEnableDebugDrawBone = !this->bEnableDebugDrawBone;
-				return FReply::Handled();
-			})
+			             {
+				             this->bEnableDebugDrawBone = !this->bEnableDebugDrawBone;
+				             return FReply::Handled();
+			             })
 			.ButtonColorAndOpacity_Lambda([this]()
-			{
-				return this->bEnableDebugDrawBone
-					       ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
-					       : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
-			})
+			             {
+				             return this->bEnableDebugDrawBone
+					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
+					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
+			             })
 			.Content()
 			[
 				SNew(STextBlock)
@@ -265,16 +265,16 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailDebugVisualizations(IDetailLay
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.OnClicked_Lambda([this]()
-			{
-				this->bEnableDebugBoneLengthRate = !this->bEnableDebugBoneLengthRate;
-				return FReply::Handled();
-			})
+			             {
+				             this->bEnableDebugBoneLengthRate = !this->bEnableDebugBoneLengthRate;
+				             return FReply::Handled();
+			             })
 			.ButtonColorAndOpacity_Lambda([this]()
-			{
-				return this->bEnableDebugBoneLengthRate
-					       ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
-					       : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
-			})
+			             {
+				             return this->bEnableDebugBoneLengthRate
+					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
+					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
+			             })
 			.Content()
 			[
 				SNew(STextBlock)
@@ -288,20 +288,43 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailDebugVisualizations(IDetailLay
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.OnClicked_Lambda([this]()
-			{
-				this->bEnableDebugDrawLimitAngle = !this->bEnableDebugDrawLimitAngle;
-				return FReply::Handled();
-			})
+			             {
+				             this->bEnableDebugDrawLimitAngle = !this->bEnableDebugDrawLimitAngle;
+				             return FReply::Handled();
+			             })
 			.ButtonColorAndOpacity_Lambda([this]()
-			{
-				return this->bEnableDebugDrawLimitAngle
-					       ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
-					       : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
-			})
+			             {
+				             return this->bEnableDebugDrawLimitAngle
+					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
+					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
+			             })
 			.Content()
 			[
 				SNew(STextBlock)
 				.Text_Lambda([this]() { return LOCTEXT("ShowLimitAngleText", "Limit Angle"); })
+			]
+		]
+		// Show/Hide SyncBone button.
+		+ SUniformGridPanel::Slot(2, 0)
+		[
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.OnClicked_Lambda([this]()
+			             {
+				             this->bEnableDebugDrawSyncBone = !this->bEnableDebugDrawSyncBone;
+				             return FReply::Handled();
+			             })
+			.ButtonColorAndOpacity_Lambda([this]()
+			             {
+				             return this->bEnableDebugDrawSyncBone
+					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
+					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
+			             })
+			.Content()
+			[
+				SNew(STextBlock)
+				.Text_Lambda([this]() { return LOCTEXT("ShowSyncBoneText", "Sync Bone"); })
 			]
 		]
 		// Show/Hide SphereLimit button.
@@ -311,16 +334,16 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailDebugVisualizations(IDetailLay
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.OnClicked_Lambda([this]()
-			{
-				this->bEnableDebugDrawSphereLimit = !this->bEnableDebugDrawSphereLimit;
-				return FReply::Handled();
-			})
+			             {
+				             this->bEnableDebugDrawSphereLimit = !this->bEnableDebugDrawSphereLimit;
+				             return FReply::Handled();
+			             })
 			.ButtonColorAndOpacity_Lambda([this]()
-			{
-				return this->bEnableDebugDrawSphereLimit
-					       ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
-					       : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
-			})
+			             {
+				             return this->bEnableDebugDrawSphereLimit
+					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
+					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
+			             })
 			.Content()
 			[
 				SNew(STextBlock)
@@ -334,16 +357,16 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailDebugVisualizations(IDetailLay
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.OnClicked_Lambda([this]()
-			{
-				this->bEnableDebugDrawCapsuleLimit = !this->bEnableDebugDrawCapsuleLimit;
-				return FReply::Handled();
-			})
+			             {
+				             this->bEnableDebugDrawCapsuleLimit = !this->bEnableDebugDrawCapsuleLimit;
+				             return FReply::Handled();
+			             })
 			.ButtonColorAndOpacity_Lambda([this]()
-			{
-				return this->bEnableDebugDrawCapsuleLimit
-					       ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
-					       : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
-			})
+			             {
+				             return this->bEnableDebugDrawCapsuleLimit
+					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
+					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
+			             })
 			.Content()
 			[
 				SNew(STextBlock)
@@ -357,16 +380,16 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailDebugVisualizations(IDetailLay
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.OnClicked_Lambda([this]()
-			{
-				this->bEnableDebugDrawBoxLimit = !this->bEnableDebugDrawBoxLimit;
-				return FReply::Handled();
-			})
+			             {
+				             this->bEnableDebugDrawBoxLimit = !this->bEnableDebugDrawBoxLimit;
+				             return FReply::Handled();
+			             })
 			.ButtonColorAndOpacity_Lambda([this]()
-			{
-				return this->bEnableDebugDrawBoxLimit
-					       ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
-					       : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
-			})
+			             {
+				             return this->bEnableDebugDrawBoxLimit
+					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
+					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
+			             })
 			.Content()
 			[
 				SNew(STextBlock)
@@ -380,16 +403,16 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailDebugVisualizations(IDetailLay
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.OnClicked_Lambda([this]()
-			{
-				this->bEnableDebugDrawPlanerLimit = !this->bEnableDebugDrawPlanerLimit;
-				return FReply::Handled();
-			})
+			             {
+				             this->bEnableDebugDrawPlanerLimit = !this->bEnableDebugDrawPlanerLimit;
+				             return FReply::Handled();
+			             })
 			.ButtonColorAndOpacity_Lambda([this]()
-			{
-				return this->bEnableDebugDrawPlanerLimit
-					       ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
-					       : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
-			})
+			             {
+				             return this->bEnableDebugDrawPlanerLimit
+					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
+					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
+			             })
 			.Content()
 			[
 				SNew(STextBlock)
@@ -403,16 +426,16 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailDebugVisualizations(IDetailLay
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.OnClicked_Lambda([this]()
-			{
-				this->bEnableDebugDrawBoneConstraint = !this->bEnableDebugDrawBoneConstraint;
-				return FReply::Handled();
-			})
+			             {
+				             this->bEnableDebugDrawBoneConstraint = !this->bEnableDebugDrawBoneConstraint;
+				             return FReply::Handled();
+			             })
 			.ButtonColorAndOpacity_Lambda([this]()
-			{
-				return this->bEnableDebugDrawBoneConstraint
-					       ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
-					       : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
-			})
+			             {
+				             return this->bEnableDebugDrawBoneConstraint
+					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
+					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
+			             })
 			.Content()
 			[
 				SNew(STextBlock)
@@ -426,16 +449,16 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailDebugVisualizations(IDetailLay
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.OnClicked_Lambda([this]()
-			{
-				this->bEnableDebugDrawExternalForce = !this->bEnableDebugDrawExternalForce;
-				return FReply::Handled();
-			})
+			             {
+				             this->bEnableDebugDrawExternalForce = !this->bEnableDebugDrawExternalForce;
+				             return FReply::Handled();
+			             })
 			.ButtonColorAndOpacity_Lambda([this]()
-			{
-				return this->bEnableDebugDrawExternalForce
-					       ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
-					       : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
-			})
+			             {
+				             return this->bEnableDebugDrawExternalForce
+					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
+					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
+			             })
 			.Content()
 			[
 				SNew(STextBlock)

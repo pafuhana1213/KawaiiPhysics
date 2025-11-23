@@ -55,10 +55,14 @@ struct FKawaiiPhysicsSyncTarget
 	UPROPERTY(EditAnywhere, Category = "SyncTarget", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	FVector Alpha = FVector::OneVector;
 
-
 	// 適応対象のボーンのModifyBoneにおけるIndex
 	UPROPERTY()
 	int32 ModifyBoneIndex = -1;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	FVector TransitionBySyncBone = FVector::ZeroVector;
+#endif
 };
 
 
@@ -94,4 +98,9 @@ struct FKawaiiPhysicsSyncBone
 
 	UPROPERTY()
 	FVector InitialPoseLocation = FVector::ZeroVector;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	FVector DeltaMovement = FVector::ZeroVector;
+#endif
 };
