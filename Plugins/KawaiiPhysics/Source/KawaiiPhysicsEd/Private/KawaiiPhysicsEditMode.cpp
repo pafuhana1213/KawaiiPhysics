@@ -286,8 +286,9 @@ void FKawaiiPhysicsEditMode::RenderSyncBone(FPrimitiveDrawInterface* PDI) const
 					const FTransform& BaseBoneSpace2ComponentSpace = RuntimeNode->GetBaseBoneSpace2ComponentSpace();
 					TargetBoneLocation = BaseBoneSpace2ComponentSpace.TransformPosition(TargetBoneLocation);
 				}
-				DrawBox(PDI, FTranslationMatrix(TargetBoneLocation), FVector(1.0f),
-				        GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy(), SDPG_World);
+				DrawSphere(PDI, TargetBoneLocation, FRotator::ZeroRotator, 
+					FVector(1.0f), 12, 6,
+							GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy(), SDPG_World);
 
 				// Force by SyncBone
 				DrawForceArrow(Target.TransitionBySyncBone, TargetBoneLocation);

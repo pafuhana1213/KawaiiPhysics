@@ -400,9 +400,10 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 
 		// Limits
 		SafeSetOrder(FName("Limits"));
-		SafeSetOrder(FName("Bone Constraint (Experimental)"));
+		SafeSetOrder(FName("Bone Constraint"));
 
 		// Other
+		SafeSetOrder(FName("Sync Bone"));
 		SafeSetOrder(FName("World Collision"));
 		SafeSetOrder(FName("ExternalForce"));
 

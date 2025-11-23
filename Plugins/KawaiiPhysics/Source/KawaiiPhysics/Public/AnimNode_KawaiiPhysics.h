@@ -873,7 +873,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* 同期元のボーンの移動・回転を物理制御下のボーンに適用します。スカートが足などを貫通するのを防ぐのに役立ちます
 	* Applies the movement and rotation of the sync source bone to the bone under physics control. Helps prevent skirts from penetrating legs, etc.
 	*/
-	UPROPERTY(EditAnywhere, Category = "Bones", meta=(TitleProperty="{Bone}"))
+	UPROPERTY(EditAnywhere, Category = "Sync Bone", meta=(TitleProperty="{Bone}"))
 	TArray<FKawaiiPhysicsSyncBone> SyncBones;
 
 	/**
