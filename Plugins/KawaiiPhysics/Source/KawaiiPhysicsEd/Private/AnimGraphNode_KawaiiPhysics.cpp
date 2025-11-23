@@ -196,10 +196,10 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.OnClicked_Lambda([this]()
-			             {
-				             this->ExportLimitsDataAsset();
-				             return FReply::Handled();
-			             })
+			{
+				this->ExportLimitsDataAsset();
+				return FReply::Handled();
+			})
 			.Content()
 			[
 				SNew(STextBlock)
@@ -212,10 +212,10 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.OnClicked_Lambda([this]()
-			             {
-				             this->ExportBoneConstraintsDataAsset();
-				             return FReply::Handled();
-			             })
+			{
+				this->ExportBoneConstraintsDataAsset();
+				return FReply::Handled();
+			})
 			.Content()
 			[
 				SNew(STextBlock)
@@ -231,239 +231,70 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailDebugVisualizations(IDetailLay
 	FDetailWidgetRow& WidgetRow = ViewportCategory.AddCustomRow(
 		LOCTEXT("ToggleDebugVisualizationButtonRow", "DebugVisualization"));
 
+	auto CreateDebugButton = [&](const FString& Label, bool& DebugFlag)
+	{
+		return SNew(SButton)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.OnClicked_Lambda([&]()
+			{
+				DebugFlag = !DebugFlag;
+				return FReply::Handled();
+			})
+			.ButtonColorAndOpacity_Lambda([&]()
+			{
+				return DebugFlag
+					       ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
+					       : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
+			})
+			.Content()
+			[
+				SNew(STextBlock).Text(FText::FromString(Label))
+			];
+	};
+
 	WidgetRow
 	[
 		SNew(SUniformGridPanel)
-		.SlotPadding(FMargin(2, 0, 2, 0))
-		// Show/Hide Bones button.
 		+ SUniformGridPanel::Slot(0, 0)
 		[
-			SNew(SButton)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked_Lambda([this]()
-			             {
-				             this->bEnableDebugDrawBone = !this->bEnableDebugDrawBone;
-				             return FReply::Handled();
-			             })
-			.ButtonColorAndOpacity_Lambda([this]()
-			             {
-				             return this->bEnableDebugDrawBone
-					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
-					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
-			             })
-			.Content()
-			[
-				SNew(STextBlock)
-				.Text_Lambda([this]() { return LOCTEXT("ShowBoneText", "Bone"); })
-			]
+			CreateDebugButton(TEXT("Bone"), bEnableDebugDrawBone)
 		]
-		// Show/Hide LengthRate button.
 		+ SUniformGridPanel::Slot(1, 0)
 		[
-			SNew(SButton)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked_Lambda([this]()
-			             {
-				             this->bEnableDebugBoneLengthRate = !this->bEnableDebugBoneLengthRate;
-				             return FReply::Handled();
-			             })
-			.ButtonColorAndOpacity_Lambda([this]()
-			             {
-				             return this->bEnableDebugBoneLengthRate
-					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
-					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
-			             })
-			.Content()
-			[
-				SNew(STextBlock)
-				.Text_Lambda([this]() { return LOCTEXT("ShowLengthRateText", "Length Rate"); })
-			]
+			CreateDebugButton(TEXT("Length Rate"), bEnableDebugBoneLengthRate)
 		]
-		// Show/Hide AngleLimit button.
 		+ SUniformGridPanel::Slot(2, 0)
 		[
-			SNew(SButton)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked_Lambda([this]()
-			             {
-				             this->bEnableDebugDrawLimitAngle = !this->bEnableDebugDrawLimitAngle;
-				             return FReply::Handled();
-			             })
-			.ButtonColorAndOpacity_Lambda([this]()
-			             {
-				             return this->bEnableDebugDrawLimitAngle
-					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
-					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
-			             })
-			.Content()
-			[
-				SNew(STextBlock)
-				.Text_Lambda([this]() { return LOCTEXT("ShowLimitAngleText", "Limit Angle"); })
-			]
+			CreateDebugButton(TEXT("Limit Angle"), bEnableDebugDrawLimitAngle)
 		]
-		// Show/Hide SyncBone button.
 		+ SUniformGridPanel::Slot(2, 0)
 		[
-			SNew(SButton)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked_Lambda([this]()
-			             {
-				             this->bEnableDebugDrawSyncBone = !this->bEnableDebugDrawSyncBone;
-				             return FReply::Handled();
-			             })
-			.ButtonColorAndOpacity_Lambda([this]()
-			             {
-				             return this->bEnableDebugDrawSyncBone
-					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
-					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
-			             })
-			.Content()
-			[
-				SNew(STextBlock)
-				.Text_Lambda([this]() { return LOCTEXT("ShowSyncBoneText", "Sync Bone"); })
-			]
+			CreateDebugButton(TEXT("Sync Bone"), bEnableDebugDrawSyncBone)
 		]
-		// Show/Hide SphereLimit button.
 		+ SUniformGridPanel::Slot(0, 1)
 		[
-			SNew(SButton)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked_Lambda([this]()
-			             {
-				             this->bEnableDebugDrawSphereLimit = !this->bEnableDebugDrawSphereLimit;
-				             return FReply::Handled();
-			             })
-			.ButtonColorAndOpacity_Lambda([this]()
-			             {
-				             return this->bEnableDebugDrawSphereLimit
-					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
-					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
-			             })
-			.Content()
-			[
-				SNew(STextBlock)
-				.Text_Lambda([this]() { return LOCTEXT("ShowSphereLimitText", "Sphere Limit"); })
-			]
+			CreateDebugButton(TEXT("Sphere Limit"), bEnableDebugDrawSphereLimit)
 		]
-		// Show/Hide CapsuleLimit button.
 		+ SUniformGridPanel::Slot(1, 1)
 		[
-			SNew(SButton)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked_Lambda([this]()
-			             {
-				             this->bEnableDebugDrawCapsuleLimit = !this->bEnableDebugDrawCapsuleLimit;
-				             return FReply::Handled();
-			             })
-			.ButtonColorAndOpacity_Lambda([this]()
-			             {
-				             return this->bEnableDebugDrawCapsuleLimit
-					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
-					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
-			             })
-			.Content()
-			[
-				SNew(STextBlock)
-				.Text_Lambda([this]() { return LOCTEXT("ShowCapsuleLimitText", "Capsule Limit"); })
-			]
+			CreateDebugButton(TEXT("Capsule Limit"), bEnableDebugDrawCapsuleLimit)
 		]
-		// Show/Hide BoxLimit button.
 		+ SUniformGridPanel::Slot(2, 1)
 		[
-			SNew(SButton)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked_Lambda([this]()
-			             {
-				             this->bEnableDebugDrawBoxLimit = !this->bEnableDebugDrawBoxLimit;
-				             return FReply::Handled();
-			             })
-			.ButtonColorAndOpacity_Lambda([this]()
-			             {
-				             return this->bEnableDebugDrawBoxLimit
-					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
-					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
-			             })
-			.Content()
-			[
-				SNew(STextBlock)
-				.Text_Lambda([this]() { return LOCTEXT("ShowBoxLimitText", "Box Limit"); })
-			]
+			CreateDebugButton(TEXT("Box Limit"), bEnableDebugDrawBoxLimit)
 		]
-		// Show/Hide PlanerLimit button.
 		+ SUniformGridPanel::Slot(0, 2)
 		[
-			SNew(SButton)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked_Lambda([this]()
-			             {
-				             this->bEnableDebugDrawPlanerLimit = !this->bEnableDebugDrawPlanerLimit;
-				             return FReply::Handled();
-			             })
-			.ButtonColorAndOpacity_Lambda([this]()
-			             {
-				             return this->bEnableDebugDrawPlanerLimit
-					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
-					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
-			             })
-			.Content()
-			[
-				SNew(STextBlock)
-				.Text_Lambda([this]() { return LOCTEXT("ShowPlanerLimitText", "Planer Limit"); })
-			]
+			CreateDebugButton(TEXT("Planer Limit"), bEnableDebugDrawPlanerLimit)
 		]
-		// Show/Hide BoneConstraint button.
 		+ SUniformGridPanel::Slot(1, 2)
 		[
-			SNew(SButton)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked_Lambda([this]()
-			             {
-				             this->bEnableDebugDrawBoneConstraint = !this->bEnableDebugDrawBoneConstraint;
-				             return FReply::Handled();
-			             })
-			.ButtonColorAndOpacity_Lambda([this]()
-			             {
-				             return this->bEnableDebugDrawBoneConstraint
-					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
-					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
-			             })
-			.Content()
-			[
-				SNew(STextBlock)
-				.Text_Lambda([this]() { return LOCTEXT("ShowBoneConstraintText", "Bone Constraint"); })
-			]
+			CreateDebugButton(TEXT("Bone Constraint"), bEnableDebugDrawBoneConstraint)
 		]
-		// Show/Hide ExternalForce button.
 		+ SUniformGridPanel::Slot(2, 2)
 		[
-			SNew(SButton)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked_Lambda([this]()
-			             {
-				             this->bEnableDebugDrawExternalForce = !this->bEnableDebugDrawExternalForce;
-				             return FReply::Handled();
-			             })
-			.ButtonColorAndOpacity_Lambda([this]()
-			             {
-				             return this->bEnableDebugDrawExternalForce
-					                    ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
-					                    : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
-			             })
-			.Content()
-			[
-				SNew(STextBlock)
-				.Text_Lambda([this]() { return LOCTEXT("ShowExternalForceText", "External Force"); })
-			]
+			CreateDebugButton(TEXT("External Force"), bEnableDebugDrawExternalForce)
 		]
 	];
 }
