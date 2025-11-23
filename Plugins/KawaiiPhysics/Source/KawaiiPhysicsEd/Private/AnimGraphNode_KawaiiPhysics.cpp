@@ -204,6 +204,7 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 			[
 				SNew(STextBlock)
 				.Text(FText::FromString(TEXT("Export Limits")))
+				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
 			]
 		]
 		+ SUniformGridPanel::Slot(1, 0)
@@ -220,6 +221,7 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 			[
 				SNew(STextBlock)
 				.Text(FText::FromString(TEXT("Export BoneConstraints")))
+				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
 			]
 		]
 	];
@@ -249,52 +251,120 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailDebugVisualizations(IDetailLay
 			})
 			.Content()
 			[
-				SNew(STextBlock).Text(FText::FromString(Label))
+				SNew(STextBlock)
+					.Text(FText::FromString(Label))
+					.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+			];
+	};
+	
+	auto CreateCategorySeparator = [&](const FString& Label, const int32 FontSize = 9)
+	{
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.FillWidth(0.01f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SSeparator)
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(FMargin(2.f, 0.f))
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(Label))
+				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), FontSize))
+			]
+			+ SHorizontalBox::Slot()
+			.FillWidth(0.9f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SSeparator)
 			];
 	};
 
 	WidgetRow
 	[
-		SNew(SUniformGridPanel)
-		+ SUniformGridPanel::Slot(0, 0)
+		SNew(SVerticalBox)
+
+		// Common
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(FMargin(0.f, 2.f))
 		[
-			CreateDebugButton(TEXT("Bone"), bEnableDebugDrawBone)
+			CreateCategorySeparator(TEXT("Common"))
 		]
-		+ SUniformGridPanel::Slot(1, 0)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
 		[
-			CreateDebugButton(TEXT("Length Rate"), bEnableDebugBoneLengthRate)
+			SNew(SUniformGridPanel)
+			+ SUniformGridPanel::Slot(0, 0)
+			[
+				CreateDebugButton(TEXT("Bone"), bEnableDebugDrawBone)
+			]
+			+ SUniformGridPanel::Slot(1, 0)
+			[
+				CreateDebugButton(TEXT("Length Rate"), bEnableDebugBoneLengthRate)
+			]
+			+ SUniformGridPanel::Slot(2, 0)
+			[
+				CreateDebugButton(TEXT("Limit Angle") , bEnableDebugDrawLimitAngle)
+			]
 		]
-		+ SUniformGridPanel::Slot(2, 0)
+
+		// Limits
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(FMargin(0.f, 2.f))
 		[
-			CreateDebugButton(TEXT("Limit Angle"), bEnableDebugDrawLimitAngle)
+			CreateCategorySeparator(TEXT("Collision"))
 		]
-		+ SUniformGridPanel::Slot(2, 0)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
 		[
-			CreateDebugButton(TEXT("Sync Bone"), bEnableDebugDrawSyncBone)
+			SNew(SUniformGridPanel)
+			+ SUniformGridPanel::Slot(0, 0)
+			[
+				CreateDebugButton(TEXT("Sphere"),  bEnableDebugDrawSphereLimit)
+			]
+			+ SUniformGridPanel::Slot(1, 0)
+			[
+				CreateDebugButton(TEXT("Capsule"),  bEnableDebugDrawCapsuleLimit)
+			]
+			+ SUniformGridPanel::Slot(2, 0)
+			[
+				CreateDebugButton(TEXT("Box"), bEnableDebugDrawBoxLimit)
+			]
+			+ SUniformGridPanel::Slot(0, 1)
+			[
+				CreateDebugButton(TEXT("Plane"),  bEnableDebugDrawPlanerLimit)
+			]
 		]
-		+ SUniformGridPanel::Slot(0, 1)
+
+		// Advanced
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(FMargin(0.f, 2.f))
 		[
-			CreateDebugButton(TEXT("Sphere Limit"), bEnableDebugDrawSphereLimit)
+			CreateCategorySeparator(TEXT("Advanced"))
 		]
-		+ SUniformGridPanel::Slot(1, 1)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(FMargin(0.f, 2.f))
 		[
-			CreateDebugButton(TEXT("Capsule Limit"), bEnableDebugDrawCapsuleLimit)
-		]
-		+ SUniformGridPanel::Slot(2, 1)
-		[
-			CreateDebugButton(TEXT("Box Limit"), bEnableDebugDrawBoxLimit)
-		]
-		+ SUniformGridPanel::Slot(0, 2)
-		[
-			CreateDebugButton(TEXT("Planer Limit"), bEnableDebugDrawPlanerLimit)
-		]
-		+ SUniformGridPanel::Slot(1, 2)
-		[
-			CreateDebugButton(TEXT("Bone Constraint"), bEnableDebugDrawBoneConstraint)
-		]
-		+ SUniformGridPanel::Slot(2, 2)
-		[
-			CreateDebugButton(TEXT("External Force"), bEnableDebugDrawExternalForce)
+			SNew(SUniformGridPanel)
+			+ SUniformGridPanel::Slot(0, 0)
+			[
+				CreateDebugButton(TEXT("Sync Bone"), bEnableDebugDrawSyncBone)
+			]
+			+ SUniformGridPanel::Slot(1, 0)
+			[
+				CreateDebugButton(TEXT("Bone Constraint"),  bEnableDebugDrawBoneConstraint)
+			]
+			+ SUniformGridPanel::Slot(2, 0)
+			[
+				CreateDebugButton(TEXT("External Force"), bEnableDebugDrawExternalForce)
+			]
 		]
 	];
 }
