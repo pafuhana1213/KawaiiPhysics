@@ -49,7 +49,7 @@ struct FKawaiiPhysicsSyncTarget
 
 	/** このボーンの子ボーンもすべて対象にするか */
 	UPROPERTY(EditAnywhere, Category = "SyncTarget")
-	bool bIncludeChildBones = false;
+	bool bIncludeChildBones = true;
 
 	/** 移動を適用する度合い */
 	UPROPERTY(EditAnywhere, Category = "SyncTarget", meta = (ClampMin = "0.0", ClampMax = "1.0"))
@@ -76,7 +76,7 @@ struct FKawaiiPhysicsSyncBone
 	FBoneReference Bone;
 
 	/** 適用対象のボーンと適用度 */
-	UPROPERTY(EditAnywhere, Category = "SyncBone")
+	UPROPERTY(EditAnywhere, Category = "SyncBone", meta=(TitleProperty="{Bone}"))
 	TArray<FKawaiiPhysicsSyncTarget> Targets;
 
 	/** 全体に適用される移動の度合い */

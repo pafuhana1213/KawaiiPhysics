@@ -1136,6 +1136,15 @@ void FKawaiiPhysicsEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FVie
 			}
 		}
 	}
+	
+	if (GraphNode->bEnableDebugDrawSyncBone)
+	{
+		for (auto& SyncBone : RuntimeNode->SyncBones)
+		{
+			Draw3DTextItem(FText::AsNumber((SyncBone.DeltaMovement * SyncBone.GlobalAlpha).Length()), Canvas, View,
+						   Viewport, PreviewMeshComponent->GetComponentTransform().TransformPosition(SyncBone.InitialPoseLocation));
+		}
+	}
 
 	FAnimNodeEditMode::DrawHUD(ViewportClient, Viewport, View, Canvas);
 }
