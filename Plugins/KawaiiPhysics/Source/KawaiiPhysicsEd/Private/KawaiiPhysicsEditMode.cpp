@@ -259,16 +259,16 @@ void FKawaiiPhysicsEditMode::RenderSyncBone(FPrimitiveDrawInterface* PDI) const
 		        GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy(), SDPG_World);
 
 		// Current SyncBone Location
-		DrawBox(PDI, FTranslationMatrix(SyncBone.InitialPoseLocation + SyncBone.DeltaMovement), FVector(2.0f),
+		DrawBox(PDI, FTranslationMatrix(SyncBone.InitialPoseLocation + SyncBone.DeltaDistance), FVector(2.0f),
 		        GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy(), SDPG_World);
 
 		// DeltaMovement
 		DrawDashedLine(PDI, SyncBone.InitialPoseLocation,
-		               SyncBone.InitialPoseLocation + SyncBone.DeltaMovement,
+		               SyncBone.InitialPoseLocation + SyncBone.DeltaDistance,
 		               FLinearColor::Green, 1, SDPG_World);
 
 		// Force By SyncForce
-		FVector Force = SyncBone.DeltaMovement;
+		FVector Force = SyncBone.DeltaDistance;
 		ApplyDirectionFilterAndAlpha(Force.X, SyncBone.GlobalAlpha.X, SyncBone.ApplyDirectionX);
 		ApplyDirectionFilterAndAlpha(Force.Y, SyncBone.GlobalAlpha.Y, SyncBone.ApplyDirectionY);
 		ApplyDirectionFilterAndAlpha(Force.Z, SyncBone.GlobalAlpha.Z, SyncBone.ApplyDirectionZ);
@@ -1136,12 +1136,15 @@ void FKawaiiPhysicsEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FVie
 			}
 		}
 	}
+	// FText::AsNumber((SyncBone.DeltaDistance * SyncBone.GlobalAlpha).Length())
 	
 	if (GraphNode->bEnableDebugDrawSyncBone)
 	{
 		for (auto& SyncBone : RuntimeNode->SyncBones)
 		{
-			Draw3DTextItem(FText::AsNumber((SyncBone.DeltaMovement * SyncBone.GlobalAlpha).Length()), Canvas, View,
+			
+			const FString LenText = FString::Format(TEXT("{Scaled} / {Distance}"), {SyncBone.DeltaDistance.Length(), SyncBone.ScaledDeltaDistance.Length()});
+			Draw3DTextItem(FText::FromString(LenText), Canvas, View,
 						   Viewport, PreviewMeshComponent->GetComponentTransform().TransformPosition(SyncBone.InitialPoseLocation));
 		}
 	}

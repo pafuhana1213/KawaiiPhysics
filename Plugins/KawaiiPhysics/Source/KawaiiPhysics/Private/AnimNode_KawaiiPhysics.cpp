@@ -2104,7 +2104,7 @@ void FAnimNode_KawaiiPhysics::ApplySyncBones(FComponentSpacePoseContext& Output,
 		}
 	};
 
-	auto ApplyTransition = [&](const FKawaiiPhysicsSyncBone& SyncBone, const FVector& DeltaLocation,
+	auto ApplyTransition = [&](const FKawaiiPhysicsSyncBone& SyncBone, const FVector& DeltaMovement,
 	                           FKawaiiPhysicsModifyBone& Bone, const FVector& InAlpha)
 	{
 		if (InAlpha.IsNearlyZero() || Bone.bSkipSimulate)
@@ -2114,9 +2114,11 @@ void FAnimNode_KawaiiPhysics::ApplySyncBones(FComponentSpacePoseContext& Output,
 
 		FVector FilteredDelta = FVector::ZeroVector;
 
-		ApplyDirectionFilterAndAlpha(FilteredDelta.X, DeltaLocation.X, InAlpha.X, SyncBone.ApplyDirectionX);
-		ApplyDirectionFilterAndAlpha(FilteredDelta.Y, DeltaLocation.Y, InAlpha.Y, SyncBone.ApplyDirectionY);
-		ApplyDirectionFilterAndAlpha(FilteredDelta.Z, DeltaLocation.Z, InAlpha.Z, SyncBone.ApplyDirectionZ);
+		//TODO: ボーンごとにApplyDirectionによるフィルタリングを実行する必要はないでは？
+		// SyncBoneの段階で計算できる。一回だけでいい。なので、Target側でするのはAlphaの計算だけでいいはず
+		ApplyDirectionFilterAndAlpha(FilteredDelta.X, DeltaMovement.X, InAlpha.X, SyncBone.ApplyDirectionX);
+		ApplyDirectionFilterAndAlpha(FilteredDelta.Y, DeltaMovement.Y, InAlpha.Y, SyncBone.ApplyDirectionY);
+		ApplyDirectionFilterAndAlpha(FilteredDelta.Z, DeltaMovement.Z, InAlpha.Z, SyncBone.ApplyDirectionZ);
 
 		if (Bone.ParentIndex >= 0)
 		{
@@ -2145,10 +2147,20 @@ void FAnimNode_KawaiiPhysics::ApplySyncBones(FComponentSpacePoseContext& Output,
 		// as the character's movement will also be reflected.
 		const FVector SyncBoneLocation = GetBoneTransformInSimSpace(
 			Output, SyncBone.Bone.GetCompactPoseIndex(BoneContainer)).GetLocation();
-		const FVector DeltaMovement = SyncBoneLocation - SyncBone.InitialPoseLocation;
+		FVector DeltaMovement = SyncBoneLocation - SyncBone.InitialPoseLocation;
 
 #if WITH_EDITORONLY_DATA
-		SyncBone.DeltaMovement = DeltaMovement;
+		SyncBone.DeltaDistance = DeltaMovement;
+#endif
+		
+		if (!SyncBone.DeltaDistanceScaleCurve.GetRichCurve()->IsEmpty())
+		{
+			DeltaMovement *= SyncBone.DeltaDistanceScaleCurve.GetRichCurve()->Eval(DeltaMovement.Length());
+		}
+		DeltaMovement *= SyncBone.GlobalAlpha;
+		
+#if WITH_EDITORONLY_DATA
+		SyncBone.ScaledDeltaDistance = DeltaMovement;
 #endif
 
 		if (SyncBone.Targets.Num() > 0)
@@ -2160,7 +2172,7 @@ void FAnimNode_KawaiiPhysics::ApplySyncBones(FComponentSpacePoseContext& Output,
 				{
 					const FVector Transition = ApplyTransition(SyncBone, DeltaMovement,
 					                                           ModifyBones[Target.ModifyBoneIndex],
-					                                           Target.Alpha * SyncBone.GlobalAlpha);
+					                                           Target.Alpha );
 #if WITH_EDITORONLY_DATA
 					Target.TransitionBySyncBone = Transition;
 #endif

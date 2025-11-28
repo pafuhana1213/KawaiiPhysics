@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "BoneContainer.h"
+#include "Curves/CurveVector.h"
 #include "KawaiiPhysicsSyncBone.generated.h"
 
 UENUM(BlueprintType)
@@ -36,8 +37,7 @@ struct FKawaiiPhysicsSyncTarget
 		bIncludeChildBones = bInIncludeChildBones;
 		ModifyBoneIndex = InModifyBoneIndex;
 	}
-
-
+	
 	bool operator==(const FKawaiiPhysicsSyncTarget& Other) const
 	{
 		return ModifyBoneIndex == Other.ModifyBoneIndex;
@@ -81,9 +81,14 @@ struct FKawaiiPhysicsSyncBone
 
 	/** 全体に適用される移動の度合い */
 	UPROPERTY(EditAnywhere, Category = "SyncBone",
-		meta = (ClampMin = "0.0", ClampMax = "1.0", DisplayName = "Global Alpha"))
+		meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	FVector GlobalAlpha = FVector::OneVector;
 
+	// SyncBoneの移動距離に応じて
+	// 各Targetに対しての補正処理にスケールをかけるカーブ
+	UPROPERTY(EditAnywhere, Category = "SyncBone", meta=(XAxisName="Distance", YAxisName="Scale"))
+	FRuntimeFloatCurve DeltaDistanceScaleCurve;
+	
 	/** X軸の移動を適用する方向 */
 	UPROPERTY(EditAnywhere, Category = "SyncBone")
 	ESyncBoneDirection ApplyDirectionX = ESyncBoneDirection::Both;
@@ -96,11 +101,16 @@ struct FKawaiiPhysicsSyncBone
 	UPROPERTY(EditAnywhere, Category = "SyncBone")
 	ESyncBoneDirection ApplyDirectionZ = ESyncBoneDirection::Both;
 
+	// SyncBoneの初期座標
 	UPROPERTY()
 	FVector InitialPoseLocation = FVector::ZeroVector;
 
 #if WITH_EDITORONLY_DATA
+	// SyncBoneの移動距離
 	UPROPERTY()
-	FVector DeltaMovement = FVector::ZeroVector;
+	FVector DeltaDistance = FVector::ZeroVector;
+	// SyncBoneの移動距離(Alpha, Scale計算後)
+	UPROPERTY()
+	FVector ScaledDeltaDistance = FVector::ZeroVector;
 #endif
 };
