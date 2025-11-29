@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "BoneContainer.h"
 #include "Curves/CurveVector.h"
+#include "Curves/CurveFloat.h"
 #include "KawaiiPhysicsSyncBone.generated.h"
 
 UENUM(BlueprintType)
