@@ -22,6 +22,7 @@
 #include "PhysicsEngine/BodyInstance.h"
 #endif
 
+#include "KawaiiPhysicsSyncBone.h"
 #include "AnimNode_KawaiiPhysics.generated.h"
 
 class UKawaiiPhysics_CustomExternalForce;
@@ -429,6 +430,10 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsModifyBone
 	/** Pose scale of the bone */
 	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
 	FVector PoseScale = FVector::OneVector;
+
+	/** Length of the bone */
+	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
+	float BoneLength = 0.0f;
 
 	/** Length from the root bone */
 	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
@@ -864,7 +869,14 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	UPROPERTY()
 	TArray<FModifyBoneConstraint> MergedBoneConstraints;
 
-	/** 
+	/**
+	* 同期元のボーンの移動・回転を物理制御下のボーンに適用します。スカートが足などを貫通するのを防ぐのに役立ちます
+	* Applies the movement and rotation of the sync source bone to the bone under physics control. Helps prevent skirts from penetrating legs, etc.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Sync Bone", meta=(TitleProperty="{Bone}"))
+	TArray<FKawaiiPhysicsSyncBone> SyncBones;
+
+	/**
 	* 外力（重力など）
 	* External forces (gravity, etc.)
 	*/
@@ -1092,6 +1104,11 @@ protected:
 	void InitModifyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer);
 
 	/**
+	 * Initializes the sync rotation bones for the physics simulation.
+	 */
+	void InitSyncBones(FComponentSpacePoseContext& Output);
+
+	/**
 	 * Initializes the bone constraints for the physics simulation.
 	 */
 	void InitBoneConstraints();
@@ -1211,6 +1228,14 @@ protected:
 	 * @param BoneContainer The bone container.
 	 */
 	void UpdateModifyBonesPoseTransform(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer);
+
+	/**
+	 * Applies the movement of SyncBones to target bones.
+	 * @param Output The pose context.
+	 * @param BoneContainer The bone container.
+	 */
+	void ApplySyncBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer);
+	
 
 	/**
 	 * Updates the skeletal component movement vector and rotation.
@@ -1364,4 +1389,8 @@ private:
 	                                     EKawaiiPhysicsSimulationSpace To, const FQuat& InRotation) const;
 
 	void ConvertSimulationSpace(FComponentSpacePoseContext& Output, EKawaiiPhysicsSimulationSpace From, EKawaiiPhysicsSimulationSpace To);
+
+	// Initialize a sync bone
+	void InitSyncBone(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer,
+	                  FKawaiiPhysicsSyncBone& SyncBone);
 };

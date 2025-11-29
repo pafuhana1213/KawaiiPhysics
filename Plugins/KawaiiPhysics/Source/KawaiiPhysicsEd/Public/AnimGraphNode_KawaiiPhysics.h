@@ -76,6 +76,10 @@ public:
 	UPROPERTY()
 	bool bEnableDebugDrawLimitAngle = true;
 
+	/** Enables or disables debug drawing for sync bones. */
+	UPROPERTY()
+	bool bEnableDebugDrawSyncBone = true;
+
 	/** Enables or disables debug drawing for spherical limits. */
 	UPROPERTY()
 	bool bEnableDebugDrawSphereLimit = true;

@@ -58,11 +58,16 @@ DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_WarmUp"), STAT_KawaiiPhysics_WarmUp, STAT
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdatePhysicsSetting"), STAT_KawaiiPhysics_UpdatePhysicsSetting, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdateCapsuleLimit"), STAT_KawaiiPhysics_UpdateCapsuleLimit, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdateBoxLimit"), STAT_KawaiiPhysics_UpdateBoxLimit, STATGROUP_Anim);
-DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ConvertSimulationSpaceTransform"), STAT_KawaiiPhysics_ConvertSimulationSpaceTransform, STATGROUP_Anim);
-DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ConvertSimulationSpaceVector"), STAT_KawaiiPhysics_ConvertSimulationSpaceVector, STATGROUP_Anim);
-DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ConvertSimulationSpaceLocation"), STAT_KawaiiPhysics_ConvertSimulationSpaceLocation, STATGROUP_Anim);
-DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ConvertSimulationSpaceRotation"), STAT_KawaiiPhysics_ConvertSimulationSpaceRotation, STATGROUP_Anim);
-DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ConvertSimulationSpace"), STAT_KawaiiPhysics_ConvertSimulationSpace, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ConvertSimulationSpaceTransform"),
+                   STAT_KawaiiPhysics_ConvertSimulationSpaceTransform, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ConvertSimulationSpaceVector"), STAT_KawaiiPhysics_ConvertSimulationSpaceVector,
+                   STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ConvertSimulationSpaceLocation"),
+                   STAT_KawaiiPhysics_ConvertSimulationSpaceLocation, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ConvertSimulationSpaceRotation"),
+                   STAT_KawaiiPhysics_ConvertSimulationSpaceRotation, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ConvertSimulationSpace"), STAT_KawaiiPhysics_ConvertSimulationSpace,
+                   STATGROUP_Anim);
 
 FAnimNode_KawaiiPhysics::FAnimNode_KawaiiPhysics()
 {
@@ -147,7 +152,7 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 					const FVector LocationWS =
 						ConvertSimulationSpaceLocation(Output, SimulationSpace,
 						                               EKawaiiPhysicsSimulationSpace::WorldSpace, ModifyBone.Location);
-					
+
 					auto Color = ModifyBone.bDummy ? FColor::Red : FColor::Yellow;
 					AnimInstanceProxy->AnimDrawDebugSphere(LocationWS, ModifyBone.PhysicsSettings.Radius, 8,
 					                                       Color, false, -1, 0, SDPG_Foreground);
@@ -168,8 +173,9 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 				{
 					const FVector LocationWS =
 						ConvertSimulationSpaceLocation(Output, SimulationSpace,
-						                               EKawaiiPhysicsSimulationSpace::WorldSpace, SphericalLimit.Location);
-							
+						                               EKawaiiPhysicsSimulationSpace::WorldSpace,
+						                               SphericalLimit.Location);
+
 					AnimInstanceProxy->AnimDrawDebugSphere(LocationWS, SphericalLimit.Radius, 8, FColor::Orange,
 					                                       false, -1, 0, SDPG_Foreground);
 				}
@@ -177,7 +183,8 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 				{
 					const FVector LocationWS =
 						ConvertSimulationSpaceLocation(Output, SimulationSpace,
-						                               EKawaiiPhysicsSimulationSpace::WorldSpace, SphericalLimit.Location);
+						                               EKawaiiPhysicsSimulationSpace::WorldSpace,
+						                               SphericalLimit.Location);
 					AnimInstanceProxy->AnimDrawDebugSphere(LocationWS, SphericalLimit.Radius, 8, FColor::Blue,
 					                                       false, -1, 0, SDPG_Foreground);
 				}
@@ -205,7 +212,8 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 				for (const auto& CapsuleLimit : CapsuleLimits)
 				{
 					FTransform TransformWS =
-						ConvertSimulationSpaceTransform(Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::WorldSpace,
+						ConvertSimulationSpaceTransform(Output, SimulationSpace,
+						                                EKawaiiPhysicsSimulationSpace::WorldSpace,
 						                                FTransform(CapsuleLimit.Rotation, CapsuleLimit.Location));
 
 					AnimInstanceProxy->AnimDrawDebugCapsule(TransformWS.GetTranslation(), CapsuleLimit.Length * 0.5f,
@@ -215,7 +223,8 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 				for (const auto& CapsuleLimit : CapsuleLimitsData)
 				{
 					FTransform TransformWS =
-						ConvertSimulationSpaceTransform(Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::WorldSpace,
+						ConvertSimulationSpaceTransform(Output, SimulationSpace,
+						                                EKawaiiPhysicsSimulationSpace::WorldSpace,
 						                                FTransform(CapsuleLimit.Rotation, CapsuleLimit.Location));
 
 					AnimInstanceProxy->AnimDrawDebugCapsule(TransformWS.GetTranslation(), CapsuleLimit.Length * 0.5f,
@@ -246,7 +255,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		TeleportType = ETeleportType::None;
 		bInitPhysicsSettings = false;
 	}
-	
+
 	if (SimulationSpace != LastSimulationSpace)
 	{
 		ConvertSimulationSpace(Output, LastSimulationSpace, SimulationSpace);
@@ -267,7 +276,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	}
 
 #endif
-	
+
 	if (!RootBone.IsValidToEvaluate(BoneContainer))
 	{
 		return;
@@ -292,6 +301,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	if (ModifyBones.Num() == 0)
 	{
 		InitModifyBones(Output, BoneContainer);
+		InitSyncBones(Output);
 		InitBoneConstraints();
 		PreSkelCompTransform = ComponentTransform;
 	}
@@ -320,6 +330,9 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	// Update Bone Pose Transform
 	UpdateModifyBonesPoseTransform(Output, BoneContainer);
 
+	// Apply Sync Bones
+	ApplySyncBones(Output, BoneContainer);
+
 	// Update SkeletalMeshComponent movement in World Space
 	UpdateSkelCompMove(Output, ComponentTransform);
 
@@ -346,7 +359,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	{
 		SimulateModifyBones(Output, ComponentTransform);
 	}
-	
+
 	ApplySimulateResult(Output, BoneContainer, OutBoneTransforms);
 
 	TeleportType = ETeleportType::None;
@@ -478,6 +491,15 @@ void FAnimNode_KawaiiPhysics::InitializeBoneReferences(const FBoneContainer& Req
 	{
 		BoneConstraint.InitializeBone(RequiredBones);
 	}
+
+	for (auto& SyncBone : SyncBones)
+	{
+		SyncBone.Bone.Initialize(RequiredBones);
+		for (auto& Target : SyncBone.Targets)
+		{
+			Target.Bone.Initialize(RequiredBones);
+		}
+	}
 }
 
 void FAnimNode_KawaiiPhysics::InitModifyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer)
@@ -489,7 +511,7 @@ void FAnimNode_KawaiiPhysics::InitModifyBones(FComponentSpacePoseContext& Output
 		                                        GetValueOnAnyThread())
 		                                        ? BoneContainer.GetReferenceSkeleton()
 		                                        : BoneContainer.GetSkeletonAsset()->GetReferenceSkeleton();
-	
+
 	auto InitRootBone = [&](const FName& RootBoneName, const TArray<FBoneReference>& InExcludeBones)
 	{
 		TArray<FKawaiiPhysicsModifyBone> Bones;
@@ -759,16 +781,18 @@ void FAnimNode_KawaiiPhysics::CalcBoneLength(FKawaiiPhysicsModifyBone& Bone,
 	if (Bone.ParentIndex < 0)
 	{
 		Bone.LengthFromRoot = 0.0f;
+		Bone.BoneLength = 0.0f;
 	}
 	else
 	{
 		if (!Bone.bDummy)
 		{
-			Bone.LengthFromRoot = InModifyBones[Bone.ParentIndex].LengthFromRoot
-				+ RefBonePose[Bone.BoneRef.BoneIndex].GetLocation().Size();
+			Bone.BoneLength = RefBonePose[Bone.BoneRef.BoneIndex].GetLocation().Size();
+			Bone.LengthFromRoot = InModifyBones[Bone.ParentIndex].LengthFromRoot + Bone.BoneLength;
 		}
 		else
 		{
+			Bone.BoneLength = DummyBoneLength;
 			Bone.LengthFromRoot = InModifyBones[Bone.ParentIndex].LengthFromRoot + DummyBoneLength;
 		}
 
@@ -1088,7 +1112,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 	// External Force : PreApply
 	GravityInSimSpace = ConvertSimulationSpaceVector(Output, EKawaiiPhysicsSimulationSpace::ComponentSpace,
 	                                                 SimulationSpace, Gravity);
-	
+
 	// NOTE: if use foreach, you may get issue ( Array has changed during ranged-for iteration )
 	for (int i = 0; i < CustomExternalForces.Num(); ++i)
 	{
@@ -1226,15 +1250,17 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 		{
 			Bone.Location += SkelCompMoveVector * (1.0f - Bone.PhysicsSettings.WorldDampingLocation);
 		}
-	
+
 		// Follow Rotation
 		if (SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
 		{
 			const FVector PrevLocationCS = BaseBoneSpace2ComponentSpace.TransformPosition(Bone.PrevLocation);
 			const FVector RotatedLocationCS = SkelCompMoveRotation.RotateVector(PrevLocationCS);
-			const FVector RotatedLocationBase = BaseBoneSpace2ComponentSpace.InverseTransformPosition(RotatedLocationCS);
+			const FVector RotatedLocationBase = BaseBoneSpace2ComponentSpace.
+				InverseTransformPosition(RotatedLocationCS);
 
-			Bone.Location += (RotatedLocationBase - Bone.PrevLocation) * (1.0f - Bone.PhysicsSettings.WorldDampingRotation);
+			Bone.Location += (RotatedLocationBase - Bone.PrevLocation) * (1.0f - Bone.PhysicsSettings.
+				WorldDampingRotation);
 		}
 		else
 		{
@@ -1264,7 +1290,7 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 				BoneTM = GetBoneTransformInSimSpace(
 					Output, Bone.BoneRef.GetCompactPoseIndex(Output.Pose.GetPose().GetBoneContainer()));
 			}
-			
+
 			CustomExternalForces[i]->Apply(*this, Bone.Index, SkelComp, BoneTM);
 		}
 	}
@@ -1322,7 +1348,8 @@ FVector FAnimNode_KawaiiPhysics::GetWindVelocity(const FComponentSpacePoseContex
 	float WindMaxGust = 0.0f;
 
 	Scene->GetWindParameters_GameThread(
-		ConvertSimulationSpaceLocation(Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::WorldSpace, Bone.PoseLocation),
+		ConvertSimulationSpaceLocation(Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::WorldSpace,
+		                               Bone.PoseLocation),
 		WindDirection, WindSpeed, WindMinGust, WindMaxGust);
 
 	WindDirection =
@@ -1331,7 +1358,7 @@ FVector FAnimNode_KawaiiPhysics::GetWindVelocity(const FComponentSpacePoseContex
 	{
 		WindDirection = FMath::VRandCone(WindDirection, FMath::DegreesToRadians(WindDirectionNoiseAngle));
 	}
-	
+
 	FVector WindVelocity = WindDirection * WindSpeed * WindScale;
 
 	// TODO:Migrate if there are more good method (Currently copying AnimDynamics implementation)
@@ -1349,16 +1376,16 @@ void FAnimNode_KawaiiPhysics::AdjustByWorldCollision(FComponentSpacePoseContext&
 	{
 		return;
 	}
-	
-	
+
+
 	/** the trace is not done in game thread, so TraceTag does not draw debug traces*/
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(KawaiiCollision));
-	
+
 	if (bIgnoreSelfComponent)
 	{
 		Params.AddIgnoredComponent(OwningComp);
 	}
-	
+
 	// Get collision settings from component	
 	ECollisionChannel TraceChannel = bOverrideCollisionParams
 		                                 ? CollisionChannelSettings.GetObjectType()
@@ -1372,9 +1399,11 @@ void FAnimNode_KawaiiPhysics::AdjustByWorldCollision(FComponentSpacePoseContext&
 	const UWorld* World = OwningComp->GetWorld();
 
 	const FVector TraceStartLocationWS =
-		ConvertSimulationSpaceLocation(Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::WorldSpace, Bone.PrevLocation);
+		ConvertSimulationSpaceLocation(Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::WorldSpace,
+		                               Bone.PrevLocation);
 	const FVector TraceEndLocationWS =
-		ConvertSimulationSpaceLocation(Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::WorldSpace, Bone.Location);
+		ConvertSimulationSpaceLocation(Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::WorldSpace,
+		                               Bone.Location);
 
 	if (bIgnoreSelfComponent)
 	{
@@ -1455,13 +1484,15 @@ void FAnimNode_KawaiiPhysics::AdjustByWorldCollision(FComponentSpacePoseContext&
 				if (Result.bStartPenetrating)
 				{
 					Bone.Location =
-						ConvertSimulationSpaceLocation(Output, EKawaiiPhysicsSimulationSpace::WorldSpace, SimulationSpace,
+						ConvertSimulationSpaceLocation(Output, EKawaiiPhysicsSimulationSpace::WorldSpace,
+						                               SimulationSpace,
 						                               TraceEndLocationWS + Result.Normal * Result.PenetrationDepth);
 				}
 				else
 				{
 					Bone.Location =
-						ConvertSimulationSpaceLocation(Output, EKawaiiPhysicsSimulationSpace::WorldSpace, SimulationSpace,
+						ConvertSimulationSpaceLocation(Output, EKawaiiPhysicsSimulationSpace::WorldSpace,
+						                               SimulationSpace,
 						                               Result.Location);
 				}
 				break;
@@ -1768,7 +1799,8 @@ void FAnimNode_KawaiiPhysics::ApplySimulateResult(FComponentSpacePoseContext& Ou
 		FTransform PoseTransform = FTransform(ModifyBones[i].PoseRotation, ModifyBones[i].PoseLocation,
 		                                      ModifyBones[i].PoseScale);
 		PoseTransform =
-			ConvertSimulationSpaceTransform(Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::ComponentSpace, PoseTransform);
+			ConvertSimulationSpaceTransform(Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::ComponentSpace,
+			                                PoseTransform);
 		OutBoneTransforms.Add(FBoneTransform(ModifyBones[i].BoneRef.GetCompactPoseIndex(BoneContainer), PoseTransform));
 	}
 
@@ -1780,39 +1812,39 @@ void FAnimNode_KawaiiPhysics::ApplySimulateResult(FComponentSpacePoseContext& Ou
 		{
 			continue;
 		}
-	
+
 		FKawaiiPhysicsModifyBone& ParentBone = ModifyBones[Bone.ParentIndex];
-	
+
 		if (ParentBone.ChildIndices.Num() <= 1)
 		{
 			if (ParentBone.BoneRef.BoneIndex >= 0)
 			{
 				FVector PoseVector = Bone.PoseLocation - ParentBone.PoseLocation;
 				FVector SimulateVector = Bone.Location - ParentBone.Location;
-	
+
 				if (PoseVector.GetSafeNormal() == SimulateVector.GetSafeNormal())
 				{
 					continue;
 				}
-	
+
 				if (BoneForwardAxis == EBoneForwardAxis::X_Negative || BoneForwardAxis == EBoneForwardAxis::Y_Negative
 					|| BoneForwardAxis == EBoneForwardAxis::Z_Negative)
 				{
 					PoseVector *= -1;
 					SimulateVector *= -1;
 				}
-	
+
 				FQuat SimulateRotation =
 					FQuat::FindBetweenVectors(PoseVector, SimulateVector) * ParentBone.PoseRotation;
 				ParentBone.PrevRotation = SimulateRotation;
-	
+
 				SimulateRotation =
 					ConvertSimulationSpaceRotation(Output, SimulationSpace,
 					                               EKawaiiPhysicsSimulationSpace::ComponentSpace, SimulateRotation);
 				OutBoneTransforms[Bone.ParentIndex].Transform.SetRotation(SimulateRotation);
 			}
 		}
-	
+
 		if (Bone.BoneRef.BoneIndex >= 0 && !Bone.bDummy)
 		{
 			OutBoneTransforms[i].Transform.SetLocation(
@@ -1820,7 +1852,7 @@ void FAnimNode_KawaiiPhysics::ApplySimulateResult(FComponentSpacePoseContext& Ou
 				                               Bone.Location));
 		}
 	}
-	
+
 	OutBoneTransforms.RemoveAll([](const FBoneTransform& BoneTransform)
 	{
 		return BoneTransform.BoneIndex < 0;
@@ -1874,7 +1906,8 @@ FTransform FAnimNode_KawaiiPhysics::ConvertSimulationSpaceTransform(const FCompo
 
 FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceVector(const FComponentSpacePoseContext& Output,
                                                               const EKawaiiPhysicsSimulationSpace From,
-                                                              const EKawaiiPhysicsSimulationSpace To, const FVector& InVector) const
+                                                              const EKawaiiPhysicsSimulationSpace To,
+                                                              const FVector& InVector) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ConvertSimulationSpaceVector);
 	if (From == To)
@@ -1907,7 +1940,8 @@ FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceVector(const FComponentSp
 }
 
 FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceLocation(const FComponentSpacePoseContext& Output,
-                                                                const EKawaiiPhysicsSimulationSpace From, const EKawaiiPhysicsSimulationSpace To,
+                                                                const EKawaiiPhysicsSimulationSpace From,
+                                                                const EKawaiiPhysicsSimulationSpace To,
                                                                 const FVector& InLocation) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ConvertSimulationSpaceLocation);
@@ -1941,8 +1975,10 @@ FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceLocation(const FComponent
 	return ResultLocation;
 }
 
-FQuat FAnimNode_KawaiiPhysics::ConvertSimulationSpaceRotation(FComponentSpacePoseContext& Output, EKawaiiPhysicsSimulationSpace From,
-                                                              EKawaiiPhysicsSimulationSpace To, const FQuat& InRotation) const
+FQuat FAnimNode_KawaiiPhysics::ConvertSimulationSpaceRotation(FComponentSpacePoseContext& Output,
+                                                              EKawaiiPhysicsSimulationSpace From,
+                                                              EKawaiiPhysicsSimulationSpace To,
+                                                              const FQuat& InRotation) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ConvertSimulationSpaceRotation);
 	if (From == To)
@@ -1975,8 +2011,9 @@ FQuat FAnimNode_KawaiiPhysics::ConvertSimulationSpaceRotation(FComponentSpacePos
 	return ResultRotation;
 }
 
-void FAnimNode_KawaiiPhysics::ConvertSimulationSpace(FComponentSpacePoseContext& Output, EKawaiiPhysicsSimulationSpace From,
-                                                     EKawaiiPhysicsSimulationSpace To) 
+void FAnimNode_KawaiiPhysics::ConvertSimulationSpace(FComponentSpacePoseContext& Output,
+                                                     EKawaiiPhysicsSimulationSpace From,
+                                                     EKawaiiPhysicsSimulationSpace To)
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ConvertSimulationSpace);
 	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
@@ -1984,5 +2021,174 @@ void FAnimNode_KawaiiPhysics::ConvertSimulationSpace(FComponentSpacePoseContext&
 		Bone.Location = ConvertSimulationSpaceLocation(Output, From, To, Bone.Location);
 		Bone.PrevLocation = ConvertSimulationSpaceLocation(Output, From, To, Bone.PrevLocation);
 		Bone.PrevRotation = ConvertSimulationSpaceRotation(Output, From, To, Bone.PrevRotation);
+	}
+}
+
+void FAnimNode_KawaiiPhysics::InitSyncBones(FComponentSpacePoseContext& Output)
+{
+	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
+
+	for (auto& SyncBone : SyncBones)
+	{
+		InitSyncBone(Output, BoneContainer, SyncBone);
+	}
+}
+
+void FAnimNode_KawaiiPhysics::InitSyncBone(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer,
+                                           FKawaiiPhysicsSyncBone& SyncBone)
+{
+	// Initialize the SyncBone's initial pose location if valid
+	if (SyncBone.Bone.IsValidToEvaluate(BoneContainer))
+	{
+		SyncBone.InitialPoseLocation =
+			FAnimationRuntime::GetComponentSpaceTransformRefPose(BoneContainer.GetReferenceSkeleton(),
+			                                                     SyncBone.Bone.BoneIndex).GetLocation();
+	}
+
+	// cleanup
+	SyncBone.Targets.RemoveAll([&](const FKawaiiPhysicsSyncTarget& Target)
+	{
+		return !Target.Bone.IsValidToEvaluate(BoneContainer);
+	});
+
+	// Collect child bones and add to SyncBone targets
+	TArray<FKawaiiPhysicsSyncTarget> AdditionTargets;
+
+	for (auto& Target : SyncBone.Targets)
+	{
+		Target.ModifyBoneIndex = ModifyBones.IndexOfByPredicate(
+			[&](const FKawaiiPhysicsModifyBone& ModifyBone) { return ModifyBone.BoneRef == Target.Bone; });
+
+		if (Target.ModifyBoneIndex == INDEX_NONE || !Target.bIncludeChildBones)
+		{
+			continue;
+		}
+
+		TArray<int32> IndicesToProcess = ModifyBones[Target.ModifyBoneIndex].ChildIndices;
+		while (!IndicesToProcess.IsEmpty())
+		{
+			const int32 CurrentIndex = IndicesToProcess.Pop();
+			if (!ModifyBones.IsValidIndex(CurrentIndex))
+			{
+				continue;
+			}
+
+			AdditionTargets.AddUnique({ModifyBones[CurrentIndex].BoneRef, Target.Alpha, true, CurrentIndex});
+			IndicesToProcess.Append(ModifyBones[CurrentIndex].ChildIndices);
+		}
+	}
+
+	SyncBone.Targets.Append(AdditionTargets);
+}
+
+
+void FAnimNode_KawaiiPhysics::ApplySyncBones(FComponentSpacePoseContext& Output,
+                                             const FBoneContainer& BoneContainer)
+{
+	if (SyncBones.Num() == 0)
+	{
+		return;
+	}
+
+	// Apply the transition to the target bone's pose location
+	// for making the bones move together like constraint
+	auto ApplyDirectionFilterAndAlpha = [&](double& BlendedDelta, const double& Delta, const float& InAlpha,
+	                                        const ESyncBoneDirection Direction)
+	{
+		if (Direction != ESyncBoneDirection::None &&
+			(Direction == ESyncBoneDirection::Both ||
+				(Direction == ESyncBoneDirection::Positive && Delta > 0) ||
+				(Direction == ESyncBoneDirection::Negative && Delta < 0)))
+		{
+			BlendedDelta = FMath::Lerp(0.0f, Delta, InAlpha);
+		}
+	};
+
+	auto ApplyTransition = [&](const FKawaiiPhysicsSyncBone& SyncBone, const FVector& DeltaMovement,
+	                           FKawaiiPhysicsModifyBone& Bone, const FVector& InAlpha)
+	{
+		if (InAlpha.IsNearlyZero() || Bone.bSkipSimulate)
+		{
+			return FVector::ZeroVector;
+		}
+
+		FVector FilteredDelta = FVector::ZeroVector;
+
+		//TODO: ボーンごとにApplyDirectionによるフィルタリングを実行する必要はないでは？
+		// SyncBoneの段階で計算できる。一回だけでいい。なので、Target側でするのはAlphaの計算だけでいいはず
+		ApplyDirectionFilterAndAlpha(FilteredDelta.X, DeltaMovement.X, InAlpha.X, SyncBone.ApplyDirectionX);
+		ApplyDirectionFilterAndAlpha(FilteredDelta.Y, DeltaMovement.Y, InAlpha.Y, SyncBone.ApplyDirectionY);
+		ApplyDirectionFilterAndAlpha(FilteredDelta.Z, DeltaMovement.Z, InAlpha.Z, SyncBone.ApplyDirectionZ);
+
+		if (Bone.ParentIndex >= 0)
+		{
+			const auto& ParentBone = ModifyBones[Bone.ParentIndex];
+			const FVector NewPoseLocation = Bone.PoseLocation + FilteredDelta;
+			Bone.PoseLocation = (NewPoseLocation - ParentBone.PoseLocation).GetSafeNormal() * Bone.BoneLength +
+				ParentBone.PoseLocation;
+		}
+		else
+		{
+			Bone.PoseLocation += FilteredDelta;
+		}
+
+		return FilteredDelta;
+	};
+
+
+	for (auto& SyncBone : SyncBones)
+	{
+		if (!SyncBone.Bone.IsValidToEvaluate(BoneContainer))
+		{
+			continue;
+		}
+
+		// memo: This implementation will not work correctly if SimulationSpace is WorldSpace,
+		// as the character's movement will also be reflected.
+		const FVector SyncBoneLocation = GetBoneTransformInSimSpace(
+			Output, SyncBone.Bone.GetCompactPoseIndex(BoneContainer)).GetLocation();
+		FVector DeltaMovement = SyncBoneLocation - SyncBone.InitialPoseLocation;
+
+#if WITH_EDITORONLY_DATA
+		SyncBone.DeltaDistance = DeltaMovement;
+#endif
+		
+		if (!SyncBone.DeltaDistanceScaleCurve.GetRichCurve()->IsEmpty())
+		{
+			DeltaMovement *= SyncBone.DeltaDistanceScaleCurve.GetRichCurve()->Eval(DeltaMovement.Length());
+		}
+		DeltaMovement *= SyncBone.GlobalAlpha;
+		
+#if WITH_EDITORONLY_DATA
+		SyncBone.ScaledDeltaDistance = DeltaMovement;
+#endif
+
+		if (SyncBone.Targets.Num() > 0)
+		{
+			for (auto& Target : SyncBone.Targets)
+			{
+				if (Target.ModifyBoneIndex != INDEX_NONE && ModifyBones.
+					IsValidIndex(Target.ModifyBoneIndex))
+				{
+					const FVector Transition = ApplyTransition(SyncBone, DeltaMovement,
+					                                           ModifyBones[Target.ModifyBoneIndex],
+					                                           Target.Alpha );
+#if WITH_EDITORONLY_DATA
+					Target.TransitionBySyncBone = Transition;
+#endif
+				}
+			}
+		}
+		// else
+		// {
+		// 	for (auto& Bone : ModifyBones)
+		// 	{
+		// 		if (Bone.bSkipSimulate)
+		// 		{
+		// 			continue;
+		// 		}
+		// 		ApplyTransition(SyncBone, DeltaMovement, Bone, SyncBone.GlobalAlpha);
+		// 	}
+		// }
 	}
 }
