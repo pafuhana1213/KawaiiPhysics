@@ -20,6 +20,8 @@
 #include "Widgets/Layout/SUniformGridPanel.h"
 
 #if ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 6
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Layout/SSeparator.h"
 #include "Animation/AnimInstance.h"
 #endif
 
