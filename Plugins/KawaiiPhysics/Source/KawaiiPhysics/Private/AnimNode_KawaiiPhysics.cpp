@@ -49,6 +49,7 @@ DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimulatemodifyBones"), STAT_KawaiiPhysics
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_Simulate"), STAT_KawaiiPhysics_Simulate, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_GetWindVelocity"), STAT_KawaiiPhysics_GetWindVelocity, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_WorldCollision"), STAT_KawaiiPhysics_WorldCollision, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_InitSyncBone"), STAT_KawaiiPhysics_InitSyncBone, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ApplySyncBone"), STAT_KawaiiPhysics_ApplySyncBone, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_AdjustByCollision"), STAT_KawaiiPhysics_AdjustByCollision, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_AdjustByBoneConstraint"), STAT_KawaiiPhysics_AdjustByBoneConstraint,
@@ -496,7 +497,7 @@ void FAnimNode_KawaiiPhysics::InitializeBoneReferences(const FBoneContainer& Req
 	for (auto& SyncBone : SyncBones)
 	{
 		SyncBone.Bone.Initialize(RequiredBones);
-		for (auto& Target : SyncBone.Targets)
+		for (auto& Target : SyncBone.TargetRoots)
 		{
 			Target.Bone.Initialize(RequiredBones);
 		}
@@ -2038,6 +2039,8 @@ void FAnimNode_KawaiiPhysics::InitSyncBones(FComponentSpacePoseContext& Output)
 void FAnimNode_KawaiiPhysics::InitSyncBone(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer,
                                            FKawaiiPhysicsSyncBone& SyncBone)
 {
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_InitSyncBone);
+	
 	// Initialize the SyncBone's initial pose location if valid
 	if (SyncBone.Bone.IsValidToEvaluate(BoneContainer))
 	{
@@ -2047,25 +2050,28 @@ void FAnimNode_KawaiiPhysics::InitSyncBone(FComponentSpacePoseContext& Output, c
 	}
 
 	// cleanup
-	SyncBone.Targets.RemoveAll([&](const FKawaiiPhysicsSyncTarget& Target)
+	SyncBone.TargetRoots.RemoveAll([&](const FKawaiiPhysicsSyncTarget& Target)
 	{
-		return !Target.Bone.IsValidToEvaluate(BoneContainer);
+		return !Target.IsValid(BoneContainer);
 	});
 
-	// Collect child bones and add to SyncBone targets
-	TArray<FKawaiiPhysicsSyncTarget> AdditionTargets;
-
-	for (auto& Target : SyncBone.Targets)
+	for (auto& TargetRoot : SyncBone.TargetRoots)
 	{
-		Target.ModifyBoneIndex = ModifyBones.IndexOfByPredicate(
-			[&](const FKawaiiPhysicsModifyBone& ModifyBone) { return ModifyBone.BoneRef == Target.Bone; });
+		TargetRoot.ChildTargets.Empty();
 
-		if (Target.ModifyBoneIndex == INDEX_NONE || !Target.bIncludeChildBones)
+		TargetRoot.ModifyBoneIndex = ModifyBones.IndexOfByPredicate(
+			[&](const FKawaiiPhysicsModifyBone& ModifyBone) { return ModifyBone.BoneRef == TargetRoot.Bone; });
+		if (TargetRoot.ModifyBoneIndex == INDEX_NONE || !TargetRoot.bIncludeChildBones)
 		{
 			continue;
 		}
 
-		TArray<int32> IndicesToProcess = ModifyBones[Target.ModifyBoneIndex].ChildIndices;
+		// For Calculate LengthRateFromSyncTargetRoot
+		const float StartLength = ModifyBones[TargetRoot.ModifyBoneIndex].LengthFromRoot;
+		float MaxLength = StartLength;
+
+		// Collect Child Bones
+		TArray<int32> IndicesToProcess = ModifyBones[TargetRoot.ModifyBoneIndex].ChildIndices;
 		while (!IndicesToProcess.IsEmpty())
 		{
 			const int32 CurrentIndex = IndicesToProcess.Pop();
@@ -2074,12 +2080,43 @@ void FAnimNode_KawaiiPhysics::InitSyncBone(FComponentSpacePoseContext& Output, c
 				continue;
 			}
 
-			AdditionTargets.AddUnique({ModifyBones[CurrentIndex].BoneRef, Target.Alpha, true, CurrentIndex});
+			TargetRoot.ChildTargets.AddUnique({CurrentIndex});
+
+#if WITH_EDITORONLY_DATA
+			TargetRoot.ChildTargets.Last().PreviewBone = ModifyBones[CurrentIndex].BoneRef;
+#endif
+
 			IndicesToProcess.Append(ModifyBones[CurrentIndex].ChildIndices);
+			MaxLength = FMath::Max(MaxLength, ModifyBones[CurrentIndex].LengthFromRoot);
+		}
+
+		// Calculate LengthRateFromSyncTargetRoot
+		const float LengthRange = MaxLength - StartLength;
+		TargetRoot.LengthRateFromSyncTargetRoot = 0.0f;
+		for (auto& Target : TargetRoot.ChildTargets)
+		{
+			if (LengthRange > KINDA_SMALL_NUMBER)
+			{
+				Target.LengthRateFromSyncTargetRoot =
+					(ModifyBones[Target.ModifyBoneIndex].LengthFromRoot - StartLength) / LengthRange;
+			}
+			else
+			{
+				Target.LengthRateFromSyncTargetRoot = 0.0f;
+			}
+		}
+
+		// Update Alpha by Length Rate & Curve
+		if (const FRichCurve* ScaleCurve = TargetRoot.ScaleCurveByBoneLengthRate.GetRichCurveConst();
+			ScaleCurve && !ScaleCurve->IsEmpty())
+		{
+			TargetRoot.UpdateScaleByLengthRate(ScaleCurve);
+			for (auto& Target : TargetRoot.ChildTargets)
+			{
+				Target.UpdateScaleByLengthRate(ScaleCurve);
+			}
 		}
 	}
-
-	SyncBone.Targets.Append(AdditionTargets);
 }
 
 
@@ -2110,75 +2147,62 @@ void FAnimNode_KawaiiPhysics::ApplySyncBones(FComponentSpacePoseContext& Output,
 #endif
 
 		// Apply Curve
-		if (const FRichCurve* ScaleCurve = SyncBone.DeltaDistanceScaleCurve.GetRichCurveConst();
+		if (const FRichCurve* ScaleCurve = SyncBone.ScaleCurveByDeltaDistance.GetRichCurveConst();
 			ScaleCurve && !ScaleCurve->IsEmpty())
 		{
 			DeltaMovement *= ScaleCurve->Eval(DeltaMovement.Length());
 		}
 
 		// Apply Global Alpha
-		DeltaMovement *= SyncBone.GlobalAlpha;
+		DeltaMovement *= SyncBone.GlobalScale;
 
 #if WITH_EDITORONLY_DATA
 		SyncBone.ScaledDeltaDistance = DeltaMovement;
 #endif
 
 		// Filter direction once per SyncBone in Component Space
-		auto CheckDirection = [](double Val, const ESyncBoneDirection Dir)
+		auto CheckDirection = [](const float Val, const ESyncBoneDirection Dir)
 		{
 			return (Dir == ESyncBoneDirection::Both) ||
 				(Dir == ESyncBoneDirection::Positive && Val > 0.0) ||
 				(Dir == ESyncBoneDirection::Negative && Val < 0.0);
 		};
 
-		const FVector FilteredDelta(
+		FVector FilteredDeltaMovement(
 			CheckDirection(DeltaMovement.X, SyncBone.ApplyDirectionX) ? DeltaMovement.X : 0.0,
 			CheckDirection(DeltaMovement.Y, SyncBone.ApplyDirectionY) ? DeltaMovement.Y : 0.0,
 			CheckDirection(DeltaMovement.Z, SyncBone.ApplyDirectionZ) ? DeltaMovement.Z : 0.0
 		);
 
-		if (FilteredDelta.IsNearlyZero())
+		if (FilteredDeltaMovement.IsNearlyZero())
 		{
 			continue;
 		}
 
 		// Convert to Simulation Space
-		const FVector FinalDelta = ConvertSimulationSpaceVector(Output,
-		                                                        EKawaiiPhysicsSimulationSpace::ComponentSpace,
-		                                                        SimulationSpace, FilteredDelta);
+		FilteredDeltaMovement = ConvertSimulationSpaceVector(Output,
+		                                                     EKawaiiPhysicsSimulationSpace::ComponentSpace,
+		                                                     SimulationSpace, FilteredDeltaMovement);
 
 		// Apply to Targets
-		for (auto& Target : SyncBone.Targets)
+		for (auto& TargetRoot : SyncBone.TargetRoots)
 		{
-			if (Target.ModifyBoneIndex < 0 || !ModifyBones.IsValidIndex(Target.ModifyBoneIndex))
+			// TODO : Need flag to optimize for skip updating Scale after InitSyncBone 
+			// Update Alpha by Length Rate & Curve
+			if (const FRichCurve* ScaleCurve = TargetRoot.ScaleCurveByBoneLengthRate.GetRichCurveConst();
+				ScaleCurve && !ScaleCurve->IsEmpty())
 			{
-				continue;
+				TargetRoot.UpdateScaleByLengthRate(ScaleCurve);
+				for (auto& Target : TargetRoot.ChildTargets)
+				{
+					Target.UpdateScaleByLengthRate(ScaleCurve);
+				}
 			}
 
-			FKawaiiPhysicsModifyBone& Bone = ModifyBones[Target.ModifyBoneIndex];
-			if (Bone.bSkipSimulate)
+			TargetRoot.Apply(ModifyBones, FilteredDeltaMovement);
+			for (auto& Target : TargetRoot.ChildTargets)
 			{
-				continue;
-			}
-
-			// Apply Alpha per target
-			const FVector TargetDelta = FinalDelta * Target.Alpha;
-
-#if WITH_EDITORONLY_DATA
-			Target.TransitionBySyncBone = TargetDelta;
-#endif
-
-			if (Bone.ParentIndex >= 0)
-			{
-				// Maintain bone length relative to parent
-				const auto& ParentBone = ModifyBones[Bone.ParentIndex];
-				const FVector NewPoseLocation = Bone.PoseLocation + TargetDelta;
-				Bone.PoseLocation = (NewPoseLocation - ParentBone.PoseLocation).GetSafeNormal() * Bone.BoneLength +
-					ParentBone.PoseLocation;
-			}
-			else
-			{
-				Bone.PoseLocation += TargetDelta;
+				Target.Apply(ModifyBones, FilteredDeltaMovement);
 			}
 		}
 	}

@@ -68,6 +68,9 @@ void FKawaiiPhysicsEditMode::EnterMode(UAnimGraphNode_Base* InEditorNode, FAnimN
 	GraphNode->Node.BoneConstraintsData = RuntimeNode->BoneConstraintsData;
 	GraphNode->Node.MergedBoneConstraints = RuntimeNode->MergedBoneConstraints;
 
+	// SyncBone
+	GraphNode->Node.SyncBones = RuntimeNode->SyncBones;
+
 	NodePropertyDelegateHandle = GraphNode->OnNodePropertyChanged().AddSP(
 		this, &FKawaiiPhysicsEditMode::OnExternalNodePropertyChange);
 	if (RuntimeNode->LimitsDataAsset)
@@ -251,7 +254,6 @@ void FKawaiiPhysicsEditMode::RenderSyncBone(FPrimitiveDrawInterface* PDI) const
 		DrawDirectionalArrow(PDI, TransformMatrix, FLinearColor::Green, Force.Length(), 2.0f, SDPG_Foreground);
 	};
 
-
 	for (auto& SyncBone : RuntimeNode->SyncBones)
 	{
 		// InitialPoseLocation
@@ -269,29 +271,18 @@ void FKawaiiPhysicsEditMode::RenderSyncBone(FPrimitiveDrawInterface* PDI) const
 
 		// Force By SyncForce
 		FVector Force = SyncBone.DeltaDistance;
-		ApplyDirectionFilterAndAlpha(Force.X, SyncBone.GlobalAlpha.X, SyncBone.ApplyDirectionX);
-		ApplyDirectionFilterAndAlpha(Force.Y, SyncBone.GlobalAlpha.Y, SyncBone.ApplyDirectionY);
-		ApplyDirectionFilterAndAlpha(Force.Z, SyncBone.GlobalAlpha.Z, SyncBone.ApplyDirectionZ);
+		ApplyDirectionFilterAndAlpha(Force.X, SyncBone.GlobalScale.X, SyncBone.ApplyDirectionX);
+		ApplyDirectionFilterAndAlpha(Force.Y, SyncBone.GlobalScale.Y, SyncBone.ApplyDirectionY);
+		ApplyDirectionFilterAndAlpha(Force.Z, SyncBone.GlobalScale.Z, SyncBone.ApplyDirectionZ);
 		DrawForceArrow(Force, SyncBone.InitialPoseLocation);
 
 		// Target Bone
-		for (auto& Target : SyncBone.Targets)
+		for (auto& TargetRoot : SyncBone.TargetRoots)
 		{
-			if (Target.ModifyBoneIndex >= 0 && RuntimeNode->ModifyBones.IsValidIndex(Target.ModifyBoneIndex))
+			TargetRoot.DebugDraw(PDI, RuntimeNode);
+			for (auto& ChildTarget : TargetRoot.ChildTargets)
 			{
-				// Target Bone Location
-				FVector TargetBoneLocation = RuntimeNode->ModifyBones[Target.ModifyBoneIndex].Location;
-				if (RuntimeNode->SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
-				{
-					const FTransform& BaseBoneSpace2ComponentSpace = RuntimeNode->GetBaseBoneSpace2ComponentSpace();
-					TargetBoneLocation = BaseBoneSpace2ComponentSpace.TransformPosition(TargetBoneLocation);
-				}
-				DrawSphere(PDI, TargetBoneLocation, FRotator::ZeroRotator, 
-					FVector(1.0f), 12, 6,
-					GEngine->ConstraintLimitMaterialY->GetRenderProxy(), SDPG_World);
-
-				// Force by SyncBone
-				DrawForceArrow(Target.TransitionBySyncBone, TargetBoneLocation);
+				ChildTarget.DebugDraw(PDI, RuntimeNode);
 			}
 		}
 	}
