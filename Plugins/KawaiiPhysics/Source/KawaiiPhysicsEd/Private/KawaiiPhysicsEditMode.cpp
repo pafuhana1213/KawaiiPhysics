@@ -248,24 +248,24 @@ void FKawaiiPhysicsEditMode::RenderSyncBone(FPrimitiveDrawInterface* PDI) const
 	{
 		const FRotator Rotation = FRotationMatrix::MakeFromX(Force.GetSafeNormal()).Rotator();
 		const FMatrix TransformMatrix = FRotationMatrix(Rotation) * FTranslationMatrix(Location);
-		DrawDirectionalArrow(PDI, TransformMatrix, FLinearColor::Red, Force.Length(), 2.0f, SDPG_Foreground);
+		DrawDirectionalArrow(PDI, TransformMatrix, FLinearColor::Green, Force.Length(), 2.0f, SDPG_Foreground);
 	};
 
 
 	for (auto& SyncBone : RuntimeNode->SyncBones)
 	{
 		// InitialPoseLocation
-		DrawBox(PDI, FTranslationMatrix(SyncBone.InitialPoseLocation), FVector(2.0f),
-		        GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy(), SDPG_World);
+		DrawBox(PDI, FTranslationMatrix(SyncBone.InitialPoseLocation), FVector(1.0f),
+		        GEngine->ConstraintLimitMaterialY->GetRenderProxy(), SDPG_World);
 
 		// Current SyncBone Location
-		DrawBox(PDI, FTranslationMatrix(SyncBone.InitialPoseLocation + SyncBone.DeltaDistance), FVector(2.0f),
-		        GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy(), SDPG_World);
+		DrawBox(PDI, FTranslationMatrix(SyncBone.InitialPoseLocation + SyncBone.DeltaDistance), FVector(1.0f),
+		        GEngine->ConstraintLimitMaterialY->GetRenderProxy(), SDPG_World);
 
 		// DeltaMovement
 		DrawDashedLine(PDI, SyncBone.InitialPoseLocation,
 		               SyncBone.InitialPoseLocation + SyncBone.DeltaDistance,
-		               FLinearColor::Green, 1, SDPG_World);
+		               FLinearColor::Green, 0.1f, SDPG_World);
 
 		// Force By SyncForce
 		FVector Force = SyncBone.DeltaDistance;
@@ -288,7 +288,7 @@ void FKawaiiPhysicsEditMode::RenderSyncBone(FPrimitiveDrawInterface* PDI) const
 				}
 				DrawSphere(PDI, TargetBoneLocation, FRotator::ZeroRotator, 
 					FVector(1.0f), 12, 6,
-							GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy(), SDPG_World);
+					GEngine->ConstraintLimitMaterialY->GetRenderProxy(), SDPG_World);
 
 				// Force by SyncBone
 				DrawForceArrow(Target.TransitionBySyncBone, TargetBoneLocation);
@@ -1136,14 +1136,14 @@ void FKawaiiPhysicsEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FVie
 			}
 		}
 	}
-	// FText::AsNumber((SyncBone.DeltaDistance * SyncBone.GlobalAlpha).Length())
-	
+
+	// SyncBone
 	if (GraphNode->bEnableDebugDrawSyncBone)
 	{
 		for (auto& SyncBone : RuntimeNode->SyncBones)
 		{
-			
-			const FString LenText = FString::Format(TEXT("{Scaled} / {Distance}"), {SyncBone.DeltaDistance.Length(), SyncBone.ScaledDeltaDistance.Length()});
+			FString LenText = FString::Printf(TEXT("%.1f / %.1f"), SyncBone.ScaledDeltaDistance.Length(),
+			                                  SyncBone.DeltaDistance.Length());
 			Draw3DTextItem(FText::FromString(LenText), Canvas, View,
 						   Viewport, PreviewMeshComponent->GetComponentTransform().TransformPosition(SyncBone.InitialPoseLocation));
 		}
