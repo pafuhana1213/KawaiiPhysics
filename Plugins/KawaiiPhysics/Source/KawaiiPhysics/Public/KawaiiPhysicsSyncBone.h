@@ -85,7 +85,7 @@ struct FKawaiiPhysicsSyncBone
 	FVector GlobalAlpha = FVector::OneVector;
 
 	// SyncBoneの移動距離に応じて
-	// 各Targetに対しての補正処理にスケールをかけるカーブ
+	// 各Targetに対しての補正処理にスケールをかけるカーブ（X: 移動距離、Y: スケール）
 	UPROPERTY(EditAnywhere, Category = "SyncBone", meta=(XAxisName="Distance", YAxisName="Scale"))
 	FRuntimeFloatCurve DeltaDistanceScaleCurve;
 	

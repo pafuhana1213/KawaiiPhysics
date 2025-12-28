@@ -2090,52 +2090,6 @@ void FAnimNode_KawaiiPhysics::ApplySyncBones(FComponentSpacePoseContext& Output,
 		return;
 	}
 
-	// Apply the transition to the target bone's pose location
-	// for making the bones move together like constraint
-	auto ApplyDirectionFilterAndAlpha = [&](double& BlendedDelta, const double& Delta, const float& InAlpha,
-	                                        const ESyncBoneDirection Direction)
-	{
-		if (Direction != ESyncBoneDirection::None &&
-			(Direction == ESyncBoneDirection::Both ||
-				(Direction == ESyncBoneDirection::Positive && Delta > 0) ||
-				(Direction == ESyncBoneDirection::Negative && Delta < 0)))
-		{
-			BlendedDelta = FMath::Lerp(0.0f, Delta, InAlpha);
-		}
-	};
-
-	auto ApplyTransition = [&](const FKawaiiPhysicsSyncBone& SyncBone, const FVector& DeltaMovement,
-	                           FKawaiiPhysicsModifyBone& Bone, const FVector& InAlpha)
-	{
-		if (InAlpha.IsNearlyZero() || Bone.bSkipSimulate)
-		{
-			return FVector::ZeroVector;
-		}
-
-		FVector FilteredDelta = FVector::ZeroVector;
-
-		//TODO: ボーンごとにApplyDirectionによるフィルタリングを実行する必要はないでは？
-		// SyncBoneの段階で計算できる。一回だけでいい。なので、Target側でするのはAlphaの計算だけでいいはず
-		ApplyDirectionFilterAndAlpha(FilteredDelta.X, DeltaMovement.X, InAlpha.X, SyncBone.ApplyDirectionX);
-		ApplyDirectionFilterAndAlpha(FilteredDelta.Y, DeltaMovement.Y, InAlpha.Y, SyncBone.ApplyDirectionY);
-		ApplyDirectionFilterAndAlpha(FilteredDelta.Z, DeltaMovement.Z, InAlpha.Z, SyncBone.ApplyDirectionZ);
-
-		if (Bone.ParentIndex >= 0)
-		{
-			const auto& ParentBone = ModifyBones[Bone.ParentIndex];
-			const FVector NewPoseLocation = Bone.PoseLocation + FilteredDelta;
-			Bone.PoseLocation = (NewPoseLocation - ParentBone.PoseLocation).GetSafeNormal() * Bone.BoneLength +
-				ParentBone.PoseLocation;
-		}
-		else
-		{
-			Bone.PoseLocation += FilteredDelta;
-		}
-
-		return FilteredDelta;
-	};
-
-
 	for (auto& SyncBone : SyncBones)
 	{
 		if (!SyncBone.Bone.IsValidToEvaluate(BoneContainer))
@@ -2143,52 +2097,86 @@ void FAnimNode_KawaiiPhysics::ApplySyncBones(FComponentSpacePoseContext& Output,
 			continue;
 		}
 
-		// memo: This implementation will not work correctly if SimulationSpace is WorldSpace,
-		// as the character's movement will also be reflected.
-		const FVector SyncBoneLocation = GetBoneTransformInSimSpace(
-			Output, SyncBone.Bone.GetCompactPoseIndex(BoneContainer)).GetLocation();
-		FVector DeltaMovement = SyncBoneLocation - SyncBone.InitialPoseLocation;
+		// Calculate Delta Movement in Component Space
+		const FCompactPoseBoneIndex SyncBoneIndex = SyncBone.Bone.GetCompactPoseIndex(BoneContainer);
+		FVector DeltaMovement = Output.Pose.GetComponentSpaceTransform(SyncBoneIndex).GetLocation() - SyncBone.
+			InitialPoseLocation;
 
 #if WITH_EDITORONLY_DATA
 		SyncBone.DeltaDistance = DeltaMovement;
 #endif
-		
-		if (!SyncBone.DeltaDistanceScaleCurve.GetRichCurve()->IsEmpty())
+
+		// Apply Curve
+		if (const FRichCurve* ScaleCurve = SyncBone.DeltaDistanceScaleCurve.GetRichCurve();
+			ScaleCurve && !ScaleCurve->IsEmpty())
 		{
-			DeltaMovement *= SyncBone.DeltaDistanceScaleCurve.GetRichCurve()->Eval(DeltaMovement.Length());
+			DeltaMovement *= ScaleCurve->Eval(DeltaMovement.Length());
 		}
+
+		// Apply Global Alpha
 		DeltaMovement *= SyncBone.GlobalAlpha;
-		
+
 #if WITH_EDITORONLY_DATA
 		SyncBone.ScaledDeltaDistance = DeltaMovement;
 #endif
 
-		if (SyncBone.Targets.Num() > 0)
+		// Filter direction once per SyncBone in Component Space
+		auto CheckDirection = [](double Val, const ESyncBoneDirection Dir)
 		{
-			for (auto& Target : SyncBone.Targets)
+			return (Dir == ESyncBoneDirection::Both) ||
+				(Dir == ESyncBoneDirection::Positive && Val > 0.0) ||
+				(Dir == ESyncBoneDirection::Negative && Val < 0.0);
+		};
+
+		const FVector FilteredDelta(
+			CheckDirection(DeltaMovement.X, SyncBone.ApplyDirectionX) ? DeltaMovement.X : 0.0,
+			CheckDirection(DeltaMovement.Y, SyncBone.ApplyDirectionY) ? DeltaMovement.Y : 0.0,
+			CheckDirection(DeltaMovement.Z, SyncBone.ApplyDirectionZ) ? DeltaMovement.Z : 0.0
+		);
+
+		if (FilteredDelta.IsNearlyZero())
+		{
+			continue;
+		}
+
+		// Convert to Simulation Space
+		const FVector FinalDelta = ConvertSimulationSpaceVector(Output,
+		                                                        EKawaiiPhysicsSimulationSpace::ComponentSpace,
+		                                                        SimulationSpace, FilteredDelta);
+
+		// Apply to Targets
+		for (auto& Target : SyncBone.Targets)
+		{
+			if (Target.ModifyBoneIndex < 0 || !ModifyBones.IsValidIndex(Target.ModifyBoneIndex))
 			{
-				if (Target.ModifyBoneIndex != INDEX_NONE && ModifyBones.
-					IsValidIndex(Target.ModifyBoneIndex))
-				{
-					const FVector Transition = ApplyTransition(SyncBone, DeltaMovement,
-					                                           ModifyBones[Target.ModifyBoneIndex],
-					                                           Target.Alpha );
+				continue;
+			}
+
+			FKawaiiPhysicsModifyBone& Bone = ModifyBones[Target.ModifyBoneIndex];
+			if (Bone.bSkipSimulate)
+			{
+				continue;
+			}
+
+			// Apply Alpha per target (Component-wise multiplication)
+			const FVector TargetDelta = FinalDelta * Target.Alpha;
+
 #if WITH_EDITORONLY_DATA
-					Target.TransitionBySyncBone = Transition;
+			Target.TransitionBySyncBone = TargetDelta;
 #endif
-				}
+
+			if (Bone.ParentIndex >= 0)
+			{
+				// Maintain bone length relative to parent
+				const auto& ParentBone = ModifyBones[Bone.ParentIndex];
+				const FVector NewPoseLocation = Bone.PoseLocation + TargetDelta;
+				Bone.PoseLocation = (NewPoseLocation - ParentBone.PoseLocation).GetSafeNormal() * Bone.BoneLength +
+					ParentBone.PoseLocation;
+			}
+			else
+			{
+				Bone.PoseLocation += TargetDelta;
 			}
 		}
-		// else
-		// {
-		// 	for (auto& Bone : ModifyBones)
-		// 	{
-		// 		if (Bone.bSkipSimulate)
-		// 		{
-		// 			continue;
-		// 		}
-		// 		ApplyTransition(SyncBone, DeltaMovement, Bone, SyncBone.GlobalAlpha);
-		// 	}
-		// }
 	}
 }
