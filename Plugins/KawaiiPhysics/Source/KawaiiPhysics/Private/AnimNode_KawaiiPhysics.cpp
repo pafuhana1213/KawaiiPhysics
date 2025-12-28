@@ -49,6 +49,7 @@ DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimulatemodifyBones"), STAT_KawaiiPhysics
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_Simulate"), STAT_KawaiiPhysics_Simulate, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_GetWindVelocity"), STAT_KawaiiPhysics_GetWindVelocity, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_WorldCollision"), STAT_KawaiiPhysics_WorldCollision, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ApplySyncBone"), STAT_KawaiiPhysics_ApplySyncBone, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_AdjustByCollision"), STAT_KawaiiPhysics_AdjustByCollision, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_AdjustByBoneConstraint"), STAT_KawaiiPhysics_AdjustByBoneConstraint,
                    STATGROUP_Anim);
@@ -2092,6 +2093,8 @@ void FAnimNode_KawaiiPhysics::ApplySyncBones(FComponentSpacePoseContext& Output,
 
 	for (auto& SyncBone : SyncBones)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ApplySyncBone);
+		
 		if (!SyncBone.Bone.IsValidToEvaluate(BoneContainer))
 		{
 			continue;
@@ -2107,7 +2110,7 @@ void FAnimNode_KawaiiPhysics::ApplySyncBones(FComponentSpacePoseContext& Output,
 #endif
 
 		// Apply Curve
-		if (const FRichCurve* ScaleCurve = SyncBone.DeltaDistanceScaleCurve.GetRichCurve();
+		if (const FRichCurve* ScaleCurve = SyncBone.DeltaDistanceScaleCurve.GetRichCurveConst();
 			ScaleCurve && !ScaleCurve->IsEmpty())
 		{
 			DeltaMovement *= ScaleCurve->Eval(DeltaMovement.Length());
@@ -2158,7 +2161,7 @@ void FAnimNode_KawaiiPhysics::ApplySyncBones(FComponentSpacePoseContext& Output,
 				continue;
 			}
 
-			// Apply Alpha per target (Component-wise multiplication)
+			// Apply Alpha per target
 			const FVector TargetDelta = FinalDelta * Target.Alpha;
 
 #if WITH_EDITORONLY_DATA
