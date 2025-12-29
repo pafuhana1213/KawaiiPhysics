@@ -60,6 +60,8 @@ DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_WarmUp"), STAT_KawaiiPhysics_WarmUp, STAT
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdatePhysicsSetting"), STAT_KawaiiPhysics_UpdatePhysicsSetting, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdateCapsuleLimit"), STAT_KawaiiPhysics_UpdateCapsuleLimit, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdateBoxLimit"), STAT_KawaiiPhysics_UpdateBoxLimit, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdateModifyBonesPoseTransform"),
+                   STAT_KawaiiPhysics_UpdateModifyBonesPoseTransform, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ConvertSimulationSpaceTransform"),
                    STAT_KawaiiPhysics_ConvertSimulationSpaceTransform, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ConvertSimulationSpaceVector"), STAT_KawaiiPhysics_ConvertSimulationSpaceVector,
@@ -1008,6 +1010,8 @@ void FAnimNode_KawaiiPhysics::UpdateModifyBonesPoseTransform(FComponentSpacePose
 {
 	for (auto& Bone : ModifyBones)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdateModifyBonesPoseTransform);
+		
 		if (Bone.bDummy)
 		{
 			auto ParentBone = ModifyBones[Bone.ParentIndex];
@@ -1028,10 +1032,10 @@ void FAnimNode_KawaiiPhysics::UpdateModifyBonesPoseTransform(FComponentSpacePose
 					Bone.PoseRotation = FQuat::Identity;
 					Bone.PoseScale = FVector::OneVector;
 				}
-				return;
+				continue;
 			}
 
-			const auto BoneTransform = GetBoneTransformInSimSpace(Output, CompactPoseIndex);
+			const FTransform BoneTransform = GetBoneTransformInSimSpace(Output, CompactPoseIndex);
 			Bone.PoseLocation = BoneTransform.GetLocation();
 			Bone.PoseRotation = BoneTransform.GetRotation();
 			Bone.PoseScale = BoneTransform.GetScale3D();
@@ -1847,6 +1851,7 @@ void FAnimNode_KawaiiPhysics::ApplySimulateResult(FComponentSpacePoseContext& Ou
 FTransform FAnimNode_KawaiiPhysics::GetBoneTransformInSimSpace(FComponentSpacePoseContext& Output,
                                                                const FCompactPoseBoneIndex& BoneIndex) const
 {
+	
 	return ConvertSimulationSpaceTransform(Output, EKawaiiPhysicsSimulationSpace::ComponentSpace, SimulationSpace,
 	                                       Output.Pose.GetComponentSpaceTransform(BoneIndex));
 }
@@ -1856,6 +1861,8 @@ FTransform FAnimNode_KawaiiPhysics::ConvertSimulationSpaceTransform(const FCompo
                                                                     const EKawaiiPhysicsSimulationSpace To,
                                                                     const FTransform& InTransform) const
 {
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ConvertSimulationSpaceTransform);
+	
 	if (From == To)
 	{
 		return InTransform;
