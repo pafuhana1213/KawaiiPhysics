@@ -48,11 +48,12 @@ public:
 	}
 
 	// TargetRootからの長さ割合に応じてScaleを更新（X: LengthRate、Y: Scale）
+	// Update Scale based on length rate from TargetRoot (X: LengthRate, Y: Scale)
 	void UpdateScaleByLengthRate(const FRichCurve* ScaleCurveByBoneLengthRate);
 
-	// 移動を適用
+	// SyncBoneによる移動処理をボーンに適用
+	// Apply the translation from SyncBone to the bone
 	void Apply(TArray<FKawaiiPhysicsModifyBone>& ModifyBones, const FVector& Translation);
-
 
 #if WITH_EDITOR
 	void DebugDraw(FPrimitiveDrawInterface* PDI, const FAnimNode_KawaiiPhysics* Node) const;
@@ -60,13 +61,19 @@ public:
 
 #if WITH_EDITORONLY_DATA
 
+	// プレビュー用のボーンを表示するか
+	// Whether to show the preview bone
 	UPROPERTY(VisibleAnywhere, Category = "SyncTarget", meta=(EditCondition="false", EditConditionHides))
 	bool IsShowPreviewBone = true;
 
+	// エディタ上でのプレビュー用
+	// For preview in the editor
 	UPROPERTY(VisibleAnywhere, Category = "SyncTarget",
 		meta=(EditCondition="IsShowPreviewBone", EditConditionHides))
 	FBoneReference PreviewBone;
 
+	// SyncBoneにより最終的に受けた移動量
+	// Final translation received from SyncBone
 	UPROPERTY(VisibleAnywhere, Category = "SyncTarget")
 	FVector TranslationBySyncBone = FVector::ZeroVector;
 #endif
@@ -118,9 +125,9 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSyncTargetRoot : public FKawaiiPhysicsSyn
 	UPROPERTY(EditAnywhere, Category = "SyncBone", meta=(XAxisName="LengthRate", YAxisName="Scale"))
 	FRuntimeFloatCurve ScaleCurveByBoneLengthRate;
 
-	// 子ボーンの適用対象
-	// Target bones for child bones
-	UPROPERTY(VisibleAnywhere, Category = "SyncBone", meta=(TitleProperty="PreviewBone"))
+	// 適用対象である子ボーン
+	// Child bones that are targets for application
+	UPROPERTY(VisibleAnywhere, Category = "SyncBone", DisplayName="ChildTargets(Preview)", meta=(TitleProperty="PreviewBone"))
 	TArray<FKawaiiPhysicsSyncTarget> ChildTargets;
 };
 
