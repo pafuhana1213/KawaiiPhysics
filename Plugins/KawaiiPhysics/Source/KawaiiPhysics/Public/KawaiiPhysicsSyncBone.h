@@ -102,7 +102,9 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSyncTargetRoot : public FKawaiiPhysicsSyn
 	FKawaiiPhysicsSyncTargetRoot()
 		: Super()
 	{
+#if WITH_EDITORONLY_DATA
 		IsShowPreviewBone = false;
+#endif
 	}
 
 	virtual bool IsValid(const FBoneContainer& BoneContainer) const override

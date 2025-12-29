@@ -162,8 +162,8 @@ struct FCollisionLimitBase
 		Location = Other.Location;
 		Rotation = Other.Rotation;
 		bEnable = Other.bEnable;
-#if WITH_EDITORONLY_DATA
 		SourceType = Other.SourceType;
+#if WITH_EDITORONLY_DATA
 		Guid = Other.Guid;
 		Type = Other.Type;
 #endif
@@ -1018,6 +1018,9 @@ private:
 	 */
 	FTransform BaseBoneSpace2ComponentSpace = FTransform::Identity;
 
+	/**
+	 * Previous frame's Base bone space to component space transform
+	 */
 	FTransform PrevBaseBoneSpace2ComponentSpace = FTransform::Identity;
 
 	/**
