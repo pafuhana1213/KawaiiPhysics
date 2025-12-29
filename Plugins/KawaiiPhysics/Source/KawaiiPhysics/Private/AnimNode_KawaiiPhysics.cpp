@@ -105,6 +105,17 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 		}
 	}
 
+	if (SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
+	{
+		if (SimulationBaseBone.Initialize(RequiredBones))
+		{
+			PrevBaseBoneSpace2ComponentSpace =
+				BaseBoneSpace2ComponentSpace =
+				FAnimationRuntime::GetComponentSpaceTransformRefPose(RequiredBones.GetReferenceSkeleton(),
+				                                                     SimulationBaseBone.BoneIndex);
+		}
+	}
+
 #if WITH_EDITORONLY_DATA
 	LastEvaluatedTime = FPlatformTime::Seconds();
 #endif
@@ -297,6 +308,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	{
 		if (SimulationBaseBone.IsValidToEvaluate(BoneContainer))
 		{
+			PrevBaseBoneSpace2ComponentSpace = BaseBoneSpace2ComponentSpace;
 			BaseBoneSpace2ComponentSpace =
 				Output.Pose.GetComponentSpaceTransform(SimulationBaseBone.GetCompactPoseIndex(BoneContainer));
 		}
@@ -2027,9 +2039,8 @@ void FAnimNode_KawaiiPhysics::InitSyncBone(FComponentSpacePoseContext& Output, c
                                            FKawaiiPhysicsSyncBone& SyncBone)
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_InitSyncBone);
-	
-	// Initialize the SyncBone's initial pose location if valid
-	if (SyncBone.Bone.IsValidToEvaluate(BoneContainer))
+
+	if (SyncBone.Bone.Initialize(BoneContainer))
 	{
 		SyncBone.InitialPoseLocation =
 			FAnimationRuntime::GetComponentSpaceTransformRefPose(BoneContainer.GetReferenceSkeleton(),

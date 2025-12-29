@@ -1018,6 +1018,8 @@ private:
 	 */
 	FTransform BaseBoneSpace2ComponentSpace = FTransform::Identity;
 
+	FTransform PrevBaseBoneSpace2ComponentSpace = FTransform::Identity;
+
 	/**
 	* Stores the delta time from the previous frame.
 	*/
