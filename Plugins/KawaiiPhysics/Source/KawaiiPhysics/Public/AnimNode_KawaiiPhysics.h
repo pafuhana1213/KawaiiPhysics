@@ -1114,6 +1114,12 @@ protected:
 	void InitSyncBones(FComponentSpacePoseContext& Output);
 
 	/**
+	* Initializes a sync bone for the physics simulation.
+	*/
+	void InitSyncBone(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer,
+	                  FKawaiiPhysicsSyncBone& SyncBone);
+
+	/**
 	 * Initializes the bone constraints for the physics simulation.
 	 */
 	void InitBoneConstraints();
@@ -1373,29 +1379,85 @@ protected:
 #endif
 
 private:
-	// Given a bone index, get it's transform in the currently selected simulation space
+	// Given a bone index, get the transform in the currently selected simulation space
 	FTransform GetBoneTransformInSimSpace(FComponentSpacePoseContext& Output,
 	                                      const FCompactPoseBoneIndex& BoneIndex) const;
 
-	// Convert a transform from one simulation space to another
-	FTransform ConvertSimulationSpaceTransform(const FComponentSpacePoseContext& Output, EKawaiiPhysicsSimulationSpace From,
-	                                           EKawaiiPhysicsSimulationSpace To, const FTransform& InTransform) const;
+	// Convert a transform from one simulation space to another (internal cache-aware)
+	FTransform ConvertSimulationSpaceTransform(const FComponentSpacePoseContext& Output,
+	                                           EKawaiiPhysicsSimulationSpace From,
+	                                           EKawaiiPhysicsSimulationSpace To,
+	                                           const FTransform& InTransform) const;
 
-	// Convert a vector from one simulation space to another
-	FVector ConvertSimulationSpaceVector(const FComponentSpacePoseContext& Output, EKawaiiPhysicsSimulationSpace From,
-	                                     EKawaiiPhysicsSimulationSpace To, const FVector& InVector) const;
+	// Convert a vector from one simulation space to another (internal cache-aware)
+	FVector ConvertSimulationSpaceVector(const FComponentSpacePoseContext& Output,
+	                                     EKawaiiPhysicsSimulationSpace From,
+	                                     EKawaiiPhysicsSimulationSpace To,
+	                                     const FVector& InVector) const;
 
-	// Convert a location from one simulation space to another
-	FVector ConvertSimulationSpaceLocation(const FComponentSpacePoseContext& Output, EKawaiiPhysicsSimulationSpace From,
-	                                       EKawaiiPhysicsSimulationSpace To, const FVector& InLocation) const;
+	// Convert a location from one simulation space to another (internal cache-aware)
+	FVector ConvertSimulationSpaceLocation(const FComponentSpacePoseContext& Output,
+	                                       EKawaiiPhysicsSimulationSpace From,
+	                                       EKawaiiPhysicsSimulationSpace To,
+	                                       const FVector& InLocation) const;
 
-	// Convert a rotation from one simulation space to another
-	FQuat ConvertSimulationSpaceRotation(FComponentSpacePoseContext& Output, EKawaiiPhysicsSimulationSpace From,
-	                                     EKawaiiPhysicsSimulationSpace To, const FQuat& InRotation) const;
+	// Convert a rotation from one simulation space to another (internal cache-aware)
+	FQuat ConvertSimulationSpaceRotation(FComponentSpacePoseContext& Output,
+	                                     EKawaiiPhysicsSimulationSpace From,
+	                                     EKawaiiPhysicsSimulationSpace To,
+	                                     const FQuat& InRotation) const;
 
-	void ConvertSimulationSpace(FComponentSpacePoseContext& Output, EKawaiiPhysicsSimulationSpace From, EKawaiiPhysicsSimulationSpace To);
+	void ConvertSimulationSpace(FComponentSpacePoseContext& Output,
+	                            EKawaiiPhysicsSimulationSpace From,
+	                            EKawaiiPhysicsSimulationSpace To);
 
-	// Initialize a sync bone
-	void InitSyncBone(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer,
-	                  FKawaiiPhysicsSyncBone& SyncBone);
+private:
+	// SimulationSpace conversion cache (per-evaluation)
+	struct FSimulationSpaceCache
+	{
+		FTransform ComponentToTargetSpace = FTransform::Identity;
+		FTransform TargetSpaceToComponent = FTransform::Identity;
+
+		bool IsIdentity() const
+		{
+			return ComponentToTargetSpace.Equals(FTransform::Identity) &&
+				TargetSpaceToComponent.Equals(FTransform::Identity);
+		}
+	};
+
+	FSimulationSpaceCache BuildSimulationSpaceCache(const FComponentSpacePoseContext& Output,
+	                                                EKawaiiPhysicsSimulationSpace SimulationSpaceForCache) const;
+
+	// Select cache for a given simulation space (Evaluate cache preferred)
+	FSimulationSpaceCache GetSimulationSpaceCacheFor(const FComponentSpacePoseContext& Output,
+	                                                 EKawaiiPhysicsSimulationSpace Space) const;
+
+	// Convert helpers using explicit caches
+	FTransform ConvertSimulationSpaceTransformCached(const FSimulationSpaceCache& CacheFrom,
+	                                                 const FSimulationSpaceCache& CacheTo,
+	                                                 const FTransform& InTransform) const;
+	FVector ConvertSimulationSpaceVectorCached(const FSimulationSpaceCache& CacheFrom,
+	                                           const FSimulationSpaceCache& CacheTo,
+	                                           const FVector& InVector) const;
+	FVector ConvertSimulationSpaceLocationCached(const FSimulationSpaceCache& CacheFrom,
+	                                             const FSimulationSpaceCache& CacheTo,
+	                                             const FVector& InLocation) const;
+	FQuat ConvertSimulationSpaceRotationCached(const FSimulationSpaceCache& CacheFrom,
+	                                           const FSimulationSpaceCache& CacheTo,
+	                                           const FQuat& InRotation) const;
+
+	void ConvertSimulationSpaceCached(const FSimulationSpaceCache& CacheFrom,
+	                                  const FSimulationSpaceCache& CacheTo,
+	                                  EKawaiiPhysicsSimulationSpace From,
+	                                  EKawaiiPhysicsSimulationSpace To);
+
+private:
+	// Evaluate中のみ有効なキャッシュ（SimulationSpace<->Component）
+	// AnyThread評価なので「フレーム跨ぎで使い回さない」こと
+	mutable FSimulationSpaceCache CurrentEvalSimSpaceCache;
+	mutable bool bHasCurrentEvalSimSpaceCache = false;
+
+	// Evaluate中のみ有効なWorldSpaceキャッシュ（World<->Component）
+	mutable FSimulationSpaceCache CurrentEvalWorldSpaceCache;
+	mutable bool bHasCurrentEvalWorldSpaceCache = false;
 };

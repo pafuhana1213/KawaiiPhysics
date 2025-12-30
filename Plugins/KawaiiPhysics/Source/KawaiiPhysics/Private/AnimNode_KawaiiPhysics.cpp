@@ -27,6 +27,8 @@
 #include "Editor/UnrealEdEngine.h"
 #endif
 
+#include "KawaiiPhysics.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_KawaiiPhysics)
 
 #if ENABLE_ANIM_DEBUG
@@ -62,6 +64,7 @@ DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdateCapsuleLimit"), STAT_KawaiiPhysics_
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdateBoxLimit"), STAT_KawaiiPhysics_UpdateBoxLimit, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdateModifyBonesPoseTransform"),
                    STAT_KawaiiPhysics_UpdateModifyBonesPoseTransform, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ApplySimulateResult"), STAT_KawaiiPhysics_ApplySimulateResult, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ConvertSimulationSpaceTransform"),
                    STAT_KawaiiPhysics_ConvertSimulationSpaceTransform, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ConvertSimulationSpaceVector"), STAT_KawaiiPhysics_ConvertSimulationSpaceVector,
@@ -264,6 +267,32 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 	FTransform ComponentTransform = Output.AnimInstanceProxy->GetComponentTransform();
 
+	// 
+	if (SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
+	{
+		if (SimulationBaseBone.IsValidToEvaluate(BoneContainer))
+		{
+			PrevBaseBoneSpace2ComponentSpace = BaseBoneSpace2ComponentSpace;
+			BaseBoneSpace2ComponentSpace =
+				Output.Pose.GetComponentSpaceTransform(SimulationBaseBone.GetCompactPoseIndex(BoneContainer));
+		}
+		else
+		{
+			PrevBaseBoneSpace2ComponentSpace =
+				BaseBoneSpace2ComponentSpace = FTransform::Identity;
+
+			UE_LOG(LogKawaiiPhysics, Warning,
+			       TEXT("SimulationBaseBone is invalid. Reverting to Identity transform."));
+		}
+	}
+
+	// Build per-evaluate caches AFTER BaseBoneSpace2ComponentSpace is updated.
+	CurrentEvalSimSpaceCache = BuildSimulationSpaceCache(Output, SimulationSpace);
+	bHasCurrentEvalSimSpaceCache = true;
+
+	CurrentEvalWorldSpaceCache = BuildSimulationSpaceCache(Output, EKawaiiPhysicsSimulationSpace::WorldSpace);
+	bHasCurrentEvalWorldSpaceCache = true;
+
 	if (TeleportType == ETeleportType::ResetPhysics)
 	{
 		ModifyBones.Empty(ModifyBones.Num());
@@ -304,16 +333,6 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		}
 	}
 
-	if (SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
-	{
-		if (SimulationBaseBone.IsValidToEvaluate(BoneContainer))
-		{
-			PrevBaseBoneSpace2ComponentSpace = BaseBoneSpace2ComponentSpace;
-			BaseBoneSpace2ComponentSpace =
-				Output.Pose.GetComponentSpaceTransform(SimulationBaseBone.GetCompactPoseIndex(BoneContainer));
-		}
-	}
-
 	if (ModifyBones.Num() == 0)
 	{
 		InitModifyBones(Output, BoneContainer);
@@ -322,7 +341,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		PreSkelCompTransform = ComponentTransform;
 	}
 
-	// Update each parameters and collision
+	// Update each parameter and collision
 	if (!bInitPhysicsSettings || bUpdatePhysicsSettingsInGame)
 	{
 		UpdatePhysicsSettingsOfModifyBones();
@@ -1252,7 +1271,7 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 		// Follow Rotation
 		if (SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
 		{
-			const FVector PrevLocationCS = BaseBoneSpace2ComponentSpace.TransformPosition(Bone.PrevLocation);
+			const FVector PrevLocationCS = PrevBaseBoneSpace2ComponentSpace.TransformPosition(Bone.PrevLocation);
 			const FVector RotatedLocationCS = SkelCompMoveRotation.RotateVector(PrevLocationCS);
 			const FVector RotatedLocationBase = BaseBoneSpace2ComponentSpace.
 				InverseTransformPosition(RotatedLocationCS);
@@ -1792,6 +1811,8 @@ void FAnimNode_KawaiiPhysics::ApplySimulateResult(FComponentSpacePoseContext& Ou
                                                   const FBoneContainer& BoneContainer,
                                                   TArray<FBoneTransform>& OutBoneTransforms)
 {
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ApplySimulateResult);
+
 	for (int32 i = 0; i < ModifyBones.Num(); ++i)
 	{
 		FTransform PoseTransform = FTransform(ModifyBones[i].PoseRotation, ModifyBones[i].PoseLocation,
@@ -1863,9 +1884,95 @@ void FAnimNode_KawaiiPhysics::ApplySimulateResult(FComponentSpacePoseContext& Ou
 FTransform FAnimNode_KawaiiPhysics::GetBoneTransformInSimSpace(FComponentSpacePoseContext& Output,
                                                                const FCompactPoseBoneIndex& BoneIndex) const
 {
-	
-	return ConvertSimulationSpaceTransform(Output, EKawaiiPhysicsSimulationSpace::ComponentSpace, SimulationSpace,
-	                                       Output.Pose.GetComponentSpaceTransform(BoneIndex));
+	const FSimulationSpaceCache CacheFrom = GetSimulationSpaceCacheFor(
+		Output, EKawaiiPhysicsSimulationSpace::ComponentSpace);
+	const FSimulationSpaceCache CacheTo = GetSimulationSpaceCacheFor(Output, SimulationSpace);
+	return ConvertSimulationSpaceTransformCached(CacheFrom, CacheTo, Output.Pose.GetComponentSpaceTransform(BoneIndex));
+}
+
+FAnimNode_KawaiiPhysics::FSimulationSpaceCache FAnimNode_KawaiiPhysics::GetSimulationSpaceCacheFor(
+	const FComponentSpacePoseContext& Output,
+	const EKawaiiPhysicsSimulationSpace Space) const
+{
+	if (Space == EKawaiiPhysicsSimulationSpace::ComponentSpace)
+	{
+		return FSimulationSpaceCache();
+	}
+	if (bHasCurrentEvalSimSpaceCache && Space == SimulationSpace)
+	{
+		return CurrentEvalSimSpaceCache;
+	}
+	if (bHasCurrentEvalWorldSpaceCache && Space == EKawaiiPhysicsSimulationSpace::WorldSpace)
+	{
+		return CurrentEvalWorldSpaceCache;
+	}
+
+	const UEnum* EnumPtr = StaticEnum<EKawaiiPhysicsSimulationSpace>();
+	UE_LOG(LogKawaiiPhysics, Warning, TEXT("Building Simulation Space Cache for %s"),
+	       *EnumPtr->GetNameStringByValue(static_cast<int64>(Space)));
+	return BuildSimulationSpaceCache(Output, Space);
+}
+
+FTransform FAnimNode_KawaiiPhysics::ConvertSimulationSpaceTransformCached(
+	const FSimulationSpaceCache& CacheFrom,
+	const FSimulationSpaceCache& CacheTo,
+	const FTransform& InTransform) const
+{
+	FTransform ResultTransform = InTransform;
+	ResultTransform = ResultTransform * CacheFrom.TargetSpaceToComponent;
+	ResultTransform = ResultTransform * CacheTo.ComponentToTargetSpace;
+	return ResultTransform;
+}
+
+FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceVectorCached(
+	const FSimulationSpaceCache& CacheFrom,
+	const FSimulationSpaceCache& CacheTo,
+	const FVector& InVector) const
+{
+	FVector ResultVector = InVector;
+	ResultVector = CacheFrom.TargetSpaceToComponent.TransformVector(ResultVector);
+	ResultVector = CacheTo.ComponentToTargetSpace.TransformVector(ResultVector);
+	return ResultVector;
+}
+
+FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceLocationCached(
+	const FSimulationSpaceCache& CacheFrom,
+	const FSimulationSpaceCache& CacheTo,
+	const FVector& InLocation) const
+{
+	FVector ResultLocation = InLocation;
+	ResultLocation = CacheFrom.TargetSpaceToComponent.TransformPosition(ResultLocation);
+	ResultLocation = CacheTo.ComponentToTargetSpace.TransformPosition(ResultLocation);
+	return ResultLocation;
+}
+
+FQuat FAnimNode_KawaiiPhysics::ConvertSimulationSpaceRotationCached(
+	const FSimulationSpaceCache& CacheFrom,
+	const FSimulationSpaceCache& CacheTo,
+	const FQuat& InRotation) const
+{
+	FQuat ResultRotation = InRotation;
+	ResultRotation = CacheFrom.TargetSpaceToComponent.TransformRotation(ResultRotation);
+	ResultRotation = CacheTo.ComponentToTargetSpace.TransformRotation(ResultRotation);
+	return ResultRotation;
+}
+
+void FAnimNode_KawaiiPhysics::ConvertSimulationSpaceCached(
+	const FSimulationSpaceCache& CacheFrom,
+	const FSimulationSpaceCache& CacheTo,
+	EKawaiiPhysicsSimulationSpace From,
+	EKawaiiPhysicsSimulationSpace To)
+{
+	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+	{
+		Bone.Location = CacheTo.ComponentToTargetSpace.TransformPosition(
+			CacheFrom.TargetSpaceToComponent.TransformPosition(Bone.Location));
+		Bone.PrevLocation = CacheTo.ComponentToTargetSpace.TransformPosition(
+			CacheFrom.TargetSpaceToComponent.TransformPosition(Bone.PrevLocation));
+
+		Bone.PrevRotation = CacheTo.ComponentToTargetSpace.TransformRotation(
+			CacheFrom.TargetSpaceToComponent.TransformRotation(Bone.PrevRotation));
+	}
 }
 
 FTransform FAnimNode_KawaiiPhysics::ConvertSimulationSpaceTransform(const FComponentSpacePoseContext& Output,
@@ -1874,35 +1981,14 @@ FTransform FAnimNode_KawaiiPhysics::ConvertSimulationSpaceTransform(const FCompo
                                                                     const FTransform& InTransform) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ConvertSimulationSpaceTransform);
-	
 	if (From == To)
 	{
 		return InTransform;
 	}
 
-	FTransform ResultTransform = InTransform;
-
-	// From -> ComponentSpace
-	if (From == EKawaiiPhysicsSimulationSpace::WorldSpace)
-	{
-		ResultTransform = ResultTransform.GetRelativeTransform(Output.AnimInstanceProxy->GetComponentTransform());
-	}
-	else if (From == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
-	{
-		ResultTransform = ResultTransform * BaseBoneSpace2ComponentSpace;
-	}
-
-	// ComponentSpace -> To
-	if (To == EKawaiiPhysicsSimulationSpace::WorldSpace)
-	{
-		ResultTransform = ResultTransform * Output.AnimInstanceProxy->GetComponentTransform();
-	}
-	else if (To == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
-	{
-		ResultTransform = ResultTransform.GetRelativeTransform(BaseBoneSpace2ComponentSpace);
-	}
-
-	return ResultTransform;
+	const FSimulationSpaceCache CacheFrom = GetSimulationSpaceCacheFor(Output, From);
+	const FSimulationSpaceCache CacheTo = GetSimulationSpaceCacheFor(Output, To);
+	return ConvertSimulationSpaceTransformCached(CacheFrom, CacheTo, InTransform);
 }
 
 FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceVector(const FComponentSpacePoseContext& Output,
@@ -1916,28 +2002,9 @@ FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceVector(const FComponentSp
 		return InVector;
 	}
 
-	FVector ResultVector = InVector;
-
-	// From -> ComponentSpace
-	if (From == EKawaiiPhysicsSimulationSpace::WorldSpace)
-	{
-		ResultVector = Output.AnimInstanceProxy->GetComponentTransform().InverseTransformVector(ResultVector);
-	}
-	else if (From == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
-	{
-		ResultVector = BaseBoneSpace2ComponentSpace.TransformVector(ResultVector);
-	}
-
-	// ComponentSpace -> To
-	if (To == EKawaiiPhysicsSimulationSpace::WorldSpace)
-	{
-		ResultVector = Output.AnimInstanceProxy->GetComponentTransform().TransformVector(ResultVector);
-	}
-	else if (To == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
-	{
-		ResultVector = BaseBoneSpace2ComponentSpace.InverseTransformVector(ResultVector);
-	}
-	return ResultVector;
+	const FSimulationSpaceCache CacheFrom = GetSimulationSpaceCacheFor(Output, From);
+	const FSimulationSpaceCache CacheTo = GetSimulationSpaceCacheFor(Output, To);
+	return ConvertSimulationSpaceVectorCached(CacheFrom, CacheTo, InVector);
 }
 
 FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceLocation(const FComponentSpacePoseContext& Output,
@@ -1951,34 +2018,14 @@ FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceLocation(const FComponent
 		return InLocation;
 	}
 
-	FVector ResultLocation = InLocation;
-
-	// From -> ComponentSpace
-	if (From == EKawaiiPhysicsSimulationSpace::WorldSpace)
-	{
-		ResultLocation = Output.AnimInstanceProxy->GetComponentTransform().InverseTransformPosition(ResultLocation);
-	}
-	else if (From == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
-	{
-		ResultLocation = BaseBoneSpace2ComponentSpace.TransformPosition(ResultLocation);
-	}
-
-	// ComponentSpace -> To
-	if (To == EKawaiiPhysicsSimulationSpace::WorldSpace)
-	{
-		ResultLocation = Output.AnimInstanceProxy->GetComponentTransform().TransformPosition(ResultLocation);
-	}
-	else if (To == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
-	{
-		ResultLocation = BaseBoneSpace2ComponentSpace.InverseTransformPosition(ResultLocation);
-	}
-
-	return ResultLocation;
+	const FSimulationSpaceCache CacheFrom = GetSimulationSpaceCacheFor(Output, From);
+	const FSimulationSpaceCache CacheTo = GetSimulationSpaceCacheFor(Output, To);
+	return ConvertSimulationSpaceLocationCached(CacheFrom, CacheTo, InLocation);
 }
 
 FQuat FAnimNode_KawaiiPhysics::ConvertSimulationSpaceRotation(FComponentSpacePoseContext& Output,
-                                                              EKawaiiPhysicsSimulationSpace From,
-                                                              EKawaiiPhysicsSimulationSpace To,
+                                                              const EKawaiiPhysicsSimulationSpace From,
+                                                              const EKawaiiPhysicsSimulationSpace To,
                                                               const FQuat& InRotation) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ConvertSimulationSpaceRotation);
@@ -1987,49 +2034,63 @@ FQuat FAnimNode_KawaiiPhysics::ConvertSimulationSpaceRotation(FComponentSpacePos
 		return InRotation;
 	}
 
-	FQuat ResultRotation = InRotation;
-
-	// From -> ComponentSpace
-	if (From == EKawaiiPhysicsSimulationSpace::WorldSpace)
-	{
-		ResultRotation = Output.AnimInstanceProxy->GetComponentTransform().InverseTransformRotation(ResultRotation);
-	}
-	else if (From == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
-	{
-		ResultRotation = BaseBoneSpace2ComponentSpace.TransformRotation(ResultRotation);
-	}
-
-	// ComponentSpace -> To
-	if (To == EKawaiiPhysicsSimulationSpace::WorldSpace)
-	{
-		ResultRotation = Output.AnimInstanceProxy->GetComponentTransform().TransformRotation(ResultRotation);
-	}
-	else if (To == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
-	{
-		ResultRotation = BaseBoneSpace2ComponentSpace.InverseTransformRotation(ResultRotation);
-	}
-
-	return ResultRotation;
+	const FSimulationSpaceCache CacheFrom = GetSimulationSpaceCacheFor(Output, From);
+	const FSimulationSpaceCache CacheTo = GetSimulationSpaceCacheFor(Output, To);
+	return ConvertSimulationSpaceRotationCached(CacheFrom, CacheTo, InRotation);
 }
 
 void FAnimNode_KawaiiPhysics::ConvertSimulationSpace(FComponentSpacePoseContext& Output,
-                                                     EKawaiiPhysicsSimulationSpace From,
-                                                     EKawaiiPhysicsSimulationSpace To)
+                                                     const EKawaiiPhysicsSimulationSpace From,
+                                                     const EKawaiiPhysicsSimulationSpace To)
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ConvertSimulationSpace);
-	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+	if (From == To)
 	{
-		Bone.Location = ConvertSimulationSpaceLocation(Output, From, To, Bone.Location);
-		Bone.PrevLocation = ConvertSimulationSpaceLocation(Output, From, To, Bone.PrevLocation);
-		Bone.PrevRotation = ConvertSimulationSpaceRotation(Output, From, To, Bone.PrevRotation);
+		return;
 	}
+
+	const FSimulationSpaceCache CacheFrom = GetSimulationSpaceCacheFor(Output, From);
+	const FSimulationSpaceCache CacheTo = GetSimulationSpaceCacheFor(Output, To);
+	ConvertSimulationSpaceCached(CacheFrom, CacheTo, From, To);
+}
+
+FAnimNode_KawaiiPhysics::FSimulationSpaceCache FAnimNode_KawaiiPhysics::BuildSimulationSpaceCache(
+	const FComponentSpacePoseContext& Output,
+	const EKawaiiPhysicsSimulationSpace SimulationSpaceForCache) const
+{
+	FSimulationSpaceCache Cache;
+
+	switch (SimulationSpaceForCache)
+	{
+	default:
+	case EKawaiiPhysicsSimulationSpace::ComponentSpace:
+		Cache.ComponentToTargetSpace = FTransform::Identity;
+		Cache.TargetSpaceToComponent = FTransform::Identity;
+		break;
+
+	case EKawaiiPhysicsSimulationSpace::WorldSpace:
+		{
+			const FTransform& ComponentToWorld = Output.AnimInstanceProxy->GetComponentTransform();
+			Cache.ComponentToTargetSpace = ComponentToWorld; // Component -> World
+			Cache.TargetSpaceToComponent = ComponentToWorld.Inverse(); // World -> Component
+		}
+		break;
+
+	case EKawaiiPhysicsSimulationSpace::BaseBoneSpace:
+		Cache.ComponentToTargetSpace = BaseBoneSpace2ComponentSpace.Inverse(); // Component -> Base
+		Cache.TargetSpaceToComponent = BaseBoneSpace2ComponentSpace; // Base -> Component
+		break;
+	}
+
+	return Cache;
 }
 
 void FAnimNode_KawaiiPhysics::InitSyncBones(FComponentSpacePoseContext& Output)
 {
-	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_InitSyncBone);
 
-	for (auto& SyncBone : SyncBones)
+	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
+	for (FKawaiiPhysicsSyncBone& SyncBone : SyncBones)
 	{
 		InitSyncBone(Output, BoneContainer, SyncBone);
 	}
@@ -2040,12 +2101,15 @@ void FAnimNode_KawaiiPhysics::InitSyncBone(FComponentSpacePoseContext& Output, c
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_InitSyncBone);
 
-	if (SyncBone.Bone.Initialize(BoneContainer))
+	SyncBone.Bone.Initialize(BoneContainer);
+	if (!SyncBone.Bone.IsValidToEvaluate(BoneContainer))
 	{
-		SyncBone.InitialPoseLocation =
+		SyncBone.InitialPoseLocation = FVector::ZeroVector;
+		return;
+	}
+	SyncBone.InitialPoseLocation =
 			FAnimationRuntime::GetComponentSpaceTransformRefPose(BoneContainer.GetReferenceSkeleton(),
 			                                                     SyncBone.Bone.BoneIndex).GetLocation();
-	}
 
 	// cleanup
 	SyncBone.TargetRoots.RemoveAll([&](const FKawaiiPhysicsSyncTarget& Target)
@@ -2117,7 +2181,6 @@ void FAnimNode_KawaiiPhysics::InitSyncBone(FComponentSpacePoseContext& Output, c
 	}
 }
 
-
 void FAnimNode_KawaiiPhysics::ApplySyncBones(FComponentSpacePoseContext& Output,
                                              const FBoneContainer& BoneContainer)
 {
@@ -2129,7 +2192,7 @@ void FAnimNode_KawaiiPhysics::ApplySyncBones(FComponentSpacePoseContext& Output,
 	for (auto& SyncBone : SyncBones)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ApplySyncBone);
-		
+
 		if (!SyncBone.Bone.IsValidToEvaluate(BoneContainer))
 		{
 			continue;
@@ -2185,7 +2248,7 @@ void FAnimNode_KawaiiPhysics::ApplySyncBones(FComponentSpacePoseContext& Output,
 		// Apply to Targets
 		for (auto& TargetRoot : SyncBone.TargetRoots)
 		{
-			// TODO : Need flag to optimize for skip updating Scale after InitSyncBone 
+			// TODO : Need flag to optimize for skip updating Scale after InitSyncBone
 			// Update Alpha by Length Rate & Curve
 			if (const FRichCurve* ScaleCurve = TargetRoot.ScaleCurveByBoneLengthRate.GetRichCurveConst();
 				ScaleCurve && !ScaleCurve->IsEmpty())
