@@ -1273,8 +1273,8 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 		{
 			const FVector PrevLocationCS = PrevBaseBoneSpace2ComponentSpace.TransformPosition(Bone.PrevLocation);
 			const FVector RotatedLocationCS = SkelCompMoveRotation.RotateVector(PrevLocationCS);
-			const FVector RotatedLocationBase = BaseBoneSpace2ComponentSpace.
-				InverseTransformPosition(RotatedLocationCS);
+			const FVector RotatedLocationBase = ConvertSimulationSpaceLocationCached(
+				FSimulationSpaceCache(), CurrentEvalSimSpaceCache, RotatedLocationCS);
 
 			Bone.Location += (RotatedLocationBase - Bone.PrevLocation) * (1.0f - Bone.PhysicsSettings.
 				WorldDampingRotation);
