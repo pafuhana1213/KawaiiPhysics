@@ -113,9 +113,9 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 		if (SimulationBaseBone.Initialize(RequiredBones))
 		{
 			PrevBaseBoneSpace2ComponentSpace =
-				BaseBoneSpace2ComponentSpace =
 				FAnimationRuntime::GetComponentSpaceTransformRefPose(RequiredBones.GetReferenceSkeleton(),
 				                                                     SimulationBaseBone.BoneIndex);
+			CurrentEvalSimSpaceCache.TargetSpaceToComponent = PrevBaseBoneSpace2ComponentSpace;
 		}
 	}
 
@@ -272,21 +272,16 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	{
 		if (SimulationBaseBone.IsValidToEvaluate(BoneContainer))
 		{
-			PrevBaseBoneSpace2ComponentSpace = BaseBoneSpace2ComponentSpace;
-			BaseBoneSpace2ComponentSpace =
-				Output.Pose.GetComponentSpaceTransform(SimulationBaseBone.GetCompactPoseIndex(BoneContainer));
+			PrevBaseBoneSpace2ComponentSpace = CurrentEvalSimSpaceCache.TargetSpaceToComponent;
 		}
 		else
 		{
-			PrevBaseBoneSpace2ComponentSpace =
-				BaseBoneSpace2ComponentSpace = FTransform::Identity;
-
-			UE_LOG(LogKawaiiPhysics, Warning,
-			       TEXT("SimulationBaseBone is invalid. Reverting to Identity transform."));
+			PrevBaseBoneSpace2ComponentSpace = FTransform::Identity;
+			UE_LOG(LogKawaiiPhysics, Warning, TEXT("SimulationBaseBone is invalid. Reverting to Identity transform."));
 		}
 	}
 
-	// Build per-evaluate caches AFTER BaseBoneSpace2ComponentSpace is updated.
+	// Build per-evaluate caches AFTER PrevBaseBoneSpace2ComponentSpace is updated.
 	CurrentEvalSimSpaceCache = BuildSimulationSpaceCache(Output, SimulationSpace);
 	bHasCurrentEvalSimSpaceCache = true;
 
@@ -1349,7 +1344,7 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 		(1.0f - FMath::Pow(1.0f - Bone.PhysicsSettings.Stiffness, Exponent));
 }
 
-FVector FAnimNode_KawaiiPhysics::GetWindVelocity(const FComponentSpacePoseContext& Output, const FSceneInterface* Scene,
+FVector FAnimNode_KawaiiPhysics::GetWindVelocity(FComponentSpacePoseContext& Output, const FSceneInterface* Scene,
                                                  const FKawaiiPhysicsModifyBone& Bone) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_GetWindVelocity);
@@ -1891,7 +1886,7 @@ FTransform FAnimNode_KawaiiPhysics::GetBoneTransformInSimSpace(FComponentSpacePo
 }
 
 FAnimNode_KawaiiPhysics::FSimulationSpaceCache FAnimNode_KawaiiPhysics::GetSimulationSpaceCacheFor(
-	const FComponentSpacePoseContext& Output,
+	FComponentSpacePoseContext& Output,
 	const EKawaiiPhysicsSimulationSpace Space) const
 {
 	if (Space == EKawaiiPhysicsSimulationSpace::ComponentSpace)
@@ -1975,7 +1970,7 @@ void FAnimNode_KawaiiPhysics::ConvertSimulationSpaceCached(
 	}
 }
 
-FTransform FAnimNode_KawaiiPhysics::ConvertSimulationSpaceTransform(const FComponentSpacePoseContext& Output,
+FTransform FAnimNode_KawaiiPhysics::ConvertSimulationSpaceTransform(FComponentSpacePoseContext& Output,
                                                                     const EKawaiiPhysicsSimulationSpace From,
                                                                     const EKawaiiPhysicsSimulationSpace To,
                                                                     const FTransform& InTransform) const
@@ -1991,7 +1986,7 @@ FTransform FAnimNode_KawaiiPhysics::ConvertSimulationSpaceTransform(const FCompo
 	return ConvertSimulationSpaceTransformCached(CacheFrom, CacheTo, InTransform);
 }
 
-FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceVector(const FComponentSpacePoseContext& Output,
+FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceVector(FComponentSpacePoseContext& Output,
                                                               const EKawaiiPhysicsSimulationSpace From,
                                                               const EKawaiiPhysicsSimulationSpace To,
                                                               const FVector& InVector) const
@@ -2007,7 +2002,7 @@ FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceVector(const FComponentSp
 	return ConvertSimulationSpaceVectorCached(CacheFrom, CacheTo, InVector);
 }
 
-FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceLocation(const FComponentSpacePoseContext& Output,
+FVector FAnimNode_KawaiiPhysics::ConvertSimulationSpaceLocation(FComponentSpacePoseContext& Output,
                                                                 const EKawaiiPhysicsSimulationSpace From,
                                                                 const EKawaiiPhysicsSimulationSpace To,
                                                                 const FVector& InLocation) const
@@ -2055,7 +2050,7 @@ void FAnimNode_KawaiiPhysics::ConvertSimulationSpace(FComponentSpacePoseContext&
 }
 
 FAnimNode_KawaiiPhysics::FSimulationSpaceCache FAnimNode_KawaiiPhysics::BuildSimulationSpaceCache(
-	const FComponentSpacePoseContext& Output,
+	FComponentSpacePoseContext& Output,
 	const EKawaiiPhysicsSimulationSpace SimulationSpaceForCache) const
 {
 	FSimulationSpaceCache Cache;
@@ -2077,8 +2072,15 @@ FAnimNode_KawaiiPhysics::FSimulationSpaceCache FAnimNode_KawaiiPhysics::BuildSim
 		break;
 
 	case EKawaiiPhysicsSimulationSpace::BaseBoneSpace:
-		Cache.ComponentToTargetSpace = BaseBoneSpace2ComponentSpace.Inverse(); // Component -> Base
-		Cache.TargetSpaceToComponent = BaseBoneSpace2ComponentSpace; // Base -> Component
+
+		if (SimulationBaseBone.IsValidToEvaluate())
+		{
+			const FCompactPoseBoneIndex BaseBoneIndex =
+				SimulationBaseBone.GetCompactPoseIndex(Output.Pose.GetPose().GetBoneContainer());
+			Cache.TargetSpaceToComponent =
+				Output.Pose.GetComponentSpaceTransform(BaseBoneIndex); // Base -> Component
+			Cache.ComponentToTargetSpace = Cache.TargetSpaceToComponent.Inverse(); // Component -> Base
+		}
 		break;
 	}
 

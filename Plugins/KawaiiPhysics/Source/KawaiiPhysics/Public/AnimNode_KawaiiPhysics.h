@@ -1012,12 +1012,7 @@ private:
 	 *	 The last simulation space used for the physics simulation.
 	 */
 	EKawaiiPhysicsSimulationSpace LastSimulationSpace = EKawaiiPhysicsSimulationSpace::ComponentSpace;
-
-	/**
-	 * Base bone space to component space transform.
-	 */
-	FTransform BaseBoneSpace2ComponentSpace = FTransform::Identity;
-
+	
 	/**
 	 * Previous frame's Base bone space to component space transform
 	 */
@@ -1085,7 +1080,15 @@ public:
 	/**
 	 * Get Transform from BaseBoneSpace to ComponentSpace.
 	 */
-	FTransform GetBaseBoneSpace2ComponentSpace() const { return BaseBoneSpace2ComponentSpace; }
+	FTransform GetBaseBoneSpace2ComponentSpace() const
+	{
+		if (SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
+		{
+			return CurrentEvalSimSpaceCache.TargetSpaceToComponent;
+		}
+
+		return FTransform::Identity;
+	}
 
 protected:
 	/**
@@ -1371,7 +1374,7 @@ protected:
 	 * @param Bone The bone to get the wind velocity for.
 	 * @return The wind velocity vector.
 	 */
-	FVector GetWindVelocity(const FComponentSpacePoseContext& Output, const FSceneInterface* Scene,
+	FVector GetWindVelocity(FComponentSpacePoseContext& Output, const FSceneInterface* Scene,
 	                        const FKawaiiPhysicsModifyBone& Bone) const;
 
 #if ENABLE_ANIM_DEBUG
@@ -1384,19 +1387,19 @@ private:
 	                                      const FCompactPoseBoneIndex& BoneIndex) const;
 
 	// Convert a transform from one simulation space to another (internal cache-aware)
-	FTransform ConvertSimulationSpaceTransform(const FComponentSpacePoseContext& Output,
+	FTransform ConvertSimulationSpaceTransform(FComponentSpacePoseContext& Output,
 	                                           EKawaiiPhysicsSimulationSpace From,
 	                                           EKawaiiPhysicsSimulationSpace To,
 	                                           const FTransform& InTransform) const;
 
 	// Convert a vector from one simulation space to another (internal cache-aware)
-	FVector ConvertSimulationSpaceVector(const FComponentSpacePoseContext& Output,
+	FVector ConvertSimulationSpaceVector(FComponentSpacePoseContext& Output,
 	                                     EKawaiiPhysicsSimulationSpace From,
 	                                     EKawaiiPhysicsSimulationSpace To,
 	                                     const FVector& InVector) const;
 
 	// Convert a location from one simulation space to another (internal cache-aware)
-	FVector ConvertSimulationSpaceLocation(const FComponentSpacePoseContext& Output,
+	FVector ConvertSimulationSpaceLocation(FComponentSpacePoseContext& Output,
 	                                       EKawaiiPhysicsSimulationSpace From,
 	                                       EKawaiiPhysicsSimulationSpace To,
 	                                       const FVector& InLocation) const;
@@ -1425,11 +1428,11 @@ private:
 		}
 	};
 
-	FSimulationSpaceCache BuildSimulationSpaceCache(const FComponentSpacePoseContext& Output,
-	                                                EKawaiiPhysicsSimulationSpace SimulationSpaceForCache) const;
+	FSimulationSpaceCache BuildSimulationSpaceCache(FComponentSpacePoseContext& Output,
+	                                                const EKawaiiPhysicsSimulationSpace SimulationSpaceForCache) const;
 
 	// Select cache for a given simulation space (Evaluate cache preferred)
-	FSimulationSpaceCache GetSimulationSpaceCacheFor(const FComponentSpacePoseContext& Output,
+	FSimulationSpaceCache GetSimulationSpaceCacheFor(FComponentSpacePoseContext& Output,
 	                                                 EKawaiiPhysicsSimulationSpace Space) const;
 
 	// Convert helpers using explicit caches
