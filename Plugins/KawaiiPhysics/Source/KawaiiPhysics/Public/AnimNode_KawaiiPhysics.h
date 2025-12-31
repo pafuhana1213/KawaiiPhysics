@@ -1379,6 +1379,11 @@ protected:
 
 #if ENABLE_ANIM_DEBUG
 	void AnimDrawDebug(FComponentSpacePoseContext& Output);
+
+	// Draw debug Box
+	void AnimDrawDebugBox(FComponentSpacePoseContext& Output, const FVector& CenterLocationSim,
+	                      const FQuat& RotationSim,
+	                      const FVector& Extent, const FColor& Color, float Thickness) const;
 #endif
 
 private:
