@@ -36,9 +36,6 @@ TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsEnable(
 	TEXT("a.AnimNode.KawaiiPhysics.Enable"), true, TEXT("Enable/Disable KawaiiPhysics"));
 TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsDebug(
 	TEXT("a.AnimNode.KawaiiPhysics.Debug"), false, TEXT("Turn on visualization debugging for KawaiiPhysics"));
-TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsDebugLengthRate(
-	TEXT("a.AnimNode.KawaiiPhysics.Debug.LengthRate"), false,
-	TEXT("Turn on visualization debugging for KawaiiPhysics Bone's LengthRate"));
 #endif
 
 TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsUseBoneContainerRefSkeletonWhenInit(
@@ -175,16 +172,10 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 					AnimInstanceProxy->AnimDrawDebugSphere(LocationWS, ModifyBone.PhysicsSettings.Radius, 8,
 					                                       Color, false, -1, 0, SDPG_Foreground);
 
-#if	ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 3
-					// print bone length rate
-					// In 5.4, there is an engine issue that AnimDrawDebugInWorldMessage does not respect SkeletalMeshComponent's world coordinates.
-					if (CVarAnimNodeKawaiiPhysicsDebugLengthRate.GetValueOnAnyThread())
-					{
-						AnimInstanceProxy->AnimDrawDebugInWorldMessage(
-							FString::Printf(TEXT("%.2f"), ModifyBone.LengthRateFromRoot),
-							ModifyBone.Location, FColor::White, 1.0f);
-					}
-#endif
+					AnimInstanceProxy->AnimDrawDebugInWorldMessage(
+						FString::Printf(TEXT("%.2f"), ModifyBone.LengthRateFromRoot),
+						ModifyBone.Location, FColor::White, 1.0f);
+					
 				}
 				// Sphere limit
 				for (const auto& SphericalLimit : SphericalLimits)
@@ -211,12 +202,32 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 				for (const auto& BoxLimit : BoxLimits)
 				{
 					this->AnimDrawDebugBox(Output, BoxLimit.Location, BoxLimit.Rotation, BoxLimit.Extent,
-					                       FColor::Orange, /*Thickness*/ 0.0f);
+					                       FColor::Orange, 0.0f);
 				}
 				for (const auto& BoxLimit : BoxLimitsData)
 				{
 					this->AnimDrawDebugBox(Output, BoxLimit.Location, BoxLimit.Rotation, BoxLimit.Extent,
-					                       FColor::Blue, /*Thickness*/ 0.0f);
+					                       FColor::Blue, 0.0f);
+				}
+
+				// Planar limit
+				for (const auto& PlanarLimit : PlanarLimits)
+				{
+					FTransform TransformWS =
+						ConvertSimulationSpaceTransform(Output, SimulationSpace,
+						                                EKawaiiPhysicsSimulationSpace::WorldSpace,
+						                                FTransform(PlanarLimit.Rotation, PlanarLimit.Location));
+					AnimInstanceProxy->AnimDrawDebugPlane(TransformWS, 50.0f,
+					                                      FColor::Orange, false, -1, 0, SDPG_Foreground);
+				}
+				for (const auto& PlanarLimit : PlanarLimitsData)
+				{
+					FTransform TransformWS =
+						ConvertSimulationSpaceTransform(Output, SimulationSpace,
+						                                EKawaiiPhysicsSimulationSpace::WorldSpace,
+						                                FTransform(PlanarLimit.Rotation, PlanarLimit.Location));
+					AnimInstanceProxy->AnimDrawDebugPlane(TransformWS, 50.0f,
+					                                      FColor::Blue, false, -1, 0, SDPG_Foreground);
 				}
 
 #if	ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 4
@@ -271,14 +282,11 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebugBox(FComponentSpacePoseContext& Outpu
 	const FTransform BoxTransformWS(RotationWS, LocationWS);
 	const FVector E(FMath::Abs(Extent.X), FMath::Abs(Extent.Y), FMath::Abs(Extent.Z));
 
-	// AnimDrawDebugPlane は [-R,-R]..[R,R] の「正方形」固定のため、Box の各面(YZ/XZ/XY)を
-	// 正確な長方形として描くために AnimDrawDebugLine で輪郭を描画する。
 	auto DrawFaceRect = [&](const FVector& FaceCenterLS, const FVector& FaceNormalLS, float HalfWidth, float HalfHeight)
 	{
 		const FVector FaceCenterWS = BoxTransformWS.TransformPosition(FaceCenterLS);
 		const FVector NormalWS = RotationWS.RotateVector(FaceNormalLS).GetSafeNormal();
 
-		// Normal と平行でない任意のUpを作り、直交基底(X,Y,Z=Normal)を作る
 		const FVector AnyUpWS = (FMath::Abs(NormalWS.Z) < 0.999f) ? FVector::UpVector : FVector::RightVector;
 		const FVector XAxisWS = FVector::CrossProduct(AnyUpWS, NormalWS).GetSafeNormal();
 		const FVector YAxisWS = FVector::CrossProduct(NormalWS, XAxisWS).GetSafeNormal();
@@ -288,27 +296,27 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebugBox(FComponentSpacePoseContext& Outpu
 		const FVector P2 = FaceCenterWS - (XAxisWS * HalfWidth) - (YAxisWS * HalfHeight);
 		const FVector P3 = FaceCenterWS + (XAxisWS * HalfWidth) - (YAxisWS * HalfHeight);
 
-		AnimInstanceProxy->AnimDrawDebugLine(P0, P1, Color, /*bPersistentLines*/ false, /*LifeTime*/ -1.0f,
-		                                     /*Thickness*/ LineThickness, SDPG_Foreground);
-		AnimInstanceProxy->AnimDrawDebugLine(P1, P2, Color, /*bPersistentLines*/ false, /*LifeTime*/ -1.0f,
-		                                     /*Thickness*/ LineThickness, SDPG_Foreground);
-		AnimInstanceProxy->AnimDrawDebugLine(P2, P3, Color, /*bPersistentLines*/ false, /*LifeTime*/ -1.0f,
-		                                     /*Thickness*/ LineThickness, SDPG_Foreground);
-		AnimInstanceProxy->AnimDrawDebugLine(P3, P0, Color, /*bPersistentLines*/ false, /*LifeTime*/ -1.0f,
-		                                     /*Thickness*/ LineThickness, SDPG_Foreground);
+		AnimInstanceProxy->AnimDrawDebugLine(P0, P1, Color, false, -1.0f,
+		                                     LineThickness, SDPG_Foreground);
+		AnimInstanceProxy->AnimDrawDebugLine(P1, P2, Color, false, -1.0f,
+		                                     LineThickness, SDPG_Foreground);
+		AnimInstanceProxy->AnimDrawDebugLine(P2, P3, Color, false, -1.0f,
+		                                     LineThickness, SDPG_Foreground);
+		AnimInstanceProxy->AnimDrawDebugLine(P3, P0, Color, false, -1.0f,
+		                                     LineThickness, SDPG_Foreground);
 	};
 
 	// +X / -X faces: cover YZ
-	DrawFaceRect(FVector(E.X, 0, 0), FVector(1, 0, 0), /*HalfWidth*/ E.Y, /*HalfHeight*/ E.Z);
-	DrawFaceRect(FVector(-E.X, 0, 0), FVector(-1, 0, 0), /*HalfWidth*/ E.Y, /*HalfHeight*/ E.Z);
+	DrawFaceRect(FVector(E.X, 0, 0), FVector(1, 0, 0), E.Y, E.Z);
+	DrawFaceRect(FVector(-E.X, 0, 0), FVector(-1, 0, 0), E.Y, E.Z);
 
 	// +Y / -Y faces: cover XZ
-	DrawFaceRect(FVector(0, E.Y, 0), FVector(0, 1, 0), /*HalfWidth*/ E.X, /*HalfHeight*/ E.Z);
-	DrawFaceRect(FVector(0, -E.Y, 0), FVector(0, -1, 0), /*HalfWidth*/ E.X, /*HalfHeight*/ E.Z);
+	DrawFaceRect(FVector(0, E.Y, 0), FVector(0, 1, 0), E.X, E.Z);
+	DrawFaceRect(FVector(0, -E.Y, 0), FVector(0, -1, 0), E.X, E.Z);
 
 	// +Z / -Z faces: cover XY
-	DrawFaceRect(FVector(0, 0, E.Z), FVector(0, 0, 1), /*HalfWidth*/ E.X, /*HalfHeight*/ E.Y);
-	DrawFaceRect(FVector(0, 0, -E.Z), FVector(0, 0, -1), /*HalfWidth*/ E.X, /*HalfHeight*/ E.Y);
+	DrawFaceRect(FVector(0, 0, E.Z), FVector(0, 0, 1), E.X, E.Y);
+	DrawFaceRect(FVector(0, 0, -E.Z), FVector(0, 0, -1), E.X, E.Y);
 }
 #endif
 
@@ -322,7 +330,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 	FTransform ComponentTransform = Output.AnimInstanceProxy->GetComponentTransform();
 
-	// 
+	// save prev frame BaseBoneSpace2ComponentSpace
 	if (SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
 	{
 		if (SimulationBaseBone.IsValidToEvaluate(BoneContainer))
@@ -339,7 +347,6 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	// Build per-evaluate caches AFTER PrevBaseBoneSpace2ComponentSpace is updated.
 	CurrentEvalSimSpaceCache = BuildSimulationSpaceCache(Output, SimulationSpace);
 	bHasCurrentEvalSimSpaceCache = true;
-
 	CurrentEvalWorldSpaceCache = BuildSimulationSpaceCache(Output, EKawaiiPhysicsSimulationSpace::WorldSpace);
 	bHasCurrentEvalWorldSpaceCache = true;
 
