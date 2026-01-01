@@ -36,6 +36,9 @@ TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsEnable(
 	TEXT("a.AnimNode.KawaiiPhysics.Enable"), true, TEXT("Enable/Disable KawaiiPhysics"));
 TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsDebug(
 	TEXT("a.AnimNode.KawaiiPhysics.Debug"), false, TEXT("Turn on visualization debugging for KawaiiPhysics"));
+TAutoConsoleVariable<float> CVarAnimNodeKawaiiPhysicsDebugDrawThickness(
+	TEXT("a.AnimNode.KawaiiPhysics.DebugDrawThickness"), 1.0f,
+	TEXT("Override debug draw thickness used by KawaiiPhysics (<=0 uses per-call thickness)."));
 #endif
 
 TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsUseBoneContainerRefSkeletonWhenInit(
@@ -160,6 +163,8 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 			if (CVarAnimNodeKawaiiPhysicsDebug.GetValueOnAnyThread())
 			{
 				const auto AnimInstanceProxy = Output.AnimInstanceProxy;
+				const float LineThickness = FMath::Max(
+					0.0f, CVarAnimNodeKawaiiPhysicsDebugDrawThickness.GetValueOnAnyThread());
 
 				// Modify Bones
 				for (const auto& ModifyBone : ModifyBones)
@@ -170,7 +175,7 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 
 					auto Color = ModifyBone.bDummy ? FColor::Red : FColor::Yellow;
 					AnimInstanceProxy->AnimDrawDebugSphere(LocationWS, ModifyBone.PhysicsSettings.Radius, 8,
-					                                       Color, false, -1, 0, SDPG_Foreground);
+					                                       Color, false, -1, LineThickness, SDPG_Foreground);
 
 					AnimInstanceProxy->AnimDrawDebugInWorldMessage(
 						FString::Printf(TEXT("%.2f"), ModifyBone.LengthRateFromRoot),
@@ -186,7 +191,7 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 						                               SphericalLimit.Location);
 
 					AnimInstanceProxy->AnimDrawDebugSphere(LocationWS, SphericalLimit.Radius, 8, FColor::Orange,
-					                                       false, -1, 0, SDPG_Foreground);
+					                                       false, -1, LineThickness, SDPG_Foreground);
 				}
 				for (const auto& SphericalLimit : SphericalLimitsData)
 				{
@@ -195,19 +200,19 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 						                               EKawaiiPhysicsSimulationSpace::WorldSpace,
 						                               SphericalLimit.Location);
 					AnimInstanceProxy->AnimDrawDebugSphere(LocationWS, SphericalLimit.Radius, 8, FColor::Blue,
-					                                       false, -1, 0, SDPG_Foreground);
+					                                       false, -1, LineThickness, SDPG_Foreground);
 				}
 
 				// Box limit
 				for (const auto& BoxLimit : BoxLimits)
 				{
 					this->AnimDrawDebugBox(Output, BoxLimit.Location, BoxLimit.Rotation, BoxLimit.Extent,
-					                       FColor::Orange, 0.0f);
+					                       FColor::Orange, LineThickness);
 				}
 				for (const auto& BoxLimit : BoxLimitsData)
 				{
 					this->AnimDrawDebugBox(Output, BoxLimit.Location, BoxLimit.Rotation, BoxLimit.Extent,
-					                       FColor::Blue, 0.0f);
+					                       FColor::Blue, LineThickness);
 				}
 
 				// Planar limit
@@ -218,7 +223,7 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 						                                EKawaiiPhysicsSimulationSpace::WorldSpace,
 						                                FTransform(PlanarLimit.Rotation, PlanarLimit.Location));
 					AnimInstanceProxy->AnimDrawDebugPlane(TransformWS, 50.0f,
-					                                      FColor::Orange, false, -1, 0, SDPG_Foreground);
+					                                      FColor::Orange, false, -1, LineThickness, SDPG_Foreground);
 				}
 				for (const auto& PlanarLimit : PlanarLimitsData)
 				{
@@ -227,7 +232,7 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 						                                EKawaiiPhysicsSimulationSpace::WorldSpace,
 						                                FTransform(PlanarLimit.Rotation, PlanarLimit.Location));
 					AnimInstanceProxy->AnimDrawDebugPlane(TransformWS, 50.0f,
-					                                      FColor::Blue, false, -1, 0, SDPG_Foreground);
+					                                      FColor::Blue, false, -1, LineThickness, SDPG_Foreground);
 				}
 
 #if	ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 4
@@ -241,7 +246,7 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 
 					AnimInstanceProxy->AnimDrawDebugCapsule(TransformWS.GetTranslation(), CapsuleLimit.Length * 0.5f,
 					                                        CapsuleLimit.Radius, TransformWS.GetRotation().Rotator(),
-					                                        FColor::Orange);
+					                                        FColor::Orange, false, -1, LineThickness, SDPG_Foreground);
 				}
 				for (const auto& CapsuleLimit : CapsuleLimitsData)
 				{
@@ -252,7 +257,7 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 
 					AnimInstanceProxy->AnimDrawDebugCapsule(TransformWS.GetTranslation(), CapsuleLimit.Length * 0.5f,
 					                                        CapsuleLimit.Radius, TransformWS.GetRotation().Rotator(),
-					                                        FColor::Blue);
+					                                        FColor::Blue, false, -1, LineThickness, SDPG_Foreground);
 				}
 #endif
 			}
@@ -262,15 +267,13 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 
 void FAnimNode_KawaiiPhysics::AnimDrawDebugBox(FComponentSpacePoseContext& Output, const FVector& CenterLocationSim,
                                                const FQuat& RotationSim, const FVector& Extent,
-                                               const FColor& Color, float Thickness) const
+                                               const FColor& Color, float LineThickness) const
 {
 	const auto AnimInstanceProxy = Output.AnimInstanceProxy;
 	if (!AnimInstanceProxy)
 	{
 		return;
 	}
-
-	const float LineThickness = FMath::Max(0.0f, Thickness);
 
 	const FVector LocationWS =
 		ConvertSimulationSpaceLocation(Output, SimulationSpace,
