@@ -8,7 +8,6 @@
 #include "GameplayTagContainer.h"
 
 #include "BoneControllers/AnimNode_AnimDynamics.h"
-#include "BoneControllers/AnimNode_RigidBody.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 
 #if ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 5
