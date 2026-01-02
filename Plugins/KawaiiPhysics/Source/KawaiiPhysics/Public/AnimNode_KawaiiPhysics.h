@@ -881,8 +881,16 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* External forces (gravity, etc.)
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce",
-		meta = (PinHiddenByDefault, DisplayName="External Force"))
+		meta = (PinHiddenByDefault))
 	FVector Gravity = FVector::ZeroVector;
+
+	// 
+	// 重力をワールド座標系で扱うかどうかのフラグ
+	// Flag to handle gravity in world coordinate system
+	//
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce",
+		meta = (PinHiddenByDefault))
+	bool bUseWorldSpaceGravity = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce", meta = (PinHiddenByDefault))
 	bool bEnableWind = false;
