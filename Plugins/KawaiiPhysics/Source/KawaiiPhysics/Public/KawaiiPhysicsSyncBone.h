@@ -185,6 +185,29 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSyncBone
 	UPROPERTY()
 	FVector InitialPoseLocation = FVector::ZeroVector;
 
+	// SyncBoneとの距離に応じてTargetへの適用量(Alpha)を減衰させる設定
+	// Attenuation of application amount(Alpha) based on distance from SyncBone to each Target
+	UPROPERTY(EditAnywhere, Category = "SyncBone|Distance Attenuation", meta=(InlineEditConditionToggle))
+	bool bEnableDistanceAttenuation = false;
+
+	// 内半径：この距離以内は減衰しません
+	// Inner radius: no attenuation within this radius
+	UPROPERTY(EditAnywhere, Category = "SyncBone|Distance Attenuation",
+		meta=(EditCondition="bEnableDistanceAttenuation", ClampMin="0.0", UIMin = "0.0", Units="cm"))
+	float AttenuationInnerRadius = 0.0f;
+
+	// 外半径：この距離以上は最大減衰量がかかります
+	// Outer radius: maximum attenuation is applied outside this radius
+	UPROPERTY(EditAnywhere, Category = "SyncBone|Distance Attenuation",
+		meta=(EditCondition="bEnableDistanceAttenuation", ClampMin="0.0", UIMin = "0.0", Units="cm"))
+	float AttenuationOuterRadius = 0.0f;
+
+	// 最大減衰量(0以上)：0=減衰なし, 1=減衰MAX（SyncBoneの適用量が0になる）
+	// Max attenuation amount (>=0): 0=no attenuation, 1=max attenuation (SyncBone application amount becomes 0)
+	UPROPERTY(EditAnywhere, Category = "SyncBone|Distance Attenuation",
+		meta=(EditCondition="bEnableDistanceAttenuation", ClampMin="0.0", ClampMax="1.0", UIMin = "0.0", UIMax = "1.0"))
+	float MaxAttenuationRate = 1.0f;
+
 #if WITH_EDITORONLY_DATA
 	
 	// SyncBoneの移動距離

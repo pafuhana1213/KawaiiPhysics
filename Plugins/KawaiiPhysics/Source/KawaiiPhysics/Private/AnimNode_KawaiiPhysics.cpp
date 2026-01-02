@@ -2311,11 +2311,54 @@ void FAnimNode_KawaiiPhysics::ApplySyncBones(FComponentSpacePoseContext& Output,
 		                                                     EKawaiiPhysicsSimulationSpace::ComponentSpace,
 		                                                     SimulationSpace, FilteredDeltaMovement);
 
+		// Cache SyncBone location in Simulation Space for distance attenuation
+		const FVector SyncBoneLocationInSimulationSpace = ConvertSimulationSpaceLocation(
+			Output,
+			EKawaiiPhysicsSimulationSpace::ComponentSpace,
+			SimulationSpace,
+			Output.Pose.GetComponentSpaceTransform(SyncBoneIndex).GetLocation()
+		);
+
+		// Helper: compute attenuation alpha for a distance
+		auto CalcAttenuationAlpha = [&](const float Distance) -> float
+		{
+			if (!SyncBone.bEnableDistanceAttenuation)
+			{
+				return 1.0f;
+			}
+
+			const float Inner = SyncBone.AttenuationInnerRadius;
+			const float Outer = SyncBone.AttenuationOuterRadius;
+			const float MaxAtten = SyncBone.MaxAttenuationRate;
+
+			// Safety: if outer <= inner, treat as step function at inner
+			const float EffectiveOuter = FMath::Max(Outer, Inner);
+
+			float AttenAmount;
+			if (Distance <= Inner)
+			{
+				AttenAmount = 0.0f;
+			}
+			else if (Distance >= EffectiveOuter)
+			{
+				AttenAmount = MaxAtten;
+			}
+			else
+			{
+				const float Denom = EffectiveOuter - Inner;
+				const float T = (Denom > KINDA_SMALL_NUMBER) ? ((Distance - Inner) / Denom) : 1.0f;
+				AttenAmount = T * MaxAtten;
+			}
+
+			// Convert attenuation amount to alpha multiplier
+			return FMath::Max(0.0f, 1.0f - AttenAmount);
+		};
+
 		// Apply to Targets
 		for (auto& TargetRoot : SyncBone.TargetRoots)
 		{
-			// TODO : Need flag to optimize for skip updating Scale after InitSyncBone
 			// Update Alpha by Length Rate & Curve
+			// TODO : Need flag to optimize for skip updating Scale after InitSyncBone
 			if (const FRichCurve* ScaleCurve = TargetRoot.ScaleCurveByBoneLengthRate.GetRichCurveConst();
 				ScaleCurve && !ScaleCurve->IsEmpty())
 			{
@@ -2326,10 +2369,37 @@ void FAnimNode_KawaiiPhysics::ApplySyncBones(FComponentSpacePoseContext& Output,
 				}
 			}
 
-			TargetRoot.Apply(ModifyBones, FilteredDeltaMovement);
+			// Root target
+			{
+				const int32 ModifyBoneIndex = TargetRoot.ModifyBoneIndex;
+				if (ModifyBones.IsValidIndex(ModifyBoneIndex))
+				{
+					const float Dist = FVector::Dist(SyncBoneLocationInSimulationSpace,
+					                                 ModifyBones[ModifyBoneIndex].Location);
+					const float AlphaMul = CalcAttenuationAlpha(Dist);
+					TargetRoot.Apply(ModifyBones, FilteredDeltaMovement * AlphaMul);
+				}
+				else
+				{
+					TargetRoot.Apply(ModifyBones, FilteredDeltaMovement);
+				}
+			}
+
+			// Child targets
 			for (auto& Target : TargetRoot.ChildTargets)
 			{
-				Target.Apply(ModifyBones, FilteredDeltaMovement);
+				const int32 ModifyBoneIndex = Target.ModifyBoneIndex;
+				if (ModifyBones.IsValidIndex(ModifyBoneIndex))
+				{
+					const float Dist = FVector::Dist(SyncBoneLocationInSimulationSpace,
+					                                 ModifyBones[ModifyBoneIndex].Location);
+					const float AlphaMul = CalcAttenuationAlpha(Dist);
+					Target.Apply(ModifyBones, FilteredDeltaMovement * AlphaMul);
+				}
+				else
+				{
+					Target.Apply(ModifyBones, FilteredDeltaMovement);
+				}
 			}
 		}
 	}

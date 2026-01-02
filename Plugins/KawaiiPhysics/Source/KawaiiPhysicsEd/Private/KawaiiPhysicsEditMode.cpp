@@ -269,6 +269,23 @@ void FKawaiiPhysicsEditMode::RenderSyncBone(FPrimitiveDrawInterface* PDI) const
 		               SyncBone.InitialPoseLocation + SyncBone.DeltaDistance,
 		               FLinearColor::Green, 0.1f, SDPG_World);
 
+		// Distance attenuation radii
+		if (SyncBone.bEnableDistanceAttenuation)
+		{
+			const FVector Center = SyncBone.InitialPoseLocation + SyncBone.DeltaDistance;
+			// current location in component space
+			if (SyncBone.AttenuationInnerRadius > 0.0f)
+			{
+				DrawWireSphere(PDI, Center, FLinearColor(0.0f, 0.8f, 1.0f), SyncBone.AttenuationInnerRadius, 24,
+				               SDPG_World);
+			}
+			if (SyncBone.AttenuationOuterRadius > 0.0f)
+			{
+				DrawWireSphere(PDI, Center, FLinearColor(0.0f, 0.3f, 0.0f), SyncBone.AttenuationOuterRadius, 24,
+				               SDPG_World);
+			}
+		}
+
 		// Force By SyncForce
 		FVector Force = SyncBone.DeltaDistance;
 		ApplyDirectionFilterAndAlpha(Force.X, SyncBone.GlobalScale.X, SyncBone.ApplyDirectionX);
