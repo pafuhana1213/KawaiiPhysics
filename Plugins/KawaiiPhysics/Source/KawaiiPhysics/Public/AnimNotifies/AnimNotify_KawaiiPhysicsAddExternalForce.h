@@ -12,7 +12,7 @@
 #include "InstancedStruct.h"
 #endif
 
-#include "AnimNotify_KawaiiPhysics.generated.h"
+#include "AnimNotify_KawaiiPhysicsAddExternalForce.generated.h"
 
 /**
  * UAnimNotify_KawaiiPhysicsAddExternalForce

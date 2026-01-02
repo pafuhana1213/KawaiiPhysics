@@ -259,10 +259,26 @@ public:
 	                                         bool bFilterExactMatch = false,
 	                                         bool bIsOneShot = false);
 
+	/** Remove ExternalForces from SkeletalMeshComponent (by Owner) */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
 	static bool RemoveExternalForcesFromComponent(USkeletalMeshComponent* MeshComp, UObject* Owner,
 	                                              UPARAM(ref) FGameplayTagContainer& FilterTags,
 	                                              bool bFilterExactMatch = false);
+
+	/**
+	 * Set alpha (input) to all KawaiiPhysics nodes in the component (and linked/post-process instances).
+	 * This is intended for AnimNotifyState usage.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	static bool SetAlphaToComponent(USkeletalMeshComponent* MeshComp, float Alpha,
+	                                UPARAM(ref) FGameplayTagContainer& FilterTags,
+	                                bool bFilterExactMatch = false);
+
+	/** Get current alpha (input) from the first matched KawaiiPhysics node in the component. */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	static bool GetAlphaFromComponent(USkeletalMeshComponent* MeshComp, float& OutAlpha,
+	                                  UPARAM(ref) FGameplayTagContainer& FilterTags,
+	                                  bool bFilterExactMatch = false);
 
 
 	/** Set ExternalForceParameter template */

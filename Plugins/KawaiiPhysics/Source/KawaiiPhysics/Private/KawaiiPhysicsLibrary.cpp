@@ -265,6 +265,53 @@ bool UKawaiiPhysicsLibrary::RemoveExternalForcesFromComponent(USkeletalMeshCompo
 	return bResult;
 }
 
+bool UKawaiiPhysicsLibrary::SetAlphaToComponent(USkeletalMeshComponent* MeshComp, float Alpha,
+                                                FGameplayTagContainer& FilterTags, bool bFilterExactMatch)
+{
+	bool bResult = false;
+
+	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
+	CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, MeshComp, FilterTags, bFilterExactMatch);
+	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
+	{
+		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("SetAlpha"),
+			[&](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				InKawaiiPhysics.Alpha = Alpha;
+				bResult = true;
+			});
+	}
+
+	return bResult;
+}
+
+bool UKawaiiPhysicsLibrary::GetAlphaFromComponent(USkeletalMeshComponent* MeshComp, float& OutAlpha,
+                                                  FGameplayTagContainer& FilterTags, bool bFilterExactMatch)
+{
+	bool bResult = false;
+	OutAlpha = 0.0f;
+
+	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
+	CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, MeshComp, FilterTags, bFilterExactMatch);
+	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
+	{
+		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("GetAlpha"),
+			[&](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				OutAlpha = InKawaiiPhysics.Alpha;
+				bResult = true;
+			});
+		if (bResult)
+		{
+			break;
+		}
+	}
+
+	return bResult;
+}
+
 DEFINE_FUNCTION(UKawaiiPhysicsLibrary::execSetExternalForceWildcardProperty)
 {
 	P_GET_ENUM_REF(EKawaiiPhysicsAccessExternalForceResult, ExecResult);

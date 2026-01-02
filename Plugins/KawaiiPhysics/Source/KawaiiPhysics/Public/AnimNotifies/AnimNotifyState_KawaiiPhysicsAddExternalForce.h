@@ -12,7 +12,7 @@
 #include "InstancedStruct.h"
 #endif
 
-#include "AnimNotifyState_KawaiiPhysics.generated.h"
+#include "AnimNotifyState_KawaiiPhysicsAddExternalForce.generated.h"
 
 /**
  * UAnimNotifyState_KawaiiPhysicsAddExternalForce
@@ -70,7 +70,8 @@ public:
 	TArray<FInstancedStruct> AdditionalExternalForces;
 
 	/**
-	 * Tags used to filter which external forces are applied.
+	 * Tags used to filter which external forces are applied. If empty, all nodes are applied.
+	 * 適用する外力をフィルタリングするためのTag。 空の場合は全てのノードに適用されます。
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce")
 	FGameplayTagContainer FilterTags;

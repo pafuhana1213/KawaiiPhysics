@@ -1,11 +1,11 @@
 ﻿// Copyright 2019-2025 pafuhana1213. All Rights Reserved.
 
-#include "AnimNotifies/AnimNotify_KawaiiPhysics.h"
+#include "AnimNotifies/AnimNotify_KawaiiPhysicsAddExternalForce.h"
 #include "KawaiiPhysicsLibrary.h"
 #include "Misc/UObjectToken.h"
 #include "Logging/MessageLog.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotify_KawaiiPhysics)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotify_KawaiiPhysicsAddExternalForce)
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysics_AnimNotify"
 
