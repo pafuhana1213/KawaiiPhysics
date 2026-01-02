@@ -2,6 +2,13 @@
 
 #include "KawaiiPhysicsSyncBone.h"
 #include "AnimNode_KawaiiPhysics.h"
+
+#if WITH_EDITOR
+#include "Materials/MaterialInterface.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "SceneManagement.h" // DrawDirectionalArrow, DrawSphere
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(KawaiiPhysicsSyncBone)
 
 void FKawaiiPhysicsSyncTarget::UpdateScaleByLengthRate(const FRichCurve* ScaleCurveByBoneLengthRate)

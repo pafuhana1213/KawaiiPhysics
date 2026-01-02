@@ -1,6 +1,7 @@
 #pragma once
 
 #include "BoneContainer.h"
+#include "Curves/CurveFloat.h"
 #include "Curves/CurveVector.h"
 #include "KawaiiPhysicsSyncBone.generated.h"
 

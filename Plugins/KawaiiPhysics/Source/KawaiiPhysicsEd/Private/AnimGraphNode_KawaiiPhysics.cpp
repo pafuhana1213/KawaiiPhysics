@@ -18,6 +18,7 @@
 #include "Dialogs/DlgPickAssetPath.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
+#include "Widgets/Layout/SSeparator.h"
 
 #if ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 6
 #include "Animation/AnimInstance.h"

@@ -235,7 +235,7 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 					                                      FColor::Blue, false, -1, LineThickness, SDPG_Foreground);
 				}
 
-#if	ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 4
+#if	ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 6
 				// Capsule limit
 				for (const auto& CapsuleLimit : CapsuleLimits)
 				{
