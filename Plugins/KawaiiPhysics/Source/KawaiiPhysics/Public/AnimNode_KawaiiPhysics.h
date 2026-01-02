@@ -574,7 +574,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* 指定ボーンとそれ以下のボーンを制御対象に(追加用)
 	* Control the specified bone and the bones below it (For Addition)
 	*/
-	UPROPERTY(EditAnywhere, Category = "Bones")
+	UPROPERTY(EditAnywhere, Category = "Bones", meta=(TitleProperty="RootBone"))
 	TArray<FKawaiiPhysicsRootBoneSetting> AdditionalRootBones;
 
 	/** 
