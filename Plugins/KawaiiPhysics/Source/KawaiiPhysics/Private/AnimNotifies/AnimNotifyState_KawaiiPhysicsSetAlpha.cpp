@@ -1,4 +1,4 @@
-﻿// Copyright 2019-2025 pafuhana1213. All Rights Reserved.
+﻿// Copyright 2019-2026 pafuhana1213. All Rights Reserved.
 
 #include "AnimNotifies/AnimNotifyState_KawaiiPhysicsSetAlpha.h"
 #include "KawaiiPhysicsLibrary.h"
