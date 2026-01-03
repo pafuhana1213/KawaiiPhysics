@@ -893,7 +893,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* false: AnimDynamics compatibility (add Gravity * dt to velocity before updating position)
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce", meta = (PinHiddenByDefault))
-	bool bUseLegacyGravity = true;
+	bool bUseLegacyGravity = false;
 
 	/**
 	* Gravityベクトルにプロジェクト設定の DefaultGravityZ（絶対値）を乗算する処理のフラグ
