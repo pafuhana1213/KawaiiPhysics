@@ -3,7 +3,7 @@
 #pragma once
 
 #include "AnimNode_KawaiiPhysics.h"
-#include "KawaiiPhysicsExternalForce.h"
+#include "ExternalForces/KawaiiPhysicsExternalForce.h"
 #include "Animation/AnimNodeReference.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "KawaiiPhysicsLibrary.generated.h"

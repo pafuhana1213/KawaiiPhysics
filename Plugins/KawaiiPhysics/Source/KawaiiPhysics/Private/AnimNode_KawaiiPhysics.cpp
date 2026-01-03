@@ -5,7 +5,7 @@
 #include "AnimationRuntime.h"
 #include "KawaiiPhysicsBoneConstraintsDataAsset.h"
 #include "KawaiiPhysicsCustomExternalForce.h"
-#include "KawaiiPhysicsExternalForce.h"
+#include "ExternalForces/KawaiiPhysicsExternalForce.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Curves/CurveFloat.h"

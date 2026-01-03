@@ -7,7 +7,7 @@
 #include "EditorViewportClient.h"
 #include "IPersonaPreviewScene.h"
 #include "KawaiiPhysics.h"
-#include "KawaiiPhysicsExternalForce.h"
+#include "ExternalForces/KawaiiPhysicsExternalForce.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
 #include "SceneManagement.h"
 #include "Animation/DebugSkelMeshComponent.h"
