@@ -13,6 +13,7 @@
 #include "SceneInterface.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Engine/World.h"
+#include "PhysicsEngine/PhysicsSettings.h"
 
 #if ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 5
 #include "PhysicsEngine/SkeletalBodySetup.h"
@@ -1186,13 +1187,39 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		Bone.bSkipSimulate = false;
 	}
 
-	// External Force : PreApply
+	// Gravity
 	GravityInSimSpace = ConvertSimulationSpaceVector(Output,
 	                                                 bUseWorldSpaceGravity
 		                                                 ? EKawaiiPhysicsSimulationSpace::WorldSpace
 		                                                 : EKawaiiPhysicsSimulationSpace::ComponentSpace,
 	                                                 SimulationSpace, Gravity);
+	if (bUseDefaultGravityZProjectSetting)
+	{
+		GravityInSimSpace *= FMath::Abs(UPhysicsSettings::Get()->DefaultGravityZ);
+	}
 
+	// SimpleExternalForce: compute once in SimulationSpace (avoid per-bone conversions)
+	if (!SimpleExternalForce.IsNearlyZero())
+	{
+		if (bUseWorldSpaceSimpleExternalForce)
+		{
+			SimpleExternalForceInSimSpace = ConvertSimulationSpaceVector(
+				Output,
+				EKawaiiPhysicsSimulationSpace::WorldSpace,
+				SimulationSpace,
+				SimpleExternalForce);
+		}
+		else
+		{
+			SimpleExternalForceInSimSpace = SimpleExternalForce;
+		}
+	}
+	else
+	{
+		SimpleExternalForceInSimSpace = FVector::ZeroVector;
+	}
+
+	// External Force : PreApply
 	// NOTE: if use foreach, you may get issue ( Array has changed during ranged-for iteration )
 	for (int i = 0; i < CustomExternalForces.Num(); ++i)
 	{
@@ -1313,7 +1340,27 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 	{
 		Velocity += GetWindVelocity(Output, Scene, Bone) * TargetFramerate;
 	}
+
+	// Gravity (apply just after wind; keep legacy compatibility via separate position term)
+	if (!bUseLegacyGravity)
+	{
+		// AnimDynamics-like: integrate acceleration into velocity
+		Velocity += GravityInSimSpace * DeltaTime;
+	}
+	else
+	{
+		// Legacy gravity: add 0.5 * g * dt^2 to position
+		Bone.Location += 0.5 * GravityInSimSpace * DeltaTime * DeltaTime;
+	}
+
+	// Integrate position from velocity
 	Bone.Location += Velocity * DeltaTime;
+
+	// Simple External Force (cached in SimulateModifyBones)
+	if (!SimpleExternalForceInSimSpace.IsNearlyZero())
+	{
+		Bone.Location += SimpleExternalForceInSimSpace * DeltaTime;
+	}
 
 	// Follow World Movement
 	if (SimulationSpace != EKawaiiPhysicsSimulationSpace::WorldSpace && TeleportType != ETeleportType::TeleportPhysics)
@@ -1348,10 +1395,6 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 				* (1.0f - Bone.PhysicsSettings.WorldDampingRotation);
 		}
 	}
-
-	// Gravity
-	// TODO:Migrate if there are more good method (Currently copying AnimDynamics implementation)
-	Bone.Location += 0.5 * GravityInSimSpace * DeltaTime * DeltaTime;
 
 	// External Force
 	// NOTE: if use foreach, you may get issue ( Array has changed during ranged-for iteration )

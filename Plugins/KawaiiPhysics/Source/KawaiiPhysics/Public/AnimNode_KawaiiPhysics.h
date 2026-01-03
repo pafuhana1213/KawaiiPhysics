@@ -877,21 +877,40 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	TArray<FKawaiiPhysicsSyncBone> SyncBones;
 
 	/**
-	* 外力（重力など）
-	* External forces (gravity, etc.)
+	* 重力
+	* Gravity
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce",
 		meta = (PinHiddenByDefault))
 	FVector Gravity = FVector::ZeroVector;
 
+	/**
+	* Gravityの適用方式（レガシー互換）
+	* true : 従来互換（位置に 0.5 * Gravity * dt^2 を加算）
+	* false: AnimDynamics互換（速度に Gravity * dt を加算してから位置更新）
+	* Gravity application method (legacy compatibility)
+	* true : Legacy compatibility (add 0.5 * Gravity * dt^2 to position)
+	* false: AnimDynamics compatibility (add Gravity * dt to velocity before updating position)
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce", meta = (PinHiddenByDefault))
+	bool bUseLegacyGravity = true;
+
+	/**
+	* Gravityベクトルにプロジェクト設定の DefaultGravityZ（絶対値）を乗算する処理のフラグ
+	* Flag to multiply the DefaultGravityZ (absolute value) of the project settings to the Gravity vector
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce", meta = (PinHiddenByDefault))
+	bool bUseDefaultGravityZProjectSetting = false;
+
 	// 
 	// 重力をワールド座標系で扱うかどうかのフラグ
 	// Flag to handle gravity in world coordinate system
 	//
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce",
-		meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce", meta = (PinHiddenByDefault))
 	bool bUseWorldSpaceGravity = true;
 
+	// 外力としてWindDirectionalSourceの影響を受けるかどうかのフラグ
+	// Flag to receive the influence of WindDirectionalSource as an external force
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce", meta = (PinHiddenByDefault))
 	bool bEnableWind = false;
 
@@ -911,6 +930,18 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 		meta = (EditCondition = "bEnableWind", Units = "Degrees", ClampMin=0, PinHiddenByDefault))
 	float WindDirectionNoiseAngle = 0.0f;
 
+	// 単純な外力ベクトル
+	// Simple external force vector
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce",
+		meta = (PinHiddenByDefault))
+	FVector SimpleExternalForce = FVector::ZeroVector;
+
+	// 単純な外力をワールド座標系で扱うかどうかのフラグ
+	// Flag to handle simple external forces in world coordinate system
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce",
+		meta = (PinHiddenByDefault))
+	bool bUseWorldSpaceSimpleExternalForce = true;
+	
 	/** 
 	* 外力のプリセット。C++で独自のプリセットを追加可能(Instanced Struct)
 	* External force presets. You can add your own presets in C++.
@@ -1015,6 +1046,9 @@ private:
 	 * Flag indicating whether to reset the dynamics.
 	 */
 	FVector GravityInSimSpace = FVector::ZeroVector;
+
+	// Cached simple external force in current SimulationSpace (computed once per SimulateModifyBones)
+	FVector SimpleExternalForceInSimSpace = FVector::ZeroVector;
 	
 	/**
 	 *	 The last simulation space used for the physics simulation.
@@ -1281,7 +1315,6 @@ protected:
 	 * @param Bone The bone to simulate.
 	 * @param Scene The scene interface.
 	 * @param ComponentTransform The component transform.
-	 * @param GravityCS The gravity vector in component space.
 	 * @param Exponent The exponent for the simulation.
 	 * @param SkelComp The skeletal mesh component.
 	 * @param Output The pose context.
@@ -1369,16 +1402,15 @@ protected:
 	 *
 	 * @param Output The pose context.
 	 * @param BoneContainer The bone container.
-	 * @param ComponentTransform The component transform.
+	 * @param InOutComponentTransform The component transform.
 	 */
 	void WarmUp(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer,
-	            FTransform& ComponentTransform);
+	            FTransform& InOutComponentTransform);
 
 	/**
 	 * Gets the wind velocity for a given bone.
 	 *
 	 * @param Scene The scene interface.
-	 * @param ComponentTransform The component transform.
 	 * @param Bone The bone to get the wind velocity for.
 	 * @return The wind velocity vector.
 	 */
@@ -1477,4 +1509,11 @@ private:
 	mutable FSimulationSpaceCache CurrentEvalWorldSpaceCache;
 	mutable bool bHasCurrentEvalWorldSpaceCache = false;
 };
+
+
+
+
+
+
+
 
