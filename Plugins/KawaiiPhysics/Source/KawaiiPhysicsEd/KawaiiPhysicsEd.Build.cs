@@ -1,4 +1,4 @@
-// Copyright 2019-2026 pafuhana1213. All Rights Reserved.
+// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
 
 using UnrealBuildTool;
 
@@ -21,7 +21,9 @@ public class KawaiiPhysicsEd : ModuleRules
 			"UnrealEd",
 			"AnimGraphRuntime",
 			"Slate",
-			"SlateCore"
+			"SlateCore",
+			"GameplayTags",
+			"PropertyEditor"
 		});
 
 		if(Target.Version.MajorVersion >= 5)

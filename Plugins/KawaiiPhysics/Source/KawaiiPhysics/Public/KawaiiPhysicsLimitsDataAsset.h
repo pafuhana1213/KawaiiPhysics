@@ -1,4 +1,4 @@
-// Copyright 2019-2026 pafuhana1213. All Rights Reserved.
+// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
 
 #pragma once
 
@@ -150,7 +150,7 @@ class KAWAIIPHYSICS_API UKawaiiPhysicsLimitsDataAsset : public UDataAsset, publi
 public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeleton")
-	TObjectPtr<USkeleton> Skeleton;
+	USkeleton* Skeleton;
 
 	// Deprecated
 	UPROPERTY(meta=(DeprecatedProperty))
@@ -181,7 +181,7 @@ public:
 	// End UObject Interface.
 
 	// IBoneReferenceSkeletonProvider interface
-	virtual USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle) override;
+	virtual USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError) override;
 
 #if WITH_EDITOR
 	void UpdateLimit(FCollisionLimitBase* Limit);

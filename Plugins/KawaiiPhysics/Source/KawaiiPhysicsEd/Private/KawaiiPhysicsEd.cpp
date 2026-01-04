@@ -1,4 +1,4 @@
-// Copyright 2019-2026 pafuhana1213. All Rights Reserved.
+// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
 
 #include "KawaiiPhysicsEd.h"
 #include "Modules/ModuleManager.h"

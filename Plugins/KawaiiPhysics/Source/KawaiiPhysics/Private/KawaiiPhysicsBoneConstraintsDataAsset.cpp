@@ -1,4 +1,4 @@
-﻿// Copyright 2019-2026 pafuhana1213. All Rights Reserved.
+﻿// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
 
 
 #include "KawaiiPhysicsBoneConstraintsDataAsset.h"
@@ -10,7 +10,6 @@
 #include "Editor.h"
 #endif
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(KawaiiPhysicsBoneConstraintsDataAsset)
 
 struct FBoneConstraintDataCustomVersion
 {
@@ -91,8 +90,7 @@ void UKawaiiPhysicsBoneConstraintsDataAsset::PostLoad()
 	}
 }
 
-USkeleton* UKawaiiPhysicsBoneConstraintsDataAsset::GetSkeleton(bool& bInvalidSkeletonIsError,
-                                                               const IPropertyHandle* PropertyHandle)
+USkeleton* UKawaiiPhysicsBoneConstraintsDataAsset::GetSkeleton(bool& bInvalidSkeletonIsError)
 {
 #if WITH_EDITOR
 	return PreviewSkeleton.LoadSynchronous();

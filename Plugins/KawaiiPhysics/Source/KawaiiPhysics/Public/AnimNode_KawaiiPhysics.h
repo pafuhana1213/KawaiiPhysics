@@ -1,41 +1,27 @@
-// Copyright 2019-2026 pafuhana1213. All Rights Reserved.
+// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
 
 #pragma once
 
-#include "Misc/EngineVersionComparison.h"
 #include "BoneContainer.h"
 #include "BonePose.h"
 #include "GameplayTagContainer.h"
 
 #include "BoneControllers/AnimNode_AnimDynamics.h"
+#include "BoneControllers/AnimNode_RigidBody.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 
-#if ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 5
-#include "StructUtils/InstancedStruct.h"
-#else
-#include "InstancedStruct.h"  
-#endif
-
-#if ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 6
-#include "PhysicsEngine/PhysicsAsset.h"
-#include "PhysicsEngine/BodyInstance.h"
-#endif
-
-#include "KawaiiPhysicsSyncBone.h"
 #include "AnimNode_KawaiiPhysics.generated.h"
 
 class UKawaiiPhysics_CustomExternalForce;
 class UKawaiiPhysicsLimitsDataAsset;
 class UKawaiiPhysicsBoneConstraintsDataAsset;
+class UKawaiiPhysics_ExternalForce;
 
 #if ENABLE_ANIM_DEBUG
 extern KAWAIIPHYSICS_API TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsEnable;
 extern KAWAIIPHYSICS_API TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsDebug;
 extern KAWAIIPHYSICS_API TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsDebugLengthRate;
-extern KAWAIIPHYSICS_API TAutoConsoleVariable<float> CVarAnimNodeKawaiiPhysicsDebugDrawThickness;
 #endif
-
-extern KAWAIIPHYSICS_API TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsUseBoneContainerRefSkeletonWhenInit;
 
 UENUM(BlueprintType)
 enum class EKawaiiPhysicsSimulationSpace : uint8
@@ -162,8 +148,8 @@ struct FCollisionLimitBase
 		Location = Other.Location;
 		Rotation = Other.Rotation;
 		bEnable = Other.bEnable;
-		SourceType = Other.SourceType;
 #if WITH_EDITORONLY_DATA
+		SourceType = Other.SourceType;
 		Guid = Other.Guid;
 		Type = Other.Type;
 #endif
@@ -302,6 +288,105 @@ struct FPlanarLimit : public FCollisionLimitBase
 };
 
 /**
+ * Edge of a collision quad connecting two bones.
+ * Used for edge-based quad collision detection against capsules.
+ */
+USTRUCT()
+struct FQuadEdge
+{
+	GENERATED_BODY()
+
+	/** Index of the first bone endpoint in ModifyBones array */
+	UPROPERTY()
+	int32 BoneIndex1 = -1;
+
+	/** Index of the second bone endpoint in ModifyBones array */
+	UPROPERTY()
+	int32 BoneIndex2 = -1;
+
+	/** Rest length of this edge (cached for stretch correction) */
+	float RestLength = 0.0f;
+
+	/** Checks if this edge is valid for collision */
+	bool IsValid() const { return BoneIndex1 >= 0 && BoneIndex2 >= 0; }
+};
+
+/**
+ * Quad formed from two consecutive bone constraints for edge-based collision.
+ * Corners: [0]=C1B_i, [1]=C2B_i, [2]=C1B_i+1, [3]=C2B_i+1
+ * Used to prevent cloth/skirt penetration through body capsules.
+ */
+USTRUCT()
+struct FQuadCollisionLimit
+{
+	GENERATED_BODY()
+
+	/** The four bone indices forming the quad corners */
+	UPROPERTY()
+	int32 BoneIndices[4] = {-1, -1, -1, -1};
+
+	/** The four edges of the quad (Top, Bottom, Left, Right) */
+	FQuadEdge Edges[4];
+
+	/** Checks if this quad is valid for collision */
+	bool IsValid() const
+	{
+		return BoneIndices[0] >= 0 && BoneIndices[1] >= 0 &&
+		       BoneIndices[2] >= 0 && BoneIndices[3] >= 0;
+	}
+
+	/** Initialize edges from bone indices */
+	void InitializeEdges()
+	{
+		// Edge 0: Top horizontal (C1B_i -> C2B_i)
+		Edges[0].BoneIndex1 = BoneIndices[0];
+		Edges[0].BoneIndex2 = BoneIndices[1];
+		// Edge 1: Bottom horizontal (C1B_i+1 -> C2B_i+1)
+		Edges[1].BoneIndex1 = BoneIndices[2];
+		Edges[1].BoneIndex2 = BoneIndices[3];
+		// Edge 2: Left vertical (C1B_i -> C1B_i+1)
+		Edges[2].BoneIndex1 = BoneIndices[0];
+		Edges[2].BoneIndex2 = BoneIndices[2];
+		// Edge 3: Right vertical (C2B_i -> C2B_i+1)
+		Edges[3].BoneIndex1 = BoneIndices[1];
+		Edges[3].BoneIndex2 = BoneIndices[3];
+	}
+};
+
+/**
+ * Cached capsule data with pre-computed endpoints for efficient collision checks.
+ * Avoids redundant axis/endpoint calculations per edge.
+ * Includes bounding sphere for broad-phase culling.
+ */
+struct FCachedCapsuleData
+{
+	FVector Start;           // Top endpoint
+	FVector End;             // Bottom endpoint
+	float Radius;            // Capsule radius
+	FVector BoundingCenter;  // Bounding sphere center (same as capsule center)
+	float BoundingRadius;    // Bounding sphere radius (Radius + HalfLength)
+
+	FCachedCapsuleData()
+		: Start(FVector::ZeroVector)
+		, End(FVector::ZeroVector)
+		, Radius(0.0f)
+		, BoundingCenter(FVector::ZeroVector)
+		, BoundingRadius(0.0f)
+	{}
+
+	FCachedCapsuleData(const FVector& InStart, const FVector& InEnd, float InRadius)
+		: Start(InStart)
+		, End(InEnd)
+		, Radius(InRadius)
+	{
+		// Bounding sphere: center is midpoint, radius covers entire capsule
+		BoundingCenter = (InStart + InEnd) * 0.5f;
+		const float HalfLength = (InStart - InEnd).Size() * 0.5f;
+		BoundingRadius = InRadius + HalfLength;
+	}
+};
+
+/**
  * Structure representing the root bone settings for KawaiiPhysics.
  */
 USTRUCT(BlueprintType)
@@ -430,10 +515,6 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsModifyBone
 	/** Pose scale of the bone */
 	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
 	FVector PoseScale = FVector::OneVector;
-
-	/** Length of the bone */
-	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
-	float BoneLength = 0.0f;
 
 	/** Length from the root bone */
 	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
@@ -574,7 +655,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* 指定ボーンとそれ以下のボーンを制御対象に(追加用)
 	* Control the specified bone and the bones below it (For Addition)
 	*/
-	UPROPERTY(EditAnywhere, Category = "Bones", meta=(TitleProperty="RootBone"))
+	UPROPERTY(EditAnywhere, Category = "Bones")
 	TArray<FKawaiiPhysicsRootBoneSetting> AdditionalRootBones;
 
 	/** 
@@ -624,7 +705,14 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	UPROPERTY(EditAnywhere, Category = "Physics Settings", meta = (InlineEditConditionToggle))
 	bool OverrideTargetFramerate = false;
 
-	/** 
+	/**
+	* 固定タイムステップを使用してフレームレートに依存しない物理シミュレーションを行う
+	* Use fixed time step for frame-rate independent physics simulation
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
+	bool bUseFixedTimeStep = false;
+
+	/**
 	* 物理の空回し回数。物理処理が落ち着いてから開始・表示したい際に使用
 	* Number of times physics has been idle. Used when you want to start/display after physics processing has settled down
 	*/
@@ -670,7 +758,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings",
 		meta = (PinHiddenByDefault))
-	FVector SkelCompMoveScale = FVector::One();
+	FVector SkelCompMoveScale = FVector::OneVector;
 
 	/** 
  	* 各ボーンの物理パラメータを毎フレーム更新するフラグ。
@@ -780,14 +868,14 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* Collision settings (DataAsset version). This is recommended if you want to reuse the settings for another AnimNode or ABP.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits", meta = (PinHiddenByDefault))
-	TObjectPtr<UKawaiiPhysicsLimitsDataAsset> LimitsDataAsset = nullptr;
+	UKawaiiPhysicsLimitsDataAsset* LimitsDataAsset = nullptr;
 
 	/** 
 	* コリジョン設定（PhyiscsAsset版）。別AnimNode・ABPで設定を流用したい場合はこちらを推奨
 	* Collision settings (PhyiscsAsset版 version). This is recommended if you want to reuse the settings for another AnimNode or ABP.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits", meta = (PinHiddenByDefault))
-	TObjectPtr<UPhysicsAsset> PhysicsAssetForLimits = nullptr;
+	UPhysicsAsset* PhysicsAssetForLimits = nullptr;
 
 	/** 
 	* コリジョン設定（DataAsset版）における球コリジョンのプレビュー
@@ -857,7 +945,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bone Constraint",
 		meta = (PinHiddenByDefault))
-	TObjectPtr<UKawaiiPhysicsBoneConstraintsDataAsset> BoneConstraintsDataAsset;
+	UKawaiiPhysicsBoneConstraintsDataAsset* BoneConstraintsDataAsset;
 
 	/** 
 	* BoneConstraint処理の対象となるボーンのペアのプレビュー
@@ -869,48 +957,108 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	UPROPERTY()
 	TArray<FModifyBoneConstraint> MergedBoneConstraints;
 
-	/**
-	* 同期元のボーンの移動・回転を物理制御下のボーンに適用します。スカートが足などを貫通するのを防ぐのに役立ちます
-	* Applies the movement and rotation of the sync source bone to the bone under physics control. Helps prevent skirts from penetrating legs, etc.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Sync Bone", meta=(TitleProperty="{Bone}"))
-	TArray<FKawaiiPhysicsSyncBone> SyncBones;
+	// ============================================================================
+	// Quad Collision (Experimental)
+	// ============================================================================
 
 	/**
-	* 重力
-	* Gravity
+	* クアッドコリジョンを有効にする（実験的機能）
+	* Enable quad collision detection between bone constraint quads and capsule limits.
+	* Experimental feature: Performs edge-to-capsule collision for cloth-like surfaces.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quad Collision (Experimental)",
+		meta = (PinHiddenByDefault))
+	bool bEnableQuadCollision = false;
+
+	/**
+	* クアッドコリジョンの反復回数
+	* Number of iterations for quad collision adjustment.
+	* Higher values provide more accurate collision resolution but cost more performance.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quad Collision (Experimental)",
+		meta = (PinHiddenByDefault, ClampMin = "1", ClampMax = "10", EditCondition = "bEnableQuadCollision"))
+	int32 QuadCollisionIterationCount = 1;
+
+	/**
+	* クアッドコリジョンの追加閾値
+	* Additional collision threshold added to capsule radius for quad edge detection.
+	* Increase this for softer, earlier collision response.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quad Collision (Experimental)",
+		meta = (PinHiddenByDefault, ClampMin = "0.0", EditCondition = "bEnableQuadCollision"))
+	float QuadCollisionThreshold = 0.0f;
+
+	/**
+	* クアッドエッジの伸び剛性（0=補正なし、1=完全補正）
+	* Edge stiffness for quad collision stretch correction.
+	* After collision pushes vertices, this corrects stretched edges back toward rest length.
+	* 0 = no correction (stretchy), 1 = full correction (rigid edges)
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quad Collision (Experimental)",
+		meta = (PinHiddenByDefault, ClampMin = "0.0", ClampMax = "1.0", EditCondition = "bEnableQuadCollision"))
+	float QuadCollisionEdgeStiffness = 0.5f;
+
+	/**
+	* ボーン長さ比率によるエッジ剛性カーブ（0=ルート、1=先端）
+	* Edge stiffness multiplier by bone length rate (0 = root, 1 = tip).
+	* Use to vary stiffness along the chain (e.g., stiffer at waist, softer at hem).
+	* Multiplies the base QuadCollisionEdgeStiffness value.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quad Collision (Experimental)", AdvancedDisplay,
+		meta = (PinHiddenByDefault, DisplayName = "Edge Stiffness by Bone Length Rate", EditCondition = "bEnableQuadCollision"))
+	FRuntimeFloatCurve QuadCollisionEdgeStiffnessCurve;
+
+	/**
+	* クアッドコリジョン用のBone Constraint設定（DataAsset版）
+	* Bone constraints data asset specifically for quad collision.
+	* If not set, will use the main Bone Constraint settings instead.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quad Collision (Experimental)",
+		meta = (PinHiddenByDefault, EditCondition = "bEnableQuadCollision"))
+	UKawaiiPhysicsBoneConstraintsDataAsset* QuadCollisionBoneConstraintsDataAsset = nullptr;
+
+	/**
+	* ダミーボーンをクアッドコリジョンに含める
+	* Whether to include dummy bones when building quads from bone constraints.
+	* When enabled, adds an extra quad row connecting to the dummy bone endpoints.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quad Collision (Experimental)",
+		meta = (PinHiddenByDefault, EditCondition = "bEnableQuadCollision"))
+	bool bQuadCollisionIncludeDummyBones = true;
+
+	/**
+	* コリジョンチェーンループを閉じる
+	* Close the collision chain loop by connecting the last chain pair to the first.
+	* Enable for closed circular shapes (like skirts), disable for open folded surfaces.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quad Collision (Experimental)",
+		meta = (PinHiddenByDefault, EditCondition = "bEnableQuadCollision"))
+	bool bQuadCollisionCloseLoop = true;
+
+	/**
+	* クアッドコリジョン用のBone Constraintのプレビュー
+	* Preview of bone constraint pairs used for quad collision
+	*/
+	UPROPERTY(VisibleAnywhere, Category = "Quad Collision (Experimental)", AdvancedDisplay,
+		meta=(TitleProperty="{Bone1} - {Bone2}"))
+	TArray<FModifyBoneConstraint> QuadCollisionBoneConstraintsData;
+
+	/** Merged bone constraints for quad collision */
+	UPROPERTY()
+	TArray<FModifyBoneConstraint> MergedQuadCollisionBoneConstraints;
+
+	/** Cached quads generated from consecutive bone constraints */
+	UPROPERTY()
+	TArray<FQuadCollisionLimit> CachedQuads;
+
+	/**
+	* 外力（重力など）
+	* External forces (gravity, etc.)
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce",
-		meta = (PinHiddenByDefault))
+		meta = (PinHiddenByDefault, DisplayName="External Force"))
 	FVector Gravity = FVector::ZeroVector;
 
-	/**
-	* Gravityの適用方式（レガシー互換）
-	* true : 従来互換（位置に 0.5 * Gravity * dt^2 を加算）
-	* false: AnimDynamics互換（速度に Gravity * dt を加算してから位置更新）
-	* Gravity application method (legacy compatibility)
-	* true : Legacy compatibility (add 0.5 * Gravity * dt^2 to position)
-	* false: AnimDynamics compatibility (add Gravity * dt to velocity before updating position)
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce", meta = (PinHiddenByDefault))
-	bool bUseLegacyGravity = false;
-
-	/**
-	* Gravityベクトルにプロジェクト設定の DefaultGravityZ（絶対値）を乗算する処理のフラグ
-	* Flag to multiply the DefaultGravityZ (absolute value) of the project settings to the Gravity vector
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce", meta = (PinHiddenByDefault))
-	bool bUseDefaultGravityZProjectSetting = false;
-
-	// 
-	// 重力をワールド座標系で扱うかどうかのフラグ
-	// Flag to handle gravity in world coordinate system
-	//
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce", meta = (PinHiddenByDefault))
-	bool bUseWorldSpaceGravity = true;
-
-	// 外力としてWindDirectionalSourceの影響を受けるかどうかのフラグ
-	// Flag to receive the influence of WindDirectionalSource as an external force
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce", meta = (PinHiddenByDefault))
 	bool bEnableWind = false;
 
@@ -930,25 +1078,13 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 		meta = (EditCondition = "bEnableWind", Units = "Degrees", ClampMin=0, PinHiddenByDefault))
 	float WindDirectionNoiseAngle = 0.0f;
 
-	// 単純な外力ベクトル
-	// Simple external force vector
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce",
-		meta = (PinHiddenByDefault))
-	FVector SimpleExternalForce = FVector::ZeroVector;
-
-	// 単純な外力をワールド座標系で扱うかどうかのフラグ
-	// Flag to handle simple external forces in world coordinate system
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce",
-		meta = (PinHiddenByDefault))
-	bool bUseWorldSpaceSimpleExternalForce = true;
-	
 	/** 
 	* 外力のプリセット。C++で独自のプリセットを追加可能(Instanced Struct)
 	* External force presets. You can add your own presets in C++.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Instanced, Category = "ExternalForce",
 		meta = (BaseStruct = "/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce", ExcludeBaseStruct))
-	TArray<FInstancedStruct> ExternalForces;
+	TArray<UKawaiiPhysics_ExternalForce*> ExternalForces;
 
 	/**
 	* !!! VERY VERY EXPERIMENTAL !!!
@@ -959,7 +1095,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Instanced, Category = "ExternalForce",
 		meta=(DisplayName="CustomExternalForces(EXPERIMENTAL)"))
-	TArray<TObjectPtr<UKawaiiPhysics_CustomExternalForce>> CustomExternalForces;
+	TArray<UKawaiiPhysics_CustomExternalForce*> CustomExternalForces;
 
 	/** 
 	* レベル上の各コリジョンとの判定を行うフラグ。有効にすると物理処理の負荷が大幅に上がります
@@ -1046,24 +1182,26 @@ private:
 	 * Flag indicating whether to reset the dynamics.
 	 */
 	FVector GravityInSimSpace = FVector::ZeroVector;
-
-	// Cached simple external force in current SimulationSpace (computed once per SimulateModifyBones)
-	FVector SimpleExternalForceInSimSpace = FVector::ZeroVector;
 	
 	/**
 	 *	 The last simulation space used for the physics simulation.
 	 */
 	EKawaiiPhysicsSimulationSpace LastSimulationSpace = EKawaiiPhysicsSimulationSpace::ComponentSpace;
-	
+
 	/**
-	 * Previous frame's Base bone space to component space transform
+	 * Base bone space to component space transform.
 	 */
-	FTransform PrevBaseBoneSpace2ComponentSpace = FTransform::Identity;
+	FTransform BaseBoneSpace2ComponentSpace = FTransform::Identity;
 
 	/**
 	* Stores the delta time from the previous frame.
 	*/
 	float DeltaTimeOld = 0.0f;
+
+	/**
+	* Time accumulator for fixed time step simulation.
+	*/
+	float TimeAccumulator = 0.0f;
 
 #if WITH_EDITORONLY_DATA
 	bool bEditing = false;
@@ -1122,15 +1260,7 @@ public:
 	/**
 	 * Get Transform from BaseBoneSpace to ComponentSpace.
 	 */
-	FTransform GetBaseBoneSpace2ComponentSpace() const
-	{
-		if (SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
-		{
-			return CurrentEvalSimSpaceCache.TargetSpaceToComponent;
-		}
-
-		return FTransform::Identity;
-	}
+	FTransform GetBaseBoneSpace2ComponentSpace() const { return BaseBoneSpace2ComponentSpace; }
 
 protected:
 	/**
@@ -1152,17 +1282,6 @@ protected:
 	 * @param BoneContainer The bone container containing bone hierarchy information.
 	 */
 	void InitModifyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer);
-
-	/**
-	 * Initializes the sync rotation bones for the physics simulation.
-	 */
-	void InitSyncBones(FComponentSpacePoseContext& Output);
-
-	/**
-	* Initializes a sync bone for the physics simulation.
-	*/
-	void InitSyncBone(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer,
-	                  FKawaiiPhysicsSyncBone& SyncBone);
 
 	/**
 	 * Initializes the bone constraints for the physics simulation.
@@ -1286,14 +1405,6 @@ protected:
 	void UpdateModifyBonesPoseTransform(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer);
 
 	/**
-	 * Applies the movement of SyncBones to target bones.
-	 * @param Output The pose context.
-	 * @param BoneContainer The bone container.
-	 */
-	void ApplySyncBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer);
-	
-
-	/**
 	 * Updates the skeletal component movement vector and rotation.
 	 *
 	 * @param ComponentTransform The current component transform.
@@ -1315,6 +1426,7 @@ protected:
 	 * @param Bone The bone to simulate.
 	 * @param Scene The scene interface.
 	 * @param ComponentTransform The component transform.
+	 * @param GravityCS The gravity vector in component space.
 	 * @param Exponent The exponent for the simulation.
 	 * @param SkelComp The skeletal mesh component.
 	 * @param Output The pose context.
@@ -1388,6 +1500,46 @@ protected:
 	void AdjustByBoneConstraints();
 
 	/**
+	 * Initializes the quad collision bone constraints from data asset or main bone constraints.
+	 */
+	void InitQuadCollisionBoneConstraints();
+
+	/**
+	 * Builds quads from consecutive bone constraint pairs for quad collision.
+	 */
+	void BuildQuadsFromConstraints();
+
+	/**
+	 * Adjusts bone positions based on quad edge collisions with capsules.
+	 */
+	void AdjustByQuadCollision();
+
+	/**
+	 * Corrects stretched quad edges after collision resolution.
+	 * Pulls edge endpoints back toward rest length based on QuadCollisionEdgeStiffness.
+	 */
+	void CorrectQuadEdgeStretching();
+
+	/**
+	 * Performs edge-to-capsule collision detection and resolution.
+	 *
+	 * @param Edge The quad edge to test.
+	 * @param Capsule The capsule to test against.
+	 * @return True if collision was detected and resolved.
+	 */
+	bool AdjustEdgeByCapsuleCollision(const FQuadEdge& Edge, const FCapsuleLimit& Capsule);
+
+	/**
+	 * Performs edge-to-capsule collision detection and resolution using pre-cached capsule data.
+	 * More efficient for repeated calls as capsule endpoints are pre-computed.
+	 *
+	 * @param Edge The quad edge to test.
+	 * @param CachedCapsule Pre-computed capsule endpoint data.
+	 * @return True if collision was detected and resolved.
+	 */
+	bool AdjustEdgeByCapsuleCollisionCached(const FQuadEdge& Edge, const FCachedCapsuleData& CachedCapsule);
+
+	/**
 	 * Applies the simulation results to the bone transforms.
 	 *
 	 * @param Output The pose context.
@@ -1402,118 +1554,46 @@ protected:
 	 *
 	 * @param Output The pose context.
 	 * @param BoneContainer The bone container.
-	 * @param InOutComponentTransform The component transform.
+	 * @param ComponentTransform The component transform.
 	 */
 	void WarmUp(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer,
-	            FTransform& InOutComponentTransform);
+	            FTransform& ComponentTransform);
 
 	/**
 	 * Gets the wind velocity for a given bone.
 	 *
 	 * @param Scene The scene interface.
+	 * @param ComponentTransform The component transform.
 	 * @param Bone The bone to get the wind velocity for.
 	 * @return The wind velocity vector.
 	 */
-	FVector GetWindVelocity(FComponentSpacePoseContext& Output, const FSceneInterface* Scene,
+	FVector GetWindVelocity(const FComponentSpacePoseContext& Output, const FSceneInterface* Scene,
 	                        const FKawaiiPhysicsModifyBone& Bone) const;
 
 #if ENABLE_ANIM_DEBUG
 	void AnimDrawDebug(FComponentSpacePoseContext& Output);
-
-	// Draw debug Box
-	void AnimDrawDebugBox(FComponentSpacePoseContext& Output, const FVector& CenterLocationSim,
-	                      const FQuat& RotationSim,
-	                      const FVector& Extent, const FColor& Color, float Thickness) const;
 #endif
 
 private:
-	// Given a bone index, get the transform in the currently selected simulation space
+	// Given a bone index, get it's transform in the currently selected simulation space
 	FTransform GetBoneTransformInSimSpace(FComponentSpacePoseContext& Output,
 	                                      const FCompactPoseBoneIndex& BoneIndex) const;
 
-	// Convert a transform from one simulation space to another (internal cache-aware)
-	FTransform ConvertSimulationSpaceTransform(FComponentSpacePoseContext& Output,
-	                                           EKawaiiPhysicsSimulationSpace From,
-	                                           EKawaiiPhysicsSimulationSpace To,
-	                                           const FTransform& InTransform) const;
+	// Convert a transform from one simulation space to another
+	FTransform ConvertSimulationSpaceTransform(const FComponentSpacePoseContext& Output, EKawaiiPhysicsSimulationSpace From,
+	                                           EKawaiiPhysicsSimulationSpace To, const FTransform& InTransform) const;
 
-	// Convert a vector from one simulation space to another (internal cache-aware)
-	FVector ConvertSimulationSpaceVector(FComponentSpacePoseContext& Output,
-	                                     EKawaiiPhysicsSimulationSpace From,
-	                                     EKawaiiPhysicsSimulationSpace To,
-	                                     const FVector& InVector) const;
+	// Convert a vector from one simulation space to another
+	FVector ConvertSimulationSpaceVector(const FComponentSpacePoseContext& Output, EKawaiiPhysicsSimulationSpace From,
+	                                     EKawaiiPhysicsSimulationSpace To, const FVector& InVector) const;
 
-	// Convert a location from one simulation space to another (internal cache-aware)
-	FVector ConvertSimulationSpaceLocation(FComponentSpacePoseContext& Output,
-	                                       EKawaiiPhysicsSimulationSpace From,
-	                                       EKawaiiPhysicsSimulationSpace To,
-	                                       const FVector& InLocation) const;
+	// Convert a location from one simulation space to another
+	FVector ConvertSimulationSpaceLocation(const FComponentSpacePoseContext& Output, EKawaiiPhysicsSimulationSpace From,
+	                                       EKawaiiPhysicsSimulationSpace To, const FVector& InLocation) const;
 
-	// Convert a rotation from one simulation space to another (internal cache-aware)
-	FQuat ConvertSimulationSpaceRotation(FComponentSpacePoseContext& Output,
-	                                     EKawaiiPhysicsSimulationSpace From,
-	                                     EKawaiiPhysicsSimulationSpace To,
-	                                     const FQuat& InRotation) const;
+	// Convert a rotation from one simulation space to another
+	FQuat ConvertSimulationSpaceRotation(FComponentSpacePoseContext& Output, EKawaiiPhysicsSimulationSpace From,
+	                                     EKawaiiPhysicsSimulationSpace To, const FQuat& InRotation) const;
 
-	void ConvertSimulationSpace(FComponentSpacePoseContext& Output,
-	                            EKawaiiPhysicsSimulationSpace From,
-	                            EKawaiiPhysicsSimulationSpace To);
-
-private:
-	// SimulationSpace conversion cache (per-evaluation)
-	struct FSimulationSpaceCache
-	{
-		FTransform ComponentToTargetSpace = FTransform::Identity;
-		FTransform TargetSpaceToComponent = FTransform::Identity;
-
-		bool IsIdentity() const
-		{
-			return ComponentToTargetSpace.Equals(FTransform::Identity) &&
-				TargetSpaceToComponent.Equals(FTransform::Identity);
-		}
-	};
-
-	FSimulationSpaceCache BuildSimulationSpaceCache(FComponentSpacePoseContext& Output,
-	                                                const EKawaiiPhysicsSimulationSpace SimulationSpaceForCache) const;
-
-	// Select cache for a given simulation space (Evaluate cache preferred)
-	FSimulationSpaceCache GetSimulationSpaceCacheFor(FComponentSpacePoseContext& Output,
-	                                                 EKawaiiPhysicsSimulationSpace Space) const;
-
-	// Convert helpers using explicit caches
-	FTransform ConvertSimulationSpaceTransformCached(const FSimulationSpaceCache& CacheFrom,
-	                                                 const FSimulationSpaceCache& CacheTo,
-	                                                 const FTransform& InTransform) const;
-	FVector ConvertSimulationSpaceVectorCached(const FSimulationSpaceCache& CacheFrom,
-	                                           const FSimulationSpaceCache& CacheTo,
-	                                           const FVector& InVector) const;
-	FVector ConvertSimulationSpaceLocationCached(const FSimulationSpaceCache& CacheFrom,
-	                                             const FSimulationSpaceCache& CacheTo,
-	                                             const FVector& InLocation) const;
-	FQuat ConvertSimulationSpaceRotationCached(const FSimulationSpaceCache& CacheFrom,
-	                                           const FSimulationSpaceCache& CacheTo,
-	                                           const FQuat& InRotation) const;
-
-	void ConvertSimulationSpaceCached(const FSimulationSpaceCache& CacheFrom,
-	                                  const FSimulationSpaceCache& CacheTo,
-	                                  EKawaiiPhysicsSimulationSpace From,
-	                                  EKawaiiPhysicsSimulationSpace To);
-
-private:
-	// Evaluate中のみ有効なキャッシュ（SimulationSpace<->Component）
-	// AnyThread評価なので「フレーム跨ぎで使い回さない」こと
-	mutable FSimulationSpaceCache CurrentEvalSimSpaceCache;
-	mutable bool bHasCurrentEvalSimSpaceCache = false;
-
-	// Evaluate中のみ有効なWorldSpaceキャッシュ（World<->Component）
-	mutable FSimulationSpaceCache CurrentEvalWorldSpaceCache;
-	mutable bool bHasCurrentEvalWorldSpaceCache = false;
+	void ConvertSimulationSpace(FComponentSpacePoseContext& Output, EKawaiiPhysicsSimulationSpace From, EKawaiiPhysicsSimulationSpace To);
 };
-
-
-
-
-
-
-
-
