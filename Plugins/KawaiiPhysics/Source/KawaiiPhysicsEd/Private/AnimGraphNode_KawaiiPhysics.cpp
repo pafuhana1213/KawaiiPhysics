@@ -1,4 +1,4 @@
-// Copyright 2019-2026 pafuhana1213. All Rights Reserved.
+// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
 
 #include "AnimGraphNode_KawaiiPhysics.h"
 
@@ -11,20 +11,14 @@
 #include "KawaiiPhysicsLimitsDataAsset.h"
 #include "Widgets/Input/SButton.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "Selection.h"
+#include "Engine/Selection.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Dialogs/DlgPickAssetPath.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
-#include "Widgets/Layout/SSeparator.h"
 
-#if ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 6
-#include "Animation/AnimInstance.h"
-#endif
-
-#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimGraphNode_KawaiiPhysics)
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysics"
 
@@ -171,12 +165,19 @@ void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* Ani
 	KawaiiPhysics->BoneConstraints = Node.BoneConstraints;
 	KawaiiPhysics->BoneConstraintsDataAsset = Node.BoneConstraintsDataAsset;
 
+	// Quad Collision
+	KawaiiPhysics->bEnableQuadCollision = Node.bEnableQuadCollision;
+	KawaiiPhysics->QuadCollisionIterationCount = Node.QuadCollisionIterationCount;
+	KawaiiPhysics->QuadCollisionThreshold = Node.QuadCollisionThreshold;
+	KawaiiPhysics->QuadCollisionEdgeStiffness = Node.QuadCollisionEdgeStiffness;
+	KawaiiPhysics->QuadCollisionEdgeStiffnessCurve = Node.QuadCollisionEdgeStiffnessCurve;
+	KawaiiPhysics->bQuadCollisionIncludeDummyBones = Node.bQuadCollisionIncludeDummyBones;
+	KawaiiPhysics->bQuadCollisionCloseLoop = Node.bQuadCollisionCloseLoop;
+	KawaiiPhysics->QuadCollisionBoneConstraintsDataAsset = Node.QuadCollisionBoneConstraintsDataAsset;
+
 	// SimulationSpace
 	KawaiiPhysics->SimulationSpace = Node.SimulationSpace;
 	KawaiiPhysics->SimulationBaseBone = Node.SimulationBaseBone;
-
-	// SyncBone
-	KawaiiPhysics->SyncBones = Node.SyncBones;
 
 	// Reset for sync without compile
 	KawaiiPhysics->ModifyBones.Empty();
@@ -205,7 +206,6 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 			[
 				SNew(STextBlock)
 				.Text(FText::FromString(TEXT("Export Limits")))
-				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
 			]
 		]
 		+ SUniformGridPanel::Slot(1, 0)
@@ -222,7 +222,6 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 			[
 				SNew(STextBlock)
 				.Text(FText::FromString(TEXT("Export BoneConstraints")))
-				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
 			]
 		]
 	];
@@ -234,137 +233,188 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailDebugVisualizations(IDetailLay
 	FDetailWidgetRow& WidgetRow = ViewportCategory.AddCustomRow(
 		LOCTEXT("ToggleDebugVisualizationButtonRow", "DebugVisualization"));
 
-	auto CreateDebugButton = [&](const FString& Label, bool& DebugFlag)
-	{
-		return SNew(SButton)
+	WidgetRow
+	[
+		SNew(SUniformGridPanel)
+		.SlotPadding(FMargin(2, 0, 2, 0))
+		// Show/Hide Bones button.
+		+ SUniformGridPanel::Slot(0, 0)
+		[
+			SNew(SButton)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			.OnClicked_Lambda([&]()
+			.OnClicked_Lambda([this]()
 			{
-				DebugFlag = !DebugFlag;
+				this->bEnableDebugDrawBone = !this->bEnableDebugDrawBone;
 				return FReply::Handled();
 			})
-			.ButtonColorAndOpacity_Lambda([&]()
-			{
-				return DebugFlag
-					       ? FAppStyle::Get().GetSlateColor("Colors.AccentGreen")
-					       : FAppStyle::Get().GetSlateColor("Colors.AccentRed");
-			})
+			.ButtonColorAndOpacity_Lambda([this]() -> FLinearColor { return this->bEnableDebugDrawBone ? FLinearColor::Green : FLinearColor::Red; })
 			.Content()
 			[
 				SNew(STextBlock)
-					.Text(FText::FromString(Label))
-					.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
-			];
-	};
-	
-	auto CreateCategorySeparator = [&](const FString& Label, const int32 FontSize = 9)
-	{
-		return SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.FillWidth(0.01f)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SSeparator)
+				.Text_Lambda([this]() { return LOCTEXT("ShowBoneText", "Bone"); })
 			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(FMargin(2.f, 0.f))
+		]
+		// Show/Hide LengthRate button.
+		+ SUniformGridPanel::Slot(1, 0)
+		[
+			SNew(SButton)
+			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
+			.OnClicked_Lambda([this]()
+			{
+				this->bEnableDebugBoneLengthRate = !this->bEnableDebugBoneLengthRate;
+				return FReply::Handled();
+			})
+			.ButtonColorAndOpacity_Lambda([this]() -> FLinearColor { return this->bEnableDebugBoneLengthRate ? FLinearColor::Green : FLinearColor::Red; })
+			.Content()
 			[
 				SNew(STextBlock)
-				.Text(FText::FromString(Label))
-				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), FontSize))
+				.Text_Lambda([this]() { return LOCTEXT("ShowLengthRateText", "Length Rate"); })
 			]
-			+ SHorizontalBox::Slot()
-			.FillWidth(0.9f)
+		]
+		// Show/Hide AngleLimit button.
+		+ SUniformGridPanel::Slot(2, 0)
+		[
+			SNew(SButton)
+			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
+			.OnClicked_Lambda([this]()
+			{
+				this->bEnableDebugDrawLimitAngle = !this->bEnableDebugDrawLimitAngle;
+				return FReply::Handled();
+			})
+			.ButtonColorAndOpacity_Lambda([this]() -> FLinearColor { return this->bEnableDebugDrawLimitAngle ? FLinearColor::Green : FLinearColor::Red; })
+			.Content()
 			[
-				SNew(SSeparator)
-			];
-	};
-
-	WidgetRow
-	[
-		SNew(SVerticalBox)
-
-		// Common
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(FMargin(0.f, 2.f))
-		[
-			CreateCategorySeparator(TEXT("Common"))
-		]
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SNew(SUniformGridPanel)
-			+ SUniformGridPanel::Slot(0, 0)
-			[
-				CreateDebugButton(TEXT("Bone"), bEnableDebugDrawBone)
-			]
-			+ SUniformGridPanel::Slot(1, 0)
-			[
-				CreateDebugButton(TEXT("Length Rate"), bEnableDebugBoneLengthRate)
-			]
-			+ SUniformGridPanel::Slot(2, 0)
-			[
-				CreateDebugButton(TEXT("Limit Angle") , bEnableDebugDrawLimitAngle)
+				SNew(STextBlock)
+				.Text_Lambda([this]() { return LOCTEXT("ShowLimitAngleText", "Limit Angle"); })
 			]
 		]
-
-		// Limits
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(FMargin(0.f, 2.f))
+		// Show/Hide SphereLimit button.
+		+ SUniformGridPanel::Slot(0, 1)
 		[
-			CreateCategorySeparator(TEXT("Collision"))
-		]
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SNew(SUniformGridPanel)
-			+ SUniformGridPanel::Slot(0, 0)
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.OnClicked_Lambda([this]()
+			{
+				this->bEnableDebugDrawSphereLimit = !this->bEnableDebugDrawSphereLimit;
+				return FReply::Handled();
+			})
+			.ButtonColorAndOpacity_Lambda([this]() -> FLinearColor { return this->bEnableDebugDrawSphereLimit ? FLinearColor::Green : FLinearColor::Red; })
+			.Content()
 			[
-				CreateDebugButton(TEXT("Sphere"),  bEnableDebugDrawSphereLimit)
-			]
-			+ SUniformGridPanel::Slot(1, 0)
-			[
-				CreateDebugButton(TEXT("Capsule"),  bEnableDebugDrawCapsuleLimit)
-			]
-			+ SUniformGridPanel::Slot(2, 0)
-			[
-				CreateDebugButton(TEXT("Box"), bEnableDebugDrawBoxLimit)
-			]
-			+ SUniformGridPanel::Slot(0, 1)
-			[
-				CreateDebugButton(TEXT("Plane"),  bEnableDebugDrawPlanerLimit)
+				SNew(STextBlock)
+				.Text_Lambda([this]() { return LOCTEXT("ShowSphereLimitText", "Sphere Limit"); })
 			]
 		]
-
-		// Advanced
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(FMargin(0.f, 2.f))
+		// Show/Hide CapsuleLimit button.
+		+ SUniformGridPanel::Slot(1, 1)
 		[
-			CreateCategorySeparator(TEXT("Advanced"))
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.OnClicked_Lambda([this]()
+			{
+				this->bEnableDebugDrawCapsuleLimit = !this->bEnableDebugDrawCapsuleLimit;
+				return FReply::Handled();
+			})
+			.ButtonColorAndOpacity_Lambda([this]() -> FLinearColor { return this->bEnableDebugDrawCapsuleLimit ? FLinearColor::Green : FLinearColor::Red; })
+			.Content()
+			[
+				SNew(STextBlock)
+				.Text_Lambda([this]() { return LOCTEXT("ShowCapsuleLimitText", "Capsule Limit"); })
+			]
 		]
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(FMargin(0.f, 2.f))
+		// Show/Hide BoxLimit button.
+		+ SUniformGridPanel::Slot(2, 1)
 		[
-			SNew(SUniformGridPanel)
-			+ SUniformGridPanel::Slot(0, 0)
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.OnClicked_Lambda([this]()
+			{
+				this->bEnableDebugDrawBoxLimit = !this->bEnableDebugDrawBoxLimit;
+				return FReply::Handled();
+			})
+			.ButtonColorAndOpacity_Lambda([this]() -> FLinearColor { return this->bEnableDebugDrawBoxLimit ? FLinearColor::Green : FLinearColor::Red; })
+			.Content()
 			[
-				CreateDebugButton(TEXT("Sync Bone"), bEnableDebugDrawSyncBone)
+				SNew(STextBlock)
+				.Text_Lambda([this]() { return LOCTEXT("ShowBoxLimitText", "Box Limit"); })
 			]
-			+ SUniformGridPanel::Slot(1, 0)
+		]
+		// Show/Hide PlanerLimit button.
+		+ SUniformGridPanel::Slot(0, 2)
+		[
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.OnClicked_Lambda([this]()
+			{
+				this->bEnableDebugDrawPlanerLimit = !this->bEnableDebugDrawPlanerLimit;
+				return FReply::Handled();
+			})
+			.ButtonColorAndOpacity_Lambda([this]() -> FLinearColor { return this->bEnableDebugDrawPlanerLimit ? FLinearColor::Green : FLinearColor::Red; })
+			.Content()
 			[
-				CreateDebugButton(TEXT("Bone Constraint"),  bEnableDebugDrawBoneConstraint)
+				SNew(STextBlock)
+				.Text_Lambda([this]() { return LOCTEXT("ShowPlanerLimitText", "Planer Limit"); })
 			]
-			+ SUniformGridPanel::Slot(2, 0)
+		]
+		// Show/Hide BoneConstraint button.
+		+ SUniformGridPanel::Slot(1, 2)
+		[
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.OnClicked_Lambda([this]()
+			{
+				this->bEnableDebugDrawBoneConstraint = !this->bEnableDebugDrawBoneConstraint;
+				return FReply::Handled();
+			})
+			.ButtonColorAndOpacity_Lambda([this]() -> FLinearColor { return this->bEnableDebugDrawBoneConstraint ? FLinearColor::Green : FLinearColor::Red; })
+			.Content()
 			[
-				CreateDebugButton(TEXT("External Force"), bEnableDebugDrawExternalForce)
+				SNew(STextBlock)
+				.Text_Lambda([this]() { return LOCTEXT("ShowBoneConstraintText", "Bone Constraint"); })
+			]
+		]
+		// Show/Hide QuadCollision button.
+		+ SUniformGridPanel::Slot(2, 2)
+		[
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.OnClicked_Lambda([this]()
+			{
+				this->bEnableDebugDrawQuadCollision = !this->bEnableDebugDrawQuadCollision;
+				return FReply::Handled();
+			})
+			.ButtonColorAndOpacity_Lambda([this]() -> FLinearColor { return this->bEnableDebugDrawQuadCollision ? FLinearColor::Green : FLinearColor::Red; })
+			.Content()
+			[
+				SNew(STextBlock)
+				.Text_Lambda([this]() { return LOCTEXT("ShowQuadCollisionText", "Quad Collision"); })
+			]
+		]
+		// Show/Hide ExternalForce button.
+		+ SUniformGridPanel::Slot(0, 3)
+		[
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.OnClicked_Lambda([this]()
+			{
+				this->bEnableDebugDrawExternalForce = !this->bEnableDebugDrawExternalForce;
+				return FReply::Handled();
+			})
+			.ButtonColorAndOpacity_Lambda([this]() -> FLinearColor { return this->bEnableDebugDrawExternalForce ? FLinearColor::Green : FLinearColor::Red; })
+			.Content()
+			[
+				SNew(STextBlock)
+				.Text_Lambda([this]() { return LOCTEXT("ShowExternalForceText", "External Force"); })
 			]
 		]
 	];
@@ -401,10 +451,9 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 
 		// Limits
 		SafeSetOrder(FName("Limits"));
-		SafeSetOrder(FName("Bone Constraint"));
+		SafeSetOrder(FName("Bone Constraint (Experimental)"));
 
 		// Other
-		SafeSetOrder(FName("Sync Bone"));
 		SafeSetOrder(FName("World Collision"));
 		SafeSetOrder(FName("ExternalForce"));
 

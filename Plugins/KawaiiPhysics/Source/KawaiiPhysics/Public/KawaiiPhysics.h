@@ -1,9 +1,9 @@
-// Copyright 2019-2026 pafuhana1213. All Rights Reserved.
+// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
-#include "Logging/LogMacros.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogKawaiiPhysics, Log, All);
 

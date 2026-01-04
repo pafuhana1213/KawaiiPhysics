@@ -1,4 +1,4 @@
-// Copyright 2019-2026 pafuhana1213. All Rights Reserved.
+// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
 
 #pragma once
 
@@ -76,10 +76,6 @@ public:
 	UPROPERTY()
 	bool bEnableDebugDrawLimitAngle = true;
 
-	/** Enables or disables debug drawing for sync bones. */
-	UPROPERTY()
-	bool bEnableDebugDrawSyncBone = true;
-
 	/** Enables or disables debug drawing for spherical limits. */
 	UPROPERTY()
 	bool bEnableDebugDrawSphereLimit = true;
@@ -99,6 +95,10 @@ public:
 	/** Enables or disables debug drawing for bone constraints. */
 	UPROPERTY()
 	bool bEnableDebugDrawBoneConstraint = true;
+
+	/** Enables or disables debug drawing for quad collision. */
+	UPROPERTY()
+	bool bEnableDebugDrawQuadCollision = true;
 
 	/** Enables or disables debug drawing for external forces. */
 	UPROPERTY()

@@ -1,0 +1,76 @@
+﻿// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
+
+#pragma once
+
+#include "GameplayTagContainer.h"
+#include "Animation/AnimNotifies/AnimNotifyState.h"
+
+#include "AnimNotifyState_KawaiiPhysics.generated.h"
+
+class UKawaiiPhysics_ExternalForce;
+
+/**
+ * UAnimNotifyState_KawaiiPhysicsAddExternalForce
+ * 
+ * This class represents an animation notify state that adds external forces to a skeletal mesh component
+ * during an animation sequence. It inherits from UAnimNotifyState and provides functionality to add and remove
+ * external forces at the beginning and end of the animation notify state.
+ */
+UCLASS(Blueprintable, meta = (DisplayName = "KawaiiPhyiscs: Add ExternalForce"))
+class KAWAIIPHYSICS_API UAnimNotifyState_KawaiiPhysicsAddExternalForce : public UAnimNotifyState
+{
+	GENERATED_BODY()
+
+public:
+	/**
+	 * Constructor for UAnimNotifyState_KawaiiPhysicsAddExternalForce.
+	 * 
+	 * @param ObjectInitializer - The object initializer for this class.
+	 */
+	UAnimNotifyState_KawaiiPhysicsAddExternalForce(const FObjectInitializer& ObjectInitializer);
+
+	/**
+	 * Gets the name of the notify state.
+	 * 
+	 * @return The name of the notify state as a string.
+	 */
+	virtual FString GetNotifyName_Implementation() const override;
+
+	/**
+	 * Called when the animation notify state begins.
+	 * 
+	 * @param MeshComp - The skeletal mesh component.
+	 * @param Animation - The animation sequence.
+	 * @param TotalDuration - The total duration of the notify state.
+	 */
+	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration) override;
+
+	/**
+	 * Called when the animation notify state ends.
+	 * 
+	 * @param MeshComp - The skeletal mesh component.
+	 * @param Animation - The animation sequence.
+	 */
+	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation) override;
+
+	/**
+	 * Additional external forces to be applied to the skeletal mesh component.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Instanced, Category = "ExternalForce",
+		meta = (BaseStruct = "/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce", ExcludeBaseStruct))
+	TArray<UKawaiiPhysics_ExternalForce*> AdditionalExternalForces;
+
+	/**
+	 * Tags used to filter which external forces are applied.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce")
+	FGameplayTagContainer FilterTags;
+
+	/** 
+	 * Whether to filter tags to exact matches (if False, parent tags will also be included).
+	 * Tagのフィルタリングにて完全一致にするか否か（Falseの場合は親Tagも含めます）
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ExternalForce")
+	bool bFilterExactMatch;
+	
+};

@@ -1,23 +1,22 @@
-// Copyright 2019-2026 pafuhana1213. All Rights Reserved.
+// KawaiiPhysics : Copyright (c) 2019-2024 pafuhana1213, MIT License
 
 #pragma once
 
-#include "AnimNodeEditMode.h"
+#include "KawaiiPhysicsEditModeBase.h"
 #include "AnimGraphNode_KawaiiPhysics.h"
 #include "AnimNode_KawaiiPhysics.h"
-
-#define UE_WIDGET UE::Widget
 
 class FEditorViewportClient;
 class FPrimitiveDrawInterface;
 class USkeletalMeshComponent;
 struct FViewportClick;
 
-class FKawaiiPhysicsEditMode : public FAnimNodeEditMode
+class FKawaiiPhysicsEditMode : public FKawaiiPhysicsEditModeBase
 {
 public:
-	FKawaiiPhysicsEditMode();
 
+	FKawaiiPhysicsEditMode();
+	
 	/** IAnimNodeEditMode interface */
 	virtual void EnterMode(class UAnimGraphNode_Base* InEditorNode, struct FAnimNode_Base* InRuntimeNode) override;
 	virtual void ExitMode() override;
@@ -50,7 +49,6 @@ protected:
 private:
 	void RenderModifyBones(FPrimitiveDrawInterface* PDI) const;
 	void RenderLimitAngle(FPrimitiveDrawInterface* PDI) const;
-	void RenderSyncBone(FPrimitiveDrawInterface* PDI) const;
 
 	/** Render each collisions */
 	void RenderSphericalLimits(FPrimitiveDrawInterface* PDI) const;
@@ -59,6 +57,7 @@ private:
 	void RenderPlanerLimit(FPrimitiveDrawInterface* PDI);
 
 	void RenderBoneConstraint(FPrimitiveDrawInterface* PDI) const;
+	void RenderQuadCollision(FPrimitiveDrawInterface* PDI) const;
 	void RenderExternalForces(FPrimitiveDrawInterface* PDI) const;
 
 	/** Helper function for GetWidgetLocation() and joint rendering */
@@ -88,9 +87,9 @@ private:
 	int32 SelectCollisionIndex = -1;
 	ECollisionSourceType SelectCollisionSourceType = ECollisionSourceType::AnimNode;
 
-	// storing current widget mode 
+	// storing current widget mode
 	mutable UE_WIDGET::EWidgetMode CurWidgetMode;
 
 	// physics asset body material
-	TObjectPtr<UMaterialInstanceDynamic> PhysicsAssetBodyMaterial;
+	UMaterialInstanceDynamic* PhysicsAssetBodyMaterial;
 };
