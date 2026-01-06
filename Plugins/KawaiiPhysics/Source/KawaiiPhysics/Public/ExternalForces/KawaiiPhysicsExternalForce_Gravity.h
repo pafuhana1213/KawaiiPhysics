@@ -59,8 +59,17 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Gravity : public FKawaiiPh
 		Category="KawaiiPhysics|ExternalForce")
 	bool bUseOverrideGravityDirection = false;
 
-	virtual void PreApply(FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp) override;
+private:
+	UPROPERTY()
+	TObjectPtr<ACharacter> OwnerCharacter;
+
+protected:
+	virtual void Initialize(const FAnimationInitializeContext& Context) override;
+	virtual void PreApply(FAnimNode_KawaiiPhysics& Node, FComponentSpacePoseContext& PoseContext) override;
+	virtual void ApplyToVelocity(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
+	                             FComponentSpacePoseContext& PoseContext,
+	                             FVector& InOutVelocity) override;
 	virtual void Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
-	                   const FComponentSpacePoseContext& PoseContext,
+	                   FComponentSpacePoseContext& PoseContext,
 	                   const FTransform& BoneTM = FTransform::Identity) override;
 };

@@ -17,19 +17,25 @@ void FKawaiiPhysics_ExternalForce::Initialize(const FAnimationInitializeContext&
 {
 }
 
-void FKawaiiPhysics_ExternalForce::PreApply(FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp)
+void FKawaiiPhysics_ExternalForce::PreApply(FAnimNode_KawaiiPhysics& Node,
+                                            FComponentSpacePoseContext& PoseContext)
 {
-	check(SkelComp);
-	ComponentTransform = SkelComp->GetComponentTransform();
+	ComponentTransform = PoseContext.AnimInstanceProxy->GetComponentTransform();
 	RandomizedForceScale = FMath::RandRange(RandomForceScaleRange.Min, RandomForceScaleRange.Max);
 }
 
-void FKawaiiPhysics_ExternalForce::Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
-                                         const FComponentSpacePoseContext& PoseContext, const FTransform& BoneTM)
+void FKawaiiPhysics_ExternalForce::ApplyToVelocity(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
+                                                   FComponentSpacePoseContext& PoseContext,
+                                                   FVector& InOutVelocity)
 {
 }
 
-void FKawaiiPhysics_ExternalForce::PostApply(FAnimNode_KawaiiPhysics& Node)
+void FKawaiiPhysics_ExternalForce::Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
+                                         FComponentSpacePoseContext& PoseContext, const FTransform& BoneTM)
+{
+}
+
+void FKawaiiPhysics_ExternalForce::PostApply(FAnimNode_KawaiiPhysics& Node, FComponentSpacePoseContext& PoseContext)
 {
 	if (bIsOneShot)
 	{

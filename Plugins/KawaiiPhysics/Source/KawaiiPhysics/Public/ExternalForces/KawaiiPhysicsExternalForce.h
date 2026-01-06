@@ -61,7 +61,9 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce
 
 	/** 
 	* 外力を適応するボーンを指定（＝指定しなかったボーンには適応しない）
+	* 空の場合、全ての物理対象のボーンに適応
 	* Specify the bones to which the external force will be applied (= the force will not be applied to bones that are not specified)
+	* If empty, it will be applied to all physical target bones
 	*/
 	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1), Category="KawaiiPhysics|ExternalForce")
 	TArray<FBoneReference> ApplyBoneFilter;
@@ -127,14 +129,19 @@ public:
 	virtual void Initialize(const FAnimationInitializeContext& Context);
 
 	/** Prepares the external force before applying it */
-	virtual void PreApply(FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp);
+	virtual void PreApply(FAnimNode_KawaiiPhysics& Node, FComponentSpacePoseContext& PoseContext);
+
+	// Applies the external force to the bone's velocity
+	virtual void ApplyToVelocity(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
+	                             FComponentSpacePoseContext& PoseContext, FVector& InOutVelocity);
+	
 
 	/** Applies the external force to a bone */
 	virtual void Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
-	                   const FComponentSpacePoseContext& PoseContext, const FTransform& BoneTM = FTransform::Identity);
+	                   FComponentSpacePoseContext& PoseContext, const FTransform& BoneTM = FTransform::Identity);
 
 	/** Finalizes the external force after applying it */
-	virtual void PostApply(FAnimNode_KawaiiPhysics& Node);
+	virtual void PostApply(FAnimNode_KawaiiPhysics& Node, FComponentSpacePoseContext& PoseContext);
 
 	/** Checks if debug information should be drawn */
 	virtual bool IsDebugEnabled(bool bInPersona = false);

@@ -10,26 +10,33 @@
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ExternalForce_Gravity_Apply"), STAT_KawaiiPhysics_ExternalForce_Gravity_Apply,
                    STATGROUP_Anim);
 
-void FKawaiiPhysics_ExternalForce_Gravity::PreApply(FAnimNode_KawaiiPhysics& Node,
-                                                    const USkeletalMeshComponent* SkelComp)
+void FKawaiiPhysics_ExternalForce_Gravity::Initialize(const FAnimationInitializeContext& Context)
 {
-	Super::PreApply(Node, SkelComp);
+	Super::Initialize(Context);
 
-	Force = bUseOverrideGravityDirection ? OverrideGravityDirection : FVector(0, 0, -1.0f);
+	OwnerCharacter = Cast<ACharacter>(Context.AnimInstanceProxy->GetSkelMeshComponent()->GetOwner());
+}
+
+void FKawaiiPhysics_ExternalForce_Gravity::PreApply(FAnimNode_KawaiiPhysics& Node,
+                                                    FComponentSpacePoseContext& PoseContext)
+{
+	Super::PreApply(Node, PoseContext);
+
+	Force = bUseOverrideGravityDirection ? OverrideGravityDirection.GetSafeNormal() : FVector(0, 0, -1.0f);
 
 	// For Character's Custom Gravity Direction
-	if (const ACharacter* Character = Cast<ACharacter>(SkelComp->GetOwner()))
+	if (OwnerCharacter)
 	{
 #if	ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 3
 		if (bUseCharacterGravityDirection)
 		{
-			Force = Character->GetGravityDirection();
+			Force = OwnerCharacter->GetGravityDirection();
 		}
 #endif
 
 		if (bUseCharacterGravityScale)
 		{
-			if (const UCharacterMovementComponent* CharacterMovementComponent = Character->GetCharacterMovement())
+			if (const UCharacterMovementComponent* CharacterMovementComponent = OwnerCharacter->GetCharacterMovement())
 			{
 				Force *= CharacterMovementComponent->GetGravityZ();
 			}
@@ -37,15 +44,14 @@ void FKawaiiPhysics_ExternalForce_Gravity::PreApply(FAnimNode_KawaiiPhysics& Nod
 	}
 
 	Force *= RandomizedForceScale;
-	if (Node.SimulationSpace != EKawaiiPhysicsSimulationSpace::WorldSpace)
-	{
-		Force = ComponentTransform.InverseTransformVector(Force);
-	}
+	Force = Node.ConvertSimulationSpaceVector(PoseContext, EKawaiiPhysicsSimulationSpace::WorldSpace,
+	                                          Node.SimulationSpace, Force);
 }
 
-void FKawaiiPhysics_ExternalForce_Gravity::Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
-                                                 const FComponentSpacePoseContext& PoseContext,
-                                                 const FTransform& BoneTM)
+void FKawaiiPhysics_ExternalForce_Gravity::ApplyToVelocity(FKawaiiPhysicsModifyBone& Bone,
+                                                           FAnimNode_KawaiiPhysics& Node,
+                                                           FComponentSpacePoseContext& PoseContext,
+                                                           FVector& InOutVelocity)
 {
 	if (!CanApply(Bone))
 	{
@@ -57,13 +63,19 @@ void FKawaiiPhysics_ExternalForce_Gravity::Apply(FKawaiiPhysicsModifyBone& Bone,
 	float ForceRate = 1.0f;
 	if (const auto Curve = ForceRateByBoneLengthRate.GetRichCurve(); !Curve->IsEmpty())
 	{
-		ForceRate = Curve->Eval(Bone.LengthRateFromRoot);
+		ForceRate = Curve->Eval(Bone.LengthRateFromRoot, 1.0f);
 	}
 
-	Bone.Location += 0.5f * Force * ForceRate * Node.DeltaTime * Node.DeltaTime;
+	InOutVelocity += Force * ForceRate * Node.DeltaTime;
 
 #if ENABLE_ANIM_DEBUG
 	BoneForceMap.Add(Bone.BoneRef.BoneName, Force * ForceRate);
 	AnimDrawDebug(Bone, Node, PoseContext);
 #endif
+}
+
+void FKawaiiPhysics_ExternalForce_Gravity::Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
+                                                 FComponentSpacePoseContext& PoseContext,
+                                                 const FTransform& BoneTM)
+{
 }

@@ -9,9 +9,9 @@ DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ExternalForce_Basic_Apply"), STAT_KawaiiP
                    STATGROUP_Anim);
 
 void FKawaiiPhysics_ExternalForce_Basic::PreApply(FAnimNode_KawaiiPhysics& Node,
-                                                  const USkeletalMeshComponent* SkelComp)
+                                                  FComponentSpacePoseContext& PoseContext)
 {
-	Super::PreApply(Node, SkelComp);
+	Super::PreApply(Node, PoseContext);
 
 	PrevTime = Time;
 	Time += Node.DeltaTime;
@@ -32,15 +32,23 @@ void FKawaiiPhysics_ExternalForce_Basic::PreApply(FAnimNode_KawaiiPhysics& Node,
 		Force = ForceDir * RandomizedForceScale;
 	}
 
-	if (ExternalForceSpace == EExternalForceSpace::WorldSpace &&
-		Node.SimulationSpace != EKawaiiPhysicsSimulationSpace::WorldSpace)
+	// TODO : Merge EExternalForceSpace and EKawaiiPhysicsSimulationSpace
+	EKawaiiPhysicsSimulationSpace From = EKawaiiPhysicsSimulationSpace::ComponentSpace;
+	if (ExternalForceSpace == EExternalForceSpace::WorldSpace)
 	{
-		Force = ComponentTransform.InverseTransformVector(Force);
+		From = EKawaiiPhysicsSimulationSpace::WorldSpace;
 	}
+	else if (ExternalForceSpace == EExternalForceSpace::BoneSpace)
+	{
+		From = EKawaiiPhysicsSimulationSpace::BaseBoneSpace;
+	}
+
+	Force = Node.ConvertSimulationSpaceVector(PoseContext, From,
+	                                          Node.SimulationSpace, Force);
 }
 
 void FKawaiiPhysics_ExternalForce_Basic::Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
-                                               const FComponentSpacePoseContext& PoseContext,
+                                               FComponentSpacePoseContext& PoseContext,
                                                const FTransform& BoneTM)
 {
 	if (!CanApply(Bone))

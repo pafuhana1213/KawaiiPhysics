@@ -1132,6 +1132,38 @@ public:
 		return FTransform::Identity;
 	}
 
+	// Given a bone index, get the transform in the currently selected simulation space
+	FTransform GetBoneTransformInSimSpace(FComponentSpacePoseContext& Output,
+	                                      const FCompactPoseBoneIndex& BoneIndex) const;
+
+	// Convert a transform from one simulation space to another (internal cache-aware)
+	FTransform ConvertSimulationSpaceTransform(FComponentSpacePoseContext& Output,
+	                                           EKawaiiPhysicsSimulationSpace From,
+	                                           EKawaiiPhysicsSimulationSpace To,
+	                                           const FTransform& InTransform) const;
+
+	// Convert a vector from one simulation space to another (internal cache-aware)
+	FVector ConvertSimulationSpaceVector(FComponentSpacePoseContext& Output,
+	                                     EKawaiiPhysicsSimulationSpace From,
+	                                     EKawaiiPhysicsSimulationSpace To,
+	                                     const FVector& InVector) const;
+
+	// Convert a location from one simulation space to another (internal cache-aware)
+	FVector ConvertSimulationSpaceLocation(FComponentSpacePoseContext& Output,
+	                                       EKawaiiPhysicsSimulationSpace From,
+	                                       EKawaiiPhysicsSimulationSpace To,
+	                                       const FVector& InLocation) const;
+
+	// Convert a rotation from one simulation space to another (internal cache-aware)
+	FQuat ConvertSimulationSpaceRotation(FComponentSpacePoseContext& Output,
+	                                     EKawaiiPhysicsSimulationSpace From,
+	                                     EKawaiiPhysicsSimulationSpace To,
+	                                     const FQuat& InRotation) const;
+
+	void ConvertSimulationSpace(FComponentSpacePoseContext& Output,
+	                            EKawaiiPhysicsSimulationSpace From,
+	                            EKawaiiPhysicsSimulationSpace To);
+
 protected:
 	/**
 	 * Gets the forward vector of a bone based on its rotation.
@@ -1426,38 +1458,6 @@ protected:
 	                      const FVector& Extent, const FColor& Color, float Thickness) const;
 #endif
 
-private:
-	// Given a bone index, get the transform in the currently selected simulation space
-	FTransform GetBoneTransformInSimSpace(FComponentSpacePoseContext& Output,
-	                                      const FCompactPoseBoneIndex& BoneIndex) const;
-
-	// Convert a transform from one simulation space to another (internal cache-aware)
-	FTransform ConvertSimulationSpaceTransform(FComponentSpacePoseContext& Output,
-	                                           EKawaiiPhysicsSimulationSpace From,
-	                                           EKawaiiPhysicsSimulationSpace To,
-	                                           const FTransform& InTransform) const;
-
-	// Convert a vector from one simulation space to another (internal cache-aware)
-	FVector ConvertSimulationSpaceVector(FComponentSpacePoseContext& Output,
-	                                     EKawaiiPhysicsSimulationSpace From,
-	                                     EKawaiiPhysicsSimulationSpace To,
-	                                     const FVector& InVector) const;
-
-	// Convert a location from one simulation space to another (internal cache-aware)
-	FVector ConvertSimulationSpaceLocation(FComponentSpacePoseContext& Output,
-	                                       EKawaiiPhysicsSimulationSpace From,
-	                                       EKawaiiPhysicsSimulationSpace To,
-	                                       const FVector& InLocation) const;
-
-	// Convert a rotation from one simulation space to another (internal cache-aware)
-	FQuat ConvertSimulationSpaceRotation(FComponentSpacePoseContext& Output,
-	                                     EKawaiiPhysicsSimulationSpace From,
-	                                     EKawaiiPhysicsSimulationSpace To,
-	                                     const FQuat& InRotation) const;
-
-	void ConvertSimulationSpace(FComponentSpacePoseContext& Output,
-	                            EKawaiiPhysicsSimulationSpace From,
-	                            EKawaiiPhysicsSimulationSpace To);
 
 private:
 	// SimulationSpace conversion cache (per-evaluation)

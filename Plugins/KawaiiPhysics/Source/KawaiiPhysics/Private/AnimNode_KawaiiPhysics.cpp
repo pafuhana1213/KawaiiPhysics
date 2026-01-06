@@ -1233,7 +1233,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		if (ExternalForces[i].IsValid())
 		{
 			auto& Force = ExternalForces[i].GetMutable<FKawaiiPhysics_ExternalForce>();
-			Force.PreApply(*this, SkelComp);
+			Force.PreApply(*this, Output);
 		}
 	}
 
@@ -1256,7 +1256,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		if (ExternalForces[i].IsValid())
 		{
 			auto& Force = ExternalForces[i].GetMutable<FKawaiiPhysics_ExternalForce>();
-			Force.PostApply(*this);
+			Force.PostApply(*this, Output);
 		}
 	}
 
@@ -1351,6 +1351,18 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 	{
 		// Legacy gravity: add 0.5 * g * dt^2 to position
 		Bone.Location += 0.5 * GravityInSimSpace * DeltaTime * DeltaTime;
+	}
+
+	for (int i = 0; i < ExternalForces.Num(); ++i)
+	{
+		if (ExternalForces[i].IsValid())
+		{
+			if (const auto ExForce = ExternalForces[i].GetMutablePtr<FKawaiiPhysics_ExternalForce>();
+				ExForce->bIsEnabled)
+			{
+				ExForce->ApplyToVelocity(Bone, *this, Output, Velocity);
+			}
+		}
 	}
 
 	// Integrate position from velocity

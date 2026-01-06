@@ -9,15 +9,15 @@
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ExternalForce_Wind_Apply"), STAT_KawaiiPhysics_ExternalForce_Wind_Apply,
                    STATGROUP_Anim);
 
-void FKawaiiPhysics_ExternalForce_Wind::PreApply(FAnimNode_KawaiiPhysics& Node, const USkeletalMeshComponent* SkelComp)
+void FKawaiiPhysics_ExternalForce_Wind::PreApply(FAnimNode_KawaiiPhysics& Node, FComponentSpacePoseContext& PoseContext)
 {
-	Super::PreApply(Node, SkelComp);
+	Super::PreApply(Node, PoseContext);
 
-	World = SkelComp ? SkelComp->GetWorld() : nullptr;
+	World = PoseContext.AnimInstanceProxy->GetSkelMeshComponent()->GetWorld();
 }
 
 void FKawaiiPhysics_ExternalForce_Wind::Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
-                                              const FComponentSpacePoseContext& PoseContext, const FTransform& BoneTM)
+                                              FComponentSpacePoseContext& PoseContext, const FTransform& BoneTM)
 {
 	const FSceneInterface* Scene = World && World->Scene ? World->Scene : nullptr;
 	if (!CanApply(Bone) || !Scene)
@@ -38,12 +38,22 @@ void FKawaiiPhysics_ExternalForce_Wind::Apply(FKawaiiPhysicsModifyBone& Bone, FA
 	Scene->GetWindParameters(ComponentTransform.TransformPosition(Bone.PoseLocation), WindDirection,
 	                         WindSpeed, WindMinGust, WindMaxGust);
 
-	if (Node.SimulationSpace != EKawaiiPhysicsSimulationSpace::WorldSpace)
-	{
-		WindDirection = ComponentTransform.InverseTransformVector(WindDirection);
-	}
-	WindDirection *= WindSpeed;
 
+	// TODO : Merge EExternalForceSpace and EKawaiiPhysicsSimulationSpace
+	EKawaiiPhysicsSimulationSpace From = EKawaiiPhysicsSimulationSpace::ComponentSpace;
+	if (ExternalForceSpace == EExternalForceSpace::WorldSpace)
+	{
+		From = EKawaiiPhysicsSimulationSpace::WorldSpace;
+	}
+	else if (ExternalForceSpace == EExternalForceSpace::BoneSpace)
+	{
+		From = EKawaiiPhysicsSimulationSpace::BaseBoneSpace;
+	}
+
+	Force = Node.ConvertSimulationSpaceVector(PoseContext, From,
+	                                          Node.SimulationSpace, Force);
+	
+	WindDirection *= WindSpeed;
 	Bone.Location += WindDirection * ForceRate * RandomizedForceScale * Node.DeltaTime;
 
 #if ENABLE_ANIM_DEBUG
