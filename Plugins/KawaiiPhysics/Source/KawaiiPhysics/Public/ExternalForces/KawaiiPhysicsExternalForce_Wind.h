@@ -28,6 +28,14 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Wind : public FKawaiiPhysi
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
 	FRuntimeFloatCurve ForceRateByBoneLengthRate;
+	
+	/** 
+* WindDirectionalSourceによる風方向に与えるノイズ（角度）
+* Noise(Degree) of wind by WindDirectionalSource. For use with Cloth and SpeedTree
+*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "KawaiiPhysics|ExternalForce",
+		meta = (Units = "Degrees", ClampMin=0, PinHiddenByDefault))
+	float WindDirectionNoiseAngle = 0.0f;
 
 private:
 	UPROPERTY()

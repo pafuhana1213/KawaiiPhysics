@@ -35,23 +35,13 @@ void FKawaiiPhysics_ExternalForce_Wind::Apply(FKawaiiPhysicsModifyBone& Bone, FA
 
 	FVector WindDirection = FVector::ZeroVector;
 	float WindSpeed, WindMinGust, WindMaxGust = 0.0f;
-	Scene->GetWindParameters(ComponentTransform.TransformPosition(Bone.PoseLocation), WindDirection,
-	                         WindSpeed, WindMinGust, WindMaxGust);
-
-
-	// TODO : Merge EExternalForceSpace and EKawaiiPhysicsSimulationSpace
-	EKawaiiPhysicsSimulationSpace From = EKawaiiPhysicsSimulationSpace::ComponentSpace;
-	if (ExternalForceSpace == EExternalForceSpace::WorldSpace)
-	{
-		From = EKawaiiPhysicsSimulationSpace::WorldSpace;
-	}
-	else if (ExternalForceSpace == EExternalForceSpace::BoneSpace)
-	{
-		From = EKawaiiPhysicsSimulationSpace::BaseBoneSpace;
-	}
-
-	Force = Node.ConvertSimulationSpaceVector(PoseContext, From,
-	                                          Node.SimulationSpace, Force);
+	Scene->GetWindParameters(Node.ConvertSimulationSpaceVector(PoseContext, Node.SimulationSpace, 
+		EKawaiiPhysicsSimulationSpace::WorldSpace, Bone.PoseLocation), 
+		WindDirection,WindSpeed, WindMinGust, WindMaxGust);
+	
+	WindDirection = Node.ConvertSimulationSpaceVector(PoseContext, EKawaiiPhysicsSimulationSpace::WorldSpace,
+	                                          Node.SimulationSpace, WindDirection);
+	WindDirection = FMath::VRandCone(WindDirection, FMath::DegreesToRadians(WindDirectionNoiseAngle));
 	
 	WindDirection *= WindSpeed;
 	Bone.Location += WindDirection * ForceRate * RandomizedForceScale * Node.DeltaTime;
