@@ -27,6 +27,9 @@
 class UKawaiiPhysics_CustomExternalForce;
 class UKawaiiPhysicsLimitsDataAsset;
 class UKawaiiPhysicsBoneConstraintsDataAsset;
+struct FKawaiiPhysicsSharedCollisionEntry;
+struct FKawaiiPhysicsSharedCollisionSourceSlot;
+struct FKawaiiPhysicsSharedCollisionData;
 
 #if ENABLE_ANIM_DEBUG
 extern KAWAIIPHYSICS_API TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsEnable;
@@ -814,7 +817,29 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = "Limits")
 	TArray<FPlanarLimit> PlanarLimitsData;
 
-	/** 
+	/**
+	 * コリジョンを他のKawaiiPhysicsに共有する
+	 * Provide this node's collision limits as a source to other KawaiiPhysics nodes via SharedCollisionSubsystem
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|Shared Collision", meta = (PinHiddenByDefault))
+	bool bSharedCollisionSource = false;
+
+	/**
+	 * 他のKawaiiPhysicsから共有コリジョンを使用する
+	 * Use shared collision limits from source KawaiiPhysics nodes
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|Shared Collision", meta = (PinHiddenByDefault))
+	bool bUseSharedCollision = false;
+
+	/**
+	 * 共有コリジョンのグループタグ（Source/Target両方で使用）
+	 * Group tag for shared collision (used by both source and target)
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|Shared Collision",
+		meta = (PinHiddenByDefault, EditCondition = "bSharedCollisionSource || bUseSharedCollision"))
+	FGameplayTag SharedCollisionGroupTag;
+
+	/**
 	* Bone Constraintで用いる剛性タイプ
 	* Stiffness type to use in Bone Constraint
 	* http://blog.mmacklin.com/2016/10/12/xpbd-slides-and-stiffness/
@@ -1059,6 +1084,20 @@ private:
 	 * Previous frame's Base bone space to component space transform
 	 */
 	FTransform PrevBaseBoneSpace2ComponentSpace = FTransform::Identity;
+
+	// --- Shared Collision ---
+	// 共有コリジョン用キャッシュ（GameThread初期化、以降ロックフリー）
+	// Cached shared collision pointers (initialized on GameThread, lock-free thereafter)
+	TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> CachedSharedCollisionEntry;
+	TSharedPtr<FKawaiiPhysicsSharedCollisionSourceSlot> CachedSourceSlot;
+	bool bSharedCollisionInitialized = false;
+
+	// 共有コリジョンワーク配列（シミュレーション空間に変換済み）
+	// Shared collision working arrays (converted to simulation space)
+	TArray<FSphericalLimit> SharedSphericalLimits;
+	TArray<FCapsuleLimit> SharedCapsuleLimits;
+	TArray<FBoxLimit> SharedBoxLimits;
+	TArray<FPlanarLimit> SharedPlanarLimits;
 
 	/**
 	* Stores the delta time from the previous frame.
@@ -1308,6 +1347,24 @@ protected:
 	 */
 	void UpdatePlanerLimits(TArray<FPlanarLimit>& Limits, FComponentSpacePoseContext& Output,
 	                        const FBoneContainer& BoneContainer, const FTransform& ComponentTransform) const;
+
+	/**
+	 * 共有コリジョンの初期化（GameThreadで呼ぶ）
+	 * Initialize shared collision entry and source slot (call from GameThread)
+	 */
+	void InitializeSharedCollision(FComponentSpacePoseContext& Output);
+
+	/**
+	 * 計算済みコリジョンをSubsystemに公開する（AnyThread、ロックフリー）
+	 * Write computed collision data to the SharedCollisionSubsystem as source (any thread, lock-free)
+	 */
+	void WriteSharedCollisionToSubsystem(FComponentSpacePoseContext& Output, const FTransform& ComponentTransform);
+
+	/**
+	 * 共有コリジョンを読み取り、シミュレーション空間に変換する（AnyThread、ロックフリー）
+	 * Read shared collision and convert to simulation space (any thread, lock-free)
+	 */
+	void UpdateSharedCollisionLimits(FComponentSpacePoseContext& Output, const FTransform& ComponentTransform);
 
 	/**
 	 * Updates the pose transform for all modified bones.

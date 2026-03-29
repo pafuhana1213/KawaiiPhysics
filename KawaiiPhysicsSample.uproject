@@ -1,12 +1,12 @@
 {
-  "FileVersion": 3,
-  "EngineAssociation": "5.3",
-  "Category": "",
-  "Description": "",
-  "Plugins": [
-    {
-      "Name": "KawaiiPhysics",
-      "Enabled": true
-    }
-  ]
+	"FileVersion": 3,
+	"EngineAssociation": "5.3",
+	"Category": "",
+	"Description": "",
+	"Plugins": [
+		{
+			"Name": "KawaiiPhysics",
+			"Enabled": true
+		}
+	]
 }

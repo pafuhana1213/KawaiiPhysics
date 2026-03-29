@@ -280,6 +280,58 @@ public:
 	                                  UPARAM(ref) FGameplayTagContainer& FilterTags,
 	                                  bool bFilterExactMatch = false);
 
+	// --- Shared Collision ---
+
+	/**
+	 * このノードをコリジョン共有のSourceにするかを設定
+	 * Set whether this node acts as a shared collision source
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Shared Collision", meta=(BlueprintThreadSafe))
+	static FKawaiiPhysicsReference SetSharedCollisionSource(const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                        bool bSharedCollisionSource)
+	{
+		KAWAIIPHYSICS_VALUE_SETTER(bool, bSharedCollisionSource);
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Kawaii Physics|Shared Collision", meta=(BlueprintThreadSafe))
+	static bool GetSharedCollisionSource(const FKawaiiPhysicsReference& KawaiiPhysics)
+	{
+		KAWAIIPHYSICS_VALUE_GETTER(bool, bSharedCollisionSource);
+	}
+
+	/**
+	 * 他のKawaiiPhysicsから共有コリジョンを使用するかを設定
+	 * Set whether to use shared collision limits from other KawaiiPhysics nodes
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Shared Collision", meta=(BlueprintThreadSafe))
+	static FKawaiiPhysicsReference SetUseSharedCollision(const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                     bool bUseSharedCollision)
+	{
+		KAWAIIPHYSICS_VALUE_SETTER(bool, bUseSharedCollision);
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Kawaii Physics|Shared Collision", meta=(BlueprintThreadSafe))
+	static bool GetUseSharedCollision(const FKawaiiPhysicsReference& KawaiiPhysics)
+	{
+		KAWAIIPHYSICS_VALUE_GETTER(bool, bUseSharedCollision);
+	}
+
+	/**
+	 * 共有コリジョンのグループタグを設定
+	 * Set the group tag for shared collision
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Shared Collision", meta=(BlueprintThreadSafe))
+	static FKawaiiPhysicsReference SetSharedCollisionGroupTag(const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                          FGameplayTag SharedCollisionGroupTag)
+	{
+		KAWAIIPHYSICS_VALUE_SETTER(FGameplayTag, SharedCollisionGroupTag);
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Kawaii Physics|Shared Collision", meta=(BlueprintThreadSafe))
+	static FGameplayTag GetSharedCollisionGroupTag(const FKawaiiPhysicsReference& KawaiiPhysics)
+	{
+		KAWAIIPHYSICS_VALUE_GETTER(FGameplayTag, SharedCollisionGroupTag);
+	}
 
 	/** Set ExternalForceParameter template */
 	template <typename ValueType, typename PropertyType>
