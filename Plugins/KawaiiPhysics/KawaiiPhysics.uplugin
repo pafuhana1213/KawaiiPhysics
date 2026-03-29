@@ -19,9 +19,7 @@
 			"Name": "KawaiiPhysics",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"PlatformAllowList": [
-				"Win64"
-			]
+			"PlatformDenyList": []
 		},
 		{
 			"Name": "KawaiiPhysicsEd",
