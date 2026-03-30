@@ -1086,8 +1086,8 @@ private:
 	FTransform PrevBaseBoneSpace2ComponentSpace = FTransform::Identity;
 
 	// --- Shared Collision ---
-	// 共有コリジョン用キャッシュ（GameThread初期化、以降ロックフリー）
-	// Cached shared collision pointers (initialized on GameThread, lock-free thereafter)
+	// 共有コリジョン用キャッシュ（PreUpdateでGameThread初期化、以降はAnyThreadでロックフリー読み取り）
+	// Cached shared collision pointers (initialized in PreUpdate on GameThread, then read lock-free on AnyThread)
 	TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> CachedSharedCollisionEntry;
 	TSharedPtr<FKawaiiPhysicsSharedCollisionSourceSlot> CachedSourceSlot;
 	bool bSharedCollisionInitialized = false;
@@ -1349,10 +1349,11 @@ protected:
 	                        const FBoneContainer& BoneContainer, const FTransform& ComponentTransform) const;
 
 	/**
-	 * 共有コリジョンの初期化（GameThreadで呼ぶ）
-	 * Initialize shared collision entry and source slot (call from GameThread)
+	 * 共有コリジョンの初期化（PreUpdate経由でGameThreadから呼ばれる）
+	 * Initialize shared collision entry and source slot.
+	 * Called from PreUpdate() on the GameThread to ensure TMap mutations are thread-safe.
 	 */
-	void InitializeSharedCollision(FComponentSpacePoseContext& Output);
+	void InitializeSharedCollision(const UAnimInstance* InAnimInstance);
 
 	/**
 	 * 計算済みコリジョンをSubsystemに公開する（AnyThread、ロックフリー）

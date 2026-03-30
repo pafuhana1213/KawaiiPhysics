@@ -475,14 +475,10 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	UpdatePlanerLimits(PlanarLimits, Output, BoneContainer, ComponentTransform);
 	UpdatePlanerLimits(PlanarLimitsData, Output, BoneContainer, ComponentTransform);
 
-	// 共有コリジョンの初期化・更新 / Initialize and update shared collision
+	// 共有コリジョンの更新（初期化はPreUpdateでGameThread実行済み）
+	// Update shared collision (initialization done in PreUpdate on GameThread)
 	if ((bSharedCollisionSource || bUseSharedCollision) && SharedCollisionGroupTag.IsValid())
 	{
-		if (!bSharedCollisionInitialized)
-		{
-			InitializeSharedCollision(Output);
-		}
-
 		if (bUseSharedCollision && CachedSharedCollisionEntry.IsValid())
 		{
 			UpdateSharedCollisionLimits(Output, ComponentTransform);
@@ -571,11 +567,10 @@ bool FAnimNode_KawaiiPhysics::IsValidToEvaluate(const USkeleton* Skeleton, const
 
 bool FAnimNode_KawaiiPhysics::HasPreUpdate() const
 {
-#if WITH_EDITOR
+	// CDO上でキャッシュされるため無条件true（共有コリジョン初期化にGameThread PreUpdateが必要）
+	// Must return true unconditionally: cached on CDO at load time (AnimBlueprintGeneratedClass).
+	// Shared collision initialization requires GameThread PreUpdate.
 	return true;
-#else
-	return false;
-#endif
 }
 
 void FAnimNode_KawaiiPhysics::PreUpdate(const UAnimInstance* InAnimInstance)
@@ -590,6 +585,16 @@ void FAnimNode_KawaiiPhysics::PreUpdate(const UAnimInstance* InAnimInstance)
 		}
 	}
 #endif
+
+	// 共有コリジョンの初期化（GameThreadで実行、TMapへの書き込みはスレッドセーフでないため）
+	// Initialize shared collision on GameThread (TMap mutation is not thread-safe)
+	if ((bSharedCollisionSource || bUseSharedCollision) && SharedCollisionGroupTag.IsValid())
+	{
+		if (!bSharedCollisionInitialized)
+		{
+			InitializeSharedCollision(InAnimInstance);
+		}
+	}
 }
 
 const FVector& FAnimNode_KawaiiPhysics::GetSkelCompMoveVector() const
@@ -2549,20 +2554,20 @@ void FAnimNode_KawaiiPhysics::ApplySyncBones(FComponentSpacePoseContext& Output,
 // Shared Collision
 // -------------------------------------------------------------------
 
-void FAnimNode_KawaiiPhysics::InitializeSharedCollision(FComponentSpacePoseContext& Output)
+void FAnimNode_KawaiiPhysics::InitializeSharedCollision(const UAnimInstance* InAnimInstance)
 {
 	if (bSharedCollisionInitialized)
 	{
 		return;
 	}
 
-	const USkeletalMeshComponent* SkelComp = Output.AnimInstanceProxy->GetSkelMeshComponent();
+	const USkeletalMeshComponent* SkelComp = InAnimInstance->GetSkelMeshComponent();
 	if (!SkelComp)
 	{
 		return;
 	}
 
-	const UWorld* World = SkelComp->GetWorld();
+	const UWorld* World = InAnimInstance->GetWorld();
 	if (!World)
 	{
 		return;
