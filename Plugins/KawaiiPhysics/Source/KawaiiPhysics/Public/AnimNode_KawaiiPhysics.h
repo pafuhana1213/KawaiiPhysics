@@ -840,6 +840,9 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 		meta = (PinHiddenByDefault, EditCondition = "bSharedCollisionSource || bUseSharedCollision"))
 	FGameplayTag SharedCollisionGroupTag;
 
+	/** 共有コリジョンの再初期化を要求 / Request shared collision reinitialization */
+	void RequestSharedCollisionReinit() { bSharedCollisionNeedsReinit = true; }
+
 	/**
 	* Bone Constraintで用いる剛性タイプ
 	* Stiffness type to use in Bone Constraint
@@ -1092,6 +1095,9 @@ private:
 	TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> CachedSharedCollisionEntry;
 	TSharedPtr<FKawaiiPhysicsSharedCollisionSourceSlot> CachedSourceSlot;
 	bool bSharedCollisionInitialized = false;
+	bool bSharedCollisionNeedsReinit = false;
+	int32 SharedCollisionInitRetryCount = 0;
+	bool bSharedCollisionInitWarningLogged = false;
 
 	// 共有コリジョンワーク配列（シミュレーション空間に変換済み）
 	// Shared collision working arrays (converted to simulation space)

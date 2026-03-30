@@ -290,7 +290,13 @@ public:
 	static FKawaiiPhysicsReference SetSharedCollisionSource(const FKawaiiPhysicsReference& KawaiiPhysics,
 	                                                        bool bSharedCollisionSource)
 	{
-		KAWAIIPHYSICS_VALUE_SETTER(bool, bSharedCollisionSource);
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("SetbSharedCollisionSource"),
+			[bSharedCollisionSource](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
+				InKawaiiPhysics.bSharedCollisionSource = bSharedCollisionSource;
+				InKawaiiPhysics.RequestSharedCollisionReinit();
+			});
+		return KawaiiPhysics;
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Kawaii Physics|Shared Collision", meta=(BlueprintThreadSafe))
@@ -307,7 +313,13 @@ public:
 	static FKawaiiPhysicsReference SetUseSharedCollision(const FKawaiiPhysicsReference& KawaiiPhysics,
 	                                                     bool bUseSharedCollision)
 	{
-		KAWAIIPHYSICS_VALUE_SETTER(bool, bUseSharedCollision);
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("SetbUseSharedCollision"),
+			[bUseSharedCollision](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
+				InKawaiiPhysics.bUseSharedCollision = bUseSharedCollision;
+				InKawaiiPhysics.RequestSharedCollisionReinit();
+			});
+		return KawaiiPhysics;
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Kawaii Physics|Shared Collision", meta=(BlueprintThreadSafe))
@@ -324,7 +336,13 @@ public:
 	static FKawaiiPhysicsReference SetSharedCollisionGroupTag(const FKawaiiPhysicsReference& KawaiiPhysics,
 	                                                          FGameplayTag SharedCollisionGroupTag)
 	{
-		KAWAIIPHYSICS_VALUE_SETTER(FGameplayTag, SharedCollisionGroupTag);
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("SetSharedCollisionGroupTag"),
+			[SharedCollisionGroupTag](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
+				InKawaiiPhysics.SharedCollisionGroupTag = SharedCollisionGroupTag;
+				InKawaiiPhysics.RequestSharedCollisionReinit();
+			});
+		return KawaiiPhysics;
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Kawaii Physics|Shared Collision", meta=(BlueprintThreadSafe))

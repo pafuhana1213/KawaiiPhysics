@@ -95,10 +95,19 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 	BoxLimitsData.Empty();
 	PlanarLimitsData.Empty();
 
+	// 旧Slotを即座に期限切れ化 / Mark old slot as immediately expired
+	if (CachedSourceSlot.IsValid())
+	{
+		CachedSourceSlot->LastPublishFrame.store(0, std::memory_order_release);
+	}
+
 	// 共有コリジョンのキャッシュをリセット / Reset shared collision cache
 	bSharedCollisionInitialized = false;
 	CachedSharedCollisionEntry.Reset();
 	CachedSourceSlot.Reset();
+	SharedCollisionInitRetryCount = 0;
+	bSharedCollisionInitWarningLogged = false;
+	bSharedCollisionNeedsReinit = false;
 
 	ApplyLimitsDataAsset(RequiredBones);
 	ApplyPhysicsAsset(RequiredBones);
@@ -589,6 +598,22 @@ void FAnimNode_KawaiiPhysics::PreUpdate(const UAnimInstance* InAnimInstance)
 	}
 #endif
 
+	// BP APIランタイム変更時の遅延リセット / Deferred reinit from Blueprint API runtime changes
+	if (bSharedCollisionNeedsReinit)
+	{
+		// 旧Slotを即座に期限切れ化 / Mark old slot as immediately expired
+		if (CachedSourceSlot.IsValid())
+		{
+			CachedSourceSlot->LastPublishFrame.store(0, std::memory_order_release);
+		}
+		bSharedCollisionInitialized = false;
+		CachedSharedCollisionEntry.Reset();
+		CachedSourceSlot.Reset();
+		SharedCollisionInitRetryCount = 0;
+		bSharedCollisionInitWarningLogged = false;
+		bSharedCollisionNeedsReinit = false;
+	}
+
 	// 共有コリジョンの初期化（GameThreadで実行、TMapへの書き込みはスレッドセーフでないため）
 	// Initialize shared collision on GameThread (TMap mutation is not thread-safe)
 	if ((bSharedCollisionSource || bUseSharedCollision) && SharedCollisionGroupTag.IsValid())
@@ -596,6 +621,21 @@ void FAnimNode_KawaiiPhysics::PreUpdate(const UAnimInstance* InAnimInstance)
 		if (!bSharedCollisionInitialized)
 		{
 			InitializeSharedCollision(InAnimInstance);
+
+			// 初期化リトライが続く場合に警告ログ（1回のみ）
+			// Warn once if target init keeps retrying (source not found)
+			if (!bSharedCollisionInitialized && !bSharedCollisionInitWarningLogged)
+			{
+				SharedCollisionInitRetryCount++;
+				if (SharedCollisionInitRetryCount > 60) // 約1秒 / ~1 second
+				{
+					UE_LOG(LogKawaiiPhysics, Warning,
+						TEXT("SharedCollision: Target could not find source entry for tag [%s]. "
+							"Ensure a source node with matching tag exists on this actor."),
+						*SharedCollisionGroupTag.ToString());
+					bSharedCollisionInitWarningLogged = true;
+				}
+			}
 		}
 	}
 }
@@ -2607,7 +2647,12 @@ void FAnimNode_KawaiiPhysics::InitializeSharedCollision(const UAnimInstance* InA
 		}
 	}
 
-	bSharedCollisionInitialized = true;
+	// Targetの場合、Entry取得成功時のみ初期化完了（未取得時は次フレームでリトライ）
+	// For targets: only mark initialized if entry was found (retry next frame otherwise)
+	if (!bUseSharedCollision || bSharedCollisionSource || CachedSharedCollisionEntry.IsValid())
+	{
+		bSharedCollisionInitialized = true;
+	}
 }
 
 void FAnimNode_KawaiiPhysics::WriteSharedCollisionToSubsystem(

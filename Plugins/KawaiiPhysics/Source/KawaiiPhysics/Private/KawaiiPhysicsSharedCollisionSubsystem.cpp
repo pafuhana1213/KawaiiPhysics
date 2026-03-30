@@ -26,11 +26,11 @@ void FKawaiiPhysicsSharedCollisionSourceSlot::Publish(const FKawaiiPhysicsShared
 	// アトミックスワップ：読み取り側に公開 / Atomic swap: expose to readers
 	ReadBufferIndex.store(WriteIndex, std::memory_order_release);
 
-	// フレーム番号を記録（鮮度チェック用） / Record frame number for staleness detection
+	// フレーム番号を記録（鮮度チェック用） / Record frame number for expiration detection
 	LastPublishFrame.store(GFrameCounter, std::memory_order_release);
 }
 
-bool FKawaiiPhysicsSharedCollisionSourceSlot::IsStale(uint64 CurrentFrame, uint64 MaxAge) const
+bool FKawaiiPhysicsSharedCollisionSourceSlot::IsExpired(uint64 CurrentFrame, uint64 MaxAge) const
 {
 	const uint64 LastFrame = LastPublishFrame.load(std::memory_order_acquire);
 	return (LastFrame == 0) || (CurrentFrame - LastFrame > MaxAge);
@@ -48,11 +48,16 @@ const FKawaiiPhysicsSharedCollisionData& FKawaiiPhysicsSharedCollisionSourceSlot
 TSharedPtr<FKawaiiPhysicsSharedCollisionSourceSlot> FKawaiiPhysicsSharedCollisionEntry::GetOrCreateSlot(uint64 SourceID)
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SharedCollision_GetOrCreateSlot);
+
+	// Findは読み取りのみ — ロック不要（GameThread専用、AnimThreadとは読み取り同士で競合しない）
+	// Find is read-only — no lock needed (GameThread only, no conflict with AnimThread reads)
 	if (TSharedPtr<FKawaiiPhysicsSharedCollisionSourceSlot>* Existing = Slots.Find(SourceID))
 	{
 		return *Existing;
 	}
 
+	// Addは構造変更 — 書き込みロック必要 / Add mutates the TMap — write lock required
+	FWriteScopeLock WriteLock(SlotsLock);
 	TSharedPtr<FKawaiiPhysicsSharedCollisionSourceSlot> NewSlot = MakeShared<FKawaiiPhysicsSharedCollisionSourceSlot>();
 	Slots.Add(SourceID, NewSlot);
 	return NewSlot;
@@ -65,11 +70,12 @@ void FKawaiiPhysicsSharedCollisionEntry::ReadMerged(FKawaiiPhysicsSharedCollisio
 
 	const uint64 CurrentFrame = GFrameCounter;
 
+	FReadScopeLock ReadLock(SlotsLock);
 	for (const auto& Pair : Slots)
 	{
-		// staleスロットをスキップ（Publishが停止したSourceのデータを除外）
-		// Skip stale slots (exclude data from sources that stopped publishing)
-		if (Pair.Value->IsStale(CurrentFrame))
+		// 期限切れスロットをスキップ（Publishが停止したSourceのデータを除外）
+		// Skip expired slots (exclude data from sources that stopped publishing)
+		if (Pair.Value->IsExpired(CurrentFrame))
 		{
 			continue;
 		}
@@ -81,6 +87,30 @@ void FKawaiiPhysicsSharedCollisionEntry::ReadMerged(FKawaiiPhysicsSharedCollisio
 		OutData.BoxLimits.Append(SlotData.BoxLimits);
 		OutData.PlanarLimits.Append(SlotData.PlanarLimits);
 	}
+}
+
+void FKawaiiPhysicsSharedCollisionEntry::RemoveExpiredSlots(uint64 CurrentFrame, uint64 MaxAge)
+{
+	FWriteScopeLock WriteLock(SlotsLock);
+	for (auto SlotIt = Slots.CreateIterator(); SlotIt; ++SlotIt)
+	{
+		if (SlotIt->Value->IsExpired(CurrentFrame, MaxAge))
+		{
+			SlotIt.RemoveCurrent();
+		}
+	}
+}
+
+int32 FKawaiiPhysicsSharedCollisionEntry::GetSlotCount() const
+{
+	FReadScopeLock ReadLock(SlotsLock);
+	return Slots.Num();
+}
+
+bool FKawaiiPhysicsSharedCollisionEntry::IsEmpty() const
+{
+	FReadScopeLock ReadLock(SlotsLock);
+	return Slots.IsEmpty();
 }
 
 // -------------------------------------------------------------------
@@ -166,19 +196,13 @@ void UKawaiiPhysicsSharedCollisionSubsystem::Tick(float DeltaTime)
 			continue;
 		}
 
-		// staleスロットを除去（猶予60フレーム ≈ 1秒@60fps）
-		// Remove stale slots (60 frame grace period ≈ 1s at 60fps)
+		// 期限切れスロットを除去（猶予60フレーム ≈ 1秒@60fps）
+		// Remove expired slots (60 frame grace period ≈ 1s at 60fps)
 		FKawaiiPhysicsSharedCollisionEntry& Entry = *It->Value;
-		for (auto SlotIt = Entry.Slots.CreateIterator(); SlotIt; ++SlotIt)
-		{
-			if (SlotIt->Value->IsStale(CurrentFrame, 60))
-			{
-				SlotIt.RemoveCurrent();
-			}
-		}
+		Entry.RemoveExpiredSlots(CurrentFrame, 60);
 
 		// スロットが空になったエントリも除去 / Remove entry if all slots are gone
-		if (Entry.Slots.IsEmpty())
+		if (Entry.IsEmpty())
 		{
 			It.RemoveCurrent();
 		}
@@ -188,7 +212,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::Tick(float DeltaTime)
 	int32 TotalSlots = 0;
 	for (const auto& Pair : Registry)
 	{
-		TotalSlots += Pair.Value->Slots.Num();
+		TotalSlots += Pair.Value->GetSlotCount();
 	}
 	SET_DWORD_STAT(STAT_KawaiiPhysics_SharedCollision_NumEntries, Registry.Num());
 	SET_DWORD_STAT(STAT_KawaiiPhysics_SharedCollision_NumSlots, TotalSlots);

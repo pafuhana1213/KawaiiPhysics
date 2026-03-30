@@ -53,7 +53,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedCollisionSourceSlot
 	FKawaiiPhysicsSharedCollisionData Buffers[2];
 	std::atomic<int32> ReadBufferIndex{0};
 
-	/** 最終Publishフレーム番号（ロックフリー鮮度チェック用） / Last published frame number for staleness detection */
+	/** 最終Publishフレーム番号（ロックフリー鮮度チェック用） / Last published frame number for expiration detection */
 	std::atomic<uint64> LastPublishFrame{0};
 
 	/** ワーカースレッドから呼び出し可能（ロックフリー） / Can be called from any thread (lock-free) */
@@ -63,7 +63,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedCollisionSourceSlot
 	const FKawaiiPhysicsSharedCollisionData& Read() const;
 
 	/** スロットが古くなっているか判定 / Check if this slot has not been published to recently */
-	bool IsStale(uint64 CurrentFrame, uint64 MaxAge = 2) const;
+	bool IsExpired(uint64 CurrentFrame, uint64 MaxAge = 2) const;
 };
 
 /**
@@ -72,9 +72,6 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedCollisionSourceSlot
  */
 struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedCollisionEntry
 {
-	/** SourceID（AnimNodeアドレス等）→ 専用スロット / Source ID -> dedicated slot */
-	TMap<uint64, TSharedPtr<FKawaiiPhysicsSharedCollisionSourceSlot>> Slots;
-
 	/**
 	 * Source用: 自分専用スロットを取得/作成（GameThreadで呼ぶ）
 	 * For sources: Get or create a dedicated slot (call from GameThread)
@@ -86,6 +83,25 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedCollisionEntry
 	 * For targets: Read merged collision data from all source slots
 	 */
 	void ReadMerged(FKawaiiPhysicsSharedCollisionData& OutData) const;
+
+	/**
+	 * 期限切れスロットを除去（書き込みロック内で実行）
+	 * Remove expired slots under write lock
+	 */
+	void RemoveExpiredSlots(uint64 CurrentFrame, uint64 MaxAge);
+
+	/** スロット数を取得（読み取りロック内） / Get slot count under read lock */
+	int32 GetSlotCount() const;
+
+	/** スロットが空か判定（読み取りロック内） / Check if empty under read lock */
+	bool IsEmpty() const;
+
+private:
+	/** SourceID（AnimNodeアドレス等）→ 専用スロット / Source ID -> dedicated slot */
+	TMap<uint64, TSharedPtr<FKawaiiPhysicsSharedCollisionSourceSlot>> Slots;
+
+	/** TMap構造変更とイテレーションの競合を防ぐロック / Lock to protect TMap structural changes vs iteration */
+	mutable FRWLock SlotsLock;
 };
 
 /**
