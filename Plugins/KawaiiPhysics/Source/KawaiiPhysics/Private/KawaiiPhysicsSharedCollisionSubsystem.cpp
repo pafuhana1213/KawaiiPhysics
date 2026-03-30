@@ -3,6 +3,12 @@
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
 #include "AnimNode_KawaiiPhysics.h"
 
+// SharedCollision CVars（AnimNode_KawaiiPhysics.cpp で定義）
+// SharedCollision CVars (defined in AnimNode_KawaiiPhysics.cpp)
+extern TAutoConsoleVariable<int32> CVarSharedCollisionReadMaxAge;
+extern TAutoConsoleVariable<int32> CVarSharedCollisionCleanupMaxAge;
+extern TAutoConsoleVariable<float> CVarSharedCollisionCleanupInterval;
+
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SharedCollision_Publish"), STAT_KawaiiPhysics_SharedCollision_Publish, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SharedCollision_GetOrCreateSlot"), STAT_KawaiiPhysics_SharedCollision_GetOrCreateSlot, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SharedCollision_ReadMerged"), STAT_KawaiiPhysics_SharedCollision_ReadMerged, STATGROUP_Anim);
@@ -47,6 +53,7 @@ const FKawaiiPhysicsSharedCollisionData& FKawaiiPhysicsSharedCollisionSourceSlot
 
 TSharedPtr<FKawaiiPhysicsSharedCollisionSourceSlot> FKawaiiPhysicsSharedCollisionEntry::GetOrCreateSlot(uint64 SourceID)
 {
+	check(IsInGameThread());
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SharedCollision_GetOrCreateSlot);
 
 	// Findは読み取りのみ — ロック不要（GameThread専用、AnimThreadとは読み取り同士で競合しない）
@@ -75,7 +82,7 @@ void FKawaiiPhysicsSharedCollisionEntry::ReadMerged(FKawaiiPhysicsSharedCollisio
 	{
 		// 期限切れスロットをスキップ（Publishが停止したSourceのデータを除外）
 		// Skip expired slots (exclude data from sources that stopped publishing)
-		if (Pair.Value->IsExpired(CurrentFrame))
+		if (Pair.Value->IsExpired(CurrentFrame, CVarSharedCollisionReadMaxAge.GetValueOnAnyThread()))
 		{
 			continue;
 		}
@@ -91,6 +98,7 @@ void FKawaiiPhysicsSharedCollisionEntry::ReadMerged(FKawaiiPhysicsSharedCollisio
 
 void FKawaiiPhysicsSharedCollisionEntry::RemoveExpiredSlots(uint64 CurrentFrame, uint64 MaxAge)
 {
+	check(IsInGameThread());
 	FWriteScopeLock WriteLock(SlotsLock);
 	for (auto SlotIt = Slots.CreateIterator(); SlotIt; ++SlotIt)
 	{
@@ -120,6 +128,7 @@ bool FKawaiiPhysicsSharedCollisionEntry::IsEmpty() const
 TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> UKawaiiPhysicsSharedCollisionSubsystem::FindOrCreateEntry(
 	AActor* Actor, const FGameplayTag& Tag)
 {
+	check(IsInGameThread());
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SharedCollision_FindOrCreateEntry);
 	if (!Actor || !Tag.IsValid())
 	{
@@ -141,6 +150,7 @@ TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> UKawaiiPhysicsSharedCollisionSubs
 TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> UKawaiiPhysicsSharedCollisionSubsystem::FindEntry(
 	AActor* Actor, const FGameplayTag& Tag) const
 {
+	check(IsInGameThread());
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SharedCollision_FindEntry);
 	if (!Actor || !Tag.IsValid())
 	{
@@ -178,7 +188,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::Deinitialize()
 void UKawaiiPhysicsSharedCollisionSubsystem::Tick(float DeltaTime)
 {
 	CleanupAccumulator += DeltaTime;
-	if (CleanupAccumulator < CleanupIntervalSeconds)
+	if (CleanupAccumulator < CVarSharedCollisionCleanupInterval.GetValueOnGameThread())
 	{
 		return;
 	}
@@ -196,10 +206,9 @@ void UKawaiiPhysicsSharedCollisionSubsystem::Tick(float DeltaTime)
 			continue;
 		}
 
-		// 期限切れスロットを除去（猶予60フレーム ≈ 1秒@60fps）
-		// Remove expired slots (60 frame grace period ≈ 1s at 60fps)
+		// 期限切れスロットを除去 / Remove expired slots
 		FKawaiiPhysicsSharedCollisionEntry& Entry = *It->Value;
-		Entry.RemoveExpiredSlots(CurrentFrame, 60);
+		Entry.RemoveExpiredSlots(CurrentFrame, CVarSharedCollisionCleanupMaxAge.GetValueOnGameThread());
 
 		// スロットが空になったエントリも除去 / Remove entry if all slots are gone
 		if (Entry.IsEmpty())

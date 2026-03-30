@@ -47,6 +47,20 @@ TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsUseBoneContainerRefSkeletonW
 	TEXT("a.AnimNode.KawaiiPhysics.UseBoneContainerRefSkeletonWhenInit"), true, TEXT(
 		"flag to revert the behavior of RefSkeleton in InitModifyBones to its previous implementation."));
 
+// SharedCollision CVars
+TAutoConsoleVariable<int32> CVarSharedCollisionReadMaxAge(
+	TEXT("a.AnimNode.KawaiiPhysics.SharedCollision.ReadMaxAge"), 10,
+	TEXT("ReadMergedでの鮮度判定フレーム数。URO/LODスキップを考慮した値に設定 / Max frame age for ReadMerged freshness check. Accounts for URO/LOD skips."));
+TAutoConsoleVariable<int32> CVarSharedCollisionCleanupMaxAge(
+	TEXT("a.AnimNode.KawaiiPhysics.SharedCollision.CleanupMaxAge"), 60,
+	TEXT("Tickでのスロット除去猶予フレーム数 / Grace period in frames before expired slots are removed during Tick cleanup."));
+TAutoConsoleVariable<int32> CVarSharedCollisionInitRetryThreshold(
+	TEXT("a.AnimNode.KawaiiPhysics.SharedCollision.InitRetryThreshold"), 60,
+	TEXT("警告ログを出すまでの初期化リトライ回数 / Number of init retries before logging a warning."));
+TAutoConsoleVariable<float> CVarSharedCollisionCleanupInterval(
+	TEXT("a.AnimNode.KawaiiPhysics.SharedCollision.CleanupInterval"), 1.0f,
+	TEXT("クリーンアップ間隔（秒） / Cleanup interval in seconds."));
+
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_InitModifyBones"), STAT_KawaiiPhysics_InitModifyBones, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_Eval"), STAT_KawaiiPhysics_Eval, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimulateModifyBones"), STAT_KawaiiPhysics_SimulateModifyBones, STATGROUP_Anim);
@@ -108,6 +122,13 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 	SharedCollisionInitRetryCount = 0;
 	bSharedCollisionInitWarningLogged = false;
 	bSharedCollisionNeedsReinit = false;
+
+	// 共有コリジョンワーク配列をリセット / Reset shared collision working arrays
+	SharedCollisionMergedData.Reset();
+	SharedSphericalLimits.Reset();
+	SharedCapsuleLimits.Reset();
+	SharedBoxLimits.Reset();
+	SharedPlanarLimits.Reset();
 
 	ApplyLimitsDataAsset(RequiredBones);
 	ApplyPhysicsAsset(RequiredBones);
@@ -627,7 +648,7 @@ void FAnimNode_KawaiiPhysics::PreUpdate(const UAnimInstance* InAnimInstance)
 			if (!bSharedCollisionInitialized && !bSharedCollisionInitWarningLogged)
 			{
 				SharedCollisionInitRetryCount++;
-				if (SharedCollisionInitRetryCount > 60) // 約1秒 / ~1 second
+				if (SharedCollisionInitRetryCount > CVarSharedCollisionInitRetryThreshold.GetValueOnGameThread())
 				{
 					UE_LOG(LogKawaiiPhysics, Warning,
 						TEXT("SharedCollision: Target could not find source entry for tag [%s]. "
@@ -2666,91 +2687,42 @@ void FAnimNode_KawaiiPhysics::WriteSharedCollisionToSubsystem(
 
 	FKawaiiPhysicsSharedCollisionData Data;
 
-	// ヘルパー: シミュレーション空間→ワールド空間に変換してコリジョンを収集
-	// Helper: collect enabled collision limits and convert from simulation space to world space
-	auto ConvertAndAppendSpheres = [&](const TArray<FSphericalLimit>& Limits)
+	// 汎用ヘルパー: 有効なコリジョンをシミュレーション空間→ワールド空間に変換して収集
+	// Generic helper: collect enabled collision limits and convert from simulation space to world space
+	auto ConvertAndAppend = [&](const auto& InLimits, auto& OutLimits, auto PostConvert)
 	{
-		for (const FSphericalLimit& Limit : Limits)
+		for (const auto& Limit : InLimits)
 		{
 			if (!Limit.bEnable)
 			{
 				continue;
 			}
-			FSphericalLimit WorldLimit = Limit;
+			auto Converted = Limit;
 			const FTransform SimTransform(Limit.Rotation, Limit.Location);
 			const FTransform WorldTransform = ConvertSimulationSpaceTransform(
 				Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::WorldSpace, SimTransform);
-			WorldLimit.Location = WorldTransform.GetLocation();
-			WorldLimit.Rotation = WorldTransform.GetRotation();
-			Data.SphericalLimits.Add(WorldLimit);
+			Converted.Location = WorldTransform.GetLocation();
+			Converted.Rotation = WorldTransform.GetRotation();
+			PostConvert(Converted, WorldTransform);
+			OutLimits.Add(Converted);
 		}
 	};
 
-	auto ConvertAndAppendCapsules = [&](const TArray<FCapsuleLimit>& Limits)
+	auto NoOp = [](auto&, const FTransform&) {};
+	auto RecomputePlane = [](FPlanarLimit& L, const FTransform& T)
 	{
-		for (const FCapsuleLimit& Limit : Limits)
-		{
-			if (!Limit.bEnable)
-			{
-				continue;
-			}
-			FCapsuleLimit WorldLimit = Limit;
-			const FTransform SimTransform(Limit.Rotation, Limit.Location);
-			const FTransform WorldTransform = ConvertSimulationSpaceTransform(
-				Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::WorldSpace, SimTransform);
-			WorldLimit.Location = WorldTransform.GetLocation();
-			WorldLimit.Rotation = WorldTransform.GetRotation();
-			Data.CapsuleLimits.Add(WorldLimit);
-		}
-	};
-
-	auto ConvertAndAppendBoxes = [&](const TArray<FBoxLimit>& Limits)
-	{
-		for (const FBoxLimit& Limit : Limits)
-		{
-			if (!Limit.bEnable)
-			{
-				continue;
-			}
-			FBoxLimit WorldLimit = Limit;
-			const FTransform SimTransform(Limit.Rotation, Limit.Location);
-			const FTransform WorldTransform = ConvertSimulationSpaceTransform(
-				Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::WorldSpace, SimTransform);
-			WorldLimit.Location = WorldTransform.GetLocation();
-			WorldLimit.Rotation = WorldTransform.GetRotation();
-			Data.BoxLimits.Add(WorldLimit);
-		}
-	};
-
-	auto ConvertAndAppendPlanars = [&](const TArray<FPlanarLimit>& Limits)
-	{
-		for (const FPlanarLimit& Limit : Limits)
-		{
-			if (!Limit.bEnable)
-			{
-				continue;
-			}
-			FPlanarLimit WorldLimit = Limit;
-			const FTransform SimTransform(Limit.Rotation, Limit.Location);
-			const FTransform WorldTransform = ConvertSimulationSpaceTransform(
-				Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::WorldSpace, SimTransform);
-			WorldLimit.Location = WorldTransform.GetLocation();
-			WorldLimit.Rotation = WorldTransform.GetRotation();
-			// Plane も再計算 / Recompute plane from world transform
-			WorldLimit.Plane = FPlane(WorldLimit.Location, WorldTransform.GetRotation().GetUpVector());
-			Data.PlanarLimits.Add(WorldLimit);
-		}
+		L.Plane = FPlane(L.Location, T.GetRotation().GetUpVector());
 	};
 
 	// 全コリジョンソースを収集 / Collect from all collision sources
-	ConvertAndAppendSpheres(SphericalLimits);
-	ConvertAndAppendSpheres(SphericalLimitsData);
-	ConvertAndAppendCapsules(CapsuleLimits);
-	ConvertAndAppendCapsules(CapsuleLimitsData);
-	ConvertAndAppendBoxes(BoxLimits);
-	ConvertAndAppendBoxes(BoxLimitsData);
-	ConvertAndAppendPlanars(PlanarLimits);
-	ConvertAndAppendPlanars(PlanarLimitsData);
+	ConvertAndAppend(SphericalLimits,     Data.SphericalLimits, NoOp);
+	ConvertAndAppend(SphericalLimitsData, Data.SphericalLimits, NoOp);
+	ConvertAndAppend(CapsuleLimits,       Data.CapsuleLimits,   NoOp);
+	ConvertAndAppend(CapsuleLimitsData,   Data.CapsuleLimits,   NoOp);
+	ConvertAndAppend(BoxLimits,           Data.BoxLimits,        NoOp);
+	ConvertAndAppend(BoxLimitsData,       Data.BoxLimits,        NoOp);
+	ConvertAndAppend(PlanarLimits,        Data.PlanarLimits,     RecomputePlane);
+	ConvertAndAppend(PlanarLimitsData,    Data.PlanarLimits,     RecomputePlane);
 
 	CachedSourceSlot->Publish(Data);
 }
@@ -2769,10 +2741,9 @@ void FAnimNode_KawaiiPhysics::UpdateSharedCollisionLimits(
 		return;
 	}
 
-	FKawaiiPhysicsSharedCollisionData MergedData;
-	CachedSharedCollisionEntry->ReadMerged(MergedData);
+	CachedSharedCollisionEntry->ReadMerged(SharedCollisionMergedData);
 
-	if (MergedData.IsEmpty())
+	if (SharedCollisionMergedData.IsEmpty())
 	{
 		return;
 	}
@@ -2788,58 +2759,33 @@ void FAnimNode_KawaiiPhysics::UpdateSharedCollisionLimits(
 			Output, EKawaiiPhysicsSimulationSpace::ComponentSpace, SimulationSpace, CSTransform);
 	};
 
-	// Spherical limits
-	SharedSphericalLimits.Reserve(MergedData.SphericalLimits.Num());
-	for (const FSphericalLimit& WorldLimit : MergedData.SphericalLimits)
+	// 汎用ヘルパー: ワールド空間→シミュレーション空間に変換して格納
+	// Generic helper: convert from world space to simulation space and store
+	auto ConvertAndStore = [&](const auto& InLimits, auto& OutLimits, auto PostConvert)
 	{
-		FSphericalLimit SimLimit = WorldLimit;
-		const FTransform WorldTransform(WorldLimit.Rotation, WorldLimit.Location);
-		const FTransform SimTransform = ConvertWorldToSim(WorldTransform);
-		SimLimit.Location = SimTransform.GetLocation();
-		SimLimit.Rotation = SimTransform.GetRotation();
-		SimLimit.bEnable = true;
-		SharedSphericalLimits.Add(SimLimit);
-	}
+		OutLimits.Reserve(InLimits.Num());
+		for (const auto& Limit : InLimits)
+		{
+			auto Converted = Limit;
+			const FTransform WorldTransform(Limit.Rotation, Limit.Location);
+			const FTransform SimTransform = ConvertWorldToSim(WorldTransform);
+			Converted.Location = SimTransform.GetLocation();
+			Converted.Rotation = SimTransform.GetRotation();
+			Converted.bEnable = true;
+			PostConvert(Converted, SimTransform);
+			OutLimits.Add(Converted);
+		}
+	};
 
-	// Capsule limits
-	SharedCapsuleLimits.Reserve(MergedData.CapsuleLimits.Num());
-	for (const FCapsuleLimit& WorldLimit : MergedData.CapsuleLimits)
+	auto NoOp = [](auto&, const FTransform&) {};
+	auto RecomputePlane = [](FPlanarLimit& L, const FTransform& T)
 	{
-		FCapsuleLimit SimLimit = WorldLimit;
-		const FTransform WorldTransform(WorldLimit.Rotation, WorldLimit.Location);
-		const FTransform SimTransform = ConvertWorldToSim(WorldTransform);
-		SimLimit.Location = SimTransform.GetLocation();
-		SimLimit.Rotation = SimTransform.GetRotation();
-		SimLimit.bEnable = true;
-		SharedCapsuleLimits.Add(SimLimit);
-	}
+		L.Plane = FPlane(L.Location, T.GetRotation().GetUpVector());
+	};
 
-	// Box limits
-	SharedBoxLimits.Reserve(MergedData.BoxLimits.Num());
-	for (const FBoxLimit& WorldLimit : MergedData.BoxLimits)
-	{
-		FBoxLimit SimLimit = WorldLimit;
-		const FTransform WorldTransform(WorldLimit.Rotation, WorldLimit.Location);
-		const FTransform SimTransform = ConvertWorldToSim(WorldTransform);
-		SimLimit.Location = SimTransform.GetLocation();
-		SimLimit.Rotation = SimTransform.GetRotation();
-		SimLimit.bEnable = true;
-		SharedBoxLimits.Add(SimLimit);
-	}
-
-	// Planar limits
-	SharedPlanarLimits.Reserve(MergedData.PlanarLimits.Num());
-	for (const FPlanarLimit& WorldLimit : MergedData.PlanarLimits)
-	{
-		FPlanarLimit SimLimit = WorldLimit;
-		const FTransform WorldTransform(WorldLimit.Rotation, WorldLimit.Location);
-		const FTransform SimTransform = ConvertWorldToSim(WorldTransform);
-		SimLimit.Location = SimTransform.GetLocation();
-		SimLimit.Rotation = SimTransform.GetRotation();
-		// Plane を再計算 / Recompute plane in simulation space
-		SimLimit.Plane = FPlane(SimLimit.Location, SimTransform.GetRotation().GetUpVector());
-		SimLimit.bEnable = true;
-		SharedPlanarLimits.Add(SimLimit);
-	}
+	ConvertAndStore(SharedCollisionMergedData.SphericalLimits, SharedSphericalLimits, NoOp);
+	ConvertAndStore(SharedCollisionMergedData.CapsuleLimits,   SharedCapsuleLimits,   NoOp);
+	ConvertAndStore(SharedCollisionMergedData.BoxLimits,       SharedBoxLimits,        NoOp);
+	ConvertAndStore(SharedCollisionMergedData.PlanarLimits,    SharedPlanarLimits,     RecomputePlane);
 }
 

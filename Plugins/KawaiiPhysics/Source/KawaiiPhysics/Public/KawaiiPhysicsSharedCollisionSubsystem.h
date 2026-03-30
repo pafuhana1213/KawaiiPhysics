@@ -63,7 +63,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedCollisionSourceSlot
 	const FKawaiiPhysicsSharedCollisionData& Read() const;
 
 	/** スロットが古くなっているか判定 / Check if this slot has not been published to recently */
-	bool IsExpired(uint64 CurrentFrame, uint64 MaxAge = 2) const;
+	bool IsExpired(uint64 CurrentFrame, uint64 MaxAge) const;
 };
 
 /**
@@ -141,5 +141,4 @@ private:
 
 	/** クリーンアップ間隔制御 / Cleanup interval control */
 	float CleanupAccumulator = 0.0f;
-	static constexpr float CleanupIntervalSeconds = 1.0f;
 };

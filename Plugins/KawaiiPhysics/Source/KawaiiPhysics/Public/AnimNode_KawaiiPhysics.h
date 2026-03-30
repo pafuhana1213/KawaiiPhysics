@@ -22,6 +22,7 @@
 #endif
 
 #include "KawaiiPhysicsSyncBone.h"
+#include "KawaiiPhysicsSharedCollisionSubsystem.h"
 #include "AnimNode_KawaiiPhysics.generated.h"
 
 class UKawaiiPhysics_CustomExternalForce;
@@ -29,7 +30,6 @@ class UKawaiiPhysicsLimitsDataAsset;
 class UKawaiiPhysicsBoneConstraintsDataAsset;
 struct FKawaiiPhysicsSharedCollisionEntry;
 struct FKawaiiPhysicsSharedCollisionSourceSlot;
-struct FKawaiiPhysicsSharedCollisionData;
 
 #if ENABLE_ANIM_DEBUG
 extern KAWAIIPHYSICS_API TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsEnable;
@@ -1105,6 +1105,10 @@ private:
 	TArray<FCapsuleLimit> SharedCapsuleLimits;
 	TArray<FBoxLimit> SharedBoxLimits;
 	TArray<FPlanarLimit> SharedPlanarLimits;
+
+	// ReadMerged結果のキャッシュ（メンバ化によりフレーム間でcapacityを再利用）
+	// Cached ReadMerged result (member variable to reuse capacity across frames)
+	FKawaiiPhysicsSharedCollisionData SharedCollisionMergedData;
 
 	/**
 	* Stores the delta time from the previous frame.
