@@ -53,11 +53,17 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedCollisionSourceSlot
 	FKawaiiPhysicsSharedCollisionData Buffers[2];
 	std::atomic<int32> ReadBufferIndex{0};
 
+	/** 最終Publishフレーム番号（ロックフリー鮮度チェック用） / Last published frame number for staleness detection */
+	std::atomic<uint64> LastPublishFrame{0};
+
 	/** ワーカースレッドから呼び出し可能（ロックフリー） / Can be called from any thread (lock-free) */
 	void Publish(const FKawaiiPhysicsSharedCollisionData& Data);
 
 	/** ワーカースレッドから呼び出し可能（ロックフリー） / Can be called from any thread (lock-free) */
 	const FKawaiiPhysicsSharedCollisionData& Read() const;
+
+	/** スロットが古くなっているか判定 / Check if this slot has not been published to recently */
+	bool IsStale(uint64 CurrentFrame, uint64 MaxAge = 2) const;
 };
 
 /**
@@ -87,7 +93,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedCollisionEntry
  * WorldSubsystem for sharing collision data between KawaiiPhysics AnimNodes across SkeletalMeshComponents
  */
 UCLASS()
-class KAWAIIPHYSICS_API UKawaiiPhysicsSharedCollisionSubsystem : public UWorldSubsystem
+class KAWAIIPHYSICS_API UKawaiiPhysicsSharedCollisionSubsystem : public UTickableWorldSubsystem
 {
 	GENERATED_BODY()
 
@@ -104,7 +110,20 @@ public:
 	 */
 	TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> FindEntry(AActor* Actor, const FGameplayTag& Tag) const;
 
+	// USubsystem interface
+	virtual void Deinitialize() override;
+
+	// FTickableGameObject interface (via UTickableWorldSubsystem)
+	virtual void Tick(float DeltaTime) override;
+	virtual TStatId GetStatId() const override;
+	virtual bool IsTickable() const override { return !Registry.IsEmpty(); }
+	virtual bool IsTickableInEditor() const override { return true; }
+
 private:
 	/** レジストリ: (Actor, Tag) → Entry / Registry: (Actor, Tag) -> Entry */
 	TMap<TPair<TWeakObjectPtr<AActor>, FGameplayTag>, TSharedPtr<FKawaiiPhysicsSharedCollisionEntry>> Registry;
+
+	/** クリーンアップ間隔制御 / Cleanup interval control */
+	float CleanupAccumulator = 0.0f;
+	static constexpr float CleanupIntervalSeconds = 1.0f;
 };

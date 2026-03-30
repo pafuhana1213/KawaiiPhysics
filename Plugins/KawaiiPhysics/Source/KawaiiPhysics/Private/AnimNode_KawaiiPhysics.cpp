@@ -269,7 +269,7 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 #endif
 
 				// Shared collision limits (green) / 共有コリジョン（緑）
-				if (bUseSharedCollision)
+				if (bUseSharedCollision && !bSharedCollisionSource)
 				{
 					for (const auto& SphericalLimit : SharedSphericalLimits)
 					{
@@ -479,7 +479,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	// Update shared collision (initialization done in PreUpdate on GameThread)
 	if ((bSharedCollisionSource || bUseSharedCollision) && SharedCollisionGroupTag.IsValid())
 	{
-		if (bUseSharedCollision && CachedSharedCollisionEntry.IsValid())
+		if (bUseSharedCollision && !bSharedCollisionSource && CachedSharedCollisionEntry.IsValid())
 		{
 			UpdateSharedCollisionLimits(Output, ComponentTransform);
 		}
@@ -1357,7 +1357,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		AdjustByPlanerCollision(Bone, PlanarLimitsData);
 
 		// 共有コリジョン / Shared collision from other KawaiiPhysics nodes
-		if (bUseSharedCollision)
+		if (bUseSharedCollision && !bSharedCollisionSource)
 		{
 			AdjustBySphereCollision(Bone, SharedSphericalLimits);
 			AdjustByCapsuleCollision(Bone, SharedCapsuleLimits);
@@ -2595,7 +2595,7 @@ void FAnimNode_KawaiiPhysics::InitializeSharedCollision(const UAnimInstance* InA
 		}
 	}
 
-	if (bUseSharedCollision)
+	if (bUseSharedCollision && !bSharedCollisionSource)
 	{
 		if (!CachedSharedCollisionEntry.IsValid())
 		{

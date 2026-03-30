@@ -828,7 +828,8 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	 * 他のKawaiiPhysicsから共有コリジョンを使用する
 	 * Use shared collision limits from source KawaiiPhysics nodes
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|Shared Collision", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|Shared Collision",
+		meta = (PinHiddenByDefault, EditCondition = "!bSharedCollisionSource"))
 	bool bUseSharedCollision = false;
 
 	/**
