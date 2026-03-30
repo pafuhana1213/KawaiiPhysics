@@ -77,6 +77,9 @@ DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ConvertSimulationSpaceRotation"),
                    STAT_KawaiiPhysics_ConvertSimulationSpaceRotation, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ConvertSimulationSpace"), STAT_KawaiiPhysics_ConvertSimulationSpace,
                    STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_InitializeSharedCollision"), STAT_KawaiiPhysics_InitializeSharedCollision, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_WriteSharedCollisionToSubsystem"), STAT_KawaiiPhysics_WriteSharedCollisionToSubsystem, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdateSharedCollisionLimits"), STAT_KawaiiPhysics_UpdateSharedCollisionLimits, STATGROUP_Anim);
 
 FAnimNode_KawaiiPhysics::FAnimNode_KawaiiPhysics()
 {
@@ -2556,6 +2559,7 @@ void FAnimNode_KawaiiPhysics::ApplySyncBones(FComponentSpacePoseContext& Output,
 
 void FAnimNode_KawaiiPhysics::InitializeSharedCollision(const UAnimInstance* InAnimInstance)
 {
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_InitializeSharedCollision);
 	if (bSharedCollisionInitialized)
 	{
 		return;
@@ -2609,6 +2613,7 @@ void FAnimNode_KawaiiPhysics::InitializeSharedCollision(const UAnimInstance* InA
 void FAnimNode_KawaiiPhysics::WriteSharedCollisionToSubsystem(
 	FComponentSpacePoseContext& Output, const FTransform& ComponentTransform)
 {
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_WriteSharedCollisionToSubsystem);
 	if (!CachedSourceSlot.IsValid())
 	{
 		return;
@@ -2708,6 +2713,7 @@ void FAnimNode_KawaiiPhysics::WriteSharedCollisionToSubsystem(
 void FAnimNode_KawaiiPhysics::UpdateSharedCollisionLimits(
 	FComponentSpacePoseContext& Output, const FTransform& ComponentTransform)
 {
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdateSharedCollisionLimits);
 	SharedSphericalLimits.Reset();
 	SharedCapsuleLimits.Reset();
 	SharedBoxLimits.Reset();

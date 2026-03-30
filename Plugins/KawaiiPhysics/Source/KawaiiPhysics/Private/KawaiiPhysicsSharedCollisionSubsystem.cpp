@@ -3,12 +3,22 @@
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
 #include "AnimNode_KawaiiPhysics.h"
 
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SharedCollision_Publish"), STAT_KawaiiPhysics_SharedCollision_Publish, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SharedCollision_GetOrCreateSlot"), STAT_KawaiiPhysics_SharedCollision_GetOrCreateSlot, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SharedCollision_ReadMerged"), STAT_KawaiiPhysics_SharedCollision_ReadMerged, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SharedCollision_FindOrCreateEntry"), STAT_KawaiiPhysics_SharedCollision_FindOrCreateEntry, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SharedCollision_FindEntry"), STAT_KawaiiPhysics_SharedCollision_FindEntry, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SharedCollision_Tick"), STAT_KawaiiPhysics_SharedCollision_Tick, STATGROUP_Anim);
+DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_SharedCollision_NumEntries"), STAT_KawaiiPhysics_SharedCollision_NumEntries, STATGROUP_Anim);
+DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_SharedCollision_NumSlots"), STAT_KawaiiPhysics_SharedCollision_NumSlots, STATGROUP_Anim);
+
 // -------------------------------------------------------------------
 // FKawaiiPhysicsSharedCollisionSourceSlot
 // -------------------------------------------------------------------
 
 void FKawaiiPhysicsSharedCollisionSourceSlot::Publish(const FKawaiiPhysicsSharedCollisionData& Data)
 {
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SharedCollision_Publish);
 	// 非アクティブバッファに書き込み / Write to inactive buffer
 	const int32 WriteIndex = 1 - ReadBufferIndex.load(std::memory_order_acquire);
 	Buffers[WriteIndex] = Data;
@@ -37,6 +47,7 @@ const FKawaiiPhysicsSharedCollisionData& FKawaiiPhysicsSharedCollisionSourceSlot
 
 TSharedPtr<FKawaiiPhysicsSharedCollisionSourceSlot> FKawaiiPhysicsSharedCollisionEntry::GetOrCreateSlot(uint64 SourceID)
 {
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SharedCollision_GetOrCreateSlot);
 	if (TSharedPtr<FKawaiiPhysicsSharedCollisionSourceSlot>* Existing = Slots.Find(SourceID))
 	{
 		return *Existing;
@@ -49,6 +60,7 @@ TSharedPtr<FKawaiiPhysicsSharedCollisionSourceSlot> FKawaiiPhysicsSharedCollisio
 
 void FKawaiiPhysicsSharedCollisionEntry::ReadMerged(FKawaiiPhysicsSharedCollisionData& OutData) const
 {
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SharedCollision_ReadMerged);
 	OutData.Reset();
 
 	const uint64 CurrentFrame = GFrameCounter;
@@ -78,6 +90,7 @@ void FKawaiiPhysicsSharedCollisionEntry::ReadMerged(FKawaiiPhysicsSharedCollisio
 TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> UKawaiiPhysicsSharedCollisionSubsystem::FindOrCreateEntry(
 	AActor* Actor, const FGameplayTag& Tag)
 {
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SharedCollision_FindOrCreateEntry);
 	if (!Actor || !Tag.IsValid())
 	{
 		return nullptr;
@@ -98,6 +111,7 @@ TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> UKawaiiPhysicsSharedCollisionSubs
 TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> UKawaiiPhysicsSharedCollisionSubsystem::FindEntry(
 	AActor* Actor, const FGameplayTag& Tag) const
 {
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SharedCollision_FindEntry);
 	if (!Actor || !Tag.IsValid())
 	{
 		return nullptr;
@@ -139,6 +153,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::Tick(float DeltaTime)
 		return;
 	}
 	CleanupAccumulator = 0.0f;
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SharedCollision_Tick);
 
 	const uint64 CurrentFrame = GFrameCounter;
 
@@ -168,6 +183,15 @@ void UKawaiiPhysicsSharedCollisionSubsystem::Tick(float DeltaTime)
 			It.RemoveCurrent();
 		}
 	}
+
+	// 整数カウンタ更新 / Update integer counters
+	int32 TotalSlots = 0;
+	for (const auto& Pair : Registry)
+	{
+		TotalSlots += Pair.Value->Slots.Num();
+	}
+	SET_DWORD_STAT(STAT_KawaiiPhysics_SharedCollision_NumEntries, Registry.Num());
+	SET_DWORD_STAT(STAT_KawaiiPhysics_SharedCollision_NumSlots, TotalSlots);
 }
 
 TStatId UKawaiiPhysicsSharedCollisionSubsystem::GetStatId() const
