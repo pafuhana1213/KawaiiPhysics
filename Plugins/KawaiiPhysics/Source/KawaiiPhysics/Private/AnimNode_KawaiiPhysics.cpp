@@ -1795,19 +1795,20 @@ void FAnimNode_KawaiiPhysics::AdjustBySphereCollision(FKawaiiPhysicsModifyBone& 
 			continue;
 		}
 
-		const float LimitDistance = Bone.PhysicsSettings.Radius + Sphere.Radius;
 		if (Sphere.LimitType == ESphericalLimitType::Outer)
 		{
-			if ((Bone.Location - Sphere.Location).SizeSquared() > LimitDistance * LimitDistance)
+			const float LimitDistanceOuter = Sphere.Radius + Bone.PhysicsSettings.Radius;
+			if ((Bone.Location - Sphere.Location).SizeSquared() > LimitDistanceOuter * LimitDistanceOuter)
 			{
 				continue;
 			}
-			Bone.Location += (LimitDistance - (Bone.Location - Sphere.Location).Size())
+			Bone.Location += (LimitDistanceOuter - (Bone.Location - Sphere.Location).Size())
 				* (Bone.Location - Sphere.Location).GetSafeNormal();
 		}
 		else
 		{
-			if ((Bone.Location - Sphere.Location).SizeSquared() < LimitDistance * LimitDistance)
+			const float LimitDistanceInner = Sphere.Radius - Bone.PhysicsSettings.Radius;
+			if ((Bone.Location - Sphere.Location).SizeSquared() < LimitDistanceInner * LimitDistanceInner)
 			{
 				continue;
 			}
