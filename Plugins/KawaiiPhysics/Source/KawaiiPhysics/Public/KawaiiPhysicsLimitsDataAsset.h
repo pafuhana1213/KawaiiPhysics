@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "AnimNode_KawaiiPhysics.h"
+#include "KawaiiPhysicsCollisionLimits.h"
 #include "Engine/DataAsset.h"
 #include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"
 #include "KawaiiPhysicsLimitsDataAsset.generated.h"

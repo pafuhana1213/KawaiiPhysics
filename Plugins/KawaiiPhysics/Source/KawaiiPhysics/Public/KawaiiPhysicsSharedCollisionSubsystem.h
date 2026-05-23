@@ -6,43 +6,9 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "GameplayTagContainer.h"
 
+#include "KawaiiPhysicsSharedCollisionTypes.h"
+
 #include "KawaiiPhysicsSharedCollisionSubsystem.generated.h"
-
-struct FSphericalLimit;
-struct FCapsuleLimit;
-struct FBoxLimit;
-struct FPlanarLimit;
-
-/**
- * 共有コリジョンデータ（ワールド空間、計算済み）
- * Pre-computed collision data in world space for sharing between KawaiiPhysics AnimNodes
- */
-USTRUCT()
-struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedCollisionData
-{
-	GENERATED_BODY()
-
-	TArray<FSphericalLimit> SphericalLimits;
-	TArray<FCapsuleLimit> CapsuleLimits;
-	TArray<FBoxLimit> BoxLimits;
-	TArray<FPlanarLimit> PlanarLimits;
-
-	void Reset()
-	{
-		SphericalLimits.Reset();
-		CapsuleLimits.Reset();
-		BoxLimits.Reset();
-		PlanarLimits.Reset();
-	}
-
-	bool IsEmpty() const
-	{
-		return SphericalLimits.Num() == 0
-			&& CapsuleLimits.Num() == 0
-			&& BoxLimits.Num() == 0
-			&& PlanarLimits.Num() == 0;
-	}
-};
 
 /**
  * Source1つ分のダブルバッファ付きスロット
