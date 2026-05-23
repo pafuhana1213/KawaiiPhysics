@@ -450,6 +450,31 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsModifyBone
 	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
 	bool bDummy = false;
 
+	/**
+	* ボーン間ダミーボーンフラグ（2つの実ボーン間に挿入されたダミー）
+	* Flag: this is an inter-bone dummy (inserted between two real bones)
+	*/
+	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
+	bool bInterBoneDummy = false;
+
+	/**
+	* ボーン間ダミーの補間先（実子ボーン）のインデックス / Real child bone index for PoseLocation interpolation
+	*/
+	UPROPERTY()
+	int32 InterBoneRealChildIndex = -1;
+
+	/**
+	* ボーン間ダミーの補間元（実親ボーン）のインデックス / Real parent bone index for PoseLocation interpolation
+	*/
+	UPROPERTY()
+	int32 InterBoneRealParentIndex = -1;
+
+	/**
+	* ボーン間ダミーの補間アルファ（0.0=実親, 1.0=実子）/ Interpolation alpha between real parent and child
+	*/
+	UPROPERTY()
+	float InterBoneAlpha = 0.0f;
+
 	/** Flag indicating if simulation should be skipped for this bone */
 	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
 	bool bSkipSimulate = false;
@@ -587,7 +612,25 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bones", meta = (PinHiddenByDefault, ClampMin = "0"))
 	float DummyBoneLength = 0.0f;
 
-	/** 
+	/**
+	* 隣接するボーン間に挿入するダミーボーンの分割数。コリジョン検出の精度を向上させる（例: スカートの足貫通防止）
+	* Number of DummyBone subdivisions to insert between adjacent physics bones.
+	* Improves collision detection (e.g., prevents skirts from penetrating legs).
+	* Set to 0 to disable. Auto-corrected based on bone spacing and radius.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bones", meta = (PinHiddenByDefault, ClampMin = "0", ClampMax = "10"))
+	int32 BoneSubdivisionCount = 0;
+
+	/**
+	* ボーン間ダミーボーンをコリジョン判定のみに使用するモード。物理シミュレーション（速度・重力・風）をスキップ
+	* When true, inter-bone dummy bones only participate in collision detection, not full simulation.
+	* Position is interpolated from real bones each frame. Lower performance cost.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bones",
+		meta = (PinHiddenByDefault, EditCondition = "BoneSubdivisionCount > 0"))
+	bool bBoneSubdivisionCollisionOnly = false;
+
+	/**
 	* ボーンの前方。物理制御やダミーボーンの配置位置に影響
 	* Bone forward direction. Affects the placement of physical controls and dummy bones
 	*/
@@ -1046,6 +1089,12 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	float DeltaTime = 0.0f;
 
 private:
+	/**
+	* ボーン間のスペースとRadiusに基づき、挿入可能なダミーボーン数を計算（自動補正）
+	* Calculates the effective number of inter-bone dummy bones, auto-corrected based on spacing and radius.
+	*/
+	int32 CalcInterBoneDummyCount(float Distance, int32 RequestedCount, float AvgRadius) const;
+
 	/**
 	 * Flag indicating whether the physics settings have been initialized.
 	 */

@@ -173,7 +173,7 @@ void FKawaiiPhysicsEditMode::RenderModifyBones(FPrimitiveDrawInterface* PDI) con
 
 			if (Bone.PhysicsSettings.Radius > 0)
 			{
-				auto Color = Bone.bDummy ? FColor::Red : FColor::Yellow;
+				auto Color = Bone.bInterBoneDummy ? FColor::Cyan : (Bone.bDummy ? FColor::Red : FColor::Yellow);
 				DrawWireSphere(PDI, BoneLocation, Color, Bone.PhysicsSettings.Radius, 16, SDPG_Foreground);
 			}
 

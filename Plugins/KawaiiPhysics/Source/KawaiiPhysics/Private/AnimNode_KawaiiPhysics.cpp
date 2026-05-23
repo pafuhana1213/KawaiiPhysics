@@ -94,6 +94,9 @@ DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ConvertSimulationSpace"), STAT_KawaiiPhys
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_InitializeSharedCollision"), STAT_KawaiiPhysics_InitializeSharedCollision, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_WriteSharedCollisionToSubsystem"), STAT_KawaiiPhysics_WriteSharedCollisionToSubsystem, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdateSharedCollisionLimits"), STAT_KawaiiPhysics_UpdateSharedCollisionLimits, STATGROUP_Anim);
+DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_NumModifyBones"), STAT_KawaiiPhysics_NumModifyBones, STATGROUP_Anim);
+DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_NumInterBoneDummyBones"), STAT_KawaiiPhysics_NumInterBoneDummyBones, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_InsertInterBoneDummyBones"), STAT_KawaiiPhysics_InsertInterBoneDummyBones, STATGROUP_Anim);
 
 FAnimNode_KawaiiPhysics::FAnimNode_KawaiiPhysics()
 {
@@ -213,7 +216,7 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 						ConvertSimulationSpaceLocation(Output, SimulationSpace,
 						                               EKawaiiPhysicsSimulationSpace::WorldSpace, ModifyBone.Location);
 
-					auto Color = ModifyBone.bDummy ? FColor::Red : FColor::Yellow;
+					auto Color = ModifyBone.bInterBoneDummy ? FColor::Cyan : (ModifyBone.bDummy ? FColor::Red : FColor::Yellow);
 					AnimInstanceProxy->AnimDrawDebugSphere(LocationWS, ModifyBone.PhysicsSettings.Radius, 8,
 					                                       Color, false, -1, LineThickness, SDPG_Foreground);
 
@@ -485,6 +488,22 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		InitSyncBones(Output);
 		InitBoneConstraints();
 		PreSkelCompTransform = ComponentTransform;
+
+		// STAT更新 & パフォーマンス警告 / STAT update & performance warning
+		SET_DWORD_STAT(STAT_KawaiiPhysics_NumModifyBones, ModifyBones.Num());
+		int32 InterBoneDummyCount = 0;
+		for (const auto& Bone : ModifyBones)
+		{
+			if (Bone.bInterBoneDummy) InterBoneDummyCount++;
+		}
+		SET_DWORD_STAT(STAT_KawaiiPhysics_NumInterBoneDummyBones, InterBoneDummyCount);
+		if (InterBoneDummyCount > 50)
+		{
+			UE_LOG(LogAnimation, Warning,
+				TEXT("KawaiiPhysics: %d inter-bone dummy bones generated. This may impact performance. Consider reducing BoneSubdivisionCount."),
+				InterBoneDummyCount);
+		}
+
 	}
 
 	// Update each parameter and collision
@@ -775,6 +794,14 @@ void FAnimNode_KawaiiPhysics::InitModifyBones(FComponentSpacePoseContext& Output
 				{
 					ChildIndex += ModifyBones.Num();
 				}
+				if (Bone.InterBoneRealParentIndex >= 0)
+				{
+					Bone.InterBoneRealParentIndex += ModifyBones.Num();
+				}
+				if (Bone.InterBoneRealChildIndex >= 0)
+				{
+					Bone.InterBoneRealChildIndex += ModifyBones.Num();
+				}
 			}
 			ModifyBones.Append(Bones);
 		}
@@ -958,14 +985,94 @@ int32 FAnimNode_KawaiiPhysics::AddModifyBone(TArray<FKawaiiPhysicsModifyBone>& I
 		//for some mesh where tip bone is empty (without any skinning weight in the mesh), ChildBoneIndices > 0 but no actual child bones are created
 		for (auto ChildBoneIndex : ChildBoneIndices)
 		{
+			int32 EffectiveParentIndex = ModifyBoneIndex;
+			TArray<int32> InsertedInterBoneDummyIndices;
+
+			// ボーン間DummyBone挿入 / Insert inter-bone dummy bones
+			if (BoneSubdivisionCount > 0)
+			{
+				// 子ボーンのRefPose位置を取得（バリデーションはAddModifyBoneに任せる）
+				FBoneReference ChildRef;
+				ChildRef.BoneName = RefSkeleton.GetBoneName(ChildBoneIndex);
+				ChildRef.Initialize(BoneContainer);
+
+				if (ChildRef.CachedCompactPoseIndex != INDEX_NONE)
+				{
+					const FTransform ChildTransform = GetBoneTransformInSimSpace(Output, ChildRef.CachedCompactPoseIndex);
+					const FVector ChildLocation = ChildTransform.GetLocation();
+					const FVector ParentLocation = InModifyBones[ModifyBoneIndex].Location;
+					const float Distance = (ChildLocation - ParentLocation).Size();
+
+					// ベースRadiusで自動補正カウントを算出
+					// RadiusCurveはCalcBoneLength後にUpdatePhysicsSettingsOfModifyBonesで適用
+					const float AvgRadius = PhysicsSettings.Radius;
+					const int32 EffectiveCount = CalcInterBoneDummyCount(Distance, BoneSubdivisionCount, AvgRadius);
+
+					const FQuat ParentRotation = InModifyBones[ModifyBoneIndex].PrevRotation;
+					const FQuat ChildRotation = ChildTransform.GetRotation();
+					const FVector ParentScale = InModifyBones[ModifyBoneIndex].PoseScale;
+					const FVector ChildScale = ChildTransform.GetScale3D();
+
+					for (int32 j = 0; j < EffectiveCount; j++)
+					{
+						const float LerpAlpha = static_cast<float>(j + 1) / (EffectiveCount + 1);
+
+						FKawaiiPhysicsModifyBone InterDummy;
+						InterDummy.bDummy = true;
+						InterDummy.bInterBoneDummy = true;
+						InterDummy.InterBoneAlpha = LerpAlpha;
+						InterDummy.InterBoneRealParentIndex = ModifyBoneIndex;
+						// InterBoneRealChildIndex は子追加後に設定
+						InterDummy.Location = FMath::Lerp(ParentLocation, ChildLocation, LerpAlpha);
+						InterDummy.PrevLocation = InterDummy.Location;
+						InterDummy.PoseLocation = InterDummy.Location;
+						InterDummy.PrevRotation = FQuat::Slerp(ParentRotation, ChildRotation, LerpAlpha);
+						InterDummy.PoseRotation = InterDummy.PrevRotation;
+						InterDummy.PoseScale = FMath::Lerp(ParentScale, ChildScale, LerpAlpha);
+						InterDummy.BoneLength = Distance / (EffectiveCount + 1);
+
+						const int32 DummyIdx = InModifyBones.Add(InterDummy);
+						InModifyBones[DummyIdx].Index = DummyIdx;
+						InModifyBones[EffectiveParentIndex].ChildIndices.Add(DummyIdx);
+						InModifyBones[DummyIdx].ParentIndex = EffectiveParentIndex;
+						EffectiveParentIndex = DummyIdx;
+						InsertedInterBoneDummyIndices.Add(DummyIdx);
+					}
+				}
+			}
+
+			// 子ボーンの再帰追加 / Recursive child addition
 			int32 ChildModifyBoneIndex = AddModifyBone(InModifyBones, Output, BoneContainer, RefSkeleton,
 			                                           ChildBoneIndex,
 			                                           InExcludeBones);
 			if (ChildModifyBoneIndex >= 0)
 			{
-				InModifyBones[ModifyBoneIndex].ChildIndices.Add(ChildModifyBoneIndex);
-				InModifyBones[ChildModifyBoneIndex].ParentIndex = ModifyBoneIndex;
+				InModifyBones[EffectiveParentIndex].ChildIndices.Add(ChildModifyBoneIndex);
+				InModifyBones[ChildModifyBoneIndex].ParentIndex = EffectiveParentIndex;
 				AddedChildBone = true;
+
+				// InterBoneRealChildIndexを全ダミーに設定
+				for (const int32 DummyIdx : InsertedInterBoneDummyIndices)
+				{
+					InModifyBones[DummyIdx].InterBoneRealChildIndex = ChildModifyBoneIndex;
+				}
+			}
+			else if (InsertedInterBoneDummyIndices.Num() > 0)
+			{
+				// 子ボーンが無効（Excluded等） → 挿入済みダミーをクリーンアップ
+				// ダミーは配列末尾に連続しているため逆順で安全に削除可能
+				for (int32 k = InsertedInterBoneDummyIndices.Num() - 1; k >= 0; k--)
+				{
+					const int32 DummyIdx = InsertedInterBoneDummyIndices[k];
+					if (DummyIdx == InModifyBones.Num() - 1)
+					{
+						InModifyBones.RemoveAt(DummyIdx);
+					}
+				}
+				InModifyBones[ModifyBoneIndex].ChildIndices.RemoveAll([&](int32 Idx)
+				{
+					return InsertedInterBoneDummyIndices.Contains(Idx);
+				});
 			}
 		}
 	}
@@ -1025,13 +1132,13 @@ void FAnimNode_KawaiiPhysics::CalcBoneLength(FKawaiiPhysicsModifyBone& Bone,
 		if (!Bone.bDummy)
 		{
 			Bone.BoneLength = RefBonePose[Bone.BoneRef.BoneIndex].GetLocation().Size();
-			Bone.LengthFromRoot = InModifyBones[Bone.ParentIndex].LengthFromRoot + Bone.BoneLength;
 		}
-		else
+		else if (!Bone.bInterBoneDummy)
 		{
-			Bone.BoneLength = DummyBoneLength;
-			Bone.LengthFromRoot = InModifyBones[Bone.ParentIndex].LengthFromRoot + DummyBoneLength;
+			Bone.BoneLength = DummyBoneLength; // tip dummy
 		}
+		// else: inter-bone dummy → BoneLengthはAddModifyBoneで設定済み
+		Bone.LengthFromRoot = InModifyBones[Bone.ParentIndex].LengthFromRoot + Bone.BoneLength;
 
 		TotalBoneLength = FMath::Max(TotalBoneLength, Bone.LengthFromRoot);
 	}
@@ -1241,12 +1348,20 @@ void FAnimNode_KawaiiPhysics::UpdatePlanerLimits(TArray<FPlanarLimit>& Limits, F
 void FAnimNode_KawaiiPhysics::UpdateModifyBonesPoseTransform(FComponentSpacePoseContext& Output,
                                                              const FBoneContainer& BoneContainer)
 {
+	// 1パス目: 実ボーンとtip dummyのPoseLocationを更新
+	// Pass 1: Update real bones and tip dummies (inter-bone dummies need both endpoints ready)
 	for (auto& Bone : ModifyBones)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdateModifyBonesPoseTransform);
-		
+
+		if (Bone.bInterBoneDummy)
+		{
+			continue; // 2パス目で処理 / Deferred to pass 2
+		}
+
 		if (Bone.bDummy)
 		{
+			// 既存: tip dummy / Existing: tip dummy
 			auto ParentBone = ModifyBones[Bone.ParentIndex];
 			Bone.PoseLocation = ParentBone.PoseLocation +
 				GetBoneForwardVector(ParentBone.PoseRotation) * DummyBoneLength;
@@ -1272,6 +1387,35 @@ void FAnimNode_KawaiiPhysics::UpdateModifyBonesPoseTransform(FComponentSpacePose
 			Bone.PoseLocation = BoneTransform.GetLocation();
 			Bone.PoseRotation = BoneTransform.GetRotation();
 			Bone.PoseScale = BoneTransform.GetScale3D();
+		}
+	}
+
+	// 2パス目: inter-bone dummyのPoseLocationを補間（実親・実子のPoseLocationが確定済み）
+	// Pass 2: Update inter-bone dummies now that both real parent and child PoseLocations are current
+	for (auto& Bone : ModifyBones)
+	{
+		if (!Bone.bInterBoneDummy)
+		{
+			continue;
+		}
+
+		const auto& RealParent = ModifyBones[Bone.InterBoneRealParentIndex];
+		const auto& RealChild = ModifyBones[Bone.InterBoneRealChildIndex];
+
+		// LOD安全チェック: RealChildがLODで無効な場合、親のPoseにフォールバック
+		const auto RealChildCompactPose = RealChild.BoneRef.GetCompactPoseIndex(BoneContainer);
+		if (RealChildCompactPose < 0)
+		{
+			const auto& ParentBone = ModifyBones[Bone.ParentIndex];
+			Bone.PoseLocation = ParentBone.PoseLocation;
+			Bone.PoseRotation = ParentBone.PoseRotation;
+			Bone.PoseScale = ParentBone.PoseScale;
+		}
+		else
+		{
+			Bone.PoseLocation = FMath::Lerp(RealParent.PoseLocation, RealChild.PoseLocation, Bone.InterBoneAlpha);
+			Bone.PoseRotation = FQuat::Slerp(RealParent.PoseRotation, RealChild.PoseRotation, Bone.InterBoneAlpha);
+			Bone.PoseScale = FMath::Lerp(RealParent.PoseScale, RealChild.PoseScale, Bone.InterBoneAlpha);
 		}
 	}
 }
@@ -1388,7 +1532,32 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		{
 			continue;
 		}
+
+		// コリジョン専用モード: Simulate()をスキップ（コリジョンとbone length restorationは後で実行）
+		// Collision-only mode: skip physics simulation, position from real bones after loop
+		if (Bone.bInterBoneDummy && bBoneSubdivisionCollisionOnly)
+		{
+			continue;
+		}
+
 		Simulate(Bone, Scene, ComponentTransform, Exponent, SkelComp, Output);
+	}
+
+	// コリジョン専用モード: 全実ボーンのシミュレーション完了後、シミュレーション済みのLocation間にダミーを配置
+	// Collision-only: position dummies between simulated real bones (not PoseLocation)
+	if (bBoneSubdivisionCollisionOnly)
+	{
+		for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+		{
+			if (Bone.bInterBoneDummy)
+			{
+				Bone.PrevLocation = Bone.Location;
+				Bone.Location = FMath::Lerp(
+					ModifyBones[Bone.InterBoneRealParentIndex].Location,
+					ModifyBones[Bone.InterBoneRealChildIndex].Location,
+					Bone.InterBoneAlpha);
+			}
+		}
 	}
 
 	// External Force : PostApply
@@ -1568,8 +1737,12 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 			FTransform BoneTM = FTransform::Identity;
 			if (Bone.bDummy)
 			{
+				// inter-bone dummyの場合は実親ボーンのTransformを使用（親がまた別のdummyの場合にクラッシュ防止）
+				const FKawaiiPhysicsModifyBone& TransformBone = Bone.bInterBoneDummy
+					? ModifyBones[Bone.InterBoneRealParentIndex]
+					: ParentBone;
 				BoneTM = GetBoneTransformInSimSpace(
-					Output, ParentBone.BoneRef.GetCompactPoseIndex(Output.Pose.GetPose().GetBoneContainer()));
+					Output, TransformBone.BoneRef.GetCompactPoseIndex(Output.Pose.GetPose().GetBoneContainer()));
 			}
 			else
 			{
@@ -1593,8 +1766,12 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 					FTransform BoneTM = FTransform::Identity;
 					if (Bone.bDummy)
 					{
+						// inter-bone dummyの場合は実親ボーンのTransformを使用
+						const FKawaiiPhysicsModifyBone& TransformBone = Bone.bInterBoneDummy
+							? ModifyBones[Bone.InterBoneRealParentIndex]
+							: ParentBone;
 						BoneTM = GetBoneTransformInSimSpace(
-							Output, ParentBone.BoneRef.GetCompactPoseIndex(Output.Pose.GetPose().GetBoneContainer()));
+							Output, TransformBone.BoneRef.GetCompactPoseIndex(Output.Pose.GetPose().GetBoneContainer()));
 					}
 					else
 					{
@@ -2041,18 +2218,19 @@ void FAnimNode_KawaiiPhysics::InitBoneConstraints()
 			(ModifyBones[Constraint.ModifyBoneIndex1].Location - ModifyBones[Constraint.ModifyBoneIndex2].Location).
 			Size();
 
-		// DummyBone"s constraint
+		// DummyBone's constraint
 		if (bAutoAddChildDummyBoneConstraint)
 		{
+			// tip dummy constraint（inter-bone dummyを除外）
 			const int32 ChildDummyBoneIndex1 = ModifyBones[Constraint.ModifyBoneIndex1].ChildIndices.IndexOfByPredicate(
 				[&](int32 Index)
 				{
-					return Index >= 0 && ModifyBones[Index].bDummy == true;
+					return Index >= 0 && ModifyBones[Index].bDummy && !ModifyBones[Index].bInterBoneDummy;
 				});
 			const int32 ChildDummyBoneIndex2 = ModifyBones[Constraint.ModifyBoneIndex2].ChildIndices.IndexOfByPredicate(
 				[&](int32 Index)
 				{
-					return Index >= 0 && ModifyBones[Index].bDummy == true;
+					return Index >= 0 && ModifyBones[Index].bDummy && !ModifyBones[Index].bInterBoneDummy;
 				});
 
 			if (ChildDummyBoneIndex1 >= 0 && ChildDummyBoneIndex2 >= 0)
@@ -2068,6 +2246,51 @@ void FAnimNode_KawaiiPhysics::InitBoneConstraints()
 					Size();
 				NewDummyBoneConstraint.bIsDummy = true;
 				DummyBoneConstraint.Add(NewDummyBoneConstraint);
+			}
+
+			// inter-bone dummy間の横方向Constraint自動生成
+			// Auto-generate lateral constraints between inter-bone dummies of adjacent chains
+			auto CollectInterBoneDummies = [&](int32 BoneIdx) -> TArray<int32>
+			{
+				TArray<int32> Dummies;
+				for (const int32 ChildIdx : ModifyBones[BoneIdx].ChildIndices)
+				{
+					if (ChildIdx >= 0 && ModifyBones[ChildIdx].bInterBoneDummy)
+					{
+						int32 Idx = ChildIdx;
+						while (Idx >= 0 && ModifyBones[Idx].bInterBoneDummy)
+						{
+							Dummies.Add(Idx);
+							int32 NextIdx = -1;
+							for (const int32 CI : ModifyBones[Idx].ChildIndices)
+							{
+								if (CI >= 0 && ModifyBones[CI].bInterBoneDummy)
+								{
+									NextIdx = CI;
+									break;
+								}
+							}
+							Idx = NextIdx;
+						}
+						break;
+					}
+				}
+				return Dummies;
+			};
+
+			const TArray<int32> Dummies1 = CollectInterBoneDummies(Constraint.ModifyBoneIndex1);
+			const TArray<int32> Dummies2 = CollectInterBoneDummies(Constraint.ModifyBoneIndex2);
+			const int32 PairCount = FMath::Min(Dummies1.Num(), Dummies2.Num());
+
+			for (int32 k = 0; k < PairCount; k++)
+			{
+				FModifyBoneConstraint NewConstraint;
+				NewConstraint.ModifyBoneIndex1 = Dummies1[k];
+				NewConstraint.ModifyBoneIndex2 = Dummies2[k];
+				NewConstraint.Length =
+					(ModifyBones[Dummies1[k]].Location - ModifyBones[Dummies2[k]].Location).Size();
+				NewConstraint.bIsDummy = true;
+				DummyBoneConstraint.Add(NewConstraint);
 			}
 		}
 	}
@@ -2787,5 +3010,24 @@ void FAnimNode_KawaiiPhysics::UpdateSharedCollisionLimits(
 	ConvertAndStore(SharedCollisionMergedData.CapsuleLimits,   SharedCapsuleLimits,   NoOp);
 	ConvertAndStore(SharedCollisionMergedData.BoxLimits,       SharedBoxLimits,        NoOp);
 	ConvertAndStore(SharedCollisionMergedData.PlanarLimits,    SharedPlanarLimits,     RecomputePlane);
+}
+
+int32 FAnimNode_KawaiiPhysics::CalcInterBoneDummyCount(float Distance, int32 RequestedCount, float AvgRadius) const
+{
+	if (RequestedCount <= 0 || Distance <= KINDA_SMALL_NUMBER)
+	{
+		return 0;
+	}
+
+	if (AvgRadius <= KINDA_SMALL_NUMBER)
+	{
+		return RequestedCount;
+	}
+
+	// N個のDummyBone → (N+1)セグメント。各セグメント >= 2*AvgRadius で重ならない
+	// Distance / (N+1) >= 2*AvgRadius → N <= Distance/(2*AvgRadius) - 1
+	const int32 MaxCount = FMath::Max(FMath::FloorToInt(Distance / (2.0f * AvgRadius)) - 1, 0);
+
+	return FMath::Min(RequestedCount, MaxCount);
 }
 
