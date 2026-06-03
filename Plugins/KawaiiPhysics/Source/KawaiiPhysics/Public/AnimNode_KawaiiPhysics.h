@@ -615,25 +615,25 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* コリジョン設定（DataAsset版）における球コリジョンのプレビュー
 	* Preview of sphere collision in collision settings (DataAsset version)
 	*/
-	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = "Limits")
+	UPROPERTY(Transient, VisibleAnywhere, AdvancedDisplay, Category = "Limits")
 	TArray<FSphericalLimit> SphericalLimitsData;
 	/** 
 	* コリジョン設定（DataAsset版）におけるカプセルコリジョンのプレビュー
 	* Preview of capsule collision in collision settings (DataAsset version)
 	*/
-	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = "Limits")
+	UPROPERTY(Transient, VisibleAnywhere, AdvancedDisplay, Category = "Limits")
 	TArray<FCapsuleLimit> CapsuleLimitsData;
 	/** 
 	* コリジョン設定（DataAsset版）におけるボックスコリジョンのプレビュー
 	* Preview of box collision in collision settings (DataAsset version)
 	*/
-	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = "Limits")
+	UPROPERTY(Transient, VisibleAnywhere, AdvancedDisplay, Category = "Limits")
 	TArray<FBoxLimit> BoxLimitsData;
 	/** 
 	* コリジョン設定（DataAsset版）における平面コリジョンのプレビュー
 	* Preview of planar collision in collision settings (DataAsset version)
 	*/
-	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = "Limits")
+	UPROPERTY(Transient, VisibleAnywhere, AdvancedDisplay, Category = "Limits")
 	TArray<FPlanarLimit> PlanarLimitsData;
 
 	/**
@@ -711,10 +711,12 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* BoneConstraint処理の対象となるボーンのペアのプレビュー
 	* Preview of bone pairs that will be processed by BoneConstraint
 	*/
-	UPROPERTY(VisibleAnywhere, Category = "Bone Constraint", AdvancedDisplay,
+	UPROPERTY(Transient, VisibleAnywhere, Category = "Bone Constraint", AdvancedDisplay,
 		meta=(TitleProperty="{Bone1} - {Bone2}"))
 	TArray<FModifyBoneConstraint> BoneConstraintsData;
-	UPROPERTY()
+	// ランタイムキャッシュ(BoneConstraints + BoneConstraintsData)。InitBoneConstraints で再構築されるため非シリアライズ。
+	// Runtime cache rebuilt in InitBoneConstraints; not serialized.
+	UPROPERTY(Transient)
 	TArray<FModifyBoneConstraint> MergedBoneConstraints;
 
 	/**
@@ -858,7 +860,11 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag")
 	FGameplayTag KawaiiPhysicsTag;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Bones")
+	/**
+	* 物理制御対象ボーンのランタイムキャッシュ。Initialize_AnyThread で毎回再構築されるため非シリアライズ(Transient)。
+	* Runtime cache of bones under physics control. Rebuilt every Initialize_AnyThread, so it is Transient (not serialized).
+	*/
+	UPROPERTY(Transient, BlueprintReadWrite, Category = "Bones")
 	TArray<FKawaiiPhysicsModifyBone> ModifyBones;
 
 	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics")
