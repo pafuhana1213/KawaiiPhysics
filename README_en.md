@@ -22,7 +22,7 @@ It allows you to easily and cutely animate things that sway, such as hair, skirt
 
 [Demo Video](https://youtu.be/0f-l-SP07Mo)
 
-## 🖼️ Gallery
+## Gallery
 
 <img src="https://github.com/user-attachments/assets/fda69859-b60f-4fde-a683-62da3e2839e4" alt="compare" width="640px">
 
@@ -36,7 +36,7 @@ It allows you to easily and cutely animate things that sway, such as hair, skirt
 
 *Character: [TA-style Kano Saginomiya](https://uzurig.com/ja/uzurig2-rigging-plugin-for-maya-jp/) / Motion: [Shikanokonokonokoshitantan](https://booth.pm/ja/items/5975857) / Setup: [TA Co., Ltd.](https://xta.co.jp/)*
 
-## ✨ Features
+## Features
 
 <table>
   <tr>
@@ -45,20 +45,20 @@ It allows you to easily and cutely animate things that sway, such as hair, skirt
   </tr>
 </table>
 
-- Physics control based on animation and character movement
-- Easy setup with a single `KawaiiPhysics` node in the AnimGraph
-- Supports sphere, capsule, and plane collisions, which can be intuitively adjusted in the viewport
-- Stability that prevents the skeleton from stretching or shrinking even if calculations fail
-- Lightweight algorithm that does not depend on PhysX
-- External forces such as wind and gravity can be applied for artistic purposes
-- Parameters can be saved and shared using `DataAsset` and `PhysicsAsset`
+- Drives your sway bones from the character's animation and movement
+- Just drop a single `KawaiiPhysics` node into your AnimGraph and you're set
+- Supports sphere, capsule, and plane collisions, all adjustable right in the viewport
+- Keeps bone lengths fixed, so bones never stretch or collapse even if the simulation breaks down
+- Uses a simple, PhysX-free algorithm, so it stays light at runtime
+- Apply not just wind and gravity, but also custom forces for artistic effect
+- Save and reuse your settings through `DataAsset` and `PhysicsAsset`
 
 ### Reference Material
 
-The following materials were used as a reference for implementing the physics behavior:
+I referred to the following material while implementing the physics behavior:
 - [Next Idolmaster Graphics & Animation Programming Preview](https://cedil.cesa.or.jp/cedil_sessions/view/416)
 
-## 🚀 Getting Started
+## Getting Started
 
 ### 1. Download
 
@@ -86,13 +86,13 @@ If you do not have a C++ build environment, please download the plugin from the 
 
 > **Note:** An error may occur when packaging a project that only uses Blueprints. In that case, please convert it to a C++ project or refer to [this article](https://papersloth.hatenablog.com/entry/2024/02/14/201629).
 
-## 📚 Documentation & Community
+## Documentation & Community
 
 - **[DeepWiki](https://deepwiki.com/pafuhana1213/KawaiiPhysics)**: AI-generated documentation
 - **[Discussions](https://github.com/pafuhana1213/KawaiiPhysics/discussions)**: For questions, requests, and general chat
 - **[Issues](https://github.com/pafuhana1213/KawaiiPhysics/issues)**: Bug reports
 
-## 🎓 Tutorials & Articles
+## Tutorials & Articles
 
 ### Official
 
@@ -111,11 +111,11 @@ If you do not have a C++ build environment, please download the plugin from the 
   - [【UE4】Kawaii Physics Tutorial #1](https://www.youtube.com/watch?v=hlgXuVML_is)
   - [Learn Kawaii Physics in 5 minutes!【UE5】【tutorial】](https://www.youtube.com/watch?v=TliP9vSxm4c)
 
-## 🎮 Sample
+## Sample
 
 <img src="https://github.com/user-attachments/assets/0d866ad2-f803-400b-bd23-2d46ab17b8ae" alt="sample2" width="640px">
 
-This sample project can be downloaded from Github includes a sample level and characters.
+The sample project on GitHub includes a sample level and characters.
 - **Sample Level**: `Content/KawaiiPhysicsSample/L_KawaiiPhysicsSample`
 - **Characters Used**:
   - **Gray-chan**: http://rarihoma.xvs.jp/products/graychan
@@ -123,28 +123,28 @@ This sample project can be downloaded from Github includes a sample level and ch
     - Copyright (c) 2025 TA Co., Ltd. All rights reserved
     - Terms of Use: https://uzurig.com/ja/terms_of_use_jp/
 
-## 🌟 Showcase
+## Showcase
 
-It has been adopted in many projects!
+Kawaii Physics is used in many projects!
 - **[Showcase List](https://github.com/pafuhana1213/KawaiiPhysics/wiki/Adoption-Record)**
 - Please share your work with us [here](https://github.com/pafuhana1213/KawaiiPhysics/discussions/65)!
 - When sharing your work on Twitter/X, please use the hashtag **[#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)**!
 
-## 📜 License
+## License
 
 [MIT License](https://github.com/pafuhana1213/KawaiiPhysics/blob/master/LICENSE)
 
-## 👨‍💻 Author
+## Author
 
 [Okazu @pafuhana1213](https://twitter.com/pafuhana1213)
 
-## 📅 Changelog
+## Changelog
 
 [Announcements](https://github.com/pafuhana1213/KawaiiPhysics/discussions/categories/announcements-%E3%82%A2%E3%83%8A%E3%82%A6%E3%83%B3%E3%82%B9)
 
 ---
 
-## ✨ Support Me If You’d Like!
+## Support Me If You’d Like!
 
 If this plugin has been even a little helpful for your UE projects, I’m truly glad to hear that!
 
