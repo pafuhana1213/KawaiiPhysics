@@ -2098,13 +2098,17 @@ void FAnimNode_KawaiiPhysics::AdjustBySphereCollision(FKawaiiPhysicsModifyBone& 
 		}
 		else
 		{
-			const float LimitDistanceInner = Sphere.Radius - Bone.PhysicsSettings.Radius;
+			// ボーン半径がスフィア半径以上（内側に収まらない退化ケース）では実効内半径を0にクランプし、
+			// ガードと補正で同一値を使うことで中心へピン留め（符号反転による反対側への飛びを防止）
+			// Clamp the effective inner radius to 0 for the degenerate case where the bone radius >= sphere radius,
+			// and reuse it for both the guard and the correction so the bone is pinned to the center (no sign-flip overshoot)
+			const float LimitDistanceInner = FMath::Max(Sphere.Radius - Bone.PhysicsSettings.Radius, 0.0f);
 			if ((Bone.Location - Sphere.Location).SizeSquared() < LimitDistanceInner * LimitDistanceInner)
 			{
 				continue;
 			}
 			Bone.Location = Sphere.Location +
-				(Sphere.Radius - Bone.PhysicsSettings.Radius) * (Bone.Location - Sphere.Location).GetSafeNormal();
+				LimitDistanceInner * (Bone.Location - Sphere.Location).GetSafeNormal();
 		}
 	}
 }
