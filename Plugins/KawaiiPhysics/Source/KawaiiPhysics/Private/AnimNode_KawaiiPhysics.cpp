@@ -1011,21 +1011,47 @@ int32 FAnimNode_KawaiiPhysics::AddModifyBone(TArray<FKawaiiPhysicsModifyBone>& I
 
 	if (!AddedChildBone && DummyBoneLength > 0.0f)
 	{
+		// 末端ダミーの位置（実ボーンから前方へ DummyBoneLength）
+		// Terminal tip dummy location (forward from the real bone by DummyBoneLength)
+		const FVector TipLocation = NewModifyBone.Location + GetBoneForwardVector(NewModifyBone.PrevRotation) *
+			DummyBoneLength;
+
+		// 実ボーンと末端ダミーの間にもインターボーンダミーを挿入（実ボーン区間と同様に分割）
+		// Subdivide the terminal segment between the real bone and the tip dummy, like real-bone segments
+		TArray<int32> InsertedInterBoneDummyIndices;
+		const int32 EffectiveParentIndex = InsertInterBoneDummyBonesCore(
+			InModifyBones, ModifyBoneIndex, TipLocation, NewModifyBone.PrevRotation,
+			RefBonePoseTransform.GetScale3D(), DummyBoneLength, InsertedInterBoneDummyIndices);
+		const int32 InsertedCount = InsertedInterBoneDummyIndices.Num();
+
 		// Add dummy modify bone
 		FKawaiiPhysicsModifyBone DummyModifyBone;
 		DummyModifyBone.bDummy = true;
-		DummyModifyBone.Location = NewModifyBone.Location + GetBoneForwardVector(NewModifyBone.PrevRotation) *
-			DummyBoneLength;
+		DummyModifyBone.Location = TipLocation;
 		DummyModifyBone.PrevLocation = DummyModifyBone.Location;
 		DummyModifyBone.PoseLocation = DummyModifyBone.Location;
 		DummyModifyBone.PrevRotation = NewModifyBone.PrevRotation;
 		DummyModifyBone.PoseRotation = DummyModifyBone.PrevRotation;
 		DummyModifyBone.PoseScale = RefBonePoseTransform.GetScale3D();
+		if (InsertedCount > 0)
+		{
+			// 分割時: 末端ダミーは最後のインターボーンダミーの子。BoneLength は最終セグメント長
+			// Subdivided: tip dummy is child of the last inter-bone dummy; BoneLength is the final segment
+			DummyModifyBone.InterBoneRealParentIndex = ModifyBoneIndex;
+			DummyModifyBone.BoneLength = DummyBoneLength / (InsertedCount + 1);
+		}
 
 		int32 DummyBoneIndex = InModifyBones.Add(DummyModifyBone);
-		InModifyBones[ModifyBoneIndex].ChildIndices.Add(DummyBoneIndex);
+		InModifyBones[EffectiveParentIndex].ChildIndices.Add(DummyBoneIndex);
 		InModifyBones[DummyBoneIndex].Index = DummyBoneIndex;
-		InModifyBones[DummyBoneIndex].ParentIndex = ModifyBoneIndex;
+		InModifyBones[DummyBoneIndex].ParentIndex = EffectiveParentIndex;
+
+		if (InsertedCount > 0)
+		{
+			// 挿入したインターボーンダミーの InterBoneRealChildIndex を末端ダミーに向ける
+			// Point inserted inter-bone dummies' real child at the tip dummy
+			FinalizeInterBoneDummyBones(InModifyBones, InsertedInterBoneDummyIndices, DummyBoneIndex);
+		}
 	}
 
 
@@ -1063,15 +1089,39 @@ int32 FAnimNode_KawaiiPhysics::InsertInterBoneDummyBones(TArray<FKawaiiPhysicsMo
 	const FVector ParentLocation = InModifyBones[ParentModifyBoneIndex].Location;
 	const float Distance = (ChildLocation - ParentLocation).Size();
 
+	const FQuat ChildRotation = ChildTransform.GetRotation();
+	const FVector ChildScale = ChildTransform.GetScale3D();
+
+	// 実子の位置・回転・スケールを明示的に渡してコア処理に委譲
+	// Delegate to the shared core with the real child transform
+	return InsertInterBoneDummyBonesCore(InModifyBones, ParentModifyBoneIndex, ChildLocation, ChildRotation, ChildScale,
+	                                     Distance, OutInsertedInterBoneDummyIndices);
+}
+
+int32 FAnimNode_KawaiiPhysics::InsertInterBoneDummyBonesCore(TArray<FKawaiiPhysicsModifyBone>& InModifyBones,
+                                                             const int32 ParentModifyBoneIndex,
+                                                             const FVector& ChildLocation,
+                                                             const FQuat& ChildRotation,
+                                                             const FVector& ChildScale,
+                                                             const float Distance,
+                                                             TArray<int32>& OutInsertedInterBoneDummyIndices) const
+{
+	OutInsertedInterBoneDummyIndices.Reset();
+
+	int32 EffectiveParentIndex = ParentModifyBoneIndex;
+	if (BoneSubdivisionCount <= 0)
+	{
+		return EffectiveParentIndex;
+	}
+
 	// ベースRadiusで自動補正カウントを算出
 	// RadiusCurveはCalcBoneLength後にUpdatePhysicsSettingsOfModifyBonesで適用
 	const float AvgRadius = PhysicsSettings.Radius;
 	const int32 EffectiveCount = CalcInterBoneDummyCount(Distance, BoneSubdivisionCount, AvgRadius);
 
+	const FVector ParentLocation = InModifyBones[ParentModifyBoneIndex].Location;
 	const FQuat ParentRotation = InModifyBones[ParentModifyBoneIndex].PrevRotation;
-	const FQuat ChildRotation = ChildTransform.GetRotation();
 	const FVector ParentScale = InModifyBones[ParentModifyBoneIndex].PoseScale;
-	const FVector ChildScale = ChildTransform.GetScale3D();
 
 	for (int32 j = 0; j < EffectiveCount; j++)
 	{
@@ -1168,7 +1218,14 @@ void FAnimNode_KawaiiPhysics::CalcBoneLength(FKawaiiPhysicsModifyBone& Bone,
 		}
 		else if (!Bone.bInterBoneDummy)
 		{
-			Bone.BoneLength = DummyBoneLength; // tip dummy
+			// tip dummy: 親がインターボーンダミー(=末端区間が分割済み)の場合、BoneLengthは
+			// AddModifyBoneで最終セグメント長に設定済みなので上書きしない（LengthFromRootの二重計上防止）
+			// Tip dummy: when the parent is an inter-bone dummy (terminal segment subdivided), BoneLength is
+			// already the final-segment length set in AddModifyBone — don't overwrite (avoids double-counting)
+			if (!InModifyBones[Bone.ParentIndex].bInterBoneDummy)
+			{
+				Bone.BoneLength = DummyBoneLength; // 非分割 tip dummy / non-subdivided tip dummy
+			}
 		}
 		// else: inter-bone dummy → BoneLengthはAddModifyBoneで設定済み
 		Bone.LengthFromRoot = InModifyBones[Bone.ParentIndex].LengthFromRoot + Bone.BoneLength;
@@ -1394,12 +1451,18 @@ void FAnimNode_KawaiiPhysics::UpdateModifyBonesPoseTransform(FComponentSpacePose
 
 		if (Bone.bDummy)
 		{
-			// 既存: tip dummy / Existing: tip dummy
-			auto ParentBone = ModifyBones[Bone.ParentIndex];
-			Bone.PoseLocation = ParentBone.PoseLocation +
-				GetBoneForwardVector(ParentBone.PoseRotation) * DummyBoneLength;
-			Bone.PoseRotation = ParentBone.PoseRotation;
-			Bone.PoseScale = ParentBone.PoseScale;
+			// tip dummy: 分割時は即時親がインターボーンダミー(Pass2でしか確定しない)になるため、
+			// 実親(InterBoneRealParentIndex)を基準に計算して循環依存を回避
+			// Tip dummy: when subdivided, the immediate parent is an inter-bone dummy (only set in Pass 2),
+			// so compute from the real ancestor (InterBoneRealParentIndex) to avoid a stale/circular pose
+			const int32 RealAncestorIndex = (Bone.InterBoneRealParentIndex >= 0)
+				                                ? Bone.InterBoneRealParentIndex
+				                                : Bone.ParentIndex;
+			const auto& RealAncestor = ModifyBones[RealAncestorIndex];
+			Bone.PoseLocation = RealAncestor.PoseLocation +
+				GetBoneForwardVector(RealAncestor.PoseRotation) * DummyBoneLength;
+			Bone.PoseRotation = RealAncestor.PoseRotation;
+			Bone.PoseScale = RealAncestor.PoseScale;
 		}
 		else
 		{
@@ -1435,9 +1498,15 @@ void FAnimNode_KawaiiPhysics::UpdateModifyBonesPoseTransform(FComponentSpacePose
 		const auto& RealParent = ModifyBones[Bone.InterBoneRealParentIndex];
 		const auto& RealChild = ModifyBones[Bone.InterBoneRealChildIndex];
 
+		// 末端ダミーを実子とする場合、tip dummyはBoneRef空でCompactPose<0になるが
+		// PoseLocationはPass1で確定済みなのでLODフォールバック判定から除外する
+		// When the real child is a tip dummy (empty BoneRef → CompactPose<0), its PoseLocation is
+		// already computed in Pass 1, so exclude it from the LOD fallback check.
+		const bool bRealChildIsTipDummy = RealChild.bDummy && !RealChild.bInterBoneDummy;
+
 		// LOD安全チェック: RealChildがLODで無効な場合、親のPoseにフォールバック
 		const auto RealChildCompactPose = RealChild.BoneRef.GetCompactPoseIndex(BoneContainer);
-		if (RealChildCompactPose < 0)
+		if (!bRealChildIsTipDummy && RealChildCompactPose < 0)
 		{
 			const auto& ParentBone = ModifyBones[Bone.ParentIndex];
 			Bone.PoseLocation = ParentBone.PoseLocation;
@@ -1770,12 +1839,18 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 			FTransform BoneTM = FTransform::Identity;
 			if (Bone.bDummy)
 			{
-				// inter-bone dummyの場合は実親ボーンのTransformを使用（親がまた別のdummyの場合にクラッシュ防止）
-				const FKawaiiPhysicsModifyBone& TransformBone = Bone.bInterBoneDummy
+				// inter-bone dummy / 分割末端dummy は実親ボーンのTransformを使用（親がまた別のdummyでBoneRef空のときにクラッシュ防止）
+				// Inter-bone & subdivided tip dummies use the real parent transform (prevents crash when the parent is another dummy with empty BoneRef)
+				const FKawaiiPhysicsModifyBone& TransformBone = (Bone.InterBoneRealParentIndex >= 0)
 					? ModifyBones[Bone.InterBoneRealParentIndex]
 					: ParentBone;
-				BoneTM = GetBoneTransformInSimSpace(
-					Output, TransformBone.BoneRef.GetCompactPoseIndex(Output.Pose.GetPose().GetBoneContainer()));
+				const FCompactPoseBoneIndex TransformCPI =
+					TransformBone.BoneRef.GetCompactPoseIndex(Output.Pose.GetPose().GetBoneContainer());
+				if (TransformCPI >= 0)
+				{
+					BoneTM = GetBoneTransformInSimSpace(Output, TransformCPI);
+				}
+				// else: 無効CompactPose(LOD等) → BoneTMはIdentityのまま / invalid CompactPose → keep Identity
 			}
 			else
 			{
@@ -1799,12 +1874,18 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 					FTransform BoneTM = FTransform::Identity;
 					if (Bone.bDummy)
 					{
-						// inter-bone dummyの場合は実親ボーンのTransformを使用
-						const FKawaiiPhysicsModifyBone& TransformBone = Bone.bInterBoneDummy
+						// inter-bone dummy / 分割末端dummy は実親ボーンのTransformを使用（BoneRef空クラッシュ防止）
+						// Inter-bone & subdivided tip dummies use the real parent transform (prevents empty-BoneRef crash)
+						const FKawaiiPhysicsModifyBone& TransformBone = (Bone.InterBoneRealParentIndex >= 0)
 							? ModifyBones[Bone.InterBoneRealParentIndex]
 							: ParentBone;
-						BoneTM = GetBoneTransformInSimSpace(
-							Output, TransformBone.BoneRef.GetCompactPoseIndex(Output.Pose.GetPose().GetBoneContainer()));
+						const FCompactPoseBoneIndex TransformCPI =
+							TransformBone.BoneRef.GetCompactPoseIndex(Output.Pose.GetPose().GetBoneContainer());
+						if (TransformCPI >= 0)
+						{
+							BoneTM = GetBoneTransformInSimSpace(Output, TransformCPI);
+						}
+						// else: 無効CompactPose(LOD等) → BoneTMはIdentityのまま / invalid CompactPose → keep Identity
 					}
 					else
 					{
@@ -2304,6 +2385,23 @@ void FAnimNode_KawaiiPhysics::InitBoneConstraints()
 								}
 							}
 							Idx = NextIdx;
+						}
+
+						// 末端区間が分割されている場合、チェーン末尾の tip dummy も横方向ペア対象に含める
+						// （tip dummy は ID_N の後ろに移動し直接子探索では見つからないため）
+						// If the terminal segment is subdivided, also include the chain-tail tip dummy in the
+						// lateral pairing (it now sits behind ID_N and isn't found by the direct-child search)
+						if (Dummies.Num() > 0)
+						{
+							const int32 LastDummy = Dummies.Last();
+							for (const int32 CI : ModifyBones[LastDummy].ChildIndices)
+							{
+								if (CI >= 0 && ModifyBones[CI].bDummy && !ModifyBones[CI].bInterBoneDummy)
+								{
+									Dummies.Add(CI);
+									break;
+								}
+							}
 						}
 						break;
 					}

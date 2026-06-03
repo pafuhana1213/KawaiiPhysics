@@ -883,6 +883,20 @@ private:
 	                               TArray<int32>& OutInsertedInterBoneDummyIndices) const;
 
 	/**
+	* 親と任意の子位置の間にインターボーンダミーを挿入するコア処理（実子ボーン／末端ダミー共用）
+	* Core routine that inserts inter-bone dummies between a parent and an explicit child transform.
+	* Used both by the real-child path and the terminal tip-dummy path.
+	* @return 最後に挿入したダミーのインデックス（0個なら ParentModifyBoneIndex） / index of the last inserted dummy (or ParentModifyBoneIndex when none)
+	*/
+	int32 InsertInterBoneDummyBonesCore(TArray<FKawaiiPhysicsModifyBone>& InModifyBones,
+	                                    int32 ParentModifyBoneIndex,
+	                                    const FVector& ChildLocation,
+	                                    const FQuat& ChildRotation,
+	                                    const FVector& ChildScale,
+	                                    float Distance,
+	                                    TArray<int32>& OutInsertedInterBoneDummyIndices) const;
+
+	/**
 	* Finalizes inter-bone dummy metadata after the real child bone has been added.
 	*/
 	void FinalizeInterBoneDummyBones(TArray<FKawaiiPhysicsModifyBone>& InModifyBones,
