@@ -404,7 +404,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bones",
 		meta = (PinHiddenByDefault, EditCondition = "BoneSubdivisionCount > 0"))
-	bool bBoneSubdivisionCollisionOnly = false;
+	bool bBoneSubdivisionCollisionOnly = true;
 
 	/**
 	* ボーンの前方。物理制御やダミーボーンの配置位置に影響
@@ -870,6 +870,31 @@ private:
 	* Calculates the effective number of inter-bone dummy bones, auto-corrected based on spacing and radius.
 	*/
 	int32 CalcInterBoneDummyCount(float Distance, int32 RequestedCount, float AvgRadius) const;
+
+	/**
+	* Inserts inter-bone dummy bones before recursively adding the real child bone.
+	*/
+	int32 InsertInterBoneDummyBones(TArray<FKawaiiPhysicsModifyBone>& InModifyBones,
+	                               FComponentSpacePoseContext& Output,
+	                               const FBoneContainer& BoneContainer,
+	                               const FReferenceSkeleton& RefSkeleton,
+	                               int32 ParentModifyBoneIndex,
+	                               int32 ChildBoneIndex,
+	                               TArray<int32>& OutInsertedInterBoneDummyIndices) const;
+
+	/**
+	* Finalizes inter-bone dummy metadata after the real child bone has been added.
+	*/
+	void FinalizeInterBoneDummyBones(TArray<FKawaiiPhysicsModifyBone>& InModifyBones,
+	                                 const TArray<int32>& InsertedInterBoneDummyIndices,
+	                                 int32 ChildModifyBoneIndex) const;
+
+	/**
+	* Removes inserted inter-bone dummy bones when the real child bone cannot be added.
+	*/
+	void RollbackInterBoneDummyBones(TArray<FKawaiiPhysicsModifyBone>& InModifyBones,
+	                                 int32 ParentModifyBoneIndex,
+	                                 const TArray<int32>& InsertedInterBoneDummyIndices) const;
 
 	/**
 	 * Flag indicating whether the physics settings have been initialized.

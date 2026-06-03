@@ -25,6 +25,7 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_SharedCollision_NumSlots"), STAT_
 void FKawaiiPhysicsSharedCollisionSourceSlot::Publish(const FKawaiiPhysicsSharedCollisionData& Data)
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SharedCollision_Publish);
+	
 	// 非アクティブバッファに書き込み / Write to inactive buffer
 	const int32 WriteIndex = 1 - ReadBufferIndex.load(std::memory_order_acquire);
 	Buffers[WriteIndex] = Data;
@@ -99,6 +100,7 @@ void FKawaiiPhysicsSharedCollisionEntry::ReadMerged(FKawaiiPhysicsSharedCollisio
 void FKawaiiPhysicsSharedCollisionEntry::RemoveExpiredSlots(uint64 CurrentFrame, uint64 MaxAge)
 {
 	check(IsInGameThread());
+	
 	FWriteScopeLock WriteLock(SlotsLock);
 	for (auto SlotIt = Slots.CreateIterator(); SlotIt; ++SlotIt)
 	{
@@ -130,13 +132,13 @@ TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> UKawaiiPhysicsSharedCollisionSubs
 {
 	check(IsInGameThread());
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SharedCollision_FindOrCreateEntry);
+	
 	if (!Actor || !Tag.IsValid())
 	{
 		return nullptr;
 	}
 
 	const TPair<TWeakObjectPtr<AActor>, FGameplayTag> Key(Actor, Tag);
-
 	if (TSharedPtr<FKawaiiPhysicsSharedCollisionEntry>* Existing = Registry.Find(Key))
 	{
 		return *Existing;
@@ -152,6 +154,7 @@ TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> UKawaiiPhysicsSharedCollisionSubs
 {
 	check(IsInGameThread());
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SharedCollision_FindEntry);
+	
 	if (!Actor || !Tag.IsValid())
 	{
 		return nullptr;
