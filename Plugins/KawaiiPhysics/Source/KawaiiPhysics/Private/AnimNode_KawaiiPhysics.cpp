@@ -533,7 +533,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	{
 		if (bUseSharedCollision && !bSharedCollisionSource && CachedSharedCollisionEntry.IsValid())
 		{
-			UpdateSharedCollisionLimits(Output, ComponentTransform);
+			UpdateSharedCollisionLimits(Output);
 		}
 	}
 
@@ -2951,7 +2951,7 @@ void FAnimNode_KawaiiPhysics::WriteSharedCollisionToSubsystem(
 }
 
 void FAnimNode_KawaiiPhysics::UpdateSharedCollisionLimits(
-	FComponentSpacePoseContext& Output, const FTransform& ComponentTransform)
+	FComponentSpacePoseContext& Output)
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdateSharedCollisionLimits);
 	SharedSphericalLimits.Reset();
@@ -2971,17 +2971,6 @@ void FAnimNode_KawaiiPhysics::UpdateSharedCollisionLimits(
 		return;
 	}
 
-	// ヘルパー: ワールド空間→シミュレーション空間に変換
-	// Helper: convert from world space to current simulation space
-	auto ConvertWorldToSim = [&](const FTransform& WorldTransform) -> FTransform
-	{
-		// World → Component space
-		const FTransform CSTransform = WorldTransform.GetRelativeTransform(ComponentTransform);
-		// Component → Simulation space
-		return ConvertSimulationSpaceTransform(
-			Output, EKawaiiPhysicsSimulationSpace::ComponentSpace, SimulationSpace, CSTransform);
-	};
-
 	// 汎用ヘルパー: ワールド空間→シミュレーション空間に変換して格納
 	// Generic helper: convert from world space to simulation space and store
 	auto ConvertAndStore = [&](const auto& InLimits, auto& OutLimits, auto PostConvert)
@@ -2991,7 +2980,8 @@ void FAnimNode_KawaiiPhysics::UpdateSharedCollisionLimits(
 		{
 			auto Converted = Limit;
 			const FTransform WorldTransform(Limit.Rotation, Limit.Location);
-			const FTransform SimTransform = ConvertWorldToSim(WorldTransform);
+			const FTransform SimTransform = ConvertSimulationSpaceTransform(
+				Output, EKawaiiPhysicsSimulationSpace::WorldSpace, SimulationSpace, WorldTransform);
 			Converted.Location = SimTransform.GetLocation();
 			Converted.Rotation = SimTransform.GetRotation();
 			Converted.bEnable = true;

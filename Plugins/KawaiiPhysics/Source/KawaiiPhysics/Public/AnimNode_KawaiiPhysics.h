@@ -1201,7 +1201,7 @@ protected:
 	 * 共有コリジョンを読み取り、シミュレーション空間に変換する（AnyThread、ロックフリー）
 	 * Read shared collision and convert to simulation space (any thread, lock-free)
 	 */
-	void UpdateSharedCollisionLimits(FComponentSpacePoseContext& Output, const FTransform& ComponentTransform);
+	void UpdateSharedCollisionLimits(FComponentSpacePoseContext& Output);
 
 	/**
 	 * Updates the pose transform for all modified bones.
