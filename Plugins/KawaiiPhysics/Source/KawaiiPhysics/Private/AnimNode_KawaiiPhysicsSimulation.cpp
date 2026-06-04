@@ -184,6 +184,13 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		{
 			if (Bone.bInterBoneDummy)
 			{
+				if (!ensureMsgf(ModifyBones.IsValidIndex(Bone.InterBoneRealParentIndex) &&
+				                ModifyBones.IsValidIndex(Bone.InterBoneRealChildIndex),
+				                TEXT("KawaiiPhysics: invalid inter-bone dummy endpoint index.")))
+				{
+					continue;
+				}
+
 				Bone.PrevLocation = Bone.Location;
 				Bone.Location = FMath::Lerp(
 					ModifyBones[Bone.InterBoneRealParentIndex].Location,
@@ -372,7 +379,7 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 			{
 				// inter-bone dummy / 分割末端dummy は実親ボーンのTransformを使用（親がまた別のdummyでBoneRef空のときにクラッシュ防止）
 				// Inter-bone & subdivided tip dummies use the real parent transform (prevents crash when the parent is another dummy with empty BoneRef)
-				const FKawaiiPhysicsModifyBone& TransformBone = (Bone.InterBoneRealParentIndex >= 0)
+				const FKawaiiPhysicsModifyBone& TransformBone = ModifyBones.IsValidIndex(Bone.InterBoneRealParentIndex)
 					? ModifyBones[Bone.InterBoneRealParentIndex]
 					: ParentBone;
 				const FCompactPoseBoneIndex TransformCPI =
@@ -407,7 +414,7 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 					{
 						// inter-bone dummy / 分割末端dummy は実親ボーンのTransformを使用（BoneRef空クラッシュ防止）
 						// Inter-bone & subdivided tip dummies use the real parent transform (prevents empty-BoneRef crash)
-						const FKawaiiPhysicsModifyBone& TransformBone = (Bone.InterBoneRealParentIndex >= 0)
+						const FKawaiiPhysicsModifyBone& TransformBone = ModifyBones.IsValidIndex(Bone.InterBoneRealParentIndex)
 							? ModifyBones[Bone.InterBoneRealParentIndex]
 							: ParentBone;
 						const FCompactPoseBoneIndex TransformCPI =

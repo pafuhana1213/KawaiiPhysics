@@ -80,15 +80,14 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* Improves collision detection (e.g., prevents skirts from penetrating legs).
 	* Set to 0 to disable. Auto-corrected based on bone spacing and radius.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bones", meta = (PinHiddenByDefault, ClampMin = "0", ClampMax = "10"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bones|Bone Subdivision", meta = (PinHiddenByDefault, ClampMin = "0", ClampMax = "10"))
 	int32 BoneSubdivisionCount = 0;
 
 	/**
-	* ボーン間ダミーボーンをコリジョン判定のみに使用するモード。物理シミュレーション（速度・重力・風）をスキップ
-	* When true, inter-bone dummy bones only participate in collision detection, not full simulation.
-	* Position is interpolated from real bones each frame. Lower performance cost.
+	* ボーン間ダミーボーンの速度積分（重力・風など）をスキップし、実ボーン間の補間位置からコリジョン・制約に参加
+	* When true, inter-bone dummy bones skip velocity integration (gravity/wind/etc.) and still participate in collision and constraints from interpolated positions.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bones",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bones|Bone Subdivision",
 		meta = (PinHiddenByDefault, EditCondition = "BoneSubdivisionCount > 0"))
 	bool bBoneSubdivisionCollisionOnly = true;
 
@@ -347,6 +346,8 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 
 	/** 共有コリジョンの再初期化を要求 / Request shared collision reinitialization */
 	void RequestSharedCollisionReinit() { bSharedCollisionNeedsReinit = true; }
+	/** ボーン構造に依存する設定変更後の再初期化を要求 / Request modify-bone rebuild after topology-affecting settings change */
+	void RequestModifyBonesReinit() { bModifyBonesNeedsReinit = true; }
 
 	/**
 	* Bone Constraintで用いる剛性タイプ
@@ -1085,6 +1086,10 @@ protected:
 
 
 private:
+	bool bModifyBonesNeedsReinit = false;
+	int32 LastInitializedBoneSubdivisionCount = 0;
+	float LastInitializedDummyBoneLength = 0.0f;
+
 	// SimulationSpace conversion cache (per-evaluation)
 	struct FSimulationSpaceCache
 	{

@@ -311,9 +311,14 @@ int32 FAnimNode_KawaiiPhysics::InsertInterBoneDummyBonesCore(TArray<FKawaiiPhysi
 		return EffectiveParentIndex;
 	}
 
-	// ベースRadiusで自動補正カウントを算出
-	// RadiusCurveはCalcBoneLength後にUpdatePhysicsSettingsOfModifyBonesで適用
-	const float AvgRadius = PhysicsSettings.Radius;
+	float MaxRadiusCurveScale = 1.0f;
+	const FRichCurve* RadiusCurve = RadiusCurveData.GetRichCurveConst();
+	for (int32 SampleIndex = 0; SampleIndex <= 10; ++SampleIndex)
+	{
+		const float LengthRate = static_cast<float>(SampleIndex) / 10.0f;
+		MaxRadiusCurveScale = FMath::Max(MaxRadiusCurveScale, RadiusCurve->Eval(LengthRate, 1.0f));
+	}
+	const float AvgRadius = PhysicsSettings.Radius * FMath::Max(MaxRadiusCurveScale, 0.0f);
 	const int32 EffectiveCount = CalcInterBoneDummyCount(Distance, BoneSubdivisionCount, AvgRadius);
 
 	const FVector ParentLocation = InModifyBones[ParentModifyBoneIndex].Location;
@@ -460,6 +465,11 @@ void FAnimNode_KawaiiPhysics::UpdateModifyBonesPoseTransform(FComponentSpacePose
 			const int32 RealAncestorIndex = (Bone.InterBoneRealParentIndex >= 0)
 				                                ? Bone.InterBoneRealParentIndex
 				                                : Bone.ParentIndex;
+			if (!ensureMsgf(ModifyBones.IsValidIndex(RealAncestorIndex),
+			                TEXT("KawaiiPhysics: invalid tip-dummy real ancestor index.")))
+			{
+				continue;
+			}
 			const auto& RealAncestor = ModifyBones[RealAncestorIndex];
 			Bone.PoseLocation = RealAncestor.PoseLocation +
 				GetBoneForwardVector(RealAncestor.PoseRotation) * DummyBoneLength;
@@ -493,6 +503,13 @@ void FAnimNode_KawaiiPhysics::UpdateModifyBonesPoseTransform(FComponentSpacePose
 	for (auto& Bone : ModifyBones)
 	{
 		if (!Bone.bInterBoneDummy)
+		{
+			continue;
+		}
+
+		if (!ensureMsgf(ModifyBones.IsValidIndex(Bone.InterBoneRealParentIndex) &&
+		                ModifyBones.IsValidIndex(Bone.InterBoneRealChildIndex),
+		                TEXT("KawaiiPhysics: invalid inter-bone dummy endpoint index.")))
 		{
 			continue;
 		}
@@ -546,21 +563,22 @@ void FAnimNode_KawaiiPhysics::UpdateSkelCompMove(FComponentSpacePoseContext& Out
 
 int32 FAnimNode_KawaiiPhysics::CalcInterBoneDummyCount(float Distance, int32 RequestedCount, float AvgRadius) const
 {
-	if (RequestedCount <= 0 || Distance <= KINDA_SMALL_NUMBER)
+	const int32 ClampedRequestedCount = FMath::Clamp(RequestedCount, 0, 10);
+	if (ClampedRequestedCount <= 0 || Distance <= KINDA_SMALL_NUMBER)
 	{
 		return 0;
 	}
 
 	if (AvgRadius <= KINDA_SMALL_NUMBER)
 	{
-		return RequestedCount;
+		return ClampedRequestedCount;
 	}
 
 	// N個のDummyBone → (N+1)セグメント。各セグメント >= 2*AvgRadius で重ならない
 	// Distance / (N+1) >= 2*AvgRadius → N <= Distance/(2*AvgRadius) - 1
 	const int32 MaxCount = FMath::Max(FMath::FloorToInt(Distance / (2.0f * AvgRadius)) - 1, 0);
 
-	return FMath::Min(RequestedCount, MaxCount);
+	return FMath::Min(ClampedRequestedCount, MaxCount);
 }
 
 

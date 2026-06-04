@@ -119,6 +119,7 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 	SharedCollisionInitRetryCount = 0;
 	bSharedCollisionInitWarningLogged = false;
 	bSharedCollisionNeedsReinit = false;
+	bModifyBonesNeedsReinit = false;
 
 	// 共有コリジョンワーク配列をリセット / Reset shared collision working arrays
 	SharedCollisionMergedData.Reset();
@@ -436,11 +437,15 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	CurrentEvalWorldSpaceCache = BuildSimulationSpaceCache(Output, EKawaiiPhysicsSimulationSpace::WorldSpace);
 	bHasCurrentEvalWorldSpaceCache = true;
 
+	BoneSubdivisionCount = FMath::Clamp(BoneSubdivisionCount, 0, 10);
+	DummyBoneLength = FMath::Max(DummyBoneLength, 0.0f);
+
 	if (TeleportType == ETeleportType::ResetPhysics)
 	{
 		ModifyBones.Empty(ModifyBones.Num());
 		TeleportType = ETeleportType::None;
 		bInitPhysicsSettings = false;
+		bModifyBonesNeedsReinit = false;
 	}
 
 	if (SimulationSpace != LastSimulationSpace)
@@ -448,6 +453,16 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		ConvertSimulationSpace(Output, LastSimulationSpace, SimulationSpace);
 	}
 	LastSimulationSpace = SimulationSpace;
+
+	if (ModifyBones.Num() > 0 &&
+		(bModifyBonesNeedsReinit ||
+		 LastInitializedBoneSubdivisionCount != BoneSubdivisionCount ||
+		 !FMath::IsNearlyEqual(LastInitializedDummyBoneLength, DummyBoneLength)))
+	{
+		ModifyBones.Empty(ModifyBones.Num());
+		bInitPhysicsSettings = false;
+		bModifyBonesNeedsReinit = false;
+	}
 
 #if WITH_EDITOR
 	// sync editing on other Nodes
@@ -481,6 +496,9 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		InitModifyBones(Output, BoneContainer);
 		InitSyncBones(Output);
 		InitBoneConstraints();
+		LastInitializedBoneSubdivisionCount = BoneSubdivisionCount;
+		LastInitializedDummyBoneLength = DummyBoneLength;
+		bModifyBonesNeedsReinit = false;
 		PreSkelCompTransform = ComponentTransform;
 
 		// STAT更新 & パフォーマンス警告 / STAT update & performance warning
