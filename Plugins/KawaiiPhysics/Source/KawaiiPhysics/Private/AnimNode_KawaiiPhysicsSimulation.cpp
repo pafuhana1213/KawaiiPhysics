@@ -247,9 +247,10 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 				(!EndB.bDummy && EndB.BoneRef.BoneIndex >= 0 && EndB.BoneRef.GetCompactPoseIndex(BoneContainer) < 0))
 			{
 				// 端点がLODでカル → proxyを無効化し、後続のコリジョンループからも除外する（stale位置で当たらないように）。
-				// 次フレーム冒頭のC1でbSkipSimulate=falseに戻り再評価される。
+				// 次フレーム冒頭のダミー配置ループでbSkipSimulate=falseに戻り再評価される。
 				// Endpoint culled by LOD -> disable the proxy and exclude it from the following collision loop
-				// (so it doesn't collide at a stale position). C1 resets bSkipSimulate=false and re-evaluates next frame.
+				// (so it doesn't collide at a stale position). The dummy-placement loop at the start of the next
+				// frame resets bSkipSimulate=false and re-evaluates.
 				Bone.bSkipSimulate = true;
 				continue;
 			}
@@ -318,11 +319,12 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 	SET_DWORD_STAT(STAT_KawaiiPhysics_NumWorldCollisionChecks, NumWorldChecks);
 
 	// bridge dummy のコリジョン変位を端点ボーンへ直接転送（実ボーンを押し出すフィードバックの本体）。
-	// コリジョン後・Constraint/length復元前に実行。Push = Location(押し出し後) - PoseLocation(C3で退避したLERP基準)。
-	// 端点へ距離比 (1-α):α で配分し、Scaleで強さを調整。端点が縦dummyの場合もstep8のlength復元で実子へ伝播する。
+	// コリジョン後・Constraint/length復元前に実行。Push = Location(押し出し後) - PoseLocation(上のLERP配置で退避したLERP基準)。
+	// 端点へ距離比 (1-α):α で配分し、Scaleで強さを調整。端点が縦dummyの場合も後段のlength復元で実子へ伝播する。
 	// Direct displacement transfer: push the bridge dummy's collision displacement into its endpoint bones (this is
 	// what makes a collider moving between columns actually move the cloth). Runs after collision, before constraints/
-	// length restore. Push = Location - PoseLocation (LERP base stashed in C3), distributed (1-alpha):alpha, scaled.
+	// length restore. Push = Location - PoseLocation (LERP base stashed above during bridge-dummy placement),
+	// distributed (1-alpha):alpha, scaled.
 	if (BoneConstraintSubdivisionCount > 0 && BoneConstraintSubdivisionFeedbackScale > 0.0f)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_BridgeDummy);
