@@ -303,6 +303,14 @@ int32 FAnimNode_KawaiiPhysics::InsertInterBoneDummyBonesCore(TArray<FKawaiiPhysi
                                                              const float Distance,
                                                              TArray<int32>& OutInsertedInterBoneDummyIndices) const
 {
+	// 縦方向ダミーボーン（BoneSubdivision）挿入の実処理コスト。初期化時のみ。
+	// AddModifyBone（末端区間）と上のオーバーロード（実ボーン区間）の両呼び出し元がここを通るため、
+	// 共通のCoreだけに計測を置き、同一STATの二重計上を避ける。
+	// Actual cost of inserting vertical inter-bone dummies (BoneSubdivision). Init-time only.
+	// Both callers (AddModifyBone for the tip segment, and the overload above for real-bone segments)
+	// funnel through this Core, so instrumenting only here measures all of it without double-counting.
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_InsertInterBoneDummyBones);
+
 	OutInsertedInterBoneDummyIndices.Reset();
 
 	int32 EffectiveParentIndex = ParentModifyBoneIndex;

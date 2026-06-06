@@ -275,6 +275,13 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 	}
 
 	// Adjust by collisions
+	// NOTE: 形状ごとにループを分けると ModifyBones を複数回走査してキャッシュ効率が落ちるため
+	// （ボーン数が多いケースで負荷増）、従来どおりボーン外側の1パスで全形状を処理する。
+	// World判定の時間は関数内の既存STAT（STAT_KawaiiPhysics_WorldCollision）で計測する。
+	// NOTE: keep a single per-bone pass for all shapes. Splitting per shape would re-traverse
+	// ModifyBones multiple times and hurt cache locality (a regression for high bone counts).
+	// World-check time is measured by the existing STAT inside AdjustByWorldCollision.
+	int32 NumWorldChecks = 0;
 	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 	{
 		if (Bone.bSkipSimulate)
@@ -305,8 +312,10 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		if (bAllowWorldCollision)
 		{
 			AdjustByWorldCollision(Output, Bone, SkelComp);
+			++NumWorldChecks; // 発行したワールドスイープ回数 / world sweeps issued this frame
 		}
 	}
+	SET_DWORD_STAT(STAT_KawaiiPhysics_NumWorldCollisionChecks, NumWorldChecks);
 
 	// bridge dummy のコリジョン変位を端点ボーンへ直接転送（実ボーンを押し出すフィードバックの本体）。
 	// コリジョン後・Constraint/length復元前に実行。Push = Location(押し出し後) - PoseLocation(C3で退避したLERP基準)。
@@ -379,34 +388,38 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		}
 	}
 
-	// Adjust by Limits ane Bone Length
-	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+	// Adjust by Limits and Bone Length（角度制限 + 平面制約 + ボーン長復元のO(N)ループをまとめて計測）
+	// Adjust by limits and bone length (measure the angle-limit + planar-constraint + length-restore O(N) loop)
 	{
-		if (Bone.bSkipSimulate)
+		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_AdjustByLimitsAndLength);
+		for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 		{
-			continue;
+			if (Bone.bSkipSimulate)
+			{
+				continue;
+			}
+
+			// bridge dummyは縦親を持たないため長さ/角度復元をスキップ（ParentIndex=-1参照でクラッシュ）。
+			// 位置は直前のconstraint solveで確定済みで、次フレーム冒頭で端点間に再LERPされる。
+			// Bridge dummies have no vertical parent → skip length/angle restore (would deref ParentIndex=-1).
+			// Their position is finalized by the preceding constraint solve and re-LERP'd next frame.
+			if (Bone.bBridgeDummy)
+			{
+				continue;
+			}
+
+			auto& ParentBone = ModifyBones[Bone.ParentIndex];
+
+			// Adjust by angle limit
+			AdjustByAngleLimit(Bone, ParentBone);
+
+			// Adjust by Planar Constraint
+			AdjustByPlanarConstraint(Bone, ParentBone);
+
+			// Restore Bone Length
+			const float BoneLength = (Bone.PoseLocation - ParentBone.PoseLocation).Size();
+			Bone.Location = (Bone.Location - ParentBone.Location).GetSafeNormal() * BoneLength + ParentBone.Location;
 		}
-
-		// bridge dummyは縦親を持たないため長さ/角度復元をスキップ（ParentIndex=-1参照でクラッシュ）。
-		// 位置は直前のconstraint solveで確定済みで、次フレーム冒頭で端点間に再LERPされる。
-		// Bridge dummies have no vertical parent → skip length/angle restore (would deref ParentIndex=-1).
-		// Their position is finalized by the preceding constraint solve and re-LERP'd next frame.
-		if (Bone.bBridgeDummy)
-		{
-			continue;
-		}
-
-		auto& ParentBone = ModifyBones[Bone.ParentIndex];
-
-		// Adjust by angle limit
-		AdjustByAngleLimit(Bone, ParentBone);
-
-		// Adjust by Planar Constraint
-		AdjustByPlanarConstraint(Bone, ParentBone);
-
-		// Restore Bone Length
-		const float BoneLength = (Bone.PoseLocation - ParentBone.PoseLocation).Size();
-		Bone.Location = (Bone.Location - ParentBone.Location).GetSafeNormal() * BoneLength + ParentBone.Location;
 	}
 
 	DeltaTimeOld = DeltaTime;

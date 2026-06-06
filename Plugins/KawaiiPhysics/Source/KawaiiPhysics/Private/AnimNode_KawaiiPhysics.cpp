@@ -93,6 +93,16 @@ DEFINE_STAT(STAT_KawaiiPhysics_NumInterBoneDummyBones);
 DEFINE_STAT(STAT_KawaiiPhysics_NumBridgeDummyBones);
 DEFINE_STAT(STAT_KawaiiPhysics_InsertInterBoneDummyBones);
 DEFINE_STAT(STAT_KawaiiPhysics_BridgeDummy);
+DEFINE_STAT(STAT_KawaiiPhysics_AdjustByLimitsAndLength);
+DEFINE_STAT(STAT_KawaiiPhysics_PreUpdate);
+DEFINE_STAT(STAT_KawaiiPhysics_NumSphereColliders);
+DEFINE_STAT(STAT_KawaiiPhysics_NumCapsuleColliders);
+DEFINE_STAT(STAT_KawaiiPhysics_NumBoxColliders);
+DEFINE_STAT(STAT_KawaiiPhysics_NumPlanarColliders);
+DEFINE_STAT(STAT_KawaiiPhysics_NumSharedColliders);
+DEFINE_STAT(STAT_KawaiiPhysics_NumMergedBoneConstraints);
+DEFINE_STAT(STAT_KawaiiPhysics_NumWorldCollisionChecks);
+DEFINE_STAT(STAT_KawaiiPhysics_ModifyBonesMemory);
 
 FAnimNode_KawaiiPhysics::FAnimNode_KawaiiPhysics()
 {
@@ -566,6 +576,23 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		}
 	}
 
+	// 入力規模カウンタ & メモリの更新（毎フレーム。負荷=N×L等の相関とダミー膨張の可視化用）。
+	// コライダ配列はここまでに更新済み（Update*Limits / UpdateSharedCollisionLimits）。
+	// 注: 既存のNum*系と同じくSET（複数ノード時は最後にSETしたノード値が表示される）。
+	// Per-frame input-size counters & memory (correlate load = N×L, visualize dummy growth).
+	// Collider arrays are already updated above (Update*Limits / UpdateSharedCollisionLimits).
+	// Note: SET semantics like the existing Num* stats (last node wins when multiple nodes exist).
+	SET_DWORD_STAT(STAT_KawaiiPhysics_NumSphereColliders, SphericalLimits.Num() + SphericalLimitsData.Num());
+	SET_DWORD_STAT(STAT_KawaiiPhysics_NumCapsuleColliders, CapsuleLimits.Num() + CapsuleLimitsData.Num());
+	SET_DWORD_STAT(STAT_KawaiiPhysics_NumBoxColliders, BoxLimits.Num() + BoxLimitsData.Num());
+	SET_DWORD_STAT(STAT_KawaiiPhysics_NumPlanarColliders, PlanarLimits.Num() + PlanarLimitsData.Num());
+	SET_DWORD_STAT(STAT_KawaiiPhysics_NumSharedColliders,
+	               SharedSphericalLimits.Num() + SharedCapsuleLimits.Num() + SharedBoxLimits.Num() +
+	               SharedPlanarLimits.Num());
+	SET_DWORD_STAT(STAT_KawaiiPhysics_NumMergedBoneConstraints, MergedBoneConstraints.Num());
+	SET_MEMORY_STAT(STAT_KawaiiPhysics_ModifyBonesMemory,
+	                ModifyBones.GetAllocatedSize() + MergedBoneConstraints.GetAllocatedSize());
+
 	// Update Bone Pose Transform
 	UpdateModifyBonesPoseTransform(Output, BoneContainer);
 
@@ -656,6 +683,8 @@ bool FAnimNode_KawaiiPhysics::HasPreUpdate() const
 
 void FAnimNode_KawaiiPhysics::PreUpdate(const UAnimInstance* InAnimInstance)
 {
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_PreUpdate);
+
 #if WITH_EDITOR
 	if (const UWorld* World = InAnimInstance->GetWorld())
 	{

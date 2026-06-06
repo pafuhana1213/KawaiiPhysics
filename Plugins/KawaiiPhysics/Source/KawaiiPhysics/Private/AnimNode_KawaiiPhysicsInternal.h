@@ -40,3 +40,21 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumBridgeDummyBones"), STA
 DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_InsertInterBoneDummyBones"), STAT_KawaiiPhysics_InsertInterBoneDummyBones, STATGROUP_Anim, KAWAIIPHYSICS_API);
 // bridge dummyの毎フレーム処理（配置LERP + コリジョン変位転送）の合計時間 / Per-frame bridge dummy cost (placement LERP + collision displacement transfer)
 DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_BridgeDummy"), STAT_KawaiiPhysics_BridgeDummy, STATGROUP_Anim, KAWAIIPHYSICS_API);
+
+// 角度制限 + 平面制約 + ボーン長復元のO(N)ループ（従来SimulateModifyBonesに埋没） / Angle limit + planar constraint + bone-length restore O(N) loop (was hidden in SimulateModifyBones)
+DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_AdjustByLimitsAndLength"), STAT_KawaiiPhysics_AdjustByLimitsAndLength, STATGROUP_Anim, KAWAIIPHYSICS_API);
+// PreUpdate(GameThread)全体のコスト / Total cost of PreUpdate on the GameThread
+DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_PreUpdate_GameThread"), STAT_KawaiiPhysics_PreUpdate, STATGROUP_Anim, KAWAIIPHYSICS_API);
+
+// 入力規模カウンタ（負荷=N×L等の相関用） / Input-size counters (correlate load = N×L, etc.)
+DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumSphereColliders"), STAT_KawaiiPhysics_NumSphereColliders, STATGROUP_Anim, KAWAIIPHYSICS_API);
+DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumCapsuleColliders"), STAT_KawaiiPhysics_NumCapsuleColliders, STATGROUP_Anim, KAWAIIPHYSICS_API);
+DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumBoxColliders"), STAT_KawaiiPhysics_NumBoxColliders, STATGROUP_Anim, KAWAIIPHYSICS_API);
+DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumPlanarColliders"), STAT_KawaiiPhysics_NumPlanarColliders, STATGROUP_Anim, KAWAIIPHYSICS_API);
+DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumSharedColliders"), STAT_KawaiiPhysics_NumSharedColliders, STATGROUP_Anim, KAWAIIPHYSICS_API);
+DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumMergedBoneConstraints"), STAT_KawaiiPhysics_NumMergedBoneConstraints, STATGROUP_Anim, KAWAIIPHYSICS_API);
+// 毎フレームに発行したワールドコリジョンのスイープ回数（anim threadからの同期トレース） / World-collision sweeps issued per frame (sync traces from the anim thread)
+DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumWorldCollisionChecks"), STAT_KawaiiPhysics_NumWorldCollisionChecks, STATGROUP_Anim, KAWAIIPHYSICS_API);
+
+// ModifyBones / MergedBoneConstraints のアロケーション量（subdivision/bridge dummyによる膨張の可視化） / Allocated size of ModifyBones / MergedBoneConstraints (visualize growth from subdivision/bridge dummies)
+DECLARE_MEMORY_STAT_EXTERN(TEXT("KawaiiPhysics_ModifyBonesMemory"), STAT_KawaiiPhysics_ModifyBonesMemory, STATGROUP_Anim, KAWAIIPHYSICS_API);
