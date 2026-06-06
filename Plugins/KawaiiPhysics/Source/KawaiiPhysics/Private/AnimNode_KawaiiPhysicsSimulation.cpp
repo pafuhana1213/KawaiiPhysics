@@ -222,6 +222,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 	// Position bridge dummies (horizontal-constraint collision proxies) between their two endpoints.
 	// Always runs (independent of bBoneSubdivisionCollisionOnly); they have higher indices than vertical dummies, so endpoints are already placed.
 	{
+		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_BridgeDummy);
 		const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 		for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 		{
@@ -315,6 +316,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 	// length restore. Push = Location - PoseLocation (LERP base stashed in C3), distributed (1-alpha):alpha, scaled.
 	if (BoneConstraintSubdivisionCount > 0 && BoneConstraintSubdivisionFeedbackScale > 0.0f)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_BridgeDummy);
 		// 端点ごとに「重み付き押し出し量の合計」と「重みの合計」を集計し、最後に divisor=max(1,重み合計) で割る。
 		// 寄与が少ない（重み合計<=1, 局所接触の通常ケース）ときは単純加算と同一の挙動を保ち、
 		// 多数のdummyが同じ端点を押す病的ケースでのみ加重平均化してN倍のオーバーシュート/発振を防ぐ。

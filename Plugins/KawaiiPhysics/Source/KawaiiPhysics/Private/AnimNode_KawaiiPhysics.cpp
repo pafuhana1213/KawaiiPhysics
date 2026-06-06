@@ -92,6 +92,7 @@ DEFINE_STAT(STAT_KawaiiPhysics_NumModifyBones);
 DEFINE_STAT(STAT_KawaiiPhysics_NumInterBoneDummyBones);
 DEFINE_STAT(STAT_KawaiiPhysics_NumBridgeDummyBones);
 DEFINE_STAT(STAT_KawaiiPhysics_InsertInterBoneDummyBones);
+DEFINE_STAT(STAT_KawaiiPhysics_BridgeDummy);
 
 FAnimNode_KawaiiPhysics::FAnimNode_KawaiiPhysics()
 {

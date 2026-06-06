@@ -38,3 +38,5 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumModifyBones"), STAT_Kaw
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumInterBoneDummyBones"), STAT_KawaiiPhysics_NumInterBoneDummyBones, STATGROUP_Anim, KAWAIIPHYSICS_API);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumBridgeDummyBones"), STAT_KawaiiPhysics_NumBridgeDummyBones, STATGROUP_Anim, KAWAIIPHYSICS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_InsertInterBoneDummyBones"), STAT_KawaiiPhysics_InsertInterBoneDummyBones, STATGROUP_Anim, KAWAIIPHYSICS_API);
+// bridge dummyの毎フレーム処理（配置LERP + コリジョン変位転送）の合計時間 / Per-frame bridge dummy cost (placement LERP + collision displacement transfer)
+DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_BridgeDummy"), STAT_KawaiiPhysics_BridgeDummy, STATGROUP_Anim, KAWAIIPHYSICS_API);
