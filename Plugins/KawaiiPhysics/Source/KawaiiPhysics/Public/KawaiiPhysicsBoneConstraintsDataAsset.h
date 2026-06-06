@@ -40,6 +40,13 @@ struct KAWAIIPHYSICS_API FModifyBoneConstraintData
 	EXPBDComplianceType ComplianceType = EXPBDComplianceType::Leather;
 
 	/**
+	 * このConstraintをBoneConstraintSubdivisionの対象から除外する（構造/対角Constraint用のオプトアウト）
+	 * Exclude this constraint from BoneConstraintSubdivision (opt-out for structural/diagonal constraints).
+	 */
+	UPROPERTY(EditAnywhere, category = "KawaiiPhysics")
+	bool bExcludeFromSubdivision = false;
+
+	/**
 	 * Updates the bone constraint data with the given constraint.
 	 * @param BoneConstraint The bone constraint to update from.
 	 */

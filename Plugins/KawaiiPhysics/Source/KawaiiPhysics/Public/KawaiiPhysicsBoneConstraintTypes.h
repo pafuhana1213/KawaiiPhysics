@@ -46,6 +46,13 @@ struct FModifyBoneConstraint
 	UPROPERTY(EditAnywhere, category = "KawaiiPhysics", meta=(EditCondition="bOverrideCompliance"))
 	EXPBDComplianceType ComplianceType = EXPBDComplianceType::Leather;
 
+	/**
+	 * このConstraintをBoneConstraintSubdivisionの対象から除外する（構造/対角Constraint用のオプトアウト）
+	 * Exclude this constraint from BoneConstraintSubdivision (opt-out for structural/diagonal constraints).
+	 */
+	UPROPERTY(EditAnywhere, category = "KawaiiPhysics")
+	bool bExcludeFromSubdivision = false;
+
 	/** Index of the first modify bone */
 	UPROPERTY()
 	int32 ModifyBoneIndex1 = -1;

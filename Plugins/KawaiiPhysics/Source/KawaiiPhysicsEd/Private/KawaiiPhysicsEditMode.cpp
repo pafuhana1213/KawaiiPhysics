@@ -173,7 +173,9 @@ void FKawaiiPhysicsEditMode::RenderModifyBones(FPrimitiveDrawInterface* PDI) con
 
 			if (Bone.PhysicsSettings.Radius > 0)
 			{
-				auto Color = Bone.bInterBoneDummy ? FColor::Cyan : (Bone.bDummy ? FColor::Red : FColor::Yellow);
+				auto Color = Bone.bLateralDummy
+					             ? FColor::Green
+					             : (Bone.bInterBoneDummy ? FColor::Cyan : (Bone.bDummy ? FColor::Red : FColor::Yellow));
 				DrawWireSphere(PDI, BoneLocation, Color, Bone.PhysicsSettings.Radius, 16, SDPG_Foreground);
 			}
 
@@ -525,7 +527,9 @@ void FKawaiiPhysicsEditMode::RenderBoneConstraint(FPrimitiveDrawInterface* PDI) 
 	{
 		for (const FModifyBoneConstraint& BoneConstraint : RuntimeNode->MergedBoneConstraints)
 		{
-			if (BoneConstraint.IsBoneReferenceValid() && !RuntimeNode->ModifyBones.IsEmpty())
+			if (BoneConstraint.IsBoneReferenceValid() && !RuntimeNode->ModifyBones.IsEmpty() &&
+				RuntimeNode->ModifyBones.IsValidIndex(BoneConstraint.ModifyBoneIndex1) &&
+				RuntimeNode->ModifyBones.IsValidIndex(BoneConstraint.ModifyBoneIndex2))
 			{
 				FTransform BoneTransform1 = FTransform(
 					RuntimeNode->ModifyBones[BoneConstraint.ModifyBoneIndex1].PrevRotation,

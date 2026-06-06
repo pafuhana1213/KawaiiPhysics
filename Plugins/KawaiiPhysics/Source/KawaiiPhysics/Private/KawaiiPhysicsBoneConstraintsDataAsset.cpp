@@ -44,6 +44,7 @@ void FModifyBoneConstraintData::Update(const FModifyBoneConstraint& BoneConstrai
 	BoneReference2 = BoneConstraint.Bone2;
 	bOverrideCompliance = BoneConstraint.bOverrideCompliance;
 	ComplianceType = BoneConstraint.ComplianceType;
+	bExcludeFromSubdivision = BoneConstraint.bExcludeFromSubdivision;
 }
 
 TArray<FModifyBoneConstraint> UKawaiiPhysicsBoneConstraintsDataAsset::GenerateBoneConstraints()
@@ -57,6 +58,7 @@ TArray<FModifyBoneConstraint> UKawaiiPhysicsBoneConstraintsDataAsset::GenerateBo
 		BoneConstraint.Bone2 = BoneConstraintData.BoneReference2;
 		BoneConstraint.bOverrideCompliance = BoneConstraintData.bOverrideCompliance;
 		BoneConstraint.ComplianceType = BoneConstraintData.ComplianceType;
+		BoneConstraint.bExcludeFromSubdivision = BoneConstraintData.bExcludeFromSubdivision;
 
 		BoneConstraints.Add(BoneConstraint);
 	}

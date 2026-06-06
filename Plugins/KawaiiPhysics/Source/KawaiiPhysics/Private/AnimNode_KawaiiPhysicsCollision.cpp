@@ -311,7 +311,9 @@ void FAnimNode_KawaiiPhysics::AdjustByWorldCollision(FComponentSpacePoseContext&
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_WorldCollision);
 
-	if (!OwningComp || !OwningComp->GetWorld() || Bone.ParentIndex < 0)
+	// lateral dummy は ParentIndex<0 だがコリジョン代理として World Collision に参加させる（PrevLocation→Location でスイープ）
+	// Lateral dummies have ParentIndex<0 but must still sweep against world geometry (they are collision proxies)
+	if (!OwningComp || !OwningComp->GetWorld() || (Bone.ParentIndex < 0 && !Bone.bLateralDummy))
 	{
 		return;
 	}
@@ -620,7 +622,11 @@ void FAnimNode_KawaiiPhysics::AdjustByBoneConstraints()
 	{
 		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_AdjustByBoneConstraint);
 
-		if (!BoneConstraint.IsValid())
+		// IsValid()はLength>0のみ確認するため、indexの範囲も明示的に検証（堅牢化）
+		// IsValid() only checks Length>0; validate indices explicitly to avoid OOB access (hardening)
+		if (!BoneConstraint.IsValid() ||
+			!ModifyBones.IsValidIndex(BoneConstraint.ModifyBoneIndex1) ||
+			!ModifyBones.IsValidIndex(BoneConstraint.ModifyBoneIndex2))
 		{
 			continue;
 		}
@@ -715,6 +721,9 @@ void FAnimNode_KawaiiPhysics::InitBoneConstraints()
 						ModifyBoneIndex2].Location).
 					Size();
 				NewDummyBoneConstraint.bIsDummy = true;
+				// 細分化の除外設定のみ継承（complianceは既存挙動を変えないため継承しない）
+				// Inherit only the subdivision opt-out (NOT compliance — keep existing behavior byte-identical)
+				NewDummyBoneConstraint.bExcludeFromSubdivision = Constraint.bExcludeFromSubdivision;
 				DummyBoneConstraint.Add(NewDummyBoneConstraint);
 			}
 
@@ -777,12 +786,110 @@ void FAnimNode_KawaiiPhysics::InitBoneConstraints()
 				NewConstraint.Length =
 					(ModifyBones[Dummies1[k]].Location - ModifyBones[Dummies2[k]].Location).Size();
 				NewConstraint.bIsDummy = true;
+				// 細分化の除外設定のみ継承（complianceは既存挙動を変えないため継承しない）
+				// Inherit only the subdivision opt-out (NOT compliance — keep existing behavior byte-identical)
+				NewConstraint.bExcludeFromSubdivision = Constraint.bExcludeFromSubdivision;
 				DummyBoneConstraint.Add(NewConstraint);
 			}
 		}
 	}
 
 	MergedBoneConstraints.Append(DummyBoneConstraint);
+
+	// 横方向Constraintに沿ってlateral dummy（コリジョンセンサー）を挿入。元Constraintは温存（置換しない）
+	// Insert lateral collision-SENSOR dummies along horizontal constraints (original constraints are kept intact;
+	// feedback to real bones is the per-frame direct displacement transfer in SimulateModifyBones)
+	InsertLateralDummiesForConstraints();
+}
+
+void FAnimNode_KawaiiPhysics::InsertLateralDummiesForConstraints()
+{
+	if (BoneConstraintSubdivisionCount <= 0)
+	{
+		return;
+	}
+
+
+	const FRichCurve* RadiusCurve = RadiusCurveData.GetRichCurveConst();
+
+	// 元のMergedBoneConstraintsは置換せず温存する（列間隔の剛性を維持）。
+	// ここではコリジョンセンサーとなる lateral dummy を ModifyBones に追加するだけ。
+	// 実ボーンへのフィードバックは毎フレームの「直接変位転送パス」(SimulateModifyBones) が行う。
+	// Keep the original constraints intact (preserves column spacing). Here we only add lateral collision-SENSOR
+	// dummies to ModifyBones; feedback to the real bones is done per-frame by the direct displacement-transfer pass.
+	// MergedBoneConstraints is not modified, so the range-for is safe even though ModifyBones grows.
+	for (const FModifyBoneConstraint& Constraint : MergedBoneConstraints)
+	{
+		if (Constraint.bExcludeFromSubdivision)
+		{
+			continue;
+		}
+		if (!Constraint.IsBoneReferenceValid() ||
+			!ModifyBones.IsValidIndex(Constraint.ModifyBoneIndex1) ||
+			!ModifyBones.IsValidIndex(Constraint.ModifyBoneIndex2))
+		{
+			continue;
+		}
+
+		const int32 I1 = Constraint.ModifyBoneIndex1;
+		const int32 I2 = Constraint.ModifyBoneIndex2;
+
+		const FVector P1 = ModifyBones[I1].Location;
+		const FVector P2 = ModifyBones[I2].Location;
+		const float Dist = (P2 - P1).Size();
+
+		// 端点ごとの実効Radiusを各端点のLengthRateでカーブ評価（テーパー対応。グローバル最大半径は使わない）。
+		// Per-endpoint effective radius from the curve at each endpoint's LengthRate (taper-aware; not a global max).
+		const float LR1 = ModifyBones[I1].LengthRateFromRoot;
+		const float LR2 = ModifyBones[I2].LengthRateFromRoot;
+		const float R1 = PhysicsSettings.Radius * FMath::Max(RadiusCurve->Eval(LR1, 1.0f), 0.0f);
+		const float R2 = PhysicsSettings.Radius * FMath::Max(RadiusCurve->Eval(LR2, 1.0f), 0.0f);
+
+		// コリジョン被覆用: 端点スフィアが既に重なる(Dist<=R1+R2)なら隙間が無いのでセンサー不要。
+		// それ以外は指定数をそのまま使う（被覆には重なりが必要なので縦のCalcInterBoneDummyCountは使わない）。
+		// Coverage: if the endpoint spheres already overlap (Dist <= R1+R2) there is no gap -> no sensors.
+		// Otherwise use the requested count directly (coverage needs overlap; not CalcInterBoneDummyCount).
+		if (Dist <= FMath::Max(R1 + R2, KINDA_SMALL_NUMBER))
+		{
+			continue;
+		}
+
+		const int32 N = BoneConstraintSubdivisionCount;
+		const FQuat Q1 = ModifyBones[I1].PrevRotation;
+		const FQuat Q2 = ModifyBones[I2].PrevRotation;
+		const FVector ScaleA = ModifyBones[I1].PoseScale;
+		const FVector ScaleB = ModifyBones[I2].PoseScale;
+		const auto BaseSettings = ModifyBones[I1].PhysicsSettings;
+
+		for (int32 k = 0; k < N; ++k)
+		{
+			const float LerpAlpha = static_cast<float>(k + 1) / static_cast<float>(N + 1);
+
+			FKawaiiPhysicsModifyBone Lateral;
+			Lateral.bDummy = true;
+			Lateral.bLateralDummy = true;
+			// 配置用に InterBone* フィールドを端点1/端点2/補間率として流用 / Reuse InterBone* fields for placement & feedback
+			Lateral.InterBoneRealParentIndex = I1;
+			Lateral.InterBoneRealChildIndex = I2;
+			Lateral.InterBoneAlpha = LerpAlpha;
+			Lateral.Location = FMath::Lerp(P1, P2, LerpAlpha);
+			Lateral.PrevLocation = Lateral.Location;
+			Lateral.PoseLocation = Lateral.Location;
+			Lateral.PrevRotation = FQuat::Slerp(Q1, Q2, LerpAlpha);
+			Lateral.PoseRotation = Lateral.PrevRotation;
+			Lateral.PoseScale = FMath::Lerp(ScaleA, ScaleB, LerpAlpha);
+			Lateral.ParentIndex = -1; // 縦階層に属さない / not part of the vertical hierarchy
+			Lateral.BoneLength = Dist / (N + 1);
+			// LengthRateは端点平均（毎フレームのUpdatePhysicsSettingsがこれを基にRadius等を再計算するため必須）
+			// LengthRate = average of endpoints (per-frame UpdatePhysicsSettings derives Radius from it — required)
+			Lateral.LengthRateFromRoot = 0.5f * (LR1 + LR2);
+			Lateral.PhysicsSettings = BaseSettings;
+			Lateral.PhysicsSettings.Radius = 0.5f * (R1 + R2);
+
+			const int32 Idx = ModifyBones.Add(Lateral);
+			ModifyBones[Idx].Index = Idx;
+		}
+	}
 }
 
 // -------------------------------------------------------------------

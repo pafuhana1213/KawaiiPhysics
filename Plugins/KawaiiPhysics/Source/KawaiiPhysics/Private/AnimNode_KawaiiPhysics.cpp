@@ -90,6 +90,7 @@ DEFINE_STAT(STAT_KawaiiPhysics_WriteSharedCollisionToSubsystem);
 DEFINE_STAT(STAT_KawaiiPhysics_UpdateSharedCollisionLimits);
 DEFINE_STAT(STAT_KawaiiPhysics_NumModifyBones);
 DEFINE_STAT(STAT_KawaiiPhysics_NumInterBoneDummyBones);
+DEFINE_STAT(STAT_KawaiiPhysics_NumLateralDummyBones);
 DEFINE_STAT(STAT_KawaiiPhysics_InsertInterBoneDummyBones);
 
 FAnimNode_KawaiiPhysics::FAnimNode_KawaiiPhysics()
@@ -211,7 +212,9 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 						ConvertSimulationSpaceLocation(Output, SimulationSpace,
 						                               EKawaiiPhysicsSimulationSpace::WorldSpace, ModifyBone.Location);
 
-					auto Color = ModifyBone.bInterBoneDummy ? FColor::Cyan : (ModifyBone.bDummy ? FColor::Red : FColor::Yellow);
+					auto Color = ModifyBone.bLateralDummy
+					             ? FColor::Green
+					             : (ModifyBone.bInterBoneDummy ? FColor::Cyan : (ModifyBone.bDummy ? FColor::Red : FColor::Yellow));
 					AnimInstanceProxy->AnimDrawDebugSphere(LocationWS, ModifyBone.PhysicsSettings.Radius, 8,
 					                                       Color, false, -1, LineThickness, SDPG_Foreground);
 
@@ -438,6 +441,8 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	bHasCurrentEvalWorldSpaceCache = true;
 
 	BoneSubdivisionCount = FMath::Clamp(BoneSubdivisionCount, 0, 10);
+	BoneConstraintSubdivisionCount = FMath::Clamp(BoneConstraintSubdivisionCount, 0, 10);
+	BoneConstraintSubdivisionFeedbackScale = FMath::Clamp(BoneConstraintSubdivisionFeedbackScale, 0.0f, 2.0f);
 	DummyBoneLength = FMath::Max(DummyBoneLength, 0.0f);
 
 	if (TeleportType == ETeleportType::ResetPhysics)
@@ -457,6 +462,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	if (ModifyBones.Num() > 0 &&
 		(bModifyBonesNeedsReinit ||
 		 LastInitializedBoneSubdivisionCount != BoneSubdivisionCount ||
+		 LastInitializedBoneConstraintSubdivisionCount != BoneConstraintSubdivisionCount ||
 		 !FMath::IsNearlyEqual(LastInitializedDummyBoneLength, DummyBoneLength)))
 	{
 		ModifyBones.Empty(ModifyBones.Num());
@@ -497,6 +503,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		InitSyncBones(Output);
 		InitBoneConstraints();
 		LastInitializedBoneSubdivisionCount = BoneSubdivisionCount;
+		LastInitializedBoneConstraintSubdivisionCount = BoneConstraintSubdivisionCount;
 		LastInitializedDummyBoneLength = DummyBoneLength;
 		bModifyBonesNeedsReinit = false;
 		PreSkelCompTransform = ComponentTransform;
@@ -504,16 +511,25 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		// STAT更新 & パフォーマンス警告 / STAT update & performance warning
 		SET_DWORD_STAT(STAT_KawaiiPhysics_NumModifyBones, ModifyBones.Num());
 		int32 InterBoneDummyCount = 0;
+		int32 LateralDummyCount = 0;
 		for (const auto& Bone : ModifyBones)
 		{
 			if (Bone.bInterBoneDummy) InterBoneDummyCount++;
+			if (Bone.bLateralDummy) LateralDummyCount++;
 		}
 		SET_DWORD_STAT(STAT_KawaiiPhysics_NumInterBoneDummyBones, InterBoneDummyCount);
+		SET_DWORD_STAT(STAT_KawaiiPhysics_NumLateralDummyBones, LateralDummyCount);
 		if (InterBoneDummyCount > 50)
 		{
 			UE_LOG(LogAnimation, Warning,
 				TEXT("KawaiiPhysics: %d inter-bone dummy bones generated. This may impact performance. Consider reducing BoneSubdivisionCount."),
 				InterBoneDummyCount);
+		}
+		if (LateralDummyCount > 100)
+		{
+			UE_LOG(LogAnimation, Warning,
+				TEXT("KawaiiPhysics: %d lateral collision-proxy dummy bones and %d merged bone constraints generated. This may impact performance. Consider reducing BoneConstraintSubdivisionCount."),
+				LateralDummyCount, MergedBoneConstraints.Num());
 		}
 
 	}
