@@ -78,7 +78,9 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* 隣接するボーン間に挿入するダミーボーンの分割数。コリジョン検出の精度を向上させる（例: スカートの足貫通防止）
 	* Number of DummyBone subdivisions to insert between adjacent physics bones.
 	* Improves collision detection (e.g., prevents skirts from penetrating legs).
-	* Set to 0 to disable. Auto-corrected based on bone spacing and radius.
+	* Set to 0 to disable.
+	* CollisionOnly=false のときのみボーン間隔と半径で数が自動補正される（重なり不安定化の防止）。CollisionOnly=true は指定数をそのまま配置。
+	* Auto-corrected by bone spacing and radius only when CollisionOnly is false; placed as-is when CollisionOnly is true.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bones|Bone Subdivision", meta = (PinHiddenByDefault, ClampMin = "0", ClampMax = "10"))
 	int32 BoneSubdivisionCount = 0;
@@ -86,6 +88,8 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	/**
 	* ボーン間ダミーボーンの速度積分（重力・風など）をスキップし、実ボーン間の補間位置からコリジョン・制約に参加
 	* When true, inter-bone dummy bones skip velocity integration (gravity/wind/etc.) and still participate in collision and constraints from interpolated positions.
+	* true=半径間引きせず指定数をそのまま配置 / false=重なり不安定化を防ぐため半径で配置数を間引く
+	* true: places the requested count as-is (no radius culling). false: culls the count by radius to avoid overlap instability.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bones|Bone Subdivision",
 		meta = (PinHiddenByDefault, EditCondition = "BoneSubdivisionCount > 0"))
@@ -1118,6 +1122,9 @@ private:
 	bool bModifyBonesNeedsReinit = false;
 	int32 LastInitializedBoneSubdivisionCount = 0;
 	int32 LastInitializedBoneConstraintSubdivisionCount = 0;
+	// CollisionOnlyは配置数（生成トポロジ）を左右するため再構築判定に含める。既定値はプロパティのデフォルトに合わせる
+	// CollisionOnly affects the placed dummy count (generation topology), so it's part of the reinit check. Default matches the property.
+	bool LastInitializedBoneSubdivisionCollisionOnly = true;
 	float LastInitializedDummyBoneLength = 0.0f;
 
 	// SimulationSpace conversion cache (per-evaluation)

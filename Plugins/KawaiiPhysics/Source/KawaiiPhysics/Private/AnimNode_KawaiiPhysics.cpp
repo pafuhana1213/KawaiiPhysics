@@ -474,6 +474,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		(bModifyBonesNeedsReinit ||
 		 LastInitializedBoneSubdivisionCount != BoneSubdivisionCount ||
 		 LastInitializedBoneConstraintSubdivisionCount != BoneConstraintSubdivisionCount ||
+		 LastInitializedBoneSubdivisionCollisionOnly != bBoneSubdivisionCollisionOnly ||
 		 !FMath::IsNearlyEqual(LastInitializedDummyBoneLength, DummyBoneLength)))
 	{
 		ModifyBones.Empty(ModifyBones.Num());
@@ -515,6 +516,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		InitBoneConstraints();
 		LastInitializedBoneSubdivisionCount = BoneSubdivisionCount;
 		LastInitializedBoneConstraintSubdivisionCount = BoneConstraintSubdivisionCount;
+		LastInitializedBoneSubdivisionCollisionOnly = bBoneSubdivisionCollisionOnly;
 		LastInitializedDummyBoneLength = DummyBoneLength;
 		bModifyBonesNeedsReinit = false;
 		PreSkelCompTransform = ComponentTransform;

@@ -319,15 +319,31 @@ int32 FAnimNode_KawaiiPhysics::InsertInterBoneDummyBonesCore(TArray<FKawaiiPhysi
 		return EffectiveParentIndex;
 	}
 
-	float MaxRadiusCurveScale = 1.0f;
-	const FRichCurve* RadiusCurve = RadiusCurveData.GetRichCurveConst();
-	for (int32 SampleIndex = 0; SampleIndex <= 10; ++SampleIndex)
+	int32 EffectiveCount;
+	if (bBoneSubdivisionCollisionOnly)
 	{
-		const float LengthRate = static_cast<float>(SampleIndex) / 10.0f;
-		MaxRadiusCurveScale = FMath::Max(MaxRadiusCurveScale, RadiusCurve->Eval(LengthRate, 1.0f));
+		// コリジョン専用モード: ダミーは速度積分せず、dummy同士の相互衝突も無く、実ボーン間のLerpで
+		// 位置決めされるキネマティックな衝突点。半径間引きの主目的だったsolver jitter対策が不要なため、
+		// BoneConstraintSubdivisionと同様に指定数をそのまま配置する（CalcInterBoneDummyCountは使わない）。
+		// Collision-only: dummies are kinematic (no velocity integration, no dummy-vs-dummy collision, lerped
+		// between real bones). The radius culling existed to avoid solver jitter, which doesn't apply here, so
+		// place exactly the requested count like BoneConstraintSubdivision (no CalcInterBoneDummyCount).
+		EffectiveCount = (Distance > KINDA_SMALL_NUMBER) ? FMath::Clamp(BoneSubdivisionCount, 0, 10) : 0;
 	}
-	const float AvgRadius = PhysicsSettings.Radius * FMath::Max(MaxRadiusCurveScale, 0.0f);
-	const int32 EffectiveCount = CalcInterBoneDummyCount(Distance, BoneSubdivisionCount, AvgRadius);
+	else
+	{
+		// 物理シミュレーション対象: コリジョンスフィアの重なりによる不安定化を避けるため半径で制限（現状維持）。
+		// Simulated: limit count by radius to avoid instability from overlapping collision spheres (unchanged).
+		float MaxRadiusCurveScale = 1.0f;
+		const FRichCurve* RadiusCurve = RadiusCurveData.GetRichCurveConst();
+		for (int32 SampleIndex = 0; SampleIndex <= 10; ++SampleIndex)
+		{
+			const float LengthRate = static_cast<float>(SampleIndex) / 10.0f;
+			MaxRadiusCurveScale = FMath::Max(MaxRadiusCurveScale, RadiusCurve->Eval(LengthRate, 1.0f));
+		}
+		const float AvgRadius = PhysicsSettings.Radius * FMath::Max(MaxRadiusCurveScale, 0.0f);
+		EffectiveCount = CalcInterBoneDummyCount(Distance, BoneSubdivisionCount, AvgRadius);
+	}
 
 	const FVector ParentLocation = InModifyBones[ParentModifyBoneIndex].Location;
 	const FQuat ParentRotation = InModifyBones[ParentModifyBoneIndex].PrevRotation;
