@@ -451,11 +451,11 @@ void FAnimNode_KawaiiPhysics::UpdateModifyBonesPoseTransform(FComponentSpacePose
 	{
 		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdateModifyBonesPoseTransform);
 
-		// lateral dummyはPoseを更新しない（生成時のLERP値を据え置き）。
+		// bridge dummyはPoseを更新しない（生成時のLERP値を据え置き）。
 		// このガードが無いと下のtip-dummy分岐に誤って入り、DummyBoneLength分の誤ったforward-offset poseになる。
-		// Lateral dummies keep their creation-time pose (no update). Without this they would wrongly enter the
+		// Bridge dummies keep their creation-time pose (no update). Without this they would wrongly enter the
 		// tip-dummy branch below and get a bogus DummyBoneLength forward-offset pose.
-		if (Bone.bLateralDummy)
+		if (Bone.bBridgeDummy)
 		{
 			continue;
 		}

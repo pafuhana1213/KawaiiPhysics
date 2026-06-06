@@ -311,9 +311,9 @@ void FAnimNode_KawaiiPhysics::AdjustByWorldCollision(FComponentSpacePoseContext&
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_WorldCollision);
 
-	// lateral dummy は ParentIndex<0 だがコリジョン代理として World Collision に参加させる（PrevLocation→Location でスイープ）
-	// Lateral dummies have ParentIndex<0 but must still sweep against world geometry (they are collision proxies)
-	if (!OwningComp || !OwningComp->GetWorld() || (Bone.ParentIndex < 0 && !Bone.bLateralDummy))
+	// bridge dummy は ParentIndex<0 だがコリジョン代理として World Collision に参加させる（PrevLocation→Location でスイープ）
+	// BridgeDummy dummies have ParentIndex<0 but must still sweep against world geometry (they are collision proxies)
+	if (!OwningComp || !OwningComp->GetWorld() || (Bone.ParentIndex < 0 && !Bone.bBridgeDummy))
 	{
 		return;
 	}
@@ -796,13 +796,13 @@ void FAnimNode_KawaiiPhysics::InitBoneConstraints()
 
 	MergedBoneConstraints.Append(DummyBoneConstraint);
 
-	// 横方向Constraintに沿ってlateral dummy（コリジョンセンサー）を挿入。元Constraintは温存（置換しない）
-	// Insert lateral collision-SENSOR dummies along horizontal constraints (original constraints are kept intact;
+	// 横方向Constraintに沿ってbridge dummy（コリジョンセンサー）を挿入。元Constraintは温存（置換しない）
+	// Insert bridge collision-SENSOR dummies along horizontal constraints (original constraints are kept intact;
 	// feedback to real bones is the per-frame direct displacement transfer in SimulateModifyBones)
-	InsertLateralDummiesForConstraints();
+	InsertBridgeDummiesForConstraints();
 }
 
-void FAnimNode_KawaiiPhysics::InsertLateralDummiesForConstraints()
+void FAnimNode_KawaiiPhysics::InsertBridgeDummiesForConstraints()
 {
 	if (BoneConstraintSubdivisionCount <= 0)
 	{
@@ -813,9 +813,9 @@ void FAnimNode_KawaiiPhysics::InsertLateralDummiesForConstraints()
 	const FRichCurve* RadiusCurve = RadiusCurveData.GetRichCurveConst();
 
 	// 元のMergedBoneConstraintsは置換せず温存する（列間隔の剛性を維持）。
-	// ここではコリジョンセンサーとなる lateral dummy を ModifyBones に追加するだけ。
+	// ここではコリジョンセンサーとなる bridge dummy を ModifyBones に追加するだけ。
 	// 実ボーンへのフィードバックは毎フレームの「直接変位転送パス」(SimulateModifyBones) が行う。
-	// Keep the original constraints intact (preserves column spacing). Here we only add lateral collision-SENSOR
+	// Keep the original constraints intact (preserves column spacing). Here we only add bridge collision-SENSOR
 	// dummies to ModifyBones; feedback to the real bones is done per-frame by the direct displacement-transfer pass.
 	// MergedBoneConstraints is not modified, so the range-for is safe even though ModifyBones grows.
 	for (const FModifyBoneConstraint& Constraint : MergedBoneConstraints)
@@ -865,28 +865,28 @@ void FAnimNode_KawaiiPhysics::InsertLateralDummiesForConstraints()
 		{
 			const float LerpAlpha = static_cast<float>(k + 1) / static_cast<float>(N + 1);
 
-			FKawaiiPhysicsModifyBone Lateral;
-			Lateral.bDummy = true;
-			Lateral.bLateralDummy = true;
+			FKawaiiPhysicsModifyBone BridgeDummy;
+			BridgeDummy.bDummy = true;
+			BridgeDummy.bBridgeDummy = true;
 			// 配置用に InterBone* フィールドを端点1/端点2/補間率として流用 / Reuse InterBone* fields for placement & feedback
-			Lateral.InterBoneRealParentIndex = I1;
-			Lateral.InterBoneRealChildIndex = I2;
-			Lateral.InterBoneAlpha = LerpAlpha;
-			Lateral.Location = FMath::Lerp(P1, P2, LerpAlpha);
-			Lateral.PrevLocation = Lateral.Location;
-			Lateral.PoseLocation = Lateral.Location;
-			Lateral.PrevRotation = FQuat::Slerp(Q1, Q2, LerpAlpha);
-			Lateral.PoseRotation = Lateral.PrevRotation;
-			Lateral.PoseScale = FMath::Lerp(ScaleA, ScaleB, LerpAlpha);
-			Lateral.ParentIndex = -1; // 縦階層に属さない / not part of the vertical hierarchy
-			Lateral.BoneLength = Dist / (N + 1);
+			BridgeDummy.InterBoneRealParentIndex = I1;
+			BridgeDummy.InterBoneRealChildIndex = I2;
+			BridgeDummy.InterBoneAlpha = LerpAlpha;
+			BridgeDummy.Location = FMath::Lerp(P1, P2, LerpAlpha);
+			BridgeDummy.PrevLocation = BridgeDummy.Location;
+			BridgeDummy.PoseLocation = BridgeDummy.Location;
+			BridgeDummy.PrevRotation = FQuat::Slerp(Q1, Q2, LerpAlpha);
+			BridgeDummy.PoseRotation = BridgeDummy.PrevRotation;
+			BridgeDummy.PoseScale = FMath::Lerp(ScaleA, ScaleB, LerpAlpha);
+			BridgeDummy.ParentIndex = -1; // 縦階層に属さない / not part of the vertical hierarchy
+			BridgeDummy.BoneLength = Dist / (N + 1);
 			// LengthRateは端点平均（毎フレームのUpdatePhysicsSettingsがこれを基にRadius等を再計算するため必須）
 			// LengthRate = average of endpoints (per-frame UpdatePhysicsSettings derives Radius from it — required)
-			Lateral.LengthRateFromRoot = 0.5f * (LR1 + LR2);
-			Lateral.PhysicsSettings = BaseSettings;
-			Lateral.PhysicsSettings.Radius = 0.5f * (R1 + R2);
+			BridgeDummy.LengthRateFromRoot = 0.5f * (LR1 + LR2);
+			BridgeDummy.PhysicsSettings = BaseSettings;
+			BridgeDummy.PhysicsSettings.Radius = 0.5f * (R1 + R2);
 
-			const int32 Idx = ModifyBones.Add(Lateral);
+			const int32 Idx = ModifyBones.Add(BridgeDummy);
 			ModifyBones[Idx].Index = Idx;
 		}
 	}

@@ -90,7 +90,7 @@ DEFINE_STAT(STAT_KawaiiPhysics_WriteSharedCollisionToSubsystem);
 DEFINE_STAT(STAT_KawaiiPhysics_UpdateSharedCollisionLimits);
 DEFINE_STAT(STAT_KawaiiPhysics_NumModifyBones);
 DEFINE_STAT(STAT_KawaiiPhysics_NumInterBoneDummyBones);
-DEFINE_STAT(STAT_KawaiiPhysics_NumLateralDummyBones);
+DEFINE_STAT(STAT_KawaiiPhysics_NumBridgeDummyBones);
 DEFINE_STAT(STAT_KawaiiPhysics_InsertInterBoneDummyBones);
 
 FAnimNode_KawaiiPhysics::FAnimNode_KawaiiPhysics()
@@ -212,7 +212,7 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 						ConvertSimulationSpaceLocation(Output, SimulationSpace,
 						                               EKawaiiPhysicsSimulationSpace::WorldSpace, ModifyBone.Location);
 
-					auto Color = ModifyBone.bLateralDummy
+					auto Color = ModifyBone.bBridgeDummy
 					             ? FColor::Green
 					             : (ModifyBone.bInterBoneDummy ? FColor::Cyan : (ModifyBone.bDummy ? FColor::Red : FColor::Yellow));
 					AnimInstanceProxy->AnimDrawDebugSphere(LocationWS, ModifyBone.PhysicsSettings.Radius, 8,
@@ -511,25 +511,25 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		// STAT更新 & パフォーマンス警告 / STAT update & performance warning
 		SET_DWORD_STAT(STAT_KawaiiPhysics_NumModifyBones, ModifyBones.Num());
 		int32 InterBoneDummyCount = 0;
-		int32 LateralDummyCount = 0;
+		int32 BridgeDummyCount = 0;
 		for (const auto& Bone : ModifyBones)
 		{
 			if (Bone.bInterBoneDummy) InterBoneDummyCount++;
-			if (Bone.bLateralDummy) LateralDummyCount++;
+			if (Bone.bBridgeDummy) BridgeDummyCount++;
 		}
 		SET_DWORD_STAT(STAT_KawaiiPhysics_NumInterBoneDummyBones, InterBoneDummyCount);
-		SET_DWORD_STAT(STAT_KawaiiPhysics_NumLateralDummyBones, LateralDummyCount);
+		SET_DWORD_STAT(STAT_KawaiiPhysics_NumBridgeDummyBones, BridgeDummyCount);
 		if (InterBoneDummyCount > 50)
 		{
 			UE_LOG(LogAnimation, Warning,
 				TEXT("KawaiiPhysics: %d inter-bone dummy bones generated. This may impact performance. Consider reducing BoneSubdivisionCount."),
 				InterBoneDummyCount);
 		}
-		if (LateralDummyCount > 100)
+		if (BridgeDummyCount > 100)
 		{
 			UE_LOG(LogAnimation, Warning,
-				TEXT("KawaiiPhysics: %d lateral collision-proxy dummy bones and %d merged bone constraints generated. This may impact performance. Consider reducing BoneConstraintSubdivisionCount."),
-				LateralDummyCount, MergedBoneConstraints.Num());
+				TEXT("KawaiiPhysics: %d bridge collision-proxy dummy bones and %d merged bone constraints generated. This may impact performance. Consider reducing BoneConstraintSubdivisionCount."),
+				BridgeDummyCount, MergedBoneConstraints.Num());
 		}
 
 	}

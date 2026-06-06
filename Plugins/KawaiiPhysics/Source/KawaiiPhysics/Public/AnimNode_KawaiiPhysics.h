@@ -93,7 +93,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 
 	/**
 	* 横方向BoneConstraintに沿って挿入するコリジョン代理ダミーの分割数。隣接チェーン（列）間の隙間をコリジョン点で埋めて貫通を防ぐ。
-	* Number of collision-proxy dummies to insert along each lateral BoneConstraint. Fills horizontal gaps between adjacent chains (columns) to prevent penetration.
+	* Number of collision-proxy dummies to insert along each horizontal BoneConstraint. Fills horizontal gaps between adjacent chains (columns) to prevent penetration.
 	* BoneSubdivisionCountと組み合わせると布面に2Dグリッド状のコリジョン点が並ぶ。0で無効。端点コリジョンが既に重なる接続(間隔<=2*半径)には挿入しない。BoneSubdivisionCountとは独立。
 	* Combine with BoneSubdivisionCount for a 2D grid of collision points. 0 to disable. Skipped where the endpoint collisions already overlap (spacing <= 2*radius). Independent of BoneSubdivisionCount.
 	*/
@@ -102,9 +102,9 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	int32 BoneConstraintSubdivisionCount = 0;
 
 	/**
-	* lateral dummyが受けたコリジョン変位を端点ボーンへ転送する強さ。0=転送なし、1=端点との距離比に応じた標準的な押し出し。
+	* bridge dummyが受けたコリジョン変位を端点ボーンへ転送する強さ。0=転送なし、1=端点との距離比に応じた標準的な押し出し。
 	* これにより列の間で動くコライダーが実ボーンを押し出せる（貫通防止フィードバックの本体）。剛性が強すぎる場合は下げる。
-	* Strength of transferring a lateral dummy's collision displacement to its endpoint bones (0 = none, 1 = standard
+	* Strength of transferring a bridge dummy's collision displacement to its endpoint bones (0 = none, 1 = standard
 	* push weighted by proximity). This is what lets a collider moving between columns actually push the real bones.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bones|Bone Subdivision",
@@ -829,13 +829,13 @@ protected:
 	void InitBoneConstraints();
 
 	/**
-	* 横方向Constraintに沿ってコリジョンセンサーとなるlateral dummyをModifyBonesに追加する（元Constraintは温存）。
+	* 横方向Constraintに沿ってコリジョンセンサーとなるbridge dummyをModifyBonesに追加する（元Constraintは温存）。
 	* 実ボーンへのフィードバックは毎フレームの直接変位転送(SimulateModifyBones)が担う。
-	* Adds lateral collision-SENSOR dummies along horizontal constraints to ModifyBones (original constraints kept intact).
+	* Adds bridge collision-SENSOR dummies along horizontal constraints to ModifyBones (original constraints kept intact).
 	* Feedback to the real bones is the per-frame direct displacement transfer in SimulateModifyBones.
 	* InitBoneConstraints末尾から呼ばれる（ModifyBonesとMergedBoneConstraintsが構築済みであること） / Called at the end of InitBoneConstraints (after ModifyBones & MergedBoneConstraints are built).
 	*/
-	void InsertLateralDummiesForConstraints();
+	void InsertBridgeDummiesForConstraints();
 
 	/**
 	 * Applies the data asset to LimitData.

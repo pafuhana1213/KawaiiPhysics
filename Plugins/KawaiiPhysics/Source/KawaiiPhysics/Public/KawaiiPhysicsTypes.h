@@ -220,12 +220,12 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsModifyBone
 
 	/**
 	* 横方向BoneConstraint上に挿入されたコリジョン代理ダミー（縦階層に属さず、常にコリジョン専用）
-	* Collision-proxy dummy inserted along a lateral BoneConstraint (not in the vertical hierarchy; always collision-only).
+	* Collision-proxy dummy inserted along a horizontal BoneConstraint (not in the vertical hierarchy; always collision-only).
 	* 配置用に InterBoneRealParentIndex/InterBoneRealChildIndex/InterBoneAlpha を端点1/端点2/補間率として流用する。
 	* Reuses InterBoneRealParentIndex/InterBoneRealChildIndex/InterBoneAlpha as endpoint1/endpoint2/lerp-alpha for placement.
 	*/
 	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
-	bool bLateralDummy = false;
+	bool bBridgeDummy = false;
 
 	/** Flag indicating if simulation should be skipped for this bone */
 	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")

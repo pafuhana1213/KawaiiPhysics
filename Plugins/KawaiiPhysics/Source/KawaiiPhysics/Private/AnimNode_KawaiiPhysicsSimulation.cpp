@@ -88,11 +88,11 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 	// Save Prev/Pose Info , Check SkipSimulate
 	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 	{
-		// lateral dummyは縦親(ParentIndex<0)を持たないが、コリジョン代理として非skipにする
+		// bridge dummyは縦親(ParentIndex<0)を持たないが、コリジョン代理として非skipにする
 		// （Simulate()/長さ復元は別途スキップ。下のParentIndex<0分岐に落ちると誤ってskip&Pose固定される）
-		// Lateral dummies have no vertical parent but must stay non-skip so collision runs on them
+		// Bridge dummies have no vertical parent but must stay non-skip so collision runs on them
 		// (Simulate()/length-restore are skipped separately; the ParentIndex<0 branch below must not catch them)
-		if (Bone.bLateralDummy)
+		if (Bone.bBridgeDummy)
 		{
 			Bone.bSkipSimulate = false;
 			continue;
@@ -183,9 +183,9 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 			continue;
 		}
 
-		// lateral dummyは常にSimulate()をスキップ（縦親が無くModifyBones[ParentIndex]参照でクラッシュする）
-		// Lateral dummies always skip Simulate() (no vertical parent → ModifyBones[Bone.ParentIndex] would crash)
-		if (Bone.bLateralDummy)
+		// bridge dummyは常にSimulate()をスキップ（縦親が無くModifyBones[ParentIndex]参照でクラッシュする）
+		// Bridge dummies always skip Simulate() (no vertical parent → ModifyBones[Bone.ParentIndex] would crash)
+		if (Bone.bBridgeDummy)
 		{
 			continue;
 		}
@@ -217,22 +217,22 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		}
 	}
 
-	// lateral dummy（横方向Constraintのコリジョン代理）を端点間で配置。
+	// bridge dummy（横方向Constraintのコリジョン代理）を端点間で配置。
 	// bBoneSubdivisionCollisionOnlyに依らず常に実行し、縦dummyの後（より大きいindex）に走るため端点は配置済み。
-	// Position lateral dummies (horizontal-constraint collision proxies) between their two endpoints.
+	// Position bridge dummies (horizontal-constraint collision proxies) between their two endpoints.
 	// Always runs (independent of bBoneSubdivisionCollisionOnly); they have higher indices than vertical dummies, so endpoints are already placed.
 	{
 		const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 		for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 		{
-			if (!Bone.bLateralDummy)
+			if (!Bone.bBridgeDummy)
 			{
 				continue;
 			}
 
 			if (!ensureMsgf(ModifyBones.IsValidIndex(Bone.InterBoneRealParentIndex) &&
 			                ModifyBones.IsValidIndex(Bone.InterBoneRealChildIndex),
-			                TEXT("KawaiiPhysics: invalid lateral dummy endpoint index.")))
+			                TEXT("KawaiiPhysics: invalid bridge dummy endpoint index.")))
 			{
 				continue;
 			}
@@ -256,9 +256,9 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 			Bone.PrevLocation = Bone.Location;
 			Bone.Location = FMath::Lerp(EndA.Location, EndB.Location, Bone.InterBoneAlpha);
 			// LERP基準位置をPoseLocationに退避（コリジョン後の押し出し量 = Location - PoseLocation を測るため。
-			// lateral dummyのPoseLocationは他で未使用なので流用）。
+			// bridge dummyのPoseLocationは他で未使用なので流用）。
 			// Stash the LERP base in PoseLocation so the post-collision push = (Location - PoseLocation) can be measured.
-			// PoseLocation is otherwise unused for lateral dummies.
+			// PoseLocation is otherwise unused for bridge dummies.
 			Bone.PoseLocation = Bone.Location;
 		}
 	}
@@ -307,10 +307,10 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		}
 	}
 
-	// lateral dummy のコリジョン変位を端点ボーンへ直接転送（実ボーンを押し出すフィードバックの本体）。
+	// bridge dummy のコリジョン変位を端点ボーンへ直接転送（実ボーンを押し出すフィードバックの本体）。
 	// コリジョン後・Constraint/length復元前に実行。Push = Location(押し出し後) - PoseLocation(C3で退避したLERP基準)。
 	// 端点へ距離比 (1-α):α で配分し、Scaleで強さを調整。端点が縦dummyの場合もstep8のlength復元で実子へ伝播する。
-	// Direct displacement transfer: push the lateral dummy's collision displacement into its endpoint bones (this is
+	// Direct displacement transfer: push the bridge dummy's collision displacement into its endpoint bones (this is
 	// what makes a collider moving between columns actually move the cloth). Runs after collision, before constraints/
 	// length restore. Push = Location - PoseLocation (LERP base stashed in C3), distributed (1-alpha):alpha, scaled.
 	if (BoneConstraintSubdivisionCount > 0 && BoneConstraintSubdivisionFeedbackScale > 0.0f)
@@ -326,7 +326,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 
 		for (const FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 		{
-			if (!Bone.bLateralDummy || Bone.bSkipSimulate)
+			if (!Bone.bBridgeDummy || Bone.bSkipSimulate)
 			{
 				continue;
 			}
@@ -385,11 +385,11 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 			continue;
 		}
 
-		// lateral dummyは縦親を持たないため長さ/角度復元をスキップ（ParentIndex=-1参照でクラッシュ）。
+		// bridge dummyは縦親を持たないため長さ/角度復元をスキップ（ParentIndex=-1参照でクラッシュ）。
 		// 位置は直前のconstraint solveで確定済みで、次フレーム冒頭で端点間に再LERPされる。
-		// Lateral dummies have no vertical parent → skip length/angle restore (would deref ParentIndex=-1).
+		// Bridge dummies have no vertical parent → skip length/angle restore (would deref ParentIndex=-1).
 		// Their position is finalized by the preceding constraint solve and re-LERP'd next frame.
-		if (Bone.bLateralDummy)
+		if (Bone.bBridgeDummy)
 		{
 			continue;
 		}
