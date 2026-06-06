@@ -158,14 +158,31 @@ void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* Ani
 	KawaiiPhysics->LimitsDataAsset = Node.LimitsDataAsset;
 	KawaiiPhysics->PhysicsAssetForLimits = Node.PhysicsAssetForLimits;
 
+	// Shared Collision
+	if (KawaiiPhysics->bSharedCollisionSource != Node.bSharedCollisionSource ||
+		KawaiiPhysics->bUseSharedCollision != Node.bUseSharedCollision ||
+		KawaiiPhysics->SharedCollisionGroupTag != Node.SharedCollisionGroupTag)
+	{
+		KawaiiPhysics->RequestSharedCollisionReinit();
+	}
+	KawaiiPhysics->bSharedCollisionSource = Node.bSharedCollisionSource;
+	KawaiiPhysics->bUseSharedCollision = Node.bUseSharedCollision;
+	KawaiiPhysics->SharedCollisionGroupTag = Node.SharedCollisionGroupTag;
+
 	// ExternalForce
 	KawaiiPhysics->Gravity = Node.Gravity;
+	KawaiiPhysics->bUseLegacyGravity = Node.bUseLegacyGravity;
+	KawaiiPhysics->bUseDefaultGravityZProjectSetting = Node.bUseDefaultGravityZProjectSetting;
+	KawaiiPhysics->bUseWorldSpaceGravity = Node.bUseWorldSpaceGravity;
+	KawaiiPhysics->SimpleExternalForce = Node.SimpleExternalForce;
+	KawaiiPhysics->bUseWorldSpaceSimpleExternalForce = Node.bUseWorldSpaceSimpleExternalForce;
 	KawaiiPhysics->ExternalForces = Node.ExternalForces;
 	KawaiiPhysics->CustomExternalForces = Node.CustomExternalForces;
 
 	// Wind
 	KawaiiPhysics->bEnableWind = Node.bEnableWind;
 	KawaiiPhysics->WindScale = Node.WindScale;
+	KawaiiPhysics->WindDirectionNoiseAngle = Node.WindDirectionNoiseAngle;
 
 	// BoneConstraint
 	KawaiiPhysics->BoneConstraintGlobalComplianceType = Node.BoneConstraintGlobalComplianceType;
