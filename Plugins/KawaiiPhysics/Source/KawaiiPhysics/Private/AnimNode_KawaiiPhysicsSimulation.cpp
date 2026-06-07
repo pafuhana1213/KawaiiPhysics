@@ -166,7 +166,8 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 	}
 
 	// Simulate
-	const float Exponent = TargetFramerate * DeltaTime;
+	const int32 EffectiveTargetFramerate = GetEffectiveTargetFramerate();
+	const float Exponent = EffectiveTargetFramerate * DeltaTime;
 	const UWorld* World = SkelComp ? SkelComp->GetWorld() : nullptr;
 	const FSceneInterface* Scene = World ? World->Scene : nullptr;
 	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
@@ -272,6 +273,19 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		{
 			auto& Force = ExternalForces[i].GetMutable<FKawaiiPhysics_ExternalForce>();
 			Force.PostApply(*this, Output);
+		}
+	}
+
+	// Adjust by Bone Constraints Before Collision
+	if (BoneConstraintIterationCountBeforeCollision > 0)
+	{
+		for (FModifyBoneConstraint& BoneConstraint : MergedBoneConstraints)
+		{
+			BoneConstraint.Lambda = 0.0f;
+		}
+		for (int i = 0; i < BoneConstraintIterationCountBeforeCollision; ++i)
+		{
+			AdjustByBoneConstraints();
 		}
 	}
 
@@ -444,7 +458,7 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 	// wind
 	if (bEnableWind && Scene)
 	{
-		Velocity += GetWindVelocity(Output, Scene, Bone) * TargetFramerate;
+		Velocity += GetWindVelocity(Output, Scene, Bone) * GetEffectiveTargetFramerate();
 	}
 
 	// Gravity (apply just after wind; keep legacy compatibility via separate position term)
@@ -923,4 +937,3 @@ FAnimNode_KawaiiPhysics::FSimulationSpaceCache FAnimNode_KawaiiPhysics::BuildSim
 
 	return Cache;
 }
-

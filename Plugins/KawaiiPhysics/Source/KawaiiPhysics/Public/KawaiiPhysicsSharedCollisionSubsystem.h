@@ -28,8 +28,16 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedCollisionSourceSlot
 	/** ワーカースレッドから呼び出し可能（ロックフリー） / Can be called from any thread (lock-free) */
 	const FKawaiiPhysicsSharedCollisionData& Read() const;
 
+	/** ワーカースレッドから呼び出し可能 / Can be called from any thread */
+	void AppendTo(FKawaiiPhysicsSharedCollisionData& OutData) const;
+
 	/** スロットが古くなっているか判定 / Check if this slot has not been published to recently */
 	bool IsExpired(uint64 CurrentFrame, uint64 MaxAge) const;
+
+private:
+	/** バッファ内容の読み書きを保護。UseLockFree CVar が true の場合は使用しない。 */
+	/** Protects buffer contents. Not used when the UseLockFree CVar is true. */
+	mutable FRWLock BufferLock;
 };
 
 /**

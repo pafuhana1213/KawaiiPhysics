@@ -150,10 +150,8 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* ターゲットとなるフレームレート
 	* Target Frame Rate
 	*/
-	UPROPERTY(EditAnywhere, Category = "Physics Settings", meta = (EditCondition = "OverrideTargetFramerate"))
+	UPROPERTY(EditAnywhere, Category = "Physics Settings", meta = (ClampMin = "1", UIMin = "1"))
 	int32 TargetFramerate = 60;
-	UPROPERTY(EditAnywhere, Category = "Physics Settings", meta = (InlineEditConditionToggle))
-	bool OverrideTargetFramerate = false;
 
 	/** 
 	* 物理の空回し回数。物理処理が落ち着いてから開始・表示したい際に使用
@@ -750,6 +748,11 @@ public:
 	 */
 	float GetDeltaTimeOld() const;
 
+	int32 GetEffectiveTargetFramerate() const
+	{
+		return FMath::Max(1, TargetFramerate);
+	}
+
 	/**
 	 * Get Transform from BaseBoneSpace to ComponentSpace.
 	 */
@@ -1176,7 +1179,6 @@ private:
 	mutable FSimulationSpaceCache CurrentEvalWorldSpaceCache;
 	mutable bool bHasCurrentEvalWorldSpaceCache = false;
 };
-
 
 
 

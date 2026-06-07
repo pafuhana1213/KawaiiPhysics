@@ -8,6 +8,7 @@
 extern TAutoConsoleVariable<int32> CVarSharedCollisionReadMaxAge;
 extern TAutoConsoleVariable<int32> CVarSharedCollisionCleanupMaxAge;
 extern TAutoConsoleVariable<float> CVarSharedCollisionCleanupInterval;
+extern TAutoConsoleVariable<bool> CVarSharedCollisionUseLockFree;
 
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SharedCollision_Publish"), STAT_KawaiiPhysics_SharedCollision_Publish, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SharedCollision_GetOrCreateSlot"), STAT_KawaiiPhysics_SharedCollision_GetOrCreateSlot, STATGROUP_Anim);
@@ -25,7 +26,23 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_SharedCollision_NumSlots"), STAT_
 void FKawaiiPhysicsSharedCollisionSourceSlot::Publish(const FKawaiiPhysicsSharedCollisionData& Data)
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SharedCollision_Publish);
-	
+
+	const bool bUseLockFree = CVarSharedCollisionUseLockFree.GetValueOnAnyThread();
+	if (bUseLockFree)
+	{
+		// 非アクティブバッファに書き込み / Write to inactive buffer
+		const int32 WriteIndex = 1 - ReadBufferIndex.load(std::memory_order_acquire);
+		Buffers[WriteIndex] = Data;
+
+		// アトミックスワップ：読み取り側に公開 / Atomic swap: expose to readers
+		ReadBufferIndex.store(WriteIndex, std::memory_order_release);
+
+		// フレーム番号を記録（鮮度チェック用） / Record frame number for expiration detection
+		LastPublishFrame.store(GFrameCounter, std::memory_order_release);
+		return;
+	}
+
+	FWriteScopeLock WriteLock(BufferLock);
 	// 非アクティブバッファに書き込み / Write to inactive buffer
 	const int32 WriteIndex = 1 - ReadBufferIndex.load(std::memory_order_acquire);
 	Buffers[WriteIndex] = Data;
@@ -46,6 +63,27 @@ bool FKawaiiPhysicsSharedCollisionSourceSlot::IsExpired(uint64 CurrentFrame, uin
 const FKawaiiPhysicsSharedCollisionData& FKawaiiPhysicsSharedCollisionSourceSlot::Read() const
 {
 	return Buffers[ReadBufferIndex.load(std::memory_order_acquire)];
+}
+
+void FKawaiiPhysicsSharedCollisionSourceSlot::AppendTo(FKawaiiPhysicsSharedCollisionData& OutData) const
+{
+	const bool bUseLockFree = CVarSharedCollisionUseLockFree.GetValueOnAnyThread();
+	if (bUseLockFree)
+	{
+		const FKawaiiPhysicsSharedCollisionData& SlotData = Read();
+		OutData.SphericalLimits.Append(SlotData.SphericalLimits);
+		OutData.CapsuleLimits.Append(SlotData.CapsuleLimits);
+		OutData.BoxLimits.Append(SlotData.BoxLimits);
+		OutData.PlanarLimits.Append(SlotData.PlanarLimits);
+		return;
+	}
+
+	FReadScopeLock ReadLock(BufferLock);
+	const FKawaiiPhysicsSharedCollisionData& SlotData = Buffers[ReadBufferIndex.load(std::memory_order_acquire)];
+	OutData.SphericalLimits.Append(SlotData.SphericalLimits);
+	OutData.CapsuleLimits.Append(SlotData.CapsuleLimits);
+	OutData.BoxLimits.Append(SlotData.BoxLimits);
+	OutData.PlanarLimits.Append(SlotData.PlanarLimits);
 }
 
 // -------------------------------------------------------------------
@@ -88,12 +126,7 @@ void FKawaiiPhysicsSharedCollisionEntry::ReadMerged(FKawaiiPhysicsSharedCollisio
 			continue;
 		}
 
-		const FKawaiiPhysicsSharedCollisionData& SlotData = Pair.Value->Read();
-
-		OutData.SphericalLimits.Append(SlotData.SphericalLimits);
-		OutData.CapsuleLimits.Append(SlotData.CapsuleLimits);
-		OutData.BoxLimits.Append(SlotData.BoxLimits);
-		OutData.PlanarLimits.Append(SlotData.PlanarLimits);
+		Pair.Value->AppendTo(OutData);
 	}
 }
 

@@ -61,6 +61,9 @@ TAutoConsoleVariable<int32> CVarSharedCollisionInitRetryThreshold(
 TAutoConsoleVariable<float> CVarSharedCollisionCleanupInterval(
 	TEXT("a.AnimNode.KawaiiPhysics.SharedCollision.CleanupInterval"), 1.0f,
 	TEXT("クリーンアップ間隔（秒） / Cleanup interval in seconds."));
+TAutoConsoleVariable<bool> CVarSharedCollisionUseLockFree(
+	TEXT("a.AnimNode.KawaiiPhysics.SharedCollision.UseLockFree"), false,
+	TEXT("Use the lock-free double-buffer path for SharedCollision slots. false uses short per-slot locks for safer reads/writes."));
 
 DEFINE_STAT(STAT_KawaiiPhysics_InitModifyBones);
 DEFINE_STAT(STAT_KawaiiPhysics_Eval);
@@ -147,7 +150,7 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 	ModifyBones.Empty();
 
 	// For Avoiding Zero Divide in the first frame
-	DeltaTimeOld = 1.0f / TargetFramerate;
+	DeltaTimeOld = 1.0f / static_cast<float>(GetEffectiveTargetFramerate());
 
 	for (int i = 0; i < ExternalForces.Num(); ++i)
 	{
@@ -774,4 +777,3 @@ FVector FAnimNode_KawaiiPhysics::GetBoneForwardVector(const FQuat& Rotation) con
 		return -Rotation.GetAxisZ();
 	}
 }
-

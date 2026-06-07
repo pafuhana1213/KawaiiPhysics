@@ -13,6 +13,9 @@ public class KawaiiPhysics : ModuleRules
 			{
 				"Core",
 				"AnimGraphRuntime",
+				"CoreUObject",
+				"Engine",
+				"GameplayTags",
 			}
 		);
 
@@ -25,11 +28,8 @@ public class KawaiiPhysics : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new[]
 			{
-				"CoreUObject",
-				"Engine",
 				"Slate",
 				"SlateCore",
-				"GameplayTags"
 			}
 		);
 

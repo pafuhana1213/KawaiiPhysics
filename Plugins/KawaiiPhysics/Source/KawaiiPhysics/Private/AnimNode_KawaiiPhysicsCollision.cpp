@@ -293,15 +293,23 @@ void FAnimNode_KawaiiPhysics::UpdatePlanerLimits(TArray<FPlanarLimit>& Limits, F
 		}
 		else
 		{
-			// Maybe the DrivingBone is set to empty for the floor
-			FTransform OffsetTransform(Planar.OffsetRotation, Planar.OffsetLocation);
-			OffsetTransform = ConvertSimulationSpaceTransform(Output, EKawaiiPhysicsSimulationSpace::ComponentSpace,
-			                                                  SimulationSpace, OffsetTransform);
+			if (Planar.DrivingBone.BoneName.IsNone())
+			{
+				// Maybe the DrivingBone is set to empty for the floor
+				FTransform OffsetTransform(Planar.OffsetRotation, Planar.OffsetLocation);
+				OffsetTransform = ConvertSimulationSpaceTransform(Output, EKawaiiPhysicsSimulationSpace::ComponentSpace,
+				                                                  SimulationSpace, OffsetTransform);
 
-			Planar.Location = OffsetTransform.GetLocation();
-			Planar.Rotation = OffsetTransform.GetRotation();
-			Planar.Rotation.Normalize();
-			Planar.Plane = FPlane(Planar.Location, Planar.Rotation.GetUpVector());
+				Planar.Location = OffsetTransform.GetLocation();
+				Planar.Rotation = OffsetTransform.GetRotation();
+				Planar.Rotation.Normalize();
+				Planar.Plane = FPlane(Planar.Location, Planar.Rotation.GetUpVector());
+				Planar.bEnable = true;
+			}
+			else
+			{
+				Planar.bEnable = false;
+			}
 		}
 	}
 }
@@ -503,6 +511,11 @@ void FAnimNode_KawaiiPhysics::AdjustByBoxCollision(FKawaiiPhysicsModifyBone& Bon
 {
 	for (auto& Box : Limits)
 	{
+		if (!Box.bEnable)
+		{
+			continue;
+		}
+
 		FTransform BoxTransform(Box.Rotation, Box.Location);
 		float SphereRadius = Bone.PhysicsSettings.Radius;
 
@@ -1056,4 +1069,3 @@ void FAnimNode_KawaiiPhysics::UpdateSharedCollisionLimits(
 	ConvertAndStore(SharedCollisionMergedData.BoxLimits,       SharedBoxLimits,        NoOp);
 	ConvertAndStore(SharedCollisionMergedData.PlanarLimits,    SharedPlanarLimits,     RecomputePlane);
 }
-
