@@ -567,35 +567,13 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 
 	const FKawaiiPhysicsModifyBone& ParentBone = ModifyBones[Bone.ParentIndex];
 
-	// Move using Velocity( = movement amount in pre frame ) and Damping
-	// 速度は前ステップ変位を DeltaTimeOld で割って再構成。固定サブステップ時 DeltaTimeOld=FixedDt。
-	// Velocity is reconstructed from the previous step's displacement / DeltaTimeOld (= FixedDt while substepping).
-	FVector Velocity = (Bone.Location - Bone.PrevLocation) / DeltaTimeOld;
-	Bone.PrevLocation = Bone.Location;
-	// Damping は毎ステップの生係数。固定サブステップ化（DeveloperSettings）により、ステップ幅一定で
-	// フレームレート非依存になる（#81 はサブステップ化で解決。Pow正規化フラグは撤去済み）。
-	// Raw per-step damping. With fixed substepping (DeveloperSettings) the step size is constant, so this
-	// becomes frame-rate independent (#81 is addressed by substepping; the Pow-normalization flag was removed).
-	Velocity *= (1.0f - Bone.PhysicsSettings.Damping);
+	// wind + ExternalForce::ApplyToVelocity を集約（いずれも加算のみ）/ gather wind + ExternalForce velocity (additive only).
+	FVector ExtraVelocity = FVector::ZeroVector;
 
 	// wind
 	if (bEnableWind && Scene)
 	{
-		Velocity += GetWindVelocity(Output, Scene, Bone) * GetEffectiveTargetFramerate();
-	}
-
-	// Gravity (apply just after wind; keep legacy compatibility via separate position term)
-	// dt は GetStepDeltaTime()（サブステップ時=FixedDt）/ dt via GetStepDeltaTime() (= FixedDt while substepping)
-	const float StepDt = GetStepDeltaTime();
-	if (!bUseLegacyGravity)
-	{
-		// AnimDynamics-like: integrate acceleration into velocity
-		Velocity += GravityInSimSpace * StepDt;
-	}
-	else
-	{
-		// Legacy gravity: add 0.5 * g * dt^2 to position
-		Bone.Location += 0.5 * GravityInSimSpace * StepDt * StepDt;
+		ExtraVelocity += GetWindVelocity(Output, Scene, Bone) * GetEffectiveTargetFramerate();
 	}
 
 	for (int i = 0; i < ExternalForces.Num(); ++i)
@@ -605,52 +583,41 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 			if (const auto ExForce = ExternalForces[i].GetMutablePtr<FKawaiiPhysics_ExternalForce>();
 				ExForce->bIsEnabled)
 			{
-				ExForce->ApplyToVelocity(Bone, *this, Output, Velocity);
+				ExForce->ApplyToVelocity(Bone, *this, Output, ExtraVelocity);
 			}
 		}
 	}
 
-	// Integrate position from velocity
-	Bone.Location += Velocity * StepDt;
+	// === Verlet積分の1ステップ: 速度再構成 → damping → +ExtraVelocity → gravity → 位置更新 ===
+	// Verlet step: reconstruct velocity -> damping -> +ExtraVelocity -> gravity -> integrate.
+	IntegrateVerletStep(Bone, ExtraVelocity);
 
-	// Simple External Force (cached in SimulateModifyBones)
-	if (!SimpleExternalForceInSimSpace.IsNearlyZero())
-	{
-		Bone.Location += SimpleExternalForceInSimSpace * StepDt;
-	}
+	// Simple External Force（速度を経由しない位置オフセット） / position offset, not via velocity.
+	ApplySimpleExternalForce(Bone);
 
 	// Follow World Movement
-	if (SimulationSpace != EKawaiiPhysicsSimulationSpace::WorldSpace && TeleportType != ETeleportType::TeleportPhysics)
+	if (SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace
+		&& TeleportType != ETeleportType::TeleportPhysics)
 	{
+		// BaseBoneSpace は Output 依存の空間変換が必要なため、別関数に切り出さずここで実行。
+		// BaseBoneSpace needs Output-dependent space conversions, so it is handled inline here.
 		// Follow Translation
-		if (SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
-		{
-			const FVector SkelCompMoveVectorBBS =
-				ConvertSimulationSpaceVector(Output, EKawaiiPhysicsSimulationSpace::ComponentSpace,
-				                             EKawaiiPhysicsSimulationSpace::BaseBoneSpace, SkelCompMoveVector);
-			Bone.Location += SkelCompMoveVectorBBS * (1.0f - Bone.PhysicsSettings.WorldDampingLocation);
-		}
-		else
-		{
-			Bone.Location += SkelCompMoveVector * (1.0f - Bone.PhysicsSettings.WorldDampingLocation);
-		}
+		const FVector SkelCompMoveVectorBBS =
+			ConvertSimulationSpaceVector(Output, EKawaiiPhysicsSimulationSpace::ComponentSpace,
+			                             EKawaiiPhysicsSimulationSpace::BaseBoneSpace, SkelCompMoveVector);
+		Bone.Location += SkelCompMoveVectorBBS * (1.0f - Bone.PhysicsSettings.WorldDampingLocation);
 
 		// Follow Rotation
-		if (SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
-		{
-			const FVector PrevLocationCS = PrevBaseBoneSpace2ComponentSpace.TransformPosition(Bone.PrevLocation);
-			const FVector RotatedLocationCS = SkelCompMoveRotation.RotateVector(PrevLocationCS);
-			const FVector RotatedLocationBase = ConvertSimulationSpaceLocationCached(
-				FSimulationSpaceCache(), CurrentEvalSimSpaceCache, RotatedLocationCS);
-
-			Bone.Location += (RotatedLocationBase - Bone.PrevLocation) * (1.0f - Bone.PhysicsSettings.
-				WorldDampingRotation);
-		}
-		else
-		{
-			Bone.Location += (SkelCompMoveRotation.RotateVector(Bone.PrevLocation) - Bone.PrevLocation)
-				* (1.0f - Bone.PhysicsSettings.WorldDampingRotation);
-		}
+		const FVector PrevLocationCS = PrevBaseBoneSpace2ComponentSpace.TransformPosition(Bone.PrevLocation);
+		const FVector RotatedLocationCS = SkelCompMoveRotation.RotateVector(PrevLocationCS);
+		const FVector RotatedLocationBase = ConvertSimulationSpaceLocationCached(
+			FSimulationSpaceCache(), CurrentEvalSimSpaceCache, RotatedLocationCS);
+		Bone.Location += (RotatedLocationBase - Bone.PrevLocation) * (1.0f - Bone.PhysicsSettings.WorldDampingRotation);
+	}
+	else
+	{
+		// ComponentSpace / WorldSpace（BaseBoneSpace 以外） / Component & World space (non-BaseBoneSpace).
+		ApplyWorldMoveFollowNonBaseBone(Bone);
 	}
 
 	// External Force
@@ -726,7 +693,82 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 		}
 	}
 
-	// // Pull to Pose Location
+	// Pull to Pose Location（剛性） / Pull toward pose location (stiffness).
+	ApplyStiffnessPull(Bone, ParentBone, Exponent);
+}
+
+// ============================================================================
+//  物理計算の各ステップ（引数に FComponentSpacePoseContext を取らない）。Simulate() から呼ばれる。
+//  Each physics step; takes no FComponentSpacePoseContext. Called from Simulate().
+//  注: ここを変更したら、上の Simulate() の外力集約順序との整合も確認すること。
+//  NOTE: if you change these, re-check consistency with the external-velocity gathering in Simulate() above.
+// ============================================================================
+
+void FAnimNode_KawaiiPhysics::IntegrateVerletStep(FKawaiiPhysicsModifyBone& Bone,
+                                                 const FVector& ExtraVelocity)
+{
+	// Move using Velocity( = movement amount in pre frame ) and Damping
+	// 速度は前ステップ変位を DeltaTimeOld で割って再構成。固定サブステップ時 DeltaTimeOld=FixedDt。
+	// Velocity is reconstructed from the previous step's displacement / DeltaTimeOld (= FixedDt while substepping).
+	FVector Velocity = (Bone.Location - Bone.PrevLocation) / DeltaTimeOld;
+	Bone.PrevLocation = Bone.Location;
+	
+	// 毎ステップ生の damping 係数（固定サブステップ化でフレームレート依存は解消済み）。
+	// Raw per-step damping (frame-rate dependence is resolved by fixed substepping).
+	Velocity *= (1.0f - Bone.PhysicsSettings.Damping);
+
+	// wind / ExternalForce velocity（呼び出し元で集約済み、加算のみ） / gathered by caller, additive only.
+	Velocity += ExtraVelocity;
+
+	// Gravity (apply just after wind; keep legacy compatibility via separate position term)
+	const float StepDt = GetStepDeltaTime();
+	if (!bUseLegacyGravity)
+	{
+		// AnimDynamics-like: integrate acceleration into velocity
+		Velocity += GravityInSimSpace * StepDt;
+	}
+	else
+	{
+		// Legacy gravity: add 0.5 * g * dt^2 to position
+		Bone.Location += 0.5 * GravityInSimSpace * StepDt * StepDt;
+	}
+
+	// Integrate position from velocity
+	Bone.Location += Velocity * StepDt;
+}
+
+void FAnimNode_KawaiiPhysics::ApplySimpleExternalForce(FKawaiiPhysicsModifyBone& Bone)
+{
+	// Simple External Force（速度を経由しない位置オフセット。SimulateModifyBones でキャッシュ済み）。
+	// world-move / stiffness と同じ「位置空間の後処理」なので Verlet ステップから分離している。
+	// Simple external force: a position offset that does NOT go through Velocity (cached in SimulateModifyBones).
+	// Split out from the Verlet step because it is a position-space post-op like world-move / stiffness.
+	if (!SimpleExternalForceInSimSpace.IsNearlyZero())
+	{
+		Bone.Location += SimpleExternalForceInSimSpace * GetStepDeltaTime();
+	}
+}
+
+void FAnimNode_KawaiiPhysics::ApplyWorldMoveFollowNonBaseBone(FKawaiiPhysicsModifyBone& Bone)
+{
+	// Follow World Movement（ComponentSpace/WorldSpace のみ。BaseBoneSpaceは Simulate() で別処理）
+	// World-movement follow for Component/World space only (BaseBoneSpace handled inline in Simulate()).
+	if (SimulationSpace != EKawaiiPhysicsSimulationSpace::WorldSpace
+		&& TeleportType != ETeleportType::TeleportPhysics)
+	{
+		// Follow Translation
+		Bone.Location += SkelCompMoveVector * (1.0f - Bone.PhysicsSettings.WorldDampingLocation);
+
+		// Follow Rotation
+		Bone.Location += (SkelCompMoveRotation.RotateVector(Bone.PrevLocation) - Bone.PrevLocation)
+			* (1.0f - Bone.PhysicsSettings.WorldDampingRotation);
+	}
+}
+
+void FAnimNode_KawaiiPhysics::ApplyStiffnessPull(FKawaiiPhysicsModifyBone& Bone,
+                                                 const FKawaiiPhysicsModifyBone& ParentBone, float Exponent)
+{
+	// Pull to Pose Location
 	const FVector BaseLocation = ParentBone.Location + (Bone.PoseLocation - ParentBone.PoseLocation);
 	Bone.Location += (BaseLocation - Bone.Location) *
 		(1.0f - FMath::Pow(1.0f - Bone.PhysicsSettings.Stiffness, Exponent));

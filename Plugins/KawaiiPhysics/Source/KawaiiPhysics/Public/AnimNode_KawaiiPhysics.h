@@ -1054,6 +1054,32 @@ protected:
 	              const float& Exponent, const USkeletalMeshComponent* SkelComp,
 	              FComponentSpacePoseContext& Output);
 
+	// ===== 物理計算の各ステップ（引数に FComponentSpacePoseContext を取らない。Simulate() から呼ばれる）=====
+	// Each physics step; takes no FComponentSpacePoseContext. Called from Simulate().
+	// 外力(wind / ExternalForce::ApplyToVelocity)は呼び出し元で集約し ExtraVelocity として渡す（加算のみ）。
+	// External velocity (wind / ExternalForce::ApplyToVelocity) is gathered by the caller and passed as
+	// ExtraVelocity (additive only — see ApplyToVelocity implementations). No FComponentSpacePoseContext.
+
+	/** Verlet積分の1ステップ（速度の再構成→減衰→外力→重力→位置更新）。 */
+	void IntegrateVerletStep(FKawaiiPhysicsModifyBone& Bone, const FVector& ExtraVelocity);
+
+	/** simple external force（速度を経由しない位置オフセット。位置空間の後処理）。 */
+	void ApplySimpleExternalForce(FKawaiiPhysicsModifyBone& Bone);
+
+	/** ComponentSpace/WorldSpace の world 移動追従（BaseBoneSpace は Simulate() 側で別処理、Output依存）。 */
+	void ApplyWorldMoveFollowNonBaseBone(FKawaiiPhysicsModifyBone& Bone);
+
+	/** Pull to Pose Location（剛性）。 */
+	void ApplyStiffnessPull(FKawaiiPhysicsModifyBone& Bone, const FKawaiiPhysicsModifyBone& ParentBone, float Exponent);
+
+	// 自動テスト用アクセサ。private/protected の sim 状態・物理計算・コリジョン関数へアクセスする。
+	// Shipping/Test（WITH_DEV_AUTOMATION_TESTS==0）では宣言ごと除外し、出荷ビルドにテスト表面を残さない。
+	// Test-only accessor for private/protected sim state, core functions, and collision functions.
+	// Stripped in Shipping/Test (WITH_DEV_AUTOMATION_TESTS==0); leaves no test surface in shipping builds.
+#if WITH_DEV_AUTOMATION_TESTS
+	friend struct FKawaiiPhysicsTestAccessor;
+#endif
+
 	/**
 	 * Adjusts the bone position based on world collision.
 	 *
