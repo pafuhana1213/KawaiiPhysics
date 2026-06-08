@@ -694,6 +694,22 @@ private:
 	*/
 	float DeltaTimeOld = 0.0f;
 
+	// ===== 固定タイムステップ・サブステップ化（UKawaiiPhysicsDeveloperSettings 連動） =====
+	// Fixed-timestep substepping (driven by UKawaiiPhysicsDeveloperSettings)
+	// 未消費の実時間 / Unconsumed real time
+	float SubstepAccumulator = 0.0f;
+	// このフレームの実dt（DeltaTimeとは別に保持） / This frame's real dt (kept separate from DeltaTime)
+	float FrameDeltaTime = 0.0f;
+	// 毎フレーム1回キャッシュする設定 / Settings cached once per frame
+	bool bUseFixedSubsteppingCached = false;
+	int32 MaxSubstepsCached = 4;
+	// サブステップ実行中フラグ＆固定dt（GetStepDeltaTime が参照） / Substep-in-progress flag & fixed dt (read by GetStepDeltaTime)
+	bool bInSubstep = false;
+	float StepDeltaTime = 0.0f;
+	// ポーズ補間用：前フレームのポーズ目標が有効か（初回/リセット後は現在値で初期化）
+	// Pose interpolation: whether the previous-frame pose target is valid (init to current on first frame / after reset)
+	bool bSubstepPoseInitialized = false;
+
 #if WITH_EDITORONLY_DATA
 	bool bEditing = false;
 	double LastEvaluatedTime = 0.0;
@@ -751,6 +767,17 @@ public:
 	int32 GetEffectiveTargetFramerate() const
 	{
 		return FMath::Max(1, TargetFramerate);
+	}
+
+	/**
+	 * シミュレーションで使用すべき dt を返す。サブステップ実行中は固定 dt（FixedDt）、
+	 * それ以外は実フレーム dt（DeltaTime）。重力・積分・外力クラスはこれを参照する。
+	 * Returns the dt the simulation should use: the fixed dt while substepping, otherwise the real
+	 * frame dt. Gravity / integration / external-force classes read this instead of DeltaTime.
+	 */
+	float GetStepDeltaTime() const
+	{
+		return bInSubstep ? StepDeltaTime : DeltaTime;
 	}
 
 	/**
@@ -1002,6 +1029,16 @@ protected:
 	 */
 	void SimulateModifyBones(FComponentSpacePoseContext& Output,
 	                         const FTransform& ComponentTransform);
+
+	/**
+	 * シミュレーションの1ステップ分（Simulate ループ＋ダミー配置＋コリジョン＋拘束＋長さ復元）を
+	 * 現在の GetStepDeltaTime() で1回実行する。SimulateModifyBones から legacy で1回、
+	 * サブステップ時は固定 dt で複数回呼ばれる。
+	 * Runs ONE simulation step (Simulate loop + dummy placement + collision + constraints + length restore)
+	 * at the current GetStepDeltaTime(). Called once (legacy) or N times (fixed substepping) from SimulateModifyBones.
+	 */
+	void SimulateOnce(FComponentSpacePoseContext& Output, const FTransform& ComponentTransform,
+	                  const FSceneInterface* Scene, const USkeletalMeshComponent* SkelComp);
 
 	/**
 	 * Simulates the physics for a single bone.

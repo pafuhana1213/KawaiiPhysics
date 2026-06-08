@@ -16,6 +16,7 @@ public class KawaiiPhysics : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"GameplayTags",
+				"DeveloperSettings",
 			}
 		);
 

@@ -70,13 +70,21 @@ void FKawaiiPhysics_ExternalForce::AnimDrawDebug(FKawaiiPhysicsModifyBone& Bone,
 {
 	if (IsDebugEnabled() && !Force.IsZero())
 	{
+		// BoneForceMapに該当ボーンが無い場合はnull参照を避ける（EditMode版と同様にガード）
+		// Guard against null deref when the bone is not in BoneForceMap (mirrors the EditMode path)
+		const FVector* ForcePtr = BoneForceMap.Find(Bone.BoneRef.BoneName);
+		if (!ForcePtr)
+		{
+			return;
+		}
+
 		const auto AnimInstanceProxy = PoseContext.AnimInstanceProxy;
 		const FVector ModifyRootBoneLocationWS = AnimInstanceProxy->GetComponentTransform().TransformPosition(
 			Bone.Location);
 
 		AnimInstanceProxy->AnimDrawDebugDirectionalArrow(
 			ModifyRootBoneLocationWS + DebugArrowOffset,
-			ModifyRootBoneLocationWS + DebugArrowOffset + BoneForceMap.Find(Bone.BoneRef.BoneName)->GetSafeNormal() *
+			ModifyRootBoneLocationWS + DebugArrowOffset + ForcePtr->GetSafeNormal() *
 			DebugArrowLength,
 			DebugArrowSize, FColor::Red, false, 0.f, 2);
 	}

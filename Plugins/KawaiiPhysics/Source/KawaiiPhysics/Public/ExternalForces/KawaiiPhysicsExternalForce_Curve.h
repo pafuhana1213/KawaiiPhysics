@@ -38,7 +38,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Curve : public FKawaiiPhys
 	* Number of divisions of elapsed time
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,
-		meta=(EditCondition="CurveEvaluateType != EExternalForceCurveEvaluateType::Single"),
+		meta=(EditCondition="CurveEvaluateType != EExternalForceCurveEvaluateType::Single", ClampMin="1", UIMin="1"),
 		Category="KawaiiPhysics|ExternalForce")
 	int SubstepCount = 10;
 

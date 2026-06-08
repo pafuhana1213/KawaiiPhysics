@@ -152,6 +152,10 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 	// For Avoiding Zero Divide in the first frame
 	DeltaTimeOld = 1.0f / static_cast<float>(GetEffectiveTargetFramerate());
 
+	// サブステップ状態をリセット / Reset substep state
+	SubstepAccumulator = 0.0f;
+	bSubstepPoseInitialized = false;
+
 	for (int i = 0; i < ExternalForces.Num(); ++i)
 	{
 		if (ExternalForces[i].IsValid())
@@ -189,6 +193,11 @@ void FAnimNode_KawaiiPhysics::ResetDynamics(ETeleportType InTeleportType)
 	{
 		bNeedWarmUp = true;
 	}
+
+	// サブステップ：未消費時間を破棄し、ポーズ補間の前フレーム値を次フレームで再初期化させる
+	// Substep: flush unconsumed time and re-seed the pose-interpolation previous-frame value next frame
+	SubstepAccumulator = 0.0f;
+	bSubstepPoseInitialized = false;
 }
 
 void FAnimNode_KawaiiPhysics::UpdateInternal(const FAnimationUpdateContext& Context)
@@ -625,6 +634,11 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 			                                               SimulationSpace, PrevLocationCS);
 			Bone.PrevLocation = Bone.Location;
 		}
+
+		// テレポート時はサブステップの未消費時間を破棄し、ポーズ補間を次フレームで再初期化
+		// On teleport, flush unconsumed substep time and re-seed pose interpolation next frame
+		SubstepAccumulator = 0.0f;
+		bSubstepPoseInitialized = false;
 	}
 	else
 	{

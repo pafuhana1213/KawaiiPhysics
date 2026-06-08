@@ -14,7 +14,7 @@ void FKawaiiPhysics_ExternalForce_Basic::PreApply(FAnimNode_KawaiiPhysics& Node,
 	Super::PreApply(Node, PoseContext);
 
 	PrevTime = Time;
-	Time += Node.DeltaTime;
+	Time += Node.GetStepDeltaTime();
 	if (Interval > 0.0f)
 	{
 		if (Time > Interval)
@@ -67,7 +67,7 @@ void FKawaiiPhysics_ExternalForce_Basic::Apply(FKawaiiPhysicsModifyBone& Bone, F
 	if (ExternalForceSpace == EExternalForceSpace::BoneSpace)
 	{
 		const FVector BoneForce = BoneTM.TransformVector(Force);
-		Bone.Location += BoneForce * ForceRate * Node.DeltaTime;
+		Bone.Location += BoneForce * ForceRate * Node.GetStepDeltaTime();
 
 #if ENABLE_ANIM_DEBUG
 		BoneForceMap.Add(Bone.BoneRef.BoneName, BoneForce);
@@ -75,7 +75,7 @@ void FKawaiiPhysics_ExternalForce_Basic::Apply(FKawaiiPhysicsModifyBone& Bone, F
 	}
 	else
 	{
-		Bone.Location += Force * ForceRate * Node.DeltaTime;
+		Bone.Location += Force * ForceRate * Node.GetStepDeltaTime();
 
 #if ENABLE_ANIM_DEBUG
 		BoneForceMap.Add(Bone.BoneRef.BoneName, Force * ForceRate);

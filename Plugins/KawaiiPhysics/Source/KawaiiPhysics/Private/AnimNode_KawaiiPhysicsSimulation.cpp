@@ -5,6 +5,7 @@
 #include "AnimationRuntime.h"
 #include "KawaiiPhysicsBoneConstraintsDataAsset.h"
 #include "KawaiiPhysicsCustomExternalForce.h"
+#include "KawaiiPhysicsDeveloperSettings.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
@@ -83,6 +84,10 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		return;
 	}
 
+	// このフレームの実dtを保持（サブステップ中は DeltaTime を FixedDt として扱うため別保存）
+	// Keep this frame's real dt (DeltaTime is treated as FixedDt during substeps)
+	FrameDeltaTime = DeltaTime;
+
 	const USkeletalMeshComponent* SkelComp = Output.AnimInstanceProxy->GetSkelMeshComponent();
 
 	// Save Prev/Pose Info , Check SkipSimulate
@@ -106,9 +111,11 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 
 		if (Bone.ParentIndex < 0)
 		{
+			// root: kinematic。実ポーズ追従（PrevLocation/Location更新）は SimulateOnce 内で、
+			// サブステップ補間後のポーズに対して毎ステップ行う。
+			// root: kinematic; the actual pose-follow (PrevLocation/Location update) happens inside
+			// SimulateOnce each step, against the per-substep interpolated pose.
 			Bone.bSkipSimulate = true;
-			Bone.PrevLocation = Bone.Location;
-			Bone.Location = Bone.PoseLocation;
 			continue;
 		}
 
@@ -165,11 +172,117 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		}
 	}
 
-	// Simulate
-	const int32 EffectiveTargetFramerate = GetEffectiveTargetFramerate();
-	const float Exponent = EffectiveTargetFramerate * DeltaTime;
+	// ===== サブステップ設定キャッシュ & Scene 取得（毎フレーム1回） =====
+	const UKawaiiPhysicsDeveloperSettings* KawaiiSettings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
+	bUseFixedSubsteppingCached = KawaiiSettings->bUseFixedSubstepping;
+	MaxSubstepsCached = FMath::Max(1, KawaiiSettings->MaxSubsteps);
+
 	const UWorld* World = SkelComp ? SkelComp->GetWorld() : nullptr;
 	const FSceneInterface* Scene = World ? World->Scene : nullptr;
+
+	// 現フレームのポーズ目標をスナップショット（サブステップ中 PoseLocation を補間で上書きするため退避）。
+	// 初回/リセット後は前フレーム値を現在値で初期化（補間で飛ばないように）。
+	// Snapshot this frame's pose target (PoseLocation is overwritten by interpolation during substeps).
+	// On first frame / after reset, seed the previous-frame target with the current value (avoid a jump).
+	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+	{
+		Bone.CurrentPoseLocation = Bone.PoseLocation;
+		Bone.CurrentPoseRotation = Bone.PoseRotation;
+		if (!bSubstepPoseInitialized)
+		{
+			Bone.PrevPoseLocation = Bone.PoseLocation;
+			Bone.PrevPoseRotation = Bone.PoseRotation;
+		}
+	}
+	bSubstepPoseInitialized = true;
+
+	if (!bUseFixedSubsteppingCached)
+	{
+		// ===== Legacy: 実フレーム時間で1ステップ（GetStepDeltaTime()==DeltaTime） =====
+		bInSubstep = false;
+		SimulateOnce(Output, ComponentTransform, Scene, SkelComp);
+		DeltaTimeOld = DeltaTime;
+	}
+	else
+	{
+		// ===== 固定タイムステップ・サブステップ（§4） =====
+		const float FixedDt = 1.0f / GetEffectiveTargetFramerate();
+		SubstepAccumulator += FrameDeltaTime;
+		// spiral of death 防止：超過分は破棄 / clamp to avoid spiral of death (drop excess time)
+		SubstepAccumulator = FMath::Min(SubstepAccumulator, MaxSubstepsCached * FixedDt);
+		const int32 NumSteps = FMath::FloorToInt(SubstepAccumulator / FixedDt);
+		SubstepAccumulator -= NumSteps * FixedDt;
+
+		// world移動を各サブステップへ分配（並進=線形分配、回転=増分割合のSlerp）。§7-D
+		// Distribute world movement across substeps (translation linear, rotation incremental fraction).
+		const float MoveFrac = (FrameDeltaTime > KINDA_SMALL_NUMBER) ? (FixedDt / FrameDeltaTime) : 1.0f;
+		const FVector FullSkelCompMove = SkelCompMoveVector;
+		const FQuat FullSkelCompRot = SkelCompMoveRotation;
+
+		bInSubstep = true;
+		StepDeltaTime = FixedDt;
+		DeltaTimeOld = FixedDt;
+		for (int32 SubstepIndex = 0; SubstepIndex < NumSteps; ++SubstepIndex)
+		{
+			// 注: ローカル名は基底クラスのメンバ Alpha（ブレンド係数）を隠さないよう SubstepAlpha とする
+			// Note: named SubstepAlpha to avoid shadowing the base-class member Alpha (blend weight)
+			const float SubstepAlpha = static_cast<float>(SubstepIndex + 1) / static_cast<float>(NumSteps);
+
+			// ポーズ目標をサブステップ補間（§5）
+			for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+			{
+				Bone.PoseLocation = FMath::Lerp(Bone.PrevPoseLocation, Bone.CurrentPoseLocation, SubstepAlpha);
+				Bone.PoseRotation = FQuat::Slerp(Bone.PrevPoseRotation, Bone.CurrentPoseRotation, SubstepAlpha).GetNormalized();
+			}
+
+			// world移動の分配分だけを適用させる（Simulateはメンバを参照するため一時設定）
+			SkelCompMoveVector = FullSkelCompMove * MoveFrac;
+			SkelCompMoveRotation = FQuat::Slerp(FQuat::Identity, FullSkelCompRot, MoveFrac).GetNormalized();
+
+			SimulateOnce(Output, ComponentTransform, Scene, SkelComp);
+		}
+		bInSubstep = false;
+
+		// world移動メンバを元へ（次フレームの UpdateSkelCompMove で再計算されるが安全のため）
+		SkelCompMoveVector = FullSkelCompMove;
+		SkelCompMoveRotation = FullSkelCompRot;
+
+		// PoseLocation を現フレームの真値へ戻す（出力・次フレーム捕捉の整合）
+		for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+		{
+			Bone.PoseLocation = Bone.CurrentPoseLocation;
+			Bone.PoseRotation = Bone.CurrentPoseRotation;
+		}
+	}
+
+	// 次フレームのポーズ補間用に現フレーム値を確定
+	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+	{
+		Bone.PrevPoseLocation = Bone.CurrentPoseLocation;
+		Bone.PrevPoseRotation = Bone.CurrentPoseRotation;
+	}
+}
+
+void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
+                                           const FTransform& ComponentTransform,
+                                           const FSceneInterface* Scene,
+                                           const USkeletalMeshComponent* SkelComp)
+{
+	// root bone（ParentIndex<0）の kinematic follow: （補間済み）ポーズへ追従。
+	// 元の skip ループから移設。サブステップ毎に補間ポーズへ追従させる。
+	// root bones follow the (interpolated) pose. Moved out of the skip loop so it runs every substep.
+	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+	{
+		if (Bone.ParentIndex < 0 && !Bone.bBridgeDummy && !(Bone.BoneRef.BoneIndex < 0 && !Bone.bDummy))
+		{
+			Bone.PrevLocation = Bone.Location;
+			Bone.Location = Bone.PoseLocation;
+		}
+	}
+
+	// Simulate（Exponent は GetStepDeltaTime ベース。サブステップ時は TargetFramerate*FixedDt=1）
+	const int32 EffectiveTargetFramerate = GetEffectiveTargetFramerate();
+	const float Exponent = EffectiveTargetFramerate * GetStepDeltaTime();
 	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 	{
 		if (Bone.bSkipSimulate)
@@ -350,6 +463,10 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		// only when many dummies push the same endpoint does it average out, preventing N-fold overshoot/oscillation.
 		TMap<int32, FVector> AccumPush;
 		TMap<int32, float> AccumWeight;
+		// 端点インデックスは最大でもModifyBones数。事前確保で毎フレームの再ハッシュを回避
+		// Endpoint indices are bounded by ModifyBones count; reserve to avoid per-frame rehashing
+		AccumPush.Reserve(ModifyBones.Num());
+		AccumWeight.Reserve(ModifyBones.Num());
 
 		for (const FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 		{
@@ -437,8 +554,8 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 			Bone.Location = (Bone.Location - ParentBone.Location).GetSafeNormal() * BoneLength + ParentBone.Location;
 		}
 	}
-
-	DeltaTimeOld = DeltaTime;
+	// 注: DeltaTimeOld は呼び出し元 SimulateModifyBones（legacy=DeltaTime / substep=FixedDt）で設定
+	// Note: DeltaTimeOld is set by the caller SimulateModifyBones (legacy=DeltaTime / substep=FixedDt)
 }
 
 void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSceneInterface* Scene,
@@ -451,8 +568,14 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 	const FKawaiiPhysicsModifyBone& ParentBone = ModifyBones[Bone.ParentIndex];
 
 	// Move using Velocity( = movement amount in pre frame ) and Damping
+	// 速度は前ステップ変位を DeltaTimeOld で割って再構成。固定サブステップ時 DeltaTimeOld=FixedDt。
+	// Velocity is reconstructed from the previous step's displacement / DeltaTimeOld (= FixedDt while substepping).
 	FVector Velocity = (Bone.Location - Bone.PrevLocation) / DeltaTimeOld;
 	Bone.PrevLocation = Bone.Location;
+	// Damping は毎ステップの生係数。固定サブステップ化（DeveloperSettings）により、ステップ幅一定で
+	// フレームレート非依存になる（#81 はサブステップ化で解決。Pow正規化フラグは撤去済み）。
+	// Raw per-step damping. With fixed substepping (DeveloperSettings) the step size is constant, so this
+	// becomes frame-rate independent (#81 is addressed by substepping; the Pow-normalization flag was removed).
 	Velocity *= (1.0f - Bone.PhysicsSettings.Damping);
 
 	// wind
@@ -462,15 +585,17 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 	}
 
 	// Gravity (apply just after wind; keep legacy compatibility via separate position term)
+	// dt は GetStepDeltaTime()（サブステップ時=FixedDt）/ dt via GetStepDeltaTime() (= FixedDt while substepping)
+	const float StepDt = GetStepDeltaTime();
 	if (!bUseLegacyGravity)
 	{
 		// AnimDynamics-like: integrate acceleration into velocity
-		Velocity += GravityInSimSpace * DeltaTime;
+		Velocity += GravityInSimSpace * StepDt;
 	}
 	else
 	{
 		// Legacy gravity: add 0.5 * g * dt^2 to position
-		Bone.Location += 0.5 * GravityInSimSpace * DeltaTime * DeltaTime;
+		Bone.Location += 0.5 * GravityInSimSpace * StepDt * StepDt;
 	}
 
 	for (int i = 0; i < ExternalForces.Num(); ++i)
@@ -486,12 +611,12 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 	}
 
 	// Integrate position from velocity
-	Bone.Location += Velocity * DeltaTime;
+	Bone.Location += Velocity * StepDt;
 
 	// Simple External Force (cached in SimulateModifyBones)
 	if (!SimpleExternalForceInSimSpace.IsNearlyZero())
 	{
-		Bone.Location += SimpleExternalForceInSimSpace * DeltaTime;
+		Bone.Location += SimpleExternalForceInSimSpace * StepDt;
 	}
 
 	// Follow World Movement
@@ -647,9 +772,29 @@ void FAnimNode_KawaiiPhysics::WarmUp(FComponentSpacePoseContext& Output, const F
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_WarmUp);
 
+	// サブステップ有効時は、各ウォームアップ反復がちょうど1固定ステップになるよう DeltaTime=FixedDt とし、
+	// アキュムレータを退避（ウォームアップ分を本流の蓄積に混ぜない）。ポーズは現値固定で安定化させる。
+	// When substepping, force DeltaTime = FixedDt so each warm-up iteration runs exactly one fixed step,
+	// and isolate the accumulator from the main loop. Pose is held at the current value to settle.
+	const UKawaiiPhysicsDeveloperSettings* KawaiiSettings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
+	const bool bSubstep = KawaiiSettings && KawaiiSettings->bUseFixedSubstepping;
+	const float SavedDeltaTime = DeltaTime;
+	const float SavedAccumulator = SubstepAccumulator;
+	if (bSubstep)
+	{
+		DeltaTime = 1.0f / GetEffectiveTargetFramerate();
+		SubstepAccumulator = 0.0f;
+	}
+
 	for (int32 i = 0; i < WarmUpFrames; ++i)
 	{
 		SimulateModifyBones(Output, ComponentTransform);
+	}
+
+	if (bSubstep)
+	{
+		DeltaTime = SavedDeltaTime;
+		SubstepAccumulator = SavedAccumulator;
 	}
 }
 

@@ -173,6 +173,18 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsModifyBone
 	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
 	FQuat PoseRotation = FQuat::Identity;
 
+	// ===== 固定サブステップのポーズ補間用（Transient, 非シリアライズ） =====
+	// For fixed-substep pose interpolation (Transient, not serialized)
+	/** 前フレームのポーズ目標位置（補間の始点） / Previous-frame pose target location (lerp start) */
+	FVector PrevPoseLocation = FVector::ZeroVector;
+	/** 前フレームのポーズ目標回転 / Previous-frame pose target rotation */
+	FQuat PrevPoseRotation = FQuat::Identity;
+	/** 現フレームのポーズ目標位置のスナップショット（補間の終点）。サブステップ中 PoseLocation を上書きするため退避 */
+	/** Snapshot of this frame's pose target location (lerp end); stashed because PoseLocation is overwritten during substeps */
+	FVector CurrentPoseLocation = FVector::ZeroVector;
+	/** 現フレームのポーズ目標回転のスナップショット / Snapshot of this frame's pose target rotation */
+	FQuat CurrentPoseRotation = FQuat::Identity;
+
 	/** Pose scale of the bone */
 	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
 	FVector PoseScale = FVector::OneVector;

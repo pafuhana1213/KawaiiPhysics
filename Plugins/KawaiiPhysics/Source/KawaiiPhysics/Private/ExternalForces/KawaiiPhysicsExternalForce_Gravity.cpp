@@ -14,7 +14,9 @@ void FKawaiiPhysics_ExternalForce_Gravity::Initialize(const FAnimationInitialize
 {
 	Super::Initialize(Context);
 
-	OwnerCharacter = Cast<ACharacter>(Context.AnimInstanceProxy->GetSkelMeshComponent()->GetOwner());
+	// SkeletalMeshComponentがnullの場合のクラッシュを回避 / Avoid crash when the component is null
+	const USkeletalMeshComponent* SkelComp = Context.AnimInstanceProxy->GetSkelMeshComponent();
+	OwnerCharacter = SkelComp ? Cast<ACharacter>(SkelComp->GetOwner()) : nullptr;
 }
 
 void FKawaiiPhysics_ExternalForce_Gravity::PreApply(FAnimNode_KawaiiPhysics& Node,
@@ -66,7 +68,7 @@ void FKawaiiPhysics_ExternalForce_Gravity::ApplyToVelocity(FKawaiiPhysicsModifyB
 		ForceRate = Curve->Eval(Bone.LengthRateFromRoot, 1.0f);
 	}
 
-	InOutVelocity += Force * ForceRate * Node.DeltaTime;
+	InOutVelocity += Force * ForceRate * Node.GetStepDeltaTime();
 
 #if ENABLE_ANIM_DEBUG
 	BoneForceMap.Add(Bone.BoneRef.BoneName, Force * ForceRate);
