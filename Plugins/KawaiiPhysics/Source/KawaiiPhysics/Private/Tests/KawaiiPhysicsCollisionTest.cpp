@@ -142,11 +142,14 @@ bool FKawaiiPhysicsBoxTest::RunTest(const FString& Parameters)
 	                         *Bone.Location.ToString(), *Expected.ToString()),
 	         Bone.Location.Equals(Expected, GTol));
 
-	// 完全に内部（buried）ケース: 中心からずれた (5,0,0) は中心方向へ押し出され (5,0,0)+(1,0,0)*3 = (8,0,0)。
-	// Buried case: an off-center interior bone is pushed along its center direction to surface + radius.
+	// 完全に内部（buried）ケース。注: 現行アルゴリズムは中心方向へ「半径ぶん」だけ押すため箱から出きらず、
+	// (5,0,0)+(1,0,0)*3 = (8,0,0) で止まる（理想の押し出し (13,0,0) ではない）。現挙動の固定＝リグレッション検出用。
+	// Buried case. NOTE: the current algorithm pushes only "radius" along the center direction, so the bone does
+	// not fully exit the box and stops at (8,0,0) (not the ideal (13,0,0)). This pins current behavior (regression).
 	FKawaiiPhysicsModifyBone Buried = MakeBone(FVector(5, 0, 0), 3.0f, FVector(5, 0, 0));
 	A.CallBoxCollision(Buried, Limits);
-	TestTrue(FString::Printf(TEXT("Box buried push: got %s expected (8,0,0)"), *Buried.Location.ToString()),
+	TestTrue(FString::Printf(TEXT("Box buried push (pins current behavior): got %s expected (8,0,0)"),
+	                         *Buried.Location.ToString()),
 	         Buried.Location.Equals(FVector(8, 0, 0), GTol));
 
 	return true;

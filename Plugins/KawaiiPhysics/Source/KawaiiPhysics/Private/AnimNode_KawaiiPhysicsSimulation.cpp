@@ -567,15 +567,22 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 
 	const FKawaiiPhysicsModifyBone& ParentBone = ModifyBones[Bone.ParentIndex];
 
-	// wind + ExternalForce::ApplyToVelocity を集約（いずれも加算のみ）/ gather wind + ExternalForce velocity (additive only).
-	FVector ExtraVelocity = FVector::ZeroVector;
-
-	// wind
+	// wind（Output依存）を計算。減衰後の速度に足し込む寄与として ComputeVerletStepVelocity へ渡す。
+	// Wind (Output-dependent). Passed to ComputeVerletStepVelocity as a contribution added onto the post-damping velocity.
+	FVector WindVelocity = FVector::ZeroVector;
 	if (bEnableWind && Scene)
 	{
-		ExtraVelocity += GetWindVelocity(Output, Scene, Bone) * GetEffectiveTargetFramerate();
+		WindVelocity = GetWindVelocity(Output, Scene, Bone) * GetEffectiveTargetFramerate();
 	}
 
+	// このステップの速度を作る（速度再構成 → damping → +wind → gravity）。
+	// Build this step's velocity (reconstruct -> damping -> +wind -> gravity).
+	FVector Velocity = ComputeVerletStepVelocity(Bone, WindVelocity);
+
+	// ユーザー外力に「実際の速度」を渡す（gravity の後・位置更新の前）。ApplyToVelocity は
+	// InOutVelocity を読む実装もあり得るため、集約せずここで実速度に対して呼ぶ。
+	// Hand the real velocity to user external forces (after gravity, before position integration).
+	// ApplyToVelocity may read InOutVelocity, so it runs on the real velocity here (not on a pre-gathered accumulator).
 	for (int i = 0; i < ExternalForces.Num(); ++i)
 	{
 		if (ExternalForces[i].IsValid())
@@ -583,14 +590,13 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 			if (const auto ExForce = ExternalForces[i].GetMutablePtr<FKawaiiPhysics_ExternalForce>();
 				ExForce->bIsEnabled)
 			{
-				ExForce->ApplyToVelocity(Bone, *this, Output, ExtraVelocity);
+				ExForce->ApplyToVelocity(Bone, *this, Output, Velocity);
 			}
 		}
 	}
 
-	// === Verlet積分の1ステップ: 速度再構成 → damping → +ExtraVelocity → gravity → 位置更新 ===
-	// Verlet step: reconstruct velocity -> damping -> +ExtraVelocity -> gravity -> integrate.
-	IntegrateVerletStep(Bone, ExtraVelocity);
+	// 速度のぶんだけ位置を進める。 / Move the position by the velocity.
+	IntegrateVerletStepPosition(Bone, Velocity);
 
 	// Simple External Force（速度を経由しない位置オフセット） / position offset, not via velocity.
 	ApplySimpleExternalForce(Bone);
@@ -700,25 +706,25 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 // ============================================================================
 //  物理計算の各ステップ（引数に FComponentSpacePoseContext を取らない）。Simulate() から呼ばれる。
 //  Each physics step; takes no FComponentSpacePoseContext. Called from Simulate().
-//  注: ここを変更したら、上の Simulate() の外力集約順序との整合も確認すること。
-//  NOTE: if you change these, re-check consistency with the external-velocity gathering in Simulate() above.
+//  注: ここを変更したら、Simulate() 内の wind/ApplyToVelocity の呼び出し位置との整合も確認すること。
+//  NOTE: if you change these, re-check consistency with the wind/ApplyToVelocity call sites in Simulate().
 // ============================================================================
 
-void FAnimNode_KawaiiPhysics::IntegrateVerletStep(FKawaiiPhysicsModifyBone& Bone,
-                                                 const FVector& ExtraVelocity)
+FVector FAnimNode_KawaiiPhysics::ComputeVerletStepVelocity(FKawaiiPhysicsModifyBone& Bone,
+                                                     const FVector& WindVelocity)
 {
 	// Move using Velocity( = movement amount in pre frame ) and Damping
 	// 速度は前ステップ変位を DeltaTimeOld で割って再構成。固定サブステップ時 DeltaTimeOld=FixedDt。
 	// Velocity is reconstructed from the previous step's displacement / DeltaTimeOld (= FixedDt while substepping).
 	FVector Velocity = (Bone.Location - Bone.PrevLocation) / DeltaTimeOld;
 	Bone.PrevLocation = Bone.Location;
-	
+
 	// 毎ステップ生の damping 係数（固定サブステップ化でフレームレート依存は解消済み）。
 	// Raw per-step damping (frame-rate dependence is resolved by fixed substepping).
 	Velocity *= (1.0f - Bone.PhysicsSettings.Damping);
 
-	// wind / ExternalForce velocity（呼び出し元で集約済み、加算のみ） / gathered by caller, additive only.
-	Velocity += ExtraVelocity;
+	// wind（呼び出し元で計算済み） / wind (computed by the caller).
+	Velocity += WindVelocity;
 
 	// Gravity (apply just after wind; keep legacy compatibility via separate position term)
 	const float StepDt = GetStepDeltaTime();
@@ -733,8 +739,13 @@ void FAnimNode_KawaiiPhysics::IntegrateVerletStep(FKawaiiPhysicsModifyBone& Bone
 		Bone.Location += 0.5 * GravityInSimSpace * StepDt * StepDt;
 	}
 
+	return Velocity;
+}
+
+void FAnimNode_KawaiiPhysics::IntegrateVerletStepPosition(FKawaiiPhysicsModifyBone& Bone, const FVector& Velocity)
+{
 	// Integrate position from velocity
-	Bone.Location += Velocity * StepDt;
+	Bone.Location += Velocity * GetStepDeltaTime();
 }
 
 void FAnimNode_KawaiiPhysics::ApplySimpleExternalForce(FKawaiiPhysicsModifyBone& Bone)

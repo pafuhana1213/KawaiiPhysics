@@ -1056,12 +1056,13 @@ protected:
 
 	// ===== 物理計算の各ステップ（引数に FComponentSpacePoseContext を取らない。Simulate() から呼ばれる）=====
 	// Each physics step; takes no FComponentSpacePoseContext. Called from Simulate().
-	// 外力(wind / ExternalForce::ApplyToVelocity)は呼び出し元で集約し ExtraVelocity として渡す（加算のみ）。
-	// External velocity (wind / ExternalForce::ApplyToVelocity) is gathered by the caller and passed as
-	// ExtraVelocity (additive only — see ApplyToVelocity implementations). No FComponentSpacePoseContext.
 
-	/** Verlet積分の1ステップ（速度の再構成→減衰→外力→重力→位置更新）。 */
-	void IntegrateVerletStep(FKawaiiPhysicsModifyBone& Bone, const FVector& ExtraVelocity);
+	/** このステップの速度を作る（速度の再構成→減衰→+wind→重力）。ユーザー外力(ApplyToVelocity)の前に呼ぶ。 */
+	FVector ComputeVerletStepVelocity(FKawaiiPhysicsModifyBone& Bone, const FVector& WindVelocity);
+
+	/** Verlet ステップ後半。ComputeVerletStepVelocity が作り、外力フック(ApplyToVelocity)で調整された後の
+	 *  速度から位置を更新する（Location += Velocity * GetStepDeltaTime()）。 */
+	void IntegrateVerletStepPosition(FKawaiiPhysicsModifyBone& Bone, const FVector& Velocity);
 
 	/** simple external force（速度を経由しない位置オフセット。位置空間の後処理）。 */
 	void ApplySimpleExternalForce(FKawaiiPhysicsModifyBone& Bone);

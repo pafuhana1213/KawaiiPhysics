@@ -109,14 +109,20 @@ struct FKawaiiPhysicsTestAccessor
 			return;
 		}
 
-		// ハーネスの未対応ケースを黙って通さない（Output依存のため未実装）。
-		// Fail loudly on cases the headless harness does not model (they require Output).
-		ensureMsgf(Node.SimulationSpace != EKawaiiPhysicsSimulationSpace::BaseBoneSpace,
-		           TEXT("FKawaiiPhysicsTestAccessor: BaseBoneSpace is not supported headlessly (needs Output-side "
-			           "space conversion). Use ComponentSpace/WorldSpace, or a real-mesh integration test."));
-		ensureMsgf(Node.SkelCompMoveVector.IsNearlyZero() || !Node.bUseFixedSubsteppingCached,
-		           TEXT("FKawaiiPhysicsTestAccessor: nonzero SkelCompMoveVector is not distributed across substeps "
-			           "(production does at SimulateModifyBones). Use legacy mode or zero SkelCompMove."));
+		// ハーネスの未対応ケースは黙って通さず、警告を出して即座に中断する（Output依存のため未実装）。
+		// Fail loudly AND stop on cases the headless harness does not model (they require Output).
+		if (!ensureMsgf(Node.SimulationSpace != EKawaiiPhysicsSimulationSpace::BaseBoneSpace,
+		                TEXT("FKawaiiPhysicsTestAccessor: BaseBoneSpace is not supported headlessly (needs Output-side "
+			                "space conversion). Use ComponentSpace/WorldSpace, or a real-mesh integration test.")))
+		{
+			return;
+		}
+		if (!ensureMsgf(Node.SkelCompMoveVector.IsNearlyZero() || !Node.bUseFixedSubsteppingCached,
+		                TEXT("FKawaiiPhysicsTestAccessor: nonzero SkelCompMoveVector is not distributed across substeps "
+			                "(production does at SimulateModifyBones). Use legacy mode or zero SkelCompMove.")))
+		{
+			return;
+		}
 
 		Node.DeltaTime = FrameDt;
 		Node.FrameDeltaTime = FrameDt;
@@ -210,9 +216,13 @@ struct FKawaiiPhysicsTestAccessor
 	}
 
 	// 物理計算関数の直接呼び出し（抽出した処理を解析的に検証する用） / Direct calls to the physics functions (to verify the extracted code path analytically).
-	void CallVerletStep(FKawaiiPhysicsModifyBone& Bone, const FVector& ExtraVelocity)
+	FVector CallComputeVerletStepVelocity(FKawaiiPhysicsModifyBone& Bone, const FVector& WindVelocity)
 	{
-		Node.IntegrateVerletStep(Bone, ExtraVelocity);
+		return Node.ComputeVerletStepVelocity(Bone, WindVelocity);
+	}
+	void CallIntegrateVerletStepPosition(FKawaiiPhysicsModifyBone& Bone, const FVector& Velocity)
+	{
+		Node.IntegrateVerletStepPosition(Bone, Velocity);
 	}
 	void CallSimpleExternalForce(FKawaiiPhysicsModifyBone& Bone)
 	{
@@ -323,7 +333,8 @@ private:
 			{
 				continue;
 			}
-			Node.IntegrateVerletStep(Bone, FVector::ZeroVector);
+			const FVector Velocity = Node.ComputeVerletStepVelocity(Bone, FVector::ZeroVector);
+			Node.IntegrateVerletStepPosition(Bone, Velocity);
 			Node.ApplySimpleExternalForce(Bone);
 			Node.ApplyWorldMoveFollowNonBaseBone(Bone);
 			Node.ApplyStiffnessPull(Bone, Node.ModifyBones[Bone.ParentIndex], Exponent);

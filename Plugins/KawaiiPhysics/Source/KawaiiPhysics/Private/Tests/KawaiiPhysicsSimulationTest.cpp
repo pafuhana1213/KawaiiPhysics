@@ -69,8 +69,8 @@ bool FKawaiiPhysicsDeterminismTest::RunTest(const FString& Parameters)
 
 // ---------------------------------------------------------------------------
 //  抽出した物理計算関数の検証（解析的） / Verify the extracted physics functions (analytic)
-//  抽出で導入した経路（ExtraVelocity・legacy gravity・simple external force）を直接検証する。
-//  Directly verifies the extracted boundary: ExtraVelocity, legacy gravity, simple external force.
+//  抽出した経路（速度寄与(wind)・legacy gravity・simple external force）を直接検証する。
+//  Directly verifies the extracted code path: velocity contribution (wind), legacy gravity, simple external force.
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsIntegrationCoreTest,
                                  "KawaiiPhysics.Simulation.IntegrationCore",
@@ -91,8 +91,8 @@ bool FKawaiiPhysicsIntegrationCoreTest::RunTest(const FString& Parameters)
 		return B;
 	};
 
-	// --- (a) 非legacy gravity + ExtraVelocity ---
-	// V=(1.5,0,0)+Extra(0,3,0)+g*dt(0,0,-5)=(1.5,3,-5); Loc=0+V*0.5=(0.75,1.5,-2.5)
+	// --- (a) 非legacy gravity + 速度寄与(wind) ---
+	// V=(1.5,0,0)+wind(0,3,0)+g*dt(0,0,-5)=(1.5,3,-5); Loc=0+V*0.5=(0.75,1.5,-2.5)
 	{
 		FKawaiiPhysicsTestAccessor A;
 		A.SetGravityInSimSpace(FVector(0, 0, -10));
@@ -100,9 +100,18 @@ bool FKawaiiPhysicsIntegrationCoreTest::RunTest(const FString& Parameters)
 		A.SetSimpleExternalForceInSimSpace(FVector::ZeroVector);
 		A.SetTimeState(0.5f, 0.5f);
 		FKawaiiPhysicsModifyBone B = MakeBone();
-		A.CallVerletStep(B, FVector(0, 3, 0));
+		const FVector Velocity = A.CallComputeVerletStepVelocity(B, FVector(0, 3, 0));
+		// この Velocity が Simulate() で ApplyToVelocity に渡る「実速度」（減衰+wind+重力）。公開フックの
+		// 契約を固定する（以前ここに wind だけの値が渡る退行があった）。Simulate() の呼び出し配線自体は
+		// Output 依存のため headless 対象外。
+		// This Velocity is what Simulate() hands to ApplyToVelocity (damped+wind+gravity). Pin the public-hook
+		// contract (a prior regression passed wind only). The Simulate() call wiring itself is Output-dependent
+		// and out of scope for the headless harness.
+		TestTrue(FString::Printf(TEXT("ApplyToVelocity input (non-legacy) = %s"), *Velocity.ToString()),
+		         Velocity.Equals(FVector(1.5f, 3.0f, -5.0f), Tol));
+		A.CallIntegrateVerletStepPosition(B, Velocity);
 		A.CallSimpleExternalForce(B);
-		TestTrue(FString::Printf(TEXT("Core non-legacy+ExtraVelocity: got %s"), *B.Location.ToString()),
+		TestTrue(FString::Printf(TEXT("Core non-legacy+wind: got %s"), *B.Location.ToString()),
 		         B.Location.Equals(FVector(0.75f, 1.5f, -2.5f), Tol));
 		TestTrue(TEXT("Core updates PrevLocation"), B.PrevLocation.Equals(FVector(0, 0, 0), Tol));
 	}
@@ -116,7 +125,12 @@ bool FKawaiiPhysicsIntegrationCoreTest::RunTest(const FString& Parameters)
 		A.SetSimpleExternalForceInSimSpace(FVector::ZeroVector);
 		A.SetTimeState(0.5f, 0.5f);
 		FKawaiiPhysicsModifyBone B = MakeBone();
-		A.CallVerletStep(B, FVector(0, 3, 0));
+		const FVector Velocity = A.CallComputeVerletStepVelocity(B, FVector(0, 3, 0));
+		// legacy では重力は位置へ入るので、フックに渡る速度は減衰+wind のみ（重力なし）。
+		// In legacy mode gravity goes to position, so the hook receives damped+wind only (no gravity).
+		TestTrue(FString::Printf(TEXT("ApplyToVelocity input (legacy) = %s"), *Velocity.ToString()),
+		         Velocity.Equals(FVector(1.5f, 3.0f, 0.0f), Tol));
+		A.CallIntegrateVerletStepPosition(B, Velocity);
 		A.CallSimpleExternalForce(B);
 		TestTrue(FString::Printf(TEXT("Core legacy gravity: got %s"), *B.Location.ToString()),
 		         B.Location.Equals(FVector(0.75f, 1.5f, -1.25f), Tol));
@@ -131,7 +145,8 @@ bool FKawaiiPhysicsIntegrationCoreTest::RunTest(const FString& Parameters)
 		A.SetSimpleExternalForceInSimSpace(FVector(0, 0, 2));
 		A.SetTimeState(0.5f, 0.5f);
 		FKawaiiPhysicsModifyBone B = MakeBone();
-		A.CallVerletStep(B, FVector(0, 3, 0));
+		const FVector Velocity = A.CallComputeVerletStepVelocity(B, FVector(0, 3, 0));
+		A.CallIntegrateVerletStepPosition(B, Velocity);
 		A.CallSimpleExternalForce(B);
 		TestTrue(FString::Printf(TEXT("Core simple external force: got %s"), *B.Location.ToString()),
 		         B.Location.Equals(FVector(0.75f, 1.5f, -1.5f), Tol));
