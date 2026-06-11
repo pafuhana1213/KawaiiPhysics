@@ -748,7 +748,7 @@ void FAnimNode_KawaiiPhysics::PreUpdate(const UAnimInstance* InAnimInstance)
 				{
 					UE_LOG(LogKawaiiPhysics, Warning,
 						TEXT("SharedCollision: Target could not find source entry for tag [%s]. "
-							"Ensure a source node with matching tag exists on this actor."),
+							"Ensure a source node with matching tag exists in the same actor/child-actor family."),
 						*SharedCollisionGroupTag.ToString());
 					bSharedCollisionInitWarningLogged = true;
 				}

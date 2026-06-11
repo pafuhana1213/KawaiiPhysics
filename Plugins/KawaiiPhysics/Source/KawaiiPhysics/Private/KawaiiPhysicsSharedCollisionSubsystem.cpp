@@ -3,6 +3,8 @@
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
 #include "AnimNode_KawaiiPhysics.h"
 
+#include "GameFramework/Actor.h"
+
 // SharedCollision CVars（AnimNode_KawaiiPhysics.cpp で定義）
 // SharedCollision CVars (defined in AnimNode_KawaiiPhysics.cpp)
 extern TAutoConsoleVariable<int32> CVarSharedCollisionReadMaxAge;
@@ -18,6 +20,30 @@ DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SharedCollision_FindEntry"), STAT_KawaiiP
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SharedCollision_Tick"), STAT_KawaiiPhysics_SharedCollision_Tick, STATGROUP_Anim);
 DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_SharedCollision_NumEntries"), STAT_KawaiiPhysics_SharedCollision_NumEntries, STATGROUP_Anim);
 DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_SharedCollision_NumSlots"), STAT_KawaiiPhysics_SharedCollision_NumSlots, STATGROUP_Anim);
+
+namespace
+{
+	AActor* GetSharedCollisionFamilyRoot(AActor* Actor)
+	{
+		AActor* Root = Actor;
+		while (Root)
+		{
+			AActor* Parent = Root->GetAttachParentActor();
+			if (!Parent)
+			{
+				Parent = Root->GetParentActor();
+			}
+
+			if (!Parent || Parent == Root)
+			{
+				break;
+			}
+
+			Root = Parent;
+		}
+		return Root;
+	}
+}
 
 // -------------------------------------------------------------------
 // FKawaiiPhysicsSharedCollisionSourceSlot
@@ -171,7 +197,13 @@ TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> UKawaiiPhysicsSharedCollisionSubs
 		return nullptr;
 	}
 
-	const TPair<TWeakObjectPtr<AActor>, FGameplayTag> Key(Actor, Tag);
+	AActor* FamilyRoot = GetSharedCollisionFamilyRoot(Actor);
+	if (!FamilyRoot)
+	{
+		return nullptr;
+	}
+
+	const TPair<TWeakObjectPtr<AActor>, FGameplayTag> Key(FamilyRoot, Tag);
 	if (TSharedPtr<FKawaiiPhysicsSharedCollisionEntry>* Existing = Registry.Find(Key))
 	{
 		return *Existing;
@@ -193,23 +225,21 @@ TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> UKawaiiPhysicsSharedCollisionSubs
 		return nullptr;
 	}
 
-	// Actor→親Actorを辿って検索 / Traverse Actor attachment hierarchy
-	AActor* Current = Actor;
-	while (Current)
+	AActor* FamilyRoot = GetSharedCollisionFamilyRoot(Actor);
+	if (!FamilyRoot)
 	{
-		const TPair<TWeakObjectPtr<AActor>, FGameplayTag> Key(Current, Tag);
+		return nullptr;
+	}
 
-		if (const TSharedPtr<FKawaiiPhysicsSharedCollisionEntry>* Found = Registry.Find(Key))
+	const TPair<TWeakObjectPtr<AActor>, FGameplayTag> Key(FamilyRoot, Tag);
+	if (const TSharedPtr<FKawaiiPhysicsSharedCollisionEntry>* Found = Registry.Find(Key))
+	{
+		// Actorが無効ならスキップ（Tick()で定期的にクリーンアップ）
+		// Skip if actor is invalid (cleaned up periodically in Tick())
+		if (Key.Key.IsValid())
 		{
-			// Actorが無効ならスキップ（Tick()で定期的にクリーンアップ）
-			// Skip if actor is invalid (cleaned up periodically in Tick())
-			if (Key.Key.IsValid())
-			{
-				return *Found;
-			}
+			return *Found;
 		}
-
-		Current = Current->GetAttachParentActor();
 	}
 
 	return nullptr;

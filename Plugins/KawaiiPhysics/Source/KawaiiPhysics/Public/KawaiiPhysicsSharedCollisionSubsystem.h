@@ -41,8 +41,8 @@ private:
 };
 
 /**
- * (Actor, Tag) 単位のエントリ。複数Sourceのスロットを保持
- * Entry per (Actor, Tag) pair. Holds slots for multiple sources.
+ * (ActorFamilyRoot, Tag) 単位のエントリ。複数Sourceのスロットを保持
+ * Entry per (ActorFamilyRoot, Tag) pair. Holds slots for multiple sources.
  */
 struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedCollisionEntry
 {
@@ -80,7 +80,7 @@ private:
 
 /**
  * KawaiiPhysics AnimNode間でコリジョンデータを共有するためのWorldSubsystem
- * WorldSubsystem for sharing collision data between KawaiiPhysics AnimNodes across SkeletalMeshComponents
+ * WorldSubsystem for sharing collision data between KawaiiPhysics AnimNodes in an attached actor family
  */
 UCLASS()
 class KAWAIIPHYSICS_API UKawaiiPhysicsSharedCollisionSubsystem : public UTickableWorldSubsystem
@@ -89,14 +89,14 @@ class KAWAIIPHYSICS_API UKawaiiPhysicsSharedCollisionSubsystem : public UTickabl
 
 public:
 	/**
-	 * Source用: エントリを検索、なければ作成（GameThreadで呼ぶ）
-	 * For sources: Find or create an entry (call from GameThread)
+	 * Source用: Actorファミリーrootのエントリを検索、なければ作成（GameThreadで呼ぶ）
+	 * For sources: Find or create an entry for the actor family root (call from GameThread)
 	 */
 	TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> FindOrCreateEntry(AActor* Actor, const FGameplayTag& Tag);
 
 	/**
-	 * Target用: Actor→親Actorを辿ってエントリを検索
-	 * For targets: Find an entry, traversing parent Actors via attachment hierarchy
+	 * Target用: Actorファミリーrootのエントリを検索
+	 * For targets: Find an entry for the actor family root
 	 */
 	TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> FindEntry(AActor* Actor, const FGameplayTag& Tag) const;
 
@@ -110,7 +110,7 @@ public:
 	virtual bool IsTickableInEditor() const override { return true; }
 
 private:
-	/** レジストリ: (Actor, Tag) → Entry / Registry: (Actor, Tag) -> Entry */
+	/** レジストリ: (ActorFamilyRoot, Tag) → Entry / Registry: (ActorFamilyRoot, Tag) -> Entry */
 	TMap<TPair<TWeakObjectPtr<AActor>, FGameplayTag>, TSharedPtr<FKawaiiPhysicsSharedCollisionEntry>> Registry;
 
 	/** クリーンアップ間隔制御 / Cleanup interval control */

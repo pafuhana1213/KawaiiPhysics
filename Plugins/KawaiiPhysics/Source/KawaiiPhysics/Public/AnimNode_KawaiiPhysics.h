@@ -344,23 +344,25 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	TArray<FPlanarLimit> PlanarLimitsData;
 
 	/**
-	 * コリジョンを他のKawaiiPhysicsに共有する
-	 * Provide this node's collision limits as a source to other KawaiiPhysics nodes via SharedCollisionSubsystem
+	 * コリジョンを同じActor/ChildActorファミリー内のKawaiiPhysicsに共有する
+	 * Provide this node's collision limits to KawaiiPhysics nodes in the same attached actor family
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|Shared Collision", meta = (PinHiddenByDefault))
 	bool bSharedCollisionSource = false;
 
 	/**
-	 * 他のKawaiiPhysicsから共有コリジョンを使用する
-	 * Use shared collision limits from source KawaiiPhysics nodes
+	 * 同じActor/ChildActorファミリー内のKawaiiPhysicsから共有コリジョンを使用する
+	 * 同じAnimGraph内で同一フレームの結果を使うには、SourceノードをTargetノードより先に評価される位置へ配置してください。
+	 * Use shared collision limits from source KawaiiPhysics nodes in the same attached actor family.
+	 * To use same-frame data in one AnimGraph, place the source node so it evaluates before the target node.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|Shared Collision",
 		meta = (PinHiddenByDefault, EditCondition = "!bSharedCollisionSource"))
 	bool bUseSharedCollision = false;
 
 	/**
-	 * 共有コリジョンのグループタグ（Source/Target両方で使用）
-	 * Group tag for shared collision (used by both source and target)
+	 * 共有コリジョンのグループタグ（同じActor/ChildActorファミリー内のSource/Target両方で使用）
+	 * Group tag for shared collision (used by both source and target in the same attached actor family)
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|Shared Collision",
 		meta = (PinHiddenByDefault, EditCondition = "bSharedCollisionSource || bUseSharedCollision"))
@@ -1243,7 +1245,6 @@ private:
 	mutable FSimulationSpaceCache CurrentEvalWorldSpaceCache;
 	mutable bool bHasCurrentEvalWorldSpaceCache = false;
 };
-
 
 
 
