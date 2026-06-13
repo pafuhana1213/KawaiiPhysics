@@ -65,6 +65,39 @@ struct FKawaiiPhysicsTestAccessor
 		}
 	}
 
+	/**
+	 * 横に並んだ2本の縦チェーンを生成。index 0..N-1 が左、N..2N-1 が右。
+	 * Build two side-by-side vertical chains: indices 0..N-1 are left, N..2N-1 are right.
+	 */
+	void BuildTwoVerticalChains(int32 NumBonesPerChain, float Spacing, float LateralSpacing,
+	                            const FVector& Origin = FVector::ZeroVector)
+	{
+		Node.ModifyBones.Reset();
+		for (int32 ChainIndex = 0; ChainIndex < 2; ++ChainIndex)
+		{
+			const int32 BaseIndex = ChainIndex * NumBonesPerChain;
+			const FVector ChainOrigin = Origin + FVector(LateralSpacing * ChainIndex, 0.0f, 0.0f);
+			for (int32 i = 0; i < NumBonesPerChain; ++i)
+			{
+				FKawaiiPhysicsModifyBone Bone;
+				Bone.Index = BaseIndex + i;
+				Bone.ParentIndex = (i > 0) ? (BaseIndex + i - 1) : -1;
+				const FVector Loc = ChainOrigin + FVector(0.0f, 0.0f, -Spacing * i);
+				Bone.PoseLocation = Loc;
+				Bone.Location = Loc;
+				Bone.PrevLocation = Loc;
+				Bone.PrevPoseLocation = Loc;
+				Bone.CurrentPoseLocation = Loc;
+				Bone.BoneLength = (i > 0) ? Spacing : 0.0f;
+				Node.ModifyBones.Add(Bone);
+			}
+			for (int32 i = 1; i < NumBonesPerChain; ++i)
+			{
+				Node.ModifyBones[BaseIndex + i - 1].ChildIndices.Add(BaseIndex + i);
+			}
+		}
+	}
+
 	/** 全ボーンに同一の PhysicsSettings を適用 / Apply the same PhysicsSettings to every bone. */
 	void SetAllPhysicsSettings(const FKawaiiPhysicsSettings& Settings)
 	{
@@ -90,6 +123,35 @@ struct FKawaiiPhysicsTestAccessor
 		Node.bUseFixedSubsteppingCached = bEnable;
 		Node.TargetFramerate = FMath::Max(1, TargetFps);
 		Node.MaxSubstepsCached = FMath::Max(1, MaxSubsteps);
+	}
+
+	void SetBoneConstraintIterations(int32 BeforeCollision, int32 AfterCollision)
+	{
+		Node.BoneConstraintIterationCountBeforeCollision = FMath::Max(0, BeforeCollision);
+		Node.BoneConstraintIterationCountAfterCollision = FMath::Max(0, AfterCollision);
+	}
+
+	void SetBoneConstraintGlobalComplianceType(EXPBDComplianceType ComplianceType)
+	{
+		Node.BoneConstraintGlobalComplianceType = ComplianceType;
+	}
+
+	void ClearRuntimeBoneConstraints()
+	{
+		Node.MergedBoneConstraints.Reset();
+	}
+
+	void AddRuntimeBoneConstraint(int32 ModifyBoneIndex1, int32 ModifyBoneIndex2, float Length,
+	                              bool bOverrideCompliance = false,
+	                              EXPBDComplianceType ComplianceType = EXPBDComplianceType::Leather)
+	{
+		FModifyBoneConstraint Constraint;
+		Constraint.ModifyBoneIndex1 = ModifyBoneIndex1;
+		Constraint.ModifyBoneIndex2 = ModifyBoneIndex2;
+		Constraint.Length = Length;
+		Constraint.bOverrideCompliance = bOverrideCompliance;
+		Constraint.ComplianceType = ComplianceType;
+		Node.MergedBoneConstraints.Add(Constraint);
 	}
 
 	// ========================================================================
@@ -236,6 +298,10 @@ struct FKawaiiPhysicsTestAccessor
 	{
 		Node.ApplyStiffnessPull(Bone, ParentBone, Exponent);
 	}
+	void CallBoneConstraints()
+	{
+		Node.AdjustByBoneConstraints();
+	}
 
 	// 直接呼び出しテスト用の時間状態（bInSubstep=false なので GetStepDeltaTime()==Dt）。
 	// Time state for direct core tests (bInSubstep=false => GetStepDeltaTime()==Dt).
@@ -244,6 +310,17 @@ struct FKawaiiPhysicsTestAccessor
 		Node.DeltaTime = Dt;
 		Node.DeltaTimeOld = DtOld;
 		Node.bInSubstep = false;
+	}
+
+	// サブステップ中の直接呼び出しテスト用の時間状態。
+	// Time state for direct core tests while a fixed substep is in progress.
+	void SetSubstepTimeState(float FrameDt, float StepDt)
+	{
+		Node.DeltaTime = FrameDt;
+		Node.FrameDeltaTime = FrameDt;
+		Node.StepDeltaTime = StepDt;
+		Node.DeltaTimeOld = StepDt;
+		Node.bInSubstep = true;
 	}
 
 	// ========================================================================
@@ -309,8 +386,8 @@ private:
 	/**
 	 * 1ステップ分（SimulateOnce の純粋部分を複製）。
 	 * One simulation step (replicates the pure subset of SimulateOnce).
-	 * 順序: root follow → 物理計算（Verlet積分ほか）→ コリジョン(AnimNode limits) → 角度制限+平面拘束+長さ復元。
-	 * Order: root follow -> physics steps (Verlet integration etc.) -> collision (AnimNode limits) -> angle/planar/length restore.
+	 * 順序: root follow → 物理計算 → BoneConstraint(before) → コリジョン → BoneConstraint(after) → 角度制限+平面拘束+長さ復元。
+	 * Order: root follow -> physics steps -> BoneConstraint(before) -> collision -> BoneConstraint(after) -> angle/planar/length restore.
 	 */
 	void StepOnce()
 	{
@@ -340,6 +417,19 @@ private:
 			Node.ApplyStiffnessPull(Bone, Node.ModifyBones[Bone.ParentIndex], Exponent);
 		}
 
+		// BoneConstraint before collision（SimulateOnce 397-403）
+		if (Node.BoneConstraintIterationCountBeforeCollision > 0)
+		{
+			for (FModifyBoneConstraint& BoneConstraint : Node.MergedBoneConstraints)
+			{
+				BoneConstraint.Lambda = 0.0f;
+			}
+			for (int32 i = 0; i < Node.BoneConstraintIterationCountBeforeCollision; ++i)
+			{
+				Node.AdjustByBoneConstraints();
+			}
+		}
+
 		// コリジョン（SimulateOnce 413-445、AnimNode 側 limits のみ）
 		for (FKawaiiPhysicsModifyBone& Bone : Node.ModifyBones)
 		{
@@ -351,6 +441,19 @@ private:
 			Node.AdjustByCapsuleCollision(Bone, Node.CapsuleLimits);
 			Node.AdjustByBoxCollision(Bone, Node.BoxLimits);
 			Node.AdjustByPlanerCollision(Bone, Node.PlanarLimits);
+		}
+
+		// BoneConstraint after collision（SimulateOnce 516-522）
+		if (Node.BoneConstraintIterationCountAfterCollision > 0)
+		{
+			for (FModifyBoneConstraint& BoneConstraint : Node.MergedBoneConstraints)
+			{
+				BoneConstraint.Lambda = 0.0f;
+			}
+			for (int32 i = 0; i < Node.BoneConstraintIterationCountAfterCollision; ++i)
+			{
+				Node.AdjustByBoneConstraints();
+			}
 		}
 
 		// 角度制限 + 平面拘束 + ボーン長復元（SimulateOnce 528-555）

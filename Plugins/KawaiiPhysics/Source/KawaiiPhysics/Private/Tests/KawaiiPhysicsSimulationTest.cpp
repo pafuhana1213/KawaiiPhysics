@@ -47,6 +47,37 @@ namespace
 		}
 		return A.TipLocation();
 	}
+
+	// 横に並んだ2本のチェーンの tip 間に BoneConstraint を張り、最終距離を返す。
+	// Connects two side-by-side chain tips with a BoneConstraint and returns the final tip distance.
+	float SimulateLateralConstraintDistance(int32 NumFrames, float FrameDt)
+	{
+		FKawaiiPhysicsTestAccessor A;
+		A.BuildTwoVerticalChains(2, 10.0f, 20.0f);
+
+		FKawaiiPhysicsSettings S;
+		S.Damping = 1.0f;
+		S.Stiffness = 0.0f;
+		S.LimitAngle = 0.0f;
+		S.Radius = 0.0f;
+		A.SetAllPhysicsSettings(S);
+
+		const int32 LeftTipIndex = 1;
+		const int32 RightTipIndex = 3;
+		const FVector StretchedRightTip = A.Bone(RightTipIndex).Location + FVector(8.0f, 0.0f, 0.0f);
+		A.Bone(RightTipIndex).Location = StretchedRightTip;
+		A.Bone(RightTipIndex).PrevLocation = StretchedRightTip;
+
+		A.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+		A.SetGravityInSimSpace(FVector::ZeroVector);
+		A.SetFixedSubstepping(true, 60, 8);
+		A.SetBoneConstraintIterations(1, 1);
+		A.SetBoneConstraintGlobalComplianceType(EXPBDComplianceType::Fat);
+		A.AddRuntimeBoneConstraint(LeftTipIndex, RightTipIndex, 20.0f);
+
+		A.StepFrames(NumFrames, FrameDt);
+		return static_cast<float>((A.Bone(RightTipIndex).Location - A.Bone(LeftTipIndex).Location).Size());
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -156,6 +187,55 @@ bool FKawaiiPhysicsIntegrationCoreTest::RunTest(const FString& Parameters)
 }
 
 // ---------------------------------------------------------------------------
+//  BoneConstraint XPBD dt 正規化 / BoneConstraint XPBD dt normalization
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsBoneConstraintStepDeltaTimeTest,
+                                 "KawaiiPhysics.Simulation.BoneConstraintStepDeltaTime",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsBoneConstraintStepDeltaTimeTest::RunTest(const FString& Parameters)
+{
+	auto SolveOnceDistance = [](float FrameDt, bool bSubstep, float StepDt)
+	{
+		FKawaiiPhysicsTestAccessor A;
+		A.BuildVerticalChain(2, 10.0f, FVector::ZeroVector, FVector(1.0f, 0.0f, 0.0f));
+		A.Bone(1).Location = FVector(20.0f, 0.0f, 0.0f);
+		A.Bone(1).PrevLocation = A.Bone(1).Location;
+		A.SetBoneConstraintGlobalComplianceType(EXPBDComplianceType::Fat);
+		A.AddRuntimeBoneConstraint(0, 1, 10.0f);
+		if (bSubstep)
+		{
+			A.SetSubstepTimeState(FrameDt, StepDt);
+		}
+		else
+		{
+			A.SetTimeState(FrameDt, FrameDt);
+		}
+		A.CallBoneConstraints();
+		return static_cast<float>((A.Bone(1).Location - A.Bone(0).Location).Size());
+	};
+
+	const float FixedDt = 1.0f / 60.0f;
+	const float SubstepDistance = SolveOnceDistance(1.0f / 30.0f, true, FixedDt);
+	const float LegacySameStepDistance = SolveOnceDistance(FixedDt, false, FixedDt);
+	const float LegacyFrameDtDistance = SolveOnceDistance(1.0f / 30.0f, false, 1.0f / 30.0f);
+
+	const float Compliance = 0.0001f / (FixedDt * FixedDt); // EXPBDComplianceType::Fat
+	const float ExpectedDistance = 20.0f - 2.0f * (10.0f / (2.0f + Compliance));
+	TestTrue(FString::Printf(TEXT("Substep BoneConstraint uses StepDt: got %.6f expected %.6f"),
+	                         SubstepDistance, ExpectedDistance),
+	         FMath::IsNearlyEqual(SubstepDistance, ExpectedDistance, 0.0001f));
+	TestTrue(FString::Printf(TEXT("Substep FrameDt=1/30 matches legacy StepDt=1/60: %.6f vs %.6f"),
+	                         SubstepDistance, LegacySameStepDistance),
+	         FMath::IsNearlyEqual(SubstepDistance, LegacySameStepDistance, 0.0001f));
+	TestTrue(FString::Printf(TEXT("Regression guard: FrameDt-normalized solve would differ: %.6f vs %.6f"),
+	                         SubstepDistance, LegacyFrameDtDistance),
+	         FMath::Abs(SubstepDistance - LegacyFrameDtDistance) > 0.5f);
+
+	return true;
+}
+
+// ---------------------------------------------------------------------------
 //  パラメータ応答 / Parameter response
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsParameterResponseTest,
@@ -229,6 +309,17 @@ bool FKawaiiPhysicsFramerateIndependenceTest::RunTest(const FString& Parameters)
 	         Tip30.Equals(Tip60, SubstepTol));
 	TestTrue(FString::Printf(TEXT("Substep 60 vs 120 fps: %s vs %s"), *Tip60.ToString(), *Tip120.ToString()),
 	         Tip60.Equals(Tip120, SubstepTol));
+
+	const float Constraint30 = SimulateLateralConstraintDistance(FMath::RoundToInt(SimTime * 30.0f), 1.0f / 30.0f);
+	const float Constraint60 = SimulateLateralConstraintDistance(FMath::RoundToInt(SimTime * 60.0f), 1.0f / 60.0f);
+	const float Constraint120 = SimulateLateralConstraintDistance(FMath::RoundToInt(SimTime * 120.0f), 1.0f / 120.0f);
+	const float ConstraintTol = 0.01f;
+	TestTrue(FString::Printf(TEXT("BoneConstraint substep 30 vs 60 fps: %.6f vs %.6f"),
+	                         Constraint30, Constraint60),
+	         FMath::IsNearlyEqual(Constraint30, Constraint60, ConstraintTol));
+	TestTrue(FString::Printf(TEXT("BoneConstraint substep 60 vs 120 fps: %.6f vs %.6f"),
+	                         Constraint60, Constraint120),
+	         FMath::IsNearlyEqual(Constraint60, Constraint120, ConstraintTol));
 
 	// 対比: サブステップ OFF（legacy）では 30fps と 120fps の差が大きい（フレームレート依存の症状）。
 	// Contrast: with substepping OFF, 30 vs 120 fps diverge much more (the frame-rate-dependence symptom).
