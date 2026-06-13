@@ -81,8 +81,11 @@ bool UKawaiiPhysicsLibrary::CollectKawaiiPhysicsNodes(TArray<FKawaiiPhysicsRefer
 		const_cast<const USkeletalMeshComponent*>(MeshComp)->GetLinkedAnimInstances();
 	for (UAnimInstance* LinkedInstance : LinkedInstances)
 	{
-		CollectKawaiiPhysicsNodes(Nodes, LinkedInstance, FilterTags,
-		                          bFilterExactMatch);
+		if (LinkedInstance)
+		{
+			CollectKawaiiPhysicsNodes(Nodes, LinkedInstance, FilterTags,
+			                          bFilterExactMatch);
+		}
 	}
 
 	if (UAnimInstance* PostProcessAnimInstance = MeshComp->GetPostProcessInstance())
@@ -326,11 +329,10 @@ DEFINE_FUNCTION(UKawaiiPhysicsLibrary::execSetExternalForceWildcardProperty)
 	Stack.MostRecentPropertyContainer = nullptr;
 	Stack.StepCompiledIn<FStructProperty>(nullptr);
 
-	const FProperty* ValueProp = CastField<FProperty>(Stack.MostRecentProperty);
 	void* ValuePtr = Stack.MostRecentPropertyAddress;
 
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-		TEXT("GetExternalForceWildcardProperty"),
+		TEXT("SetExternalForceWildcardProperty"),
 		[&ExecResult, &ExternalForceIndex, &PropertyName, &ValuePtr](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 		{
 			if (InKawaiiPhysics.ExternalForces.IsValidIndex(ExternalForceIndex) &&
@@ -342,8 +344,14 @@ DEFINE_FUNCTION(UKawaiiPhysicsLibrary::execSetExternalForceWildcardProperty)
 
 				if (const FProperty* Property = FindFProperty<FProperty>(ScriptStruct, PropertyName))
 				{
-					Property->CopyCompleteValue(Property->ContainerPtrToValuePtr<uint8>(&Force), ValuePtr);
-					ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
+					if (ValuePtr)
+					{
+						if (void* ForceValuePtr = Property->ContainerPtrToValuePtr<uint8>(&Force))
+						{
+							Property->CopyCompleteValue(ForceValuePtr, ValuePtr);
+							ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
+						}
+					}
 				}
 			}
 		});
@@ -390,7 +398,7 @@ DEFINE_FUNCTION(UKawaiiPhysicsLibrary::execGetExternalForceWildcardProperty)
 
 	P_FINISH;
 
-	if (ValuePtr && Result)
+	if (ValueProp && ValuePtr && Result)
 	{
 		P_NATIVE_BEGIN;
 			ValueProp->CopyCompleteValue(ValuePtr, Result);

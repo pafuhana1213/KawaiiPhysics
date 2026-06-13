@@ -35,10 +35,10 @@
 
 void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 {
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdatePhysicsSetting);
+
 	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdatePhysicsSetting);
-
 		const float LengthRate = Bone.LengthRateFromRoot;
 
 		// Damping
