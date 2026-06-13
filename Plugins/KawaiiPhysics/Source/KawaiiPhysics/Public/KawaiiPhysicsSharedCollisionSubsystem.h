@@ -6,27 +6,22 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "GameplayTagContainer.h"
 
+#include <atomic>
+
 #include "KawaiiPhysicsSharedCollisionTypes.h"
 
 #include "KawaiiPhysicsSharedCollisionSubsystem.generated.h"
 
 /**
- * Source1つ分のダブルバッファ付きスロット
- * Double-buffered slot for a single source (lock-free read/write)
+ * Source1つ分の共有コリジョンスロット
+ * Shared collision slot for a single source
+ *
+ * BufferはBufferLockで保護する。 / All access to Buffer must hold BufferLock.
  */
 struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedCollisionSourceSlot
 {
-	FKawaiiPhysicsSharedCollisionData Buffers[2];
-	std::atomic<int32> ReadBufferIndex{0};
-
-	/** 最終Publishフレーム番号（ロックフリー鮮度チェック用） / Last published frame number for expiration detection */
-	std::atomic<uint64> LastPublishFrame{0};
-
-	/** ワーカースレッドから呼び出し可能（ロックフリー） / Can be called from any thread (lock-free) */
+	/** ワーカースレッドから呼び出し可能 / Can be called from any thread */
 	void Publish(const FKawaiiPhysicsSharedCollisionData& Data);
-
-	/** ワーカースレッドから呼び出し可能（ロックフリー） / Can be called from any thread (lock-free) */
-	const FKawaiiPhysicsSharedCollisionData& Read() const;
 
 	/** ワーカースレッドから呼び出し可能 / Can be called from any thread */
 	void AppendTo(FKawaiiPhysicsSharedCollisionData& OutData) const;
@@ -34,9 +29,16 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedCollisionSourceSlot
 	/** スロットが古くなっているか判定 / Check if this slot has not been published to recently */
 	bool IsExpired(uint64 CurrentFrame, uint64 MaxAge) const;
 
+	/** スロットを即座に期限切れ化 / Mark this slot as immediately expired */
+	void MarkExpired();
+
 private:
-	/** バッファ内容の読み書きを保護。UseLockFree CVar が true の場合は使用しない。 */
-	/** Protects buffer contents. Not used when the UseLockFree CVar is true. */
+	FKawaiiPhysicsSharedCollisionData Buffer;
+
+	/** 最終Publishフレーム番号（鮮度チェック用） / Last published frame number for expiration detection */
+	std::atomic<uint64> LastPublishFrame{0};
+
+	/** バッファ内容の読み書きを保護。 / Protects buffer contents. */
 	mutable FRWLock BufferLock;
 };
 

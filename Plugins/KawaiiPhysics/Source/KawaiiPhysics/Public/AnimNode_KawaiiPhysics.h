@@ -564,7 +564,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	UPROPERTY(EditAnywhere, Category = "World Collision", meta = (EditCondition = "!bIgnoreSelfComponent"))
 	TArray<FName> IgnoreBoneNamePrefix;
 
-	/** 
+	/**
 	* ExternalForceなどで使用するフィルタリング用タグ
 	* Tag for filtering of ExternalForce etc
 	*/
@@ -671,8 +671,8 @@ private:
 	FTransform PrevBaseBoneSpace2ComponentSpace = FTransform::Identity;
 
 	// --- Shared Collision ---
-	// 共有コリジョン用キャッシュ（PreUpdateでGameThread初期化、以降はAnyThreadでロックフリー読み取り）
-	// Cached shared collision pointers (initialized in PreUpdate on GameThread, then read lock-free on AnyThread)
+	// 共有コリジョン用キャッシュ（PreUpdateでGameThread初期化、以降はAnyThreadで参照）
+	// Cached shared collision pointers (initialized in PreUpdate on GameThread, then referenced on AnyThread)
 	TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> CachedSharedCollisionEntry;
 	TSharedPtr<FKawaiiPhysicsSharedCollisionSourceSlot> CachedSourceSlot;
 	bool bSharedCollisionInitialized = false;
@@ -690,6 +690,14 @@ private:
 	// ReadMerged結果のキャッシュ（メンバ化によりフレーム間でcapacityを再利用）
 	// Cached ReadMerged result (member variable to reuse capacity across frames)
 	FKawaiiPhysicsSharedCollisionData SharedCollisionMergedData;
+
+	// --- World Collision ランタイムキャッシュ / World Collision runtime caches ---
+	// IgnoreBoneNamePrefix のFString版（ホットパスでのFName::ToString回避。AdjustByWorldCollisionで遅延再構築）
+	// FString versions of IgnoreBoneNamePrefix (avoids FName::ToString in the hot path; lazily rebuilt in AdjustByWorldCollision)
+	TArray<FString> IgnoreBoneNamePrefixStrings;
+	TArray<FName> IgnoreBoneNamePrefixCache;
+	// スイープ結果のスクラッチ（フレーム間でcapacityを再利用） / Sweep-result scratch (reuses capacity across frames)
+	TArray<FHitResult> WorldCollisionHitsScratch;
 
 	/**
 	* Stores the delta time from the previous frame.
@@ -989,14 +997,14 @@ protected:
 	void InitializeSharedCollision(const UAnimInstance* InAnimInstance);
 
 	/**
-	 * 計算済みコリジョンをSubsystemに公開する（AnyThread、ロックフリー）
-	 * Write computed collision data to the SharedCollisionSubsystem as source (any thread, lock-free)
+	 * 計算済みコリジョンをSubsystemに公開する（AnyThread）
+	 * Write computed collision data to the SharedCollisionSubsystem as source (any thread)
 	 */
 	void WriteSharedCollisionToSubsystem(FComponentSpacePoseContext& Output, const FTransform& ComponentTransform);
 
 	/**
-	 * 共有コリジョンを読み取り、シミュレーション空間に変換する（AnyThread、ロックフリー）
-	 * Read shared collision and convert to simulation space (any thread, lock-free)
+	 * 共有コリジョンを読み取り、シミュレーション空間に変換する（AnyThread）
+	 * Read shared collision and convert to simulation space (any thread)
 	 */
 	void UpdateSharedCollisionLimits(FComponentSpacePoseContext& Output);
 
@@ -1245,8 +1253,6 @@ private:
 	mutable FSimulationSpaceCache CurrentEvalWorldSpaceCache;
 	mutable bool bHasCurrentEvalWorldSpaceCache = false;
 };
-
-
 
 
 

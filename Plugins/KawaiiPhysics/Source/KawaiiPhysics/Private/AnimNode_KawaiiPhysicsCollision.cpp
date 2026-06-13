@@ -379,8 +379,8 @@ void FAnimNode_KawaiiPhysics::AdjustByWorldCollision(FComponentSpacePoseContext&
 	else
 	{
 		// Do sphere sweep and ignore bones later
-		TArray<FHitResult> Results;
-		bool bHit = World->SweepMultiByChannel(Results, TraceStartLocationWS,
+		WorldCollisionHitsScratch.Reset();
+		bool bHit = World->SweepMultiByChannel(WorldCollisionHitsScratch, TraceStartLocationWS,
 		                                       TraceEndLocationWS, FQuat::Identity, TraceChannel,
 		                                       FCollisionShape::MakeSphere(Bone.PhysicsSettings.Radius), Params,
 		                                       ResponseParams);
@@ -390,7 +390,20 @@ void FAnimNode_KawaiiPhysics::AdjustByWorldCollision(FComponentSpacePoseContext&
 		}
 
 		bool IsIgnoreHit;
-		for (const auto& Result : Results)
+		if (IgnoreBoneNamePrefixCache != IgnoreBoneNamePrefix)
+		{
+			IgnoreBoneNamePrefixCache = IgnoreBoneNamePrefix;
+			IgnoreBoneNamePrefixStrings.Reset(IgnoreBoneNamePrefix.Num());
+			for (const FName& BoneNamePrefix : IgnoreBoneNamePrefix)
+			{
+				if (!BoneNamePrefix.IsNone())
+				{
+					IgnoreBoneNamePrefixStrings.Add(BoneNamePrefix.ToString());
+				}
+			}
+		}
+
+		for (const auto& Result : WorldCollisionHitsScratch)
 		{
 			if (!Result.bBlockingHit)
 			{
@@ -404,7 +417,7 @@ void FAnimNode_KawaiiPhysics::AdjustByWorldCollision(FComponentSpacePoseContext&
 				IsIgnoreHit = Result.BoneName == Bone.BoneRef.BoneName;
 				if (!IsIgnoreHit)
 				{
-					for (auto BoneRef : IgnoreBones)
+					for (const auto& BoneRef : IgnoreBones)
 					{
 						if (BoneRef.BoneName == Result.BoneName)
 						{
@@ -413,11 +426,14 @@ void FAnimNode_KawaiiPhysics::AdjustByWorldCollision(FComponentSpacePoseContext&
 						}
 					}
 				}
-				if (!IsIgnoreHit)
+				// プレフィックス未設定（一般的なケース）ではToString自体を回避
+				// Skip the ToString entirely when no prefixes are set (the common case)
+				if (!IsIgnoreHit && !IgnoreBoneNamePrefixStrings.IsEmpty())
 				{
-					for (auto BoneNamePrefix : IgnoreBoneNamePrefix)
+					const FString ResultBoneNameString = Result.BoneName.ToString();
+					for (const FString& BoneNamePrefix : IgnoreBoneNamePrefixStrings)
 					{
-						if (Result.BoneName.ToString().StartsWith(BoneNamePrefix.ToString()))
+						if (ResultBoneNameString.StartsWith(BoneNamePrefix))
 						{
 							IsIgnoreHit = true;
 							break;
@@ -461,12 +477,18 @@ void FAnimNode_KawaiiPhysics::AdjustBySphereCollision(FKawaiiPhysicsModifyBone& 
 		if (Sphere.LimitType == ESphericalLimitType::Outer)
 		{
 			const float LimitDistanceOuter = Sphere.Radius + Bone.PhysicsSettings.Radius;
-			if ((Bone.Location - Sphere.Location).SizeSquared() > LimitDistanceOuter * LimitDistanceOuter)
+			const FVector Delta = Bone.Location - Sphere.Location;
+			const float DistSq = Delta.SizeSquared();
+			if (DistSq > LimitDistanceOuter * LimitDistanceOuter)
 			{
 				continue;
 			}
-			Bone.Location += (LimitDistanceOuter - (Bone.Location - Sphere.Location).Size())
-				* (Bone.Location - Sphere.Location).GetSafeNormal();
+
+			const float Dist = FMath::Sqrt(DistSq);
+			if (Dist > KINDA_SMALL_NUMBER)
+			{
+				Bone.Location += (LimitDistanceOuter - Dist) * (Delta / Dist);
+			}
 		}
 		else
 		{
@@ -475,12 +497,17 @@ void FAnimNode_KawaiiPhysics::AdjustBySphereCollision(FKawaiiPhysicsModifyBone& 
 			// Clamp the effective inner radius to 0 for the degenerate case where the bone radius >= sphere radius,
 			// and reuse it for both the guard and the correction so the bone is pinned to the center (no sign-flip overshoot)
 			const float LimitDistanceInner = FMath::Max(Sphere.Radius - Bone.PhysicsSettings.Radius, 0.0f);
-			if ((Bone.Location - Sphere.Location).SizeSquared() < LimitDistanceInner * LimitDistanceInner)
+			const FVector Delta = Bone.Location - Sphere.Location;
+			const float DistSq = Delta.SizeSquared();
+			if (DistSq < LimitDistanceInner * LimitDistanceInner)
 			{
 				continue;
 			}
-			Bone.Location = Sphere.Location +
-				LimitDistanceInner * (Bone.Location - Sphere.Location).GetSafeNormal();
+
+			const float Dist = FMath::Sqrt(DistSq);
+			Bone.Location = Dist > KINDA_SMALL_NUMBER
+				                ? Sphere.Location + LimitDistanceInner * (Delta / Dist)
+				                : Sphere.Location;
 		}
 	}
 }
@@ -631,10 +658,10 @@ const TArray<float> XPBDComplianceValues =
 
 void FAnimNode_KawaiiPhysics::AdjustByBoneConstraints()
 {
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_AdjustByBoneConstraint);
+
 	for (FModifyBoneConstraint& BoneConstraint : MergedBoneConstraints)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_AdjustByBoneConstraint);
-
 		// IsValid()はLength>0のみ確認するため、indexの範囲も明示的に検証（堅牢化）
 		// IsValid() only checks Length>0; validate indices explicitly to avoid OOB access (hardening)
 		if (!BoneConstraint.IsValid() ||
@@ -665,7 +692,8 @@ void FAnimNode_KawaiiPhysics::AdjustByBoneConstraints()
 		// XBPD
 		float Constraint = DeltaLength - BoneConstraint.Length;
 		float Compliance = XPBDComplianceValues[static_cast<int32>(ComplianceType)];
-		Compliance /= DeltaTime * DeltaTime;
+		const float StepDt = GetStepDeltaTime();
+		Compliance /= StepDt * StepDt;
 		float DeltaLambda = (Constraint - Compliance * BoneConstraint.Lambda) / (2 + Compliance); // 2 = SumMass
 		Delta = (Delta / DeltaLength) * DeltaLambda;
 

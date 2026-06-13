@@ -61,9 +61,6 @@ TAutoConsoleVariable<int32> CVarSharedCollisionInitRetryThreshold(
 TAutoConsoleVariable<float> CVarSharedCollisionCleanupInterval(
 	TEXT("a.AnimNode.KawaiiPhysics.SharedCollision.CleanupInterval"), 1.0f,
 	TEXT("クリーンアップ間隔（秒） / Cleanup interval in seconds."));
-TAutoConsoleVariable<bool> CVarSharedCollisionUseLockFree(
-	TEXT("a.AnimNode.KawaiiPhysics.SharedCollision.UseLockFree"), false,
-	TEXT("Use the lock-free double-buffer path for SharedCollision slots. false uses short per-slot locks for safer reads/writes."));
 
 DEFINE_STAT(STAT_KawaiiPhysics_InitModifyBones);
 DEFINE_STAT(STAT_KawaiiPhysics_Eval);
@@ -124,7 +121,7 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 	// 旧Slotを即座に期限切れ化 / Mark old slot as immediately expired
 	if (CachedSourceSlot.IsValid())
 	{
-		CachedSourceSlot->LastPublishFrame.store(0, std::memory_order_release);
+		CachedSourceSlot->MarkExpired();
 	}
 
 	// 共有コリジョンのキャッシュをリセット / Reset shared collision cache
@@ -721,7 +718,7 @@ void FAnimNode_KawaiiPhysics::PreUpdate(const UAnimInstance* InAnimInstance)
 		// 旧Slotを即座に期限切れ化 / Mark old slot as immediately expired
 		if (CachedSourceSlot.IsValid())
 		{
-			CachedSourceSlot->LastPublishFrame.store(0, std::memory_order_release);
+			CachedSourceSlot->MarkExpired();
 		}
 		bSharedCollisionInitialized = false;
 		CachedSharedCollisionEntry.Reset();
