@@ -244,6 +244,8 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* 「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値を各パラメータに乗算
 	* Corrects the Physics Settings/WorldDampingLocation parameters applied to each bone.
 	* Multiplies each parameter by the curve value for "Length from RootBone to specific bone / Length from RootBone to end bone" (0.0~1.0).
+	* ※基となる値の意味は WorldDampingLocation を参照（大きいほど移動量を抑制 = 反映率は 1 - 値）
+	* Note: see WorldDampingLocation for the base value's meaning (higher = more suppression; reflection factor = 1 - value).
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", AdvancedDisplay,
 		meta = (PinHiddenByDefault, DisplayName = "World Damping Location Rate by Bone Length Rate"))
@@ -254,6 +256,8 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* 「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値を各パラメータに乗算
 	* Corrects the Physics Settings/WorldDampingRotation parameters applied to each bone.
 	* Multiplies each parameter by the curve value for "Length from RootBone to specific bone / Length from RootBone to end bone" (0.0~1.0).
+	* ※基となる値の意味は WorldDampingRotation を参照（大きいほど回転量を抑制 = 反映率は 1 - 値）
+	* Note: see WorldDampingRotation for the base value's meaning (higher = more suppression; reflection factor = 1 - value).
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", AdvancedDisplay,
 		meta = (PinHiddenByDefault, DisplayName = "World Damping Rotation Rate by Bone Length Rate"))

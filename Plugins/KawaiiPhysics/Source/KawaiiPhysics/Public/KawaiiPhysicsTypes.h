@@ -95,16 +95,20 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), category = "KawaiiPhysics")
 	float Stiffness = 0.05f;
 
-	/** 
-	* ワールド座標系におけるSkeletal Mesh Componentの移動量の反映度
-	* Influence from movement in world coordinate system of Skeletal Mesh Component
+	/**
+	* ワールド座標系における Skeletal Mesh Component の移動量のダンピング(抑制)量。
+	* 0 = 移動量をフル反映(揺れ最大) / 1 = コンポーネントに追従(反映なし)。実際の反映率 = (1 - WorldDampingLocation)
+	* Damping (suppression) of the Skeletal Mesh Component's world-space movement.
+	* 0 = movement fully reflected (max sway) / 1 = follows component (no reflection). Actual reflection factor = (1 - WorldDampingLocation).
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), category = "KawaiiPhysics")
 	float WorldDampingLocation = 0.8f;
 
-	/** 
-	* ワールド座標系におけるSkeletal Mesh Componentの回転量の反映度
-	* Influence from rotation in world coordinate system of Skeletal Mesh Component
+	/**
+	* ワールド座標系における Skeletal Mesh Component の回転量のダンピング(抑制)量。
+	* 0 = 回転量をフル反映(揺れ最大) / 1 = コンポーネントに追従(反映なし)。実際の反映率 = (1 - WorldDampingRotation)
+	* Damping (suppression) of the Skeletal Mesh Component's world-space rotation.
+	* 0 = rotation fully reflected (max sway) / 1 = follows component (no reflection). Actual reflection factor = (1 - WorldDampingRotation).
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), category = "KawaiiPhysics")
 	float WorldDampingRotation = 0.8f;
