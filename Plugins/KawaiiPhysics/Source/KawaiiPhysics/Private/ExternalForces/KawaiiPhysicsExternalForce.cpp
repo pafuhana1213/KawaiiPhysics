@@ -42,7 +42,7 @@ void FKawaiiPhysics_ExternalForce::PostApply(FAnimNode_KawaiiPhysics& Node, FCom
 		Node.ExternalForces.RemoveAll([&](FInstancedStruct& InstancedStruct)
 		{
 			const auto* ExternalForcePtr = InstancedStruct.GetMutablePtr<FKawaiiPhysics_ExternalForce>();
-			return ExternalForcePtr == this;
+			return ExternalForcePtr && ExternalForcePtr == this;
 		});
 	}
 }

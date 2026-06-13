@@ -140,7 +140,7 @@ int32 FAnimNode_KawaiiPhysics::AddModifyBone(TArray<FKawaiiPhysicsModifyBone>& I
                                              const FReferenceSkeleton& RefSkeleton, int32 BoneIndex,
                                              const TArray<FBoneReference>& InExcludeBones)
 {
-	if (BoneIndex < 0 || RefSkeleton.GetNum() < BoneIndex)
+	if (BoneIndex < 0 || RefSkeleton.GetNum() <= BoneIndex)
 	{
 		return INDEX_NONE;
 	}
@@ -613,5 +613,4 @@ int32 FAnimNode_KawaiiPhysics::CalcInterBoneDummyCount(float Distance, int32 Req
 
 	return FMath::Min(ClampedRequestedCount, MaxCount);
 }
-
 
