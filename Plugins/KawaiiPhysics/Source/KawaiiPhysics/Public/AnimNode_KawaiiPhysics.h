@@ -1195,6 +1195,14 @@ protected:
 	/** Pull to Pose Location（剛性）。 */
 	void ApplyStiffnessPull(FKawaiiPhysicsModifyBone& Bone, const FKawaiiPhysicsModifyBone& ParentBone, float Exponent);
 
+	// コリジョン形状の派生値をステップ毎に1回だけ更新する。
+	// Update derived collision-shape values once per simulation step.
+	// 代入経由でキャッシュを運ばない理由: FCollisionLimitBase 系は自前 operator= を持ち、
+	// 新フィールドの追記漏れが静かなキャッシュ陳腐化になるため、構造的に陳腐化しない毎ステップ再計算にする。
+	// Reason caches are not carried through assignment: FCollisionLimitBase-derived types have custom operator=,
+	// and missing a newly added cache field would silently stale the cache, so caches are recomputed every step.
+	void PrepareCollisionShapeCaches();
+
 	// 自動テスト用アクセサ。private/protected の sim 状態・物理計算・コリジョン関数へアクセスする。
 	// Shipping/Test（WITH_DEV_AUTOMATION_TESTS==0）では宣言ごと除外し、出荷ビルドにテスト表面を残さない。
 	// Test-only accessor for private/protected sim state, core functions, and collision functions.

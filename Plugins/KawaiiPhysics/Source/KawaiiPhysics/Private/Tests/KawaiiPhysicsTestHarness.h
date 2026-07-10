@@ -303,14 +303,26 @@ struct FKawaiiPhysicsTestAccessor
 	}
 	void CallCapsuleCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FCapsuleLimit>& Limits)
 	{
+		for (FCapsuleLimit& Limit : Limits)
+		{
+			Limit.UpdateRuntimeCache();
+		}
 		Node.AdjustByCapsuleCollision(Bone, Limits);
 	}
 	void CallBoxCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FBoxLimit>& Limits)
 	{
+		for (FBoxLimit& Limit : Limits)
+		{
+			Limit.UpdateRuntimeCache();
+		}
 		Node.AdjustByBoxCollision(Bone, Limits);
 	}
 	void CallPlanarCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FPlanarLimit>& Limits)
 	{
+		for (FPlanarLimit& Limit : Limits)
+		{
+			Limit.UpdateRuntimeCache();
+		}
 		Node.AdjustByPlanerCollision(Bone, Limits);
 	}
 	void CallAngleLimit(FKawaiiPhysicsModifyBone& Bone, const FKawaiiPhysicsModifyBone& ParentBone)
@@ -506,6 +518,7 @@ private:
 		}
 
 		// コリジョン（SimulateOnce 413-445、AnimNode 側 limits のみ）
+		Node.PrepareCollisionShapeCaches();
 		for (FKawaiiPhysicsModifyBone& Bone : Node.ModifyBones)
 		{
 			if (Bone.bSkipSimulate)

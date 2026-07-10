@@ -161,6 +161,25 @@ struct FCapsuleLimit : public FCollisionLimitBase
 	UPROPERTY(EditAnywhere, Category = CapsuleLimit, meta = (ClampMin = "0"))
 	float Length = 10.0f;
 
+	/**
+	 * ランタイム専用キャッシュ。非UPROPERTYのためシリアライズされない。
+	 * 既存の自前operator=には意図的に追加しない。キャッシュを代入で運ぶと新フィールド追記漏れが
+	 * 静かな陳腐化になるため、毎ステップUpdateRuntimeCache()で再計算する。
+	 * Runtime-only cache. Not serialized because it is intentionally not a UPROPERTY.
+	 * It is intentionally excluded from the custom operator=. Carrying caches through assignment could silently
+	 * leave stale values when new fields are added, so caches are recomputed every step with UpdateRuntimeCache().
+	 */
+	FVector CachedStartPoint = FVector::ZeroVector;
+	FVector CachedEndPoint = FVector::ZeroVector;
+	FVector CachedFallbackPushDir = FVector::ZeroVector;
+
+	void UpdateRuntimeCache()
+	{
+		CachedStartPoint = Location + Rotation.GetAxisZ() * Length * 0.5f;
+		CachedEndPoint = Location + Rotation.GetAxisZ() * Length * -0.5f;
+		CachedFallbackPushDir = Rotation.GetAxisX();
+	}
+
 	/** Assignment operator */
 	FCapsuleLimit& operator=(const FCapsuleLimit& Other)
 	{
@@ -192,6 +211,25 @@ struct FBoxLimit : public FCollisionLimitBase
 	UPROPERTY(EditAnywhere, Category = BoxLimit)
 	FVector Extent = FVector(5.0f, 5.0f, 5.0f);
 
+	/**
+	 * ランタイム専用キャッシュ。非UPROPERTYのためシリアライズされない。
+	 * 既存の自前operator=には意図的に追加しない。キャッシュを代入で運ぶと新フィールド追記漏れが
+	 * 静かな陳腐化になるため、毎ステップUpdateRuntimeCache()で再計算する。
+	 * Runtime-only cache. Not serialized because it is intentionally not a UPROPERTY.
+	 * It is intentionally excluded from the custom operator=. Carrying caches through assignment could silently
+	 * leave stale values when new fields are added, so caches are recomputed every step with UpdateRuntimeCache().
+	 */
+	FTransform CachedBoxTransform = FTransform::Identity;
+	// FBox のデフォルト構築は Min/Max を初期化しないため ForceInit で明示的にゼロ化する。
+	// FBox's default constructor leaves Min/Max uninitialized, so zero them explicitly.
+	FBox CachedLocalBox = FBox(ForceInit);
+
+	void UpdateRuntimeCache()
+	{
+		CachedBoxTransform = FTransform(Rotation, Location);
+		CachedLocalBox = FBox(-Extent, Extent);
+	}
+
 	/** Assignment operator */
 	FBoxLimit& operator=(const FBoxLimit& Other)
 	{
@@ -221,6 +259,21 @@ struct FPlanarLimit : public FCollisionLimitBase
 	/** The plane defining the planar limit */
 	UPROPERTY()
 	FPlane Plane = FPlane(0, 0, 0, 0);
+
+	/**
+	 * ランタイム専用キャッシュ。非UPROPERTYのためシリアライズされない。
+	 * 既存の自前operator=には意図的に追加しない。キャッシュを代入で運ぶと新フィールド追記漏れが
+	 * 静かな陳腐化になるため、毎ステップUpdateRuntimeCache()で再計算する。
+	 * Runtime-only cache. Not serialized because it is intentionally not a UPROPERTY.
+	 * It is intentionally excluded from the custom operator=. Carrying caches through assignment could silently
+	 * leave stale values when new fields are added, so caches are recomputed every step with UpdateRuntimeCache().
+	 */
+	FVector CachedNormal = FVector::ZeroVector;
+
+	void UpdateRuntimeCache()
+	{
+		CachedNormal = Rotation.GetUpVector();
+	}
 
 	/** Assignment operator */
 	FPlanarLimit& operator=(const FPlanarLimit& Other)

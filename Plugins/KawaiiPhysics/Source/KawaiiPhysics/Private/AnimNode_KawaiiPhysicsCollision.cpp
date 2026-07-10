@@ -513,6 +513,30 @@ void FAnimNode_KawaiiPhysics::AdjustBySphereCollision(FKawaiiPhysicsModifyBone& 
 	}
 }
 
+void FAnimNode_KawaiiPhysics::PrepareCollisionShapeCaches()
+{
+	auto UpdateEnabledCaches = [](auto& Limits)
+	{
+		for (auto& Limit : Limits)
+		{
+			if (Limit.bEnable)
+			{
+				Limit.UpdateRuntimeCache();
+			}
+		}
+	};
+
+	UpdateEnabledCaches(CapsuleLimits);
+	UpdateEnabledCaches(CapsuleLimitsData);
+	UpdateEnabledCaches(SharedCapsuleLimits);
+	UpdateEnabledCaches(BoxLimits);
+	UpdateEnabledCaches(BoxLimitsData);
+	UpdateEnabledCaches(SharedBoxLimits);
+	UpdateEnabledCaches(PlanarLimits);
+	UpdateEnabledCaches(PlanarLimitsData);
+	UpdateEnabledCaches(SharedPlanarLimits);
+}
+
 void FAnimNode_KawaiiPhysics::AdjustByCapsuleCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FCapsuleLimit>& Limits)
 {
 	for (auto& Capsule : Limits)
@@ -522,8 +546,8 @@ void FAnimNode_KawaiiPhysics::AdjustByCapsuleCollision(FKawaiiPhysicsModifyBone&
 			continue;
 		}
 
-		FVector StartPoint = Capsule.Location + Capsule.Rotation.GetAxisZ() * Capsule.Length * 0.5f;
-		FVector EndPoint = Capsule.Location + Capsule.Rotation.GetAxisZ() * Capsule.Length * -0.5f;
+		FVector StartPoint = Capsule.CachedStartPoint;
+		FVector EndPoint = Capsule.CachedEndPoint;
 		const float DistSquared = FMath::PointDistToSegmentSquared(Bone.Location, StartPoint, EndPoint);
 
 		const float LimitDistance = Bone.PhysicsSettings.Radius + Capsule.Radius;
@@ -534,7 +558,7 @@ void FAnimNode_KawaiiPhysics::AdjustByCapsuleCollision(FKawaiiPhysicsModifyBone&
 			if (PushDir.IsNearlyZero())
 			{
 				// ボーンがカプセル軸上に乗ると押し出し方向が消えるため軸直交方向を代替に使う
-				PushDir = Capsule.Rotation.GetAxisX();
+				PushDir = Capsule.CachedFallbackPushDir;
 			}
 			Bone.Location = ClosestPoint + PushDir * LimitDistance;
 		}
@@ -550,11 +574,11 @@ void FAnimNode_KawaiiPhysics::AdjustByBoxCollision(FKawaiiPhysicsModifyBone& Bon
 			continue;
 		}
 
-		FTransform BoxTransform(Box.Rotation, Box.Location);
+		FTransform BoxTransform = Box.CachedBoxTransform;
 		float SphereRadius = Bone.PhysicsSettings.Radius;
 
 		FVector LocalSphereCenter = BoxTransform.InverseTransformPosition(Bone.Location);
-		FBox LocalBox(-Box.Extent, Box.Extent);
+		FBox LocalBox = Box.CachedLocalBox;
 		if (FMath::SphereAABBIntersection(FSphere(LocalSphereCenter, SphereRadius), LocalBox))
 		{
 			// Sphere の中心に最も近い Box 上の点を計算
@@ -618,7 +642,7 @@ void FAnimNode_KawaiiPhysics::AdjustByPlanerCollision(FKawaiiPhysicsModifyBone& 
 		if (DistSquared < Bone.PhysicsSettings.Radius * Bone.PhysicsSettings.Radius ||
 			FMath::SegmentPlaneIntersection(Bone.Location, Bone.PrevLocation, Planar.Plane, IntersectionPoint))
 		{
-			Bone.Location = PointOnPlane + Planar.Rotation.GetUpVector() * Bone.PhysicsSettings.Radius;
+			Bone.Location = PointOnPlane + Planar.CachedNormal * Bone.PhysicsSettings.Radius;
 		}
 	}
 }

@@ -389,6 +389,7 @@ void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
 	// NOTE: 形状ごとにループを分けると ModifyBones を複数回走査してキャッシュ効率が落ちるため
 	// （ボーン数が多いケースで負荷増）、従来どおりボーン外側の1パスで全形状を処理する。
 	// World判定の時間は関数内の既存STAT（STAT_KawaiiPhysics_WorldCollision）で計測する。
+	PrepareCollisionShapeCaches();
 	int32 NumWorldChecks = 0;
 	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 	{
