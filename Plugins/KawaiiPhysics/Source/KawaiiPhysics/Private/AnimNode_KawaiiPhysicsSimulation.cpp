@@ -713,10 +713,46 @@ void FAnimNode_KawaiiPhysics::ApplyWorldMoveFollowNonBaseBone(FKawaiiPhysicsModi
 void FAnimNode_KawaiiPhysics::ApplyStiffnessPull(FKawaiiPhysicsModifyBone& Bone,
                                                  const FKawaiiPhysicsModifyBone& ParentBone, float Exponent)
 {
-	// Pull to Pose Location
+	// ポーズ位置へ引き戻す
 	const FVector BaseLocation = ParentBone.Location + (Bone.PoseLocation - ParentBone.PoseLocation);
-	Bone.Location += (BaseLocation - Bone.Location) *
-		(1.0f - FMath::Pow(1.0f - Bone.PhysicsSettings.Stiffness, Exponent));
+	const float Stiffness = Bone.PhysicsSettings.Stiffness;
+	float PullAlpha;
+
+	// 固定サブステップ時は Exponent が厳密に 1.0f になり powf の y==1 特殊ケースで即返るため、
+	// メモ化しても速くならずキャッシュアクセス分だけ損をする。Exponent が 1.0f にならない legacy 経路でのみメモを使う。
+	if (bInSubstep)
+	{
+		PullAlpha = 1.0f - FMath::Pow(1.0f - Stiffness, Exponent);
+	}
+	else
+	{
+		if (StiffnessPullMemos.Num() != ModifyBones.Num())
+		{
+			StiffnessPullMemos.SetNum(ModifyBones.Num());
+		}
+
+		if (StiffnessPullMemos.IsValidIndex(Bone.Index))
+		{
+			FStiffnessPullMemo& Memo = StiffnessPullMemos[Bone.Index];
+			if (Memo.Stiffness == Stiffness && Memo.Exponent == Exponent)
+			{
+				PullAlpha = Memo.PullAlpha;
+			}
+			else
+			{
+				PullAlpha = 1.0f - FMath::Pow(1.0f - Stiffness, Exponent);
+				Memo.Stiffness = Stiffness;
+				Memo.Exponent = Exponent;
+				Memo.PullAlpha = PullAlpha;
+			}
+		}
+		else
+		{
+			PullAlpha = 1.0f - FMath::Pow(1.0f - Stiffness, Exponent);
+		}
+	}
+
+	Bone.Location += (BaseLocation - Bone.Location) * PullAlpha;
 }
 
 FVector FAnimNode_KawaiiPhysics::GetWindVelocity(FComponentSpacePoseContext& Output, const FSceneInterface* Scene,
