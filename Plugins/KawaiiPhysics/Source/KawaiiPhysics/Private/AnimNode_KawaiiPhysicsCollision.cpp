@@ -715,6 +715,15 @@ void FAnimNode_KawaiiPhysics::AdjustByBoneConstraints()
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_AdjustByBoneConstraint);
 
+	// StepDt は本関数の実行中ずっと同一なので、制約毎の除算をやめて 1 回だけ表を作る。
+	// FMath::Max は極小 StepDt で compliance が発散しないためのガード。
+	const float StepDt = FMath::Max(GetStepDeltaTime(), KINDA_SMALL_NUMBER);
+	float CompliancePerDt2[UE_ARRAY_COUNT(XPBDComplianceValues)];
+	for (int32 i = 0; i < UE_ARRAY_COUNT(XPBDComplianceValues); ++i)
+	{
+		CompliancePerDt2[i] = XPBDComplianceValues[i] / (StepDt * StepDt);
+	}
+
 	for (FModifyBoneConstraint& BoneConstraint : MergedBoneConstraints)
 	{
 		// IsValid()はLength>0のみ確認するため、indexの範囲も明示的に検証（堅牢化）
@@ -748,10 +757,7 @@ void FAnimNode_KawaiiPhysics::AdjustByBoneConstraints()
 		// enum 値の破損や将来の追加に備え、インデックスを配列範囲内へクランプ。
 		const int32 ComplianceIndex = FMath::Clamp(static_cast<int32>(ComplianceType), 0,
 		                                           static_cast<int32>(UE_ARRAY_COUNT(XPBDComplianceValues)) - 1);
-		float Compliance = XPBDComplianceValues[ComplianceIndex];
-		// 極小 StepDt で compliance が発散しないようガード。
-		const float StepDt = FMath::Max(GetStepDeltaTime(), KINDA_SMALL_NUMBER);
-		Compliance /= StepDt * StepDt;
+		float Compliance = CompliancePerDt2[ComplianceIndex];
 		float DeltaLambda = (Constraint - Compliance * BoneConstraint.Lambda) / (2 + Compliance); // 2 = SumMass
 		Delta = (Delta / DeltaLength) * DeltaLambda;
 
