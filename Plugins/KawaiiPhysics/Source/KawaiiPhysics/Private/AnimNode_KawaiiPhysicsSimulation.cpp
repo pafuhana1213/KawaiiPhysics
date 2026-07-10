@@ -837,6 +837,8 @@ void FAnimNode_KawaiiPhysics::ApplySimulateResult(FComponentSpacePoseContext& Ou
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ApplySimulateResult);
 
+	OutBoneTransforms.Reserve(OutBoneTransforms.Num() + ModifyBones.Num());
+
 	for (int32 i = 0; i < ModifyBones.Num(); ++i)
 	{
 		FTransform PoseTransform = FTransform(ModifyBones[i].PoseRotation, ModifyBones[i].PoseLocation,

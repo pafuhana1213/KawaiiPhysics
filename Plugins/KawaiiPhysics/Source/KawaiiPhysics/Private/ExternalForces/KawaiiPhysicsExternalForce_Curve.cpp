@@ -52,10 +52,22 @@ void FKawaiiPhysics_ExternalForce_Curve::PreApply(FAnimNode_KawaiiPhysics& Node,
 	}
 	else
 	{
-		TArray<FVector> CurveValues;
 		// SubstepCountが0以下でもゼロ除算しないよう最低1にクランプ
 		const int32 Steps = FMath::Max(SubstepCount, 1);
 		const float SubStep = Node.GetStepDeltaTime() * TimeScale / Steps;
+
+		Force = FVector::ZeroVector;
+		switch (CurveEvaluateType)
+		{
+		case EExternalForceCurveEvaluateType::Max:
+			Force = FVector(TNumericLimits<float>::Lowest());
+			break;
+		case EExternalForceCurveEvaluateType::Min:
+			Force = FVector(FLT_MAX);
+			break;
+		default:
+			break;
+		}
 
 		for (int i = 0; i < Steps; ++i)
 		{
@@ -64,34 +76,27 @@ void FKawaiiPhysics_ExternalForce_Curve::PreApply(FAnimNode_KawaiiPhysics& Node,
 			{
 				Time = FMath::Fmod(Time, MaxCurveTime);
 			}
-			CurveValues.Add(ForceCurve.GetValue(Time));
+			const FVector CurveValue = ForceCurve.GetValue(Time);
+			switch (CurveEvaluateType)
+			{
+			case EExternalForceCurveEvaluateType::Average:
+				Force += CurveValue;
+				break;
+			case EExternalForceCurveEvaluateType::Max:
+				Force = FVector::Max(Force, CurveValue);
+				break;
+			case EExternalForceCurveEvaluateType::Min:
+				Force = FVector::Min(Force, CurveValue);
+				break;
+			default:
+				break;
+			}
 		}
 
-		Force = FVector::ZeroVector;
 		switch (CurveEvaluateType)
 		{
 		case EExternalForceCurveEvaluateType::Average:
-			for (const auto& CurveValue : CurveValues)
-			{
-				Force += CurveValue;
-			}
 			Force /= static_cast<float>(Steps);
-
-			break;
-
-		case EExternalForceCurveEvaluateType::Max:
-			Force = FVector(TNumericLimits<float>::Lowest());
-			for (const auto& CurveValue : CurveValues)
-			{
-				Force = FVector::Max(Force, CurveValue);
-			}
-			break;
-		case EExternalForceCurveEvaluateType::Min:
-			Force = FVector(FLT_MAX);
-			for (const auto& CurveValue : CurveValues)
-			{
-				Force = FVector::Min(Force, CurveValue);
-			}
 			break;
 		default:
 			break;
