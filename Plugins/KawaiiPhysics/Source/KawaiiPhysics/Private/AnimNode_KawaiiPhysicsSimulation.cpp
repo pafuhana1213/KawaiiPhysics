@@ -37,38 +37,82 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdatePhysicsSetting);
 
+	const FRichCurve* DampingCurve = DampingCurveData.GetRichCurveConst();
+	const FRichCurve* WorldDampingLocationCurve = WorldDampingLocationCurveData.GetRichCurveConst();
+	const FRichCurve* WorldDampingRotationCurve = WorldDampingRotationCurveData.GetRichCurveConst();
+	const FRichCurve* StiffnessCurve = StiffnessCurveData.GetRichCurveConst();
+	const FRichCurve* RadiusCurve = RadiusCurveData.GetRichCurveConst();
+	const FRichCurve* LimitAngleCurve = LimitAngleCurveData.GetRichCurveConst();
+
+	const bool bAllCurvesEmpty =
+		DampingCurve->IsEmpty() &&
+		WorldDampingLocationCurve->IsEmpty() &&
+		WorldDampingRotationCurve->IsEmpty() &&
+		StiffnessCurve->IsEmpty() &&
+		RadiusCurve->IsEmpty() &&
+		LimitAngleCurve->IsEmpty();
+
+	if (bAllCurvesEmpty)
+	{
+		// 空カーブでも FRichCurve::DefaultValue が設定されている場合があるため、1.0f を決め打ちせず Eval の結果を使う。
+		const float Damping = FMath::Clamp(
+			PhysicsSettings.Damping * DampingCurve->Eval(0.0f, 1.0f), 0.0f, 1.0f);
+		const float WorldDampingLocation = FMath::Clamp(
+			PhysicsSettings.WorldDampingLocation * WorldDampingLocationCurve->Eval(0.0f, 1.0f), 0.0f, 1.0f);
+		const float WorldDampingRotation = FMath::Clamp(
+			PhysicsSettings.WorldDampingRotation * WorldDampingRotationCurve->Eval(0.0f, 1.0f), 0.0f, 1.0f);
+		const float Stiffness = FMath::Clamp(
+			PhysicsSettings.Stiffness * StiffnessCurve->Eval(0.0f, 1.0f), 0.0f, 1.0f);
+		const float Radius = FMath::Max(
+			PhysicsSettings.Radius * RadiusCurve->Eval(0.0f, 1.0f), 0.0f);
+		const float LimitAngle = FMath::Max(
+			PhysicsSettings.LimitAngle * LimitAngleCurve->Eval(0.0f, 1.0f), 0.0f);
+
+		for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+		{
+			Bone.PhysicsSettings.Damping = Damping;
+			Bone.PhysicsSettings.WorldDampingLocation = WorldDampingLocation;
+			Bone.PhysicsSettings.WorldDampingRotation = WorldDampingRotation;
+			Bone.PhysicsSettings.Stiffness = Stiffness;
+			Bone.PhysicsSettings.Radius = Radius;
+			Bone.PhysicsSettings.LimitAngle = LimitAngle;
+		}
+
+		return;
+	}
+
 	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 	{
 		const float LengthRate = Bone.LengthRateFromRoot;
 
 		// Damping
 		Bone.PhysicsSettings.Damping = FMath::Clamp(
-			PhysicsSettings.Damping * DampingCurveData.GetRichCurveConst()->Eval(
+			PhysicsSettings.Damping * DampingCurve->Eval(
 				LengthRate, 1.0f), 0.0f, 1.0f);
 		
 		// WorldLocationDamping
 		Bone.PhysicsSettings.WorldDampingLocation = FMath::Clamp(
-			PhysicsSettings.WorldDampingLocation * WorldDampingLocationCurveData.GetRichCurveConst()->Eval(
+			PhysicsSettings.WorldDampingLocation * WorldDampingLocationCurve->Eval(
 				LengthRate, 1.0f), 0.0f, 1.0f);
 		
 		// WorldRotationDamping
 		Bone.PhysicsSettings.WorldDampingRotation = FMath::Clamp(
-			PhysicsSettings.WorldDampingRotation * WorldDampingRotationCurveData.GetRichCurveConst()->Eval(
+			PhysicsSettings.WorldDampingRotation * WorldDampingRotationCurve->Eval(
 				LengthRate, 1.0f), 0.0f, 1.0f);
 		
 		// Stiffness
 		Bone.PhysicsSettings.Stiffness = FMath::Clamp(
-			PhysicsSettings.Stiffness * StiffnessCurveData.GetRichCurveConst()->Eval(
+			PhysicsSettings.Stiffness * StiffnessCurve->Eval(
 				LengthRate, 1.0f), 0.0f, 1.0f);
 		
 		// Radius
 		Bone.PhysicsSettings.Radius = FMath::Max(
-			PhysicsSettings.Radius * RadiusCurveData.GetRichCurveConst()->Eval(
+			PhysicsSettings.Radius * RadiusCurve->Eval(
 				LengthRate, 1.0f), 0.0f);
 		
 		// LimitAngle
 		Bone.PhysicsSettings.LimitAngle = FMath::Max(
-			PhysicsSettings.LimitAngle * LimitAngleCurveData.GetRichCurveConst()->Eval(
+			PhysicsSettings.LimitAngle * LimitAngleCurve->Eval(
 				LengthRate, 1.0f), 0.0f);
 	}
 }
