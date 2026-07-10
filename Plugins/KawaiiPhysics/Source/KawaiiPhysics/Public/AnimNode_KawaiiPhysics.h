@@ -8,6 +8,8 @@
 #include "GameplayTagContainer.h"
 #include "BoneControllers/AnimNode_AnimDynamics.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
+#include "CollisionQueryParams.h"
+#include "Engine/EngineTypes.h"
 #include "Engine/HitResult.h"
 
 #if !UE_VERSION_OLDER_THAN(5, 5, 0)
@@ -31,6 +33,17 @@
 class UKawaiiPhysics_CustomExternalForce;
 class UKawaiiPhysicsLimitsDataAsset;
 class UKawaiiPhysicsBoneConstraintsDataAsset;
+
+// ボーンに依存しない World Collision のクエリ設定。SimulateOnce のボーンループ前に1回だけ作る。
+// Bone-independent query settings for World Collision. Built once before the SimulateOnce bone loop.
+struct KAWAIIPHYSICS_API FKawaiiWorldCollisionQuerySettings
+{
+	FKawaiiWorldCollisionQuerySettings();
+
+	FCollisionQueryParams Params;
+	FCollisionResponseParams ResponseParams;
+	ECollisionChannel TraceChannel = ECC_WorldStatic;
+};
 
 #if ENABLE_ANIM_DEBUG
 extern KAWAIIPHYSICS_API TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsEnable;
@@ -1222,9 +1235,11 @@ protected:
 	 *
 	 * @param Bone The bone to adjust.
 	 * @param OwningComp The owning skeletal mesh component.
+	 * @param WorldCollisionQuerySettings The per-step world collision query settings.
 	 */
 	void AdjustByWorldCollision(FComponentSpacePoseContext& Output, FKawaiiPhysicsModifyBone& Bone,
-	                            const USkeletalMeshComponent* OwningComp);
+	                            const USkeletalMeshComponent* OwningComp,
+	                            const FKawaiiWorldCollisionQuerySettings& WorldCollisionQuerySettings);
 
 	/**
 	 * Adjusts the bone position based on spherical collision limits.

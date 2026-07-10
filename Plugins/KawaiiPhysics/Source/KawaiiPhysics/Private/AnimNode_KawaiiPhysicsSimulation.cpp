@@ -11,6 +11,7 @@
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Curves/CurveFloat.h"
+#include "Misc/Optional.h"
 #include "Runtime/Launch/Resources/Version.h"
 #include "SceneInterface.h"
 #include "PhysicsEngine/PhysicsAsset.h"
@@ -434,6 +435,26 @@ void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
 	// （ボーン数が多いケースで負荷増）、従来どおりボーン外側の1パスで全形状を処理する。
 	// World判定の時間は関数内の既存STAT（STAT_KawaiiPhysics_WorldCollision）で計測する。
 	PrepareCollisionShapeCaches();
+
+	TOptional<FKawaiiWorldCollisionQuerySettings> WorldCollisionQuerySettings;
+	if (bAllowWorldCollision && SkelComp)
+	{
+		WorldCollisionQuerySettings.Emplace();
+		if (bIgnoreSelfComponent)
+		{
+			WorldCollisionQuerySettings->Params.AddIgnoredComponent(SkelComp);
+		}
+
+		WorldCollisionQuerySettings->TraceChannel = bOverrideCollisionParams
+			                                            ? CollisionChannelSettings.GetObjectType()
+			                                            : SkelComp->GetCollisionObjectType();
+		WorldCollisionQuerySettings->ResponseParams = bOverrideCollisionParams
+			                                               ? FCollisionResponseParams(
+				                                               CollisionChannelSettings.GetResponseToChannels())
+			                                               : FCollisionResponseParams(
+				                                               SkelComp->GetCollisionResponseToChannels());
+	}
+
 	int32 NumWorldChecks = 0;
 	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 	{
@@ -464,7 +485,10 @@ void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
 
 		if (bAllowWorldCollision)
 		{
-			AdjustByWorldCollision(Output, Bone, SkelComp);
+			if (WorldCollisionQuerySettings.IsSet())
+			{
+				AdjustByWorldCollision(Output, Bone, SkelComp, WorldCollisionQuerySettings.GetValue());
+			}
 			++NumWorldChecks; // 発行したワールドスイープ回数
 		}
 	}

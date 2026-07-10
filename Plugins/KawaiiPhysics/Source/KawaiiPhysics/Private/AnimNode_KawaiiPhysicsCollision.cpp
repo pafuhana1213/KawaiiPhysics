@@ -32,6 +32,12 @@
 #include "KawaiiPhysics.h"
 #include "AnimNode_KawaiiPhysicsInternal.h"
 
+// トレースはゲームスレッド上で実行されないため、TraceTag はデバッグトレースを描画しない
+FKawaiiWorldCollisionQuerySettings::FKawaiiWorldCollisionQuerySettings()
+	: Params(SCENE_QUERY_STAT(KawaiiCollision))
+{
+}
+
 void FAnimNode_KawaiiPhysics::ApplyLimitsDataAsset(const FBoneContainer& RequiredBones)
 {
 	auto Initialize = [&RequiredBones](auto& Targets)
@@ -314,8 +320,9 @@ void FAnimNode_KawaiiPhysics::UpdatePlanerLimits(TArray<FPlanarLimit>& Limits, F
 	}
 }
 
-void FAnimNode_KawaiiPhysics::AdjustByWorldCollision(FComponentSpacePoseContext& Output, FKawaiiPhysicsModifyBone& Bone,
-                                                     const USkeletalMeshComponent* OwningComp)
+void FAnimNode_KawaiiPhysics::AdjustByWorldCollision(
+	FComponentSpacePoseContext& Output, FKawaiiPhysicsModifyBone& Bone, const USkeletalMeshComponent* OwningComp,
+	const FKawaiiWorldCollisionQuerySettings& WorldCollisionQuerySettings)
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_WorldCollision);
 
@@ -331,24 +338,6 @@ void FAnimNode_KawaiiPhysics::AdjustByWorldCollision(FComponentSpacePoseContext&
 		return;
 	}
 
-
-	/** トレースはゲームスレッド上で実行されないため、TraceTag はデバッグトレースを描画しない */
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(KawaiiCollision));
-
-	if (bIgnoreSelfComponent)
-	{
-		Params.AddIgnoredComponent(OwningComp);
-	}
-
-	// コンポーネントからコリジョン設定を取得
-	ECollisionChannel TraceChannel = bOverrideCollisionParams
-		                                 ? CollisionChannelSettings.GetObjectType()
-		                                 : OwningComp->GetCollisionObjectType();
-	FCollisionResponseParams ResponseParams = bOverrideCollisionParams
-		                                          ? FCollisionResponseParams(
-			                                          CollisionChannelSettings.GetResponseToChannels())
-		                                          : FCollisionResponseParams(
-			                                          OwningComp->GetCollisionResponseToChannels());
 	const UWorld* World = OwningComp->GetWorld();
 
 	const FVector TraceStartLocationWS =
@@ -364,7 +353,8 @@ void FAnimNode_KawaiiPhysics::AdjustByWorldCollision(FComponentSpacePoseContext&
 		FHitResult Result;
 		bool bHit = World->SweepSingleByChannel(
 			Result, TraceStartLocationWS, TraceEndLocationWS, FQuat::Identity,
-			TraceChannel, FCollisionShape::MakeSphere(Bone.PhysicsSettings.Radius), Params, ResponseParams);
+			WorldCollisionQuerySettings.TraceChannel, FCollisionShape::MakeSphere(Bone.PhysicsSettings.Radius),
+			WorldCollisionQuerySettings.Params, WorldCollisionQuerySettings.ResponseParams);
 		if (bHit)
 		{
 			if (Result.bStartPenetrating)
@@ -386,9 +376,11 @@ void FAnimNode_KawaiiPhysics::AdjustByWorldCollision(FComponentSpacePoseContext&
 		// sphere sweep（ヒット後に対象ボーンを除外）
 		WorldCollisionHitsScratch.Reset();
 		bool bHit = World->SweepMultiByChannel(WorldCollisionHitsScratch, TraceStartLocationWS,
-		                                       TraceEndLocationWS, FQuat::Identity, TraceChannel,
-		                                       FCollisionShape::MakeSphere(Bone.PhysicsSettings.Radius), Params,
-		                                       ResponseParams);
+		                                       TraceEndLocationWS, FQuat::Identity,
+		                                       WorldCollisionQuerySettings.TraceChannel,
+		                                       FCollisionShape::MakeSphere(Bone.PhysicsSettings.Radius),
+		                                       WorldCollisionQuerySettings.Params,
+		                                       WorldCollisionQuerySettings.ResponseParams);
 		if (!bHit)
 		{
 			return;
