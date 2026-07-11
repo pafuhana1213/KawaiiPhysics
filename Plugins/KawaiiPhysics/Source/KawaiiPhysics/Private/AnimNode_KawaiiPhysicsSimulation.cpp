@@ -636,6 +636,7 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 	FVector Velocity = ComputeVerletStepVelocity(Bone, WindVelocity);
 
 	// ユーザー外力に実速度を渡す（gravity の後・位置更新の前）。ApplyToVelocity が InOutVelocity を読む実装もあり得るため実速度に対して呼ぶ。
+	// 注: Apply 内でユーザーコードが ExternalForces を変更しうるため、生ポインタを持ち回さず毎回 index で取得する。
 	for (int i = 0; i < ExternalForces.Num(); ++i)
 	{
 		if (ExternalForces[i].IsValid())
@@ -679,12 +680,19 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 	}
 
 	// External Force
-	// 注: foreach を使うと問題が起きうる（ranged-for 中に配列が変化する）
+	// 注: foreach を使うと問題が起きうる（ranged-for 中に配列が変化する）。ユーザーの Apply が配列を変更しても
+	// 安全なよう index ループのまま。BoneTM だけはボーン内で不変なので初回のみ解決して使い回す。
+	FTransform BoneTM;
+	bool bBoneTMResolved = false;
 	for (int i = 0; i < CustomExternalForces.Num(); ++i)
 	{
 		if (CustomExternalForces[i] && CustomExternalForces[i]->bIsEnabled)
 		{
-			const FTransform BoneTM = ResolveExternalForceBoneTransform(Output, Bone, ParentBone);
+			if (!bBoneTMResolved)
+			{
+				BoneTM = ResolveExternalForceBoneTransform(Output, Bone, ParentBone);
+				bBoneTMResolved = true;
+			}
 			CustomExternalForces[i]->Apply(*this, Bone.Index, SkelComp, BoneTM);
 		}
 	}
@@ -698,7 +706,11 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 			{
 				if (ExForce->ExternalForceSpace == EExternalForceSpace::BoneSpace)
 				{
-					const FTransform BoneTM = ResolveExternalForceBoneTransform(Output, Bone, ParentBone);
+					if (!bBoneTMResolved)
+					{
+						BoneTM = ResolveExternalForceBoneTransform(Output, Bone, ParentBone);
+						bBoneTMResolved = true;
+					}
 					ExForce->Apply(Bone, *this, Output, BoneTM);
 				}
 				else
