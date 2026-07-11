@@ -107,16 +107,23 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce
 #endif
 
 protected:
-	/** Randomized scale of the force */
-	UPROPERTY()
+	/**
+	 * 実行時状態。RandomizedForceScale と ComponentTransform は基底 PreApply、Force は各サブクラス PreApply で毎フレーム必ず上書きされる。
+	 * 保存された値は次の PreApply で破棄され、ユーザー編集用の乱数範囲は RandomForceScaleRange に保存する。
+	 * 副作用は初回評価前のエディタデバッグ描画が保存値ではなくゼロから始まることのみ。
+	 * Runtime state. Base PreApply always overwrites RandomizedForceScale and ComponentTransform, and subclass PreApply overwrites Force every frame.
+	 * Saved values are discarded by the next PreApply, while the user-editable random range is stored in RandomForceScaleRange.
+	 * The only side effect is that editor debug drawing before the first evaluation starts from zero instead of saved values.
+	 */
+	UPROPERTY(Transient)
 	float RandomizedForceScale = 0.0f;
 
 	/** The force vector */
-	UPROPERTY()
+	UPROPERTY(Transient)
 	FVector Force = FVector::Zero();
 
 	/** Transform of the component */
-	UPROPERTY()
+	UPROPERTY(Transient)
 	FTransform ComponentTransform;
 
 	/** Whether the force space can be selected */

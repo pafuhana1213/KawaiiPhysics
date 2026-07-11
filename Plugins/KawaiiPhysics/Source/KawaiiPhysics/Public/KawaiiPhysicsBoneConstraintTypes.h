@@ -53,24 +53,31 @@ struct FModifyBoneConstraint
 	UPROPERTY(EditAnywhere, category = "KawaiiPhysics")
 	bool bExcludeFromSubdivision = false;
 
-	/** Index of the first modify bone */
-	UPROPERTY()
+	/**
+	 * 実行時状態。InitBoneConstraints は MergedBoneConstraints 上で ModifyBoneIndex1/2 と Length を毎回再計算し、bIsDummy は動的生成の dummy constraint にのみ設定する。
+	 * Lambda は SimulateOnce で毎ステップ 0 にリセットされる。
+	 * これらは全て実行時に再構築される MergedBoneConstraints 経由で読まれ、保存された BoneConstraints 配列の値を読む経路はない。
+	 * Runtime state. InitBoneConstraints recalculates ModifyBoneIndex1/2 and Length on MergedBoneConstraints each time, and bIsDummy is set only for dynamically generated dummy constraints.
+	 * Lambda is reset to 0 on every SimulateOnce step.
+	 * These values are read only through runtime-rebuilt MergedBoneConstraints, with no path that reads saved values from the BoneConstraints array.
+	 */
+	UPROPERTY(Transient)
 	int32 ModifyBoneIndex1 = -1;
 
 	/** Index of the second modify bone */
-	UPROPERTY()
+	UPROPERTY(Transient)
 	int32 ModifyBoneIndex2 = -1;
 
 	/** Length of the constraint */
-	UPROPERTY()
+	UPROPERTY(Transient)
 	float Length = -1.0f;
 
 	/** Flag indicating if this is a dummy constraint */
-	UPROPERTY()
+	UPROPERTY(Transient)
 	bool bIsDummy = false;
 
 	/** Lambda value for the constraint */
-	UPROPERTY()
+	UPROPERTY(Transient)
 	float Lambda = 0.0f;
 
 	/** Equality operator to compare two constraints */
