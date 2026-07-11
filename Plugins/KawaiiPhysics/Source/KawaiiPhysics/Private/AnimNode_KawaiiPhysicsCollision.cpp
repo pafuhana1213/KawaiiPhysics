@@ -764,24 +764,26 @@ void FAnimNode_KawaiiPhysics::InitBoneConstraints()
 	MergedBoneConstraints = BoneConstraints;
 	MergedBoneConstraints.Append(BoneConstraintsData);
 
+	TMap<FName, int32> BoneNameToModifyIndex;
+	BoneNameToModifyIndex.Reserve(ModifyBones.Num());
+	for (int32 i = 0; i < ModifyBones.Num(); ++i)
+	{
+		// IndexOfByPredicate と同じく、重複 BoneName は最初に見つかった index を使う
+		BoneNameToModifyIndex.FindOrAdd(ModifyBones[i].BoneRef.BoneName, i);
+	}
+
 	TArray<FModifyBoneConstraint> DummyBoneConstraint;
 	for (FModifyBoneConstraint& Constraint : MergedBoneConstraints)
 	{
-		Constraint.ModifyBoneIndex1 =
-			ModifyBones.IndexOfByPredicate([Constraint](const FKawaiiPhysicsModifyBone& ModifyBone)
-			{
-				return ModifyBone.BoneRef == Constraint.Bone1;
-			});
+		const int32* FoundModifyBoneIndex1 = BoneNameToModifyIndex.Find(Constraint.Bone1.BoneName);
+		Constraint.ModifyBoneIndex1 = FoundModifyBoneIndex1 ? *FoundModifyBoneIndex1 : INDEX_NONE;
 		if (Constraint.ModifyBoneIndex1 < 0)
 		{
 			continue;
 		}
 
-		Constraint.ModifyBoneIndex2 =
-			ModifyBones.IndexOfByPredicate([Constraint](const FKawaiiPhysicsModifyBone& ModifyBone)
-			{
-				return ModifyBone.BoneRef == Constraint.Bone2;
-			});
+		const int32* FoundModifyBoneIndex2 = BoneNameToModifyIndex.Find(Constraint.Bone2.BoneName);
+		Constraint.ModifyBoneIndex2 = FoundModifyBoneIndex2 ? *FoundModifyBoneIndex2 : INDEX_NONE;
 		if (Constraint.ModifyBoneIndex2 < 0)
 		{
 			continue;
