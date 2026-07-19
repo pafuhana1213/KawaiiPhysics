@@ -224,6 +224,8 @@ struct FKawaiiPhysicsTestAccessor
 		Node.DeltaTime = FrameDt;
 		Node.FrameDeltaTime = FrameDt;
 		PrepareFrame();
+		// 本番 SimulateModifyBones と同様、形状キャッシュはフレーム毎1回（substep 毎ではない）。
+		Node.PrepareCollisionShapeCaches();
 
 		if (!Node.bUseFixedSubsteppingCached)
 		{
@@ -517,8 +519,7 @@ private:
 			}
 		}
 
-		// コリジョン（SimulateOnce 413-445、AnimNode 側 limits のみ）
-		Node.PrepareCollisionShapeCaches();
+		// コリジョン（SimulateOnce 413-445、AnimNode 側 limits のみ。形状キャッシュは StepFrame 冒頭で更新済み）
 		for (FKawaiiPhysicsModifyBone& Bone : Node.ModifyBones)
 		{
 			if (Bone.bSkipSimulate)

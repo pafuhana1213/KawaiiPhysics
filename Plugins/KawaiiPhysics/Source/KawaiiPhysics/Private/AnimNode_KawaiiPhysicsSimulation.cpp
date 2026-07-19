@@ -234,6 +234,10 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 	}
 	bSubstepPoseInitialized = true;
 
+	// コリジョン形状の派生値キャッシュはフレーム毎1回で足りる
+	// （各 Limits の Location/Rotation 更新は EvaluateSkeletalControl 内のフレーム毎1回で、substep 間に書き換える処理はない）。
+	PrepareCollisionShapeCaches();
+
 	if (!bUseFixedSubsteppingCached)
 	{
 		// ===== Legacy: 実フレーム時間で1ステップ（GetStepDeltaTime()==DeltaTime） =====
@@ -434,8 +438,6 @@ void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
 	// NOTE: 形状ごとにループを分けると ModifyBones を複数回走査してキャッシュ効率が落ちるため
 	// （ボーン数が多いケースで負荷増）、従来どおりボーン外側の1パスで全形状を処理する。
 	// World判定の時間は関数内の既存STAT（STAT_KawaiiPhysics_WorldCollision）で計測する。
-	PrepareCollisionShapeCaches();
-
 	TOptional<FKawaiiWorldCollisionQuerySettings> WorldCollisionQuerySettings;
 	if (bAllowWorldCollision && SkelComp)
 	{
