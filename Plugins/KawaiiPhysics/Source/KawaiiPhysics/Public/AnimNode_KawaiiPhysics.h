@@ -684,20 +684,6 @@ private:
 	FVector SimpleExternalForceInSimSpace = FVector::ZeroVector;
 
 	/**
-	* legacy 経路（非サブステップ）専用の Stiffness pull 係数 (1 - Pow(1 - Stiffness, Exponent)) のメモ。
-	* 固定サブステップ中は Exponent が 1.0f になり Pow が軽いため、このメモ配列には触れない。
-	* Memo for the stiffness pull coefficient (1 - Pow(1 - Stiffness, Exponent)), used only by the legacy path (non-substep).
-	* Fixed substeps do not touch this memo array because Exponent is 1.0f and Pow is already cheap.
-	*/
-	struct FStiffnessPullMemo
-	{
-		float Stiffness = TNumericLimits<float>::Max();
-		float Exponent = TNumericLimits<float>::Max();
-		float PullAlpha = 0.0f;
-	};
-	TArray<FStiffnessPullMemo> StiffnessPullMemos;
-	
-	/**
 	 *	 The last simulation space used for the physics simulation.
 	 */
 	EKawaiiPhysicsSimulationSpace LastSimulationSpace = EKawaiiPhysicsSimulationSpace::ComponentSpace;
