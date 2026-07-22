@@ -66,6 +66,15 @@ private:
 	/** Exports the bone constraints data asset. */
 	void ExportBoneConstraintsDataAsset();
 
+	/** プリセットDataAssetを書き出します / Exports the preset data asset. */
+	void ExportPresetDataAsset();
+
+	/** プリセットDataAssetをこのノードへ適用します / Applies a preset data asset to this node. */
+	void ApplyPresetDataAsset();
+
+	/** このノードと対象プリセットとの差分を確認します / Checks the diff between this node and its target preset. */
+	void CheckPresetDiff();
+
 public:
 	/** Enables or disables debug drawing for bones. */
 	UPROPERTY()
