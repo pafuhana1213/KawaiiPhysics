@@ -2,16 +2,29 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "AnimNode_KawaiiPhysics.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
+#include "KawaiiPhysicsPresetDataAsset.h"
 #include "Animation/AnimNodeReference.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "UObject/UnrealType.h"
+
+#include <type_traits>
+
 #include "KawaiiPhysicsLibrary.generated.h"
 
 class UMirrorDataTable;
 
 UENUM()
 enum class EKawaiiPhysicsAccessExternalForceResult : uint8
+{
+	Valid,
+	NotValid,
+};
+
+UENUM()
+enum class EKawaiiPhysicsAccessResult : uint8
 {
 	Valid,
 	NotValid,
@@ -84,6 +97,38 @@ public:
 	                                      USkeletalMeshComponent* MeshComp, const FGameplayTagContainer& FilterTags,
 	                                      bool bFilterExactMatch);
 
+	/**
+	 * AnimInstance から KawaiiPhysics ノード参照を収集する（FilterTags が空なら全件）。
+	 * Collect KawaiiPhysics node references from an AnimInstance (empty FilterTags collects all nodes).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, AutoCreateRefTerm = "FilterTags"))
+	static bool CollectKawaiiPhysicsNodesFromAnimInstance(TArray<FKawaiiPhysicsReference>& Nodes,
+	                                                      UAnimInstance* AnimInstance,
+	                                                      const FGameplayTagContainer& FilterTags,
+	                                                      bool bFilterExactMatch = false);
+
+	/**
+	 * Component / Linked AnimInstance / PostProcess から KawaiiPhysics ノード参照を収集する（FilterTags が空なら全件）。
+	 * Collect KawaiiPhysics node references from a component, linked instances, and post-process instance (empty FilterTags collects all nodes).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, AutoCreateRefTerm = "FilterTags"))
+	static bool CollectKawaiiPhysicsNodesFromComponent(TArray<FKawaiiPhysicsReference>& Nodes,
+	                                                   USkeletalMeshComponent* MeshComp,
+	                                                   const FGameplayTagContainer& FilterTags,
+	                                                   bool bFilterExactMatch = false);
+
+	/**
+	 * ランタイム名指定アクセスのスレッド契約:
+	 * CallAnimNodeFunction は参照先ノードへ即時に関数を実行するだけで、評価スレッドとの同期は行いません。
+	 * AnimGraph の BlueprintThreadSafe 文脈、または対象ノードが評価されていないタイミングの GameThread から呼び出してください。
+	 *
+	 * Thread contract for runtime property access:
+	 * CallAnimNodeFunction executes immediately on the referenced node and does not synchronize with evaluation threads.
+	 * Call these APIs from a BlueprintThreadSafe AnimGraph context, or from the GameThread while the target node is not being evaluated.
+	 */
+
 	/** ResetDynamics */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
 	static FKawaiiPhysicsReference ResetDynamics(const FKawaiiPhysicsReference& KawaiiPhysics);
@@ -111,7 +156,7 @@ public:
 	{
 		KAWAIIPHYSICS_VALUE_SETTER(FKawaiiPhysicsSettings, PhysicsSettings);
 	}
-	
+
 	UFUNCTION(BlueprintPure, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
 	static FKawaiiPhysicsSettings GetPhysicsSettings(const FKawaiiPhysicsReference& KawaiiPhysics)
 	{
@@ -163,7 +208,13 @@ public:
 	static FKawaiiPhysicsReference SetBoneSubdivisionCollisionOnly(const FKawaiiPhysicsReference& KawaiiPhysics,
 	                                                               bool bBoneSubdivisionCollisionOnly)
 	{
-		KAWAIIPHYSICS_VALUE_SETTER(bool, bBoneSubdivisionCollisionOnly);
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("SetbBoneSubdivisionCollisionOnly"),
+			[bBoneSubdivisionCollisionOnly](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
+				InKawaiiPhysics.bBoneSubdivisionCollisionOnly = bBoneSubdivisionCollisionOnly;
+				InKawaiiPhysics.RequestModifyBonesReinit();
+			});
+		return KawaiiPhysics;
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
@@ -306,7 +357,13 @@ public:
 	static FKawaiiPhysicsReference SetLimitsDataAsset(const FKawaiiPhysicsReference& KawaiiPhysics,
 	                                                  UKawaiiPhysicsLimitsDataAsset* LimitsDataAsset)
 	{
-		KAWAIIPHYSICS_VALUE_SETTER(TObjectPtr<UKawaiiPhysicsLimitsDataAsset>, LimitsDataAsset);
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("SetLimitsDataAsset"),
+			[LimitsDataAsset](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
+				InKawaiiPhysics.LimitsDataAsset = LimitsDataAsset;
+				InKawaiiPhysics.RequestModifyBonesReinit();
+			});
+		return KawaiiPhysics;
 	}
 
 	/** LimitsDataAsset */
@@ -324,7 +381,13 @@ public:
 	static FKawaiiPhysicsReference SetMirrorDataTableForLimits(const FKawaiiPhysicsReference& KawaiiPhysics,
 	                                                           UMirrorDataTable* MirrorDataTableForLimits)
 	{
-		KAWAIIPHYSICS_VALUE_SETTER(TObjectPtr<UMirrorDataTable>, MirrorDataTableForLimits);
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("SetMirrorDataTableForLimits"),
+			[MirrorDataTableForLimits](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
+				InKawaiiPhysics.MirrorDataTableForLimits = MirrorDataTableForLimits;
+				InKawaiiPhysics.RequestModifyBonesReinit();
+			});
+		return KawaiiPhysics;
 	}
 
 	/**
@@ -345,7 +408,13 @@ public:
 	static FKawaiiPhysicsReference SetSkipMirroredBoneWithExistingCollision(
 		const FKawaiiPhysicsReference& KawaiiPhysics, bool bSkipMirroredBoneWithExistingCollision)
 	{
-		KAWAIIPHYSICS_VALUE_SETTER(bool, bSkipMirroredBoneWithExistingCollision);
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("SetbSkipMirroredBoneWithExistingCollision"),
+			[bSkipMirroredBoneWithExistingCollision](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
+				InKawaiiPhysics.bSkipMirroredBoneWithExistingCollision = bSkipMirroredBoneWithExistingCollision;
+				InKawaiiPhysics.RequestModifyBonesReinit();
+			});
+		return KawaiiPhysics;
 	}
 
 	/**
@@ -468,6 +537,377 @@ public:
 	static FGameplayTag GetSharedCollisionGroupTag(const FKawaiiPhysicsReference& KawaiiPhysics)
 	{
 		KAWAIIPHYSICS_VALUE_GETTER(FGameplayTag, SharedCollisionGroupTag);
+	}
+
+	static bool IsNodePropertyAccessible(const FProperty* Property);
+	static bool IsNodePropertyAccessible(FName PropertyName);
+	static bool DoesNodePropertyRequireModifyBonesReinit(FName PropertyName);
+	static bool DoesNodePropertyRequireSharedCollisionReinit(FName PropertyName);
+	static bool SetNodeWildcardPropertyValue(FAnimNode_KawaiiPhysics& Node, FName PropertyName,
+	                                         const FProperty* ValueProperty, const void* ValuePtr);
+	static bool GetNodeWildcardPropertyValue(const FAnimNode_KawaiiPhysics& Node, FName PropertyName,
+	                                         const FProperty* ValueProperty, void* ValuePtr);
+	static bool SetNodePropertyValueFromString(FAnimNode_KawaiiPhysics& Node, FName PropertyName,
+	                                           const FString& ValueText);
+	static bool GetNodePropertyValueAsString(const FAnimNode_KawaiiPhysics& Node, FName PropertyName,
+	                                         FString& OutValueText);
+
+	template <typename ValueType, typename PropertyType>
+	static bool SetNodePropertyValue(FAnimNode_KawaiiPhysics& Node, FName PropertyName, const ValueType& Value);
+	template <typename ValueType, typename PropertyType>
+	static bool GetNodePropertyValue(const FAnimNode_KawaiiPhysics& Node, FName PropertyName, ValueType& OutValue);
+	template <typename ValueType>
+	static bool SetNodeStructPropertyValue(FAnimNode_KawaiiPhysics& Node, FName PropertyName, const ValueType& Value);
+	template <typename ValueType>
+	static bool GetNodeStructPropertyValue(const FAnimNode_KawaiiPhysics& Node, FName PropertyName,
+	                                       ValueType& OutValue);
+
+	/** プリセットDataAssetをランタイムノードへ適用（CustomExternalForcesは安全のため除外） / Apply a preset data asset to a runtime node; CustomExternalForces are skipped for runtime safety. */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FKawaiiPhysicsReference ApplyPresetDataAsset(EKawaiiPhysicsAccessResult& ExecResult,
+	                                                    const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                    UKawaiiPhysicsPresetDataAsset* Preset,
+	                                                    FKawaiiPhysicsPresetApplyOptions Options);
+
+	/** ノードの bool プロパティを名前で設定 / Set KawaiiPhysics node bool property by name. */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FKawaiiPhysicsReference SetNodeBoolProperty(EKawaiiPhysicsAccessResult& ExecResult,
+	                                                   const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                   FName PropertyName, bool Value)
+	{
+		ExecResult = EKawaiiPhysicsAccessResult::NotValid;
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("SetNodeBoolProperty"),
+			[&ExecResult, &PropertyName, &Value](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				if (SetNodePropertyValue<bool, FBoolProperty>(InKawaiiPhysics, PropertyName, Value))
+				{
+					ExecResult = EKawaiiPhysicsAccessResult::Valid;
+				}
+			});
+		return KawaiiPhysics;
+	}
+
+	/** ノードの bool プロパティを名前で取得 / Get KawaiiPhysics node bool property by name. */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static bool GetNodeBoolProperty(EKawaiiPhysicsAccessResult& ExecResult,
+	                                const FKawaiiPhysicsReference& KawaiiPhysics, FName PropertyName)
+	{
+		bool Value = false;
+		ExecResult = EKawaiiPhysicsAccessResult::NotValid;
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("GetNodeBoolProperty"),
+			[&ExecResult, &PropertyName, &Value](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				if (GetNodePropertyValue<bool, FBoolProperty>(InKawaiiPhysics, PropertyName, Value))
+				{
+					ExecResult = EKawaiiPhysicsAccessResult::Valid;
+				}
+			});
+		return Value;
+	}
+
+	/** ノードの int プロパティを名前で設定 / Set KawaiiPhysics node int property by name. */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FKawaiiPhysicsReference SetNodeIntProperty(EKawaiiPhysicsAccessResult& ExecResult,
+	                                                  const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                  FName PropertyName, int32 Value)
+	{
+		ExecResult = EKawaiiPhysicsAccessResult::NotValid;
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("SetNodeIntProperty"),
+			[&ExecResult, &PropertyName, &Value](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				if (SetNodePropertyValue<int32, FIntProperty>(InKawaiiPhysics, PropertyName, Value))
+				{
+					ExecResult = EKawaiiPhysicsAccessResult::Valid;
+				}
+			});
+		return KawaiiPhysics;
+	}
+
+	/** ノードの int プロパティを名前で取得 / Get KawaiiPhysics node int property by name. */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static int32 GetNodeIntProperty(EKawaiiPhysicsAccessResult& ExecResult,
+	                                const FKawaiiPhysicsReference& KawaiiPhysics, FName PropertyName)
+	{
+		int32 Value = 0;
+		ExecResult = EKawaiiPhysicsAccessResult::NotValid;
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("GetNodeIntProperty"),
+			[&ExecResult, &PropertyName, &Value](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				if (GetNodePropertyValue<int32, FIntProperty>(InKawaiiPhysics, PropertyName, Value))
+				{
+					ExecResult = EKawaiiPhysicsAccessResult::Valid;
+				}
+			});
+		return Value;
+	}
+
+	/** ノードの float プロパティを名前で設定 / Set KawaiiPhysics node float property by name. */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FKawaiiPhysicsReference SetNodeFloatProperty(EKawaiiPhysicsAccessResult& ExecResult,
+	                                                    const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                    FName PropertyName, float Value)
+	{
+		ExecResult = EKawaiiPhysicsAccessResult::NotValid;
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("SetNodeFloatProperty"),
+			[&ExecResult, &PropertyName, &Value](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				if (SetNodePropertyValue<float, FFloatProperty>(InKawaiiPhysics, PropertyName, Value))
+				{
+					ExecResult = EKawaiiPhysicsAccessResult::Valid;
+				}
+			});
+		return KawaiiPhysics;
+	}
+
+	/** ノードの float プロパティを名前で取得 / Get KawaiiPhysics node float property by name. */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static float GetNodeFloatProperty(EKawaiiPhysicsAccessResult& ExecResult,
+	                                  const FKawaiiPhysicsReference& KawaiiPhysics, FName PropertyName)
+	{
+		float Value = 0.0f;
+		ExecResult = EKawaiiPhysicsAccessResult::NotValid;
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("GetNodeFloatProperty"),
+			[&ExecResult, &PropertyName, &Value](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				if (GetNodePropertyValue<float, FFloatProperty>(InKawaiiPhysics, PropertyName, Value))
+				{
+					ExecResult = EKawaiiPhysicsAccessResult::Valid;
+				}
+			});
+		return Value;
+	}
+
+	/** ノードの Vector プロパティを名前で設定 / Set KawaiiPhysics node Vector property by name. */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FKawaiiPhysicsReference SetNodeVectorProperty(EKawaiiPhysicsAccessResult& ExecResult,
+	                                                     const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                     FName PropertyName, FVector Value)
+	{
+		ExecResult = EKawaiiPhysicsAccessResult::NotValid;
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("SetNodeVectorProperty"),
+			[&ExecResult, &PropertyName, &Value](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				if (SetNodeStructPropertyValue<FVector>(InKawaiiPhysics, PropertyName, Value))
+				{
+					ExecResult = EKawaiiPhysicsAccessResult::Valid;
+				}
+			});
+		return KawaiiPhysics;
+	}
+
+	/** ノードの Vector プロパティを名前で取得 / Get KawaiiPhysics node Vector property by name. */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FVector GetNodeVectorProperty(EKawaiiPhysicsAccessResult& ExecResult,
+	                                     const FKawaiiPhysicsReference& KawaiiPhysics, FName PropertyName)
+	{
+		FVector Value = FVector::ZeroVector;
+		ExecResult = EKawaiiPhysicsAccessResult::NotValid;
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("GetNodeVectorProperty"),
+			[&ExecResult, &PropertyName, &Value](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				if (GetNodeStructPropertyValue<FVector>(InKawaiiPhysics, PropertyName, Value))
+				{
+					ExecResult = EKawaiiPhysicsAccessResult::Valid;
+				}
+			});
+		return Value;
+	}
+
+	/** ノードの Rotator プロパティを名前で設定 / Set KawaiiPhysics node Rotator property by name. */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FKawaiiPhysicsReference SetNodeRotatorProperty(EKawaiiPhysicsAccessResult& ExecResult,
+	                                                      const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                      FName PropertyName, FRotator Value)
+	{
+		ExecResult = EKawaiiPhysicsAccessResult::NotValid;
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("SetNodeRotatorProperty"),
+			[&ExecResult, &PropertyName, &Value](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				if (SetNodeStructPropertyValue<FRotator>(InKawaiiPhysics, PropertyName, Value))
+				{
+					ExecResult = EKawaiiPhysicsAccessResult::Valid;
+				}
+			});
+		return KawaiiPhysics;
+	}
+
+	/** ノードの Rotator プロパティを名前で取得 / Get KawaiiPhysics node Rotator property by name. */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FRotator GetNodeRotatorProperty(EKawaiiPhysicsAccessResult& ExecResult,
+	                                       const FKawaiiPhysicsReference& KawaiiPhysics, FName PropertyName)
+	{
+		FRotator Value = FRotator::ZeroRotator;
+		ExecResult = EKawaiiPhysicsAccessResult::NotValid;
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("GetNodeRotatorProperty"),
+			[&ExecResult, &PropertyName, &Value](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				if (GetNodeStructPropertyValue<FRotator>(InKawaiiPhysics, PropertyName, Value))
+				{
+					ExecResult = EKawaiiPhysicsAccessResult::Valid;
+				}
+			});
+		return Value;
+	}
+
+	/** ノードの Transform プロパティを名前で設定 / Set KawaiiPhysics node Transform property by name. */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FKawaiiPhysicsReference SetNodeTransformProperty(EKawaiiPhysicsAccessResult& ExecResult,
+	                                                        const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                        FName PropertyName, FTransform Value)
+	{
+		ExecResult = EKawaiiPhysicsAccessResult::NotValid;
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("SetNodeTransformProperty"),
+			[&ExecResult, &PropertyName, &Value](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				if (SetNodeStructPropertyValue<FTransform>(InKawaiiPhysics, PropertyName, Value))
+				{
+					ExecResult = EKawaiiPhysicsAccessResult::Valid;
+				}
+			});
+		return KawaiiPhysics;
+	}
+
+	/** ノードの Transform プロパティを名前で取得 / Get KawaiiPhysics node Transform property by name. */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FTransform GetNodeTransformProperty(EKawaiiPhysicsAccessResult& ExecResult,
+	                                           const FKawaiiPhysicsReference& KawaiiPhysics, FName PropertyName)
+	{
+		FTransform Value = FTransform::Identity;
+		ExecResult = EKawaiiPhysicsAccessResult::NotValid;
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("GetNodeTransformProperty"),
+			[&ExecResult, &PropertyName, &Value](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				if (GetNodeStructPropertyValue<FTransform>(InKawaiiPhysics, PropertyName, Value))
+				{
+					ExecResult = EKawaiiPhysicsAccessResult::Valid;
+				}
+			});
+		return Value;
+	}
+
+	/** ノードの Name プロパティを名前で設定 / Set KawaiiPhysics node Name property by name. */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FKawaiiPhysicsReference SetNodeNameProperty(EKawaiiPhysicsAccessResult& ExecResult,
+	                                                   const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                   FName PropertyName, FName Value)
+	{
+		ExecResult = EKawaiiPhysicsAccessResult::NotValid;
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("SetNodeNameProperty"),
+			[&ExecResult, &PropertyName, &Value](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				if (SetNodePropertyValue<FName, FNameProperty>(InKawaiiPhysics, PropertyName, Value))
+				{
+					ExecResult = EKawaiiPhysicsAccessResult::Valid;
+				}
+			});
+		return KawaiiPhysics;
+	}
+
+	/** ノードの Name プロパティを名前で取得 / Get KawaiiPhysics node Name property by name. */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FName GetNodeNameProperty(EKawaiiPhysicsAccessResult& ExecResult,
+	                                 const FKawaiiPhysicsReference& KawaiiPhysics, FName PropertyName)
+	{
+		FName Value = NAME_None;
+		ExecResult = EKawaiiPhysicsAccessResult::NotValid;
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("GetNodeNameProperty"),
+			[&ExecResult, &PropertyName, &Value](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				if (GetNodePropertyValue<FName, FNameProperty>(InKawaiiPhysics, PropertyName, Value))
+				{
+					ExecResult = EKawaiiPhysicsAccessResult::Valid;
+				}
+			});
+		return Value;
+	}
+
+	/** ノードの GameplayTag プロパティを名前で設定 / Set KawaiiPhysics node GameplayTag property by name. */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FKawaiiPhysicsReference SetNodeGameplayTagProperty(EKawaiiPhysicsAccessResult& ExecResult,
+	                                                          const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                          FName PropertyName, FGameplayTag Value)
+	{
+		ExecResult = EKawaiiPhysicsAccessResult::NotValid;
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("SetNodeGameplayTagProperty"),
+			[&ExecResult, &PropertyName, &Value](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				if (SetNodeStructPropertyValue<FGameplayTag>(InKawaiiPhysics, PropertyName, Value))
+				{
+					ExecResult = EKawaiiPhysicsAccessResult::Valid;
+				}
+			});
+		return KawaiiPhysics;
+	}
+
+	/** ノードの GameplayTag プロパティを名前で取得 / Get KawaiiPhysics node GameplayTag property by name. */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FGameplayTag GetNodeGameplayTagProperty(EKawaiiPhysicsAccessResult& ExecResult,
+	                                               const FKawaiiPhysicsReference& KawaiiPhysics, FName PropertyName)
+	{
+		FGameplayTag Value;
+		ExecResult = EKawaiiPhysicsAccessResult::NotValid;
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("GetNodeGameplayTagProperty"),
+			[&ExecResult, &PropertyName, &Value](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				if (GetNodeStructPropertyValue<FGameplayTag>(InKawaiiPhysics, PropertyName, Value))
+				{
+					ExecResult = EKawaiiPhysicsAccessResult::Valid;
+				}
+			});
+		return Value;
+	}
+
+	/** ノードのプロパティをワイルドカード値で設定 / Set KawaiiPhysics node property by wildcard value. */
+	UFUNCTION(BlueprintCallable, CustomThunk, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult", CustomStructureParam = "Value"))
+	static void SetNodeWildcardProperty(EKawaiiPhysicsAccessResult& ExecResult,
+	                                    const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                    FName PropertyName, const int32& Value)
+	{
+		checkNoEntry();
+	}
+
+	/** ノードのプロパティをワイルドカード値で取得 / Get KawaiiPhysics node property by wildcard value. */
+	UFUNCTION(BlueprintCallable, CustomThunk, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult", CustomStructureParam = "Value"))
+	static void GetNodeWildcardProperty(EKawaiiPhysicsAccessResult& ExecResult,
+	                                    const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                    FName PropertyName, int32& Value)
+	{
+		checkNoEntry();
 	}
 
 	/** Set ExternalForceParameter template */
@@ -652,9 +1092,141 @@ public:
 	}
 
 private:
+	DECLARE_FUNCTION(execSetNodeWildcardProperty);
+	DECLARE_FUNCTION(execGetNodeWildcardProperty);
 	DECLARE_FUNCTION(execSetExternalForceWildcardProperty);
 	DECLARE_FUNCTION(execGetExternalForceWildcardProperty);
 };
+
+template <typename ValueType, typename PropertyType>
+bool UKawaiiPhysicsLibrary::SetNodePropertyValue(FAnimNode_KawaiiPhysics& Node, FName PropertyName,
+                                                 const ValueType& Value)
+{
+	const PropertyType* Property = FindFProperty<PropertyType>(FAnimNode_KawaiiPhysics::StaticStruct(), PropertyName);
+	if (!IsNodePropertyAccessible(Property))
+	{
+		return false;
+	}
+
+	if (void* ValuePtr = Property->ContainerPtrToValuePtr<void>(&Node))
+	{
+		Property->SetPropertyValue(ValuePtr, Value);
+		if (DoesNodePropertyRequireModifyBonesReinit(PropertyName))
+		{
+			Node.RequestModifyBonesReinit();
+		}
+		if (DoesNodePropertyRequireSharedCollisionReinit(PropertyName))
+		{
+			Node.RequestSharedCollisionReinit();
+		}
+		return true;
+	}
+
+	return false;
+}
+
+template <typename ValueType, typename PropertyType>
+bool UKawaiiPhysicsLibrary::GetNodePropertyValue(const FAnimNode_KawaiiPhysics& Node, FName PropertyName,
+                                                 ValueType& OutValue)
+{
+	const PropertyType* Property = FindFProperty<PropertyType>(FAnimNode_KawaiiPhysics::StaticStruct(), PropertyName);
+	if (!IsNodePropertyAccessible(Property))
+	{
+		return false;
+	}
+
+	if (const void* ValuePtr = Property->ContainerPtrToValuePtr<void>(&Node))
+	{
+		OutValue = Property->GetPropertyValue(ValuePtr);
+		return true;
+	}
+
+	return false;
+}
+
+template <typename ValueType>
+bool UKawaiiPhysicsLibrary::SetNodeStructPropertyValue(FAnimNode_KawaiiPhysics& Node, FName PropertyName,
+                                                       const ValueType& Value)
+{
+	const FStructProperty* StructProperty = FindFProperty<FStructProperty>(
+		FAnimNode_KawaiiPhysics::StaticStruct(), PropertyName);
+	const UScriptStruct* ExpectedStruct = nullptr;
+	if constexpr (std::is_same_v<ValueType, FVector>)
+	{
+		ExpectedStruct = TBaseStructure<FVector>::Get();
+	}
+	else if constexpr (std::is_same_v<ValueType, FRotator>)
+	{
+		ExpectedStruct = TBaseStructure<FRotator>::Get();
+	}
+	else if constexpr (std::is_same_v<ValueType, FTransform>)
+	{
+		ExpectedStruct = TBaseStructure<FTransform>::Get();
+	}
+	else if constexpr (std::is_same_v<ValueType, FGameplayTag>)
+	{
+		ExpectedStruct = FGameplayTag::StaticStruct();
+	}
+
+	if (!ExpectedStruct || !IsNodePropertyAccessible(StructProperty) || StructProperty->Struct != ExpectedStruct)
+	{
+		return false;
+	}
+
+	if (void* ValuePtr = StructProperty->ContainerPtrToValuePtr<void>(&Node))
+	{
+		StructProperty->CopyCompleteValue(ValuePtr, &Value);
+		if (DoesNodePropertyRequireModifyBonesReinit(PropertyName))
+		{
+			Node.RequestModifyBonesReinit();
+		}
+		if (DoesNodePropertyRequireSharedCollisionReinit(PropertyName))
+		{
+			Node.RequestSharedCollisionReinit();
+		}
+		return true;
+	}
+
+	return false;
+}
+
+template <typename ValueType>
+bool UKawaiiPhysicsLibrary::GetNodeStructPropertyValue(const FAnimNode_KawaiiPhysics& Node, FName PropertyName,
+                                                       ValueType& OutValue)
+{
+	const FStructProperty* StructProperty = FindFProperty<FStructProperty>(
+		FAnimNode_KawaiiPhysics::StaticStruct(), PropertyName);
+	const UScriptStruct* ExpectedStruct = nullptr;
+	if constexpr (std::is_same_v<ValueType, FVector>)
+	{
+		ExpectedStruct = TBaseStructure<FVector>::Get();
+	}
+	else if constexpr (std::is_same_v<ValueType, FRotator>)
+	{
+		ExpectedStruct = TBaseStructure<FRotator>::Get();
+	}
+	else if constexpr (std::is_same_v<ValueType, FTransform>)
+	{
+		ExpectedStruct = TBaseStructure<FTransform>::Get();
+	}
+	else if constexpr (std::is_same_v<ValueType, FGameplayTag>)
+	{
+		ExpectedStruct = FGameplayTag::StaticStruct();
+	}
+
+	if (!ExpectedStruct || !IsNodePropertyAccessible(StructProperty) || StructProperty->Struct != ExpectedStruct)
+	{
+		return false;
+	}
+
+	if (const void* ValuePtr = StructProperty->ContainerPtrToValuePtr<void>(&Node))
+	{
+		StructProperty->CopyCompleteValue(&OutValue, ValuePtr);
+		return true;
+	}
+
+	return false;
+}
 
 template <typename ValueType, typename PropertyType>
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetExternalForceProperty(
