@@ -2,11 +2,19 @@
 
 #include "AnimGraphNode_KawaiiPhysics.h"
 
+#include "Animation/AnimBlueprint.h"
+#include "Animation/AnimInstance.h"
+#include "Animation/Skeleton.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "AssetToolsModule.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "EdGraph/EdGraph.h"
+#include "Engine/SkeletalMesh.h"
+#include "KawaiiPhysics.h"
+#include "KawaiiPhysicsBoneChainUtils.h"
 #include "KawaiiPhysicsBoneConstraintsDataAsset.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
 #include "Widgets/Input/SButton.h"
@@ -20,13 +28,88 @@
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Layout/SSeparator.h"
 
-#if !UE_VERSION_OLDER_THAN(5, 6, 0)
-#include "Animation/AnimInstance.h"
-#endif
-
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimGraphNode_KawaiiPhysics)
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysics"
+
+namespace
+{
+	void ShowKawaiiPhysicsNodeNotification(const FText& NotificationText,
+	                                       SNotificationItem::ECompletionState CompletionState)
+	{
+		FNotificationInfo NotificationInfo(NotificationText);
+		NotificationInfo.ExpireDuration = 5.0f;
+
+		TSharedPtr<SNotificationItem> NotificationItem = FSlateNotificationManager::Get().AddNotification(
+			NotificationInfo);
+		if (NotificationItem.IsValid())
+		{
+			NotificationItem->SetCompletionState(CompletionState);
+		}
+	}
+
+	void BuildExcludedBoneIndexSet(const FReferenceSkeleton& RefSkeleton, const TArray<FBoneReference>& ExcludeBones,
+	                               TSet<int32>& OutExcludedBoneIndices)
+	{
+		OutExcludedBoneIndices.Reset();
+		for (const FBoneReference& ExcludeBone : ExcludeBones)
+		{
+			if (ExcludeBone.BoneName == NAME_None)
+			{
+				continue;
+			}
+
+			const int32 ExcludeBoneIndex = RefSkeleton.FindBoneIndex(ExcludeBone.BoneName);
+			if (RefSkeleton.IsValidIndex(ExcludeBoneIndex))
+			{
+				OutExcludedBoneIndices.Add(ExcludeBoneIndex);
+			}
+		}
+	}
+
+	void AddUniqueCandidateRoot(const FReferenceSkeleton& RefSkeleton, int32 CandidateRootIndex,
+	                            const TSet<int32>& ExcludedBoneIndices,
+	                            TArray<int32>& OutCandidateRootIndices, TSet<int32>& InOutUniqueCandidateRootIndices)
+	{
+		if (!RefSkeleton.IsValidIndex(CandidateRootIndex)
+			|| ExcludedBoneIndices.Contains(CandidateRootIndex)
+			|| InOutUniqueCandidateRootIndices.Contains(CandidateRootIndex))
+		{
+			return;
+		}
+
+		OutCandidateRootIndices.Add(CandidateRootIndex);
+		InOutUniqueCandidateRootIndices.Add(CandidateRootIndex);
+	}
+
+	void AppendChainRootCandidatesFromSearchRoot(const FReferenceSkeleton& RefSkeleton, int32 SearchRootIndex,
+	                                             const TSet<int32>& ExcludedBoneIndices,
+	                                             TArray<int32>& OutCandidateRootIndices,
+	                                             TSet<int32>& InOutUniqueCandidateRootIndices)
+	{
+		if (!RefSkeleton.IsValidIndex(SearchRootIndex) || ExcludedBoneIndices.Contains(SearchRootIndex))
+		{
+			return;
+		}
+
+		TArray<int32> DetectedCandidateRootIndices;
+		KawaiiPhysicsBoneChain::DetectChainRootCandidates(RefSkeleton, SearchRootIndex, DetectedCandidateRootIndices,
+		                                                  &ExcludedBoneIndices);
+
+		if (DetectedCandidateRootIndices.Num() == 0)
+		{
+			AddUniqueCandidateRoot(RefSkeleton, SearchRootIndex, ExcludedBoneIndices, OutCandidateRootIndices,
+			                       InOutUniqueCandidateRootIndices);
+			return;
+		}
+
+		for (int32 CandidateRootIndex : DetectedCandidateRootIndices)
+		{
+			AddUniqueCandidateRoot(RefSkeleton, CandidateRootIndex, ExcludedBoneIndices, OutCandidateRootIndices,
+			                       InOutUniqueCandidateRootIndices);
+		}
+	}
+}
 
 // ----------------------------------------------------------------------------
 UAnimGraphNode_KawaiiPhysics::UAnimGraphNode_KawaiiPhysics(const FObjectInitializer& ObjectInitializer)
@@ -279,6 +362,23 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 			[
 				SNew(STextBlock)
 				.Text(FText::FromString(TEXT("Export BoneConstraints")))
+				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+			]
+		]
+		+ SUniformGridPanel::Slot(2, 0)
+		[
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.OnClicked_Lambda([this]()
+			{
+				this->GenerateBoneConstraintsDataAssetFromChains();
+				return FReply::Handled();
+			})
+			.Content()
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(TEXT("Generate BoneConstraints (Chains)")))
 				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
 			]
 		]
@@ -611,6 +711,215 @@ void UAnimGraphNode_KawaiiPhysics::ExportLimitsDataAsset()
 			LOCTEXT("ExportedLimitsDataAsset", "Exposted Limits Data Asset: {0}"), FText::FromString(AssetName));
 		ShowExportAssetNotification(NewDataAsset, NotificationText);
 	}
+}
+
+USkeleton* UAnimGraphNode_KawaiiPhysics::GetBoneConstraintsPreviewSkeleton() const
+{
+	UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
+	if (AnimBlueprint == nullptr)
+	{
+		return nullptr;
+	}
+
+	if (UObject* ObjectBeingDebugged = AnimBlueprint->GetObjectBeingDebugged())
+	{
+		if (const UAnimInstance* InstanceBeingDebugged = Cast<UAnimInstance>(ObjectBeingDebugged))
+		{
+			if (const USkeletalMeshComponent* SkelMeshComponent = InstanceBeingDebugged->GetSkelMeshComponent())
+			{
+				if (USkeletalMesh* SkeletalMesh = SkelMeshComponent->GetSkeletalMeshAsset())
+				{
+					if (USkeleton* MeshSkeleton = SkeletalMesh->GetSkeleton())
+					{
+						return MeshSkeleton;
+					}
+				}
+			}
+
+			if (InstanceBeingDebugged->CurrentSkeleton)
+			{
+				return InstanceBeingDebugged->CurrentSkeleton;
+			}
+		}
+	}
+
+	return AnimBlueprint->TargetSkeleton;
+}
+
+UKawaiiPhysicsBoneConstraintsDataAsset* UAnimGraphNode_KawaiiPhysics::CreateBoneConstraintsDataAssetForChainGeneration(
+	USkeleton* PreviewSkeleton)
+{
+	FString AssetName;
+	UPackage* Package = CreateDataAssetPackage(
+		TEXT("Choose Location for BoneConstraints Data Asset"), TEXT("_BoneConstraint"), AssetName);
+	if (!Package)
+	{
+		return nullptr;
+	}
+
+	UKawaiiPhysicsBoneConstraintsDataAsset* NewDataAsset =
+		NewObject<UKawaiiPhysicsBoneConstraintsDataAsset>(
+			Package, UKawaiiPhysicsBoneConstraintsDataAsset::StaticClass(),
+			FName(AssetName), RF_Public | RF_Standalone);
+	if (NewDataAsset == nullptr)
+	{
+		return nullptr;
+	}
+
+	NewDataAsset->PreviewSkeleton = PreviewSkeleton;
+	NewDataAsset->UpdatePreviewBoneList();
+
+	NewDataAsset->BoneConstraintsData.SetNum(Node.BoneConstraints.Num());
+	for (int32 Index = 0; Index < Node.BoneConstraints.Num(); ++Index)
+	{
+		NewDataAsset->BoneConstraintsData[Index].Update(Node.BoneConstraints[Index]);
+	}
+
+	USelection* SelectionSet = GEditor->GetSelectedObjects();
+	SelectionSet->DeselectAll();
+	SelectionSet->Select(NewDataAsset);
+
+	FAssetRegistryModule::AssetCreated(NewDataAsset);
+	Package->MarkPackageDirty();
+
+	return NewDataAsset;
+}
+
+void UAnimGraphNode_KawaiiPhysics::GenerateBoneConstraintsDataAssetFromChains()
+{
+	USkeleton* PreviewSkeleton = GetBoneConstraintsPreviewSkeleton();
+	if (PreviewSkeleton == nullptr)
+	{
+		ShowKawaiiPhysicsNodeNotification(
+			LOCTEXT("GenerateBoneConstraintsChainsNoPreviewSkeleton",
+			        "Generate BoneConstraints (Chains) failed: no preview mesh skeleton or AnimBP TargetSkeleton was found."),
+			SNotificationItem::CS_Fail);
+		return;
+	}
+
+	const FReferenceSkeleton& RefSkeleton = PreviewSkeleton->GetReferenceSkeleton();
+	TArray<int32> CandidateRootIndices;
+	TSet<int32> UniqueCandidateRootIndices;
+	int32 SortSearchRootIndex = INDEX_NONE;
+	FName DetectRootBoneName = NAME_None;
+
+	const auto AppendCandidates = [&](const FBoneReference& SearchRootBone,
+	                                  const TArray<FBoneReference>& ExcludeBones)
+	{
+		if (SearchRootBone.BoneName == NAME_None)
+		{
+			return;
+		}
+
+		const int32 SearchRootIndex = RefSkeleton.FindBoneIndex(SearchRootBone.BoneName);
+		if (!RefSkeleton.IsValidIndex(SearchRootIndex))
+		{
+			UE_LOG(LogKawaiiPhysics, Warning,
+			       TEXT("Generate BoneConstraints (Chains): search root '%s' does not exist in the preview skeleton."),
+			       *SearchRootBone.BoneName.ToString());
+			return;
+		}
+
+		TSet<int32> ExcludedBoneIndices;
+		BuildExcludedBoneIndexSet(RefSkeleton, ExcludeBones, ExcludedBoneIndices);
+		AppendChainRootCandidatesFromSearchRoot(RefSkeleton, SearchRootIndex, ExcludedBoneIndices,
+		                                        CandidateRootIndices, UniqueCandidateRootIndices);
+
+		if (SortSearchRootIndex == INDEX_NONE)
+		{
+			SortSearchRootIndex = SearchRootIndex;
+		}
+		if (DetectRootBoneName == NAME_None)
+		{
+			DetectRootBoneName = SearchRootBone.BoneName;
+		}
+	};
+
+	AppendCandidates(Node.RootBone, Node.ExcludeBones);
+	for (const FKawaiiPhysicsRootBoneSetting& AdditionalRootBone : Node.AdditionalRootBones)
+	{
+		AppendCandidates(AdditionalRootBone.RootBone,
+		                 AdditionalRootBone.bUseOverrideExcludeBones
+			                 ? AdditionalRootBone.OverrideExcludeBones
+			                 : Node.ExcludeBones);
+	}
+
+	if (!KawaiiPhysicsBoneChain::SortByNumericTokens(RefSkeleton, CandidateRootIndices))
+	{
+		KawaiiPhysicsBoneChain::SortByRefPoseAngle(RefSkeleton, SortSearchRootIndex, CandidateRootIndices);
+	}
+
+	if (CandidateRootIndices.Num() < 2)
+	{
+		ShowKawaiiPhysicsNodeNotification(
+			LOCTEXT("GenerateBoneConstraintsChainsNotEnoughCandidates",
+			        "Generate BoneConstraints (Chains) failed: fewer than two chain root candidates were detected. Set DetectRootBone or ChainRootBones in the DataAsset."),
+			SNotificationItem::CS_Fail);
+		return;
+	}
+
+	UKawaiiPhysicsBoneConstraintsDataAsset* DataAsset = Node.BoneConstraintsDataAsset;
+	const bool bCreatedDataAsset = DataAsset == nullptr;
+	if (DataAsset == nullptr)
+	{
+		DataAsset = CreateBoneConstraintsDataAssetForChainGeneration(PreviewSkeleton);
+		if (DataAsset == nullptr)
+		{
+			return;
+		}
+	}
+
+	GEditor->BeginTransaction(FText::FromString(TEXT("Generate BoneConstraints (Chains)")));
+	Modify();
+	DataAsset->Modify();
+
+	if (bCreatedDataAsset)
+	{
+		Node.BoneConstraintsDataAsset = DataAsset;
+	}
+
+	DataAsset->PreviewSkeleton = PreviewSkeleton;
+	DataAsset->UpdatePreviewBoneList();
+
+	const FString GroupName = FString::Printf(TEXT("Node: %s"), *DetectRootBoneName.ToString());
+	FKawaiiPhysicsBoneChainGroup* ChainGroup = DataAsset->ChainGroups.FindByPredicate(
+		[&GroupName](const FKawaiiPhysicsBoneChainGroup& Group)
+		{
+			return Group.GroupName == GroupName;
+		});
+	if (ChainGroup == nullptr)
+	{
+		ChainGroup = &DataAsset->ChainGroups.AddDefaulted_GetRef();
+		ChainGroup->GroupName = GroupName;
+	}
+
+	ChainGroup->ChainRootBones.Reset();
+	ChainGroup->ChainRootBones.Reserve(CandidateRootIndices.Num());
+	for (int32 CandidateRootIndex : CandidateRootIndices)
+	{
+		if (RefSkeleton.IsValidIndex(CandidateRootIndex))
+		{
+			ChainGroup->ChainRootBones.Add(FBoneReference(RefSkeleton.GetBoneName(CandidateRootIndex)));
+		}
+	}
+	ChainGroup->DetectRootBone = FBoneReference(DetectRootBoneName);
+
+	DataAsset->MarkPackageDirty();
+	if (UEdGraph* Graph = GetGraph())
+	{
+		Graph->NotifyGraphChanged();
+	}
+
+	GEditor->EndTransaction();
+
+	DataAsset->ApplyChains();
+
+	ShowExportAssetNotification(
+		DataAsset,
+		FText::Format(
+			LOCTEXT("GeneratedBoneConstraintsChains",
+			        "Generated BoneConstraints (Chains): {0}. Pairs not found in the runtime BoneContainer may be skipped safely."),
+			FText::FromString(DataAsset->GetName())));
 }
 
 void UAnimGraphNode_KawaiiPhysics::ExportBoneConstraintsDataAsset()

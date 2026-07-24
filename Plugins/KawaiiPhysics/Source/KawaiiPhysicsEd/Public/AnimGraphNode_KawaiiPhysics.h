@@ -10,6 +10,8 @@
 #include "AnimGraphNode_KawaiiPhysics.generated.h"
 
 class FCompilerResultsLog;
+class UKawaiiPhysicsBoneConstraintsDataAsset;
+class USkeleton;
 
 UCLASS()
 class UAnimGraphNode_KawaiiPhysics : public UAnimGraphNode_SkeletalControlBase
@@ -65,6 +67,25 @@ private:
 
 	/** Exports the bone constraints data asset. */
 	void ExportBoneConstraintsDataAsset();
+
+	/**
+	 * ノード設定からチェーン方式のBoneConstraintsを生成する
+	 * Generates chain-based BoneConstraints from the node settings.
+	 */
+	void GenerateBoneConstraintsDataAssetFromChains();
+
+	/**
+	 * BoneConstraints生成に使うプレビュースケルトンを取得する
+	 * Gets the preview skeleton used for BoneConstraints generation.
+	 */
+	USkeleton* GetBoneConstraintsPreviewSkeleton() const;
+
+	/**
+	 * チェーン生成用のBoneConstraints DataAssetを作成する
+	 * Creates a BoneConstraints DataAsset for chain generation.
+	 */
+	UKawaiiPhysicsBoneConstraintsDataAsset* CreateBoneConstraintsDataAssetForChainGeneration(
+		USkeleton* PreviewSkeleton);
 
 public:
 	/** Enables or disables debug drawing for bones. */
