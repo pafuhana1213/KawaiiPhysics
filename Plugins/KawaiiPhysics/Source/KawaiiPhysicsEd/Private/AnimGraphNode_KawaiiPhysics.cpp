@@ -170,6 +170,9 @@ void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* Ani
 	KawaiiPhysics->StiffnessCurveData = Node.StiffnessCurveData;
 	KawaiiPhysics->RadiusCurveData = Node.RadiusCurveData;
 	KawaiiPhysics->LimitAngleCurveData = Node.LimitAngleCurveData;
+	KawaiiPhysics->StretchMinRateCurveData = Node.StretchMinRateCurveData;
+	KawaiiPhysics->StretchMaxRateCurveData = Node.StretchMaxRateCurveData;
+	KawaiiPhysics->StretchStiffnessCurveData = Node.StretchStiffnessCurveData;
 	KawaiiPhysics->bUpdatePhysicsSettingsInGame = Node.bUpdatePhysicsSettingsInGame;
 	KawaiiPhysics->PlanarConstraint = Node.PlanarConstraint;
 	KawaiiPhysics->ResetBoneTransformWhenBoneNotFound = Node.ResetBoneTransformWhenBoneNotFound;
