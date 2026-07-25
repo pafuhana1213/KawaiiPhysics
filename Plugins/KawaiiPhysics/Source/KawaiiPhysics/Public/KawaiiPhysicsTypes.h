@@ -127,6 +127,27 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSettings
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), category = "KawaiiPhysics")
 	float LimitAngle = 0.0f;
+
+	/**
+	* ボーン長の下限レート。下限 = ポーズ長 × StretchMinRate。StretchStiffness が 1.0 の場合は従来どおりポーズ長へ即時復元されます。
+	* Minimum bone length rate. Minimum length = pose length * StretchMinRate. When StretchStiffness is 1.0, the length is immediately restored to the pose length as before.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", ClampMax = "1", UIMin = "0", UIMax = "1"), category = "KawaiiPhysics")
+	float StretchMinRate = 1.0f;
+
+	/**
+	* ボーン長の上限レート。上限 = ポーズ長 × StretchMaxRate。inter-bone/bridge dummy のコリジョン被覆数は初期長基準のため、大きく伸ばすと被覆に隙間が出る場合があります。
+	* Maximum bone length rate. Maximum length = pose length * StretchMaxRate. Inter-bone/bridge dummy collision coverage is based on the initial length, so large stretch values may leave coverage gaps.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "1", UIMin = "1", UIMax = "3"), category = "KawaiiPhysics")
+	float StretchMaxRate = 1.0f;
+
+	/**
+	* ポーズ長へ引き戻す硬さ。1.0 = 即時復元（従来挙動）。伸縮させるには 1.0 未満に設定します。
+	* Stiffness that restores the current length toward the pose length. 1.0 = immediate restore (legacy behavior). Set below 1.0 to allow elastic stretch.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", ClampMax = "1"), category = "KawaiiPhysics")
+	float StretchStiffness = 1.0f;
 };
 
 /**

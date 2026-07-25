@@ -37,6 +37,11 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdatePhysicsSetting);
 
+	// BPピン等から入る範囲外値をローカルに正規化（node propertyは書き換えない）
+	const float NodeStretchMaxRate = FMath::Max(PhysicsSettings.StretchMaxRate, 1.0f);
+	const float NodeStretchMinRate = FMath::Clamp(PhysicsSettings.StretchMinRate, 0.0f, 1.0f);
+	const float NodeStretchStiffness = FMath::Clamp(PhysicsSettings.StretchStiffness, 0.0f, 1.0f);
+
 	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 	{
 		const float LengthRate = Bone.LengthRateFromRoot;
@@ -70,6 +75,17 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 		Bone.PhysicsSettings.LimitAngle = FMath::Max(
 			PhysicsSettings.LimitAngle * LimitAngleCurveData.GetRichCurveConst()->Eval(
 				LengthRate, 1.0f), 0.0f);
+
+		// 伸縮
+		Bone.PhysicsSettings.StretchMaxRate = FMath::Max(
+			NodeStretchMaxRate * StretchMaxRateCurveData.GetRichCurveConst()->Eval(
+				LengthRate, 1.0f), 0.0f);
+		Bone.PhysicsSettings.StretchMinRate = FMath::Clamp(
+			NodeStretchMinRate * StretchMinRateCurveData.GetRichCurveConst()->Eval(
+				LengthRate, 1.0f), 0.0f, Bone.PhysicsSettings.StretchMaxRate);
+		Bone.PhysicsSettings.StretchStiffness = FMath::Clamp(
+			NodeStretchStiffness * StretchStiffnessCurveData.GetRichCurveConst()->Eval(
+				LengthRate, 1.0f), 0.0f, 1.0f);
 	}
 }
 
@@ -520,9 +536,8 @@ void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
 			// Adjust by Planar Constraint
 			AdjustByPlanarConstraint(Bone, ParentBone);
 
-			// Restore Bone Length
-			const float BoneLength = (Bone.PoseLocation - ParentBone.PoseLocation).Size();
-			Bone.Location = (Bone.Location - ParentBone.Location).GetSafeNormal() * BoneLength + ParentBone.Location;
+			// ボーン長復元
+			ApplyLengthRestore(Bone, ParentBone, Exponent);
 		}
 	}
 	// 注: DeltaTimeOld は呼び出し元 SimulateModifyBones（legacy=DeltaTime / substep=FixedDt）で設定
@@ -720,6 +735,30 @@ void FAnimNode_KawaiiPhysics::ApplyStiffnessPull(FKawaiiPhysicsModifyBone& Bone,
 	const FVector BaseLocation = ParentBone.Location + (Bone.PoseLocation - ParentBone.PoseLocation);
 	Bone.Location += (BaseLocation - Bone.Location) *
 		(1.0f - FMath::Pow(1.0f - Bone.PhysicsSettings.Stiffness, Exponent));
+}
+
+void FAnimNode_KawaiiPhysics::ApplyLengthRestore(FKawaiiPhysicsModifyBone& Bone,
+                                                 const FKawaiiPhysicsModifyBone& ParentBone, float Exponent)
+{
+	const float PoseLength = (Bone.PoseLocation - ParentBone.PoseLocation).Size();
+	const FVector Dir = (Bone.Location - ParentBone.Location).GetSafeNormal();
+
+	float NewLength;
+	if (Bone.PhysicsSettings.StretchStiffness >= 1.0f)
+	{
+		NewLength = PoseLength;
+	}
+	else
+	{
+		const float CurrentLength = (Bone.Location - ParentBone.Location).Size();
+		const float StretchAlpha = 1.0f - FMath::Pow(1.0f - Bone.PhysicsSettings.StretchStiffness, Exponent);
+		NewLength = CurrentLength + (PoseLength - CurrentLength) * StretchAlpha;
+	}
+
+	const float MinLength = PoseLength * Bone.PhysicsSettings.StretchMinRate;
+	const float MaxLength = FMath::Max(MinLength, PoseLength * Bone.PhysicsSettings.StretchMaxRate);
+	NewLength = FMath::Clamp(NewLength, MinLength, MaxLength);
+	Bone.Location = Dir * NewLength + ParentBone.Location;
 }
 
 FVector FAnimNode_KawaiiPhysics::GetWindVelocity(FComponentSpacePoseContext& Output, const FSceneInterface* Scene,

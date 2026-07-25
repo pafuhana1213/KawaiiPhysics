@@ -293,6 +293,42 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 		meta = (PinHiddenByDefault, DisplayName = "LimitAngle Rate by Bone Length Rate"))
 	FRuntimeFloatCurve LimitAngleCurveData;
 
+	/**
+	* 各ボーンに適用するPhysics Settings/ StretchMinRate パラメータを補正。
+	* 「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値を各パラメータに乗算。
+	* 乗算後 Min > Max となった場合は Min を Max へクランプ。
+	* Corrects the Physics Settings/StretchMinRate parameters applied to each bone.
+	* Multiplies each parameter by the curve value for "Length from RootBone to specific bone / Length from RootBone to end bone" (0.0~1.0).
+	* If Min > Max after multiplication, Min is clamped to Max.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings|Curves", AdvancedDisplay,
+		meta = (PinHiddenByDefault, DisplayName = "Stretch Min Rate by Bone Length Rate"))
+	FRuntimeFloatCurve StretchMinRateCurveData;
+
+	/**
+	* 各ボーンに適用するPhysics Settings/ StretchMaxRate パラメータを補正。
+	* 「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値を各パラメータに乗算。
+	* 乗算後 Min > Max となった場合は Min を Max へクランプ。
+	* Corrects the Physics Settings/StretchMaxRate parameters applied to each bone.
+	* Multiplies each parameter by the curve value for "Length from RootBone to specific bone / Length from RootBone to end bone" (0.0~1.0).
+	* If Min > Max after multiplication, Min is clamped to Max.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings|Curves", AdvancedDisplay,
+		meta = (PinHiddenByDefault, DisplayName = "Stretch Max Rate by Bone Length Rate"))
+	FRuntimeFloatCurve StretchMaxRateCurveData;
+
+	/**
+	* 各ボーンに適用するPhysics Settings/ StretchStiffness パラメータを補正。
+	* 「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値を各パラメータに乗算。
+	* 乗算後 Min > Max となった場合は Min を Max へクランプ。
+	* Corrects the Physics Settings/StretchStiffness parameters applied to each bone.
+	* Multiplies each parameter by the curve value for "Length from RootBone to specific bone / Length from RootBone to end bone" (0.0~1.0).
+	* If Min > Max after multiplication, Min is clamped to Max.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings|Curves", AdvancedDisplay,
+		meta = (PinHiddenByDefault, DisplayName = "Stretch Stiffness by Bone Length Rate"))
+	FRuntimeFloatCurve StretchStiffnessCurveData;
+
 	/** 
 	* コリジョン（球）
 	* Spherical Collision
@@ -1226,6 +1262,9 @@ protected:
 
 	/** Pull to Pose Location（剛性）。 */
 	void ApplyStiffnessPull(FKawaiiPhysicsModifyBone& Bone, const FKawaiiPhysicsModifyBone& ParentBone, float Exponent);
+
+	/** ポーズ長へ戻す長さ復元（伸縮）。 */
+	void ApplyLengthRestore(FKawaiiPhysicsModifyBone& Bone, const FKawaiiPhysicsModifyBone& ParentBone, float Exponent);
 
 	// 自動テスト用アクセサ。private/protected の sim 状態・物理計算・コリジョン関数へアクセスする。
 	// Shipping/Test（WITH_DEV_AUTOMATION_TESTS==0）では宣言ごと除外し、出荷ビルドにテスト表面を残さない。
