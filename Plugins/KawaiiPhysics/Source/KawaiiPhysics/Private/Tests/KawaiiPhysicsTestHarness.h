@@ -343,6 +343,10 @@ struct FKawaiiPhysicsTestAccessor
 	{
 		Node.ApplyStiffnessPull(Bone, ParentBone, Exponent);
 	}
+	void CallLengthRestore(FKawaiiPhysicsModifyBone& Bone, const FKawaiiPhysicsModifyBone& ParentBone, float Exponent)
+	{
+		Node.ApplyLengthRestore(Bone, ParentBone, Exponent);
+	}
 	void CallBoneConstraints()
 	{
 		Node.AdjustByBoneConstraints();
@@ -551,8 +555,7 @@ private:
 			FKawaiiPhysicsModifyBone& ParentBone = Node.ModifyBones[Bone.ParentIndex];
 			Node.AdjustByAngleLimit(Bone, ParentBone);
 			Node.AdjustByPlanarConstraint(Bone, ParentBone);
-			const float BoneLength = (Bone.PoseLocation - ParentBone.PoseLocation).Size();
-			Bone.Location = (Bone.Location - ParentBone.Location).GetSafeNormal() * BoneLength + ParentBone.Location;
+			Node.ApplyLengthRestore(Bone, ParentBone, Exponent);
 		}
 	}
 };

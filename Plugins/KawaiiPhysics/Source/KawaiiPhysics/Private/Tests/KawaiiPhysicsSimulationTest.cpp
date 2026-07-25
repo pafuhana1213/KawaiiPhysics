@@ -71,6 +71,52 @@ namespace
 		A.StepFrames(NumFrames, FrameDt);
 		return static_cast<float>((A.Bone(RightTipIndex).Location - A.Bone(LeftTipIndex).Location).Size());
 	}
+
+	FVector SimulateStretchChainTip(float Damping, float Stiffness, float StretchMinRate, float StretchMaxRate,
+	                                float StretchStiffness, const FVector& Gravity, bool bFixedSubstep,
+	                                int32 TargetFps, int32 NumFrames, float FrameDt)
+	{
+		FKawaiiPhysicsTestAccessor A;
+		A.BuildVerticalChain(4, 10.0f);
+
+		FKawaiiPhysicsSettings S;
+		S.Damping = Damping;
+		S.Stiffness = Stiffness;
+		S.LimitAngle = 0.0f;
+		S.Radius = 0.0f;
+		S.StretchMinRate = StretchMinRate;
+		S.StretchMaxRate = StretchMaxRate;
+		S.StretchStiffness = StretchStiffness;
+		A.SetAllPhysicsSettings(S);
+
+		A.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+		A.SetGravityInSimSpace(Gravity);
+		A.SetFixedSubstepping(bFixedSubstep, TargetFps, 32);
+		A.StepFrames(NumFrames, FrameDt);
+		return A.TipLocation();
+	}
+
+	bool CheckSegmentLengthsInRange(FAutomationTestBase& Test, const FKawaiiPhysicsTestAccessor& A,
+	                                float MinLength, float MaxLength, const TCHAR* Label)
+	{
+		bool bOk = true;
+		for (int32 BoneIndex = 1; BoneIndex < A.Num(); ++BoneIndex)
+		{
+			if (A.Bone(BoneIndex).ParentIndex < 0)
+			{
+				continue;
+			}
+			const float Length = static_cast<float>((A.Bone(BoneIndex).Location -
+				A.Bone(A.Bone(BoneIndex).ParentIndex).Location).Size());
+			bOk &= Test.TestTrue(FString::Printf(TEXT("%s segment %d length %.6f in [%.6f, %.6f]"),
+			                                     Label, BoneIndex, Length, MinLength, MaxLength),
+			                       Length >= MinLength - KINDA_SMALL_NUMBER &&
+			                       Length <= MaxLength + KINDA_SMALL_NUMBER);
+		}
+		return bOk;
+	}
+
+	constexpr float NumericalStabilityBound = 1000.0f;
 }
 
 // ---------------------------------------------------------------------------
@@ -171,6 +217,220 @@ bool FKawaiiPhysicsIntegrationCoreTest::RunTest(const FString& Parameters)
 	}
 
 	return true;
+}
+
+// ---------------------------------------------------------------------------
+//  伸縮の後方互換
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsStretchBackwardCompatTest,
+                                 "KawaiiPhysics.Simulation.StretchBackwardCompat",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsStretchBackwardCompatTest::RunTest(const FString& Parameters)
+{
+	auto CheckLegacyRestore = [&](const TCHAR* Label, const FKawaiiPhysicsSettings& Settings)
+	{
+		FKawaiiPhysicsTestAccessor A;
+		FKawaiiPhysicsModifyBone ParentBone;
+		ParentBone.Location = FVector(1.0f, 2.0f, 3.0f);
+		ParentBone.PoseLocation = FVector(1.0f, 2.0f, 3.0f);
+
+		FKawaiiPhysicsModifyBone Bone;
+		Bone.Location = FVector(5.0f, 6.0f, 20.0f);
+		Bone.PoseLocation = FVector(1.0f, 2.0f, 13.0f);
+		Bone.PhysicsSettings = Settings;
+
+		const float BoneLength = (Bone.PoseLocation - ParentBone.PoseLocation).Size();
+		const FVector Expected = (Bone.Location - ParentBone.Location).GetSafeNormal() * BoneLength + ParentBone.Location;
+		A.CallLengthRestore(Bone, ParentBone, 2.0f);
+		return TestTrue(FString::Printf(TEXT("%s: legacy length restore is bit-identical"), Label),
+		                Bone.Location == Expected);
+	};
+
+	bool bOk = true;
+	{
+		FKawaiiPhysicsSettings S;
+		bOk &= CheckLegacyRestore(TEXT("Default"), S);
+	}
+	{
+		FKawaiiPhysicsSettings S;
+		S.StretchStiffness = 0.3f;
+		S.StretchMinRate = 1.0f;
+		S.StretchMaxRate = 1.0f;
+		bOk &= CheckLegacyRestore(TEXT("MinMaxClampIdentity"), S);
+	}
+	{
+		FKawaiiPhysicsSettings S;
+		S.StretchStiffness = 1.0f;
+		S.StretchMinRate = 0.5f;
+		S.StretchMaxRate = 2.0f;
+		bOk &= CheckLegacyRestore(TEXT("FullStretchStiffnessIdentity"), S);
+	}
+
+	return bOk;
+}
+
+// ---------------------------------------------------------------------------
+//  伸縮クランプ範囲
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsStretchClampRangeTest,
+                                 "KawaiiPhysics.Simulation.StretchClampRange",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsStretchClampRangeTest::RunTest(const FString& Parameters)
+{
+	bool bOk = true;
+
+	{
+		FKawaiiPhysicsTestAccessor A;
+		FKawaiiPhysicsModifyBone ParentBone;
+		ParentBone.Location = FVector::ZeroVector;
+		ParentBone.PoseLocation = FVector::ZeroVector;
+
+		FKawaiiPhysicsModifyBone Bone;
+		Bone.PoseLocation = FVector(10.0f, 0.0f, 0.0f);
+		Bone.Location = FVector(20.0f, 0.0f, 0.0f);
+		Bone.PhysicsSettings.StretchStiffness = 0.0f;
+		Bone.PhysicsSettings.StretchMinRate = 0.5f;
+		Bone.PhysicsSettings.StretchMaxRate = 1.2f;
+
+		A.CallLengthRestore(Bone, ParentBone, 1.0f);
+		bOk &= TestTrue(TEXT("Direct max clamp"), Bone.Location.Equals(FVector(12.0f, 0.0f, 0.0f), KINDA_SMALL_NUMBER));
+	}
+
+	{
+		FKawaiiPhysicsTestAccessor A;
+		FKawaiiPhysicsModifyBone ParentBone;
+		ParentBone.Location = FVector::ZeroVector;
+		ParentBone.PoseLocation = FVector::ZeroVector;
+
+		FKawaiiPhysicsModifyBone Bone;
+		Bone.PoseLocation = FVector(10.0f, 0.0f, 0.0f);
+		Bone.Location = FVector(2.0f, 0.0f, 0.0f);
+		Bone.PhysicsSettings.StretchStiffness = 0.0f;
+		Bone.PhysicsSettings.StretchMinRate = 0.5f;
+		Bone.PhysicsSettings.StretchMaxRate = 1.5f;
+
+		A.CallLengthRestore(Bone, ParentBone, 1.0f);
+		bOk &= TestTrue(TEXT("Direct min clamp"), Bone.Location.Equals(FVector(5.0f, 0.0f, 0.0f), KINDA_SMALL_NUMBER));
+	}
+
+	{
+		FKawaiiPhysicsTestAccessor A;
+		A.BuildVerticalChain(4, 10.0f);
+		FKawaiiPhysicsSettings S;
+		S.Damping = 0.0f;
+		S.Stiffness = 0.0f;
+		S.Radius = 0.0f;
+		S.LimitAngle = 0.0f;
+		S.StretchStiffness = 0.0f;
+		S.StretchMinRate = 0.75f;
+		S.StretchMaxRate = 1.25f;
+		A.SetAllPhysicsSettings(S);
+		A.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+		A.SetGravityInSimSpace(FVector(980.0f, 0.0f, 0.0f));
+		A.SetFixedSubstepping(true, 60, 8);
+		A.StepFrames(60, 1.0f / 60.0f);
+		bOk &= CheckSegmentLengthsInRange(*this, A, 7.5f, 12.5f, TEXT("Step clamp"));
+	}
+
+	return bOk;
+}
+
+// ---------------------------------------------------------------------------
+//  伸縮のフレームレート非依存性
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsStretchFramerateIndependenceTest,
+                                 "KawaiiPhysics.Simulation.StretchFramerateIndependence",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsStretchFramerateIndependenceTest::RunTest(const FString& Parameters)
+{
+	bool bOk = true;
+	const FVector Gravity(980.0f, 0.0f, 0.0f);
+	const float SimTime = 2.0f;
+	const int32 TargetFps = 60;
+
+	const FVector Tip30 = SimulateStretchChainTip(0.0f, 0.0f, 0.2f, 3.0f, 0.2f, Gravity, true, TargetFps,
+	                                              FMath::RoundToInt(SimTime * 30.0f), 1.0f / 30.0f);
+	const FVector Tip60 = SimulateStretchChainTip(0.0f, 0.0f, 0.2f, 3.0f, 0.2f, Gravity, true, TargetFps,
+	                                              FMath::RoundToInt(SimTime * 60.0f), 1.0f / 60.0f);
+	const FVector Tip120 = SimulateStretchChainTip(0.0f, 0.0f, 0.2f, 3.0f, 0.2f, Gravity, true, TargetFps,
+	                                               FMath::RoundToInt(SimTime * 120.0f), 1.0f / 120.0f);
+
+	const float SubstepTol = 0.5f;
+	bOk &= TestTrue(FString::Printf(TEXT("Stretch substep 30 vs 60 fps: %s vs %s"), *Tip30.ToString(), *Tip60.ToString()),
+	                Tip30.Equals(Tip60, SubstepTol));
+	bOk &= TestTrue(FString::Printf(TEXT("Stretch substep 60 vs 120 fps: %s vs %s"), *Tip60.ToString(), *Tip120.ToString()),
+	                Tip60.Equals(Tip120, SubstepTol));
+
+	FKawaiiPhysicsTestAccessor A;
+	FKawaiiPhysicsModifyBone ParentBone;
+	ParentBone.Location = FVector::ZeroVector;
+	ParentBone.PoseLocation = FVector::ZeroVector;
+
+	FKawaiiPhysicsModifyBone OneStep;
+	OneStep.PoseLocation = FVector(10.0f, 0.0f, 0.0f);
+	OneStep.Location = FVector(20.0f, 0.0f, 0.0f);
+	OneStep.PhysicsSettings.StretchStiffness = 0.2f;
+	OneStep.PhysicsSettings.StretchMinRate = 0.0f;
+	OneStep.PhysicsSettings.StretchMaxRate = 100.0f;
+	A.CallLengthRestore(OneStep, ParentBone, 2.0f);
+
+	FKawaiiPhysicsModifyBone TwoSteps = OneStep;
+	TwoSteps.Location = FVector(20.0f, 0.0f, 0.0f);
+	A.CallLengthRestore(TwoSteps, ParentBone, 1.0f);
+	A.CallLengthRestore(TwoSteps, ParentBone, 1.0f);
+
+	bOk &= TestTrue(FString::Printf(TEXT("Exponent composition: one=%s two=%s"),
+	                                *OneStep.Location.ToString(), *TwoSteps.Location.ToString()),
+	                OneStep.Location.Equals(TwoSteps.Location, 0.0001f));
+
+	return bOk;
+}
+
+// ---------------------------------------------------------------------------
+//  伸縮と BoneConstraint の併用
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsStretchWithBoneConstraintTest,
+                                 "KawaiiPhysics.Simulation.StretchWithBoneConstraint",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsStretchWithBoneConstraintTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor A;
+	A.BuildTwoVerticalChains(3, 10.0f, 20.0f);
+
+	FKawaiiPhysicsSettings S;
+	S.Damping = 0.0f;
+	S.Stiffness = 0.0f;
+	S.LimitAngle = 0.0f;
+	S.Radius = 0.0f;
+	S.StretchMinRate = 0.5f;
+	S.StretchMaxRate = 2.0f;
+	S.StretchStiffness = 0.2f;
+	A.SetAllPhysicsSettings(S);
+
+	const int32 LeftTipIndex = 2;
+	const int32 RightTipIndex = 5;
+	A.Bone(RightTipIndex).Location += FVector(12.0f, 0.0f, 0.0f);
+	A.Bone(RightTipIndex).PrevLocation = A.Bone(RightTipIndex).Location;
+
+	A.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+	A.SetGravityInSimSpace(FVector(0.0f, 0.0f, 0.0f));
+	A.SetFixedSubstepping(true, 60, 8);
+	A.SetBoneConstraintIterations(2, 2);
+	A.SetBoneConstraintGlobalComplianceType(EXPBDComplianceType::Fat);
+	A.AddRuntimeBoneConstraint(LeftTipIndex, RightTipIndex, 15.0f);
+
+	A.StepFrames(120, 1.0f / 60.0f);
+	bool bOk = true;
+	bOk &= TestTrue(TEXT("Stretch with BoneConstraint remains finite"), A.AllFinite());
+	bOk &= CheckSegmentLengthsInRange(*this, A, 5.0f, 20.0f, TEXT("Stretch with BoneConstraint"));
+	const float TipDistance = static_cast<float>((A.Bone(RightTipIndex).Location - A.Bone(LeftTipIndex).Location).Size());
+	bOk &= TestTrue(FString::Printf(TEXT("Stretch with BoneConstraint finite distance %.6f"), TipDistance),
+	                FMath::IsFinite(TipDistance));
+	return bOk;
 }
 
 // ---------------------------------------------------------------------------
@@ -460,16 +720,22 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsNumericalStabilityTest,
 bool FKawaiiPhysicsNumericalStabilityTest::RunTest(const FString& Parameters)
 {
 	// 縦チェーンは長さ復元により root から最大でも (segment*count) 内に収まる。
-	const float Bound = 1000.0f;
 
 	auto RunScenario = [&](const TCHAR* Name, float Spacing, float Damping, float Stiffness,
-	                       const FVector& Gravity, bool bFixedSubstep, float FrameDt, int32 Frames)
+	                       const FVector& Gravity, bool bFixedSubstep, float FrameDt, int32 Frames,
+	                       float StretchMinRate = 1.0f, float StretchMaxRate = 1.0f,
+	                       float StretchStiffness = 1.0f, float LimitAngle = 0.0f,
+	                       float ScenarioBound = NumericalStabilityBound)
 	{
 		FKawaiiPhysicsTestAccessor A;
 		A.BuildVerticalChain(4, Spacing);
 		FKawaiiPhysicsSettings S;
 		S.Damping = Damping;
 		S.Stiffness = Stiffness;
+		S.LimitAngle = LimitAngle;
+		S.StretchMinRate = StretchMinRate;
+		S.StretchMaxRate = StretchMaxRate;
+		S.StretchStiffness = StretchStiffness;
 		A.SetAllPhysicsSettings(S);
 		A.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
 		A.SetGravityInSimSpace(Gravity);
@@ -479,7 +745,8 @@ bool FKawaiiPhysicsNumericalStabilityTest::RunTest(const FString& Parameters)
 			A.StepFrame(FrameDt);
 		}
 		TestTrue(FString::Printf(TEXT("%s: finite"), Name), A.AllFinite());
-		TestTrue(FString::Printf(TEXT("%s: bounded (|loc| <= %.0f)"), Name, Bound), A.AllWithin(Bound));
+		TestTrue(FString::Printf(TEXT("%s: bounded (|loc| <= %.0f)"), Name, ScenarioBound),
+		         A.AllWithin(ScenarioBound));
 	};
 
 	// 極端な重力
@@ -492,6 +759,28 @@ bool FKawaiiPhysicsNumericalStabilityTest::RunTest(const FString& Parameters)
 	RunScenario(TEXT("FullDampingStiffness"), 10.0f, 1.0f, 1.0f, FVector(0, -980, 0), true, 1.0f / 60.0f, 60);
 	// 微小 dt（legacy）
 	RunScenario(TEXT("TinyDtLegacy"), 10.0f, 0.1f, 0.05f, FVector(0, 0, -980), false, 1.0e-5f, 60);
+	// 伸縮: Stiffness=0 / MinRate=0 / ゼロ長 + AngleLimit 併用
+	RunScenario(TEXT("StretchZeroMinZeroLengthAngleLimit"), 0.0f, 0.1f, 0.05f, FVector(0, 0, -980),
+	            true, 1.0f / 60.0f, 60, 0.0f, 3.0f, 0.0f, 30.0f);
+	// 伸縮: 巨大 MaxRate
+	RunScenario(TEXT("StretchHugeMaxRate"), 10.0f, 0.0f, 0.0f, FVector(980, 0, 0),
+	            true, 1.0f / 60.0f, 60, 0.0f, 100.0f, 0.0f, 0.0f, 5000.0f);
+
+	{
+		FKawaiiPhysicsTestAccessor A;
+		FKawaiiPhysicsModifyBone ParentBone;
+		ParentBone.Location = FVector::ZeroVector;
+		ParentBone.PoseLocation = FVector::ZeroVector;
+
+		FKawaiiPhysicsModifyBone Bone;
+		Bone.Location = FVector::ZeroVector;
+		Bone.PoseLocation = FVector::ZeroVector;
+		Bone.PhysicsSettings.StretchMinRate = 0.0f;
+		Bone.PhysicsSettings.StretchMaxRate = 100.0f;
+		Bone.PhysicsSettings.StretchStiffness = 0.0f;
+		A.CallLengthRestore(Bone, ParentBone, 1.0f);
+		TestTrue(TEXT("Stretch collapsed direction remains finite"), !Bone.Location.ContainsNaN());
+	}
 
 	return true;
 }
@@ -522,6 +811,9 @@ bool FKawaiiPhysicsPhysicsSettingsCurveTest::RunTest(const FString& Parameters)
 	A.Node.PhysicsSettings.Stiffness = 0.9f;
 	A.Node.PhysicsSettings.Radius = 3.0f;
 	A.Node.PhysicsSettings.LimitAngle = 30.0f;
+	A.Node.PhysicsSettings.StretchMinRate = 0.8f;
+	A.Node.PhysicsSettings.StretchMaxRate = 1.6f;
+	A.Node.PhysicsSettings.StretchStiffness = 0.7f;
 
 	// --- 1. 高速パス（全カーブ空・DefaultValue なし）: 基準値がそのまま入る ---
 	A.CallUpdatePhysicsSettings();
@@ -530,21 +822,25 @@ bool FKawaiiPhysicsPhysicsSettingsCurveTest::RunTest(const FString& Parameters)
 		const FKawaiiPhysicsSettings& S = A.Bone(i).PhysicsSettings;
 		TestTrue(FString::Printf(TEXT("FastPath base: bone %d"), i),
 		         S.Damping == 0.8f && S.WorldDampingLocation == 0.6f && S.WorldDampingRotation == 0.7f &&
-		         S.Stiffness == 0.9f && S.Radius == 3.0f && S.LimitAngle == 30.0f);
+		         S.Stiffness == 0.9f && S.Radius == 3.0f && S.LimitAngle == 30.0f &&
+		         S.StretchMinRate == 0.8f && S.StretchMaxRate == 1.6f && S.StretchStiffness == 0.7f);
 	}
 
 	// --- 2. 高速パス（全カーブ空・DefaultValue あり）: DefaultValue の乗算とクランプが効く ---
 	A.Node.DampingCurveData.EditorCurveData.SetDefaultValue(2.0f);              // 0.8*2.0=1.6 → 上限クランプで 1.0
 	A.Node.WorldDampingLocationCurveData.EditorCurveData.SetDefaultValue(0.5f); // 0.6*0.5=0.3
 	A.Node.RadiusCurveData.EditorCurveData.SetDefaultValue(-1.0f);              // 3.0*-1.0 → Max で 0.0
+	A.Node.StretchMaxRateCurveData.EditorCurveData.SetDefaultValue(0.5f);       // 1.6*0.5=0.8
+	A.Node.StretchStiffnessCurveData.EditorCurveData.SetDefaultValue(2.0f);     // 0.7*2.0=1.4 → 上限クランプで 1.0
 	A.CallUpdatePhysicsSettings();
 	TArray<FKawaiiPhysicsSettings> FastPathResults;
 	for (int32 i = 0; i < NumBones; ++i)
 	{
 		const FKawaiiPhysicsSettings& S = A.Bone(i).PhysicsSettings;
-		TestTrue(FString::Printf(TEXT("FastPath DefaultValue: bone %d damping=%f wdl=%f radius=%f"),
-		                         i, S.Damping, S.WorldDampingLocation, S.Radius),
-		         S.Damping == 1.0f && S.WorldDampingLocation == 0.3f && S.Radius == 0.0f);
+		TestTrue(FString::Printf(TEXT("FastPath DefaultValue: bone %d damping=%f wdl=%f radius=%f stretchMax=%f stretchStiffness=%f"),
+		                         i, S.Damping, S.WorldDampingLocation, S.Radius, S.StretchMaxRate, S.StretchStiffness),
+		         S.Damping == 1.0f && S.WorldDampingLocation == 0.3f && S.Radius == 0.0f &&
+		         S.StretchMaxRate == 0.8f && S.StretchStiffness == 1.0f);
 		FastPathResults.Add(S);
 	}
 
@@ -560,7 +856,8 @@ bool FKawaiiPhysicsPhysicsSettingsCurveTest::RunTest(const FString& Parameters)
 		TestTrue(FString::Printf(TEXT("PerBone path matches fast path for empty curves: bone %d"), i),
 		         S.Damping == F.Damping && S.WorldDampingLocation == F.WorldDampingLocation &&
 		         S.WorldDampingRotation == F.WorldDampingRotation && S.Radius == F.Radius &&
-		         S.LimitAngle == F.LimitAngle);
+		         S.LimitAngle == F.LimitAngle && S.StretchMinRate == F.StretchMinRate &&
+		         S.StretchMaxRate == F.StretchMaxRate && S.StretchStiffness == F.StretchStiffness);
 
 		// キー付きカーブは LengthRateFromRoot 位置の評価値が乗る
 		const float ExpectedStiffness = FMath::Clamp(
@@ -572,6 +869,72 @@ bool FKawaiiPhysicsPhysicsSettingsCurveTest::RunTest(const FString& Parameters)
 	// per-bone 経路で Stiffness が実際にボーン毎に変化していること（カーブが効いている証拠）
 	TestTrue(TEXT("PerBone stiffness varies along the chain"),
 	         A.Bone(0).PhysicsSettings.Stiffness != A.Bone(NumBones - 1).PhysicsSettings.Stiffness);
+
+	// --- 4. 伸縮カーブの Min>Max 逆転は Max 先行評価後に Min が Max へクランプされる ---
+	A.Node.StretchMinRateCurveData.EditorCurveData.Reset();
+	A.Node.StretchMaxRateCurveData.EditorCurveData.Reset();
+	A.Node.StretchStiffnessCurveData.EditorCurveData.Reset();
+	A.Node.PhysicsSettings.StretchMinRate = 1.0f;
+	A.Node.PhysicsSettings.StretchMaxRate = 1.0f;
+	A.Node.PhysicsSettings.StretchStiffness = 1.0f;
+	A.Node.StretchMinRateCurveData.EditorCurveData.SetDefaultValue(2.0f);
+	A.Node.StretchMaxRateCurveData.EditorCurveData.SetDefaultValue(0.5f);
+	A.Node.StretchStiffnessCurveData.EditorCurveData.SetDefaultValue(-1.0f);
+	A.CallUpdatePhysicsSettings();
+	for (int32 i = 0; i < NumBones; ++i)
+	{
+		const FKawaiiPhysicsSettings& S = A.Bone(i).PhysicsSettings;
+		TestTrue(FString::Printf(TEXT("Stretch curve inversion clamp: bone %d min=%f max=%f stiffness=%f"),
+		                         i, S.StretchMinRate, S.StretchMaxRate, S.StretchStiffness),
+		         S.StretchMinRate == 0.5f && S.StretchMaxRate == 0.5f && S.StretchStiffness == 0.0f);
+	}
+
+	// --- 5. node-level 伸縮値の範囲外入力は node property を書き換えずに正規化される ---
+	A.Node.StretchMinRateCurveData.EditorCurveData.Reset();
+	A.Node.StretchMinRateCurveData.EditorCurveData.ClearDefaultValue();
+	A.Node.StretchMaxRateCurveData.EditorCurveData.Reset();
+	A.Node.StretchMaxRateCurveData.EditorCurveData.ClearDefaultValue();
+	A.Node.StretchStiffnessCurveData.EditorCurveData.Reset();
+	A.Node.StretchStiffnessCurveData.EditorCurveData.ClearDefaultValue();
+	A.Node.PhysicsSettings.StretchMaxRate = 0.5f;
+	A.Node.PhysicsSettings.StretchMinRate = 1.5f;
+	A.Node.PhysicsSettings.StretchStiffness = 2.0f;
+	A.CallUpdatePhysicsSettings();
+	for (int32 i = 0; i < NumBones; ++i)
+	{
+		const FKawaiiPhysicsSettings& S = A.Bone(i).PhysicsSettings;
+		TestTrue(FString::Printf(TEXT("Stretch node normalization: bone %d min=%f max=%f stiffness=%f"),
+		                         i, S.StretchMinRate, S.StretchMaxRate, S.StretchStiffness),
+		         S.StretchMaxRate == 1.0f && S.StretchMinRate == 1.0f && S.StretchStiffness == 1.0f);
+	}
+
+	// 後続確認への影響を避けるため node 値と伸縮カーブを戻す。
+	A.Node.PhysicsSettings.StretchMinRate = 0.8f;
+	A.Node.PhysicsSettings.StretchMaxRate = 1.6f;
+	A.Node.PhysicsSettings.StretchStiffness = 0.7f;
+	A.Node.StretchMinRateCurveData.EditorCurveData.Reset();
+	A.Node.StretchMinRateCurveData.EditorCurveData.ClearDefaultValue();
+	A.Node.StretchMaxRateCurveData.EditorCurveData.Reset();
+	A.Node.StretchMaxRateCurveData.EditorCurveData.ClearDefaultValue();
+	A.Node.StretchStiffnessCurveData.EditorCurveData.Reset();
+	A.Node.StretchStiffnessCurveData.EditorCurveData.ClearDefaultValue();
+
+	{
+		FKawaiiPhysicsTestAccessor Direct;
+		FKawaiiPhysicsModifyBone ParentBone;
+		ParentBone.Location = FVector::ZeroVector;
+		ParentBone.PoseLocation = FVector::ZeroVector;
+
+		FKawaiiPhysicsModifyBone Bone;
+		Bone.PoseLocation = FVector(10.0f, 0.0f, 0.0f);
+		Bone.Location = FVector(20.0f, 0.0f, 0.0f);
+		Bone.PhysicsSettings.StretchStiffness = 0.0f;
+		Bone.PhysicsSettings.StretchMinRate = 2.0f;
+		Bone.PhysicsSettings.StretchMaxRate = 0.5f;
+		Direct.CallLengthRestore(Bone, ParentBone, 1.0f);
+		TestTrue(TEXT("Direct inverted stretch rates remain safe"),
+		         !Bone.Location.ContainsNaN() && Bone.Location.Equals(FVector(20.0f, 0.0f, 0.0f), KINDA_SMALL_NUMBER));
+	}
 
 	return true;
 }
