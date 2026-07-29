@@ -741,7 +741,13 @@ void FAnimNode_KawaiiPhysics::ApplyLengthRestore(FKawaiiPhysicsModifyBone& Bone,
                                                  const FKawaiiPhysicsModifyBone& ParentBone, float Exponent)
 {
 	const float PoseLength = (Bone.PoseLocation - ParentBone.PoseLocation).Size();
-	const FVector Dir = (Bone.Location - ParentBone.Location).GetSafeNormal();
+	const FVector Delta = Bone.Location - ParentBone.Location;
+	FVector Dir = Delta.GetSafeNormal();
+	if (Dir.IsZero())
+	{
+		// 現在方向が縮退している場合はポーズ方向へ復元する
+		Dir = (Bone.PoseLocation - ParentBone.PoseLocation).GetSafeNormal();
+	}
 
 	float NewLength;
 	if (Bone.PhysicsSettings.StretchStiffness >= 1.0f)
@@ -750,7 +756,7 @@ void FAnimNode_KawaiiPhysics::ApplyLengthRestore(FKawaiiPhysicsModifyBone& Bone,
 	}
 	else
 	{
-		const float CurrentLength = (Bone.Location - ParentBone.Location).Size();
+		const float CurrentLength = Delta.Size();
 		const float StretchAlpha = 1.0f - FMath::Pow(1.0f - Bone.PhysicsSettings.StretchStiffness, Exponent);
 		NewLength = CurrentLength + (PoseLength - CurrentLength) * StretchAlpha;
 	}
