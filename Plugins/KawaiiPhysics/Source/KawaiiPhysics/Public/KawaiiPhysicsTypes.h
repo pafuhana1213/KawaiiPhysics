@@ -136,10 +136,10 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSettings
 	float StretchMinRate = 1.0f;
 
 	/**
-	* ボーン長の上限レート。上限 = ポーズ長 × StretchMaxRate。inter-bone/bridge dummy のコリジョン被覆数は初期長基準のため、大きく伸ばすと被覆に隙間が出る場合があります。
-	* Maximum bone length rate. Maximum length = pose length * StretchMaxRate. Inter-bone/bridge dummy collision coverage is based on the initial length, so large stretch values may leave coverage gaps.
+	* ボーン長の上限レート。上限 = ポーズ長 × StretchMaxRate。1未満でポーズ長より短く圧縮（squash）できます。inter-bone/bridge dummy のコリジョン被覆数は初期長基準のため、大きく伸ばすと被覆に隙間が出る場合があります。
+	* Maximum bone length rate. Maximum length = pose length * StretchMaxRate. Values below 1 allow compression shorter than the pose length (squash). Inter-bone/bridge dummy collision coverage is based on the initial length, so large stretch values may leave coverage gaps.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "1", UIMin = "1", UIMax = "3"), category = "KawaiiPhysics")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", UIMin = "0", UIMax = "3"), category = "KawaiiPhysics")
 	float StretchMaxRate = 1.0f;
 
 	/**

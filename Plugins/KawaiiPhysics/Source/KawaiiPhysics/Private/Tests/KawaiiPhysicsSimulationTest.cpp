@@ -889,7 +889,7 @@ bool FKawaiiPhysicsPhysicsSettingsCurveTest::RunTest(const FString& Parameters)
 		         S.StretchMinRate == 0.5f && S.StretchMaxRate == 0.5f && S.StretchStiffness == 0.0f);
 	}
 
-	// --- 5. node-level 伸縮値の範囲外入力は node property を書き換えずに正規化される ---
+	// --- 5. node-level 伸縮値の範囲外入力は node property を書き換えずに正規化される（Max<1 は squash として許可） ---
 	A.Node.StretchMinRateCurveData.EditorCurveData.Reset();
 	A.Node.StretchMinRateCurveData.EditorCurveData.ClearDefaultValue();
 	A.Node.StretchMaxRateCurveData.EditorCurveData.Reset();
@@ -905,7 +905,7 @@ bool FKawaiiPhysicsPhysicsSettingsCurveTest::RunTest(const FString& Parameters)
 		const FKawaiiPhysicsSettings& S = A.Bone(i).PhysicsSettings;
 		TestTrue(FString::Printf(TEXT("Stretch node normalization: bone %d min=%f max=%f stiffness=%f"),
 		                         i, S.StretchMinRate, S.StretchMaxRate, S.StretchStiffness),
-		         S.StretchMaxRate == 1.0f && S.StretchMinRate == 1.0f && S.StretchStiffness == 1.0f);
+		         S.StretchMaxRate == 0.5f && S.StretchMinRate == 0.5f && S.StretchStiffness == 1.0f);
 	}
 
 	// 後続確認への影響を避けるため node 値と伸縮カーブを戻す。

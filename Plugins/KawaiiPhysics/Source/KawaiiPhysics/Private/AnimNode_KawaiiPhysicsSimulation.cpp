@@ -37,8 +37,8 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdatePhysicsSetting);
 
-	// BPピン等から入る範囲外値をローカルに正規化（node propertyは書き換えない）
-	const float NodeStretchMaxRate = FMath::Max(PhysicsSettings.StretchMaxRate, 1.0f);
+	// BPピン等から入る範囲外値をローカルに正規化（StretchMaxRate は 1 未満の squash を許可、node propertyは書き換えない）
+	const float NodeStretchMaxRate = FMath::Max(PhysicsSettings.StretchMaxRate, 0.0f);
 	const float NodeStretchMinRate = FMath::Clamp(PhysicsSettings.StretchMinRate, 0.0f, 1.0f);
 	const float NodeStretchStiffness = FMath::Clamp(PhysicsSettings.StretchStiffness, 0.0f, 1.0f);
 
