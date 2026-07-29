@@ -1095,4 +1095,176 @@ bool FKawaiiPhysicsPhysicsSettingsCurveTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// ---------------------------------------------------------------------------
+//  キー付き伸縮カーブ
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsStretchKeyedCurveTest,
+                                 "KawaiiPhysics.Simulation.StretchKeyedCurve",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsStretchKeyedCurveTest::RunTest(const FString& Parameters)
+{
+	constexpr int32 NumBones = 6;
+	constexpr float Spacing = 10.0f;
+	constexpr float Tol = 0.001f;
+	constexpr int32 NearRootBoneIndex = 1;
+	constexpr int32 NearTipBoneIndex = NumBones - 1;
+
+	auto SetupKeyedStretchCurves = [=](FKawaiiPhysicsTestAccessor& A)
+	{
+		A.BuildVerticalChain(NumBones, Spacing);
+		for (int32 i = 0; i < NumBones; ++i)
+		{
+			// per-bone 経路の評価位置を RootBone からの長さ率として明示する。
+			A.Bone(i).LengthRateFromRoot = static_cast<float>(i) / (NumBones - 1);
+		}
+
+		A.Node.PhysicsSettings.Damping = 0.0f;
+		A.Node.PhysicsSettings.Stiffness = 0.0f;
+		A.Node.PhysicsSettings.Radius = 0.0f;
+		A.Node.PhysicsSettings.LimitAngle = 0.0f;
+		A.Node.PhysicsSettings.StretchMinRate = 0.5f;
+		A.Node.PhysicsSettings.StretchMaxRate = 2.0f;
+		A.Node.PhysicsSettings.StretchStiffness = 0.1f;
+
+		// 伸縮3パラメータすべてを LengthRateFromRoot に応じて変化させる。
+		A.Node.StretchMinRateCurveData.EditorCurveData.AddKey(0.0f, 1.0f);
+		A.Node.StretchMinRateCurveData.EditorCurveData.AddKey(1.0f, 0.5f);
+		A.Node.StretchMaxRateCurveData.EditorCurveData.AddKey(0.0f, 0.5f);
+		A.Node.StretchMaxRateCurveData.EditorCurveData.AddKey(1.0f, 1.0f);
+		A.Node.StretchStiffnessCurveData.EditorCurveData.AddKey(0.0f, 0.0f);
+		A.Node.StretchStiffnessCurveData.EditorCurveData.AddKey(1.0f, 1.0f);
+
+		A.CallUpdatePhysicsSettings();
+	};
+
+	auto SegmentLength = [](const FKawaiiPhysicsTestAccessor& A, int32 BoneIndex)
+	{
+		return static_cast<float>((A.Bone(BoneIndex).Location -
+			A.Bone(A.Bone(BoneIndex).ParentIndex).Location).Size());
+	};
+
+	auto PoseSegmentLength = [](const FKawaiiPhysicsTestAccessor& A, int32 BoneIndex)
+	{
+		return static_cast<float>((A.Bone(BoneIndex).PoseLocation -
+			A.Bone(A.Bone(BoneIndex).ParentIndex).PoseLocation).Size());
+	};
+
+	auto CheckResolvedStretchRange = [this, &SegmentLength, &PoseSegmentLength, Tol](
+		const TCHAR* Label, const FKawaiiPhysicsTestAccessor& A)
+	{
+		bool bOk = true;
+		for (int32 BoneIndex = 1; BoneIndex < A.Num(); ++BoneIndex)
+		{
+			const FKawaiiPhysicsSettings& S = A.Bone(BoneIndex).PhysicsSettings;
+			const float PoseLength = PoseSegmentLength(A, BoneIndex);
+			const float MinLength = PoseLength * S.StretchMinRate;
+			const float MaxLength = PoseLength * S.StretchMaxRate;
+			const float Length = SegmentLength(A, BoneIndex);
+			bOk &= TestTrue(FString::Printf(TEXT("%s bone %d length %.6f in curve range [%.6f, %.6f]"),
+			                                Label, BoneIndex, Length, MinLength, MaxLength),
+			                  Length >= MinLength - Tol && Length <= MaxLength + Tol);
+		}
+		return bOk;
+	};
+
+	FKawaiiPhysicsTestAccessor SettingsA;
+	SetupKeyedStretchCurves(SettingsA);
+
+	const FKawaiiPhysicsSettings& NearRootSettings = SettingsA.Bone(NearRootBoneIndex).PhysicsSettings;
+	const FKawaiiPhysicsSettings& NearTipSettings = SettingsA.Bone(NearTipBoneIndex).PhysicsSettings;
+	TestTrue(TEXT("Keyed stretch settings vary between near-root and near-tip bones"),
+	         NearRootSettings.StretchMinRate != NearTipSettings.StretchMinRate &&
+	         NearRootSettings.StretchMaxRate != NearTipSettings.StretchMaxRate &&
+	         NearRootSettings.StretchStiffness != NearTipSettings.StretchStiffness);
+
+	const int32 CheckBoneIndices[] = {NearRootBoneIndex, NearTipBoneIndex};
+	for (const int32 BoneIndex : CheckBoneIndices)
+	{
+		const float LengthRate = SettingsA.Bone(BoneIndex).LengthRateFromRoot;
+		const float ExpectedMaxRate = FMath::Max(
+			SettingsA.Node.PhysicsSettings.StretchMaxRate *
+			SettingsA.Node.StretchMaxRateCurveData.EditorCurveData.Eval(LengthRate, 1.0f), 0.0f);
+		const float ExpectedMinRate = FMath::Clamp(
+			SettingsA.Node.PhysicsSettings.StretchMinRate *
+			SettingsA.Node.StretchMinRateCurveData.EditorCurveData.Eval(LengthRate, 1.0f), 0.0f, ExpectedMaxRate);
+		const float ExpectedStiffness = FMath::Clamp(
+			SettingsA.Node.PhysicsSettings.StretchStiffness *
+			SettingsA.Node.StretchStiffnessCurveData.EditorCurveData.Eval(LengthRate, 1.0f), 0.0f, 1.0f);
+		const FKawaiiPhysicsSettings& S = SettingsA.Bone(BoneIndex).PhysicsSettings;
+		TestTrue(FString::Printf(TEXT("Keyed stretch settings: bone %d min=%f/%f max=%f/%f stiffness=%f/%f"),
+		                         BoneIndex, S.StretchMinRate, ExpectedMinRate, S.StretchMaxRate, ExpectedMaxRate,
+		                         S.StretchStiffness, ExpectedStiffness),
+		         FMath::IsNearlyEqual(S.StretchMinRate, ExpectedMinRate, Tol) &&
+		         FMath::IsNearlyEqual(S.StretchMaxRate, ExpectedMaxRate, Tol) &&
+		         FMath::IsNearlyEqual(S.StretchStiffness, ExpectedStiffness, Tol));
+	}
+
+	auto PlaceSegmentsPastCurveBound = [&PoseSegmentLength](FKawaiiPhysicsTestAccessor& A, bool bOverMax)
+	{
+		FVector ParentResolvedLocation = A.Bone(0).Location;
+		for (int32 BoneIndex = 1; BoneIndex < A.Num(); ++BoneIndex)
+		{
+			const FKawaiiPhysicsSettings& S = A.Bone(BoneIndex).PhysicsSettings;
+			const float PoseLength = PoseSegmentLength(A, BoneIndex);
+			const float BoundLength = PoseLength * (bOverMax ? S.StretchMaxRate : S.StretchMinRate);
+			const float InitialLength = bOverMax ? BoundLength + 8.0f : 1.0f;
+			const FVector InitialLocation = ParentResolvedLocation + FVector(0.0f, 0.0f, -InitialLength);
+			A.Bone(BoneIndex).Location = InitialLocation;
+			A.Bone(BoneIndex).PrevLocation = InitialLocation;
+
+			// 1ステップ後に親がカーブ由来の境界へクランプされる前提で、子の初期相対長も境界外に置く。
+			ParentResolvedLocation += FVector(0.0f, 0.0f, -BoundLength);
+		}
+	};
+
+	{
+		FKawaiiPhysicsTestAccessor OverMaxA;
+		SetupKeyedStretchCurves(OverMaxA);
+		PlaceSegmentsPastCurveBound(OverMaxA, true);
+		OverMaxA.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+		OverMaxA.SetGravityInSimSpace(FVector::ZeroVector);
+		OverMaxA.SetFixedSubstepping(true, 60, 8);
+		OverMaxA.StepFrames(1, 1.0f / 60.0f);
+		CheckResolvedStretchRange(TEXT("Keyed stretch max"), OverMaxA);
+
+		const float NearRootMaxLength =
+			PoseSegmentLength(OverMaxA, NearRootBoneIndex) *
+			OverMaxA.Bone(NearRootBoneIndex).PhysicsSettings.StretchMaxRate;
+		const float NearTipMaxLength =
+			PoseSegmentLength(OverMaxA, NearTipBoneIndex) *
+			OverMaxA.Bone(NearTipBoneIndex).PhysicsSettings.StretchMaxRate;
+		TestTrue(TEXT("Keyed max clamp uses the tighter near-root curve value"),
+		         FMath::IsNearlyEqual(SegmentLength(OverMaxA, NearRootBoneIndex), NearRootMaxLength, Tol));
+		TestTrue(TEXT("Keyed max clamp allows the looser near-tip curve value"),
+		         FMath::IsNearlyEqual(SegmentLength(OverMaxA, NearTipBoneIndex), NearTipMaxLength, Tol) &&
+		         SegmentLength(OverMaxA, NearTipBoneIndex) > NearRootMaxLength + Tol);
+	}
+
+	{
+		FKawaiiPhysicsTestAccessor UnderMinA;
+		SetupKeyedStretchCurves(UnderMinA);
+		PlaceSegmentsPastCurveBound(UnderMinA, false);
+		UnderMinA.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+		UnderMinA.SetGravityInSimSpace(FVector::ZeroVector);
+		UnderMinA.SetFixedSubstepping(true, 60, 8);
+		UnderMinA.StepFrames(1, 1.0f / 60.0f);
+		CheckResolvedStretchRange(TEXT("Keyed stretch min"), UnderMinA);
+
+		const float NearRootMinLength =
+			PoseSegmentLength(UnderMinA, NearRootBoneIndex) *
+			UnderMinA.Bone(NearRootBoneIndex).PhysicsSettings.StretchMinRate;
+		const float NearTipMinLength =
+			PoseSegmentLength(UnderMinA, NearTipBoneIndex) *
+			UnderMinA.Bone(NearTipBoneIndex).PhysicsSettings.StretchMinRate;
+		TestTrue(TEXT("Keyed min clamp uses the higher near-root curve value"),
+		         FMath::IsNearlyEqual(SegmentLength(UnderMinA, NearRootBoneIndex), NearRootMinLength, Tol));
+		TestTrue(TEXT("Keyed min clamp allows the lower near-tip curve value"),
+		         FMath::IsNearlyEqual(SegmentLength(UnderMinA, NearTipBoneIndex), NearTipMinLength, Tol) &&
+		         SegmentLength(UnderMinA, NearTipBoneIndex) < NearRootMinLength - Tol);
+	}
+
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS
