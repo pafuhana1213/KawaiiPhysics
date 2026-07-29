@@ -41,6 +41,12 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 	const float NodeStretchMaxRate = FMath::Max(PhysicsSettings.StretchMaxRate, 0.0f);
 	const float NodeStretchMinRate = FMath::Clamp(PhysicsSettings.StretchMinRate, 0.0f, 1.0f);
 	const float NodeStretchStiffness = FMath::Clamp(PhysicsSettings.StretchStiffness, 0.0f, 1.0f);
+	const FRichCurve* StretchMaxRateCurve = StretchMaxRateCurveData.GetRichCurveConst();
+	const FRichCurve* StretchMinRateCurve = StretchMinRateCurveData.GetRichCurveConst();
+	const FRichCurve* StretchStiffnessCurve = StretchStiffnessCurveData.GetRichCurveConst();
+	const bool bEvalStretchMaxRateCurve = StretchMaxRateCurve->HasAnyData();
+	const bool bEvalStretchMinRateCurve = StretchMinRateCurve->HasAnyData();
+	const bool bEvalStretchStiffnessCurve = StretchStiffnessCurve->HasAnyData();
 
 	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 	{
@@ -77,15 +83,22 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 				LengthRate, 1.0f), 0.0f);
 
 		// 伸縮
-		Bone.PhysicsSettings.StretchMaxRate = FMath::Max(
-			NodeStretchMaxRate * StretchMaxRateCurveData.GetRichCurveConst()->Eval(
-				LengthRate, 1.0f), 0.0f);
-		Bone.PhysicsSettings.StretchMinRate = FMath::Clamp(
-			NodeStretchMinRate * StretchMinRateCurveData.GetRichCurveConst()->Eval(
-				LengthRate, 1.0f), 0.0f, Bone.PhysicsSettings.StretchMaxRate);
-		Bone.PhysicsSettings.StretchStiffness = FMath::Clamp(
-			NodeStretchStiffness * StretchStiffnessCurveData.GetRichCurveConst()->Eval(
-				LengthRate, 1.0f), 0.0f, 1.0f);
+		Bone.PhysicsSettings.StretchMaxRate = bEvalStretchMaxRateCurve
+			                                      ? FMath::Max(
+				                                      NodeStretchMaxRate * StretchMaxRateCurve->Eval(
+					                                      LengthRate, 1.0f), 0.0f)
+			                                      : NodeStretchMaxRate;
+		Bone.PhysicsSettings.StretchMinRate = bEvalStretchMinRateCurve
+			                                      ? FMath::Clamp(
+				                                      NodeStretchMinRate * StretchMinRateCurve->Eval(
+					                                      LengthRate, 1.0f), 0.0f, Bone.PhysicsSettings.StretchMaxRate)
+			                                      : FMath::Clamp(
+				                                      NodeStretchMinRate, 0.0f, Bone.PhysicsSettings.StretchMaxRate);
+		Bone.PhysicsSettings.StretchStiffness = bEvalStretchStiffnessCurve
+			                                        ? FMath::Clamp(
+				                                        NodeStretchStiffness * StretchStiffnessCurve->Eval(
+					                                        LengthRate, 1.0f), 0.0f, 1.0f)
+			                                        : NodeStretchStiffness;
 	}
 }
 
@@ -749,6 +762,14 @@ void FAnimNode_KawaiiPhysics::ApplyLengthRestore(FKawaiiPhysicsModifyBone& Bone,
 		Dir = (Bone.PoseLocation - ParentBone.PoseLocation).GetSafeNormal();
 	}
 
+	if (Bone.PhysicsSettings.StretchStiffness >= 1.0f
+		&& Bone.PhysicsSettings.StretchMinRate == 1.0f
+		&& Bone.PhysicsSettings.StretchMaxRate == 1.0f)
+	{
+		Bone.Location = Dir * PoseLength + ParentBone.Location;
+		return;
+	}
+
 	float NewLength;
 	if (Bone.PhysicsSettings.StretchStiffness >= 1.0f)
 	{
@@ -762,6 +783,7 @@ void FAnimNode_KawaiiPhysics::ApplyLengthRestore(FKawaiiPhysicsModifyBone& Bone,
 	}
 
 	const float MinLength = PoseLength * Bone.PhysicsSettings.StretchMinRate;
+	// per-bone 直接書き込みで Min > Max が逆転した場合は Min を優先する（実経路の UpdatePhysicsSettingsOfModifyBones では逆転しない）
 	const float MaxLength = FMath::Max(MinLength, PoseLength * Bone.PhysicsSettings.StretchMaxRate);
 	NewLength = FMath::Clamp(NewLength, MinLength, MaxLength);
 	Bone.Location = Dir * NewLength + ParentBone.Location;
