@@ -338,6 +338,162 @@ bool FKawaiiPhysicsStretchClampRangeTest::RunTest(const FString& Parameters)
 }
 
 // ---------------------------------------------------------------------------
+//  伸縮の collapsed direction フォールバック
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsStretchCollapsedDirectionFallbackTest,
+                                 "KawaiiPhysics.Simulation.StretchCollapsedDirectionFallback",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsStretchCollapsedDirectionFallbackTest::RunTest(const FString& Parameters)
+{
+	bool bOk = true;
+
+	{
+		FKawaiiPhysicsTestAccessor A;
+		FKawaiiPhysicsModifyBone ParentBone;
+		ParentBone.Location = FVector(1.0f, 2.0f, 3.0f);
+		ParentBone.PoseLocation = FVector(1.0f, 2.0f, 3.0f);
+
+		FKawaiiPhysicsModifyBone Bone;
+		Bone.Location = FVector(1.0f, 2.0f, 3.0f);
+		Bone.PoseLocation = FVector(1.0f, 2.0f, 13.0f);
+		Bone.PhysicsSettings = FKawaiiPhysicsSettings{};
+
+		A.CallLengthRestore(Bone, ParentBone, 1.0f);
+		bOk &= TestTrue(FString::Printf(TEXT("Collapsed fast path falls back to pose direction: %s"),
+		                                 *Bone.Location.ToString()),
+		                Bone.Location.Equals(FVector(1.0f, 2.0f, 13.0f), KINDA_SMALL_NUMBER));
+	}
+
+	{
+		FKawaiiPhysicsTestAccessor A;
+		FKawaiiPhysicsModifyBone ParentBone;
+		ParentBone.Location = FVector(1.0f, 2.0f, 3.0f);
+		ParentBone.PoseLocation = FVector(1.0f, 2.0f, 3.0f);
+
+		FKawaiiPhysicsModifyBone Bone;
+		Bone.Location = FVector(1.0f, 2.0f, 3.0f);
+		Bone.PoseLocation = FVector(1.0f, 2.0f, 13.0f);
+		Bone.PhysicsSettings.StretchStiffness = 0.5f;
+		Bone.PhysicsSettings.StretchMinRate = 0.0f;
+		Bone.PhysicsSettings.StretchMaxRate = 100.0f;
+
+		A.CallLengthRestore(Bone, ParentBone, 1.0f);
+		bOk &= TestTrue(FString::Printf(TEXT("Collapsed soft path restores halfway toward pose length: %s"),
+		                                 *Bone.Location.ToString()),
+		                Bone.Location.Equals(FVector(1.0f, 2.0f, 8.0f), KINDA_SMALL_NUMBER));
+	}
+
+	{
+		FKawaiiPhysicsTestAccessor A;
+		FKawaiiPhysicsModifyBone ParentBone;
+		ParentBone.Location = FVector(1.0f, 2.0f, 3.0f);
+		ParentBone.PoseLocation = FVector(1.0f, 2.0f, 3.0f);
+
+		FKawaiiPhysicsModifyBone Bone;
+		Bone.Location = FVector(1.0f, 2.0f, 3.0f);
+		Bone.PoseLocation = FVector(1.0f, 2.0f, 3.0f);
+		Bone.PhysicsSettings.StretchStiffness = 0.5f;
+		Bone.PhysicsSettings.StretchMinRate = 0.0f;
+		Bone.PhysicsSettings.StretchMaxRate = 100.0f;
+
+		A.CallLengthRestore(Bone, ParentBone, 1.0f);
+		bOk &= TestTrue(TEXT("Collapsed zero pose length remains finite"), !Bone.Location.ContainsNaN());
+		bOk &= TestTrue(FString::Printf(TEXT("Collapsed zero pose length stays at parent: %s"),
+		                                 *Bone.Location.ToString()),
+		                Bone.Location.Equals(ParentBone.Location, KINDA_SMALL_NUMBER));
+	}
+
+	return bOk;
+}
+
+// ---------------------------------------------------------------------------
+//  伸縮設定パイプラインの parity
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsStretchSettingsPipelineParityTest,
+                                 "KawaiiPhysics.Simulation.StretchSettingsPipelineParity",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsStretchSettingsPipelineParityTest::RunTest(const FString& Parameters)
+{
+	// GoldenPositions の保存ビット列比較とは別に、既定値フルチェーンで設定パイプライン経由と
+	// per-bone 直接設定が完全に同じシミュレーション入力になることを検証する。
+	FKawaiiPhysicsTestAccessor Pipeline;
+	Pipeline.BuildVerticalChain(4, 10.0f);
+	Pipeline.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+	Pipeline.SetGravityInSimSpace(FVector(980.0f, 0.0f, 0.0f));
+	Pipeline.SetFixedSubstepping(true, 60, 8);
+
+	FKawaiiPhysicsTestAccessor Direct;
+	Direct.BuildVerticalChain(4, 10.0f);
+	Direct.SetAllPhysicsSettings(FKawaiiPhysicsSettings{});
+	Direct.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+	Direct.SetGravityInSimSpace(FVector(980.0f, 0.0f, 0.0f));
+	Direct.SetFixedSubstepping(true, 60, 8);
+
+	for (int32 FrameIndex = 0; FrameIndex < 60; ++FrameIndex)
+	{
+		Pipeline.CallUpdatePhysicsSettings();
+		Pipeline.StepFrame(1.0f / 60.0f);
+		Direct.StepFrame(1.0f / 60.0f);
+	}
+
+	bool bOk = true;
+	for (int32 BoneIndex = 0; BoneIndex < Pipeline.Num(); ++BoneIndex)
+	{
+		bOk &= TestTrue(FString::Printf(TEXT("Default pipeline parity bone %d: pipeline=%s direct=%s"),
+		                                 BoneIndex, *Pipeline.Bone(BoneIndex).Location.ToString(),
+		                                 *Direct.Bone(BoneIndex).Location.ToString()),
+		                Pipeline.Bone(BoneIndex).Location == Direct.Bone(BoneIndex).Location);
+	}
+
+	return bOk;
+}
+
+// ---------------------------------------------------------------------------
+//  伸縮 squash
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsStretchSquashTest,
+                                 "KawaiiPhysics.Simulation.StretchSquash",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsStretchSquashTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor A;
+	A.BuildVerticalChain(4, 10.0f);
+	A.Node.PhysicsSettings.StretchMaxRate = 0.5f;
+	A.CallUpdatePhysicsSettings();
+
+	bool bOk = true;
+	for (int32 BoneIndex = 0; BoneIndex < A.Num(); ++BoneIndex)
+	{
+		const FKawaiiPhysicsSettings& S = A.Bone(BoneIndex).PhysicsSettings;
+		bOk &= TestTrue(FString::Printf(TEXT("Squash settings bone %d min=%f max=%f stiffness=%f"),
+		                                 BoneIndex, S.StretchMinRate, S.StretchMaxRate, S.StretchStiffness),
+		                S.StretchMinRate == 0.5f && S.StretchMaxRate == 0.5f && S.StretchStiffness == 1.0f);
+	}
+
+	A.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+	A.SetGravityInSimSpace(FVector::ZeroVector);
+	A.SetFixedSubstepping(true, 60, 8);
+	A.StepFrames(3, 1.0f / 60.0f);
+
+	for (int32 BoneIndex = 1; BoneIndex < A.Num(); ++BoneIndex)
+	{
+		const FKawaiiPhysicsModifyBone& Bone = A.Bone(BoneIndex);
+		if (Bone.ParentIndex < 0)
+		{
+			continue;
+		}
+		const float Length = static_cast<float>((Bone.Location - A.Bone(Bone.ParentIndex).Location).Size());
+		bOk &= TestTrue(FString::Printf(TEXT("Squash segment %d length %.6f"), BoneIndex, Length),
+		                FMath::IsNearlyEqual(Length, 5.0f, KINDA_SMALL_NUMBER));
+	}
+
+	return bOk;
+}
+
+// ---------------------------------------------------------------------------
 //  伸縮のフレームレート非依存性
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsStretchFramerateIndependenceTest,
