@@ -320,10 +320,10 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	/**
 	* 各ボーンに適用するPhysics Settings/ StretchStiffness パラメータを補正。
 	* 「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値を各パラメータに乗算。
-	* 乗算後 Min > Max となった場合は Min を Max へクランプ。
+	* 乗算後の値は [0, 1] にクランプ。
 	* Corrects the Physics Settings/StretchStiffness parameters applied to each bone.
 	* Multiplies each parameter by the curve value for "Length from RootBone to specific bone / Length from RootBone to end bone" (0.0~1.0).
-	* If Min > Max after multiplication, Min is clamped to Max.
+	* The multiplied value is clamped to [0, 1].
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings|Curves", AdvancedDisplay,
 		meta = (PinHiddenByDefault, DisplayName = "Stretch Stiffness by Bone Length Rate"))

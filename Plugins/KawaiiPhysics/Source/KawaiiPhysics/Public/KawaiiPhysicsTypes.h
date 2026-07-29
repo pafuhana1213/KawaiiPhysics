@@ -146,7 +146,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSettings
 	* ポーズ長へ引き戻す硬さ。1.0 = 即時復元（従来挙動）。伸縮させるには 1.0 未満に設定します。
 	* Stiffness that restores the current length toward the pose length. 1.0 = immediate restore (legacy behavior). Set below 1.0 to allow elastic stretch.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", ClampMax = "1"), category = "KawaiiPhysics")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", ClampMax = "1", UIMin = "0", UIMax = "1"), category = "KawaiiPhysics")
 	float StretchStiffness = 1.0f;
 };
 
