@@ -15,11 +15,32 @@ namespace
 		return Extent.GetAbsMax() > KINDA_SMALL_NUMBER;
 	}
 
+	void ApplyRadiusScale(FSphericalLimit& Limit, float RadiusScale)
+	{
+		Limit.Radius *= RadiusScale;
+	}
+
+	void ApplyRadiusScale(FCapsuleLimit& Limit, float RadiusScale)
+	{
+		Limit.Radius *= RadiusScale;
+	}
+
+	void ApplyRadiusScale(FTaperedCapsuleLimit& Limit, float RadiusScale)
+	{
+		Limit.Radius0 *= RadiusScale;
+		Limit.Radius1 *= RadiusScale;
+	}
+
+	void ApplyRadiusScale(FBoxLimit&, float)
+	{
+	}
+
 	template <typename LimitType>
 	void AppendTransformedLimits(
 		const TArray<LimitType>& LocalLimits,
 		const FTransform& ComponentTM,
-		TArray<LimitType>& OutWorldLimits)
+		TArray<LimitType>& OutWorldLimits,
+		float RadiusScale = 1.0f)
 	{
 		OutWorldLimits.Reserve(OutWorldLimits.Num() + LocalLimits.Num());
 
@@ -30,6 +51,25 @@ namespace
 			WorldLimit.Location = ComponentTM.TransformPosition(LocalLimit.Location);
 			WorldLimit.Rotation = ComponentRotation * LocalLimit.Rotation;
 			WorldLimit.Rotation.Normalize();
+			ApplyRadiusScale(WorldLimit, RadiusScale);
+			OutWorldLimits.Add(WorldLimit);
+		}
+	}
+
+	void AppendTransformedPlanarLimits(
+		const TArray<FPlanarLimit>& LocalLimits,
+		const FTransform& ComponentTM,
+		TArray<FPlanarLimit>& OutWorldLimits)
+	{
+		OutWorldLimits.Reserve(OutWorldLimits.Num() + LocalLimits.Num());
+		const FQuat ComponentRotation = ComponentTM.GetRotation();
+		for (const auto& LocalLimit : LocalLimits)
+		{
+			auto WorldLimit = LocalLimit;
+			WorldLimit.Location = ComponentTM.TransformPosition(LocalLimit.Location);
+			WorldLimit.Rotation = ComponentRotation * LocalLimit.Rotation;
+			WorldLimit.Rotation.Normalize();
+			WorldLimit.Plane = FPlane(WorldLimit.Location, WorldLimit.Rotation.GetUpVector());
 			OutWorldLimits.Add(WorldLimit);
 		}
 	}
@@ -146,24 +186,14 @@ namespace KawaiiPhysicsSimpleWorldCollision
 	void AppendLocalLimitsTransformed(
 		const FKawaiiPhysicsSharedCollisionData& LocalLimits,
 		const FTransform& ComponentTM,
-		FKawaiiPhysicsSharedCollisionData& OutWorldLimits)
+		FKawaiiPhysicsSharedCollisionData& OutWorldLimits,
+		float RadiusScale)
 	{
-		AppendTransformedLimits(LocalLimits.SphericalLimits, ComponentTM, OutWorldLimits.SphericalLimits);
-		AppendTransformedLimits(LocalLimits.CapsuleLimits, ComponentTM, OutWorldLimits.CapsuleLimits);
-		AppendTransformedLimits(LocalLimits.TaperedCapsuleLimits, ComponentTM, OutWorldLimits.TaperedCapsuleLimits);
+		AppendTransformedLimits(LocalLimits.SphericalLimits, ComponentTM, OutWorldLimits.SphericalLimits, RadiusScale);
+		AppendTransformedLimits(LocalLimits.CapsuleLimits, ComponentTM, OutWorldLimits.CapsuleLimits, RadiusScale);
+		AppendTransformedLimits(LocalLimits.TaperedCapsuleLimits, ComponentTM, OutWorldLimits.TaperedCapsuleLimits, RadiusScale);
 		AppendTransformedLimits(LocalLimits.BoxLimits, ComponentTM, OutWorldLimits.BoxLimits);
-
-		OutWorldLimits.PlanarLimits.Reserve(OutWorldLimits.PlanarLimits.Num() + LocalLimits.PlanarLimits.Num());
-		const FQuat ComponentRotation = ComponentTM.GetRotation();
-		for (const auto& LocalLimit : LocalLimits.PlanarLimits)
-		{
-			auto WorldLimit = LocalLimit;
-			WorldLimit.Location = ComponentTM.TransformPosition(LocalLimit.Location);
-			WorldLimit.Rotation = ComponentRotation * LocalLimit.Rotation;
-			WorldLimit.Rotation.Normalize();
-			WorldLimit.Plane = FPlane(WorldLimit.Location, WorldLimit.Rotation.GetUpVector());
-			OutWorldLimits.PlanarLimits.Add(WorldLimit);
-		}
+		AppendTransformedPlanarLimits(LocalLimits.PlanarLimits, ComponentTM, OutWorldLimits.PlanarLimits);
 	}
 
 	void AppendFadedLocalLimits(
@@ -173,27 +203,15 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		FKawaiiPhysicsSharedCollisionData& OutWorldLimits,
 		float BoxEnableThreshold)
 	{
-		// フェードはローカルLimitのコピーに適用してからワールド変換する。
+		// フェード係数はワールドLimitへの追記時に適用し、ローカルLimit全体のコピーを避ける。
 		// Spheres/Capsules/TaperedCapsules は半径のみ縮小し、Boxes は一定Alphaまでpublishしない。
-		FKawaiiPhysicsSharedCollisionData FadedLimits = LocalLimits;
-		for (FSphericalLimit& Limit : FadedLimits.SphericalLimits)
+		AppendTransformedLimits(LocalLimits.SphericalLimits, ComponentTM, OutWorldLimits.SphericalLimits, FadeAlpha);
+		AppendTransformedLimits(LocalLimits.CapsuleLimits, ComponentTM, OutWorldLimits.CapsuleLimits, FadeAlpha);
+		AppendTransformedLimits(LocalLimits.TaperedCapsuleLimits, ComponentTM, OutWorldLimits.TaperedCapsuleLimits, FadeAlpha);
+		if (FadeAlpha >= BoxEnableThreshold)
 		{
-			Limit.Radius *= FadeAlpha;
+			AppendTransformedLimits(LocalLimits.BoxLimits, ComponentTM, OutWorldLimits.BoxLimits);
 		}
-		for (FCapsuleLimit& Limit : FadedLimits.CapsuleLimits)
-		{
-			Limit.Radius *= FadeAlpha;
-		}
-		for (FTaperedCapsuleLimit& Limit : FadedLimits.TaperedCapsuleLimits)
-		{
-			Limit.Radius0 *= FadeAlpha;
-			Limit.Radius1 *= FadeAlpha;
-		}
-		if (FadeAlpha < BoxEnableThreshold)
-		{
-			FadedLimits.BoxLimits.Reset();
-		}
-
-		AppendLocalLimitsTransformed(FadedLimits, ComponentTM, OutWorldLimits);
+		AppendTransformedPlanarLimits(LocalLimits.PlanarLimits, ComponentTM, OutWorldLimits.PlanarLimits);
 	}
 }

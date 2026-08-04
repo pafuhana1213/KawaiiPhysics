@@ -51,12 +51,15 @@ namespace KawaiiPhysicsSimpleWorldCollision
 
 	/**
 	 * ローカル空間の Limit 配列を ComponentTM でワールド空間へ変換し、OutWorldLimits へ追記します。ComponentTM はスケール除去済みとして扱います。
+	 * RadiusScale は Sphere/Capsule/TaperedCapsule の半径にのみ適用します。
 	 * Transforms local-space limits by ComponentTM into world-space limits, appending to OutWorldLimits. ComponentTM is assumed to have scale stripped.
+	 * RadiusScale is applied only to Sphere/Capsule/TaperedCapsule radii.
 	 */
 	KAWAIIPHYSICS_API void AppendLocalLimitsTransformed(
 		const FKawaiiPhysicsSharedCollisionData& LocalLimits,
 		const FTransform& ComponentTM,
-		FKawaiiPhysicsSharedCollisionData& OutWorldLimits);
+		FKawaiiPhysicsSharedCollisionData& OutWorldLimits,
+		float RadiusScale = 1.0f);
 
 	/**
 	 * フェード係数を適用したローカル空間の Limit 配列を ComponentTM でワールド空間へ変換し、OutWorldLimits へ追記します。
