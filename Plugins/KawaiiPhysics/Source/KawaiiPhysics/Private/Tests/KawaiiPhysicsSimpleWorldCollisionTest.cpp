@@ -1,0 +1,709 @@
+// Copyright 2019-2026 pafuhana1213. All Rights Reserved.
+
+#if WITH_DEV_AUTOMATION_TESTS
+
+#include "Misc/AutomationTest.h"
+#include "KawaiiPhysicsTestHarness.h"
+#include "KawaiiPhysicsSimpleWorldCollision.h"
+#include "KawaiiPhysicsSharedCollisionSubsystem.h"
+
+// 簡易ワールドコリジョン（KawaiiPhysicsSimpleWorldCollision namespace / SharedCollisionSubsystem の関連構造体）の単体テスト。
+// AggGeom→Limit変換、ローカル→ワールド変換、フェード、Desc Merge、Entryのライフサイクル、ハーネス経由のpush-out統合を検証する。
+
+namespace
+{
+	constexpr float GSimpleWorldTol = 0.001f;
+	constexpr float GSimpleWorldPushOutTol = 0.01f; // 0.1mm スケール（他コリジョンテストと同じ粒度）
+}
+
+// ---------------------------------------------------------------------------
+//  ConvertAggGeomToLocalLimits
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldConvertAggGeomTest,
+                                 "KawaiiPhysics.SimpleWorld.ConvertAggGeomToLocalLimits",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldConvertAggGeomTest::RunTest(const FString& Parameters)
+{
+	// --- 等倍スケールでの基本マッピング（Sphere/Sphyl/Box/TaperedCapsule 各1elem） ---
+	{
+		FKAggregateGeom AggGeom;
+
+		FKSphereElem SphereElem;
+		SphereElem.Center = FVector(1.0f, 2.0f, 3.0f);
+		SphereElem.Radius = 5.0f;
+		AggGeom.SphereElems.Add(SphereElem);
+
+		FKSphylElem SphylElem;
+		SphylElem.Center = FVector(4.0f, 5.0f, 6.0f);
+		SphylElem.Rotation = FRotator(10.0f, 20.0f, 30.0f);
+		SphylElem.Radius = 2.0f;
+		SphylElem.Length = 8.0f;
+		AggGeom.SphylElems.Add(SphylElem);
+
+		FKBoxElem BoxElem;
+		BoxElem.Center = FVector(7.0f, 8.0f, 9.0f);
+		BoxElem.Rotation = FRotator(0.0f, 45.0f, 0.0f);
+		BoxElem.X = 4.0f;
+		BoxElem.Y = 6.0f;
+		BoxElem.Z = 8.0f;
+		AggGeom.BoxElems.Add(BoxElem);
+
+		FKTaperedCapsuleElem TaperedElem;
+		TaperedElem.Center = FVector(10.0f, 11.0f, 12.0f);
+		TaperedElem.Rotation = FRotator(0.0f, 0.0f, 90.0f);
+		TaperedElem.Radius0 = 3.0f;
+		TaperedElem.Radius1 = 1.5f;
+		TaperedElem.Length = 6.0f;
+		AggGeom.TaperedCapsuleElems.Add(TaperedElem);
+
+		FKawaiiPhysicsSharedCollisionData OutLimits;
+		KawaiiPhysicsSimpleWorldCollision::ConvertAggGeomToLocalLimits(
+			AggGeom, FVector::OneVector, EKawaiiPhysicsComplexShapeApproximation::BoxBounds, OutLimits);
+
+		TestTrue(TEXT("Sphere elem maps to exactly one spherical limit"), OutLimits.SphericalLimits.Num() == 1);
+		TestTrue(TEXT("Sphyl elem maps to exactly one capsule limit"), OutLimits.CapsuleLimits.Num() == 1);
+		TestTrue(TEXT("Box elem maps to exactly one box limit"), OutLimits.BoxLimits.Num() == 1);
+		TestTrue(TEXT("TaperedCapsule elem maps to exactly one tapered capsule limit"),
+		         OutLimits.TaperedCapsuleLimits.Num() == 1);
+
+		const FSphericalLimit& SphereLimit = OutLimits.SphericalLimits[0];
+		TestTrue(TEXT("Sphere limit is enabled and sourced from SimpleWorld"),
+		         SphereLimit.bEnable && SphereLimit.SourceType == ECollisionSourceType::SimpleWorld);
+		TestTrue(TEXT("Sphere limit location"), SphereLimit.Location.Equals(FVector(1, 2, 3), GSimpleWorldTol));
+		TestTrue(TEXT("Sphere limit radius"), FMath::IsNearlyEqual(SphereLimit.Radius, 5.0f, GSimpleWorldTol));
+
+		const FCapsuleLimit& CapsuleLimit = OutLimits.CapsuleLimits[0];
+		TestTrue(TEXT("Capsule limit is enabled and sourced from SimpleWorld"),
+		         CapsuleLimit.bEnable && CapsuleLimit.SourceType == ECollisionSourceType::SimpleWorld);
+		TestTrue(TEXT("Capsule limit location"), CapsuleLimit.Location.Equals(FVector(4, 5, 6), GSimpleWorldTol));
+		TestTrue(TEXT("Capsule limit rotation"),
+		         CapsuleLimit.Rotation.Equals(FRotator(10, 20, 30).Quaternion(), GSimpleWorldTol));
+		TestTrue(TEXT("Capsule limit radius/length"),
+		         FMath::IsNearlyEqual(CapsuleLimit.Radius, 2.0f, GSimpleWorldTol) &&
+		         FMath::IsNearlyEqual(CapsuleLimit.Length, 8.0f, GSimpleWorldTol));
+
+		const FBoxLimit& BoxLimit = OutLimits.BoxLimits[0];
+		TestTrue(TEXT("Box limit is enabled and sourced from SimpleWorld"),
+		         BoxLimit.bEnable && BoxLimit.SourceType == ECollisionSourceType::SimpleWorld);
+		TestTrue(TEXT("Box limit location"), BoxLimit.Location.Equals(FVector(7, 8, 9), GSimpleWorldTol));
+		TestTrue(TEXT("Box limit rotation"),
+		         BoxLimit.Rotation.Equals(FRotator(0, 45, 0).Quaternion(), GSimpleWorldTol));
+		TestTrue(TEXT("Box limit extent is half of X/Y/Z"), BoxLimit.Extent.Equals(FVector(2, 3, 4), GSimpleWorldTol));
+
+		const FTaperedCapsuleLimit& TaperedLimit = OutLimits.TaperedCapsuleLimits[0];
+		TestTrue(TEXT("TaperedCapsule limit is enabled and sourced from SimpleWorld"),
+		         TaperedLimit.bEnable && TaperedLimit.SourceType == ECollisionSourceType::SimpleWorld);
+		TestTrue(TEXT("TaperedCapsule limit location"),
+		         TaperedLimit.Location.Equals(FVector(10, 11, 12), GSimpleWorldTol));
+		TestTrue(TEXT("TaperedCapsule limit rotation"),
+		         TaperedLimit.Rotation.Equals(FRotator(0, 0, 90).Quaternion(), GSimpleWorldTol));
+		TestTrue(TEXT("TaperedCapsule limit radii/length"),
+		         FMath::IsNearlyEqual(TaperedLimit.Radius0, 3.0f, GSimpleWorldTol) &&
+		         FMath::IsNearlyEqual(TaperedLimit.Radius1, 1.5f, GSimpleWorldTol) &&
+		         FMath::IsNearlyEqual(TaperedLimit.Length, 6.0f, GSimpleWorldTol));
+	}
+
+	// --- 非一様スケール(2,1,0.5)。期待値は FK*Elem::GetFinalScaled を直接呼んで得た値と突き合わせる（回帰検知目的） ---
+	{
+		const FVector Scale(2.0f, 1.0f, 0.5f);
+
+		FKSphereElem SphereElem;
+		SphereElem.Center = FVector(2.0f, -3.0f, 4.0f);
+		SphereElem.Radius = 6.0f;
+		const FKSphereElem ExpectedSphere = SphereElem.GetFinalScaled(Scale, FTransform::Identity);
+
+		FKSphylElem SphylElem;
+		SphylElem.Center = FVector(1.0f, 1.0f, 1.0f);
+		SphylElem.Rotation = FRotator(15.0f, -25.0f, 35.0f);
+		SphylElem.Radius = 3.0f;
+		SphylElem.Length = 10.0f;
+		const FKSphylElem ExpectedSphyl = SphylElem.GetFinalScaled(Scale, FTransform::Identity);
+
+		FKBoxElem BoxElem;
+		BoxElem.Center = FVector(-2.0f, 3.0f, -4.0f);
+		BoxElem.Rotation = FRotator(5.0f, 10.0f, 15.0f);
+		BoxElem.X = 4.0f;
+		BoxElem.Y = 6.0f;
+		BoxElem.Z = 2.0f;
+		const FKBoxElem ExpectedBox = BoxElem.GetFinalScaled(Scale, FTransform::Identity);
+
+		FKTaperedCapsuleElem TaperedElem;
+		TaperedElem.Center = FVector(0.0f, 2.0f, -2.0f);
+		TaperedElem.Rotation = FRotator(0.0f, 90.0f, 0.0f);
+		TaperedElem.Radius0 = 4.0f;
+		TaperedElem.Radius1 = 2.0f;
+		TaperedElem.Length = 12.0f;
+		const FKTaperedCapsuleElem ExpectedTapered = TaperedElem.GetFinalScaled(Scale, FTransform::Identity);
+
+		FKAggregateGeom AggGeom;
+		AggGeom.SphereElems.Add(SphereElem);
+		AggGeom.SphylElems.Add(SphylElem);
+		AggGeom.BoxElems.Add(BoxElem);
+		AggGeom.TaperedCapsuleElems.Add(TaperedElem);
+
+		FKawaiiPhysicsSharedCollisionData OutLimits;
+		KawaiiPhysicsSimpleWorldCollision::ConvertAggGeomToLocalLimits(
+			AggGeom, Scale, EKawaiiPhysicsComplexShapeApproximation::BoxBounds, OutLimits);
+
+		const FSphericalLimit& SphereLimit = OutLimits.SphericalLimits[0];
+		TestTrue(TEXT("Non-uniform scale: sphere location matches GetFinalScaled"),
+		         SphereLimit.Location.Equals(ExpectedSphere.Center, GSimpleWorldTol));
+		TestTrue(TEXT("Non-uniform scale: sphere radius matches GetFinalScaled"),
+		         FMath::IsNearlyEqual(SphereLimit.Radius, ExpectedSphere.Radius, GSimpleWorldTol));
+
+		const FCapsuleLimit& CapsuleLimit = OutLimits.CapsuleLimits[0];
+		TestTrue(TEXT("Non-uniform scale: capsule location matches GetFinalScaled"),
+		         CapsuleLimit.Location.Equals(ExpectedSphyl.Center, GSimpleWorldTol));
+		TestTrue(TEXT("Non-uniform scale: capsule rotation matches GetFinalScaled"),
+		         CapsuleLimit.Rotation.Equals(ExpectedSphyl.Rotation.Quaternion(), GSimpleWorldTol));
+		TestTrue(TEXT("Non-uniform scale: capsule radius/length matches GetFinalScaled"),
+		         FMath::IsNearlyEqual(CapsuleLimit.Radius, ExpectedSphyl.Radius, GSimpleWorldTol) &&
+		         FMath::IsNearlyEqual(CapsuleLimit.Length, ExpectedSphyl.Length, GSimpleWorldTol));
+
+		const FBoxLimit& BoxLimit = OutLimits.BoxLimits[0];
+		TestTrue(TEXT("Non-uniform scale: box location matches GetFinalScaled"),
+		         BoxLimit.Location.Equals(ExpectedBox.Center, GSimpleWorldTol));
+		TestTrue(TEXT("Non-uniform scale: box rotation matches GetFinalScaled"),
+		         BoxLimit.Rotation.Equals(ExpectedBox.Rotation.Quaternion(), GSimpleWorldTol));
+		TestTrue(TEXT("Non-uniform scale: box extent is half of GetFinalScaled size"),
+		         BoxLimit.Extent.Equals(FVector(ExpectedBox.X, ExpectedBox.Y, ExpectedBox.Z) * 0.5f, GSimpleWorldTol));
+
+		const FTaperedCapsuleLimit& TaperedLimit = OutLimits.TaperedCapsuleLimits[0];
+		TestTrue(TEXT("Non-uniform scale: tapered capsule location matches GetFinalScaled"),
+		         TaperedLimit.Location.Equals(ExpectedTapered.Center, GSimpleWorldTol));
+		TestTrue(TEXT("Non-uniform scale: tapered capsule rotation matches GetFinalScaled"),
+		         TaperedLimit.Rotation.Equals(ExpectedTapered.Rotation.Quaternion(), GSimpleWorldTol));
+		TestTrue(TEXT("Non-uniform scale: tapered capsule radii/length matches GetFinalScaled"),
+		         FMath::IsNearlyEqual(TaperedLimit.Radius0, ExpectedTapered.Radius0, GSimpleWorldTol) &&
+		         FMath::IsNearlyEqual(TaperedLimit.Radius1, ExpectedTapered.Radius1, GSimpleWorldTol) &&
+		         FMath::IsNearlyEqual(TaperedLimit.Length, ExpectedTapered.Length, GSimpleWorldTol));
+	}
+
+	// --- Convex（ElemBox 有効・Elem Transform 付き）: BoxBounds/SphereBounds/Ignore の3分岐 ---
+	{
+		const FVector Scale(2.0f, 1.0f, 0.5f);
+
+		FKConvexElem ConvexElem;
+		ConvexElem.SetTransform(FTransform(FQuat::Identity, FVector(1.0f, 2.0f, 3.0f)));
+		ConvexElem.ElemBox = FBox(FVector(-4.0f, -2.0f, -1.0f), FVector(4.0f, 2.0f, 1.0f));
+
+		// Location = ElemTM.TransformPosition(BoxCenter) * Scale3D = TransformPosition(0,0,0) * Scale = (1,2,3)*(2,1,0.5)
+		const FVector ExpectedLocation(2.0f, 2.0f, 1.5f);
+		// Extent = BoxHalfSize(4,2,1) * ScaleAbs(2,1,0.5)
+		const FVector ExpectedExtent(8.0f, 2.0f, 0.5f);
+
+		// BoxBounds近似: FBoxLimitを生成
+		{
+			FKAggregateGeom AggGeom;
+			AggGeom.ConvexElems.Add(ConvexElem);
+			FKawaiiPhysicsSharedCollisionData OutLimits;
+			KawaiiPhysicsSimpleWorldCollision::ConvertAggGeomToLocalLimits(
+				AggGeom, Scale, EKawaiiPhysicsComplexShapeApproximation::BoxBounds, OutLimits);
+
+			TestTrue(TEXT("Convex BoxBounds: produces exactly one box limit and no sphere limit"),
+			         OutLimits.BoxLimits.Num() == 1 && OutLimits.SphericalLimits.Num() == 0);
+			TestTrue(TEXT("Convex BoxBounds: location"),
+			         OutLimits.BoxLimits[0].Location.Equals(ExpectedLocation, GSimpleWorldTol));
+			TestTrue(TEXT("Convex BoxBounds: rotation matches elem transform"),
+			         OutLimits.BoxLimits[0].Rotation.Equals(FQuat::Identity, GSimpleWorldTol));
+			TestTrue(TEXT("Convex BoxBounds: extent"),
+			         OutLimits.BoxLimits[0].Extent.Equals(ExpectedExtent, GSimpleWorldTol));
+		}
+
+		// SphereBounds近似: 外接球としてFSphericalLimitを生成
+		{
+			FKAggregateGeom AggGeom;
+			AggGeom.ConvexElems.Add(ConvexElem);
+			FKawaiiPhysicsSharedCollisionData OutLimits;
+			KawaiiPhysicsSimpleWorldCollision::ConvertAggGeomToLocalLimits(
+				AggGeom, Scale, EKawaiiPhysicsComplexShapeApproximation::SphereBounds, OutLimits);
+
+			TestTrue(TEXT("Convex SphereBounds: produces exactly one sphere limit and no box limit"),
+			         OutLimits.SphericalLimits.Num() == 1 && OutLimits.BoxLimits.Num() == 0);
+			TestTrue(TEXT("Convex SphereBounds: location"),
+			         OutLimits.SphericalLimits[0].Location.Equals(ExpectedLocation, GSimpleWorldTol));
+			TestTrue(TEXT("Convex SphereBounds: radius is the scaled bounding-box extent length"),
+			         FMath::IsNearlyEqual(OutLimits.SphericalLimits[0].Radius, ExpectedExtent.Size(), GSimpleWorldTol));
+			TestTrue(TEXT("Convex SphereBounds: limit type is Outer"),
+			         OutLimits.SphericalLimits[0].LimitType == ESphericalLimitType::Outer);
+		}
+
+		// Ignore近似: 何も生成しない
+		{
+			FKAggregateGeom AggGeom;
+			AggGeom.ConvexElems.Add(ConvexElem);
+			FKawaiiPhysicsSharedCollisionData OutLimits;
+			KawaiiPhysicsSimpleWorldCollision::ConvertAggGeomToLocalLimits(
+				AggGeom, Scale, EKawaiiPhysicsComplexShapeApproximation::Ignore, OutLimits);
+
+			TestTrue(TEXT("Convex Ignore: produces no limits"), OutLimits.IsEmpty());
+		}
+	}
+
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+//  AppendLocalLimitsTransformed
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldAppendLocalLimitsTransformedTest,
+                                 "KawaiiPhysics.SimpleWorld.AppendLocalLimitsTransformed",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldAppendLocalLimitsTransformedTest::RunTest(const FString& Parameters)
+{
+	// ComponentTM: Z軸周り90度回転 + 平行移動(100,0,0)
+	const FQuat ComponentRotation = FRotator(0.0f, 90.0f, 0.0f).Quaternion();
+	const FTransform ComponentTM(ComponentRotation, FVector(100.0f, 0.0f, 0.0f));
+
+	FKawaiiPhysicsSharedCollisionData LocalLimits;
+
+	FSphericalLimit Sphere;
+	Sphere.Location = FVector(1.0f, 0.0f, 0.0f);
+	Sphere.Radius = 3.0f;
+	LocalLimits.SphericalLimits.Add(Sphere);
+
+	FCapsuleLimit Capsule;
+	Capsule.Location = FVector(2.0f, 0.0f, 0.0f);
+	Capsule.Rotation = FQuat::Identity;
+	Capsule.Radius = 1.0f;
+	Capsule.Length = 5.0f;
+	LocalLimits.CapsuleLimits.Add(Capsule);
+
+	FPlanarLimit Planar;
+	Planar.Location = FVector::ZeroVector;
+	Planar.Rotation = FQuat::Identity; // ローカル UpVector = +Z
+	LocalLimits.PlanarLimits.Add(Planar);
+
+	// Append前の既存要素（番兵）が保持されることを確認する
+	FKawaiiPhysicsSharedCollisionData OutWorldLimits;
+	FSphericalLimit Sentinel;
+	Sentinel.Radius = 999.0f;
+	OutWorldLimits.SphericalLimits.Add(Sentinel);
+
+	KawaiiPhysicsSimpleWorldCollision::AppendLocalLimitsTransformed(LocalLimits, ComponentTM, OutWorldLimits);
+
+	TestTrue(TEXT("Existing sphere is preserved ahead of the appended one"),
+	         OutWorldLimits.SphericalLimits.Num() == 2 &&
+	         FMath::IsNearlyEqual(OutWorldLimits.SphericalLimits[0].Radius, 999.0f, GSimpleWorldTol));
+
+	const FVector ExpectedSphereLocation = ComponentTM.TransformPosition(FVector(1.0f, 0.0f, 0.0f));
+	TestTrue(TEXT("Sphere location is transformed by ComponentTM"),
+	         OutWorldLimits.SphericalLimits[1].Location.Equals(ExpectedSphereLocation, GSimpleWorldTol));
+
+	TestTrue(TEXT("Capsule count"), OutWorldLimits.CapsuleLimits.Num() == 1);
+	const FVector ExpectedCapsuleLocation = ComponentTM.TransformPosition(FVector(2.0f, 0.0f, 0.0f));
+	TestTrue(TEXT("Capsule location is transformed by ComponentTM"),
+	         OutWorldLimits.CapsuleLimits[0].Location.Equals(ExpectedCapsuleLocation, GSimpleWorldTol));
+	TestTrue(TEXT("Capsule rotation is composed with ComponentTM rotation"),
+	         OutWorldLimits.CapsuleLimits[0].Rotation.Equals(ComponentRotation, GSimpleWorldTol));
+
+	TestTrue(TEXT("Planar count"), OutWorldLimits.PlanarLimits.Num() == 1);
+	const FPlanarLimit& WorldPlanar = OutWorldLimits.PlanarLimits[0];
+	const FVector ExpectedPlanarLocation = ComponentTM.TransformPosition(FVector::ZeroVector);
+	TestTrue(TEXT("Planar location is transformed by ComponentTM"),
+	         WorldPlanar.Location.Equals(ExpectedPlanarLocation, GSimpleWorldTol));
+	TestTrue(TEXT("Planar rotation is composed with ComponentTM rotation"),
+	         WorldPlanar.Rotation.Equals(ComponentRotation, GSimpleWorldTol));
+	const FPlane ExpectedPlane(WorldPlanar.Location, WorldPlanar.Rotation.GetUpVector());
+	TestTrue(TEXT("Planar plane is recomputed from the transformed location/rotation"),
+	         WorldPlanar.Plane.Equals(ExpectedPlane, GSimpleWorldTol));
+
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+//  AppendFadedLocalLimits（Subsystem.cpp の無名namespaceから移設）
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldAppendFadedLocalLimitsTest,
+                                 "KawaiiPhysics.SimpleWorld.AppendFadedLocalLimits",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldAppendFadedLocalLimitsTest::RunTest(const FString& Parameters)
+{
+	auto MakeLocalLimits = []()
+	{
+		FKawaiiPhysicsSharedCollisionData LocalLimits;
+
+		FSphericalLimit Sphere;
+		Sphere.Location = FVector::ZeroVector;
+		Sphere.Radius = 10.0f;
+		LocalLimits.SphericalLimits.Add(Sphere);
+
+		FCapsuleLimit Capsule;
+		Capsule.Location = FVector::ZeroVector;
+		Capsule.Rotation = FQuat::Identity;
+		Capsule.Radius = 4.0f;
+		Capsule.Length = 20.0f;
+		LocalLimits.CapsuleLimits.Add(Capsule);
+
+		FTaperedCapsuleLimit Tapered;
+		Tapered.Location = FVector::ZeroVector;
+		Tapered.Rotation = FQuat::Identity;
+		Tapered.Radius0 = 6.0f;
+		Tapered.Radius1 = 2.0f;
+		Tapered.Length = 20.0f;
+		LocalLimits.TaperedCapsuleLimits.Add(Tapered);
+
+		FBoxLimit Box;
+		Box.Location = FVector::ZeroVector;
+		Box.Rotation = FQuat::Identity;
+		Box.Extent = FVector(5.0f, 5.0f, 5.0f);
+		LocalLimits.BoxLimits.Add(Box);
+
+		return LocalLimits;
+	};
+
+	const FTransform Identity = FTransform::Identity;
+	constexpr float BoxEnableThreshold = 0.5f;
+
+	// FadeAlpha=0.5（== BoxEnableThreshold）: 球/カプセル/テーパードカプセルの半径は半減、Box はしきい値以上なので等倍で残る
+	{
+		FKawaiiPhysicsSharedCollisionData LocalLimits = MakeLocalLimits();
+		FKawaiiPhysicsSharedCollisionData OutWorldLimits;
+		KawaiiPhysicsSimpleWorldCollision::AppendFadedLocalLimits(
+			LocalLimits, 0.5f, Identity, OutWorldLimits, BoxEnableThreshold);
+
+		TestTrue(TEXT("FadeAlpha=0.5: sphere radius is halved"),
+		         FMath::IsNearlyEqual(OutWorldLimits.SphericalLimits[0].Radius, 5.0f, GSimpleWorldTol));
+		TestTrue(TEXT("FadeAlpha=0.5: capsule radius is halved"),
+		         FMath::IsNearlyEqual(OutWorldLimits.CapsuleLimits[0].Radius, 2.0f, GSimpleWorldTol));
+		TestTrue(TEXT("FadeAlpha=0.5: tapered capsule radii are halved"),
+		         FMath::IsNearlyEqual(OutWorldLimits.TaperedCapsuleLimits[0].Radius0, 3.0f, GSimpleWorldTol) &&
+		         FMath::IsNearlyEqual(OutWorldLimits.TaperedCapsuleLimits[0].Radius1, 1.0f, GSimpleWorldTol));
+		TestTrue(TEXT("FadeAlpha=0.5 (== threshold): box is kept at full extent"),
+		         OutWorldLimits.BoxLimits.Num() == 1 &&
+		         OutWorldLimits.BoxLimits[0].Extent.Equals(FVector(5.0f, 5.0f, 5.0f), GSimpleWorldTol));
+
+		// BoxEnableThreshold はデフォルト引数(0.5f)としても公開されている。明示指定と同じ結果になることを確認する。
+		FKawaiiPhysicsSharedCollisionData OutWorldLimitsDefaultArg;
+		KawaiiPhysicsSimpleWorldCollision::AppendFadedLocalLimits(LocalLimits, 0.5f, Identity, OutWorldLimitsDefaultArg);
+		TestTrue(TEXT("Default BoxEnableThreshold(0.5f) matches explicitly-passed 0.5f"),
+		         OutWorldLimitsDefaultArg.BoxLimits.Num() == OutWorldLimits.BoxLimits.Num());
+	}
+
+	// FadeAlpha=0.4（< threshold）: Box は追記されない
+	{
+		FKawaiiPhysicsSharedCollisionData LocalLimits = MakeLocalLimits();
+		FKawaiiPhysicsSharedCollisionData OutWorldLimits;
+		KawaiiPhysicsSimpleWorldCollision::AppendFadedLocalLimits(
+			LocalLimits, 0.4f, Identity, OutWorldLimits, BoxEnableThreshold);
+
+		TestTrue(TEXT("FadeAlpha=0.4 (< threshold): box is withheld"), OutWorldLimits.BoxLimits.Num() == 0);
+		TestTrue(TEXT("FadeAlpha=0.4: sphere radius is scaled by 0.4"),
+		         FMath::IsNearlyEqual(OutWorldLimits.SphericalLimits[0].Radius, 4.0f, GSimpleWorldTol));
+	}
+
+	// FadeAlpha=1: 全形状そのまま
+	{
+		FKawaiiPhysicsSharedCollisionData LocalLimits = MakeLocalLimits();
+		FKawaiiPhysicsSharedCollisionData OutWorldLimits;
+		KawaiiPhysicsSimpleWorldCollision::AppendFadedLocalLimits(
+			LocalLimits, 1.0f, Identity, OutWorldLimits, BoxEnableThreshold);
+
+		TestTrue(TEXT("FadeAlpha=1: sphere radius unchanged"),
+		         FMath::IsNearlyEqual(OutWorldLimits.SphericalLimits[0].Radius, 10.0f, GSimpleWorldTol));
+		TestTrue(TEXT("FadeAlpha=1: capsule radius unchanged"),
+		         FMath::IsNearlyEqual(OutWorldLimits.CapsuleLimits[0].Radius, 4.0f, GSimpleWorldTol));
+		TestTrue(TEXT("FadeAlpha=1: tapered capsule radii unchanged"),
+		         FMath::IsNearlyEqual(OutWorldLimits.TaperedCapsuleLimits[0].Radius0, 6.0f, GSimpleWorldTol) &&
+		         FMath::IsNearlyEqual(OutWorldLimits.TaperedCapsuleLimits[0].Radius1, 2.0f, GSimpleWorldTol));
+		TestTrue(TEXT("FadeAlpha=1: box is kept at full extent"),
+		         OutWorldLimits.BoxLimits.Num() == 1 &&
+		         OutWorldLimits.BoxLimits[0].Extent.Equals(FVector(5.0f, 5.0f, 5.0f), GSimpleWorldTol));
+	}
+
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+//  FKawaiiPhysicsSimpleWorldCollisionDesc::Merge
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldDescMergeTest,
+                                 "KawaiiPhysics.SimpleWorld.DescMerge",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldDescMergeTest::RunTest(const FString& Parameters)
+{
+	// 単一Desc → そのまま（ObjectTypesは空だと自動的にWorldStatic/WorldDynamicのunionへ変換されるため、
+	// 「そのまま」の確認は非空ObjectTypesで構成する）
+	{
+		FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
+		Desc.GatherIntervalSec = 0.1f;
+		Desc.GatherRadiusOverride = 0.0f; // 自動
+		Desc.ObjectTypes = {UEngineTypes::ConvertToObjectType(ECC_WorldStatic)};
+		Desc.ComplexShapeApproximation = EKawaiiPhysicsComplexShapeApproximation::SphereBounds;
+		Desc.SkeletalMeshMode = EKawaiiPhysicsSimpleWorldSkeletalMeshMode::BoundsBox;
+		Desc.bApproximateGround = false;
+
+		const FKawaiiPhysicsSimpleWorldCollisionDesc Merged =
+			FKawaiiPhysicsSimpleWorldCollisionDesc::Merge({Desc});
+
+		TestTrue(TEXT("Single desc: GatherIntervalSec unchanged"),
+		         FMath::IsNearlyEqual(Merged.GatherIntervalSec, 0.1f, GSimpleWorldTol));
+		TestTrue(TEXT("Single desc: GatherRadiusOverride stays automatic (0)"),
+		         FMath::IsNearlyEqual(Merged.GatherRadiusOverride, 0.0f, GSimpleWorldTol));
+		TestTrue(TEXT("Single desc: ObjectTypes unchanged"), Merged.ObjectTypes.Num() == 1);
+		TestTrue(TEXT("Single desc: ComplexShapeApproximation unchanged"),
+		         Merged.ComplexShapeApproximation == EKawaiiPhysicsComplexShapeApproximation::SphereBounds);
+		TestTrue(TEXT("Single desc: SkeletalMeshMode unchanged"),
+		         Merged.SkeletalMeshMode == EKawaiiPhysicsSimpleWorldSkeletalMeshMode::BoundsBox);
+		TestTrue(TEXT("Single desc: bApproximateGround unchanged"), Merged.bApproximateGround == false);
+	}
+
+	// GatherIntervalSec: 最小値優先（0は毎フレーム収集として最優先）
+	{
+		FKawaiiPhysicsSimpleWorldCollisionDesc A, B;
+		A.GatherIntervalSec = 0.2f;
+		B.GatherIntervalSec = 0.05f;
+		const FKawaiiPhysicsSimpleWorldCollisionDesc Merged1 = FKawaiiPhysicsSimpleWorldCollisionDesc::Merge({A, B});
+		TestTrue(TEXT("Interval {0.2,0.05} -> 0.05"),
+		         FMath::IsNearlyEqual(Merged1.GatherIntervalSec, 0.05f, GSimpleWorldTol));
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc C, D;
+		C.GatherIntervalSec = 0.2f;
+		D.GatherIntervalSec = 0.0f;
+		const FKawaiiPhysicsSimpleWorldCollisionDesc Merged2 = FKawaiiPhysicsSimpleWorldCollisionDesc::Merge({C, D});
+		TestTrue(TEXT("Interval {0.2,0.0} -> 0.0 (every-frame priority)"),
+		         FMath::IsNearlyEqual(Merged2.GatherIntervalSec, 0.0f, GSimpleWorldTol));
+	}
+
+	// GatherRadiusOverride: 全DescがOverride指定の場合だけ最大値。1つでも自動(0)なら自動側(0)を維持する（二段解決前提）
+	{
+		FKawaiiPhysicsSimpleWorldCollisionDesc Auto, Override;
+		Auto.GatherRadiusOverride = 0.0f;
+		Override.GatherRadiusOverride = 300.0f;
+		const FKawaiiPhysicsSimpleWorldCollisionDesc Merged =
+			FKawaiiPhysicsSimpleWorldCollisionDesc::Merge({Auto, Override});
+		TestTrue(TEXT("Override {0,300}: mixed auto+override falls back to automatic (0)"),
+		         FMath::IsNearlyEqual(Merged.GatherRadiusOverride, 0.0f, GSimpleWorldTol));
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc OverrideA, OverrideB;
+		OverrideA.GatherRadiusOverride = 200.0f;
+		OverrideB.GatherRadiusOverride = 300.0f;
+		const FKawaiiPhysicsSimpleWorldCollisionDesc MergedAllOverridden =
+			FKawaiiPhysicsSimpleWorldCollisionDesc::Merge({OverrideA, OverrideB});
+		TestTrue(TEXT("Override {200,300}: all-overridden picks the max"),
+		         FMath::IsNearlyEqual(MergedAllOverridden.GatherRadiusOverride, 300.0f, GSimpleWorldTol));
+	}
+
+	// ObjectTypes: 空+非空 → WorldStatic/WorldDynamic を含むunion
+	{
+		FKawaiiPhysicsSimpleWorldCollisionDesc EmptyTypes, PawnTypes;
+		// EmptyTypes.ObjectTypes は既定で空のまま
+		PawnTypes.ObjectTypes = {UEngineTypes::ConvertToObjectType(ECC_Pawn)};
+
+		const FKawaiiPhysicsSimpleWorldCollisionDesc Merged =
+			FKawaiiPhysicsSimpleWorldCollisionDesc::Merge({EmptyTypes, PawnTypes});
+
+		const TEnumAsByte<EObjectTypeQuery> WorldStaticType = UEngineTypes::ConvertToObjectType(ECC_WorldStatic);
+		const TEnumAsByte<EObjectTypeQuery> WorldDynamicType = UEngineTypes::ConvertToObjectType(ECC_WorldDynamic);
+		const TEnumAsByte<EObjectTypeQuery> PawnType = UEngineTypes::ConvertToObjectType(ECC_Pawn);
+
+		TestTrue(TEXT("ObjectTypes union contains WorldStatic/WorldDynamic/Pawn only"),
+		         Merged.ObjectTypes.Num() == 3 &&
+		         Merged.ObjectTypes.Contains(WorldStaticType) &&
+		         Merged.ObjectTypes.Contains(WorldDynamicType) &&
+		         Merged.ObjectTypes.Contains(PawnType));
+	}
+
+	// enum優先: SkeletalMeshMode は PhysicsAsset > BoundsBox > Ignore
+	{
+		FKawaiiPhysicsSimpleWorldCollisionDesc IgnoreDesc, PhysicsAssetDesc;
+		IgnoreDesc.SkeletalMeshMode = EKawaiiPhysicsSimpleWorldSkeletalMeshMode::Ignore;
+		PhysicsAssetDesc.SkeletalMeshMode = EKawaiiPhysicsSimpleWorldSkeletalMeshMode::PhysicsAsset;
+		const FKawaiiPhysicsSimpleWorldCollisionDesc Merged =
+			FKawaiiPhysicsSimpleWorldCollisionDesc::Merge({IgnoreDesc, PhysicsAssetDesc});
+		TestTrue(TEXT("SkeletalMeshMode {Ignore,PhysicsAsset} -> PhysicsAsset"),
+		         Merged.SkeletalMeshMode == EKawaiiPhysicsSimpleWorldSkeletalMeshMode::PhysicsAsset);
+	}
+
+	// enum優先: ComplexShapeApproximation は BoxBounds > SphereBounds > Ignore
+	{
+		FKawaiiPhysicsSimpleWorldCollisionDesc SphereDesc, BoxDesc;
+		SphereDesc.ComplexShapeApproximation = EKawaiiPhysicsComplexShapeApproximation::SphereBounds;
+		BoxDesc.ComplexShapeApproximation = EKawaiiPhysicsComplexShapeApproximation::BoxBounds;
+		const FKawaiiPhysicsSimpleWorldCollisionDesc Merged =
+			FKawaiiPhysicsSimpleWorldCollisionDesc::Merge({SphereDesc, BoxDesc});
+		TestTrue(TEXT("ComplexShapeApproximation {SphereBounds,BoxBounds} -> BoxBounds"),
+		         Merged.ComplexShapeApproximation == EKawaiiPhysicsComplexShapeApproximation::BoxBounds);
+	}
+
+	// ground: OR
+	{
+		FKawaiiPhysicsSimpleWorldCollisionDesc NoGround, WithGround;
+		NoGround.bApproximateGround = false;
+		WithGround.bApproximateGround = true;
+		const FKawaiiPhysicsSimpleWorldCollisionDesc Merged =
+			FKawaiiPhysicsSimpleWorldCollisionDesc::Merge({NoGround, WithGround});
+		TestTrue(TEXT("bApproximateGround {false,true} -> true"), Merged.bApproximateGround == true);
+	}
+
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+//  FKawaiiPhysicsSimpleWorldCollisionEntry のライフサイクル
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldEntryLifecycleTest,
+                                 "KawaiiPhysics.SimpleWorld.EntryLifecycle",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldEntryLifecycleTest::RunTest(const FString& Parameters)
+{
+	constexpr uint64 SourceID1 = 1;
+	constexpr uint64 SourceID2 = 2;
+
+	// SetDesc → BuildMergedDesc がマージ結果を返す。
+	// MarkRead(ID1)後、大きくフレームを進めてRemoveExpiredDescsすると未読ID2のみ除去される。
+	// 注: MarkRead は GFrameCounter を直接参照するため CurrentFrame を明示的に渡せない。
+	// ただし未読(LastReadFrame==0)は判定式の性質上、渡す CurrentFrame の値に関わらず常に期限切れ扱いになるため、
+	// MaxAge を極端に大きく取れば「既読(ID1)は生存・未読(ID2)のみ除去」を GFrameCounter の実値に依存せず検証できる。
+	{
+		FKawaiiPhysicsSimpleWorldCollisionEntry Entry;
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc Desc1;
+		Desc1.GatherIntervalSec = 0.1f;
+		Entry.SetDesc(SourceID1, Desc1);
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc Desc2;
+		Desc2.GatherIntervalSec = 0.3f;
+		Entry.SetDesc(SourceID2, Desc2);
+
+		TestTrue(TEXT("HasAnyDesc true after two SetDesc"), Entry.HasAnyDesc());
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc MergedBoth;
+		TestTrue(TEXT("BuildMergedDesc succeeds with two descs"), Entry.BuildMergedDesc(MergedBoth));
+		TestTrue(TEXT("Merged interval is the min of the two"),
+		         FMath::IsNearlyEqual(MergedBoth.GatherIntervalSec, 0.1f, GSimpleWorldTol));
+
+		const uint64 BaseFrame = GFrameCounter;
+		Entry.MarkRead(SourceID1); // ID1のLastReadFrameをGFrameCounter(=BaseFrame)に更新。ID2は未読(0)のまま
+
+		Entry.RemoveExpiredDescs(BaseFrame + 1000, 1000000);
+
+		TestTrue(TEXT("HasAnyDesc true after removing only the unread desc"), Entry.HasAnyDesc());
+		FKawaiiPhysicsSimpleWorldCollisionDesc MergedAfterExpire;
+		TestTrue(TEXT("BuildMergedDesc still succeeds with the remaining desc"),
+		         Entry.BuildMergedDesc(MergedAfterExpire));
+		TestTrue(TEXT("Only ID1's desc remains"),
+		         FMath::IsNearlyEqual(MergedAfterExpire.GatherIntervalSec, 0.1f, GSimpleWorldTol));
+
+		Entry.RemoveDesc(SourceID1);
+		TestTrue(TEXT("HasAnyDesc false after removing the last desc"), !Entry.HasAnyDesc());
+		FKawaiiPhysicsSimpleWorldCollisionDesc MergedEmpty;
+		TestTrue(TEXT("BuildMergedDesc fails when no desc remains"), !Entry.BuildMergedDesc(MergedEmpty));
+	}
+
+	// RequestRegather / ConsumeRegatherRequested: 1回だけ true を返す
+	{
+		FKawaiiPhysicsSimpleWorldCollisionEntry Entry;
+		TestTrue(TEXT("Regather not requested initially"), !Entry.ConsumeRegatherRequested());
+
+		Entry.RequestRegather();
+		TestTrue(TEXT("First consume returns true"), Entry.ConsumeRegatherRequested());
+		TestTrue(TEXT("Second consume returns false (already consumed)"), !Entry.ConsumeRegatherRequested());
+	}
+
+	// Slot: Publish→AppendTo のラウンドトリップ最小限（詳細な契約は KawaiiPhysicsSharedCollisionSlotTest でカバー済み）
+	{
+		FKawaiiPhysicsSimpleWorldCollisionEntry Entry;
+
+		FKawaiiPhysicsSharedCollisionData PublishData;
+		FSphericalLimit Sphere;
+		Sphere.Radius = 12.0f;
+		PublishData.SphericalLimits.Add(Sphere);
+		Entry.Slot.Publish(PublishData);
+
+		FKawaiiPhysicsSharedCollisionData OutData;
+		Entry.Slot.AppendTo(OutData);
+		TestTrue(TEXT("Entry.Slot round-trips published data"),
+		         OutData.SphericalLimits.Num() == 1 &&
+		         FMath::IsNearlyEqual(OutData.SphericalLimits[0].Radius, 12.0f, GSimpleWorldTol));
+	}
+
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+//  push-out 統合テスト（ハーネス経由。SimpleWorld配列に注入した形状で実際にボーンが押し出されるか）
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldCollisionPushOutTest,
+                                 "KawaiiPhysics.SimpleWorld.CollisionPushOut",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldCollisionPushOutTest::RunTest(const FString& Parameters)
+{
+	// root(0,0,0) - child(pose (0,0,-10), BoneLength=10) の2ボーンチェーン。
+	// 子ボーンの実位置(Location/PrevLocation)を pose とは独立に (8,0,-4) へ直接セットし、
+	// 中心(10,0,0)・半径4√5(=|(8,0,-4)-(10,0,0)|の2倍=食い込み確保)のOuterスフィアに食い込ませる。
+	// このスフィアの半径・中心は「押し出し後の点(6,0,-8)が親からの距離(BoneLength=10)にちょうど一致する」よう選定してあるため、
+	// コリジョン後の最終ボーン長復元（親からの距離をBoneLengthへ再投影する処理）が恒等変換になり、
+	// 1フレームで解析的に厳密一致する（重力・剛性・角度制限はすべて無効化し、コリジョンの効果のみを分離）。
+	const float SphereRadius = FMath::Sqrt(80.0f); // = 4*sqrt(5) ≈ 8.9443
+	const FVector SphereCenter(10.0f, 0.0f, 0.0f);
+	const FVector StartInsideSphere(8.0f, 0.0f, -4.0f);
+	const FVector ExpectedPushedOut(6.0f, 0.0f, -8.0f);
+
+	// コリジョンが働かない場合の期待値: BoneLength復元だけが働き、
+	// StartInsideSphere の方向を保ったまま距離をBoneLength(10)へ再スケールした点になる。
+	const float Sqrt5 = FMath::Sqrt(5.0f);
+	const FVector ExpectedNoPushOut(4.0f * Sqrt5, 0.0f, -2.0f * Sqrt5); // = StartInsideSphere正規化 * 10
+
+	auto BuildChain = [&](FKawaiiPhysicsTestAccessor& A)
+	{
+		A.BuildVerticalChain(2, 10.0f); // root(0,0,0) + child pose(0,0,-10), BoneLength=10
+		FKawaiiPhysicsSettings S;
+		S.Damping = 0.0f;
+		S.Stiffness = 0.0f; // Pull to Pose を完全無効化
+		S.LimitAngle = 0.0f; // 角度制限を無効化（0はAdjustByAngleLimit内で無制限扱い）
+		S.Radius = 0.0f; // ボーン自身のコリジョン半径は0（数値を単純化）
+		A.SetAllPhysicsSettings(S);
+		A.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+		A.SetGravityInSimSpace(FVector::ZeroVector);
+		A.Bone(1).Location = StartInsideSphere;
+		A.Bone(1).PrevLocation = StartInsideSphere;
+	};
+
+	FSphericalLimit Sphere;
+	Sphere.Location = SphereCenter;
+	Sphere.Radius = SphereRadius;
+	Sphere.LimitType = ESphericalLimitType::Outer;
+	Sphere.bEnable = true;
+	TArray<FSphericalLimit> SphereLimits = {Sphere};
+	TArray<FCapsuleLimit> EmptyCapsules;
+	TArray<FTaperedCapsuleLimit> EmptyTaperedCapsules;
+	TArray<FBoxLimit> EmptyBoxes;
+
+	// bUseSimpleWorldCollision = true: SimpleWorld配列のSphereに押し出される
+	{
+		FKawaiiPhysicsTestAccessor A;
+		BuildChain(A);
+		A.SetSimpleWorldLimits(SphereLimits, EmptyCapsules, EmptyTaperedCapsules, EmptyBoxes);
+
+		A.StepFrame(1.0f / 60.0f);
+
+		TestTrue(FString::Printf(TEXT("SimpleWorld sphere push-out: got %s expected %s"),
+		                         *A.Bone(1).Location.ToString(), *ExpectedPushedOut.ToString()),
+		         A.Bone(1).Location.Equals(ExpectedPushedOut, GSimpleWorldPushOutTol));
+	}
+
+	// bUseSimpleWorldCollision = false: 同じ形状を注入しても押し出されない（適用条件のゲート確認）
+	{
+		FKawaiiPhysicsTestAccessor A;
+		BuildChain(A);
+		A.SetSimpleWorldLimits(SphereLimits, EmptyCapsules, EmptyTaperedCapsules, EmptyBoxes);
+		A.Node.bUseSimpleWorldCollision = false; // SetSimpleWorldLimitsが立てたフラグを明示的に無効化
+
+		A.StepFrame(1.0f / 60.0f);
+
+		TestTrue(FString::Printf(TEXT("Gated off: SimpleWorld collision does not push the bone: got %s expected %s"),
+		                         *A.Bone(1).Location.ToString(), *ExpectedNoPushOut.ToString()),
+		         A.Bone(1).Location.Equals(ExpectedNoPushOut, GSimpleWorldPushOutTol));
+	}
+
+	return true;
+}
+
+#endif // WITH_DEV_AUTOMATION_TESTS
