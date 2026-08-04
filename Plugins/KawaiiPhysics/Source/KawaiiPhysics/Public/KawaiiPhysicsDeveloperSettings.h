@@ -37,6 +37,48 @@ public:
 			EditCondition = "bUseFixedSubstepping"))
 	int32 MaxSubsteps = 4;
 
+	/**
+	* 簡易ワールドコリジョンの自動収集半径に使う係数。SkeletalMeshComponent の Bounds.SphereRadius に乗算する。
+	* Multiplier used for the Simple World Collision auto gather radius, applied to the SkeletalMeshComponent's Bounds.SphereRadius.
+	*/
+	UPROPERTY(EditAnywhere, config, Category = "Simple World Collision",
+		meta = (DisplayName = "Auto Gather Radius Scale", ClampMin = "1.0", UIMin = "1.0"))
+	float SimpleWorldCollisionAutoGatherRadiusScale = 1.5f;
+
+	/**
+	* 新規に収集されたコライダーが押し出しを開始するまでのブレンドイン時間（秒）。0でフェードを無効化(即座に全強度)する。
+	* Blend-in time (seconds) before a newly gathered collider starts pushing out at full strength. 0 disables the fade (immediate full strength).
+	*/
+	UPROPERTY(EditAnywhere, config, Category = "Simple World Collision",
+		meta = (DisplayName = "Fade-In Time", ClampMin = "0"))
+	float SimpleWorldCollisionFadeInTime = 0.2f;
+
+	/**
+	* カメラからの距離がこの値(cm)を超えると収集間隔を間引く。
+	* Beyond this camera distance (cm), the gather interval is throttled (doubled).
+	*/
+	UPROPERTY(EditAnywhere, config, Category = "Simple World Collision",
+		meta = (DisplayName = "Distance Throttle Start", ClampMin = "0"))
+	float SimpleWorldCollisionDistanceThrottleStart = 3000.f;
+
+	/**
+	* カメラからの距離がこの値(cm)を超えると収集自体を停止する。
+	* Beyond this camera distance (cm), gathering is stopped entirely.
+	*/
+	UPROPERTY(EditAnywhere, config, Category = "Simple World Collision",
+		meta = (DisplayName = "Distance Throttle Stop", ClampMin = "0"))
+	float SimpleWorldCollisionDistanceThrottleStop = 10000.f;
+
+	/**
+	* 簡易ワールドコリジョンが SkeletalMeshComponent 1つあたりに保持する最大収集コンポーネント数。
+	* a.AnimNode.KawaiiPhysics.SimpleWorldCollision.MaxComponents CVar が 0 以上の場合はそちらが優先される。
+	* Maximum number of gathered components Simple World Collision keeps per SkeletalMeshComponent.
+	* Overridden by the a.AnimNode.KawaiiPhysics.SimpleWorldCollision.MaxComponents CVar when it is >= 0.
+	*/
+	UPROPERTY(EditAnywhere, config, Category = "Simple World Collision",
+		meta = (DisplayName = "Max Gathered Components", ClampMin = "1", UIMin = "1"))
+	int32 SimpleWorldCollisionMaxGatheredComponents = 64;
+
 #if WITH_EDITORONLY_DATA
 	/**
 	* BoneSubdivisionCount で生成される inter-bone dummy bone 数の警告しきい値。0で警告を無効化する。

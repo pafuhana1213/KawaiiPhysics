@@ -5,12 +5,19 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "GameplayTagContainer.h"
+#include "CollisionQueryParams.h"
+#include "Engine/EngineTypes.h"
+#include "Engine/OverlapResult.h"
 
 #include <atomic>
 
+#include "KawaiiPhysicsSimpleWorldCollision.h"
 #include "KawaiiPhysicsSharedCollisionTypes.h"
 
 #include "KawaiiPhysicsSharedCollisionSubsystem.generated.h"
+
+class UPrimitiveComponent;
+class USkeletalMeshComponent;
 
 /**
  * Source1つ分の共有コリジョンスロット
@@ -87,6 +94,98 @@ private:
 };
 
 /**
+ * シンプルワールドコリジョン収集設定
+ * Simple-world collision gather settings
+ */
+struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionDesc
+{
+	float GatherIntervalSec = 0.2f;
+	float GatherRadiusOverride = 0.0f;
+	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
+	EKawaiiPhysicsComplexShapeApproximation ComplexShapeApproximation = EKawaiiPhysicsComplexShapeApproximation::BoxBounds;
+	EKawaiiPhysicsSimpleWorldSkeletalMeshMode SkeletalMeshMode = EKawaiiPhysicsSimpleWorldSkeletalMeshMode::Ignore;
+	bool bApproximateGround = true;
+
+	/**
+	 * 複数ノードの収集設定を SkelComp 単位の1設定へマージする。
+	 * Merge multiple node gather settings into one SkelComp-level setting.
+	 *
+	 * 規則 / Rules:
+	 * - GatherIntervalSec は最小値。0以下は毎フレーム収集で最優先。
+	 * - GatherIntervalSec uses the minimum value. <= 0 means gather every frame and has highest priority.
+	 * - GatherRadiusOverride は「全 Desc が Override 指定」の場合だけ最大値。1つでも未指定なら 0 のままにし、Tick 側で自動半径を使う。
+	 * - GatherRadiusOverride is the max only when every Desc specifies an override. If any Desc is automatic, it stays 0 and Tick uses the automatic radius.
+	 * - ObjectTypes は union。空配列は WorldStatic + WorldDynamic の意味なので、空 Desc がある場合はそれらを明示的に union へ含める。
+	 * - ObjectTypes are unioned. Empty means WorldStatic + WorldDynamic, so those are explicitly included when any Desc is empty.
+	 * - ComplexShapeApproximation は BoxBounds > SphereBounds > Ignore の優先。
+	 * - ComplexShapeApproximation priority is BoxBounds > SphereBounds > Ignore.
+	 * - SkeletalMeshMode は PhysicsAsset > BoundsBox > Ignore の優先。
+	 * - SkeletalMeshMode priority is PhysicsAsset > BoundsBox > Ignore.
+	 * - bApproximateGround は OR。
+	 * - bApproximateGround is OR.
+	 */
+	static FKawaiiPhysicsSimpleWorldCollisionDesc Merge(const TArray<FKawaiiPhysicsSimpleWorldCollisionDesc>& Descs);
+
+	bool operator==(const FKawaiiPhysicsSimpleWorldCollisionDesc& Other) const;
+};
+
+/**
+ * シンプルワールドコリジョン収集Entry（SkelComp単位。複数SourceのDescをマージして1回収集）
+ * Simple-world collision gather entry (per SkelComp. Merges multiple source Descs and gathers once)
+ *
+ * スレッド境界 / Thread boundary:
+ * - Worker: SetDesc / RemoveDesc / MarkRead / RequestRegather / Slot.AppendTo
+ * - GameThread Tick: RemoveExpiredDescs / BuildMergedDesc / world query, GatheredComponents更新, Slot.Publish
+ */
+struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionEntry
+{
+	void SetDesc(uint64 SourceID, const FKawaiiPhysicsSimpleWorldCollisionDesc& InDesc);
+	void RemoveDesc(uint64 SourceID);
+
+	void MarkRead(uint64 SourceID);
+	void RemoveExpiredDescs(uint64 CurrentFrame, uint64 MaxAge);
+	bool HasAnyDesc() const;
+	bool BuildMergedDesc(FKawaiiPhysicsSimpleWorldCollisionDesc& OutMerged) const;
+
+	void RequestRegather();
+	bool ConsumeRegatherRequested();
+
+	FKawaiiPhysicsSharedCollisionSourceSlot Slot;
+
+	// Tick スレッド専有・ロック不要 / Tick-thread only; no lock required.
+	float TimeSinceLastGather = FLT_MAX;
+
+	struct FGatheredComponent
+	{
+		TWeakObjectPtr<const UPrimitiveComponent> Component;
+		bool bStatic = false;
+		float FadeAlpha = 1.0f;
+		FTransform LastComponentTM;
+		FKawaiiPhysicsSharedCollisionData LocalLimits;
+	};
+
+	// Tick スレッド専有・ロック不要 / Tick-thread only; no lock required.
+	TArray<FGatheredComponent> GatheredComponents;
+	bool bHasGatheredOnce = false;
+	bool bHasGroundBox = false;
+	FBoxLimit GroundBox;
+	FKawaiiPhysicsSharedCollisionData PublishScratch;
+	TArray<FOverlapResult> OverlapScratch;
+	bool bWorldLimitsDirty = true;
+
+private:
+	struct FDescSlot
+	{
+		FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
+		uint64 LastReadFrame = 0;
+	};
+
+	TMap<uint64, FDescSlot> DescSlots;
+	mutable FRWLock DescLock;
+	std::atomic<bool> bRegatherRequested{false};
+};
+
+/**
  * KawaiiPhysics AnimNode間でコリジョンデータを共有するためのWorldSubsystem
  * WorldSubsystem for sharing collision data between KawaiiPhysics AnimNodes in an attached actor family
  */
@@ -111,6 +210,13 @@ public:
 	TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> FindOrCreateEntry(AActor* Actor, const FGameplayTag& Tag);
 
 	/**
+	 * SimpleWorld Source用: SkelComp単位のEntryを検索、なければ作成（任意スレッドから呼べる。SkelCompをdereferenceしない）
+	 * For SimpleWorld sources: Find or create a SkelComp-level entry (callable from any thread; does not dereference SkelComp)
+	 */
+	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> FindOrCreateSimpleWorldEntry(
+		TWeakObjectPtr<const USkeletalMeshComponent> SkelComp);
+
+	/**
 	 * Target用: Actorのファミリーrootのエントリを検索（RegistryLockでスレッドセーフ。任意スレッドから呼べる）
 	 * For targets: Find an entry for the actor family root. Thread-safe via RegistryLock; callable from any thread.
 	 */
@@ -122,7 +228,7 @@ public:
 	// FTickableGameObject interface (via UTickableWorldSubsystem)
 	virtual void Tick(float DeltaTime) override;
 	virtual TStatId GetStatId() const override;
-	// RegistryはWorkerスレッド(FindOrCreateEntry)からも変更されるため、空判定もRegistryLockで保護する（.cppで定義）
+	// RegistryはWorkerスレッドからも変更されるため、空判定も各RegistryLockで保護する（.cppで定義）
 	virtual bool IsTickable() const override;
 	virtual bool IsTickableInEditor() const override { return true; }
 
@@ -136,6 +242,8 @@ private:
 	 * Build the registry key from Actor/Tag (resolving the family root). Returns false if invalid. Shared by FindOrCreateEntry/FindEntry.
 	 */
 	static bool TryResolveRegistryKey(AActor* Actor, const FGameplayTag& Tag, FRegistryKey& OutKey);
+
+	void TickSimpleWorldCollision(float DeltaTime);
 
 	/**
 	 * 構築済みキーで Entry を読み取りロック検索する（死んだActorのEntryはスキップ）。
@@ -151,6 +259,12 @@ private:
 	 *  ロック順序は Registry → Slots に統一する（Tickは本ロック保持中にEntryのSlotsLockを取る）。デッドロック回避のため逆順は禁止。
 	 *  Lock order is always Registry -> Slots (Tick holds this while taking an Entry's SlotsLock); never the reverse. */
 	mutable FRWLock RegistryLock;
+
+	/** SimpleWorldレジストリ: SkelComp → Entry / SimpleWorld registry: SkelComp -> Entry
+	 *  ロック順序は SimpleWorldRegistryLock → Entry内ロック。既存RegistryLock/SlotsLockとは同時取得しない。
+	 *  Lock order is SimpleWorldRegistryLock -> entry-internal locks. Do not hold it with RegistryLock/SlotsLock. */
+	TMap<TWeakObjectPtr<const USkeletalMeshComponent>, TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>> SimpleWorldRegistry;
+	mutable FRWLock SimpleWorldRegistryLock;
 
 	/** クリーンアップ間隔制御 / Cleanup interval control */
 	float CleanupAccumulator = 0.0f;

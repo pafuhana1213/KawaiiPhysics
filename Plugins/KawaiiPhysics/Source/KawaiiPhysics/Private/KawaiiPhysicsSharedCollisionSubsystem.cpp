@@ -2,13 +2,224 @@
 
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
 #include "AnimNode_KawaiiPhysics.h"
+#include "KawaiiPhysicsDeveloperSettings.h"
 
+#include "Camera/PlayerCameraManager.h"
+#include "CollisionQueryParams.h"
+#include "Components/PrimitiveComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "DrawDebugHelpers.h"
+#include "Engine/OverlapResult.h"
+#include "Engine/World.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/PlayerController.h"
+#include "PhysicsEngine/BodySetup.h"
+
+namespace
+{
+	// FadeBoxEnableThreshold/GroundBoxHalfThicknessは調整の必要性が薄いため意図的に定数のまま維持する。
+	// 他のチューニング値は a.AnimNode.KawaiiPhysics.SimpleWorldCollision.* CVar（AnimNode_KawaiiPhysics.cppで定義）
+	// および UKawaiiPhysicsDeveloperSettings（Simple World Collisionカテゴリ）へ移行済み。
+	constexpr float GSimpleWorldFadeBoxEnableThreshold = 0.5f;
+	constexpr float GSimpleWorldGroundBoxHalfThickness = 10.0f;
+	const FName GSimpleWorldIgnoreTagName(TEXT("KawaiiPhysics.IgnoreSimpleWorldCollision"));
+
+	void InitializeSimpleWorldLimit(FCollisionLimitBase& Limit)
+	{
+		Limit.bEnable = true;
+		Limit.SourceType = ECollisionSourceType::SimpleWorld;
+	}
+
+	FTransform GetScaleStrippedComponentTransform(const UPrimitiveComponent& Component)
+	{
+		FTransform ComponentTM = Component.GetComponentTransform();
+		ComponentTM.SetScale3D(FVector::OneVector);
+		return ComponentTM;
+	}
+
+	bool IsSimpleWorldAggGeomEmpty(const FKAggregateGeom& AggGeom)
+	{
+		return AggGeom.SphereElems.IsEmpty()
+			&& AggGeom.SphylElems.IsEmpty()
+			&& AggGeom.TaperedCapsuleElems.IsEmpty()
+			&& AggGeom.BoxElems.IsEmpty()
+			&& AggGeom.ConvexElems.IsEmpty();
+	}
+
+	void AppendBoundsApproximationToLocalLimits(
+		const FBoxSphereBounds& Bounds,
+		const FTransform& ComponentTM,
+		EKawaiiPhysicsComplexShapeApproximation ApproxMode,
+		FKawaiiPhysicsSharedCollisionData& OutLocalLimits)
+	{
+		if (ApproxMode == EKawaiiPhysicsComplexShapeApproximation::Ignore)
+		{
+			return;
+		}
+
+		const FVector LocalCenter = ComponentTM.InverseTransformPosition(Bounds.Origin);
+		if (ApproxMode == EKawaiiPhysicsComplexShapeApproximation::BoxBounds)
+		{
+			FBoxLimit NewLimit;
+			InitializeSimpleWorldLimit(NewLimit);
+			NewLimit.Location = LocalCenter;
+			NewLimit.Rotation = FQuat::Identity;
+			NewLimit.Extent = Bounds.BoxExtent;
+			OutLocalLimits.BoxLimits.Add(NewLimit);
+		}
+		else if (ApproxMode == EKawaiiPhysicsComplexShapeApproximation::SphereBounds)
+		{
+			FSphericalLimit NewLimit;
+			InitializeSimpleWorldLimit(NewLimit);
+			NewLimit.Location = LocalCenter;
+			NewLimit.Rotation = FQuat::Identity;
+			NewLimit.Radius = Bounds.SphereRadius;
+			NewLimit.LimitType = ESphericalLimitType::Outer;
+			OutLocalLimits.SphericalLimits.Add(NewLimit);
+		}
+	}
+
+	FCollisionObjectQueryParams BuildSimpleWorldObjectQueryParams(
+		const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes)
+	{
+		FCollisionObjectQueryParams ObjectQueryParams;
+		if (ObjectTypes.IsEmpty())
+		{
+			ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldStatic);
+			ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldDynamic);
+			return ObjectQueryParams;
+		}
+
+		for (const TEnumAsByte<EObjectTypeQuery>& ObjectType : ObjectTypes)
+		{
+			const ECollisionChannel CollisionChannel = UEngineTypes::ConvertToCollisionChannel(ObjectType.GetValue());
+			if (CollisionChannel != ECC_MAX)
+			{
+				ObjectQueryParams.AddObjectTypesToQuery(CollisionChannel);
+			}
+		}
+		return ObjectQueryParams;
+	}
+
+	bool BuildLocalLimitsForSimpleWorldComponent(
+		UPrimitiveComponent& Component,
+		const FTransform& ComponentTM,
+		const FKawaiiPhysicsSimpleWorldCollisionDesc& Desc,
+		FKawaiiPhysicsSharedCollisionData& OutLocalLimits)
+	{
+		OutLocalLimits.Reset();
+
+		if (Cast<const USkeletalMeshComponent>(&Component))
+		{
+			if (Desc.SkeletalMeshMode == EKawaiiPhysicsSimpleWorldSkeletalMeshMode::Ignore)
+			{
+				return false;
+			}
+
+			// PhysicsAsset は Phase 2a では BoundsBox と同じ扱い。Phase 3以降でbone transform込み変換を実装する。
+			AppendBoundsApproximationToLocalLimits(
+				Component.Bounds,
+				ComponentTM,
+				EKawaiiPhysicsComplexShapeApproximation::BoxBounds,
+				OutLocalLimits);
+			return !OutLocalLimits.IsEmpty();
+		}
+
+		const UBodySetup* BodySetup = Component.GetBodySetup();
+		if (BodySetup && !IsSimpleWorldAggGeomEmpty(BodySetup->AggGeom))
+		{
+			KawaiiPhysicsSimpleWorldCollision::ConvertAggGeomToLocalLimits(
+				BodySetup->AggGeom,
+				Component.GetComponentScale(),
+				Desc.ComplexShapeApproximation,
+				OutLocalLimits);
+		}
+		else
+		{
+			AppendBoundsApproximationToLocalLimits(Component.Bounds, ComponentTM, Desc.ComplexShapeApproximation, OutLocalLimits);
+		}
+
+		return !OutLocalLimits.IsEmpty();
+	}
+
+#if ENABLE_DRAW_DEBUG
+	// 簡易ワールドコリジョンのデバッグ描画（GameThread専用）。収集済み形状はComponentローカル形状+ComponentTMから
+	// 描画時に都度ワールド変換する。フェード中はFadeAlphaに応じて薄い色にする（PublishScratchは半径縮小済みで
+	// アルファ情報が失われるため使わない）。地面Boxのみ別途Green表示する。
+	void DrawSimpleWorldCollisionDebug(
+		const UWorld& World,
+		const FVector& GatherCenter,
+		float GatherRadius,
+		const FKawaiiPhysicsSimpleWorldCollisionEntry& Entry)
+	{
+		constexpr float RadiusSphereThickness = 0.0f; // 細線
+		constexpr float ShapeThickness = 1.5f;
+		constexpr uint8 DepthPriority = 0;
+
+		// 収集半径球
+		DrawDebugSphere(&World, GatherCenter, GatherRadius, 16, FColor::White, false, -1.0f, DepthPriority,
+			RadiusSphereThickness);
+
+		// 収集済み各形状（水色。フェード中は薄い色）
+		for (const FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent& Component : Entry.GatheredComponents)
+		{
+			const float Alpha = FMath::Clamp(Component.FadeAlpha, 0.0f, 1.0f);
+			const FColor ShapeColor = FMath::Lerp(FLinearColor(0.0f, 0.35f, 0.35f), FLinearColor(0.0f, 1.0f, 1.0f), Alpha).
+				ToFColor(false);
+
+			for (const FSphericalLimit& Limit : Component.LocalLimits.SphericalLimits)
+			{
+				const FVector LocationWS = Component.LastComponentTM.TransformPosition(Limit.Location);
+				DrawDebugSphere(&World, LocationWS, Limit.Radius, 12, ShapeColor, false, -1.0f, DepthPriority,
+					ShapeThickness);
+			}
+			for (const FCapsuleLimit& Limit : Component.LocalLimits.CapsuleLimits)
+			{
+				const FVector LocationWS = Component.LastComponentTM.TransformPosition(Limit.Location);
+				const FQuat RotationWS = Component.LastComponentTM.TransformRotation(Limit.Rotation);
+				DrawDebugCapsule(&World, LocationWS, Limit.Length * 0.5f, Limit.Radius, RotationWS, ShapeColor, false,
+					-1.0f, DepthPriority, ShapeThickness);
+			}
+			for (const FTaperedCapsuleLimit& Limit : Component.LocalLimits.TaperedCapsuleLimits)
+			{
+				// DrawDebugCapsuleで近似（半径は両端の平均）
+				const FVector LocationWS = Component.LastComponentTM.TransformPosition(Limit.Location);
+				const FQuat RotationWS = Component.LastComponentTM.TransformRotation(Limit.Rotation);
+				const float AverageRadius = (Limit.Radius0 + Limit.Radius1) * 0.5f;
+				DrawDebugCapsule(&World, LocationWS, Limit.Length * 0.5f, AverageRadius, RotationWS, ShapeColor, false,
+					-1.0f, DepthPriority, ShapeThickness);
+			}
+			for (const FBoxLimit& Limit : Component.LocalLimits.BoxLimits)
+			{
+				const FVector LocationWS = Component.LastComponentTM.TransformPosition(Limit.Location);
+				const FQuat RotationWS = Component.LastComponentTM.TransformRotation(Limit.Rotation);
+				DrawDebugBox(&World, LocationWS, Limit.Extent, RotationWS, ShapeColor, false, -1.0f, DepthPriority,
+					ShapeThickness);
+			}
+		}
+
+		// 地面Box
+		if (Entry.bHasGroundBox)
+		{
+			DrawDebugBox(&World, Entry.GroundBox.Location, Entry.GroundBox.Extent, Entry.GroundBox.Rotation,
+				FColor::Green, false, -1.0f, DepthPriority, ShapeThickness);
+		}
+	}
+#endif
+}
 
 // SharedCollision CVars（AnimNode_KawaiiPhysics.cpp で定義）
 extern TAutoConsoleVariable<int32> CVarSharedCollisionReadMaxAge;
 extern TAutoConsoleVariable<int32> CVarSharedCollisionCleanupMaxAge;
 extern TAutoConsoleVariable<float> CVarSharedCollisionCleanupInterval;
+
+// SimpleWorldCollision CVars（AnimNode_KawaiiPhysics.cpp で定義）
+extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionEnable;
+extern TAutoConsoleVariable<float> CVarSimpleWorldCollisionGatherIntervalScale;
+extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionMaxComponents;
+extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionCleanupMaxAge;
+extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionDebugDraw;
+extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionForceEnableOnServer;
 
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SharedCollision_Publish"), STAT_KawaiiPhysics_SharedCollision_Publish, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SharedCollision_GetOrCreateSlot"), STAT_KawaiiPhysics_SharedCollision_GetOrCreateSlot, STATGROUP_Anim);
@@ -18,6 +229,10 @@ DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SharedCollision_FindEntry"), STAT_KawaiiP
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SharedCollision_Tick"), STAT_KawaiiPhysics_SharedCollision_Tick, STATGROUP_Anim);
 DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_SharedCollision_NumEntries"), STAT_KawaiiPhysics_SharedCollision_NumEntries, STATGROUP_Anim);
 DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_SharedCollision_NumSlots"), STAT_KawaiiPhysics_SharedCollision_NumSlots, STATGROUP_Anim);
+
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimpleWorldCollision_Gather"), STAT_KawaiiPhysics_SimpleWorldCollision_Gather, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimpleWorldCollision_UpdateTransforms"), STAT_KawaiiPhysics_SimpleWorldCollision_UpdateTransforms, STATGROUP_Anim);
+DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_SimpleWorldCollision_NumGatheredComponents"), STAT_KawaiiPhysics_SimpleWorldCollision_NumGatheredComponents, STATGROUP_Anim);
 
 AActor* UKawaiiPhysicsSharedCollisionSubsystem::GetFamilyRoot(AActor* Actor)
 {
@@ -151,6 +366,181 @@ bool FKawaiiPhysicsSharedCollisionEntry::IsEmpty() const
 }
 
 // -------------------------------------------------------------------
+// FKawaiiPhysicsSimpleWorldCollisionDesc / Entry
+// -------------------------------------------------------------------
+
+bool FKawaiiPhysicsSimpleWorldCollisionDesc::operator==(const FKawaiiPhysicsSimpleWorldCollisionDesc& Other) const
+{
+	return GatherIntervalSec == Other.GatherIntervalSec
+		&& GatherRadiusOverride == Other.GatherRadiusOverride
+		&& ObjectTypes == Other.ObjectTypes
+		&& ComplexShapeApproximation == Other.ComplexShapeApproximation
+		&& SkeletalMeshMode == Other.SkeletalMeshMode
+		&& bApproximateGround == Other.bApproximateGround;
+}
+
+FKawaiiPhysicsSimpleWorldCollisionDesc FKawaiiPhysicsSimpleWorldCollisionDesc::Merge(
+	const TArray<FKawaiiPhysicsSimpleWorldCollisionDesc>& Descs)
+{
+	FKawaiiPhysicsSimpleWorldCollisionDesc Merged;
+	if (Descs.IsEmpty())
+	{
+		return Merged;
+	}
+
+	Merged = Descs[0];
+	Merged.ObjectTypes.Reset();
+
+	bool bAllGatherRadiusOverridden = true;
+	float MaxGatherRadiusOverride = 0.0f;
+	bool bHasEmptyObjectTypes = false;
+
+	for (const FKawaiiPhysicsSimpleWorldCollisionDesc& Desc : Descs)
+	{
+		Merged.GatherIntervalSec = FMath::Min(Merged.GatherIntervalSec, Desc.GatherIntervalSec);
+
+		if (Desc.GatherRadiusOverride > KINDA_SMALL_NUMBER)
+		{
+			MaxGatherRadiusOverride = FMath::Max(MaxGatherRadiusOverride, Desc.GatherRadiusOverride);
+		}
+		else
+		{
+			bAllGatherRadiusOverridden = false;
+		}
+
+		if (Desc.ObjectTypes.IsEmpty())
+		{
+			bHasEmptyObjectTypes = true;
+		}
+		else
+		{
+			for (const TEnumAsByte<EObjectTypeQuery>& ObjectType : Desc.ObjectTypes)
+			{
+				Merged.ObjectTypes.AddUnique(ObjectType);
+			}
+		}
+
+		if (static_cast<uint8>(Desc.ComplexShapeApproximation) < static_cast<uint8>(Merged.ComplexShapeApproximation))
+		{
+			Merged.ComplexShapeApproximation = Desc.ComplexShapeApproximation;
+		}
+
+		if (static_cast<uint8>(Desc.SkeletalMeshMode) > static_cast<uint8>(Merged.SkeletalMeshMode))
+		{
+			Merged.SkeletalMeshMode = Desc.SkeletalMeshMode;
+		}
+
+		Merged.bApproximateGround = Merged.bApproximateGround || Desc.bApproximateGround;
+	}
+
+	if (bHasEmptyObjectTypes)
+	{
+		Merged.ObjectTypes.AddUnique(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
+		Merged.ObjectTypes.AddUnique(UEngineTypes::ConvertToObjectType(ECC_WorldDynamic));
+	}
+
+	// 自動半径はSkelComp Bounds依存でここでは解決できないため、1つでも自動指定があれば 0 を残す。
+	// Tick側で max(自動半径, マージ済みOverride) の二段解決を行う。
+	Merged.GatherRadiusOverride = bAllGatherRadiusOverridden ? MaxGatherRadiusOverride : 0.0f;
+
+	return Merged;
+}
+
+void FKawaiiPhysicsSimpleWorldCollisionEntry::SetDesc(
+	uint64 SourceID, const FKawaiiPhysicsSimpleWorldCollisionDesc& InDesc)
+{
+	if (SourceID == 0)
+	{
+		return;
+	}
+
+	FWriteScopeLock WriteLock(DescLock);
+	FDescSlot& DescSlotRef = DescSlots.FindOrAdd(SourceID);
+	if (!(DescSlotRef.Desc == InDesc))
+	{
+		DescSlotRef.Desc = InDesc;
+		bRegatherRequested.store(true, std::memory_order_release);
+	}
+}
+
+void FKawaiiPhysicsSimpleWorldCollisionEntry::RemoveDesc(uint64 SourceID)
+{
+	if (SourceID == 0)
+	{
+		return;
+	}
+
+	FWriteScopeLock WriteLock(DescLock);
+	if (DescSlots.Remove(SourceID) > 0)
+	{
+		bRegatherRequested.store(true, std::memory_order_release);
+	}
+}
+
+void FKawaiiPhysicsSimpleWorldCollisionEntry::MarkRead(uint64 SourceID)
+{
+	// FDescSlotのLastReadFrameはatomicにせず、DescSlotsの構造変更と同じDescLock(write)で保護する。
+	// TMap要素を値型で保持でき、期限切れ除去と読み取りマークの整合も同じロック順序で扱える。
+	FWriteScopeLock WriteLock(DescLock);
+	if (FDescSlot* DescSlotPtr = DescSlots.Find(SourceID))
+	{
+		DescSlotPtr->LastReadFrame = GFrameCounter;
+	}
+}
+
+void FKawaiiPhysicsSimpleWorldCollisionEntry::RemoveExpiredDescs(uint64 CurrentFrame, uint64 MaxAge)
+{
+	FWriteScopeLock WriteLock(DescLock);
+	for (auto DescIt = DescSlots.CreateIterator(); DescIt; ++DescIt)
+	{
+		const uint64 LastFrame = DescIt->Value.LastReadFrame;
+		if ((LastFrame == 0) || (CurrentFrame - LastFrame > MaxAge))
+		{
+			DescIt.RemoveCurrent();
+			bRegatherRequested.store(true, std::memory_order_release);
+		}
+	}
+}
+
+bool FKawaiiPhysicsSimpleWorldCollisionEntry::HasAnyDesc() const
+{
+	FReadScopeLock ReadLock(DescLock);
+	return !DescSlots.IsEmpty();
+}
+
+bool FKawaiiPhysicsSimpleWorldCollisionEntry::BuildMergedDesc(
+	FKawaiiPhysicsSimpleWorldCollisionDesc& OutMerged) const
+{
+	TArray<FKawaiiPhysicsSimpleWorldCollisionDesc> Descs;
+	{
+		FReadScopeLock ReadLock(DescLock);
+		if (DescSlots.IsEmpty())
+		{
+			return false;
+		}
+
+		Descs.Reserve(DescSlots.Num());
+		for (const auto& Pair : DescSlots)
+		{
+			Descs.Add(Pair.Value.Desc);
+		}
+	}
+
+	OutMerged = FKawaiiPhysicsSimpleWorldCollisionDesc::Merge(Descs);
+	return true;
+}
+
+void FKawaiiPhysicsSimpleWorldCollisionEntry::RequestRegather()
+{
+	bRegatherRequested.store(true, std::memory_order_release);
+}
+
+bool FKawaiiPhysicsSimpleWorldCollisionEntry::ConsumeRegatherRequested()
+{
+	return bRegatherRequested.exchange(false, std::memory_order_acq_rel);
+}
+
+// -------------------------------------------------------------------
 // UKawaiiPhysicsSharedCollisionSubsystem
 // -------------------------------------------------------------------
 
@@ -216,6 +606,32 @@ TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> UKawaiiPhysicsSharedCollisionSubs
 	return NewEntry;
 }
 
+TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> UKawaiiPhysicsSharedCollisionSubsystem::FindOrCreateSimpleWorldEntry(
+	TWeakObjectPtr<const USkeletalMeshComponent> SkelComp)
+{
+	if (!SkelComp.IsValid())
+	{
+		return nullptr;
+	}
+
+	{
+		FReadScopeLock ReadLock(SimpleWorldRegistryLock);
+		if (TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>* Existing = SimpleWorldRegistry.Find(SkelComp))
+		{
+			return *Existing;
+		}
+	}
+
+	FWriteScopeLock WriteLock(SimpleWorldRegistryLock);
+	if (TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>* Existing = SimpleWorldRegistry.Find(SkelComp))
+	{
+		return *Existing;
+	}
+	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> NewEntry = MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
+	SimpleWorldRegistry.Add(SkelComp, NewEntry);
+	return NewEntry;
+}
+
 TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> UKawaiiPhysicsSharedCollisionSubsystem::FindEntry(
 	AActor* Actor, const FGameplayTag& Tag) const
 {
@@ -229,17 +645,295 @@ TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> UKawaiiPhysicsSharedCollisionSubs
 	return FindEntryByKey(Key);
 }
 
+void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float DeltaTime)
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	if (!CVarSimpleWorldCollisionEnable.GetValueOnGameThread())
+	{
+		// CVarでの全体無効化。収集・毎フレーム更新・Publishのすべてを止める。
+		return;
+	}
+
+	if (World->GetNetMode() == NM_DedicatedServer && !CVarSimpleWorldCollisionForceEnableOnServer.GetValueOnGameThread())
+	{
+		// 見た目専用機能のためDedicated Serverでは既定で収集しない（ForceEnableOnServer CVarで上書き可能）。
+		return;
+	}
+
+	struct FSimpleWorldTickEntry
+	{
+		TWeakObjectPtr<const USkeletalMeshComponent> SkelComp;
+		TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> Entry;
+	};
+
+	TArray<FSimpleWorldTickEntry> Entries;
+	{
+		FReadScopeLock ReadLock(SimpleWorldRegistryLock);
+		Entries.Reserve(SimpleWorldRegistry.Num());
+		for (const auto& Pair : SimpleWorldRegistry)
+		{
+			FSimpleWorldTickEntry TickEntry;
+			TickEntry.SkelComp = Pair.Key;
+			TickEntry.Entry = Pair.Value;
+			Entries.Add(MoveTemp(TickEntry));
+		}
+	}
+
+	const uint64 CurrentFrame = GFrameCounter;
+	// Descの未読エイジアウト判定もSimpleWorld専用のCleanupMaxAge CVarを使う（従来はSharedCollision用を流用していた）
+	const int32 ReadMaxAge = CVarSimpleWorldCollisionCleanupMaxAge.GetValueOnGameThread();
+
+	const UKawaiiPhysicsDeveloperSettings* KawaiiSettings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
+	const float GatherIntervalScale = FMath::Max(0.0f, CVarSimpleWorldCollisionGatherIntervalScale.GetValueOnGameThread());
+	const int32 MaxComponentsCVarValue = CVarSimpleWorldCollisionMaxComponents.GetValueOnGameThread();
+	const int32 EffectiveMaxGatheredComponents = MaxComponentsCVarValue >= 0
+		? MaxComponentsCVarValue
+		: KawaiiSettings->SimpleWorldCollisionMaxGatheredComponents;
+#if ENABLE_DRAW_DEBUG
+	const bool bDebugDraw = CVarSimpleWorldCollisionDebugDraw.GetValueOnGameThread() != 0;
+#endif
+
+	for (const FSimpleWorldTickEntry& TickEntry : Entries)
+	{
+		const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>& Entry = TickEntry.Entry;
+		if (!Entry.IsValid())
+		{
+			continue;
+		}
+
+		Entry->RemoveExpiredDescs(CurrentFrame, ReadMaxAge);
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
+		if (!Entry->BuildMergedDesc(Desc))
+		{
+			continue;
+		}
+
+		const USkeletalMeshComponent* SkelComp = TickEntry.SkelComp.Get();
+		if (!SkelComp)
+		{
+			continue;
+		}
+
+		if (Entry->ConsumeRegatherRequested())
+		{
+			Entry->GatheredComponents.Reset();
+			Entry->bHasGroundBox = false;
+			Entry->bHasGatheredOnce = false;
+			Entry->TimeSinceLastGather = FLT_MAX;
+			Entry->bWorldLimitsDirty = true;
+		}
+
+		const FVector Center = SkelComp->Bounds.Origin;
+
+		// 収集半径はゲート/デバッグ描画の両方で使うため、bShouldGather判定より前に確定させる
+		const float AutoRadius = SkelComp->Bounds.SphereRadius * KawaiiSettings->SimpleWorldCollisionAutoGatherRadiusScale;
+		const float Radius = Desc.GatherRadiusOverride > KINDA_SMALL_NUMBER
+			? FMath::Max(AutoRadius, Desc.GatherRadiusOverride)
+			: AutoRadius;
+
+		bool bAllowGather = true;
+		float EffectiveGatherInterval = Desc.GatherIntervalSec * GatherIntervalScale;
+		if (const APlayerController* PlayerController = World->GetFirstPlayerController())
+		{
+			if (const APlayerCameraManager* CameraManager = PlayerController->PlayerCameraManager)
+			{
+				const float DistanceToCamera = FVector::Dist(CameraManager->GetCameraLocation(), Center);
+				if (DistanceToCamera > KawaiiSettings->SimpleWorldCollisionDistanceThrottleStop)
+				{
+					bAllowGather = false;
+				}
+				else if (DistanceToCamera > KawaiiSettings->SimpleWorldCollisionDistanceThrottleStart && EffectiveGatherInterval > KINDA_SMALL_NUMBER)
+				{
+					EffectiveGatherInterval *= 2.0f;
+				}
+			}
+		}
+
+		Entry->TimeSinceLastGather += DeltaTime;
+		const bool bGatherEveryFrame = Desc.GatherIntervalSec <= KINDA_SMALL_NUMBER;
+		const bool bShouldGather = bAllowGather
+			&& (bGatherEveryFrame || Entry->TimeSinceLastGather >= EffectiveGatherInterval);
+
+		if (bShouldGather)
+		{
+			SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SimpleWorldCollision_Gather);
+
+			const FCollisionObjectQueryParams ObjectQueryParams = BuildSimpleWorldObjectQueryParams(Desc.ObjectTypes);
+			FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(KawaiiPhysicsSimpleWorldCollision), false);
+			QueryParams.AddIgnoredActor(SkelComp->GetOwner());
+
+			Entry->OverlapScratch.Reset();
+			World->OverlapMultiByObjectType(
+				Entry->OverlapScratch,
+				Center,
+				FQuat::Identity,
+				ObjectQueryParams,
+				FCollisionShape::MakeSphere(Radius),
+				QueryParams);
+
+			TSet<const UPrimitiveComponent*> UniqueComponents;
+			TArray<FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent> NewGatheredComponents;
+			NewGatheredComponents.Reserve(FMath::Min(Entry->OverlapScratch.Num(), EffectiveMaxGatheredComponents));
+
+			for (const FOverlapResult& Overlap : Entry->OverlapScratch)
+			{
+				UPrimitiveComponent* Component = Overlap.GetComponent();
+				if (!Component || UniqueComponents.Contains(Component))
+				{
+					continue;
+				}
+
+				const AActor* ComponentOwner = Component->GetOwner();
+				if (ComponentOwner && ComponentOwner->ActorHasTag(GSimpleWorldIgnoreTagName))
+				{
+					continue;
+				}
+
+				UniqueComponents.Add(Component);
+
+				FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent NewComponent;
+				NewComponent.Component = Component;
+				NewComponent.bStatic = (Component->GetMobility() == EComponentMobility::Static);
+				NewComponent.FadeAlpha = Entry->bHasGatheredOnce ? 0.0f : 1.0f;
+
+				if (const FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent* ExistingComponent =
+					Entry->GatheredComponents.FindByPredicate(
+						[Component](const FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent& Candidate)
+						{
+							return Candidate.Component.Get() == Component;
+						}))
+				{
+					NewComponent.FadeAlpha = ExistingComponent->FadeAlpha;
+				}
+
+				NewComponent.LastComponentTM = GetScaleStrippedComponentTransform(*Component);
+				if (!BuildLocalLimitsForSimpleWorldComponent(*Component, NewComponent.LastComponentTM, Desc, NewComponent.LocalLimits))
+				{
+					continue;
+				}
+
+				NewGatheredComponents.Add(MoveTemp(NewComponent));
+				if (NewGatheredComponents.Num() >= EffectiveMaxGatheredComponents)
+				{
+					break;
+				}
+			}
+
+			Entry->GatheredComponents = MoveTemp(NewGatheredComponents);
+
+			if (Desc.bApproximateGround)
+			{
+				FHitResult Hit;
+				const bool bHitGround = World->LineTraceSingleByObjectType(
+					Hit,
+					Center,
+					Center - FVector(0.0f, 0.0f, Radius),
+					ObjectQueryParams,
+					QueryParams);
+
+				Entry->bHasGroundBox = bHitGround;
+				if (bHitGround)
+				{
+					InitializeSimpleWorldLimit(Entry->GroundBox);
+					Entry->GroundBox.Location = Hit.ImpactPoint - Hit.ImpactNormal * GSimpleWorldGroundBoxHalfThickness;
+					Entry->GroundBox.Rotation = FRotationMatrix::MakeFromZ(Hit.ImpactNormal).ToQuat();
+					Entry->GroundBox.Extent = FVector(Radius, Radius, GSimpleWorldGroundBoxHalfThickness);
+				}
+			}
+			else
+			{
+				Entry->bHasGroundBox = false;
+			}
+
+			Entry->bHasGatheredOnce = true;
+			Entry->bWorldLimitsDirty = true;
+			Entry->TimeSinceLastGather = 0.0f;
+		}
+
+		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SimpleWorldCollision_UpdateTransforms);
+		bool bDirty = Entry->bWorldLimitsDirty;
+		for (auto ComponentIt = Entry->GatheredComponents.CreateIterator(); ComponentIt; ++ComponentIt)
+		{
+			const UPrimitiveComponent* Component = ComponentIt->Component.Get();
+			if (!Component)
+			{
+				ComponentIt.RemoveCurrent();
+				bDirty = true;
+				continue;
+			}
+
+			if (ComponentIt->FadeAlpha < 1.0f)
+			{
+				ComponentIt->FadeAlpha = KawaiiSettings->SimpleWorldCollisionFadeInTime > KINDA_SMALL_NUMBER
+					? FMath::Min(1.0f, ComponentIt->FadeAlpha + DeltaTime / KawaiiSettings->SimpleWorldCollisionFadeInTime)
+					: 1.0f;
+				bDirty = true;
+			}
+
+			const FTransform CurrentComponentTM = GetScaleStrippedComponentTransform(*Component);
+			if (!ComponentIt->bStatic && !ComponentIt->LastComponentTM.Equals(CurrentComponentTM, KINDA_SMALL_NUMBER))
+			{
+				ComponentIt->LastComponentTM = CurrentComponentTM;
+				bDirty = true;
+			}
+		}
+
+		if (bDirty)
+		{
+			Entry->PublishScratch.Reset();
+			for (const FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent& Component : Entry->GatheredComponents)
+			{
+				// フェード計算本体は KawaiiPhysicsSimpleWorldCollision 名前空間へ移設済み（単体テスト可能化のため）。
+				// しきい値定数はここ（Subsystem側）で保持したまま引数として渡す。
+				KawaiiPhysicsSimpleWorldCollision::AppendFadedLocalLimits(
+					Component.LocalLimits,
+					Component.FadeAlpha,
+					Component.LastComponentTM,
+					Entry->PublishScratch,
+					GSimpleWorldFadeBoxEnableThreshold);
+			}
+
+			if (Entry->bHasGroundBox)
+			{
+				Entry->PublishScratch.BoxLimits.Add(Entry->GroundBox);
+			}
+
+			Entry->Slot.Publish(Entry->PublishScratch);
+			Entry->bWorldLimitsDirty = false;
+		}
+
+#if ENABLE_DRAW_DEBUG
+		if (bDebugDraw)
+		{
+			DrawSimpleWorldCollisionDebug(*World, Center, Radius, *Entry);
+		}
+#endif
+	}
+}
+
 void UKawaiiPhysicsSharedCollisionSubsystem::Deinitialize()
 {
 	{
 		FWriteScopeLock WriteLock(RegistryLock);
 		Registry.Empty();
 	}
+	{
+		FWriteScopeLock WriteLock(SimpleWorldRegistryLock);
+		SimpleWorldRegistry.Empty();
+	}
 	Super::Deinitialize();
 }
 
 void UKawaiiPhysicsSharedCollisionSubsystem::Tick(float DeltaTime)
 {
+	TickSimpleWorldCollision(DeltaTime);
+
 	CleanupAccumulator += DeltaTime;
 	if (CleanupAccumulator < CVarSharedCollisionCleanupInterval.GetValueOnGameThread())
 	{
@@ -250,45 +944,81 @@ void UKawaiiPhysicsSharedCollisionSubsystem::Tick(float DeltaTime)
 
 	const uint64 CurrentFrame = GFrameCounter;
 
-	// Registryの構造変更とWorkerスレッドのFind/FindOrCreateの競合を防ぐため書き込みロックで保護。
-	// ロック順序は Registry → Slots（Entryメソッドが内部でSlotsLockを取る）。
-	FWriteScopeLock WriteLock(RegistryLock);
-
-	for (auto It = Registry.CreateIterator(); It; ++It)
 	{
-		// Actorが無効 → エントリ除去
-		if (!It->Key.Key.IsValid())
+		// Registryの構造変更とWorkerスレッドのFind/FindOrCreateの競合を防ぐため書き込みロックで保護。
+		// ロック順序は Registry → Slots（Entryメソッドが内部でSlotsLockを取る）。
+		FWriteScopeLock WriteLock(RegistryLock);
+
+		for (auto It = Registry.CreateIterator(); It; ++It)
 		{
-			It.RemoveCurrent();
-			continue;
+			// Actorが無効 → エントリ除去
+			if (!It->Key.Key.IsValid())
+			{
+				It.RemoveCurrent();
+				continue;
+			}
+
+			// 期限切れスロットを除去
+			FKawaiiPhysicsSharedCollisionEntry& Entry = *It->Value;
+			Entry.RemoveExpiredSlots(CurrentFrame, CVarSharedCollisionCleanupMaxAge.GetValueOnGameThread());
+
+			// スロットが空になったエントリも除去
+			if (Entry.IsEmpty())
+			{
+				It.RemoveCurrent();
+			}
 		}
 
-		// 期限切れスロットを除去
-		FKawaiiPhysicsSharedCollisionEntry& Entry = *It->Value;
-		Entry.RemoveExpiredSlots(CurrentFrame, CVarSharedCollisionCleanupMaxAge.GetValueOnGameThread());
-
-		// スロットが空になったエントリも除去
-		if (Entry.IsEmpty())
+		// 整数カウンタ更新
+		int32 TotalSlots = 0;
+		for (const auto& Pair : Registry)
 		{
-			It.RemoveCurrent();
+			TotalSlots += Pair.Value->GetSlotCount();
 		}
+		SET_DWORD_STAT(STAT_KawaiiPhysics_SharedCollision_NumEntries, Registry.Num());
+		SET_DWORD_STAT(STAT_KawaiiPhysics_SharedCollision_NumSlots, TotalSlots);
 	}
 
-	// 整数カウンタ更新
-	int32 TotalSlots = 0;
-	for (const auto& Pair : Registry)
 	{
-		TotalSlots += Pair.Value->GetSlotCount();
+		FWriteScopeLock SimpleWorldWriteLock(SimpleWorldRegistryLock);
+		const int32 SimpleWorldCleanupMaxAge = CVarSimpleWorldCollisionCleanupMaxAge.GetValueOnGameThread();
+
+		int32 TotalGatheredComponents = 0;
+		for (auto It = SimpleWorldRegistry.CreateIterator(); It; ++It)
+		{
+			if (!It->Key.IsValid() || !It->Value.IsValid())
+			{
+				It.RemoveCurrent();
+				continue;
+			}
+
+			It->Value->RemoveExpiredDescs(CurrentFrame, SimpleWorldCleanupMaxAge);
+			if (!It->Value->HasAnyDesc())
+			{
+				It.RemoveCurrent();
+				continue;
+			}
+
+			TotalGatheredComponents += It->Value->GatheredComponents.Num();
+		}
+		SET_DWORD_STAT(STAT_KawaiiPhysics_SimpleWorldCollision_NumGatheredComponents, TotalGatheredComponents);
 	}
-	SET_DWORD_STAT(STAT_KawaiiPhysics_SharedCollision_NumEntries, Registry.Num());
-	SET_DWORD_STAT(STAT_KawaiiPhysics_SharedCollision_NumSlots, TotalSlots);
 }
 
 bool UKawaiiPhysicsSharedCollisionSubsystem::IsTickable() const
 {
-	// FindOrCreateEntryがWorkerスレッドからRegistryを変更しうるため、空判定も読み取りロックで保護する
-	FReadScopeLock ReadLock(RegistryLock);
-	return !Registry.IsEmpty();
+	// WorkerスレッドからRegistryを変更しうるため、空判定も読み取りロックで保護する
+	{
+		FReadScopeLock ReadLock(RegistryLock);
+		if (!Registry.IsEmpty())
+		{
+			return true;
+		}
+	}
+	{
+		FReadScopeLock ReadLock(SimpleWorldRegistryLock);
+		return !SimpleWorldRegistry.IsEmpty();
+	}
 }
 
 TStatId UKawaiiPhysicsSharedCollisionSubsystem::GetStatId() const
