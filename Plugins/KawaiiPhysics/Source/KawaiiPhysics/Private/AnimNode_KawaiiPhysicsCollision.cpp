@@ -37,6 +37,66 @@
 #include "AnimNode_KawaiiPhysicsInternal.h"
 #include "KawaiiPhysicsNodeWarning.h"
 
+namespace
+{
+	template <typename LimitType, typename PostConvertType>
+	void AppendWorldLimitsToSimulationSpace(
+		const FAnimNode_KawaiiPhysics& Node,
+		FComponentSpacePoseContext& Output,
+		EKawaiiPhysicsSimulationSpace TargetSpace,
+		const TArray<LimitType>& InLimits,
+		TArray<LimitType>& OutLimits,
+		PostConvertType PostConvert)
+	{
+		OutLimits.Reserve(InLimits.Num());
+		for (const LimitType& Limit : InLimits)
+		{
+			LimitType Converted = Limit;
+			const FTransform WorldTransform(Limit.Rotation, Limit.Location);
+			const FTransform SimTransform = Node.ConvertSimulationSpaceTransform(
+				Output, EKawaiiPhysicsSimulationSpace::WorldSpace, TargetSpace, WorldTransform);
+			Converted.Location = SimTransform.GetLocation();
+			Converted.Rotation = SimTransform.GetRotation();
+			Converted.bEnable = true;
+			PostConvert(Converted, SimTransform);
+			OutLimits.Add(Converted);
+		}
+	}
+
+	void AppendSharedCollisionDataToSimulationSpace(
+		const FAnimNode_KawaiiPhysics& Node,
+		FComponentSpacePoseContext& Output,
+		EKawaiiPhysicsSimulationSpace TargetSpace,
+		const FKawaiiPhysicsSharedCollisionData& InData,
+		TArray<FSphericalLimit>& OutSphericalLimits,
+		TArray<FCapsuleLimit>& OutCapsuleLimits,
+		TArray<FTaperedCapsuleLimit>& OutTaperedCapsuleLimits,
+		TArray<FBoxLimit>& OutBoxLimits,
+		TArray<FPlanarLimit>* OutPlanarLimits)
+	{
+		auto NoOp = [](auto&, const FTransform&) {};
+		auto RecomputePlane = [](FPlanarLimit& Limit, const FTransform& Transform)
+		{
+			Limit.Plane = FPlane(Limit.Location, Transform.GetRotation().GetUpVector());
+		};
+
+		AppendWorldLimitsToSimulationSpace(Node, Output, TargetSpace, InData.SphericalLimits,
+			OutSphericalLimits, NoOp);
+		AppendWorldLimitsToSimulationSpace(Node, Output, TargetSpace, InData.CapsuleLimits,
+			OutCapsuleLimits, NoOp);
+		AppendWorldLimitsToSimulationSpace(Node, Output, TargetSpace, InData.TaperedCapsuleLimits,
+			OutTaperedCapsuleLimits, NoOp);
+		AppendWorldLimitsToSimulationSpace(Node, Output, TargetSpace, InData.BoxLimits,
+			OutBoxLimits, NoOp);
+
+		if (OutPlanarLimits)
+		{
+			AppendWorldLimitsToSimulationSpace(Node, Output, TargetSpace, InData.PlanarLimits,
+				*OutPlanarLimits, RecomputePlane);
+		}
+	}
+}
+
 void FAnimNode_KawaiiPhysics::ApplyLimitsDataAsset(const FBoneContainer& RequiredBones)
 {
 	auto Initialize = [&RequiredBones](auto& Targets)
@@ -1291,33 +1351,120 @@ void FAnimNode_KawaiiPhysics::UpdateSharedCollisionLimits(
 		return;
 	}
 
-	// ヘルパー: WorldSpace→SimulationSpace に変換して格納
-	auto ConvertAndStore = [&](const auto& InLimits, auto& OutLimits, auto PostConvert)
+	AppendSharedCollisionDataToSimulationSpace(*this, Output, SimulationSpace, SharedCollisionMergedData,
+		SharedSphericalLimits, SharedCapsuleLimits, SharedTaperedCapsuleLimits, SharedBoxLimits,
+		&SharedPlanarLimits);
+}
+
+void FAnimNode_KawaiiPhysics::InitializeSimpleWorldCollision()
+{
+	if (bSimpleWorldCollisionInitialized)
 	{
-		OutLimits.Reserve(InLimits.Num());
-		for (const auto& Limit : InLimits)
+		return;
+	}
+
+	UKawaiiPhysicsSharedCollisionSubsystem* Subsystem = CachedSharedCollisionSubsystem.Get();
+	if (!Subsystem)
+	{
+		return;
+	}
+
+	CachedSimpleWorldEntry = Subsystem->FindOrCreateSimpleWorldEntry(CachedSimpleWorldCollisionSkelComp);
+	if (CachedSimpleWorldEntry.IsValid())
+	{
+		bSimpleWorldCollisionInitialized = true;
+	}
+}
+
+void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePoseContext& Output)
+{
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdateSimpleWorldCollisionLimits);
+	SimpleWorldSphericalLimits.Reset();
+	SimpleWorldCapsuleLimits.Reset();
+	SimpleWorldTaperedCapsuleLimits.Reset();
+	SimpleWorldBoxLimits.Reset();
+
+	if (!CachedSimpleWorldEntry.IsValid())
+	{
+		return;
+	}
+
+	const uint64 SourceID = reinterpret_cast<uint64>(this);
+
+	FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
+	Desc.GatherIntervalSec = SimpleWorldCollisionGatherInterval;
+	Desc.GatherRadiusOverride =
+		bOverrideSimpleWorldCollisionGatherRadius ? SimpleWorldCollisionGatherRadius : 0.0f;
+	Desc.ObjectTypes = SimpleWorldCollisionObjectTypes;
+	Desc.ComplexShapeApproximation = SimpleWorldCollisionComplexShapeApproximation;
+	Desc.SkeletalMeshMode = SimpleWorldCollisionSkeletalMeshMode;
+	Desc.bApproximateGround = bSimpleWorldCollisionApproximateGround;
+
+	if (!bSimpleWorldDescSent || !(Desc == LastSentSimpleWorldDesc))
+	{
+		CachedSimpleWorldEntry->SetDesc(SourceID, Desc);
+		LastSentSimpleWorldDesc = Desc;
+		bSimpleWorldDescSent = true;
+	}
+
+	CachedSimpleWorldEntry->MarkRead(SourceID);
+
+	SimpleWorldMergedScratch.Reset();
+	CachedSimpleWorldEntry->Slot.AppendTo(SimpleWorldMergedScratch);
+
+	if (bOverrideSimpleWorldCollisionGatherRadius && !bSimpleWorldRadiusWarningLogged)
+	{
+		const FVector ComponentOriginSim = ConvertSimulationSpaceLocation(
+			Output, EKawaiiPhysicsSimulationSpace::ComponentSpace, SimulationSpace, FVector::ZeroVector);
+
+		float RequiredRadius = 0.0f;
+		for (const FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 		{
-			auto Converted = Limit;
-			const FTransform WorldTransform(Limit.Rotation, Limit.Location);
-			const FTransform SimTransform = ConvertSimulationSpaceTransform(
-				Output, EKawaiiPhysicsSimulationSpace::WorldSpace, SimulationSpace, WorldTransform);
-			Converted.Location = SimTransform.GetLocation();
-			Converted.Rotation = SimTransform.GetRotation();
-			Converted.bEnable = true;
-			PostConvert(Converted, SimTransform);
-			OutLimits.Add(Converted);
+			RequiredRadius = FMath::Max(
+				RequiredRadius,
+				FVector::Dist(ComponentOriginSim, Bone.PoseLocation) + Bone.PhysicsSettings.Radius);
 		}
-	};
 
-	auto NoOp = [](auto&, const FTransform&) {};
-	auto RecomputePlane = [](FPlanarLimit& L, const FTransform& T)
+		if (SimpleWorldCollisionGatherRadius + KINDA_SMALL_NUMBER < RequiredRadius)
+		{
+			KAWAII_LOG_NODE_WARNING(LogKawaiiPhysics,
+				TEXT("SimpleWorldCollision: GatherRadius %.2f may be smaller than the physics chain reach %.2f. "
+					"Increase SimpleWorldCollisionGatherRadius or disable the override to use SkeletalMesh bounds."),
+				SimpleWorldCollisionGatherRadius, RequiredRadius);
+			bSimpleWorldRadiusWarningLogged = true;
+		}
+	}
+
+	if (SimpleWorldMergedScratch.IsEmpty())
 	{
-		L.Plane = FPlane(L.Location, T.GetRotation().GetUpVector());
-	};
+		return;
+	}
 
-	ConvertAndStore(SharedCollisionMergedData.SphericalLimits, SharedSphericalLimits, NoOp);
-	ConvertAndStore(SharedCollisionMergedData.CapsuleLimits,   SharedCapsuleLimits,   NoOp);
-	ConvertAndStore(SharedCollisionMergedData.TaperedCapsuleLimits, SharedTaperedCapsuleLimits, NoOp);
-	ConvertAndStore(SharedCollisionMergedData.BoxLimits,       SharedBoxLimits,        NoOp);
-	ConvertAndStore(SharedCollisionMergedData.PlanarLimits,    SharedPlanarLimits,     RecomputePlane);
+	AppendSharedCollisionDataToSimulationSpace(*this, Output, SimulationSpace, SimpleWorldMergedScratch,
+		SimpleWorldSphericalLimits, SimpleWorldCapsuleLimits, SimpleWorldTaperedCapsuleLimits,
+		SimpleWorldBoxLimits, nullptr);
+}
+
+void FAnimNode_KawaiiPhysics::ReleaseSimpleWorldCollision()
+{
+	if (CachedSimpleWorldEntry.IsValid())
+	{
+		CachedSimpleWorldEntry->RemoveDesc(reinterpret_cast<uint64>(this));
+	}
+
+	CachedSimpleWorldEntry.Reset();
+	bSimpleWorldCollisionInitialized = false;
+	bSimpleWorldDescSent = false;
+}
+
+void FAnimNode_KawaiiPhysics::RequestSimpleWorldCollisionReinit()
+{
+	bSimpleWorldCollisionInitialized = false;
+	bSimpleWorldDescSent = false;
+	bSimpleWorldRadiusWarningLogged = false;
+	if (CachedSimpleWorldEntry.IsValid())
+	{
+		CachedSimpleWorldEntry->RemoveDesc(reinterpret_cast<uint64>(this));
+		CachedSimpleWorldEntry.Reset();
+	}
 }

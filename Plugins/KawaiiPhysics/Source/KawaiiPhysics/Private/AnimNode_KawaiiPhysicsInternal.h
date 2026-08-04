@@ -35,6 +35,8 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_ConvertSimulationSpace"), STAT_Kaw
 DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_InitializeSharedCollision"), STAT_KawaiiPhysics_InitializeSharedCollision, STATGROUP_Anim, KAWAIIPHYSICS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_WriteSharedCollisionToSubsystem"), STAT_KawaiiPhysics_WriteSharedCollisionToSubsystem, STATGROUP_Anim, KAWAIIPHYSICS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_UpdateSharedCollisionLimits"), STAT_KawaiiPhysics_UpdateSharedCollisionLimits, STATGROUP_Anim, KAWAIIPHYSICS_API);
+// ノード側の簡易ワールドコリジョン読み取り（UpdateSimpleWorldCollisionLimits）専用 / Node-side Simple World Collision read (UpdateSimpleWorldCollisionLimits)
+DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_UpdateSimpleWorldCollisionLimits"), STAT_KawaiiPhysics_UpdateSimpleWorldCollisionLimits, STATGROUP_Anim, KAWAIIPHYSICS_API);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumModifyBones"), STAT_KawaiiPhysics_NumModifyBones, STATGROUP_Anim, KAWAIIPHYSICS_API);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumInterBoneDummyBones"), STAT_KawaiiPhysics_NumInterBoneDummyBones, STATGROUP_Anim, KAWAIIPHYSICS_API);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumBridgeDummyBones"), STAT_KawaiiPhysics_NumBridgeDummyBones, STATGROUP_Anim, KAWAIIPHYSICS_API);
@@ -52,6 +54,7 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumTaperedCapsuleColliders
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumBoxColliders"), STAT_KawaiiPhysics_NumBoxColliders, STATGROUP_Anim, KAWAIIPHYSICS_API);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumPlanarColliders"), STAT_KawaiiPhysics_NumPlanarColliders, STATGROUP_Anim, KAWAIIPHYSICS_API);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumSharedColliders"), STAT_KawaiiPhysics_NumSharedColliders, STATGROUP_Anim, KAWAIIPHYSICS_API);
+DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumSimpleWorldColliders"), STAT_KawaiiPhysics_NumSimpleWorldColliders, STATGROUP_Anim, KAWAIIPHYSICS_API);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumMergedBoneConstraints"), STAT_KawaiiPhysics_NumMergedBoneConstraints, STATGROUP_Anim, KAWAIIPHYSICS_API);
 // 毎フレームに発行したワールドコリジョンのスイープ回数（anim threadからの同期トレース） / World-collision sweeps issued per frame (sync traces from the anim thread)
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumWorldCollisionChecks"), STAT_KawaiiPhysics_NumWorldCollisionChecks, STATGROUP_Anim, KAWAIIPHYSICS_API);
