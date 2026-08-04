@@ -8,6 +8,7 @@
 #include "GameplayTagContainer.h"
 #include "BoneControllers/AnimNode_AnimDynamics.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
+#include "CollisionQueryParams.h"
 #include "Engine/HitResult.h"
 
 #if !UE_VERSION_OLDER_THAN(5, 5, 0)
@@ -765,6 +766,10 @@ private:
 	TArray<FName> IgnoreBoneNamePrefixCache;
 	// sweep結果を受け取る使い回しバッファ（フレーム間で確保済みメモリを再利用） / Sweep-result scratch (reuses capacity across frames)
 	TArray<FHitResult> WorldCollisionHitsScratch;
+	// World Collision クエリ設定のホイスト済みキャッシュ（SimulateModifyBones冒頭で構築、サブステップ×ボーン間で再利用） / Hoisted world-collision query setup (built at the start of SimulateModifyBones, reused across substeps and bones)
+	FCollisionQueryParams WorldCollisionQueryParamsCache;
+	ECollisionChannel WorldCollisionTraceChannelCache = ECC_WorldStatic;
+	FCollisionResponseParams WorldCollisionResponseParamsCache;
 
 	// bridge dummy feedback の集計用使い回しバッファ（端点index→押し出し/重み）。SimulateOnce毎のTMap確保を避け、
 	// フレーム間で確保済みメモリを再利用する。 / Bridge-dummy feedback accumulation scratch (endpoint index -> push/weight);
@@ -1234,6 +1239,9 @@ protected:
 #if WITH_DEV_AUTOMATION_TESTS
 	friend struct FKawaiiPhysicsTestAccessor;
 #endif
+
+	// World Collision クエリ設定のキャッシュを構築（SimulateModifyBones冒頭で毎フレーム1回） / Build hoisted world-collision query caches (once per frame at the start of SimulateModifyBones)
+	void PrepareWorldCollisionQueryCaches(const USkeletalMeshComponent* OwningComp);
 
 	/**
 	 * Adjusts the bone position based on world collision.

@@ -89,6 +89,12 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 
 	const USkeletalMeshComponent* SkelComp = Output.AnimInstanceProxy->GetSkelMeshComponent();
 
+	// World Collision のクエリ設定はフレーム内で不変のため、サブステップ×ボーンのループ前に一度だけ構築する
+	if (bAllowWorldCollision && SkelComp)
+	{
+		PrepareWorldCollisionQueryCaches(SkelComp);
+	}
+
 	// Prev/Pose 情報を保存し、SkipSimulate を判定
 	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 	{
