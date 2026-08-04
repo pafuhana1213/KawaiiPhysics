@@ -1407,7 +1407,10 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 		bSimpleWorldDescSent = true;
 	}
 
-	CachedSimpleWorldEntry->MarkRead(SourceID);
+	if (!CachedSimpleWorldEntry->MarkRead(SourceID))
+	{
+		bSimpleWorldDescSent = false;
+	}
 
 	SimpleWorldMergedScratch.Reset();
 	CachedSimpleWorldEntry->Slot.AppendTo(SimpleWorldMergedScratch);

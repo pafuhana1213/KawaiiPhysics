@@ -456,6 +456,7 @@ void FKawaiiPhysicsSimpleWorldCollisionEntry::SetDesc(
 
 	FWriteScopeLock WriteLock(DescLock);
 	FDescSlot& DescSlotRef = DescSlots.FindOrAdd(SourceID);
+	DescSlotRef.LastReadFrame = GFrameCounter;
 	if (!(DescSlotRef.Desc == InDesc))
 	{
 		DescSlotRef.Desc = InDesc;
@@ -477,7 +478,7 @@ void FKawaiiPhysicsSimpleWorldCollisionEntry::RemoveDesc(uint64 SourceID)
 	}
 }
 
-void FKawaiiPhysicsSimpleWorldCollisionEntry::MarkRead(uint64 SourceID)
+bool FKawaiiPhysicsSimpleWorldCollisionEntry::MarkRead(uint64 SourceID)
 {
 	// FDescSlotのLastReadFrameはatomicにせず、DescSlotsの構造変更と同じDescLock(write)で保護する。
 	// TMap要素を値型で保持でき、期限切れ除去と読み取りマークの整合も同じロック順序で扱える。
@@ -485,7 +486,9 @@ void FKawaiiPhysicsSimpleWorldCollisionEntry::MarkRead(uint64 SourceID)
 	if (FDescSlot* DescSlotPtr = DescSlots.Find(SourceID))
 	{
 		DescSlotPtr->LastReadFrame = GFrameCounter;
+		return true;
 	}
+	return false;
 }
 
 void FKawaiiPhysicsSimpleWorldCollisionEntry::RemoveExpiredDescs(uint64 CurrentFrame, uint64 MaxAge)
@@ -609,7 +612,7 @@ TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> UKawaiiPhysicsSharedCollisionSubs
 TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> UKawaiiPhysicsSharedCollisionSubsystem::FindOrCreateSimpleWorldEntry(
 	TWeakObjectPtr<const USkeletalMeshComponent> SkelComp)
 {
-	if (!SkelComp.IsValid())
+	if (!SkelComp.IsValid(false, true))
 	{
 		return nullptr;
 	}
@@ -779,10 +782,15 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 
 			TSet<const UPrimitiveComponent*> UniqueComponents;
 			TArray<FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent> NewGatheredComponents;
-			NewGatheredComponents.Reserve(FMath::Min(Entry->OverlapScratch.Num(), EffectiveMaxGatheredComponents));
+			NewGatheredComponents.Reserve(FMath::Max(0, FMath::Min(Entry->OverlapScratch.Num(), EffectiveMaxGatheredComponents)));
 
 			for (const FOverlapResult& Overlap : Entry->OverlapScratch)
 			{
+				if (NewGatheredComponents.Num() >= EffectiveMaxGatheredComponents)
+				{
+					break;
+				}
+
 				UPrimitiveComponent* Component = Overlap.GetComponent();
 				if (!Component || UniqueComponents.Contains(Component))
 				{
@@ -819,10 +827,6 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 				}
 
 				NewGatheredComponents.Add(MoveTemp(NewComponent));
-				if (NewGatheredComponents.Num() >= EffectiveMaxGatheredComponents)
-				{
-					break;
-				}
 			}
 
 			Entry->GatheredComponents = MoveTemp(NewGatheredComponents);

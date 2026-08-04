@@ -142,7 +142,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionEntry
 	void SetDesc(uint64 SourceID, const FKawaiiPhysicsSimpleWorldCollisionDesc& InDesc);
 	void RemoveDesc(uint64 SourceID);
 
-	void MarkRead(uint64 SourceID);
+	bool MarkRead(uint64 SourceID);
 	void RemoveExpiredDescs(uint64 CurrentFrame, uint64 MaxAge);
 	bool HasAnyDesc() const;
 	bool BuildMergedDesc(FKawaiiPhysicsSimpleWorldCollisionDesc& OutMerged) const;

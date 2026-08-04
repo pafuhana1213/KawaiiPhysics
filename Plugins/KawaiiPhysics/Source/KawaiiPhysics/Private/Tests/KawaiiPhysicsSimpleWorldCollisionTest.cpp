@@ -556,10 +556,8 @@ bool FKawaiiPhysicsSimpleWorldEntryLifecycleTest::RunTest(const FString& Paramet
 	constexpr uint64 SourceID2 = 2;
 
 	// SetDesc → BuildMergedDesc がマージ結果を返す。
-	// MarkRead(ID1)後、大きくフレームを進めてRemoveExpiredDescsすると未読ID2のみ除去される。
+	// SetDesc直後のDescも現在フレームで既読扱いに刻印されるため、即時cleanupでは除去されない。
 	// 注: MarkRead は GFrameCounter を直接参照するため CurrentFrame を明示的に渡せない。
-	// ただし未読(LastReadFrame==0)は判定式の性質上、渡す CurrentFrame の値に関わらず常に期限切れ扱いになるため、
-	// MaxAge を極端に大きく取れば「既読(ID1)は生存・未読(ID2)のみ除去」を GFrameCounter の実値に依存せず検証できる。
 	{
 		FKawaiiPhysicsSimpleWorldCollisionEntry Entry;
 
@@ -579,19 +577,22 @@ bool FKawaiiPhysicsSimpleWorldEntryLifecycleTest::RunTest(const FString& Paramet
 		         FMath::IsNearlyEqual(MergedBoth.GatherIntervalSec, 0.1f, GSimpleWorldTol));
 
 		const uint64 BaseFrame = GFrameCounter;
-		Entry.MarkRead(SourceID1); // ID1のLastReadFrameをGFrameCounter(=BaseFrame)に更新。ID2は未読(0)のまま
+		TestTrue(TEXT("MarkRead returns true for an existing desc"), Entry.MarkRead(SourceID1));
 
 		Entry.RemoveExpiredDescs(BaseFrame + 1000, 1000000);
 
-		TestTrue(TEXT("HasAnyDesc true after removing only the unread desc"), Entry.HasAnyDesc());
+		TestTrue(TEXT("HasAnyDesc true after cleanup within max age"), Entry.HasAnyDesc());
 		FKawaiiPhysicsSimpleWorldCollisionDesc MergedAfterExpire;
-		TestTrue(TEXT("BuildMergedDesc still succeeds with the remaining desc"),
+		TestTrue(TEXT("BuildMergedDesc still succeeds after cleanup within max age"),
 		         Entry.BuildMergedDesc(MergedAfterExpire));
-		TestTrue(TEXT("Only ID1's desc remains"),
+		TestTrue(TEXT("Merged interval is still the min after cleanup within max age"),
 		         FMath::IsNearlyEqual(MergedAfterExpire.GatherIntervalSec, 0.1f, GSimpleWorldTol));
 
+		Entry.RemoveDesc(SourceID2);
+		TestTrue(TEXT("HasAnyDesc true after removing one desc"), Entry.HasAnyDesc());
 		Entry.RemoveDesc(SourceID1);
 		TestTrue(TEXT("HasAnyDesc false after removing the last desc"), !Entry.HasAnyDesc());
+		TestTrue(TEXT("MarkRead returns false for a removed desc"), !Entry.MarkRead(SourceID1));
 		FKawaiiPhysicsSimpleWorldCollisionDesc MergedEmpty;
 		TestTrue(TEXT("BuildMergedDesc fails when no desc remains"), !Entry.BuildMergedDesc(MergedEmpty));
 	}
@@ -622,6 +623,38 @@ bool FKawaiiPhysicsSimpleWorldEntryLifecycleTest::RunTest(const FString& Paramet
 		         OutData.SphericalLimits.Num() == 1 &&
 		         FMath::IsNearlyEqual(OutData.SphericalLimits[0].Radius, 12.0f, GSimpleWorldTol));
 	}
+
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+//  FKawaiiPhysicsSimpleWorldCollisionEntry の即時cleanup回帰
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldEntrySetDescSurvivesImmediateCleanupTest,
+                                 "KawaiiPhysics.SimpleWorld.EntrySetDescSurvivesImmediateCleanup",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldEntrySetDescSurvivesImmediateCleanupTest::RunTest(const FString& Parameters)
+{
+	constexpr uint64 SourceID = 100;
+
+	FKawaiiPhysicsSimpleWorldCollisionEntry Entry;
+	FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
+	Desc.GatherIntervalSec = 0.25f;
+
+	Entry.SetDesc(SourceID, Desc);
+	const uint64 CurrentFrame = GFrameCounter;
+	Entry.RemoveExpiredDescs(CurrentFrame, 0);
+
+	TestTrue(TEXT("Desc survives RemoveExpiredDescs in the same frame after SetDesc"), Entry.HasAnyDesc());
+
+	FKawaiiPhysicsSimpleWorldCollisionDesc Merged;
+	TestTrue(TEXT("BuildMergedDesc succeeds after immediate cleanup"), Entry.BuildMergedDesc(Merged));
+	TestTrue(TEXT("Merged desc keeps the SetDesc value"),
+	         FMath::IsNearlyEqual(Merged.GatherIntervalSec, 0.25f, GSimpleWorldTol));
+
+	Entry.RemoveDesc(SourceID);
+	TestTrue(TEXT("MarkRead returns false after the slot disappears"), !Entry.MarkRead(SourceID));
 
 	return true;
 }
