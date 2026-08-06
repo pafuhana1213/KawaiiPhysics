@@ -209,6 +209,13 @@ public:
 	static void GetAllPresetAssets(TArray<TStrongObjectPtr<UKawaiiPhysicsPresetDataAsset>>& OutPresets);
 
 	/**
+	 * プロジェクト内の KawaiiPhysics プリセットDataAssetを Blueprint / Python 向けの生ポインタ配列で返す。C++ 呼び出し側は GC 安全性のため GetAllPresetAssets (TStrongObjectPtr) を使用すること。
+	 * Return all KawaiiPhysics preset data assets as raw pointers for Blueprint / Python. C++ callers should use GetAllPresetAssets (TStrongObjectPtr) for GC safety.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "KawaiiPhysics|Editor|Preset")
+	static TArray<UKawaiiPhysicsPresetDataAsset*> FindAllPresetAssets();
+
+	/**
 	 * 指定 Content パス配下の AnimBlueprint アセットを列挙する（空なら /Game）。
 	 * Enumerate AnimBlueprint assets under Content paths (uses /Game when empty).
 	 */
@@ -292,6 +299,14 @@ public:
 		UKawaiiPhysicsPresetDataAsset* Preset,
 		const TArray<FName>& TagNames,
 		bool bExactMatch);
+
+	/** プリセットの説明文を設定 / Set the preset description. */
+	UFUNCTION(BlueprintCallable, Category = "KawaiiPhysics|Editor|Preset")
+	static bool SetPresetDescription(UKawaiiPhysicsPresetDataAsset* Preset, const FText& Description);
+
+	/** プリセットの説明文を取得 / Get the preset description. */
+	UFUNCTION(BlueprintPure, Category = "Kawaii Physics|Editor")
+	static FText GetPresetDescription(const UKawaiiPhysicsPresetDataAsset* Preset);
 
 	/** ノードプロパティをワイルドカード値で設定 / Set a node property by wildcard value. */
 	UFUNCTION(BlueprintCallable, CustomThunk, Category = "Kawaii Physics|Editor",

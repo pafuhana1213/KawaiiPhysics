@@ -414,6 +414,53 @@ bool FKawaiiPhysicsEditorScriptingPresetTargetTagsTest::RunTest(const FString& P
 	return bOk;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPublishedEditorApisTest,
+                                 "KawaiiPhysics.EditorScripting.PublishedEditorApis",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingPublishedEditorApisTest::RunTest(const FString& Parameters)
+{
+	TArray<UKawaiiPhysicsPresetDataAsset*> Presets =
+		UKawaiiPhysicsEditorLibrary::FindAllPresetAssets();
+
+	bool bOk = true;
+	bOk &= TestFalse(TEXT("FindAllPresetAssets returns preset assets"), Presets.IsEmpty());
+	for (UKawaiiPhysicsPresetDataAsset* Preset : Presets)
+	{
+		bOk &= TestTrue(TEXT("FindAllPresetAssets elements are preset data assets"),
+		                Preset && Preset->IsA<UKawaiiPhysicsPresetDataAsset>());
+	}
+
+	TArray<FString> ContentPaths;
+	ContentPaths.Add(TEXT("/Game/KawaiiPhysicsSample/Chain"));
+	TArray<FSoftObjectPath> AnimBlueprintPaths =
+		UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssets(ContentPaths);
+	bOk &= TestFalse(TEXT("FindAnimBlueprintAssets returns results for narrowed /Game path"),
+	                 AnimBlueprintPaths.IsEmpty());
+
+	const bool bHasNarrowedPathResult = AnimBlueprintPaths.ContainsByPredicate(
+		[](const FSoftObjectPath& AssetPath)
+		{
+			return AssetPath.ToString().StartsWith(TEXT("/Game/KawaiiPhysicsSample/Chain/"));
+		});
+	bOk &= TestTrue(TEXT("FindAnimBlueprintAssets results stay under narrowed path"),
+	                bHasNarrowedPathResult);
+
+	UKawaiiPhysicsPresetDataAsset* DescriptionPreset =
+		NewObject<UKawaiiPhysicsPresetDataAsset>(GetTransientPackage());
+	const FText ExpectedDescription =
+		FText::FromString(TEXT("KawaiiPhysics editor scripting description round trip"));
+	bOk &= TestTrue(TEXT("SetPresetDescription succeeds"),
+	                UKawaiiPhysicsEditorLibrary::SetPresetDescription(
+		                DescriptionPreset,
+		                ExpectedDescription));
+	bOk &= TestEqual(TEXT("GetPresetDescription round-trips"),
+	                 UKawaiiPhysicsEditorLibrary::GetPresetDescription(DescriptionPreset).ToString(),
+	                 ExpectedDescription.ToString());
+
+	return bOk;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPresetTest,
                                  "KawaiiPhysics.EditorScripting.Preset",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

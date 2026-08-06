@@ -781,6 +781,36 @@ void UKawaiiPhysicsEditorLibrary::GetAllPresetAssets(TArray<TStrongObjectPtr<UKa
 	}
 }
 
+TArray<UKawaiiPhysicsPresetDataAsset*> UKawaiiPhysicsEditorLibrary::FindAllPresetAssets()
+{
+	TArray<TStrongObjectPtr<UKawaiiPhysicsPresetDataAsset>> StrongPresets;
+	GetAllPresetAssets(StrongPresets);
+
+	// 強参照版の結果をスクリプト向けの生ポインタ配列へ詰め替える。
+	TArray<UKawaiiPhysicsPresetDataAsset*> Presets;
+	Presets.Reserve(StrongPresets.Num());
+	for (const TStrongObjectPtr<UKawaiiPhysicsPresetDataAsset>& Preset : StrongPresets)
+	{
+		Presets.Add(Preset.Get());
+	}
+	return Presets;
+}
+
+TArray<FSoftObjectPath> UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssets(const TArray<FString>& ContentPaths)
+{
+	TArray<FAssetData> AssetDataList;
+	GetAnimBlueprintAssets(ContentPaths, AssetDataList);
+
+	// アセット情報をスクリプトから扱いやすいソフトオブジェクトパスへ変換する。
+	TArray<FSoftObjectPath> AssetPaths;
+	AssetPaths.Reserve(AssetDataList.Num());
+	for (const FAssetData& AssetData : AssetDataList)
+	{
+		AssetPaths.Add(AssetData.GetSoftObjectPath());
+	}
+	return AssetPaths;
+}
+
 TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::CollectKawaiiPhysicsGraphNodes(
 	UAnimBlueprint* AnimBlueprint,
 	const FGameplayTagContainer& FilterTags,
@@ -1101,6 +1131,27 @@ bool UKawaiiPhysicsEditorLibrary::SetPresetTargetTags(
 	return true;
 }
 
+bool UKawaiiPhysicsEditorLibrary::SetPresetDescription(UKawaiiPhysicsPresetDataAsset* Preset, const FText& Description)
+{
+	if (!Preset)
+	{
+		UE_LOG(LogKawaiiPhysics, Warning, TEXT("SetPresetDescription: Preset is null."));
+		return false;
+	}
+
+	// 対象タグ設定と同じ編集フローで説明文を更新する。
+	Preset->Modify();
+	Preset->Description = Description;
+	Preset->MarkPackageDirty();
+	return true;
+}
+
+FText UKawaiiPhysicsEditorLibrary::GetPresetDescription(const UKawaiiPhysicsPresetDataAsset* Preset)
+{
+	// 未指定時は空のテキストを返す。
+	return Preset ? Preset->Description : FText::GetEmpty();
+}
+
 bool UKawaiiPhysicsEditorLibrary::SetGraphNodeTag(
 	const FKawaiiPhysicsGraphNodeHandle& Handle,
 	FGameplayTag Tag)
@@ -1111,10 +1162,8 @@ bool UKawaiiPhysicsEditorLibrary::SetGraphNodeTag(
 		NSLOCTEXT("KawaiiPhysicsEditorLibrary", "SetGraphNodeTag", "Set Kawaii Physics Graph Node Tag"),
 		[Tag](UAnimGraphNode_KawaiiPhysics& GraphNode)
 		{
-			return UKawaiiPhysicsLibrary::SetNodeStructPropertyValue<FGameplayTag>(
-				GraphNode.Node,
-				GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, KawaiiPhysicsTag),
-				Tag);
+			GraphNode.Node.KawaiiPhysicsTag = Tag;
+			return true;
 		});
 }
 
