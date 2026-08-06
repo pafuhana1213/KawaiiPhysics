@@ -59,6 +59,38 @@ namespace
 		return Skeleton;
 	}
 
+	USkeleton* CreateLongBoneListSkeleton(UObject* Outer)
+	{
+		USkeleton* Skeleton = NewObject<USkeleton>(Outer ? Outer : GetTransientPackage());
+		FReferenceSkeletonModifier Modifier(Skeleton);
+
+		int32 BoneListStringLength = 0;
+		int32 ParentIndex = INDEX_NONE;
+		for (int32 BoneIndex = 0; BoneListStringLength < NAME_SIZE + 128; ++BoneIndex)
+		{
+			const FString BoneNameString = FString::Printf(TEXT("long_regex_bone_%03d"), BoneIndex);
+			const FName BoneName(*BoneNameString);
+			Modifier.Add(FMeshBoneInfo(BoneName, BoneNameString, ParentIndex), FTransform::Identity);
+			ParentIndex = BoneIndex;
+			BoneListStringLength += BoneNameString.Len() + 2;
+		}
+
+		return Skeleton;
+	}
+
+	USkeleton* CreateNestedRootWarningSkeleton(UObject* Outer)
+	{
+		USkeleton* Skeleton = NewObject<USkeleton>(Outer ? Outer : GetTransientPackage());
+		FReferenceSkeletonModifier Modifier(Skeleton);
+		Modifier.Add(FMeshBoneInfo(TEXT("root"), TEXT("root"), INDEX_NONE), FTransform::Identity);
+		Modifier.Add(FMeshBoneInfo(TEXT("Object008"), TEXT("Object008"), 0), FTransform::Identity);
+		Modifier.Add(FMeshBoneInfo(TEXT("Object009"), TEXT("Object009"), 1), FTransform::Identity);
+		Modifier.Add(FMeshBoneInfo(TEXT("Object010"), TEXT("Object010"), 2), FTransform::Identity);
+		Modifier.Add(FMeshBoneInfo(TEXT("Object011"), TEXT("Object011"), 3), FTransform::Identity);
+		Modifier.Add(FMeshBoneInfo(TEXT("Object012"), TEXT("Object012"), 4), FTransform::Identity);
+		return Skeleton;
+	}
+
 	UAnimBlueprint* CreateTransientAnimBlueprint(FAutomationTestBase& Test)
 	{
 		const FString UniqueSuffix = FGuid::NewGuid().ToString(EGuidFormats::Digits);
@@ -611,6 +643,41 @@ bool FKawaiiPhysicsEditorScriptingPlacementPatternTest::RunTest(const FString& P
 		                  GraphNode->Node.ExcludeBones[0].BoneName, FName(TEXT("tail_01")));
 		bOk &= TestEqual(TEXT("Second exclude bone is tail_02"),
 		                  GraphNode->Node.ExcludeBones[1].BoneName, FName(TEXT("tail_02")));
+	}
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementGreedyPatternLongMatchTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.Pattern.GreedyLongMatch",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingPlacementGreedyPatternLongMatchTest::RunTest(const FString& Parameters)
+{
+	USkeleton* Skeleton = CreateLongBoneListSkeleton(GetTransientPackage());
+	if (!Skeleton)
+	{
+		return false;
+	}
+
+	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
+	int32 BoneListStringLength = 0;
+	for (const FMeshBoneInfo& BoneInfo : RefSkeleton.GetRefBoneInfo())
+	{
+		BoneListStringLength += BoneInfo.Name.ToString().Len() + 2;
+	}
+
+	TArray<FName> ResolvedBones =
+		UKawaiiPhysicsEditorLibrary::ResolveBonesByPattern(Skeleton, TEXT(".*"));
+
+	bool bOk = true;
+	bOk &= TestTrue(TEXT("Greedy pattern test skeleton exceeds FName limit"),
+	                BoneListStringLength >= NAME_SIZE);
+	for (const FName& BoneName : ResolvedBones)
+	{
+		bOk &= TestTrue(TEXT("Greedy pattern result length is valid"),
+		                BoneName.ToString().Len() < NAME_SIZE);
+		bOk &= TestTrue(TEXT("Greedy pattern result exists in skeleton"),
+		                !BoneName.IsNone() && RefSkeleton.FindBoneIndex(BoneName) != INDEX_NONE);
 	}
 	return bOk;
 }

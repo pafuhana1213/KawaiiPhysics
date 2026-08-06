@@ -14,6 +14,7 @@
 #include "AssetRegistry/IAssetRegistry.h"
 #include "BlueprintGameplayTagLibrary.h"
 #include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphPin.h"
 #include "GameplayTagsManager.h"
 #include "Internationalization/Regex.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -23,6 +24,7 @@
 #include "ScopedTransaction.h"
 #include "SourceControlHelpers.h"
 #include "ISourceControlModule.h"
+#include "UObject/NameTypes.h"
 #include "UObject/StrongObjectPtr.h"
 #include "UObject/UnrealType.h"
 
@@ -862,9 +864,23 @@ TArray<FName> UKawaiiPhysicsEditorLibrary::ResolveBonesByPattern(USkeleton* Skel
 
 	const FRegexPattern RegexPattern(Pattern);
 	FRegexMatcher Matcher(RegexPattern, BoneListString);
+	bool bLongMatchWarningLogged = false;
 	while (Matcher.FindNext())
 	{
-		const FName BoneName(*Matcher.GetCaptureGroup(0));
+		const FString MatchedBoneName = Matcher.GetCaptureGroup(0);
+		if (MatchedBoneName.Len() >= NAME_SIZE)
+		{
+			if (!bLongMatchWarningLogged)
+			{
+				UE_LOG(LogKawaiiPhysics, Warning,
+				       TEXT("ResolveBonesByPattern: Regex match is too long to convert to FName. Pattern=\"%s\", MatchLength=%d, MaxLength=%d"),
+				       *Pattern, MatchedBoneName.Len(), NAME_SIZE - 1);
+				bLongMatchWarningLogged = true;
+			}
+			continue;
+		}
+
+		const FName BoneName(*MatchedBoneName);
 		if (!BoneName.IsNone() && RefSkeleton.FindBoneIndex(BoneName) != INDEX_NONE)
 		{
 			Result.AddUnique(BoneName);
