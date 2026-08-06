@@ -1,0 +1,295 @@
+import os
+
+import unreal
+
+import toolset_registry
+
+
+def _make_preset_apply_options(
+        apply_bone_assignment: bool,
+        apply_tag: bool) -> unreal.KawaiiPhysicsPresetApplyOptions:
+    options = unreal.KawaiiPhysicsPresetApplyOptions()
+    # C++ プロパティ名 bApply... は Python では apply... に変換される。
+    options.set_editor_property('apply_bone_assignment', apply_bone_assignment)
+    options.set_editor_property('apply_tag', apply_tag)
+    return options
+
+
+def _raise_for_invalid_object(value: unreal.Object | None, name: str) -> None:
+    if value is None:
+        raise ValueError(f'{name} must not be None.')
+
+
+def _raise_for_invalid_handle(
+        handle: unreal.KawaiiPhysicsGraphNodeHandle,
+        name: str) -> None:
+    if handle is None:
+        raise ValueError(f'{name} must not be None.')
+    if not unreal.KawaiiPhysicsEditorLibrary.is_graph_node_handle_valid(handle):
+        raise ValueError(f'{name} is not a valid KawaiiPhysics graph node handle.')
+
+
+def _asset_package_path(asset_path: str) -> str:
+    dot_index = asset_path.find('.')
+    return asset_path[:dot_index] if dot_index >= 0 else asset_path
+
+
+def _split_asset_path(asset_path: str) -> tuple[str, str]:
+    package_path = _asset_package_path(asset_path).rstrip('/')
+    folder_path, asset_name = os.path.split(package_path)
+    if not folder_path or not asset_name:
+        raise ValueError(f'Invalid asset path: {asset_path}')
+    return folder_path, asset_name
+
+
+def _make_tag_container(filter_tag_names: list[str]) -> unreal.GameplayTagContainer:
+    if not filter_tag_names:
+        return unreal.GameplayTagContainer()
+
+    # out 引数付き UFUNCTION は Python では (return_value, out_value) のタプルで返る前提。
+    result = unreal.KawaiiPhysicsEditorLibrary.make_gameplay_tag_container_from_names(
+        [unreal.Name(tag_name) for tag_name in filter_tag_names])
+    if isinstance(result, tuple):
+        ok, container = result[0], result[-1]
+        if not ok:
+            raise ValueError(
+                f'No valid gameplay tags were resolved from: {filter_tag_names}')
+        return container
+    return result
+
+
+def _validate_requests_or_raise(
+        anim_blueprint: unreal.AnimBlueprint,
+        requests: list[unreal.KawaiiPhysicsNodePlacementRequest]) -> list[str]:
+    errors = KawaiiPhysicsToolset.validate_placement_requests(anim_blueprint, requests)
+    blocking_errors = [
+        error for error in errors
+        if not str(error).startswith('Warning:')
+    ]
+    if blocking_errors:
+        raise ValueError(
+            'Invalid KawaiiPhysics placement requests: ' +
+            '; '.join(blocking_errors))
+    return errors
+
+
+@unreal.uclass()
+class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
+    """Sets up, applies presets to, and audits KawaiiPhysics AnimGraph nodes.
+
+    Tools wrap KawaiiPhysics editor scripting APIs for automation agents.
+    """
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def create_anim_blueprint(
+            folder_path: str,
+            asset_name: str,
+            skeleton: unreal.Skeleton) -> unreal.AnimBlueprint:
+        """Creates an AnimBlueprint with a target skeleton."""
+        _raise_for_invalid_object(skeleton, 'skeleton')
+
+        factory = unreal.AnimBlueprintFactory()
+        factory.set_editor_property('target_skeleton', skeleton)
+        factory.set_editor_property('parent_class', unreal.AnimInstance.static_class())
+
+        asset = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+            asset_name,
+            folder_path,
+            unreal.AnimBlueprint,
+            factory,
+        )
+        if asset is None:
+            raise RuntimeError(
+                f'Unable to create AnimBlueprint {asset_name} at {folder_path}.')
+        if not isinstance(asset, unreal.AnimBlueprint):
+            raise RuntimeError(f'Created asset is not an AnimBlueprint: {asset}')
+        return asset
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def add_kawaii_physics_nodes(
+            anim_blueprint: unreal.AnimBlueprint,
+            requests: list[unreal.KawaiiPhysicsNodePlacementRequest],
+            upsert_key: unreal.KawaiiPhysicsPlacementUpsertKey,
+            graph_name: str) -> list[unreal.KawaiiPhysicsGraphNodeHandle]:
+        """Adds or upserts KawaiiPhysics nodes without connecting graph pins."""
+        _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
+        _validate_requests_or_raise(anim_blueprint, requests)
+
+        return unreal.KawaiiPhysicsEditorLibrary.add_kawaii_physics_nodes(
+            anim_blueprint,
+            requests,
+            upsert_key,
+            graph_name,
+        )
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def collect_kawaii_physics_graph_nodes(
+            anim_blueprint: unreal.AnimBlueprint,
+            filter_tag_names: list[str],
+            filter_exact_match: bool) -> list[unreal.KawaiiPhysicsGraphNodeHandle]:
+        """Collects KawaiiPhysics graph nodes; empty tag names collect all nodes."""
+        _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
+        filter_tags = _make_tag_container(filter_tag_names)
+        return unreal.KawaiiPhysicsEditorLibrary.collect_kawaii_physics_graph_nodes(
+            anim_blueprint,
+            filter_tags,
+            filter_exact_match,
+        )
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def apply_preset_to_graph_node(
+            handle: unreal.KawaiiPhysicsGraphNodeHandle,
+            preset: unreal.KawaiiPhysicsPresetDataAsset,
+            apply_bone_assignment: bool,
+            apply_tag: bool) -> None:
+        """Applies a KawaiiPhysics preset to a graph node."""
+        _raise_for_invalid_handle(handle, 'handle')
+        _raise_for_invalid_object(preset, 'preset')
+        options = _make_preset_apply_options(apply_bone_assignment, apply_tag)
+        ok = unreal.KawaiiPhysicsEditorLibrary.apply_preset_to_graph_node(
+            handle,
+            preset,
+            options,
+        )
+        if not ok:
+            raise RuntimeError('Unable to apply preset to KawaiiPhysics graph node.')
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def does_graph_node_match_preset(
+            handle: unreal.KawaiiPhysicsGraphNodeHandle,
+            preset: unreal.KawaiiPhysicsPresetDataAsset,
+            apply_bone_assignment: bool,
+            apply_tag: bool) -> list[str]:
+        """Returns differing preset property names; an empty list means a match."""
+        _raise_for_invalid_handle(handle, 'handle')
+        _raise_for_invalid_object(preset, 'preset')
+        options = _make_preset_apply_options(apply_bone_assignment, apply_tag)
+
+        # out 引数付き UFUNCTION は Python では (bool, diff_properties) のタプルで返る前提。
+        result = unreal.KawaiiPhysicsEditorLibrary.does_graph_node_match_preset(
+            handle,
+            preset,
+            options,
+        )
+        if isinstance(result, tuple):
+            matches, diff_properties = result[0], result[-1]
+        else:
+            matches, diff_properties = bool(result), []
+        if matches:
+            return []
+        return [str(property_name) for property_name in diff_properties]
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def export_graph_node_to_preset(
+            handle: unreal.KawaiiPhysicsGraphNodeHandle,
+            preset_path: str) -> unreal.KawaiiPhysicsPresetDataAsset:
+        """Exports a graph node to an existing or newly created preset asset."""
+        _raise_for_invalid_handle(handle, 'handle')
+        package_path = _asset_package_path(preset_path)
+        preset = unreal.EditorAssetLibrary.load_asset(package_path)
+        if preset is None:
+            folder_path, asset_name = _split_asset_path(package_path)
+            if not unreal.EditorAssetLibrary.does_directory_exist(folder_path):
+                unreal.EditorAssetLibrary.make_directory(folder_path)
+            factory = unreal.DataAssetFactory()
+            factory.set_editor_property(
+                'data_asset_class',
+                unreal.KawaiiPhysicsPresetDataAsset.static_class(),
+            )
+            preset = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+                asset_name,
+                folder_path,
+                unreal.KawaiiPhysicsPresetDataAsset,
+                factory,
+            )
+        if preset is None:
+            raise RuntimeError(f'Unable to create preset asset: {package_path}')
+        if not isinstance(preset, unreal.KawaiiPhysicsPresetDataAsset):
+            raise RuntimeError(f'Preset asset has an unexpected type: {package_path}')
+
+        ok = unreal.KawaiiPhysicsEditorLibrary.export_graph_node_to_preset(
+            handle,
+            preset,
+        )
+        if not ok:
+            raise RuntimeError(
+                f'Unable to export KawaiiPhysics graph node to {package_path}.')
+        return preset
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def reapply_preset_to_project(
+            preset: unreal.KawaiiPhysicsPresetDataAsset,
+            dry_run: bool,
+            check_out_files: bool) -> list[unreal.KawaiiPhysicsNodeAuditEntry]:
+        """Reapplies a preset and returns the audit report, not the update count."""
+        _raise_for_invalid_object(preset, 'preset')
+
+        # out 引数付き UFUNCTION は Python では (updated_count, report) のタプルで返る前提。
+        result = unreal.KawaiiPhysicsEditorLibrary.reapply_preset_to_project(
+            preset,
+            dry_run,
+            check_out_files,
+        )
+        if isinstance(result, tuple):
+            return result[-1]
+        return []
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def audit_kawaii_physics_nodes(
+            content_paths: list[str],
+            filter_tag_names: list[str],
+            filter_exact_match: bool) -> list[unreal.KawaiiPhysicsNodeAuditEntry]:
+        """Audits KawaiiPhysics nodes under content paths; empty paths use /Game."""
+        filter_tags = _make_tag_container(filter_tag_names)
+
+        # out 引数付き UFUNCTION は Python では (bool, entries) のタプルで返る前提。
+        result = unreal.KawaiiPhysicsEditorLibrary.audit_kawaii_physics_nodes(
+            content_paths,
+            filter_tags,
+            filter_exact_match,
+        )
+        if isinstance(result, tuple):
+            ok, entries = result[0], result[-1]
+        else:
+            ok, entries = bool(result), []
+        if not ok:
+            raise RuntimeError('KawaiiPhysics node audit failed.')
+        return entries
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def resolve_bones_by_pattern(
+            skeleton: unreal.Skeleton,
+            pattern: str) -> list[str]:
+        """Resolves reference bone names by regex; empty input returns no names."""
+        _raise_for_invalid_object(skeleton, 'skeleton')
+        names = unreal.KawaiiPhysicsEditorLibrary.resolve_bones_by_pattern(
+            skeleton,
+            pattern,
+        )
+        return [str(name) for name in names]
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def validate_placement_requests(
+            anim_blueprint: unreal.AnimBlueprint,
+            requests: list[unreal.KawaiiPhysicsNodePlacementRequest]) -> list[str]:
+        """Returns placement errors and warnings; an empty list means no issues."""
+        _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
+
+        # out 引数付き UFUNCTION は Python では (bool, errors) のタプルで返る前提。
+        result = unreal.KawaiiPhysicsEditorLibrary.validate_placement_requests(
+            anim_blueprint,
+            requests,
+        )
+        if isinstance(result, tuple):
+            return [str(error) for error in result[-1]]
+        return []

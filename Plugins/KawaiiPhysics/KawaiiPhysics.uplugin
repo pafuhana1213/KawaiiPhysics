@@ -10,7 +10,7 @@
 	"DocsURL": "https://github.com/pafuhana1213/KawaiiPhysics",
 	"MarketplaceURL": "com.epicgames.launcher://ue/Fab/product/f870c07e-0a02-4a78-a888-e52a22794572",
 	"SupportURL": "https://github.com/pafuhana1213/KawaiiPhysics/issues",
-	"CanContainContent": false,
+	"CanContainContent": true,
 	"IsBetaVersion": false,
 	"IsExperimentalVersion": false,
 	"Installed": false,
