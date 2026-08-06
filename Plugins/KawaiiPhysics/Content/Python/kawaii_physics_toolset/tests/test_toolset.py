@@ -98,6 +98,28 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         )
         self.assertEqual(len(collected), 1)
 
+    def test_collect_with_valid_filter_tags_succeeds(self):
+        anim_blueprint = self._create_anim_blueprint()
+
+        collected = KawaiiPhysicsToolset.collect_kawaii_physics_graph_nodes(
+            anim_blueprint,
+            ['KawaiiPhysics.Hair', 'KawaiiPhysics.Hair.Soft'],
+            False,
+        )
+
+        self.assertEqual(len(collected), 0)
+
+    def test_collect_with_invalid_filter_tags_raises(self):
+        anim_blueprint = self._create_anim_blueprint()
+
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.collect_kawaii_physics_graph_nodes(
+                anim_blueprint,
+                ['KawaiiPhysics.NotRegistered', 'KawaiiPhysics.AlsoNotRegistered'],
+                False,
+            )
+        self.assertIn('No valid gameplay tags were resolved', str(cm.exception))
+
     def test_validate_missing_root_bone_reports_error(self):
         anim_blueprint = self._create_anim_blueprint()
         request = unreal.KawaiiPhysicsNodePlacementRequest()
