@@ -169,6 +169,10 @@ struct KAWAIIPHYSICSED_API FKawaiiPhysicsNodePlacementRequest
 	/** Result ノード左側へ自動配置する / Automatically place nodes to the left of the Result node. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kawaii Physics|Editor")
 	bool bAutoPosition = true;
+
+	/** Result ノード直前へ直列に自動接続する / Automatically connect in series just before the Result node. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kawaii Physics|Editor")
+	bool bAutoConnect = false;
 };
 
 /** Upsert 時に既存ノードを識別するキー / Key used to identify existing nodes during upsert placement. */
@@ -222,8 +226,16 @@ public:
 	static void GetAnimBlueprintAssets(const TArray<FString>& ContentPaths, TArray<FAssetData>& OutAssets);
 
 	/**
-	 * AnimGraph に KawaiiPhysics ノードを追加またはUpsertする。接続は行わない。
-	 * Add or upsert KawaiiPhysics nodes into an AnimGraph. This does not connect graph pins.
+	 * 指定 Content パス配下の AnimBlueprint アセットパスを返す（ContentPaths が空なら /Game）。
+	 * Return AnimBlueprint asset paths under Content paths (uses /Game when ContentPaths is empty).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor",
+		meta=(AutoCreateRefTerm = "ContentPaths"))
+	static TArray<FSoftObjectPath> FindAnimBlueprintAssets(const TArray<FString>& ContentPaths);
+
+	/**
+	 * AnimGraph に KawaiiPhysics ノードを追加またはUpsertする。bAutoConnect 指定時は Result ノード直前へ直列に接続する。
+	 * Add or upsert KawaiiPhysics nodes into an AnimGraph. When bAutoConnect is set, nodes are connected in series just before the Result node.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor",
 		meta=(AutoCreateRefTerm = "Requests"))

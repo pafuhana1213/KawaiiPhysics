@@ -2,9 +2,13 @@
 
 #include "KawaiiPhysicsEditorLibrary.h"
 
+#include "AnimationGraphSchema.h"
+#include "AnimGraphNode_ComponentToLocalSpace.h"
 #include "AnimGraphNode_KawaiiPhysics.h"
 #include "AnimGraphNode_Root.h"
 #include "AnimationGraph.h"
+#include "Animation/AnimNode_Root.h"
+#include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "EdGraphSchema_K2.h"
 #include "KawaiiPhysics.h"
 #include "KawaiiPhysicsLibrary.h"
@@ -53,6 +57,7 @@ namespace
 	{
 		if (GraphNode)
 		{
+			// このライブラリは AnimBlueprint 配下の AnimGraph ノードを扱う前提。
 			if (UAnimBlueprint* AnimBlueprint = GraphNode->GetAnimBlueprint())
 			{
 				FBlueprintEditorUtils::MarkBlueprintAsModified(AnimBlueprint);
@@ -260,6 +265,7 @@ namespace
 		FGameplayTag KawaiiPhysicsTag;
 		FVector2D NodePosition = FVector2D::ZeroVector;
 		bool bAutoPosition = true;
+		bool bAutoConnect = false;
 	};
 
 	void AddUniqueBoneName(TArray<FName>& BoneNames, FName BoneName)
@@ -312,6 +318,7 @@ namespace
 		ResolvedRequest.KawaiiPhysicsTag = Request.KawaiiPhysicsTag;
 		ResolvedRequest.NodePosition = Request.NodePosition;
 		ResolvedRequest.bAutoPosition = Request.bAutoPosition;
+		ResolvedRequest.bAutoConnect = Request.bAutoConnect;
 
 		const TArray<FName> RootBonePatternMatches =
 			UKawaiiPhysicsEditorLibrary::ResolveBonesByPattern(Skeleton, Request.RootBonePattern);
@@ -632,6 +639,14 @@ namespace
 			return Request.NodePosition;
 		}
 
+		if (Request.bAutoConnect)
+		{
+			return FVector2D(
+				AutoPlacementBasePosition.X +
+					static_cast<double>(AutoPlacementIndex * KawaiiPhysicsPlacementNodeOffsetX),
+				AutoPlacementBasePosition.Y);
+		}
+
 		return FVector2D(
 			AutoPlacementBasePosition.X,
 			AutoPlacementBasePosition.Y + static_cast<double>(AutoPlacementIndex * KawaiiPhysicsPlacementNodeOffsetY));
@@ -723,6 +738,124 @@ namespace
 		}
 
 		return nullptr;
+	}
+
+	UAnimGraphNode_Root* FindResultRootNode(UEdGraph* Graph)
+	{
+		if (!Graph)
+		{
+			return nullptr;
+		}
+
+		for (UEdGraphNode* Node : Graph->Nodes)
+		{
+			if (UAnimGraphNode_Root* RootNode = Cast<UAnimGraphNode_Root>(Node))
+			{
+				return RootNode;
+			}
+		}
+
+		return nullptr;
+	}
+
+	UEdGraphPin* FindFirstPosePin(UEdGraphNode* Node, EEdGraphPinDirection Dir)
+	{
+		if (!Node)
+		{
+			return nullptr;
+		}
+
+		for (UEdGraphPin* Pin : Node->Pins)
+		{
+			if (Pin && Pin->Direction == Dir && UAnimationGraphSchema::IsPosePin(Pin->PinType))
+			{
+				return Pin;
+			}
+		}
+
+		return nullptr;
+	}
+
+	bool IsGraphNodePoseConnected(const UAnimGraphNode_KawaiiPhysics* GraphNode)
+	{
+		if (!GraphNode)
+		{
+			return false;
+		}
+
+		const UEdGraphPin* ComponentPosePin =
+			GraphNode->FindPin(GET_MEMBER_NAME_CHECKED(FAnimNode_SkeletalControlBase, ComponentPose), EGPD_Input);
+		const UEdGraphPin* PosePin = GraphNode->FindPin(TEXT("Pose"), EGPD_Output);
+		return (ComponentPosePin && !ComponentPosePin->LinkedTo.IsEmpty()) ||
+			(PosePin && !PosePin->LinkedTo.IsEmpty());
+	}
+
+	bool ConnectGraphNodeBeforeResult(UEdGraph* Graph,
+	                                  UAnimGraphNode_KawaiiPhysics* GraphNode,
+	                                  bool& bOutSpawnedConversionNode)
+	{
+		bOutSpawnedConversionNode = false;
+		if (!Graph || !GraphNode)
+		{
+			return false;
+		}
+
+		UAnimGraphNode_Root* RootNode = FindResultRootNode(Graph);
+		if (!RootNode)
+		{
+			UE_LOG(LogKawaiiPhysics, Warning,
+			       TEXT("AddKawaiiPhysicsNodes: Result node was not found in AnimGraph '%s'."),
+			       *Graph->GetName());
+			return false;
+		}
+
+		UEdGraphPin* ResultPin = RootNode->FindPin(GET_MEMBER_NAME_CHECKED(FAnimNode_Root, Result), EGPD_Input);
+		UEdGraphPin* ComponentPosePin =
+			GraphNode->FindPin(GET_MEMBER_NAME_CHECKED(FAnimNode_SkeletalControlBase, ComponentPose), EGPD_Input);
+		UEdGraphPin* PosePin = GraphNode->FindPin(TEXT("Pose"), EGPD_Output);
+		if (!ResultPin || !ComponentPosePin || !PosePin)
+		{
+			return false;
+		}
+
+		UEdGraphPin* InsertionPointPin = ResultPin;
+		if (!ResultPin->LinkedTo.IsEmpty())
+		{
+			UEdGraphNode* ResultSourceNode = ResultPin->LinkedTo[0] ? ResultPin->LinkedTo[0]->GetOwningNode() : nullptr;
+			if (UAnimGraphNode_ComponentToLocalSpace* ComponentToLocalSpaceNode =
+				Cast<UAnimGraphNode_ComponentToLocalSpace>(ResultSourceNode))
+			{
+				if (UEdGraphPin* ComponentToLocalSpaceInputPin =
+					FindFirstPosePin(ComponentToLocalSpaceNode, EGPD_Input))
+				{
+					InsertionPointPin = ComponentToLocalSpaceInputPin;
+				}
+			}
+		}
+
+		UEdGraphPin* PreviousSourcePin =
+			!InsertionPointPin->LinkedTo.IsEmpty() ? InsertionPointPin->LinkedTo[0] : nullptr;
+
+		Graph->Modify();
+		GraphNode->Modify();
+		const UAnimationGraphSchema* Schema = CastChecked<UAnimationGraphSchema>(Graph->GetSchema());
+		if (PreviousSourcePin)
+		{
+			const int32 NodeCountBeforePrevConnection = Graph->Nodes.Num();
+			if (!Schema->TryCreateConnection(PreviousSourcePin, ComponentPosePin))
+			{
+				return false;
+			}
+			bOutSpawnedConversionNode |= Graph->Nodes.Num() > NodeCountBeforePrevConnection;
+		}
+
+		const int32 NodeCountBeforeResultConnection = Graph->Nodes.Num();
+		if (!Schema->TryCreateConnection(PosePin, InsertionPointPin))
+		{
+			return false;
+		}
+		bOutSpawnedConversionNode |= Graph->Nodes.Num() > NodeCountBeforeResultConnection;
+		return true;
 	}
 }
 
@@ -875,21 +1008,31 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 		NSLOCTEXT("KawaiiPhysicsEditorLibrary", "AddKawaiiPhysicsNodes", "Add Kawaii Physics Nodes"));
 
 	USkeleton* TargetSkeleton = AnimBlueprint->TargetSkeleton;
+	TArray<FResolvedKawaiiPhysicsNodePlacementRequest> ResolvedRequests;
+	ResolvedRequests.Reserve(Requests.Num());
+	for (const FKawaiiPhysicsNodePlacementRequest& Request : Requests)
+	{
+		ResolvedRequests.Add(ResolvePlacementRequest(TargetSkeleton, Request));
+	}
+	const TArray<FName> AllResolvedRootBoneNames = CollectResolvedRootBoneNames(ResolvedRequests);
+
 	const FVector2D AutoPlacementBasePosition = GetAutoPlacementBasePosition(Graph);
 	int32 AutoPlacementIndex = 0;
 	bool bAddedNode = false;
 	bool bUpdatedNode = false;
+	bool bConnectedNode = false;
+	bool bSpawnedConversionNode = false;
 
 	for (int32 RequestIndex = 0; RequestIndex < Requests.Num(); ++RequestIndex)
 	{
-		const FResolvedKawaiiPhysicsNodePlacementRequest ResolvedRequest =
-			ResolvePlacementRequest(TargetSkeleton, Requests[RequestIndex]);
+		const FResolvedKawaiiPhysicsNodePlacementRequest& ResolvedRequest = ResolvedRequests[RequestIndex];
 
 		TArray<FString> ValidationMessages;
 		const bool bRequestValid = ValidateResolvedPlacementRequest(
 			AnimBlueprint,
 			Requests[RequestIndex],
 			ResolvedRequest,
+			AllResolvedRootBoneNames,
 			RequestIndex,
 			ValidationMessages);
 
@@ -920,6 +1063,15 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 			ExistingGraphNode->NodePosX = static_cast<int32>(NodePosition.X);
 			ExistingGraphNode->NodePosY = static_cast<int32>(NodePosition.Y);
 			FinalizeExistingPlacementGraphNode(ExistingGraphNode);
+			if (ResolvedRequest.bAutoConnect && !IsGraphNodePoseConnected(ExistingGraphNode))
+			{
+				bool bSpawnedConversionNodeForConnection = false;
+				if (ConnectGraphNodeBeforeResult(Graph, ExistingGraphNode, bSpawnedConversionNodeForConnection))
+				{
+					bConnectedNode = true;
+					bSpawnedConversionNode |= bSpawnedConversionNodeForConnection;
+				}
+			}
 
 			FKawaiiPhysicsGraphNodeHandle Handle;
 			Handle.Node = ExistingGraphNode;
@@ -935,6 +1087,15 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 		NewGraphNode->NodePosX = static_cast<int32>(NodePosition.X);
 		NewGraphNode->NodePosY = static_cast<int32>(NodePosition.Y);
 		NodeCreator.Finalize();
+		if (ResolvedRequest.bAutoConnect)
+		{
+			bool bSpawnedConversionNodeForConnection = false;
+			if (ConnectGraphNodeBeforeResult(Graph, NewGraphNode, bSpawnedConversionNodeForConnection))
+			{
+				bConnectedNode = true;
+				bSpawnedConversionNode |= bSpawnedConversionNodeForConnection;
+			}
+		}
 
 		FKawaiiPhysicsGraphNodeHandle Handle;
 		Handle.Node = NewGraphNode;
@@ -942,11 +1103,11 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 		bAddedNode = true;
 	}
 
-	if (bAddedNode)
+	if (bAddedNode || bSpawnedConversionNode)
 	{
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(AnimBlueprint);
 	}
-	else if (bUpdatedNode)
+	else if (bUpdatedNode || bConnectedNode)
 	{
 		FBlueprintEditorUtils::MarkBlueprintAsModified(AnimBlueprint);
 	}

@@ -4,18 +4,27 @@
 
 #include "KawaiiPhysicsEditorLibrary.h"
 
+#include "AnimationGraphSchema.h"
+#include "AnimGraphNode_ComponentToLocalSpace.h"
 #include "AnimGraphNode_KawaiiPhysics.h"
+#include "AnimGraphNode_LocalRefPose.h"
+#include "AnimGraphNode_LocalToComponentSpace.h"
+#include "AnimGraphNode_Root.h"
 #include "Animation/AnimBlueprint.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/Skeleton.h"
+#include "Animation/AnimNode_Root.h"
+#include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphPin.h"
 #include "GameplayTagContainer.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
+#include "K2Node_Knot.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Misc/AutomationTest.h"
 #include "ReferenceSkeleton.h"
+#include "UObject/NameTypes.h"
 
 namespace
 {
@@ -198,6 +207,136 @@ namespace
 		FKawaiiPhysicsGraphNodeHandle Handle;
 		Handle.Node = GraphNode;
 		return Handle;
+	}
+
+	UAnimGraphNode_Root* FindResultRootNode(UEdGraph* Graph)
+	{
+		if (!Graph)
+		{
+			return nullptr;
+		}
+
+		for (UEdGraphNode* Node : Graph->Nodes)
+		{
+			if (UAnimGraphNode_Root* RootNode = Cast<UAnimGraphNode_Root>(Node))
+			{
+				return RootNode;
+			}
+		}
+
+		return nullptr;
+	}
+
+	UEdGraphPin* FindFirstPosePin(UEdGraphNode* Node, EEdGraphPinDirection Dir)
+	{
+		if (!Node)
+		{
+			return nullptr;
+		}
+
+		for (UEdGraphPin* Pin : Node->Pins)
+		{
+			if (Pin && Pin->Direction == Dir && UAnimationGraphSchema::IsPosePin(Pin->PinType))
+			{
+				return Pin;
+			}
+		}
+
+		return nullptr;
+	}
+
+	UEdGraphPin* FindFirstPin(UEdGraphNode* Node, EEdGraphPinDirection Dir)
+	{
+		if (!Node)
+		{
+			return nullptr;
+		}
+
+		for (UEdGraphPin* Pin : Node->Pins)
+		{
+			if (Pin && Pin->Direction == Dir)
+			{
+				return Pin;
+			}
+		}
+
+		return nullptr;
+	}
+
+	UEdGraphPin* GetResultPin(UEdGraph* Graph)
+	{
+		UAnimGraphNode_Root* RootNode = FindResultRootNode(Graph);
+		return RootNode ? RootNode->FindPin(GET_MEMBER_NAME_CHECKED(FAnimNode_Root, Result), EGPD_Input) : nullptr;
+	}
+
+	UEdGraphPin* GetKawaiiComponentPosePin(UAnimGraphNode_KawaiiPhysics* GraphNode)
+	{
+		return GraphNode
+			? GraphNode->FindPin(GET_MEMBER_NAME_CHECKED(FAnimNode_SkeletalControlBase, ComponentPose), EGPD_Input)
+			: nullptr;
+	}
+
+	UEdGraphPin* GetKawaiiPosePin(UAnimGraphNode_KawaiiPhysics* GraphNode)
+	{
+		return GraphNode ? GraphNode->FindPin(TEXT("Pose"), EGPD_Output) : nullptr;
+	}
+
+	int32 CountNodesOfClass(UEdGraph* Graph, UClass* NodeClass)
+	{
+		int32 Count = 0;
+		if (!Graph || !NodeClass)
+		{
+			return Count;
+		}
+
+		for (UEdGraphNode* Node : Graph->Nodes)
+		{
+			if (Node && Node->IsA(NodeClass))
+			{
+				++Count;
+			}
+		}
+
+		return Count;
+	}
+
+	FKawaiiPhysicsNodePlacementRequest MakeAutoConnectRequest(FName RootBoneName, const FGameplayTag& Tag)
+	{
+		FKawaiiPhysicsNodePlacementRequest Request;
+		Request.RootBoneName = RootBoneName;
+		Request.KawaiiPhysicsTag = Tag;
+		Request.bAutoConnect = true;
+		return Request;
+	}
+
+	UAnimGraphNode_LocalRefPose* AddLocalRefPoseNode(UEdGraph* Graph, FVector2D NodePosition)
+	{
+		if (!Graph)
+		{
+			return nullptr;
+		}
+
+		FGraphNodeCreator<UAnimGraphNode_LocalRefPose> NodeCreator(*Graph);
+		UAnimGraphNode_LocalRefPose* GraphNode = NodeCreator.CreateNode(false);
+		GraphNode->NodePosX = static_cast<int32>(NodePosition.X);
+		GraphNode->NodePosY = static_cast<int32>(NodePosition.Y);
+		NodeCreator.Finalize();
+		return GraphNode;
+	}
+
+	UK2Node_Knot* AddKnotNode(UEdGraph* Graph, FVector2D NodePosition)
+	{
+		if (!Graph)
+		{
+			return nullptr;
+		}
+
+		FGraphNodeCreator<UK2Node_Knot> NodeCreator(*Graph);
+		UK2Node_Knot* KnotNode = NodeCreator.CreateNode(false);
+		KnotNode->NodePosX = static_cast<int32>(NodePosition.X);
+		KnotNode->NodePosY = static_cast<int32>(NodePosition.Y);
+		NodeCreator.Finalize();
+		return KnotNode;
 	}
 }
 
@@ -614,6 +753,372 @@ bool FKawaiiPhysicsEditorScriptingPlacementUpsertTest::RunTest(const FString& Pa
 		bOk &= TestEqual(TEXT("Upsert updates RootBone"),
 		                  SecondHandles[0].Node->Node.RootBone.BoneName, FName(TEXT("tail_01")));
 	}
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementAutoConnectBasicTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.AutoConnect.Basic",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingPlacementAutoConnectBasicTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
+	if (!Fixture.AnimBlueprint || !Fixture.AnimGraph)
+	{
+		return false;
+	}
+
+	TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+	Requests.Add(MakeAutoConnectRequest(TEXT("hair_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+
+	TArray<FKawaiiPhysicsGraphNodeHandle> Handles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests);
+
+	bool bOk = true;
+	bOk &= TestEqual(TEXT("AutoConnect basic creates one node"), Handles.Num(), 1);
+	UAnimGraphNode_KawaiiPhysics* KawaiiNode =
+		Handles.IsValidIndex(0) && Handles[0].IsValid() ? Handles[0].Node.Get() : nullptr;
+	UEdGraphPin* ResultPin = GetResultPin(Fixture.AnimGraph);
+	UEdGraphPin* KawaiiComponentPosePin = GetKawaiiComponentPosePin(KawaiiNode);
+	UEdGraphPin* KawaiiPosePin = GetKawaiiPosePin(KawaiiNode);
+	UAnimGraphNode_ComponentToLocalSpace* ComponentToLocalSpaceNode =
+		ResultPin && ResultPin->LinkedTo.Num() == 1
+			? Cast<UAnimGraphNode_ComponentToLocalSpace>(ResultPin->LinkedTo[0]->GetOwningNode())
+			: nullptr;
+	UEdGraphPin* ComponentToLocalSpaceInputPin =
+		FindFirstPosePin(ComponentToLocalSpaceNode, EGPD_Input);
+
+	bOk &= TestNotNull(TEXT("Result is linked through ComponentToLocalSpace"), ComponentToLocalSpaceNode);
+	bOk &= TestTrue(TEXT("ComponentToLocalSpace input is linked to Kawaii Pose"),
+	                ComponentToLocalSpaceInputPin &&
+	                ComponentToLocalSpaceInputPin->LinkedTo.Num() == 1 &&
+	                ComponentToLocalSpaceInputPin->LinkedTo[0] == KawaiiPosePin);
+	bOk &= TestTrue(TEXT("Kawaii Pose is linked to ComponentToLocalSpace input"),
+	                KawaiiPosePin &&
+	                KawaiiPosePin->LinkedTo.Num() == 1 &&
+	                KawaiiPosePin->LinkedTo[0] == ComponentToLocalSpaceInputPin);
+	bOk &= TestTrue(TEXT("Kawaii ComponentPose remains unconnected"),
+	                KawaiiComponentPosePin && KawaiiComponentPosePin->LinkedTo.IsEmpty());
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementAutoConnectSerialTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.AutoConnect.Serial",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingPlacementAutoConnectSerialTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
+	if (!Fixture.AnimBlueprint || !Fixture.AnimGraph)
+	{
+		return false;
+	}
+
+	TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+	Requests.Add(MakeAutoConnectRequest(TEXT("hair_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+	Requests.Add(MakeAutoConnectRequest(TEXT("tail_01"), GetKawaiiPhysicsEditorScriptingTagB()));
+
+	TArray<FKawaiiPhysicsGraphNodeHandle> Handles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests);
+
+	bool bOk = true;
+	bOk &= TestEqual(TEXT("AutoConnect serial creates two nodes"), Handles.Num(), 2);
+	UAnimGraphNode_KawaiiPhysics* FirstNode =
+		Handles.IsValidIndex(0) && Handles[0].IsValid() ? Handles[0].Node.Get() : nullptr;
+	UAnimGraphNode_KawaiiPhysics* SecondNode =
+		Handles.IsValidIndex(1) && Handles[1].IsValid() ? Handles[1].Node.Get() : nullptr;
+	UEdGraphPin* FirstPosePin = GetKawaiiPosePin(FirstNode);
+	UEdGraphPin* SecondComponentPosePin = GetKawaiiComponentPosePin(SecondNode);
+	UEdGraphPin* SecondPosePin = GetKawaiiPosePin(SecondNode);
+	UEdGraphPin* ResultPin = GetResultPin(Fixture.AnimGraph);
+	UAnimGraphNode_ComponentToLocalSpace* ComponentToLocalSpaceNode =
+		ResultPin && ResultPin->LinkedTo.Num() == 1
+			? Cast<UAnimGraphNode_ComponentToLocalSpace>(ResultPin->LinkedTo[0]->GetOwningNode())
+			: nullptr;
+	UEdGraphPin* ComponentToLocalSpaceInputPin =
+		FindFirstPosePin(ComponentToLocalSpaceNode, EGPD_Input);
+
+	bOk &= TestTrue(TEXT("First Pose connects directly to second ComponentPose"),
+	                FirstPosePin &&
+	                SecondComponentPosePin &&
+	                FirstPosePin->LinkedTo.Num() == 1 &&
+	                FirstPosePin->LinkedTo[0] == SecondComponentPosePin &&
+	                SecondComponentPosePin->LinkedTo.Num() == 1 &&
+	                SecondComponentPosePin->LinkedTo[0] == FirstPosePin);
+	bOk &= TestTrue(TEXT("Second Pose connects through ComponentToLocalSpace to Result"),
+	                SecondPosePin &&
+	                ComponentToLocalSpaceInputPin &&
+	                SecondPosePin->LinkedTo.Num() == 1 &&
+	                SecondPosePin->LinkedTo[0] == ComponentToLocalSpaceInputPin);
+	bOk &= TestEqual(TEXT("Serial graph has exactly one ComponentToLocalSpace node"),
+	                 CountNodesOfClass(Fixture.AnimGraph, UAnimGraphNode_ComponentToLocalSpace::StaticClass()), 1);
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementAutoConnectAppendTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.AutoConnect.Append",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingPlacementAutoConnectAppendTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
+	if (!Fixture.AnimBlueprint || !Fixture.AnimGraph)
+	{
+		return false;
+	}
+
+	TArray<FKawaiiPhysicsNodePlacementRequest> SerialRequests;
+	SerialRequests.Add(MakeAutoConnectRequest(TEXT("hair_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+	SerialRequests.Add(MakeAutoConnectRequest(TEXT("tail_01"), GetKawaiiPhysicsEditorScriptingTagB()));
+	TArray<FKawaiiPhysicsGraphNodeHandle> SerialHandles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, SerialRequests);
+	const int32 ComponentToLocalSpaceCountBefore =
+		CountNodesOfClass(Fixture.AnimGraph, UAnimGraphNode_ComponentToLocalSpace::StaticClass());
+
+	TArray<FKawaiiPhysicsNodePlacementRequest> AppendRequests;
+	AppendRequests.Add(MakeAutoConnectRequest(TEXT("bang_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+	TArray<FKawaiiPhysicsGraphNodeHandle> AppendHandles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, AppendRequests);
+
+	bool bOk = true;
+	bOk &= TestEqual(TEXT("AutoConnect append setup creates two nodes"), SerialHandles.Num(), 2);
+	bOk &= TestEqual(TEXT("AutoConnect append creates one node"), AppendHandles.Num(), 1);
+	UAnimGraphNode_KawaiiPhysics* SecondNode =
+		SerialHandles.IsValidIndex(1) && SerialHandles[1].IsValid() ? SerialHandles[1].Node.Get() : nullptr;
+	UAnimGraphNode_KawaiiPhysics* ThirdNode =
+		AppendHandles.IsValidIndex(0) && AppendHandles[0].IsValid() ? AppendHandles[0].Node.Get() : nullptr;
+	UEdGraphPin* SecondPosePin = GetKawaiiPosePin(SecondNode);
+	UEdGraphPin* ThirdComponentPosePin = GetKawaiiComponentPosePin(ThirdNode);
+	UEdGraphPin* ThirdPosePin = GetKawaiiPosePin(ThirdNode);
+	UEdGraphPin* ResultPin = GetResultPin(Fixture.AnimGraph);
+	UAnimGraphNode_ComponentToLocalSpace* ComponentToLocalSpaceNode =
+		ResultPin && ResultPin->LinkedTo.Num() == 1
+			? Cast<UAnimGraphNode_ComponentToLocalSpace>(ResultPin->LinkedTo[0]->GetOwningNode())
+			: nullptr;
+	UEdGraphPin* ComponentToLocalSpaceInputPin =
+		FindFirstPosePin(ComponentToLocalSpaceNode, EGPD_Input);
+
+	bOk &= TestEqual(TEXT("Append reuses the existing ComponentToLocalSpace node"),
+	                 CountNodesOfClass(Fixture.AnimGraph, UAnimGraphNode_ComponentToLocalSpace::StaticClass()),
+	                 ComponentToLocalSpaceCountBefore);
+	bOk &= TestEqual(TEXT("Append keeps exactly one ComponentToLocalSpace node"),
+	                 ComponentToLocalSpaceCountBefore, 1);
+	bOk &= TestTrue(TEXT("Second Pose connects directly to appended ComponentPose"),
+	                SecondPosePin &&
+	                ThirdComponentPosePin &&
+	                SecondPosePin->LinkedTo.Num() == 1 &&
+	                SecondPosePin->LinkedTo[0] == ThirdComponentPosePin);
+	bOk &= TestTrue(TEXT("Appended Pose connects to reused ComponentToLocalSpace input"),
+	                ThirdPosePin &&
+	                ComponentToLocalSpaceInputPin &&
+	                ThirdPosePin->LinkedTo.Num() == 1 &&
+	                ThirdPosePin->LinkedTo[0] == ComponentToLocalSpaceInputPin);
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementAutoConnectSpaceConversionTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.AutoConnect.SpaceConversion",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingPlacementAutoConnectSpaceConversionTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
+	if (!Fixture.AnimBlueprint || !Fixture.AnimGraph)
+	{
+		return false;
+	}
+
+	UAnimGraphNode_LocalRefPose* LocalRefPoseNode = AddLocalRefPoseNode(Fixture.AnimGraph, FVector2D(-600.0f, 0.0f));
+	UEdGraphPin* LocalRefPosePin = FindFirstPosePin(LocalRefPoseNode, EGPD_Output);
+	UEdGraphPin* ResultPin = GetResultPin(Fixture.AnimGraph);
+	const UAnimationGraphSchema* Schema = CastChecked<UAnimationGraphSchema>(Fixture.AnimGraph->GetSchema());
+	const bool bConnectedLocalRefPose = LocalRefPosePin && ResultPin && Schema->TryCreateConnection(LocalRefPosePin, ResultPin);
+	TestTrue(TEXT("LocalRefPose setup connects directly to Result"), bConnectedLocalRefPose);
+	if (!bConnectedLocalRefPose)
+	{
+		return false;
+	}
+
+	TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+	Requests.Add(MakeAutoConnectRequest(TEXT("hair_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+	TArray<FKawaiiPhysicsGraphNodeHandle> Handles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests);
+
+	bool bOk = true;
+	bOk &= TestEqual(TEXT("AutoConnect space conversion creates one node"), Handles.Num(), 1);
+	UAnimGraphNode_KawaiiPhysics* KawaiiNode =
+		Handles.IsValidIndex(0) && Handles[0].IsValid() ? Handles[0].Node.Get() : nullptr;
+	UEdGraphPin* KawaiiComponentPosePin = GetKawaiiComponentPosePin(KawaiiNode);
+	UEdGraphPin* KawaiiPosePin = GetKawaiiPosePin(KawaiiNode);
+	ResultPin = GetResultPin(Fixture.AnimGraph);
+
+	bOk &= TestEqual(TEXT("Space conversion inserts one LocalToComponentSpace node"),
+	                 CountNodesOfClass(Fixture.AnimGraph, UAnimGraphNode_LocalToComponentSpace::StaticClass()), 1);
+	bOk &= TestTrue(TEXT("Kawaii ComponentPose is connected through LocalToComponentSpace"),
+	                KawaiiComponentPosePin &&
+	                KawaiiComponentPosePin->LinkedTo.Num() == 1 &&
+	                KawaiiComponentPosePin->LinkedTo[0]->GetOwningNode()->IsA<UAnimGraphNode_LocalToComponentSpace>());
+	bOk &= TestTrue(TEXT("Kawaii Pose remains connected toward Result"),
+	                KawaiiPosePin && !KawaiiPosePin->LinkedTo.IsEmpty());
+	bOk &= TestTrue(TEXT("Result remains connected after auto-wiring"),
+	                ResultPin && !ResultPin->LinkedTo.IsEmpty());
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementAutoConnectUpsertKeepsWiringTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.AutoConnect.UpsertKeepsWiring",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingPlacementAutoConnectUpsertKeepsWiringTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
+	if (!Fixture.AnimBlueprint || !Fixture.AnimGraph)
+	{
+		return false;
+	}
+
+	TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+	Requests.Add(MakeAutoConnectRequest(TEXT("hair_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+	TArray<FKawaiiPhysicsGraphNodeHandle> FirstHandles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(
+			Fixture.AnimBlueprint, Requests, EKawaiiPhysicsPlacementUpsertKey::Tag);
+	UAnimGraphNode_KawaiiPhysics* FirstNode =
+		FirstHandles.IsValidIndex(0) && FirstHandles[0].IsValid() ? FirstHandles[0].Node.Get() : nullptr;
+	UEdGraphPin* ComponentPosePinBefore = GetKawaiiComponentPosePin(FirstNode);
+	UEdGraphPin* PosePinBefore = GetKawaiiPosePin(FirstNode);
+	const int32 ComponentPoseLinkCountBefore = ComponentPosePinBefore ? ComponentPosePinBefore->LinkedTo.Num() : INDEX_NONE;
+	const int32 PoseLinkCountBefore = PosePinBefore ? PosePinBefore->LinkedTo.Num() : INDEX_NONE;
+	UEdGraphNode* ComponentPosePeerNodeBefore =
+		ComponentPosePinBefore && ComponentPosePinBefore->LinkedTo.Num() == 1
+			? ComponentPosePinBefore->LinkedTo[0]->GetOwningNode()
+			: nullptr;
+	UEdGraphNode* PosePeerNodeBefore =
+		PosePinBefore && PosePinBefore->LinkedTo.Num() == 1
+			? PosePinBefore->LinkedTo[0]->GetOwningNode()
+			: nullptr;
+
+	Requests[0].RootBoneName = TEXT("tail_01");
+	TArray<FKawaiiPhysicsGraphNodeHandle> SecondHandles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(
+			Fixture.AnimBlueprint, Requests, EKawaiiPhysicsPlacementUpsertKey::Tag);
+	UAnimGraphNode_KawaiiPhysics* SecondNode =
+		SecondHandles.IsValidIndex(0) && SecondHandles[0].IsValid() ? SecondHandles[0].Node.Get() : nullptr;
+	UEdGraphPin* ComponentPosePinAfter = GetKawaiiComponentPosePin(SecondNode);
+	UEdGraphPin* PosePinAfter = GetKawaiiPosePin(SecondNode);
+	UEdGraphNode* ComponentPosePeerNodeAfter =
+		ComponentPosePinAfter && ComponentPosePinAfter->LinkedTo.Num() == 1
+			? ComponentPosePinAfter->LinkedTo[0]->GetOwningNode()
+			: nullptr;
+	UEdGraphNode* PosePeerNodeAfter =
+		PosePinAfter && PosePinAfter->LinkedTo.Num() == 1
+			? PosePinAfter->LinkedTo[0]->GetOwningNode()
+			: nullptr;
+
+	bool bOk = true;
+	bOk &= TestEqual(TEXT("AutoConnect upsert returns the same node"), SecondNode, FirstNode);
+	bOk &= TestEqual(TEXT("ComponentPose link count is unchanged"), ComponentPosePinAfter ? ComponentPosePinAfter->LinkedTo.Num() : INDEX_NONE, ComponentPoseLinkCountBefore);
+	bOk &= TestEqual(TEXT("Pose link count is unchanged"), PosePinAfter ? PosePinAfter->LinkedTo.Num() : INDEX_NONE, PoseLinkCountBefore);
+	bOk &= TestEqual(TEXT("ComponentPose peer identity is unchanged"), ComponentPosePeerNodeAfter, ComponentPosePeerNodeBefore);
+	bOk &= TestEqual(TEXT("Pose peer identity is unchanged"), PosePeerNodeAfter, PosePeerNodeBefore);
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementAutoConnectBackCompatTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.AutoConnect.BackCompat",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingPlacementAutoConnectBackCompatTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
+	if (!Fixture.AnimBlueprint)
+	{
+		return false;
+	}
+
+	FKawaiiPhysicsNodePlacementRequest Request;
+	Request.RootBoneName = TEXT("hair_01");
+	TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+	Requests.Add(Request);
+
+	TArray<FKawaiiPhysicsGraphNodeHandle> Handles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests);
+
+	bool bOk = true;
+	bOk &= TestEqual(TEXT("BackCompat placement creates one node"), Handles.Num(), 1);
+	UAnimGraphNode_KawaiiPhysics* KawaiiNode =
+		Handles.IsValidIndex(0) && Handles[0].IsValid() ? Handles[0].Node.Get() : nullptr;
+	UEdGraphPin* ComponentPosePin = GetKawaiiComponentPosePin(KawaiiNode);
+	UEdGraphPin* PosePin = GetKawaiiPosePin(KawaiiNode);
+	bOk &= TestTrue(TEXT("BackCompat ComponentPose remains unconnected"),
+	                ComponentPosePin && ComponentPosePin->LinkedTo.IsEmpty());
+	bOk &= TestTrue(TEXT("BackCompat Pose remains unconnected"),
+	                PosePin && PosePin->LinkedTo.IsEmpty());
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementAutoConnectKnotSkipTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.AutoConnect.KnotSkip",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingPlacementAutoConnectKnotSkipTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
+	if (!Fixture.AnimBlueprint || !Fixture.AnimGraph)
+	{
+		return false;
+	}
+
+	TArray<FKawaiiPhysicsNodePlacementRequest> InitialRequests;
+	InitialRequests.Add(MakeAutoConnectRequest(TEXT("hair_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+	TArray<FKawaiiPhysicsGraphNodeHandle> InitialHandles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, InitialRequests);
+	UEdGraphPin* ResultPin = GetResultPin(Fixture.AnimGraph);
+	UEdGraphPin* ExistingConversionOutputPin =
+		ResultPin && ResultPin->LinkedTo.Num() == 1 ? ResultPin->LinkedTo[0] : nullptr;
+	UK2Node_Knot* KnotNode = AddKnotNode(Fixture.AnimGraph, FVector2D(-250.0f, -150.0f));
+	UEdGraphPin* KnotInputPin = FindFirstPin(KnotNode, EGPD_Input);
+	UEdGraphPin* KnotOutputPin = FindFirstPin(KnotNode, EGPD_Output);
+	const UAnimationGraphSchema* Schema = CastChecked<UAnimationGraphSchema>(Fixture.AnimGraph->GetSchema());
+	const bool bConnectedExistingConversionToKnot =
+		ExistingConversionOutputPin && KnotInputPin && Schema->TryCreateConnection(ExistingConversionOutputPin, KnotInputPin);
+	const bool bConnectedKnotToResult =
+		KnotOutputPin && ResultPin && Schema->TryCreateConnection(KnotOutputPin, ResultPin);
+	UEdGraphNode* ResultSourceNodeBefore =
+		ResultPin && ResultPin->LinkedTo.Num() == 1 ? ResultPin->LinkedTo[0]->GetOwningNode() : nullptr;
+	TestTrue(TEXT("Knot setup connects existing conversion to knot"), bConnectedExistingConversionToKnot);
+	TestTrue(TEXT("Knot setup connects knot to Result"), bConnectedKnotToResult);
+	TestTrue(TEXT("Knot is immediately upstream of Result before auto-wiring"),
+	         ResultSourceNodeBefore && ResultSourceNodeBefore->IsA<UK2Node_Knot>());
+	if (InitialHandles.Num() != 1 ||
+		!bConnectedExistingConversionToKnot ||
+		!bConnectedKnotToResult ||
+		!ResultSourceNodeBefore ||
+		!ResultSourceNodeBefore->IsA<UK2Node_Knot>())
+	{
+		return false;
+	}
+
+	const int32 ComponentToLocalSpaceCountBefore =
+		CountNodesOfClass(Fixture.AnimGraph, UAnimGraphNode_ComponentToLocalSpace::StaticClass());
+	TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+	Requests.Add(MakeAutoConnectRequest(TEXT("tail_01"), GetKawaiiPhysicsEditorScriptingTagB()));
+	TArray<FKawaiiPhysicsGraphNodeHandle> Handles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests);
+
+	bool bOk = true;
+	bOk &= TestEqual(TEXT("KnotSkip placement creates one node"), Handles.Num(), 1);
+	bOk &= TestEqual(TEXT("Knot setup has one initial ComponentToLocalSpace"),
+	                 ComponentToLocalSpaceCountBefore, 1);
+	bOk &= TestEqual(TEXT("KnotSkip does not reuse conversion hidden behind knot"),
+	                 CountNodesOfClass(Fixture.AnimGraph, UAnimGraphNode_ComponentToLocalSpace::StaticClass()),
+	                 ComponentToLocalSpaceCountBefore + 1);
+	ResultPin = GetResultPin(Fixture.AnimGraph);
+	UEdGraphNode* ResultSourceNode =
+		ResultPin && ResultPin->LinkedTo.Num() == 1 ? ResultPin->LinkedTo[0]->GetOwningNode() : nullptr;
+	bOk &= TestFalse(TEXT("Knot is not treated as Result conversion source"),
+	                 ResultSourceNode && ResultSourceNode->IsA<UK2Node_Knot>());
+	bOk &= TestTrue(TEXT("Result is linked through a direct ComponentToLocalSpace after KnotSkip"),
+	                ResultSourceNode && ResultSourceNode->IsA<UAnimGraphNode_ComponentToLocalSpace>());
 	return bOk;
 }
 
