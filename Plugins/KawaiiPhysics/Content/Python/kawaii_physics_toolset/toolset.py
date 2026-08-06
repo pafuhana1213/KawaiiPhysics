@@ -137,6 +137,237 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
 
     @toolset_registry.tool_call
     @staticmethod
+    def is_graph_node_handle_valid(
+            handle: unreal.KawaiiPhysicsGraphNodeHandle) -> bool:
+        """Returns whether a KawaiiPhysics graph node handle is valid."""
+        return (
+            handle is not None and
+            unreal.KawaiiPhysicsEditorLibrary.is_graph_node_handle_valid(handle)
+        )
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def set_graph_node_property(
+            handle: unreal.KawaiiPhysicsGraphNodeHandle,
+            property_name: str,
+            value: str) -> None:
+        """Sets a graph node property from a string value."""
+        _raise_for_invalid_handle(handle, 'handle')
+        if not property_name:
+            raise ValueError('property_name must not be empty.')
+        if value is None:
+            raise ValueError('value must not be None.')
+
+        ok = unreal.KawaiiPhysicsEditorLibrary.set_graph_node_property_by_string(
+            handle,
+            unreal.Name(property_name),
+            value,
+        )
+        if not ok:
+            raise RuntimeError(
+                f'Unable to set KawaiiPhysics graph node property: {property_name}')
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def get_graph_node_property(
+            handle: unreal.KawaiiPhysicsGraphNodeHandle,
+            property_name: str) -> str:
+        """Gets a graph node property as a string value."""
+        _raise_for_invalid_handle(handle, 'handle')
+        if not property_name:
+            raise ValueError('property_name must not be empty.')
+
+        value = unreal.KawaiiPhysicsEditorLibrary.get_graph_node_property_as_string(
+            handle,
+            unreal.Name(property_name),
+        )
+        if value is None:
+            raise RuntimeError(
+                f'Unable to get KawaiiPhysics graph node property: {property_name}')
+        return str(value)
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def set_preset_node_property(
+            preset: unreal.KawaiiPhysicsPresetDataAsset,
+            property_name: str,
+            value: str) -> None:
+        """Sets a preset node property from a string value."""
+        _raise_for_invalid_object(preset, 'preset')
+        if not property_name:
+            raise ValueError('property_name must not be empty.')
+        if value is None:
+            raise ValueError('value must not be None.')
+
+        ok = unreal.KawaiiPhysicsEditorLibrary.set_preset_node_property_by_string(
+            preset,
+            unreal.Name(property_name),
+            value,
+        )
+        if not ok:
+            raise RuntimeError(
+                f'Unable to set KawaiiPhysics preset node property: {property_name}')
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def get_preset_node_property(
+            preset: unreal.KawaiiPhysicsPresetDataAsset,
+            property_name: str) -> str:
+        """Gets a preset node property as a string value."""
+        _raise_for_invalid_object(preset, 'preset')
+        if not property_name:
+            raise ValueError('property_name must not be empty.')
+
+        value = unreal.KawaiiPhysicsEditorLibrary.get_preset_node_property_as_string(
+            preset,
+            unreal.Name(property_name),
+        )
+        if value is None:
+            raise RuntimeError(
+                f'Unable to get KawaiiPhysics preset node property: {property_name}')
+        return str(value)
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def set_preset_target_tags(
+            preset: unreal.KawaiiPhysicsPresetDataAsset,
+            tag_names: list[str],
+            exact_match: bool) -> None:
+        """Sets preset target tags from gameplay tag names."""
+        _raise_for_invalid_object(preset, 'preset')
+        if tag_names is None:
+            raise ValueError('tag_names must not be None.')
+
+        ok = unreal.KawaiiPhysicsEditorLibrary.set_preset_target_tags(
+            preset,
+            [unreal.Name(tag_name) for tag_name in tag_names],
+            exact_match,
+        )
+        if not ok:
+            raise RuntimeError('Unable to set KawaiiPhysics preset target tags.')
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def set_preset_description(
+            preset: unreal.KawaiiPhysicsPresetDataAsset,
+            description: str) -> None:
+        """Sets a preset description from a string."""
+        _raise_for_invalid_object(preset, 'preset')
+        if description is None:
+            raise ValueError('description must not be None.')
+
+        ok = unreal.KawaiiPhysicsEditorLibrary.set_preset_description(
+            preset,
+            description,
+        )
+        if not ok:
+            raise RuntimeError('Unable to set KawaiiPhysics preset description.')
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def get_preset_description(
+            preset: unreal.KawaiiPhysicsPresetDataAsset) -> str:
+        """Gets a preset description as a string."""
+        _raise_for_invalid_object(preset, 'preset')
+
+        description = unreal.KawaiiPhysicsEditorLibrary.get_preset_description(preset)
+        return str(description)
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def set_graph_node_tag(
+            handle: unreal.KawaiiPhysicsGraphNodeHandle,
+            tag_name: str) -> None:
+        """Sets a graph node KawaiiPhysicsTag from a gameplay tag name."""
+        _raise_for_invalid_handle(handle, 'handle')
+        if not tag_name:
+            raise ValueError('tag_name must not be empty.')
+
+        container = unreal.KawaiiPhysicsEditorLibrary.make_gameplay_tag_container_from_names(
+            [unreal.Name(tag_name)])
+        if container is None:
+            raise ValueError(f'No valid gameplay tags were resolved from: {tag_name}')
+        tags = container.get_editor_property('gameplay_tags')
+        if len(tags) == 0:
+            raise ValueError(f'No valid gameplay tags were resolved from: {tag_name}')
+
+        ok = unreal.KawaiiPhysicsEditorLibrary.set_graph_node_tag(
+            handle,
+            tags[0],
+        )
+        if not ok:
+            raise RuntimeError(
+                f'Unable to set KawaiiPhysics graph node tag: {tag_name}')
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def get_graph_node_tag(
+            handle: unreal.KawaiiPhysicsGraphNodeHandle) -> str:
+        """Gets a graph node KawaiiPhysicsTag as a string."""
+        _raise_for_invalid_handle(handle, 'handle')
+
+        tag = unreal.KawaiiPhysicsEditorLibrary.get_graph_node_tag(handle)
+        if tag is None:
+            raise RuntimeError('Unable to get KawaiiPhysics graph node tag.')
+        # GameplayTag は属性アクセス不可のため get_editor_property 経由で読む
+        return str(tag.get_editor_property('tag_name'))
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def set_graph_node_root_bone(
+            handle: unreal.KawaiiPhysicsGraphNodeHandle,
+            bone_name: str) -> None:
+        """Sets a graph node RootBone from a bone name."""
+        _raise_for_invalid_handle(handle, 'handle')
+        if not bone_name:
+            raise ValueError('bone_name must not be empty.')
+
+        ok = unreal.KawaiiPhysicsEditorLibrary.set_graph_node_root_bone_name(
+            handle,
+            unreal.Name(bone_name),
+        )
+        if not ok:
+            raise RuntimeError(
+                f'Unable to set KawaiiPhysics graph node RootBone: {bone_name}')
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def get_graph_node_root_bone(
+            handle: unreal.KawaiiPhysicsGraphNodeHandle) -> str:
+        """Gets a graph node RootBone as a string."""
+        _raise_for_invalid_handle(handle, 'handle')
+
+        bone_name = unreal.KawaiiPhysicsEditorLibrary.get_graph_node_root_bone_name(
+            handle)
+        if bone_name is None:
+            raise RuntimeError('Unable to get KawaiiPhysics graph node RootBone.')
+        return str(bone_name)
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def find_all_preset_assets() -> list[unreal.KawaiiPhysicsPresetDataAsset]:
+        """Finds all KawaiiPhysics preset assets in the project."""
+        presets = unreal.KawaiiPhysicsEditorLibrary.find_all_preset_assets()
+        if presets is None:
+            raise RuntimeError('Unable to find KawaiiPhysics preset assets.')
+        return presets
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def find_anim_blueprint_assets(content_paths: list[str]) -> list[str]:
+        """Finds AnimBlueprint asset paths under content paths."""
+        if content_paths is None:
+            raise ValueError('content_paths must not be None.')
+
+        asset_paths = unreal.KawaiiPhysicsEditorLibrary.find_anim_blueprint_assets(
+            content_paths)
+        if asset_paths is None:
+            raise RuntimeError('Unable to find AnimBlueprint assets.')
+        # str(SoftObjectPath) は構造体表記になるため export_text() でパス文字列化する
+        return [asset_path.export_text() for asset_path in asset_paths]
+
+    @toolset_registry.tool_call
+    @staticmethod
     def apply_preset_to_graph_node(
             handle: unreal.KawaiiPhysicsGraphNodeHandle,
             preset: unreal.KawaiiPhysicsPresetDataAsset,
