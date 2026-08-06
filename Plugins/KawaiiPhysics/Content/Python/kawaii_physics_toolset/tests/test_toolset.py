@@ -98,6 +98,19 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         )
         self.assertEqual(len(collected), 1)
 
+    def test_validate_missing_root_bone_reports_error(self):
+        anim_blueprint = self._create_anim_blueprint()
+        request = unreal.KawaiiPhysicsNodePlacementRequest()
+        request.set_editor_property(
+            'root_bone_name',
+            unreal.Name('TotallyBogusBone_XYZ'),
+        )
+
+        errors = KawaiiPhysicsToolset.validate_placement_requests(anim_blueprint, [request])
+
+        self.assertNotEqual(errors, [])
+        self.assertIn('TotallyBogusBone_XYZ', '; '.join(errors))
+
     def test_apply_preset_success(self):
         handle = self._place_test_node()
         preset = _load_asset_checked(HAIR_PRESET_PATH)

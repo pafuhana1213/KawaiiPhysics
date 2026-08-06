@@ -46,15 +46,11 @@ def _make_tag_container(filter_tag_names: list[str]) -> unreal.GameplayTagContai
     if not filter_tag_names:
         return unreal.GameplayTagContainer()
 
-    # out 引数付き UFUNCTION は Python では (return_value, out_value) のタプルで返る前提。
     result = unreal.KawaiiPhysicsEditorLibrary.make_gameplay_tag_container_from_names(
         [unreal.Name(tag_name) for tag_name in filter_tag_names])
-    if isinstance(result, tuple):
-        ok, container = result[0], result[-1]
-        if not ok:
-            raise ValueError(
-                f'No valid gameplay tags were resolved from: {filter_tag_names}')
-        return container
+    if result is None:
+        raise ValueError(
+            f'No valid gameplay tags were resolved from: {filter_tag_names}')
     return result
 
 
@@ -170,18 +166,16 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         _raise_for_invalid_object(preset, 'preset')
         options = _make_preset_apply_options(apply_bone_assignment, apply_tag)
 
-        # out 引数付き UFUNCTION は Python では (bool, diff_properties) のタプルで返る前提。
-        result = unreal.KawaiiPhysicsEditorLibrary.does_graph_node_match_preset(
-            handle,
-            preset,
-            options,
+        diff_properties = (
+            unreal.KawaiiPhysicsEditorLibrary
+            .get_graph_node_preset_diff_properties(
+                handle,
+                preset,
+                options,
+            )
         )
-        if isinstance(result, tuple):
-            matches, diff_properties = result[0], result[-1]
-        else:
-            matches, diff_properties = bool(result), []
-        if matches:
-            return []
+        if diff_properties is None:
+            raise RuntimeError('Unable to diff KawaiiPhysics graph node preset.')
         return [str(property_name) for property_name in diff_properties]
 
     @toolset_registry.tool_call
@@ -231,15 +225,16 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         """Reapplies a preset and returns the audit report, not the update count."""
         _raise_for_invalid_object(preset, 'preset')
 
-        # out 引数付き UFUNCTION は Python では (updated_count, report) のタプルで返る前提。
         result = unreal.KawaiiPhysicsEditorLibrary.reapply_preset_to_project(
             preset,
             dry_run,
             check_out_files,
         )
-        if isinstance(result, tuple):
-            return result[-1]
-        return []
+        if not isinstance(result, tuple) or len(result) != 2:
+            raise RuntimeError(
+                'Unexpected return value from reapply_preset_to_project.')
+        _updated_count, report = result
+        return report
 
     @toolset_registry.tool_call
     @staticmethod
@@ -250,19 +245,14 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         """Audits KawaiiPhysics nodes under content paths; empty paths use /Game."""
         filter_tags = _make_tag_container(filter_tag_names)
 
-        # out 引数付き UFUNCTION は Python では (bool, entries) のタプルで返る前提。
         result = unreal.KawaiiPhysicsEditorLibrary.audit_kawaii_physics_nodes(
             content_paths,
             filter_tags,
             filter_exact_match,
         )
-        if isinstance(result, tuple):
-            ok, entries = result[0], result[-1]
-        else:
-            ok, entries = bool(result), []
-        if not ok:
+        if result is None:
             raise RuntimeError('KawaiiPhysics node audit failed.')
-        return entries
+        return result
 
     @toolset_registry.tool_call
     @staticmethod
@@ -285,11 +275,11 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         """Returns placement errors and warnings; an empty list means no issues."""
         _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
 
-        # out 引数付き UFUNCTION は Python では (bool, errors) のタプルで返る前提。
         result = unreal.KawaiiPhysicsEditorLibrary.validate_placement_requests(
             anim_blueprint,
             requests,
         )
-        if isinstance(result, tuple):
-            return [str(error) for error in result[-1]]
-        return []
+        if result is None:
+            raise RuntimeError(
+                'Unexpected return value from validate_placement_requests.')
+        return [str(error) for error in result]
