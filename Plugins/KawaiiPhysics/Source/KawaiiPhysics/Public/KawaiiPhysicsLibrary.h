@@ -99,7 +99,12 @@ public:
 
 	/**
 	 * AnimInstance から KawaiiPhysics ノード参照を収集する（FilterTags が空なら全件）。
+	 * AnimGraph の BlueprintThreadSafe 文脈から呼ぶ場合、対象は呼び出し元（呼び出しノード自身）の AnimInstance に限ります。
+	 * それ以外のオブジェクトから収集する場合は、そのオブジェクトが評価中でない GameThread で呼び出してください。
+	 *
 	 * Collect KawaiiPhysics node references from an AnimInstance (empty FilterTags collects all nodes).
+	 * When called from an AnimGraph BlueprintThreadSafe context, the target must be the caller's (the calling node's) own AnimInstance.
+	 * Collecting from any other object must be done from the GameThread while that object is not being evaluated.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
 		meta=(BlueprintThreadSafe, AutoCreateRefTerm = "FilterTags"))
@@ -110,7 +115,12 @@ public:
 
 	/**
 	 * Component / Linked AnimInstance / PostProcess から KawaiiPhysics ノード参照を収集する（FilterTags が空なら全件）。
+	 * AnimGraph の BlueprintThreadSafe 文脈から呼ぶ場合、対象は呼び出し元（呼び出しノード自身）の Component に限ります。
+	 * それ以外のオブジェクトから収集する場合は、そのオブジェクトが評価中でない GameThread で呼び出してください。
+	 *
 	 * Collect KawaiiPhysics node references from a component, linked instances, and post-process instance (empty FilterTags collects all nodes).
+	 * When called from an AnimGraph BlueprintThreadSafe context, the target must be the caller's (the calling node's) own Component.
+	 * Collecting from any other object must be done from the GameThread while that object is not being evaluated.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
 		meta=(BlueprintThreadSafe, AutoCreateRefTerm = "FilterTags"))
@@ -126,7 +136,7 @@ public:
 	 *
 	 * Thread contract for runtime property access:
 	 * CallAnimNodeFunction executes immediately on the referenced node and does not synchronize with evaluation threads.
-	 * Call these APIs from a BlueprintThreadSafe AnimGraph context, or from the GameThread while the target node is not being evaluated.
+	 * Call the runtime property access APIs below from a BlueprintThreadSafe AnimGraph context, or from the GameThread while the target node is not being evaluated.
 	 */
 
 	/** ResetDynamics */
