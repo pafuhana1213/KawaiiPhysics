@@ -410,10 +410,8 @@ bool FKawaiiPhysicsEditorScriptingPresetTest::RunTest(const FString& Parameters)
 	bOk &= TestTrue(TEXT("Apply preset to graph node"),
 	                UKawaiiPhysicsEditorLibrary::ApplyPresetToGraphNode(Handle, Preset, Options));
 
-	TArray<FName> DiffProperties;
-	bOk &= TestTrue(TEXT("Graph node matches applied preset"),
-	                UKawaiiPhysicsEditorLibrary::DoesGraphNodeMatchPreset(
-		                Handle, Preset, Options, DiffProperties));
+	TArray<FName> DiffProperties =
+		UKawaiiPhysicsEditorLibrary::GetGraphNodePresetDiffProperties(Handle, Preset, Options);
 	bOk &= TestTrue(TEXT("No diff after preset apply"), DiffProperties.IsEmpty());
 
 	UKawaiiPhysicsPresetDataAsset* ExportTarget = NewObject<UKawaiiPhysicsPresetDataAsset>(GetTransientPackage());
@@ -557,14 +555,12 @@ bool FKawaiiPhysicsEditorScriptingPlacementValidationTest::RunTest(const FString
 	TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
 	Requests.Add(Request);
 
-	TArray<FString> Errors;
-	const bool bValidationResult =
-		UKawaiiPhysicsEditorLibrary::ValidatePlacementRequests(Fixture.AnimBlueprint, Requests, Errors);
+	TArray<FString> Errors =
+		UKawaiiPhysicsEditorLibrary::ValidatePlacementRequests(Fixture.AnimBlueprint, Requests);
 	TArray<FKawaiiPhysicsGraphNodeHandle> Handles =
 		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests);
 
 	bool bOk = true;
-	bOk &= TestFalse(TEXT("Missing bone validation fails"), bValidationResult);
 	bOk &= TestFalse(TEXT("Missing bone reports errors"), Errors.IsEmpty());
 	bOk &= TestTrue(TEXT("Invalid placement is skipped"), Handles.IsEmpty());
 	return bOk;

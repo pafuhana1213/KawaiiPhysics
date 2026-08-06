@@ -260,11 +260,6 @@ namespace
 		bool bAutoPosition = true;
 	};
 
-	bool IsWarningMessage(const FString& Message)
-	{
-		return Message.StartsWith(TEXT("Warning:"));
-	}
-
 	void AddUniqueBoneName(TArray<FName>& BoneNames, FName BoneName)
 	{
 		if (!BoneName.IsNone())
@@ -826,44 +821,26 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 	return Result;
 }
 
-bool UKawaiiPhysicsEditorLibrary::ValidatePlacementRequests(
+TArray<FString> UKawaiiPhysicsEditorLibrary::ValidatePlacementRequests(
 	UAnimBlueprint* AnimBlueprint,
-	const TArray<FKawaiiPhysicsNodePlacementRequest>& Requests,
-	TArray<FString>& OutErrors)
+	const TArray<FKawaiiPhysicsNodePlacementRequest>& Requests)
 {
-	OutErrors.Reset();
+	TArray<FString> Errors;
 
 	USkeleton* TargetSkeleton = AnimBlueprint ? AnimBlueprint->TargetSkeleton : nullptr;
-	bool bAllRequestsValid = true;
 	for (int32 RequestIndex = 0; RequestIndex < Requests.Num(); ++RequestIndex)
 	{
-		const int32 ErrorCountBeforeRequest = OutErrors.Num();
 		const FResolvedKawaiiPhysicsNodePlacementRequest ResolvedRequest =
 			ResolvePlacementRequest(TargetSkeleton, Requests[RequestIndex]);
-		const bool bRequestValid = ValidateResolvedPlacementRequest(
+		ValidateResolvedPlacementRequest(
 			AnimBlueprint,
 			Requests[RequestIndex],
 			ResolvedRequest,
 			RequestIndex,
-			OutErrors);
-
-		if (!bRequestValid)
-		{
-			bAllRequestsValid = false;
-			continue;
-		}
-
-		for (int32 ErrorIndex = ErrorCountBeforeRequest; ErrorIndex < OutErrors.Num(); ++ErrorIndex)
-		{
-			if (!IsWarningMessage(OutErrors[ErrorIndex]))
-			{
-				bAllRequestsValid = false;
-				break;
-			}
-		}
+			Errors);
 	}
 
-	return bAllRequestsValid;
+	return Errors;
 }
 
 TArray<FName> UKawaiiPhysicsEditorLibrary::ResolveBonesByPattern(USkeleton* Skeleton, const FString& Pattern)
@@ -1104,15 +1081,24 @@ bool UKawaiiPhysicsEditorLibrary::ApplyPresetToGraphNode(
 	return true;
 }
 
-bool UKawaiiPhysicsEditorLibrary::DoesGraphNodeMatchPreset(
+TArray<FName> UKawaiiPhysicsEditorLibrary::GetGraphNodePresetDiffProperties(
 	const FKawaiiPhysicsGraphNodeHandle& Handle,
 	UKawaiiPhysicsPresetDataAsset* Preset,
-	FKawaiiPhysicsPresetApplyOptions Options,
-	TArray<FName>& OutDiffProperties)
+	FKawaiiPhysicsPresetApplyOptions Options)
 {
-	OutDiffProperties.Reset();
+	TArray<FName> DiffProperties;
 	UAnimGraphNode_KawaiiPhysics* GraphNode = GetGraphNode(Handle);
-	return GraphNode && Preset && Preset->MatchesNode(GraphNode->Node, Options, OutDiffProperties);
+	if (!GraphNode || !Preset)
+	{
+		UE_LOG(LogKawaiiPhysics, Warning,
+		       TEXT("GetGraphNodePresetDiffProperties: Invalid graph node handle or preset. HandleValid=%s PresetValid=%s."),
+		       GraphNode ? TEXT("true") : TEXT("false"),
+		       Preset ? TEXT("true") : TEXT("false"));
+		return DiffProperties;
+	}
+
+	Preset->MatchesNode(GraphNode->Node, Options, DiffProperties);
+	return DiffProperties;
 }
 
 bool UKawaiiPhysicsEditorLibrary::ExportGraphNodeToPreset(

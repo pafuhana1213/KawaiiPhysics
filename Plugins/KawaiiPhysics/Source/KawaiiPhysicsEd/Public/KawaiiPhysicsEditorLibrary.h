@@ -227,14 +227,13 @@ public:
 		FName GraphName = NAME_None);
 
 	/**
-	 * 配置リクエストを検証する。Warning: で始まる項目は警告で、配置は継続可能。
-	 * Validate placement requests. Entries prefixed with Warning: are warnings and do not block placement.
+	 * 配置リクエストを検証し、エラーと警告を返す。空なら問題なし。Warning: で始まる項目は警告で、配置は継続可能。
+	 * Validate placement requests and return errors and warnings. Empty means no issues. Entries prefixed with Warning: are warnings and do not block placement.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
-	static bool ValidatePlacementRequests(
+	static TArray<FString> ValidatePlacementRequests(
 		UAnimBlueprint* AnimBlueprint,
-		const TArray<FKawaiiPhysicsNodePlacementRequest>& Requests,
-		TArray<FString>& OutErrors);
+		const TArray<FKawaiiPhysicsNodePlacementRequest>& Requests);
 
 	/**
 	 * スケルトンの参照ボーン名を正規表現で解決する。既存 ApplyRegex と同じく部分一致可能な FindNext() を使う。
@@ -341,13 +340,12 @@ public:
 		UKawaiiPhysicsPresetDataAsset* Preset,
 		FKawaiiPhysicsPresetApplyOptions Options);
 
-	/** グラフノードとプリセットの一致を確認 / Check whether a graph node matches a preset. */
+	/** グラフノードとプリセットの差分プロパティを取得。空なら一致 / Get graph node preset diff properties. Empty means the node matches the preset. */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
-	static bool DoesGraphNodeMatchPreset(
+	static TArray<FName> GetGraphNodePresetDiffProperties(
 		const FKawaiiPhysicsGraphNodeHandle& Handle,
 		UKawaiiPhysicsPresetDataAsset* Preset,
-		FKawaiiPhysicsPresetApplyOptions Options,
-		TArray<FName>& OutDiffProperties);
+		FKawaiiPhysicsPresetApplyOptions Options);
 
 	/** グラフノードを既存プリセットアセットへ書き出し / Export a graph node to an existing preset asset. */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
