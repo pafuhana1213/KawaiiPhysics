@@ -598,6 +598,87 @@ bool FKawaiiPhysicsEditorScriptingPlacementValidationTest::RunTest(const FString
 	return bOk;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementValidationEmptyRootTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.Validation.EmptyRoot",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingPlacementValidationEmptyRootTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
+	if (!Fixture.AnimBlueprint)
+	{
+		return false;
+	}
+
+	FKawaiiPhysicsNodePlacementRequest Request;
+	TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+	Requests.Add(Request);
+
+	TArray<FString> Errors =
+		UKawaiiPhysicsEditorLibrary::ValidatePlacementRequests(Fixture.AnimBlueprint, Requests);
+
+	bool bOk = true;
+	bOk &= TestEqual(TEXT("Empty root reports exactly one error"), Errors.Num(), 1);
+	if (Errors.IsValidIndex(0))
+	{
+		bOk &= TestEqual(
+			TEXT("Empty root reports only root specification error"),
+			Errors[0],
+			FString(TEXT("Request[0]: RootBoneName or RootBonePattern must be specified.")));
+	}
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementValidationNestedRootWarningTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.Validation.NestedRootWarning",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingPlacementValidationNestedRootWarningTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsEditorScriptingFixture Fixture;
+	Fixture.AnimBlueprint = CreateTransientAnimBlueprint(*this);
+	Fixture.Package = Fixture.AnimBlueprint ? Fixture.AnimBlueprint->GetOutermost() : nullptr;
+	Fixture.Skeleton = CreateNestedRootWarningSkeleton(Fixture.Package);
+	if (Fixture.AnimBlueprint)
+	{
+		Fixture.AnimBlueprint->TargetSkeleton = Fixture.Skeleton;
+	}
+	Fixture.AnimGraph = FindAnimGraph(Fixture.AnimBlueprint);
+	TestNotNull(TEXT("Default AnimGraph is found"), Fixture.AnimGraph);
+	if (!Fixture.AnimBlueprint)
+	{
+		return false;
+	}
+
+	FKawaiiPhysicsNodePlacementRequest Request;
+	Request.RootBonePattern = TEXT("Object0[0-9]+");
+	TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+	Requests.Add(Request);
+
+	TArray<FString> ValidationMessages =
+		UKawaiiPhysicsEditorLibrary::ValidatePlacementRequests(Fixture.AnimBlueprint, Requests);
+	TArray<FKawaiiPhysicsGraphNodeHandle> Handles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests);
+
+	const bool bHasNestedRootWarning = ValidationMessages.ContainsByPredicate(
+		[](const FString& Message)
+		{
+			return Message.StartsWith(TEXT("Warning:")) && Message.Contains(TEXT("descendant"));
+		});
+	const bool bHasBlockingValidationMessage = ValidationMessages.ContainsByPredicate(
+		[](const FString& Message)
+		{
+			return !Message.StartsWith(TEXT("Warning:"));
+		});
+
+	bool bOk = true;
+	bOk &= TestTrue(TEXT("Nested root validation reports warning"), bHasNestedRootWarning);
+	bOk &= TestFalse(TEXT("Nested root validation has no blocking errors"), bHasBlockingValidationMessage);
+	bOk &= TestEqual(TEXT("Nested root warning does not block placement"), Handles.Num(), 1);
+	bOk &= TestTrue(TEXT("Nested root placement handle is valid"), Handles.IsValidIndex(0) && Handles[0].IsValid());
+	return bOk;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementPatternTest,
                                  "KawaiiPhysics.EditorScripting.Placement.Pattern",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

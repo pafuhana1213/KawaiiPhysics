@@ -395,10 +395,103 @@ namespace
 		return false;
 	}
 
+	void AddResolvedRootBoneNames(const FResolvedKawaiiPhysicsNodePlacementRequest& ResolvedRequest,
+	                              TArray<FName>& OutRootBoneNames)
+	{
+		if (!ResolvedRequest.RootBoneName.IsNone())
+		{
+			OutRootBoneNames.Add(ResolvedRequest.RootBoneName);
+		}
+
+		for (const FKawaiiPhysicsRootBoneSetting& AdditionalRootBone : ResolvedRequest.AdditionalRootBones)
+		{
+			if (!AdditionalRootBone.RootBone.BoneName.IsNone())
+			{
+				OutRootBoneNames.Add(AdditionalRootBone.RootBone.BoneName);
+			}
+		}
+	}
+
+	TArray<FName> CollectResolvedRootBoneNames(
+		const TArray<FResolvedKawaiiPhysicsNodePlacementRequest>& ResolvedRequests)
+	{
+		TArray<FName> RootBoneNames;
+		for (const FResolvedKawaiiPhysicsNodePlacementRequest& ResolvedRequest : ResolvedRequests)
+		{
+			AddResolvedRootBoneNames(ResolvedRequest, RootBoneNames);
+		}
+		return RootBoneNames;
+	}
+
+	bool IsBoneDescendantOf(
+		const FReferenceSkeleton& RefSkeleton,
+		FName BoneName,
+		FName AncestorBoneName)
+	{
+		const int32 BoneIndex = RefSkeleton.FindBoneIndex(BoneName);
+		const int32 AncestorBoneIndex = RefSkeleton.FindBoneIndex(AncestorBoneName);
+		if (BoneIndex == INDEX_NONE ||
+			AncestorBoneIndex == INDEX_NONE ||
+			BoneIndex == AncestorBoneIndex)
+		{
+			return false;
+		}
+
+		for (int32 ParentIndex = RefSkeleton.GetParentIndex(BoneIndex);
+		     ParentIndex != INDEX_NONE;
+		     ParentIndex = RefSkeleton.GetParentIndex(ParentIndex))
+		{
+			if (ParentIndex == AncestorBoneIndex)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	void AddNestedResolvedRootWarnings(
+		USkeleton* Skeleton,
+		const FResolvedKawaiiPhysicsNodePlacementRequest& ResolvedRequest,
+		const TArray<FName>& AllResolvedRootBoneNames,
+		int32 RequestIndex,
+		TArray<FString>& OutErrors)
+	{
+		if (!Skeleton)
+		{
+			return;
+		}
+
+		TArray<FName> RequestRootBoneNames;
+		AddResolvedRootBoneNames(ResolvedRequest, RequestRootBoneNames);
+
+		const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
+		for (const FName RootBoneName : RequestRootBoneNames)
+		{
+			for (const FName AncestorRootBoneName : AllResolvedRootBoneNames)
+			{
+				if (!IsBoneDescendantOf(RefSkeleton, RootBoneName, AncestorRootBoneName))
+				{
+					continue;
+				}
+
+				AddValidationMessage(
+					OutErrors,
+					RequestIndex,
+					FString::Printf(
+						TEXT("Warning: Resolved root '%s' is a descendant of another resolved root '%s'. Pattern should match only chain start bones."),
+						*RootBoneName.ToString(),
+						*AncestorRootBoneName.ToString()));
+				break;
+			}
+		}
+	}
+
 	bool ValidateResolvedPlacementRequest(
 		UAnimBlueprint* AnimBlueprint,
 		const FKawaiiPhysicsNodePlacementRequest& SourceRequest,
 		const FResolvedKawaiiPhysicsNodePlacementRequest& ResolvedRequest,
+		const TArray<FName>& AllResolvedRootBoneNames,
 		int32 RequestIndex,
 		TArray<FString>& OutErrors)
 	{
@@ -416,18 +509,23 @@ namespace
 			return false;
 		}
 
-		if (SourceRequest.RootBoneName.IsNone() && SourceRequest.RootBonePattern.IsEmpty())
+		const bool bRootBoneSpecified =
+			!SourceRequest.RootBoneName.IsNone() || !SourceRequest.RootBonePattern.IsEmpty();
+		if (!bRootBoneSpecified)
 		{
 			AddValidationMessage(OutErrors, RequestIndex, TEXT("RootBoneName or RootBonePattern must be specified."));
 			bValid = false;
 		}
 
-		bValid &= ValidateBoneName(
-			TargetSkeleton,
-			ResolvedRequest.RootBoneName,
-			RequestIndex,
-			TEXT("RootBone"),
-			OutErrors);
+		if (bRootBoneSpecified)
+		{
+			bValid &= ValidateBoneName(
+				TargetSkeleton,
+				ResolvedRequest.RootBoneName,
+				RequestIndex,
+				TEXT("RootBone"),
+				OutErrors);
+		}
 
 		for (const FName ExcludeBoneName : ResolvedRequest.ExcludeBoneNames)
 		{
@@ -470,6 +568,13 @@ namespace
 				TEXT("Warning: Preset Skeleton does not match AnimBlueprint TargetSkeleton."));
 		}
 #endif
+
+		AddNestedResolvedRootWarnings(
+			TargetSkeleton,
+			ResolvedRequest,
+			AllResolvedRootBoneNames,
+			RequestIndex,
+			OutErrors);
 
 		return bValid;
 	}
@@ -830,14 +935,21 @@ TArray<FString> UKawaiiPhysicsEditorLibrary::ValidatePlacementRequests(
 	TArray<FString> Errors;
 
 	USkeleton* TargetSkeleton = AnimBlueprint ? AnimBlueprint->TargetSkeleton : nullptr;
+	TArray<FResolvedKawaiiPhysicsNodePlacementRequest> ResolvedRequests;
+	ResolvedRequests.Reserve(Requests.Num());
+	for (const FKawaiiPhysicsNodePlacementRequest& Request : Requests)
+	{
+		ResolvedRequests.Add(ResolvePlacementRequest(TargetSkeleton, Request));
+	}
+	const TArray<FName> AllResolvedRootBoneNames = CollectResolvedRootBoneNames(ResolvedRequests);
+
 	for (int32 RequestIndex = 0; RequestIndex < Requests.Num(); ++RequestIndex)
 	{
-		const FResolvedKawaiiPhysicsNodePlacementRequest ResolvedRequest =
-			ResolvePlacementRequest(TargetSkeleton, Requests[RequestIndex]);
 		ValidateResolvedPlacementRequest(
 			AnimBlueprint,
 			Requests[RequestIndex],
-			ResolvedRequest,
+			ResolvedRequests[RequestIndex],
+			AllResolvedRootBoneNames,
 			RequestIndex,
 			Errors);
 	}
