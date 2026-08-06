@@ -35,7 +35,7 @@ namespace
 		}
 	}
 
-	FString JoinPropertyNames(const TArray<FName>& PropertyNames)
+	FString JoinPresetPropertyNames(const TArray<FName>& PropertyNames)
 	{
 		TArray<FString> Strings;
 		Strings.Reserve(PropertyNames.Num());
@@ -133,7 +133,7 @@ namespace
 			       TEXT("ApplyToProjectDryRun: AnimBlueprint=%s NodeTag=%s DiffProperties=%s"),
 			       *Entry.AnimBlueprintPath.GetAssetName(),
 			       *Entry.KawaiiPhysicsTag.ToString(),
-			       *JoinPropertyNames(Entry.DiffProperties));
+			       *JoinPresetPropertyNames(Entry.DiffProperties));
 		}
 
 		ShowPresetDetailsNotification(
