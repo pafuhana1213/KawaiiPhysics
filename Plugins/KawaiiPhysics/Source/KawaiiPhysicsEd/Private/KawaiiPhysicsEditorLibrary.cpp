@@ -44,6 +44,8 @@ namespace
 	constexpr int32 KawaiiPhysicsPlacementNodeOffsetY = 300;
 	constexpr int32 KawaiiPhysicsMcpCommentPaddingX = 50;
 	constexpr int32 KawaiiPhysicsMcpCommentTopPaddingY = 80;
+	constexpr int32 KawaiiPhysicsPlacementExpectedNodeWidth = 400;
+	constexpr int32 KawaiiPhysicsPlacementExpectedNodeHeight = 260;
 	constexpr int32 KawaiiPhysicsMcpCommentExpectedNodeWidthWithPadding = 450;
 	constexpr int32 KawaiiPhysicsMcpCommentExpectedNodeHeightWithPadding = 310;
 
@@ -762,7 +764,69 @@ namespace
 		return FVector2D::ZeroVector;
 	}
 
-	FVector2D ResolveNodePosition(const FResolvedKawaiiPhysicsNodePlacementRequest& Request,
+	FIntRect MakePlacementRect(int32 NodePosX, int32 NodePosY, int32 NodeWidth, int32 NodeHeight)
+	{
+		return FIntRect(NodePosX, NodePosY, NodePosX + NodeWidth, NodePosY + NodeHeight);
+	}
+
+	bool DoPlacementRectsOverlap(const FIntRect& A, const FIntRect& B)
+	{
+		return A.Min.X < B.Max.X &&
+			A.Max.X > B.Min.X &&
+			A.Min.Y < B.Max.Y &&
+			A.Max.Y > B.Min.Y;
+	}
+
+	bool DoesAutoPlacementOverlapExistingNode(UEdGraph* Graph, const FVector2D& NodePosition)
+	{
+		if (!Graph)
+		{
+			return false;
+		}
+
+		const FIntRect CandidateRect = MakePlacementRect(
+			static_cast<int32>(NodePosition.X),
+			static_cast<int32>(NodePosition.Y),
+			KawaiiPhysicsPlacementExpectedNodeWidth,
+			KawaiiPhysicsPlacementExpectedNodeHeight);
+
+		for (UEdGraphNode* Node : Graph->Nodes)
+		{
+			if (const UAnimGraphNode_KawaiiPhysics* KawaiiPhysicsNode = Cast<UAnimGraphNode_KawaiiPhysics>(Node))
+			{
+				if (DoPlacementRectsOverlap(
+					CandidateRect,
+					MakePlacementRect(
+						KawaiiPhysicsNode->NodePosX,
+						KawaiiPhysicsNode->NodePosY,
+						KawaiiPhysicsPlacementExpectedNodeWidth,
+						KawaiiPhysicsPlacementExpectedNodeHeight)))
+				{
+					return true;
+				}
+				continue;
+			}
+
+			if (const UKawaiiPhysicsMcpCommentNode* CommentNode = Cast<UKawaiiPhysicsMcpCommentNode>(Node))
+			{
+				if (DoPlacementRectsOverlap(
+					CandidateRect,
+					MakePlacementRect(
+						CommentNode->NodePosX,
+						CommentNode->NodePosY,
+						CommentNode->NodeWidth,
+						CommentNode->NodeHeight)))
+				{
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	FVector2D ResolveNodePosition(UEdGraph* Graph,
+	                              const FResolvedKawaiiPhysicsNodePlacementRequest& Request,
 	                              const FVector2D& AutoPlacementBasePosition,
 	                              int32 AutoPlacementIndex)
 	{
@@ -773,15 +837,25 @@ namespace
 
 		if (Request.bAutoConnect)
 		{
-			return FVector2D(
+			FVector2D NodePosition(
 				AutoPlacementBasePosition.X +
 					static_cast<double>(AutoPlacementIndex * KawaiiPhysicsPlacementNodeOffsetX),
 				AutoPlacementBasePosition.Y);
+			while (DoesAutoPlacementOverlapExistingNode(Graph, NodePosition))
+			{
+				NodePosition.Y += static_cast<double>(KawaiiPhysicsPlacementNodeOffsetY);
+			}
+			return NodePosition;
 		}
 
-		return FVector2D(
+		FVector2D NodePosition(
 			AutoPlacementBasePosition.X,
 			AutoPlacementBasePosition.Y + static_cast<double>(AutoPlacementIndex * KawaiiPhysicsPlacementNodeOffsetY));
+		while (DoesAutoPlacementOverlapExistingNode(Graph, NodePosition))
+		{
+			NodePosition.Y += static_cast<double>(KawaiiPhysicsPlacementNodeOffsetY);
+		}
+		return NodePosition;
 	}
 
 	void ApplyResolvedPlacementToGraphNode(
@@ -1182,6 +1256,7 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 		}
 
 		const FVector2D NodePosition = ResolveNodePosition(
+			Graph,
 			ResolvedRequest,
 			AutoPlacementBasePosition,
 			AutoPlacementIndex);
@@ -1195,8 +1270,11 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 		{
 			ExistingGraphNode->Modify();
 			ApplyResolvedPlacementToGraphNode(ExistingGraphNode, ResolvedRequest);
-			ExistingGraphNode->NodePosX = static_cast<int32>(NodePosition.X);
-			ExistingGraphNode->NodePosY = static_cast<int32>(NodePosition.Y);
+			if (!ResolvedRequest.bAutoPosition)
+			{
+				ExistingGraphNode->NodePosX = static_cast<int32>(NodePosition.X);
+				ExistingGraphNode->NodePosY = static_cast<int32>(NodePosition.Y);
+			}
 			FinalizeExistingPlacementGraphNode(ExistingGraphNode);
 			if (ResolvedRequest.bAutoConnect && !IsGraphNodePoseConnected(ExistingGraphNode))
 			{

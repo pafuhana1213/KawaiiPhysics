@@ -774,6 +774,52 @@ bool FKawaiiPhysicsEditorScriptingPlacementTest::RunTest(const FString& Paramete
 	return bOk;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementAutoPositionStackingTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.AutoPositionStacking",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingPlacementAutoPositionStackingTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
+	if (!Fixture.AnimBlueprint)
+	{
+		return false;
+	}
+
+	FKawaiiPhysicsNodePlacementRequest FirstRequest;
+	FirstRequest.RootBoneName = TEXT("hair_01");
+	FirstRequest.KawaiiPhysicsTag = GetKawaiiPhysicsEditorScriptingTagA();
+	TArray<FKawaiiPhysicsNodePlacementRequest> FirstRequests;
+	FirstRequests.Add(FirstRequest);
+
+	TArray<FKawaiiPhysicsGraphNodeHandle> FirstHandles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, FirstRequests);
+
+	FKawaiiPhysicsNodePlacementRequest SecondRequest;
+	SecondRequest.RootBoneName = TEXT("tail_01");
+	SecondRequest.KawaiiPhysicsTag = GetKawaiiPhysicsEditorScriptingTagB();
+	TArray<FKawaiiPhysicsNodePlacementRequest> SecondRequests;
+	SecondRequests.Add(SecondRequest);
+
+	TArray<FKawaiiPhysicsGraphNodeHandle> SecondHandles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, SecondRequests);
+
+	bool bOk = true;
+	bOk &= TestEqual(TEXT("First auto placement creates one node"), FirstHandles.Num(), 1);
+	bOk &= TestEqual(TEXT("Second auto placement creates one node"), SecondHandles.Num(), 1);
+	if (FirstHandles.IsValidIndex(0) && FirstHandles[0].IsValid() &&
+		SecondHandles.IsValidIndex(0) && SecondHandles[0].IsValid())
+	{
+		const UAnimGraphNode_KawaiiPhysics* FirstNode = FirstHandles[0].Node.Get();
+		const UAnimGraphNode_KawaiiPhysics* SecondNode = SecondHandles[0].Node.Get();
+		bOk &= TestFalse(TEXT("Second auto placement does not reuse first coordinates"),
+		                 FirstNode->NodePosX == SecondNode->NodePosX &&
+		                 FirstNode->NodePosY == SecondNode->NodePosY);
+	}
+
+	return bOk;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementCommentTest,
                                  "KawaiiPhysics.EditorScripting.Placement.Comment",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -1051,6 +1097,52 @@ bool FKawaiiPhysicsEditorScriptingPlacementUpsertTest::RunTest(const FString& Pa
 		bOk &= TestEqual(TEXT("Upsert updates RootBone"),
 		                  SecondHandles[0].Node->Node.RootBone.BoneName, FName(TEXT("tail_01")));
 	}
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementUpsertKeepsPositionTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.UpsertKeepsPosition",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingPlacementUpsertKeepsPositionTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
+	if (!Fixture.AnimBlueprint)
+	{
+		return false;
+	}
+
+	FKawaiiPhysicsNodePlacementRequest Request;
+	Request.RootBoneName = TEXT("hair_01");
+	Request.KawaiiPhysicsTag = GetKawaiiPhysicsEditorScriptingTagA();
+	TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+	Requests.Add(Request);
+
+	TArray<FKawaiiPhysicsGraphNodeHandle> FirstHandles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(
+			Fixture.AnimBlueprint, Requests, EKawaiiPhysicsPlacementUpsertKey::Tag);
+	if (FirstHandles.IsValidIndex(0) && FirstHandles[0].IsValid())
+	{
+		FirstHandles[0].Node->NodePosX = -1234;
+		FirstHandles[0].Node->NodePosY = 567;
+	}
+
+	Requests[0].RootBoneName = TEXT("tail_01");
+	TArray<FKawaiiPhysicsGraphNodeHandle> SecondHandles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(
+			Fixture.AnimBlueprint, Requests, EKawaiiPhysicsPlacementUpsertKey::Tag);
+
+	bool bOk = true;
+	bOk &= TestEqual(TEXT("First upsert placement creates one node"), FirstHandles.Num(), 1);
+	bOk &= TestEqual(TEXT("Second upsert placement returns one node"), SecondHandles.Num(), 1);
+	if (SecondHandles.IsValidIndex(0) && SecondHandles[0].IsValid())
+	{
+		bOk &= TestEqual(TEXT("Auto-position upsert keeps NodePosX"), SecondHandles[0].Node->NodePosX, -1234);
+		bOk &= TestEqual(TEXT("Auto-position upsert keeps NodePosY"), SecondHandles[0].Node->NodePosY, 567);
+		bOk &= TestEqual(TEXT("Auto-position upsert still updates RootBone"),
+		                  SecondHandles[0].Node->Node.RootBone.BoneName, FName(TEXT("tail_01")));
+	}
+
 	return bOk;
 }
 
