@@ -824,6 +824,7 @@ void UAnimGraphNode_KawaiiPhysics::ExportPresetDataAsset()
 
 void UAnimGraphNode_KawaiiPhysics::ApplyPresetDataAsset()
 {
+	// 適用するPresetを選択するためのアセットピッカーを開く。
 	FOpenAssetDialogConfig OpenAssetDialogConfig;
 	OpenAssetDialogConfig.DialogTitleOverride = LOCTEXT("ApplyPresetDialogTitle", "Choose Kawaii Physics Preset");
 	OpenAssetDialogConfig.bAllowMultipleSelection = false;
@@ -849,6 +850,7 @@ void UAnimGraphNode_KawaiiPhysics::ApplyPresetDataAsset()
 
 	bool bSkeletonMismatch = false;
 #if WITH_EDITORONLY_DATA
+	// Skeleton不一致は適用を止めず、後続の通知で警告するために保持する。
 	if (const UAnimBlueprint* AnimBlueprint = GetAnimBlueprint())
 	{
 		bSkeletonMismatch = Preset->Skeleton && AnimBlueprint->TargetSkeleton &&
@@ -857,12 +859,15 @@ void UAnimGraphNode_KawaiiPhysics::ApplyPresetDataAsset()
 #endif
 
 	FKawaiiPhysicsPresetApplyOptions Options;
+	// 既存ノードのボーン割り当て設定は維持する。
 	Options.bApplyBoneAssignment = false;
+	// Tagは未設定ノードへPresetのTagを引き継げる場合だけ反映する。
 	Options.bApplyTag = !Node.KawaiiPhysicsTag.IsValid() && Preset->Node.KawaiiPhysicsTag.IsValid();
 	const bool bStampedTag = Options.bApplyTag;
 
 	FKawaiiPhysicsGraphNodeHandle Handle;
 	Handle.Node = this;
+	// PresetをGraphNodeへ適用し、失敗時は対象Presetを開ける通知で中断する。
 	if (!UKawaiiPhysicsEditorLibrary::ApplyPresetToGraphNode(Handle, Preset, Options))
 	{
 		ShowKawaiiPhysicsAssetNotification(
@@ -874,20 +879,25 @@ void UAnimGraphNode_KawaiiPhysics::ApplyPresetDataAsset()
 		return;
 	}
 
+	// 適用結果の通知文を組み立てる。
 	FString NotificationMessage = FString::Printf(TEXT("Applied Preset: %s"), *Preset->GetName());
 	if (bStampedTag)
 	{
+		// Tagを自動付与した場合のみ、その事実を通知へ追記する。
 		NotificationMessage += FString::Printf(TEXT("\nStamped tag: %s"), *Node.KawaiiPhysicsTag.ToString());
 	}
 	if (bSkeletonMismatch)
 	{
+		// Skeleton不一致は操作を止めない警告として通知へ追記する。
 		NotificationMessage += TEXT("\nWarning: preset skeleton differs from this AnimBlueprint target skeleton.");
 	}
 	if (!Preset->TargetsNodeTag(Node.KawaiiPhysicsTag))
 	{
+		// 現在のTagがTargetTagsに一致しない場合、以後のReapply/Audit対象外になることを明示する。
 		NotificationMessage += TEXT("\nWarning: this node will not be targeted by Reapply/Audit because its tag does not match TargetTags.");
 	}
 
+	// 警告を含む成功は見落とし防止のためCS_Failスタイルで表示する。
 	const bool bHasWarning = bSkeletonMismatch || !Preset->TargetsNodeTag(Node.KawaiiPhysicsTag);
 	ShowKawaiiPhysicsAssetNotification(
 		Preset,
