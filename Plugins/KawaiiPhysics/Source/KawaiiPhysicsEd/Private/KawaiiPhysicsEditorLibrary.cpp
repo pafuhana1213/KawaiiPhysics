@@ -1546,6 +1546,13 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 					bConnectedNode = true;
 					bSpawnedConversionNode |= bSpawnedConversionNodeForConnection;
 				}
+				else
+				{
+					UE_LOG(LogKawaiiPhysics, Warning,
+					       TEXT("AddKawaiiPhysicsNodes: Request[%d] RootBone=%s auto-connect failed. Node was left unconnected."),
+					       RequestIndex,
+					       *ResolvedRequest.RootBoneName.ToString());
+				}
 			}
 
 			FKawaiiPhysicsGraphNodeHandle Handle;
@@ -1569,6 +1576,13 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 			{
 				bConnectedNode = true;
 				bSpawnedConversionNode |= bSpawnedConversionNodeForConnection;
+			}
+			else
+			{
+				UE_LOG(LogKawaiiPhysics, Warning,
+				       TEXT("AddKawaiiPhysicsNodes: Request[%d] RootBone=%s auto-connect failed. Node was left unconnected."),
+				       RequestIndex,
+				       *ResolvedRequest.RootBoneName.ToString());
 			}
 		}
 
