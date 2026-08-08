@@ -132,7 +132,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
     @staticmethod
     def get_anim_graph_comments(
             anim_blueprint: unreal.AnimBlueprint,
-            graph_name: str) -> list[unreal.KawaiiPhysicsAnimGraphCommentInfo]:
+            graph_name: str = '') -> list[unreal.KawaiiPhysicsAnimGraphCommentInfo]:
         """Returns comment nodes in the AnimGraph."""
         _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
         return unreal.KawaiiPhysicsEditorLibrary.get_anim_graph_comments(

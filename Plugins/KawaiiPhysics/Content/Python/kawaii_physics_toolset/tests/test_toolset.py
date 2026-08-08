@@ -394,9 +394,11 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         )
         unreal.BlueprintEditorLibrary.compile_blueprint(anim_blueprint)
         comments = KawaiiPhysicsToolset.get_anim_graph_comments(anim_blueprint, '')
+        default_graph_comments = KawaiiPhysicsToolset.get_anim_graph_comments(anim_blueprint)
 
         self.assertEqual(len(handles), 1)
         self.assertEqual(len(comments), 1)
+        self.assertEqual(len(default_graph_comments), 1)
         self.assertEqual(comments[0].get_editor_property('title'), comment_prefix + comment)
         self.assertEqual(comments[0].get_editor_property('prompt'), prompt)
         self.assertTrue(comments[0].get_editor_property('mcp_comment'))
