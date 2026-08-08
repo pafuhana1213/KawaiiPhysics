@@ -1,4 +1,4 @@
-// Copyright 2019-2026 pafuhana1213. All Rights Reserved.
+﻿// Copyright 2019-2026 pafuhana1213. All Rights Reserved.
 
 #include "KawaiiPhysicsPresetDataAssetDetails.h"
 
@@ -46,7 +46,7 @@ namespace
 		return FString::Join(Strings, TEXT(", "));
 	}
 
-	void ShowTargetNodes(UKawaiiPhysicsPresetDataAsset* Preset)
+	void FindTargetNodes(UKawaiiPhysicsPresetDataAsset* Preset)
 	{
 		if (!Preset)
 		{
@@ -72,7 +72,7 @@ namespace
 			if (!AnimBlueprint)
 			{
 				UE_LOG(LogKawaiiPhysics, Warning,
-				       TEXT("ShowTargetNodes: Failed to load AnimBlueprint asset '%s'."),
+				       TEXT("FindTargetNodes: Failed to load AnimBlueprint asset '%s'."),
 				       *AssetData.GetSoftObjectPath().ToString());
 				continue;
 			}
@@ -92,7 +92,7 @@ namespace
 				{
 					++MatchingNodeCount;
 					UE_LOG(LogKawaiiPhysics, Display,
-					       TEXT("ShowTargetNodes: AnimBlueprint=%s NodeTag=%s Graph=%s NodeGuid=%s"),
+					       TEXT("FindTargetNodes: AnimBlueprint=%s NodeTag=%s Graph=%s NodeGuid=%s"),
 					       *AnimBlueprint->GetName(),
 					       *GraphNode->Node.KawaiiPhysicsTag.ToString(),
 					       *(GraphNode->GetGraph() ? GraphNode->GetGraph()->GetName() : FString(TEXT("None"))),
@@ -103,7 +103,7 @@ namespace
 
 		ShowPresetDetailsNotification(
 			FText::Format(
-				LOCTEXT("ShowTargetNodesResult", "{0} nodes in {1} AnimBlueprints match TargetTags."),
+				LOCTEXT("FindTargetNodesResult", "{0} nodes in {1} AnimBlueprints match TargetTags."),
 				FText::AsNumber(MatchingNodeCount),
 				FText::AsNumber(MatchingAnimBlueprintCount)),
 			SNotificationItem::CS_Success);
@@ -183,13 +183,14 @@ void FKawaiiPhysicsPresetDataAssetDetails::CustomizeDetails(IDetailLayoutBuilder
 			.VAlign(VAlign_Center)
 			.OnClicked_Lambda([WeakPreset]()
 			{
-				ShowTargetNodes(WeakPreset.Get());
+				FindTargetNodes(WeakPreset.Get());
 				return FReply::Handled();
 			})
+			.ToolTipText(LOCTEXT("FindTargetNodesToolTip", "TargetTags に一致する KawaiiPhysics ノードをプロジェクト内の全 AnimBlueprint から検索し、件数を通知・詳細を Output Log に出力します / Searches all AnimBlueprints in the project for KawaiiPhysics nodes matching TargetTags. Shows the count in a notification and logs details to the Output Log."))
 			.Content()
 			[
 				SNew(STextBlock)
-				.Text(FText::FromString(TEXT("Show Target Nodes")))
+				.Text(FText::FromString(TEXT("Find Target Nodes")))
 				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
 			]
 		]

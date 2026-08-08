@@ -51,6 +51,9 @@ class KAWAIIPHYSICS_API UKawaiiPhysicsPresetDataAsset : public UDataAsset, publi
 
 public:
 #if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category = "Description", meta = (MultiLine = true))
+	FText Description;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeleton")
 	TObjectPtr<USkeleton> Skeleton;
 #endif
@@ -71,9 +74,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Preset", meta = (ShowOnlyInnerProperties))
 	FAnimNode_KawaiiPhysics Node;
-
-	UPROPERTY(EditAnywhere, Category = "Description", meta = (MultiLine = true))
-	FText Description;
 
 	void CopyFromNode(const FAnimNode_KawaiiPhysics& SourceNode);
 	/**
