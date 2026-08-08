@@ -23,6 +23,18 @@ enum class EKawaiiPhysicsEditorAccessResult : uint8
 	NotValid,
 };
 
+/** 自動配置方向のリクエスト単位上書き。Default はプロジェクト設定に従う / Per-request override for automatic placement direction. Default follows project settings. */
+UENUM(BlueprintType)
+enum class EKawaiiPhysicsNodePlacementDirectionOverride : uint8
+{
+	/** プロジェクト設定に従う / Follow project settings. */
+	Default,
+	/** 縦方向へ配置 / Place vertically. */
+	Vertical,
+	/** 横方向へ配置 / Place horizontally. */
+	Horizontal,
+};
+
 /**
  * KawaiiPhysics エディタグラフノードへの弱参照ハンドル。
  * Weak-reference handle to a KawaiiPhysics editor graph node.
@@ -203,6 +215,11 @@ struct KAWAIIPHYSICSED_API FKawaiiPhysicsNodePlacementRequest
 	/** Result ノード直前へ直列に自動接続する / Automatically connect in series just before the Result node. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kawaii Physics|Editor")
 	bool bAutoConnect = false;
+
+	/** 自動配置方向の上書き。Default はプロジェクト設定に従う / Override for automatic placement direction. Default follows project settings. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kawaii Physics|Editor")
+	EKawaiiPhysicsNodePlacementDirectionOverride PlacementDirection =
+		EKawaiiPhysicsNodePlacementDirectionOverride::Default;
 };
 
 /** Upsert 時に既存ノードを識別するキー / Key used to identify existing nodes during upsert placement. */

@@ -48,6 +48,7 @@ namespace
 	constexpr int32 KawaiiPhysicsPlacementExpectedNodeHeight = 260;
 	constexpr int32 KawaiiPhysicsMcpCommentExpectedNodeWidthWithPadding = 450;
 	constexpr int32 KawaiiPhysicsMcpCommentExpectedNodeHeightWithPadding = 310;
+	constexpr int32 KawaiiPhysicsPlacementMaxOverlapResolutionAttempts = 100;
 
 	UAnimGraphNode_KawaiiPhysics* GetGraphNode(const FKawaiiPhysicsGraphNodeHandle& Handle)
 	{
@@ -275,6 +276,8 @@ namespace
 		FVector2D NodePosition = FVector2D::ZeroVector;
 		bool bAutoPosition = true;
 		bool bAutoConnect = false;
+		EKawaiiPhysicsNodePlacementDirectionOverride PlacementDirection =
+			EKawaiiPhysicsNodePlacementDirectionOverride::Default;
 	};
 
 	void AddUniqueBoneName(TArray<FName>& BoneNames, FName BoneName)
@@ -328,6 +331,7 @@ namespace
 		ResolvedRequest.NodePosition = Request.NodePosition;
 		ResolvedRequest.bAutoPosition = Request.bAutoPosition;
 		ResolvedRequest.bAutoConnect = Request.bAutoConnect;
+		ResolvedRequest.PlacementDirection = Request.PlacementDirection;
 
 		const TArray<FName> RootBonePatternMatches =
 			UKawaiiPhysicsEditorLibrary::ResolveBonesByPattern(Skeleton, Request.RootBonePattern);
@@ -825,6 +829,40 @@ namespace
 		return false;
 	}
 
+	bool IsHorizontalAutoPlacement(const FResolvedKawaiiPhysicsNodePlacementRequest& Request)
+	{
+		switch (Request.PlacementDirection)
+		{
+		case EKawaiiPhysicsNodePlacementDirectionOverride::Horizontal:
+			return true;
+		case EKawaiiPhysicsNodePlacementDirectionOverride::Vertical:
+			return false;
+		case EKawaiiPhysicsNodePlacementDirectionOverride::Default:
+		default:
+			break;
+		}
+
+		const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
+		const EKawaiiPhysicsMcpNodePlacementDirection SettingsDirection =
+			Settings ? Settings->McpNodePlacementDirection : EKawaiiPhysicsMcpNodePlacementDirection::Auto;
+		switch (SettingsDirection)
+		{
+		case EKawaiiPhysicsMcpNodePlacementDirection::Horizontal:
+			return true;
+		case EKawaiiPhysicsMcpNodePlacementDirection::Vertical:
+			return false;
+		case EKawaiiPhysicsMcpNodePlacementDirection::Auto:
+		default:
+			return Request.bAutoConnect;
+		}
+	}
+
+	int32 GetAutoPlacementWrapCount()
+	{
+		const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
+		return Settings ? FMath::Max(Settings->McpNodePlacementWrapCount, 0) : 0;
+	}
+
 	FVector2D ResolveNodePosition(UEdGraph* Graph,
 	                              const FResolvedKawaiiPhysicsNodePlacementRequest& Request,
 	                              const FVector2D& AutoPlacementBasePosition,
@@ -835,26 +873,37 @@ namespace
 			return Request.NodePosition;
 		}
 
-		if (Request.bAutoConnect)
-		{
-			FVector2D NodePosition(
-				AutoPlacementBasePosition.X +
-					static_cast<double>(AutoPlacementIndex * KawaiiPhysicsPlacementNodeOffsetX),
-				AutoPlacementBasePosition.Y);
-			while (DoesAutoPlacementOverlapExistingNode(Graph, NodePosition))
-			{
-				NodePosition.Y += static_cast<double>(KawaiiPhysicsPlacementNodeOffsetY);
-			}
-			return NodePosition;
-		}
+		const int32 WrapCount = GetAutoPlacementWrapCount();
+		const int32 PrimaryIndex = WrapCount > 0 ? AutoPlacementIndex % WrapCount : AutoPlacementIndex;
+		const int32 SecondaryIndex = WrapCount > 0 ? AutoPlacementIndex / WrapCount : 0;
+		const bool bHorizontalPlacement = IsHorizontalAutoPlacement(Request);
 
-		FVector2D NodePosition(
-			AutoPlacementBasePosition.X,
-			AutoPlacementBasePosition.Y + static_cast<double>(AutoPlacementIndex * KawaiiPhysicsPlacementNodeOffsetY));
-		while (DoesAutoPlacementOverlapExistingNode(Graph, NodePosition))
+		FVector2D NodePosition = bHorizontalPlacement
+			? FVector2D(
+				AutoPlacementBasePosition.X +
+					static_cast<double>(PrimaryIndex * KawaiiPhysicsPlacementNodeOffsetX),
+				AutoPlacementBasePosition.Y +
+					static_cast<double>(SecondaryIndex * KawaiiPhysicsPlacementNodeOffsetY))
+			: FVector2D(
+				AutoPlacementBasePosition.X +
+					static_cast<double>(SecondaryIndex * KawaiiPhysicsPlacementNodeOffsetX),
+				AutoPlacementBasePosition.Y +
+					static_cast<double>(PrimaryIndex * KawaiiPhysicsPlacementNodeOffsetY));
+
+		for (int32 AttemptIndex = 0;
+		     AttemptIndex < KawaiiPhysicsPlacementMaxOverlapResolutionAttempts &&
+		     DoesAutoPlacementOverlapExistingNode(Graph, NodePosition);
+		     ++AttemptIndex)
 		{
 			NodePosition.Y += static_cast<double>(KawaiiPhysicsPlacementNodeOffsetY);
 		}
+
+		if (DoesAutoPlacementOverlapExistingNode(Graph, NodePosition))
+		{
+			UE_LOG(LogKawaiiPhysics, Warning,
+			       TEXT("AddKawaiiPhysicsNodes: 自動配置の重なり回避が上限に達しました。最後に計算した座標を使用します。"));
+		}
+
 		return NodePosition;
 	}
 

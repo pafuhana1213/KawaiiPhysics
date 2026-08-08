@@ -6,6 +6,18 @@
 #include "Engine/DeveloperSettings.h"
 #include "KawaiiPhysicsDeveloperSettings.generated.h"
 
+/** MCPノードの自動配置方向。Auto は非接続=縦積み、bAutoConnect=横並びの従来挙動 / Automatic placement direction for MCP nodes. Auto keeps legacy behavior: vertical when not connected, horizontal with bAutoConnect. */
+UENUM(BlueprintType)
+enum class EKawaiiPhysicsMcpNodePlacementDirection : uint8
+{
+	/** 自動（非接続は縦積み、bAutoConnect は横並びの従来挙動） / Auto (legacy behavior: vertical when not connected, horizontal with bAutoConnect). */
+	Auto,
+	/** 縦方向へ配置 / Place vertically. */
+	Vertical,
+	/** 横方向へ配置 / Place horizontally. */
+	Horizontal,
+};
+
 /**
  * KawaiiPhysics のプロジェクト全体設定 / Project-wide settings for KawaiiPhysics.
  * Project Settings > Plugins > Kawaii Physics に表示される。
@@ -53,6 +65,17 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = "Editor Scripting",
 		meta = (DisplayName = "MCP Comment Color"))
 	FLinearColor McpCommentColor = FLinearColor(0.55f, 0.45f, 0.85f);
+
+	/** MCPノードの自動配置方向。Auto は非接続=縦積み、bAutoConnect=横並びの従来挙動 / Automatic placement direction for MCP nodes. Auto keeps legacy behavior: vertical when not connected, horizontal with bAutoConnect. */
+	UPROPERTY(EditAnywhere, config, Category = "Editor Scripting",
+		meta = (DisplayName = "MCP Node Placement Direction"))
+	EKawaiiPhysicsMcpNodePlacementDirection McpNodePlacementDirection =
+		EKawaiiPhysicsMcpNodePlacementDirection::Auto;
+
+	/** MCPノード自動配置の折り返し数。0で折り返しなし / Wrap count for MCP node auto placement. Set to 0 to disable. */
+	UPROPERTY(EditAnywhere, config, Category = "Editor Scripting",
+		meta = (DisplayName = "MCP Node Placement Wrap Count", ClampMin = "0", UIMin = "0", UIMax = "32"))
+	int32 McpNodePlacementWrapCount = 0;
 
 	/**
 	* BoneSubdivisionCount で生成される inter-bone dummy bone 数の警告しきい値。0で警告を無効化する。

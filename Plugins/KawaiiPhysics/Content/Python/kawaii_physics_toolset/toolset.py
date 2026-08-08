@@ -114,7 +114,8 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         """Adds or upserts KawaiiPhysics nodes; auto_connect wires before Result.
 
         A non-empty comment creates an MCP comment frame with the configured
-        prefix. The prompt is stored in that frame's Details.
+        prefix. The prompt is stored in that frame's Details. Requests may set
+        placement_direction; project settings also control node direction/wrap.
         """
         _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
         _validate_requests_or_raise(anim_blueprint, requests)
