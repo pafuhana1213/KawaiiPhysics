@@ -5,3 +5,6 @@ try:
     registration.register_toolsets()
 except ImportError:
     pass  # ToolsetRegistry が無い環境では何もしない
+except Exception as exc:
+    import unreal
+    unreal.log_warning(f'KawaiiPhysics Toolset registration failed: {exc}')
