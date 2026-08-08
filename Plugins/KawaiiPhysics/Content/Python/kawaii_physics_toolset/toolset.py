@@ -108,8 +108,14 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             anim_blueprint: unreal.AnimBlueprint,
             requests: list[unreal.KawaiiPhysicsNodePlacementRequest],
             upsert_key: unreal.KawaiiPhysicsPlacementUpsertKey,
-            graph_name: str) -> list[unreal.KawaiiPhysicsGraphNodeHandle]:
-        """Adds or upserts KawaiiPhysics nodes without connecting graph pins."""
+            graph_name: str,
+            comment: str = '',
+            prompt: str = '') -> list[unreal.KawaiiPhysicsGraphNodeHandle]:
+        """Adds or upserts KawaiiPhysics nodes; auto_connect wires before Result.
+
+        A non-empty comment creates an MCP comment frame with the configured
+        prefix. The prompt is stored in that frame's Details.
+        """
         _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
         _validate_requests_or_raise(anim_blueprint, requests)
 
@@ -117,6 +123,20 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             anim_blueprint,
             requests,
             upsert_key,
+            graph_name,
+            comment,
+            prompt,
+        )
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def get_anim_graph_comments(
+            anim_blueprint: unreal.AnimBlueprint,
+            graph_name: str) -> list[unreal.KawaiiPhysicsAnimGraphCommentInfo]:
+        """Returns comment nodes in the AnimGraph."""
+        _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
+        return unreal.KawaiiPhysicsEditorLibrary.get_anim_graph_comments(
+            anim_blueprint,
             graph_name,
         )
 
