@@ -390,6 +390,7 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::ApplyPresetDataAsset(EKawaiiPhysi
 		{
 			Preset->ApplyToNode(InKawaiiPhysics, Options, nullptr);
 			InKawaiiPhysics.RequestModifyBonesReinit();
+			InKawaiiPhysics.RequestSharedCollisionReinit();
 			ExecResult = EKawaiiPhysicsAccessResult::Valid;
 		});
 

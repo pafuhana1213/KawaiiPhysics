@@ -280,23 +280,32 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPresetCustomExternalForcesSkipTes
 bool FKawaiiPhysicsPresetCustomExternalForcesSkipTest::RunTest(const FString& Parameters)
 {
 	FAnimNode_KawaiiPhysics SourceNode = MakePresetSourceNode();
+	SourceNode.ExternalForces.AddDefaulted();
 	SourceNode.CustomExternalForces.Add(nullptr);
 
 	UKawaiiPhysicsPresetDataAsset* Preset = NewObject<UKawaiiPhysicsPresetDataAsset>();
 	Preset->CopyFromNode(SourceNode);
 
 	FAnimNode_KawaiiPhysics RuntimeTargetNode;
+	RuntimeTargetNode.ExternalForces.AddDefaulted();
+	RuntimeTargetNode.ExternalForces.AddDefaulted();
 	RuntimeTargetNode.CustomExternalForces.Add(nullptr);
 	RuntimeTargetNode.CustomExternalForces.Add(nullptr);
 	Preset->ApplyToNode(RuntimeTargetNode, FKawaiiPhysicsPresetApplyOptions(), nullptr);
 
 	bool bOk = true;
+	bOk &= TestEqual(TEXT("ExternalForces are skipped without target outer"),
+	                 RuntimeTargetNode.ExternalForces.Num(),
+	                 2);
 	bOk &= TestEqual(TEXT("CustomExternalForces are skipped without target outer"),
 	                 RuntimeTargetNode.CustomExternalForces.Num(),
 	                 2);
 
 	FAnimNode_KawaiiPhysics EditorTargetNode;
 	Preset->ApplyToNode(EditorTargetNode, FKawaiiPhysicsPresetApplyOptions(), Preset);
+	bOk &= TestEqual(TEXT("ExternalForces are applied with target outer"),
+	                 EditorTargetNode.ExternalForces.Num(),
+	                 Preset->Node.ExternalForces.Num());
 	bOk &= TestEqual(TEXT("CustomExternalForces are applied with target outer"),
 	                 EditorTargetNode.CustomExternalForces.Num(),
 	                 Preset->Node.CustomExternalForces.Num());

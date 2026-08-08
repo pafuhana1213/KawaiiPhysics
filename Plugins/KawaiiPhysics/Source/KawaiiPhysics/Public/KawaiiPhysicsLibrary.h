@@ -572,7 +572,7 @@ public:
 	static bool GetNodeStructPropertyValue(const FAnimNode_KawaiiPhysics& Node, FName PropertyName,
 	                                       ValueType& OutValue);
 
-	/** プリセットDataAssetをランタイムノードへ適用（CustomExternalForcesは安全のため除外） / Apply a preset data asset to a runtime node; CustomExternalForces are skipped for runtime safety. */
+	/** プリセットDataAssetをランタイムノードへ適用（ExternalForces と CustomExternalForces は安全のため除外） / Apply a preset data asset to a runtime node; ExternalForces and CustomExternalForces are skipped for runtime safety. */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
 		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
 	static FKawaiiPhysicsReference ApplyPresetDataAsset(EKawaiiPhysicsAccessResult& ExecResult,

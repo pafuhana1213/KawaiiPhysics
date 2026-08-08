@@ -235,8 +235,10 @@ void UKawaiiPhysicsPresetDataAsset::ApplyToNode(FAnimNode_KawaiiPhysics& TargetN
 			continue;
 		}
 
-		if (Property.GetFName() == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, CustomExternalForces) &&
-			!TargetOuter)
+		const FName PropertyName = Property.GetFName();
+		if (!TargetOuter &&
+			(PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, ExternalForces) ||
+				PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, CustomExternalForces)))
 		{
 			continue;
 		}

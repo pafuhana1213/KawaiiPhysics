@@ -77,8 +77,8 @@ public:
 
 	void CopyFromNode(const FAnimNode_KawaiiPhysics& SourceNode);
 	/**
-	 * プリセットを対象ノードへ適用する。TargetOuter が nullptr の場合は CustomExternalForces を複製しない。
-	 * Apply this preset to a target node. CustomExternalForces are not duplicated when TargetOuter is nullptr.
+	 * プリセットを対象ノードへ適用する。TargetOuter が nullptr の場合は ExternalForces と CustomExternalForces を複製しない。
+	 * Apply this preset to a target node. ExternalForces and CustomExternalForces are not duplicated when TargetOuter is nullptr.
 	 */
 	void ApplyToNode(FAnimNode_KawaiiPhysics& TargetNode,
 	                 const FKawaiiPhysicsPresetApplyOptions& Options,
