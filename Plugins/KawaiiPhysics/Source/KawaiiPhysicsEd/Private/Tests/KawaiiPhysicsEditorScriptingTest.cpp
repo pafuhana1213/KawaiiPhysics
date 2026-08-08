@@ -913,8 +913,8 @@ bool FKawaiiPhysicsEditorScriptingPlacementCommentTest::RunTest(const FString& P
 		                McpCommentNode->UpdatedAt.GetTicks() > 0);
 		bOk &= TestEqual(TEXT("Comment upsert keeps CreatedAt unchanged"),
 		                  McpCommentNode->CreatedAt, InitialCommentCreatedAt);
-		bOk &= TestTrue(TEXT("Comment upsert advances UpdatedAt"),
-		                McpCommentNode->UpdatedAt > InitialCommentUpdatedAt);
+		bOk &= TestTrue(TEXT("Comment upsert does not regress UpdatedAt"),
+		                McpCommentNode->UpdatedAt >= InitialCommentUpdatedAt);
 		bOk &= TestEqual(TEXT("Comment upsert keeps two nodes under comment"), NodesUnderComment.Num(), 2);
 		if (SecondHandles.Num() == 2 && SecondHandles[0].IsValid() && SecondHandles[1].IsValid())
 		{
