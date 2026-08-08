@@ -39,7 +39,9 @@
 
 namespace
 {
+	// アセット走査中にGCを実行する間隔。
 	constexpr int32 KawaiiPhysicsEditorLibraryGCBatchSize = 20;
+	// MCPコメント枠の推定サイズと余白、および自動配置の重なり判定に使う推定値。
 	constexpr int32 KawaiiPhysicsMcpCommentPaddingX = 50;
 	constexpr int32 KawaiiPhysicsMcpCommentTopPaddingY = 80;
 	constexpr int32 KawaiiPhysicsPlacementExpectedNodeWidth = 400;
@@ -117,6 +119,7 @@ namespace
 
 		FScopedTransaction Transaction(TransactionText);
 		GraphNode->Modify();
+		// 共通のGraphNode編集フローとして、TransactionとModify後にMutatorを実行し、失敗時はCancelで巻き戻す。
 		if (!Mutator(*GraphNode))
 		{
 			Transaction.Cancel();
@@ -139,6 +142,7 @@ namespace
 	TArray<FString> NormalizeContentPaths(const TArray<FString>& ContentPaths)
 	{
 		TArray<FString> Result;
+		// 未指定、または空要素のみの場合は/Game全体を対象にする。
 		if (ContentPaths.IsEmpty())
 		{
 			Result.Add(TEXT("/Game"));
@@ -173,6 +177,7 @@ namespace
 	void ScanAssetRegistryPaths(IAssetRegistry& AssetRegistry, const TArray<FString>& ContentPaths)
 	{
 		const TArray<FString> ScanPaths = NormalizeContentPaths(ContentPaths);
+		// commandlet等でAssetRegistryの走査が未完了でも結果が揃うよう、同期走査してロード完了を待つ。
 		AssetRegistry.ScanPathsSynchronous(ScanPaths, false);
 		if (AssetRegistry.IsLoadingAssets())
 		{
@@ -187,6 +192,7 @@ namespace
 
 	bool CheckOutPackageIfNeeded(UPackage* Package, bool bCheckOutFiles)
 	{
+		// source controlが無効、またはcheckout不要な場合は成功扱いで通す。
 		if (!Package || !bCheckOutFiles)
 		{
 			return true;
@@ -211,6 +217,7 @@ namespace
 
 		UGameplayTagsManager& GameplayTagsManager = UGameplayTagsManager::Get();
 		TArray<FString> SkippedTagNames;
+		// 未解決Tagはスキップし、警告ログはまとめて出す。戻り値は入力が空、または1件以上解決できたことを表す。
 		for (const FName TagName : TagNames)
 		{
 			const FGameplayTag Tag = GameplayTagsManager.RequestGameplayTag(TagName, false);
@@ -260,6 +267,7 @@ namespace
 		Entry.ExternalForceCount = GraphNode->Node.ExternalForces.Num() + GraphNode->Node.CustomExternalForces.Num();
 		Entry.WarmUpFrames = GraphNode->Node.WarmUpFrames;
 
+		// ノード設定のスナップショットを監査エントリへ詰め、差分比較には最初に一致したPresetのみを使う。
 		for (const TStrongObjectPtr<UKawaiiPhysicsPresetDataAsset>& PresetPtr : Presets)
 		{
 			UKawaiiPhysicsPresetDataAsset* Preset = PresetPtr.Get();
@@ -313,6 +321,7 @@ namespace
 		{
 			if (ExistingSetting.RootBone.BoneName == Setting.RootBone.BoneName)
 			{
+				// 同名RootBoneは追加せず、OverrideExcludeBonesだけをマージする。
 				if (Setting.bUseOverrideExcludeBones)
 				{
 					ExistingSetting.bUseOverrideExcludeBones = true;
@@ -346,6 +355,7 @@ namespace
 		ResolvedRequest.bAutoConnect = Request.bAutoConnect;
 		ResolvedRequest.PlacementDirection = Request.PlacementDirection;
 
+		// RootBonePatternの先頭一致をRootBoneへ、残りをAdditionalRootBonesへ解決する。
 		const TArray<FName> RootBonePatternMatches =
 			UKawaiiPhysicsEditorLibrary::ResolveBonesByPattern(Skeleton, Request.RootBonePattern);
 		if (!RootBonePatternMatches.IsEmpty())
@@ -370,11 +380,13 @@ namespace
 
 		const TArray<FName> ExcludeBonePatternMatches =
 			UKawaiiPhysicsEditorLibrary::ResolveBonesByPattern(Skeleton, Request.ExcludeBonePattern);
+		// ExcludeBonePatternの一致は既存指定へ追記する。
 		for (const FName ExcludeBoneName : ExcludeBonePatternMatches)
 		{
 			AddUniqueBoneName(ResolvedRequest.ExcludeBoneNames, ExcludeBoneName);
 		}
 
+		// Tag未指定時はPreset側のTagを既定値として使う。
 		if (!ResolvedRequest.KawaiiPhysicsTag.IsValid() &&
 			ResolvedRequest.Preset &&
 			ResolvedRequest.Preset->Node.KawaiiPhysicsTag.IsValid())
@@ -389,6 +401,7 @@ namespace
 	                          int32 RequestIndex,
 	                          const FString& Message)
 	{
+		// Warning:接頭辞の有無で整形を分け、警告では接頭辞を先頭へ移動する。
 		if (Message.StartsWith(TEXT("Warning:")))
 		{
 			OutErrors.Add(FString::Printf(
@@ -512,6 +525,7 @@ namespace
 		AddResolvedRootBoneNames(ResolvedRequest, RequestRootBoneNames);
 
 		const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
+		// 解決済みRoot同士が親子関係にある場合、Patternがチェーン途中のBoneまで拾った兆候として警告する。
 		for (const FName RootBoneName : RequestRootBoneNames)
 		{
 			for (const FName AncestorRootBoneName : AllResolvedRootBoneNames)
@@ -557,12 +571,14 @@ namespace
 
 		const bool bRootBoneSpecified =
 			!SourceRequest.RootBoneName.IsNone() || !SourceRequest.RootBonePattern.IsEmpty();
+		// RootBoneは明示名またはPatternのどちらかを必須にする。
 		if (!bRootBoneSpecified)
 		{
 			AddValidationMessage(OutErrors, RequestIndex, TEXT("RootBoneName or RootBonePattern must be specified."));
 			bValid = false;
 		}
 
+		// 解決済みの各BoneがTargetSkeletonに存在するか確認する。
 		if (bRootBoneSpecified)
 		{
 			bValid &= ValidateBoneName(
@@ -608,6 +624,7 @@ namespace
 			ResolvedRequest.Preset->Skeleton &&
 			ResolvedRequest.Preset->Skeleton != TargetSkeleton)
 		{
+			// PresetとAnimBlueprintのSkeleton不一致は警告のみとし、適用可否はBone解決結果に委ねる。
 			AddValidationMessage(
 				OutErrors,
 				RequestIndex,
@@ -615,6 +632,7 @@ namespace
 		}
 #endif
 
+		// Pattern解決後のRootが入れ子になっていないか確認する。
 		AddNestedResolvedRootWarnings(
 			TargetSkeleton,
 			ResolvedRequest,
@@ -634,6 +652,7 @@ namespace
 
 		const FName TargetGraphName = GraphName.IsNone() ? UEdGraphSchema_K2::GN_AnimGraph : GraphName;
 
+		// GraphName未指定時は既定のAnimGraphを対象にする。
 		TArray<UEdGraph*> Graphs;
 		AnimBlueprint->GetAllGraphs(Graphs);
 		for (UEdGraph* Graph : Graphs)
@@ -683,6 +702,7 @@ namespace
 
 		OutNodePosX = MinX - KawaiiPhysicsMcpCommentPaddingX;
 		OutNodePosY = MinY - KawaiiPhysicsMcpCommentTopPaddingY;
+		// 対象ノード群の外接矩形に余白を足してコメント枠サイズを決める。
 		const int32 BoundsMaxX = MaxX + KawaiiPhysicsMcpCommentExpectedNodeWidthWithPadding;
 		const int32 BoundsMaxY = MaxY + KawaiiPhysicsMcpCommentExpectedNodeHeightWithPadding;
 		OutNodeWidth = BoundsMaxX - OutNodePosX;
@@ -710,9 +730,11 @@ namespace
 			return;
 		}
 
+		// コメント枠の位置とサイズを対象ノード群に合わせて更新する。
 		CommentNode->NodeComment = CommentText;
 #if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
 		const FDateTime Now = FDateTime::Now();
+		// MCPメタデータとしてPromptと作成・更新時刻を保持する。
 		CommentNode->Prompt = Prompt;
 		if (bNewCommentNode)
 		{
@@ -724,6 +746,7 @@ namespace
 		(void)bNewCommentNode;
 #endif
 
+		// 設定色とGroupMovementを適用し、コメント枠として一緒に動く状態にする。
 		if (const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>())
 		{
 			CommentNode->CommentColor = Settings->McpCommentColor;
@@ -734,6 +757,7 @@ namespace
 		CommentNode->NodeWidth = NodeWidth;
 		CommentNode->NodeHeight = NodeHeight;
 
+		// 枠内ノードを再登録して、更新後のコメント枠に現在の対象ノードだけを紐付ける。
 		CommentNode->ClearNodesUnderComment();
 		for (const FKawaiiPhysicsGraphNodeHandle& Handle : Handles)
 		{
@@ -754,6 +778,7 @@ namespace
 			return false;
 		}
 
+		// 同じコメント本文の枠があれば更新し、なければ新規作成する。戻り値は新規作成の有無を表す。
 		for (UEdGraphNode* Node : Graph->Nodes)
 		{
 			FKawaiiMcpCommentNode* CommentNode = Cast<FKawaiiMcpCommentNode>(Node);
@@ -895,6 +920,7 @@ namespace
 
 	bool IsHorizontalAutoPlacement(const FResolvedKawaiiPhysicsNodePlacementRequest& Request)
 	{
+		// request指定を最優先し、次にSettings、Auto時はAutoConnectなら横配置にする。
 		switch (Request.PlacementDirection)
 		{
 		case EKawaiiPhysicsNodePlacementDirectionOverride::Horizontal:
@@ -930,6 +956,7 @@ namespace
 	int32 GetAutoPlacementSpacingX()
 	{
 		const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
+		// 設定値が推定ノード幅を下回らないようにして、既定の重なりを避ける。
 		return Settings
 			       ? FMath::Max(Settings->McpNodePlacementSpacingX, KawaiiPhysicsPlacementExpectedNodeWidth)
 			       : 420;
@@ -938,6 +965,7 @@ namespace
 	int32 GetAutoPlacementSpacingY()
 	{
 		const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
+		// 設定値が推定ノード高さを下回らないようにして、既定の重なりを避ける。
 		return Settings
 			       ? FMath::Max(Settings->McpNodePlacementSpacingY, KawaiiPhysicsPlacementExpectedNodeHeight)
 			       : 260;
@@ -980,6 +1008,7 @@ namespace
 				AutoPlacementBasePosition.Y +
 					static_cast<double>(PrimaryIndex * SpacingY));
 
+		// 既存ノードとの重なりを避けるため、空き位置が見つかるまで下方向へずらす。
 		for (int32 AttemptIndex = 0;
 		     AttemptIndex < KawaiiPhysicsPlacementMaxOverlapResolutionAttempts &&
 		     DoesAutoPlacementOverlapExistingNode(Graph, NodePosition);
@@ -1012,6 +1041,7 @@ namespace
 			Request.Preset->ApplyToNode(GraphNode->Node, Options, GraphNode);
 		}
 
+		// Preset適用後、Requestで明示されたRootBone/ExcludeBones/AdditionalRootBones/Tagを上書きする。
 		GraphNode->Node.RootBone = FBoneReference(Request.RootBoneName);
 
 		GraphNode->Node.ExcludeBones.Empty(Request.ExcludeBoneNames.Num());
@@ -1031,6 +1061,7 @@ namespace
 			return;
 		}
 
+		// 新しいBone設定からReconstructNodeでModifyBonesを再収集させるため、古い結果をクリアする。
 		GraphNode->Node.ModifyBones.Empty();
 		GraphNode->ReconstructNode();
 	}
@@ -1131,6 +1162,7 @@ namespace
 		const UEdGraphPin* ComponentPosePin =
 			GraphNode->FindPin(GET_MEMBER_NAME_CHECKED(FAnimNode_SkeletalControlBase, ComponentPose), EGPD_Input);
 		const UEdGraphPin* PosePin = GraphNode->FindPin(TEXT("Pose"), EGPD_Output);
+		// 入力側または出力側のPose pinが接続済みなら、ノードは接続済みとみなす。
 		return (ComponentPosePin && !ComponentPosePin->LinkedTo.IsEmpty()) ||
 			(PosePin && !PosePin->LinkedTo.IsEmpty());
 	}
@@ -1154,6 +1186,7 @@ namespace
 			return false;
 		}
 
+		// Result入力pinと、新規ノード側の入出力Pose pinを取得する。
 		UEdGraphPin* ResultPin = RootNode->FindPin(GET_MEMBER_NAME_CHECKED(FAnimNode_Root, Result), EGPD_Input);
 		UEdGraphPin* ComponentPosePin =
 			GraphNode->FindPin(GET_MEMBER_NAME_CHECKED(FAnimNode_SkeletalControlBase, ComponentPose), EGPD_Input);
@@ -1163,6 +1196,7 @@ namespace
 			return false;
 		}
 
+		// Result直前がComponentToLocalSpaceなら、その入力側へ挿入する。
 		UEdGraphPin* InsertionPointPin = ResultPin;
 		if (!ResultPin->LinkedTo.IsEmpty())
 		{
@@ -1189,6 +1223,7 @@ namespace
 		TArray<UEdGraphNode*> SpawnedInputConversionNodes;
 		if (PreviousSourcePin)
 		{
+			// 入力側接続の前後でノード集合を比較し、自動生成された変換ノードを検出する。
 			TSet<UEdGraphNode*> NodesBeforePrevConnection;
 			for (UEdGraphNode* Node : Graph->Nodes)
 			{
@@ -1232,6 +1267,7 @@ namespace
 		{
 			if (PreviousSourcePin)
 			{
+				// Result側接続に失敗したら入力側リンクを切り、生成済み変換ノードを削除して元のリンクを復元する。
 				Schema->BreakPinLinks(*ComponentPosePin, true);
 
 				if (!SpawnedInputConversionNodes.IsEmpty())
@@ -1290,6 +1326,7 @@ namespace
 			return false;
 		}
 
+		// 接続成功時は入力側またはResult側で変換ノードが生成されたかを呼び出し元へ返す。
 		bOutSpawnedConversionNode |= bSpawnedInputConversionNode;
 		const bool bSpawnedResultConversionNode = Graph->Nodes.Num() > NodeCountBeforeResultConnection;
 		bOutSpawnedConversionNode |= bSpawnedResultConversionNode;
@@ -1312,6 +1349,7 @@ void UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssets(const TArray<FString>& 
 {
 	OutAssets.Reset();
 
+	// filterを構築し、同期走査後にAnimBlueprintアセットを取得する。
 	FARFilter Filter;
 	ConfigureAnimBlueprintFilter(Filter);
 	AddPackagePathsToFilter(Filter, ContentPaths);
@@ -1327,6 +1365,7 @@ void UKawaiiPhysicsEditorLibrary::GetAllPresetAssets(TArray<TStrongObjectPtr<UKa
 {
 	OutPresets.Reset();
 
+	// filterを構築し、同期走査後にPresetアセットを取得する。
 	FARFilter Filter;
 	Filter.bRecursiveClasses = true;
 	AddPackagePathsToFilter(Filter, TArray<FString>());
@@ -1342,6 +1381,7 @@ void UKawaiiPhysicsEditorLibrary::GetAllPresetAssets(TArray<TStrongObjectPtr<UKa
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 	ScanAssetRegistryPaths(AssetRegistry, TArray<FString>());
 	AssetRegistry.GetAssets(Filter, PresetAssets);
+	// path順にSortして、呼び出しごとの結果順を決定的にする。
 	PresetAssets.Sort([](const FAssetData& Left, const FAssetData& Right)
 	{
 		return Left.GetSoftObjectPath().ToString() < Right.GetSoftObjectPath().ToString();
@@ -1445,6 +1485,7 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 		return Result;
 	}
 
+	// 対象AnimGraphを解決する。
 	UEdGraph* Graph = FindPlacementAnimGraph(AnimBlueprint, GraphName);
 	if (!Graph)
 	{
@@ -1461,6 +1502,7 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 	USkeleton* TargetSkeleton = AnimBlueprint->TargetSkeleton;
 	TArray<FResolvedKawaiiPhysicsNodePlacementRequest> ResolvedRequests;
 	ResolvedRequests.Reserve(Requests.Num());
+	// RequestをPresetやPattern込みの配置指定へ解決する。
 	for (const FKawaiiPhysicsNodePlacementRequest& Request : Requests)
 	{
 		ResolvedRequests.Add(ResolvePlacementRequest(TargetSkeleton, Request));
@@ -1530,6 +1572,7 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 		if (UAnimGraphNode_KawaiiPhysics* ExistingGraphNode =
 			FindUpsertGraphNode(Graph, ResolvedRequest, UpsertKey))
 		{
+			// upsert対象が既にある場合は既存ノードを更新する。
 			ExistingGraphNode->Modify();
 			ApplyResolvedPlacementToGraphNode(ExistingGraphNode, ResolvedRequest);
 			if (!ResolvedRequest.bAutoPosition)
@@ -1538,6 +1581,7 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 				ExistingGraphNode->NodePosY = static_cast<int32>(NodePosition.Y);
 			}
 			FinalizeExistingPlacementGraphNode(ExistingGraphNode);
+			// 必要な場合だけResult手前へのAutoConnectを試みる。
 			if (ResolvedRequest.bAutoConnect && !IsGraphNodePoseConnected(ExistingGraphNode))
 			{
 				bool bSpawnedConversionNodeForConnection = false;
@@ -1562,6 +1606,7 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 			continue;
 		}
 
+		// upsert対象がなければ新規ノードを作成する。
 		Graph->Modify();
 		FGraphNodeCreator<UAnimGraphNode_KawaiiPhysics> NodeCreator(*Graph);
 		UAnimGraphNode_KawaiiPhysics* NewGraphNode = NodeCreator.CreateNode(false);
@@ -1569,6 +1614,7 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 		NewGraphNode->NodePosX = static_cast<int32>(NodePosition.X);
 		NewGraphNode->NodePosY = static_cast<int32>(NodePosition.Y);
 		NodeCreator.Finalize();
+		// 新規ノードもRequest指定に応じてResult手前へのAutoConnectを試みる。
 		if (ResolvedRequest.bAutoConnect)
 		{
 			bool bSpawnedConversionNodeForConnection = false;
@@ -1595,11 +1641,13 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 	const FString TrimmedComment = Comment.TrimStartAndEnd();
 	if (!Result.IsEmpty() && !TrimmedComment.IsEmpty())
 	{
+		// 生成・更新したノード群を囲むMCPコメント枠をupsertする。
 		const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
 		const FString CommentPrefix = Settings ? Settings->McpCommentPrefix : TEXT("[MCP] ");
 		bAddedCommentNode = UpsertMcpCommentNode(Graph, Result, CommentPrefix + TrimmedComment, Prompt);
 	}
 
+	// 構造変更、軽微な変更、変更なしを分けてBlueprintの変更状態とTransactionを確定する。
 	if (bAddedNode || bSpawnedConversionNode || bAddedCommentNode)
 	{
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(AnimBlueprint);
@@ -1692,6 +1740,7 @@ TArray<FName> UKawaiiPhysicsEditorLibrary::ResolveBonesByPattern(USkeleton* Skel
 	FString BoneListString;
 	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
 	const TArray<FMeshBoneInfo>& RefBoneInfo = RefSkeleton.GetRefBoneInfo();
+	// Bone名をカンマ区切りの1文字列へ連結し、その全体にregexを適用する。
 	for (const FMeshBoneInfo& BoneInfo : RefBoneInfo)
 	{
 		BoneListString.Append(BoneInfo.Name.ToString());
@@ -1706,6 +1755,7 @@ TArray<FName> UKawaiiPhysicsEditorLibrary::ResolveBonesByPattern(USkeleton* Skel
 		const FString MatchedBoneName = Matcher.GetCaptureGroup(0);
 		if (MatchedBoneName.Len() >= NAME_SIZE)
 		{
+			// NAME_SIZEを超える一致はFName化できないためスキップし、警告は1回だけ出す。
 			if (!bLongMatchWarningLogged)
 			{
 				UE_LOG(LogKawaiiPhysics, Warning,
@@ -1928,6 +1978,7 @@ bool UKawaiiPhysicsEditorLibrary::ApplyPresetToGraphNode(
 	bool bNotifiedPropertyChange = false;
 	if (OldLimitsDataAsset != GraphNode->Node.LimitsDataAsset)
 	{
+		// DataAsset参照の差し替えはPostEditChangePropertyで通知する。
 		bNotifiedPropertyChange |= NotifyGraphNodePropertyChanged(
 			GraphNode,
 			FindFProperty<FProperty>(
@@ -1936,6 +1987,7 @@ bool UKawaiiPhysicsEditorLibrary::ApplyPresetToGraphNode(
 	}
 	if (OldBoneConstraintsDataAsset != GraphNode->Node.BoneConstraintsDataAsset)
 	{
+		// DataAsset参照の差し替えはPostEditChangePropertyで通知する。
 		bNotifiedPropertyChange |= NotifyGraphNodePropertyChanged(
 			GraphNode,
 			FindFProperty<FProperty>(
@@ -1945,6 +1997,7 @@ bool UKawaiiPhysicsEditorLibrary::ApplyPresetToGraphNode(
 
 	if (!bNotifiedPropertyChange)
 	{
+		// 参照差し替えがない場合だけReconstructNodeで通常の再構築を行う。
 		GraphNode->Node.ModifyBones.Empty();
 		GraphNode->ReconstructNode();
 		MarkGraphNodeBlueprintModified(GraphNode);
@@ -2004,6 +2057,7 @@ int32 UKawaiiPhysicsEditorLibrary::ReapplyPresetToProject(
 
 	if (Preset->TargetTags.IsEmpty())
 	{
+		// TargetTagsが空なら対象ノードが存在しないため、何もせず戻る。
 		UE_LOG(LogKawaiiPhysics, Warning,
 		       TEXT("ReapplyPresetToProject: Preset '%s' has empty TargetTags. No nodes will be targeted."),
 		       *Preset->GetPathName());
@@ -2047,11 +2101,13 @@ int32 UKawaiiPhysicsEditorLibrary::ReapplyPresetToProject(
 			OutReport.Add(MakeAuditEntry(AnimBlueprint, GraphNode, Options, Presets));
 			if (bDryRun)
 			{
+				// dryRunでは監査エントリの収集だけを行い、ノードは変更しない。
 				continue;
 			}
 
 			if (!bPackageCheckoutAttempted)
 			{
+				// checkoutはアセットごとに最大1回だけ試み、失敗時は以降の一致ノードをskip数に入れる。
 				bPackageCheckoutAttempted = true;
 				UPackage* Package = AnimBlueprint->GetOutermost();
 				bPackageCheckedOut = CheckOutPackageIfNeeded(Package, bCheckOutFiles);
@@ -2085,6 +2141,7 @@ int32 UKawaiiPhysicsEditorLibrary::ReapplyPresetToProject(
 		++ProcessedAssetCount;
 		if (ProcessedAssetCount % KawaiiPhysicsEditorLibraryGCBatchSize == 0)
 		{
+			// 大量アセット処理中は一定件数ごとにGCする。
 			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 		}
 	}
@@ -2120,6 +2177,7 @@ bool UKawaiiPhysicsEditorLibrary::AuditKawaiiPhysicsNodes(
 		UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(AssetData.GetAsset());
 		if (!AnimBlueprint)
 		{
+			// ロード失敗は結果をfalseにするが、他のアセットの監査は継続する。
 			UE_LOG(LogKawaiiPhysics, Error,
 			       TEXT("AuditKawaiiPhysicsNodes: Failed to load AnimBlueprint asset '%s'."),
 			       *AssetData.GetSoftObjectPath().ToString());
@@ -2140,6 +2198,7 @@ bool UKawaiiPhysicsEditorLibrary::AuditKawaiiPhysicsNodes(
 		++ProcessedAssetCount;
 		if (ProcessedAssetCount % KawaiiPhysicsEditorLibraryGCBatchSize == 0)
 		{
+			// 大量アセット監査中は一定件数ごとにGCする。
 			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 		}
 	}
@@ -2159,6 +2218,7 @@ DEFINE_FUNCTION(UKawaiiPhysicsEditorLibrary::execSetGraphNodeWildcardProperty)
 	Stack.MostRecentPropertyContainer = nullptr;
 	Stack.StepCompiledIn<FStructProperty>(nullptr);
 
+	// wildcard pinの値をscript stackからFPropertyとアドレスとして取り出すcustom thunkである。
 	const FProperty* ValueProp = CastField<FProperty>(Stack.MostRecentProperty);
 	const void* ValuePtr = Stack.MostRecentPropertyAddress;
 
@@ -2190,6 +2250,7 @@ DEFINE_FUNCTION(UKawaiiPhysicsEditorLibrary::execGetGraphNodeWildcardProperty)
 	Stack.MostRecentPropertyContainer = nullptr;
 	Stack.StepCompiledIn<FStructProperty>(nullptr);
 
+	// wildcard pinの値をscript stackからFPropertyとアドレスとして取り出すcustom thunkである。
 	const FProperty* ValueProp = CastField<FProperty>(Stack.MostRecentProperty);
 	void* ValuePtr = Stack.MostRecentPropertyAddress;
 
