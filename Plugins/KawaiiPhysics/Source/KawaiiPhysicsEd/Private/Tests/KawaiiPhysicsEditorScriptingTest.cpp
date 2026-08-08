@@ -54,6 +54,37 @@ namespace
 		TArray<UAnimGraphNode_KawaiiPhysics*> Nodes;
 	};
 
+	struct FScopedMcpPlacementSettings
+	{
+		UKawaiiPhysicsDeveloperSettings* Settings = nullptr;
+		EKawaiiPhysicsMcpNodePlacementDirection PreviousDirection =
+			EKawaiiPhysicsMcpNodePlacementDirection::Auto;
+		int32 PreviousWrapCount = 0;
+
+		FScopedMcpPlacementSettings(
+			EKawaiiPhysicsMcpNodePlacementDirection Direction,
+			int32 WrapCount)
+			: Settings(GetMutableDefault<UKawaiiPhysicsDeveloperSettings>())
+		{
+			if (Settings)
+			{
+				PreviousDirection = Settings->McpNodePlacementDirection;
+				PreviousWrapCount = Settings->McpNodePlacementWrapCount;
+				Settings->McpNodePlacementDirection = Direction;
+				Settings->McpNodePlacementWrapCount = WrapCount;
+			}
+		}
+
+		~FScopedMcpPlacementSettings()
+		{
+			if (Settings)
+			{
+				Settings->McpNodePlacementDirection = PreviousDirection;
+				Settings->McpNodePlacementWrapCount = PreviousWrapCount;
+			}
+		}
+	};
+
 	USkeleton* CreateTestSkeleton(UObject* Outer)
 	{
 		USkeleton* Skeleton = NewObject<USkeleton>(Outer ? Outer : GetTransientPackage());
@@ -230,6 +261,17 @@ namespace
 		return nullptr;
 	}
 
+	FVector2D GetExpectedAutoPlacementBasePosition(FAutomationTestBase& Test, UEdGraph* Graph)
+	{
+		const UAnimGraphNode_Root* RootNode = FindResultRootNode(Graph);
+		Test.TestNotNull(TEXT("Result root node is found for auto placement"), RootNode);
+		return RootNode
+			? FVector2D(
+				static_cast<double>(RootNode->NodePosX - 500),
+				static_cast<double>(RootNode->NodePosY))
+			: FVector2D::ZeroVector;
+	}
+
 	UEdGraphPin* FindFirstPosePin(UEdGraphNode* Node, EEdGraphPinDirection Dir)
 	{
 		if (!Node)
@@ -368,6 +410,37 @@ namespace
 		Request.KawaiiPhysicsTag = Tag;
 		Request.bAutoConnect = true;
 		return Request;
+	}
+
+	FKawaiiPhysicsNodePlacementRequest MakePlacementRequest(FName RootBoneName, const FGameplayTag& Tag)
+	{
+		FKawaiiPhysicsNodePlacementRequest Request;
+		Request.RootBoneName = RootBoneName;
+		Request.KawaiiPhysicsTag = Tag;
+		return Request;
+	}
+
+	bool TestNodePosition(
+		FAutomationTestBase& Test,
+		const FString& Context,
+		const FKawaiiPhysicsGraphNodeHandle& Handle,
+		const FVector2D& ExpectedPosition)
+	{
+		UAnimGraphNode_KawaiiPhysics* Node = Handle.IsValid() ? Handle.Node.Get() : nullptr;
+		bool bOk = true;
+		bOk &= Test.TestNotNull(*FString::Printf(TEXT("%s node is valid"), *Context), Node);
+		if (Node)
+		{
+			bOk &= Test.TestEqual(
+				*FString::Printf(TEXT("%s NodePosX"), *Context),
+				Node->NodePosX,
+				static_cast<int32>(ExpectedPosition.X));
+			bOk &= Test.TestEqual(
+				*FString::Printf(TEXT("%s NodePosY"), *Context),
+				Node->NodePosY,
+				static_cast<int32>(ExpectedPosition.Y));
+		}
+		return bOk;
 	}
 
 	UAnimGraphNode_LocalRefPose* AddLocalRefPoseNode(UEdGraph* Graph, FVector2D NodePosition)
@@ -815,6 +888,285 @@ bool FKawaiiPhysicsEditorScriptingPlacementAutoPositionStackingTest::RunTest(con
 		bOk &= TestFalse(TEXT("Second auto placement does not reuse first coordinates"),
 		                 FirstNode->NodePosX == SecondNode->NodePosX &&
 		                 FirstNode->NodePosY == SecondNode->NodePosY);
+	}
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementDirectionHorizontalSettingTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.DirectionHorizontalSetting",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingPlacementDirectionHorizontalSettingTest::RunTest(const FString& Parameters)
+{
+	FScopedMcpPlacementSettings PlacementSettings(
+		EKawaiiPhysicsMcpNodePlacementDirection::Horizontal,
+		0);
+	FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
+	if (!Fixture.AnimBlueprint || !Fixture.AnimGraph)
+	{
+		return false;
+	}
+
+	const FVector2D BasePosition = GetExpectedAutoPlacementBasePosition(*this, Fixture.AnimGraph);
+	TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+	Requests.Add(MakePlacementRequest(TEXT("hair_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+	Requests.Add(MakePlacementRequest(TEXT("tail_01"), GetKawaiiPhysicsEditorScriptingTagB()));
+	Requests.Add(MakePlacementRequest(TEXT("bang_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+
+	TArray<FKawaiiPhysicsGraphNodeHandle> Handles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests);
+
+	bool bOk = true;
+	bOk &= TestEqual(TEXT("Horizontal setting placement creates three nodes"), Handles.Num(), 3);
+	for (int32 NodeIndex = 0; NodeIndex < Handles.Num(); ++NodeIndex)
+	{
+		bOk &= TestNodePosition(
+			*this,
+			FString::Printf(TEXT("Horizontal setting node %d"), NodeIndex),
+			Handles[NodeIndex],
+			FVector2D(BasePosition.X + static_cast<double>(NodeIndex * -500), BasePosition.Y));
+	}
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementDirectionVerticalWithAutoConnectTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.DirectionVerticalWithAutoConnect",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingPlacementDirectionVerticalWithAutoConnectTest::RunTest(const FString& Parameters)
+{
+	FScopedMcpPlacementSettings PlacementSettings(
+		EKawaiiPhysicsMcpNodePlacementDirection::Vertical,
+		0);
+	FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
+	if (!Fixture.AnimBlueprint || !Fixture.AnimGraph)
+	{
+		return false;
+	}
+
+	const FVector2D BasePosition = GetExpectedAutoPlacementBasePosition(*this, Fixture.AnimGraph);
+	TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+	Requests.Add(MakeAutoConnectRequest(TEXT("hair_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+	Requests.Add(MakeAutoConnectRequest(TEXT("tail_01"), GetKawaiiPhysicsEditorScriptingTagB()));
+
+	TArray<FKawaiiPhysicsGraphNodeHandle> Handles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests);
+
+	bool bOk = true;
+	bOk &= TestEqual(TEXT("Vertical AutoConnect placement creates two nodes"), Handles.Num(), 2);
+	if (Handles.IsValidIndex(0))
+	{
+		bOk &= TestNodePosition(
+			*this,
+			TEXT("Vertical AutoConnect first node"),
+			Handles[0],
+			BasePosition);
+	}
+	if (Handles.IsValidIndex(1))
+	{
+		bOk &= TestNodePosition(
+			*this,
+			TEXT("Vertical AutoConnect second node"),
+			Handles[1],
+			FVector2D(BasePosition.X, BasePosition.Y + 300.0));
+	}
+
+	UAnimGraphNode_KawaiiPhysics* FirstNode =
+		Handles.IsValidIndex(0) && Handles[0].IsValid() ? Handles[0].Node.Get() : nullptr;
+	UAnimGraphNode_KawaiiPhysics* SecondNode =
+		Handles.IsValidIndex(1) && Handles[1].IsValid() ? Handles[1].Node.Get() : nullptr;
+	UEdGraphPin* FirstPosePin = GetKawaiiPosePin(FirstNode);
+	UEdGraphPin* SecondComponentPosePin = GetKawaiiComponentPosePin(SecondNode);
+	UEdGraphPin* SecondPosePin = GetKawaiiPosePin(SecondNode);
+	UEdGraphPin* ResultPin = GetResultPin(Fixture.AnimGraph);
+	UAnimGraphNode_ComponentToLocalSpace* ComponentToLocalSpaceNode =
+		ResultPin && ResultPin->LinkedTo.Num() == 1
+			? Cast<UAnimGraphNode_ComponentToLocalSpace>(ResultPin->LinkedTo[0]->GetOwningNode())
+			: nullptr;
+	UEdGraphPin* ComponentToLocalSpaceInputPin =
+		FindFirstPosePin(ComponentToLocalSpaceNode, EGPD_Input);
+
+	bOk &= TestTrue(TEXT("Vertical AutoConnect keeps first Pose connected to second ComponentPose"),
+	                FirstPosePin &&
+	                SecondComponentPosePin &&
+	                FirstPosePin->LinkedTo.Num() == 1 &&
+	                FirstPosePin->LinkedTo[0] == SecondComponentPosePin &&
+	                SecondComponentPosePin->LinkedTo.Num() == 1 &&
+	                SecondComponentPosePin->LinkedTo[0] == FirstPosePin);
+	bOk &= TestTrue(TEXT("Vertical AutoConnect keeps second Pose connected toward Result"),
+	                SecondPosePin &&
+	                ComponentToLocalSpaceInputPin &&
+	                SecondPosePin->LinkedTo.Num() == 1 &&
+	                SecondPosePin->LinkedTo[0] == ComponentToLocalSpaceInputPin);
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementWrapCountTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.WrapCount",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingPlacementWrapCountTest::RunTest(const FString& Parameters)
+{
+	bool bOk = true;
+
+	{
+		FScopedMcpPlacementSettings PlacementSettings(
+			EKawaiiPhysicsMcpNodePlacementDirection::Horizontal,
+			2);
+		FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
+		if (!Fixture.AnimBlueprint || !Fixture.AnimGraph)
+		{
+			return false;
+		}
+
+		const FVector2D BasePosition = GetExpectedAutoPlacementBasePosition(*this, Fixture.AnimGraph);
+		TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+		Requests.Add(MakePlacementRequest(TEXT("hair_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+		Requests.Add(MakePlacementRequest(TEXT("tail_01"), GetKawaiiPhysicsEditorScriptingTagB()));
+		Requests.Add(MakePlacementRequest(TEXT("bang_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+		Requests.Add(MakePlacementRequest(TEXT("preset_root"), GetKawaiiPhysicsEditorScriptingTagB()));
+
+		TArray<FKawaiiPhysicsGraphNodeHandle> Handles =
+			UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests);
+
+		bOk &= TestEqual(TEXT("Horizontal wrap placement creates four nodes"), Handles.Num(), 4);
+		const FVector2D ExpectedPositions[] =
+		{
+			BasePosition,
+			FVector2D(BasePosition.X - 500.0, BasePosition.Y),
+			FVector2D(BasePosition.X, BasePosition.Y + 300.0),
+			FVector2D(BasePosition.X - 500.0, BasePosition.Y + 300.0),
+		};
+		const int32 ExpectedPositionCount = UE_ARRAY_COUNT(ExpectedPositions);
+		for (int32 NodeIndex = 0; NodeIndex < ExpectedPositionCount && Handles.IsValidIndex(NodeIndex); ++NodeIndex)
+		{
+			bOk &= TestNodePosition(
+				*this,
+				FString::Printf(TEXT("Horizontal wrap node %d"), NodeIndex),
+				Handles[NodeIndex],
+				ExpectedPositions[NodeIndex]);
+		}
+	}
+
+	{
+		FScopedMcpPlacementSettings PlacementSettings(
+			EKawaiiPhysicsMcpNodePlacementDirection::Vertical,
+			2);
+		FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
+		if (!Fixture.AnimBlueprint || !Fixture.AnimGraph)
+		{
+			return false;
+		}
+
+		const FVector2D BasePosition = GetExpectedAutoPlacementBasePosition(*this, Fixture.AnimGraph);
+		TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+		Requests.Add(MakePlacementRequest(TEXT("hair_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+		Requests.Add(MakePlacementRequest(TEXT("tail_01"), GetKawaiiPhysicsEditorScriptingTagB()));
+		Requests.Add(MakePlacementRequest(TEXT("bang_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+		Requests.Add(MakePlacementRequest(TEXT("preset_root"), GetKawaiiPhysicsEditorScriptingTagB()));
+
+		TArray<FKawaiiPhysicsGraphNodeHandle> Handles =
+			UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests);
+
+		bOk &= TestEqual(TEXT("Vertical wrap placement creates four nodes"), Handles.Num(), 4);
+		const FVector2D ExpectedPositions[] =
+		{
+			BasePosition,
+			FVector2D(BasePosition.X, BasePosition.Y + 300.0),
+			FVector2D(BasePosition.X - 500.0, BasePosition.Y),
+			FVector2D(BasePosition.X - 500.0, BasePosition.Y + 300.0),
+		};
+		const int32 ExpectedPositionCount = UE_ARRAY_COUNT(ExpectedPositions);
+		for (int32 NodeIndex = 0; NodeIndex < ExpectedPositionCount && Handles.IsValidIndex(NodeIndex); ++NodeIndex)
+		{
+			bOk &= TestNodePosition(
+				*this,
+				FString::Printf(TEXT("Vertical wrap node %d"), NodeIndex),
+				Handles[NodeIndex],
+				ExpectedPositions[NodeIndex]);
+		}
+	}
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementDirectionRequestOverrideTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.DirectionRequestOverride",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingPlacementDirectionRequestOverrideTest::RunTest(const FString& Parameters)
+{
+	bool bOk = true;
+
+	{
+		FScopedMcpPlacementSettings PlacementSettings(
+			EKawaiiPhysicsMcpNodePlacementDirection::Auto,
+			0);
+		FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
+		if (!Fixture.AnimBlueprint || !Fixture.AnimGraph)
+		{
+			return false;
+		}
+
+		const FVector2D BasePosition = GetExpectedAutoPlacementBasePosition(*this, Fixture.AnimGraph);
+		TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+		Requests.Add(MakePlacementRequest(TEXT("hair_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+		Requests.Add(MakePlacementRequest(TEXT("tail_01"), GetKawaiiPhysicsEditorScriptingTagB()));
+		Requests[0].PlacementDirection = EKawaiiPhysicsNodePlacementDirectionOverride::Horizontal;
+		Requests[1].PlacementDirection = EKawaiiPhysicsNodePlacementDirectionOverride::Horizontal;
+
+		TArray<FKawaiiPhysicsGraphNodeHandle> Handles =
+			UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests);
+
+		bOk &= TestEqual(TEXT("Horizontal override placement creates two nodes"), Handles.Num(), 2);
+		if (Handles.IsValidIndex(0))
+		{
+			bOk &= TestNodePosition(*this, TEXT("Horizontal override first node"), Handles[0], BasePosition);
+		}
+		if (Handles.IsValidIndex(1))
+		{
+			bOk &= TestNodePosition(
+				*this,
+				TEXT("Horizontal override second node"),
+				Handles[1],
+				FVector2D(BasePosition.X - 500.0, BasePosition.Y));
+		}
+	}
+
+	{
+		FScopedMcpPlacementSettings PlacementSettings(
+			EKawaiiPhysicsMcpNodePlacementDirection::Horizontal,
+			0);
+		FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
+		if (!Fixture.AnimBlueprint || !Fixture.AnimGraph)
+		{
+			return false;
+		}
+
+		const FVector2D BasePosition = GetExpectedAutoPlacementBasePosition(*this, Fixture.AnimGraph);
+		TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+		Requests.Add(MakePlacementRequest(TEXT("hair_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+		Requests.Add(MakePlacementRequest(TEXT("tail_01"), GetKawaiiPhysicsEditorScriptingTagB()));
+		Requests[0].PlacementDirection = EKawaiiPhysicsNodePlacementDirectionOverride::Vertical;
+		Requests[1].PlacementDirection = EKawaiiPhysicsNodePlacementDirectionOverride::Vertical;
+
+		TArray<FKawaiiPhysicsGraphNodeHandle> Handles =
+			UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests);
+
+		bOk &= TestEqual(TEXT("Vertical override placement creates two nodes"), Handles.Num(), 2);
+		if (Handles.IsValidIndex(0))
+		{
+			bOk &= TestNodePosition(*this, TEXT("Vertical override first node"), Handles[0], BasePosition);
+		}
+		if (Handles.IsValidIndex(1))
+		{
+			bOk &= TestNodePosition(
+				*this,
+				TEXT("Vertical override second node"),
+				Handles[1],
+				FVector2D(BasePosition.X, BasePosition.Y + 300.0));
+		}
 	}
 
 	return bOk;
