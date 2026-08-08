@@ -7,6 +7,7 @@
 
 #include "KawaiiPhysicsMcpCommentNode.generated.h"
 
+// UHTはUCLASSの任意#if囲みを拒否するため、5.5未満ではgen.cppを含めず使用箇所も消して休眠状態にする
 UCLASS()
 class UKawaiiPhysicsMcpCommentNode : public UEdGraphNode_Comment
 {

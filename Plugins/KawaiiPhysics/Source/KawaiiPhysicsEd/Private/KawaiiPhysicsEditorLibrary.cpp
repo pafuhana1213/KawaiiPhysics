@@ -56,6 +56,13 @@ namespace
 	constexpr int32 KawaiiPhysicsPlacementEstimatedOtherNodeWidth = 250;
 	constexpr int32 KawaiiPhysicsPlacementEstimatedOtherNodeHeight = 120;
 
+	// UE5.5未満ではUEdGraphNode_Comment継承クラスがリンクできないため、素のコメント枠を使う
+#if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
+	using FKawaiiMcpCommentNode = UKawaiiPhysicsMcpCommentNode;
+#else
+	using FKawaiiMcpCommentNode = UEdGraphNode_Comment;
+#endif
+
 	UAnimGraphNode_KawaiiPhysics* GetGraphNode(const FKawaiiPhysicsGraphNodeHandle& Handle)
 	{
 		return Handle.Node.Get();
@@ -683,7 +690,7 @@ namespace
 		return true;
 	}
 
-	void ApplyMcpCommentNodeState(UKawaiiPhysicsMcpCommentNode* CommentNode,
+	void ApplyMcpCommentNodeState(FKawaiiMcpCommentNode* CommentNode,
 	                              const TArray<FKawaiiPhysicsGraphNodeHandle>& Handles,
 	                              const FString& CommentText,
 	                              const FString& Prompt,
@@ -703,14 +710,19 @@ namespace
 			return;
 		}
 
-		const FDateTime Now = FDateTime::Now();
 		CommentNode->NodeComment = CommentText;
+#if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
+		const FDateTime Now = FDateTime::Now();
 		CommentNode->Prompt = Prompt;
 		if (bNewCommentNode)
 		{
 			CommentNode->CreatedAt = Now;
 		}
 		CommentNode->UpdatedAt = Now;
+#else
+		(void)Prompt;
+		(void)bNewCommentNode;
+#endif
 
 		if (const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>())
 		{
@@ -744,9 +756,9 @@ namespace
 
 		for (UEdGraphNode* Node : Graph->Nodes)
 		{
-			UKawaiiPhysicsMcpCommentNode* CommentNode = Cast<UKawaiiPhysicsMcpCommentNode>(Node);
+			FKawaiiMcpCommentNode* CommentNode = Cast<FKawaiiMcpCommentNode>(Node);
 			if (!CommentNode ||
-				CommentNode->GetClass() != UKawaiiPhysicsMcpCommentNode::StaticClass() ||
+				CommentNode->GetClass() != FKawaiiMcpCommentNode::StaticClass() ||
 				CommentNode->NodeComment != CommentText)
 			{
 				continue;
@@ -759,8 +771,8 @@ namespace
 		}
 
 		Graph->Modify();
-		FGraphNodeCreator<UKawaiiPhysicsMcpCommentNode> NodeCreator(*Graph);
-		UKawaiiPhysicsMcpCommentNode* CommentNode = NodeCreator.CreateNode(false);
+		FGraphNodeCreator<FKawaiiMcpCommentNode> NodeCreator(*Graph);
+		FKawaiiMcpCommentNode* CommentNode = NodeCreator.CreateNode(false);
 		NodeCreator.Finalize();
 		ApplyMcpCommentNodeState(CommentNode, Handles, CommentText, Prompt, true);
 		Graph->NotifyNodeChanged(CommentNode);
@@ -842,7 +854,8 @@ namespace
 				continue;
 			}
 
-			if (const UKawaiiPhysicsMcpCommentNode* CommentNode = Cast<UKawaiiPhysicsMcpCommentNode>(Node))
+#if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
+			if (const FKawaiiMcpCommentNode* CommentNode = Cast<FKawaiiMcpCommentNode>(Node))
 			{
 				if (DoPlacementRectsOverlap(
 					CandidateRect,
@@ -856,6 +869,7 @@ namespace
 				}
 				continue;
 			}
+#endif
 
 			// 素のコメント枠（囲いのみ）は障害物として扱わない
 			if (Node->IsA<UEdGraphNode_Comment>())
@@ -1609,6 +1623,7 @@ TArray<FKawaiiPhysicsAnimGraphCommentInfo> UKawaiiPhysicsEditorLibrary::GetAnimG
 
 		FKawaiiPhysicsAnimGraphCommentInfo Info;
 		Info.Title = CommentNode->NodeComment;
+#if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
 		if (const UKawaiiPhysicsMcpCommentNode* McpCommentNode = Cast<UKawaiiPhysicsMcpCommentNode>(CommentNode))
 		{
 			Info.Prompt = McpCommentNode->Prompt;
@@ -1616,6 +1631,7 @@ TArray<FKawaiiPhysicsAnimGraphCommentInfo> UKawaiiPhysicsEditorLibrary::GetAnimG
 			Info.UpdatedAt = McpCommentNode->UpdatedAt;
 			Info.bMcpComment = true;
 		}
+#endif
 		Result.Add(Info);
 	}
 

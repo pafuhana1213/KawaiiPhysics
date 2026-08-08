@@ -36,6 +36,15 @@ public class KawaiiPhysicsEd : ModuleRules
 			"JsonUtilities"
 		});
 
+		if (Target.Version.MajorVersion > 5 || (Target.Version.MajorVersion == 5 && Target.Version.MinorVersion >= 5))
+		{
+			PublicDefinitions.Add("KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED=0");
+		}
+
 		if(Target.Version.MajorVersion >= 5)
 		{
 			PrivateDependencyModuleNames.Add("EditorFramework");
