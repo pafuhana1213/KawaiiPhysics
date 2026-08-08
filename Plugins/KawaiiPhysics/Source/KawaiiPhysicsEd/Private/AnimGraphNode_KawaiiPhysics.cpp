@@ -17,14 +17,20 @@
 #include "KawaiiPhysicsEditorLibrary.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
 #include "KawaiiPhysicsPresetDataAsset.h"
+#include "KawaiiPhysicsPresetDiffSnapshot.h"
+#include "SKawaiiPhysicsPresetDiffWindow.h"
 #include "Widgets/Input/SButton.h"
+#include "Framework/Commands/UIAction.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Selection.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Dialogs/DlgPickAssetPath.h"
+#include "EdGraph/EdGraphNode.h"
 #include "Kismet2/CompilerResultsLog.h"
+#include "ToolMenu.h"
+#include "ToolMenuSection.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Layout/SSeparator.h"
 
@@ -313,9 +319,12 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 			SNew(SButton)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			.OnClicked_Lambda([this]()
+			.OnClicked_Lambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics>(this)]()
 			{
-				this->ExportLimitsDataAsset();
+				if (UAnimGraphNode_KawaiiPhysics* Node = WeakThis.Get())
+				{
+					Node->ExportLimitsDataAsset();
+				}
 				return FReply::Handled();
 			})
 			.Content()
@@ -330,9 +339,12 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 			SNew(SButton)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			.OnClicked_Lambda([this]()
+			.OnClicked_Lambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics>(this)]()
 			{
-				this->ExportBoneConstraintsDataAsset();
+				if (UAnimGraphNode_KawaiiPhysics* Node = WeakThis.Get())
+				{
+					Node->ExportBoneConstraintsDataAsset();
+				}
 				return FReply::Handled();
 			})
 			.Content()
@@ -347,9 +359,12 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 			SNew(SButton)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			.OnClicked_Lambda([this]()
+			.OnClicked_Lambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics>(this)]()
 			{
-				this->ExportPresetDataAsset();
+				if (UAnimGraphNode_KawaiiPhysics* Node = WeakThis.Get())
+				{
+					Node->ExportPresetDataAsset();
+				}
 				return FReply::Handled();
 			})
 			.Content()
@@ -364,9 +379,12 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 			SNew(SButton)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			.OnClicked_Lambda([this]()
+			.OnClicked_Lambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics>(this)]()
 			{
-				this->ApplyPresetDataAsset();
+				if (UAnimGraphNode_KawaiiPhysics* Node = WeakThis.Get())
+				{
+					Node->ApplyPresetDataAsset();
+				}
 				return FReply::Handled();
 			})
 			.Content()
@@ -381,9 +399,12 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 			SNew(SButton)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			.OnClicked_Lambda([this]()
+			.OnClicked_Lambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics>(this)]()
 			{
-				this->CheckPresetDiff();
+				if (UAnimGraphNode_KawaiiPhysics* Node = WeakThis.Get())
+				{
+					Node->CheckPresetDiff();
+				}
 				return FReply::Handled();
 			})
 			.Content()
@@ -908,20 +929,10 @@ void UAnimGraphNode_KawaiiPhysics::ApplyPresetDataAsset()
 
 void UAnimGraphNode_KawaiiPhysics::CheckPresetDiff()
 {
-	TArray<TStrongObjectPtr<UKawaiiPhysicsPresetDataAsset>> Presets;
-	UKawaiiPhysicsEditorLibrary::GetAllPresetAssets(Presets);
+	const TArray<TSharedRef<FKawaiiPhysicsPresetDiffSnapshot>> Snapshots =
+		KawaiiPhysicsPresetDiff::BuildSnapshotsForNode(Node, FKawaiiPhysicsPresetApplyOptions());
 
-	TArray<UKawaiiPhysicsPresetDataAsset*> MatchingPresets;
-	for (const TStrongObjectPtr<UKawaiiPhysicsPresetDataAsset>& PresetPtr : Presets)
-	{
-		UKawaiiPhysicsPresetDataAsset* Preset = PresetPtr.Get();
-		if (Preset && Preset->TargetsNodeTag(Node.KawaiiPhysicsTag))
-		{
-			MatchingPresets.Add(Preset);
-		}
-	}
-
-	if (MatchingPresets.IsEmpty())
+	if (Snapshots.IsEmpty())
 	{
 		ShowKawaiiPhysicsNotification(
 			LOCTEXT("NoPresetTargetsNodeTag", "No preset targets this node's tag."),
@@ -929,46 +940,79 @@ void UAnimGraphNode_KawaiiPhysics::CheckPresetDiff()
 		return;
 	}
 
-	UKawaiiPhysicsPresetDataAsset* Preset = MatchingPresets[0];
-	FKawaiiPhysicsPresetApplyOptions Options;
-	TArray<FName> DiffProperties;
-	const bool bMatchesPreset = Preset->MatchesNode(Node, Options, DiffProperties);
-
-	if (!bMatchesPreset)
+	// 差分のあるプリセットごとにログを1行出力する。
+	for (const TSharedRef<FKawaiiPhysicsPresetDiffSnapshot>& Snapshot : Snapshots)
 	{
+		if (Snapshot->DiffCount == 0)
+		{
+			continue;
+		}
+
+		TArray<FName> DiffProperties;
+		DiffProperties.Reserve(Snapshot->DiffCount);
+		for (const TSharedPtr<FKawaiiPhysicsPresetDiffPropertyRow>& Row : Snapshot->Rows)
+		{
+			if (Row.IsValid() && Row->bDiffers)
+			{
+				DiffProperties.Add(Row->PropertyName);
+			}
+		}
+
 		UE_LOG(LogKawaiiPhysics, Display,
 		       TEXT("CheckPresetDiff: NodeTag=%s Preset=%s DiffCount=%d DiffProperties=%s"),
 		       *Node.KawaiiPhysicsTag.ToString(),
-		       *Preset->GetPathName(),
-		       DiffProperties.Num(),
+		       *Snapshot->PresetPath.ToString(),
+		       Snapshot->DiffCount,
 		       *JoinPropertyNames(DiffProperties));
 	}
 
-	FString NotificationMessage;
-	if (bMatchesPreset)
+	// 差分ウィンドウのコンテキストラベル（ノードタイトル＋AnimBlueprint名＋Tag）を組み立てる。
+	const UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
+	const FText ContextLabel = FText::Format(
+		LOCTEXT("CheckPresetDiffContextLabel", "{0}  |  {1}  |  Tag: {2}"),
+		GetNodeTitle(ENodeTitleType::ListView),
+		AnimBlueprint
+			? FText::FromString(AnimBlueprint->GetName())
+			: LOCTEXT("CheckPresetDiffUnknownAnimBlueprint", "(Unknown AnimBlueprint)"),
+		FText::FromString(Node.KawaiiPhysicsTag.ToString()));
+
+	FKawaiiPhysicsPresetDiffWindowArgs Args;
+	Args.ContextLabel = ContextLabel;
+	Args.Snapshots = Snapshots;
+	Args.AnimBlueprintPath = AnimBlueprint ? FSoftObjectPath(AnimBlueprint) : FSoftObjectPath();
+	Args.NodeGuid = NodeGuid;
+
+	SKawaiiPhysicsPresetDiffWindow::OpenWindow(MoveTemp(Args));
+}
+
+void UAnimGraphNode_KawaiiPhysics::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
+{
+	if (!Context || Context->bIsDebugging)
 	{
-		NotificationMessage = FString::Printf(TEXT("Matches preset %s"), *Preset->GetName());
-	}
-	else
-	{
-		NotificationMessage = FString::Printf(
-			TEXT("Differs from %s: %d properties. See Output Log for details."),
-			*Preset->GetName(),
-			DiffProperties.Num());
+		return;
 	}
 
-	if (MatchingPresets.Num() > 1)
-	{
-		NotificationMessage += FString::Printf(
-			TEXT("\n%d presets target this node."),
-			MatchingPresets.Num());
-	}
+	FToolMenuSection& Section = Menu->AddSection(
+		"KawaiiPhysics", LOCTEXT("KawaiiPhysicsContextMenuSection", "Kawaii Physics"));
 
-	ShowKawaiiPhysicsAssetNotification(
-		Preset,
-		FText::FromString(NotificationMessage),
-		LOCTEXT("OpenDiffPresetAsset", "Open Preset"),
-		bMatchesPreset ? SNotificationItem::CS_Success : SNotificationItem::CS_Fail);
+	// private関数だがCreateUObjectはメンバ関数内での束縛のためアクセス可能（弱参照バインドでノード破棄後も安全）。
+	UAnimGraphNode_KawaiiPhysics* MutableThis = const_cast<UAnimGraphNode_KawaiiPhysics*>(this);
+
+	Section.AddMenuEntry(
+		"KawaiiPhysicsCheckPresetDiff",
+		LOCTEXT("CheckPresetDiffMenuLabel", "Check Preset Diff"),
+		LOCTEXT("CheckPresetDiffMenuToolTip",
+		        "このノードとプリセットの差分をウィンドウで確認します / Shows the diff between this node and its presets in a window."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateUObject(MutableThis, &UAnimGraphNode_KawaiiPhysics::CheckPresetDiff)));
+
+	Section.AddMenuEntry(
+		"KawaiiPhysicsApplyPreset",
+		LOCTEXT("ApplyPresetMenuLabel", "Apply Preset..."),
+		LOCTEXT("ApplyPresetMenuToolTip",
+		        "プリセットDataAssetをこのノードへ適用します / Applies a preset data asset to this node."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateUObject(MutableThis, &UAnimGraphNode_KawaiiPhysics::ApplyPresetDataAsset)));
 }
 
 #undef LOCTEXT_NAMESPACE

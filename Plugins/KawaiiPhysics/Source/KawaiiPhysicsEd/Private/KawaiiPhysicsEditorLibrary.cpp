@@ -1471,6 +1471,39 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::CollectKawaii
 	return Result;
 }
 
+UAnimGraphNode_KawaiiPhysics* UKawaiiPhysicsEditorLibrary::FindGraphNodeByGuid(
+	const FSoftObjectPath& AnimBlueprintPath,
+	const FGuid& NodeGuid)
+{
+	UObject* LoadedObject = AnimBlueprintPath.TryLoad();
+	UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(LoadedObject);
+	if (!AnimBlueprint || !NodeGuid.IsValid())
+	{
+		return nullptr;
+	}
+
+	TArray<UEdGraph*> Graphs;
+	AnimBlueprint->GetAllGraphs(Graphs);
+	for (UEdGraph* Graph : Graphs)
+	{
+		if (!Graph)
+		{
+			continue;
+		}
+
+		for (UEdGraphNode* Node : Graph->Nodes)
+		{
+			UAnimGraphNode_KawaiiPhysics* KawaiiPhysicsGraphNode = Cast<UAnimGraphNode_KawaiiPhysics>(Node);
+			if (KawaiiPhysicsGraphNode && KawaiiPhysicsGraphNode->NodeGuid == NodeGuid)
+			{
+				return KawaiiPhysicsGraphNode;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(
 	UAnimBlueprint* AnimBlueprint,
 	const TArray<FKawaiiPhysicsNodePlacementRequest>& Requests,

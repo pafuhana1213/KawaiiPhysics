@@ -32,8 +32,12 @@ public class KawaiiPhysicsEd : ModuleRules
 			"ContentBrowser",
 			"SourceControl",
 			"AssetRegistry",
+			"ApplicationCore",
+			"Kismet",
+			"ToolMenus",
 			"Json",
-			"JsonUtilities"
+			"JsonUtilities",
+			"DesktopPlatform"
 		});
 
 		if (Target.Version.MajorVersion > 5 || (Target.Version.MajorVersion == 5 && Target.Version.MinorVersion >= 5))

@@ -279,6 +279,11 @@ public:
 		const FGameplayTagContainer& FilterTags,
 		bool bFilterExactMatch = false);
 
+	/** AnimBlueprint 内の KawaiiPhysics グラフノードを NodeGuid で検索する（タグフィルタなしで全グラフを走査） / Finds a KawaiiPhysics graph node inside an AnimBlueprint by NodeGuid, scanning all graphs with no tag filter. */
+	static UAnimGraphNode_KawaiiPhysics* FindGraphNodeByGuid(
+		const FSoftObjectPath& AnimBlueprintPath,
+		const FGuid& NodeGuid);
+
 	/**
 	 * プロジェクト内の KawaiiPhysics プリセットDataAssetを列挙してロードする。
 	 * Enumerate and load all KawaiiPhysics preset data assets in the project.
