@@ -662,7 +662,7 @@ bool FKawaiiPhysicsEditorScriptingPublishedEditorApisTest::RunTest(const FString
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPresetTest,
-                                 "KawaiiPhysics.EditorScripting.Preset",
+                                 "KawaiiPhysics.EditorScripting.Preset.Basic",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FKawaiiPhysicsEditorScriptingPresetTest::RunTest(const FString& Parameters)
@@ -704,7 +704,7 @@ bool FKawaiiPhysicsEditorScriptingPresetTest::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementTest,
-                                 "KawaiiPhysics.EditorScripting.Placement",
+                                 "KawaiiPhysics.EditorScripting.Placement.Basic",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FKawaiiPhysicsEditorScriptingPlacementTest::RunTest(const FString& Parameters)
@@ -1513,7 +1513,7 @@ bool FKawaiiPhysicsEditorScriptingPlacementAutoConnectKnotSkipTest::RunTest(cons
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementValidationTest,
-                                 "KawaiiPhysics.EditorScripting.Placement.Validation",
+                                 "KawaiiPhysics.EditorScripting.Placement.Validation.Basic",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FKawaiiPhysicsEditorScriptingPlacementValidationTest::RunTest(const FString& Parameters)
@@ -1622,7 +1622,7 @@ bool FKawaiiPhysicsEditorScriptingPlacementValidationNestedRootWarningTest::RunT
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementPatternTest,
-                                 "KawaiiPhysics.EditorScripting.Placement.Pattern",
+                                 "KawaiiPhysics.EditorScripting.Placement.Pattern.Basic",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FKawaiiPhysicsEditorScriptingPlacementPatternTest::RunTest(const FString& Parameters)
