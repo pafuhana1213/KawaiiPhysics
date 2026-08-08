@@ -434,6 +434,30 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
 
     @toolset_registry.tool_call
     @staticmethod
+    def get_preset_diff(
+            handle: unreal.KawaiiPhysicsGraphNodeHandle,
+            preset: unreal.KawaiiPhysicsPresetDataAsset,
+            apply_bone_assignment: bool,
+            apply_tag: bool) -> list[unreal.KawaiiPhysicsPresetDiffValue]:
+        """Returns differing preset properties with node/preset values; an empty list means a match."""
+        _raise_for_invalid_handle(handle, 'handle')
+        _raise_for_invalid_object(preset, 'preset')
+        options = _make_preset_apply_options(apply_bone_assignment, apply_tag)
+
+        diff_values = (
+            unreal.KawaiiPhysicsEditorLibrary
+            .get_graph_node_preset_diff_values(
+                handle,
+                preset,
+                options,
+            )
+        )
+        if diff_values is None:
+            raise RuntimeError('Unable to diff KawaiiPhysics graph node preset values.')
+        return list(diff_values)
+
+    @toolset_registry.tool_call
+    @staticmethod
     def export_graph_node_to_preset(
             handle: unreal.KawaiiPhysicsGraphNodeHandle,
             preset_path: str) -> unreal.KawaiiPhysicsPresetDataAsset:

@@ -443,6 +443,39 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         with self.assertToolRaisesRuntimeError():
             KawaiiPhysicsToolset.apply_preset_to_graph_node(handle, None, True, True)
 
+    def test_get_preset_diff_reports_values_after_change(self):
+        handle = self._place_test_node()
+        preset = self._export_test_preset(handle, 'KPP_GetPresetDiff')
+
+        matches = KawaiiPhysicsToolset.get_preset_diff(handle, preset, True, True)
+        self.assertEqual(matches, [])
+
+        changed_physics_settings = (
+            '(Damping=0.91,Stiffness=0.44,WorldDampingLocation=0.55,'
+            'WorldDampingRotation=0.66,Radius=7.0,LimitAngle=45.0)'
+        )
+        KawaiiPhysicsToolset.set_graph_node_property(handle, 'PhysicsSettings', changed_physics_settings)
+
+        diffs = KawaiiPhysicsToolset.get_preset_diff(handle, preset, True, True)
+
+        physics_settings_diffs = [
+            entry for entry in diffs
+            if str(entry.get_editor_property('property_name')) == 'PhysicsSettings'
+        ]
+        self.assertEqual(len(physics_settings_diffs), 1)
+        node_value = str(physics_settings_diffs[0].get_editor_property('node_value'))
+        preset_value = str(physics_settings_diffs[0].get_editor_property('preset_value'))
+        self.assertTrue(node_value)
+        self.assertTrue(preset_value)
+        self.assertNotEqual(node_value, preset_value)
+
+    def test_get_preset_diff_invalid_handle_raises(self):
+        invalid_handle = unreal.KawaiiPhysicsGraphNodeHandle()
+        preset = _load_asset_checked(HAIR_PRESET_PATH)
+
+        with self.assertToolRaisesRuntimeError():
+            KawaiiPhysicsToolset.get_preset_diff(invalid_handle, preset, True, True)
+
     def test_export_graph_node_to_preset_creates_new_asset(self):
         handle = self._place_test_node()
         preset = self._export_test_preset(handle, 'KPP_ExportedNew')

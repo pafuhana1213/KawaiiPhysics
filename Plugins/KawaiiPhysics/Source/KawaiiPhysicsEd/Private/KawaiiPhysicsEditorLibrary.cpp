@@ -249,7 +249,8 @@ namespace
 	FKawaiiPhysicsNodeAuditEntry MakeAuditEntry(UAnimBlueprint* AnimBlueprint,
 	                                            UAnimGraphNode_KawaiiPhysics* GraphNode,
 	                                            const FKawaiiPhysicsPresetApplyOptions& Options,
-	                                            const TArray<TStrongObjectPtr<UKawaiiPhysicsPresetDataAsset>>& Presets)
+	                                            const TArray<TStrongObjectPtr<UKawaiiPhysicsPresetDataAsset>>& Presets,
+	                                            bool bIncludeDiffValues = false)
 	{
 		FKawaiiPhysicsNodeAuditEntry Entry;
 		if (!AnimBlueprint || !GraphNode)
@@ -285,6 +286,11 @@ namespace
 			{
 				Entry.MatchedPresetPath = FSoftObjectPath(Preset);
 				Entry.bMatchesPreset = Preset->MatchesNode(GraphNode->Node, Options, Entry.DiffProperties);
+				if (bIncludeDiffValues && !Entry.bMatchesPreset)
+				{
+					// 値付き差分はオプトイン。監査APIでbIncludeDiffValues=trueの時のみ計算する。
+					Entry.DiffValues = KawaiiPhysicsPresetDiff::BuildDiffValues(GraphNode->Node, *Preset, Options);
+				}
 			}
 		}
 
@@ -2062,6 +2068,24 @@ TArray<FName> UKawaiiPhysicsEditorLibrary::GetGraphNodePresetDiffProperties(
 	return DiffProperties;
 }
 
+TArray<FKawaiiPhysicsPresetDiffValue> UKawaiiPhysicsEditorLibrary::GetGraphNodePresetDiffValues(
+	const FKawaiiPhysicsGraphNodeHandle& Handle,
+	UKawaiiPhysicsPresetDataAsset* Preset,
+	FKawaiiPhysicsPresetApplyOptions Options)
+{
+	UAnimGraphNode_KawaiiPhysics* GraphNode = GetGraphNode(Handle);
+	if (!GraphNode || !Preset)
+	{
+		UE_LOG(LogKawaiiPhysics, Warning,
+		       TEXT("GetGraphNodePresetDiffValues: Invalid graph node handle or preset. HandleValid=%s PresetValid=%s."),
+		       GraphNode ? TEXT("true") : TEXT("false"),
+		       Preset ? TEXT("true") : TEXT("false"));
+		return TArray<FKawaiiPhysicsPresetDiffValue>();
+	}
+
+	return KawaiiPhysicsPresetDiff::BuildDiffValues(GraphNode->Node, *Preset, Options);
+}
+
 bool UKawaiiPhysicsEditorLibrary::ExportGraphNodeToPreset(
 	const FKawaiiPhysicsGraphNodeHandle& Handle,
 	UKawaiiPhysicsPresetDataAsset* TargetAsset)
@@ -2207,7 +2231,8 @@ bool UKawaiiPhysicsEditorLibrary::AuditKawaiiPhysicsNodes(
 	const TArray<FString>& ContentPaths,
 	const FGameplayTagContainer& FilterTags,
 	bool bFilterExactMatch,
-	TArray<FKawaiiPhysicsNodeAuditEntry>& OutEntries)
+	TArray<FKawaiiPhysicsNodeAuditEntry>& OutEntries,
+	bool bIncludeDiffValues)
 {
 	OutEntries.Reset();
 
@@ -2239,7 +2264,7 @@ bool UKawaiiPhysicsEditorLibrary::AuditKawaiiPhysicsNodes(
 		{
 			if (UAnimGraphNode_KawaiiPhysics* GraphNode = GetGraphNode(Handle))
 			{
-				OutEntries.Add(MakeAuditEntry(AnimBlueprint, GraphNode, Options, Presets));
+				OutEntries.Add(MakeAuditEntry(AnimBlueprint, GraphNode, Options, Presets, bIncludeDiffValues));
 			}
 		}
 

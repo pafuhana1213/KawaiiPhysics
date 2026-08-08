@@ -463,6 +463,13 @@ public:
 		UKawaiiPhysicsPresetDataAsset* Preset,
 		FKawaiiPhysicsPresetApplyOptions Options);
 
+	/** グラフノードとプリセットの差分を値付きで取得。空なら一致 / Get graph node preset diff values. Empty means the node matches the preset. */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static TArray<FKawaiiPhysicsPresetDiffValue> GetGraphNodePresetDiffValues(
+		const FKawaiiPhysicsGraphNodeHandle& Handle,
+		UKawaiiPhysicsPresetDataAsset* Preset,
+		FKawaiiPhysicsPresetApplyOptions Options);
+
 	/** グラフノードを既存プリセットアセットへ書き出し / Export a graph node to an existing preset asset. */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
 	static bool ExportGraphNodeToPreset(
@@ -480,14 +487,18 @@ public:
 		bool bCheckOutFiles,
 		TArray<FKawaiiPhysicsNodeAuditEntry>& OutReport);
 
-	/** 指定 Content パス配下の KawaiiPhysics ノードを監査 / Audit KawaiiPhysics nodes under Content paths. */
+	/**
+	 * 指定 Content パス配下の KawaiiPhysics ノードを監査する。bIncludeDiffValues=true で不一致ノードの DiffValues を充填する（既定 false は後方互換のため空のまま）。
+	 * Audit KawaiiPhysics nodes under Content paths. When bIncludeDiffValues is true, DiffValues is filled for non-matching nodes (default false leaves it empty for backward compatibility).
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor",
 		meta=(AutoCreateRefTerm = "ContentPaths,FilterTags"))
 	static bool AuditKawaiiPhysicsNodes(
 		const TArray<FString>& ContentPaths,
 		const FGameplayTagContainer& FilterTags,
 		bool bFilterExactMatch,
-		TArray<FKawaiiPhysicsNodeAuditEntry>& OutEntries);
+		TArray<FKawaiiPhysicsNodeAuditEntry>& OutEntries,
+		bool bIncludeDiffValues = false);
 
 private:
 	DECLARE_FUNCTION(execSetGraphNodeWildcardProperty);

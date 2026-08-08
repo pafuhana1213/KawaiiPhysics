@@ -231,6 +231,8 @@ int32 UKawaiiPhysicsAuditCommandlet::Main(const FString& Params)
 		FParse::Param(*Params, TEXT("Exact")) ||
 		FParse::Param(*Params, TEXT("FilterExactMatch"));
 
+	const bool bIncludeDiffValues = FParse::Param(*Params, TEXT("IncludeDiffValues"));
+
 	FAssetRegistryModule& AssetRegistryModule =
 		FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	AssetRegistryModule.Get().SearchAllAssets(true);
@@ -242,7 +244,8 @@ int32 UKawaiiPhysicsAuditCommandlet::Main(const FString& Params)
 		ContentPaths,
 		FilterTags,
 		bFilterExactMatch,
-		Entries))
+		Entries,
+		bIncludeDiffValues))
 	{
 		UE_LOG(LogKawaiiPhysics, Error, TEXT("KawaiiPhysicsAudit: Audit failed."));
 		return 2;
