@@ -1071,7 +1071,7 @@ namespace
 		return nullptr;
 	}
 
-	UAnimGraphNode_Root* FindResultRootNode(UEdGraph* Graph)
+	UAnimGraphNode_Root* FindResultRootNodeForEditorLibrary(UEdGraph* Graph)
 	{
 		if (!Graph)
 		{
@@ -1089,7 +1089,7 @@ namespace
 		return nullptr;
 	}
 
-	UEdGraphPin* FindFirstPosePin(UEdGraphNode* Node, EEdGraphPinDirection Dir)
+	UEdGraphPin* FindFirstPosePinForEditorLibrary(UEdGraphNode* Node, EEdGraphPinDirection Dir)
 	{
 		if (!Node)
 		{
@@ -1131,7 +1131,7 @@ namespace
 			return false;
 		}
 
-		UAnimGraphNode_Root* RootNode = FindResultRootNode(Graph);
+		UAnimGraphNode_Root* RootNode = FindResultRootNodeForEditorLibrary(Graph);
 		if (!RootNode)
 		{
 			UE_LOG(LogKawaiiPhysics, Warning,
@@ -1157,7 +1157,7 @@ namespace
 				Cast<UAnimGraphNode_ComponentToLocalSpace>(ResultSourceNode))
 			{
 				if (UEdGraphPin* ComponentToLocalSpaceInputPin =
-					FindFirstPosePin(ComponentToLocalSpaceNode, EGPD_Input))
+					FindFirstPosePinForEditorLibrary(ComponentToLocalSpaceNode, EGPD_Input))
 				{
 					InsertionPointPin = ComponentToLocalSpaceInputPin;
 				}
