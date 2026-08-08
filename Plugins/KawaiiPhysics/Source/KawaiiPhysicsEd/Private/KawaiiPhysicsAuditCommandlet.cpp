@@ -165,7 +165,7 @@ namespace
 			return false;
 		}
 
-		return FFileHelper::SaveStringToFile(OutputString, *OutputPath);
+		return FFileHelper::SaveStringToFile(OutputString, *OutputPath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
 	}
 
 	void LogAuditEntries(const TArray<FKawaiiPhysicsNodeAuditEntry>& Entries)
