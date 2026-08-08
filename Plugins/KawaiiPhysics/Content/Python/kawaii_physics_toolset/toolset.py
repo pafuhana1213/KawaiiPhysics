@@ -115,7 +115,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
 
         A non-empty comment creates an MCP comment frame with the configured
         prefix. The prompt is stored in that frame's Details. Requests may set
-        placement_direction; project settings also control node direction/wrap.
+        placement_direction; project settings also control node direction/wrap/spacing.
         """
         _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
         _validate_requests_or_raise(anim_blueprint, requests)

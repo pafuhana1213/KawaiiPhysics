@@ -40,8 +40,6 @@
 namespace
 {
 	constexpr int32 KawaiiPhysicsEditorLibraryGCBatchSize = 20;
-	constexpr int32 KawaiiPhysicsPlacementNodeOffsetX = -500;
-	constexpr int32 KawaiiPhysicsPlacementNodeOffsetY = 300;
 	constexpr int32 KawaiiPhysicsMcpCommentPaddingX = 50;
 	constexpr int32 KawaiiPhysicsMcpCommentTopPaddingY = 80;
 	constexpr int32 KawaiiPhysicsPlacementExpectedNodeWidth = 400;
@@ -49,6 +47,14 @@ namespace
 	constexpr int32 KawaiiPhysicsMcpCommentExpectedNodeWidthWithPadding = 450;
 	constexpr int32 KawaiiPhysicsMcpCommentExpectedNodeHeightWithPadding = 310;
 	constexpr int32 KawaiiPhysicsPlacementMaxOverlapResolutionAttempts = 100;
+	// AutoConnectが生成するComponentToLocalSpace変換ノード用に確保する横幅
+	constexpr int32 KawaiiPhysicsPlacementConversionNodeReserveX = 220;
+	// AutoConnect時に基準位置を追加で左へずらす幅。
+	// コメント枠右パディング450と変換ノードスロット220が重ならないよう、450-Spacing下限400+220+10(隙間)=280
+	constexpr int32 KawaiiPhysicsPlacementAutoConnectBaseReserveX = 280;
+	// KawaiiPhysics/MCPコメント以外のノード（変換ノード等）の推定サイズ
+	constexpr int32 KawaiiPhysicsPlacementEstimatedOtherNodeWidth = 250;
+	constexpr int32 KawaiiPhysicsPlacementEstimatedOtherNodeHeight = 120;
 
 	UAnimGraphNode_KawaiiPhysics* GetGraphNode(const FKawaiiPhysicsGraphNodeHandle& Handle)
 	{
@@ -443,6 +449,19 @@ namespace
 		return RootBoneNames;
 	}
 
+	bool AnyResolvedRequestHasAutoConnect(
+		const TArray<FResolvedKawaiiPhysicsNodePlacementRequest>& ResolvedRequests)
+	{
+		for (const FResolvedKawaiiPhysicsNodePlacementRequest& ResolvedRequest : ResolvedRequests)
+		{
+			if (ResolvedRequest.bAutoConnect)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	bool IsBoneDescendantOf(
 		const FReferenceSkeleton& RefSkeleton,
 		FName BoneName,
@@ -748,7 +767,10 @@ namespace
 		return true;
 	}
 
-	FVector2D GetAutoPlacementBasePosition(UEdGraph* Graph)
+	int32 GetAutoPlacementSpacingX();
+	int32 GetAutoPlacementSpacingY();
+
+	FVector2D GetAutoPlacementBasePosition(UEdGraph* Graph, bool bAutoConnect)
 	{
 		if (!Graph)
 		{
@@ -759,9 +781,13 @@ namespace
 		{
 			if (const UAnimGraphNode_Root* RootNode = Cast<UAnimGraphNode_Root>(Node))
 			{
-				return FVector2D(
-					static_cast<double>(RootNode->NodePosX + KawaiiPhysicsPlacementNodeOffsetX),
-					static_cast<double>(RootNode->NodePosY));
+				// AutoConnect時はComponentToLocalSpace変換ノードの通り道を確保するため、さらに左へずらす
+				int32 BaseX = RootNode->NodePosX - GetAutoPlacementSpacingX();
+				if (bAutoConnect)
+				{
+					BaseX -= KawaiiPhysicsPlacementAutoConnectBaseReserveX;
+				}
+				return FVector2D(static_cast<double>(BaseX), static_cast<double>(RootNode->NodePosY));
 			}
 		}
 
@@ -796,6 +822,11 @@ namespace
 
 		for (UEdGraphNode* Node : Graph->Nodes)
 		{
+			if (!Node)
+			{
+				continue;
+			}
+
 			if (const UAnimGraphNode_KawaiiPhysics* KawaiiPhysicsNode = Cast<UAnimGraphNode_KawaiiPhysics>(Node))
 			{
 				if (DoPlacementRectsOverlap(
@@ -823,6 +854,25 @@ namespace
 				{
 					return true;
 				}
+				continue;
+			}
+
+			// 素のコメント枠（囲いのみ）は障害物として扱わない
+			if (Node->IsA<UEdGraphNode_Comment>())
+			{
+				continue;
+			}
+
+			// KawaiiPhysics/MCPコメント以外のノード（変換ノード等）は推定サイズで重なり判定する
+			if (DoPlacementRectsOverlap(
+				CandidateRect,
+				MakePlacementRect(
+					Node->NodePosX,
+					Node->NodePosY,
+					KawaiiPhysicsPlacementEstimatedOtherNodeWidth,
+					KawaiiPhysicsPlacementEstimatedOtherNodeHeight)))
+			{
+				return true;
 			}
 		}
 
@@ -863,10 +913,27 @@ namespace
 		return Settings ? FMath::Max(Settings->McpNodePlacementWrapCount, 0) : 0;
 	}
 
+	int32 GetAutoPlacementSpacingX()
+	{
+		const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
+		return Settings
+			       ? FMath::Max(Settings->McpNodePlacementSpacingX, KawaiiPhysicsPlacementExpectedNodeWidth)
+			       : 420;
+	}
+
+	int32 GetAutoPlacementSpacingY()
+	{
+		const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
+		return Settings
+			       ? FMath::Max(Settings->McpNodePlacementSpacingY, KawaiiPhysicsPlacementExpectedNodeHeight)
+			       : 260;
+	}
+
 	FVector2D ResolveNodePosition(UEdGraph* Graph,
 	                              const FResolvedKawaiiPhysicsNodePlacementRequest& Request,
 	                              const FVector2D& AutoPlacementBasePosition,
-	                              int32 AutoPlacementIndex)
+	                              int32 AutoPlacementIndex,
+	                              int32 TotalAutoPlacementCount)
 	{
 		if (!Request.bAutoPosition)
 		{
@@ -874,28 +941,37 @@ namespace
 		}
 
 		const int32 WrapCount = GetAutoPlacementWrapCount();
+		const int32 SpacingX = GetAutoPlacementSpacingX();
+		const int32 SpacingY = GetAutoPlacementSpacingY();
 		const int32 PrimaryIndex = WrapCount > 0 ? AutoPlacementIndex % WrapCount : AutoPlacementIndex;
 		const int32 SecondaryIndex = WrapCount > 0 ? AutoPlacementIndex / WrapCount : 0;
 		const bool bHorizontalPlacement = IsHorizontalAutoPlacement(Request);
 
+		// AutoConnectのチェーンはリクエスト順=上流→下流のため、X軸を鏡映して
+		// リクエスト順に左から右へ（最後のリクエストがResult直前=基準位置）並ぶようにする。
+		// 横配置は1段あたりの列数、縦配置は折り返しの列数を基準に反転させる
+		const int32 BlockCols = bHorizontalPlacement
+			? (WrapCount > 0 ? FMath::Min(TotalAutoPlacementCount, WrapCount) : TotalAutoPlacementCount)
+			: (WrapCount > 0 ? FMath::DivideAndRoundUp(TotalAutoPlacementCount, WrapCount) : 1);
+
 		FVector2D NodePosition = bHorizontalPlacement
 			? FVector2D(
-				AutoPlacementBasePosition.X +
-					static_cast<double>(PrimaryIndex * KawaiiPhysicsPlacementNodeOffsetX),
+				AutoPlacementBasePosition.X -
+					static_cast<double>((BlockCols - 1 - PrimaryIndex) * SpacingX),
 				AutoPlacementBasePosition.Y +
-					static_cast<double>(SecondaryIndex * KawaiiPhysicsPlacementNodeOffsetY))
+					static_cast<double>(SecondaryIndex * SpacingY))
 			: FVector2D(
-				AutoPlacementBasePosition.X +
-					static_cast<double>(SecondaryIndex * KawaiiPhysicsPlacementNodeOffsetX),
+				AutoPlacementBasePosition.X -
+					static_cast<double>((BlockCols - 1 - SecondaryIndex) * SpacingX),
 				AutoPlacementBasePosition.Y +
-					static_cast<double>(PrimaryIndex * KawaiiPhysicsPlacementNodeOffsetY));
+					static_cast<double>(PrimaryIndex * SpacingY));
 
 		for (int32 AttemptIndex = 0;
 		     AttemptIndex < KawaiiPhysicsPlacementMaxOverlapResolutionAttempts &&
 		     DoesAutoPlacementOverlapExistingNode(Graph, NodePosition);
 		     ++AttemptIndex)
 		{
-			NodePosition.Y += static_cast<double>(KawaiiPhysicsPlacementNodeOffsetY);
+			NodePosition.Y += static_cast<double>(SpacingY);
 		}
 
 		if (DoesAutoPlacementOverlapExistingNode(Graph, NodePosition))
@@ -1090,6 +1166,7 @@ namespace
 
 		UEdGraphPin* PreviousSourcePin =
 			!InsertionPointPin->LinkedTo.IsEmpty() ? InsertionPointPin->LinkedTo[0] : nullptr;
+		UEdGraphNode* PreviousSourceOwningNode = PreviousSourcePin ? PreviousSourcePin->GetOwningNode() : nullptr;
 
 		Graph->Modify();
 		GraphNode->Modify();
@@ -1101,7 +1178,21 @@ namespace
 			{
 				return false;
 			}
-			bOutSpawnedConversionNode |= Graph->Nodes.Num() > NodeCountBeforePrevConnection;
+
+			const bool bSpawnedInputConversionNode = Graph->Nodes.Num() > NodeCountBeforePrevConnection;
+			bOutSpawnedConversionNode |= bSpawnedInputConversionNode;
+			if (bSpawnedInputConversionNode && !ComponentPosePin->LinkedTo.IsEmpty())
+			{
+				// 既存のローカル空間チェーンへ挿入する際に生成される変換ノード。
+				// チェーン左隣は次ノードのスロットのため使えず、上へ逃がして配置する
+				UEdGraphNode* ConversionNode = ComponentPosePin->LinkedTo[0]->GetOwningNode();
+				if (ConversionNode && ConversionNode != PreviousSourceOwningNode)
+				{
+					ConversionNode->Modify();
+					ConversionNode->NodePosX = GraphNode->NodePosX;
+					ConversionNode->NodePosY = GraphNode->NodePosY - 150;
+				}
+			}
 		}
 
 		const int32 NodeCountBeforeResultConnection = Graph->Nodes.Num();
@@ -1109,7 +1200,20 @@ namespace
 		{
 			return false;
 		}
-		bOutSpawnedConversionNode |= Graph->Nodes.Num() > NodeCountBeforeResultConnection;
+
+		const bool bSpawnedResultConversionNode = Graph->Nodes.Num() > NodeCountBeforeResultConnection;
+		bOutSpawnedConversionNode |= bSpawnedResultConversionNode;
+		if (bSpawnedResultConversionNode && !ResultPin->LinkedTo.IsEmpty())
+		{
+			// Result直前へ挿入する際に生成される変換ノード。KawaiiPhysicsノード分の幅を確保した位置へ明示配置する
+			if (UAnimGraphNode_ComponentToLocalSpace* ConversionNode =
+				Cast<UAnimGraphNode_ComponentToLocalSpace>(ResultPin->LinkedTo[0]->GetOwningNode()))
+			{
+				ConversionNode->Modify();
+				ConversionNode->NodePosX = RootNode->NodePosX - KawaiiPhysicsPlacementConversionNodeReserveX;
+				ConversionNode->NodePosY = RootNode->NodePosY;
+			}
+		}
 		return true;
 	}
 }
@@ -1273,14 +1377,14 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 	}
 	const TArray<FName> AllResolvedRootBoneNames = CollectResolvedRootBoneNames(ResolvedRequests);
 
-	const FVector2D AutoPlacementBasePosition = GetAutoPlacementBasePosition(Graph);
-	int32 AutoPlacementIndex = 0;
-	bool bAddedNode = false;
-	bool bUpdatedNode = false;
-	bool bConnectedNode = false;
-	bool bSpawnedConversionNode = false;
-	bool bAddedCommentNode = false;
+	const FVector2D AutoPlacementBasePosition =
+		GetAutoPlacementBasePosition(Graph, AnyResolvedRequestHasAutoConnect(ResolvedRequests));
 
+	// 横配置がリクエスト順に左から右へ並ぶよう、事前にバリデーションを済ませて
+	// 自動配置対象の総数(TotalAutoPlacementCount)を数えておく。ログはここで1回だけ出す
+	TArray<bool> RequestValidities;
+	RequestValidities.SetNum(Requests.Num());
+	int32 TotalAutoPlacementCount = 0;
 	for (int32 RequestIndex = 0; RequestIndex < Requests.Num(); ++RequestIndex)
 	{
 		const FResolvedKawaiiPhysicsNodePlacementRequest& ResolvedRequest = ResolvedRequests[RequestIndex];
@@ -1299,16 +1403,35 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 			UE_LOG(LogKawaiiPhysics, Warning, TEXT("AddKawaiiPhysicsNodes: %s"), *ValidationMessage);
 		}
 
-		if (!bRequestValid)
+		RequestValidities[RequestIndex] = bRequestValid;
+		if (bRequestValid && ResolvedRequest.bAutoPosition)
+		{
+			++TotalAutoPlacementCount;
+		}
+	}
+
+	int32 AutoPlacementIndex = 0;
+	bool bAddedNode = false;
+	bool bUpdatedNode = false;
+	bool bConnectedNode = false;
+	bool bSpawnedConversionNode = false;
+	bool bAddedCommentNode = false;
+
+	for (int32 RequestIndex = 0; RequestIndex < Requests.Num(); ++RequestIndex)
+	{
+		if (!RequestValidities[RequestIndex])
 		{
 			continue;
 		}
+
+		const FResolvedKawaiiPhysicsNodePlacementRequest& ResolvedRequest = ResolvedRequests[RequestIndex];
 
 		const FVector2D NodePosition = ResolveNodePosition(
 			Graph,
 			ResolvedRequest,
 			AutoPlacementBasePosition,
-			AutoPlacementIndex);
+			AutoPlacementIndex,
+			TotalAutoPlacementCount);
 		if (ResolvedRequest.bAutoPosition)
 		{
 			++AutoPlacementIndex;
