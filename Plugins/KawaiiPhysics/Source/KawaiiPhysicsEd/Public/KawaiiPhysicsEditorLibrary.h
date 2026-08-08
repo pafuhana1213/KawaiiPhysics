@@ -84,6 +84,28 @@ struct KAWAIIPHYSICSED_API FKawaiiPhysicsAnimGraphCommentInfo
 };
 
 /**
+ * プリセットとノードの差分1プロパティ分の値ペア。
+ * One value pair for a single differing property between a node and a preset.
+ */
+USTRUCT(BlueprintType)
+struct KAWAIIPHYSICSED_API FKawaiiPhysicsPresetDiffValue
+{
+	GENERATED_BODY()
+
+	/** 差分プロパティの内部 FName / Internal FName of the differing property. */
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
+	FName PropertyName;
+
+	/** 対象ノード側の値文字列 / Value string from the target node. */
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
+	FString NodeValue;
+
+	/** プリセット側の値文字列 / Value string from the preset. */
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
+	FString PresetValue;
+};
+
+/**
  * KawaiiPhysics ノード監査の1件分の結果。
  * One audit result entry for a KawaiiPhysics node.
  */
@@ -123,6 +145,10 @@ struct KAWAIIPHYSICSED_API FKawaiiPhysicsNodeAuditEntry
 	/** MatchedPreset との差分プロパティ / Properties that differ from MatchedPreset. */
 	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
 	TArray<FName> DiffProperties;
+
+	/** DiffProperties の値ペア（既定は空。AuditKawaiiPhysicsNodes に bIncludeDiffValues=true を渡した場合のみ充填） / Value pairs for DiffProperties (empty by default; filled only when AuditKawaiiPhysicsNodes is called with bIncludeDiffValues=true). */
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
+	TArray<FKawaiiPhysicsPresetDiffValue> DiffValues;
 
 	/** マッチしたプリセット総数（2以上なら TargetTags 設計の重複シグナル） / Total matched preset count (2+ signals overlapping TargetTags design). */
 	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")

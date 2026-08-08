@@ -249,9 +249,14 @@ void UKawaiiPhysicsPresetDataAsset::ApplyToNode(FAnimNode_KawaiiPhysics& TargetN
 
 bool UKawaiiPhysicsPresetDataAsset::MatchesNode(const FAnimNode_KawaiiPhysics& TargetNode,
                                                 const FKawaiiPhysicsPresetApplyOptions& Options,
-                                                TArray<FName>& OutDiffProperties) const
+                                                TArray<FName>& OutDiffProperties,
+                                                TArray<FName>* OutComparedProperties) const
 {
 	OutDiffProperties.Reset();
+	if (OutComparedProperties)
+	{
+		OutComparedProperties->Reset();
+	}
 
 	for (TFieldIterator<FProperty> PropertyIt(FAnimNode_KawaiiPhysics::StaticStruct(), EFieldIteratorFlags::ExcludeSuper);
 	     PropertyIt; ++PropertyIt)
@@ -262,9 +267,15 @@ bool UKawaiiPhysicsPresetDataAsset::MatchesNode(const FAnimNode_KawaiiPhysics& T
 			continue;
 		}
 
+		const FName PropertyName = Property.GetFName();
+		if (OutComparedProperties)
+		{
+			OutComparedProperties->Add(PropertyName);
+		}
+
 		if (!Property.Identical_InContainer(&Node, &TargetNode, 0, KawaiiPhysicsPresetIdenticalPortFlags))
 		{
-			OutDiffProperties.Add(Property.GetFName());
+			OutDiffProperties.Add(PropertyName);
 		}
 	}
 

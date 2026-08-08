@@ -84,12 +84,13 @@ public:
 	                 const FKawaiiPhysicsPresetApplyOptions& Options,
 	                 UObject* TargetOuter) const;
 	/**
-	 * プリセット内容と対象ノードを比較し、差分プロパティ名を返す。
-	 * Compare this preset with a target node and return differing property names.
+	 * プリセット内容と対象ノードを比較し、差分プロパティ名と比較対象プロパティ名を返す。
+	 * Compare this preset with a target node and return differing property names and optionally compared property names.
 	 */
 	bool MatchesNode(const FAnimNode_KawaiiPhysics& TargetNode,
 	                 const FKawaiiPhysicsPresetApplyOptions& Options,
-	                 TArray<FName>& OutDiffProperties) const;
+	                 TArray<FName>& OutDiffProperties,
+	                 TArray<FName>* OutComparedProperties = nullptr) const;
 	/**
 	 * NodeTag がこのプリセットの対象タグに一致するかを返す。
 	 * Returns whether NodeTag matches this preset's target tags.
