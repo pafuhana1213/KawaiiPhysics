@@ -1171,16 +1171,34 @@ namespace
 		Graph->Modify();
 		GraphNode->Modify();
 		const UAnimationGraphSchema* Schema = CastChecked<UAnimationGraphSchema>(Graph->GetSchema());
+		bool bSpawnedInputConversionNode = false;
+		TArray<UEdGraphNode*> SpawnedInputConversionNodes;
 		if (PreviousSourcePin)
 		{
+			TSet<UEdGraphNode*> NodesBeforePrevConnection;
+			for (UEdGraphNode* Node : Graph->Nodes)
+			{
+				NodesBeforePrevConnection.Add(Node);
+			}
+
 			const int32 NodeCountBeforePrevConnection = Graph->Nodes.Num();
 			if (!Schema->TryCreateConnection(PreviousSourcePin, ComponentPosePin))
 			{
 				return false;
 			}
 
-			const bool bSpawnedInputConversionNode = Graph->Nodes.Num() > NodeCountBeforePrevConnection;
-			bOutSpawnedConversionNode |= bSpawnedInputConversionNode;
+			bSpawnedInputConversionNode = Graph->Nodes.Num() > NodeCountBeforePrevConnection;
+			if (bSpawnedInputConversionNode)
+			{
+				for (UEdGraphNode* Node : Graph->Nodes)
+				{
+					if (Node && !NodesBeforePrevConnection.Contains(Node))
+					{
+						SpawnedInputConversionNodes.Add(Node);
+					}
+				}
+			}
+
 			if (bSpawnedInputConversionNode && !ComponentPosePin->LinkedTo.IsEmpty())
 			{
 				// 既存のローカル空間チェーンへ挿入する際に生成される変換ノード。
@@ -1198,9 +1216,67 @@ namespace
 		const int32 NodeCountBeforeResultConnection = Graph->Nodes.Num();
 		if (!Schema->TryCreateConnection(PosePin, InsertionPointPin))
 		{
+			if (PreviousSourcePin)
+			{
+				Schema->BreakPinLinks(*ComponentPosePin, true);
+
+				if (!SpawnedInputConversionNodes.IsEmpty())
+				{
+					UAnimBlueprint* AnimBlueprint = GraphNode->GetAnimBlueprint();
+					for (UEdGraphNode* SpawnedInputConversionNode : SpawnedInputConversionNodes)
+					{
+						if (!SpawnedInputConversionNode || !Graph->Nodes.Contains(SpawnedInputConversionNode))
+						{
+							continue;
+						}
+
+						SpawnedInputConversionNode->Modify();
+						for (UEdGraphPin* SpawnedInputConversionPin : SpawnedInputConversionNode->Pins)
+						{
+							if (SpawnedInputConversionPin)
+							{
+								Schema->BreakPinLinks(*SpawnedInputConversionPin, true);
+							}
+						}
+
+						if (AnimBlueprint)
+						{
+							FBlueprintEditorUtils::RemoveNode(AnimBlueprint, SpawnedInputConversionNode, true);
+						}
+						else
+						{
+							Graph->RemoveNode(SpawnedInputConversionNode);
+						}
+					}
+				}
+
+				if (!PreviousSourcePin->LinkedTo.Contains(InsertionPointPin))
+				{
+					UEdGraphNode* InsertionPointOwningNode = InsertionPointPin->GetOwningNode();
+					if (PreviousSourceOwningNode)
+					{
+						PreviousSourceOwningNode->Modify();
+					}
+					if (InsertionPointOwningNode)
+					{
+						InsertionPointOwningNode->Modify();
+					}
+					PreviousSourcePin->MakeLinkTo(InsertionPointPin);
+					if (PreviousSourceOwningNode)
+					{
+						PreviousSourceOwningNode->PinConnectionListChanged(PreviousSourcePin);
+					}
+					if (InsertionPointOwningNode)
+					{
+						InsertionPointOwningNode->PinConnectionListChanged(InsertionPointPin);
+					}
+					Graph->NotifyGraphChanged();
+				}
+			}
 			return false;
 		}
 
+		bOutSpawnedConversionNode |= bSpawnedInputConversionNode;
 		const bool bSpawnedResultConversionNode = Graph->Nodes.Num() > NodeCountBeforeResultConnection;
 		bOutSpawnedConversionNode |= bSpawnedResultConversionNode;
 		if (bSpawnedResultConversionNode && !ResultPin->LinkedTo.IsEmpty())
