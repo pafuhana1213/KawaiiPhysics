@@ -17,11 +17,14 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "BlueprintGameplayTagLibrary.h"
+#include "EdGraphNode_Comment.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphPin.h"
 #include "GameplayTagsManager.h"
 #include "Internationalization/Regex.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "KawaiiPhysicsDeveloperSettings.h"
+#include "KawaiiPhysicsMcpCommentNode.h"
 #include "Misc/EngineVersionComparison.h"
 #include "Misc/PackageName.h"
 #include "Modules/ModuleManager.h"
@@ -39,6 +42,10 @@ namespace
 	constexpr int32 KawaiiPhysicsEditorLibraryGCBatchSize = 20;
 	constexpr int32 KawaiiPhysicsPlacementNodeOffsetX = -500;
 	constexpr int32 KawaiiPhysicsPlacementNodeOffsetY = 300;
+	constexpr int32 KawaiiPhysicsMcpCommentPaddingX = 50;
+	constexpr int32 KawaiiPhysicsMcpCommentTopPaddingY = 80;
+	constexpr int32 KawaiiPhysicsMcpCommentExpectedNodeWidthWithPadding = 450;
+	constexpr int32 KawaiiPhysicsMcpCommentExpectedNodeHeightWithPadding = 310;
 
 	UAnimGraphNode_KawaiiPhysics* GetGraphNode(const FKawaiiPhysicsGraphNodeHandle& Handle)
 	{
@@ -610,6 +617,131 @@ namespace
 		return nullptr;
 	}
 
+	bool CalculateMcpCommentBounds(const TArray<FKawaiiPhysicsGraphNodeHandle>& Handles,
+	                               int32& OutNodePosX,
+	                               int32& OutNodePosY,
+	                               int32& OutNodeWidth,
+	                               int32& OutNodeHeight)
+	{
+		int32 MinX = TNumericLimits<int32>::Max();
+		int32 MinY = TNumericLimits<int32>::Max();
+		int32 MaxX = TNumericLimits<int32>::Lowest();
+		int32 MaxY = TNumericLimits<int32>::Lowest();
+		bool bHasNode = false;
+
+		for (const FKawaiiPhysicsGraphNodeHandle& Handle : Handles)
+		{
+			const UAnimGraphNode_KawaiiPhysics* GraphNode = GetGraphNode(Handle);
+			if (!GraphNode)
+			{
+				continue;
+			}
+
+			MinX = FMath::Min(MinX, GraphNode->NodePosX);
+			MinY = FMath::Min(MinY, GraphNode->NodePosY);
+			MaxX = FMath::Max(MaxX, GraphNode->NodePosX);
+			MaxY = FMath::Max(MaxY, GraphNode->NodePosY);
+			bHasNode = true;
+		}
+
+		if (!bHasNode)
+		{
+			return false;
+		}
+
+		OutNodePosX = MinX - KawaiiPhysicsMcpCommentPaddingX;
+		OutNodePosY = MinY - KawaiiPhysicsMcpCommentTopPaddingY;
+		const int32 BoundsMaxX = MaxX + KawaiiPhysicsMcpCommentExpectedNodeWidthWithPadding;
+		const int32 BoundsMaxY = MaxY + KawaiiPhysicsMcpCommentExpectedNodeHeightWithPadding;
+		OutNodeWidth = BoundsMaxX - OutNodePosX;
+		OutNodeHeight = BoundsMaxY - OutNodePosY;
+		return true;
+	}
+
+	void ApplyMcpCommentNodeState(UKawaiiPhysicsMcpCommentNode* CommentNode,
+	                              const TArray<FKawaiiPhysicsGraphNodeHandle>& Handles,
+	                              const FString& CommentText,
+	                              const FString& Prompt,
+	                              bool bNewCommentNode)
+	{
+		if (!CommentNode)
+		{
+			return;
+		}
+
+		int32 NodePosX = 0;
+		int32 NodePosY = 0;
+		int32 NodeWidth = 0;
+		int32 NodeHeight = 0;
+		if (!CalculateMcpCommentBounds(Handles, NodePosX, NodePosY, NodeWidth, NodeHeight))
+		{
+			return;
+		}
+
+		const FDateTime Now = FDateTime::Now();
+		CommentNode->NodeComment = CommentText;
+		CommentNode->Prompt = Prompt;
+		if (bNewCommentNode)
+		{
+			CommentNode->CreatedAt = Now;
+		}
+		CommentNode->UpdatedAt = Now;
+
+		if (const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>())
+		{
+			CommentNode->CommentColor = Settings->McpCommentColor;
+		}
+		CommentNode->MoveMode = ECommentBoxMode::GroupMovement;
+		CommentNode->NodePosX = NodePosX;
+		CommentNode->NodePosY = NodePosY;
+		CommentNode->NodeWidth = NodeWidth;
+		CommentNode->NodeHeight = NodeHeight;
+
+		CommentNode->ClearNodesUnderComment();
+		for (const FKawaiiPhysicsGraphNodeHandle& Handle : Handles)
+		{
+			if (UAnimGraphNode_KawaiiPhysics* GraphNode = GetGraphNode(Handle))
+			{
+				CommentNode->AddNodeUnderComment(GraphNode);
+			}
+		}
+	}
+
+	bool UpsertMcpCommentNode(UEdGraph* Graph,
+	                          const TArray<FKawaiiPhysicsGraphNodeHandle>& Handles,
+	                          const FString& CommentText,
+	                          const FString& Prompt)
+	{
+		if (!Graph || Handles.IsEmpty())
+		{
+			return false;
+		}
+
+		for (UEdGraphNode* Node : Graph->Nodes)
+		{
+			UKawaiiPhysicsMcpCommentNode* CommentNode = Cast<UKawaiiPhysicsMcpCommentNode>(Node);
+			if (!CommentNode ||
+				CommentNode->GetClass() != UKawaiiPhysicsMcpCommentNode::StaticClass() ||
+				CommentNode->NodeComment != CommentText)
+			{
+				continue;
+			}
+
+			CommentNode->Modify();
+			ApplyMcpCommentNodeState(CommentNode, Handles, CommentText, Prompt, false);
+			Graph->NotifyNodeChanged(CommentNode);
+			return false;
+		}
+
+		Graph->Modify();
+		FGraphNodeCreator<UKawaiiPhysicsMcpCommentNode> NodeCreator(*Graph);
+		UKawaiiPhysicsMcpCommentNode* CommentNode = NodeCreator.CreateNode(false);
+		NodeCreator.Finalize();
+		ApplyMcpCommentNodeState(CommentNode, Handles, CommentText, Prompt, true);
+		Graph->NotifyNodeChanged(CommentNode);
+		return true;
+	}
+
 	FVector2D GetAutoPlacementBasePosition(UEdGraph* Graph)
 	{
 		if (!Graph)
@@ -986,7 +1118,9 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 	UAnimBlueprint* AnimBlueprint,
 	const TArray<FKawaiiPhysicsNodePlacementRequest>& Requests,
 	EKawaiiPhysicsPlacementUpsertKey UpsertKey,
-	FName GraphName)
+	FName GraphName,
+	const FString& Comment,
+	const FString& Prompt)
 {
 	TArray<FKawaiiPhysicsGraphNodeHandle> Result;
 	if (!AnimBlueprint || Requests.IsEmpty())
@@ -1022,6 +1156,7 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 	bool bUpdatedNode = false;
 	bool bConnectedNode = false;
 	bool bSpawnedConversionNode = false;
+	bool bAddedCommentNode = false;
 
 	for (int32 RequestIndex = 0; RequestIndex < Requests.Num(); ++RequestIndex)
 	{
@@ -1103,7 +1238,15 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 		bAddedNode = true;
 	}
 
-	if (bAddedNode || bSpawnedConversionNode)
+	const FString TrimmedComment = Comment.TrimStartAndEnd();
+	if (!Result.IsEmpty() && !TrimmedComment.IsEmpty())
+	{
+		const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
+		const FString CommentPrefix = Settings ? Settings->McpCommentPrefix : TEXT("[MCP] ");
+		bAddedCommentNode = UpsertMcpCommentNode(Graph, Result, CommentPrefix + TrimmedComment, Prompt);
+	}
+
+	if (bAddedNode || bSpawnedConversionNode || bAddedCommentNode)
 	{
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(AnimBlueprint);
 	}
@@ -1114,6 +1257,40 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 	else
 	{
 		Transaction.Cancel();
+	}
+
+	return Result;
+}
+
+TArray<FKawaiiPhysicsAnimGraphCommentInfo> UKawaiiPhysicsEditorLibrary::GetAnimGraphComments(
+	UAnimBlueprint* AnimBlueprint,
+	FName GraphName)
+{
+	TArray<FKawaiiPhysicsAnimGraphCommentInfo> Result;
+	UEdGraph* Graph = FindPlacementAnimGraph(AnimBlueprint, GraphName);
+	if (!Graph)
+	{
+		return Result;
+	}
+
+	for (UEdGraphNode* Node : Graph->Nodes)
+	{
+		UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node);
+		if (!CommentNode)
+		{
+			continue;
+		}
+
+		FKawaiiPhysicsAnimGraphCommentInfo Info;
+		Info.Title = CommentNode->NodeComment;
+		if (const UKawaiiPhysicsMcpCommentNode* McpCommentNode = Cast<UKawaiiPhysicsMcpCommentNode>(CommentNode))
+		{
+			Info.Prompt = McpCommentNode->Prompt;
+			Info.CreatedAt = McpCommentNode->CreatedAt;
+			Info.UpdatedAt = McpCommentNode->UpdatedAt;
+			Info.bMcpComment = true;
+		}
+		Result.Add(Info);
 	}
 
 	return Result;

@@ -42,6 +42,36 @@ struct KAWAIIPHYSICSED_API FKawaiiPhysicsGraphNodeHandle
 };
 
 /**
+ * AnimGraph コメントノード情報。
+ * Information about a comment node in an AnimGraph.
+ */
+USTRUCT(BlueprintType)
+struct KAWAIIPHYSICSED_API FKawaiiPhysicsAnimGraphCommentInfo
+{
+	GENERATED_BODY()
+
+	/** 枠タイトル（NodeComment） / Comment frame title (NodeComment). */
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
+	FString Title;
+
+	/** MCPコメントの指示プロンプト全文（手動コメントは空） / Full prompt for MCP comments (empty for manual comments). */
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
+	FString Prompt;
+
+	/** MCPコメント枠の作成日時 / Creation time for MCP comment frames. */
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
+	FDateTime CreatedAt;
+
+	/** MCPコメント枠の最終更新日時 / Last update time for MCP comment frames. */
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
+	FDateTime UpdatedAt;
+
+	/** MCPコメント枠か / Whether this is an MCP comment frame. */
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
+	bool bMcpComment = false;
+};
+
+/**
  * KawaiiPhysics ノード監査の1件分の結果。
  * One audit result entry for a KawaiiPhysics node.
  */
@@ -234,15 +264,26 @@ public:
 	static TArray<FSoftObjectPath> FindAnimBlueprintAssets(const TArray<FString>& ContentPaths);
 
 	/**
-	 * AnimGraph に KawaiiPhysics ノードを追加またはUpsertする。bAutoConnect 指定時は Result ノード直前へ直列に接続する。
-	 * Add or upsert KawaiiPhysics nodes into an AnimGraph. When bAutoConnect is set, nodes are connected in series just before the Result node.
+	 * AnimGraph に KawaiiPhysics ノードを追加またはUpsertする。bAutoConnect 指定時は Result ノード直前へ直列に接続する。Comment 指定時は MCP コメント枠を追加する。
+	 * Add or upsert KawaiiPhysics nodes into an AnimGraph. When bAutoConnect is set, nodes are connected in series just before the Result node. A non-empty Comment adds an MCP comment frame.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor",
-		meta=(AutoCreateRefTerm = "Requests"))
+		meta=(AutoCreateRefTerm = "Requests,Comment,Prompt"))
 	static TArray<FKawaiiPhysicsGraphNodeHandle> AddKawaiiPhysicsNodes(
 		UAnimBlueprint* AnimBlueprint,
 		const TArray<FKawaiiPhysicsNodePlacementRequest>& Requests,
 		EKawaiiPhysicsPlacementUpsertKey UpsertKey = EKawaiiPhysicsPlacementUpsertKey::None,
+		FName GraphName = NAME_None,
+		const FString& Comment = TEXT(""),
+		const FString& Prompt = TEXT(""));
+
+	/**
+	 * AnimGraph 上のコメントノード一覧を返す。
+	 * Returns comment nodes in the AnimGraph.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static TArray<FKawaiiPhysicsAnimGraphCommentInfo> GetAnimGraphComments(
+		UAnimBlueprint* AnimBlueprint,
 		FName GraphName = NAME_None);
 
 	/**
