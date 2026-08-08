@@ -16,10 +16,13 @@
 #include "Animation/Skeleton.h"
 #include "Animation/AnimNode_Root.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
+#include "EdGraphNode_Comment.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphPin.h"
 #include "GameplayTagContainer.h"
+#include "KawaiiPhysicsDeveloperSettings.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
+#include "KawaiiPhysicsMcpCommentNode.h"
 #include "K2Node_Knot.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Misc/AutomationTest.h"
@@ -298,6 +301,64 @@ namespace
 		}
 
 		return Count;
+	}
+
+	int32 CountExactNodesOfClass(UEdGraph* Graph, UClass* NodeClass)
+	{
+		int32 Count = 0;
+		if (!Graph || !NodeClass)
+		{
+			return Count;
+		}
+
+		for (UEdGraphNode* Node : Graph->Nodes)
+		{
+			if (Node && Node->GetClass() == NodeClass)
+			{
+				++Count;
+			}
+		}
+
+		return Count;
+	}
+
+	UKawaiiPhysicsMcpCommentNode* FindMcpCommentNode(UEdGraph* Graph, const FString& CommentText)
+	{
+		if (!Graph)
+		{
+			return nullptr;
+		}
+
+		for (UEdGraphNode* Node : Graph->Nodes)
+		{
+			UKawaiiPhysicsMcpCommentNode* CommentNode = Cast<UKawaiiPhysicsMcpCommentNode>(Node);
+			if (CommentNode &&
+				CommentNode->GetClass() == UKawaiiPhysicsMcpCommentNode::StaticClass() &&
+				CommentNode->NodeComment == CommentText)
+			{
+				return CommentNode;
+			}
+		}
+
+		return nullptr;
+	}
+
+	UEdGraphNode_Comment* AddManualCommentNode(UEdGraph* Graph, const FString& CommentText, FVector2D NodePosition)
+	{
+		if (!Graph)
+		{
+			return nullptr;
+		}
+
+		FGraphNodeCreator<UEdGraphNode_Comment> NodeCreator(*Graph);
+		UEdGraphNode_Comment* CommentNode = NodeCreator.CreateNode(false);
+		NodeCreator.Finalize();
+		CommentNode->NodeComment = CommentText;
+		CommentNode->NodePosX = static_cast<int32>(NodePosition.X);
+		CommentNode->NodePosY = static_cast<int32>(NodePosition.Y);
+		CommentNode->NodeWidth = 320;
+		CommentNode->NodeHeight = 180;
+		return CommentNode;
 	}
 
 	FKawaiiPhysicsNodePlacementRequest MakeAutoConnectRequest(FName RootBoneName, const FGameplayTag& Tag)
@@ -710,6 +771,243 @@ bool FKawaiiPhysicsEditorScriptingPlacementTest::RunTest(const FString& Paramete
 			Fixture.AnimBlueprint, Requests, EKawaiiPhysicsPlacementUpsertKey::None, TEXT("NoSuchGraph"));
 	bOk &= TestTrue(TEXT("GraphName mismatch returns empty handles"), MismatchHandles.IsEmpty());
 
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementCommentTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.Comment",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingPlacementCommentTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
+	if (!Fixture.AnimBlueprint || !Fixture.AnimGraph)
+	{
+		return false;
+	}
+
+	const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
+	const FString CommentText = TEXT("Hair and tail physics");
+	const FString InitialPrompt = TEXT("Add KawaiiPhysics to hair and tail from MCP.");
+	const FString UpdatedPrompt = TEXT("Add KawaiiPhysics to hair and tail with the latest MCP instruction.");
+	const FString ExpectedTitle = (Settings ? Settings->McpCommentPrefix : FString(TEXT("[MCP] "))) + CommentText;
+	const FLinearColor ExpectedColor =
+		Settings ? Settings->McpCommentColor : FLinearColor(0.55f, 0.45f, 0.85f);
+	UEdGraphNode_Comment* ManualCommentNode =
+		AddManualCommentNode(Fixture.AnimGraph, ExpectedTitle, FVector2D(-1400.0f, -300.0f));
+
+	TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+	FKawaiiPhysicsNodePlacementRequest FirstRequest;
+	FirstRequest.RootBoneName = TEXT("hair_01");
+	FirstRequest.KawaiiPhysicsTag = GetKawaiiPhysicsEditorScriptingTagA();
+	FirstRequest.bAutoPosition = false;
+	FirstRequest.NodePosition = FVector2D(-900.0f, 120.0f);
+	Requests.Add(FirstRequest);
+
+	FKawaiiPhysicsNodePlacementRequest SecondRequest;
+	SecondRequest.RootBoneName = TEXT("tail_01");
+	SecondRequest.KawaiiPhysicsTag = GetKawaiiPhysicsEditorScriptingTagB();
+	SecondRequest.bAutoPosition = false;
+	SecondRequest.NodePosition = FVector2D(-400.0f, 420.0f);
+	Requests.Add(SecondRequest);
+
+	TArray<FKawaiiPhysicsGraphNodeHandle> FirstHandles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(
+			Fixture.AnimBlueprint,
+			Requests,
+			EKawaiiPhysicsPlacementUpsertKey::TagAndRootBone,
+			NAME_None,
+			CommentText,
+			InitialPrompt);
+	UKawaiiPhysicsMcpCommentNode* McpCommentNode = FindMcpCommentNode(Fixture.AnimGraph, ExpectedTitle);
+	FDateTime InitialCommentCreatedAt;
+	FDateTime InitialCommentUpdatedAt;
+
+	bool bOk = true;
+	bOk &= TestNotNull(TEXT("Manual comment setup is created"), ManualCommentNode);
+	bOk &= TestEqual(TEXT("Manual comment remains a plain comment node"),
+	                 ManualCommentNode ? ManualCommentNode->GetClass() : nullptr,
+	                 UEdGraphNode_Comment::StaticClass());
+	bOk &= TestEqual(TEXT("Comment placement returns two handles"), FirstHandles.Num(), 2);
+	bOk &= TestTrue(TEXT("First comment handle is valid"),
+	                FirstHandles.IsValidIndex(0) && FirstHandles[0].IsValid());
+	bOk &= TestTrue(TEXT("Second comment handle is valid"),
+	                FirstHandles.IsValidIndex(1) && FirstHandles[1].IsValid());
+	bOk &= TestEqual(TEXT("Exactly one MCP comment node is created"),
+	                 CountExactNodesOfClass(Fixture.AnimGraph, UKawaiiPhysicsMcpCommentNode::StaticClass()), 1);
+	bOk &= TestEqual(TEXT("Manual and MCP comments coexist"),
+	                 CountNodesOfClass(Fixture.AnimGraph, UEdGraphNode_Comment::StaticClass()), 2);
+	bOk &= TestNotNull(TEXT("MCP comment node is found by title"), McpCommentNode);
+
+	if (McpCommentNode &&
+		FirstHandles.Num() == 2 &&
+		FirstHandles[0].IsValid() &&
+		FirstHandles[1].IsValid())
+	{
+		UAnimGraphNode_KawaiiPhysics* FirstNode = FirstHandles[0].Node.Get();
+		UAnimGraphNode_KawaiiPhysics* SecondNode = FirstHandles[1].Node.Get();
+		const int32 MinNodeX = FMath::Min(FirstNode->NodePosX, SecondNode->NodePosX);
+		const int32 MinNodeY = FMath::Min(FirstNode->NodePosY, SecondNode->NodePosY);
+		const int32 MaxNodeX = FMath::Max(FirstNode->NodePosX, SecondNode->NodePosX);
+		const int32 MaxNodeY = FMath::Max(FirstNode->NodePosY, SecondNode->NodePosY);
+		const int32 CommentMaxX = McpCommentNode->NodePosX + McpCommentNode->NodeWidth;
+		const int32 CommentMaxY = McpCommentNode->NodePosY + McpCommentNode->NodeHeight;
+		const FCommentNodeSet& NodesUnderComment = McpCommentNode->GetNodesUnderComment();
+
+		bOk &= TestEqual(TEXT("MCP comment title includes configured prefix"),
+		                 McpCommentNode->NodeComment, ExpectedTitle);
+		bOk &= TestTrue(TEXT("MCP comment color matches configured color"),
+		                McpCommentNode->CommentColor.Equals(ExpectedColor));
+		bOk &= TestEqual(TEXT("MCP comment stores prompt"),
+		                  McpCommentNode->Prompt, InitialPrompt);
+		bOk &= TestTrue(TEXT("MCP comment CreatedAt is valid"),
+		                McpCommentNode->CreatedAt.GetTicks() > 0);
+		bOk &= TestTrue(TEXT("MCP comment UpdatedAt is valid"),
+		                McpCommentNode->UpdatedAt.GetTicks() > 0);
+		InitialCommentCreatedAt = McpCommentNode->CreatedAt;
+		InitialCommentUpdatedAt = McpCommentNode->UpdatedAt;
+		bOk &= TestTrue(TEXT("MCP comment includes placed node positions"),
+		                McpCommentNode->NodePosX <= MinNodeX &&
+		                McpCommentNode->NodePosY <= MinNodeY &&
+		                CommentMaxX >= MaxNodeX &&
+		                CommentMaxY >= MaxNodeY);
+		bOk &= TestTrue(TEXT("MCP comment covers expected node width and horizontal padding"),
+		                McpCommentNode->NodePosX <= MinNodeX - 50 &&
+		                CommentMaxX >= MaxNodeX + 450);
+		bOk &= TestTrue(TEXT("MCP comment covers expected node height and vertical padding"),
+		                McpCommentNode->NodePosY <= MinNodeY - 80 &&
+		                CommentMaxY >= MaxNodeY + 310);
+		bOk &= TestEqual(TEXT("MCP comment tracks two nodes"), NodesUnderComment.Num(), 2);
+		bOk &= TestTrue(TEXT("MCP comment tracks first node"), NodesUnderComment.Contains(FirstNode));
+		bOk &= TestTrue(TEXT("MCP comment tracks second node"), NodesUnderComment.Contains(SecondNode));
+	}
+
+	TArray<FKawaiiPhysicsGraphNodeHandle> SecondHandles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(
+			Fixture.AnimBlueprint,
+			Requests,
+			EKawaiiPhysicsPlacementUpsertKey::TagAndRootBone,
+			NAME_None,
+			CommentText,
+			UpdatedPrompt);
+	McpCommentNode = FindMcpCommentNode(Fixture.AnimGraph, ExpectedTitle);
+	bOk &= TestEqual(TEXT("Comment upsert returns two handles"), SecondHandles.Num(), 2);
+	bOk &= TestTrue(TEXT("First comment upsert handle is valid"),
+	                SecondHandles.IsValidIndex(0) && SecondHandles[0].IsValid());
+	bOk &= TestTrue(TEXT("Second comment upsert handle is valid"),
+	                SecondHandles.IsValidIndex(1) && SecondHandles[1].IsValid());
+	bOk &= TestEqual(TEXT("Comment upsert keeps one MCP comment"),
+	                 CountExactNodesOfClass(Fixture.AnimGraph, UKawaiiPhysicsMcpCommentNode::StaticClass()), 1);
+	bOk &= TestEqual(TEXT("Comment upsert still keeps manual and MCP comments"),
+	                 CountNodesOfClass(Fixture.AnimGraph, UEdGraphNode_Comment::StaticClass()), 2);
+	bOk &= TestEqual(TEXT("Comment upsert keeps KawaiiPhysics node count unchanged"),
+	                 CountNodesOfClass(Fixture.AnimGraph, UAnimGraphNode_KawaiiPhysics::StaticClass()), 2);
+	if (McpCommentNode)
+	{
+		const FCommentNodeSet& NodesUnderComment = McpCommentNode->GetNodesUnderComment();
+		bOk &= TestEqual(TEXT("Comment upsert updates prompt"),
+		                  McpCommentNode->Prompt, UpdatedPrompt);
+		bOk &= TestTrue(TEXT("Comment upsert keeps CreatedAt valid"),
+		                McpCommentNode->CreatedAt.GetTicks() > 0);
+		bOk &= TestTrue(TEXT("Comment upsert keeps UpdatedAt valid"),
+		                McpCommentNode->UpdatedAt.GetTicks() > 0);
+		bOk &= TestEqual(TEXT("Comment upsert keeps CreatedAt unchanged"),
+		                  McpCommentNode->CreatedAt, InitialCommentCreatedAt);
+		bOk &= TestTrue(TEXT("Comment upsert advances UpdatedAt"),
+		                McpCommentNode->UpdatedAt > InitialCommentUpdatedAt);
+		bOk &= TestEqual(TEXT("Comment upsert keeps two nodes under comment"), NodesUnderComment.Num(), 2);
+		if (SecondHandles.Num() == 2 && SecondHandles[0].IsValid() && SecondHandles[1].IsValid())
+		{
+			bOk &= TestTrue(TEXT("Comment upsert tracks first upserted node"),
+			                NodesUnderComment.Contains(SecondHandles[0].Node.Get()));
+			bOk &= TestTrue(TEXT("Comment upsert tracks second upserted node"),
+			                NodesUnderComment.Contains(SecondHandles[1].Node.Get()));
+		}
+	}
+
+	TArray<FKawaiiPhysicsAnimGraphCommentInfo> CommentInfos =
+		UKawaiiPhysicsEditorLibrary::GetAnimGraphComments(Fixture.AnimBlueprint);
+	bOk &= TestEqual(TEXT("GetAnimGraphComments returns manual and MCP comments"), CommentInfos.Num(), 2);
+	int32 McpInfoCount = 0;
+	int32 ManualInfoCount = 0;
+	for (const FKawaiiPhysicsAnimGraphCommentInfo& CommentInfo : CommentInfos)
+	{
+		if (CommentInfo.Title != ExpectedTitle)
+		{
+			continue;
+		}
+
+		if (CommentInfo.bMcpComment)
+		{
+			++McpInfoCount;
+			bOk &= TestEqual(TEXT("GetAnimGraphComments returns MCP prompt"),
+			                  CommentInfo.Prompt, UpdatedPrompt);
+			bOk &= TestTrue(TEXT("GetAnimGraphComments returns MCP CreatedAt"),
+			                CommentInfo.CreatedAt.GetTicks() > 0);
+			bOk &= TestTrue(TEXT("GetAnimGraphComments returns MCP UpdatedAt"),
+			                CommentInfo.UpdatedAt.GetTicks() > 0);
+		}
+		else
+		{
+			++ManualInfoCount;
+			bOk &= TestTrue(TEXT("GetAnimGraphComments returns empty prompt for manual comment"),
+			                CommentInfo.Prompt.IsEmpty());
+		}
+	}
+	bOk &= TestEqual(TEXT("GetAnimGraphComments returns one MCP comment"), McpInfoCount, 1);
+	bOk &= TestEqual(TEXT("GetAnimGraphComments returns one manual comment"), ManualInfoCount, 1);
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementCommentEmptyTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.CommentEmpty",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingPlacementCommentEmptyTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsEditorScriptingFixture OmittedCommentFixture = MakeEmptyFixture(*this);
+	FKawaiiPhysicsEditorScriptingFixture WhitespaceCommentFixture = MakeEmptyFixture(*this);
+	if (!OmittedCommentFixture.AnimBlueprint || !OmittedCommentFixture.AnimGraph ||
+		!WhitespaceCommentFixture.AnimBlueprint || !WhitespaceCommentFixture.AnimGraph)
+	{
+		return false;
+	}
+
+	FKawaiiPhysicsNodePlacementRequest OmittedCommentRequest;
+	OmittedCommentRequest.RootBoneName = TEXT("hair_01");
+	TArray<FKawaiiPhysicsNodePlacementRequest> OmittedCommentRequests;
+	OmittedCommentRequests.Add(OmittedCommentRequest);
+
+	TArray<FKawaiiPhysicsGraphNodeHandle> OmittedCommentHandles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(
+			OmittedCommentFixture.AnimBlueprint, OmittedCommentRequests);
+
+	FKawaiiPhysicsNodePlacementRequest WhitespaceCommentRequest;
+	WhitespaceCommentRequest.RootBoneName = TEXT("tail_01");
+	TArray<FKawaiiPhysicsNodePlacementRequest> WhitespaceCommentRequests;
+	WhitespaceCommentRequests.Add(WhitespaceCommentRequest);
+
+	TArray<FKawaiiPhysicsGraphNodeHandle> WhitespaceCommentHandles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(
+			WhitespaceCommentFixture.AnimBlueprint,
+			WhitespaceCommentRequests,
+			EKawaiiPhysicsPlacementUpsertKey::None,
+			NAME_None,
+			TEXT("   \t  "),
+			TEXT("Prompt should not be stored without a comment."));
+
+	bool bOk = true;
+	bOk &= TestEqual(TEXT("Omitted comment placement creates one node"), OmittedCommentHandles.Num(), 1);
+	bOk &= TestEqual(TEXT("Omitted comment creates no comments"),
+	                 CountNodesOfClass(OmittedCommentFixture.AnimGraph, UEdGraphNode_Comment::StaticClass()), 0);
+	bOk &= TestTrue(TEXT("Omitted comment API returns no comments"),
+	                UKawaiiPhysicsEditorLibrary::GetAnimGraphComments(OmittedCommentFixture.AnimBlueprint).IsEmpty());
+	bOk &= TestEqual(TEXT("Whitespace comment placement creates one node"), WhitespaceCommentHandles.Num(), 1);
+	bOk &= TestEqual(TEXT("Whitespace-only comment creates no comments"),
+	                 CountNodesOfClass(WhitespaceCommentFixture.AnimGraph, UEdGraphNode_Comment::StaticClass()), 0);
+	bOk &= TestTrue(TEXT("Whitespace-only comment API returns no comments"),
+	                UKawaiiPhysicsEditorLibrary::GetAnimGraphComments(WhitespaceCommentFixture.AnimBlueprint).IsEmpty());
 	return bOk;
 }
 
