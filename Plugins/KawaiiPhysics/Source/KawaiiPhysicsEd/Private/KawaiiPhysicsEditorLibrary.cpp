@@ -20,13 +20,17 @@
 #include "EdGraphNode_Comment.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphPin.h"
+#include "Framework/Application/SlateApplication.h"
 #include "GameplayTagsManager.h"
 #include "Internationalization/Regex.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "KawaiiPhysicsDeveloperSettings.h"
 #include "KawaiiPhysicsMcpCommentNode.h"
+#include "KawaiiPhysicsPresetDiffSnapshot.h"
+#include "Misc/App.h"
 #include "Misc/EngineVersionComparison.h"
 #include "Misc/PackageName.h"
+#include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"
 #include "ScopedTransaction.h"
 #include "SourceControlHelpers.h"
@@ -2104,6 +2108,15 @@ int32 UKawaiiPhysicsEditorLibrary::ReapplyPresetToProject(
 	TArray<FAssetData> AnimBlueprintAssets;
 	GetAllAnimBlueprintAssets(AnimBlueprintAssets);
 
+	// アセット数が多いとロード＋適用に時間がかかるため、進捗ダイアログを表示する（キャンセル非対応）。
+	FScopedSlowTask SlowTask(static_cast<float>(AnimBlueprintAssets.Num()),
+	                          NSLOCTEXT("KawaiiPhysicsEditorLibrary", "ReapplyPresetToProjectProgress",
+	                                    "Applying Kawaii Physics preset to AnimBlueprints..."));
+	if (!IsRunningCommandlet() && !FApp::IsUnattended() && FSlateApplication::IsInitialized())
+	{
+		SlowTask.MakeDialog();
+	}
+
 	int32 AppliedNodeCount = 0;
 	int32 MatchedNodeCount = 0;
 	int32 SkippedNodeCount = 0;
@@ -2112,6 +2125,8 @@ int32 UKawaiiPhysicsEditorLibrary::ReapplyPresetToProject(
 	TArray<TStrongObjectPtr<UAnimBlueprint>> ModifiedAnimBlueprints;
 	for (const FAssetData& AssetData : AnimBlueprintAssets)
 	{
+		SlowTask.EnterProgressFrame(1.0f, FText::FromName(AssetData.AssetName));
+
 		UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(AssetData.GetAsset());
 		if (!AnimBlueprint)
 		{

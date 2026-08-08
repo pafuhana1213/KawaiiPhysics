@@ -119,40 +119,12 @@ namespace
 		return AnimBlueprintAssets.Num();
 	}
 
-	TSharedPtr<FJsonObject> MakeAuditJsonObject(
-		const TArray<FKawaiiPhysicsNodeAuditEntry>& Entries,
-		int32 TotalAnimBlueprints)
-	{
-		const int32 PresetDriftCount = CountPresetDriftEntries(Entries);
-
-		TSharedPtr<FJsonObject> SummaryObject = MakeShared<FJsonObject>();
-		SummaryObject->SetNumberField(TEXT("TotalAnimBlueprints"), TotalAnimBlueprints);
-		SummaryObject->SetNumberField(TEXT("TotalNodes"), Entries.Num());
-		SummaryObject->SetNumberField(TEXT("PresetDriftCount"), PresetDriftCount);
-
-		TArray<TSharedPtr<FJsonValue>> EntryValues;
-		EntryValues.Reserve(Entries.Num());
-		for (const FKawaiiPhysicsNodeAuditEntry& Entry : Entries)
-		{
-			TSharedPtr<FJsonObject> EntryObject = FJsonObjectConverter::UStructToJsonObject(Entry);
-			if (EntryObject.IsValid())
-			{
-				EntryValues.Add(MakeShared<FJsonValueObject>(EntryObject));
-			}
-		}
-
-		TSharedPtr<FJsonObject> RootObject = MakeShared<FJsonObject>();
-		RootObject->SetObjectField(TEXT("Summary"), SummaryObject);
-		RootObject->SetArrayField(TEXT("Entries"), EntryValues);
-		return RootObject;
-	}
-
 	bool WriteAuditJsonFile(
 		const FString& OutputPath,
 		const TArray<FKawaiiPhysicsNodeAuditEntry>& Entries,
 		int32 TotalAnimBlueprints)
 	{
-		TSharedPtr<FJsonObject> RootObject = MakeAuditJsonObject(Entries, TotalAnimBlueprints);
+		TSharedPtr<FJsonObject> RootObject = KawaiiPhysicsAuditJson::MakeAuditJsonObject(Entries, TotalAnimBlueprints);
 		if (!RootObject.IsValid())
 		{
 			return false;
@@ -198,6 +170,37 @@ namespace
 			       Entry.ExternalForceCount,
 			       Entry.WarmUpFrames);
 		}
+	}
+}
+
+namespace KawaiiPhysicsAuditJson
+{
+	TSharedPtr<FJsonObject> MakeAuditJsonObject(
+		const TArray<FKawaiiPhysicsNodeAuditEntry>& Entries,
+		int32 TotalAnimBlueprints)
+	{
+		const int32 PresetDriftCount = CountPresetDriftEntries(Entries);
+
+		TSharedPtr<FJsonObject> SummaryObject = MakeShared<FJsonObject>();
+		SummaryObject->SetNumberField(TEXT("TotalAnimBlueprints"), TotalAnimBlueprints);
+		SummaryObject->SetNumberField(TEXT("TotalNodes"), Entries.Num());
+		SummaryObject->SetNumberField(TEXT("PresetDriftCount"), PresetDriftCount);
+
+		TArray<TSharedPtr<FJsonValue>> EntryValues;
+		EntryValues.Reserve(Entries.Num());
+		for (const FKawaiiPhysicsNodeAuditEntry& Entry : Entries)
+		{
+			TSharedPtr<FJsonObject> EntryObject = FJsonObjectConverter::UStructToJsonObject(Entry);
+			if (EntryObject.IsValid())
+			{
+				EntryValues.Add(MakeShared<FJsonValueObject>(EntryObject));
+			}
+		}
+
+		TSharedPtr<FJsonObject> RootObject = MakeShared<FJsonObject>();
+		RootObject->SetObjectField(TEXT("Summary"), SummaryObject);
+		RootObject->SetArrayField(TEXT("Entries"), EntryValues);
+		return RootObject;
 	}
 }
 

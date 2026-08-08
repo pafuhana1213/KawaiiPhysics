@@ -7,10 +7,14 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "KawaiiPhysics.h"
 #include "KawaiiPhysicsEditorLibrary.h"
 #include "KawaiiPhysicsPresetDataAsset.h"
+#include "Misc/App.h"
+#include "Misc/ScopedSlowTask.h"
+#include "SKawaiiPhysicsNodeAuditWindow.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
@@ -64,10 +68,21 @@ namespace
 		TArray<FAssetData> AnimBlueprintAssets;
 		UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssets(TArray<FString>(), AnimBlueprintAssets);
 
+		// アセット数が多いとロード＋走査に時間がかかるため、進捗ダイアログを表示する（キャンセル非対応）。
+		FScopedSlowTask SlowTask(static_cast<float>(AnimBlueprintAssets.Num()),
+		                          LOCTEXT("FindTargetNodesProgress", "Searching AnimBlueprints for KawaiiPhysics nodes..."));
+		if (!IsRunningCommandlet() && !FApp::IsUnattended() && FSlateApplication::IsInitialized())
+		{
+			SlowTask.MakeDialog();
+		}
+
+		TArray<FKawaiiPhysicsNodeAuditEntry> Entries;
 		int32 MatchingNodeCount = 0;
 		int32 MatchingAnimBlueprintCount = 0;
 		for (const FAssetData& AssetData : AnimBlueprintAssets)
 		{
+			SlowTask.EnterProgressFrame(1.0f, FText::FromName(AssetData.AssetName));
+
 			UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(AssetData.GetAsset());
 			if (!AnimBlueprint)
 			{
@@ -97,16 +112,40 @@ namespace
 					       *GraphNode->Node.KawaiiPhysicsTag.ToString(),
 					       *(GraphNode->GetGraph() ? GraphNode->GetGraph()->GetName() : FString(TEXT("None"))),
 					       *GraphNode->NodeGuid.ToString());
+
+					// FindTargetNodesはプリセットとの差分比較を行わないため、bMatchesPreset/DiffProperties等は既定値のまま積む。
+					FKawaiiPhysicsNodeAuditEntry Entry;
+					Entry.AnimBlueprintPath = FSoftObjectPath(AnimBlueprint);
+					Entry.GraphName = GraphNode->GetGraph() ? GraphNode->GetGraph()->GetFName() : NAME_None;
+					Entry.NodeGuid = GraphNode->NodeGuid;
+					Entry.RootBoneName = GraphNode->Node.RootBone.BoneName;
+					Entry.KawaiiPhysicsTag = GraphNode->Node.KawaiiPhysicsTag;
+					Entry.BoneSubdivisionCount = GraphNode->Node.BoneSubdivisionCount;
+					Entry.BoneConstraintSubdivisionCount = GraphNode->Node.BoneConstraintSubdivisionCount;
+					Entry.bAllowWorldCollision = GraphNode->Node.bAllowWorldCollision;
+					Entry.bUseSharedCollision = GraphNode->Node.bUseSharedCollision;
+					Entry.bSharedCollisionSource = GraphNode->Node.bSharedCollisionSource;
+					Entry.bEnableWind = GraphNode->Node.bEnableWind;
+					Entry.ExternalForceCount =
+						GraphNode->Node.ExternalForces.Num() + GraphNode->Node.CustomExternalForces.Num();
+					Entry.WarmUpFrames = GraphNode->Node.WarmUpFrames;
+					Entries.Add(MoveTemp(Entry));
 				}
 			}
 		}
 
-		ShowPresetDetailsNotification(
-			FText::Format(
-				LOCTEXT("FindTargetNodesResult", "{0} nodes in {1} AnimBlueprints match TargetTags."),
-				FText::AsNumber(MatchingNodeCount),
-				FText::AsNumber(MatchingAnimBlueprintCount)),
-			SNotificationItem::CS_Success);
+		FKawaiiPhysicsNodeAuditWindowArgs WindowArgs;
+		WindowArgs.WindowTitle = FText::Format(
+			LOCTEXT("FindTargetNodesWindowTitle", "Show Target Nodes: {0}"),
+			FText::FromString(Preset->GetName()));
+		WindowArgs.SummaryText = FText::Format(
+			LOCTEXT("FindTargetNodesResult", "{0} nodes in {1} AnimBlueprints match TargetTags."),
+			FText::AsNumber(MatchingNodeCount),
+			FText::AsNumber(MatchingAnimBlueprintCount));
+		WindowArgs.Entries = MoveTemp(Entries);
+		WindowArgs.bShowDiffColumns = false;
+		WindowArgs.PresetPath = FSoftObjectPath(Preset);
+		SKawaiiPhysicsNodeAuditWindow::OpenWindow(MoveTemp(WindowArgs));
 	}
 
 	void ApplyToProjectDryRun(UKawaiiPhysicsPresetDataAsset* Preset)
@@ -136,13 +175,18 @@ namespace
 			       *JoinPresetPropertyNames(Entry.DiffProperties));
 		}
 
-		ShowPresetDetailsNotification(
-			FText::Format(
-				LOCTEXT("ApplyToProjectDryRunResult",
-				        "Dry run: {0} nodes matched, {1} differ from preset.\nApply through the ReapplyPresetToProject API (Python/BP)."),
-				FText::AsNumber(Report.Num()),
-				FText::AsNumber(DiffNodeCount)),
-			DiffNodeCount > 0 ? SNotificationItem::CS_Fail : SNotificationItem::CS_Success);
+		FKawaiiPhysicsNodeAuditWindowArgs WindowArgs;
+		WindowArgs.WindowTitle = FText::Format(
+			LOCTEXT("ApplyToProjectDryRunWindowTitle", "Apply To Project (Dry Run): {0}"),
+			FText::FromString(Preset->GetName()));
+		WindowArgs.SummaryText = FText::Format(
+			LOCTEXT("ApplyToProjectDryRunResult", "Dry run: {0} nodes matched, {1} differ from preset."),
+			FText::AsNumber(Report.Num()),
+			FText::AsNumber(DiffNodeCount));
+		WindowArgs.Entries = MoveTemp(Report);
+		WindowArgs.bShowDiffColumns = true;
+		WindowArgs.PresetPath = FSoftObjectPath(Preset);
+		SKawaiiPhysicsNodeAuditWindow::OpenWindow(MoveTemp(WindowArgs));
 	}
 }
 
@@ -186,7 +230,7 @@ void FKawaiiPhysicsPresetDataAssetDetails::CustomizeDetails(IDetailLayoutBuilder
 				FindTargetNodes(WeakPreset.Get());
 				return FReply::Handled();
 			})
-			.ToolTipText(LOCTEXT("FindTargetNodesToolTip", "TargetTags に一致する KawaiiPhysics ノードをプロジェクト内の全 AnimBlueprint から検索し、件数を通知・詳細を Output Log に出力します / Searches all AnimBlueprints in the project for KawaiiPhysics nodes matching TargetTags. Shows the count in a notification and logs details to the Output Log."))
+			.ToolTipText(LOCTEXT("FindTargetNodesToolTip", "TargetTags に一致する KawaiiPhysics ノードをプロジェクト内の全 AnimBlueprint から検索し、結果をウィンドウで一覧表示します（詳細は Output Log にも出力） / Searches all AnimBlueprints in the project for KawaiiPhysics nodes matching TargetTags and lists the results in a window (details are also logged to the Output Log)."))
 			.Content()
 			[
 				SNew(STextBlock)

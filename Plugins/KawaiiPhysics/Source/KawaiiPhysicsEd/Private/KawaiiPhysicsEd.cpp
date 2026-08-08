@@ -6,6 +6,8 @@
 #include "KawaiiPhysicsEditMode.h"
 #include "KawaiiPhysicsPresetDataAssetDetails.h"
 #include "PropertyEditorModule.h"
+#include "SKawaiiPhysicsNodeAuditWindow.h"
+#include "SKawaiiPhysicsPresetDiffWindow.h"
 
 #define LOCTEXT_NAMESPACE "FKawaiiPhysicsModuleEd"
 
@@ -27,6 +29,9 @@ void FKawaiiPhysicsEdModule::StartupModule()
 
 void FKawaiiPhysicsEdModule::ShutdownModule()
 {
+	SKawaiiPhysicsPresetDiffWindow::CloseAllWindows();
+	SKawaiiPhysicsNodeAuditWindow::CloseAllWindows();
+
 	if (FPropertyEditorModule* PropertyEditorModule = FModuleManager::GetModulePtr<FPropertyEditorModule>(
 		"PropertyEditor"))
 	{

@@ -1,0 +1,889 @@
+// Copyright 2019-2026 pafuhana1213. All Rights Reserved.
+
+#include "SKawaiiPhysicsNodeAuditWindow.h"
+
+#include "AnimGraphNode_KawaiiPhysics.h"
+#include "Animation/AnimBlueprint.h"
+#include "DesktopPlatformModule.h"
+#include "Dom/JsonObject.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "HAL/PlatformProcess.h"
+#include "ISourceControlModule.h"
+#include "KawaiiPhysicsAuditCommandlet.h"
+#include "KawaiiPhysicsEditorLibrary.h"
+#include "KawaiiPhysicsPresetDiffSnapshot.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/FileHelper.h"
+#include "Misc/MessageDialog.h"
+#include "Misc/Paths.h"
+#include "SKawaiiPhysicsPresetDiffWindow.h"
+#include "Serialization/JsonSerializer.h"
+#include "Serialization/JsonWriter.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SSeparator.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/STableRow.h"
+
+#define LOCTEXT_NAMESPACE "KawaiiPhysicsNodeAuditWindow"
+
+namespace
+{
+	const FName AnimBlueprintColumnName(TEXT("AnimBlueprint"));
+	const FName GraphColumnName(TEXT("Graph"));
+	const FName TagColumnName(TEXT("Tag"));
+	const FName RootBoneColumnName(TEXT("RootBone"));
+	const FName MatchesColumnName(TEXT("Matches"));
+	const FName DiffPropertiesColumnName(TEXT("DiffProperties"));
+	const FName ViewDiffColumnName(TEXT("ViewDiff"));
+	const TCHAR* ConfigSectionName = TEXT("KawaiiPhysicsEd");
+	const TCHAR* WindowPosConfigKey = TEXT("NodeAuditWindowPos");
+	const TCHAR* WindowSizeConfigKey = TEXT("NodeAuditWindowSize");
+
+	TWeakPtr<SWindow> AuditWindowWeak;
+	TWeakPtr<SKawaiiPhysicsNodeAuditWindow> AuditWidgetWeak;
+
+	void ShowAuditNotification(const FText& NotificationText,
+	                            const SNotificationItem::ECompletionState CompletionState)
+	{
+		FNotificationInfo NotificationInfo(NotificationText);
+		NotificationInfo.ExpireDuration = 5.0f;
+
+		TSharedPtr<SNotificationItem> NotificationItem =
+			FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+		if (NotificationItem.IsValid())
+		{
+			NotificationItem->SetCompletionState(CompletionState);
+		}
+	}
+
+	void ShowAuditExportSucceededNotification(const FString& OutputPath)
+	{
+		FNotificationInfo NotificationInfo(LOCTEXT("ExportSucceeded", "Exported Kawaii Physics audit results."));
+		NotificationInfo.ExpireDuration = 5.0f;
+		NotificationInfo.Hyperlink = FSimpleDelegate::CreateLambda([OutputPath]()
+		{
+			FPlatformProcess::ExploreFolder(*FPaths::GetPath(OutputPath));
+		});
+		NotificationInfo.HyperlinkText = LOCTEXT("ExportSucceededHyperlink", "Show in Folder");
+
+		TSharedPtr<SNotificationItem> NotificationItem =
+			FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+		if (NotificationItem.IsValid())
+		{
+			NotificationItem->SetCompletionState(SNotificationItem::CS_Success);
+		}
+	}
+
+	FString MakeVectorConfigString(const FVector2D& Value)
+	{
+		return FString::Printf(TEXT("%.0f,%.0f"), Value.X, Value.Y);
+	}
+
+	bool TryParseVectorConfigString(const FString& StringValue, FVector2D& OutValue)
+	{
+		FString Left;
+		FString Right;
+		if (!StringValue.Split(TEXT(","), &Left, &Right))
+		{
+			return false;
+		}
+
+		OutValue.X = FCString::Atof(*Left);
+		OutValue.Y = FCString::Atof(*Right);
+		return true;
+	}
+
+	void PersistWindowPlacement(const TSharedRef<SWindow>& Window)
+	{
+		if (!GConfig)
+		{
+			return;
+		}
+
+		const FVector2D Position = Window->GetPositionInScreen();
+		const FVector2D Size = Window->GetSizeInScreen();
+		GConfig->SetString(ConfigSectionName, WindowPosConfigKey, *MakeVectorConfigString(Position), GEditorPerProjectIni);
+		GConfig->SetString(ConfigSectionName, WindowSizeConfigKey, *MakeVectorConfigString(Size), GEditorPerProjectIni);
+		GConfig->Flush(false, GEditorPerProjectIni);
+	}
+
+	void RestoreWindowPlacement(const TSharedRef<SWindow>& Window)
+	{
+		if (!GConfig)
+		{
+			return;
+		}
+
+		FString StringValue;
+		FVector2D ParsedValue;
+		if (GConfig->GetString(ConfigSectionName, WindowPosConfigKey, StringValue, GEditorPerProjectIni) &&
+			TryParseVectorConfigString(StringValue, ParsedValue))
+		{
+			Window->MoveWindowTo(ParsedValue);
+		}
+
+		if (GConfig->GetString(ConfigSectionName, WindowSizeConfigKey, StringValue, GEditorPerProjectIni) &&
+			TryParseVectorConfigString(StringValue, ParsedValue))
+		{
+			Window->Resize(ParsedValue);
+		}
+	}
+
+	FText MakeAuditSummaryText(const TArray<TSharedPtr<FKawaiiPhysicsNodeAuditEntry>>& Entries)
+	{
+		int32 DiffCount = 0;
+		for (const TSharedPtr<FKawaiiPhysicsNodeAuditEntry>& Entry : Entries)
+		{
+			if (Entry.IsValid() && !Entry->bMatchesPreset)
+			{
+				++DiffCount;
+			}
+		}
+
+		return FText::Format(
+			LOCTEXT("AuditSummaryFormat", "{0} nodes, {1} differ"),
+			FText::AsNumber(Entries.Num()),
+			FText::AsNumber(DiffCount));
+	}
+
+	FString EscapeCsvField(const FString& Value)
+	{
+		const bool bNeedsQuoting = Value.Contains(TEXT(",")) || Value.Contains(TEXT("\"")) ||
+			Value.Contains(TEXT("\n")) || Value.Contains(TEXT("\r"));
+		if (!bNeedsQuoting)
+		{
+			return Value;
+		}
+
+		FString Escaped = Value;
+		Escaped.ReplaceInline(TEXT("\""), TEXT("\"\""));
+		return FString::Printf(TEXT("\"%s\""), *Escaped);
+	}
+
+	FText GetMatchesCellText(const FKawaiiPhysicsNodeAuditEntry& Entry)
+	{
+		return Entry.bMatchesPreset
+			       ? LOCTEXT("MatchesCheckMark", "✓")
+			       : FText::AsNumber(Entry.DiffProperties.Num());
+	}
+
+	FString JoinDiffPropertyNames(const FKawaiiPhysicsNodeAuditEntry& Entry)
+	{
+		TArray<FString> Names;
+		Names.Reserve(Entry.DiffProperties.Num());
+		for (const FName& DiffProperty : Entry.DiffProperties)
+		{
+			Names.Add(DiffProperty.ToString());
+		}
+		return FString::Join(Names, TEXT(", "));
+	}
+
+	DECLARE_DELEGATE_OneParam(FOnAuditViewDiffClicked, TSharedPtr<FKawaiiPhysicsNodeAuditEntry>);
+
+	class SKawaiiPhysicsNodeAuditRow : public SMultiColumnTableRow<TSharedPtr<FKawaiiPhysicsNodeAuditEntry>>
+	{
+	public:
+		SLATE_BEGIN_ARGS(SKawaiiPhysicsNodeAuditRow)
+			{
+			}
+			SLATE_ARGUMENT(TSharedPtr<FKawaiiPhysicsNodeAuditEntry>, Entry)
+			SLATE_ARGUMENT(bool, ShowDiffColumns)
+			SLATE_EVENT(FOnAuditViewDiffClicked, OnViewDiffClicked)
+		SLATE_END_ARGS()
+
+		void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable)
+		{
+			Entry = InArgs._Entry;
+			bShowDiffColumns = InArgs._ShowDiffColumns;
+			OnViewDiffClicked = InArgs._OnViewDiffClicked;
+			SMultiColumnTableRow<TSharedPtr<FKawaiiPhysicsNodeAuditEntry>>::Construct(
+				FSuperRowType::FArguments().Padding(FMargin(2.0f, 1.0f)),
+				OwnerTable);
+		}
+
+		virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override
+		{
+			if (!Entry.IsValid())
+			{
+				return SNew(STextBlock);
+			}
+
+			if (ColumnName == AnimBlueprintColumnName)
+			{
+				return MakeTextCell(
+					FText::FromString(Entry->AnimBlueprintPath.GetAssetName()),
+					FText::FromString(Entry->AnimBlueprintPath.ToString()));
+			}
+
+			if (ColumnName == GraphColumnName)
+			{
+				return MakeTextCell(FText::FromName(Entry->GraphName), FText::FromName(Entry->GraphName));
+			}
+
+			if (ColumnName == TagColumnName)
+			{
+				const FText TagText = FText::FromString(Entry->KawaiiPhysicsTag.ToString());
+				return MakeTextCell(TagText, TagText);
+			}
+
+			if (ColumnName == RootBoneColumnName)
+			{
+				return MakeTextCell(FText::FromName(Entry->RootBoneName), FText::FromName(Entry->RootBoneName));
+			}
+
+			if (bShowDiffColumns && ColumnName == MatchesColumnName)
+			{
+				const FText MatchesText = GetMatchesCellText(*Entry);
+				return MakeTextCell(MatchesText, MatchesText);
+			}
+
+			if (bShowDiffColumns && ColumnName == DiffPropertiesColumnName)
+			{
+				const FString Joined = JoinDiffPropertyNames(*Entry);
+				return MakeTextCell(FText::FromString(Joined), FText::FromString(Joined));
+			}
+
+			if (bShowDiffColumns && ColumnName == ViewDiffColumnName)
+			{
+				return SNew(SBox)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					[
+						SNew(SButton)
+						.Text(LOCTEXT("ViewDiffButton", "View Diff"))
+						.ToolTipText(LOCTEXT("ViewDiffButtonToolTip", "このノードとマッチしたプリセットの差分を表示します / Shows the diff between this node and its matched preset."))
+						.IsEnabled(Entry->MatchedPresetPath.IsValid())
+						.OnClicked(this, &SKawaiiPhysicsNodeAuditRow::HandleViewDiffClicked)
+					];
+			}
+
+			return SNew(STextBlock);
+		}
+
+	private:
+		TSharedRef<SWidget> MakeTextCell(const FText& Text, const FText& ToolTipText) const
+		{
+			return SNew(STextBlock)
+				.Text(Text)
+				.ToolTipText(ToolTipText)
+				.Clipping(EWidgetClipping::OnDemand);
+		}
+
+		FReply HandleViewDiffClicked()
+		{
+			OnViewDiffClicked.ExecuteIfBound(Entry);
+			return FReply::Handled();
+		}
+
+		TSharedPtr<FKawaiiPhysicsNodeAuditEntry> Entry;
+		bool bShowDiffColumns = false;
+		FOnAuditViewDiffClicked OnViewDiffClicked;
+	};
+}
+
+void SKawaiiPhysicsNodeAuditWindow::Construct(const FArguments& InArgs, FKawaiiPhysicsNodeAuditWindowArgs InitArgs)
+{
+	(void)InArgs;
+	SetArgs(MoveTemp(InitArgs));
+}
+
+void SKawaiiPhysicsNodeAuditWindow::OpenWindow(FKawaiiPhysicsNodeAuditWindowArgs Args)
+{
+	const FText WindowTitleCopy = Args.WindowTitle;
+
+	if (TSharedPtr<SWindow> ExistingWindow = AuditWindowWeak.Pin())
+	{
+		if (TSharedPtr<SKawaiiPhysicsNodeAuditWindow> ExistingWidget = AuditWidgetWeak.Pin())
+		{
+			ExistingWidget->SetArgs(MoveTemp(Args));
+		}
+		ExistingWindow->SetTitle(WindowTitleCopy);
+		ExistingWindow->BringToFront();
+		return;
+	}
+
+	TSharedRef<SKawaiiPhysicsNodeAuditWindow> AuditWidget =
+		SNew(SKawaiiPhysicsNodeAuditWindow, MoveTemp(Args));
+
+	TSharedRef<SWindow> Window = SNew(SWindow)
+		.Title(WindowTitleCopy)
+		.ClientSize(FVector2D(980.0f, 560.0f))
+		.AutoCenter(EAutoCenter::PreferredWorkArea)
+		[
+			AuditWidget
+		];
+
+	Window->SetOnWindowClosed(FOnWindowClosed::CreateLambda([](const TSharedRef<SWindow>& ClosedWindow)
+	{
+		PersistWindowPlacement(ClosedWindow);
+		AuditWindowWeak.Reset();
+		AuditWidgetWeak.Reset();
+	}));
+
+	AuditWindowWeak = Window;
+	AuditWidgetWeak = AuditWidget;
+	FSlateApplication::Get().AddWindow(Window);
+	RestoreWindowPlacement(Window);
+}
+
+void SKawaiiPhysicsNodeAuditWindow::CloseAllWindows()
+{
+	if (TSharedPtr<SWindow> Window = AuditWindowWeak.Pin())
+	{
+		Window->RequestDestroyWindow();
+	}
+}
+
+void SKawaiiPhysicsNodeAuditWindow::SetArgs(FKawaiiPhysicsNodeAuditWindowArgs Args)
+{
+	bShowDiffColumns = Args.bShowDiffColumns;
+	PresetPath = Args.PresetPath;
+	bShowDifferingOnly = false;
+	bCheckOutFiles = false;
+	SortColumnId = NAME_None;
+	SortMode = EColumnSortMode::None;
+
+	Entries.Reset();
+	Entries.Reserve(Args.Entries.Num());
+	for (const FKawaiiPhysicsNodeAuditEntry& Entry : Args.Entries)
+	{
+		Entries.Add(MakeShared<FKawaiiPhysicsNodeAuditEntry>(Entry));
+	}
+
+	SummaryText = Args.SummaryText.IsEmpty() ? MakeAuditSummaryText(Entries) : Args.SummaryText;
+
+	RebuildWidget();
+}
+
+void SKawaiiPhysicsNodeAuditWindow::RebuildWidget()
+{
+	TSharedRef<SHeaderRow> HeaderRowWidget =
+		SNew(SHeaderRow)
+		+ SHeaderRow::Column(AnimBlueprintColumnName)
+		.FillWidth(0.22f)
+		.DefaultLabel(LOCTEXT("AnimBlueprintColumnLabel", "AnimBlueprint"))
+		.DefaultTooltip(LOCTEXT("AnimBlueprintColumnToolTip", "Anim Blueprint のアセット名を表示します。ツールチップにフルパスを表示します / Shows the Anim Blueprint asset name. The tooltip shows the full path."))
+		.SortMode(this, &SKawaiiPhysicsNodeAuditWindow::GetColumnSortMode, AnimBlueprintColumnName)
+		.OnSort(this, &SKawaiiPhysicsNodeAuditWindow::OnColumnSort)
+		+ SHeaderRow::Column(GraphColumnName)
+		.FillWidth(0.14f)
+		.DefaultLabel(LOCTEXT("GraphColumnLabel", "Graph"))
+		.DefaultTooltip(LOCTEXT("GraphColumnToolTip", "ノードを含むグラフ名を表示します / Shows the name of the graph that owns the node."))
+		+ SHeaderRow::Column(TagColumnName)
+		.FillWidth(0.16f)
+		.DefaultLabel(LOCTEXT("TagColumnLabel", "Tag"))
+		.DefaultTooltip(LOCTEXT("TagColumnToolTip", "KawaiiPhysicsTag を表示します / Shows the KawaiiPhysicsTag."))
+		.SortMode(this, &SKawaiiPhysicsNodeAuditWindow::GetColumnSortMode, TagColumnName)
+		.OnSort(this, &SKawaiiPhysicsNodeAuditWindow::OnColumnSort)
+		+ SHeaderRow::Column(RootBoneColumnName)
+		.FillWidth(0.14f)
+		.DefaultLabel(LOCTEXT("RootBoneColumnLabel", "RootBone"))
+		.DefaultTooltip(LOCTEXT("RootBoneColumnToolTip", "RootBone のボーン名を表示します / Shows the RootBone bone name."));
+
+	if (bShowDiffColumns)
+	{
+		HeaderRowWidget->AddColumn(
+			SHeaderRow::Column(MatchesColumnName)
+			.FillWidth(0.10f)
+			.DefaultLabel(LOCTEXT("MatchesColumnLabel", "Matches"))
+			.DefaultTooltip(LOCTEXT("MatchesColumnToolTip", "プリセットと一致していればチェック、そうでなければ差分プロパティ数を表示します / Shows a check mark when the node matches the preset, otherwise the number of differing properties."))
+			.SortMode(this, &SKawaiiPhysicsNodeAuditWindow::GetColumnSortMode, MatchesColumnName)
+			.OnSort(this, &SKawaiiPhysicsNodeAuditWindow::OnColumnSort));
+
+		HeaderRowWidget->AddColumn(
+			SHeaderRow::Column(DiffPropertiesColumnName)
+			.FillWidth(0.24f)
+			.DefaultLabel(LOCTEXT("DiffPropertiesColumnLabel", "DiffProperties"))
+			.DefaultTooltip(LOCTEXT("DiffPropertiesColumnToolTip", "差分のあるプロパティ名をカンマ区切りで表示します / Shows differing property names, comma-separated.")));
+
+		HeaderRowWidget->AddColumn(
+			SHeaderRow::Column(ViewDiffColumnName)
+			.FixedWidth(90.0f)
+			.DefaultLabel(FText::GetEmpty())
+			.DefaultTooltip(LOCTEXT("ViewDiffColumnToolTip", "ノードとマッチしたプリセットの差分をウィンドウで表示します / Shows the diff between the node and its matched preset in a window.")));
+	}
+
+	SAssignNew(ListView, SListView<FEntryPtr>)
+		.ListItemsSource(&FilteredRows)
+		.OnGenerateRow(this, &SKawaiiPhysicsNodeAuditWindow::GenerateRow)
+		.OnMouseButtonDoubleClick(this, &SKawaiiPhysicsNodeAuditWindow::OnRowDoubleClicked)
+		.HeaderRow(HeaderRowWidget);
+
+	ChildSlot
+	[
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(8.0f, 8.0f, 8.0f, 4.0f)
+		[
+			SNew(STextBlock)
+			.Text_Lambda([this]()
+			{
+				return SummaryText;
+			})
+		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(8.0f, 4.0f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(0.0f, 0.0f, 12.0f, 0.0f)
+			[
+				SNew(SCheckBox)
+				.Visibility(bShowDiffColumns ? EVisibility::Visible : EVisibility::Collapsed)
+				.IsChecked(this, &SKawaiiPhysicsNodeAuditWindow::GetShowDifferingOnlyState)
+				.OnCheckStateChanged(this, &SKawaiiPhysicsNodeAuditWindow::OnShowDifferingOnlyChanged)
+				.ToolTipText(LOCTEXT("ShowDifferingOnlyToolTip", "プリセットと一致していない行だけを表示します（表示のみのフィルタ） / Shows only rows that do not match the preset (display filter only)."))
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("ShowDifferingOnlyLabel", "Show Differing Only"))
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(0.0f, 0.0f, 12.0f, 0.0f)
+			[
+				SNew(SCheckBox)
+				.Visibility(bShowDiffColumns ? EVisibility::Visible : EVisibility::Collapsed)
+				.IsEnabled(ISourceControlModule::Get().IsEnabled())
+				.IsChecked(this, &SKawaiiPhysicsNodeAuditWindow::GetCheckOutFilesState)
+				.OnCheckStateChanged(this, &SKawaiiPhysicsNodeAuditWindow::OnCheckOutFilesChanged)
+				.ToolTipText(LOCTEXT("CheckOutFilesToolTip", "Apply to Project 実行時にソース管理でパッケージをチェックアウトします / Checks out packages via source control when running Apply to Project."))
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("CheckOutFilesLabel", "Check out files"))
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			[
+				SNullWidget::NullWidget
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("RefreshButton", "Refresh"))
+				.ToolTipText(LOCTEXT("RefreshButtonToolTip", "プリセットを対象ノードへドライラン適用し直し、一覧を再計算します / Re-runs a dry-run apply of the preset against the target nodes and rebuilds the list."))
+				.OnClicked(this, &SKawaiiPhysicsNodeAuditWindow::OnRefreshClicked)
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("ExportButton", "Export..."))
+				.ToolTipText(LOCTEXT("ExportButtonToolTip", "監査結果を JSON または CSV ファイルへ書き出します / Exports the audit results to a JSON or CSV file."))
+				.OnClicked(this, &SKawaiiPhysicsNodeAuditWindow::OnExportClicked)
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.Visibility(bShowDiffColumns ? EVisibility::Visible : EVisibility::Collapsed)
+				.Text(LOCTEXT("ApplyToProjectButton", "Apply to Project..."))
+				.ToolTipText(LOCTEXT("ApplyToProjectButtonToolTip", "このプリセットを、対象タグに一致するプロジェクト内の全ノードへ適用します / Applies this preset to every node in the project that matches its target tags."))
+				.OnClicked(this, &SKawaiiPhysicsNodeAuditWindow::OnApplyToProjectClicked)
+			]
+		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(8.0f, 0.0f, 8.0f, 4.0f)
+		[
+			SNew(SSeparator)
+		]
+		+ SVerticalBox::Slot()
+		.FillHeight(1.0f)
+		.Padding(8.0f, 0.0f, 8.0f, 8.0f)
+		[
+			ListView.ToSharedRef()
+		]
+	];
+
+	SortEntries();
+	RefreshFilteredRows();
+}
+
+void SKawaiiPhysicsNodeAuditWindow::RefreshFilteredRows()
+{
+	FilteredRows.Reset();
+	for (const FEntryPtr& Entry : Entries)
+	{
+		if (!Entry.IsValid())
+		{
+			continue;
+		}
+
+		if (bShowDiffColumns && bShowDifferingOnly && Entry->bMatchesPreset)
+		{
+			continue;
+		}
+
+		FilteredRows.Add(Entry);
+	}
+
+	if (ListView.IsValid())
+	{
+		ListView->RequestListRefresh();
+	}
+}
+
+void SKawaiiPhysicsNodeAuditWindow::ReplaceEntriesFromReport(const TArray<FKawaiiPhysicsNodeAuditEntry>& Report)
+{
+	Entries.Reset();
+	Entries.Reserve(Report.Num());
+	for (const FKawaiiPhysicsNodeAuditEntry& Entry : Report)
+	{
+		Entries.Add(MakeShared<FKawaiiPhysicsNodeAuditEntry>(Entry));
+	}
+
+	SortEntries();
+	SummaryText = MakeAuditSummaryText(Entries);
+	RefreshFilteredRows();
+}
+
+void SKawaiiPhysicsNodeAuditWindow::SortEntries()
+{
+	if (SortMode == EColumnSortMode::None || SortColumnId.IsNone())
+	{
+		return;
+	}
+
+	const bool bAscending = SortMode == EColumnSortMode::Ascending;
+
+	if (SortColumnId == AnimBlueprintColumnName)
+	{
+		Entries.Sort([bAscending](const FEntryPtr& A, const FEntryPtr& B)
+		{
+			const FString NameA = A.IsValid() ? A->AnimBlueprintPath.GetAssetName() : FString();
+			const FString NameB = B.IsValid() ? B->AnimBlueprintPath.GetAssetName() : FString();
+			return bAscending ? (NameA < NameB) : (NameA > NameB);
+		});
+	}
+	else if (SortColumnId == TagColumnName)
+	{
+		Entries.Sort([bAscending](const FEntryPtr& A, const FEntryPtr& B)
+		{
+			const FString TagA = A.IsValid() ? A->KawaiiPhysicsTag.ToString() : FString();
+			const FString TagB = B.IsValid() ? B->KawaiiPhysicsTag.ToString() : FString();
+			return bAscending ? (TagA < TagB) : (TagA > TagB);
+		});
+	}
+	else if (SortColumnId == MatchesColumnName)
+	{
+		Entries.Sort([bAscending](const FEntryPtr& A, const FEntryPtr& B)
+		{
+			const int32 DiffA = A.IsValid() ? A->DiffProperties.Num() : 0;
+			const int32 DiffB = B.IsValid() ? B->DiffProperties.Num() : 0;
+			return bAscending ? (DiffA < DiffB) : (DiffA > DiffB);
+		});
+	}
+}
+
+TSharedRef<ITableRow> SKawaiiPhysicsNodeAuditWindow::GenerateRow(
+	FEntryPtr Entry,
+	const TSharedRef<STableViewBase>& OwnerTable)
+{
+	return SNew(SKawaiiPhysicsNodeAuditRow, OwnerTable)
+		.Entry(Entry)
+		.ShowDiffColumns(bShowDiffColumns)
+		.OnViewDiffClicked(this, &SKawaiiPhysicsNodeAuditWindow::OnViewDiffClicked);
+}
+
+void SKawaiiPhysicsNodeAuditWindow::OnRowDoubleClicked(FEntryPtr Entry)
+{
+	if (!Entry.IsValid())
+	{
+		return;
+	}
+
+	UObject* AnimBlueprintObject = Entry->AnimBlueprintPath.TryLoad();
+	UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(AnimBlueprintObject);
+	if (!AnimBlueprint || !GEditor)
+	{
+		ShowAuditNotification(
+			LOCTEXT("OpenAnimBlueprintFailed", "Failed to open the AnimBlueprint."),
+			SNotificationItem::CS_Fail);
+		return;
+	}
+
+	if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+	{
+		AssetEditorSubsystem->OpenEditorForAsset(AnimBlueprint);
+	}
+}
+
+void SKawaiiPhysicsNodeAuditWindow::OnViewDiffClicked(FEntryPtr Entry)
+{
+	if (!Entry.IsValid())
+	{
+		return;
+	}
+
+	UAnimGraphNode_KawaiiPhysics* GraphNode =
+		UKawaiiPhysicsEditorLibrary::FindGraphNodeByGuid(Entry->AnimBlueprintPath, Entry->NodeGuid);
+	if (!GraphNode)
+	{
+		ShowAuditNotification(
+			LOCTEXT("ViewDiffResolveFailed", "Failed to resolve the KawaiiPhysics graph node."),
+			SNotificationItem::CS_Fail);
+		return;
+	}
+
+	UKawaiiPhysicsPresetDataAsset* Preset =
+		Cast<UKawaiiPhysicsPresetDataAsset>(Entry->MatchedPresetPath.TryLoad());
+	if (!Preset)
+	{
+		ShowAuditNotification(
+			LOCTEXT("ViewDiffPresetLoadFailed", "Failed to load the matched preset."),
+			SNotificationItem::CS_Fail);
+		return;
+	}
+
+	const FKawaiiPhysicsPresetApplyOptions Options;
+	TArray<TSharedRef<FKawaiiPhysicsPresetDiffSnapshot>> Snapshots;
+	Snapshots.Add(KawaiiPhysicsPresetDiff::BuildSnapshot(GraphNode->Node, *Preset, Options));
+
+	// 一覧行と同じプリセットを基準にするため、ここではノードにマッチする全プリセットの再収集は行わない。
+	const UAnimBlueprint* AnimBlueprint = GraphNode->GetAnimBlueprint();
+	const FText ContextLabel = FText::Format(
+		LOCTEXT("ViewDiffContextLabel", "{0}  |  {1}  |  Tag: {2}"),
+		GraphNode->GetNodeTitle(ENodeTitleType::ListView),
+		AnimBlueprint
+			? FText::FromString(AnimBlueprint->GetName())
+			: LOCTEXT("ViewDiffUnknownAnimBlueprint", "(Unknown AnimBlueprint)"),
+		FText::FromString(Entry->KawaiiPhysicsTag.ToString()));
+
+	FKawaiiPhysicsPresetDiffWindowArgs DiffArgs;
+	DiffArgs.ContextLabel = ContextLabel;
+	DiffArgs.Snapshots = Snapshots;
+	DiffArgs.AnimBlueprintPath = Entry->AnimBlueprintPath;
+	DiffArgs.NodeGuid = Entry->NodeGuid;
+
+	SKawaiiPhysicsPresetDiffWindow::OpenWindow(MoveTemp(DiffArgs));
+}
+
+ECheckBoxState SKawaiiPhysicsNodeAuditWindow::GetShowDifferingOnlyState() const
+{
+	return bShowDifferingOnly ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void SKawaiiPhysicsNodeAuditWindow::OnShowDifferingOnlyChanged(ECheckBoxState NewState)
+{
+	bShowDifferingOnly = NewState == ECheckBoxState::Checked;
+	RefreshFilteredRows();
+}
+
+ECheckBoxState SKawaiiPhysicsNodeAuditWindow::GetCheckOutFilesState() const
+{
+	return bCheckOutFiles ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void SKawaiiPhysicsNodeAuditWindow::OnCheckOutFilesChanged(ECheckBoxState NewState)
+{
+	bCheckOutFiles = NewState == ECheckBoxState::Checked;
+}
+
+EColumnSortMode::Type SKawaiiPhysicsNodeAuditWindow::GetColumnSortMode(FName ColumnId) const
+{
+	return SortColumnId == ColumnId ? SortMode : EColumnSortMode::None;
+}
+
+void SKawaiiPhysicsNodeAuditWindow::OnColumnSort(
+	EColumnSortPriority::Type SortPriority,
+	const FName& ColumnId,
+	EColumnSortMode::Type NewSortMode)
+{
+	(void)SortPriority;
+	SortColumnId = ColumnId;
+	SortMode = NewSortMode;
+	SortEntries();
+	RefreshFilteredRows();
+}
+
+FReply SKawaiiPhysicsNodeAuditWindow::OnRefreshClicked()
+{
+	UKawaiiPhysicsPresetDataAsset* Preset = Cast<UKawaiiPhysicsPresetDataAsset>(PresetPath.TryLoad());
+	if (!Preset)
+	{
+		ShowAuditNotification(
+			LOCTEXT("RefreshPresetLoadFailed", "Failed to load the preset for Refresh."),
+			SNotificationItem::CS_Fail);
+		return FReply::Handled();
+	}
+
+	TArray<FKawaiiPhysicsNodeAuditEntry> Report;
+	UKawaiiPhysicsEditorLibrary::ReapplyPresetToProject(Preset, true, false, Report);
+	ReplaceEntriesFromReport(Report);
+	return FReply::Handled();
+}
+
+FReply SKawaiiPhysicsNodeAuditWindow::OnApplyToProjectClicked()
+{
+	int32 DifferingCount = 0;
+	for (const FEntryPtr& Entry : Entries)
+	{
+		if (Entry.IsValid() && !Entry->bMatchesPreset)
+		{
+			++DifferingCount;
+		}
+	}
+
+	UKawaiiPhysicsPresetDataAsset* PreviewPreset = Cast<UKawaiiPhysicsPresetDataAsset>(PresetPath.TryLoad());
+	const FText PresetNameText = PreviewPreset
+		                             ? FText::FromString(PreviewPreset->GetName())
+		                             : FText::FromString(PresetPath.ToString());
+
+	const EAppReturnType::Type DialogResult = FMessageDialog::Open(
+		EAppMsgType::YesNo,
+		FText::Format(
+			LOCTEXT("ApplyToProjectConfirm",
+			        "Apply preset '{0}' to the project?\n{1} node(s) currently differ from this preset."),
+			PresetNameText,
+			FText::AsNumber(DifferingCount)));
+	if (DialogResult != EAppReturnType::Yes)
+	{
+		return FReply::Handled();
+	}
+
+	UKawaiiPhysicsPresetDataAsset* Preset = Cast<UKawaiiPhysicsPresetDataAsset>(PresetPath.TryLoad());
+	if (!Preset)
+	{
+		ShowAuditNotification(
+			LOCTEXT("ApplyToProjectPresetLoadFailed", "Failed to load the preset for Apply to Project."),
+			SNotificationItem::CS_Fail);
+		return FReply::Handled();
+	}
+
+	TArray<FKawaiiPhysicsNodeAuditEntry> Report;
+	const int32 AppliedCount =
+		UKawaiiPhysicsEditorLibrary::ReapplyPresetToProject(Preset, false, bCheckOutFiles, Report);
+	ReplaceEntriesFromReport(Report);
+
+	ShowAuditNotification(
+		FText::Format(
+			LOCTEXT("ApplyToProjectSucceeded", "Applied preset to {0} node(s)."),
+			FText::AsNumber(AppliedCount)),
+		SNotificationItem::CS_Success);
+	return FReply::Handled();
+}
+
+FReply SKawaiiPhysicsNodeAuditWindow::OnExportClicked()
+{
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+	if (!DesktopPlatform)
+	{
+		return FReply::Handled();
+	}
+
+	const void* ParentWindowHandle = nullptr;
+	if (TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared()))
+	{
+		if (ParentWindow->GetNativeWindow().IsValid())
+		{
+			ParentWindowHandle = ParentWindow->GetNativeWindow()->GetOSWindowHandle();
+		}
+	}
+
+	TArray<FString> OutFilenames;
+	const bool bSaved = DesktopPlatform->SaveFileDialog(
+		ParentWindowHandle,
+		LOCTEXT("ExportDialogTitle", "Export Kawaii Physics Audit").ToString(),
+		TEXT(""),
+		TEXT("KawaiiPhysicsAudit"),
+		TEXT("JSON (*.json)|*.json|CSV (*.csv)|*.csv"),
+		EFileDialogFlags::None,
+		OutFilenames);
+	if (!bSaved || OutFilenames.IsEmpty())
+	{
+		return FReply::Handled();
+	}
+
+	const FString OutputPath = OutFilenames[0];
+	const FString Extension = FPaths::GetExtension(OutputPath).ToLower();
+	const bool bWriteOk = Extension == TEXT("csv") ? ExportEntriesToCsv(OutputPath) : ExportEntriesToJson(OutputPath);
+
+	if (!bWriteOk)
+	{
+		ShowAuditNotification(
+			LOCTEXT("ExportFailed", "Failed to export the Kawaii Physics audit results."),
+			SNotificationItem::CS_Fail);
+		return FReply::Handled();
+	}
+
+	ShowAuditExportSucceededNotification(OutputPath);
+	return FReply::Handled();
+}
+
+bool SKawaiiPhysicsNodeAuditWindow::ExportEntriesToJson(const FString& OutputPath) const
+{
+	TArray<FKawaiiPhysicsNodeAuditEntry> FlatEntries;
+	FlatEntries.Reserve(Entries.Num());
+	TSet<FSoftObjectPath> DistinctAnimBlueprints;
+	for (const FEntryPtr& Entry : Entries)
+	{
+		if (!Entry.IsValid())
+		{
+			continue;
+		}
+		FlatEntries.Add(*Entry);
+		DistinctAnimBlueprints.Add(Entry->AnimBlueprintPath);
+	}
+
+	// コマンドレットのTotalAnimBlueprintsはContent走査母数だが、このウィンドウはプロジェクト全体を走査していないため、
+	// 現在の一覧に含まれるAnimBlueprintの異なり数で代用する（スキーマのフィールド名は同一）。
+	const TSharedPtr<FJsonObject> RootObject =
+		KawaiiPhysicsAuditJson::MakeAuditJsonObject(FlatEntries, DistinctAnimBlueprints.Num());
+	if (!RootObject.IsValid())
+	{
+		return false;
+	}
+
+	FString OutputString;
+	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
+	if (!FJsonSerializer::Serialize(RootObject.ToSharedRef(), Writer))
+	{
+		return false;
+	}
+
+	return FFileHelper::SaveStringToFile(OutputString, *OutputPath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
+}
+
+bool SKawaiiPhysicsNodeAuditWindow::ExportEntriesToCsv(const FString& OutputPath) const
+{
+	TArray<FString> Lines;
+	Lines.Add(TEXT("AnimBlueprint,Graph,Tag,RootBone,Matches,DiffCount,DiffProperties"));
+
+	for (const FEntryPtr& EntryPtr : Entries)
+	{
+		if (!EntryPtr.IsValid())
+		{
+			continue;
+		}
+
+		const FKawaiiPhysicsNodeAuditEntry& Entry = *EntryPtr;
+		Lines.Add(FString::Printf(
+			TEXT("%s,%s,%s,%s,%s,%d,%s"),
+			*EscapeCsvField(Entry.AnimBlueprintPath.GetAssetName()),
+			*EscapeCsvField(Entry.GraphName.ToString()),
+			*EscapeCsvField(Entry.KawaiiPhysicsTag.ToString()),
+			*EscapeCsvField(Entry.RootBoneName.ToString()),
+			*EscapeCsvField(GetMatchesCellText(Entry).ToString()),
+			Entry.DiffProperties.Num(),
+			*EscapeCsvField(JoinDiffPropertyNames(Entry))));
+	}
+
+	const FString CsvString = FString::Join(Lines, TEXT("\r\n"));
+	return FFileHelper::SaveStringToFile(CsvString, *OutputPath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
+}
+
+#undef LOCTEXT_NAMESPACE
