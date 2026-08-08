@@ -60,18 +60,27 @@ namespace
 		EKawaiiPhysicsMcpNodePlacementDirection PreviousDirection =
 			EKawaiiPhysicsMcpNodePlacementDirection::Auto;
 		int32 PreviousWrapCount = 0;
+		int32 PreviousSpacingX = 420;
+		int32 PreviousSpacingY = 260;
 
+		// SpacingX/Yの既定値500/300は旧固定オフセット定数と一致させ、既存テストの座標期待値をそのまま成立させる
 		FScopedMcpPlacementSettings(
 			EKawaiiPhysicsMcpNodePlacementDirection Direction,
-			int32 WrapCount)
+			int32 WrapCount,
+			int32 SpacingX = 500,
+			int32 SpacingY = 300)
 			: Settings(GetMutableDefault<UKawaiiPhysicsDeveloperSettings>())
 		{
 			if (Settings)
 			{
 				PreviousDirection = Settings->McpNodePlacementDirection;
 				PreviousWrapCount = Settings->McpNodePlacementWrapCount;
+				PreviousSpacingX = Settings->McpNodePlacementSpacingX;
+				PreviousSpacingY = Settings->McpNodePlacementSpacingY;
 				Settings->McpNodePlacementDirection = Direction;
 				Settings->McpNodePlacementWrapCount = WrapCount;
+				Settings->McpNodePlacementSpacingX = SpacingX;
+				Settings->McpNodePlacementSpacingY = SpacingY;
 			}
 		}
 
@@ -81,6 +90,8 @@ namespace
 			{
 				Settings->McpNodePlacementDirection = PreviousDirection;
 				Settings->McpNodePlacementWrapCount = PreviousWrapCount;
+				Settings->McpNodePlacementSpacingX = PreviousSpacingX;
+				Settings->McpNodePlacementSpacingY = PreviousSpacingY;
 			}
 		}
 	};
@@ -261,15 +272,21 @@ namespace
 		return nullptr;
 	}
 
-	FVector2D GetExpectedAutoPlacementBasePosition(FAutomationTestBase& Test, UEdGraph* Graph)
+	FVector2D GetExpectedAutoPlacementBasePosition(
+		FAutomationTestBase& Test, UEdGraph* Graph, int32 SpacingX = 500, bool bAutoConnect = false)
 	{
 		const UAnimGraphNode_Root* RootNode = FindResultRootNode(Graph);
 		Test.TestNotNull(TEXT("Result root node is found for auto placement"), RootNode);
-		return RootNode
-			? FVector2D(
-				static_cast<double>(RootNode->NodePosX - 500),
-				static_cast<double>(RootNode->NodePosY))
-			: FVector2D::ZeroVector;
+		if (!RootNode)
+		{
+			return FVector2D::ZeroVector;
+		}
+
+		// AutoConnect時はコメント枠と変換ノードスロットが重ならないための予約幅(280)だけさらに左へずれる
+		const int32 BaseReserveX = bAutoConnect ? 280 : 0;
+		return FVector2D(
+			static_cast<double>(RootNode->NodePosX - SpacingX - BaseReserveX),
+			static_cast<double>(RootNode->NodePosY));
 	}
 
 	UEdGraphPin* FindFirstPosePin(UEdGraphNode* Node, EEdGraphPinDirection Dir)
@@ -919,13 +936,14 @@ bool FKawaiiPhysicsEditorScriptingPlacementDirectionHorizontalSettingTest::RunTe
 
 	bool bOk = true;
 	bOk &= TestEqual(TEXT("Horizontal setting placement creates three nodes"), Handles.Num(), 3);
+	// リクエスト順に左から右へ並ぶため、最後のリクエスト（末尾ノード）が基準位置になる
 	for (int32 NodeIndex = 0; NodeIndex < Handles.Num(); ++NodeIndex)
 	{
 		bOk &= TestNodePosition(
 			*this,
 			FString::Printf(TEXT("Horizontal setting node %d"), NodeIndex),
 			Handles[NodeIndex],
-			FVector2D(BasePosition.X + static_cast<double>(NodeIndex * -500), BasePosition.Y));
+			FVector2D(BasePosition.X + static_cast<double>((NodeIndex - (Handles.Num() - 1)) * 500), BasePosition.Y));
 	}
 	return bOk;
 }
@@ -945,7 +963,8 @@ bool FKawaiiPhysicsEditorScriptingPlacementDirectionVerticalWithAutoConnectTest:
 		return false;
 	}
 
-	const FVector2D BasePosition = GetExpectedAutoPlacementBasePosition(*this, Fixture.AnimGraph);
+	const FVector2D BasePosition =
+		GetExpectedAutoPlacementBasePosition(*this, Fixture.AnimGraph, 500, true);
 	TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
 	Requests.Add(MakeAutoConnectRequest(TEXT("hair_01"), GetKawaiiPhysicsEditorScriptingTagA()));
 	Requests.Add(MakeAutoConnectRequest(TEXT("tail_01"), GetKawaiiPhysicsEditorScriptingTagB()));
@@ -1002,6 +1021,151 @@ bool FKawaiiPhysicsEditorScriptingPlacementDirectionVerticalWithAutoConnectTest:
 	return bOk;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementAutoConnectConversionNodeTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.AutoConnectConversionNode",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingPlacementAutoConnectConversionNodeTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
+	if (!Fixture.AnimBlueprint || !Fixture.AnimGraph)
+	{
+		return false;
+	}
+
+	TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+	Requests.Add(MakeAutoConnectRequest(TEXT("hair_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+	Requests.Add(MakeAutoConnectRequest(TEXT("tail_01"), GetKawaiiPhysicsEditorScriptingTagB()));
+	Requests[0].PlacementDirection = EKawaiiPhysicsNodePlacementDirectionOverride::Horizontal;
+	Requests[1].PlacementDirection = EKawaiiPhysicsNodePlacementDirectionOverride::Horizontal;
+
+	TArray<FKawaiiPhysicsGraphNodeHandle> Handles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests);
+
+	bool bOk = true;
+	bOk &= TestEqual(TEXT("AutoConnectConversionNode placement creates two nodes"), Handles.Num(), 2);
+
+	UAnimGraphNode_Root* RootNode = FindResultRootNode(Fixture.AnimGraph);
+	bOk &= TestNotNull(TEXT("AutoConnectConversionNode Result root node is found"), RootNode);
+
+	UAnimGraphNode_ComponentToLocalSpace* ConversionNode = nullptr;
+	for (UEdGraphNode* Node : Fixture.AnimGraph->Nodes)
+	{
+		if ((ConversionNode = Cast<UAnimGraphNode_ComponentToLocalSpace>(Node)) != nullptr)
+		{
+			break;
+		}
+	}
+	bOk &= TestNotNull(TEXT("AutoConnectConversionNode finds a spawned ComponentToLocalSpace node"), ConversionNode);
+
+	if (ConversionNode && RootNode)
+	{
+		// 変換ノードはResultの左側にKawaiiPhysicsノード用の予約幅(220)を空けて明示配置される
+		bOk &= TestEqual(TEXT("Conversion node NodePosX reserves space left of Result"),
+		                  ConversionNode->NodePosX, RootNode->NodePosX - 220);
+		bOk &= TestEqual(TEXT("Conversion node NodePosY aligns with Result"),
+		                  ConversionNode->NodePosY, RootNode->NodePosY);
+	}
+
+	if (ConversionNode && Handles.Num() == 2 && Handles[0].IsValid() && Handles[1].IsValid())
+	{
+		const FIntRect ConversionRect(
+			ConversionNode->NodePosX,
+			ConversionNode->NodePosY,
+			ConversionNode->NodePosX + 250,
+			ConversionNode->NodePosY + 120);
+
+		for (int32 NodeIndex = 0; NodeIndex < Handles.Num(); ++NodeIndex)
+		{
+			const UAnimGraphNode_KawaiiPhysics* KawaiiNode = Handles[NodeIndex].Node.Get();
+			const FIntRect KawaiiRect(
+				KawaiiNode->NodePosX,
+				KawaiiNode->NodePosY,
+				KawaiiNode->NodePosX + 400,
+				KawaiiNode->NodePosY + 260);
+			const bool bOverlaps =
+				ConversionRect.Min.X < KawaiiRect.Max.X &&
+				ConversionRect.Max.X > KawaiiRect.Min.X &&
+				ConversionRect.Min.Y < KawaiiRect.Max.Y &&
+				ConversionRect.Max.Y > KawaiiRect.Min.Y;
+			bOk &= TestFalse(
+				*FString::Printf(TEXT("Conversion node rect does not overlap KP node %d rect"), NodeIndex),
+				bOverlaps);
+		}
+	}
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementAutoConnectCommentFrameTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.AutoConnectCommentFrame",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingPlacementAutoConnectCommentFrameTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
+	if (!Fixture.AnimBlueprint || !Fixture.AnimGraph)
+	{
+		return false;
+	}
+
+	const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
+	const FString CommentText = TEXT("Hair and tail physics with AutoConnect");
+	const FString ExpectedTitle = (Settings ? Settings->McpCommentPrefix : FString(TEXT("[MCP] "))) + CommentText;
+
+	TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+	Requests.Add(MakeAutoConnectRequest(TEXT("hair_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+	Requests.Add(MakeAutoConnectRequest(TEXT("tail_01"), GetKawaiiPhysicsEditorScriptingTagB()));
+	Requests[0].PlacementDirection = EKawaiiPhysicsNodePlacementDirectionOverride::Horizontal;
+	Requests[1].PlacementDirection = EKawaiiPhysicsNodePlacementDirectionOverride::Horizontal;
+
+	TArray<FKawaiiPhysicsGraphNodeHandle> Handles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(
+			Fixture.AnimBlueprint,
+			Requests,
+			EKawaiiPhysicsPlacementUpsertKey::TagAndRootBone,
+			NAME_None,
+			CommentText);
+
+	bool bOk = true;
+	bOk &= TestEqual(TEXT("AutoConnectCommentFrame placement creates two nodes"), Handles.Num(), 2);
+
+	UAnimGraphNode_Root* RootNode = FindResultRootNode(Fixture.AnimGraph);
+	bOk &= TestNotNull(TEXT("AutoConnectCommentFrame Result root node is found"), RootNode);
+
+	UAnimGraphNode_ComponentToLocalSpace* ConversionNode = nullptr;
+	for (UEdGraphNode* Node : Fixture.AnimGraph->Nodes)
+	{
+		if ((ConversionNode = Cast<UAnimGraphNode_ComponentToLocalSpace>(Node)) != nullptr)
+		{
+			break;
+		}
+	}
+	bOk &= TestNotNull(TEXT("AutoConnectCommentFrame finds a spawned ComponentToLocalSpace node"), ConversionNode);
+
+	UKawaiiPhysicsMcpCommentNode* McpCommentNode = FindMcpCommentNode(Fixture.AnimGraph, ExpectedTitle);
+	bOk &= TestNotNull(TEXT("AutoConnectCommentFrame finds the MCP comment node"), McpCommentNode);
+
+	if (ConversionNode && RootNode)
+	{
+		// 変換ノードスロット幅(220)自体は本修正の対象外。ここでは変化していないことを確認する
+		bOk &= TestEqual(TEXT("AutoConnectCommentFrame conversion node NodePosX reserves space left of Result"),
+		                  ConversionNode->NodePosX, RootNode->NodePosX - 220);
+		bOk &= TestEqual(TEXT("AutoConnectCommentFrame conversion node NodePosY aligns with Result"),
+		                  ConversionNode->NodePosY, RootNode->NodePosY);
+	}
+
+	if (McpCommentNode && ConversionNode)
+	{
+		const int32 CommentMaxX = McpCommentNode->NodePosX + McpCommentNode->NodeWidth;
+		// コメント枠の右端が変換ノードの左端へ食い込まないこと（AutoConnect基準余白分離の検証）
+		bOk &= TestTrue(TEXT("AutoConnectCommentFrame comment frame right edge does not overlap conversion node"),
+		                CommentMaxX <= ConversionNode->NodePosX);
+	}
+
+	return bOk;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementWrapCountTest,
                                  "KawaiiPhysics.EditorScripting.Placement.WrapCount",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -1031,12 +1195,13 @@ bool FKawaiiPhysicsEditorScriptingPlacementWrapCountTest::RunTest(const FString&
 			UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests);
 
 		bOk &= TestEqual(TEXT("Horizontal wrap placement creates four nodes"), Handles.Num(), 4);
+		// BlockCols=2でリクエスト順に左から右へ並ぶため、各段の右端（段の最終リクエスト）が基準位置になる
 		const FVector2D ExpectedPositions[] =
 		{
-			BasePosition,
 			FVector2D(BasePosition.X - 500.0, BasePosition.Y),
-			FVector2D(BasePosition.X, BasePosition.Y + 300.0),
+			BasePosition,
 			FVector2D(BasePosition.X - 500.0, BasePosition.Y + 300.0),
+			FVector2D(BasePosition.X, BasePosition.Y + 300.0),
 		};
 		const int32 ExpectedPositionCount = UE_ARRAY_COUNT(ExpectedPositions);
 		for (int32 NodeIndex = 0; NodeIndex < ExpectedPositionCount && Handles.IsValidIndex(NodeIndex); ++NodeIndex)
@@ -1070,12 +1235,13 @@ bool FKawaiiPhysicsEditorScriptingPlacementWrapCountTest::RunTest(const FString&
 			UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests);
 
 		bOk &= TestEqual(TEXT("Vertical wrap placement creates four nodes"), Handles.Num(), 4);
+		// BlockColsV=2で折り返し列がリクエスト順に左から右へ並ぶため、最後の折り返し列が基準位置になる
 		const FVector2D ExpectedPositions[] =
 		{
-			BasePosition,
-			FVector2D(BasePosition.X, BasePosition.Y + 300.0),
 			FVector2D(BasePosition.X - 500.0, BasePosition.Y),
 			FVector2D(BasePosition.X - 500.0, BasePosition.Y + 300.0),
+			BasePosition,
+			FVector2D(BasePosition.X, BasePosition.Y + 300.0),
 		};
 		const int32 ExpectedPositionCount = UE_ARRAY_COUNT(ExpectedPositions);
 		for (int32 NodeIndex = 0; NodeIndex < ExpectedPositionCount && Handles.IsValidIndex(NodeIndex); ++NodeIndex)
@@ -1085,6 +1251,179 @@ bool FKawaiiPhysicsEditorScriptingPlacementWrapCountTest::RunTest(const FString&
 				FString::Printf(TEXT("Vertical wrap node %d"), NodeIndex),
 				Handles[NodeIndex],
 				ExpectedPositions[NodeIndex]);
+		}
+	}
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementSpacingSettingTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.SpacingSetting",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingPlacementSpacingSettingTest::RunTest(const FString& Parameters)
+{
+	bool bOk = true;
+
+	{
+		FScopedMcpPlacementSettings PlacementSettings(
+			EKawaiiPhysicsMcpNodePlacementDirection::Horizontal,
+			0,
+			450,
+			270);
+		FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
+		if (!Fixture.AnimBlueprint || !Fixture.AnimGraph)
+		{
+			return false;
+		}
+
+		const FVector2D BasePosition = GetExpectedAutoPlacementBasePosition(*this, Fixture.AnimGraph, 450);
+		TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+		Requests.Add(MakePlacementRequest(TEXT("hair_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+		Requests.Add(MakePlacementRequest(TEXT("tail_01"), GetKawaiiPhysicsEditorScriptingTagB()));
+		Requests.Add(MakePlacementRequest(TEXT("bang_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+
+		TArray<FKawaiiPhysicsGraphNodeHandle> Handles =
+			UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests);
+
+		bOk &= TestEqual(TEXT("Horizontal custom spacing placement creates three nodes"), Handles.Num(), 3);
+		// リクエスト順に左から右へ並ぶため、最後のリクエストが基準位置になる
+		const FVector2D ExpectedPositions[] =
+		{
+			FVector2D(BasePosition.X - 900.0, BasePosition.Y),
+			FVector2D(BasePosition.X - 450.0, BasePosition.Y),
+			BasePosition,
+		};
+		const int32 ExpectedPositionCount = UE_ARRAY_COUNT(ExpectedPositions);
+		for (int32 NodeIndex = 0; NodeIndex < ExpectedPositionCount && Handles.IsValidIndex(NodeIndex); ++NodeIndex)
+		{
+			bOk &= TestNodePosition(
+				*this,
+				FString::Printf(TEXT("Horizontal custom spacing node %d"), NodeIndex),
+				Handles[NodeIndex],
+				ExpectedPositions[NodeIndex]);
+		}
+	}
+
+	{
+		FScopedMcpPlacementSettings PlacementSettings(
+			EKawaiiPhysicsMcpNodePlacementDirection::Vertical,
+			0,
+			450,
+			270);
+		FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
+		if (!Fixture.AnimBlueprint || !Fixture.AnimGraph)
+		{
+			return false;
+		}
+
+		const FVector2D BasePosition = GetExpectedAutoPlacementBasePosition(*this, Fixture.AnimGraph, 450);
+		TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+		Requests.Add(MakePlacementRequest(TEXT("hair_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+		Requests.Add(MakePlacementRequest(TEXT("tail_01"), GetKawaiiPhysicsEditorScriptingTagB()));
+		Requests.Add(MakePlacementRequest(TEXT("bang_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+
+		TArray<FKawaiiPhysicsGraphNodeHandle> Handles =
+			UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests);
+
+		bOk &= TestEqual(TEXT("Vertical custom spacing placement creates three nodes"), Handles.Num(), 3);
+		const FVector2D ExpectedPositions[] =
+		{
+			BasePosition,
+			FVector2D(BasePosition.X, BasePosition.Y + 270.0),
+			FVector2D(BasePosition.X, BasePosition.Y + 540.0),
+		};
+		const int32 ExpectedPositionCount = UE_ARRAY_COUNT(ExpectedPositions);
+		for (int32 NodeIndex = 0; NodeIndex < ExpectedPositionCount && Handles.IsValidIndex(NodeIndex); ++NodeIndex)
+		{
+			bOk &= TestNodePosition(
+				*this,
+				FString::Printf(TEXT("Vertical custom spacing node %d"), NodeIndex),
+				Handles[NodeIndex],
+				ExpectedPositions[NodeIndex]);
+		}
+	}
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementSpacingClampTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.SpacingClamp",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingPlacementSpacingClampTest::RunTest(const FString& Parameters)
+{
+	bool bOk = true;
+
+	// GetMutableDefaultへの直接代入はUPROPERTYのClampMin metaを通らないため、下限未満の値がそのまま入る
+	{
+		FScopedMcpPlacementSettings PlacementSettings(
+			EKawaiiPhysicsMcpNodePlacementDirection::Horizontal,
+			0,
+			100,
+			100);
+		FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
+		if (!Fixture.AnimBlueprint || !Fixture.AnimGraph)
+		{
+			return false;
+		}
+
+		const FVector2D BasePosition = GetExpectedAutoPlacementBasePosition(*this, Fixture.AnimGraph, 400);
+		TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+		Requests.Add(MakePlacementRequest(TEXT("hair_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+		Requests.Add(MakePlacementRequest(TEXT("tail_01"), GetKawaiiPhysicsEditorScriptingTagB()));
+
+		TArray<FKawaiiPhysicsGraphNodeHandle> Handles =
+			UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests);
+
+		bOk &= TestEqual(TEXT("Horizontal clamped spacing placement creates two nodes"), Handles.Num(), 2);
+		// リクエスト順に左から右へ並ぶため、最後のリクエストが基準位置になる
+		if (Handles.IsValidIndex(0))
+		{
+			bOk &= TestNodePosition(
+				*this,
+				TEXT("Horizontal clamped spacing first node"),
+				Handles[0],
+				FVector2D(BasePosition.X - 400.0, BasePosition.Y));
+		}
+		if (Handles.IsValidIndex(1))
+		{
+			bOk &= TestNodePosition(*this, TEXT("Horizontal clamped spacing second node"), Handles[1], BasePosition);
+		}
+	}
+
+	{
+		FScopedMcpPlacementSettings PlacementSettings(
+			EKawaiiPhysicsMcpNodePlacementDirection::Vertical,
+			0,
+			100,
+			100);
+		FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
+		if (!Fixture.AnimBlueprint || !Fixture.AnimGraph)
+		{
+			return false;
+		}
+
+		const FVector2D BasePosition = GetExpectedAutoPlacementBasePosition(*this, Fixture.AnimGraph, 400);
+		TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+		Requests.Add(MakePlacementRequest(TEXT("hair_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+		Requests.Add(MakePlacementRequest(TEXT("tail_01"), GetKawaiiPhysicsEditorScriptingTagB()));
+
+		TArray<FKawaiiPhysicsGraphNodeHandle> Handles =
+			UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests);
+
+		bOk &= TestEqual(TEXT("Vertical clamped spacing placement creates two nodes"), Handles.Num(), 2);
+		if (Handles.IsValidIndex(0))
+		{
+			bOk &= TestNodePosition(*this, TEXT("Vertical clamped spacing first node"), Handles[0], BasePosition);
+		}
+		if (Handles.IsValidIndex(1))
+		{
+			bOk &= TestNodePosition(
+				*this,
+				TEXT("Vertical clamped spacing second node"),
+				Handles[1],
+				FVector2D(BasePosition.X, BasePosition.Y + 260.0));
 		}
 	}
 
@@ -1120,17 +1459,18 @@ bool FKawaiiPhysicsEditorScriptingPlacementDirectionRequestOverrideTest::RunTest
 			UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests);
 
 		bOk &= TestEqual(TEXT("Horizontal override placement creates two nodes"), Handles.Num(), 2);
+		// リクエスト順に左から右へ並ぶため、最後のリクエストが基準位置になる
 		if (Handles.IsValidIndex(0))
-		{
-			bOk &= TestNodePosition(*this, TEXT("Horizontal override first node"), Handles[0], BasePosition);
-		}
-		if (Handles.IsValidIndex(1))
 		{
 			bOk &= TestNodePosition(
 				*this,
-				TEXT("Horizontal override second node"),
-				Handles[1],
+				TEXT("Horizontal override first node"),
+				Handles[0],
 				FVector2D(BasePosition.X - 500.0, BasePosition.Y));
+		}
+		if (Handles.IsValidIndex(1))
+		{
+			bOk &= TestNodePosition(*this, TEXT("Horizontal override second node"), Handles[1], BasePosition);
 		}
 	}
 
@@ -1168,6 +1508,82 @@ bool FKawaiiPhysicsEditorScriptingPlacementDirectionRequestOverrideTest::RunTest
 				FVector2D(BasePosition.X, BasePosition.Y + 300.0));
 		}
 	}
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementHorizontalRequestOrderTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.HorizontalRequestOrder",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingPlacementHorizontalRequestOrderTest::RunTest(const FString& Parameters)
+{
+	FScopedMcpPlacementSettings PlacementSettings(
+		EKawaiiPhysicsMcpNodePlacementDirection::Horizontal,
+		0);
+	FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
+	if (!Fixture.AnimBlueprint || !Fixture.AnimGraph)
+	{
+		return false;
+	}
+
+	// AutoConnectのチェーンはリクエスト順=上流→下流のため、横配置もリクエスト順に左から右へ
+	// 並ぶことを確認する（最後のリクエストがResult直前=基準位置）
+	TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+	Requests.Add(MakeAutoConnectRequest(TEXT("hair_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+	Requests.Add(MakeAutoConnectRequest(TEXT("tail_01"), GetKawaiiPhysicsEditorScriptingTagB()));
+	Requests.Add(MakeAutoConnectRequest(TEXT("bang_01"), GetKawaiiPhysicsEditorScriptingTagA()));
+
+	TArray<FKawaiiPhysicsGraphNodeHandle> Handles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests);
+
+	bool bOk = true;
+	bOk &= TestEqual(TEXT("HorizontalRequestOrder placement creates three nodes"), Handles.Num(), 3);
+	if (Handles.Num() != 3 || !Handles[0].IsValid() || !Handles[1].IsValid() || !Handles[2].IsValid())
+	{
+		return bOk;
+	}
+
+	const FVector2D BasePosition =
+		GetExpectedAutoPlacementBasePosition(*this, Fixture.AnimGraph, 500, true);
+	UAnimGraphNode_KawaiiPhysics* FirstNode = Handles[0].Node.Get();
+	UAnimGraphNode_KawaiiPhysics* SecondNode = Handles[1].Node.Get();
+	UAnimGraphNode_KawaiiPhysics* ThirdNode = Handles[2].Node.Get();
+
+	bOk &= TestEqual(TEXT("HorizontalRequestOrder last node X is the base position"),
+	                  ThirdNode->NodePosX, static_cast<int32>(BasePosition.X));
+	bOk &= TestTrue(TEXT("HorizontalRequestOrder nodes are ordered left to right by request order"),
+	                FirstNode->NodePosX < SecondNode->NodePosX &&
+	                SecondNode->NodePosX < ThirdNode->NodePosX);
+
+	UEdGraphPin* FirstPosePin = GetKawaiiPosePin(FirstNode);
+	UEdGraphPin* SecondComponentPosePin = GetKawaiiComponentPosePin(SecondNode);
+	UEdGraphPin* SecondPosePin = GetKawaiiPosePin(SecondNode);
+	UEdGraphPin* ThirdComponentPosePin = GetKawaiiComponentPosePin(ThirdNode);
+	UEdGraphPin* ThirdPosePin = GetKawaiiPosePin(ThirdNode);
+	UEdGraphPin* ResultPin = GetResultPin(Fixture.AnimGraph);
+	UAnimGraphNode_ComponentToLocalSpace* ComponentToLocalSpaceNode =
+		ResultPin && ResultPin->LinkedTo.Num() == 1
+			? Cast<UAnimGraphNode_ComponentToLocalSpace>(ResultPin->LinkedTo[0]->GetOwningNode())
+			: nullptr;
+	UEdGraphPin* ComponentToLocalSpaceInputPin =
+		FindFirstPosePin(ComponentToLocalSpaceNode, EGPD_Input);
+
+	bOk &= TestTrue(TEXT("HorizontalRequestOrder keeps first Pose connected to second ComponentPose"),
+	                FirstPosePin &&
+	                SecondComponentPosePin &&
+	                FirstPosePin->LinkedTo.Num() == 1 &&
+	                FirstPosePin->LinkedTo[0] == SecondComponentPosePin);
+	bOk &= TestTrue(TEXT("HorizontalRequestOrder keeps second Pose connected to third ComponentPose"),
+	                SecondPosePin &&
+	                ThirdComponentPosePin &&
+	                SecondPosePin->LinkedTo.Num() == 1 &&
+	                SecondPosePin->LinkedTo[0] == ThirdComponentPosePin);
+	bOk &= TestTrue(TEXT("HorizontalRequestOrder keeps third Pose connected toward Result"),
+	                ThirdPosePin &&
+	                ComponentToLocalSpaceInputPin &&
+	                ThirdPosePin->LinkedTo.Num() == 1 &&
+	                ThirdPosePin->LinkedTo[0] == ComponentToLocalSpaceInputPin);
 
 	return bOk;
 }
