@@ -2019,7 +2019,10 @@ int32 UKawaiiPhysicsEditorLibrary::ReapplyPresetToProject(
 
 	int32 AppliedNodeCount = 0;
 	int32 MatchedNodeCount = 0;
+	int32 SkippedNodeCount = 0;
 	int32 ProcessedAssetCount = 0;
+	// GC対策: 適用済みのAnimBlueprintを関数終了まで保持する
+	TArray<TStrongObjectPtr<UAnimBlueprint>> ModifiedAnimBlueprints;
 	for (const FAssetData& AssetData : AnimBlueprintAssets)
 	{
 		UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(AssetData.GetAsset());
@@ -2029,6 +2032,7 @@ int32 UKawaiiPhysicsEditorLibrary::ReapplyPresetToProject(
 		}
 
 		bool bPackageCheckedOut = false;
+		bool bPackageCheckoutAttempted = false;
 		TArray<FKawaiiPhysicsGraphNodeHandle> Handles = CollectKawaiiPhysicsGraphNodes(
 			AnimBlueprint, Preset->TargetTags, Preset->bTargetTagsExactMatch);
 		for (const FKawaiiPhysicsGraphNodeHandle& Handle : Handles)
@@ -2046,18 +2050,35 @@ int32 UKawaiiPhysicsEditorLibrary::ReapplyPresetToProject(
 				continue;
 			}
 
-			if (!bPackageCheckedOut)
+			if (!bPackageCheckoutAttempted)
 			{
-				bPackageCheckedOut = CheckOutPackageIfNeeded(AnimBlueprint->GetOutermost(), bCheckOutFiles);
+				bPackageCheckoutAttempted = true;
+				UPackage* Package = AnimBlueprint->GetOutermost();
+				bPackageCheckedOut = CheckOutPackageIfNeeded(Package, bCheckOutFiles);
+				if (!bPackageCheckedOut)
+				{
+					UE_LOG(LogKawaiiPhysics, Warning,
+					       TEXT("ReapplyPresetToProject: Failed to check out package '%s'. Skipping matched nodes in this asset."),
+					       Package ? *Package->GetName() : TEXT("<None>"));
+				}
 			}
 			if (!bPackageCheckedOut)
 			{
+				++SkippedNodeCount;
 				continue;
 			}
 
 			if (ApplyPresetToGraphNode(Handle, Preset, Options))
 			{
 				++AppliedNodeCount;
+				if (!ModifiedAnimBlueprints.ContainsByPredicate(
+					[AnimBlueprint](const TStrongObjectPtr<UAnimBlueprint>& ModifiedAnimBlueprint)
+					{
+						return ModifiedAnimBlueprint.Get() == AnimBlueprint;
+					}))
+				{
+					ModifiedAnimBlueprints.Emplace(AnimBlueprint);
+				}
 			}
 		}
 
@@ -2069,10 +2090,11 @@ int32 UKawaiiPhysicsEditorLibrary::ReapplyPresetToProject(
 	}
 
 	UE_LOG(LogKawaiiPhysics, Display,
-	       TEXT("ReapplyPresetToProject: Preset=%s MatchedNodes=%d AppliedNodes=%d"),
+	       TEXT("ReapplyPresetToProject: Preset=%s MatchedNodes=%d AppliedNodes=%d SkippedNodes=%d"),
 	       *Preset->GetPathName(),
 	       MatchedNodeCount,
-	       AppliedNodeCount);
+	       AppliedNodeCount,
+	       SkippedNodeCount);
 	return AppliedNodeCount;
 }
 
