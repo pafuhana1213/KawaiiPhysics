@@ -14,6 +14,7 @@
 #include "KawaiiPhysicsLibrary.h"
 #include "Animation/AnimBlueprint.h"
 #include "Animation/Skeleton.h"
+#include "AssetRegistry/AssetIdentifier.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "BlueprintGameplayTagLibrary.h"
@@ -22,6 +23,7 @@
 #include "EdGraph/EdGraphPin.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GameplayTagsManager.h"
+#include "GameplayTagsSettings.h"
 #include "Internationalization/Regex.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "KawaiiPhysicsDeveloperSettings.h"
@@ -189,9 +191,76 @@ namespace
 		}
 	}
 
-	void GetAllAnimBlueprintAssets(TArray<FAssetData>& OutAssets)
+	struct FKawaiiTagNameFilter
 	{
-		UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssets(TArray<FString>(), OutAssets);
+		TSet<FName> ExactNames;
+		TArray<FString> ChildPrefixes;
+
+		bool Matches(const FName TagName) const
+		{
+			if (ExactNames.Contains(TagName))
+			{
+				return true;
+			}
+
+			if (ChildPrefixes.IsEmpty())
+			{
+				return false;
+			}
+
+			const FString TagString = TagName.ToString();
+			for (const FString& ChildPrefix : ChildPrefixes)
+			{
+				if (TagString.StartsWith(ChildPrefix, ESearchCase::IgnoreCase))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+	};
+
+	FKawaiiTagNameFilter MakeTagNameFilter(const FGameplayTagContainer& FilterTags, const bool bFilterExactMatch)
+	{
+		FKawaiiTagNameFilter Result;
+		for (const FGameplayTag& FilterTag : FilterTags)
+		{
+			const FName TagName = FilterTag.GetTagName();
+			if (TagName.IsNone())
+			{
+				continue;
+			}
+
+			Result.ExactNames.Add(TagName);
+			if (!bFilterExactMatch)
+			{
+				Result.ChildPrefixes.Add(TagName.ToString() + TEXT("."));
+			}
+		}
+
+		const UGameplayTagsSettings* GameplayTagsSettings = GetDefault<UGameplayTagsSettings>();
+		if (GameplayTagsSettings)
+		{
+			for (const FGameplayTagRedirect& Redirect : GameplayTagsSettings->GameplayTagRedirects)
+			{
+				// 旧名のまま保存されたアセットを拾うため、対象タグへ直接リダイレクトされる旧名のみ追加する。
+				// 多段リダイレクトは設定全体の解決が必要になるため、この軽量フィルタでは扱わない。
+				if (!Redirect.OldTagName.IsNone() && !Redirect.NewTagName.IsNone() &&
+					Result.Matches(Redirect.NewTagName))
+				{
+					Result.ExactNames.Add(Redirect.OldTagName);
+				}
+			}
+		}
+
+		return Result;
+	}
+
+	bool IsDirtyPackageCandidate(const FAssetData& AssetData)
+	{
+		const FString PackageNameString = AssetData.PackageName.ToString();
+		UPackage* Package = FindPackage(nullptr, *PackageNameString);
+		return Package && Package->IsDirty();
 	}
 
 	bool CheckOutPackageIfNeeded(UPackage* Package, bool bCheckOutFiles)
@@ -1371,6 +1440,56 @@ void UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssets(const TArray<FString>& 
 	AssetRegistry.GetAssets(Filter, OutAssets);
 }
 
+void UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssetsReferencingTags(
+	const FGameplayTagContainer& FilterTags,
+	bool bFilterExactMatch,
+	const TArray<FString>& ContentPaths,
+	TArray<FAssetData>& OutAssets)
+{
+	OutAssets.Reset();
+
+	TArray<FAssetData> CandidateAssets;
+	GetAnimBlueprintAssets(ContentPaths, CandidateAssets);
+	if (FilterTags.IsEmpty())
+	{
+		OutAssets = MoveTemp(CandidateAssets);
+		return;
+	}
+
+	FAssetRegistryModule& AssetRegistryModule =
+		FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+	const FKawaiiTagNameFilter TagNameFilter = MakeTagNameFilter(FilterTags, bFilterExactMatch);
+	const FName GameplayTagPackageName = FGameplayTag::StaticStruct()->GetOutermost()->GetFName();
+	const FName GameplayTagStructName = FGameplayTag::StaticStruct()->GetFName();
+
+	OutAssets.Reserve(CandidateAssets.Num());
+	for (const FAssetData& AssetData : CandidateAssets)
+	{
+		if (IsDirtyPackageCandidate(AssetData))
+		{
+			OutAssets.Add(AssetData);
+			continue;
+		}
+
+		TArray<FAssetIdentifier> Dependencies;
+		AssetRegistry.GetDependencies(
+			FAssetIdentifier(AssetData.PackageName),
+			Dependencies,
+			UE::AssetRegistry::EDependencyCategory::SearchableName);
+		for (const FAssetIdentifier& Dependency : Dependencies)
+		{
+			if (Dependency.PackageName == GameplayTagPackageName &&
+				Dependency.ObjectName == GameplayTagStructName &&
+				TagNameFilter.Matches(Dependency.ValueName))
+			{
+				OutAssets.Add(AssetData);
+				break;
+			}
+		}
+	}
+}
+
 void UKawaiiPhysicsEditorLibrary::GetAllPresetAssets(TArray<TStrongObjectPtr<UKawaiiPhysicsPresetDataAsset>>& OutPresets)
 {
 	OutPresets.Reset();
@@ -2130,7 +2249,11 @@ int32 UKawaiiPhysicsEditorLibrary::ReapplyPresetToProject(
 	const FKawaiiPhysicsPresetApplyOptions Options;
 
 	TArray<FAssetData> AnimBlueprintAssets;
-	GetAllAnimBlueprintAssets(AnimBlueprintAssets);
+	GetAnimBlueprintAssetsReferencingTags(
+		Preset->TargetTags,
+		Preset->bTargetTagsExactMatch,
+		TArray<FString>(),
+		AnimBlueprintAssets);
 
 	// アセット数が多いとロード＋適用に時間がかかるため、進捗ダイアログを表示する（キャンセル非対応）。
 	FScopedSlowTask SlowTask(static_cast<float>(AnimBlueprintAssets.Num()),
@@ -2237,7 +2360,7 @@ bool UKawaiiPhysicsEditorLibrary::AuditKawaiiPhysicsNodes(
 	OutEntries.Reset();
 
 	TArray<FAssetData> AnimBlueprintAssets;
-	GetAnimBlueprintAssets(ContentPaths, AnimBlueprintAssets);
+	GetAnimBlueprintAssetsReferencingTags(FilterTags, bFilterExactMatch, ContentPaths, AnimBlueprintAssets);
 
 	TArray<TStrongObjectPtr<UKawaiiPhysicsPresetDataAsset>> Presets;
 	UKawaiiPhysicsEditorLibrary::GetAllPresetAssets(Presets);

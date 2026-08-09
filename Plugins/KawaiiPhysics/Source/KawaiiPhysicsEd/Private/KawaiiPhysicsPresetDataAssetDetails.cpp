@@ -66,7 +66,14 @@ namespace
 		}
 
 		TArray<FAssetData> AnimBlueprintAssets;
-		UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssets(TArray<FString>(), AnimBlueprintAssets);
+		UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssetsReferencingTags(
+			Preset->TargetTags,
+			Preset->bTargetTagsExactMatch,
+			TArray<FString>(),
+			AnimBlueprintAssets);
+		UE_LOG(LogKawaiiPhysics, Display,
+		       TEXT("FindTargetNodes: SearchableName prefilter kept %d AnimBlueprint asset(s)."),
+		       AnimBlueprintAssets.Num());
 
 		// アセット数が多いとロード＋走査に時間がかかるため、進捗ダイアログを表示する（キャンセル非対応）。
 		FScopedSlowTask SlowTask(static_cast<float>(AnimBlueprintAssets.Num()),
