@@ -143,7 +143,7 @@ namespace
 
 		FKawaiiPhysicsNodeAuditWindowArgs WindowArgs;
 		WindowArgs.WindowTitle = FText::Format(
-			LOCTEXT("FindTargetNodesWindowTitle", "Show Target Nodes: {0}"),
+			LOCTEXT("FindTargetNodesWindowTitle", "Find Target Nodes: {0}"),
 			FText::FromString(Preset->GetName()));
 		WindowArgs.SummaryText = FText::Format(
 			LOCTEXT("FindTargetNodesResult", "{0} nodes in {1} AnimBlueprints match TargetTags."),
@@ -207,6 +207,9 @@ void FKawaiiPhysicsPresetDataAssetDetails::CustomizeDetails(IDetailLayoutBuilder
 	DetailBuilder.HideCategory(TEXT("Links"));
 	DetailBuilder.HideCategory(TEXT("Alpha"));
 	DetailBuilder.HideCategory(TEXT("Performance"));
+
+	// カテゴリの作成順が表示順になるため、DescriptionをDetails上部（Targetより前）に移動する。
+	DetailBuilder.EditCategory(TEXT("Description"));
 
 	TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized;
 	DetailBuilder.GetObjectsBeingCustomized(ObjectsBeingCustomized);
