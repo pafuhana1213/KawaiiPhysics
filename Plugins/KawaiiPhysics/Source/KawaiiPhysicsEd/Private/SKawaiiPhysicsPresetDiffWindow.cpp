@@ -17,6 +17,7 @@
 #include "Styling/AppStyle.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "UObject/UnrealType.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboBox.h"
@@ -24,6 +25,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SSeparator.h"
+#include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SHeaderRow.h"
@@ -389,6 +391,36 @@ void SKawaiiPhysicsPresetDiffWindow::Construct(const FArguments& InArgs, FKawaii
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.VAlign(VAlign_Center)
+			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(SButton)
+				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+				.ToolTipText(LOCTEXT("OpenPresetButtonToolTip", "選択中のプリセットアセットを開きます / Opens the selected preset asset."))
+				.OnClicked(this, &SKawaiiPhysicsPresetDiffWindow::OnOpenPresetClicked)
+				[
+					SNew(SImage)
+					.Image(FAppStyle::GetBrush("Icons.BrowseContent"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(2.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(SButton)
+				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+				.ToolTipText(LOCTEXT("RefreshButtonToolTip", "ノードを再解決して差分を再計算します / Re-resolves the node and rebuilds the diffs."))
+				.OnClicked(this, &SKawaiiPhysicsPresetDiffWindow::OnRefreshClicked)
+				[
+					SNew(SImage)
+					.Image(FAppStyle::GetBrush("Icons.Refresh"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
 			.Padding(12.0f, 0.0f)
 			[
 				SNew(STextBlock)
@@ -415,9 +447,29 @@ void SKawaiiPhysicsPresetDiffWindow::Construct(const FArguments& InArgs, FKawaii
 		.AutoHeight()
 		.Padding(8.0f, 4.0f)
 		[
-			SNew(SSearchBox)
-			.OnTextChanged(this, &SKawaiiPhysicsPresetDiffWindow::OnSearchTextChanged)
-			.ToolTipText(LOCTEXT("SearchToolTip", "カテゴリ、表示名、内部プロパティ名で絞り込みます / Filters by category, display name, or internal property name."))
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			[
+				SNew(SSearchBox)
+				.OnTextChanged(this, &SKawaiiPhysicsPresetDiffWindow::OnSearchTextChanged)
+				.ToolTipText(LOCTEXT("SearchToolTip", "カテゴリ、表示名、内部プロパティ名で絞り込みます / Filters by category, display name, or internal property name."))
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(SButton)
+				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+				.ToolTipText(LOCTEXT("CopyButtonToolTip", "差分をタブ区切りテキストとしてクリップボードへコピーします / Copies the diff as tab-separated text to the clipboard."))
+				.OnClicked(this, &SKawaiiPhysicsPresetDiffWindow::OnCopyClicked)
+				[
+					SNew(SImage)
+					.Image(FAppStyle::GetBrush("Icons.Clipboard"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			]
 		]
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
@@ -464,67 +516,38 @@ void SKawaiiPhysicsPresetDiffWindow::Construct(const FArguments& InArgs, FKawaii
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("OpenPresetButton", "Open Preset"))
-				.ToolTipText(LOCTEXT("OpenPresetButtonToolTip", "選択中のプリセットアセットを開きます / Opens the selected preset asset."))
-				.OnClicked(this, &SKawaiiPhysicsPresetDiffWindow::OnOpenPresetClicked)
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("CopyButton", "Copy to Clipboard"))
-				.ToolTipText(LOCTEXT("CopyButtonToolTip", "差分をタブ区切りテキストとしてクリップボードへコピーします / Copies the diff as tab-separated text to the clipboard."))
-				.OnClicked(this, &SKawaiiPhysicsPresetDiffWindow::OnCopyClicked)
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("RefreshButton", "Refresh"))
-				.ToolTipText(LOCTEXT("RefreshButtonToolTip", "ノードを再解決して差分を再計算します / Re-resolves the node and rebuilds the diffs."))
-				.OnClicked(this, &SKawaiiPhysicsPresetDiffWindow::OnRefreshClicked)
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("ApplySelectedButton", "Apply Selected"))
-				.ToolTipText(LOCTEXT("ApplySelectedButtonToolTip", "チェックしたプロパティだけをプリセットからノードへ適用します / Applies only checked properties from the preset to the node."))
-				.IsEnabled(this, &SKawaiiPhysicsPresetDiffWindow::CanApplySelected)
-				.OnClicked(this, &SKawaiiPhysicsPresetDiffWindow::OnApplySelectedClicked)
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("ApplyPresetToNodeButton", "Apply Preset to Node"))
-				.ToolTipText(LOCTEXT("ApplyPresetToNodeButtonToolTip", "選択中のプリセット全体をノードへ適用します / Applies the whole selected preset to the node."))
-				.OnClicked(this, &SKawaiiPhysicsPresetDiffWindow::OnApplyPresetToNodeClicked)
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("UpdatePresetFromNodeButton", "Update Preset from Node"))
-				.ToolTipText(LOCTEXT("UpdatePresetFromNodeButtonToolTip", "チェックした差分、または未チェック時は全差分をノードからプリセットへ反映します / Updates checked diffs, or all diffs when none are checked, from the node to the preset."))
-				.OnClicked(this, &SKawaiiPhysicsPresetDiffWindow::OnUpdatePresetFromNodeClicked)
-			]
-			+ SHorizontalBox::Slot()
 			.FillWidth(1.0f)
 			[
-				SNullWidget::NullWidget
+				SNew(SWrapBox)
+				.UseAllottedSize(true)
+				.InnerSlotPadding(FVector2D(4.0f, 4.0f))
+				+ SWrapBox::Slot()
+				[
+					SNew(SButton)
+					.Text(LOCTEXT("ApplySelectedButton", "Apply Selected"))
+					.ToolTipText(LOCTEXT("ApplySelectedButtonToolTip", "チェックしたプロパティだけをプリセットからノードへ適用します / Applies only checked properties from the preset to the node."))
+					.IsEnabled(this, &SKawaiiPhysicsPresetDiffWindow::CanApplySelected)
+					.OnClicked(this, &SKawaiiPhysicsPresetDiffWindow::OnApplySelectedClicked)
+				]
+				+ SWrapBox::Slot()
+				[
+					SNew(SButton)
+					.Text(LOCTEXT("ApplyPresetToNodeButton", "Apply Preset to Node"))
+					.ToolTipText(LOCTEXT("ApplyPresetToNodeButtonToolTip", "選択中のプリセット全体をノードへ適用します / Applies the whole selected preset to the node."))
+					.OnClicked(this, &SKawaiiPhysicsPresetDiffWindow::OnApplyPresetToNodeClicked)
+				]
+				+ SWrapBox::Slot()
+				[
+					SNew(SButton)
+					.Text(LOCTEXT("UpdatePresetFromNodeButton", "Update Preset from Node"))
+					.ToolTipText(LOCTEXT("UpdatePresetFromNodeButtonToolTip", "チェックした差分、または未チェック時は全差分をノードからプリセットへ反映します / Updates checked diffs, or all diffs when none are checked, from the node to the preset."))
+					.OnClicked(this, &SKawaiiPhysicsPresetDiffWindow::OnUpdatePresetFromNodeClicked)
+				]
 			]
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
+			.VAlign(VAlign_Top)
+			.Padding(8.0f, 2.0f, 0.0f, 0.0f)
 			[
 				SNew(SButton)
 				.Text(LOCTEXT("CloseButton", "Close"))
@@ -555,6 +578,8 @@ void SKawaiiPhysicsPresetDiffWindow::OpenWindow(FKawaiiPhysicsPresetDiffWindowAr
 	TSharedRef<SWindow> Window = SNew(SWindow)
 		.Title(LOCTEXT("WindowTitle", "Kawaii Physics Preset Diff"))
 		.ClientSize(FVector2D(900.0f, 520.0f))
+		.MinWidth(560.0f)
+		.MinHeight(320.0f)
 		.AutoCenter(EAutoCenter::PreferredWorkArea)
 		[
 			DiffWidget
