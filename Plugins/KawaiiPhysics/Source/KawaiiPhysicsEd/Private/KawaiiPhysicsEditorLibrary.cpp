@@ -1562,6 +1562,22 @@ TArray<FSoftObjectPath> UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssets(con
 	return AssetPaths;
 }
 
+TArray<FSoftObjectPath> UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssetsReferencingTags(
+	const FGameplayTagContainer& FilterTags, bool bFilterExactMatch, const TArray<FString>& ContentPaths)
+{
+	TArray<FAssetData> AssetDataList;
+	GetAnimBlueprintAssetsReferencingTags(FilterTags, bFilterExactMatch, ContentPaths, AssetDataList);
+
+	// アセット情報をスクリプトから扱いやすいソフトオブジェクトパスへ変換する。
+	TArray<FSoftObjectPath> AssetPaths;
+	AssetPaths.Reserve(AssetDataList.Num());
+	for (const FAssetData& AssetData : AssetDataList)
+	{
+		AssetPaths.Add(AssetData.GetSoftObjectPath());
+	}
+	return AssetPaths;
+}
+
 TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::CollectKawaiiPhysicsGraphNodes(
 	UAnimBlueprint* AnimBlueprint,
 	const FGameplayTagContainer& FilterTags,

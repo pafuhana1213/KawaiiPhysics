@@ -322,6 +322,16 @@ public:
 	static TArray<FSoftObjectPath> FindAnimBlueprintAssets(const TArray<FString>& ContentPaths);
 
 	/**
+	 * GameplayTag の SearchableName 依存関係でロードなしに絞り込んだ AnimBlueprint アセットパスを返す（非 Exact は子タグ含む。FilterTags が空なら全件）。
+	 * Return AnimBlueprint asset paths pre-filtered without loading by GameplayTag SearchableName dependencies (non-exact includes child tags; empty FilterTags returns all).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor",
+		meta = (AutoCreateRefTerm = "FilterTags,ContentPaths"))
+	static TArray<FSoftObjectPath> FindAnimBlueprintAssetsReferencingTags(
+		const FGameplayTagContainer& FilterTags, bool bFilterExactMatch,
+		const TArray<FString>& ContentPaths);
+
+	/**
 	 * AnimGraph に KawaiiPhysics ノードを追加またはUpsertする。bAutoConnect 指定時は Result ノード直前へ直列に接続する。Comment 指定時は MCP コメント枠を追加する。
 	 * Add or upsert KawaiiPhysics nodes into an AnimGraph. When bAutoConnect is set, nodes are connected in series just before the Result node. A non-empty Comment adds an MCP comment frame.
 	 */
