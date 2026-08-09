@@ -241,14 +241,36 @@ namespace
 		const UGameplayTagsSettings* GameplayTagsSettings = GetDefault<UGameplayTagsSettings>();
 		if (GameplayTagsSettings)
 		{
-			for (const FGameplayTagRedirect& Redirect : GameplayTagsSettings->GameplayTagRedirects)
+			const TArray<FGameplayTagRedirect>& GameplayTagRedirects = GameplayTagsSettings->GameplayTagRedirects;
+			const int32 MaxIterations = GameplayTagRedirects.Num() + 1;
+			for (int32 Iteration = 0; Iteration < MaxIterations; ++Iteration)
 			{
-				// 旧名のまま保存されたアセットを拾うため、対象タグへ直接リダイレクトされる旧名のみ追加する。
-				// 多段リダイレクトは設定全体の解決が必要になるため、この軽量フィルタでは扱わない。
-				if (!Redirect.OldTagName.IsNone() && !Redirect.NewTagName.IsNone() &&
-					Result.Matches(Redirect.NewTagName))
+				bool bAddedRedirect = false;
+				for (const FGameplayTagRedirect& Redirect : GameplayTagRedirects)
 				{
+					// 旧名のまま保存されたアセットを拾うため、現在の一致対象へリダイレクトされる旧名を追加が止まるまで取り込む。
+					// 追加した旧名と子階層接頭辞は同じ反復内で以降の判定にも使う。
+					if (Redirect.OldTagName.IsNone() || Redirect.NewTagName.IsNone() ||
+						Result.ExactNames.Contains(Redirect.OldTagName) ||
+						!Result.Matches(Redirect.NewTagName))
+					{
+						continue;
+					}
+
 					Result.ExactNames.Add(Redirect.OldTagName);
+					if (!bFilterExactMatch)
+					{
+						const FString ChildPrefix = Redirect.OldTagName.ToString() + TEXT(".");
+						if (!Result.ChildPrefixes.Contains(ChildPrefix))
+						{
+							Result.ChildPrefixes.Add(ChildPrefix);
+						}
+					}
+					bAddedRedirect = true;
+				}
+				if (!bAddedRedirect)
+				{
+					break;
 				}
 			}
 		}

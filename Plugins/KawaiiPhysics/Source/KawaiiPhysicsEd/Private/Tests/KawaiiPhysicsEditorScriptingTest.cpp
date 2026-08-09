@@ -21,6 +21,7 @@
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphPin.h"
 #include "GameplayTagContainer.h"
+#include "GameplayTagsSettings.h"
 #include "KawaiiPhysicsDeveloperSettings.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
 #include "KawaiiPhysicsMcpCommentNode.h"
@@ -99,6 +100,29 @@ namespace
 				Settings->McpNodePlacementWrapCount = PreviousWrapCount;
 				Settings->McpNodePlacementSpacingX = PreviousSpacingX;
 				Settings->McpNodePlacementSpacingY = PreviousSpacingY;
+			}
+		}
+	};
+
+	struct FScopedGameplayTagRedirects
+	{
+		UGameplayTagsSettings* Settings = nullptr;
+		TArray<FGameplayTagRedirect> PreviousRedirects;
+
+		explicit FScopedGameplayTagRedirects(UGameplayTagsSettings* InSettings)
+			: Settings(InSettings)
+		{
+			if (Settings)
+			{
+				PreviousRedirects = Settings->GameplayTagRedirects;
+			}
+		}
+
+		~FScopedGameplayTagRedirects()
+		{
+			if (Settings)
+			{
+				Settings->GameplayTagRedirects = PreviousRedirects;
 			}
 		}
 	};
@@ -2701,6 +2725,82 @@ bool FKawaiiPhysicsEditorScriptingTagPrefilterSavedAssetsTest::RunTest(const FSt
 	                 {
 		                 return AssetData.PackageName == TargetPackageName;
 	                 }));
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingTagPrefilterRedirectChainTest,
+                                 "KawaiiPhysics.EditorScripting.TagPrefilter.RedirectChain",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingTagPrefilterRedirectChainTest::RunTest(const FString& Parameters)
+{
+	TArray<FString> ContentPaths;
+	ContentPaths.Add(TEXT("/Game/Test/MCPSetup2"));
+	TArray<FAssetData> CandidateAssets;
+	UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssets(ContentPaths, CandidateAssets);
+
+	const FAssetData* TargetAssetData = CandidateAssets.FindByPredicate(
+		[](const FAssetData& AssetData)
+		{
+			return AssetData.AssetName == FName(TEXT("ABP_MCP_Retest"));
+		});
+	if (!TargetAssetData)
+	{
+		// プラグイン単体配布などこのローカル専用アセットが存在しない環境ではskipする。
+		AddInfo(TEXT("/Game/Test/MCPSetup2/ABP_MCP_Retest was not found. Skipping tag prefilter redirect-chain test."));
+		return true;
+	}
+	const FName TargetPackageName = TargetAssetData->PackageName;
+
+	UPackage* LoadedPackage = FindPackage(nullptr, *TargetPackageName.ToString());
+	if (LoadedPackage && LoadedPackage->IsDirty())
+	{
+		AddInfo(TEXT("ABP_MCP_Retest package is loaded and dirty in this session. Skipping tag prefilter redirect-chain test."));
+		return true;
+	}
+
+	UGameplayTagsSettings* GameplayTagsSettings = GetMutableDefault<UGameplayTagsSettings>();
+	if (!GameplayTagsSettings)
+	{
+		AddInfo(TEXT("GameplayTagsSettings was not available. Skipping tag prefilter redirect-chain test."));
+		return true;
+	}
+
+	FGameplayTagContainer TargetFilter;
+	TargetFilter.AddTag(GetKawaiiPhysicsEditorScriptingTagB());
+
+	TArray<FAssetData> ControlResults;
+	UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssetsReferencingTags(
+		TargetFilter, false, ContentPaths, ControlResults);
+	bool bOk = TestFalse(TEXT("Target tag filter excludes ABP_MCP_Retest before temporary redirects"),
+	                     ControlResults.ContainsByPredicate([TargetPackageName](const FAssetData& AssetData)
+	                     {
+		                     return AssetData.PackageName == TargetPackageName;
+	                     }));
+
+	{
+		FScopedGameplayTagRedirects ScopedRedirects(GameplayTagsSettings);
+
+		FGameplayTagRedirect ParentToMiddleRedirect;
+		ParentToMiddleRedirect.OldTagName = FName(TEXT("KawaiiPhysics"));
+		ParentToMiddleRedirect.NewTagName = FName(TEXT("KawaiiPhysics.Test.RedirectMiddle"));
+		GameplayTagsSettings->GameplayTagRedirects.Add(ParentToMiddleRedirect);
+
+		FGameplayTagRedirect MiddleToTargetRedirect;
+		MiddleToTargetRedirect.OldTagName = ParentToMiddleRedirect.NewTagName;
+		MiddleToTargetRedirect.NewTagName = GetKawaiiPhysicsEditorScriptingTagB().GetTagName();
+		GameplayTagsSettings->GameplayTagRedirects.Add(MiddleToTargetRedirect);
+
+		TArray<FAssetData> RedirectResults;
+		UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssetsReferencingTags(
+			TargetFilter, false, ContentPaths, RedirectResults);
+		bOk &= TestTrue(TEXT("Multi-step redirected parent tag non-exact filter includes ABP_MCP_Retest via old child tag"),
+		                RedirectResults.ContainsByPredicate([TargetPackageName](const FAssetData& AssetData)
+		                {
+			                return AssetData.PackageName == TargetPackageName;
+		                }));
+	}
 
 	return bOk;
 }
