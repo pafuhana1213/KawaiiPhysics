@@ -125,19 +125,6 @@ namespace
 		return Names;
 	}
 
-	void DuplicateCustomExternalForces(const TArray<TObjectPtr<UKawaiiPhysics_CustomExternalForce>>& SourceForces,
-	                                   TArray<TObjectPtr<UKawaiiPhysics_CustomExternalForce>>& DestinationForces,
-	                                   UObject* Outer)
-	{
-		DestinationForces.Empty(SourceForces.Num());
-		for (const TObjectPtr<UKawaiiPhysics_CustomExternalForce>& SourceForce : SourceForces)
-		{
-			DestinationForces.Add(SourceForce
-				                      ? DuplicateObject<UKawaiiPhysics_CustomExternalForce>(SourceForce, Outer)
-				                      : nullptr);
-		}
-	}
-
 	void CopyNodeProperty(const FProperty& Property,
 	                      const FAnimNode_KawaiiPhysics& SourceNode,
 	                      FAnimNode_KawaiiPhysics& DestinationNode,
@@ -145,9 +132,10 @@ namespace
 	{
 		if (Property.GetFName() == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, CustomExternalForces))
 		{
-			DuplicateCustomExternalForces(SourceNode.CustomExternalForces,
-			                              DestinationNode.CustomExternalForces,
-			                              CustomExternalForceOuter);
+			UKawaiiPhysicsPresetDataAsset::DuplicateCustomExternalForces(
+				SourceNode.CustomExternalForces,
+				DestinationNode.CustomExternalForces,
+				CustomExternalForceOuter);
 			return;
 		}
 
@@ -198,6 +186,20 @@ bool UKawaiiPhysicsPresetDataAsset::ShouldApplyNodeProperty(const FProperty& Pro
 	case EKawaiiPhysicsPresetPropertyClass::Unknown:
 	default:
 		return false;
+	}
+}
+
+void UKawaiiPhysicsPresetDataAsset::DuplicateCustomExternalForces(
+	const TArray<TObjectPtr<UKawaiiPhysics_CustomExternalForce>>& SourceForces,
+	TArray<TObjectPtr<UKawaiiPhysics_CustomExternalForce>>& DestinationForces,
+	UObject* Outer)
+{
+	DestinationForces.Empty(SourceForces.Num());
+	for (const TObjectPtr<UKawaiiPhysics_CustomExternalForce>& SourceForce : SourceForces)
+	{
+		DestinationForces.Add(SourceForce
+			                      ? DuplicateObject<UKawaiiPhysics_CustomExternalForce>(SourceForce, Outer)
+			                      : nullptr);
 	}
 }
 

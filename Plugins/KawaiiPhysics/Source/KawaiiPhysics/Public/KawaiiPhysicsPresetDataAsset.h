@@ -77,6 +77,14 @@ public:
 
 	void CopyFromNode(const FAnimNode_KawaiiPhysics& SourceNode);
 	/**
+	 * CustomExternalForces を指定Outerへ複製してコピーする。
+	 * Duplicate and copy CustomExternalForces with the specified Outer.
+	 */
+	static void DuplicateCustomExternalForces(
+		const TArray<TObjectPtr<UKawaiiPhysics_CustomExternalForce>>& SourceForces,
+		TArray<TObjectPtr<UKawaiiPhysics_CustomExternalForce>>& DestinationForces,
+		UObject* Outer);
+	/**
 	 * プリセットを対象ノードへ適用する。TargetOuter が nullptr の場合は ExternalForces と CustomExternalForces を複製しない。
 	 * Apply this preset to a target node. ExternalForces and CustomExternalForces are not duplicated when TargetOuter is nullptr.
 	 */

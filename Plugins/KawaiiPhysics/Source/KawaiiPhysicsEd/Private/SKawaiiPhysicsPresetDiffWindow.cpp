@@ -125,7 +125,8 @@ namespace
 	bool CopyPropertiesByName(const TArray<FName>& Names,
 	                          bool bPresetToNode,
 	                          FAnimNode_KawaiiPhysics& NodeStruct,
-	                          UKawaiiPhysicsPresetDataAsset& Preset)
+	                          UKawaiiPhysicsPresetDataAsset& Preset,
+	                          UObject* CustomExternalForceOuter)
 	{
 		for (const FName& Name : Names)
 		{
@@ -133,6 +134,30 @@ namespace
 			if (!Property)
 			{
 				return false;
+			}
+
+			if (Name == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, CustomExternalForces))
+			{
+				if (!CustomExternalForceOuter)
+				{
+					return false;
+				}
+
+				if (bPresetToNode)
+				{
+					UKawaiiPhysicsPresetDataAsset::DuplicateCustomExternalForces(
+						Preset.Node.CustomExternalForces,
+						NodeStruct.CustomExternalForces,
+						CustomExternalForceOuter);
+				}
+				else
+				{
+					UKawaiiPhysicsPresetDataAsset::DuplicateCustomExternalForces(
+						NodeStruct.CustomExternalForces,
+						Preset.Node.CustomExternalForces,
+						CustomExternalForceOuter);
+				}
+				continue;
 			}
 
 			void* DstContainer = bPresetToNode ? static_cast<void*>(&NodeStruct) : static_cast<void*>(&Preset.Node);
@@ -777,7 +802,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnApplySelectedClicked()
 	FScopedTransaction Transaction(
 		LOCTEXT("ApplySelectedTransaction", "Apply Selected Kawaii Physics Preset Properties"));
 	GraphNode->Modify();
-	if (!CopyPropertiesByName(Names, true, GraphNode->Node, *Preset))
+	if (!CopyPropertiesByName(Names, true, GraphNode->Node, *Preset, GraphNode))
 	{
 		Transaction.Cancel();
 		ShowPresetDiffNotification(
@@ -905,7 +930,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnUpdatePresetFromNodeClicked()
 	FScopedTransaction Transaction(
 		LOCTEXT("UpdatePresetTransaction", "Update Kawaii Physics Preset From Node"));
 	Preset->Modify();
-	if (!CopyPropertiesByName(Names, false, GraphNode->Node, *Preset))
+	if (!CopyPropertiesByName(Names, false, GraphNode->Node, *Preset, Preset))
 	{
 		Transaction.Cancel();
 		ShowPresetDiffNotification(
