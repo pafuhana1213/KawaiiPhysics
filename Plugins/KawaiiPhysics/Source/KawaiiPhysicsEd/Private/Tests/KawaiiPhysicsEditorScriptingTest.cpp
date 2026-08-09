@@ -15,6 +15,7 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/Skeleton.h"
 #include "Animation/AnimNode_Root.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "EdGraphNode_Comment.h"
 #include "EdGraph/EdGraph.h"
@@ -2543,6 +2544,237 @@ bool FKawaiiPhysicsEditorScriptingPlacementLimitsPinRegressionTest::RunTest(cons
 			bOk &= TestFalse(TEXT("LimitsDataAsset optional pin remains unexposed"), LimitsOptionalPin->bShowPin);
 		}
 	}
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingTagPrefilterDirtyBypassTest,
+                                 "KawaiiPhysics.EditorScripting.TagPrefilter.DirtyBypass",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingTagPrefilterDirtyBypassTest::RunTest(const FString& Parameters)
+{
+	// MakeEmptyFixture等が作る/Temp配下のtransientパッケージはAsset RegistryのGetAssets候補列挙
+	// （ScanPathsSynchronous経由）に載らないため、dirtyバイパスの検証は保存済みアセットを使い、
+	// そのdirtyフラグを操作して確認する。
+	TArray<FString> ContentPaths;
+	ContentPaths.Add(TEXT("/Game/Test/MCPSetup2"));
+	TArray<FAssetData> CandidateAssets;
+	UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssets(ContentPaths, CandidateAssets);
+
+	const FAssetData* FoundAssetData = CandidateAssets.FindByPredicate(
+		[](const FAssetData& AssetData)
+		{
+			return AssetData.AssetName == FName(TEXT("ABP_MCP_Retest"));
+		});
+	if (!FoundAssetData)
+	{
+		// プラグイン単体配布などこのローカル専用アセットが存在しない環境ではskipする。
+		AddInfo(TEXT("/Game/Test/MCPSetup2/ABP_MCP_Retest was not found. Skipping tag prefilter dirty bypass test."));
+		return true;
+	}
+	const FAssetData AssetData = *FoundAssetData;
+	const FName TargetPackageName = AssetData.PackageName;
+
+	// 絶対にマッチしないタグ（KawaiiPhysics.Test.PresetTarget）を、コントロール検証とdirtyバイパス検証の両方で使う。
+	FGameplayTagContainer NonMatchingTags;
+	NonMatchingTags.AddTag(GetKawaiiPhysicsEditorScriptingTagB());
+
+	// (a) コントロール検証: dirtyでない状態では、非マッチタグの候補に含まれないことを確認する。
+	//     既にロード済みかつdirtyな場合は、並行編集中の環境を壊さないためskipする。
+	UPackage* LoadedPackage = FindPackage(nullptr, *TargetPackageName.ToString());
+	if (LoadedPackage && LoadedPackage->IsDirty())
+	{
+		AddInfo(TEXT("ABP_MCP_Retest package is already loaded and dirty in this session. Skipping tag prefilter dirty bypass test."));
+		return true;
+	}
+
+	TArray<FAssetData> ControlResults;
+	UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssetsReferencingTags(
+		NonMatchingTags, false, ContentPaths, ControlResults);
+	bool bOk = TestFalse(TEXT("Non-matching tag filter excludes ABP_MCP_Retest while not dirty"),
+	                     ControlResults.ContainsByPredicate([TargetPackageName](const FAssetData& Candidate)
+	                     {
+		                     return Candidate.PackageName == TargetPackageName;
+	                     }));
+
+	// (b) dirtyバイパス検証: アセットをロードしdirty化すると、非マッチタグでも常に候補へ含まれることを確認する。
+	UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(AssetData.GetAsset());
+	bOk &= TestNotNull(TEXT("ABP_MCP_Retest loads as an AnimBlueprint"), AnimBlueprint);
+
+	UPackage* Package = AnimBlueprint ? AnimBlueprint->GetOutermost() : nullptr;
+	bOk &= TestNotNull(TEXT("ABP_MCP_Retest package is resolved"), Package);
+
+	bool bDirtyBypassIncludesTarget = false;
+	if (Package)
+	{
+		Package->SetDirtyFlag(true);
+
+		TArray<FAssetData> DirtyBypassResults;
+		UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssetsReferencingTags(
+			NonMatchingTags, false, ContentPaths, DirtyBypassResults);
+		bDirtyBypassIncludesTarget =
+			DirtyBypassResults.ContainsByPredicate([TargetPackageName](const FAssetData& Candidate)
+			{
+				return Candidate.PackageName == TargetPackageName;
+			});
+
+		// 検証結果に関わらず必ずdirtyフラグを元に戻すため、アサート前に結果をboolで受けておく。
+		Package->SetDirtyFlag(false);
+	}
+	bOk &= TestTrue(TEXT("Non-matching tag filter still includes dirty ABP_MCP_Retest (dirty bypass)"),
+	                bDirtyBypassIncludesTarget);
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingTagPrefilterSavedAssetsTest,
+                                 "KawaiiPhysics.EditorScripting.TagPrefilter.SavedAssets",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingTagPrefilterSavedAssetsTest::RunTest(const FString& Parameters)
+{
+	TArray<FString> ContentPaths;
+	ContentPaths.Add(TEXT("/Game/Test/MCPSetup2"));
+	TArray<FAssetData> CandidateAssets;
+	UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssets(ContentPaths, CandidateAssets);
+
+	const FAssetData* TargetAssetData = CandidateAssets.FindByPredicate(
+		[](const FAssetData& AssetData)
+		{
+			return AssetData.AssetName == FName(TEXT("ABP_MCP_Retest"));
+		});
+	if (!TargetAssetData)
+	{
+		// プラグイン単体配布などこのローカル専用アセットが存在しない環境ではskipする。
+		AddInfo(TEXT("/Game/Test/MCPSetup2/ABP_MCP_Retest was not found. Skipping saved-asset tag prefilter test."));
+		return true;
+	}
+	const FName TargetPackageName = TargetAssetData->PackageName;
+
+	// 既にエディタ上でロード済みかつdirtyだと、(c)のExact除外検証がdirtyバイパスにより偽陽性になるためskipする。
+	UPackage* LoadedPackage = FindPackage(nullptr, *TargetPackageName.ToString());
+	if (LoadedPackage && LoadedPackage->IsDirty())
+	{
+		AddInfo(TEXT("ABP_MCP_Retest package is loaded and dirty in this session. Skipping saved-asset tag prefilter test."));
+		return true;
+	}
+
+	const FGameplayTag HairTag = FGameplayTag::RequestGameplayTag(FName(TEXT("KawaiiPhysics.Hair")), false);
+	const FGameplayTag RootTag = FGameplayTag::RequestGameplayTag(FName(TEXT("KawaiiPhysics")), false);
+	if (!HairTag.IsValid() || !RootTag.IsValid())
+	{
+		AddInfo(TEXT("KawaiiPhysics.Hair / KawaiiPhysics tags are not registered. Skipping saved-asset tag prefilter test."));
+		return true;
+	}
+
+	bool bOk = true;
+
+	// (a) KawaiiPhysics.Hairの完全一致(非Exact)で、保存済みSearchableName依存経由でヒットする。
+	FGameplayTagContainer HairFilter;
+	HairFilter.AddTag(HairTag);
+	TArray<FAssetData> HairResults;
+	UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssetsReferencingTags(HairFilter, false, ContentPaths, HairResults);
+	bOk &= TestTrue(TEXT("KawaiiPhysics.Hair non-exact filter includes ABP_MCP_Retest"),
+	                HairResults.ContainsByPredicate([TargetPackageName](const FAssetData& AssetData)
+	                {
+		                return AssetData.PackageName == TargetPackageName;
+	                }));
+
+	// (b) 親タグKawaiiPhysicsを非Exactで指定すると、子タグ(KawaiiPhysics.Hair等)経由でヒットする。
+	FGameplayTagContainer RootFilter;
+	RootFilter.AddTag(RootTag);
+	TArray<FAssetData> RootNonExactResults;
+	UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssetsReferencingTags(
+		RootFilter, false, ContentPaths, RootNonExactResults);
+	bOk &= TestTrue(TEXT("KawaiiPhysics parent tag non-exact filter includes ABP_MCP_Retest via child tag"),
+	                RootNonExactResults.ContainsByPredicate([TargetPackageName](const FAssetData& AssetData)
+	                {
+		                return AssetData.PackageName == TargetPackageName;
+	                }));
+
+	// (c) 親タグKawaiiPhysicsをExactで指定すると、ノード側はKawaiiPhysics.Hair等の子タグしか持たないため含まれない。
+	TArray<FAssetData> RootExactResults;
+	UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssetsReferencingTags(
+		RootFilter, true, ContentPaths, RootExactResults);
+	bOk &= TestFalse(TEXT("KawaiiPhysics parent tag exact filter excludes ABP_MCP_Retest"),
+	                 RootExactResults.ContainsByPredicate([TargetPackageName](const FAssetData& AssetData)
+	                 {
+		                 return AssetData.PackageName == TargetPackageName;
+	                 }));
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingTagPrefilterSupersetTest,
+                                 "KawaiiPhysics.EditorScripting.TagPrefilter.Superset",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorScriptingTagPrefilterSupersetTest::RunTest(const FString& Parameters)
+{
+	const FGameplayTag RootTag = FGameplayTag::RequestGameplayTag(FName(TEXT("KawaiiPhysics")), false);
+	if (!RootTag.IsValid())
+	{
+		AddInfo(TEXT("KawaiiPhysics tag is not registered. Skipping tag prefilter superset test."));
+		return true;
+	}
+
+	// /Game/Test直下にはSkeleton欠落の壊れアセット（ABP_MCP_FromScratch等）があり、ロード時の
+	// コンパイルエラーログでテストが自動失敗するため、正常アセットのみのMCPSetup2に限定する。
+	TArray<FString> ContentPaths;
+	ContentPaths.Add(TEXT("/Game/Test/MCPSetup2"));
+
+	TArray<FAssetData> AllAnimBlueprintAssets;
+	UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssets(ContentPaths, AllAnimBlueprintAssets);
+	if (AllAnimBlueprintAssets.IsEmpty())
+	{
+		AddInfo(TEXT("No AnimBlueprint assets under /Game/Test/MCPSetup2. Skipping tag prefilter superset test."));
+		return true;
+	}
+
+	FGameplayTagContainer RootFilter;
+	RootFilter.AddTag(RootTag);
+	TArray<FAssetData> PrefilteredAssets;
+	UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssetsReferencingTags(
+		RootFilter, false, ContentPaths, PrefilteredAssets);
+
+	TSet<FName> AllPackageNames;
+	for (const FAssetData& AssetData : AllAnimBlueprintAssets)
+	{
+		AllPackageNames.Add(AssetData.PackageName);
+	}
+
+	// (1) プレフィルタ結果は必ず全件集合の部分集合である。
+	bool bOk = true;
+	TSet<FName> PrefilteredPackageNames;
+	for (const FAssetData& AssetData : PrefilteredAssets)
+	{
+		PrefilteredPackageNames.Add(AssetData.PackageName);
+		bOk &= TestTrue(
+			*FString::Printf(TEXT("Prefiltered asset '%s' is a subset of all AnimBlueprint assets"),
+			                 *AssetData.PackageName.ToString()),
+			AllPackageNames.Contains(AssetData.PackageName));
+	}
+
+	// (2) プレフィルタが実マッチを取りこぼしていないか、全ABPをロードして実際のノードタグで検証する。
+	for (const FAssetData& AssetData : AllAnimBlueprintAssets)
+	{
+		UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(AssetData.GetAsset());
+		if (!AnimBlueprint)
+		{
+			continue;
+		}
+
+		TArray<FKawaiiPhysicsGraphNodeHandle> MatchedHandles =
+			UKawaiiPhysicsEditorLibrary::CollectKawaiiPhysicsGraphNodes(AnimBlueprint, RootFilter, false);
+		if (!MatchedHandles.IsEmpty())
+		{
+			bOk &= TestTrue(
+				*FString::Printf(TEXT("Actual tag match '%s' is included in the tag prefilter result"),
+				                 *AssetData.PackageName.ToString()),
+				PrefilteredPackageNames.Contains(AssetData.PackageName));
+		}
+	}
+
 	return bOk;
 }
 
