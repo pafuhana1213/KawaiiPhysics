@@ -39,9 +39,9 @@ namespace
 	const FName PropertyColumnName(TEXT("Property"));
 	const FName NodeValueColumnName(TEXT("NodeValue"));
 	const FName PresetValueColumnName(TEXT("PresetValue"));
-	const TCHAR* ConfigSectionName = TEXT("KawaiiPhysicsEd");
-	const TCHAR* WindowPosConfigKey = TEXT("PresetDiffWindowPos");
-	const TCHAR* WindowSizeConfigKey = TEXT("PresetDiffWindowSize");
+	const TCHAR* PresetDiffConfigSection = TEXT("KawaiiPhysicsEd");
+	const TCHAR* PresetDiffPositionKey = TEXT("PresetDiffWindowPos");
+	const TCHAR* PresetDiffSizeKey = TEXT("PresetDiffWindowSize");
 
 	TWeakPtr<SWindow> DiffWindowWeak;
 	TWeakPtr<SKawaiiPhysicsPresetDiffWindow> DiffWidgetWeak;
@@ -60,12 +60,12 @@ namespace
 		}
 	}
 
-	FString MakeVectorConfigString(const FVector2D& Value)
+	FString MakePresetDiffVectorString(const FVector2D& Value)
 	{
 		return FString::Printf(TEXT("%.0f,%.0f"), Value.X, Value.Y);
 	}
 
-	bool TryParseVectorConfigString(const FString& StringValue, FVector2D& OutValue)
+	bool TryParsePresetDiffVectorString(const FString& StringValue, FVector2D& OutValue)
 	{
 		FString Left;
 		FString Right;
@@ -79,7 +79,7 @@ namespace
 		return true;
 	}
 
-	void PersistWindowPlacement(const TSharedRef<SWindow>& Window)
+	void PersistPresetDiffPlacement(const TSharedRef<SWindow>& Window)
 	{
 		if (!GConfig)
 		{
@@ -88,12 +88,12 @@ namespace
 
 		const FVector2D Position = Window->GetPositionInScreen();
 		const FVector2D Size = Window->GetSizeInScreen();
-		GConfig->SetString(ConfigSectionName, WindowPosConfigKey, *MakeVectorConfigString(Position), GEditorPerProjectIni);
-		GConfig->SetString(ConfigSectionName, WindowSizeConfigKey, *MakeVectorConfigString(Size), GEditorPerProjectIni);
+		GConfig->SetString(PresetDiffConfigSection, PresetDiffPositionKey, *MakePresetDiffVectorString(Position), GEditorPerProjectIni);
+		GConfig->SetString(PresetDiffConfigSection, PresetDiffSizeKey, *MakePresetDiffVectorString(Size), GEditorPerProjectIni);
 		GConfig->Flush(false, GEditorPerProjectIni);
 	}
 
-	void RestoreWindowPlacement(const TSharedRef<SWindow>& Window)
+	void RestorePresetDiffPlacement(const TSharedRef<SWindow>& Window)
 	{
 		if (!GConfig)
 		{
@@ -102,20 +102,20 @@ namespace
 
 		FString StringValue;
 		FVector2D ParsedValue;
-		if (GConfig->GetString(ConfigSectionName, WindowPosConfigKey, StringValue, GEditorPerProjectIni) &&
-			TryParseVectorConfigString(StringValue, ParsedValue))
+		if (GConfig->GetString(PresetDiffConfigSection, PresetDiffPositionKey, StringValue, GEditorPerProjectIni) &&
+			TryParsePresetDiffVectorString(StringValue, ParsedValue))
 		{
 			Window->MoveWindowTo(ParsedValue);
 		}
 
-		if (GConfig->GetString(ConfigSectionName, WindowSizeConfigKey, StringValue, GEditorPerProjectIni) &&
-			TryParseVectorConfigString(StringValue, ParsedValue))
+		if (GConfig->GetString(PresetDiffConfigSection, PresetDiffSizeKey, StringValue, GEditorPerProjectIni) &&
+			TryParsePresetDiffVectorString(StringValue, ParsedValue))
 		{
 			Window->Resize(ParsedValue);
 		}
 	}
 
-	FKawaiiPhysicsGraphNodeHandle MakeHandle(UAnimGraphNode_KawaiiPhysics* GraphNode)
+	FKawaiiPhysicsGraphNodeHandle MakePresetDiffHandle(UAnimGraphNode_KawaiiPhysics* GraphNode)
 	{
 		FKawaiiPhysicsGraphNodeHandle Handle;
 		Handle.Node = GraphNode;
@@ -215,7 +215,7 @@ namespace
 		return Names;
 	}
 
-	void MarkGraphNodeBlueprintModified(UAnimGraphNode_KawaiiPhysics* GraphNode)
+	void MarkPresetDiffGraphNodeBlueprintModified(UAnimGraphNode_KawaiiPhysics* GraphNode)
 	{
 		if (GraphNode)
 		{
@@ -537,7 +537,7 @@ void SKawaiiPhysicsPresetDiffWindow::OpenWindow(FKawaiiPhysicsPresetDiffWindowAr
 
 	Window->SetOnWindowClosed(FOnWindowClosed::CreateLambda([](const TSharedRef<SWindow>& ClosedWindow)
 	{
-		PersistWindowPlacement(ClosedWindow);
+		PersistPresetDiffPlacement(ClosedWindow);
 		DiffWindowWeak.Reset();
 		DiffWidgetWeak.Reset();
 	}));
@@ -545,7 +545,7 @@ void SKawaiiPhysicsPresetDiffWindow::OpenWindow(FKawaiiPhysicsPresetDiffWindowAr
 	DiffWindowWeak = Window;
 	DiffWidgetWeak = DiffWidget;
 	FSlateApplication::Get().AddWindow(Window);
-	RestoreWindowPlacement(Window);
+	RestorePresetDiffPlacement(Window);
 }
 
 void SKawaiiPhysicsPresetDiffWindow::CloseAllWindows()
@@ -788,7 +788,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnApplySelectedClicked()
 
 	GraphNode->Node.ModifyBones.Empty();
 	GraphNode->ReconstructNode();
-	MarkGraphNodeBlueprintModified(GraphNode);
+	MarkPresetDiffGraphNodeBlueprintModified(GraphNode);
 
 	ReplaceSelectedSnapshot(KawaiiPhysicsPresetDiff::BuildSnapshot(GraphNode->Node, *Preset, Options));
 	SelectedPropertyNames.Reset();
@@ -837,7 +837,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnApplyPresetToNodeClicked()
 		return FReply::Handled();
 	}
 
-	if (!UKawaiiPhysicsEditorLibrary::ApplyPresetToGraphNode(MakeHandle(GraphNode), Preset, Options))
+	if (!UKawaiiPhysicsEditorLibrary::ApplyPresetToGraphNode(MakePresetDiffHandle(GraphNode), Preset, Options))
 	{
 		ShowPresetDiffNotification(
 			LOCTEXT("ApplyPresetFailed", "Failed to apply the preset to the node."),
