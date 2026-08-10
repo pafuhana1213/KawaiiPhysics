@@ -350,6 +350,97 @@ bool FKawaiiPhysicsProceduralWindGustEnvelopeTest::RunTest(const FString& Parame
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindDynamicParamsTest,
+                                 "KawaiiPhysics.ProceduralWind.DynamicParams",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindDynamicParamsTest::RunTest(const FString& Parameters)
+{
+	// 上書き指定された項目だけが反映され、下限付き項目は安全化されることを確認する。
+	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
+	Wind.WindDirection = FRotator(1.0f, 2.0f, 3.0f);
+	Wind.SteadyForce = 2.0f;
+	Wind.OscillationForce = 3.0f;
+	Wind.OscillationPeriod = 1.0f;
+	Wind.WaveAmplitude = 4.0f;
+	Wind.WavePhase = 10.0f;
+	Wind.DirectionNoiseAngle = 5.0f;
+	Wind.TimeScale = 1.0f;
+
+	FKawaiiProceduralWindDynamicParams Params;
+	Params.bOverrideWindDirection = false;
+	Params.WindDirection = FRotator(10.0f, 20.0f, 30.0f);
+	Params.bOverrideSteadyForce = true;
+	Params.SteadyForce = -5.0f;
+	Params.bOverrideOscillationForce = false;
+	Params.OscillationForce = 99.0f;
+	Params.bOverrideOscillationPeriod = true;
+	Params.OscillationPeriod = -10.0f;
+	Params.bOverrideWaveAmplitude = false;
+	Params.WaveAmplitude = 99.0f;
+	Params.bOverrideWavePhase = true;
+	Params.WavePhase = -45.0f;
+	Params.bOverrideDirectionNoiseAngle = true;
+	Params.DirectionNoiseAngle = -20.0f;
+	Params.bOverrideTimeScale = true;
+	Params.TimeScale = -1.0f;
+
+	Wind.ApplyDynamicParams(Params);
+
+	TestTrue(TEXT("WindDirection unchanged"), Wind.WindDirection.Equals(FRotator(1.0f, 2.0f, 3.0f)));
+	TestSampleNear(*this, TEXT("SteadyForce clamped"), Wind.SteadyForce, 0.0f);
+	TestSampleNear(*this, TEXT("OscillationForce unchanged"), Wind.OscillationForce, 3.0f);
+	TestSampleNear(*this, TEXT("OscillationPeriod clamped"), Wind.OscillationPeriod, 0.01f);
+	TestSampleNear(*this, TEXT("WaveAmplitude unchanged"), Wind.WaveAmplitude, 4.0f);
+	TestSampleNear(*this, TEXT("WavePhase unclamped"), Wind.WavePhase, -45.0f);
+	TestSampleNear(*this, TEXT("DirectionNoiseAngle clamped"), Wind.DirectionNoiseAngle, 0.0f);
+	TestSampleNear(*this, TEXT("TimeScale clamped"), Wind.TimeScale, 0.0f);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindPendingConsumptionTest,
+                                 "KawaiiPhysics.ProceduralWind.PendingConsumption",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindPendingConsumptionTest::RunTest(const FString& Parameters)
+{
+	// 保留中のパラメータと突風が一度の消費で反映され、保留欄が空になることを確認する。
+	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
+	Wind.ResetRuntimeState();
+	Wind.RuntimeState->Time = 2.25f;
+
+	FKawaiiProceduralWindDynamicParams Params;
+	Params.bOverrideSteadyForce = true;
+	Params.SteadyForce = 8.0f;
+	Params.bOverrideOscillationPeriod = true;
+	Params.OscillationPeriod = 0.25f;
+
+	{
+		FScopeLock Lock(&Wind.RuntimeState->Mutex);
+		Wind.RuntimeState->PendingParams = Params;
+		Wind.RuntimeState->PendingGust = FKawaiiProceduralWindGustRequest{
+			6.0f,
+			0.1f,
+			0.5f
+		};
+	}
+
+	Wind.ConsumePendingRequests();
+
+	TestSampleNear(*this, TEXT("Pending SteadyForce applied"), Wind.SteadyForce, 8.0f);
+	TestSampleNear(*this, TEXT("Pending OscillationPeriod applied"), Wind.OscillationPeriod, 0.25f);
+	TestSampleNear(*this, TEXT("ActiveGust StartTime"), Wind.RuntimeState->ActiveGust.StartTime, 2.25f);
+	TestSampleNear(*this, TEXT("ActiveGust Strength"), Wind.RuntimeState->ActiveGust.Strength, 6.0f);
+	TestSampleNear(*this, TEXT("ActiveGust RiseTime"), Wind.RuntimeState->ActiveGust.RiseTime, 0.1f);
+	TestSampleNear(*this, TEXT("ActiveGust DecayTime"), Wind.RuntimeState->ActiveGust.DecayTime, 0.5f);
+	TestTrue(TEXT("ActiveGust active"), Wind.RuntimeState->ActiveGust.bIsActive);
+	TestFalse(TEXT("PendingParams reset"), Wind.RuntimeState->PendingParams.IsSet());
+	TestFalse(TEXT("PendingGust reset"), Wind.RuntimeState->PendingGust.IsSet());
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindFramerateIndependenceTest,
                                  "KawaiiPhysics.ProceduralWind.FramerateIndependence",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

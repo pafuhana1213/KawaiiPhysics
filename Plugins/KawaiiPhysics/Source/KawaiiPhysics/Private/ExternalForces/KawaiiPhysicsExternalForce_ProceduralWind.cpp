@@ -108,6 +108,105 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::ResetRuntimeState()
 #endif
 }
 
+void FKawaiiPhysics_ExternalForce_ProceduralWind::ApplyDynamicParams(
+	const FKawaiiProceduralWindDynamicParams& Params)
+{
+	if (Params.bOverrideWindDirection)
+	{
+		WindDirection = Params.WindDirection;
+	}
+	if (Params.bOverrideSteadyForce)
+	{
+		SteadyForce = FMath::Max(Params.SteadyForce, 0.0f);
+	}
+	if (Params.bOverrideOscillationForce)
+	{
+		OscillationForce = FMath::Max(Params.OscillationForce, 0.0f);
+	}
+	if (Params.bOverrideOscillationPeriod)
+	{
+		OscillationPeriod = FMath::Max(Params.OscillationPeriod, 0.01f);
+	}
+	if (Params.bOverrideWaveAmplitude)
+	{
+		WaveAmplitude = FMath::Max(Params.WaveAmplitude, 0.0f);
+	}
+	if (Params.bOverrideWavePeriod)
+	{
+		WavePeriod = FMath::Max(Params.WavePeriod, 0.01f);
+	}
+	if (Params.bOverrideWavePhase)
+	{
+		WavePhase = Params.WavePhase;
+	}
+	if (Params.bOverrideWaveSpatialOffset)
+	{
+		WaveSpatialOffset = Params.WaveSpatialOffset;
+	}
+	if (Params.bOverrideEnvelopeMax)
+	{
+		EnvelopeMax = FMath::Max(Params.EnvelopeMax, 0.0f);
+	}
+	if (Params.bOverrideEnvelopeMin)
+	{
+		EnvelopeMin = FMath::Max(Params.EnvelopeMin, 0.0f);
+	}
+	if (Params.bOverrideEnvelopeFrequency)
+	{
+		EnvelopeFrequency = FMath::Max(Params.EnvelopeFrequency, 0.0f);
+	}
+	if (Params.bOverrideEnvelopePhase)
+	{
+		EnvelopePhase = Params.EnvelopePhase;
+	}
+	if (Params.bOverrideRandomForce)
+	{
+		RandomForce = FMath::Max(Params.RandomForce, 0.0f);
+	}
+	if (Params.bOverrideRandomPeriod)
+	{
+		RandomPeriod = FMath::Max(Params.RandomPeriod, 0.01f);
+	}
+	if (Params.bOverrideDirectionNoiseAngle)
+	{
+		DirectionNoiseAngle = FMath::Max(Params.DirectionNoiseAngle, 0.0f);
+	}
+	if (Params.bOverrideDirectionNoisePeriod)
+	{
+		DirectionNoisePeriod = FMath::Max(Params.DirectionNoisePeriod, 0.01f);
+	}
+	if (Params.bOverrideTimeScale)
+	{
+		TimeScale = FMath::Max(Params.TimeScale, 0.0f);
+	}
+}
+
+void FKawaiiPhysics_ExternalForce_ProceduralWind::ConsumePendingRequests()
+{
+	if (!RuntimeState.IsValid())
+	{
+		ResetRuntimeState();
+	}
+
+	FScopeLock Lock(&RuntimeState->Mutex);
+	if (RuntimeState->PendingParams.IsSet())
+	{
+		ApplyDynamicParams(RuntimeState->PendingParams.GetValue());
+		RuntimeState->PendingParams.Reset();
+	}
+
+	if (RuntimeState->PendingGust.IsSet())
+	{
+		const FKawaiiProceduralWindGustRequest& PendingGust = RuntimeState->PendingGust.GetValue();
+		RuntimeState->ActiveGust.StartTime = RuntimeState->Time;
+		RuntimeState->ActiveGust.Strength = PendingGust.Strength;
+		RuntimeState->ActiveGust.RiseTime = PendingGust.RiseTime;
+		RuntimeState->ActiveGust.DecayTime = PendingGust.DecayTime;
+		RuntimeState->ActiveGust.bIsActive = true;
+		RuntimeState->PendingGust.Reset();
+	}
+}
+
 FKawaiiPhysicsProceduralWindSample FKawaiiPhysics_ExternalForce_ProceduralWind::ComputeWindSample(
 	const float InTime, const float InLengthRate) const
 {
@@ -190,19 +289,7 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::PreApply(FAnimNode_KawaiiPhysi
 		ResetRuntimeState();
 	}
 
-	{
-		FScopeLock Lock(&RuntimeState->Mutex);
-		if (RuntimeState->PendingGust.IsSet())
-		{
-			const FKawaiiProceduralWindGustRequest& PendingGust = RuntimeState->PendingGust.GetValue();
-			RuntimeState->ActiveGust.StartTime = RuntimeState->Time;
-			RuntimeState->ActiveGust.Strength = PendingGust.Strength;
-			RuntimeState->ActiveGust.RiseTime = PendingGust.RiseTime;
-			RuntimeState->ActiveGust.DecayTime = PendingGust.DecayTime;
-			RuntimeState->ActiveGust.bIsActive = true;
-			RuntimeState->PendingGust.Reset();
-		}
-	}
+	ConsumePendingRequests();
 
 	RuntimeState->Time += Node.GetStepDeltaTime() * TimeScale;
 

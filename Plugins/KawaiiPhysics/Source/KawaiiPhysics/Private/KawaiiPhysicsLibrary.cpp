@@ -13,6 +13,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
+#include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
 #include "GameFramework/Actor.h"
 #include "HAL/IConsoleManager.h"
 #include "KawaiiPhysics.h"
@@ -61,6 +62,47 @@ namespace
 	{
 		return PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, ExternalForces) ||
 			PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, CustomExternalForces);
+	}
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind* GetMutableProceduralWind(FInstancedStruct& InstancedStruct)
+	{
+		if (!InstancedStruct.IsValid() ||
+			InstancedStruct.GetScriptStruct() != FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct())
+		{
+			return nullptr;
+		}
+
+		return InstancedStruct.GetMutablePtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+	}
+
+	bool QueueProceduralWindGust(FKawaiiPhysics_ExternalForce_ProceduralWind& ProceduralWind,
+	                             const float Strength, const float RiseTime, const float DecayTime)
+	{
+		if (!ProceduralWind.RuntimeState.IsValid())
+		{
+			ProceduralWind.ResetRuntimeState();
+		}
+
+		FScopeLock Lock(&ProceduralWind.RuntimeState->Mutex);
+		ProceduralWind.RuntimeState->PendingGust = FKawaiiProceduralWindGustRequest{
+			Strength,
+			RiseTime,
+			DecayTime
+		};
+		return true;
+	}
+
+	bool QueueProceduralWindParams(FKawaiiPhysics_ExternalForce_ProceduralWind& ProceduralWind,
+	                               const FKawaiiProceduralWindDynamicParams& Params)
+	{
+		if (!ProceduralWind.RuntimeState.IsValid())
+		{
+			ProceduralWind.ResetRuntimeState();
+		}
+
+		FScopeLock Lock(&ProceduralWind.RuntimeState->Mutex);
+		ProceduralWind.RuntimeState->PendingParams = Params;
+		return true;
 	}
 
 #if !UE_BUILD_SHIPPING
@@ -568,6 +610,136 @@ bool UKawaiiPhysicsLibrary::RemoveExternalForcesFromComponent(USkeletalMeshCompo
 	}
 
 	return bResult;
+}
+
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::TriggerProceduralWindGust(
+	EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+	const FKawaiiPhysicsReference& KawaiiPhysics,
+	const int32 ExternalForceIndex,
+	const float Strength,
+	const float RiseTime,
+	const float DecayTime)
+{
+	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
+
+	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+		TEXT("TriggerProceduralWindGust"),
+		[&ExecResult, ExternalForceIndex, Strength, RiseTime, DecayTime](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			if (!InKawaiiPhysics.ExternalForces.IsValidIndex(ExternalForceIndex))
+			{
+				return;
+			}
+
+			if (FKawaiiPhysics_ExternalForce_ProceduralWind* ProceduralWind =
+				GetMutableProceduralWind(InKawaiiPhysics.ExternalForces[ExternalForceIndex]))
+			{
+				if (QueueProceduralWindGust(*ProceduralWind, Strength, RiseTime, DecayTime))
+				{
+					ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
+				}
+			}
+		});
+
+	return KawaiiPhysics;
+}
+
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetProceduralWindParameters(
+	EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+	const FKawaiiPhysicsReference& KawaiiPhysics,
+	const int32 ExternalForceIndex,
+	const FKawaiiProceduralWindDynamicParams& Params)
+{
+	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
+
+	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+		TEXT("SetProceduralWindParameters"),
+		[&ExecResult, ExternalForceIndex, &Params](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			if (!InKawaiiPhysics.ExternalForces.IsValidIndex(ExternalForceIndex))
+			{
+				return;
+			}
+
+			if (FKawaiiPhysics_ExternalForce_ProceduralWind* ProceduralWind =
+				GetMutableProceduralWind(InKawaiiPhysics.ExternalForces[ExternalForceIndex]))
+			{
+				if (QueueProceduralWindParams(*ProceduralWind, Params))
+				{
+					ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
+				}
+			}
+		});
+
+	return KawaiiPhysics;
+}
+
+int32 UKawaiiPhysicsLibrary::TriggerProceduralWindGustOnComponent(
+	USkeletalMeshComponent* MeshComp,
+	const float Strength,
+	const float RiseTime,
+	const float DecayTime,
+	const FGameplayTagContainer& FilterTags,
+	const bool bFilterExactMatch)
+{
+	int32 AppliedForceCount = 0;
+
+	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
+	CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, MeshComp, FilterTags, bFilterExactMatch);
+	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
+	{
+		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("TriggerProceduralWindGustOnComponent"),
+			[&AppliedForceCount, Strength, RiseTime, DecayTime](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				for (FInstancedStruct& InstancedStruct : InKawaiiPhysics.ExternalForces)
+				{
+					if (FKawaiiPhysics_ExternalForce_ProceduralWind* ProceduralWind =
+						GetMutableProceduralWind(InstancedStruct))
+					{
+						if (QueueProceduralWindGust(*ProceduralWind, Strength, RiseTime, DecayTime))
+						{
+							++AppliedForceCount;
+						}
+					}
+				}
+			});
+	}
+
+	return AppliedForceCount;
+}
+
+int32 UKawaiiPhysicsLibrary::SetProceduralWindParametersOnComponent(
+	USkeletalMeshComponent* MeshComp,
+	const FKawaiiProceduralWindDynamicParams& Params,
+	const FGameplayTagContainer& FilterTags,
+	const bool bFilterExactMatch)
+{
+	int32 AppliedForceCount = 0;
+
+	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
+	CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, MeshComp, FilterTags, bFilterExactMatch);
+	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
+	{
+		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("SetProceduralWindParametersOnComponent"),
+			[&AppliedForceCount, &Params](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				for (FInstancedStruct& InstancedStruct : InKawaiiPhysics.ExternalForces)
+				{
+					if (FKawaiiPhysics_ExternalForce_ProceduralWind* ProceduralWind =
+						GetMutableProceduralWind(InstancedStruct))
+					{
+						if (QueueProceduralWindParams(*ProceduralWind, Params))
+						{
+							++AppliedForceCount;
+						}
+					}
+				}
+			});
+	}
+
+	return AppliedForceCount;
 }
 
 bool UKawaiiPhysicsLibrary::SetAlphaToComponent(USkeletalMeshComponent* MeshComp, float Alpha,

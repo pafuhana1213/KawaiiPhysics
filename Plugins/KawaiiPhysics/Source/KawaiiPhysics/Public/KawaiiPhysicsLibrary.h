@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "AnimNode_KawaiiPhysics.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
+#include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
 #include "KawaiiPhysicsPresetDataAsset.h"
 #include "Animation/AnimNodeReference.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
@@ -462,6 +463,58 @@ public:
 	static bool RemoveExternalForcesFromComponent(USkeletalMeshComponent* MeshComp, UObject* Owner,
 	                                              UPARAM(ref) FGameplayTagContainer& FilterTags,
 	                                              bool bFilterExactMatch = false);
+
+	/**
+	 * ProceduralWind の突風をリクエストする。PendingRequest 経由でスレッドセーフ。次フレームの PreApply で反映。
+	 * Request a ProceduralWind gust. Thread-safe via PendingRequest. Applied in the next frame's PreApply.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FKawaiiPhysicsReference TriggerProceduralWindGust(
+		EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+		const FKawaiiPhysicsReference& KawaiiPhysics,
+		int32 ExternalForceIndex,
+		float Strength,
+		float RiseTime,
+		float DecayTime);
+
+	/**
+	 * ProceduralWind の動的パラメータ更新をリクエストする。PendingRequest 経由でスレッドセーフ。次フレームの PreApply で反映。
+	 * Request a ProceduralWind dynamic parameter update. Thread-safe via PendingRequest. Applied in the next frame's PreApply.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FKawaiiPhysicsReference SetProceduralWindParameters(
+		EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+		const FKawaiiPhysicsReference& KawaiiPhysics,
+		int32 ExternalForceIndex,
+		const FKawaiiProceduralWindDynamicParams& Params);
+
+	/**
+	 * Component 内の ProceduralWind へ突風を一括リクエストする。PendingRequest 経由でスレッドセーフ。次フレームの PreApply で反映。
+	 * Request a gust for ProceduralWind entries in a component. Thread-safe via PendingRequest. Applied in the next frame's PreApply.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, AutoCreateRefTerm = "FilterTags"))
+	static int32 TriggerProceduralWindGustOnComponent(
+		USkeletalMeshComponent* MeshComp,
+		float Strength,
+		float RiseTime,
+		float DecayTime,
+		const FGameplayTagContainer& FilterTags,
+		bool bFilterExactMatch = false);
+
+	/**
+	 * Component 内の ProceduralWind へ動的パラメータ更新を一括リクエストする。PendingRequest 経由でスレッドセーフ。次フレームの PreApply で反映。
+	 * Request dynamic parameter updates for ProceduralWind entries in a component. Thread-safe via PendingRequest. Applied in the next frame's PreApply.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, AutoCreateRefTerm = "FilterTags"))
+	static int32 SetProceduralWindParametersOnComponent(
+		USkeletalMeshComponent* MeshComp,
+		const FKawaiiProceduralWindDynamicParams& Params,
+		const FGameplayTagContainer& FilterTags,
+		bool bFilterExactMatch = false);
 
 	/**
 	 * Set alpha (input) to all KawaiiPhysics nodes in the component (and linked/post-process instances).
