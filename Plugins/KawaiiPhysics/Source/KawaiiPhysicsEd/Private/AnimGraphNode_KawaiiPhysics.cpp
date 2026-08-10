@@ -18,7 +18,9 @@
 #include "KawaiiPhysicsLimitsDataAsset.h"
 #include "KawaiiPhysicsPresetDataAsset.h"
 #include "KawaiiPhysicsPresetDiffSnapshot.h"
+#include "KawaiiPhysicsEdWindowUtils.h"
 #include "SKawaiiPhysicsPresetDiffWindow.h"
+#include "SKawaiiPhysicsWindScopeWindow.h"
 #include "Widgets/Input/SButton.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -411,6 +413,54 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 			[
 				SNew(STextBlock)
 				.Text(FText::FromString(TEXT("Check Preset Diff")))
+				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+			]
+		]
+		+ SUniformGridPanel::Slot(2, 1)
+		[
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.ToolTipText(LOCTEXT("OpenWindScopeToolTip", "Procedural Wind の波形プレビューウィンドウを開く / Opens the waveform preview window for Procedural Wind."))
+			.OnClicked_Lambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics>(this)]()
+			{
+				if (UAnimGraphNode_KawaiiPhysics* Node = WeakThis.Get())
+				{
+					int32 ExternalForceIndex = INDEX_NONE;
+					for (int32 Index = 0; Index < Node->Node.ExternalForces.Num(); ++Index)
+					{
+						if (Node->Node.ExternalForces[Index].IsValid() &&
+							Node->Node.ExternalForces[Index].GetScriptStruct() ==
+							FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct())
+						{
+							ExternalForceIndex = Index;
+							break;
+						}
+					}
+
+					if (ExternalForceIndex == INDEX_NONE)
+					{
+						KawaiiPhysicsEdWindowUtils::ShowNotification(
+							LOCTEXT("NoProceduralWindExternalForce", "Procedural Wind の外力がありません / No Procedural Wind external force on this node."),
+							SNotificationItem::CS_Fail);
+						return FReply::Handled();
+					}
+
+					const UAnimBlueprint* AnimBlueprint = Node->GetAnimBlueprint();
+					FKawaiiPhysicsWindScopeWindowArgs Args;
+					Args.GraphNode = Node;
+					Args.AnimBlueprintPath = AnimBlueprint ? FSoftObjectPath(AnimBlueprint) : FSoftObjectPath();
+					Args.NodeGuid = Node->NodeGuid;
+					Args.ExternalForceIndex = ExternalForceIndex;
+
+					SKawaiiPhysicsWindScopeWindow::OpenWindow(MoveTemp(Args));
+				}
+				return FReply::Handled();
+			})
+			.Content()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("OpenWindScope", "Wind Scope"))
 				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
 			]
 		]
