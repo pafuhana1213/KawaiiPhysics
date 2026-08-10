@@ -7,13 +7,12 @@
 #include "DesktopPlatformModule.h"
 #include "Dom/JsonObject.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Framework/Notifications/NotificationManager.h"
 #include "HAL/PlatformProcess.h"
 #include "ISourceControlModule.h"
 #include "KawaiiPhysicsAuditCommandlet.h"
+#include "KawaiiPhysicsEdWindowUtils.h"
 #include "KawaiiPhysicsEditorLibrary.h"
 #include "KawaiiPhysicsPresetDiffSnapshot.h"
-#include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/Paths.h"
@@ -46,91 +45,17 @@ namespace
 	TWeakPtr<SWindow> AuditWindowWeak;
 	TWeakPtr<SKawaiiPhysicsNodeAuditWindow> AuditWidgetWeak;
 
-	void ShowAuditNotification(const FText& NotificationText,
-	                            const SNotificationItem::ECompletionState CompletionState)
-	{
-		FNotificationInfo NotificationInfo(NotificationText);
-		NotificationInfo.ExpireDuration = 5.0f;
-
-		TSharedPtr<SNotificationItem> NotificationItem =
-			FSlateNotificationManager::Get().AddNotification(NotificationInfo);
-		if (NotificationItem.IsValid())
-		{
-			NotificationItem->SetCompletionState(CompletionState);
-		}
-	}
-
 	void ShowAuditExportSucceededNotification(const FString& OutputPath)
 	{
-		FNotificationInfo NotificationInfo(LOCTEXT("ExportSucceeded", "Exported Kawaii Physics audit results."));
-		NotificationInfo.ExpireDuration = 5.0f;
-		NotificationInfo.Hyperlink = FSimpleDelegate::CreateLambda([OutputPath]()
-		{
-			FPlatformProcess::ExploreFolder(*FPaths::GetPath(OutputPath));
-		});
-		NotificationInfo.HyperlinkText = LOCTEXT("ExportSucceededHyperlink", "Show in Folder");
-
-		TSharedPtr<SNotificationItem> NotificationItem =
-			FSlateNotificationManager::Get().AddNotification(NotificationInfo);
-		if (NotificationItem.IsValid())
-		{
-			NotificationItem->SetCompletionState(SNotificationItem::CS_Success);
-		}
-	}
-
-	FString MakeVectorConfigString(const FVector2D& Value)
-	{
-		return FString::Printf(TEXT("%.0f,%.0f"), Value.X, Value.Y);
-	}
-
-	bool TryParseVectorConfigString(const FString& StringValue, FVector2D& OutValue)
-	{
-		FString Left;
-		FString Right;
-		if (!StringValue.Split(TEXT(","), &Left, &Right))
-		{
-			return false;
-		}
-
-		OutValue.X = FCString::Atof(*Left);
-		OutValue.Y = FCString::Atof(*Right);
-		return true;
-	}
-
-	void PersistWindowPlacement(const TSharedRef<SWindow>& Window)
-	{
-		if (!GConfig)
-		{
-			return;
-		}
-
-		const FVector2D Position = Window->GetPositionInScreen();
-		const FVector2D Size = Window->GetSizeInScreen();
-		GConfig->SetString(ConfigSectionName, WindowPosConfigKey, *MakeVectorConfigString(Position), GEditorPerProjectIni);
-		GConfig->SetString(ConfigSectionName, WindowSizeConfigKey, *MakeVectorConfigString(Size), GEditorPerProjectIni);
-		GConfig->Flush(false, GEditorPerProjectIni);
-	}
-
-	void RestoreWindowPlacement(const TSharedRef<SWindow>& Window)
-	{
-		if (!GConfig)
-		{
-			return;
-		}
-
-		FString StringValue;
-		FVector2D ParsedValue;
-		if (GConfig->GetString(ConfigSectionName, WindowPosConfigKey, StringValue, GEditorPerProjectIni) &&
-			TryParseVectorConfigString(StringValue, ParsedValue))
-		{
-			Window->MoveWindowTo(ParsedValue);
-		}
-
-		if (GConfig->GetString(ConfigSectionName, WindowSizeConfigKey, StringValue, GEditorPerProjectIni) &&
-			TryParseVectorConfigString(StringValue, ParsedValue))
-		{
-			Window->Resize(ParsedValue);
-		}
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
+			LOCTEXT("ExportSucceeded", "Exported Kawaii Physics audit results."),
+			SNotificationItem::CS_Success,
+			5.0f,
+			FSimpleDelegate::CreateLambda([OutputPath]()
+			{
+				FPlatformProcess::ExploreFolder(*FPaths::GetPath(OutputPath));
+			}),
+			LOCTEXT("ExportSucceededHyperlink", "Show in Folder"));
 	}
 
 	FText MakeAuditSummaryText(const TArray<TSharedPtr<FKawaiiPhysicsNodeAuditEntry>>& Entries)
@@ -319,7 +244,11 @@ void SKawaiiPhysicsNodeAuditWindow::OpenWindow(FKawaiiPhysicsNodeAuditWindowArgs
 
 	Window->SetOnWindowClosed(FOnWindowClosed::CreateLambda([](const TSharedRef<SWindow>& ClosedWindow)
 	{
-		PersistWindowPlacement(ClosedWindow);
+		KawaiiPhysicsEdWindowUtils::PersistWindowPlacement(
+			ClosedWindow,
+			ConfigSectionName,
+			WindowPosConfigKey,
+			WindowSizeConfigKey);
 		AuditWindowWeak.Reset();
 		AuditWidgetWeak.Reset();
 	}));
@@ -327,7 +256,11 @@ void SKawaiiPhysicsNodeAuditWindow::OpenWindow(FKawaiiPhysicsNodeAuditWindowArgs
 	AuditWindowWeak = Window;
 	AuditWidgetWeak = AuditWidget;
 	FSlateApplication::Get().AddWindow(Window);
-	RestoreWindowPlacement(Window);
+	KawaiiPhysicsEdWindowUtils::RestoreWindowPlacement(
+		Window,
+		ConfigSectionName,
+		WindowPosConfigKey,
+		WindowSizeConfigKey);
 }
 
 void SKawaiiPhysicsNodeAuditWindow::CloseAllWindows()
@@ -610,7 +543,7 @@ void SKawaiiPhysicsNodeAuditWindow::OnRowDoubleClicked(FEntryPtr Entry)
 	UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(AnimBlueprintObject);
 	if (!AnimBlueprint || !GEditor)
 	{
-		ShowAuditNotification(
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
 			LOCTEXT("OpenAnimBlueprintFailed", "Failed to open the AnimBlueprint."),
 			SNotificationItem::CS_Fail);
 		return;
@@ -633,7 +566,7 @@ void SKawaiiPhysicsNodeAuditWindow::OnViewDiffClicked(FEntryPtr Entry)
 		UKawaiiPhysicsEditorLibrary::FindGraphNodeByGuid(Entry->AnimBlueprintPath, Entry->NodeGuid);
 	if (!GraphNode)
 	{
-		ShowAuditNotification(
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
 			LOCTEXT("ViewDiffResolveFailed", "Failed to resolve the KawaiiPhysics graph node."),
 			SNotificationItem::CS_Fail);
 		return;
@@ -643,7 +576,7 @@ void SKawaiiPhysicsNodeAuditWindow::OnViewDiffClicked(FEntryPtr Entry)
 		Cast<UKawaiiPhysicsPresetDataAsset>(Entry->MatchedPresetPath.TryLoad());
 	if (!Preset)
 	{
-		ShowAuditNotification(
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
 			LOCTEXT("ViewDiffPresetLoadFailed", "Failed to load the matched preset."),
 			SNotificationItem::CS_Fail);
 		return;
@@ -715,7 +648,7 @@ FReply SKawaiiPhysicsNodeAuditWindow::OnRefreshClicked()
 	UKawaiiPhysicsPresetDataAsset* Preset = Cast<UKawaiiPhysicsPresetDataAsset>(PresetPath.TryLoad());
 	if (!Preset)
 	{
-		ShowAuditNotification(
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
 			LOCTEXT("RefreshPresetLoadFailed", "Failed to load the preset for Refresh."),
 			SNotificationItem::CS_Fail);
 		return FReply::Handled();
@@ -758,7 +691,7 @@ FReply SKawaiiPhysicsNodeAuditWindow::OnApplyToProjectClicked()
 	UKawaiiPhysicsPresetDataAsset* Preset = Cast<UKawaiiPhysicsPresetDataAsset>(PresetPath.TryLoad());
 	if (!Preset)
 	{
-		ShowAuditNotification(
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
 			LOCTEXT("ApplyToProjectPresetLoadFailed", "Failed to load the preset for Apply to Project."),
 			SNotificationItem::CS_Fail);
 		return FReply::Handled();
@@ -769,7 +702,7 @@ FReply SKawaiiPhysicsNodeAuditWindow::OnApplyToProjectClicked()
 		UKawaiiPhysicsEditorLibrary::ReapplyPresetToProject(Preset, false, bCheckOutFiles, Report);
 	ReplaceEntriesFromReport(Report);
 
-	ShowAuditNotification(
+	KawaiiPhysicsEdWindowUtils::ShowNotification(
 		FText::Format(
 			LOCTEXT("ApplyToProjectSucceeded", "Applied preset to {0} node(s)."),
 			FText::AsNumber(AppliedCount)),
@@ -814,7 +747,7 @@ FReply SKawaiiPhysicsNodeAuditWindow::OnExportClicked()
 
 	if (!bWriteOk)
 	{
-		ShowAuditNotification(
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
 			LOCTEXT("ExportFailed", "Failed to export the Kawaii Physics audit results."),
 			SNotificationItem::CS_Fail);
 		return FReply::Handled();
