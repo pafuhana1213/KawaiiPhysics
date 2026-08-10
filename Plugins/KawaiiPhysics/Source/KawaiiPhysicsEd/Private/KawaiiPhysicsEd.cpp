@@ -4,6 +4,10 @@
 #include "Modules/ModuleManager.h"
 #include "Textures/SlateIcon.h"
 #include "KawaiiPhysicsEditMode.h"
+#include "KawaiiPhysicsPresetDataAssetDetails.h"
+#include "PropertyEditorModule.h"
+#include "SKawaiiPhysicsNodeAuditWindow.h"
+#include "SKawaiiPhysicsPresetDiffWindow.h"
 
 #define LOCTEXT_NAMESPACE "FKawaiiPhysicsModuleEd"
 
@@ -13,11 +17,28 @@ void FKawaiiPhysicsEdModule::StartupModule()
 	FEditorModeRegistry::Get().RegisterMode<FKawaiiPhysicsEditMode>("AnimGraph.SkeletalControl.KawaiiPhysics",
 	                                                                LOCTEXT("FKawaiiPhysicsEditMode", "Kawaii Physics"),
 	                                                                FSlateIcon(), false);
+
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(
+		"PropertyEditor");
+	PropertyEditorModule.RegisterCustomClassLayout(
+		"KawaiiPhysicsPresetDataAsset",
+		FOnGetDetailCustomizationInstance::CreateStatic(&FKawaiiPhysicsPresetDataAssetDetails::MakeInstance));
+	PropertyEditorModule.NotifyCustomizationModuleChanged();
 }
 
 
 void FKawaiiPhysicsEdModule::ShutdownModule()
 {
+	SKawaiiPhysicsPresetDiffWindow::CloseAllWindows();
+	SKawaiiPhysicsNodeAuditWindow::CloseAllWindows();
+
+	if (FPropertyEditorModule* PropertyEditorModule = FModuleManager::GetModulePtr<FPropertyEditorModule>(
+		"PropertyEditor"))
+	{
+		PropertyEditorModule->UnregisterCustomClassLayout("KawaiiPhysicsPresetDataAsset");
+		PropertyEditorModule->NotifyCustomizationModuleChanged();
+	}
+
 	FEditorModeRegistry::Get().UnregisterMode("AnimGraph.SkeletalControl.KawaiiPhysics");
 }
 

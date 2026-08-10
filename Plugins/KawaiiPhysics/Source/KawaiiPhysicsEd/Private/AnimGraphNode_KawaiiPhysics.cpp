@@ -4,19 +4,33 @@
 
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "AssetToolsModule.h"
+#include "Animation/AnimBlueprint.h"
+#include "Animation/Skeleton.h"
+#include "ContentBrowserModule.h"
+#include "ContentBrowserDelegates.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "IContentBrowserSingleton.h"
+#include "KawaiiPhysics.h"
 #include "KawaiiPhysicsBoneConstraintsDataAsset.h"
+#include "KawaiiPhysicsEditorLibrary.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
+#include "KawaiiPhysicsPresetDataAsset.h"
+#include "KawaiiPhysicsPresetDiffSnapshot.h"
+#include "SKawaiiPhysicsPresetDiffWindow.h"
 #include "Widgets/Input/SButton.h"
+#include "Framework/Commands/UIAction.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Selection.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Dialogs/DlgPickAssetPath.h"
+#include "EdGraph/EdGraphNode.h"
 #include "Kismet2/CompilerResultsLog.h"
+#include "ToolMenu.h"
+#include "ToolMenuSection.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Layout/SSeparator.h"
 
@@ -27,6 +41,58 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimGraphNode_KawaiiPhysics)
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysics"
+
+namespace
+{
+	void ShowKawaiiPhysicsNotification(const FText& NotificationText,
+	                                   const SNotificationItem::ECompletionState CompletionState)
+	{
+		FNotificationInfo NotificationInfo(NotificationText);
+		NotificationInfo.ExpireDuration = 5.0f;
+
+		TSharedPtr<SNotificationItem> NotificationItem =
+			FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+		if (NotificationItem.IsValid())
+		{
+			NotificationItem->SetCompletionState(CompletionState);
+		}
+	}
+
+	void ShowKawaiiPhysicsAssetNotification(UObject* Asset,
+	                                        const FText& NotificationText,
+	                                        const FText& HyperlinkText,
+	                                        const SNotificationItem::ECompletionState CompletionState)
+	{
+		FNotificationInfo NotificationInfo(NotificationText);
+		NotificationInfo.ExpireDuration = 5.0f;
+		if (Asset)
+		{
+			NotificationInfo.Hyperlink = FSimpleDelegate::CreateLambda([Asset]()
+			{
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Asset);
+			});
+			NotificationInfo.HyperlinkText = HyperlinkText;
+		}
+
+		TSharedPtr<SNotificationItem> NotificationItem =
+			FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+		if (NotificationItem.IsValid())
+		{
+			NotificationItem->SetCompletionState(CompletionState);
+		}
+	}
+
+	FString JoinPropertyNames(const TArray<FName>& PropertyNames)
+	{
+		TArray<FString> Strings;
+		Strings.Reserve(PropertyNames.Num());
+		for (const FName& PropertyName : PropertyNames)
+		{
+			Strings.Add(PropertyName.ToString());
+		}
+		return FString::Join(Strings, TEXT(", "));
+	}
+}
 
 // ----------------------------------------------------------------------------
 UAnimGraphNode_KawaiiPhysics::UAnimGraphNode_KawaiiPhysics(const FObjectInitializer& ObjectInitializer)
@@ -253,9 +319,12 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 			SNew(SButton)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			.OnClicked_Lambda([this]()
+			.OnClicked_Lambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics>(this)]()
 			{
-				this->ExportLimitsDataAsset();
+				if (UAnimGraphNode_KawaiiPhysics* Node = WeakThis.Get())
+				{
+					Node->ExportLimitsDataAsset();
+				}
 				return FReply::Handled();
 			})
 			.Content()
@@ -270,15 +339,78 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 			SNew(SButton)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			.OnClicked_Lambda([this]()
+			.OnClicked_Lambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics>(this)]()
 			{
-				this->ExportBoneConstraintsDataAsset();
+				if (UAnimGraphNode_KawaiiPhysics* Node = WeakThis.Get())
+				{
+					Node->ExportBoneConstraintsDataAsset();
+				}
 				return FReply::Handled();
 			})
 			.Content()
 			[
 				SNew(STextBlock)
 				.Text(FText::FromString(TEXT("Export BoneConstraints")))
+				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+			]
+		]
+		+ SUniformGridPanel::Slot(2, 0)
+		[
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.OnClicked_Lambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics>(this)]()
+			{
+				if (UAnimGraphNode_KawaiiPhysics* Node = WeakThis.Get())
+				{
+					Node->ExportPresetDataAsset();
+				}
+				return FReply::Handled();
+			})
+			.Content()
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(TEXT("Export Preset")))
+				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+			]
+		]
+		+ SUniformGridPanel::Slot(0, 1)
+		[
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.OnClicked_Lambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics>(this)]()
+			{
+				if (UAnimGraphNode_KawaiiPhysics* Node = WeakThis.Get())
+				{
+					Node->ApplyPresetDataAsset();
+				}
+				return FReply::Handled();
+			})
+			.Content()
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(TEXT("Apply Preset")))
+				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+			]
+		]
+		+ SUniformGridPanel::Slot(1, 1)
+		[
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.OnClicked_Lambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics>(this)]()
+			{
+				if (UAnimGraphNode_KawaiiPhysics* Node = WeakThis.Get())
+				{
+					Node->CheckPresetDiff();
+				}
+				return FReply::Handled();
+			})
+			.Content()
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(TEXT("Check Preset Diff")))
 				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
 			]
 		]
@@ -454,6 +586,7 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 		SafeSetOrder(FName("Kawaii Physics Tools"));
 		SafeSetOrder(FName("Debug Visualization"));
 		SafeSetOrder(FName("Functions"));
+		SafeSetOrder(FName("Preset"));
 
 		// Basic
 		SafeSetOrder(FName("Bones"));
@@ -546,17 +679,8 @@ UPackage* UAnimGraphNode_KawaiiPhysics::CreateDataAssetPackage(const FString& Di
 void UAnimGraphNode_KawaiiPhysics::ShowExportAssetNotification(UObject* NewAsset,
                                                                FText NotificationText)
 {
-	FNotificationInfo NotificationInfo(NotificationText);
-	NotificationInfo.ExpireDuration = 5.0f;
-	NotificationInfo.Hyperlink = FSimpleDelegate::CreateLambda([NewAsset]()
-	{
-		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewAsset);
-	});
-	NotificationInfo.HyperlinkText = LOCTEXT("OpenCreatedAsset", "Open Created Asset");
-
-	TSharedPtr<SNotificationItem> NotificationItem = FSlateNotificationManager::Get().AddNotification(
-		NotificationInfo);
-	NotificationItem->SetCompletionState(SNotificationItem::CS_Success);
+	ShowKawaiiPhysicsAssetNotification(NewAsset, NotificationText, LOCTEXT("OpenCreatedAsset", "Open Created Asset"),
+	                                   SNotificationItem::CS_Success);
 }
 
 void UAnimGraphNode_KawaiiPhysics::ExportLimitsDataAsset()
@@ -608,7 +732,7 @@ void UAnimGraphNode_KawaiiPhysics::ExportLimitsDataAsset()
 
 		// Add Notification
 		FText NotificationText = FText::Format(
-			LOCTEXT("ExportedLimitsDataAsset", "Exposted Limits Data Asset: {0}"), FText::FromString(AssetName));
+			LOCTEXT("ExportedLimitsDataAsset", "Exported Limits Data Asset: {0}"), FText::FromString(AssetName));
 		ShowExportAssetNotification(NewDataAsset, NotificationText);
 	}
 }
@@ -656,10 +780,239 @@ void UAnimGraphNode_KawaiiPhysics::ExportBoneConstraintsDataAsset()
 
 		// Add Notification
 		FText NotificationText = FText::Format(
-			LOCTEXT("ExportedBoneConstraintsDataAsset", "Exposted BoneConstraints Data Asset: {0}"),
+			LOCTEXT("ExportedBoneConstraintsDataAsset", "Exported BoneConstraints Data Asset: {0}"),
 			FText::FromString(AssetName));
 		ShowExportAssetNotification(NewDataAsset, NotificationText);
 	}
+}
+
+void UAnimGraphNode_KawaiiPhysics::ExportPresetDataAsset()
+{
+	FString AssetName;
+	UPackage* Package = CreateDataAssetPackage(
+		TEXT("Choose Location for Preset Data Asset"), TEXT("_Preset"), AssetName);
+	if (!Package)
+	{
+		return;
+	}
+
+	if (UKawaiiPhysicsPresetDataAsset* NewDataAsset =
+		NewObject<UKawaiiPhysicsPresetDataAsset>(Package, UKawaiiPhysicsPresetDataAsset::StaticClass(),
+		                                         FName(AssetName), RF_Public | RF_Standalone))
+	{
+		// デバッグ対象がプレビュー以外の場合もあるため、有効な対象からSkeletonを取得する。
+		if (UObject* ObjectBeingDebugged = GetAnimBlueprint()->GetObjectBeingDebugged())
+		{
+			if (const UAnimInstance* InstanceBeingDebugged = Cast<UAnimInstance>(ObjectBeingDebugged))
+			{
+#if WITH_EDITORONLY_DATA
+				NewDataAsset->Skeleton = InstanceBeingDebugged->CurrentSkeleton;
+#endif
+			}
+		}
+
+		// ノード設定を丸ごとコピーする。
+		NewDataAsset->CopyFromNode(Node);
+
+		if (const UAnimBlueprint* AnimBlueprint = GetAnimBlueprint())
+		{
+			NewDataAsset->Description = FText::Format(
+				LOCTEXT("ExportedPresetDataAssetDescription", "Exported from Anim Blueprint: {0}"),
+				FText::FromString(AnimBlueprint->GetName()));
+		}
+
+		// 新規アセットを選択する。
+		USelection* SelectionSet = GEditor->GetSelectedObjects();
+		SelectionSet->DeselectAll();
+		SelectionSet->Select(NewDataAsset);
+
+		FAssetRegistryModule::AssetCreated(NewDataAsset);
+		Package->MarkPackageDirty();
+
+		// 通知を表示する。
+		const FText NotificationText = Node.KawaiiPhysicsTag.IsValid()
+			                               ? FText::Format(
+				                               LOCTEXT("ExportedPresetDataAsset",
+				                                       "Exported Preset Data Asset: {0}"),
+				                               FText::FromString(AssetName))
+			                               : FText::Format(
+				                               LOCTEXT("ExportedPresetDataAssetNoTag",
+				                                       "Exported Preset Data Asset: {0}\nWarning: this node has no KawaiiPhysicsTag, so TargetTags is empty. Set a tag to include it in Reapply/Audit."),
+				                               FText::FromString(AssetName));
+		ShowExportAssetNotification(NewDataAsset, NotificationText);
+	}
+}
+
+void UAnimGraphNode_KawaiiPhysics::ApplyPresetDataAsset()
+{
+	// 適用するPresetを選択するためのアセットピッカーを開く。
+	FOpenAssetDialogConfig OpenAssetDialogConfig;
+	OpenAssetDialogConfig.DialogTitleOverride = LOCTEXT("ApplyPresetDialogTitle", "Choose Kawaii Physics Preset");
+	OpenAssetDialogConfig.bAllowMultipleSelection = false;
+	OpenAssetDialogConfig.AssetClassNames.Add(UKawaiiPhysicsPresetDataAsset::StaticClass()->GetClassPathName());
+
+	FContentBrowserModule& ContentBrowserModule =
+		FModuleManager::LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+	const TArray<FAssetData> SelectedAssets =
+		ContentBrowserModule.Get().CreateModalOpenAssetDialog(OpenAssetDialogConfig);
+	if (SelectedAssets.IsEmpty())
+	{
+		return;
+	}
+
+	UKawaiiPhysicsPresetDataAsset* Preset = Cast<UKawaiiPhysicsPresetDataAsset>(SelectedAssets[0].GetAsset());
+	if (!Preset)
+	{
+		ShowKawaiiPhysicsNotification(
+			LOCTEXT("ApplyPresetLoadFailed", "Failed to load selected Kawaii Physics preset."),
+			SNotificationItem::CS_Fail);
+		return;
+	}
+
+	bool bSkeletonMismatch = false;
+#if WITH_EDITORONLY_DATA
+	// Skeleton不一致は適用を止めず、後続の通知で警告するために保持する。
+	if (const UAnimBlueprint* AnimBlueprint = GetAnimBlueprint())
+	{
+		bSkeletonMismatch = Preset->Skeleton && AnimBlueprint->TargetSkeleton &&
+			Preset->Skeleton != AnimBlueprint->TargetSkeleton;
+	}
+#endif
+
+	FKawaiiPhysicsPresetApplyOptions Options;
+	// 既存ノードのボーン割り当て設定は維持する。
+	Options.bApplyBoneAssignment = false;
+	// Tagは未設定ノードへPresetのTagを引き継げる場合だけ反映する。
+	Options.bApplyTag = !Node.KawaiiPhysicsTag.IsValid() && Preset->Node.KawaiiPhysicsTag.IsValid();
+	const bool bStampedTag = Options.bApplyTag;
+
+	FKawaiiPhysicsGraphNodeHandle Handle;
+	Handle.Node = this;
+	// PresetをGraphNodeへ適用し、失敗時は対象Presetを開ける通知で中断する。
+	if (!UKawaiiPhysicsEditorLibrary::ApplyPresetToGraphNode(Handle, Preset, Options))
+	{
+		ShowKawaiiPhysicsAssetNotification(
+			Preset,
+			FText::Format(LOCTEXT("ApplyPresetFailed", "Failed to apply Preset: {0}"),
+			              FText::FromString(Preset->GetName())),
+			LOCTEXT("OpenPresetAsset", "Open Preset"),
+			SNotificationItem::CS_Fail);
+		return;
+	}
+
+	// 適用結果の通知文を組み立てる。
+	FString NotificationMessage = FString::Printf(TEXT("Applied Preset: %s"), *Preset->GetName());
+	if (bStampedTag)
+	{
+		// Tagを自動付与した場合のみ、その事実を通知へ追記する。
+		NotificationMessage += FString::Printf(TEXT("\nStamped tag: %s"), *Node.KawaiiPhysicsTag.ToString());
+	}
+	if (bSkeletonMismatch)
+	{
+		// Skeleton不一致は操作を止めない警告として通知へ追記する。
+		NotificationMessage += TEXT("\nWarning: preset skeleton differs from this AnimBlueprint target skeleton.");
+	}
+	if (!Preset->TargetsNodeTag(Node.KawaiiPhysicsTag))
+	{
+		// 現在のTagがTargetTagsに一致しない場合、以後のReapply/Audit対象外になることを明示する。
+		NotificationMessage += TEXT("\nWarning: this node will not be targeted by Reapply/Audit because its tag does not match TargetTags.");
+	}
+
+	// 警告を含む成功は見落とし防止のためCS_Failスタイルで表示する。
+	const bool bHasWarning = bSkeletonMismatch || !Preset->TargetsNodeTag(Node.KawaiiPhysicsTag);
+	ShowKawaiiPhysicsAssetNotification(
+		Preset,
+		FText::FromString(NotificationMessage),
+		LOCTEXT("OpenAppliedPresetAsset", "Open Preset"),
+		bHasWarning ? SNotificationItem::CS_Fail : SNotificationItem::CS_Success);
+}
+
+void UAnimGraphNode_KawaiiPhysics::CheckPresetDiff()
+{
+	const TArray<TSharedRef<FKawaiiPhysicsPresetDiffSnapshot>> Snapshots =
+		KawaiiPhysicsPresetDiff::BuildSnapshotsForNode(Node, FKawaiiPhysicsPresetApplyOptions());
+
+	if (Snapshots.IsEmpty())
+	{
+		ShowKawaiiPhysicsNotification(
+			LOCTEXT("NoPresetTargetsNodeTag", "No preset targets this node's tag."),
+			SNotificationItem::CS_Fail);
+		return;
+	}
+
+	// 差分のあるプリセットごとにログを1行出力する。
+	for (const TSharedRef<FKawaiiPhysicsPresetDiffSnapshot>& Snapshot : Snapshots)
+	{
+		if (Snapshot->DiffCount == 0)
+		{
+			continue;
+		}
+
+		TArray<FName> DiffProperties;
+		DiffProperties.Reserve(Snapshot->DiffCount);
+		for (const TSharedPtr<FKawaiiPhysicsPresetDiffPropertyRow>& Row : Snapshot->Rows)
+		{
+			if (Row.IsValid() && Row->bDiffers)
+			{
+				DiffProperties.Add(Row->PropertyName);
+			}
+		}
+
+		UE_LOG(LogKawaiiPhysics, Display,
+		       TEXT("CheckPresetDiff: NodeTag=%s Preset=%s DiffCount=%d DiffProperties=%s"),
+		       *Node.KawaiiPhysicsTag.ToString(),
+		       *Snapshot->PresetPath.ToString(),
+		       Snapshot->DiffCount,
+		       *JoinPropertyNames(DiffProperties));
+	}
+
+	// 差分ウィンドウのコンテキストラベル（ノードタイトル＋AnimBlueprint名＋Tag）を組み立てる。
+	const UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
+	const FText ContextLabel = FText::Format(
+		LOCTEXT("CheckPresetDiffContextLabel", "{0}  |  {1}  |  Tag: {2}"),
+		GetNodeTitle(ENodeTitleType::ListView),
+		AnimBlueprint
+			? FText::FromString(AnimBlueprint->GetName())
+			: LOCTEXT("CheckPresetDiffUnknownAnimBlueprint", "(Unknown AnimBlueprint)"),
+		FText::FromString(Node.KawaiiPhysicsTag.ToString()));
+
+	FKawaiiPhysicsPresetDiffWindowArgs Args;
+	Args.ContextLabel = ContextLabel;
+	Args.Snapshots = Snapshots;
+	Args.AnimBlueprintPath = AnimBlueprint ? FSoftObjectPath(AnimBlueprint) : FSoftObjectPath();
+	Args.NodeGuid = NodeGuid;
+
+	SKawaiiPhysicsPresetDiffWindow::OpenWindow(MoveTemp(Args));
+}
+
+void UAnimGraphNode_KawaiiPhysics::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
+{
+	if (!Context || Context->bIsDebugging)
+	{
+		return;
+	}
+
+	FToolMenuSection& Section = Menu->AddSection(
+		"KawaiiPhysics", LOCTEXT("KawaiiPhysicsContextMenuSection", "Kawaii Physics"));
+
+	// private関数だがCreateUObjectはメンバ関数内での束縛のためアクセス可能（弱参照バインドでノード破棄後も安全）。
+	UAnimGraphNode_KawaiiPhysics* MutableThis = const_cast<UAnimGraphNode_KawaiiPhysics*>(this);
+
+	Section.AddMenuEntry(
+		"KawaiiPhysicsCheckPresetDiff",
+		LOCTEXT("CheckPresetDiffMenuLabel", "Check Preset Diff"),
+		LOCTEXT("CheckPresetDiffMenuToolTip",
+		        "このノードとプリセットの差分をウィンドウで確認します / Shows the diff between this node and its presets in a window."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateUObject(MutableThis, &UAnimGraphNode_KawaiiPhysics::CheckPresetDiff)));
+
+	Section.AddMenuEntry(
+		"KawaiiPhysicsApplyPreset",
+		LOCTEXT("ApplyPresetMenuLabel", "Apply Preset..."),
+		LOCTEXT("ApplyPresetMenuToolTip",
+		        "プリセットDataAssetをこのノードへ適用します / Applies a preset data asset to this node."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateUObject(MutableThis, &UAnimGraphNode_KawaiiPhysics::ApplyPresetDataAsset)));
 }
 
 #undef LOCTEXT_NAMESPACE

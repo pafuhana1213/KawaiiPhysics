@@ -8,13 +8,18 @@ public class KawaiiPhysicsEd : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PrivateDependencyModuleNames.AddRange(new[]
+		PublicDependencyModuleNames.AddRange(new[]
 		{
 			"Core",
 			"CoreUObject",
 			"Engine",
-			"InputCore",
 			"KawaiiPhysics",
+			"GameplayTags"
+		});
+
+		PrivateDependencyModuleNames.AddRange(new[]
+		{
+			"InputCore",
 			"AnimGraph",
 			"BlueprintGraph",
 			"Persona",
@@ -22,8 +27,27 @@ public class KawaiiPhysicsEd : ModuleRules
 			"AnimGraphRuntime",
 			"Slate",
 			"SlateCore",
-			"DeveloperSettings"
+			"DeveloperSettings",
+			"PropertyEditor",
+			"ContentBrowser",
+			"SourceControl",
+			"AssetRegistry",
+			"ApplicationCore",
+			"Kismet",
+			"ToolMenus",
+			"Json",
+			"JsonUtilities",
+			"DesktopPlatform"
 		});
+
+		if (Target.Version.MajorVersion > 5 || (Target.Version.MajorVersion == 5 && Target.Version.MinorVersion >= 5))
+		{
+			PublicDefinitions.Add("KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED=0");
+		}
 
 		if(Target.Version.MajorVersion >= 5)
 		{

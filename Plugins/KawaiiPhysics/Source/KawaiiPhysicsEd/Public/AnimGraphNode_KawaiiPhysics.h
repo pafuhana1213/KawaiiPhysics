@@ -10,6 +10,8 @@
 #include "AnimGraphNode_KawaiiPhysics.generated.h"
 
 class FCompilerResultsLog;
+class UToolMenu;
+class UGraphNodeContextMenuContext;
 
 UCLASS()
 class UAnimGraphNode_KawaiiPhysics : public UAnimGraphNode_SkeletalControlBase
@@ -19,6 +21,9 @@ class UAnimGraphNode_KawaiiPhysics : public UAnimGraphNode_SkeletalControlBase
 	FAnimNode_KawaiiPhysics Node;
 
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
+
+	/** ノード右クリックメニューにKawaii Physics専用項目（Apply Preset / Check Preset Diff）を追加します / Adds Kawaii Physics specific entries (Apply Preset / Check Preset Diff) to the node's right-click context menu. */
+	virtual void GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const override;
 
 	// UObject interface
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -65,6 +70,15 @@ private:
 
 	/** Exports the bone constraints data asset. */
 	void ExportBoneConstraintsDataAsset();
+
+	/** プリセットDataAssetを書き出します / Exports the preset data asset. */
+	void ExportPresetDataAsset();
+
+	/** プリセットDataAssetをこのノードへ適用します / Applies a preset data asset to this node. */
+	void ApplyPresetDataAsset();
+
+	/** このノードと対象プリセットとの差分を確認します / Checks the diff between this node and its target preset. */
+	void CheckPresetDiff();
 
 public:
 	/** Enables or disables debug drawing for bones. */

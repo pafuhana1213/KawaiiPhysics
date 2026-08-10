@@ -2,17 +2,134 @@
 
 #include "KawaiiPhysicsLibrary.h"
 
+#include "Misc/EngineVersionComparison.h"
+
 #if !UE_VERSION_OLDER_THAN(5, 6, 0)
 #include "Animation/AnimInstance.h"
 #endif
 
 #include "AnimNode_KawaiiPhysics.h"
 #include "BlueprintGameplayTagLibrary.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/World.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
+#include "GameFramework/Actor.h"
+#include "HAL/IConsoleManager.h"
+#include "KawaiiPhysics.h"
+#include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(KawaiiPhysicsLibrary)
 
 DEFINE_LOG_CATEGORY_STATIC(LogKawaiiPhysicsLibrary, Verbose, All);
+
+namespace
+{
+	const TSet<FName>& GetNodeModifyBonesReinitPropertyNames()
+	{
+		static const TSet<FName> Names = {
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, RootBone),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, ExcludeBones),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, AdditionalRootBones),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, DummyBoneLength),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, BoneSubdivisionCount),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, bBoneSubdivisionCollisionOnly),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, bBoneSubdivisionDensifyByRadius),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, BoneForwardAxis),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, RadiusCurveData),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, LimitsDataAsset),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, PhysicsAssetForLimits),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, MirrorDataTableForLimits),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, bSkipMirroredBoneWithExistingCollision),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, BoneConstraintSubdivisionCount),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, BoneConstraints),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, BoneConstraintsDataAsset),
+		};
+		return Names;
+	}
+
+	const TSet<FName>& GetNodeSharedCollisionReinitPropertyNames()
+	{
+		static const TSet<FName> Names = {
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, bSharedCollisionSource),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, bUseSharedCollision),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, SharedCollisionGroupTag),
+		};
+		return Names;
+	}
+
+	bool IsDeniedRuntimeNodePropertyName(FName PropertyName)
+	{
+		return PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, ExternalForces) ||
+			PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, CustomExternalForces);
+	}
+
+#if !UE_BUILD_SHIPPING
+	void DumpKawaiiPhysicsNodes()
+	{
+		if (!IsInGameThread())
+		{
+			UE_LOG(LogKawaiiPhysics, Warning, TEXT("p.KawaiiPhysics.DumpNodes must run on the GameThread."));
+			return;
+		}
+
+		FGameplayTagContainer EmptyFilterTags;
+		int32 DumpedNodeCount = 0;
+
+		for (TObjectIterator<USkeletalMeshComponent> It; It; ++It)
+		{
+			USkeletalMeshComponent* MeshComp = *It;
+			if (!IsValid(MeshComp) || MeshComp->IsTemplate() || !MeshComp->GetWorld())
+			{
+				continue;
+			}
+
+			TArray<FKawaiiPhysicsReference> Nodes;
+			UKawaiiPhysicsLibrary::CollectKawaiiPhysicsNodes(Nodes, MeshComp, EmptyFilterTags, false);
+			if (Nodes.IsEmpty())
+			{
+				continue;
+			}
+
+			const UAnimInstance* AnimInstance = MeshComp->GetAnimInstance();
+			const AActor* OwnerActor = MeshComp->GetOwner();
+			const FName AnimBPName = AnimInstance ? AnimInstance->GetClass()->GetFName() : NAME_None;
+			const FName ComponentName = MeshComp->GetFName();
+			const FName ActorName = OwnerActor ? OwnerActor->GetFName() : NAME_None;
+
+			for (FKawaiiPhysicsReference& NodeRef : Nodes)
+			{
+				NodeRef.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+					TEXT("DumpKawaiiPhysicsNode"),
+					[&DumpedNodeCount, AnimBPName, ComponentName, ActorName](FAnimNode_KawaiiPhysics& Node)
+					{
+						++DumpedNodeCount;
+						UE_LOG(LogKawaiiPhysics, Log,
+						       TEXT("DumpNodes: AnimBP=%s Component=%s Actor=%s Tag=%s RootBone=%s Damping=%.3f Stiffness=%.3f Radius=%.3f Gravity=%s Wind=%s WindScale=%.3f ModifyBones=%d"),
+						       *AnimBPName.ToString(),
+						       *ComponentName.ToString(),
+						       *ActorName.ToString(),
+						       *Node.KawaiiPhysicsTag.ToString(),
+						       *Node.RootBone.BoneName.ToString(),
+						       Node.PhysicsSettings.Damping,
+						       Node.PhysicsSettings.Stiffness,
+						       Node.PhysicsSettings.Radius,
+						       *Node.Gravity.ToCompactString(),
+						       Node.bEnableWind ? TEXT("true") : TEXT("false"),
+						       Node.WindScale,
+						       Node.ModifyBones.Num());
+					});
+			}
+		}
+
+		UE_LOG(LogKawaiiPhysics, Log, TEXT("DumpNodes: Total=%d"), DumpedNodeCount);
+	}
+
+	FAutoConsoleCommand CVarKawaiiPhysicsDumpNodes(
+		TEXT("p.KawaiiPhysics.DumpNodes"),
+		TEXT("Dump runtime KawaiiPhysics nodes in all valid skeletal mesh components."),
+		FConsoleCommandDelegate::CreateStatic(&DumpKawaiiPhysicsNodes));
+#endif
+}
 
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::ConvertToKawaiiPhysics(const FAnimNodeReference& Node,
                                                                       EAnimNodeReferenceConversionResult& Result)
@@ -97,6 +214,189 @@ bool UKawaiiPhysicsLibrary::CollectKawaiiPhysicsNodes(TArray<FKawaiiPhysicsRefer
 	return NodeNum != Nodes.Num();
 }
 
+bool UKawaiiPhysicsLibrary::CollectKawaiiPhysicsNodesFromAnimInstance(TArray<FKawaiiPhysicsReference>& Nodes,
+                                                                      UAnimInstance* AnimInstance,
+                                                                      const FGameplayTagContainer& FilterTags,
+                                                                      bool bFilterExactMatch)
+{
+	return CollectKawaiiPhysicsNodes(Nodes, AnimInstance, FilterTags, bFilterExactMatch);
+}
+
+bool UKawaiiPhysicsLibrary::CollectKawaiiPhysicsNodesFromComponent(TArray<FKawaiiPhysicsReference>& Nodes,
+                                                                   USkeletalMeshComponent* MeshComp,
+                                                                   const FGameplayTagContainer& FilterTags,
+                                                                   bool bFilterExactMatch)
+{
+	return CollectKawaiiPhysicsNodes(Nodes, MeshComp, FilterTags, bFilterExactMatch);
+}
+
+bool UKawaiiPhysicsLibrary::IsNodePropertyAccessible(const FProperty* Property)
+{
+	if (!Property)
+	{
+		return false;
+	}
+
+	if (Property->GetOwnerStruct() != FAnimNode_KawaiiPhysics::StaticStruct())
+	{
+		return false;
+	}
+
+	if (Property->HasAnyPropertyFlags(CPF_Transient | CPF_EditorOnly))
+	{
+		return false;
+	}
+
+	if (IsDeniedRuntimeNodePropertyName(Property->GetFName()))
+	{
+		return false;
+	}
+
+	const EKawaiiPhysicsPresetPropertyClass PropertyClass =
+		UKawaiiPhysicsPresetDataAsset::ClassifyNodeProperty(*Property);
+	return PropertyClass != EKawaiiPhysicsPresetPropertyClass::Deny &&
+		PropertyClass != EKawaiiPhysicsPresetPropertyClass::Unknown;
+}
+
+bool UKawaiiPhysicsLibrary::IsNodePropertyAccessible(FName PropertyName)
+{
+	return IsNodePropertyAccessible(FindFProperty<FProperty>(FAnimNode_KawaiiPhysics::StaticStruct(), PropertyName));
+}
+
+bool UKawaiiPhysicsLibrary::DoesNodePropertyRequireModifyBonesReinit(FName PropertyName)
+{
+	return GetNodeModifyBonesReinitPropertyNames().Contains(PropertyName);
+}
+
+bool UKawaiiPhysicsLibrary::DoesNodePropertyRequireSharedCollisionReinit(FName PropertyName)
+{
+	return GetNodeSharedCollisionReinitPropertyNames().Contains(PropertyName);
+}
+
+bool UKawaiiPhysicsLibrary::SetNodeWildcardPropertyValue(FAnimNode_KawaiiPhysics& Node, FName PropertyName,
+                                                         const FProperty* ValueProperty, const void* ValuePtr)
+{
+	const FProperty* Property = FindFProperty<FProperty>(FAnimNode_KawaiiPhysics::StaticStruct(), PropertyName);
+	if (!IsNodePropertyAccessible(Property) || !ValueProperty || !ValuePtr || !ValueProperty->SameType(Property))
+	{
+		return false;
+	}
+
+	if (void* NodeValuePtr = Property->ContainerPtrToValuePtr<void>(&Node))
+	{
+		Property->CopyCompleteValue(NodeValuePtr, ValuePtr);
+		if (DoesNodePropertyRequireModifyBonesReinit(PropertyName))
+		{
+			Node.RequestModifyBonesReinit();
+		}
+		if (DoesNodePropertyRequireSharedCollisionReinit(PropertyName))
+		{
+			Node.RequestSharedCollisionReinit();
+		}
+		return true;
+	}
+
+	return false;
+}
+
+bool UKawaiiPhysicsLibrary::GetNodeWildcardPropertyValue(const FAnimNode_KawaiiPhysics& Node, FName PropertyName,
+                                                         const FProperty* ValueProperty, void* ValuePtr)
+{
+	const FProperty* Property = FindFProperty<FProperty>(FAnimNode_KawaiiPhysics::StaticStruct(), PropertyName);
+	if (!IsNodePropertyAccessible(Property) || !ValueProperty || !ValuePtr || !ValueProperty->SameType(Property))
+	{
+		return false;
+	}
+
+	if (const void* NodeValuePtr = Property->ContainerPtrToValuePtr<void>(&Node))
+	{
+		ValueProperty->CopyCompleteValue(ValuePtr, NodeValuePtr);
+		return true;
+	}
+
+	return false;
+}
+
+bool UKawaiiPhysicsLibrary::SetNodePropertyValueFromString(FAnimNode_KawaiiPhysics& Node, FName PropertyName,
+                                                           const FString& ValueText)
+{
+	const FProperty* Property = FindFProperty<FProperty>(FAnimNode_KawaiiPhysics::StaticStruct(), PropertyName);
+	if (!IsNodePropertyAccessible(Property))
+	{
+		return false;
+	}
+
+	if (void* NodeValuePtr = Property->ContainerPtrToValuePtr<void>(&Node))
+	{
+#if UE_VERSION_OLDER_THAN(5, 1, 0)
+		if (Property->ImportText(*ValueText, NodeValuePtr, PPF_None, nullptr) != nullptr)
+#else
+		if (Property->ImportText_Direct(*ValueText, NodeValuePtr, nullptr, PPF_None) != nullptr)
+#endif
+		{
+			if (DoesNodePropertyRequireModifyBonesReinit(PropertyName))
+			{
+				Node.RequestModifyBonesReinit();
+			}
+			if (DoesNodePropertyRequireSharedCollisionReinit(PropertyName))
+			{
+				Node.RequestSharedCollisionReinit();
+			}
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UKawaiiPhysicsLibrary::GetNodePropertyValueAsString(const FAnimNode_KawaiiPhysics& Node, FName PropertyName,
+                                                         FString& OutValueText)
+{
+	const FProperty* Property = FindFProperty<FProperty>(FAnimNode_KawaiiPhysics::StaticStruct(), PropertyName);
+	if (!IsNodePropertyAccessible(Property))
+	{
+		return false;
+	}
+
+	if (const void* NodeValuePtr = Property->ContainerPtrToValuePtr<void>(&Node))
+	{
+		OutValueText.Reset();
+#if UE_VERSION_OLDER_THAN(5, 1, 0)
+		Property->ExportTextItem(OutValueText, NodeValuePtr, nullptr, nullptr, PPF_None);
+#else
+		Property->ExportText_Direct(OutValueText, NodeValuePtr, nullptr, nullptr, PPF_None);
+#endif
+		return true;
+	}
+
+	return false;
+}
+
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::ApplyPresetDataAsset(EKawaiiPhysicsAccessResult& ExecResult,
+                                                                    const FKawaiiPhysicsReference& KawaiiPhysics,
+                                                                    UKawaiiPhysicsPresetDataAsset* Preset,
+                                                                    FKawaiiPhysicsPresetApplyOptions Options)
+{
+	ExecResult = EKawaiiPhysicsAccessResult::NotValid;
+
+	if (!Preset)
+	{
+		return KawaiiPhysics;
+	}
+
+	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+		TEXT("ApplyPresetDataAsset"),
+		[&ExecResult, Preset, Options](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			Preset->ApplyToNode(InKawaiiPhysics, Options, nullptr);
+			InKawaiiPhysics.RequestModifyBonesReinit();
+			InKawaiiPhysics.RequestSharedCollisionReinit();
+			ExecResult = EKawaiiPhysicsAccessResult::Valid;
+		});
+
+	return KawaiiPhysics;
+}
+
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::ResetDynamics(const FKawaiiPhysicsReference& KawaiiPhysics)
 {
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
@@ -118,6 +418,7 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetRootBoneName(const FKawaiiPhys
 		[RootBoneName](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 		{
 			InKawaiiPhysics.RootBone = FBoneReference(RootBoneName);
+			InKawaiiPhysics.RequestModifyBonesReinit();
 		});
 
 	return KawaiiPhysics;
@@ -149,6 +450,7 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetExcludeBoneNames(const FKawaii
 			{
 				InKawaiiPhysics.ExcludeBones.Add(FBoneReference(ExcludeBoneName));
 			}
+			InKawaiiPhysics.RequestModifyBonesReinit();
 		});
 
 	return KawaiiPhysics;
@@ -313,6 +615,64 @@ bool UKawaiiPhysicsLibrary::GetAlphaFromComponent(USkeletalMeshComponent* MeshCo
 	}
 
 	return bResult;
+}
+
+DEFINE_FUNCTION(UKawaiiPhysicsLibrary::execSetNodeWildcardProperty)
+{
+	P_GET_ENUM_REF(EKawaiiPhysicsAccessResult, ExecResult);
+	P_GET_STRUCT_REF(FKawaiiPhysicsReference, KawaiiPhysics);
+	P_GET_STRUCT_REF(FName, PropertyName);
+
+	ExecResult = EKawaiiPhysicsAccessResult::NotValid;
+
+	// ワイルドカードの Value 入力を読み取る
+	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
+	Stack.StepCompiledIn<FStructProperty>(nullptr);
+
+	const FProperty* ValueProp = CastField<FProperty>(Stack.MostRecentProperty);
+	const void* ValuePtr = Stack.MostRecentPropertyAddress;
+
+	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+		TEXT("SetNodeWildcardProperty"),
+		[&ExecResult, &PropertyName, &ValuePtr, &ValueProp](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			if (SetNodeWildcardPropertyValue(InKawaiiPhysics, PropertyName, ValueProp, ValuePtr))
+			{
+				ExecResult = EKawaiiPhysicsAccessResult::Valid;
+			}
+		});
+
+	P_FINISH;
+}
+
+DEFINE_FUNCTION(UKawaiiPhysicsLibrary::execGetNodeWildcardProperty)
+{
+	P_GET_ENUM_REF(EKawaiiPhysicsAccessResult, ExecResult);
+	P_GET_STRUCT_REF(FKawaiiPhysicsReference, KawaiiPhysics);
+	P_GET_STRUCT_REF(FName, PropertyName);
+
+	ExecResult = EKawaiiPhysicsAccessResult::NotValid;
+
+	// ワイルドカードの Value 出力を読み取る
+	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
+	Stack.StepCompiledIn<FStructProperty>(nullptr);
+
+	const FProperty* ValueProp = CastField<FProperty>(Stack.MostRecentProperty);
+	void* ValuePtr = Stack.MostRecentPropertyAddress;
+
+	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+		TEXT("GetNodeWildcardProperty"),
+		[&ExecResult, &PropertyName, &ValuePtr, &ValueProp](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			if (GetNodeWildcardPropertyValue(InKawaiiPhysics, PropertyName, ValueProp, ValuePtr))
+			{
+				ExecResult = EKawaiiPhysicsAccessResult::Valid;
+			}
+		});
+
+	P_FINISH;
 }
 
 DEFINE_FUNCTION(UKawaiiPhysicsLibrary::execSetExternalForceWildcardProperty)
