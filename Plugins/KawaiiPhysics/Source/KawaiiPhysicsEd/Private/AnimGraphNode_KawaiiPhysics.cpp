@@ -416,54 +416,6 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
 			]
 		]
-		+ SUniformGridPanel::Slot(2, 1)
-		[
-			SNew(SButton)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.ToolTipText(LOCTEXT("OpenWindScopeToolTip", "Procedural Wind の波形プレビューウィンドウを開く / Opens the waveform preview window for Procedural Wind."))
-			.OnClicked_Lambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics>(this)]()
-			{
-				if (UAnimGraphNode_KawaiiPhysics* Node = WeakThis.Get())
-				{
-					int32 ExternalForceIndex = INDEX_NONE;
-					for (int32 Index = 0; Index < Node->Node.ExternalForces.Num(); ++Index)
-					{
-						if (Node->Node.ExternalForces[Index].IsValid() &&
-							Node->Node.ExternalForces[Index].GetScriptStruct() ==
-							FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct())
-						{
-							ExternalForceIndex = Index;
-							break;
-						}
-					}
-
-					if (ExternalForceIndex == INDEX_NONE)
-					{
-						KawaiiPhysicsEdWindowUtils::ShowNotification(
-							LOCTEXT("NoProceduralWindExternalForce", "Procedural Wind の外力がありません / No Procedural Wind external force on this node."),
-							SNotificationItem::CS_Fail);
-						return FReply::Handled();
-					}
-
-					const UAnimBlueprint* AnimBlueprint = Node->GetAnimBlueprint();
-					FKawaiiPhysicsWindScopeWindowArgs Args;
-					Args.GraphNode = Node;
-					Args.AnimBlueprintPath = AnimBlueprint ? FSoftObjectPath(AnimBlueprint) : FSoftObjectPath();
-					Args.NodeGuid = Node->NodeGuid;
-					Args.ExternalForceIndex = ExternalForceIndex;
-
-					SKawaiiPhysicsWindScopeWindow::OpenWindow(MoveTemp(Args));
-				}
-				return FReply::Handled();
-			})
-			.Content()
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("OpenWindScope", "Wind Scope"))
-				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
-			]
-		]
 	];
 }
 
@@ -619,6 +571,30 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 
 	CustomizeDetailTools(DetailBuilder);
 	CustomizeDetailDebugVisualizations(DetailBuilder);
+
+	IDetailCategoryBuilder& ExternalForceCategory = DetailBuilder.EditCategory(TEXT("Force|External Force"));
+	FDetailWidgetRow& WindScopeWidgetRow = ExternalForceCategory.AddCustomRow(LOCTEXT("OpenWindScope", "Wind Scope"));
+	WindScopeWidgetRow
+	[
+		SNew(SButton)
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.ToolTipText(LOCTEXT("OpenWindScopeToolTip", "Procedural Wind の波形プレビューウィンドウを開く / Opens the waveform preview window for Procedural Wind."))
+		.OnClicked_Lambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics>(this)]()
+		{
+			if (UAnimGraphNode_KawaiiPhysics* Node = WeakThis.Get())
+			{
+				Node->OpenWindScopeWindow();
+			}
+			return FReply::Handled();
+		})
+		.Content()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("OpenWindScope", "Wind Scope"))
+			.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+		]
+	];
 
 	// Force order of details panel categories - Must set order for all of them as any that are edited automatically move to the top.
 	auto CategorySorter = [](const TMap<FName, IDetailCategoryBuilder*>& Categories)
@@ -1035,6 +1011,38 @@ void UAnimGraphNode_KawaiiPhysics::CheckPresetDiff()
 	SKawaiiPhysicsPresetDiffWindow::OpenWindow(MoveTemp(Args));
 }
 
+void UAnimGraphNode_KawaiiPhysics::OpenWindScopeWindow()
+{
+	int32 ExternalForceIndex = INDEX_NONE;
+	for (int32 Index = 0; Index < Node.ExternalForces.Num(); ++Index)
+	{
+		if (Node.ExternalForces[Index].IsValid() &&
+			Node.ExternalForces[Index].GetScriptStruct() ==
+			FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct())
+		{
+			ExternalForceIndex = Index;
+			break;
+		}
+	}
+
+	if (ExternalForceIndex == INDEX_NONE)
+	{
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
+			LOCTEXT("NoProceduralWindExternalForce", "Procedural Wind の外力がありません / No Procedural Wind external force on this node."),
+			SNotificationItem::CS_Fail);
+		return;
+	}
+
+	const UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
+	FKawaiiPhysicsWindScopeWindowArgs Args;
+	Args.GraphNode = this;
+	Args.AnimBlueprintPath = AnimBlueprint ? FSoftObjectPath(AnimBlueprint) : FSoftObjectPath();
+	Args.NodeGuid = NodeGuid;
+	Args.ExternalForceIndex = ExternalForceIndex;
+
+	SKawaiiPhysicsWindScopeWindow::OpenWindow(MoveTemp(Args));
+}
+
 void UAnimGraphNode_KawaiiPhysics::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
 	if (!Context || Context->bIsDebugging)
@@ -1063,6 +1071,14 @@ void UAnimGraphNode_KawaiiPhysics::GetNodeContextMenuActions(UToolMenu* Menu, UG
 		        "プリセットDataAssetをこのノードへ適用します / Applies a preset data asset to this node."),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateUObject(MutableThis, &UAnimGraphNode_KawaiiPhysics::ApplyPresetDataAsset)));
+
+	Section.AddMenuEntry(
+		"KawaiiPhysicsWindScope",
+		LOCTEXT("WindScopeContextMenu", "Wind Scope"),
+		LOCTEXT("WindScopeMenuToolTip",
+		        "Procedural Wind の波形プレビューウィンドウを開きます / Opens the waveform preview window for Procedural Wind."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateUObject(MutableThis, &UAnimGraphNode_KawaiiPhysics::OpenWindScopeWindow)));
 }
 
 #undef LOCTEXT_NAMESPACE
