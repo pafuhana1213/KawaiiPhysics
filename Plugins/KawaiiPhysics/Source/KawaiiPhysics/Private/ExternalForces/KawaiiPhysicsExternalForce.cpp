@@ -64,6 +64,24 @@ bool FKawaiiPhysics_ExternalForce::IsDebugEnabled(bool bInPersona)
 	return false;
 }
 
+FVector FKawaiiPhysics_ExternalForce::ConvertExternalForceToSimulationSpace(FAnimNode_KawaiiPhysics& Node,
+                                                                            FComponentSpacePoseContext& PoseContext,
+                                                                            const FVector& InForce) const
+{
+	EKawaiiPhysicsSimulationSpace From = EKawaiiPhysicsSimulationSpace::ComponentSpace;
+	if (ExternalForceSpace == EExternalForceSpace::WorldSpace)
+	{
+		From = EKawaiiPhysicsSimulationSpace::WorldSpace;
+	}
+	else if (ExternalForceSpace == EExternalForceSpace::BoneSpace)
+	{
+		From = EKawaiiPhysicsSimulationSpace::BaseBoneSpace;
+	}
+
+	return Node.ConvertSimulationSpaceVector(PoseContext, From,
+	                                         Node.SimulationSpace, InForce);
+}
+
 #if ENABLE_ANIM_DEBUG
 void FKawaiiPhysics_ExternalForce::AnimDrawDebug(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
                                                  const FComponentSpacePoseContext& PoseContext)
