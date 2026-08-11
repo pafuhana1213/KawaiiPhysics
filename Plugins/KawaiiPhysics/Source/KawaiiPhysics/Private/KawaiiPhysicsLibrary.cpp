@@ -17,6 +17,7 @@
 #include "GameFramework/Actor.h"
 #include "HAL/IConsoleManager.h"
 #include "KawaiiPhysics.h"
+#include "KawaiiPhysicsWindPresetDataAsset.h"
 #include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(KawaiiPhysicsLibrary)
@@ -732,6 +733,85 @@ int32 UKawaiiPhysicsLibrary::SetProceduralWindParametersOnComponent(
 		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 			TEXT("SetProceduralWindParametersOnComponent"),
 			[&AppliedForceCount, &Params](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				for (FInstancedStruct& InstancedStruct : InKawaiiPhysics.ExternalForces)
+				{
+					if (FKawaiiPhysics_ExternalForce_ProceduralWind* ProceduralWind =
+						GetMutableProceduralWind(InstancedStruct))
+					{
+						if (QueueProceduralWindParams(*ProceduralWind, Params))
+						{
+							++AppliedForceCount;
+						}
+					}
+				}
+			});
+	}
+
+	return AppliedForceCount;
+}
+
+// DataAssetのプリセットから指定したExternalForceIndexのProceduralWindへ動的パラメータ更新をリクエストする
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::ApplyProceduralWindPreset(
+	EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+	const FKawaiiPhysicsReference& KawaiiPhysics,
+	const int32 ExternalForceIndex,
+	const UKawaiiPhysicsWindPresetDataAsset* PresetDataAsset,
+	const FGameplayTag PresetTag)
+{
+	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
+
+	FKawaiiProceduralWindDynamicParams Params;
+	if (!UKawaiiPhysicsWindPresetDataAsset::ResolvePresetParamsByTag(PresetDataAsset, PresetTag, Params))
+	{
+		return KawaiiPhysics;
+	}
+
+	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+		TEXT("ApplyProceduralWindPreset"),
+		[&ExecResult, ExternalForceIndex, Params](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			if (!InKawaiiPhysics.ExternalForces.IsValidIndex(ExternalForceIndex))
+			{
+				return;
+			}
+
+			if (FKawaiiPhysics_ExternalForce_ProceduralWind* ProceduralWind =
+				GetMutableProceduralWind(InKawaiiPhysics.ExternalForces[ExternalForceIndex]))
+			{
+				if (QueueProceduralWindParams(*ProceduralWind, Params))
+				{
+					ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
+				}
+			}
+		});
+
+	return KawaiiPhysics;
+}
+
+// DataAssetのプリセットからComponent内の対象ノード（Tagフィルタ適用）のProceduralWindへ一括でパラメータ更新をリクエストする
+int32 UKawaiiPhysicsLibrary::ApplyProceduralWindPresetOnComponent(
+	USkeletalMeshComponent* MeshComp,
+	const UKawaiiPhysicsWindPresetDataAsset* PresetDataAsset,
+	const FGameplayTag PresetTag,
+	const FGameplayTagContainer& FilterTags,
+	const bool bFilterExactMatch)
+{
+	FKawaiiProceduralWindDynamicParams Params;
+	if (!UKawaiiPhysicsWindPresetDataAsset::ResolvePresetParamsByTag(PresetDataAsset, PresetTag, Params))
+	{
+		return 0;
+	}
+
+	int32 AppliedForceCount = 0;
+
+	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
+	CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, MeshComp, FilterTags, bFilterExactMatch);
+	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
+	{
+		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("ApplyProceduralWindPresetOnComponent"),
+			[&AppliedForceCount, Params](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 			{
 				for (FInstancedStruct& InstancedStruct : InKawaiiPhysics.ExternalForces)
 				{
