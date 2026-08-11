@@ -131,6 +131,8 @@ private:
 	void RebuildPresetButtons();
 	FReply OnPresetButtonClicked(int32 PresetIndex);
 	FReply ApplyPreset(const FKawaiiProceduralWindPreset& Preset);
+	bool PushPresetToLiveRuntime(const FKawaiiProceduralWindDynamicParams& Params);
+	bool PushGustToLiveRuntime(float Strength, float RiseTime, float DecayTime);
 
 	// 毎フレームの active timer コールバック。Live/Preview いずれかでサンプルを更新し再描画する
 	EActiveTimerReturnType TickWindScope(double InCurrentTime, float InDeltaTime);
