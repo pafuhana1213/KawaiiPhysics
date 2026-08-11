@@ -6,6 +6,8 @@
 #include "Engine/DeveloperSettings.h"
 #include "KawaiiPhysicsDeveloperSettings.generated.h"
 
+class UKawaiiPhysicsWindPresetDataAsset;
+
 /** MCPノードの自動配置方向。Auto は非接続=縦積み、bAutoConnect=横並びの従来挙動 / Automatic placement direction for MCP nodes. Auto keeps legacy behavior: vertical when not connected, horizontal with bAutoConnect. */
 UENUM(BlueprintType)
 enum class EKawaiiPhysicsMcpNodePlacementDirection : uint8
@@ -110,6 +112,13 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = "Performance Warnings",
 		meta = (DisplayName = "Bridge Dummy Warning Threshold", ClampMin = "0", UIMin = "0", UIMax = "1000"))
 	int32 BridgeDummyWarningThreshold = 200;
+
+	/**
+	* Wind Scope で表示する風プリセット DataAsset。未設定または Presets 空なら組み込み3種を表示、設定時は完全置換。
+	* Wind preset DataAsset shown by Wind Scope. Built-in three presets are shown when unset or Presets is empty; a configured asset fully replaces them.
+	*/
+	UPROPERTY(EditAnywhere, config, Category = "Wind Scope", meta = (DisplayName = "Wind Preset Data Asset"))
+	TSoftObjectPtr<UKawaiiPhysicsWindPresetDataAsset> WindScopePresetDataAsset;
 #endif
 
 	//~ UDeveloperSettings interface
