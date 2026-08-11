@@ -8,6 +8,7 @@
 #include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
 #include "Framework/Application/SlateApplication.h"
 #include "HAL/CriticalSection.h"
+#include "KawaiiPhysicsDeveloperSettings.h"
 #include "KawaiiPhysicsEdWindowUtils.h"
 #include "KawaiiPhysicsEditorLibrary.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -129,6 +130,49 @@ namespace
 			return RequestedIndex;
 		}
 		return FindFirstProceduralWindIndex(Node);
+	}
+
+	TArray<FKawaiiProceduralWindPreset> ResolveWindScopePresets()
+	{
+		if (const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>())
+		{
+			if (const UKawaiiPhysicsWindPresetDataAsset* PresetDataAsset =
+				Settings->WindScopePresetDataAsset.LoadSynchronous())
+			{
+				if (PresetDataAsset->Presets.Num() > 0)
+				{
+					return PresetDataAsset->Presets;
+				}
+			}
+		}
+
+		return UKawaiiPhysicsWindPresetDataAsset::GetDefaultPresets();
+	}
+
+	FText ResolveWindPresetDisplayName(const FKawaiiProceduralWindPreset& Preset, int32 PresetIndex)
+	{
+		if (!Preset.PresetName.IsEmpty())
+		{
+			return Preset.PresetName;
+		}
+
+		if (Preset.PresetTag.IsValid())
+		{
+			const FString TagString = Preset.PresetTag.GetTagName().ToString();
+			FString ParentName;
+			FString LeafName;
+			if (TagString.Split(TEXT("."), &ParentName, &LeafName, ESearchCase::CaseSensitive, ESearchDir::FromEnd) &&
+				!LeafName.IsEmpty())
+			{
+				return FText::FromString(LeafName);
+			}
+			if (!TagString.IsEmpty())
+			{
+				return FText::FromString(TagString);
+			}
+		}
+
+		return FText::Format(LOCTEXT("WindPresetFallbackNameFormat", "Preset {0}"), FText::AsNumber(PresetIndex));
 	}
 
 	// サンプルが無い時の初期表示値。Envelope=1にして Total=0（無風）を表すサンプルにする
@@ -614,34 +658,34 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 				.ColorAndOpacity(FAppStyle::Get().GetSlateColor(TEXT("Colors.AccentGreen")))
 			]
 		]
-		// プリセットボタン列（Breeze / Strong / Storm）
+		// プリセットボタン列
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.Padding(8.0f, 2.0f)
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+			.FillWidth(1.0f)
+			.VAlign(VAlign_Center)
 			[
-				SNew(SButton)
-				.Text(LOCTEXT("BreezePresetButton", "Breeze / そよ風"))
-				.OnClicked(this, &SKawaiiPhysicsWindScopeWindow::OnBreezePresetClicked)
+				SAssignNew(PresetButtonBox, SWrapBox)
+				.UseAllottedSize(true)
+				.InnerSlotPadding(FVector2D(4.0f, 2.0f))
 			]
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
-			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			.Padding(6.0f, 0.0f, 0.0f, 0.0f)
 			[
 				SNew(SButton)
-				.Text(LOCTEXT("StrongPresetButton", "Strong / 強風"))
-				.OnClicked(this, &SKawaiiPhysicsWindScopeWindow::OnStrongPresetClicked)
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("StormPresetButton", "Storm / 嵐"))
-				.OnClicked(this, &SKawaiiPhysicsWindScopeWindow::OnStormPresetClicked)
+				.Text(LOCTEXT("ReloadPresetsButton", "Reload"))
+				.ContentPadding(FMargin(6.0f, 2.0f))
+				.ToolTipText(LOCTEXT("ReloadPresetsTooltip", "プリセットDataAssetを再読み込みします / Reload the preset DataAsset."))
+				.OnClicked_Lambda([this]()
+				{
+					RebuildPresetButtons();
+					return FReply::Handled();
+				})
 			]
 		]
 		// 凡例（系列ごとの表示切替チェックボックス）
@@ -724,6 +768,8 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 			]
 		]
 	];
+
+	RebuildPresetButtons();
 
 	// 60fps 相当でティックし、Live/Preview のサンプル更新とグラフ再描画を行う
 	RegisterActiveTimer(1.0f / 60.0f, FWidgetActiveTimerDelegate::CreateSP(this, &SKawaiiPhysicsWindScopeWindow::TickWindScope));
@@ -895,74 +941,37 @@ void SKawaiiPhysicsWindScopeWindow::OnDisplaySecondsChanged(float NewValue)
 	}
 }
 
-// 以下3つは強さの異なる決め打ちプリセット（そよ風/強風/嵐）を ApplyPreset に渡すだけの薄いラッパー
-FReply SKawaiiPhysicsWindScopeWindow::OnBreezePresetClicked()
+void SKawaiiPhysicsWindScopeWindow::RebuildPresetButtons()
 {
-	return ApplyPreset(
-		2.0f,
-		1.0f,
-		2.0f,
-		1.0f,
-		1.5f,
-		90.0f,
-		0.6f,
-		1.0f,
-		0.05f,
-		0.5f,
-		0.8f,
-		5.0f,
-		LOCTEXT("BreezePresetName", "Breeze"));
+	CachedPresets = ResolveWindScopePresets();
+	if (!PresetButtonBox.IsValid())
+	{
+		return;
+	}
+
+	PresetButtonBox->ClearChildren();
+	for (int32 PresetIndex = 0; PresetIndex < CachedPresets.Num(); ++PresetIndex)
+	{
+		PresetButtonBox->AddSlot()
+		[
+			SNew(SButton)
+			.Text(ResolveWindPresetDisplayName(CachedPresets[PresetIndex], PresetIndex))
+			.OnClicked(this, &SKawaiiPhysicsWindScopeWindow::OnPresetButtonClicked, PresetIndex)
+		];
+	}
 }
 
-FReply SKawaiiPhysicsWindScopeWindow::OnStrongPresetClicked()
+FReply SKawaiiPhysicsWindScopeWindow::OnPresetButtonClicked(int32 PresetIndex)
 {
-	return ApplyPreset(
-		8.0f,
-		4.0f,
-		0.8f,
-		3.0f,
-		0.6f,
-		120.0f,
-		0.7f,
-		1.3f,
-		0.08f,
-		2.0f,
-		0.5f,
-		10.0f,
-		LOCTEXT("StrongPresetName", "Strong"));
+	if (!CachedPresets.IsValidIndex(PresetIndex))
+	{
+		return FReply::Handled();
+	}
+
+	return ApplyPreset(CachedPresets[PresetIndex]);
 }
 
-FReply SKawaiiPhysicsWindScopeWindow::OnStormPresetClicked()
-{
-	return ApplyPreset(
-		15.0f,
-		10.0f,
-		0.4f,
-		8.0f,
-		0.35f,
-		180.0f,
-		0.5f,
-		1.6f,
-		0.15f,
-		6.0f,
-		0.3f,
-		20.0f,
-		LOCTEXT("StormPresetName", "Storm"));
-}
-
-FReply SKawaiiPhysicsWindScopeWindow::ApplyPreset(float SteadyForce,
-                                                  float OscillationForce,
-                                                  float OscillationPeriod,
-                                                  float WaveAmplitude,
-                                                  float WavePeriod,
-                                                  float WaveSpatialOffset,
-                                                  float EnvelopeMin,
-                                                  float EnvelopeMax,
-                                                  float EnvelopeFrequency,
-                                                  float RandomForce,
-                                                  float RandomPeriod,
-                                                  float DirectionNoiseAngle,
-                                                  const FText& PresetName)
+FReply SKawaiiPhysicsWindScopeWindow::ApplyPreset(const FKawaiiProceduralWindPreset& Preset)
 {
 	// 対象グラフノードを解決（失敗時は通知して終了）
 	UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
@@ -998,26 +1007,31 @@ FReply SKawaiiPhysicsWindScopeWindow::ApplyPreset(float SteadyForce,
 	const FScopedTransaction Transaction(LOCTEXT("ApplyWindPresetTransaction", "Apply Kawaii Physics Wind Preset"));
 	GraphNode->Modify();
 	Wind->bIsEnabled = true;
-	Wind->SteadyForce = SteadyForce;
-	Wind->OscillationForce = OscillationForce;
-	Wind->OscillationPeriod = OscillationPeriod;
-	Wind->WaveAmplitude = WaveAmplitude;
-	Wind->WavePeriod = WavePeriod;
-	Wind->WaveSpatialOffset = WaveSpatialOffset;
-	Wind->EnvelopeMin = EnvelopeMin;
-	Wind->EnvelopeMax = EnvelopeMax;
-	Wind->EnvelopeFrequency = EnvelopeFrequency;
-	Wind->RandomForce = RandomForce;
-	Wind->RandomPeriod = RandomPeriod;
-	Wind->DirectionNoiseAngle = DirectionNoiseAngle;
+	Wind->SteadyForce = Preset.SteadyForce;
+	Wind->OscillationForce = Preset.OscillationForce;
+	Wind->OscillationPeriod = Preset.OscillationPeriod;
+	Wind->WaveAmplitude = Preset.WaveAmplitude;
+	Wind->WavePeriod = Preset.WavePeriod;
+	Wind->WaveSpatialOffset = Preset.WaveSpatialOffset;
+	Wind->EnvelopeMin = Preset.EnvelopeMin;
+	Wind->EnvelopeMax = Preset.EnvelopeMax;
+	Wind->EnvelopeFrequency = Preset.EnvelopeFrequency;
+	Wind->RandomForce = Preset.RandomForce;
+	Wind->RandomPeriod = Preset.RandomPeriod;
+	Wind->DirectionNoiseAngle = Preset.DirectionNoiseAngle;
 	Wind->TimeScale = 1.0f;
 	MarkWindScopeGraphNodeModified(GraphNode);
 
 	// 外力一覧を更新し、成功通知を表示
 	Args.ExternalForceIndex = ResolvedIndex;
 	RefreshExternalForceItems();
+	const int32 PresetIndex = CachedPresets.IndexOfByPredicate([&Preset](const FKawaiiProceduralWindPreset& CachedPreset)
+	{
+		return &CachedPreset == &Preset;
+	});
 	KawaiiPhysicsEdWindowUtils::ShowNotification(
-		FText::Format(LOCTEXT("ApplyPresetSucceeded", "Applied {0} wind preset."), PresetName),
+		FText::Format(LOCTEXT("ApplyPresetSucceeded", "Applied {0} wind preset."),
+			ResolveWindPresetDisplayName(Preset, PresetIndex)),
 		SNotificationItem::CS_Success);
 	return FReply::Handled();
 }

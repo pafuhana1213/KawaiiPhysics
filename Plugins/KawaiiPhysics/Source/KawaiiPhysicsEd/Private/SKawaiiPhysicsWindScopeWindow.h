@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
+#include "KawaiiPhysicsWindPresetDataAsset.h"
 #include "UObject/SoftObjectPath.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SLeafWidget.h"
@@ -11,6 +12,7 @@
 #include "Widgets/Input/SComboBox.h"
 
 class SComboBoxBase;
+class SWrapBox;
 class SWindow;
 class UAnimGraphNode_KawaiiPhysics;
 
@@ -126,22 +128,9 @@ private:
 	float GetDisplaySeconds() const;
 	void OnDisplaySecondsChanged(float NewValue);
 
-	FReply OnBreezePresetClicked();
-	FReply OnStrongPresetClicked();
-	FReply OnStormPresetClicked();
-	FReply ApplyPreset(float SteadyForce,
-	                   float OscillationForce,
-	                   float OscillationPeriod,
-	                   float WaveAmplitude,
-	                   float WavePeriod,
-	                   float WaveSpatialOffset,
-	                   float EnvelopeMin,
-	                   float EnvelopeMax,
-	                   float EnvelopeFrequency,
-	                   float RandomForce,
-	                   float RandomPeriod,
-	                   float DirectionNoiseAngle,
-	                   const FText& PresetName);
+	void RebuildPresetButtons();
+	FReply OnPresetButtonClicked(int32 PresetIndex);
+	FReply ApplyPreset(const FKawaiiProceduralWindPreset& Preset);
 
 	// 毎フレームの active timer コールバック。Live/Preview いずれかでサンプルを更新し再描画する
 	EActiveTimerReturnType TickWindScope(double InCurrentTime, float InDeltaTime);
@@ -171,4 +160,7 @@ private:
 
 	TSharedPtr<SComboBox<FExternalForceIndexPtr>> ExternalForceComboBox;
 	TSharedPtr<SKawaiiPhysicsWindScopeGraph> GraphWidget;
+	// ボタンindexとの整合を保つプリセットスナップショット
+	TArray<FKawaiiProceduralWindPreset> CachedPresets;
+	TSharedPtr<SWrapBox> PresetButtonBox;
 };
