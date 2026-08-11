@@ -53,6 +53,14 @@ struct KAWAIIPHYSICS_API FKawaiiProceduralWindDynamicParams
 {
 	GENERATED_BODY()
 
+	/** bIsEnabled を上書きする / Override bIsEnabled. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	bool bOverrideIsEnabled = false;
+
+	/** 外力の有効状態 / External force enabled state. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	bool bIsEnabled = true;
+
 	/** WindDirection を上書きする / Override WindDirection. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
 	bool bOverrideWindDirection = false;
@@ -226,11 +234,10 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 {
 	GENERATED_BODY()
 
-	FKawaiiPhysics_ExternalForce_ProceduralWind()
-	{
-		bCanSelectForceSpace = true;
-		ExternalForceSpace = EExternalForceSpace::WorldSpace;
-	}
+	FKawaiiPhysics_ExternalForce_ProceduralWind();
+	// コピーは RuntimeState を共有せず新規生成する（メンバ追加時は operator= のコピー処理にも追加すること）
+	FKawaiiPhysics_ExternalForce_ProceduralWind(const FKawaiiPhysics_ExternalForce_ProceduralWind& Other);
+	FKawaiiPhysics_ExternalForce_ProceduralWind& operator=(const FKawaiiPhysics_ExternalForce_ProceduralWind& Other);
 
 	/**
 	* 風の吹く方向。BP からは SetExternalForceRotatorProperty("WindDirection") で変更可能
@@ -390,6 +397,8 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 
 	void ResetRuntimeState();
 	void ApplyDynamicParams(const FKawaiiProceduralWindDynamicParams& Params);
+	void RequestDynamicParams(const FKawaiiProceduralWindDynamicParams& Params);
+	void RequestGust(float Strength, float RiseTime, float DecayTime);
 	void ConsumePendingRequests();
 
 	FKawaiiPhysicsProceduralWindSample ComputeWindSample(float InTime, float InLengthRate = 0.0f) const;
@@ -407,4 +416,13 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	virtual void AnimDrawDebugForEditMode(const FKawaiiPhysicsModifyBone& ModifyBone,
 	                                      const FAnimNode_KawaiiPhysics& Node, FPrimitiveDrawInterface* PDI) override;
 #endif
+};
+
+template<>
+struct TStructOpsTypeTraits<FKawaiiPhysics_ExternalForce_ProceduralWind> : public TStructOpsTypeTraitsBase2<FKawaiiPhysics_ExternalForce_ProceduralWind>
+{
+	enum
+	{
+		WithCopy = true,
+	};
 };

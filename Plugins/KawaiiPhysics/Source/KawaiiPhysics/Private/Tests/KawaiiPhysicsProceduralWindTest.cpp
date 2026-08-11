@@ -488,20 +488,81 @@ bool FKawaiiPhysicsProceduralWindResetRuntimeStateTest::RunTest(const FString& P
 {
 	// 時刻とガスト状態を進めたあと、リセットで初期状態へ戻ることを確認する。
 	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
-	Wind.ResetRuntimeState();
+	const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> InitialRuntimeState = Wind.RuntimeState;
+	TestTrue(TEXT("RuntimeState starts valid"), InitialRuntimeState.IsValid());
 	Wind.RuntimeState->Time = 2.5f;
 	Wind.RuntimeState->ActiveGust.StartTime = 0.0f;
 	Wind.RuntimeState->ActiveGust.Strength = 4.0f;
 	Wind.RuntimeState->ActiveGust.RiseTime = 0.5f;
 	Wind.RuntimeState->ActiveGust.DecayTime = 3.0f;
 	Wind.RuntimeState->ActiveGust.bIsActive = true;
+	Wind.RuntimeState->CachedSinesWithoutWave = 1.0f;
+	Wind.RuntimeState->CachedEnvelope = 2.0f;
+	Wind.RuntimeState->CachedRandom = 3.0f;
+	Wind.RuntimeState->CachedGust = 4.0f;
+	Wind.RuntimeState->CachedWindVector = FVector(1.0f, 2.0f, 3.0f);
+	Wind.RuntimeState->PendingParams = FKawaiiProceduralWindDynamicParams();
+	Wind.RuntimeState->PendingGust = FKawaiiProceduralWindGustRequest{1.0f, 0.2f, 0.3f};
+#if WITH_EDITOR
+	Wind.RuntimeState->ScopeWriteIndex = 10;
+	Wind.RuntimeState->ScopeSampleCount = 20;
+#endif
 	TestTrue(TEXT("Gust is active before reset"), Wind.ComputeWindSample(1.0f, 0.0f).Gust > 0.0f);
 
-	// ResetRuntimeStateはRuntimeStateを新規SharedPtrで差し替えるため、Gust・Timeともに初期値へ戻るはず
+	// ResetRuntimeStateはRuntimeStateを差し替えず、Mutex配下で中身だけを初期状態へ戻す
 	Wind.ResetRuntimeState();
+	TestTrue(TEXT("RuntimeState pointer is preserved"), Wind.RuntimeState.Get() == InitialRuntimeState.Get());
 	TestSampleNear(*this, TEXT("Gust after reset"), Wind.ComputeWindSample(1.0f, 0.0f).Gust, 0.0f);
 	TestSampleNear(*this, TEXT("Time after reset"), Wind.RuntimeState->Time, 0.0f);
+	TestFalse(TEXT("ActiveGust inactive after reset"), Wind.RuntimeState->ActiveGust.bIsActive);
+	TestFalse(TEXT("PendingParams reset"), Wind.RuntimeState->PendingParams.IsSet());
+	TestFalse(TEXT("PendingGust reset"), Wind.RuntimeState->PendingGust.IsSet());
+	TestSampleNear(*this, TEXT("CachedSinesWithoutWave after reset"), Wind.RuntimeState->CachedSinesWithoutWave, 0.0f);
+	TestSampleNear(*this, TEXT("CachedEnvelope after reset"), Wind.RuntimeState->CachedEnvelope, 1.0f);
+	TestSampleNear(*this, TEXT("CachedRandom after reset"), Wind.RuntimeState->CachedRandom, 0.0f);
+	TestSampleNear(*this, TEXT("CachedGust after reset"), Wind.RuntimeState->CachedGust, 0.0f);
+	TestTrue(TEXT("CachedWindVector after reset"), Wind.RuntimeState->CachedWindVector.IsNearlyZero());
+#if WITH_EDITOR
+	TestTrue(TEXT("ScopeBuffer allocated after reset"), Wind.RuntimeState->ScopeBuffer.Num() > 0);
+	TestEqual(TEXT("ScopeWriteIndex after reset"), Wind.RuntimeState->ScopeWriteIndex, 0);
+	TestEqual(TEXT("ScopeSampleCount after reset"), Wind.RuntimeState->ScopeSampleCount, static_cast<uint64>(0));
+#endif
 
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindCopyRuntimeStateIndependenceTest,
+                                 "KawaiiPhysics.ProceduralWind.CopyRuntimeStateIndependence",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindCopyRuntimeStateIndependenceTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysics_ExternalForce_ProceduralWind Source;
+	Source.SteadyForce = 12.0f;
+	Source.RuntimeState->Time = 1.0f;
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind Copied(Source);
+	TestTrue(TEXT("Copied RuntimeState is valid"), Copied.RuntimeState.IsValid());
+	TestTrue(TEXT("Copy constructor does not share RuntimeState"),
+	         Source.RuntimeState.Get() != Copied.RuntimeState.Get());
+	TestSampleNear(*this, TEXT("Copied SteadyForce"), Copied.SteadyForce, Source.SteadyForce);
+
+	Source.RuntimeState->Time = 2.0f;
+	Copied.RuntimeState->Time = 3.0f;
+	TestSampleNear(*this, TEXT("Source Time independent"), Source.RuntimeState->Time, 2.0f);
+	TestSampleNear(*this, TEXT("Copied Time independent"), Copied.RuntimeState->Time, 3.0f);
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind Assigned;
+	Assigned = Source;
+	TestTrue(TEXT("Assigned RuntimeState is valid"), Assigned.RuntimeState.IsValid());
+	TestTrue(TEXT("Copy assignment does not share RuntimeState"),
+	         Source.RuntimeState.Get() != Assigned.RuntimeState.Get());
+	TestSampleNear(*this, TEXT("Assigned SteadyForce"), Assigned.SteadyForce, Source.SteadyForce);
+
+	Source.RuntimeState->Time = 4.0f;
+	Assigned.RuntimeState->Time = 5.0f;
+	TestSampleNear(*this, TEXT("Source Time independent after assign"), Source.RuntimeState->Time, 4.0f);
+	TestSampleNear(*this, TEXT("Assigned Time independent"), Assigned.RuntimeState->Time, 5.0f);
 	return true;
 }
 

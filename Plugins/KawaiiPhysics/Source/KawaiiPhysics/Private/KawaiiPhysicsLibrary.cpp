@@ -81,18 +81,7 @@ namespace
 	bool QueueProceduralWindGust(FKawaiiPhysics_ExternalForce_ProceduralWind& ProceduralWind,
 	                             const float Strength, const float RiseTime, const float DecayTime)
 	{
-		// RuntimeState未初期化（PreApply未実行）でもリクエストを取りこぼさないよう先に生成しておく
-		if (!ProceduralWind.RuntimeState.IsValid())
-		{
-			ProceduralWind.ResetRuntimeState();
-		}
-
-		FScopeLock Lock(&ProceduralWind.RuntimeState->Mutex);
-		ProceduralWind.RuntimeState->PendingGust = FKawaiiProceduralWindGustRequest{
-			Strength,
-			RiseTime,
-			DecayTime
-		};
+		ProceduralWind.RequestGust(Strength, RiseTime, DecayTime);
 		return true;
 	}
 
@@ -100,13 +89,7 @@ namespace
 	bool QueueProceduralWindParams(FKawaiiPhysics_ExternalForce_ProceduralWind& ProceduralWind,
 	                               const FKawaiiProceduralWindDynamicParams& Params)
 	{
-		if (!ProceduralWind.RuntimeState.IsValid())
-		{
-			ProceduralWind.ResetRuntimeState();
-		}
-
-		FScopeLock Lock(&ProceduralWind.RuntimeState->Mutex);
-		ProceduralWind.RuntimeState->PendingParams = Params;
+		ProceduralWind.RequestDynamicParams(Params);
 		return true;
 	}
 

@@ -231,6 +231,7 @@ bool FKawaiiPhysicsWindPresetToDynamicParamsTest::RunTest(const FString& Paramet
 	bOk &= TestFalse(TEXT("EnvelopePhase override remains false"), Params.bOverrideEnvelopePhase);
 	bOk &= TestFalse(TEXT("DirectionNoisePeriod override remains false"), Params.bOverrideDirectionNoisePeriod);
 	bOk &= TestFalse(TEXT("TimeScale override remains false"), Params.bOverrideTimeScale);
+	bOk &= TestFalse(TEXT("IsEnabled override remains false"), Params.bOverrideIsEnabled);
 	return bOk;
 }
 
@@ -296,6 +297,117 @@ bool FKawaiiPhysicsWindPresetApplyRoundTripTest::RunTest(const FString& Paramete
 	bOk &= TestFloatNear(*this, TEXT("DirectionNoisePeriod unchanged"),
 	                     Wind.DirectionNoisePeriod,
 	                     BeforeDirectionNoisePeriod);
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsWindPresetApplyEnabledOverrideTest,
+                                 "KawaiiPhysics.WindPreset.ApplyEnabledOverride",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsWindPresetApplyEnabledOverrideTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
+	Wind.bIsEnabled = false;
+
+	FKawaiiProceduralWindDynamicParams Params;
+	Params.bIsEnabled = true;
+	Wind.ApplyDynamicParams(Params);
+
+	bool bOk = true;
+	bOk &= TestFalse(TEXT("bIsEnabled unchanged without override"), Wind.bIsEnabled);
+
+	Params.bOverrideIsEnabled = true;
+	Wind.ApplyDynamicParams(Params);
+	bOk &= TestTrue(TEXT("bIsEnabled changes with override"), Wind.bIsEnabled);
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsWindPresetRequestDynamicParamsStateTest,
+                                 "KawaiiPhysics.WindPreset.RequestDynamicParamsState",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsWindPresetRequestDynamicParamsStateTest::RunTest(const FString& Parameters)
+{
+	const TArray<FKawaiiProceduralWindPreset> Defaults = UKawaiiPhysicsWindPresetDataAsset::GetDefaultPresets();
+	bool bOk = TestEqual(TEXT("Default preset count"), Defaults.Num(), 3);
+	if (!bOk)
+	{
+		return false;
+	}
+
+	const FKawaiiProceduralWindPreset& Preset = Defaults[2];
+	FKawaiiProceduralWindDynamicParams Params = Preset.ToDynamicParams();
+	Params.bOverrideIsEnabled = true;
+	Params.bIsEnabled = true;
+	Params.bOverrideTimeScale = true;
+	Params.TimeScale = 1.0f;
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
+	Wind.bIsEnabled = false;
+	Wind.TimeScale = 2.0f;
+	Wind.ResetRuntimeState();
+	Wind.RuntimeState->Time = 5.0f;
+	Wind.RuntimeState->ActiveGust.StartTime = 4.5f;
+	Wind.RuntimeState->ActiveGust.Strength = 7.0f;
+	Wind.RuntimeState->ActiveGust.RiseTime = 0.2f;
+	Wind.RuntimeState->ActiveGust.DecayTime = 0.7f;
+	Wind.RuntimeState->ActiveGust.bIsActive = true;
+
+	Wind.RequestDynamicParams(Params);
+	bOk &= TestTrue(TEXT("PendingParams queued"), Wind.RuntimeState->PendingParams.IsSet());
+	Wind.ConsumePendingRequests();
+
+	bOk &= TestWindValuesMatchPreset(*this, TEXT("Requested preset applied"), Wind, Preset);
+	bOk &= TestTrue(TEXT("bIsEnabled applied"), Wind.bIsEnabled);
+	bOk &= TestFloatNear(*this, TEXT("TimeScale applied"), Wind.TimeScale, 1.0f);
+	bOk &= TestFloatNear(*this, TEXT("Time preserved"), Wind.RuntimeState->Time, 5.0f);
+	bOk &= TestFloatNear(*this, TEXT("ActiveGust StartTime preserved"), Wind.RuntimeState->ActiveGust.StartTime, 4.5f);
+	bOk &= TestFloatNear(*this, TEXT("ActiveGust Strength preserved"), Wind.RuntimeState->ActiveGust.Strength, 7.0f);
+	bOk &= TestFloatNear(*this, TEXT("ActiveGust RiseTime preserved"), Wind.RuntimeState->ActiveGust.RiseTime, 0.2f);
+	bOk &= TestFloatNear(*this, TEXT("ActiveGust DecayTime preserved"), Wind.RuntimeState->ActiveGust.DecayTime, 0.7f);
+	bOk &= TestTrue(TEXT("ActiveGust active preserved"), Wind.RuntimeState->ActiveGust.bIsActive);
+	bOk &= TestFalse(TEXT("PendingParams reset"), Wind.RuntimeState->PendingParams.IsSet());
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind LazyWind;
+	const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> LazyInitialRuntimeState =
+		LazyWind.RuntimeState;
+	bOk &= TestTrue(TEXT("RuntimeState starts valid"), LazyInitialRuntimeState.IsValid());
+	LazyWind.RequestDynamicParams(Params);
+	bOk &= TestTrue(TEXT("RequestDynamicParams preserves RuntimeState"),
+	                LazyWind.RuntimeState.Get() == LazyInitialRuntimeState.Get());
+	bOk &= TestTrue(TEXT("Lazy PendingParams queued"), LazyWind.RuntimeState->PendingParams.IsSet());
+	LazyWind.ConsumePendingRequests();
+	bOk &= TestWindValuesMatchPreset(*this, TEXT("Lazy requested preset applied"), LazyWind, Preset);
+	bOk &= TestTrue(TEXT("Lazy bIsEnabled applied"), LazyWind.bIsEnabled);
+	bOk &= TestFloatNear(*this, TEXT("Lazy TimeScale applied"), LazyWind.TimeScale, 1.0f);
+	bOk &= TestFalse(TEXT("Lazy PendingParams reset"), LazyWind.RuntimeState->PendingParams.IsSet());
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsWindPresetRequestGustTest,
+                                 "KawaiiPhysics.WindPreset.RequestGust",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsWindPresetRequestGustTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
+	Wind.ResetRuntimeState();
+	Wind.RuntimeState->Time = 3.25f;
+
+	Wind.RequestGust(6.0f, 0.1f, 0.5f);
+
+	bool bOk = true;
+	bOk &= TestTrue(TEXT("PendingGust queued"), Wind.RuntimeState->PendingGust.IsSet());
+	bOk &= TestFalse(TEXT("PendingParams unchanged before consume"), Wind.RuntimeState->PendingParams.IsSet());
+	Wind.ConsumePendingRequests();
+	bOk &= TestFloatNear(*this, TEXT("Time unchanged"), Wind.RuntimeState->Time, 3.25f);
+	bOk &= TestFloatNear(*this, TEXT("ActiveGust StartTime"), Wind.RuntimeState->ActiveGust.StartTime, 3.25f);
+	bOk &= TestFloatNear(*this, TEXT("ActiveGust Strength"), Wind.RuntimeState->ActiveGust.Strength, 6.0f);
+	bOk &= TestFloatNear(*this, TEXT("ActiveGust RiseTime"), Wind.RuntimeState->ActiveGust.RiseTime, 0.1f);
+	bOk &= TestFloatNear(*this, TEXT("ActiveGust DecayTime"), Wind.RuntimeState->ActiveGust.DecayTime, 0.5f);
+	bOk &= TestTrue(TEXT("ActiveGust active"), Wind.RuntimeState->ActiveGust.bIsActive);
+	bOk &= TestFalse(TEXT("PendingGust reset"), Wind.RuntimeState->PendingGust.IsSet());
+	bOk &= TestFalse(TEXT("PendingParams unchanged after consume"), Wind.RuntimeState->PendingParams.IsSet());
 	return bOk;
 }
 
