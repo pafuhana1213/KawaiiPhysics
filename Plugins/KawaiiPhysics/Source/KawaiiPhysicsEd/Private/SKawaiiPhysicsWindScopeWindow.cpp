@@ -61,6 +61,7 @@ namespace
 		float MaxValue = 1.0f;
 	};
 
+	// 各波形成分の表示スタイル（色・凡例ラベル・線種）を定義する
 	const TArray<FKawaiiWindScopeComponentStyle>& GetWindScopeComponentStyles()
 	{
 		static const TArray<FKawaiiWindScopeComponentStyle> Styles =
@@ -76,6 +77,7 @@ namespace
 		return Styles;
 	}
 
+	// FKawaiiPhysicsProceduralWindSample から指定成分の値を取り出す
 	float GetWindScopeComponentValue(const FKawaiiPhysicsProceduralWindSample& Sample,
 	                                 EKawaiiPhysicsWindScopeComponent Component)
 	{
@@ -118,6 +120,7 @@ namespace
 		return INDEX_NONE;
 	}
 
+	// 要求indexが無効（削除済み・型変更済み等）なら、先頭の ProceduralWind へフォールバックする
 	int32 ResolveProceduralWindIndex(const FAnimNode_KawaiiPhysics& Node, int32 RequestedIndex)
 	{
 		if (Node.ExternalForces.IsValidIndex(RequestedIndex) &&
@@ -128,6 +131,7 @@ namespace
 		return FindFirstProceduralWindIndex(Node);
 	}
 
+	// サンプルが無い時の初期表示値。Envelope=1にして Total=0（無風）を表すサンプルにする
 	FKawaiiPhysicsProceduralWindSample MakeZeroWindSample()
 	{
 		FKawaiiPhysicsProceduralWindSample Sample;
@@ -148,10 +152,12 @@ namespace
 	                                           const FKawaiiPhysicsWindScopeSeriesVisibility& Visibility)
 	{
 		FKawaiiWindScopeRange Range;
+		// 直近 DisplaySeconds 秒分を表示ウィンドウとする
 		Range.MaxTime = Samples.Num() > 0 ? Samples.Last().Time : 0.0f;
 		Range.MinTime = Range.MaxTime - FMath::Max(DisplaySeconds, 0.1f);
 		bool bHasValue = false;
 
+		// 表示ウィンドウ内かつ可視な系列の値だけを対象に最小/最大を求める
 		for (const FKawaiiProceduralWindScopeSample& Point : Samples)
 		{
 			if (Point.Time < Range.MinTime)
@@ -181,12 +187,14 @@ namespace
 			}
 		}
 
+		// 表示対象が無い場合はデフォルトの [-1,1] 範囲にフォールバック
 		if (!bHasValue)
 		{
 			Range.MinValue = -1.0f;
 			Range.MaxValue = 1.0f;
 		}
 
+		// 上下に少し余白を持たせる
 		const float Span = Range.MaxValue - Range.MinValue;
 		const float Padding = FMath::Max(Span * 0.1f, 0.01f);
 		Range.MinValue -= Padding;
@@ -220,6 +228,7 @@ namespace
 			const float XRate = (SamplePoint.Time - MinTime) / TimeSpan;
 			const float Value = GetWindScopeComponentValue(SamplePoint.Sample, Component);
 			const float YRate = (Value - MinValue) / ValueSpan;
+			// Slate のローカル座標はY下向きのため、値が大きいほどYが小さくなるよう反転する
 			Points.Add(FVector2D(
 				GraphOrigin.X + GraphSize.X * XRate,
 				GraphOrigin.Y + GraphSize.Y * (1.0f - YRate)));
@@ -227,6 +236,7 @@ namespace
 		return Points;
 	}
 
+	// セグメントごとに Dash/Gap を繰り返して破線を描画する
 	void DrawWindScopeDashedLine(FSlateWindowElementList& OutDrawElements,
 	                             int32 LayerId,
 	                             const FGeometry& AllottedGeometry,
@@ -267,6 +277,7 @@ namespace
 		}
 	}
 
+	// 凡例1項目（色スウォッチ＋表示切替チェックボックス＋ラベル）を生成する
 	TSharedRef<SWidget> MakeWindScopeLegendItem(SKawaiiPhysicsWindScopeWindow* Owner,
 	                                            const FKawaiiWindScopeComponentStyle& Style)
 	{
@@ -296,6 +307,7 @@ namespace
 			];
 	}
 
+	// 所属 AnimBlueprint を変更済みとしてマークする（プリセット適用の Undo/Redo・保存ダーティ化用）
 	void MarkWindScopeGraphNodeModified(UAnimGraphNode_KawaiiPhysics* GraphNode)
 	{
 		if (!GraphNode)
@@ -401,6 +413,7 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 	(void)InWidgetStyle;
 	(void)bParentEnabled;
 
+	// 背景を塗る
 	const FVector2D LocalSize = AllottedGeometry.GetLocalSize();
 	const FSlateBrush* WhiteBrush = FCoreStyle::Get().GetBrush(TEXT("WhiteBrush"));
 	FSlateDrawElement::MakeBox(
@@ -411,6 +424,7 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 		ESlateDrawEffect::None,
 		FLinearColor(0.015f, 0.018f, 0.022f, 1.0f));
 
+	// 描画領域（余白を除いたグラフ内側の矩形）と値レンジを計算
 	const FVector2D GraphOrigin(WindScopeGraphPaddingLeft, WindScopeGraphPaddingTop);
 	const FVector2D GraphSize(
 		FMath::Max(LocalSize.X - WindScopeGraphPaddingLeft - WindScopeGraphPaddingRight, 1.0f),
@@ -420,6 +434,7 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 	const FLinearColor AxisColor(0.52f, 0.56f, 0.62f, 0.9f);
 	const FSlateFontInfo AxisFont(FCoreStyle::GetDefaultFont(), 9);
 
+	// グリッド線（縦横4分割）を描画
 	for (int32 GridIndex = 0; GridIndex <= 4; ++GridIndex)
 	{
 		const float X = GraphOrigin.X + GraphSize.X * (static_cast<float>(GridIndex) / 4.0f);
@@ -451,6 +466,7 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 			1.0f);
 	}
 
+	// 0ライン（値レンジが0を跨ぐ場合のみ）を強調表示
 	if (Range.MinValue <= 0.0f && Range.MaxValue >= 0.0f)
 	{
 		const float ZeroY = GraphOrigin.Y + GraphSize.Y * (1.0f - ((0.0f - Range.MinValue) / (Range.MaxValue - Range.MinValue)));
@@ -468,6 +484,7 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 			1.0f);
 	}
 
+	// 各波形成分のポリラインを描画（Envelope等 bDashed 指定の系列は破線）
 	for (const FKawaiiWindScopeComponentStyle& Style : GetWindScopeComponentStyles())
 	{
 		if (!Visibility.IsVisible(Style.Component))
@@ -507,6 +524,7 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 		}
 	}
 
+	// 軸ラベル（最大値・0・最小値・時間軸）を描画
 	const auto DrawAxisText = [&](const FString& Text, const FVector2D& Position)
 	{
 		FSlateDrawElement::MakeText(
@@ -549,6 +567,7 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 	ChildSlot
 	[
 		SNew(SVerticalBox)
+		// 上段: 対象ノード名・外力選択コンボ・現在モード表示
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.Padding(8.0f, 8.0f, 8.0f, 4.0f)
@@ -595,6 +614,7 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 				.ColorAndOpacity(FAppStyle::Get().GetSlateColor(TEXT("Colors.AccentGreen")))
 			]
 		]
+		// プリセットボタン列（Breeze / Strong / Storm）
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.Padding(8.0f, 2.0f)
@@ -624,6 +644,7 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 				.OnClicked(this, &SKawaiiPhysicsWindScopeWindow::OnStormPresetClicked)
 			]
 		]
+		// 凡例（系列ごとの表示切替チェックボックス）
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.Padding(8.0f, 2.0f)
@@ -639,6 +660,7 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 			+ SWrapBox::Slot()[MakeWindScopeLegendItem(this, GetWindScopeComponentStyles()[5])]
 			+ SWrapBox::Slot()[MakeWindScopeLegendItem(this, GetWindScopeComponentStyles()[6])]
 		]
+		// 波形グラフ本体
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
 		.Padding(8.0f, 4.0f)
@@ -651,6 +673,7 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 		[
 			SNew(SSeparator)
 		]
+		// 下段: 現在値テキスト・表示秒数スピンボックス・一時停止チェックボックス
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.Padding(8.0f, 2.0f, 8.0f, 8.0f)
@@ -702,11 +725,13 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 		]
 	];
 
+	// 60fps 相当でティックし、Live/Preview のサンプル更新とグラフ再描画を行う
 	RegisterActiveTimer(1.0f / 60.0f, FWidgetActiveTimerDelegate::CreateSP(this, &SKawaiiPhysicsWindScopeWindow::TickWindScope));
 }
 
 void SKawaiiPhysicsWindScopeWindow::OpenWindow(FKawaiiPhysicsWindScopeWindowArgs Args)
 {
+	// 既存ウィンドウがあれば引数を差し替えて前面に出すだけ（ウィンドウは常に1つに集約する）
 	if (TSharedPtr<SWindow> ExistingWindow = KawaiiWindScopeWindowWeak.Pin())
 	{
 		if (TSharedPtr<SKawaiiPhysicsWindScopeWindow> ExistingWidget = KawaiiWindScopeWidgetWeak.Pin())
@@ -717,6 +742,7 @@ void SKawaiiPhysicsWindScopeWindow::OpenWindow(FKawaiiPhysicsWindScopeWindowArgs
 		return;
 	}
 
+	// 新規ウィンドウを生成
 	TSharedRef<SKawaiiPhysicsWindScopeWindow> ScopeWidget =
 		SNew(SKawaiiPhysicsWindScopeWindow, MoveTemp(Args));
 
@@ -730,6 +756,7 @@ void SKawaiiPhysicsWindScopeWindow::OpenWindow(FKawaiiPhysicsWindScopeWindowArgs
 			ScopeWidget
 		];
 
+	// 閉じたら配置を保存し弱参照をクリアする（次回 OpenWindow 時は上のブロックで新規生成される）
 	Window->SetOnWindowClosed(FOnWindowClosed::CreateLambda([](const TSharedRef<SWindow>& ClosedWindow)
 	{
 		KawaiiPhysicsEdWindowUtils::PersistWindowPlacement(
@@ -761,6 +788,7 @@ void SKawaiiPhysicsWindScopeWindow::CloseAllWindows()
 
 void SKawaiiPhysicsWindScopeWindow::SetArgs(FKawaiiPhysicsWindScopeWindowArgs InArgs)
 {
+	// 対象引数を差し替え、表示状態をリセットして外力一覧を再構築する
 	Args = MoveTemp(InArgs);
 	DisplaySamples.Reset();
 	PreviewTime = 0.0f;
@@ -784,6 +812,7 @@ void SKawaiiPhysicsWindScopeWindow::OnExternalForceSelectionChanged(
 	(void)SelectInfo;
 	SelectedExternalForceItem = Item;
 	Args.ExternalForceIndex = Item.IsValid() ? *Item : INDEX_NONE;
+	// 選択切替時は別の外力の波形を混在させないよう表示状態を丸ごとリセットする
 	DisplaySamples.Reset();
 	LastLiveSampleCount = 0;
 	PreviewTime = 0.0f;
@@ -866,6 +895,7 @@ void SKawaiiPhysicsWindScopeWindow::OnDisplaySecondsChanged(float NewValue)
 	}
 }
 
+// 以下3つは強さの異なる決め打ちプリセット（そよ風/強風/嵐）を ApplyPreset に渡すだけの薄いラッパー
 FReply SKawaiiPhysicsWindScopeWindow::OnBreezePresetClicked()
 {
 	return ApplyPreset(
@@ -934,6 +964,7 @@ FReply SKawaiiPhysicsWindScopeWindow::ApplyPreset(float SteadyForce,
                                                   float DirectionNoiseAngle,
                                                   const FText& PresetName)
 {
+	// 対象グラフノードを解決（失敗時は通知して終了）
 	UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
 	if (!GraphNode)
 	{
@@ -943,6 +974,7 @@ FReply SKawaiiPhysicsWindScopeWindow::ApplyPreset(float SteadyForce,
 		return FReply::Handled();
 	}
 
+	// ProceduralWind 外力を解決・型チェック
 	const int32 ResolvedIndex = ResolveProceduralWindIndex(GraphNode->Node, Args.ExternalForceIndex);
 	if (!GraphNode->Node.ExternalForces.IsValidIndex(ResolvedIndex))
 	{
@@ -962,6 +994,7 @@ FReply SKawaiiPhysicsWindScopeWindow::ApplyPreset(float SteadyForce,
 		return FReply::Handled();
 	}
 
+	// Undo/Redo 対応のトランザクションでパラメータを書き込む
 	const FScopedTransaction Transaction(LOCTEXT("ApplyWindPresetTransaction", "Apply Kawaii Physics Wind Preset"));
 	GraphNode->Modify();
 	Wind->bIsEnabled = true;
@@ -980,6 +1013,7 @@ FReply SKawaiiPhysicsWindScopeWindow::ApplyPreset(float SteadyForce,
 	Wind->TimeScale = 1.0f;
 	MarkWindScopeGraphNodeModified(GraphNode);
 
+	// 外力一覧を更新し、成功通知を表示
 	Args.ExternalForceIndex = ResolvedIndex;
 	RefreshExternalForceItems();
 	KawaiiPhysicsEdWindowUtils::ShowNotification(
@@ -996,6 +1030,7 @@ EActiveTimerReturnType SKawaiiPhysicsWindScopeWindow::TickWindScope(double InCur
 		return EActiveTimerReturnType::Continue;
 	}
 
+	// Live 取得に失敗したら（PIE/デバッグ対象なし等）Preview 波形を計算する
 	if (!TryUpdateFromLiveRuntime())
 	{
 		RebuildPreviewSamples(InDeltaTime);
@@ -1006,6 +1041,7 @@ EActiveTimerReturnType SKawaiiPhysicsWindScopeWindow::TickWindScope(double InCur
 		CurrentModeText = LOCTEXT("LiveModeTick", "Live");
 	}
 
+	// グラフウィジェットへ最新サンプル・表示設定を反映
 	if (GraphWidget.IsValid())
 	{
 		GraphWidget->SetDisplaySeconds(DisplaySeconds);
@@ -1019,6 +1055,7 @@ EActiveTimerReturnType SKawaiiPhysicsWindScopeWindow::TickWindScope(double InCur
 
 void SKawaiiPhysicsWindScopeWindow::RefreshExternalForceItems()
 {
+	// ノードが持つ ProceduralWind 外力のインデックス一覧を再収集
 	ExternalForceItems.Reset();
 	UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
 	if (GraphNode)
@@ -1032,6 +1069,7 @@ void SKawaiiPhysicsWindScopeWindow::RefreshExternalForceItems()
 		}
 	}
 
+	// 直前の選択Indexを維持できなければ先頭を選択
 	SelectedExternalForceItem.Reset();
 	for (const FExternalForceIndexPtr& Item : ExternalForceItems)
 	{
@@ -1047,6 +1085,7 @@ void SKawaiiPhysicsWindScopeWindow::RefreshExternalForceItems()
 		Args.ExternalForceIndex = *SelectedExternalForceItem;
 	}
 
+	// コンボボックスへ反映
 	if (ExternalForceComboBox.IsValid())
 	{
 		ExternalForceComboBox->RefreshOptions();
@@ -1056,6 +1095,7 @@ void SKawaiiPhysicsWindScopeWindow::RefreshExternalForceItems()
 
 void SKawaiiPhysicsWindScopeWindow::RebuildPreviewSamples(float InDeltaTime)
 {
+	// 対象の ProceduralWind 設定を取得できなければ（未選択・ノード未解決等）表示をクリア
 	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
 	if (!TryGetPreviewForceCopy(Wind))
 	{
@@ -1063,6 +1103,7 @@ void SKawaiiPhysicsWindScopeWindow::RebuildPreviewSamples(float InDeltaTime)
 		return;
 	}
 
+	// エディタ経過時間を積算し、直近 DisplaySeconds 秒分を等間隔サンプリングする
 	PreviewTime += FMath::Max(InDeltaTime, 0.0f);
 	DisplaySamples.Reset();
 	DisplaySamples.Reserve(WindScopePreviewSampleCount);
@@ -1075,6 +1116,8 @@ void SKawaiiPhysicsWindScopeWindow::RebuildPreviewSamples(float InDeltaTime)
 		const float SampleTime = FMath::Lerp(StartTime, EndTime, Alpha);
 		FKawaiiProceduralWindScopeSample ScopeSample;
 		ScopeSample.Time = SampleTime;
+		// LengthRate=0（ルート相当）で評価。PreApply が ScopeBuffer に書き込む Live サンプルも同じ LengthRate=0
+		// で計算されるため、両者は同一基準で比較できる（実ボーンの LengthRateFromRoot による Wave 位相ずれは含まない）
 		ScopeSample.Sample = Wind.ComputeWindSample(SampleTime, 0.0f);
 		DisplaySamples.Add(ScopeSample);
 	}
@@ -1088,6 +1131,7 @@ bool SKawaiiPhysicsWindScopeWindow::TryUpdateFromLiveRuntime()
 		return false;
 	}
 
+	// PIE等でデバッグ対象になっているノードを取得（デバッグ対象でなければ Live 扱いにしない）
 	UAnimBlueprint* AnimBlueprint = GraphNode->GetAnimBlueprint();
 	UObject* ObjectBeingDebugged = AnimBlueprint ? AnimBlueprint->GetObjectBeingDebugged() : nullptr;
 	if (!Cast<UAnimInstance>(ObjectBeingDebugged))
@@ -1095,6 +1139,7 @@ bool SKawaiiPhysicsWindScopeWindow::TryUpdateFromLiveRuntime()
 		return false;
 	}
 
+	// 実行中の FAnimNode_KawaiiPhysics から対象 ProceduralWind の RuntimeState を解決
 	FAnimNode_KawaiiPhysics* RuntimeNode = GraphNode->GetDebuggedAnimNode<FAnimNode_KawaiiPhysics>();
 	if (!RuntimeNode)
 	{
@@ -1114,6 +1159,8 @@ bool SKawaiiPhysicsWindScopeWindow::TryUpdateFromLiveRuntime()
 		return false;
 	}
 
+	// ScopeBuffer は PreApply（アニメーションワーカースレッド）が Mutex 下で書き込むリングバッファなので、
+	// ロック区間はコピーのみに留め、Game Thread 側にスナップショットを持ち出してから解放する
 	TArray<FKawaiiProceduralWindScopeSample> Snapshot;
 	uint64 ScopeSampleCount = 0;
 	{
@@ -1124,6 +1171,7 @@ bool SKawaiiPhysicsWindScopeWindow::TryUpdateFromLiveRuntime()
 			return false;
 		}
 
+		// ScopeWriteIndex は次に書き込むスロットを指すため、そこから CopyCount 分遡った位置が最古のサンプルになる
 		const int32 BufferNum = Wind->RuntimeState->ScopeBuffer.Num();
 		const int32 CopyCount = FMath::Min<int32>(BufferNum, static_cast<int32>(FMath::Min<uint64>(ScopeSampleCount, MAX_int32)));
 		Snapshot.Reserve(CopyCount);
@@ -1134,6 +1182,7 @@ bool SKawaiiPhysicsWindScopeWindow::TryUpdateFromLiveRuntime()
 		}
 	}
 
+	// 新規サンプル分だけ取り込めたので Display 側へ反映
 	LastLiveSampleCount = ScopeSampleCount;
 	Args.ExternalForceIndex = ResolvedIndex;
 	DisplaySamples = MoveTemp(Snapshot);
@@ -1162,12 +1211,15 @@ bool SKawaiiPhysicsWindScopeWindow::TryGetPreviewForceCopy(
 		return false;
 	}
 
+	// 値をコピーして返す。Preview計算のためだけに複製し、編集中のグラフノード本体には触れない
 	OutForce = *Wind;
 	return true;
 }
 
 UAnimGraphNode_KawaiiPhysics* SKawaiiPhysicsWindScopeWindow::ResolveGraphNode() const
 {
+	// まず弱参照を優先し、失効していれば AnimBlueprintPath+NodeGuid から再解決する
+	// （BP再コンパイル等でノードインスタンスが差し替わっても追従できる）
 	if (Args.GraphNode.IsValid())
 	{
 		return Args.GraphNode.Get();

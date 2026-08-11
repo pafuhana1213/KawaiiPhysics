@@ -68,6 +68,7 @@ FVector FKawaiiPhysics_ExternalForce::ConvertExternalForceToSimulationSpace(FAni
                                                                             FComponentSpacePoseContext& PoseContext,
                                                                             const FVector& InForce) const
 {
+	// ExternalForceSpaceに対応する変換元のSimulationSpaceを決定
 	EKawaiiPhysicsSimulationSpace From = EKawaiiPhysicsSimulationSpace::ComponentSpace;
 	if (ExternalForceSpace == EExternalForceSpace::WorldSpace)
 	{
@@ -78,6 +79,7 @@ FVector FKawaiiPhysics_ExternalForce::ConvertExternalForceToSimulationSpace(FAni
 		From = EKawaiiPhysicsSimulationSpace::BaseBoneSpace;
 	}
 
+	// 変換元からNode.SimulationSpaceへ変換して返す
 	return Node.ConvertSimulationSpaceVector(PoseContext, From,
 	                                         Node.SimulationSpace, InForce);
 }

@@ -29,6 +29,7 @@ struct FKawaiiPhysicsWindScopeWindowArgs
 	int32 ExternalForceIndex = INDEX_NONE;
 };
 
+// グラフに表示する波形成分の種別（ランタイム側 FKawaiiPhysicsProceduralWindSample の各フィールドに対応）
 enum class EKawaiiPhysicsWindScopeComponent : uint8
 {
 	Total,
@@ -40,6 +41,7 @@ enum class EKawaiiPhysicsWindScopeComponent : uint8
 	Gust,
 };
 
+// 上記各成分の表示ON/OFFを凡例チェックボックスと連動して保持する
 struct FKawaiiPhysicsWindScopeSeriesVisibility
 {
 	bool bTotal = true;
@@ -54,6 +56,7 @@ struct FKawaiiPhysicsWindScopeSeriesVisibility
 	void SetVisible(EKawaiiPhysicsWindScopeComponent Component, bool bVisible);
 };
 
+// 波形グラフ本体。SLeafWidget を継承し OnPaint でポリラインを直接描画する
 class SKawaiiPhysicsWindScopeGraph : public SLeafWidget
 {
 public:
@@ -68,6 +71,7 @@ public:
 	void SetDisplaySeconds(float InDisplaySeconds);
 	void SetSeriesVisibility(const FKawaiiPhysicsWindScopeSeriesVisibility& InVisibility);
 
+	// グラフの描画本体（Slate のペイントコールバック）
 	virtual int32 OnPaint(const FPaintArgs& Args,
 	                      const FGeometry& AllottedGeometry,
 	                      const FSlateRect& MyCullingRect,
@@ -84,6 +88,7 @@ private:
 	float DisplaySeconds = 8.0f;
 };
 
+// Wind Scope ツールウィンドウ本体。ツールバー・凡例・グラフ・プリセットボタンをまとめる SCompoundWidget
 class SKawaiiPhysicsWindScopeWindow : public SCompoundWidget
 {
 public:
@@ -107,6 +112,7 @@ public:
 	void OnSeriesCheckStateChanged(ECheckBoxState NewState, EKawaiiPhysicsWindScopeComponent Component);
 
 private:
+	// ExternalForces 配列のインデックスを保持するコンボボックス項目型（SComboBox は TSharedPtr 項目を要求する）
 	using FExternalForceIndexPtr = TSharedPtr<int32>;
 
 	TSharedRef<SWidget> GenerateExternalForceComboWidget(FExternalForceIndexPtr Item) const;
@@ -137,21 +143,29 @@ private:
 	                   float DirectionNoiseAngle,
 	                   const FText& PresetName);
 
+	// 毎フレームの active timer コールバック。Live/Preview いずれかでサンプルを更新し再描画する
 	EActiveTimerReturnType TickWindScope(double InCurrentTime, float InDeltaTime);
 	void RefreshExternalForceItems();
+	// Live 実行中でない場合の理論波形（Preview）を再計算する
 	void RebuildPreviewSamples(float InDeltaTime);
+	// 実行中の RuntimeState からライブ波形を取得する。取得できなければ false（呼び出し側は Preview へフォールバック）
 	bool TryUpdateFromLiveRuntime();
+	// Preview 計算用に ProceduralWind 設定値のコピーを取得する
 	bool TryGetPreviewForceCopy(struct FKawaiiPhysics_ExternalForce_ProceduralWind& OutForce) const;
+	// 弱参照、または AnimBlueprintPath+NodeGuid から対象ノードを再解決する（BP再コンパイル等でポインタが失効しても追従できる）
 	UAnimGraphNode_KawaiiPhysics* ResolveGraphNode() const;
 
 	FKawaiiPhysicsWindScopeWindowArgs Args;
 	TArray<FExternalForceIndexPtr> ExternalForceItems;
 	FExternalForceIndexPtr SelectedExternalForceItem;
 	FKawaiiPhysicsWindScopeSeriesVisibility SeriesVisibility;
+	// 現在グラフに描画中のサンプル列（Live/Preview 共通）
 	TArray<FKawaiiProceduralWindScopeSample> DisplaySamples;
 	FText CurrentModeText;
 	float DisplaySeconds = 8.0f;
+	// Preview モードでの積算経過時間
 	float PreviewTime = 0.0f;
+	// 直前に読み取った RuntimeState->ScopeSampleCount。差分が無ければ新規サンプル無しと判断する
 	uint64 LastLiveSampleCount = 0;
 	bool bPaused = false;
 

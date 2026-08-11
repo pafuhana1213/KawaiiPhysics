@@ -11,8 +11,10 @@
 
 namespace
 {
+// 本テストは積分の蓄積誤差を持たない解析式（sin等）を直接評価するため、既定許容誤差はfloatの丸め程度で足りる
 constexpr float GProceduralWindTol = KINDA_SMALL_NUMBER;
 
+// Sample の全フィールドが完全一致するかを判定するヘルパー（同一seedのサンプル比較に使用）
 bool SamplesExactlyEqual(const FKawaiiPhysicsProceduralWindSample& A,
                          const FKawaiiPhysicsProceduralWindSample& B)
 {
@@ -25,6 +27,7 @@ bool SamplesExactlyEqual(const FKawaiiPhysicsProceduralWindSample& A,
 		A.Total == B.Total;
 }
 
+// 近似比較用アサーションヘルパー。失敗時に実測値と期待値を併記して原因調査しやすくする
 void TestSampleNear(FAutomationTestBase& Test, const TCHAR* Name, const float Actual, const float Expected,
                     const float Tol = GProceduralWindTol)
 {
@@ -32,6 +35,7 @@ void TestSampleNear(FAutomationTestBase& Test, const TCHAR* Name, const float Ac
 	              FMath::IsNearlyEqual(Actual, Expected, Tol));
 }
 
+// Rate=[0,1]をNumSegments分割で走査し、Waveが最大となる区間インデックスを求める（WavePropagationテストでピーク位置の移動検出に使用）
 int32 FindWavePeakIndex(const FKawaiiPhysics_ExternalForce_ProceduralWind& Wind, const float Time,
                         const int32 NumSegments)
 {
@@ -50,6 +54,8 @@ int32 FindWavePeakIndex(const FKawaiiPhysics_ExternalForce_ProceduralWind& Wind,
 	return PeakIndex;
 }
 
+// RandomizedForceScaleはprotectedかつ既定0.0fで、通常はPreApplyのランダム化処理でのみ設定される。
+// Apply()を直接呼ぶテストではPreApplyを経由しないため、テスト用サブクラスで固定値を注入する
 struct FKawaiiPhysicsProceduralWindApplyTestForce : FKawaiiPhysics_ExternalForce_ProceduralWind
 {
 	void SetRandomizedForceScaleForTest(const float InScale)
@@ -58,6 +64,7 @@ struct FKawaiiPhysicsProceduralWindApplyTestForce : FKawaiiPhysics_ExternalForce
 	}
 };
 
+// PreApplyが行うキャッシュ更新（合成波・envelope・random・gust・風向ベクトル）を、ポーズ評価なしで手動再現するヘルパー
 void PrimeApplyCache(FKawaiiPhysicsProceduralWindApplyTestForce& Wind, const float Time)
 {
 	Wind.ResetRuntimeState();
@@ -71,6 +78,8 @@ void PrimeApplyCache(FKawaiiPhysicsProceduralWindApplyTestForce& Wind, const flo
 	Wind.SetRandomizedForceScaleForTest(1.0f);
 }
 
+// 2ボーンチェーンへ同一フレーム分のWindを1回適用/NumSubsteps回に分割適用し、フレーム末の累積変位を返す
+// （FramerateIndependenceテストでsubstep分割数への非依存性を検証するために使用）
 FVector ApplyProceduralWindDisplacement(const int32 NumSubsteps)
 {
 	const float TotalDt = 1.0f / 30.0f;
@@ -135,6 +144,7 @@ bool FKawaiiPhysicsProceduralWindDeterminismTest::RunTest(const FString& Paramet
 	B.RandomSeed = 12345;
 	C.RandomSeed = 54321;
 
+	// 64点の時刻でサンプルを取り、同一seed(A/B)の完全一致と異seed(C)とのRandom成分の差分有無を集計する
 	bool bDifferentSeedChangedRandom = false;
 	for (int32 Index = 0; Index < 64; ++Index)
 	{
@@ -179,6 +189,7 @@ bool FKawaiiPhysicsProceduralWindSinePhaseTest::RunTest(const FString& Parameter
 	// 振動と波の位相、および周期性が実装式どおりになることを確認する。
 	const float Period = 2.0f;
 
+	// 振動成分: 1/4周期でsin位相がpi/2となり振幅そのものが出力される点、および1周期後の値が一致する周期性を確認
 	FKawaiiPhysics_ExternalForce_ProceduralWind OscillationWind;
 	OscillationWind.OscillationForce = 1.0f;
 	OscillationWind.OscillationPeriod = Period;
@@ -190,6 +201,7 @@ bool FKawaiiPhysicsProceduralWindSinePhaseTest::RunTest(const FString& Parameter
 	               OscillationWind.ComputeWindSample(Time).Oscillation,
 	               OscillationWind.ComputeWindSample(Time + Period).Oscillation, 0.000001f);
 
+	// 波成分: WavePhase=90度によりt=0・Rate=0で位相pi/2（振幅最大）となる設定で、位相と周期性を確認
 	FKawaiiPhysics_ExternalForce_ProceduralWind WaveWind;
 	WaveWind.WaveAmplitude = 1.0f;
 	WaveWind.WavePeriod = Period;
@@ -214,12 +226,14 @@ bool FKawaiiPhysicsProceduralWindWavePropagationTest::RunTest(const FString& Par
 	Wind.WavePeriod = 2.0f;
 	Wind.WaveSpatialOffset = 180.0f;
 
+	// WaveSpatialOffset=180度により根元(Rate=0)と毛先(Rate=1)は空間位相差piとなり、符号が反転するはず
 	const float FixedTime = Wind.WavePeriod * 0.25f;
 	const float RootWave = Wind.ComputeWindSample(FixedTime, 0.0f).Wave;
 	const float TipWave = Wind.ComputeWindSample(FixedTime, 1.0f).Wave;
 	TestTrue(FString::Printf(TEXT("Opposite sign: root=%.6f tip=%.6f"), RootWave, TipWave),
 	         RootWave * TipWave < 0.0f);
 
+	// 時間を1/4周期進めるとピークが根元寄りから毛先寄りへ移動する（進行波としての空間伝播）ことを確認
 	const int32 Peak0 = FindWavePeakIndex(Wind, Wind.WavePeriod * 0.25f, 1000);
 	const int32 Peak1 = FindWavePeakIndex(Wind, Wind.WavePeriod * 0.50f, 1000);
 	TestTrue(FString::Printf(TEXT("Peak moves root to tip: %d -> %d"), Peak0, Peak1),
@@ -241,6 +255,7 @@ bool FKawaiiPhysicsProceduralWindEnvelopeBoundsTest::RunTest(const FString& Para
 	Wind.EnvelopeFrequency = 0.73f;
 	Wind.EnvelopePhase = 17.0f;
 
+	// 1000点サンプリングし、Envelopeが常に[EnvelopeMin, EnvelopeMax]の範囲内に収まることを確認
 	for (int32 Index = 0; Index < 1000; ++Index)
 	{
 		const float Time = static_cast<float>(Index) * 0.013f;
@@ -250,6 +265,7 @@ bool FKawaiiPhysicsProceduralWindEnvelopeBoundsTest::RunTest(const FString& Para
 		         Envelope <= Wind.EnvelopeMax + GProceduralWindTol);
 	}
 
+	// MinとMaxを同値にした場合、Lerpの結果が時刻によらず定数へ潰れることを確認
 	Wind.EnvelopeMin = 0.625f;
 	Wind.EnvelopeMax = 0.625f;
 	for (const float Time : {0.0f, 0.4f, 1.7f, 8.0f})
@@ -269,12 +285,14 @@ bool FKawaiiPhysicsProceduralWindNoisePropertiesTest::RunTest(const FString& Par
 	// ノイズ範囲、格子点一致、連続性、ハッシュのスナップショット値を確認する。
 	using FWind = FKawaiiPhysics_ExternalForce_ProceduralWind;
 
+	// StableHashの実装は仕様式を持たないFNV-1a派生のビット演算のため、期待値は現行実装から採取したスナップショット値（回帰検出用）
 	TestEqual(TEXT("StableHash(0, 0, 0)"), FWind::StableHash(0, 0, 0), 672839204u);
 	TestEqual(TEXT("StableHash(123, 0, 0)"), FWind::StableHash(123, 0, 0), 961409981u);
 	TestEqual(TEXT("StableHash(123, 1, 0)"), FWind::StableHash(123, 1, 0), 688218621u);
 	TestEqual(TEXT("StableHash(123, -1, 0)"), FWind::StableHash(123, -1, 0), 2476066305u);
 	TestEqual(TEXT("StableHash(-17, 42, 3)"), FWind::StableHash(-17, 42, 3), 1090092324u);
 
+	// Uを-8〜12の範囲で0.01刻みに走査し、値域[-1,1]と隣接差分が閾値以下に収まる連続性（滑らかな補間）を確認
 	float Previous = FWind::SampleSmoothNoise(-8.0f, 2468, 0);
 	for (int32 Index = 0; Index <= 2000; ++Index)
 	{
@@ -290,6 +308,7 @@ bool FKawaiiPhysicsProceduralWindNoisePropertiesTest::RunTest(const FString& Par
 		Previous = Value;
 	}
 
+	// 整数座標では滑らか補間の結果が格子点の生値（NoiseValueAt）と一致する（補間の境界条件）ことを確認
 	for (int32 GridIndex = -8; GridIndex <= 8; ++GridIndex)
 	{
 		const float Smooth = FWind::SampleSmoothNoise(static_cast<float>(GridIndex), 2468, 1);
@@ -341,6 +360,7 @@ bool FKawaiiPhysicsProceduralWindGustEnvelopeTest::RunTest(const FString& Parame
 	Wind.RuntimeState->ActiveGust.DecayTime = 2.0f;
 	Wind.RuntimeState->ActiveGust.bIsActive = true;
 
+	// RiseTime=1・DecayTime=2に対し、立ち上がり中間(t=0.5)・ピーク(t=1)・減衰中間(t=2)・終了(t=3)・終了後(t=4)の5点で線形補間の傾きを確認
 	TestSampleNear(*this, TEXT("Gust t=0.5"), Wind.ComputeWindSample(0.5f, 0.0f).Gust, 2.5f);
 	TestSampleNear(*this, TEXT("Gust t=1.0"), Wind.ComputeWindSample(1.0f, 0.0f).Gust, 5.0f);
 	TestSampleNear(*this, TEXT("Gust t=2.0"), Wind.ComputeWindSample(2.0f, 0.0f).Gust, 2.5f);
@@ -367,6 +387,7 @@ bool FKawaiiPhysicsProceduralWindDynamicParamsTest::RunTest(const FString& Param
 	Wind.DirectionNoiseAngle = 5.0f;
 	Wind.TimeScale = 1.0f;
 
+	// bOverride*をtrue/false交互に設定し、上書き対象と非対象の双方を1回のApplyDynamicParams呼び出しで検証する
 	FKawaiiProceduralWindDynamicParams Params;
 	Params.bOverrideWindDirection = false;
 	Params.WindDirection = FRotator(10.0f, 20.0f, 30.0f);
@@ -387,6 +408,7 @@ bool FKawaiiPhysicsProceduralWindDynamicParamsTest::RunTest(const FString& Param
 
 	Wind.ApplyDynamicParams(Params);
 
+	// 上書きされた項目は負値でも下限（0 または 0.01）へ安全化され、上書きされない項目は元値のまま残ることを確認
 	TestTrue(TEXT("WindDirection unchanged"), Wind.WindDirection.Equals(FRotator(1.0f, 2.0f, 3.0f)));
 	TestSampleNear(*this, TEXT("SteadyForce clamped"), Wind.SteadyForce, 0.0f);
 	TestSampleNear(*this, TEXT("OscillationForce unchanged"), Wind.OscillationForce, 3.0f);
@@ -416,6 +438,7 @@ bool FKawaiiPhysicsProceduralWindPendingConsumptionTest::RunTest(const FString& 
 	Params.bOverrideOscillationPeriod = true;
 	Params.OscillationPeriod = 0.25f;
 
+	// Mutex配下でPendingParams/PendingGustを設定し、Apply側スレッドからの非同期リクエストを模擬する
 	{
 		FScopeLock Lock(&Wind.RuntimeState->Mutex);
 		Wind.RuntimeState->PendingParams = Params;
@@ -450,6 +473,7 @@ bool FKawaiiPhysicsProceduralWindFramerateIndependenceTest::RunTest(const FStrin
 	// 同一フレーム内でキャッシュ済みの波を一括適用しても分割適用しても変位合計が一致することを確認する。
 	const FVector OneStep = ApplyProceduralWindDisplacement(1);
 	const FVector FourSteps = ApplyProceduralWindDisplacement(4);
+	// 両者はfloat演算順序の違いによる誤差のみを含むはずなので、既定のGProceduralWindTolより厳しい許容誤差で比較する
 	TestTrue(FString::Printf(TEXT("Apply displacement 1 vs 4: %s vs %s"), *OneStep.ToString(), *FourSteps.ToString()),
 	         OneStep.Equals(FourSteps, 0.000001f));
 	TestTrue(TEXT("Wave-including displacement is non-zero"), !OneStep.IsNearlyZero());
@@ -473,6 +497,7 @@ bool FKawaiiPhysicsProceduralWindResetRuntimeStateTest::RunTest(const FString& P
 	Wind.RuntimeState->ActiveGust.bIsActive = true;
 	TestTrue(TEXT("Gust is active before reset"), Wind.ComputeWindSample(1.0f, 0.0f).Gust > 0.0f);
 
+	// ResetRuntimeStateはRuntimeStateを新規SharedPtrで差し替えるため、Gust・Timeともに初期値へ戻るはず
 	Wind.ResetRuntimeState();
 	TestSampleNear(*this, TEXT("Gust after reset"), Wind.ComputeWindSample(1.0f, 0.0f).Gust, 0.0f);
 	TestSampleNear(*this, TEXT("Time after reset"), Wind.RuntimeState->Time, 0.0f);

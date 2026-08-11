@@ -8,11 +8,13 @@
 
 namespace
 {
+	// FVector2D を ini 保存用の "X,Y" 文字列へ変換する
 	FString MakeVectorConfigString(const FVector2D& Value)
 	{
 		return FString::Printf(TEXT("%.0f,%.0f"), Value.X, Value.Y);
 	}
 
+	// MakeVectorConfigString で保存した "X,Y" 文字列を FVector2D へ復元する
 	bool TryParseVectorConfigString(const FString& StringValue, FVector2D& OutValue)
 	{
 		FString Left;
@@ -38,12 +40,14 @@ namespace KawaiiPhysicsEdWindowUtils
 	{
 		FNotificationInfo NotificationInfo(NotificationText);
 		NotificationInfo.ExpireDuration = ExpireDuration;
+		// Hyperlinkが設定されていれば通知に付与する
 		if (Hyperlink.IsBound())
 		{
 			NotificationInfo.Hyperlink = Hyperlink;
 			NotificationInfo.HyperlinkText = HyperlinkText;
 		}
 
+		// 通知を表示し、完了状態を設定する
 		TSharedPtr<SNotificationItem> NotificationItem =
 			FSlateNotificationManager::Get().AddNotification(NotificationInfo);
 		if (NotificationItem.IsValid())
@@ -57,6 +61,7 @@ namespace KawaiiPhysicsEdWindowUtils
 	                            const TCHAR* WindowPosConfigKey,
 	                            const TCHAR* WindowSizeConfigKey)
 	{
+		// commandlet等 GConfig 未初期化の環境では保存をスキップ
 		if (!GConfig)
 		{
 			return;
@@ -74,11 +79,13 @@ namespace KawaiiPhysicsEdWindowUtils
 	                            const TCHAR* WindowPosConfigKey,
 	                            const TCHAR* WindowSizeConfigKey)
 	{
+		// PersistWindowPlacementと同様、GConfig未初期化ならスキップ
 		if (!GConfig)
 		{
 			return;
 		}
 
+		// 位置・サイズは互いに独立して、パースに成功した場合のみ反映する
 		FString StringValue;
 		FVector2D ParsedValue;
 		if (GConfig->GetString(ConfigSectionName, WindowPosConfigKey, StringValue, GEditorPerProjectIni) &&

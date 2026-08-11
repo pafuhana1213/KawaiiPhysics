@@ -7,6 +7,7 @@
 
 class SWindow;
 
+// PresetDiffWindow・WindScopeWindow など複数のエディタウィンドウで共有する通知/ウィンドウ位置ユーティリティ
 namespace KawaiiPhysicsEdWindowUtils
 {
 	/** Slate通知を表示する / Shows a Slate notification. */

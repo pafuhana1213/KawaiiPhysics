@@ -64,6 +64,7 @@ namespace
 			PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, CustomExternalForces);
 	}
 
+	// InstancedStructがProceduralWindであれば可変ポインタを返す（型不一致・無効ならnullptr）
 	FKawaiiPhysics_ExternalForce_ProceduralWind* GetMutableProceduralWind(FInstancedStruct& InstancedStruct)
 	{
 		if (!InstancedStruct.IsValid() ||
@@ -75,9 +76,11 @@ namespace
 		return InstancedStruct.GetMutablePtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
 	}
 
+	// 突風リクエストをMutex経由でキューイングする（GameThread側の呼び出しをWorker側のPreApplyへスレッドセーフに橋渡し）
 	bool QueueProceduralWindGust(FKawaiiPhysics_ExternalForce_ProceduralWind& ProceduralWind,
 	                             const float Strength, const float RiseTime, const float DecayTime)
 	{
+		// RuntimeState未初期化（PreApply未実行）でもリクエストを取りこぼさないよう先に生成しておく
 		if (!ProceduralWind.RuntimeState.IsValid())
 		{
 			ProceduralWind.ResetRuntimeState();
@@ -92,6 +95,7 @@ namespace
 		return true;
 	}
 
+	// 動的パラメータ更新も同様にMutex経由でキューイングする
 	bool QueueProceduralWindParams(FKawaiiPhysics_ExternalForce_ProceduralWind& ProceduralWind,
 	                               const FKawaiiProceduralWindDynamicParams& Params)
 	{
@@ -612,6 +616,7 @@ bool UKawaiiPhysicsLibrary::RemoveExternalForcesFromComponent(USkeletalMeshCompo
 	return bResult;
 }
 
+// 指定したExternalForceIndexのProceduralWindへ突風をトリガーする（実体は上記ヘルパーでのキューイング）
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::TriggerProceduralWindGust(
 	EKawaiiPhysicsAccessExternalForceResult& ExecResult,
 	const FKawaiiPhysicsReference& KawaiiPhysics,
@@ -644,6 +649,7 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::TriggerProceduralWindGust(
 	return KawaiiPhysics;
 }
 
+// 指定したExternalForceIndexのProceduralWindへ動的パラメータ更新をリクエストする
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetProceduralWindParameters(
 	EKawaiiPhysicsAccessExternalForceResult& ExecResult,
 	const FKawaiiPhysicsReference& KawaiiPhysics,
@@ -674,6 +680,7 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetProceduralWindParameters(
 	return KawaiiPhysics;
 }
 
+// Component内の対象ノード（Tagフィルタ適用）を走査し、ProceduralWindへ一括で突風をトリガーする
 int32 UKawaiiPhysicsLibrary::TriggerProceduralWindGustOnComponent(
 	USkeletalMeshComponent* MeshComp,
 	const float Strength,
@@ -709,6 +716,7 @@ int32 UKawaiiPhysicsLibrary::TriggerProceduralWindGustOnComponent(
 	return AppliedForceCount;
 }
 
+// Component内の対象ノード（Tagフィルタ適用）を走査し、ProceduralWindへ一括でパラメータ更新をリクエストする
 int32 UKawaiiPhysicsLibrary::SetProceduralWindParametersOnComponent(
 	USkeletalMeshComponent* MeshComp,
 	const FKawaiiProceduralWindDynamicParams& Params,

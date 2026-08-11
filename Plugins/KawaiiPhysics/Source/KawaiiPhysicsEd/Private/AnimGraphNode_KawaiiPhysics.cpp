@@ -572,6 +572,7 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 	CustomizeDetailTools(DetailBuilder);
 	CustomizeDetailDebugVisualizations(DetailBuilder);
 
+	// External Forceカテゴリに Wind Scope ボタン（波形プレビューウィンドウを開く）を追加
 	IDetailCategoryBuilder& ExternalForceCategory = DetailBuilder.EditCategory(TEXT("Force|External Force"));
 	FDetailWidgetRow& WindScopeWidgetRow = ExternalForceCategory.AddCustomRow(LOCTEXT("OpenWindScope", "Wind Scope"));
 	WindScopeWidgetRow
@@ -1013,6 +1014,7 @@ void UAnimGraphNode_KawaiiPhysics::CheckPresetDiff()
 
 void UAnimGraphNode_KawaiiPhysics::OpenWindScopeWindow()
 {
+	// ExternalForcesから最初のProceduralWindを探す
 	int32 ExternalForceIndex = INDEX_NONE;
 	for (int32 Index = 0; Index < Node.ExternalForces.Num(); ++Index)
 	{
@@ -1033,6 +1035,7 @@ void UAnimGraphNode_KawaiiPhysics::OpenWindScopeWindow()
 		return;
 	}
 
+	// ウィンドウへ渡す引数を組み立てて開く
 	const UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
 	FKawaiiPhysicsWindScopeWindowArgs Args;
 	Args.GraphNode = this;
@@ -1072,6 +1075,7 @@ void UAnimGraphNode_KawaiiPhysics::GetNodeContextMenuActions(UToolMenu* Menu, UG
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateUObject(MutableThis, &UAnimGraphNode_KawaiiPhysics::ApplyPresetDataAsset)));
 
+	// コンテキストメニューにも Wind Scope を追加
 	Section.AddMenuEntry(
 		"KawaiiPhysicsWindScope",
 		LOCTEXT("WindScopeContextMenu", "Wind Scope"),
