@@ -2,11 +2,11 @@
 
 #include "../KawaiiPhysicsPresetDiffSnapshot.h"
 
+#include "KawaiiPhysicsWindPresetTags.h"
 #include "Misc/AutomationTest.h"
-#include "NativeGameplayTags.h"
 
-UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsPresetDiffSnapshotSource, "KawaiiPhysics.Test.PresetDiffSnapshot.Source");
-UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsPresetDiffSnapshotTarget, "KawaiiPhysics.Test.PresetDiffSnapshot.Target");
+// UncookedOnlyモジュールではネイティブタグを定義できない（NativeGameplayTags.cppのensure対象）ため、
+// Runtimeモジュールが登録済みのタグを流用する。テストに必要なのは相異なる有効タグ2つのみ
 
 namespace
 {
@@ -203,8 +203,8 @@ bool FKawaiiPhysicsPresetDiffSnapshotOptionsExcludeTagTest::RunTest(const FStrin
 		return false;
 	}
 
-	Node.KawaiiPhysicsTag = TAG_KawaiiPhysicsPresetDiffSnapshotSource;
-	Preset->Node.KawaiiPhysicsTag = TAG_KawaiiPhysicsPresetDiffSnapshotTarget;
+	Node.KawaiiPhysicsTag = TAG_KawaiiPhysics_WindPreset_Breeze;
+	Preset->Node.KawaiiPhysicsTag = TAG_KawaiiPhysics_WindPreset_Strong;
 
 	const FKawaiiPhysicsPresetApplyOptions Options;
 	const TSharedRef<FKawaiiPhysicsPresetDiffSnapshot> Snapshot =
