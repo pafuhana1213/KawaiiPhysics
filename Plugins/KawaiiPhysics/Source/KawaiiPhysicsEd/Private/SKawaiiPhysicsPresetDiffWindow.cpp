@@ -8,11 +8,10 @@
 #include "Misc/MessageDialog.h"
 #include "EdGraph/EdGraph.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Framework/Notifications/NotificationManager.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "KawaiiPhysicsEdWindowUtils.h"
 #include "KawaiiPhysicsEditorLibrary.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Misc/ConfigCacheIni.h"
 #include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
 #include "Subsystems/AssetEditorSubsystem.h"
@@ -47,75 +46,6 @@ namespace
 
 	TWeakPtr<SWindow> DiffWindowWeak;
 	TWeakPtr<SKawaiiPhysicsPresetDiffWindow> DiffWidgetWeak;
-
-	void ShowPresetDiffNotification(const FText& NotificationText,
-	                                const SNotificationItem::ECompletionState CompletionState)
-	{
-		FNotificationInfo NotificationInfo(NotificationText);
-		NotificationInfo.ExpireDuration = 5.0f;
-
-		TSharedPtr<SNotificationItem> NotificationItem =
-			FSlateNotificationManager::Get().AddNotification(NotificationInfo);
-		if (NotificationItem.IsValid())
-		{
-			NotificationItem->SetCompletionState(CompletionState);
-		}
-	}
-
-	FString MakePresetDiffVectorString(const FVector2D& Value)
-	{
-		return FString::Printf(TEXT("%.0f,%.0f"), Value.X, Value.Y);
-	}
-
-	bool TryParsePresetDiffVectorString(const FString& StringValue, FVector2D& OutValue)
-	{
-		FString Left;
-		FString Right;
-		if (!StringValue.Split(TEXT(","), &Left, &Right))
-		{
-			return false;
-		}
-
-		OutValue.X = FCString::Atof(*Left);
-		OutValue.Y = FCString::Atof(*Right);
-		return true;
-	}
-
-	void PersistPresetDiffPlacement(const TSharedRef<SWindow>& Window)
-	{
-		if (!GConfig)
-		{
-			return;
-		}
-
-		const FVector2D Position = Window->GetPositionInScreen();
-		const FVector2D Size = Window->GetSizeInScreen();
-		GConfig->SetString(PresetDiffConfigSection, PresetDiffPositionKey, *MakePresetDiffVectorString(Position), GEditorPerProjectIni);
-		GConfig->SetString(PresetDiffConfigSection, PresetDiffSizeKey, *MakePresetDiffVectorString(Size), GEditorPerProjectIni);
-		GConfig->Flush(false, GEditorPerProjectIni);
-	}
-
-	void RestorePresetDiffPlacement(const TSharedRef<SWindow>& Window)
-	{
-		if (!GConfig)
-		{
-			return;
-		}
-
-		FString StringValue;
-		FVector2D ParsedValue;
-		if (GConfig->GetString(PresetDiffConfigSection, PresetDiffPositionKey, StringValue, GEditorPerProjectIni) &&
-			TryParsePresetDiffVectorString(StringValue, ParsedValue))
-		{
-			Window->MoveWindowTo(ParsedValue);
-		}
-
-		if (GConfig->GetString(PresetDiffConfigSection, PresetDiffSizeKey, StringValue, GEditorPerProjectIni) &&
-			TryParsePresetDiffVectorString(StringValue, ParsedValue))
-		{
-			Window->Resize(ParsedValue);
-		}
-	}
 
 	FKawaiiPhysicsGraphNodeHandle MakePresetDiffHandle(UAnimGraphNode_KawaiiPhysics* GraphNode)
 	{
@@ -587,7 +517,11 @@ void SKawaiiPhysicsPresetDiffWindow::OpenWindow(FKawaiiPhysicsPresetDiffWindowAr
 
 	Window->SetOnWindowClosed(FOnWindowClosed::CreateLambda([](const TSharedRef<SWindow>& ClosedWindow)
 	{
-		PersistPresetDiffPlacement(ClosedWindow);
+		KawaiiPhysicsEdWindowUtils::PersistWindowPlacement(
+			ClosedWindow,
+			PresetDiffConfigSection,
+			PresetDiffPositionKey,
+			PresetDiffSizeKey);
 		DiffWindowWeak.Reset();
 		DiffWidgetWeak.Reset();
 	}));
@@ -595,7 +529,11 @@ void SKawaiiPhysicsPresetDiffWindow::OpenWindow(FKawaiiPhysicsPresetDiffWindowAr
 	DiffWindowWeak = Window;
 	DiffWidgetWeak = DiffWidget;
 	FSlateApplication::Get().AddWindow(Window);
-	RestorePresetDiffPlacement(Window);
+	KawaiiPhysicsEdWindowUtils::RestoreWindowPlacement(
+		Window,
+		PresetDiffConfigSection,
+		PresetDiffPositionKey,
+		PresetDiffSizeKey);
 }
 
 void SKawaiiPhysicsPresetDiffWindow::CloseAllWindows()
@@ -663,7 +601,7 @@ void SKawaiiPhysicsPresetDiffWindow::OnRowDoubleClicked(FRowPtr Row)
 	UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(AnimBlueprintObject);
 	if (!AnimBlueprint || !GEditor)
 	{
-		ShowPresetDiffNotification(
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
 			LOCTEXT("OpenAnimBlueprintFailed", "Failed to open the AnimBlueprint."),
 			SNotificationItem::CS_Fail);
 		return;
@@ -745,7 +683,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnOpenPresetClicked()
 	UObject* PresetObject = SelectedSnapshot->PresetPath.TryLoad();
 	if (!PresetObject)
 	{
-		ShowPresetDiffNotification(
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
 			LOCTEXT("OpenPresetFailed", "Failed to load the selected preset."),
 			SNotificationItem::CS_Fail);
 		return FReply::Handled();
@@ -767,7 +705,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnCopyClicked()
 
 	const FString ClipboardText = KawaiiPhysicsPresetDiff::SnapshotToClipboardText(*SelectedSnapshot, ContextLabel);
 	FPlatformApplicationMisc::ClipboardCopy(*ClipboardText);
-	ShowPresetDiffNotification(
+	KawaiiPhysicsEdWindowUtils::ShowNotification(
 		LOCTEXT("CopySucceeded", "Copied preset diff to clipboard."),
 		SNotificationItem::CS_Success);
 	return FReply::Handled();
@@ -777,7 +715,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnRefreshClicked()
 {
 	if (!RebuildAllSnapshotsKeepingPreset())
 	{
-		ShowPresetDiffNotification(
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
 			LOCTEXT("RefreshResolveFailed", "Failed to resolve the KawaiiPhysics node."),
 			SNotificationItem::CS_Fail);
 	}
@@ -795,7 +733,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnApplySelectedClicked()
 		UKawaiiPhysicsEditorLibrary::FindGraphNodeByGuid(AnimBlueprintPath, NodeGuid);
 	if (!GraphNode || !GraphNode->GetGraph() || !GraphNode->GetGraph()->Nodes.Contains(GraphNode))
 	{
-		ShowPresetDiffNotification(
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
 			LOCTEXT("ApplySelectedResolveFailed", "Failed to resolve the KawaiiPhysics graph node."),
 			SNotificationItem::CS_Fail);
 		return FReply::Handled();
@@ -805,7 +743,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnApplySelectedClicked()
 		Cast<UKawaiiPhysicsPresetDataAsset>(SelectedSnapshot->PresetPath.TryLoad());
 	if (!Preset)
 	{
-		ShowPresetDiffNotification(
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
 			LOCTEXT("ApplySelectedPresetLoadFailed", "Failed to load the selected preset."),
 			SNotificationItem::CS_Fail);
 		return FReply::Handled();
@@ -817,7 +755,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnApplySelectedClicked()
 	if (!SnapshotRowsMatch(*SelectedSnapshot, *FreshSnapshot, &SelectedPropertyNames))
 	{
 		ReplaceSelectedSnapshot(FreshSnapshot);
-		ShowPresetDiffNotification(
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
 			LOCTEXT("ApplySelectedPresetChanged", "The preset or node changed. Review the refreshed diff before applying."),
 			SNotificationItem::CS_Fail);
 		return FReply::Handled();
@@ -830,7 +768,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnApplySelectedClicked()
 	if (!CopyPropertiesByName(Names, true, GraphNode->Node, *Preset, GraphNode))
 	{
 		Transaction.Cancel();
-		ShowPresetDiffNotification(
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
 			LOCTEXT("ApplySelectedCopyFailed", "Failed to copy one or more selected properties."),
 			SNotificationItem::CS_Fail);
 		return FReply::Handled();
@@ -842,7 +780,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnApplySelectedClicked()
 
 	ReplaceSelectedSnapshot(KawaiiPhysicsPresetDiff::BuildSnapshot(GraphNode->Node, *Preset, Options));
 	SelectedPropertyNames.Reset();
-	ShowPresetDiffNotification(
+	KawaiiPhysicsEdWindowUtils::ShowNotification(
 		LOCTEXT("ApplySelectedSucceeded", "Applied selected properties to the node."),
 		SNotificationItem::CS_Success);
 	return FReply::Handled();
@@ -859,7 +797,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnApplyPresetToNodeClicked()
 		UKawaiiPhysicsEditorLibrary::FindGraphNodeByGuid(AnimBlueprintPath, NodeGuid);
 	if (!GraphNode || !GraphNode->GetGraph() || !GraphNode->GetGraph()->Nodes.Contains(GraphNode))
 	{
-		ShowPresetDiffNotification(
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
 			LOCTEXT("ApplyPresetResolveFailed", "Failed to resolve the KawaiiPhysics graph node."),
 			SNotificationItem::CS_Fail);
 		return FReply::Handled();
@@ -869,7 +807,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnApplyPresetToNodeClicked()
 		Cast<UKawaiiPhysicsPresetDataAsset>(SelectedSnapshot->PresetPath.TryLoad());
 	if (!Preset)
 	{
-		ShowPresetDiffNotification(
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
 			LOCTEXT("ApplyPresetLoadFailed", "Failed to load the selected preset."),
 			SNotificationItem::CS_Fail);
 		return FReply::Handled();
@@ -881,7 +819,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnApplyPresetToNodeClicked()
 	if (!SnapshotRowsMatch(*SelectedSnapshot, *FreshSnapshot, nullptr))
 	{
 		ReplaceSelectedSnapshot(FreshSnapshot);
-		ShowPresetDiffNotification(
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
 			LOCTEXT("ApplyPresetChanged", "The preset or node changed. Review the refreshed diff before applying."),
 			SNotificationItem::CS_Fail);
 		return FReply::Handled();
@@ -889,7 +827,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnApplyPresetToNodeClicked()
 
 	if (!UKawaiiPhysicsEditorLibrary::ApplyPresetToGraphNode(MakePresetDiffHandle(GraphNode), Preset, Options))
 	{
-		ShowPresetDiffNotification(
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
 			LOCTEXT("ApplyPresetFailed", "Failed to apply the preset to the node."),
 			SNotificationItem::CS_Fail);
 		return FReply::Handled();
@@ -897,7 +835,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnApplyPresetToNodeClicked()
 
 	ReplaceSelectedSnapshot(KawaiiPhysicsPresetDiff::BuildSnapshot(GraphNode->Node, *Preset, Options));
 	SelectedPropertyNames.Reset();
-	ShowPresetDiffNotification(
+	KawaiiPhysicsEdWindowUtils::ShowNotification(
 		LOCTEXT("ApplyPresetSucceeded", "Applied the preset to the node."),
 		SNotificationItem::CS_Success);
 	return FReply::Handled();
@@ -915,7 +853,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnUpdatePresetFromNodeClicked()
 		                      : GetDifferingPropertyNames(*SelectedSnapshot);
 	if (Names.IsEmpty())
 	{
-		ShowPresetDiffNotification(
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
 			LOCTEXT("NoPresetPropertiesToUpdate", "No differing properties to update."),
 			SNotificationItem::CS_Fail);
 		return FReply::Handled();
@@ -936,7 +874,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnUpdatePresetFromNodeClicked()
 		UKawaiiPhysicsEditorLibrary::FindGraphNodeByGuid(AnimBlueprintPath, NodeGuid);
 	if (!GraphNode)
 	{
-		ShowPresetDiffNotification(
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
 			LOCTEXT("UpdatePresetResolveFailed", "Failed to resolve the KawaiiPhysics graph node."),
 			SNotificationItem::CS_Fail);
 		return FReply::Handled();
@@ -946,7 +884,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnUpdatePresetFromNodeClicked()
 		Cast<UKawaiiPhysicsPresetDataAsset>(SelectedSnapshot->PresetPath.TryLoad());
 	if (!Preset)
 	{
-		ShowPresetDiffNotification(
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
 			LOCTEXT("UpdatePresetLoadFailed", "Failed to load the selected preset."),
 			SNotificationItem::CS_Fail);
 		return FReply::Handled();
@@ -958,7 +896,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnUpdatePresetFromNodeClicked()
 	if (!CopyPropertiesByName(Names, false, GraphNode->Node, *Preset, Preset))
 	{
 		Transaction.Cancel();
-		ShowPresetDiffNotification(
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
 			LOCTEXT("UpdatePresetCopyFailed", "Failed to copy one or more properties to the preset."),
 			SNotificationItem::CS_Fail);
 		return FReply::Handled();
@@ -968,7 +906,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnUpdatePresetFromNodeClicked()
 	const FKawaiiPhysicsPresetApplyOptions Options;
 	ReplaceSelectedSnapshot(KawaiiPhysicsPresetDiff::BuildSnapshot(GraphNode->Node, *Preset, Options));
 	SelectedPropertyNames.Reset();
-	ShowPresetDiffNotification(
+	KawaiiPhysicsEdWindowUtils::ShowNotification(
 		LOCTEXT("UpdatePresetSucceeded", "Updated the preset from the node."),
 		SNotificationItem::CS_Success);
 	return FReply::Handled();

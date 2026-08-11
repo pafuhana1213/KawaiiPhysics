@@ -8,6 +8,7 @@
 #include "PropertyEditorModule.h"
 #include "SKawaiiPhysicsNodeAuditWindow.h"
 #include "SKawaiiPhysicsPresetDiffWindow.h"
+#include "SKawaiiPhysicsWindScopeWindow.h"
 
 #define LOCTEXT_NAMESPACE "FKawaiiPhysicsModuleEd"
 
@@ -29,6 +30,7 @@ void FKawaiiPhysicsEdModule::StartupModule()
 
 void FKawaiiPhysicsEdModule::ShutdownModule()
 {
+	SKawaiiPhysicsWindScopeWindow::CloseAllWindows();
 	SKawaiiPhysicsPresetDiffWindow::CloseAllWindows();
 	SKawaiiPhysicsNodeAuditWindow::CloseAllWindows();
 

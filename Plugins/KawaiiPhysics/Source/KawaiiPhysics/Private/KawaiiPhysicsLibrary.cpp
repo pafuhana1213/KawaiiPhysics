@@ -13,9 +13,11 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
+#include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
 #include "GameFramework/Actor.h"
 #include "HAL/IConsoleManager.h"
 #include "KawaiiPhysics.h"
+#include "KawaiiPhysicsWindPresetDataAsset.h"
 #include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(KawaiiPhysicsLibrary)
@@ -61,6 +63,51 @@ namespace
 	{
 		return PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, ExternalForces) ||
 			PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, CustomExternalForces);
+	}
+
+	// InstancedStructがProceduralWindであれば可変ポインタを返す（型不一致・無効ならnullptr）
+	FKawaiiPhysics_ExternalForce_ProceduralWind* GetMutableProceduralWind(FInstancedStruct& InstancedStruct)
+	{
+		if (!InstancedStruct.IsValid() ||
+			InstancedStruct.GetScriptStruct() != FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct())
+		{
+			return nullptr;
+		}
+
+		return InstancedStruct.GetMutablePtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+	}
+
+	// 突風リクエストをMutex経由でキューイングする（GameThread側の呼び出しをWorker側のPreApplyへスレッドセーフに橋渡し）
+	bool QueueProceduralWindGust(FKawaiiPhysics_ExternalForce_ProceduralWind& ProceduralWind,
+	                             const float Strength, const float RiseTime, const float DecayTime)
+	{
+		// RuntimeState未初期化（PreApply未実行）でもリクエストを取りこぼさないよう先に生成しておく
+		if (!ProceduralWind.RuntimeState.IsValid())
+		{
+			ProceduralWind.ResetRuntimeState();
+		}
+
+		FScopeLock Lock(&ProceduralWind.RuntimeState->Mutex);
+		ProceduralWind.RuntimeState->PendingGust = FKawaiiProceduralWindGustRequest{
+			Strength,
+			RiseTime,
+			DecayTime
+		};
+		return true;
+	}
+
+	// 動的パラメータ更新も同様にMutex経由でキューイングする
+	bool QueueProceduralWindParams(FKawaiiPhysics_ExternalForce_ProceduralWind& ProceduralWind,
+	                               const FKawaiiProceduralWindDynamicParams& Params)
+	{
+		if (!ProceduralWind.RuntimeState.IsValid())
+		{
+			ProceduralWind.ResetRuntimeState();
+		}
+
+		FScopeLock Lock(&ProceduralWind.RuntimeState->Mutex);
+		ProceduralWind.RuntimeState->PendingParams = Params;
+		return true;
 	}
 
 #if !UE_BUILD_SHIPPING
@@ -568,6 +615,219 @@ bool UKawaiiPhysicsLibrary::RemoveExternalForcesFromComponent(USkeletalMeshCompo
 	}
 
 	return bResult;
+}
+
+// 指定したExternalForceIndexのProceduralWindへ突風をトリガーする（実体は上記ヘルパーでのキューイング）
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::TriggerProceduralWindGust(
+	EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+	const FKawaiiPhysicsReference& KawaiiPhysics,
+	const int32 ExternalForceIndex,
+	const float Strength,
+	const float RiseTime,
+	const float DecayTime)
+{
+	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
+
+	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+		TEXT("TriggerProceduralWindGust"),
+		[&ExecResult, ExternalForceIndex, Strength, RiseTime, DecayTime](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			if (!InKawaiiPhysics.ExternalForces.IsValidIndex(ExternalForceIndex))
+			{
+				return;
+			}
+
+			if (FKawaiiPhysics_ExternalForce_ProceduralWind* ProceduralWind =
+				GetMutableProceduralWind(InKawaiiPhysics.ExternalForces[ExternalForceIndex]))
+			{
+				if (QueueProceduralWindGust(*ProceduralWind, Strength, RiseTime, DecayTime))
+				{
+					ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
+				}
+			}
+		});
+
+	return KawaiiPhysics;
+}
+
+// 指定したExternalForceIndexのProceduralWindへ動的パラメータ更新をリクエストする
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetProceduralWindParameters(
+	EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+	const FKawaiiPhysicsReference& KawaiiPhysics,
+	const int32 ExternalForceIndex,
+	const FKawaiiProceduralWindDynamicParams& Params)
+{
+	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
+
+	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+		TEXT("SetProceduralWindParameters"),
+		[&ExecResult, ExternalForceIndex, &Params](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			if (!InKawaiiPhysics.ExternalForces.IsValidIndex(ExternalForceIndex))
+			{
+				return;
+			}
+
+			if (FKawaiiPhysics_ExternalForce_ProceduralWind* ProceduralWind =
+				GetMutableProceduralWind(InKawaiiPhysics.ExternalForces[ExternalForceIndex]))
+			{
+				if (QueueProceduralWindParams(*ProceduralWind, Params))
+				{
+					ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
+				}
+			}
+		});
+
+	return KawaiiPhysics;
+}
+
+// Component内の対象ノード（Tagフィルタ適用）を走査し、ProceduralWindへ一括で突風をトリガーする
+int32 UKawaiiPhysicsLibrary::TriggerProceduralWindGustOnComponent(
+	USkeletalMeshComponent* MeshComp,
+	const float Strength,
+	const float RiseTime,
+	const float DecayTime,
+	const FGameplayTagContainer& FilterTags,
+	const bool bFilterExactMatch)
+{
+	int32 AppliedForceCount = 0;
+
+	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
+	CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, MeshComp, FilterTags, bFilterExactMatch);
+	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
+	{
+		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("TriggerProceduralWindGustOnComponent"),
+			[&AppliedForceCount, Strength, RiseTime, DecayTime](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				for (FInstancedStruct& InstancedStruct : InKawaiiPhysics.ExternalForces)
+				{
+					if (FKawaiiPhysics_ExternalForce_ProceduralWind* ProceduralWind =
+						GetMutableProceduralWind(InstancedStruct))
+					{
+						if (QueueProceduralWindGust(*ProceduralWind, Strength, RiseTime, DecayTime))
+						{
+							++AppliedForceCount;
+						}
+					}
+				}
+			});
+	}
+
+	return AppliedForceCount;
+}
+
+// Component内の対象ノード（Tagフィルタ適用）を走査し、ProceduralWindへ一括でパラメータ更新をリクエストする
+int32 UKawaiiPhysicsLibrary::SetProceduralWindParametersOnComponent(
+	USkeletalMeshComponent* MeshComp,
+	const FKawaiiProceduralWindDynamicParams& Params,
+	const FGameplayTagContainer& FilterTags,
+	const bool bFilterExactMatch)
+{
+	int32 AppliedForceCount = 0;
+
+	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
+	CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, MeshComp, FilterTags, bFilterExactMatch);
+	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
+	{
+		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("SetProceduralWindParametersOnComponent"),
+			[&AppliedForceCount, &Params](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				for (FInstancedStruct& InstancedStruct : InKawaiiPhysics.ExternalForces)
+				{
+					if (FKawaiiPhysics_ExternalForce_ProceduralWind* ProceduralWind =
+						GetMutableProceduralWind(InstancedStruct))
+					{
+						if (QueueProceduralWindParams(*ProceduralWind, Params))
+						{
+							++AppliedForceCount;
+						}
+					}
+				}
+			});
+	}
+
+	return AppliedForceCount;
+}
+
+// DataAssetのプリセットから指定したExternalForceIndexのProceduralWindへ動的パラメータ更新をリクエストする
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::ApplyProceduralWindPreset(
+	EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+	const FKawaiiPhysicsReference& KawaiiPhysics,
+	const int32 ExternalForceIndex,
+	const UKawaiiPhysicsWindPresetDataAsset* PresetDataAsset,
+	const FGameplayTag PresetTag)
+{
+	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
+
+	FKawaiiProceduralWindDynamicParams Params;
+	if (!UKawaiiPhysicsWindPresetDataAsset::ResolvePresetParamsByTag(PresetDataAsset, PresetTag, Params))
+	{
+		return KawaiiPhysics;
+	}
+
+	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+		TEXT("ApplyProceduralWindPreset"),
+		[&ExecResult, ExternalForceIndex, Params](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			if (!InKawaiiPhysics.ExternalForces.IsValidIndex(ExternalForceIndex))
+			{
+				return;
+			}
+
+			if (FKawaiiPhysics_ExternalForce_ProceduralWind* ProceduralWind =
+				GetMutableProceduralWind(InKawaiiPhysics.ExternalForces[ExternalForceIndex]))
+			{
+				if (QueueProceduralWindParams(*ProceduralWind, Params))
+				{
+					ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
+				}
+			}
+		});
+
+	return KawaiiPhysics;
+}
+
+// DataAssetのプリセットからComponent内の対象ノード（Tagフィルタ適用）のProceduralWindへ一括でパラメータ更新をリクエストする
+int32 UKawaiiPhysicsLibrary::ApplyProceduralWindPresetOnComponent(
+	USkeletalMeshComponent* MeshComp,
+	const UKawaiiPhysicsWindPresetDataAsset* PresetDataAsset,
+	const FGameplayTag PresetTag,
+	const FGameplayTagContainer& FilterTags,
+	const bool bFilterExactMatch)
+{
+	FKawaiiProceduralWindDynamicParams Params;
+	if (!UKawaiiPhysicsWindPresetDataAsset::ResolvePresetParamsByTag(PresetDataAsset, PresetTag, Params))
+	{
+		return 0;
+	}
+
+	int32 AppliedForceCount = 0;
+
+	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
+	CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, MeshComp, FilterTags, bFilterExactMatch);
+	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
+	{
+		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("ApplyProceduralWindPresetOnComponent"),
+			[&AppliedForceCount, Params](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				for (FInstancedStruct& InstancedStruct : InKawaiiPhysics.ExternalForces)
+				{
+					if (FKawaiiPhysics_ExternalForce_ProceduralWind* ProceduralWind =
+						GetMutableProceduralWind(InstancedStruct))
+					{
+						if (QueueProceduralWindParams(*ProceduralWind, Params))
+						{
+							++AppliedForceCount;
+						}
+					}
+				}
+			});
+	}
+
+	return AppliedForceCount;
 }
 
 bool UKawaiiPhysicsLibrary::SetAlphaToComponent(USkeletalMeshComponent* MeshComp, float Alpha,

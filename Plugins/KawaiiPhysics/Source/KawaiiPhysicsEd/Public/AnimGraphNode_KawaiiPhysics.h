@@ -80,6 +80,9 @@ private:
 	/** このノードと対象プリセットとの差分を確認します / Checks the diff between this node and its target preset. */
 	void CheckPresetDiff();
 
+	/** Procedural Windの波形プレビューウィンドウを開きます / Opens the waveform preview window for Procedural Wind. */
+	void OpenWindScopeWindow();
+
 public:
 	/** Enables or disables debug drawing for bones. */
 	UPROPERTY()
