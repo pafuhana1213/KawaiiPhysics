@@ -41,6 +41,9 @@ namespace
 	constexpr float WindScopeGraphPaddingTop = 12.0f;
 	constexpr float WindScopeGraphPaddingRight = 12.0f;
 	constexpr float WindScopeGraphPaddingBottom = 24.0f;
+	constexpr float WindScopeGustStrength = 6.0f;
+	constexpr float WindScopeGustRiseTime = 0.1f;
+	constexpr float WindScopeGustDecayTime = 0.5f;
 
 	TWeakPtr<SWindow> KawaiiWindScopeWindowWeak;
 	TWeakPtr<SKawaiiPhysicsWindScopeWindow> KawaiiWindScopeWidgetWeak;
@@ -130,6 +133,69 @@ namespace
 			return RequestedIndex;
 		}
 		return FindFirstProceduralWindIndex(Node);
+	}
+
+	const UScriptStruct* GetExternalForceScriptStruct(const FInstancedStruct& InstancedStruct)
+	{
+		return InstancedStruct.IsValid() ? InstancedStruct.GetScriptStruct() : nullptr;
+	}
+
+	bool IsExternalForceShapeMatched(const TArray<FInstancedStruct>& GraphExternalForces,
+	                                 const TArray<FInstancedStruct>& RuntimeExternalForces)
+	{
+		if (GraphExternalForces.Num() != RuntimeExternalForces.Num())
+		{
+			return false;
+		}
+
+		for (int32 Index = 0; Index < GraphExternalForces.Num(); ++Index)
+		{
+			if (GetExternalForceScriptStruct(GraphExternalForces[Index]) !=
+				GetExternalForceScriptStruct(RuntimeExternalForces[Index]))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	FAnimNode_KawaiiPhysics* ResolveLiveKawaiiPhysicsNode(UAnimGraphNode_KawaiiPhysics* GraphNode)
+	{
+		if (!GraphNode)
+		{
+			return nullptr;
+		}
+
+		UAnimBlueprint* AnimBlueprint = GraphNode->GetAnimBlueprint();
+		UObject* ObjectBeingDebugged = AnimBlueprint ? AnimBlueprint->GetObjectBeingDebugged() : nullptr;
+		if (!Cast<UAnimInstance>(ObjectBeingDebugged))
+		{
+			return nullptr;
+		}
+
+		return GraphNode->GetDebuggedAnimNode<FAnimNode_KawaiiPhysics>();
+	}
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind* ResolveLiveProceduralWind(
+		UAnimGraphNode_KawaiiPhysics* GraphNode,
+		FAnimNode_KawaiiPhysics* RuntimeNode,
+		const int32 RequestedIndex)
+	{
+		if (!GraphNode || !RuntimeNode ||
+			!IsExternalForceShapeMatched(GraphNode->Node.ExternalForces, RuntimeNode->ExternalForces))
+		{
+			return nullptr;
+		}
+
+		if (!GraphNode->Node.ExternalForces.IsValidIndex(RequestedIndex) ||
+			!IsProceduralWindStruct(GraphNode->Node.ExternalForces[RequestedIndex]) ||
+			!RuntimeNode->ExternalForces.IsValidIndex(RequestedIndex) ||
+			!IsProceduralWindStruct(RuntimeNode->ExternalForces[RequestedIndex]))
+		{
+			return nullptr;
+		}
+
+		return RuntimeNode->ExternalForces[RequestedIndex].GetMutablePtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
 	}
 
 	TArray<FKawaiiProceduralWindPreset> ResolveWindScopePresets()
@@ -678,6 +744,29 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 			.Padding(6.0f, 0.0f, 0.0f, 0.0f)
 			[
 				SNew(SButton)
+				.Text(LOCTEXT("GustButton", "Gust"))
+				.ContentPadding(FMargin(6.0f, 2.0f))
+				.ToolTipText(LOCTEXT("GustButtonTooltip", "実行中のライブ対象へテスト突風を送ります / Sends a test gust to the live target."))
+				.OnClicked_Lambda([this]()
+				{
+					const bool bAppliedLive = PushGustToLiveRuntime(
+						WindScopeGustStrength,
+						WindScopeGustRiseTime,
+						WindScopeGustDecayTime);
+					KawaiiPhysicsEdWindowUtils::ShowNotification(
+						bAppliedLive
+							? LOCTEXT("GustSucceededLive", "Triggered wind gust. (live)")
+							: LOCTEXT("GustNoLiveTarget", "Skipped wind gust. (no live target)"),
+						bAppliedLive ? SNotificationItem::CS_Success : SNotificationItem::CS_Fail);
+					return FReply::Handled();
+				})
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(6.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(SButton)
 				.Text(LOCTEXT("ReloadPresetsButton", "Reload"))
 				.ContentPadding(FMargin(6.0f, 2.0f))
 				.ToolTipText(LOCTEXT("ReloadPresetsTooltip", "プリセットDataAssetを再読み込みします / Reload the preset DataAsset."))
@@ -1006,34 +1095,67 @@ FReply SKawaiiPhysicsWindScopeWindow::ApplyPreset(const FKawaiiProceduralWindPre
 	// Undo/Redo 対応のトランザクションでパラメータを書き込む
 	const FScopedTransaction Transaction(LOCTEXT("ApplyWindPresetTransaction", "Apply Kawaii Physics Wind Preset"));
 	GraphNode->Modify();
-	Wind->bIsEnabled = true;
-	Wind->SteadyForce = Preset.SteadyForce;
-	Wind->OscillationForce = Preset.OscillationForce;
-	Wind->OscillationPeriod = Preset.OscillationPeriod;
-	Wind->WaveAmplitude = Preset.WaveAmplitude;
-	Wind->WavePeriod = Preset.WavePeriod;
-	Wind->WaveSpatialOffset = Preset.WaveSpatialOffset;
-	Wind->EnvelopeMin = Preset.EnvelopeMin;
-	Wind->EnvelopeMax = Preset.EnvelopeMax;
-	Wind->EnvelopeFrequency = Preset.EnvelopeFrequency;
-	Wind->RandomForce = Preset.RandomForce;
-	Wind->RandomPeriod = Preset.RandomPeriod;
-	Wind->DirectionNoiseAngle = Preset.DirectionNoiseAngle;
-	Wind->TimeScale = 1.0f;
+	FKawaiiProceduralWindDynamicParams Params = Preset.ToDynamicParams();
+	Params.bOverrideIsEnabled = true;
+	Params.bIsEnabled = true;
+	Params.bOverrideTimeScale = true;
+	Params.TimeScale = 1.0f;
+	Wind->ApplyDynamicParams(Params);
 	MarkWindScopeGraphNodeModified(GraphNode);
+	Args.ExternalForceIndex = ResolvedIndex;
+	// シミュレーションリセット回避のため PostEditChangeProperty / NotifyGraphNodePropertyChanged は呼ばず、
+	// ライブ側には PendingParams 経由で同じ値を送る
+	const bool bAppliedLive = PushPresetToLiveRuntime(Params);
 
 	// 外力一覧を更新し、成功通知を表示
-	Args.ExternalForceIndex = ResolvedIndex;
 	RefreshExternalForceItems();
 	const int32 PresetIndex = CachedPresets.IndexOfByPredicate([&Preset](const FKawaiiProceduralWindPreset& CachedPreset)
 	{
 		return &CachedPreset == &Preset;
 	});
 	KawaiiPhysicsEdWindowUtils::ShowNotification(
-		FText::Format(LOCTEXT("ApplyPresetSucceeded", "Applied {0} wind preset."),
+		FText::Format(bAppliedLive
+			              ? LOCTEXT("ApplyPresetSucceededLive", "Applied {0} wind preset. (live)")
+			              : LOCTEXT("ApplyPresetSucceededNodeOnly", "Applied {0} wind preset. (node only — no live target)"),
 			ResolveWindPresetDisplayName(Preset, PresetIndex)),
 		SNotificationItem::CS_Success);
 	return FReply::Handled();
+}
+
+bool SKawaiiPhysicsWindScopeWindow::PushPresetToLiveRuntime(
+	const FKawaiiProceduralWindDynamicParams& Params)
+{
+	UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
+	FAnimNode_KawaiiPhysics* RuntimeNode = ResolveLiveKawaiiPhysicsNode(GraphNode);
+	FKawaiiPhysics_ExternalForce_ProceduralWind* RuntimeWind = ResolveLiveProceduralWind(
+		GraphNode,
+		RuntimeNode,
+		Args.ExternalForceIndex);
+	if (!RuntimeWind)
+	{
+		return false;
+	}
+
+	RuntimeWind->RequestDynamicParams(Params);
+	return true;
+}
+
+bool SKawaiiPhysicsWindScopeWindow::PushGustToLiveRuntime(
+	const float Strength, const float RiseTime, const float DecayTime)
+{
+	UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
+	FAnimNode_KawaiiPhysics* RuntimeNode = ResolveLiveKawaiiPhysicsNode(GraphNode);
+	FKawaiiPhysics_ExternalForce_ProceduralWind* RuntimeWind = ResolveLiveProceduralWind(
+		GraphNode,
+		RuntimeNode,
+		Args.ExternalForceIndex);
+	if (!RuntimeWind)
+	{
+		return false;
+	}
+
+	RuntimeWind->RequestGust(Strength, RiseTime, DecayTime);
+	return true;
 }
 
 EActiveTimerReturnType SKawaiiPhysicsWindScopeWindow::TickWindScope(double InCurrentTime, float InDeltaTime)

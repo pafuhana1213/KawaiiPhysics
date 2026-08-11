@@ -3,6 +3,7 @@
 #include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
 
 #include "Math/RotationMatrix.h"
+#include "Misc/ScopeLock.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(KawaiiPhysicsExternalForce_ProceduralWind)
 
@@ -111,19 +112,90 @@ float ComputeDebugTotalRate(const FKawaiiPhysics_ExternalForce_ProceduralWind& F
 	const float Reference = FMath::Max(MaxSine * MaxEnvelope + MaxRandom, 1.0f);
 	return FMath::Abs(Total) / Reference;
 }
-}
 
-// RuntimeState を新規に作り直す。Initialize時、または未初期化のままアクセスされた際の遅延生成に使う
-void FKawaiiPhysics_ExternalForce_ProceduralWind::ResetRuntimeState()
+void InitializeRuntimeStateContents(FKawaiiProceduralWindRuntimeState& State)
 {
-	RuntimeState = MakeShared<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe>();
+	State.PendingParams.Reset();
+	State.PendingGust.Reset();
+	State.Time = 0.0f;
+	State.ActiveGust = FKawaiiProceduralWindActiveGust();
+	State.CachedSinesWithoutWave = 0.0f;
+	State.CachedEnvelope = 1.0f;
+	State.CachedRandom = 0.0f;
+	State.CachedGust = 0.0f;
+	State.CachedWindVector = FVector::ZeroVector;
 
 #if WITH_EDITOR
-	// WindScope プレビュー用のリングバッファを確保
-	RuntimeState->ScopeBuffer.SetNum(FMath::Max(ScopeBufferSize, 1));
-	RuntimeState->ScopeWriteIndex = 0;
-	RuntimeState->ScopeSampleCount = 0;
+	State.ScopeBuffer.Empty(FMath::Max(ScopeBufferSize, 1));
+	State.ScopeBuffer.SetNum(FMath::Max(ScopeBufferSize, 1));
+	State.ScopeWriteIndex = 0;
+	State.ScopeSampleCount = 0;
 #endif
+}
+}
+
+FKawaiiPhysics_ExternalForce_ProceduralWind::FKawaiiPhysics_ExternalForce_ProceduralWind()
+{
+	bCanSelectForceSpace = true;
+	ExternalForceSpace = EExternalForceSpace::WorldSpace;
+	RuntimeState = MakeShared<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe>();
+	InitializeRuntimeStateContents(*RuntimeState);
+}
+
+FKawaiiPhysics_ExternalForce_ProceduralWind::FKawaiiPhysics_ExternalForce_ProceduralWind(
+	const FKawaiiPhysics_ExternalForce_ProceduralWind& Other)
+	: FKawaiiPhysics_ExternalForce_ProceduralWind()
+{
+	*this = Other;
+}
+
+FKawaiiPhysics_ExternalForce_ProceduralWind& FKawaiiPhysics_ExternalForce_ProceduralWind::operator=(
+	const FKawaiiPhysics_ExternalForce_ProceduralWind& Other)
+{
+	if (this == &Other)
+	{
+		return *this;
+	}
+
+	static_cast<FKawaiiPhysics_ExternalForce&>(*this) = static_cast<const FKawaiiPhysics_ExternalForce&>(Other);
+
+	WindDirection = Other.WindDirection;
+	DirectionNoiseAngle = Other.DirectionNoiseAngle;
+	DirectionNoisePeriod = Other.DirectionNoisePeriod;
+	TimeScale = Other.TimeScale;
+	ForceRateByBoneLengthRate = Other.ForceRateByBoneLengthRate;
+	SteadyForce = Other.SteadyForce;
+	OscillationForce = Other.OscillationForce;
+	OscillationPeriod = Other.OscillationPeriod;
+	WaveAmplitude = Other.WaveAmplitude;
+	WavePeriod = Other.WavePeriod;
+	WavePhase = Other.WavePhase;
+	WaveSpatialOffset = Other.WaveSpatialOffset;
+	EnvelopeMax = Other.EnvelopeMax;
+	EnvelopeMin = Other.EnvelopeMin;
+	EnvelopeFrequency = Other.EnvelopeFrequency;
+	EnvelopePhase = Other.EnvelopePhase;
+	RandomForce = Other.RandomForce;
+	RandomPeriod = Other.RandomPeriod;
+	RandomSeed = Other.RandomSeed;
+
+	RuntimeState = MakeShared<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe>();
+	InitializeRuntimeStateContents(*RuntimeState);
+	return *this;
+}
+
+// RuntimeState のポインタは維持し、中身だけを初期状態へ戻す
+void FKawaiiPhysics_ExternalForce_ProceduralWind::ResetRuntimeState()
+{
+	if (!RuntimeState.IsValid())
+	{
+		RuntimeState = MakeShared<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe>();
+		InitializeRuntimeStateContents(*RuntimeState);
+		return;
+	}
+
+	FScopeLock Lock(&RuntimeState->Mutex);
+	InitializeRuntimeStateContents(*RuntimeState);
 }
 
 // ランタイムAPI（BP/C++）経由で送られた上書きパラメータを反映する。bOverride が立っている項目のみ適用し、
@@ -131,6 +203,10 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::ResetRuntimeState()
 void FKawaiiPhysics_ExternalForce_ProceduralWind::ApplyDynamicParams(
 	const FKawaiiProceduralWindDynamicParams& Params)
 {
+	if (Params.bOverrideIsEnabled)
+	{
+		bIsEnabled = Params.bIsEnabled;
+	}
 	if (Params.bOverrideWindDirection)
 	{
 		WindDirection = Params.WindDirection;
@@ -201,33 +277,66 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::ApplyDynamicParams(
 	}
 }
 
+// 動的パラメータ更新を PendingParams として積み、次回 PreApply で反映する
+void FKawaiiPhysics_ExternalForce_ProceduralWind::RequestDynamicParams(
+	const FKawaiiProceduralWindDynamicParams& Params)
+{
+	if (!RuntimeState.IsValid())
+	{
+		return;
+	}
+
+	const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> LocalRuntimeState = RuntimeState;
+	FScopeLock Lock(&LocalRuntimeState->Mutex);
+	LocalRuntimeState->PendingParams = Params;
+}
+
+// 突風要求を PendingGust として積み、次回 PreApply で反映する
+void FKawaiiPhysics_ExternalForce_ProceduralWind::RequestGust(
+	const float Strength, const float RiseTime, const float DecayTime)
+{
+	if (!RuntimeState.IsValid())
+	{
+		return;
+	}
+
+	const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> LocalRuntimeState = RuntimeState;
+	FScopeLock Lock(&LocalRuntimeState->Mutex);
+	LocalRuntimeState->PendingGust = FKawaiiProceduralWindGustRequest{
+		Strength,
+		RiseTime,
+		DecayTime
+	};
+}
+
 // 他スレッド（Game Thread の BP API など）から積まれた Pending 要求を Worker 側の PreApply で取り込む。
 // Mutex で RuntimeState を保護し、書き込み側（Set*/TriggerGust API）とのスレッドセーフ性を確保する
 void FKawaiiPhysics_ExternalForce_ProceduralWind::ConsumePendingRequests()
 {
 	if (!RuntimeState.IsValid())
 	{
-		ResetRuntimeState();
+		return;
 	}
 
-	FScopeLock Lock(&RuntimeState->Mutex);
+	const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> LocalRuntimeState = RuntimeState;
+	FScopeLock Lock(&LocalRuntimeState->Mutex);
 	// パラメータ上書き要求を適用
-	if (RuntimeState->PendingParams.IsSet())
+	if (LocalRuntimeState->PendingParams.IsSet())
 	{
-		ApplyDynamicParams(RuntimeState->PendingParams.GetValue());
-		RuntimeState->PendingParams.Reset();
+		ApplyDynamicParams(LocalRuntimeState->PendingParams.GetValue());
+		LocalRuntimeState->PendingParams.Reset();
 	}
 
 	// gust 要求を ActiveGust として起動する（StartTime は現在のシミュレーション内時間を基準にする）
-	if (RuntimeState->PendingGust.IsSet())
+	if (LocalRuntimeState->PendingGust.IsSet())
 	{
-		const FKawaiiProceduralWindGustRequest& PendingGust = RuntimeState->PendingGust.GetValue();
-		RuntimeState->ActiveGust.StartTime = RuntimeState->Time;
-		RuntimeState->ActiveGust.Strength = PendingGust.Strength;
-		RuntimeState->ActiveGust.RiseTime = PendingGust.RiseTime;
-		RuntimeState->ActiveGust.DecayTime = PendingGust.DecayTime;
-		RuntimeState->ActiveGust.bIsActive = true;
-		RuntimeState->PendingGust.Reset();
+		const FKawaiiProceduralWindGustRequest& PendingGust = LocalRuntimeState->PendingGust.GetValue();
+		LocalRuntimeState->ActiveGust.StartTime = LocalRuntimeState->Time;
+		LocalRuntimeState->ActiveGust.Strength = PendingGust.Strength;
+		LocalRuntimeState->ActiveGust.RiseTime = PendingGust.RiseTime;
+		LocalRuntimeState->ActiveGust.DecayTime = PendingGust.DecayTime;
+		LocalRuntimeState->ActiveGust.bIsActive = true;
+		LocalRuntimeState->PendingGust.Reset();
 	}
 }
 
@@ -323,7 +432,7 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::Initialize(const FAnimationIni
 {
 	Super::Initialize(Context);
 
-	// ノード初期化時に RuntimeState を新規生成し、前回の再生状態（Time/ActiveGust等）を引き継がない
+	// ノード初期化時に RuntimeState の中身を初期化し、前回の再生状態（Time/ActiveGust等）を引き継がない
 	ResetRuntimeState();
 }
 
@@ -332,7 +441,7 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::PreApply(FAnimNode_KawaiiPhysi
 {
 	Super::PreApply(Node, PoseContext);
 
-	// RuntimeState未生成なら遅延生成（Resetや複製直後などInitializeを経ない経路への保険）
+	// RuntimeState未生成なら保険として初期化する
 	if (!RuntimeState.IsValid())
 	{
 		ResetRuntimeState();
