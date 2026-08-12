@@ -708,7 +708,7 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 	CustomizeDetailTools(DetailBuilder);
 	CustomizeDetailDebugVisualizations(DetailBuilder);
 
-	// External Forceカテゴリに Wind Scope ボタン（波形プレビューウィンドウを開く）を追加
+	// External Forceカテゴリに Wind Scope ボタン（波形プレビュータブを開く）を追加
 	IDetailCategoryBuilder& ExternalForceCategory = DetailBuilder.EditCategory(TEXT("Force|External Force"));
 	FDetailWidgetRow& WindScopeWidgetRow = ExternalForceCategory.AddCustomRow(LOCTEXT("OpenWindScope", "Wind Scope"));
 	WindScopeWidgetRow
@@ -716,7 +716,7 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 		SNew(SButton)
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
-		.ToolTipText(LOCTEXT("OpenWindScopeToolTip", "Procedural Wind の波形プレビューウィンドウを開く / Opens the waveform preview window for Procedural Wind."))
+		.ToolTipText(LOCTEXT("OpenWindScopeToolTip", "Procedural Wind の波形プレビュータブを開く / Opens the waveform preview tab for Procedural Wind."))
 		.OnClicked_Lambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics>(this)]()
 		{
 			if (UAnimGraphNode_KawaiiPhysics* Node = WeakThis.Get())
@@ -1129,7 +1129,7 @@ void UAnimGraphNode_KawaiiPhysics::CheckPresetDiff()
 		       *JoinPropertyNames(DiffProperties));
 	}
 
-	// 差分ウィンドウのコンテキストラベル（ノードタイトル＋AnimBlueprint名＋Tag）を組み立てる。
+	// 差分タブのコンテキストラベル（ノードタイトル＋AnimBlueprint名＋Tag）を組み立てる。
 	const UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
 	const FText ContextLabel = FText::Format(
 		LOCTEXT("CheckPresetDiffContextLabel", "{0}  |  {1}  |  Tag: {2}"),
@@ -1171,7 +1171,7 @@ void UAnimGraphNode_KawaiiPhysics::OpenWindScopeWindow()
 		return;
 	}
 
-	// ウィンドウへ渡す引数を組み立てて開く
+	// タブへ渡す引数を組み立てて開く
 	const UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
 	FKawaiiPhysicsWindScopeWindowArgs Args;
 	Args.GraphNode = this;
@@ -1199,7 +1199,7 @@ void UAnimGraphNode_KawaiiPhysics::GetNodeContextMenuActions(UToolMenu* Menu, UG
 		"KawaiiPhysicsCheckPresetDiff",
 		LOCTEXT("CheckPresetDiffMenuLabel", "Check Preset Diff"),
 		LOCTEXT("CheckPresetDiffMenuToolTip",
-		        "このノードとプリセットの差分をウィンドウで確認します / Shows the diff between this node and its presets in a window."),
+		        "このノードとプリセットの差分をタブで確認します / Shows the diff between this node and its presets in a tab."),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateUObject(MutableThis, &UAnimGraphNode_KawaiiPhysics::CheckPresetDiff)));
 
@@ -1216,7 +1216,7 @@ void UAnimGraphNode_KawaiiPhysics::GetNodeContextMenuActions(UToolMenu* Menu, UG
 		"KawaiiPhysicsWindScope",
 		LOCTEXT("WindScopeContextMenu", "Wind Scope"),
 		LOCTEXT("WindScopeMenuToolTip",
-		        "Procedural Wind の波形プレビューウィンドウを開きます / Opens the waveform preview window for Procedural Wind."),
+		        "Procedural Wind の波形プレビュータブを開きます / Opens the waveform preview tab for Procedural Wind."),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateUObject(MutableThis, &UAnimGraphNode_KawaiiPhysics::OpenWindScopeWindow)));
 }

@@ -7,9 +7,12 @@
 #include "DesktopPlatformModule.h"
 #include "Dom/JsonObject.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Docking/TabManager.h"
+#include "Framework/Docking/WorkspaceItem.h"
 #include "HAL/PlatformProcess.h"
 #include "ISourceControlModule.h"
 #include "KawaiiPhysicsAuditCommandlet.h"
+#include "KawaiiPhysicsEdStyle.h"
 #include "KawaiiPhysicsEdWindowUtils.h"
 #include "KawaiiPhysicsEditorLibrary.h"
 #include "KawaiiPhysicsPresetDiffSnapshot.h"
@@ -20,9 +23,14 @@
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Textures/SlateIcon.h"
+#include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SSeparator.h"
+#include "Widgets/SWindow.h"
+#include "Widgets/SNullWidget.h"
+#include "Widgets/SWidget.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STableRow.h"
@@ -38,11 +46,8 @@ namespace
 	const FName MatchesColumnName(TEXT("Matches"));
 	const FName DiffPropertiesColumnName(TEXT("DiffProperties"));
 	const FName ViewDiffColumnName(TEXT("ViewDiff"));
-	const TCHAR* ConfigSectionName = TEXT("KawaiiPhysicsEd");
-	const TCHAR* WindowPosConfigKey = TEXT("NodeAuditWindowPos");
-	const TCHAR* WindowSizeConfigKey = TEXT("NodeAuditWindowSize");
 
-	TWeakPtr<SWindow> AuditWindowWeak;
+	TWeakPtr<SDockTab> AuditTabWeak;
 	TWeakPtr<SKawaiiPhysicsNodeAuditWindow> AuditWidgetWeak;
 
 	void ShowAuditExportSucceededNotification(const FString& OutputPath)
@@ -210,65 +215,103 @@ namespace
 	};
 }
 
+const FName SKawaiiPhysicsNodeAuditWindow::NodeAuditTabId(TEXT("KawaiiPhysicsNodeAudit"));
+
 void SKawaiiPhysicsNodeAuditWindow::Construct(const FArguments& InArgs, FKawaiiPhysicsNodeAuditWindowArgs InitArgs)
 {
 	(void)InArgs;
 	SetArgs(MoveTemp(InitArgs));
 }
 
-void SKawaiiPhysicsNodeAuditWindow::OpenWindow(FKawaiiPhysicsNodeAuditWindowArgs Args)
+void SKawaiiPhysicsNodeAuditWindow::RegisterTabSpawner(const TSharedRef<FWorkspaceItem>& InMenuGroup)
 {
-	const FText WindowTitleCopy = Args.WindowTitle;
+	const FSlateIcon KawaiiPhysicsIcon(
+		FKawaiiPhysicsEdStyle::GetStyleSetName(),
+		TEXT("KawaiiPhysics.TabIcon"));
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			NodeAuditTabId,
+			FOnSpawnTab::CreateStatic(&SKawaiiPhysicsNodeAuditWindow::SpawnNodeAuditTab))
+		.SetDisplayName(LOCTEXT("NodeAuditMenuDisplayName", "Kawaii Physics: Node Audit"))
+		.SetTooltipText(LOCTEXT("NodeAuditMenuTooltip", "KawaiiPhysics のノード監査タブを開きます / Opens the KawaiiPhysics node audit tab."))
+		.SetGroup(InMenuGroup)
+		.SetIcon(KawaiiPhysicsIcon);
+}
 
-	if (TSharedPtr<SWindow> ExistingWindow = AuditWindowWeak.Pin())
-	{
-		if (TSharedPtr<SKawaiiPhysicsNodeAuditWindow> ExistingWidget = AuditWidgetWeak.Pin())
+void SKawaiiPhysicsNodeAuditWindow::UnregisterTabSpawner()
+{
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(NodeAuditTabId);
+}
+
+TSharedRef<SDockTab> SKawaiiPhysicsNodeAuditWindow::SpawnNodeAuditTab(const FSpawnTabArgs& SpawnTabArgs)
+{
+	(void)SpawnTabArgs;
+
+	TSharedRef<SKawaiiPhysicsNodeAuditWindow> AuditWidget = SNew(SKawaiiPhysicsNodeAuditWindow);
+	TSharedRef<SDockTab> AuditTab = SNew(SDockTab)
+		.TabRole(ETabRole::NomadTab)
+		.Label(LOCTEXT("NodeAuditTabLabel", "Kawaii Node Audit"))
+		.OnTabClosed_Lambda([](TSharedRef<SDockTab> ClosedTab)
 		{
-			ExistingWidget->SetArgs(MoveTemp(Args));
-		}
-		ExistingWindow->SetTitle(WindowTitleCopy);
-		ExistingWindow->BringToFront();
-		return;
-	}
-
-	TSharedRef<SKawaiiPhysicsNodeAuditWindow> AuditWidget =
-		SNew(SKawaiiPhysicsNodeAuditWindow, MoveTemp(Args));
-
-	TSharedRef<SWindow> Window = SNew(SWindow)
-		.Title(WindowTitleCopy)
-		.ClientSize(FVector2D(980.0f, 560.0f))
-		.AutoCenter(EAutoCenter::PreferredWorkArea)
+			(void)ClosedTab;
+			AuditTabWeak.Reset();
+			AuditWidgetWeak.Reset();
+		})
 		[
 			AuditWidget
 		];
 
-	Window->SetOnWindowClosed(FOnWindowClosed::CreateLambda([](const TSharedRef<SWindow>& ClosedWindow)
-	{
-		KawaiiPhysicsEdWindowUtils::PersistWindowPlacement(
-			ClosedWindow,
-			ConfigSectionName,
-			WindowPosConfigKey,
-			WindowSizeConfigKey);
-		AuditWindowWeak.Reset();
-		AuditWidgetWeak.Reset();
-	}));
-
-	AuditWindowWeak = Window;
+	AuditTabWeak = AuditTab;
 	AuditWidgetWeak = AuditWidget;
-	FSlateApplication::Get().AddWindow(Window);
-	KawaiiPhysicsEdWindowUtils::RestoreWindowPlacement(
-		Window,
-		ConfigSectionName,
-		WindowPosConfigKey,
-		WindowSizeConfigKey);
+	return AuditTab;
+}
+
+void SKawaiiPhysicsNodeAuditWindow::OpenWindow(FKawaiiPhysicsNodeAuditWindowArgs Args)
+{
+	const FText TabLabel = Args.WindowTitle;
+
+	// タブを呼び出してから、監査結果の引数を既存コンテンツへ注入する
+	TSharedPtr<SDockTab> InvokedTab = FGlobalTabmanager::Get()->TryInvokeTab(NodeAuditTabId);
+	if (!InvokedTab.IsValid())
+	{
+		return;
+	}
+
+	TSharedPtr<SWidget> TabContent = InvokedTab->GetContent();
+	if (!TabContent.IsValid())
+	{
+		return;
+	}
+
+	if (!TabLabel.IsEmpty())
+	{
+		InvokedTab->SetLabel(TabLabel);
+	}
+
+	if (TSharedPtr<SKawaiiPhysicsNodeAuditWindow> ExistingWidget = AuditWidgetWeak.Pin())
+	{
+		ExistingWidget->SetArgs(MoveTemp(Args));
+		return;
+	}
+
+	// Hot Reload等でファイルスコープの弱参照だけが失効した場合、タブ内容から復旧する
+	if (TabContent->GetType() == FName(TEXT("SKawaiiPhysicsNodeAuditWindow")))
+	{
+		TSharedPtr<SKawaiiPhysicsNodeAuditWindow> RecoveredWidget =
+			StaticCastSharedPtr<SKawaiiPhysicsNodeAuditWindow>(TabContent);
+		AuditTabWeak = InvokedTab;
+		AuditWidgetWeak = RecoveredWidget;
+		RecoveredWidget->SetArgs(MoveTemp(Args));
+	}
 }
 
 void SKawaiiPhysicsNodeAuditWindow::CloseAllWindows()
 {
-	if (TSharedPtr<SWindow> Window = AuditWindowWeak.Pin())
+	if (TSharedPtr<SDockTab> AuditTab = AuditTabWeak.Pin())
 	{
-		Window->RequestDestroyWindow();
+		AuditTab->RequestCloseTab();
 	}
+	AuditTabWeak.Reset();
+	AuditWidgetWeak.Reset();
 }
 
 void SKawaiiPhysicsNodeAuditWindow::SetArgs(FKawaiiPhysicsNodeAuditWindowArgs Args)
@@ -287,7 +330,14 @@ void SKawaiiPhysicsNodeAuditWindow::SetArgs(FKawaiiPhysicsNodeAuditWindowArgs Ar
 		Entries.Add(MakeShared<FKawaiiPhysicsNodeAuditEntry>(Entry));
 	}
 
-	SummaryText = Args.SummaryText.IsEmpty() ? MakeAuditSummaryText(Entries) : Args.SummaryText;
+	if (Entries.IsEmpty() && Args.SummaryText.IsEmpty() && !PresetPath.IsValid())
+	{
+		SummaryText = LOCTEXT("NoAuditResultsGuidance", "監査結果なし: プリセット DataAsset 詳細の [Find Target Nodes] / [Apply To Project (Dry Run)] から開いてください / No audit results: open from the preset DataAsset details.");
+	}
+	else
+	{
+		SummaryText = Args.SummaryText.IsEmpty() ? MakeAuditSummaryText(Entries) : Args.SummaryText;
+	}
 
 	RebuildWidget();
 }
@@ -407,6 +457,10 @@ void SKawaiiPhysicsNodeAuditWindow::RebuildWidget()
 				SNew(SButton)
 				.Text(LOCTEXT("RefreshButton", "Refresh"))
 				.ToolTipText(LOCTEXT("RefreshButtonToolTip", "プリセットを対象ノードへドライラン適用し直し、一覧を再計算します / Re-runs a dry-run apply of the preset against the target nodes and rebuilds the list."))
+				.IsEnabled_Lambda([this]()
+				{
+					return PresetPath.IsValid();
+				})
 				.OnClicked(this, &SKawaiiPhysicsNodeAuditWindow::OnRefreshClicked)
 			]
 			+ SHorizontalBox::Slot()
@@ -425,6 +479,10 @@ void SKawaiiPhysicsNodeAuditWindow::RebuildWidget()
 				.Visibility(bShowDiffColumns ? EVisibility::Visible : EVisibility::Collapsed)
 				.Text(LOCTEXT("ApplyToProjectButton", "Apply to Project..."))
 				.ToolTipText(LOCTEXT("ApplyToProjectButtonToolTip", "このプリセットを、対象タグに一致するプロジェクト内の全ノードへ適用します / Applies this preset to every node in the project that matches its target tags."))
+				.IsEnabled_Lambda([this]()
+				{
+					return PresetPath.IsValid();
+				})
 				.OnClicked(this, &SKawaiiPhysicsNodeAuditWindow::OnApplyToProjectClicked)
 			]
 		]

@@ -5,17 +5,21 @@
 #include "AnimGraphNode_KawaiiPhysics.h"
 #include "Animation/AnimBlueprint.h"
 #include "BlueprintEditorModule.h"
-#include "Misc/MessageDialog.h"
 #include "EdGraph/EdGraph.h"
-#include "Framework/Application/SlateApplication.h"
+#include "Framework/Docking/TabManager.h"
+#include "Framework/Docking/WorkspaceItem.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "KawaiiPhysicsEdStyle.h"
 #include "KawaiiPhysicsEdWindowUtils.h"
 #include "KawaiiPhysicsEditorLibrary.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Misc/MessageDialog.h"
 #include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Textures/SlateIcon.h"
 #include "UObject/UnrealType.h"
+#include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -26,6 +30,7 @@
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Widgets/SWidget.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SHeaderRow.h"
 #include "Widgets/Views/SListView.h"
@@ -40,11 +45,8 @@ namespace
 	const FName PropertyColumnName(TEXT("Property"));
 	const FName NodeValueColumnName(TEXT("NodeValue"));
 	const FName PresetValueColumnName(TEXT("PresetValue"));
-	const TCHAR* PresetDiffConfigSection = TEXT("KawaiiPhysicsEd");
-	const TCHAR* PresetDiffPositionKey = TEXT("PresetDiffWindowPos");
-	const TCHAR* PresetDiffSizeKey = TEXT("PresetDiffWindowSize");
 
-	TWeakPtr<SWindow> DiffWindowWeak;
+	TWeakPtr<SDockTab> DiffTabWeak;
 	TWeakPtr<SKawaiiPhysicsPresetDiffWindow> DiffWidgetWeak;
 
 	FKawaiiPhysicsGraphNodeHandle MakePresetDiffHandle(UAnimGraphNode_KawaiiPhysics* GraphNode)
@@ -281,6 +283,8 @@ namespace
 	};
 }
 
+const FName SKawaiiPhysicsPresetDiffWindow::PresetDiffTabId(TEXT("KawaiiPhysicsPresetDiff"));
+
 void SKawaiiPhysicsPresetDiffWindow::Construct(const FArguments& InArgs, FKawaiiPhysicsPresetDiffWindowArgs DiffArgs)
 {
 	(void)InArgs;
@@ -296,6 +300,10 @@ void SKawaiiPhysicsPresetDiffWindow::Construct(const FArguments& InArgs, FKawaii
 			SNew(STextBlock)
 			.Text_Lambda([this]()
 			{
+				if (Snapshots.IsEmpty() && !NodeGuid.IsValid())
+				{
+					return LOCTEXT("NoDiffSelectedGuidance", "差分未選択: KawaiiPhysics ノードの [Check Preset Diff] から開いてください / No diff selected: open from a KawaiiPhysics node's [Check Preset Diff].");
+				}
 				return ContextLabel;
 			})
 		]
@@ -474,74 +482,94 @@ void SKawaiiPhysicsPresetDiffWindow::Construct(const FArguments& InArgs, FKawaii
 					.OnClicked(this, &SKawaiiPhysicsPresetDiffWindow::OnUpdatePresetFromNodeClicked)
 				]
 			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Top)
-			.Padding(8.0f, 2.0f, 0.0f, 0.0f)
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("CloseButton", "Close"))
-				.ToolTipText(LOCTEXT("CloseButtonToolTip", "この差分ウィンドウを閉じます / Closes this diff window."))
-				.OnClicked(this, &SKawaiiPhysicsPresetDiffWindow::OnCloseClicked)
-			]
 		]
 	];
 
 	RefreshFilteredRows();
 }
 
-void SKawaiiPhysicsPresetDiffWindow::OpenWindow(FKawaiiPhysicsPresetDiffWindowArgs Args)
+void SKawaiiPhysicsPresetDiffWindow::RegisterTabSpawner(const TSharedRef<FWorkspaceItem>& InMenuGroup)
 {
-	if (TSharedPtr<SWindow> ExistingWindow = DiffWindowWeak.Pin())
-	{
-		if (TSharedPtr<SKawaiiPhysicsPresetDiffWindow> ExistingWidget = DiffWidgetWeak.Pin())
+	const FSlateIcon KawaiiPhysicsIcon(
+		FKawaiiPhysicsEdStyle::GetStyleSetName(),
+		TEXT("KawaiiPhysics.TabIcon"));
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			PresetDiffTabId,
+			FOnSpawnTab::CreateStatic(&SKawaiiPhysicsPresetDiffWindow::SpawnPresetDiffTab))
+		.SetDisplayName(LOCTEXT("PresetDiffMenuDisplayName", "Kawaii Physics: Preset Diff"))
+		.SetTooltipText(LOCTEXT("PresetDiffMenuTooltip", "KawaiiPhysics のプリセット差分タブを開きます / Opens the KawaiiPhysics preset diff tab."))
+		.SetGroup(InMenuGroup)
+		.SetIcon(KawaiiPhysicsIcon);
+}
+
+void SKawaiiPhysicsPresetDiffWindow::UnregisterTabSpawner()
+{
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(PresetDiffTabId);
+}
+
+TSharedRef<SDockTab> SKawaiiPhysicsPresetDiffWindow::SpawnPresetDiffTab(const FSpawnTabArgs& SpawnTabArgs)
+{
+	(void)SpawnTabArgs;
+
+	TSharedRef<SKawaiiPhysicsPresetDiffWindow> DiffWidget = SNew(SKawaiiPhysicsPresetDiffWindow);
+	TSharedRef<SDockTab> DiffTab = SNew(SDockTab)
+		.TabRole(ETabRole::NomadTab)
+		.Label(LOCTEXT("PresetDiffTabLabel", "Kawaii Preset Diff"))
+		.OnTabClosed_Lambda([](TSharedRef<SDockTab> ClosedTab)
 		{
-			ExistingWidget->SetArgs(MoveTemp(Args));
-		}
-		ExistingWindow->BringToFront();
-		return;
-	}
-
-	TSharedRef<SKawaiiPhysicsPresetDiffWindow> DiffWidget =
-		SNew(SKawaiiPhysicsPresetDiffWindow, MoveTemp(Args));
-
-	TSharedRef<SWindow> Window = SNew(SWindow)
-		.Title(LOCTEXT("WindowTitle", "Kawaii Physics Preset Diff"))
-		.ClientSize(FVector2D(900.0f, 520.0f))
-		.MinWidth(560.0f)
-		.MinHeight(320.0f)
-		.AutoCenter(EAutoCenter::PreferredWorkArea)
+			(void)ClosedTab;
+			DiffTabWeak.Reset();
+			DiffWidgetWeak.Reset();
+		})
 		[
 			DiffWidget
 		];
 
-	Window->SetOnWindowClosed(FOnWindowClosed::CreateLambda([](const TSharedRef<SWindow>& ClosedWindow)
-	{
-		KawaiiPhysicsEdWindowUtils::PersistWindowPlacement(
-			ClosedWindow,
-			PresetDiffConfigSection,
-			PresetDiffPositionKey,
-			PresetDiffSizeKey);
-		DiffWindowWeak.Reset();
-		DiffWidgetWeak.Reset();
-	}));
-
-	DiffWindowWeak = Window;
+	DiffTabWeak = DiffTab;
 	DiffWidgetWeak = DiffWidget;
-	FSlateApplication::Get().AddWindow(Window);
-	KawaiiPhysicsEdWindowUtils::RestoreWindowPlacement(
-		Window,
-		PresetDiffConfigSection,
-		PresetDiffPositionKey,
-		PresetDiffSizeKey);
+	return DiffTab;
+}
+
+void SKawaiiPhysicsPresetDiffWindow::OpenWindow(FKawaiiPhysicsPresetDiffWindowArgs Args)
+{
+	// タブを呼び出してから、差分対象の引数を既存コンテンツへ注入する
+	TSharedPtr<SDockTab> InvokedTab = FGlobalTabmanager::Get()->TryInvokeTab(PresetDiffTabId);
+	if (!InvokedTab.IsValid())
+	{
+		return;
+	}
+
+	TSharedPtr<SWidget> TabContent = InvokedTab->GetContent();
+	if (!TabContent.IsValid())
+	{
+		return;
+	}
+
+	if (TSharedPtr<SKawaiiPhysicsPresetDiffWindow> ExistingWidget = DiffWidgetWeak.Pin())
+	{
+		ExistingWidget->SetArgs(MoveTemp(Args));
+		return;
+	}
+
+	// Hot Reload等でファイルスコープの弱参照だけが失効した場合、タブ内容から復旧する
+	if (TabContent->GetType() == FName(TEXT("SKawaiiPhysicsPresetDiffWindow")))
+	{
+		TSharedPtr<SKawaiiPhysicsPresetDiffWindow> RecoveredWidget =
+			StaticCastSharedPtr<SKawaiiPhysicsPresetDiffWindow>(TabContent);
+		DiffTabWeak = InvokedTab;
+		DiffWidgetWeak = RecoveredWidget;
+		RecoveredWidget->SetArgs(MoveTemp(Args));
+	}
 }
 
 void SKawaiiPhysicsPresetDiffWindow::CloseAllWindows()
 {
-	if (TSharedPtr<SWindow> Window = DiffWindowWeak.Pin())
+	if (TSharedPtr<SDockTab> DiffTab = DiffTabWeak.Pin())
 	{
-		Window->RequestDestroyWindow();
+		DiffTab->RequestCloseTab();
 	}
+	DiffTabWeak.Reset();
+	DiffWidgetWeak.Reset();
 }
 
 void SKawaiiPhysicsPresetDiffWindow::SetArgs(FKawaiiPhysicsPresetDiffWindowArgs Args)
@@ -713,6 +741,11 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnCopyClicked()
 
 FReply SKawaiiPhysicsPresetDiffWindow::OnRefreshClicked()
 {
+	if (!NodeGuid.IsValid())
+	{
+		return FReply::Handled();
+	}
+
 	if (!RebuildAllSnapshotsKeepingPreset())
 	{
 		KawaiiPhysicsEdWindowUtils::ShowNotification(
@@ -912,15 +945,6 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnUpdatePresetFromNodeClicked()
 	return FReply::Handled();
 }
 
-FReply SKawaiiPhysicsPresetDiffWindow::OnCloseClicked()
-{
-	if (TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(AsShared()))
-	{
-		Window->RequestDestroyWindow();
-	}
-	return FReply::Handled();
-}
-
 void SKawaiiPhysicsPresetDiffWindow::RefreshFilteredRows()
 {
 	FilteredRows.Reset();
@@ -979,6 +1003,11 @@ void SKawaiiPhysicsPresetDiffWindow::ReplaceSelectedSnapshot(
 
 bool SKawaiiPhysicsPresetDiffWindow::RebuildAllSnapshotsKeepingPreset()
 {
+	if (!NodeGuid.IsValid())
+	{
+		return false;
+	}
+
 	UAnimGraphNode_KawaiiPhysics* GraphNode =
 		UKawaiiPhysicsEditorLibrary::FindGraphNodeByGuid(AnimBlueprintPath, NodeGuid);
 	if (!GraphNode)

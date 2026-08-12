@@ -240,7 +240,7 @@ void FKawaiiPhysicsPresetDataAssetDetails::CustomizeDetails(IDetailLayoutBuilder
 				FindTargetNodes(WeakPreset.Get());
 				return FReply::Handled();
 			})
-			.ToolTipText(LOCTEXT("FindTargetNodesToolTip", "TargetTags に一致する KawaiiPhysics ノードをプロジェクト内の全 AnimBlueprint から検索し、結果をウィンドウで一覧表示します（詳細は Output Log にも出力） / Searches all AnimBlueprints in the project for KawaiiPhysics nodes matching TargetTags and lists the results in a window (details are also logged to the Output Log)."))
+			.ToolTipText(LOCTEXT("FindTargetNodesToolTip", "TargetTags に一致する KawaiiPhysics ノードをプロジェクト内の全 AnimBlueprint から検索し、結果をタブで一覧表示します（詳細は Output Log にも出力） / Searches all AnimBlueprints in the project for KawaiiPhysics nodes matching TargetTags and lists the results in a tab (details are also logged to the Output Log)."))
 			.Content()
 			[
 				SNew(STextBlock)

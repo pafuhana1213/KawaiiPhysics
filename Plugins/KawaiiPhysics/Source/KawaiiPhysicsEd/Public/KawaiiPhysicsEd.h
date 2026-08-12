@@ -2,12 +2,23 @@
 
 #pragma once
 
+#include "Delegates/Delegate.h"
 #include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
+
+class FWorkspaceItem;
 
 class FKawaiiPhysicsEdModule : public IModuleInterface
 {
 public:
-	/** IModuleInterface implementation */
+	/** IModuleInterface 実装 / IModuleInterface implementation */
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
+
+private:
+	void RegisterTabSpawners();
+
+	FDelegateHandle PostEngineInitHandle;
+	TSharedPtr<FWorkspaceItem> KawaiiPhysicsMenuGroup;
+	bool bTabSpawnersRegistered = false;
 };

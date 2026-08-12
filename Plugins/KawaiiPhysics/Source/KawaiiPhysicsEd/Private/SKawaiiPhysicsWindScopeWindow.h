@@ -11,9 +11,12 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboBox.h"
 
+class FSpawnTabArgs;
+struct FStreamableHandle;
+class FWorkspaceItem;
+class SDockTab;
 class SComboBoxBase;
 class SWrapBox;
-class SWindow;
 class UAnimGraphNode_KawaiiPhysics;
 
 struct FKawaiiPhysicsWindScopeWindowArgs
@@ -31,7 +34,7 @@ struct FKawaiiPhysicsWindScopeWindowArgs
 	int32 ExternalForceIndex = INDEX_NONE;
 };
 
-// グラフに表示する波形成分の種別（ランタイム側 FKawaiiPhysicsProceduralWindSample の各フィールドに対応）
+// グラフに表示する波形成分の種別 / Waveform component shown in the graph.
 enum class EKawaiiPhysicsWindScopeComponent : uint8
 {
 	Total,
@@ -43,7 +46,7 @@ enum class EKawaiiPhysicsWindScopeComponent : uint8
 	Gust,
 };
 
-// 上記各成分の表示ON/OFFを凡例チェックボックスと連動して保持する
+// 上記各成分の表示ON/OFFを凡例チェックボックスと連動して保持する / Stores per-series visibility controlled by legend checkboxes.
 struct FKawaiiPhysicsWindScopeSeriesVisibility
 {
 	bool bTotal = true;
@@ -58,7 +61,7 @@ struct FKawaiiPhysicsWindScopeSeriesVisibility
 	void SetVisible(EKawaiiPhysicsWindScopeComponent Component, bool bVisible);
 };
 
-// 波形グラフ本体。SLeafWidget を継承し OnPaint でポリラインを直接描画する
+// 波形グラフ本体 / Waveform graph widget.
 class SKawaiiPhysicsWindScopeGraph : public SLeafWidget
 {
 public:
@@ -73,7 +76,7 @@ public:
 	void SetDisplaySeconds(float InDisplaySeconds);
 	void SetSeriesVisibility(const FKawaiiPhysicsWindScopeSeriesVisibility& InVisibility);
 
-	// グラフの描画本体（Slate のペイントコールバック）
+	// グラフの描画本体 / Slate paint callback for the graph.
 	virtual int32 OnPaint(const FPaintArgs& Args,
 	                      const FGeometry& AllottedGeometry,
 	                      const FSlateRect& MyCullingRect,
@@ -90,7 +93,7 @@ private:
 	float DisplaySeconds = 8.0f;
 };
 
-// Wind Scope ツールウィンドウ本体。ツールバー・凡例・グラフ・プリセットボタンをまとめる SCompoundWidget
+// Wind Scope タブ本体 / Wind Scope tab content widget.
 class SKawaiiPhysicsWindScopeWindow : public SCompoundWidget
 {
 public:
@@ -99,12 +102,24 @@ public:
 		}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, FKawaiiPhysicsWindScopeWindowArgs InitArgs);
+	void Construct(const FArguments& InArgs, FKawaiiPhysicsWindScopeWindowArgs InitArgs = FKawaiiPhysicsWindScopeWindowArgs());
+	virtual ~SKawaiiPhysicsWindScopeWindow() override;
 
-	/** Wind Scope ウィンドウを開くか既存ウィンドウを更新する / Opens the Wind Scope window or updates the existing one. */
+	static const FName WindScopeTabId;
+
+	/** Wind Scope タブスポナーを登録する / Registers the Wind Scope tab spawner. */
+	static void RegisterTabSpawner(const TSharedRef<FWorkspaceItem>& InMenuGroup);
+
+	/** Wind Scope タブスポナーを解除する / Unregisters the Wind Scope tab spawner. */
+	static void UnregisterTabSpawner();
+
+	/** Wind Scope タブを生成する / Spawns the Wind Scope tab. */
+	static TSharedRef<SDockTab> SpawnWindScopeTab(const FSpawnTabArgs& SpawnTabArgs);
+
+	/** Wind Scope タブを開くか既存タブを更新する / Opens the Wind Scope tab or updates the existing one. */
 	static void OpenWindow(FKawaiiPhysicsWindScopeWindowArgs Args);
 
-	/** 開いている Wind Scope ウィンドウをすべて閉じる / Closes all open Wind Scope windows. */
+	/** 開いている Wind Scope タブをすべて閉じる / Closes all open Wind Scope tabs. */
 	static void CloseAllWindows();
 
 	/** 現在の引数でウィジェット状態を置き換える / Replaces the widget state with the current arguments. */
@@ -114,7 +129,7 @@ public:
 	void OnSeriesCheckStateChanged(ECheckBoxState NewState, EKawaiiPhysicsWindScopeComponent Component);
 
 private:
-	// ExternalForces 配列のインデックスを保持するコンボボックス項目型（SComboBox は TSharedPtr 項目を要求する）
+	// ExternalForces 配列のインデックスを保持するコンボボックス項目型 / Combo item type storing an ExternalForces array index.
 	using FExternalForceIndexPtr = TSharedPtr<int32>;
 
 	TSharedRef<SWidget> GenerateExternalForceComboWidget(FExternalForceIndexPtr Item) const;
@@ -134,35 +149,50 @@ private:
 	bool PushPresetToLiveRuntime(const FKawaiiProceduralWindDynamicParams& Params);
 	bool PushGustToLiveRuntime(float Strength, float RiseTime, float DecayTime);
 
-	// 毎フレームの active timer コールバック。Live/Preview いずれかでサンプルを更新し再描画する
+	// 毎フレームの active timer コールバック / Active timer callback that updates Live or Preview samples.
 	EActiveTimerReturnType TickWindScope(double InCurrentTime, float InDeltaTime);
 	void RefreshExternalForceItems();
-	// Live 実行中でない場合の理論波形（Preview）を再計算する
+	// Live 実行中でない場合の理論波形を再計算する / Rebuilds theoretical Preview samples when Live data is unavailable.
 	void RebuildPreviewSamples(float InDeltaTime);
-	// 実行中の RuntimeState からライブ波形を取得する。取得できなければ false（呼び出し側は Preview へフォールバック）
+	// 実行中の RuntimeState からライブ波形を取得する / Reads Live samples from RuntimeState.
 	bool TryUpdateFromLiveRuntime();
-	// Preview 計算用に ProceduralWind 設定値のコピーを取得する
+	// Preview 計算用に ProceduralWind 設定値のコピーを取得する / Gets a ProceduralWind copy for Preview calculation.
 	bool TryGetPreviewForceCopy(struct FKawaiiPhysics_ExternalForce_ProceduralWind& OutForce) const;
-	// 弱参照、または AnimBlueprintPath+NodeGuid から対象ノードを再解決する（BP再コンパイル等でポインタが失効しても追従できる）
+	// 弱参照、または AnimBlueprintPath+NodeGuid から対象ノードを再解決する / Resolves the target node from weak reference or AnimBlueprintPath+NodeGuid.
 	UAnimGraphNode_KawaiiPhysics* ResolveGraphNode() const;
+	bool HasTargetArgs() const;
+	static bool HasTargetArgs(const FKawaiiPhysicsWindScopeWindowArgs& InArgs);
+	static void SaveLastTargetArgs(const FKawaiiPhysicsWindScopeWindowArgs& InArgs);
+	void LoadPendingReconnectFromConfig();
+	void ClearPendingReconnect(bool bCancelAsyncLoad = true);
+	void TryResolvePendingReconnect(float InDeltaTime);
+	void StartPendingReconnectAsyncLoad();
+	void OnPendingReconnectAsyncLoadComplete(FKawaiiPhysicsWindScopeWindowArgs ExpectedArgs);
 
 	FKawaiiPhysicsWindScopeWindowArgs Args;
+	FKawaiiPhysicsWindScopeWindowArgs PendingReconnectArgs;
+	// GUID再解決済みノードの弱キャッシュ / Weak cache for the node resolved by GUID.
+	mutable TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics> ResolvedGraphNodeCache;
 	TArray<FExternalForceIndexPtr> ExternalForceItems;
 	FExternalForceIndexPtr SelectedExternalForceItem;
 	FKawaiiPhysicsWindScopeSeriesVisibility SeriesVisibility;
-	// 現在グラフに描画中のサンプル列（Live/Preview 共通）
+	// 現在グラフに描画中のサンプル列 / Samples currently drawn in the graph.
 	TArray<FKawaiiProceduralWindScopeSample> DisplaySamples;
 	FText CurrentModeText;
 	float DisplaySeconds = 8.0f;
-	// Preview モードでの積算経過時間
+	// Preview モードでの積算経過時間 / Accumulated elapsed time in Preview mode.
 	float PreviewTime = 0.0f;
-	// 直前に読み取った RuntimeState->ScopeSampleCount。差分が無ければ新規サンプル無しと判断する
+	// 直前に読み取った RuntimeState->ScopeSampleCount / Last RuntimeState->ScopeSampleCount read.
 	uint64 LastLiveSampleCount = 0;
+	float PendingReconnectElapsedTime = 0.0f;
 	bool bPaused = false;
+	bool bHasPendingReconnect = false;
+	bool bPendingReconnectAsyncLoadStarted = false;
+	TSharedPtr<FStreamableHandle> PendingReconnectAsyncLoadHandle;
 
 	TSharedPtr<SComboBox<FExternalForceIndexPtr>> ExternalForceComboBox;
 	TSharedPtr<SKawaiiPhysicsWindScopeGraph> GraphWidget;
-	// ボタンindexとの整合を保つプリセットスナップショット
+	// ボタンindexとの整合を保つプリセットスナップショット / Preset snapshot aligned with button indices.
 	TArray<FKawaiiProceduralWindPreset> CachedPresets;
 	TSharedPtr<SWrapBox> PresetButtonBox;
 };

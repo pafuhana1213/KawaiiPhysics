@@ -37,7 +37,9 @@ public class KawaiiPhysicsEd : ModuleRules
 			"ToolMenus",
 			"Json",
 			"JsonUtilities",
-			"DesktopPlatform"
+			"DesktopPlatform",
+			"Projects",
+			"WorkspaceMenuStructure"
 		});
 
 		if (Target.Version.MajorVersion > 5 || (Target.Version.MajorVersion == 5 && Target.Version.MinorVersion >= 5))
