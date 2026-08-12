@@ -235,7 +235,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	GENERATED_BODY()
 
 	FKawaiiPhysics_ExternalForce_ProceduralWind();
-	// コピーは RuntimeState を共有せず新規生成する（メンバ追加時は operator= のコピー処理にも追加すること）
+	// コピーは RuntimeState を共有しない。代入先の RuntimeState が有効ならポインタと中身を保持する（メンバ追加時は operator= のコピー処理にも追加すること）
 	FKawaiiPhysics_ExternalForce_ProceduralWind(const FKawaiiPhysics_ExternalForce_ProceduralWind& Other);
 	FKawaiiPhysics_ExternalForce_ProceduralWind& operator=(const FKawaiiPhysics_ExternalForce_ProceduralWind& Other);
 
@@ -396,6 +396,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> RuntimeState;
 
 	void ResetRuntimeState();
+	TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> EnsureRuntimeState();
 	void ApplyDynamicParams(const FKawaiiProceduralWindDynamicParams& Params);
 	void RequestDynamicParams(const FKawaiiProceduralWindDynamicParams& Params);
 	void RequestGust(float Strength, float RiseTime, float DecayTime);

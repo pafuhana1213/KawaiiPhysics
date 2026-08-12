@@ -2,6 +2,7 @@
 
 #include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
 
+#include "HAL/CriticalSection.h"
 #include "Math/RotationMatrix.h"
 #include "Misc/ScopeLock.h"
 
@@ -132,6 +133,102 @@ void InitializeRuntimeStateContents(FKawaiiProceduralWindRuntimeState& State)
 	State.ScopeSampleCount = 0;
 #endif
 }
+
+void MergePendingDynamicParams(FKawaiiProceduralWindDynamicParams& PendingParams,
+                               const FKawaiiProceduralWindDynamicParams& IncomingParams)
+{
+	// 単一スロットの PendingParams を上書きすると、consume 前に届いた別項目のリクエストが失われるため、項目単位でマージする。同一項目は後勝ち
+	if (IncomingParams.bOverrideIsEnabled)
+	{
+		PendingParams.bOverrideIsEnabled = true;
+		PendingParams.bIsEnabled = IncomingParams.bIsEnabled;
+	}
+	if (IncomingParams.bOverrideWindDirection)
+	{
+		PendingParams.bOverrideWindDirection = true;
+		PendingParams.WindDirection = IncomingParams.WindDirection;
+	}
+	if (IncomingParams.bOverrideSteadyForce)
+	{
+		PendingParams.bOverrideSteadyForce = true;
+		PendingParams.SteadyForce = IncomingParams.SteadyForce;
+	}
+	if (IncomingParams.bOverrideOscillationForce)
+	{
+		PendingParams.bOverrideOscillationForce = true;
+		PendingParams.OscillationForce = IncomingParams.OscillationForce;
+	}
+	if (IncomingParams.bOverrideOscillationPeriod)
+	{
+		PendingParams.bOverrideOscillationPeriod = true;
+		PendingParams.OscillationPeriod = IncomingParams.OscillationPeriod;
+	}
+	if (IncomingParams.bOverrideWaveAmplitude)
+	{
+		PendingParams.bOverrideWaveAmplitude = true;
+		PendingParams.WaveAmplitude = IncomingParams.WaveAmplitude;
+	}
+	if (IncomingParams.bOverrideWavePeriod)
+	{
+		PendingParams.bOverrideWavePeriod = true;
+		PendingParams.WavePeriod = IncomingParams.WavePeriod;
+	}
+	if (IncomingParams.bOverrideWavePhase)
+	{
+		PendingParams.bOverrideWavePhase = true;
+		PendingParams.WavePhase = IncomingParams.WavePhase;
+	}
+	if (IncomingParams.bOverrideWaveSpatialOffset)
+	{
+		PendingParams.bOverrideWaveSpatialOffset = true;
+		PendingParams.WaveSpatialOffset = IncomingParams.WaveSpatialOffset;
+	}
+	if (IncomingParams.bOverrideEnvelopeMax)
+	{
+		PendingParams.bOverrideEnvelopeMax = true;
+		PendingParams.EnvelopeMax = IncomingParams.EnvelopeMax;
+	}
+	if (IncomingParams.bOverrideEnvelopeMin)
+	{
+		PendingParams.bOverrideEnvelopeMin = true;
+		PendingParams.EnvelopeMin = IncomingParams.EnvelopeMin;
+	}
+	if (IncomingParams.bOverrideEnvelopeFrequency)
+	{
+		PendingParams.bOverrideEnvelopeFrequency = true;
+		PendingParams.EnvelopeFrequency = IncomingParams.EnvelopeFrequency;
+	}
+	if (IncomingParams.bOverrideEnvelopePhase)
+	{
+		PendingParams.bOverrideEnvelopePhase = true;
+		PendingParams.EnvelopePhase = IncomingParams.EnvelopePhase;
+	}
+	if (IncomingParams.bOverrideRandomForce)
+	{
+		PendingParams.bOverrideRandomForce = true;
+		PendingParams.RandomForce = IncomingParams.RandomForce;
+	}
+	if (IncomingParams.bOverrideRandomPeriod)
+	{
+		PendingParams.bOverrideRandomPeriod = true;
+		PendingParams.RandomPeriod = IncomingParams.RandomPeriod;
+	}
+	if (IncomingParams.bOverrideDirectionNoiseAngle)
+	{
+		PendingParams.bOverrideDirectionNoiseAngle = true;
+		PendingParams.DirectionNoiseAngle = IncomingParams.DirectionNoiseAngle;
+	}
+	if (IncomingParams.bOverrideDirectionNoisePeriod)
+	{
+		PendingParams.bOverrideDirectionNoisePeriod = true;
+		PendingParams.DirectionNoisePeriod = IncomingParams.DirectionNoisePeriod;
+	}
+	if (IncomingParams.bOverrideTimeScale)
+	{
+		PendingParams.bOverrideTimeScale = true;
+		PendingParams.TimeScale = IncomingParams.TimeScale;
+	}
+}
 }
 
 FKawaiiPhysics_ExternalForce_ProceduralWind::FKawaiiPhysics_ExternalForce_ProceduralWind()
@@ -179,23 +276,33 @@ FKawaiiPhysics_ExternalForce_ProceduralWind& FKawaiiPhysics_ExternalForce_Proced
 	RandomPeriod = Other.RandomPeriod;
 	RandomSeed = Other.RandomSeed;
 
-	RuntimeState = MakeShared<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe>();
-	InitializeRuntimeStateContents(*RuntimeState);
+	// RuntimeState はインスタンス間でコピー・共有しない。代入先が有効な RuntimeState を持つ場合はポインタと中身（Time/ActiveGust/PendingParams）を保持し、
+	// Persona の CopyNodeDataToPreviewNode などのインプレース同期でシミュレーション時刻をリセットしない。無効な代入先だけ新規生成する。
+	EnsureRuntimeState();
 	return *this;
 }
 
 // RuntimeState のポインタは維持し、中身だけを初期状態へ戻す
 void FKawaiiPhysics_ExternalForce_ProceduralWind::ResetRuntimeState()
 {
+	const auto State = EnsureRuntimeState();
+	FScopeLock Lock(&State->Mutex);
+	InitializeRuntimeStateContents(*State);
+}
+
+TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> FKawaiiPhysics_ExternalForce_ProceduralWind::EnsureRuntimeState()
+{
+	// この関数内の RuntimeState 参照はすべてロックで直列化し、invalid→valid 遷移時の未同期な読み書きを避ける。
+	// 他のコードがロックなしで参照できる主保証は、RuntimeState を常に有効に保つ不変条件。
+	static FCriticalSection RuntimeStateCreationMutex;
+	FScopeLock Lock(&RuntimeStateCreationMutex);
 	if (!RuntimeState.IsValid())
 	{
 		RuntimeState = MakeShared<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe>();
 		InitializeRuntimeStateContents(*RuntimeState);
-		return;
 	}
 
-	FScopeLock Lock(&RuntimeState->Mutex);
-	InitializeRuntimeStateContents(*RuntimeState);
+	return RuntimeState;
 }
 
 // ランタイムAPI（BP/C++）経由で送られた上書きパラメータを反映する。bOverride が立っている項目のみ適用し、
@@ -281,26 +388,23 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::ApplyDynamicParams(
 void FKawaiiPhysics_ExternalForce_ProceduralWind::RequestDynamicParams(
 	const FKawaiiProceduralWindDynamicParams& Params)
 {
-	if (!RuntimeState.IsValid())
-	{
-		return;
-	}
-
-	const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> LocalRuntimeState = RuntimeState;
+	const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> LocalRuntimeState = EnsureRuntimeState();
 	FScopeLock Lock(&LocalRuntimeState->Mutex);
-	LocalRuntimeState->PendingParams = Params;
+	if (LocalRuntimeState->PendingParams.IsSet())
+	{
+		MergePendingDynamicParams(LocalRuntimeState->PendingParams.GetValue(), Params);
+	}
+	else
+	{
+		LocalRuntimeState->PendingParams = Params;
+	}
 }
 
 // 突風要求を PendingGust として積み、次回 PreApply で反映する
 void FKawaiiPhysics_ExternalForce_ProceduralWind::RequestGust(
 	const float Strength, const float RiseTime, const float DecayTime)
 {
-	if (!RuntimeState.IsValid())
-	{
-		return;
-	}
-
-	const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> LocalRuntimeState = RuntimeState;
+	const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> LocalRuntimeState = EnsureRuntimeState();
 	FScopeLock Lock(&LocalRuntimeState->Mutex);
 	LocalRuntimeState->PendingGust = FKawaiiProceduralWindGustRequest{
 		Strength,

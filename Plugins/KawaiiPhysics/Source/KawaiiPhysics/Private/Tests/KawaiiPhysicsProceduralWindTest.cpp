@@ -35,6 +35,7 @@ void TestSampleNear(FAutomationTestBase& Test, const TCHAR* Name, const float Ac
 	              FMath::IsNearlyEqual(Actual, Expected, Tol));
 }
 
+// DynamicParams の bOverride フラグ数を数え、単一プロパティ/全項目スナップショットの検証に使う
 // Rate=[0,1]をNumSegments分割で走査し、Waveが最大となる区間インデックスを求める（WavePropagationテストでピーク位置の移動検出に使用）
 int32 FindWavePeakIndex(const FKawaiiPhysics_ExternalForce_ProceduralWind& Wind, const float Time,
                         const int32 NumSegments)
@@ -464,6 +465,56 @@ bool FKawaiiPhysicsProceduralWindPendingConsumptionTest::RunTest(const FString& 
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindRequestDynamicParamsMergeTest,
+                                 "KawaiiPhysics.ProceduralWind.RequestDynamicParamsMerge",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindRequestDynamicParamsMergeTest::RunTest(const FString& Parameters)
+{
+	// consume 前に複数の動的パラメータ要求が届いても、別項目は保持され、同一項目は後勝ちになることを確認する。
+	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
+
+	FKawaiiProceduralWindDynamicParams DirectionParams;
+	DirectionParams.bOverrideWindDirection = true;
+	DirectionParams.WindDirection = FRotator(0.0f, 20.0f, 30.0f);
+	Wind.RequestDynamicParams(DirectionParams);
+
+	FKawaiiProceduralWindDynamicParams SteadyParams;
+	SteadyParams.bOverrideSteadyForce = true;
+	SteadyParams.SteadyForce = 9.0f;
+	Wind.RequestDynamicParams(SteadyParams);
+
+	TestTrue(TEXT("PendingParams merged"), Wind.RuntimeState->PendingParams.IsSet());
+	if (!Wind.RuntimeState->PendingParams.IsSet())
+	{
+		return false;
+	}
+
+	const FKawaiiProceduralWindDynamicParams& PendingParams = Wind.RuntimeState->PendingParams.GetValue();
+	TestTrue(TEXT("Pending WindDirection override merged"), PendingParams.bOverrideWindDirection);
+	TestTrue(TEXT("Pending SteadyForce override merged"), PendingParams.bOverrideSteadyForce);
+
+	Wind.ConsumePendingRequests();
+
+	TestTrue(TEXT("Merged WindDirection applied"), Wind.WindDirection.Equals(FRotator(0.0f, 20.0f, 30.0f)));
+	TestSampleNear(*this, TEXT("Merged SteadyForce applied"), Wind.SteadyForce, 9.0f);
+
+	FKawaiiProceduralWindDynamicParams FirstDirectionParams;
+	FirstDirectionParams.bOverrideWindDirection = true;
+	FirstDirectionParams.WindDirection = FRotator(1.0f, 2.0f, 3.0f);
+	Wind.RequestDynamicParams(FirstDirectionParams);
+
+	FKawaiiProceduralWindDynamicParams LastDirectionParams;
+	LastDirectionParams.bOverrideWindDirection = true;
+	LastDirectionParams.WindDirection = FRotator(4.0f, 5.0f, 6.0f);
+	Wind.RequestDynamicParams(LastDirectionParams);
+	Wind.ConsumePendingRequests();
+
+	TestTrue(TEXT("Last WindDirection request wins"), Wind.WindDirection.Equals(FRotator(4.0f, 5.0f, 6.0f)));
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindFramerateIndependenceTest,
                                  "KawaiiPhysics.ProceduralWind.FramerateIndependence",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -527,6 +578,87 @@ bool FKawaiiPhysicsProceduralWindResetRuntimeStateTest::RunTest(const FString& P
 	TestEqual(TEXT("ScopeWriteIndex after reset"), Wind.RuntimeState->ScopeWriteIndex, 0);
 	TestEqual(TEXT("ScopeSampleCount after reset"), Wind.RuntimeState->ScopeSampleCount, static_cast<uint64>(0));
 #endif
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindAssignmentPreservesDestinationRuntimeStateTest,
+                                 "KawaiiPhysics.ProceduralWind.AssignmentPreservesDestinationRuntimeState",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindAssignmentPreservesDestinationRuntimeStateTest::RunTest(const FString& Parameters)
+{
+	// 代入時にプロパティだけをコピーし、代入先の実行中状態（時刻・Pending）とポインタが維持されることを確認する。
+	FKawaiiPhysics_ExternalForce_ProceduralWind Destination;
+	const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> DestinationRuntimeState =
+		Destination.RuntimeState;
+	Destination.RuntimeState->Time = 7.0f;
+
+	FKawaiiProceduralWindDynamicParams PendingParams;
+	PendingParams.bOverrideSteadyForce = true;
+	PendingParams.SteadyForce = 11.0f;
+	Destination.RequestDynamicParams(PendingParams);
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind Source;
+	Source.WindDirection = FRotator(0.0f, 20.0f, 30.0f);
+	Source.SteadyForce = 5.0f;
+	Source.OscillationForce = 6.0f;
+	Source.TimeScale = 0.5f;
+	Source.RuntimeState->Time = 3.0f;
+
+	Destination = Source;
+
+	TestTrue(TEXT("Destination RuntimeState pointer is preserved"),
+	         Destination.RuntimeState.Get() == DestinationRuntimeState.Get());
+	TestSampleNear(*this, TEXT("Destination Time preserved"), Destination.RuntimeState->Time, 7.0f);
+	TestTrue(TEXT("Destination PendingParams preserved"), Destination.RuntimeState->PendingParams.IsSet());
+	TestTrue(TEXT("PendingParams override preserved"),
+	         Destination.RuntimeState->PendingParams.GetValue().bOverrideSteadyForce);
+	TestSampleNear(*this, TEXT("PendingParams value preserved"),
+	               Destination.RuntimeState->PendingParams.GetValue().SteadyForce, 11.0f);
+	TestTrue(TEXT("WindDirection copied"), Destination.WindDirection.Equals(Source.WindDirection));
+	TestSampleNear(*this, TEXT("SteadyForce copied"), Destination.SteadyForce, Source.SteadyForce);
+	TestSampleNear(*this, TEXT("OscillationForce copied"), Destination.OscillationForce, Source.OscillationForce);
+	TestSampleNear(*this, TEXT("TimeScale copied"), Destination.TimeScale, Source.TimeScale);
+	TestTrue(TEXT("RuntimeState is not shared with source"),
+	         Destination.RuntimeState.Get() != Source.RuntimeState.Get());
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindRequestCreatesRuntimeStateTest,
+                                 "KawaiiPhysics.ProceduralWind.RequestCreatesRuntimeState",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindRequestCreatesRuntimeStateTest::RunTest(const FString& Parameters)
+{
+	// 無効な RuntimeState に対する Request API が状態を遅延生成し、次回消費まで要求を保持することを確認する。
+	FKawaiiPhysics_ExternalForce_ProceduralWind ParamsWind;
+	ParamsWind.RuntimeState.Reset();
+
+	FKawaiiProceduralWindDynamicParams Params;
+	Params.bOverrideSteadyForce = true;
+	Params.SteadyForce = 9.0f;
+	ParamsWind.RequestDynamicParams(Params);
+
+	TestTrue(TEXT("RequestDynamicParams creates RuntimeState"), ParamsWind.RuntimeState.IsValid());
+	TestTrue(TEXT("PendingParams set after request"), ParamsWind.RuntimeState->PendingParams.IsSet());
+	ParamsWind.ConsumePendingRequests();
+	TestSampleNear(*this, TEXT("PendingParams applied"), ParamsWind.SteadyForce, 9.0f);
+	TestFalse(TEXT("PendingParams reset after consume"), ParamsWind.RuntimeState->PendingParams.IsSet());
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind GustWind;
+	GustWind.RuntimeState.Reset();
+	GustWind.RequestGust(4.0f, 0.2f, 0.6f);
+
+	TestTrue(TEXT("RequestGust creates RuntimeState"), GustWind.RuntimeState.IsValid());
+	TestTrue(TEXT("PendingGust set after request"), GustWind.RuntimeState->PendingGust.IsSet());
+	GustWind.ConsumePendingRequests();
+	TestTrue(TEXT("ActiveGust active after consume"), GustWind.RuntimeState->ActiveGust.bIsActive);
+	TestSampleNear(*this, TEXT("ActiveGust Strength applied"), GustWind.RuntimeState->ActiveGust.Strength, 4.0f);
+	TestSampleNear(*this, TEXT("ActiveGust RiseTime applied"), GustWind.RuntimeState->ActiveGust.RiseTime, 0.2f);
+	TestSampleNear(*this, TEXT("ActiveGust DecayTime applied"), GustWind.RuntimeState->ActiveGust.DecayTime, 0.6f);
+	TestFalse(TEXT("PendingGust reset after consume"), GustWind.RuntimeState->PendingGust.IsSet());
 
 	return true;
 }
