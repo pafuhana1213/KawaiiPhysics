@@ -65,9 +65,9 @@ struct KAWAIIPHYSICS_API FKawaiiProceduralWindDynamicParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
 	bool bOverrideWindDirection = false;
 
-	/** 風方向 / Wind direction. */
+	/** 風方向。内部で正規化するため非正規化でも可 / Wind direction. Non-normalized values are allowed because this is normalized internally. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
-	FRotator WindDirection = FRotator::ZeroRotator;
+	FVector WindDirection = FVector::ForwardVector;
 
 	/** SteadyForce を上書きする / Override SteadyForce. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
@@ -240,12 +240,12 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	FKawaiiPhysics_ExternalForce_ProceduralWind& operator=(const FKawaiiPhysics_ExternalForce_ProceduralWind& Other);
 
 	/**
-	* 風の吹く方向。BP からは SetExternalForceRotatorProperty("WindDirection") で変更可能
-	* Direction the wind blows. Controllable from BP via SetExternalForceRotatorProperty("WindDirection").
+	* 風の吹く方向。BP からは SetExternalForceVectorProperty("WindDirection") で変更可能。内部で正規化するため非正規化でも可
+	* Direction the wind blows. Controllable from BP via SetExternalForceVectorProperty("WindDirection"). Non-normalized values are allowed because this is normalized internally.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=3, PinHiddenByDefault),
 		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
-	FRotator WindDirection = FRotator::ZeroRotator;
+	FVector WindDirection = FVector::ForwardVector;
 
 	/**
 	* 風向き自体の揺らぎの円錐半角。向きの単調さを消す

@@ -728,7 +728,7 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::PreApply(FAnimNode_KawaiiPhysi
 
 	// 風向きに円錐状の揺らぎを加える（DirectionNoiseAngle>0のときのみ）。X/Y で異なる Channel を使い、
 	// 独立した2軸のノイズ系列にする
-	const FVector BaseWindDirection = SafeDirectionOrForward(WindDirection.Vector());
+	const FVector BaseWindDirection = SafeDirectionOrForward(WindDirection);
 	FVector NoisyWindDirection = BaseWindDirection;
 	if (DirectionNoiseAngle > 0.0f)
 	{
