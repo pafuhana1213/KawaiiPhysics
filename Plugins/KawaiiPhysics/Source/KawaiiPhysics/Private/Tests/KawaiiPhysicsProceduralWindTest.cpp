@@ -626,6 +626,36 @@ bool FKawaiiPhysicsProceduralWindAssignmentPreservesDestinationRuntimeStateTest:
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindInPlaceCopyScriptStructPreservesRuntimeStateTest,
+                                 "KawaiiPhysics.ProceduralWind.InPlaceCopyScriptStructPreservesRuntimeState",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindInPlaceCopyScriptStructPreservesRuntimeStateTest::RunTest(const FString& Parameters)
+{
+	// エディタの in-place 同期と同じ CopyScriptStruct 経路で、プロパティだけがコピーされ実行中状態が維持されることを確認する。
+	FKawaiiPhysics_ExternalForce_ProceduralWind Source;
+	Source.WindDirection = FRotator(0.0f, 20.0f, 30.0f);
+	Source.SteadyForce = 5.0f;
+	Source.RuntimeState->Time = 3.0f;
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind Destination;
+	const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> DestinationRuntimeState =
+		Destination.RuntimeState;
+	Destination.RuntimeState->Time = 7.0f;
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct()->CopyScriptStruct(&Destination, &Source);
+
+	TestTrue(TEXT("Destination RuntimeState pointer is preserved"),
+	         Destination.RuntimeState.Get() == DestinationRuntimeState.Get());
+	TestSampleNear(*this, TEXT("Destination Time preserved"), Destination.RuntimeState->Time, 7.0f);
+	TestTrue(TEXT("WindDirection copied"), Destination.WindDirection.Equals(Source.WindDirection));
+	TestSampleNear(*this, TEXT("SteadyForce copied"), Destination.SteadyForce, Source.SteadyForce);
+	TestTrue(TEXT("RuntimeState is not shared with source"),
+	         Destination.RuntimeState.Get() != Source.RuntimeState.Get());
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindRequestCreatesRuntimeStateTest,
                                  "KawaiiPhysics.ProceduralWind.RequestCreatesRuntimeState",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

@@ -18,6 +18,7 @@
 #include "KawaiiPhysicsLimitsDataAsset.h"
 #include "KawaiiPhysicsPresetDataAsset.h"
 #include "KawaiiPhysicsPresetDiffSnapshot.h"
+#include "KawaiiPhysicsEdUtils.h"
 #include "KawaiiPhysicsEdWindowUtils.h"
 #include "SKawaiiPhysicsPresetDiffWindow.h"
 #include "SKawaiiPhysicsWindScopeWindow.h"
@@ -280,7 +281,26 @@ void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* Ani
 	KawaiiPhysics->bUseWorldSpaceGravity = Node.bUseWorldSpaceGravity;
 	KawaiiPhysics->SimpleExternalForce = Node.SimpleExternalForce;
 	KawaiiPhysics->bUseWorldSpaceSimpleExternalForce = Node.bUseWorldSpaceSimpleExternalForce;
-	KawaiiPhysics->ExternalForces = Node.ExternalForces;
+	// ExternalForces は丸ごと代入すると FInstancedStruct が破棄→再構築され、ProceduralWind の
+	// RuntimeState（シミュレーション時刻・gust・Pending 要求）が失われる。形状（要素数と型）が
+	// 一致している間は既存メモリへの in-place コピーでプロパティのみ同期し、実行中状態を保持する
+	if (KawaiiPhysicsEdUtils::IsExternalForceShapeMatched(KawaiiPhysics->ExternalForces, Node.ExternalForces))
+	{
+		for (int32 Index = 0; Index < Node.ExternalForces.Num(); ++Index)
+		{
+			if (const UScriptStruct* ScriptStruct =
+				KawaiiPhysicsEdUtils::GetExternalForceScriptStruct(Node.ExternalForces[Index]))
+			{
+				ScriptStruct->CopyScriptStruct(KawaiiPhysics->ExternalForces[Index].GetMutableMemory(),
+				                               Node.ExternalForces[Index].GetMemory());
+			}
+		}
+	}
+	else
+	{
+		// 外力の追加/削除/並べ替え/型変更時は従来どおり丸ごと代入（フルリセット）
+		KawaiiPhysics->ExternalForces = Node.ExternalForces;
+	}
 	KawaiiPhysics->CustomExternalForces = Node.CustomExternalForces;
 
 	// Wind
