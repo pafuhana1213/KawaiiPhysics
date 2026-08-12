@@ -235,7 +235,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	GENERATED_BODY()
 
 	FKawaiiPhysics_ExternalForce_ProceduralWind();
-	// コピーは RuntimeState を共有せず新規生成する（メンバ追加時は operator= のコピー処理にも追加すること）
+	// コピーは RuntimeState を共有しない。代入先の RuntimeState が有効ならポインタと中身を保持する（メンバ追加時は operator= のコピー処理にも追加すること）
 	FKawaiiPhysics_ExternalForce_ProceduralWind(const FKawaiiPhysics_ExternalForce_ProceduralWind& Other);
 	FKawaiiPhysics_ExternalForce_ProceduralWind& operator=(const FKawaiiPhysics_ExternalForce_ProceduralWind& Other);
 
@@ -396,8 +396,13 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> RuntimeState;
 
 	void ResetRuntimeState();
+	TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> EnsureRuntimeState();
 	void ApplyDynamicParams(const FKawaiiProceduralWindDynamicParams& Params);
 	void RequestDynamicParams(const FKawaiiProceduralWindDynamicParams& Params);
+	// 指定プロパティ名に対応する項目だけ bOverride を立てた DynamicParams を作る（未対応名なら false） / Builds DynamicParams overriding only the named property (false if unmapped)
+	bool BuildDynamicParamsForProperty(FName PropertyName, FKawaiiProceduralWindDynamicParams& OutParams) const;
+	// 全項目の bOverride を立てた現在値スナップショットを作る / Builds a snapshot of current values with every override flag set
+	FKawaiiProceduralWindDynamicParams BuildDynamicParamsSnapshot() const;
 	void RequestGust(float Strength, float RiseTime, float DecayTime);
 	void ConsumePendingRequests();
 

@@ -27,6 +27,7 @@ class UAnimGraphNode_KawaiiPhysics : public UAnimGraphNode_SkeletalControlBase
 
 	// UObject interface
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 	virtual void PostLoad() override;
 
 protected:
@@ -54,6 +55,9 @@ protected:
 private:
 	/** コリジョン配列のGuidを一意化する（複製/貼り付け/旧データの重複Guidを再発番） */
 	void EnsureUniqueCollisionGuids();
+
+	/** ProceduralWind の Details 編集を実行中ノードへ DynamicParams として送る */
+	void PushProceduralWindEditToLiveInstance(const struct FPropertyChangedChainEvent& PropertyChangedEvent);
 
 	/** Creates the export data asset path. */
 	void CreateExportDataAssetPath(FString& PackageName, const FString& DefaultSuffix) const;

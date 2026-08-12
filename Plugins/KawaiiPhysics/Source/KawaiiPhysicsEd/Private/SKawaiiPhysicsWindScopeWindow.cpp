@@ -9,6 +9,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "HAL/CriticalSection.h"
 #include "KawaiiPhysicsDeveloperSettings.h"
+#include "KawaiiPhysicsEdUtils.h"
 #include "KawaiiPhysicsEdWindowUtils.h"
 #include "KawaiiPhysicsEditorLibrary.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -135,54 +136,13 @@ namespace
 		return FindFirstProceduralWindIndex(Node);
 	}
 
-	const UScriptStruct* GetExternalForceScriptStruct(const FInstancedStruct& InstancedStruct)
-	{
-		return InstancedStruct.IsValid() ? InstancedStruct.GetScriptStruct() : nullptr;
-	}
-
-	bool IsExternalForceShapeMatched(const TArray<FInstancedStruct>& GraphExternalForces,
-	                                 const TArray<FInstancedStruct>& RuntimeExternalForces)
-	{
-		if (GraphExternalForces.Num() != RuntimeExternalForces.Num())
-		{
-			return false;
-		}
-
-		for (int32 Index = 0; Index < GraphExternalForces.Num(); ++Index)
-		{
-			if (GetExternalForceScriptStruct(GraphExternalForces[Index]) !=
-				GetExternalForceScriptStruct(RuntimeExternalForces[Index]))
-			{
-				return false;
-			}
-		}
-		return true;
-	}
-
-	FAnimNode_KawaiiPhysics* ResolveLiveKawaiiPhysicsNode(UAnimGraphNode_KawaiiPhysics* GraphNode)
-	{
-		if (!GraphNode)
-		{
-			return nullptr;
-		}
-
-		UAnimBlueprint* AnimBlueprint = GraphNode->GetAnimBlueprint();
-		UObject* ObjectBeingDebugged = AnimBlueprint ? AnimBlueprint->GetObjectBeingDebugged() : nullptr;
-		if (!Cast<UAnimInstance>(ObjectBeingDebugged))
-		{
-			return nullptr;
-		}
-
-		return GraphNode->GetDebuggedAnimNode<FAnimNode_KawaiiPhysics>();
-	}
-
 	FKawaiiPhysics_ExternalForce_ProceduralWind* ResolveLiveProceduralWind(
 		UAnimGraphNode_KawaiiPhysics* GraphNode,
 		FAnimNode_KawaiiPhysics* RuntimeNode,
 		const int32 RequestedIndex)
 	{
 		if (!GraphNode || !RuntimeNode ||
-			!IsExternalForceShapeMatched(GraphNode->Node.ExternalForces, RuntimeNode->ExternalForces))
+			!KawaiiPhysicsEdUtils::IsExternalForceShapeMatched(GraphNode->Node.ExternalForces, RuntimeNode->ExternalForces))
 		{
 			return nullptr;
 		}
@@ -1126,7 +1086,7 @@ bool SKawaiiPhysicsWindScopeWindow::PushPresetToLiveRuntime(
 	const FKawaiiProceduralWindDynamicParams& Params)
 {
 	UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
-	FAnimNode_KawaiiPhysics* RuntimeNode = ResolveLiveKawaiiPhysicsNode(GraphNode);
+	FAnimNode_KawaiiPhysics* RuntimeNode = KawaiiPhysicsEdUtils::ResolveLiveKawaiiPhysicsNode(GraphNode);
 	FKawaiiPhysics_ExternalForce_ProceduralWind* RuntimeWind = ResolveLiveProceduralWind(
 		GraphNode,
 		RuntimeNode,
@@ -1144,7 +1104,7 @@ bool SKawaiiPhysicsWindScopeWindow::PushGustToLiveRuntime(
 	const float Strength, const float RiseTime, const float DecayTime)
 {
 	UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
-	FAnimNode_KawaiiPhysics* RuntimeNode = ResolveLiveKawaiiPhysicsNode(GraphNode);
+	FAnimNode_KawaiiPhysics* RuntimeNode = KawaiiPhysicsEdUtils::ResolveLiveKawaiiPhysicsNode(GraphNode);
 	FKawaiiPhysics_ExternalForce_ProceduralWind* RuntimeWind = ResolveLiveProceduralWind(
 		GraphNode,
 		RuntimeNode,
@@ -1267,16 +1227,8 @@ bool SKawaiiPhysicsWindScopeWindow::TryUpdateFromLiveRuntime()
 		return false;
 	}
 
-	// PIE等でデバッグ対象になっているノードを取得（デバッグ対象でなければ Live 扱いにしない）
-	UAnimBlueprint* AnimBlueprint = GraphNode->GetAnimBlueprint();
-	UObject* ObjectBeingDebugged = AnimBlueprint ? AnimBlueprint->GetObjectBeingDebugged() : nullptr;
-	if (!Cast<UAnimInstance>(ObjectBeingDebugged))
-	{
-		return false;
-	}
-
 	// 実行中の FAnimNode_KawaiiPhysics から対象 ProceduralWind の RuntimeState を解決
-	FAnimNode_KawaiiPhysics* RuntimeNode = GraphNode->GetDebuggedAnimNode<FAnimNode_KawaiiPhysics>();
+	FAnimNode_KawaiiPhysics* RuntimeNode = KawaiiPhysicsEdUtils::ResolveLiveKawaiiPhysicsNode(GraphNode);
 	if (!RuntimeNode)
 	{
 		return false;
