@@ -10,7 +10,9 @@
 #include "Widgets/Views/SListView.h"
 
 class ITableRow;
-class SWindow;
+class FSpawnTabArgs;
+class FWorkspaceItem;
+class SDockTab;
 class STableViewBase;
 
 struct FKawaiiPhysicsPresetDiffWindowArgs
@@ -36,12 +38,23 @@ public:
 		}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, FKawaiiPhysicsPresetDiffWindowArgs DiffArgs);
+	void Construct(const FArguments& InArgs, FKawaiiPhysicsPresetDiffWindowArgs DiffArgs = FKawaiiPhysicsPresetDiffWindowArgs());
 
-	/** 差分ウィンドウを開くか既存ウィンドウを更新する / Opens the diff window or updates the existing one. */
+	static const FName PresetDiffTabId;
+
+	/** 差分タブスポナーを登録する / Registers the diff tab spawner. */
+	static void RegisterTabSpawner(const TSharedRef<FWorkspaceItem>& InMenuGroup);
+
+	/** 差分タブスポナーを解除する / Unregisters the diff tab spawner. */
+	static void UnregisterTabSpawner();
+
+	/** 差分タブを生成する / Spawns the diff tab. */
+	static TSharedRef<SDockTab> SpawnPresetDiffTab(const FSpawnTabArgs& SpawnTabArgs);
+
+	/** 差分タブを開くか既存タブを更新する / Opens the diff tab or updates the existing one. */
 	static void OpenWindow(FKawaiiPhysicsPresetDiffWindowArgs Args);
 
-	/** 開いている差分ウィンドウをすべて閉じる / Closes all open diff windows. */
+	/** 開いている差分タブをすべて閉じる / Closes all open diff tabs. */
 	static void CloseAllWindows();
 
 	/** 現在の引数でウィジェット状態を置き換える / Replaces the widget state with the current arguments. */
@@ -70,7 +83,6 @@ private:
 	FReply OnApplySelectedClicked();
 	FReply OnApplyPresetToNodeClicked();
 	FReply OnUpdatePresetFromNodeClicked();
-	FReply OnCloseClicked();
 
 	void RefreshFilteredRows();
 	void ReplaceSelectedSnapshot(TSharedRef<FKawaiiPhysicsPresetDiffSnapshot> NewSnapshot);

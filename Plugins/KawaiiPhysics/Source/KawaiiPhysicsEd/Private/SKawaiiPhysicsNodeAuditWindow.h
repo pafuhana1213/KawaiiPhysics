@@ -11,12 +11,14 @@
 #include "Widgets/Views/SListView.h"
 
 class ITableRow;
-class SWindow;
+class FSpawnTabArgs;
+class FWorkspaceItem;
+class SDockTab;
 class STableViewBase;
 
 struct FKawaiiPhysicsNodeAuditWindowArgs
 {
-	/** ウィンドウタイトル / Window title. */
+	/** タブラベル / Tab label. */
 	FText WindowTitle;
 
 	/** サマリ表示テキスト（初期表示用。以降は内部で再計算される） / Summary text for the initial display (recalculated internally afterwards). */
@@ -40,12 +42,23 @@ public:
 		}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, FKawaiiPhysicsNodeAuditWindowArgs InitArgs);
+	void Construct(const FArguments& InArgs, FKawaiiPhysicsNodeAuditWindowArgs InitArgs = FKawaiiPhysicsNodeAuditWindowArgs());
 
-	/** 監査ウィンドウを開くか既存ウィンドウを更新する / Opens the audit window or updates the existing one. */
+	static const FName NodeAuditTabId;
+
+	/** 監査タブスポナーを登録する / Registers the audit tab spawner. */
+	static void RegisterTabSpawner(const TSharedRef<FWorkspaceItem>& InMenuGroup);
+
+	/** 監査タブスポナーを解除する / Unregisters the audit tab spawner. */
+	static void UnregisterTabSpawner();
+
+	/** 監査タブを生成する / Spawns the audit tab. */
+	static TSharedRef<SDockTab> SpawnNodeAuditTab(const FSpawnTabArgs& SpawnTabArgs);
+
+	/** 監査タブを開くか既存タブを更新する / Opens the audit tab or updates the existing one. */
 	static void OpenWindow(FKawaiiPhysicsNodeAuditWindowArgs Args);
 
-	/** 開いている監査ウィンドウをすべて閉じる / Closes all open audit windows. */
+	/** 開いている監査タブをすべて閉じる / Closes all open audit tabs. */
 	static void CloseAllWindows();
 
 	/** 現在の引数でウィジェット状態を置き換える / Replaces the widget state with the current arguments. */

@@ -5,20 +5,28 @@
 #include "AnimGraphNode_KawaiiPhysics.h"
 #include "Animation/AnimBlueprint.h"
 #include "Animation/AnimInstance.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Engine/AssetManager.h"
+#include "Engine/StreamableManager.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
-#include "Framework/Application/SlateApplication.h"
+#include "Framework/Docking/TabManager.h"
+#include "Framework/Docking/WorkspaceItem.h"
 #include "HAL/CriticalSection.h"
 #include "KawaiiPhysicsDeveloperSettings.h"
+#include "KawaiiPhysicsEdStyle.h"
 #include "KawaiiPhysicsEdUtils.h"
 #include "KawaiiPhysicsEdWindowUtils.h"
-#include "KawaiiPhysicsEditorLibrary.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeLock.h"
 #include "Rendering/DrawElements.h"
 #include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
+#include "Textures/SlateIcon.h"
 #include "Widgets/Colors/SColorBlock.h"
+#include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboBox.h"
@@ -34,9 +42,6 @@
 
 namespace
 {
-	const TCHAR* WindScopeConfigSectionName = TEXT("KawaiiPhysicsEd");
-	const TCHAR* WindScopeWindowPosConfigKey = TEXT("WindScopeWindowPos");
-	const TCHAR* WindScopeWindowSizeConfigKey = TEXT("WindScopeWindowSize");
 	constexpr int32 WindScopePreviewSampleCount = 240;
 	constexpr float WindScopeGraphPaddingLeft = 42.0f;
 	constexpr float WindScopeGraphPaddingTop = 12.0f;
@@ -45,9 +50,51 @@ namespace
 	constexpr float WindScopeGustStrength = 6.0f;
 	constexpr float WindScopeGustRiseTime = 0.1f;
 	constexpr float WindScopeGustDecayTime = 0.5f;
+	constexpr float WindScopeReconnectTryLoadDelay = 5.0f;
+	const TCHAR* WindScopeConfigSectionName = TEXT("KawaiiPhysicsEd");
+	const TCHAR* WindScopeLastAnimBlueprintKey = TEXT("WindScopeLastAnimBlueprint");
+	const TCHAR* WindScopeLastNodeGuidKey = TEXT("WindScopeLastNodeGuid");
+	const TCHAR* WindScopeLastForceIndexKey = TEXT("WindScopeLastForceIndex");
 
-	TWeakPtr<SWindow> KawaiiWindScopeWindowWeak;
+	TWeakPtr<SDockTab> KawaiiWindScopeTabWeak;
 	TWeakPtr<SKawaiiPhysicsWindScopeWindow> KawaiiWindScopeWidgetWeak;
+
+	bool AreReconnectArgsSame(const FKawaiiPhysicsWindScopeWindowArgs& Lhs, const FKawaiiPhysicsWindScopeWindowArgs& Rhs)
+	{
+		return Lhs.AnimBlueprintPath == Rhs.AnimBlueprintPath &&
+			Lhs.NodeGuid == Rhs.NodeGuid &&
+			Lhs.ExternalForceIndex == Rhs.ExternalForceIndex;
+	}
+
+	UAnimGraphNode_KawaiiPhysics* FindLoadedGraphNodeByGuid(UObject* AnimBlueprintObject, const FGuid& NodeGuid)
+	{
+		UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(AnimBlueprintObject);
+		if (!AnimBlueprint || !NodeGuid.IsValid())
+		{
+			return nullptr;
+		}
+
+		TArray<UEdGraph*> Graphs;
+		AnimBlueprint->GetAllGraphs(Graphs);
+		for (UEdGraph* Graph : Graphs)
+		{
+			if (!Graph)
+			{
+				continue;
+			}
+
+			for (UEdGraphNode* Node : Graph->Nodes)
+			{
+				UAnimGraphNode_KawaiiPhysics* KawaiiPhysicsGraphNode = Cast<UAnimGraphNode_KawaiiPhysics>(Node);
+				if (KawaiiPhysicsGraphNode && KawaiiPhysicsGraphNode->NodeGuid == NodeGuid)
+				{
+					return KawaiiPhysicsGraphNode;
+				}
+			}
+		}
+
+		return nullptr;
+	}
 
 	struct FKawaiiWindScopeComponentStyle
 	{
@@ -392,6 +439,8 @@ namespace
 	}
 }
 
+const FName SKawaiiPhysicsWindScopeWindow::WindScopeTabId(TEXT("KawaiiPhysicsWindScope"));
+
 bool FKawaiiPhysicsWindScopeSeriesVisibility::IsVisible(EKawaiiPhysicsWindScopeComponent Component) const
 {
 	switch (Component)
@@ -632,7 +681,10 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 {
 	(void)InArgs;
 	CurrentModeText = LOCTEXT("InitialMode", "Preview");
-	SetArgs(MoveTemp(InitArgs));
+	if (HasTargetArgs(InitArgs))
+	{
+		SetArgs(MoveTemp(InitArgs));
+	}
 
 	ChildSlot
 	[
@@ -818,78 +870,130 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 		]
 	];
 
-	RebuildPresetButtons();
+	if (HasTargetArgs())
+	{
+		RebuildPresetButtons();
+	}
 
 	// 60fps 相当でティックし、Live/Preview のサンプル更新とグラフ再描画を行う
 	RegisterActiveTimer(1.0f / 60.0f, FWidgetActiveTimerDelegate::CreateSP(this, &SKawaiiPhysicsWindScopeWindow::TickWindScope));
 }
 
-void SKawaiiPhysicsWindScopeWindow::OpenWindow(FKawaiiPhysicsWindScopeWindowArgs Args)
+SKawaiiPhysicsWindScopeWindow::~SKawaiiPhysicsWindScopeWindow()
 {
-	// 既存ウィンドウがあれば引数を差し替えて前面に出すだけ（ウィンドウは常に1つに集約する）
-	if (TSharedPtr<SWindow> ExistingWindow = KawaiiWindScopeWindowWeak.Pin())
+	ClearPendingReconnect();
+}
+
+void SKawaiiPhysicsWindScopeWindow::RegisterTabSpawner(const TSharedRef<FWorkspaceItem>& InMenuGroup)
+{
+	const FSlateIcon KawaiiPhysicsIcon(
+		FKawaiiPhysicsEdStyle::GetStyleSetName(),
+		TEXT("KawaiiPhysics.TabIcon"));
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			WindScopeTabId,
+			FOnSpawnTab::CreateStatic(&SKawaiiPhysicsWindScopeWindow::SpawnWindScopeTab))
+		.SetDisplayName(LOCTEXT("WindScopeMenuDisplayName", "Kawaii Physics: Wind Scope"))
+		.SetTooltipText(LOCTEXT("WindScopeMenuTooltip", "KawaiiPhysics の風プレビュータブを開きます / Opens the KawaiiPhysics wind preview tab."))
+		.SetGroup(InMenuGroup)
+		.SetIcon(KawaiiPhysicsIcon);
+}
+
+void SKawaiiPhysicsWindScopeWindow::UnregisterTabSpawner()
+{
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(WindScopeTabId);
+}
+
+TSharedRef<SDockTab> SKawaiiPhysicsWindScopeWindow::SpawnWindScopeTab(const FSpawnTabArgs& SpawnTabArgs)
+{
+	(void)SpawnTabArgs;
+
+	TSharedRef<SKawaiiPhysicsWindScopeWindow> ScopeWidget = SNew(SKawaiiPhysicsWindScopeWindow);
+	if (!ScopeWidget->HasTargetArgs())
 	{
-		if (TSharedPtr<SKawaiiPhysicsWindScopeWindow> ExistingWidget = KawaiiWindScopeWidgetWeak.Pin())
-		{
-			ExistingWidget->SetArgs(MoveTemp(Args));
-		}
-		ExistingWindow->BringToFront();
-		return;
+		ScopeWidget->LoadPendingReconnectFromConfig();
 	}
 
-	// 新規ウィンドウを生成
-	TSharedRef<SKawaiiPhysicsWindScopeWindow> ScopeWidget =
-		SNew(SKawaiiPhysicsWindScopeWindow, MoveTemp(Args));
-
-	TSharedRef<SWindow> Window = SNew(SWindow)
-		.Title(LOCTEXT("WindowTitle", "Kawaii Physics: Wind Scope"))
-		.ClientSize(FVector2D(720.0f, 420.0f))
-		.MinWidth(520.0f)
-		.MinHeight(320.0f)
-		.AutoCenter(EAutoCenter::PreferredWorkArea)
+	TSharedRef<SDockTab> ScopeTab = SNew(SDockTab)
+		.TabRole(ETabRole::NomadTab)
+		.Label(LOCTEXT("WindScopeTabLabel", "Kawaii Wind Scope"))
+		.OnTabClosed_Lambda([](TSharedRef<SDockTab> ClosedTab)
+		{
+			(void)ClosedTab;
+			KawaiiWindScopeTabWeak.Reset();
+			KawaiiWindScopeWidgetWeak.Reset();
+		})
 		[
 			ScopeWidget
 		];
 
-	// 閉じたら配置を保存し弱参照をクリアする（次回 OpenWindow 時は上のブロックで新規生成される）
-	Window->SetOnWindowClosed(FOnWindowClosed::CreateLambda([](const TSharedRef<SWindow>& ClosedWindow)
-	{
-		KawaiiPhysicsEdWindowUtils::PersistWindowPlacement(
-			ClosedWindow,
-			WindScopeConfigSectionName,
-			WindScopeWindowPosConfigKey,
-			WindScopeWindowSizeConfigKey);
-		KawaiiWindScopeWindowWeak.Reset();
-		KawaiiWindScopeWidgetWeak.Reset();
-	}));
-
-	KawaiiWindScopeWindowWeak = Window;
+	KawaiiWindScopeTabWeak = ScopeTab;
 	KawaiiWindScopeWidgetWeak = ScopeWidget;
-	FSlateApplication::Get().AddWindow(Window);
-	KawaiiPhysicsEdWindowUtils::RestoreWindowPlacement(
-		Window,
-		WindScopeConfigSectionName,
-		WindScopeWindowPosConfigKey,
-		WindScopeWindowSizeConfigKey);
+	return ScopeTab;
+}
+
+void SKawaiiPhysicsWindScopeWindow::OpenWindow(FKawaiiPhysicsWindScopeWindowArgs Args)
+{
+	if (HasTargetArgs(Args))
+	{
+		SaveLastTargetArgs(Args);
+	}
+
+	// タブを呼び出してから、選択ノード由来の引数を既存コンテンツへ注入する
+	TSharedPtr<SDockTab> InvokedTab = FGlobalTabmanager::Get()->TryInvokeTab(WindScopeTabId);
+	if (!InvokedTab.IsValid())
+	{
+		return;
+	}
+
+	TSharedPtr<SWidget> TabContent = InvokedTab->GetContent();
+	if (!TabContent.IsValid())
+	{
+		return;
+	}
+
+	if (TSharedPtr<SKawaiiPhysicsWindScopeWindow> ExistingWidget = KawaiiWindScopeWidgetWeak.Pin())
+	{
+		ExistingWidget->ClearPendingReconnect();
+		ExistingWidget->SetArgs(MoveTemp(Args));
+		return;
+	}
+
+	// Hot Reload等でファイルスコープの弱参照だけが失効した場合、タブ内容から復旧する
+	if (TabContent->GetType() == FName(TEXT("SKawaiiPhysicsWindScopeWindow")))
+	{
+		TSharedPtr<SKawaiiPhysicsWindScopeWindow> RecoveredWidget =
+			StaticCastSharedPtr<SKawaiiPhysicsWindScopeWindow>(TabContent);
+		KawaiiWindScopeTabWeak = InvokedTab;
+		KawaiiWindScopeWidgetWeak = RecoveredWidget;
+		RecoveredWidget->ClearPendingReconnect();
+		RecoveredWidget->SetArgs(MoveTemp(Args));
+	}
 }
 
 void SKawaiiPhysicsWindScopeWindow::CloseAllWindows()
 {
-	if (TSharedPtr<SWindow> Window = KawaiiWindScopeWindowWeak.Pin())
+	if (TSharedPtr<SDockTab> ScopeTab = KawaiiWindScopeTabWeak.Pin())
 	{
-		Window->RequestDestroyWindow();
+		ScopeTab->RequestCloseTab();
 	}
+	KawaiiWindScopeTabWeak.Reset();
+	KawaiiWindScopeWidgetWeak.Reset();
 }
 
 void SKawaiiPhysicsWindScopeWindow::SetArgs(FKawaiiPhysicsWindScopeWindowArgs InArgs)
 {
 	// 対象引数を差し替え、表示状態をリセットして外力一覧を再構築する
+	ResolvedGraphNodeCache.Reset();
 	Args = MoveTemp(InArgs);
 	DisplaySamples.Reset();
 	PreviewTime = 0.0f;
 	LastLiveSampleCount = 0;
 	CurrentModeText = LOCTEXT("PreviewMode", "Preview");
 	RefreshExternalForceItems();
+	if (HasTargetArgs())
+	{
+		RebuildPresetButtons();
+	}
 }
 
 TSharedRef<SWidget> SKawaiiPhysicsWindScopeWindow::GenerateExternalForceComboWidget(FExternalForceIndexPtr Item) const
@@ -922,6 +1026,11 @@ FText SKawaiiPhysicsWindScopeWindow::GetSelectedExternalForceText() const
 
 FText SKawaiiPhysicsWindScopeWindow::GetTargetNodeText() const
 {
+	if (!HasTargetArgs())
+	{
+		return LOCTEXT("NoTargetNodeGuidance", "ノード未選択: KawaiiPhysics ノードの [Wind Scope] から開いてください / No node selected: open from [Wind Scope] on a KawaiiPhysics node.");
+	}
+
 	if (const UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode())
 	{
 		return GraphNode->GetNodeTitle(ENodeTitleType::ListView);
@@ -1121,6 +1230,8 @@ bool SKawaiiPhysicsWindScopeWindow::PushGustToLiveRuntime(
 EActiveTimerReturnType SKawaiiPhysicsWindScopeWindow::TickWindScope(double InCurrentTime, float InDeltaTime)
 {
 	(void)InCurrentTime;
+	TryResolvePendingReconnect(InDeltaTime);
+
 	if (bPaused)
 	{
 		return EActiveTimerReturnType::Continue;
@@ -1200,7 +1311,7 @@ void SKawaiiPhysicsWindScopeWindow::RebuildPreviewSamples(float InDeltaTime)
 	}
 
 	// エディタ経過時間を積算し、直近 DisplaySeconds 秒分を等間隔サンプリングする
-	PreviewTime += FMath::Max(InDeltaTime, 0.0f);
+	PreviewTime += FMath::Clamp(InDeltaTime, 0.0f, 0.1f);
 	DisplaySamples.Reset();
 	DisplaySamples.Reserve(WindScopePreviewSampleCount);
 	const float EndTime = PreviewTime;
@@ -1313,12 +1424,180 @@ UAnimGraphNode_KawaiiPhysics* SKawaiiPhysicsWindScopeWindow::ResolveGraphNode() 
 		return Args.GraphNode.Get();
 	}
 
+	if (ResolvedGraphNodeCache.IsValid())
+	{
+		return ResolvedGraphNodeCache.Get();
+	}
+
 	if (Args.AnimBlueprintPath.IsValid() && Args.NodeGuid.IsValid())
 	{
-		return UKawaiiPhysicsEditorLibrary::FindGraphNodeByGuid(Args.AnimBlueprintPath, Args.NodeGuid);
+		if (UAnimGraphNode_KawaiiPhysics* ResolvedGraphNode = FindLoadedGraphNodeByGuid(
+			Args.AnimBlueprintPath.ResolveObject(),
+			Args.NodeGuid))
+		{
+			ResolvedGraphNodeCache = ResolvedGraphNode;
+			return ResolvedGraphNode;
+		}
 	}
 
 	return nullptr;
+}
+
+bool SKawaiiPhysicsWindScopeWindow::HasTargetArgs() const
+{
+	return HasTargetArgs(Args);
+}
+
+bool SKawaiiPhysicsWindScopeWindow::HasTargetArgs(const FKawaiiPhysicsWindScopeWindowArgs& InArgs)
+{
+	return InArgs.GraphNode.IsValid() || (InArgs.AnimBlueprintPath.IsValid() && InArgs.NodeGuid.IsValid());
+}
+
+void SKawaiiPhysicsWindScopeWindow::SaveLastTargetArgs(const FKawaiiPhysicsWindScopeWindowArgs& InArgs)
+{
+	if (!GConfig || !InArgs.AnimBlueprintPath.IsValid() || !InArgs.NodeGuid.IsValid())
+	{
+		return;
+	}
+
+	GConfig->SetString(
+		WindScopeConfigSectionName,
+		WindScopeLastAnimBlueprintKey,
+		*InArgs.AnimBlueprintPath.ToString(),
+		GEditorPerProjectIni);
+	GConfig->SetString(
+		WindScopeConfigSectionName,
+		WindScopeLastNodeGuidKey,
+		*InArgs.NodeGuid.ToString(EGuidFormats::DigitsWithHyphens),
+		GEditorPerProjectIni);
+	GConfig->SetInt(
+		WindScopeConfigSectionName,
+		WindScopeLastForceIndexKey,
+		InArgs.ExternalForceIndex,
+		GEditorPerProjectIni);
+	GConfig->Flush(false, GEditorPerProjectIni);
+}
+
+void SKawaiiPhysicsWindScopeWindow::LoadPendingReconnectFromConfig()
+{
+	ClearPendingReconnect();
+	if (!GConfig)
+	{
+		return;
+	}
+
+	FString AnimBlueprintPathString;
+	FString NodeGuidString;
+	if (!GConfig->GetString(WindScopeConfigSectionName, WindScopeLastAnimBlueprintKey, AnimBlueprintPathString, GEditorPerProjectIni) ||
+		!GConfig->GetString(WindScopeConfigSectionName, WindScopeLastNodeGuidKey, NodeGuidString, GEditorPerProjectIni))
+	{
+		return;
+	}
+
+	FGuid ParsedNodeGuid;
+	if (!FGuid::Parse(NodeGuidString, ParsedNodeGuid))
+	{
+		return;
+	}
+
+	FSoftObjectPath ParsedAnimBlueprintPath(AnimBlueprintPathString);
+	if (!ParsedAnimBlueprintPath.IsValid() || !ParsedNodeGuid.IsValid())
+	{
+		return;
+	}
+
+	PendingReconnectArgs.AnimBlueprintPath = ParsedAnimBlueprintPath;
+	PendingReconnectArgs.NodeGuid = ParsedNodeGuid;
+	PendingReconnectArgs.ExternalForceIndex = INDEX_NONE;
+	GConfig->GetInt(
+		WindScopeConfigSectionName,
+		WindScopeLastForceIndexKey,
+		PendingReconnectArgs.ExternalForceIndex,
+		GEditorPerProjectIni);
+	bHasPendingReconnect = true;
+	bPendingReconnectAsyncLoadStarted = false;
+	PendingReconnectElapsedTime = 0.0f;
+}
+
+void SKawaiiPhysicsWindScopeWindow::ClearPendingReconnect(bool bCancelAsyncLoad)
+{
+	if (bCancelAsyncLoad && PendingReconnectAsyncLoadHandle.IsValid())
+	{
+		PendingReconnectAsyncLoadHandle->CancelHandle();
+	}
+	PendingReconnectAsyncLoadHandle.Reset();
+	ResolvedGraphNodeCache.Reset();
+	PendingReconnectArgs = FKawaiiPhysicsWindScopeWindowArgs();
+	bHasPendingReconnect = false;
+	bPendingReconnectAsyncLoadStarted = false;
+	PendingReconnectElapsedTime = 0.0f;
+}
+
+void SKawaiiPhysicsWindScopeWindow::TryResolvePendingReconnect(float InDeltaTime)
+{
+	if (!bHasPendingReconnect)
+	{
+		return;
+	}
+
+	if (!HasTargetArgs(PendingReconnectArgs))
+	{
+		ClearPendingReconnect();
+		return;
+	}
+
+	if (Cast<UAnimBlueprint>(PendingReconnectArgs.AnimBlueprintPath.ResolveObject()))
+	{
+		FKawaiiPhysicsWindScopeWindowArgs ReconnectArgs = PendingReconnectArgs;
+		ClearPendingReconnect();
+		SetArgs(MoveTemp(ReconnectArgs));
+		return;
+	}
+
+	PendingReconnectElapsedTime += FMath::Max(InDeltaTime, 0.0f);
+	if (bPendingReconnectAsyncLoadStarted || PendingReconnectElapsedTime < WindScopeReconnectTryLoadDelay)
+	{
+		return;
+	}
+
+	StartPendingReconnectAsyncLoad();
+}
+
+void SKawaiiPhysicsWindScopeWindow::StartPendingReconnectAsyncLoad()
+{
+	if (!bHasPendingReconnect || bPendingReconnectAsyncLoadStarted || !HasTargetArgs(PendingReconnectArgs))
+	{
+		return;
+	}
+
+	bPendingReconnectAsyncLoadStarted = true;
+	const FKawaiiPhysicsWindScopeWindowArgs ExpectedArgs = PendingReconnectArgs;
+	PendingReconnectAsyncLoadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
+		PendingReconnectArgs.AnimBlueprintPath,
+		FStreamableDelegate::CreateSP(
+			this,
+			&SKawaiiPhysicsWindScopeWindow::OnPendingReconnectAsyncLoadComplete,
+			ExpectedArgs));
+}
+
+void SKawaiiPhysicsWindScopeWindow::OnPendingReconnectAsyncLoadComplete(FKawaiiPhysicsWindScopeWindowArgs ExpectedArgs)
+{
+	PendingReconnectAsyncLoadHandle.Reset();
+	if (!bHasPendingReconnect || !AreReconnectArgsSame(PendingReconnectArgs, ExpectedArgs))
+	{
+		return;
+	}
+
+	if (Cast<UAnimBlueprint>(PendingReconnectArgs.AnimBlueprintPath.ResolveObject()))
+	{
+		FKawaiiPhysicsWindScopeWindowArgs ReconnectArgs = PendingReconnectArgs;
+		ClearPendingReconnect(false);
+		SetArgs(MoveTemp(ReconnectArgs));
+	}
+	else
+	{
+		ClearPendingReconnect(false);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
