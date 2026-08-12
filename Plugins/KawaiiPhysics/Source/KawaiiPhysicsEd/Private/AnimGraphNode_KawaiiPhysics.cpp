@@ -11,6 +11,8 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "ExternalForces/KawaiiPhysicsExternalForce.h"
+#include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
 #include "IContentBrowserSingleton.h"
 #include "KawaiiPhysics.h"
 #include "KawaiiPhysicsBoneConstraintsDataAsset.h"
@@ -94,6 +96,43 @@ namespace
 			Strings.Add(PropertyName.ToString());
 		}
 		return FString::Join(Strings, TEXT(", "));
+	}
+
+	bool IsProceduralWindExternalForcesEdit(const FPropertyChangedChainEvent& PropertyChangedEvent)
+	{
+		for (FEditPropertyChain::TDoubleLinkedListNode* ChainNode =
+			     PropertyChangedEvent.PropertyChain.GetHead();
+		     ChainNode;
+		     ChainNode = ChainNode->GetNextNode())
+		{
+			const FProperty* ChainProperty = ChainNode->GetValue();
+			if (ChainProperty &&
+				ChainProperty->GetFName() == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, ExternalForces))
+			{
+				return true;
+			}
+		}
+
+		const FProperty* ChangedProperty = PropertyChangedEvent.Property;
+		const UStruct* OwnerStruct = ChangedProperty ? ChangedProperty->GetOwnerStruct() : nullptr;
+		return OwnerStruct &&
+			(OwnerStruct == FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct() ||
+				OwnerStruct->IsChildOf(FKawaiiPhysics_ExternalForce::StaticStruct()));
+	}
+
+	bool IsProceduralWindStructProperty(const FName PropertyName)
+	{
+		return PropertyName != NAME_None &&
+			FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct()->FindPropertyByName(PropertyName) != nullptr;
+	}
+
+	bool IsOtherExternalForceStructProperty(const FProperty* Property)
+	{
+		const UStruct* OwnerStruct = Property ? Property->GetOwnerStruct() : nullptr;
+		return OwnerStruct &&
+			OwnerStruct->IsChildOf(FKawaiiPhysics_ExternalForce::StaticStruct()) &&
+			OwnerStruct != FKawaiiPhysics_ExternalForce::StaticStruct() &&
+			OwnerStruct != FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct();
 	}
 }
 
@@ -184,6 +223,83 @@ void UAnimGraphNode_KawaiiPhysics::PostEditChangeProperty(struct FPropertyChange
 
 	Node.ModifyBones.Empty();
 	ReconstructNode();
+}
+
+void UAnimGraphNode_KawaiiPhysics::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	// 既定実装が PostEditChangeProperty（ReconstructNode 等）を呼ぶため先に通す
+	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+	PushProceduralWindEditToLiveInstance(PropertyChangedEvent);
+}
+
+void UAnimGraphNode_KawaiiPhysics::PushProceduralWindEditToLiveInstance(
+	const FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	if (!IsProceduralWindExternalForcesEdit(PropertyChangedEvent))
+	{
+		return;
+	}
+
+	FAnimNode_KawaiiPhysics* RuntimeNode = KawaiiPhysicsEdUtils::ResolveLiveKawaiiPhysicsNode(this);
+	if (!RuntimeNode ||
+		!KawaiiPhysicsEdUtils::IsExternalForceShapeMatched(Node.ExternalForces, RuntimeNode->ExternalForces))
+	{
+		return;
+	}
+
+	const FName EditedPropertyName = PropertyChangedEvent.Property
+		                                 ? PropertyChangedEvent.Property->GetFName()
+		                                 : NAME_None;
+
+	const auto PushWindAtIndex = [this, RuntimeNode, EditedPropertyName](const int32 Index)
+	{
+		const FKawaiiPhysics_ExternalForce_ProceduralWind* GraphWind =
+			Node.ExternalForces[Index].GetPtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+		FKawaiiPhysics_ExternalForce_ProceduralWind* RuntimeWind =
+			RuntimeNode->ExternalForces[Index].GetMutablePtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+		if (!GraphWind || !RuntimeWind)
+		{
+			return;
+		}
+
+		FKawaiiProceduralWindDynamicParams Params;
+		if (!GraphWind->BuildDynamicParamsForProperty(EditedPropertyName, Params))
+		{
+			if (IsProceduralWindStructProperty(EditedPropertyName))
+			{
+				// 未対応の ProceduralWind メンバは編集値を DynamicParams に載せられないためここでは送らない。
+				// スナップショット送信はその編集値を含まないまま PIE 側の対応済み項目を上書きしてしまう。
+				return;
+			}
+			Params = GraphWind->BuildDynamicParamsSnapshot();
+		}
+		RuntimeWind->RequestDynamicParams(Params);
+	};
+
+	const int32 EditedIndex = PropertyChangedEvent.GetArrayIndex(TEXT("ExternalForces"));
+	if (EditedIndex != INDEX_NONE)
+	{
+		if (!Node.ExternalForces.IsValidIndex(EditedIndex) ||
+			!RuntimeNode->ExternalForces.IsValidIndex(EditedIndex))
+		{
+			return;
+		}
+
+		PushWindAtIndex(EditedIndex);
+		return;
+	}
+
+	if (IsOtherExternalForceStructProperty(PropertyChangedEvent.Property))
+	{
+		return;
+	}
+
+	// 配列インデックスを特定できない単一 ProceduralWind 構成が主用途のため、全 ProceduralWind へのフォールバックは残す。
+	// Persona では CopyNodeDataToPreviewNode の直接同期と二重になるが同値なので無害。PIE では再コンパイル不要で反映される。
+	for (int32 Index = 0; Index < Node.ExternalForces.Num(); ++Index)
+	{
+		PushWindAtIndex(Index);
+	}
 }
 
 void UAnimGraphNode_KawaiiPhysics::PostLoad()

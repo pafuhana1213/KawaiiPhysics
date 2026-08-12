@@ -384,6 +384,167 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::ApplyDynamicParams(
 	}
 }
 
+// プロパティ名から単一項目だけを上書きする DynamicParams を組み立てる
+bool FKawaiiPhysics_ExternalForce_ProceduralWind::BuildDynamicParamsForProperty(
+	const FName PropertyName, FKawaiiProceduralWindDynamicParams& OutParams) const
+{
+	OutParams = FKawaiiProceduralWindDynamicParams();
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce, bIsEnabled))
+	{
+		OutParams.bOverrideIsEnabled = true;
+		OutParams.bIsEnabled = bIsEnabled;
+		return true;
+	}
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindDirection))
+	{
+		OutParams.bOverrideWindDirection = true;
+		OutParams.WindDirection = WindDirection;
+		return true;
+	}
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, SteadyForce))
+	{
+		OutParams.bOverrideSteadyForce = true;
+		OutParams.SteadyForce = SteadyForce;
+		return true;
+	}
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, OscillationForce))
+	{
+		OutParams.bOverrideOscillationForce = true;
+		OutParams.OscillationForce = OscillationForce;
+		return true;
+	}
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, OscillationPeriod))
+	{
+		OutParams.bOverrideOscillationPeriod = true;
+		OutParams.OscillationPeriod = OscillationPeriod;
+		return true;
+	}
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WaveAmplitude))
+	{
+		OutParams.bOverrideWaveAmplitude = true;
+		OutParams.WaveAmplitude = WaveAmplitude;
+		return true;
+	}
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WavePeriod))
+	{
+		OutParams.bOverrideWavePeriod = true;
+		OutParams.WavePeriod = WavePeriod;
+		return true;
+	}
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WavePhase))
+	{
+		OutParams.bOverrideWavePhase = true;
+		OutParams.WavePhase = WavePhase;
+		return true;
+	}
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WaveSpatialOffset))
+	{
+		OutParams.bOverrideWaveSpatialOffset = true;
+		OutParams.WaveSpatialOffset = WaveSpatialOffset;
+		return true;
+	}
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, EnvelopeMax))
+	{
+		OutParams.bOverrideEnvelopeMax = true;
+		OutParams.EnvelopeMax = EnvelopeMax;
+		return true;
+	}
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, EnvelopeMin))
+	{
+		OutParams.bOverrideEnvelopeMin = true;
+		OutParams.EnvelopeMin = EnvelopeMin;
+		return true;
+	}
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, EnvelopeFrequency))
+	{
+		OutParams.bOverrideEnvelopeFrequency = true;
+		OutParams.EnvelopeFrequency = EnvelopeFrequency;
+		return true;
+	}
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, EnvelopePhase))
+	{
+		OutParams.bOverrideEnvelopePhase = true;
+		OutParams.EnvelopePhase = EnvelopePhase;
+		return true;
+	}
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomForce))
+	{
+		OutParams.bOverrideRandomForce = true;
+		OutParams.RandomForce = RandomForce;
+		return true;
+	}
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomPeriod))
+	{
+		OutParams.bOverrideRandomPeriod = true;
+		OutParams.RandomPeriod = RandomPeriod;
+		return true;
+	}
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, DirectionNoiseAngle))
+	{
+		OutParams.bOverrideDirectionNoiseAngle = true;
+		OutParams.DirectionNoiseAngle = DirectionNoiseAngle;
+		return true;
+	}
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, DirectionNoisePeriod))
+	{
+		OutParams.bOverrideDirectionNoisePeriod = true;
+		OutParams.DirectionNoisePeriod = DirectionNoisePeriod;
+		return true;
+	}
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, TimeScale))
+	{
+		OutParams.bOverrideTimeScale = true;
+		OutParams.TimeScale = TimeScale;
+		return true;
+	}
+
+	return false;
+}
+
+// 現在値を全項目上書きの DynamicParams として組み立てる
+FKawaiiProceduralWindDynamicParams FKawaiiPhysics_ExternalForce_ProceduralWind::BuildDynamicParamsSnapshot() const
+{
+	FKawaiiProceduralWindDynamicParams Params;
+	Params.bOverrideIsEnabled = true;
+	Params.bIsEnabled = bIsEnabled;
+	Params.bOverrideWindDirection = true;
+	Params.WindDirection = WindDirection;
+	Params.bOverrideSteadyForce = true;
+	Params.SteadyForce = SteadyForce;
+	Params.bOverrideOscillationForce = true;
+	Params.OscillationForce = OscillationForce;
+	Params.bOverrideOscillationPeriod = true;
+	Params.OscillationPeriod = OscillationPeriod;
+	Params.bOverrideWaveAmplitude = true;
+	Params.WaveAmplitude = WaveAmplitude;
+	Params.bOverrideWavePeriod = true;
+	Params.WavePeriod = WavePeriod;
+	Params.bOverrideWavePhase = true;
+	Params.WavePhase = WavePhase;
+	Params.bOverrideWaveSpatialOffset = true;
+	Params.WaveSpatialOffset = WaveSpatialOffset;
+	Params.bOverrideEnvelopeMax = true;
+	Params.EnvelopeMax = EnvelopeMax;
+	Params.bOverrideEnvelopeMin = true;
+	Params.EnvelopeMin = EnvelopeMin;
+	Params.bOverrideEnvelopeFrequency = true;
+	Params.EnvelopeFrequency = EnvelopeFrequency;
+	Params.bOverrideEnvelopePhase = true;
+	Params.EnvelopePhase = EnvelopePhase;
+	Params.bOverrideRandomForce = true;
+	Params.RandomForce = RandomForce;
+	Params.bOverrideRandomPeriod = true;
+	Params.RandomPeriod = RandomPeriod;
+	Params.bOverrideDirectionNoiseAngle = true;
+	Params.DirectionNoiseAngle = DirectionNoiseAngle;
+	Params.bOverrideDirectionNoisePeriod = true;
+	Params.DirectionNoisePeriod = DirectionNoisePeriod;
+	Params.bOverrideTimeScale = true;
+	Params.TimeScale = TimeScale;
+	return Params;
+}
+
 // 動的パラメータ更新を PendingParams として積み、次回 PreApply で反映する
 void FKawaiiPhysics_ExternalForce_ProceduralWind::RequestDynamicParams(
 	const FKawaiiProceduralWindDynamicParams& Params)

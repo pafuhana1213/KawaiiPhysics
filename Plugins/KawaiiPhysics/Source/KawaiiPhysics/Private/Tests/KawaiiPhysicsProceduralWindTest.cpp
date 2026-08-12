@@ -36,6 +36,29 @@ void TestSampleNear(FAutomationTestBase& Test, const TCHAR* Name, const float Ac
 }
 
 // DynamicParams の bOverride フラグ数を数え、単一プロパティ/全項目スナップショットの検証に使う
+int32 CountDynamicParamOverrideFlags(const FKawaiiProceduralWindDynamicParams& Params)
+{
+	return
+		(Params.bOverrideIsEnabled ? 1 : 0) +
+		(Params.bOverrideWindDirection ? 1 : 0) +
+		(Params.bOverrideSteadyForce ? 1 : 0) +
+		(Params.bOverrideOscillationForce ? 1 : 0) +
+		(Params.bOverrideOscillationPeriod ? 1 : 0) +
+		(Params.bOverrideWaveAmplitude ? 1 : 0) +
+		(Params.bOverrideWavePeriod ? 1 : 0) +
+		(Params.bOverrideWavePhase ? 1 : 0) +
+		(Params.bOverrideWaveSpatialOffset ? 1 : 0) +
+		(Params.bOverrideEnvelopeMax ? 1 : 0) +
+		(Params.bOverrideEnvelopeMin ? 1 : 0) +
+		(Params.bOverrideEnvelopeFrequency ? 1 : 0) +
+		(Params.bOverrideEnvelopePhase ? 1 : 0) +
+		(Params.bOverrideRandomForce ? 1 : 0) +
+		(Params.bOverrideRandomPeriod ? 1 : 0) +
+		(Params.bOverrideDirectionNoiseAngle ? 1 : 0) +
+		(Params.bOverrideDirectionNoisePeriod ? 1 : 0) +
+		(Params.bOverrideTimeScale ? 1 : 0);
+}
+
 // Rate=[0,1]をNumSegments分割で走査し、Waveが最大となる区間インデックスを求める（WavePropagationテストでピーク位置の移動検出に使用）
 int32 FindWavePeakIndex(const FKawaiiPhysics_ExternalForce_ProceduralWind& Wind, const float Time,
                         const int32 NumSegments)
@@ -689,6 +712,85 @@ bool FKawaiiPhysicsProceduralWindRequestCreatesRuntimeStateTest::RunTest(const F
 	TestSampleNear(*this, TEXT("ActiveGust RiseTime applied"), GustWind.RuntimeState->ActiveGust.RiseTime, 0.2f);
 	TestSampleNear(*this, TEXT("ActiveGust DecayTime applied"), GustWind.RuntimeState->ActiveGust.DecayTime, 0.6f);
 	TestFalse(TEXT("PendingGust reset after consume"), GustWind.RuntimeState->PendingGust.IsSet());
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindDynamicParamsForPropertyTest,
+                                 "KawaiiPhysics.ProceduralWind.DynamicParamsForProperty",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindDynamicParamsForPropertyTest::RunTest(const FString& Parameters)
+{
+	// プロパティ名から、その項目だけを上書きする DynamicParams が作られることを確認する。
+	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
+	Wind.WindDirection = FRotator(0.0f, 20.0f, 30.0f);
+
+	FKawaiiProceduralWindDynamicParams Params;
+	const bool bBuilt = Wind.BuildDynamicParamsForProperty(
+		GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindDirection), Params);
+
+	TestTrue(TEXT("WindDirection params built"), bBuilt);
+	TestTrue(TEXT("Only one override flag is set"), CountDynamicParamOverrideFlags(Params) == 1);
+	TestTrue(TEXT("WindDirection override is set"), Params.bOverrideWindDirection);
+	TestFalse(TEXT("SteadyForce override is not set"), Params.bOverrideSteadyForce);
+	TestFalse(TEXT("TimeScale override is not set"), Params.bOverrideTimeScale);
+	TestFalse(TEXT("IsEnabled override is not set"), Params.bOverrideIsEnabled);
+	TestTrue(TEXT("WindDirection value matches"), Params.WindDirection.Equals(Wind.WindDirection));
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind AppliedWind;
+	AppliedWind.SteadyForce = 2.5f;
+	AppliedWind.TimeScale = 0.75f;
+	AppliedWind.ApplyDynamicParams(Params);
+
+	TestTrue(TEXT("WindDirection applied"), AppliedWind.WindDirection.Equals(Wind.WindDirection));
+	TestSampleNear(*this, TEXT("SteadyForce untouched"), AppliedWind.SteadyForce, 2.5f);
+	TestSampleNear(*this, TEXT("TimeScale untouched"), AppliedWind.TimeScale, 0.75f);
+
+	FKawaiiProceduralWindDynamicParams UnmappedParams;
+	const bool bUnmappedBuilt = Wind.BuildDynamicParamsForProperty(FName(TEXT("RandomSeed")), UnmappedParams);
+	TestFalse(TEXT("RandomSeed is unmapped"), bUnmappedBuilt);
+	TestTrue(TEXT("Unmapped leaves no override flags"), CountDynamicParamOverrideFlags(UnmappedParams) == 0);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindDynamicParamsSnapshotTest,
+                                 "KawaiiPhysics.ProceduralWind.DynamicParamsSnapshot",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindDynamicParamsSnapshotTest::RunTest(const FString& Parameters)
+{
+	// スナップショットは DynamicParams 対応項目をすべて上書き対象にして現在値を保持する。
+	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
+	Wind.WindDirection = FRotator(0.0f, 20.0f, 30.0f);
+	Wind.SteadyForce = 5.0f;
+	Wind.OscillationPeriod = 0.25f;
+	Wind.WavePeriod = 0.5f;
+	Wind.RandomPeriod = 0.75f;
+	Wind.DirectionNoisePeriod = 1.25f;
+	Wind.TimeScale = 0.5f;
+	Wind.bIsEnabled = false;
+
+	const FKawaiiProceduralWindDynamicParams Params = Wind.BuildDynamicParamsSnapshot();
+
+	TestTrue(TEXT("All override flags are set"), CountDynamicParamOverrideFlags(Params) == 18);
+	TestTrue(TEXT("IsEnabled override is set"), Params.bOverrideIsEnabled);
+	TestTrue(TEXT("WindDirection override is set"), Params.bOverrideWindDirection);
+	TestTrue(TEXT("SteadyForce override is set"), Params.bOverrideSteadyForce);
+	TestTrue(TEXT("TimeScale override is set"), Params.bOverrideTimeScale);
+	TestFalse(TEXT("Snapshot bIsEnabled matches"), Params.bIsEnabled);
+	TestTrue(TEXT("Snapshot WindDirection matches"), Params.WindDirection.Equals(Wind.WindDirection));
+	TestSampleNear(*this, TEXT("Snapshot SteadyForce matches"), Params.SteadyForce, 5.0f);
+	TestSampleNear(*this, TEXT("Snapshot TimeScale matches"), Params.TimeScale, 0.5f);
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind AppliedWind;
+	AppliedWind.ApplyDynamicParams(Params);
+
+	TestTrue(TEXT("Snapshot WindDirection applied"), AppliedWind.WindDirection.Equals(Wind.WindDirection));
+	TestSampleNear(*this, TEXT("Snapshot SteadyForce applied"), AppliedWind.SteadyForce, 5.0f);
+	TestSampleNear(*this, TEXT("Snapshot TimeScale applied"), AppliedWind.TimeScale, 0.5f);
+	TestFalse(TEXT("Snapshot bIsEnabled applied"), AppliedWind.bIsEnabled);
 
 	return true;
 }
