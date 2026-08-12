@@ -282,7 +282,7 @@ bool FKawaiiPhysicsWindPresetApplyRoundTripTest::RunTest(const FString& Paramete
 	const FKawaiiProceduralWindPreset& Preset = Defaults[1];
 	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
 	const float BeforeTimeScale = Wind.TimeScale;
-	const FRotator BeforeWindDirection = Wind.WindDirection;
+	const FVector BeforeWindDirection = Wind.WindDirection;
 	const float BeforeWavePhase = Wind.WavePhase;
 	const float BeforeEnvelopePhase = Wind.EnvelopePhase;
 	const float BeforeDirectionNoisePeriod = Wind.DirectionNoisePeriod;

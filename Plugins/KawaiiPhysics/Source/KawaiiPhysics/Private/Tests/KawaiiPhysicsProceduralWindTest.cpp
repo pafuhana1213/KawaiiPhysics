@@ -98,7 +98,7 @@ void PrimeApplyCache(FKawaiiPhysicsProceduralWindApplyTestForce& Wind, const flo
 	Wind.RuntimeState->CachedEnvelope = Sample.Envelope;
 	Wind.RuntimeState->CachedRandom = Sample.Random;
 	Wind.RuntimeState->CachedGust = Sample.Gust;
-	Wind.RuntimeState->CachedWindVector = Wind.WindDirection.Vector().GetSafeNormal();
+	Wind.RuntimeState->CachedWindVector = Wind.WindDirection.GetSafeNormal();
 	Wind.SetRandomizedForceScaleForTest(1.0f);
 }
 
@@ -114,7 +114,7 @@ FVector ApplyProceduralWindDisplacement(const int32 NumSubsteps)
 
 	FKawaiiPhysicsProceduralWindApplyTestForce Wind;
 	Wind.ExternalForceSpace = EExternalForceSpace::ComponentSpace;
-	Wind.WindDirection = FRotator::ZeroRotator;
+	Wind.WindDirection = FVector::ForwardVector;
 	Wind.SteadyForce = 3.0f;
 	Wind.OscillationForce = 2.0f;
 	Wind.OscillationPeriod = 0.5f;
@@ -402,7 +402,7 @@ bool FKawaiiPhysicsProceduralWindDynamicParamsTest::RunTest(const FString& Param
 {
 	// 上書き指定された項目だけが反映され、下限付き項目は安全化されることを確認する。
 	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
-	Wind.WindDirection = FRotator(1.0f, 2.0f, 3.0f);
+	Wind.WindDirection = FVector(1.0f, 2.0f, 3.0f);
 	Wind.SteadyForce = 2.0f;
 	Wind.OscillationForce = 3.0f;
 	Wind.OscillationPeriod = 1.0f;
@@ -414,7 +414,7 @@ bool FKawaiiPhysicsProceduralWindDynamicParamsTest::RunTest(const FString& Param
 	// bOverride*をtrue/false交互に設定し、上書き対象と非対象の双方を1回のApplyDynamicParams呼び出しで検証する
 	FKawaiiProceduralWindDynamicParams Params;
 	Params.bOverrideWindDirection = false;
-	Params.WindDirection = FRotator(10.0f, 20.0f, 30.0f);
+	Params.WindDirection = FVector(10.0f, 20.0f, 30.0f);
 	Params.bOverrideSteadyForce = true;
 	Params.SteadyForce = -5.0f;
 	Params.bOverrideOscillationForce = false;
@@ -433,7 +433,7 @@ bool FKawaiiPhysicsProceduralWindDynamicParamsTest::RunTest(const FString& Param
 	Wind.ApplyDynamicParams(Params);
 
 	// 上書きされた項目は負値でも下限（0 または 0.01）へ安全化され、上書きされない項目は元値のまま残ることを確認
-	TestTrue(TEXT("WindDirection unchanged"), Wind.WindDirection.Equals(FRotator(1.0f, 2.0f, 3.0f)));
+	TestTrue(TEXT("WindDirection unchanged"), Wind.WindDirection.Equals(FVector(1.0f, 2.0f, 3.0f)));
 	TestSampleNear(*this, TEXT("SteadyForce clamped"), Wind.SteadyForce, 0.0f);
 	TestSampleNear(*this, TEXT("OscillationForce unchanged"), Wind.OscillationForce, 3.0f);
 	TestSampleNear(*this, TEXT("OscillationPeriod clamped"), Wind.OscillationPeriod, 0.01f);
@@ -499,7 +499,7 @@ bool FKawaiiPhysicsProceduralWindRequestDynamicParamsMergeTest::RunTest(const FS
 
 	FKawaiiProceduralWindDynamicParams DirectionParams;
 	DirectionParams.bOverrideWindDirection = true;
-	DirectionParams.WindDirection = FRotator(0.0f, 20.0f, 30.0f);
+	DirectionParams.WindDirection = FVector(0.0f, 20.0f, 30.0f);
 	Wind.RequestDynamicParams(DirectionParams);
 
 	FKawaiiProceduralWindDynamicParams SteadyParams;
@@ -519,21 +519,21 @@ bool FKawaiiPhysicsProceduralWindRequestDynamicParamsMergeTest::RunTest(const FS
 
 	Wind.ConsumePendingRequests();
 
-	TestTrue(TEXT("Merged WindDirection applied"), Wind.WindDirection.Equals(FRotator(0.0f, 20.0f, 30.0f)));
+	TestTrue(TEXT("Merged WindDirection applied"), Wind.WindDirection.Equals(FVector(0.0f, 20.0f, 30.0f)));
 	TestSampleNear(*this, TEXT("Merged SteadyForce applied"), Wind.SteadyForce, 9.0f);
 
 	FKawaiiProceduralWindDynamicParams FirstDirectionParams;
 	FirstDirectionParams.bOverrideWindDirection = true;
-	FirstDirectionParams.WindDirection = FRotator(1.0f, 2.0f, 3.0f);
+	FirstDirectionParams.WindDirection = FVector(1.0f, 2.0f, 3.0f);
 	Wind.RequestDynamicParams(FirstDirectionParams);
 
 	FKawaiiProceduralWindDynamicParams LastDirectionParams;
 	LastDirectionParams.bOverrideWindDirection = true;
-	LastDirectionParams.WindDirection = FRotator(4.0f, 5.0f, 6.0f);
+	LastDirectionParams.WindDirection = FVector(4.0f, 5.0f, 6.0f);
 	Wind.RequestDynamicParams(LastDirectionParams);
 	Wind.ConsumePendingRequests();
 
-	TestTrue(TEXT("Last WindDirection request wins"), Wind.WindDirection.Equals(FRotator(4.0f, 5.0f, 6.0f)));
+	TestTrue(TEXT("Last WindDirection request wins"), Wind.WindDirection.Equals(FVector(4.0f, 5.0f, 6.0f)));
 
 	return true;
 }
@@ -623,7 +623,7 @@ bool FKawaiiPhysicsProceduralWindAssignmentPreservesDestinationRuntimeStateTest:
 	Destination.RequestDynamicParams(PendingParams);
 
 	FKawaiiPhysics_ExternalForce_ProceduralWind Source;
-	Source.WindDirection = FRotator(0.0f, 20.0f, 30.0f);
+	Source.WindDirection = FVector(0.0f, 20.0f, 30.0f);
 	Source.SteadyForce = 5.0f;
 	Source.OscillationForce = 6.0f;
 	Source.TimeScale = 0.5f;
@@ -657,7 +657,7 @@ bool FKawaiiPhysicsProceduralWindInPlaceCopyScriptStructPreservesRuntimeStateTes
 {
 	// エディタの in-place 同期と同じ CopyScriptStruct 経路で、プロパティだけがコピーされ実行中状態が維持されることを確認する。
 	FKawaiiPhysics_ExternalForce_ProceduralWind Source;
-	Source.WindDirection = FRotator(0.0f, 20.0f, 30.0f);
+	Source.WindDirection = FVector(0.0f, 20.0f, 30.0f);
 	Source.SteadyForce = 5.0f;
 	Source.RuntimeState->Time = 3.0f;
 
@@ -724,7 +724,7 @@ bool FKawaiiPhysicsProceduralWindDynamicParamsForPropertyTest::RunTest(const FSt
 {
 	// プロパティ名から、その項目だけを上書きする DynamicParams が作られることを確認する。
 	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
-	Wind.WindDirection = FRotator(0.0f, 20.0f, 30.0f);
+	Wind.WindDirection = FVector(0.0f, 20.0f, 30.0f);
 
 	FKawaiiProceduralWindDynamicParams Params;
 	const bool bBuilt = Wind.BuildDynamicParamsForProperty(
@@ -763,7 +763,7 @@ bool FKawaiiPhysicsProceduralWindDynamicParamsSnapshotTest::RunTest(const FStrin
 {
 	// スナップショットは DynamicParams 対応項目をすべて上書き対象にして現在値を保持する。
 	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
-	Wind.WindDirection = FRotator(0.0f, 20.0f, 30.0f);
+	Wind.WindDirection = FVector(0.0f, 20.0f, 30.0f);
 	Wind.SteadyForce = 5.0f;
 	Wind.OscillationPeriod = 0.25f;
 	Wind.WavePeriod = 0.5f;
