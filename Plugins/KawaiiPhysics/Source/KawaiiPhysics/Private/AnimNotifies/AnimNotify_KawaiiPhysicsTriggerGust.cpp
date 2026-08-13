@@ -31,9 +31,9 @@ void UAnimNotify_KawaiiPhysicsTriggerGust::Notify(USkeletalMeshComponent* MeshCo
 		return;
 	}
 
-	// タグでフィルタしつつ、Component内の対象ノードのProceduralWindへ突風をキューイングする
+	// タグでフィルタしつつ、Component内の対象ノードへ突風をキューイングする
 	UKawaiiPhysicsLibrary::TriggerProceduralWindGustOnComponent(MeshComp, Strength, RiseTime, DecayTime,
-	                                                            FilterTags, bFilterExactMatch);
+	                                                            FilterTags, bFilterExactMatch, GustDirection);
 
 	Super::Notify(MeshComp, Animation, EventReference);
 }

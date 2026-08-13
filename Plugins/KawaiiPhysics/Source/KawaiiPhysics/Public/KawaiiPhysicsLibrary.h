@@ -466,8 +466,17 @@ public:
 	                                              bool bFilterExactMatch = false);
 
 	/**
-	 * ProceduralWind の突風をリクエストする。PendingRequest 経由でスレッドセーフ。次フレームの PreApply で反映。
-	 * Request a ProceduralWind gust. Thread-safe via PendingRequest. Applied in the next frame's PreApply.
+	 * ランタイム専用の一時 ProceduralWind として突風をスポーンする。ノードに作成済み ProceduralWind がなくても動作し、複数の同時突風は加算される。
+	 * 突風はノード再初期化時に失われる。キュー経由でスレッドセーフに適用され、次回 Evaluate から反映される。
+	 * Spawn a gust as a runtime-only transient ProceduralWind. Works even without an authored ProceduralWind on the node, and multiple simultaneous gusts stack.
+	 * Gusts are lost on node re-initialization. Applied thread-safely through a queue and takes effect from the next Evaluate.
+	 * @param ExecResult ノード参照の解決結果 / Result of resolving the node reference.
+	 * @param KawaiiPhysics 対象の KawaiiPhysics ノード参照 / Target KawaiiPhysics node reference.
+	 * @param ExternalForceIndex 方向継承元の ExternalForces インデックス（無効なら最初の有効な ProceduralWind から継承） / ExternalForces index used as the inheritance source; falls back to the first enabled ProceduralWind when invalid.
+	 * @param Strength 突風のピーク強度 / Peak gust strength.
+	 * @param RiseTime 0->ピークまでの立ち上がり時間（秒） / Time in seconds to rise from zero to peak.
+	 * @param DecayTime ピーク->0 までの減衰時間（秒） / Time in seconds to decay from peak to zero.
+	 * @param GustDirection 突風の方向（ワールド空間・非正規化可）。ゼロベクトルなら既存 ProceduralWind の風向き・空間・ボーンフィルタ等を継承 / Gust direction (world space; may be non-normalized). Zero vector inherits direction, space, and bone filters from an authored ProceduralWind if present.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
 		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
@@ -477,11 +486,16 @@ public:
 		int32 ExternalForceIndex,
 		float Strength,
 		float RiseTime,
-		float DecayTime);
+		float DecayTime,
+		FVector GustDirection = FVector(0, 0, 0));
 
 	/**
 	 * ProceduralWind の動的パラメータ更新をリクエストする。PendingRequest 経由でスレッドセーフ。次フレームの PreApply で反映。
 	 * Request a ProceduralWind dynamic parameter update. Thread-safe via PendingRequest. Applied in the next frame's PreApply.
+	 * @param ExecResult 対象 ProceduralWind へのアクセス結果 / Result of accessing the target ProceduralWind.
+	 * @param KawaiiPhysics 対象の KawaiiPhysics ノード参照 / Target KawaiiPhysics node reference.
+	 * @param ExternalForceIndex 対象の ExternalForces インデックス / Target ExternalForces index.
+	 * @param Params ProceduralWind に適用する動的パラメータ / Dynamic parameters to apply to ProceduralWind.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
 		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
@@ -492,8 +506,22 @@ public:
 		const FKawaiiProceduralWindDynamicParams& Params);
 
 	/**
-	 * Component 内の ProceduralWind へ突風を一括リクエストする。PendingRequest 経由でスレッドセーフ。次フレームの PreApply で反映。
-	 * Request a gust for ProceduralWind entries in a component. Thread-safe via PendingRequest. Applied in the next frame's PreApply.
+	 * Component 内の対象 KawaiiPhysics ノードへ、enabled な authored ProceduralWind ごとにランタイム専用の一時 ProceduralWind 突風をスポーンする。有効な authored ProceduralWind がないノードではデフォルト突風を 1 つスポーンし、複数の同時突風は加算される。
+	 * 突風は明示的な gameplay イベントとして扱われ、authored ProceduralWind の有無・有効無効に関わらず対象ノードで発火する（対象を絞るには FilterTags を使用）。
+	 * 突風はノード再初期化時に失われる。キュー経由でスレッドセーフに適用され、次回 Evaluate から反映される。
+	 * 同時に保持できる一時外力はノードあたり MaxTransientExternalForces（8）件までで、超過分は最古から破棄される。
+	 * Spawn gusts on target KawaiiPhysics nodes in a component as runtime-only transient ProceduralWind entries, one per enabled authored ProceduralWind. Nodes without enabled authored ProceduralWind entries spawn one default gust, and multiple simultaneous gusts stack.
+	 * Gusts are explicit gameplay events: they fire on matched nodes regardless of whether authored ProceduralWind entries exist or are enabled (use FilterTags to narrow targets).
+	 * Gusts are lost on node re-initialization. Applied thread-safely through a queue and takes effect from the next Evaluate.
+	 * Transient forces are capped at MaxTransientExternalForces (8) per node; the oldest entries are dropped beyond that.
+	 * @param MeshComp 対象の SkeletalMeshComponent / Target SkeletalMeshComponent.
+	 * @param Strength 突風のピーク強度 / Peak gust strength.
+	 * @param RiseTime 0->ピークまでの立ち上がり時間（秒） / Time in seconds to rise from zero to peak.
+	 * @param DecayTime ピーク->0 までの減衰時間（秒） / Time in seconds to decay from peak to zero.
+	 * @param FilterTags ノードの KawaiiPhysicsTag に対するフィルタ（空なら全ノード対象） / Filter against each node KawaiiPhysicsTag; empty matches all nodes.
+	 * @param bFilterExactMatch タグを完全一致で比較するか / Whether tags must match exactly.
+	 * @param GustDirection 突風の方向（ワールド空間・非正規化可）。ゼロベクトルなら既存 ProceduralWind の風向き・空間・ボーンフィルタ等を継承 / Gust direction (world space; may be non-normalized). Zero vector inherits direction, space, and bone filters from an authored ProceduralWind if present.
+	 * @return 突風リクエストをキューしたノード数 / Number of nodes where gust requests were queued.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
 		meta=(BlueprintThreadSafe, AutoCreateRefTerm = "FilterTags"))
@@ -503,11 +531,16 @@ public:
 		float RiseTime,
 		float DecayTime,
 		const FGameplayTagContainer& FilterTags,
-		bool bFilterExactMatch = false);
+		bool bFilterExactMatch = false,
+		FVector GustDirection = FVector(0, 0, 0));
 
 	/**
 	 * Component 内の ProceduralWind へ動的パラメータ更新を一括リクエストする。PendingRequest 経由でスレッドセーフ。次フレームの PreApply で反映。
 	 * Request dynamic parameter updates for ProceduralWind entries in a component. Thread-safe via PendingRequest. Applied in the next frame's PreApply.
+	 * @param MeshComp 対象の SkeletalMeshComponent / Target SkeletalMeshComponent.
+	 * @param Params ProceduralWind に適用する動的パラメータ / Dynamic parameters to apply to ProceduralWind.
+	 * @param FilterTags ノードの KawaiiPhysicsTag に対するフィルタ（空なら全ノード対象） / Filter against each node KawaiiPhysicsTag; empty matches all nodes.
+	 * @param bFilterExactMatch タグを完全一致で比較するか / Whether tags must match exactly.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
 		meta=(BlueprintThreadSafe, AutoCreateRefTerm = "FilterTags"))
@@ -526,6 +559,11 @@ public:
 	 * TimeScale, WindDirection, WavePhase, EnvelopePhase, and DirectionNoisePeriod are left untouched. Thread-safe via PendingRequest. Applied in the next frame's PreApply.
 	 * When PresetDataAsset is null or its Presets array is empty, the tag is matched against the 3 built-in default presets (KawaiiPhysics.WindPreset.Breeze / Strong / Storm).
 	 * The DataAsset must be pre-loaded by the caller and must not be edited or reloaded while simulation is running.
+	 * @param ExecResult 対象 ProceduralWind へのアクセス結果 / Result of accessing the target ProceduralWind.
+	 * @param KawaiiPhysics 対象の KawaiiPhysics ノード参照 / Target KawaiiPhysics node reference.
+	 * @param ExternalForceIndex 対象の ExternalForces インデックス / Target ExternalForces index.
+	 * @param PresetDataAsset 参照する風プリセット DataAsset（null なら組み込みプリセット） / Wind preset DataAsset to resolve; null uses built-in presets.
+	 * @param PresetTag 適用するプリセットタグ / Preset tag to apply.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
 		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
@@ -545,6 +583,11 @@ public:
 	 * TimeScale, WindDirection, WavePhase, EnvelopePhase, and DirectionNoisePeriod are left untouched. Thread-safe via PendingRequest. Applied in the next frame's PreApply.
 	 * When PresetDataAsset is null or its Presets array is empty, the tag is matched against the 3 built-in default presets (KawaiiPhysics.WindPreset.Breeze / Strong / Storm).
 	 * The DataAsset must be pre-loaded by the caller and must not be edited or reloaded while simulation is running.
+	 * @param MeshComp 対象の SkeletalMeshComponent / Target SkeletalMeshComponent.
+	 * @param PresetDataAsset 参照する風プリセット DataAsset（null なら組み込みプリセット） / Wind preset DataAsset to resolve; null uses built-in presets.
+	 * @param PresetTag 適用するプリセットタグ / Preset tag to apply.
+	 * @param FilterTags ノードの KawaiiPhysicsTag に対するフィルタ（空なら全ノード対象） / Filter against each node KawaiiPhysicsTag; empty matches all nodes.
+	 * @param bFilterExactMatch タグを完全一致で比較するか / Whether tags must match exactly.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
 		meta=(BlueprintThreadSafe, AutoCreateRefTerm = "FilterTags"))

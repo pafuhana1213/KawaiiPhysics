@@ -77,14 +77,6 @@ namespace
 		return InstancedStruct.GetMutablePtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
 	}
 
-	// 突風リクエストをMutex経由でキューイングする（GameThread側の呼び出しをWorker側のPreApplyへスレッドセーフに橋渡し）
-	bool QueueProceduralWindGust(FKawaiiPhysics_ExternalForce_ProceduralWind& ProceduralWind,
-	                             const float Strength, const float RiseTime, const float DecayTime)
-	{
-		ProceduralWind.RequestGust(Strength, RiseTime, DecayTime);
-		return true;
-	}
-
 	// 動的パラメータ更新も同様にMutex経由でキューイングする
 	bool QueueProceduralWindParams(FKawaiiPhysics_ExternalForce_ProceduralWind& ProceduralWind,
 	                               const FKawaiiProceduralWindDynamicParams& Params)
@@ -600,34 +592,25 @@ bool UKawaiiPhysicsLibrary::RemoveExternalForcesFromComponent(USkeletalMeshCompo
 	return bResult;
 }
 
-// 指定したExternalForceIndexのProceduralWindへ突風をトリガーする（実体は上記ヘルパーでのキューイング）
+// 一時ProceduralWindとして突風をノードへキューイングする
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::TriggerProceduralWindGust(
 	EKawaiiPhysicsAccessExternalForceResult& ExecResult,
 	const FKawaiiPhysicsReference& KawaiiPhysics,
 	const int32 ExternalForceIndex,
 	const float Strength,
 	const float RiseTime,
-	const float DecayTime)
+	const float DecayTime,
+	const FVector GustDirection)
 {
 	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
 
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 		TEXT("TriggerProceduralWindGust"),
-		[&ExecResult, ExternalForceIndex, Strength, RiseTime, DecayTime](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		[&ExecResult, ExternalForceIndex, Strength, RiseTime, DecayTime, GustDirection](
+			FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 		{
-			if (!InKawaiiPhysics.ExternalForces.IsValidIndex(ExternalForceIndex))
-			{
-				return;
-			}
-
-			if (FKawaiiPhysics_ExternalForce_ProceduralWind* ProceduralWind =
-				GetMutableProceduralWind(InKawaiiPhysics.ExternalForces[ExternalForceIndex]))
-			{
-				if (QueueProceduralWindGust(*ProceduralWind, Strength, RiseTime, DecayTime))
-				{
-					ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
-				}
-			}
+			InKawaiiPhysics.RequestTransientGust(Strength, RiseTime, DecayTime, GustDirection, ExternalForceIndex);
+			ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
 		});
 
 	return KawaiiPhysics;
@@ -664,16 +647,17 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetProceduralWindParameters(
 	return KawaiiPhysics;
 }
 
-// Component内の対象ノード（Tagフィルタ適用）を走査し、ProceduralWindへ一括で突風をトリガーする
+// Component内の対象ノード（Tagフィルタ適用）を走査し、一時ProceduralWindとして突風をキューイングする
 int32 UKawaiiPhysicsLibrary::TriggerProceduralWindGustOnComponent(
 	USkeletalMeshComponent* MeshComp,
 	const float Strength,
 	const float RiseTime,
 	const float DecayTime,
 	const FGameplayTagContainer& FilterTags,
-	const bool bFilterExactMatch)
+	const bool bFilterExactMatch,
+	const FVector GustDirection)
 {
-	int32 AppliedForceCount = 0;
+	int32 AppliedNodeCount = 0;
 
 	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
 	CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, MeshComp, FilterTags, bFilterExactMatch);
@@ -681,23 +665,16 @@ int32 UKawaiiPhysicsLibrary::TriggerProceduralWindGustOnComponent(
 	{
 		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 			TEXT("TriggerProceduralWindGustOnComponent"),
-			[&AppliedForceCount, Strength, RiseTime, DecayTime](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			[&AppliedNodeCount, Strength, RiseTime, DecayTime, GustDirection](
+				FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 			{
-				for (FInstancedStruct& InstancedStruct : InKawaiiPhysics.ExternalForces)
-				{
-					if (FKawaiiPhysics_ExternalForce_ProceduralWind* ProceduralWind =
-						GetMutableProceduralWind(InstancedStruct))
-					{
-						if (QueueProceduralWindGust(*ProceduralWind, Strength, RiseTime, DecayTime))
-						{
-							++AppliedForceCount;
-						}
-					}
-				}
+				InKawaiiPhysics.RequestTransientGust(Strength, RiseTime, DecayTime, GustDirection,
+				                                     FAnimNode_KawaiiPhysics::TransientGustInheritAllWinds);
+				++AppliedNodeCount;
 			});
 	}
 
-	return AppliedForceCount;
+	return AppliedNodeCount;
 }
 
 // Component内の対象ノード（Tagフィルタ適用）を走査し、ProceduralWindへ一括でパラメータ更新をリクエストする
