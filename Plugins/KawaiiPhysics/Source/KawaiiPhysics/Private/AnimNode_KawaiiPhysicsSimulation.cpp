@@ -7,6 +7,7 @@
 #include "KawaiiPhysicsCustomExternalForce.h"
 #include "KawaiiPhysicsDeveloperSettings.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
+#include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
 #include "Animation/AnimInstanceProxy.h"
@@ -32,6 +33,125 @@
 
 #include "KawaiiPhysics.h"
 #include "AnimNode_KawaiiPhysicsInternal.h"
+
+namespace
+{
+	constexpr float TransientGustLifetimeMargin = 0.2f;
+
+	// InstancedStructがProceduralWindであれば可変ポインタを返す（型不一致・無効ならnullptr）
+	FKawaiiPhysics_ExternalForce_ProceduralWind* GetMutableProceduralWindInNode(FInstancedStruct& InstancedStruct)
+	{
+		if (!InstancedStruct.IsValid() ||
+			InstancedStruct.GetScriptStruct() != FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct())
+		{
+			return nullptr;
+		}
+
+		return InstancedStruct.GetMutablePtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+	}
+
+	// worker上で突風用ProceduralWindを構築する
+	void BuildTransientGustForceFromSource(FAnimNode_KawaiiPhysics& Node,
+	                                       const FKawaiiPhysicsTransientGustRequest& Request,
+	                                       FKawaiiPhysics_ExternalForce_ProceduralWind* Source)
+	{
+		FKawaiiPhysicsTransientExternalForce& Entry = Node.TransientForceStore.Items.AddDefaulted_GetRef();
+		Entry.Force = FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+
+		FKawaiiPhysics_ExternalForce_ProceduralWind* Wind =
+			Entry.Force.GetMutablePtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+		if (!Wind)
+		{
+			Node.TransientForceStore.Items.Pop();
+			return;
+		}
+
+		if (Source)
+		{
+			Wind->ApplyBoneFilter = Source->ApplyBoneFilter;
+			Wind->IgnoreBoneFilter = Source->IgnoreBoneFilter;
+			Wind->ForceRateByBoneLengthRate = Source->ForceRateByBoneLengthRate;
+			Wind->RandomForceScaleRange = Source->RandomForceScaleRange;
+			Wind->TimeScale = Source->TimeScale;
+		}
+
+		// 明示方向は決定論的なバーストとしてノイズ無し、方向継承時は旧挙動（authored のノイズ入り方向）に合わせて揺らぎも継承する。
+		if (!Request.Direction.IsNearlyZero(KINDA_SMALL_NUMBER))
+		{
+			Wind->ExternalForceSpace = EExternalForceSpace::WorldSpace;
+			Wind->WindDirection = Request.Direction;
+		}
+		else if (Source)
+		{
+			Wind->ExternalForceSpace = Source->ExternalForceSpace;
+			Wind->WindDirection = Source->WindDirection;
+			Wind->DirectionNoiseAngle = Source->DirectionNoiseAngle;
+			Wind->DirectionNoisePeriod = Source->DirectionNoisePeriod;
+			Wind->RandomSeed = Source->RandomSeed;
+		}
+
+		const float EffectiveTimeScale = Wind->TimeScale;
+		Entry.RemainingLifetime =
+			(FMath::Max(Request.RiseTime, 0.0f) + FMath::Max(Request.DecayTime, 0.0f)) /
+			FMath::Max(EffectiveTimeScale, KINDA_SMALL_NUMBER) + TransientGustLifetimeMargin;
+
+		// RequestGust後にProceduralWind本体をコピーするとRuntimeState内のPendingGustが失われる
+		Wind->RequestGust(Request.Strength, Request.RiseTime, Request.DecayTime);
+	}
+
+	// worker上で突風用ProceduralWindを構築する
+	void BuildTransientGustForce(FAnimNode_KawaiiPhysics& Node, const FKawaiiPhysicsTransientGustRequest& Request)
+	{
+		if (Request.InheritForceIndex == FAnimNode_KawaiiPhysics::TransientGustInheritAllWinds)
+		{
+			// Component API 用: authored wind ごとの旧挙動＝各 wind のフィルタ/空間/方向で突風、を transient で再現する
+			TArray<FKawaiiPhysics_ExternalForce_ProceduralWind*> Sources;
+			for (int32 i = 0; i < Node.ExternalForces.Num(); ++i)
+			{
+				FKawaiiPhysics_ExternalForce_ProceduralWind* Candidate =
+					GetMutableProceduralWindInNode(Node.ExternalForces[i]);
+				if (Candidate && Candidate->bIsEnabled)
+				{
+					Sources.Add(Candidate);
+				}
+			}
+
+			if (Sources.IsEmpty())
+			{
+				BuildTransientGustForceFromSource(Node, Request, nullptr);
+				return;
+			}
+
+			for (FKawaiiPhysics_ExternalForce_ProceduralWind* Source : Sources)
+			{
+				BuildTransientGustForceFromSource(Node, Request, Source);
+			}
+			return;
+		}
+
+		FKawaiiPhysics_ExternalForce_ProceduralWind* Source = nullptr;
+		if (Node.ExternalForces.IsValidIndex(Request.InheritForceIndex))
+		{
+			Source = GetMutableProceduralWindInNode(Node.ExternalForces[Request.InheritForceIndex]);
+		}
+
+		if (!Source)
+		{
+			for (int32 i = 0; i < Node.ExternalForces.Num(); ++i)
+			{
+				FKawaiiPhysics_ExternalForce_ProceduralWind* Candidate =
+					GetMutableProceduralWindInNode(Node.ExternalForces[i]);
+				if (Candidate && Candidate->bIsEnabled)
+				{
+					Source = Candidate;
+					break;
+				}
+			}
+		}
+
+		BuildTransientGustForceFromSource(Node, Request, Source);
+	}
+}
 
 void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 {
@@ -70,6 +190,47 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 		Bone.PhysicsSettings.LimitAngle = FMath::Max(
 			PhysicsSettings.LimitAngle * LimitAngleCurveData.GetRichCurveConst()->Eval(
 				LengthRate, 1.0f), 0.0f);
+	}
+}
+
+void FAnimNode_KawaiiPhysics::ConsumeAndSweepTransientExternalForces(const float InFrameDeltaTime)
+{
+	for (int32 i = TransientForceStore.Items.Num() - 1; i >= 0; --i)
+	{
+		TransientForceStore.Items[i].RemainingLifetime -= InFrameDeltaTime;
+		if (TransientForceStore.Items[i].RemainingLifetime <= 0.0f)
+		{
+			TransientForceStore.Items.RemoveAt(i);
+		}
+	}
+
+	TArray<FKawaiiPhysicsTransientExternalForce> PendingForces;
+	TArray<FKawaiiPhysicsTransientGustRequest> PendingGusts;
+	if (TransientForceStore.Queue.IsValid())
+	{
+		FScopeLock Lock(&TransientForceStore.Queue->Mutex);
+		PendingForces = MoveTemp(TransientForceStore.Queue->PendingForces);
+		PendingGusts = MoveTemp(TransientForceStore.Queue->PendingGusts);
+	}
+
+	for (FKawaiiPhysicsTransientExternalForce& PendingForce : PendingForces)
+	{
+		if (FKawaiiPhysics_ExternalForce* Force = PendingForce.Force.GetMutablePtr<FKawaiiPhysics_ExternalForce>())
+		{
+			// PostApplyのone-shot削除はNode.ExternalForcesを走査するため、一時外力では必ず無効化する
+			Force->bIsOneShot = false;
+		}
+		TransientForceStore.Items.Emplace(MoveTemp(PendingForce));
+	}
+
+	for (const FKawaiiPhysicsTransientGustRequest& PendingGust : PendingGusts)
+	{
+		BuildTransientGustForce(*this, PendingGust);
+	}
+
+	while (TransientForceStore.Items.Num() > MaxTransientExternalForces)
+	{
+		TransientForceStore.Items.RemoveAt(0);
 	}
 }
 
@@ -164,6 +325,16 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		{
 			auto& Force = ExternalForces[i].GetMutable<FKawaiiPhysics_ExternalForce>();
 			Force.PreApply(*this, Output);
+		}
+	}
+	for (int i = 0; i < TransientForceStore.Items.Num(); ++i)
+	{
+		if (TransientForceStore.Items[i].Force.IsValid())
+		{
+			if (auto* Force = TransientForceStore.Items[i].Force.GetMutablePtr<FKawaiiPhysics_ExternalForce>())
+			{
+				Force->PreApply(*this, Output);
+			}
 		}
 	}
 
@@ -369,6 +540,16 @@ void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
 		{
 			auto& Force = ExternalForces[i].GetMutable<FKawaiiPhysics_ExternalForce>();
 			Force.PostApply(*this, Output);
+		}
+	}
+	for (int i = 0; i < TransientForceStore.Items.Num(); ++i)
+	{
+		if (TransientForceStore.Items[i].Force.IsValid())
+		{
+			if (auto* Force = TransientForceStore.Items[i].Force.GetMutablePtr<FKawaiiPhysics_ExternalForce>())
+			{
+				Force->PostApply(*this, Output);
+			}
 		}
 	}
 
@@ -581,6 +762,20 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 			}
 		}
 	}
+	for (int i = 0; i < TransientForceStore.Items.Num(); ++i)
+	{
+		if (TransientForceStore.Items[i].Force.IsValid())
+		{
+			if (const auto ExForce =
+				TransientForceStore.Items[i].Force.GetMutablePtr<FKawaiiPhysics_ExternalForce>())
+			{
+				if (ExForce->bIsEnabled)
+				{
+					ExForce->ApplyToVelocity(Bone, *this, Output, Velocity);
+				}
+			}
+		}
+	}
 
 	// 速度のぶんだけ位置を進める。
 	IntegrateVerletStepPosition(Bone, Velocity);
@@ -638,6 +833,28 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 				else
 				{
 					ExForce->Apply(Bone, *this, Output);
+				}
+			}
+		}
+	}
+	for (int i = 0; i < TransientForceStore.Items.Num(); ++i)
+	{
+		if (TransientForceStore.Items[i].Force.IsValid())
+		{
+			if (const auto ExForce =
+				TransientForceStore.Items[i].Force.GetMutablePtr<FKawaiiPhysics_ExternalForce>())
+			{
+				if (ExForce->bIsEnabled)
+				{
+					if (ExForce->ExternalForceSpace == EExternalForceSpace::BoneSpace)
+					{
+						const FTransform BoneTM = ResolveExternalForceBoneTransform(Output, Bone, ParentBone);
+						ExForce->Apply(Bone, *this, Output, BoneTM);
+					}
+					else
+					{
+						ExForce->Apply(Bone, *this, Output);
+					}
 				}
 			}
 		}

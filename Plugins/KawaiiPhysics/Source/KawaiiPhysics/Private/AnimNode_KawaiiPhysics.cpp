@@ -40,6 +40,41 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_KawaiiPhysics)
 
+namespace
+{
+	void DropOldestPendingTransientForceIfFull(FKawaiiPhysicsTransientForceQueue& Queue, const bool bAppendingGust)
+	{
+		if (Queue.PendingForces.Num() + Queue.PendingGusts.Num() < FAnimNode_KawaiiPhysics::MaxTransientExternalForces)
+		{
+			return;
+		}
+
+		// 評価が走らないノードへの連打でも pending 合計が MaxTransientExternalForces を超えないよう最古から破棄する。
+		if (bAppendingGust)
+		{
+			if (Queue.PendingGusts.Num() > 0)
+			{
+				Queue.PendingGusts.RemoveAt(0);
+			}
+			else
+			{
+				Queue.PendingForces.RemoveAt(0);
+			}
+		}
+		else
+		{
+			if (Queue.PendingForces.Num() > 0)
+			{
+				Queue.PendingForces.RemoveAt(0);
+			}
+			else
+			{
+				Queue.PendingGusts.RemoveAt(0);
+			}
+		}
+	}
+}
+
 #if ENABLE_ANIM_DEBUG
 TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsEnable(
 	TEXT("a.AnimNode.KawaiiPhysics.Enable"), true, TEXT("Enable/Disable KawaiiPhysics"));
@@ -167,6 +202,15 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 	SubstepAccumulator = 0.0f;
 	bSubstepPoseInitialized = false;
 
+	// ノード再初期化時は実行時専用の一時外力を破棄する
+	TransientForceStore.Items.Reset();
+	if (TransientForceStore.Queue.IsValid())
+	{
+		FScopeLock Lock(&TransientForceStore.Queue->Mutex);
+		TransientForceStore.Queue->PendingForces.Reset();
+		TransientForceStore.Queue->PendingGusts.Reset();
+	}
+
 	for (int i = 0; i < ExternalForces.Num(); ++i)
 	{
 		if (ExternalForces[i].IsValid())
@@ -208,6 +252,33 @@ void FAnimNode_KawaiiPhysics::ResetDynamics(ETeleportType InTeleportType)
 	// サブステップ：未消費時間を破棄し、ポーズ補間の前フレーム値を次フレームで再初期化させる
 	SubstepAccumulator = 0.0f;
 	bSubstepPoseInitialized = false;
+}
+
+void FAnimNode_KawaiiPhysics::RequestTransientExternalForce(FInstancedStruct&& InForce, const float InLifetimeSeconds)
+{
+	FScopeLock Lock(&TransientForceStore.Queue->Mutex);
+	DropOldestPendingTransientForceIfFull(*TransientForceStore.Queue, false);
+
+	FKawaiiPhysicsTransientExternalForce Entry;
+	Entry.Force = MoveTemp(InForce);
+	Entry.RemainingLifetime = InLifetimeSeconds;
+
+	TransientForceStore.Queue->PendingForces.Emplace(MoveTemp(Entry));
+}
+
+void FAnimNode_KawaiiPhysics::RequestTransientGust(const float Strength, const float RiseTime, const float DecayTime,
+                                                   const FVector& GustDirection, const int32 InheritForceIndex)
+{
+	FKawaiiPhysicsTransientGustRequest Request;
+	Request.Strength = Strength;
+	Request.RiseTime = RiseTime;
+	Request.DecayTime = DecayTime;
+	Request.Direction = GustDirection;
+	Request.InheritForceIndex = InheritForceIndex;
+
+	FScopeLock Lock(&TransientForceStore.Queue->Mutex);
+	DropOldestPendingTransientForceIfFull(*TransientForceStore.Queue, true);
+	TransientForceStore.Queue->PendingGusts.Emplace(Request);
 }
 
 void FAnimNode_KawaiiPhysics::UpdateInternal(const FAnimationUpdateContext& Context)
@@ -527,6 +598,9 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 
 	// World SpaceでのSkeletalMeshComponentの移動を更新する
 	UpdateSkelCompMove(Output, ComponentTransform);
+
+	// 一時外力は評価ごとに1回だけ取り込み、WarmUpの反復やTeleport時のSimulateスキップに左右されないようにする
+	ConsumeAndSweepTransientExternalForces(DeltaTime);
 
 	// 物理の荒ぶりを回避するための空回し処理
 	if (bNeedWarmUp && WarmUpFrames > 0)

@@ -9,6 +9,8 @@
 #include "BoneControllers/AnimNode_AnimDynamics.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "Engine/HitResult.h"
+#include "HAL/CriticalSection.h"
+#include "Templates/SharedPointer.h"
 
 #if !UE_VERSION_OLDER_THAN(5, 5, 0)
 #include "StructUtils/InstancedStruct.h"
@@ -41,6 +43,44 @@ extern KAWAIIPHYSICS_API TAutoConsoleVariable<float> CVarAnimNodeKawaiiPhysicsDe
 #endif
 
 extern KAWAIIPHYSICS_API TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsUseBoneContainerRefSkeletonWhenInit;
+
+// 一時外力の実体と寿命
+struct FKawaiiPhysicsTransientExternalForce
+{
+	FInstancedStruct Force;
+	float RemainingLifetime = 0.0f;
+};
+
+// 一時突風の構築リクエスト
+struct FKawaiiPhysicsTransientGustRequest
+{
+	float Strength = 0.0f;
+	float RiseTime = 0.0f;
+	float DecayTime = 0.0f;
+	FVector Direction = FVector::ZeroVector;
+	int32 InheritForceIndex = INDEX_NONE;
+};
+
+// 任意スレッドからの一時外力キュー
+struct FKawaiiPhysicsTransientForceQueue
+{
+	FCriticalSection Mutex;
+	TArray<FKawaiiPhysicsTransientExternalForce> PendingForces;
+	TArray<FKawaiiPhysicsTransientGustRequest> PendingGusts;
+};
+
+// worker専用ストアと共有キュー
+struct FKawaiiPhysicsTransientForceStore
+{
+	TArray<FKawaiiPhysicsTransientExternalForce> Items;
+	TSharedPtr<FKawaiiPhysicsTransientForceQueue, ESPMode::ThreadSafe> Queue =
+		MakeShared<FKawaiiPhysicsTransientForceQueue, ESPMode::ThreadSafe>();
+
+	FKawaiiPhysicsTransientForceStore() = default;
+	// コピー先は独立した空ストアにして二重消費を避ける
+	FKawaiiPhysicsTransientForceStore(const FKawaiiPhysicsTransientForceStore&) : FKawaiiPhysicsTransientForceStore() {}
+	FKawaiiPhysicsTransientForceStore& operator=(const FKawaiiPhysicsTransientForceStore&) { return *this; }
+};
 
 USTRUCT(BlueprintType)
 struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalControlBase
@@ -548,6 +588,43 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Force|External Force",
 		meta = (BaseStruct = "/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce", ExcludeBaseStruct))
 	TArray<FInstancedStruct> ExternalForces;
+
+	FKawaiiPhysicsTransientForceStore TransientForceStore;
+	static constexpr int32 MaxTransientExternalForces = 8;
+	// InheritForceIndex 用センチネル: 有効な authored ProceduralWind すべてに 1 つずつ transient 突風を展開する（展開はノードの一時外力上限 MaxTransientExternalForces の範囲内）
+	// Sentinel for InheritForceIndex: spawn one transient gust per enabled authored ProceduralWind (expansion is bounded by MaxTransientExternalForces).
+	static constexpr int32 TransientGustInheritAllWinds = -2;
+
+	/**
+	 * 実行時専用の一時外力をリクエストする。任意スレッド可で、Mutex 保護されたキューへ積む。
+	 * BP再コンパイルやノード再初期化で失われる。Initialize(Context) は呼ばれないため汎用外力では制限あり
+	 * （ProceduralWind は PreApply で RuntimeState を遅延生成するため安全）。
+	 * Request a runtime-only transient external force. Callable from any thread; it is queued under a mutex.
+	 * Lost on BP recompile or node re-init. Initialize(Context) is not called, which limits generic use
+	 * (ProceduralWind is safe because it lazily creates RuntimeState in PreApply).
+	 */
+	void RequestTransientExternalForce(FInstancedStruct&& InForce, float InLifetimeSeconds);
+
+	/**
+	 * 実行時専用の一時突風をリクエストする。任意スレッド可で、Mutex 保護されたキューへパラメータだけを積む。
+	 * BP再コンパイルやノード再初期化で失われる。Initialize(Context) は呼ばれないため汎用外力では制限あり
+	 * （ProceduralWind は PreApply で RuntimeState を遅延生成するため安全）。
+	 * Request a runtime-only transient gust. Callable from any thread; only parameters are queued under a mutex.
+	 * Lost on BP recompile or node re-init. Initialize(Context) is not called, which limits generic use
+	 * (ProceduralWind is safe because it lazily creates RuntimeState in PreApply).
+	 */
+	void RequestTransientGust(float Strength, float RiseTime, float DecayTime,
+	                          const FVector& GustDirection, int32 InheritForceIndex = INDEX_NONE);
+
+	/**
+	 * キュー済み一時外力を worker で取り込み、寿命切れを掃除する。worker 専用で 1 evaluate 1 回だけ呼ぶ。
+	 * BP再コンパイルやノード再初期化で失われる。Initialize(Context) は呼ばれないため汎用外力では制限あり
+	 * （ProceduralWind は PreApply で RuntimeState を遅延生成するため安全）。
+	 * Consume queued transient forces on the worker and sweep expired entries. Worker-only; call once per evaluate.
+	 * Lost on BP recompile or node re-init. Initialize(Context) is not called, which limits generic use
+	 * (ProceduralWind is safe because it lazily creates RuntimeState in PreApply).
+	 */
+	void ConsumeAndSweepTransientExternalForces(float InFrameDeltaTime);
 
 	/**
 	* EXPERIMENTAL: 外力のプリセット。BP・C++で独自のプリセットを追加可能(Instanced Property)
