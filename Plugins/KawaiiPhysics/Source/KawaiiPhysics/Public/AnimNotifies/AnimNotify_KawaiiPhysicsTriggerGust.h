@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 
@@ -37,6 +38,10 @@ public:
 	/** 減衰時間（秒） / Decay time, in seconds. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProceduralWind", meta=(ClampMin="0.0", UIMin="0.0"))
 	float DecayTime = 0.0f;
+
+	/** 突風の方向（ワールド空間・非正規化可）。ゼロなら既存 ProceduralWind の風向き等を継承 / Gust direction (world space; may be non-normalized). Zero inherits from an authored ProceduralWind. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProceduralWind")
+	FVector GustDirection = FVector::ZeroVector;
 
 	/** 適用するノードを Tag でフィルタ（空なら全ノード対象） / Tags used to filter target nodes; empty targets all nodes. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Filter")
