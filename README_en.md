@@ -1,6 +1,7 @@
 # Kawaii Physics
 
-![UE Version](https://img.shields.io/badge/Unreal%20Engine-5.3--5.7-0e1128?logo=unrealengine&logoColor=white)
+![UE Version](https://img.shields.io/badge/Unreal%20Engine-5.3--5.8-0e1128?logo=unrealengine&logoColor=white)
+[![Docs](https://img.shields.io/badge/Docs-Portal-blue)](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs)
 [![GitHub release (latest by tag)](https://img.shields.io/github/v/release/pafuhana1213/KawaiiPhysics)](https://github.com/pafuhana1213/KawaiiPhysics/releases)
 [![Downloads](https://img.shields.io/github/downloads/pafuhana1213/KawaiiPhysics/total)](https://github.com/pafuhana1213/KawaiiPhysics/releases)
 [![Discussions](https://img.shields.io/github/discussions/pafuhana1213/KawaiiPhysics?logo=github)](https://github.com/pafuhana1213/KawaiiPhysics/discussions)
@@ -72,6 +73,7 @@ It allows you to easily and cutely animate things that sway, such as hair, skirt
 - Constrain the distance between bones to keep skirts from clipping through the legs (BoneConstraint)
 - Sync animation-driven bones (e.g. legs) into the simulation so cloth follows the body and avoids penetration (SyncBone)
 - Drive parameters and external forces at runtime from Blueprint or C++
+- For other recent features, see the [Changelog (KawaiiPhysics Portal)](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs/changelog)
 
 ### Reference Material
 
@@ -90,7 +92,7 @@ If you do not have a C++ build environment, please download the plugin from the 
 
 ### 2. Supported Versions
 
-- **Unreal Engine 5.3 ~ 5.7**
+- **Unreal Engine 5.3 ~ 5.8**
 - UE4.27: [v1.11.1](https://github.com/pafuhana1213/KawaiiPhysics/releases/tag/20230830-v1.11.1)
 
 ### 3. Installation
@@ -101,14 +103,14 @@ If you do not have a C++ build environment, please download the plugin from the 
 ### 4. How to Use
 
 - Add and use the `KawaiiPhysics` node in the AnimGraph of the Animation Blueprint.
-- For detailed parameter settings, please refer to the Wiki.
-  - **[About Each Parameter](https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E5%90%84%E3%83%91%E3%83%A9%E3%83%A1%E3%83%BC%E3%82%BF%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6--About-each-parameters)**
+- For detailed parameter settings, please refer to the [documentation](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs/parameters/physics).
 
 > **Note:** An error may occur when packaging a project that only uses Blueprints. In that case, please convert it to a C++ project or refer to [this article](https://papersloth.hatenablog.com/entry/2024/02/14/201629).
 
 ## Documentation & Community
 
-- **[Wiki](https://github.com/pafuhana1213/KawaiiPhysics/wiki)**: Official documentation (work in progress)
+- **[Portal](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs)**: Official documentation (latest)
+- **[Wiki](https://github.com/pafuhana1213/KawaiiPhysics/wiki)**: Legacy documentation (the latest information has moved to the Portal)
 - **[DeepWiki](https://deepwiki.com/pafuhana1213/KawaiiPhysics)**: AI-generated documentation
 - **[Discussions](https://github.com/pafuhana1213/KawaiiPhysics/discussions)**: For questions, requests, and general chat
 - **[Issues](https://github.com/pafuhana1213/KawaiiPhysics/issues)**: Bug reports
@@ -147,7 +149,7 @@ The sample project on GitHub includes a sample level and characters.
 ## Showcase
 
 Kawaii Physics is used in many projects!
-- **[Showcase List](https://github.com/pafuhana1213/KawaiiPhysics/wiki/Adoption-Record)**
+- **[Showcase List](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/adoption)**
 - Please share your work with us [here](https://github.com/pafuhana1213/KawaiiPhysics/discussions/65)!
 - When sharing your work on Twitter/X, please use the hashtag **[#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)**!
 
@@ -164,7 +166,8 @@ Kawaii Physics is used in many projects!
 
 ## Changelog
 
-[Announcements](https://github.com/pafuhana1213/KawaiiPhysics/discussions/categories/announcements-%E3%82%A2%E3%83%8A%E3%82%A6%E3%83%B3%E3%82%B9)
+- [Announcements](https://github.com/pafuhana1213/KawaiiPhysics/discussions/categories/announcements-%E3%82%A2%E3%83%8A%E3%82%A6%E3%83%B3%E3%82%B9)
+- [Changelog (KawaiiPhysics Portal)](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs/changelog)
 
 ---
 

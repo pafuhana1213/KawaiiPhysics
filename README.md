@@ -1,6 +1,7 @@
 # Kawaii Physics
 
-![UE Version](https://img.shields.io/badge/Unreal%20Engine-5.3--5.7-0e1128?logo=unrealengine&logoColor=white)
+![UE Version](https://img.shields.io/badge/Unreal%20Engine-5.3--5.8-0e1128?logo=unrealengine&logoColor=white)
+[![Docs](https://img.shields.io/badge/Docs-Portal-blue)](https://pafuhana1213.github.io/KawaiiPhysics-Portal/docs)
 [![GitHub release (latest by tag)](https://img.shields.io/github/v/release/pafuhana1213/KawaiiPhysics)](https://github.com/pafuhana1213/KawaiiPhysics/releases)
 [![Downloads](https://img.shields.io/github/downloads/pafuhana1213/KawaiiPhysics/total)](https://github.com/pafuhana1213/KawaiiPhysics/releases)
 [![Discussions](https://img.shields.io/github/discussions/pafuhana1213/KawaiiPhysics?logo=github)](https://github.com/pafuhana1213/KawaiiPhysics/discussions)
@@ -72,6 +73,7 @@ Kawaii Physicsは、Unreal Engine向けのシンプルな疑似物理プラグ�
 - ボーン間の距離制約で、スカートの裾が足を貫通するのを抑えられます（BoneConstraint)
 - アニメ制御下のボーン（足など）の動きを揺れものに同期させ、追従や貫通対策ができます（SyncBone）
 - Blueprint・C++から、実行中にパラメータや外力を動的に制御できます
+- その他の最新機能は [更新履歴（KawaiiPhysics Portal）](https://pafuhana1213.github.io/KawaiiPhysics-Portal/docs/changelog) を参照
 
 ### 参考資料
 物理挙動を実装するにあたって、以下の資料を参考にしました。
@@ -88,7 +90,7 @@ C++ビルド環境がない方は、以下のリンクからプラグインを�
 
 ### 2. 対応バージョン
 
-- **UE 5.3 ~ 5.7**
+- **UE 5.3 ~ 5.8**
 - UE4.27: [v1.11.1](https://github.com/pafuhana1213/KawaiiPhysics/releases/tag/20230830-v1.11.1)
 
 ### 3. インストール
@@ -99,14 +101,14 @@ C++ビルド環境がない方は、以下のリンクからプラグインを�
 ### 4. 使い方
 
 - Animation BlueprintのAnimGraphで `KawaiiPhysics` ノードを追加して利用します。
-- 詳細なパラメータ設定については、Wikiを参照してください。
-  - **[各パラメータについて](https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E5%90%84%E3%83%91%E3%83%A9%E3%83%A1%E3%83%BC%E3%82%BF%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6--About-each-parameters)**
+- 詳細なパラメータ設定については、[ドキュメント](https://pafuhana1213.github.io/KawaiiPhysics-Portal/docs/parameters/physics)を参照してください。
 
 > **Note:** Blueprintのみのプロジェクトでパッケージ化する際にエラーが出る場合があります。その際は、C++プロジェクトに変換するか、[こちらの記事](https://papersloth.hatenablog.com/entry/2024/02/14/201629)を参考にしてください。
 
 ## ドキュメント＆コミュニティ
 
-- **[Wiki](https://github.com/pafuhana1213/KawaiiPhysics/wiki)**: 公式ドキュメント（整備中）
+- **[Portal](https://pafuhana1213.github.io/KawaiiPhysics-Portal/docs)**: 公式ドキュメント（最新）
+- **[Wiki](https://github.com/pafuhana1213/KawaiiPhysics/wiki)**: 旧ドキュメント（最新情報はポータルへ移動しました）
 - **[DeepWiki](https://deepwiki.com/pafuhana1213/KawaiiPhysics)**: AIによる自動生成ドキュメント
 - **[Discussions](https://github.com/pafuhana1213/KawaiiPhysics/discussions)**: 質問、要望、雑談などはこちらへ
 - **[Issues](https://github.com/pafuhana1213/KawaiiPhysics/issues)**: 不具合報告
@@ -143,7 +145,7 @@ C++ビルド環境がない方は、以下のリンクからプラグインを�
 ## 採用実績
 
 多くのプロジェクトで採用されています！
-- **[採用実績一覧](https://github.com/pafuhana1213/KawaiiPhysics/wiki/%E6%8E%A1%E7%94%A8%E5%AE%9F%E7%B8%BE-Adoption)**
+- **[採用実績一覧](https://pafuhana1213.github.io/KawaiiPhysics-Portal/adoption)**
 - あなたの作品もぜひ [こちら](https://github.com/pafuhana1213/KawaiiPhysics/discussions/65) で教えてください！
 - Twitter/Xで作品を共有する際は、ぜひハッシュタグ **[#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)** をお使いください！
 
@@ -160,7 +162,8 @@ C++ビルド環境がない方は、以下のリンクからプラグインを�
 
 ## 更新履歴
 
-[Announcements - アナウンス](https://github.com/pafuhana1213/KawaiiPhysics/discussions/categories/announcements-%E3%82%A2%E3%83%8A%E3%82%A6%E3%83%B3%E3%82%B9)
+- [Announcements - アナウンス](https://github.com/pafuhana1213/KawaiiPhysics/discussions/categories/announcements-%E3%82%A2%E3%83%8A%E3%82%A6%E3%83%B3%E3%82%B9)
+- [更新履歴 - Changelog (KawaiiPhysics Portal)](https://pafuhana1213.github.io/KawaiiPhysics-Portal/docs/changelog)
 
 ---
 
