@@ -59,7 +59,9 @@ namespace
 	constexpr float WindScopeDefaultGustStrength = 6.0f;
 	constexpr float WindScopeDefaultGustRiseTime = 0.1f;
 	constexpr float WindScopeDefaultGustDecayTime = 0.5f;
+	constexpr float WindScopePinExposureRefreshInterval = 1.0f;
 	constexpr float WindScopeReconnectTryLoadDelay = 5.0f;
+	const TCHAR* WindScopeClipboardMarker = TEXT("KawaiiPhysicsProceduralWind:");
 	const TCHAR* WindScopeConfigSectionName = TEXT("KawaiiPhysicsEd");
 	const TCHAR* WindScopeLastAnimBlueprintKey = TEXT("WindScopeLastAnimBlueprint");
 	const TCHAR* WindScopeLastNodeGuidKey = TEXT("WindScopeLastNodeGuid");
@@ -520,6 +522,7 @@ namespace
 		const FVector2D& GraphSize)
 	{
 		TArray<FVector2D> Points;
+		Points.Reserve(Samples.Num());
 		const float TimeSpan = FMath::Max(MaxTime - MinTime, KINDA_SMALL_NUMBER);
 		const float ValueSpan = FMath::Max(MaxValue - MinValue, KINDA_SMALL_NUMBER);
 
@@ -551,6 +554,7 @@ namespace
 		const FVector2D& GraphSize)
 	{
 		TArray<FVector2D> Points;
+		Points.Reserve(GhostSamples.Num());
 		const float TimeSpan = FMath::Max(MaxTime - MinTime, KINDA_SMALL_NUMBER);
 		const float ValueSpan = FMath::Max(MaxValue - MinValue, KINDA_SMALL_NUMBER);
 
@@ -596,6 +600,7 @@ namespace
 			{
 				const float DashEndOffset = FMath::Min(Offset + DashLength, SegmentLength);
 				TArray<FVector2D> DashPoints;
+				DashPoints.Reserve(2);
 				DashPoints.Add(Start + Direction * Offset);
 				DashPoints.Add(Start + Direction * DashEndOffset);
 				FSlateDrawElement::MakeLines(
@@ -819,7 +824,7 @@ FReply SKawaiiPhysicsWindScopeGraph::OnMouseMove(const FGeometry& MyGeometry, co
 {
 	HoverMousePosition = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 	Invalidate(EInvalidateWidgetReason::Paint);
-	return FReply::Handled();
+	return FReply::Unhandled();
 }
 
 void SKawaiiPhysicsWindScopeGraph::OnMouseLeave(const FPointerEvent& MouseEvent)
@@ -868,6 +873,7 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 	{
 		const float X = GraphOrigin.X + GraphSize.X * (static_cast<float>(GridIndex) / 4.0f);
 		TArray<FVector2D> VerticalLine;
+		VerticalLine.Reserve(2);
 		VerticalLine.Add(FVector2D(X, GraphOrigin.Y));
 		VerticalLine.Add(FVector2D(X, GraphOrigin.Y + GraphSize.Y));
 		FSlateDrawElement::MakeLines(
@@ -882,6 +888,7 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 
 		const float Y = GraphOrigin.Y + GraphSize.Y * (static_cast<float>(GridIndex) / 4.0f);
 		TArray<FVector2D> HorizontalLine;
+		HorizontalLine.Reserve(2);
 		HorizontalLine.Add(FVector2D(GraphOrigin.X, Y));
 		HorizontalLine.Add(FVector2D(GraphOrigin.X + GraphSize.X, Y));
 		FSlateDrawElement::MakeLines(
@@ -900,6 +907,7 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 	{
 		const float ZeroY = GraphOrigin.Y + GraphSize.Y * (1.0f - ((0.0f - Range.MinValue) / (Range.MaxValue - Range.MinValue)));
 		TArray<FVector2D> ZeroLine;
+		ZeroLine.Reserve(2);
 		ZeroLine.Add(FVector2D(GraphOrigin.X, ZeroY));
 		ZeroLine.Add(FVector2D(GraphOrigin.X + GraphSize.X, ZeroY));
 		FSlateDrawElement::MakeLines(
@@ -1025,6 +1033,7 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 			}
 
 			TArray<FVector2D> GuideLine;
+			GuideLine.Reserve(2);
 			GuideLine.Add(FVector2D(X, GraphOrigin.Y));
 			GuideLine.Add(FVector2D(X, GraphBottom));
 			FSlateDrawElement::MakeLines(
@@ -1046,6 +1055,7 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 			}
 
 			TArray<FVector2D> GuideLine;
+			GuideLine.Reserve(2);
 			GuideLine.Add(FVector2D(GraphOrigin.X, Y));
 			GuideLine.Add(FVector2D(GraphRight, Y));
 			FSlateDrawElement::MakeLines(
@@ -1220,6 +1230,7 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 			}
 
 			TArray<FVector2D> CursorLine;
+			CursorLine.Reserve(2);
 			CursorLine.Add(FVector2D(CursorPosition.X, GraphOrigin.Y));
 			CursorLine.Add(FVector2D(CursorPosition.X, GraphBottom));
 			FSlateDrawElement::MakeLines(
@@ -1245,8 +1256,9 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 			};
 
 			TArray<FCursorTextLine> CursorTextLines;
+			CursorTextLines.Reserve(1 + GetWindScopeComponentStyles().Num());
 			CursorTextLines.Emplace(
-				FString::Printf(TEXT("t=%.2fs"), Samples[ClosestIndex].Time),
+				FString::Printf(TEXT("t=%.2fs"), Samples[ClosestIndex].Time - Range.MaxTime),
 				FLinearColor(1.0f, 1.0f, 1.0f, 0.92f));
 			for (const FKawaiiWindScopeComponentStyle& Style : GetWindScopeComponentStyles())
 			{
@@ -1818,6 +1830,7 @@ void SKawaiiPhysicsWindScopeWindow::SetArgs(FKawaiiPhysicsWindScopeWindowArgs In
 	// 対象引数を差し替え、表示状態をリセットして外力一覧を再構築する
 	ResolvedGraphNodeCache.Reset();
 	Args = MoveTemp(InArgs);
+	ClearWindParamPinExposureCache();
 	DisplaySamples.Reset();
 	PreviewTime = 0.0f;
 	LastLiveSampleCount = 0;
@@ -1851,6 +1864,7 @@ void SKawaiiPhysicsWindScopeWindow::OnExternalForceSelectionChanged(
 	(void)SelectInfo;
 	SelectedExternalForceItem = Item;
 	Args.ExternalForceIndex = Item.IsValid() ? *Item : INDEX_NONE;
+	ClearWindParamPinExposureCache();
 	// 選択切替時は別の外力の波形を混在させないよう表示状態を丸ごとリセットする
 	DisplaySamples.Reset();
 	LastLiveSampleCount = 0;
@@ -1964,6 +1978,10 @@ const FSlateBrush* SKawaiiPhysicsWindScopeWindow::GetEditPanelToggleIcon() const
 FReply SKawaiiPhysicsWindScopeWindow::OnToggleEditPanelClicked()
 {
 	bEditPanelExpanded = !bEditPanelExpanded;
+	if (bEditPanelExpanded)
+	{
+		ClearWindParamPinExposureCache();
+	}
 	SaveEditPanelConfig();
 	return FReply::Handled();
 }
@@ -2137,6 +2155,7 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeWindow::GenerateSavePresetMenu()
 		})));
 
 	MenuBuilder.BeginSection(NAME_None, LOCTEXT("SavePresetOverwriteSection", "既存を上書き / Overwrite:"));
+	UKawaiiPhysicsWindPresetDataAsset* WritablePresetDataAsset = ResolveWritablePresetDataAsset(false);
 	for (int32 PresetIndex = 0; PresetIndex < CachedPresets.Num(); ++PresetIndex)
 	{
 		MenuBuilder.AddMenuEntry(
@@ -2148,13 +2167,9 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeWindow::GenerateSavePresetMenu()
 				{
 					SaveCurrentWindAsPreset(PresetIndex);
 				}),
-				FCanExecuteAction::CreateLambda([this, PresetIndex]()
+				FCanExecuteAction::CreateLambda([WritablePresetDataAsset, PresetIndex]()
 				{
-					if (const UKawaiiPhysicsWindPresetDataAsset* PresetDataAsset = ResolveWritablePresetDataAsset(false))
-					{
-						return PresetDataAsset->Presets.IsValidIndex(PresetIndex);
-					}
-					return false;
+					return WritablePresetDataAsset && WritablePresetDataAsset->Presets.IsValidIndex(PresetIndex);
 				})));
 	}
 	MenuBuilder.EndSection();
@@ -2217,6 +2232,19 @@ bool SKawaiiPhysicsWindScopeWindow::SaveCurrentWindAsPreset(int32 PresetIndex)
 			SNotificationItem::CS_Fail);
 		return false;
 	}
+	if (!bAddNewPreset)
+	{
+		const FKawaiiProceduralWindPreset& TargetPreset = PresetDataAsset->Presets[PresetIndex];
+		if (!CachedPresets.IsValidIndex(PresetIndex) ||
+			!TargetPreset.PresetName.EqualTo(CachedPresets[PresetIndex].PresetName) ||
+			TargetPreset.PresetTag != CachedPresets[PresetIndex].PresetTag)
+		{
+			KawaiiPhysicsEdWindowUtils::ShowNotification(
+				LOCTEXT("SavePresetListChanged", "プリセット一覧が変更されています。Reload してください / Preset list has changed. Reload first."),
+				SNotificationItem::CS_Fail);
+			return false;
+		}
+	}
 
 	FKawaiiProceduralWindPreset Preset = MakeWindPresetFromCurrentWind(*Wind);
 	FText SavedPresetName;
@@ -2262,14 +2290,15 @@ FReply SKawaiiPhysicsWindScopeWindow::OnCopyWindParametersClicked()
 		return FReply::Handled();
 	}
 
-	FString ClipboardText;
+	FString ExportedText;
 	FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct()->ExportText(
-		ClipboardText,
+		ExportedText,
 		Wind,
 		nullptr,
 		nullptr,
 		PPF_None,
 		nullptr);
+	const FString ClipboardText = FString::Printf(TEXT("%s%s%s"), WindScopeClipboardMarker, LINE_TERMINATOR, *ExportedText);
 	FPlatformApplicationMisc::ClipboardCopy(*ClipboardText);
 	Args.ExternalForceIndex = ResolvedIndex;
 	KawaiiPhysicsEdWindowUtils::ShowNotification(
@@ -2282,11 +2311,20 @@ FReply SKawaiiPhysicsWindScopeWindow::OnPasteWindParametersClicked()
 {
 	FString ClipboardText;
 	FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
+	if (!ClipboardText.StartsWith(WindScopeClipboardMarker))
+	{
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
+			LOCTEXT("PasteWindParametersInvalidClipboard", "クリップボードに ProceduralWind パラメータがありません / Clipboard does not contain ProceduralWind parameters."),
+			SNotificationItem::CS_Fail);
+		return FReply::Handled();
+	}
+
+	const FString ImportText = ClipboardText.RightChop(FCString::Strlen(WindScopeClipboardMarker)).TrimStartAndEnd();
 
 	FKawaiiPhysics_ExternalForce_ProceduralWind PastedWind;
 	const UScriptStruct* WindStruct = FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct();
 	const TCHAR* ImportResult = WindStruct->ImportText(
-		*ClipboardText,
+		*ImportText,
 		&PastedWind,
 		nullptr,
 		PPF_None,
@@ -2572,6 +2610,33 @@ bool SKawaiiPhysicsWindScopeWindow::ResetWindParamToDefault(FName PropertyName)
 
 bool SKawaiiPhysicsWindScopeWindow::IsWindParamPinExposed(FName PropertyName) const
 {
+	if (const bool* bPinExposed = WindParamPinExposureCache.Find(PropertyName))
+	{
+		return *bPinExposed;
+	}
+	return false;
+}
+
+void SKawaiiPhysicsWindScopeWindow::ClearWindParamPinExposureCache()
+{
+	WindParamPinExposureCache.Reset();
+	WindParamPinExposureRefreshElapsedTime = WindScopePinExposureRefreshInterval;
+}
+
+void SKawaiiPhysicsWindScopeWindow::RefreshWindParamPinExposureCache()
+{
+	WindParamPinExposureCache.Reset();
+	for (const FKawaiiWindScopeParamGroup& Group : GetWindScopeParamGroups())
+	{
+		for (const FKawaiiWindScopeParamDef& Param : Group.Params)
+		{
+			WindParamPinExposureCache.Add(Param.PropertyName, ComputeWindParamPinExposure(Param.PropertyName));
+		}
+	}
+}
+
+bool SKawaiiPhysicsWindScopeWindow::ComputeWindParamPinExposure(FName PropertyName) const
+{
 	const UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
 	if (!GraphNode || PropertyName == NAME_None)
 	{
@@ -2601,6 +2666,8 @@ bool SKawaiiPhysicsWindScopeWindow::IsWindParamPinExposed(FName PropertyName) co
 	}
 
 	TArray<FString> CandidatePinNames;
+	CandidatePinNames.Reserve(
+		PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindDirection) ? 10 : 4);
 	CandidatePinNames.Add(PropertyNameString);
 	CandidatePinNames.Add(FString::Printf(TEXT("%s_%s"), *ExternalForceElementPinName, *PropertyNameString));
 	CandidatePinNames.Add(FString::Printf(TEXT("%s.%s"), *ExternalForceElementPinName, *PropertyNameString));
@@ -2664,6 +2731,14 @@ EActiveTimerReturnType SKawaiiPhysicsWindScopeWindow::TickWindScope(double InCur
 	bool bHasWindSnapshot = false;
 	if (bEditPanelExpanded)
 	{
+		WindParamPinExposureRefreshElapsedTime += InDeltaTime;
+		if (WindParamPinExposureCache.Num() == 0 ||
+			WindParamPinExposureRefreshElapsedTime >= WindScopePinExposureRefreshInterval)
+		{
+			RefreshWindParamPinExposureCache();
+			WindParamPinExposureRefreshElapsedTime = 0.0f;
+		}
+
 		bHasWindSnapshot = TryGetPreviewForceCopy(WindSnapshot);
 		UpdateEditValuesFromWind(bHasWindSnapshot ? &WindSnapshot : nullptr);
 		UpdateLiveEditValuesFromRuntime();
@@ -2952,6 +3027,10 @@ void SKawaiiPhysicsWindScopeWindow::SaveLastTargetArgs(const FKawaiiPhysicsWindS
 
 void SKawaiiPhysicsWindScopeWindow::LoadEditPanelConfig()
 {
+	GustStrength = WindScopeDefaultGustStrength;
+	GustRiseTime = WindScopeDefaultGustRiseTime;
+	GustDecayTime = WindScopeDefaultGustDecayTime;
+
 	if (!GConfig)
 	{
 		return;
@@ -2968,9 +3047,6 @@ void SKawaiiPhysicsWindScopeWindow::LoadEditPanelConfig()
 		EditPanelSplitterFraction,
 		GEditorPerProjectIni);
 	EditPanelSplitterFraction = FMath::Clamp(EditPanelSplitterFraction, 0.2f, 0.8f);
-	GustStrength = WindScopeDefaultGustStrength;
-	GustRiseTime = WindScopeDefaultGustRiseTime;
-	GustDecayTime = WindScopeDefaultGustDecayTime;
 	GConfig->GetFloat(
 		WindScopeConfigSectionName,
 		WindScopeGustStrengthKey,
