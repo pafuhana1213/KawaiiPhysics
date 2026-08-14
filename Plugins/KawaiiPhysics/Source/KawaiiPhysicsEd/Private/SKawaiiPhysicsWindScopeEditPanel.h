@@ -27,6 +27,7 @@ const TArray<FKawaiiWindScopeParamGroup>& GetWindScopeParamGroups();
 
 DECLARE_DELEGATE_RetVal_FourParams(bool, FOnWindParamEdit, FName, double, int32, EKawaiiWindEditPhase);
 DECLARE_DELEGATE_RetVal_OneParam(bool, FOnWindParamReset, FName);
+DECLARE_DELEGATE_RetVal_OneParam(bool, FIsWindParamPinExposed, FName);
 DECLARE_DELEGATE_OneParam(FOnWindScopeHighlightSeries, TOptional<EKawaiiPhysicsWindScopeComponent>);
 
 // Wind Scope の ProceduralWind パラメータ編集パネル
@@ -39,6 +40,7 @@ public:
 		SLATE_ATTRIBUTE(const FKawaiiWindScopeEditValues*, EditValues)
 		SLATE_EVENT(FOnWindParamEdit, OnParamEdit)
 		SLATE_EVENT(FOnWindParamReset, OnParamReset)
+		SLATE_EVENT(FIsWindParamPinExposed, IsParamPinExposed)
 		SLATE_EVENT(FSimpleDelegate, OnFocusNode)
 		SLATE_EVENT(FOnWindScopeHighlightSeries, OnHighlightSeries)
 	SLATE_END_ARGS()
@@ -50,8 +52,10 @@ private:
 	TSharedRef<SWidget> MakeParamRow(const FKawaiiWindScopeParamDef& ParamDef);
 	TSharedRef<SWidget> MakeCurveRow() const;
 	TSharedRef<SWidget> MakeResetButton(FName PropertyName) const;
+	TSharedRef<SWidget> MakePinWarningIcon(FName PropertyName) const;
 
 	EVisibility GetResetVisibility(FName PropertyName) const;
+	EVisibility GetPinWarningVisibility(FName PropertyName) const;
 	ECheckBoxState GetBoolCheckState(FName PropertyName) const;
 	float GetFloatValue(FName PropertyName) const;
 	int32 GetIntValue(FName PropertyName) const;
@@ -67,6 +71,7 @@ private:
 	TAttribute<const FKawaiiWindScopeEditValues*> EditValues;
 	FOnWindParamEdit OnParamEdit;
 	FOnWindParamReset OnParamReset;
+	FIsWindParamPinExposed IsParamPinExposed;
 	FSimpleDelegate OnFocusNode;
 	FOnWindScopeHighlightSeries OnHighlightSeries;
 };

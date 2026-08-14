@@ -96,6 +96,8 @@ public:
 	void SetDisplaySeconds(float InDisplaySeconds);
 	void SetSeriesVisibility(const FKawaiiPhysicsWindScopeSeriesVisibility& InVisibility);
 	void SetHighlightSeries(TOptional<EKawaiiPhysicsWindScopeComponent> InHighlightSeries);
+	void SetActiveEditGuide(TOptional<FName> PropertyName);
+	void SetEditValues(const FKawaiiWindScopeEditValues* InEditValues);
 
 	// グラフの描画本体 / Slate paint callback for the graph.
 	virtual int32 OnPaint(const FPaintArgs& Args,
@@ -112,6 +114,8 @@ private:
 	TArray<FKawaiiProceduralWindScopeSample> Samples;
 	FKawaiiPhysicsWindScopeSeriesVisibility Visibility;
 	TOptional<EKawaiiPhysicsWindScopeComponent> HighlightSeries;
+	TOptional<FName> ActiveEditGuide;
+	const FKawaiiWindScopeEditValues* EditValues = nullptr;
 	float DisplaySeconds = 8.0f;
 };
 
@@ -184,6 +188,7 @@ private:
 	bool PushGustToLiveRuntime(float Strength, float RiseTime, float DecayTime);
 	bool ApplyWindParamEdit(FName PropertyName, double NewValue, int32 VectorComponentIndex, EKawaiiWindEditPhase Phase);
 	bool ResetWindParamToDefault(FName PropertyName);
+	bool IsWindParamPinExposed(FName PropertyName) const;
 	void OnFocusWindScopeNodeClicked();
 
 	// 毎フレームの active timer コールバック / Active timer callback that updates Live or Preview samples.
@@ -223,6 +228,9 @@ private:
 	FKawaiiWindScopeEditValues CachedEditValues;
 	FKawaiiPhysics_ExternalForce_ProceduralWind DragStartWind;
 	FName DragStartPropertyName;
+	float GustStrength = 6.0f;
+	float GustRiseTime = 0.1f;
+	float GustDecayTime = 0.5f;
 	bool bHasDragStartWind = false;
 	bool bEditPanelExpanded = false;
 	float EditPanelSplitterFraction = 0.4f;

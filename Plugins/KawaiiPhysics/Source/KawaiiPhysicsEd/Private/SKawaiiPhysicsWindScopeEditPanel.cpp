@@ -25,6 +25,11 @@ namespace
 {
 	constexpr float LabelColumnWidth = 150.0f;
 
+	FText GetPinDrivenWarningText()
+	{
+		return LOCTEXT("PinDrivenWarningTooltip", "ピン接続中のパラメータはグラフ側の値が優先されます / Pin-driven values take precedence over panel edits.");
+	}
+
 	FProperty* FindWindScopeProperty(const FName PropertyName)
 	{
 		for (UStruct* Struct = FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct(); Struct; Struct = Struct->GetSuperStruct())
@@ -194,6 +199,7 @@ void SKawaiiPhysicsWindScopeEditPanel::Construct(const FArguments& InArgs)
 	EditValues = InArgs._EditValues;
 	OnParamEdit = InArgs._OnParamEdit;
 	OnParamReset = InArgs._OnParamReset;
+	IsParamPinExposed = InArgs._IsParamPinExposed;
 	OnFocusNode = InArgs._OnFocusNode;
 	OnHighlightSeries = InArgs._OnHighlightSeries;
 
@@ -206,6 +212,15 @@ void SKawaiiPhysicsWindScopeEditPanel::Construct(const FArguments& InArgs)
 			MakeGroupWidget(Group)
 		];
 	}
+	ScrollBox->AddSlot()
+	.Padding(0.0f, 2.0f, 0.0f, 0.0f)
+	[
+		SNew(STextBlock)
+		.Text(GetPinDrivenWarningText())
+		.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+		.AutoWrapText(true)
+		.ColorAndOpacity(FLinearColor(0.78f, 0.78f, 0.72f, 1.0f))
+	];
 
 	ChildSlot
 	[
@@ -391,10 +406,23 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeParamRow(const FKawaii
 			SNew(SBox)
 			.WidthOverride(LabelColumnWidth)
 			[
-				SNew(STextBlock)
-				.Text(Label)
-				.ToolTipText(ToolTipText)
-				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(Label)
+					.ToolTipText(ToolTipText)
+					.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+				[
+					MakePinWarningIcon(ParamDef.PropertyName)
+				]
 			]
 		]
 		+ SHorizontalBox::Slot()
@@ -410,6 +438,15 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeParamRow(const FKawaii
 		[
 			MakeResetButton(ParamDef.PropertyName)
 		];
+}
+
+TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakePinWarningIcon(FName PropertyName) const
+{
+	return SNew(SImage)
+		.Image(FAppStyle::Get().GetBrush(TEXT("Icons.Warning")))
+		.ColorAndOpacity(FLinearColor(1.0f, 0.72f, 0.18f, 1.0f))
+		.Visibility(this, &SKawaiiPhysicsWindScopeEditPanel::GetPinWarningVisibility, PropertyName)
+		.ToolTipText(GetPinDrivenWarningText());
 }
 
 TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeCurveRow() const
@@ -466,6 +503,13 @@ EVisibility SKawaiiPhysicsWindScopeEditPanel::GetResetVisibility(FName PropertyN
 	return Values && Values->ModifiedFromDefault.Contains(PropertyName)
 		       ? EVisibility::Visible
 		       : EVisibility::Hidden;
+}
+
+EVisibility SKawaiiPhysicsWindScopeEditPanel::GetPinWarningVisibility(FName PropertyName) const
+{
+	return IsParamPinExposed.IsBound() && IsParamPinExposed.Execute(PropertyName)
+		       ? EVisibility::Visible
+		       : EVisibility::Collapsed;
 }
 
 ECheckBoxState SKawaiiPhysicsWindScopeEditPanel::GetBoolCheckState(FName PropertyName) const
