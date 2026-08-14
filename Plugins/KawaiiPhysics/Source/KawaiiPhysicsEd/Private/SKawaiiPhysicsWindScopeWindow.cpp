@@ -11,6 +11,7 @@
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/Docking/WorkspaceItem.h"
@@ -2467,11 +2468,14 @@ bool SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit(
 		ClearActiveEditGuide();
 		return false;
 	};
+	const bool bHasMatchingDragStart = bHasDragStartWind && DragStartPropertyName == PropertyName;
+	const bool bApplyAsCommitted = Phase == EKawaiiWindEditPhase::Committed ||
+		(Phase == EKawaiiWindEditPhase::Interactive && !bHasMatchingDragStart);
 
 	if (GraphWidget.IsValid())
 	{
 		GraphWidget->SetActiveEditGuide(
-			Phase == EKawaiiWindEditPhase::Committed
+			bApplyAsCommitted
 				? TOptional<FName>()
 				: TOptional<FName>(PropertyName));
 	}
@@ -2481,7 +2485,7 @@ bool SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit(
 	FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = ResolveEditableWind(
 		GraphNode,
 		ResolvedIndex,
-		Phase == EKawaiiWindEditPhase::Committed);
+		bApplyAsCommitted);
 	if (!Wind)
 	{
 		return FailEdit();
@@ -2491,7 +2495,7 @@ bool SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit(
 	FProperty* Property = FindProceduralWindProperty(PropertyName);
 	if (!Property)
 	{
-		if (Phase == EKawaiiWindEditPhase::Committed)
+		if (bApplyAsCommitted)
 		{
 			KawaiiPhysicsEdWindowUtils::ShowNotification(
 				LOCTEXT("EditWindParamPropertyMissing", "Failed to resolve the wind parameter property."),
@@ -2508,7 +2512,7 @@ bool SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit(
 		return true;
 	}
 
-	if (Phase == EKawaiiWindEditPhase::Interactive)
+	if (Phase == EKawaiiWindEditPhase::Interactive && bHasMatchingDragStart)
 	{
 		if (!SetProceduralWindPropertyValue(*Wind, Property, NewValue, VectorComponentIndex))
 		{
@@ -2523,7 +2527,7 @@ bool SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit(
 		return true;
 	}
 
-	const bool bUseDragStartValue = bHasDragStartWind && DragStartPropertyName == PropertyName;
+	const bool bUseDragStartValue = bHasMatchingDragStart;
 	const FKawaiiPhysics_ExternalForce_ProceduralWind& CompareWind = bUseDragStartValue ? DragStartWind : *Wind;
 	if (IsProceduralWindPropertyValueEqualToEdit(CompareWind, Property, NewValue, VectorComponentIndex))
 	{
@@ -2566,6 +2570,71 @@ bool SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit(
 		PushParamsToLiveRuntime(Params);
 	}
 	return true;
+}
+
+void SKawaiiPhysicsWindScopeWindow::FinalizeAbandonedWindDrag()
+{
+	const auto ClearActiveEditGuide = [this]()
+	{
+		if (GraphWidget.IsValid())
+		{
+			GraphWidget->SetActiveEditGuide(TOptional<FName>());
+		}
+	};
+
+	if (!bHasDragStartWind)
+	{
+		return;
+	}
+
+	UAnimGraphNode_KawaiiPhysics* GraphNode = nullptr;
+	int32 ResolvedIndex = INDEX_NONE;
+	FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = ResolveEditableWind(GraphNode, ResolvedIndex, false);
+	if (!Wind)
+	{
+		bHasDragStartWind = false;
+		ClearActiveEditGuide();
+		return;
+	}
+
+	FProperty* Property = FindProceduralWindProperty(DragStartPropertyName);
+	if (!Property)
+	{
+		bHasDragStartWind = false;
+		ClearActiveEditGuide();
+		return;
+	}
+
+	if (Property->Identical_InContainer(Wind, &DragStartWind))
+	{
+		bHasDragStartWind = false;
+		ClearActiveEditGuide();
+		return;
+	}
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind DraggedWind = DragStartWind;
+	if (!CopyProceduralWindPropertyValue(DraggedWind, *Wind, Property))
+	{
+		bHasDragStartWind = false;
+		ClearActiveEditGuide();
+		return;
+	}
+
+	CopyProceduralWindPropertyValue(*Wind, DragStartWind, Property);
+
+	const FScopedTransaction Transaction(LOCTEXT("EditWindParameterTransaction", "Edit Kawaii Physics Wind Parameter"));
+	GraphNode->Modify();
+	CopyProceduralWindPropertyValue(*Wind, DraggedWind, Property);
+	MarkWindScopeGraphNodeModified(GraphNode);
+	Args.ExternalForceIndex = ResolvedIndex;
+	bHasDragStartWind = false;
+	ClearActiveEditGuide();
+
+	FKawaiiProceduralWindDynamicParams Params;
+	if (Wind->BuildDynamicParamsForProperty(DragStartPropertyName, Params))
+	{
+		PushParamsToLiveRuntime(Params);
+	}
 }
 
 bool SKawaiiPhysicsWindScopeWindow::ResetWindParamToDefault(FName PropertyName)
@@ -2725,6 +2794,11 @@ void SKawaiiPhysicsWindScopeWindow::OnFocusWindScopeNodeClicked()
 EActiveTimerReturnType SKawaiiPhysicsWindScopeWindow::TickWindScope(double InCurrentTime, float InDeltaTime)
 {
 	(void)InCurrentTime;
+	if (bHasDragStartWind && !FSlateApplication::Get().HasAnyMouseCaptor())
+	{
+		FinalizeAbandonedWindDrag();
+	}
+
 	TryResolvePendingReconnect(InDeltaTime);
 
 	FKawaiiPhysics_ExternalForce_ProceduralWind WindSnapshot;

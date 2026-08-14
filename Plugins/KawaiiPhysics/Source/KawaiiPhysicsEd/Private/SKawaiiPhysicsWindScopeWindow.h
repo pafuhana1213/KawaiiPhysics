@@ -202,6 +202,8 @@ private:
 	bool PushParamsToLiveRuntime(const FKawaiiProceduralWindDynamicParams& Params);
 	bool PushGustToLiveRuntime(float Strength, float RiseTime, float DecayTime);
 	bool ApplyWindParamEdit(FName PropertyName, double NewValue, int32 VectorComponentIndex, EKawaiiWindEditPhase Phase);
+	// 放棄されたドラッグ編集をトランザクションとして確定する / Finalizes an abandoned drag edit as a transaction.
+	void FinalizeAbandonedWindDrag();
 	bool ResetWindParamToDefault(FName PropertyName);
 	bool IsWindParamPinExposed(FName PropertyName) const;
 	void ClearWindParamPinExposureCache();
