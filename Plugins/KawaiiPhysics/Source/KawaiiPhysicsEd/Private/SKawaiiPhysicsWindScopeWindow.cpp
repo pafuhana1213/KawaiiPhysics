@@ -11,9 +11,11 @@
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/Docking/WorkspaceItem.h"
 #include "HAL/CriticalSection.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "KawaiiPhysicsDeveloperSettings.h"
 #include "KawaiiPhysicsEdStyle.h"
 #include "KawaiiPhysicsEdUtils.h"
@@ -34,6 +36,7 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Layout/SBorder.h"
@@ -357,6 +360,25 @@ namespace
 		}
 
 		return FText::Format(LOCTEXT("WindPresetFallbackNameFormat", "Preset {0}"), FText::AsNumber(PresetIndex));
+	}
+
+	FKawaiiProceduralWindPreset MakeWindPresetFromCurrentWind(
+		const FKawaiiPhysics_ExternalForce_ProceduralWind& Wind)
+	{
+		FKawaiiProceduralWindPreset Preset;
+		Preset.SteadyForce = Wind.SteadyForce;
+		Preset.OscillationForce = Wind.OscillationForce;
+		Preset.OscillationPeriod = Wind.OscillationPeriod;
+		Preset.WaveAmplitude = Wind.WaveAmplitude;
+		Preset.WavePeriod = Wind.WavePeriod;
+		Preset.WaveSpatialOffset = Wind.WaveSpatialOffset;
+		Preset.EnvelopeMin = Wind.EnvelopeMin;
+		Preset.EnvelopeMax = Wind.EnvelopeMax;
+		Preset.EnvelopeFrequency = Wind.EnvelopeFrequency;
+		Preset.RandomForce = Wind.RandomForce;
+		Preset.RandomPeriod = Wind.RandomPeriod;
+		Preset.DirectionNoiseAngle = Wind.DirectionNoiseAngle;
+		return Preset;
 	}
 
 	// サンプルが無い時の初期表示値。Envelope=1にして Total=0（無風）を表すサンプルにする
@@ -1275,6 +1297,53 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 					return FReply::Handled();
 				})
 			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(6.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(SComboButton)
+				.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
+				.ContentPadding(FMargin(6.0f, 2.0f))
+				.ToolTipText(LOCTEXT("SavePresetTooltip", "現在のパラメータをプリセットDataAssetへ保存します / Save current parameters to the preset DataAsset."))
+				.IsEnabled(this, &SKawaiiPhysicsWindScopeWindow::CanSaveWindPreset)
+				.OnGetMenuContent(this, &SKawaiiPhysicsWindScopeWindow::GenerateSavePresetMenu)
+				.ButtonContent()
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("SavePresetButton", "Save as Preset"))
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(6.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(SButton)
+				.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
+				.ContentPadding(FMargin(3.0f))
+				.ToolTipText(LOCTEXT("CopyWindParametersTooltip", "現在のProceduralWindパラメータをコピー / Copy current ProceduralWind parameters."))
+				.OnClicked(this, &SKawaiiPhysicsWindScopeWindow::OnCopyWindParametersClicked)
+				[
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush(TEXT("GenericCommands.Copy")))
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(2.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(SButton)
+				.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
+				.ContentPadding(FMargin(3.0f))
+				.ToolTipText(LOCTEXT("PasteWindParametersTooltip", "クリップボードからProceduralWindパラメータを貼り付け / Paste ProceduralWind parameters from the clipboard."))
+				.OnClicked(this, &SKawaiiPhysicsWindScopeWindow::OnPasteWindParametersClicked)
+				[
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush(TEXT("GenericCommands.Paste")))
+				]
+			]
 		]
 		// 編集パネル・凡例・波形グラフ本体
 		+ SVerticalBox::Slot()
@@ -1750,6 +1819,205 @@ FReply SKawaiiPhysicsWindScopeWindow::ApplyPreset(const FKawaiiProceduralWindPre
 			              ? LOCTEXT("ApplyPresetSucceededLive", "Applied {0} wind preset. (live)")
 			              : LOCTEXT("ApplyPresetSucceededNodeOnly", "Applied {0} wind preset. (node only — no live target)"),
 			ResolveWindPresetDisplayName(Preset, PresetIndex)),
+		SNotificationItem::CS_Success);
+	return FReply::Handled();
+}
+
+TSharedRef<SWidget> SKawaiiPhysicsWindScopeWindow::GenerateSavePresetMenu()
+{
+	FMenuBuilder MenuBuilder(true, nullptr);
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("SavePresetAddNewMenu", "新規追加 / Add New Preset"),
+		LOCTEXT("SavePresetAddNewTooltip", "現在のパラメータを新しいプリセットとして追加します / Add current parameters as a new preset."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateLambda([this]()
+		{
+			SaveCurrentWindAsPreset(INDEX_NONE);
+		})));
+
+	MenuBuilder.BeginSection(NAME_None, LOCTEXT("SavePresetOverwriteSection", "既存を上書き / Overwrite:"));
+	for (int32 PresetIndex = 0; PresetIndex < CachedPresets.Num(); ++PresetIndex)
+	{
+		MenuBuilder.AddMenuEntry(
+			ResolveWindPresetDisplayName(CachedPresets[PresetIndex], PresetIndex),
+			LOCTEXT("SavePresetOverwriteTooltip", "現在のパラメータでこのプリセットを上書きします / Overwrite this preset with current parameters."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this, PresetIndex]()
+				{
+					SaveCurrentWindAsPreset(PresetIndex);
+				}),
+				FCanExecuteAction::CreateLambda([this, PresetIndex]()
+				{
+					if (const UKawaiiPhysicsWindPresetDataAsset* PresetDataAsset = ResolveWritablePresetDataAsset(false))
+					{
+						return PresetDataAsset->Presets.IsValidIndex(PresetIndex);
+					}
+					return false;
+				})));
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
+bool SKawaiiPhysicsWindScopeWindow::CanSaveWindPreset() const
+{
+	const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
+	return Settings && !Settings->WindScopePresetDataAsset.IsNull() && IsWindEditable();
+}
+
+UKawaiiPhysicsWindPresetDataAsset* SKawaiiPhysicsWindScopeWindow::ResolveWritablePresetDataAsset(
+	bool bShowNotification) const
+{
+	const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
+	if (!Settings || Settings->WindScopePresetDataAsset.IsNull())
+	{
+		if (bShowNotification)
+		{
+			KawaiiPhysicsEdWindowUtils::ShowNotification(
+				LOCTEXT("SavePresetNoDataAsset", "プロジェクト設定で Wind Scope Preset Data Asset を設定してください / Set the Wind Scope Preset Data Asset in Project Settings first."),
+				SNotificationItem::CS_Fail);
+		}
+		return nullptr;
+	}
+
+	UKawaiiPhysicsWindPresetDataAsset* PresetDataAsset = Settings->WindScopePresetDataAsset.LoadSynchronous();
+	if (!PresetDataAsset && bShowNotification)
+	{
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
+			LOCTEXT("SavePresetLoadDataAssetFailed", "Failed to load the Wind Scope Preset Data Asset."),
+			SNotificationItem::CS_Fail);
+	}
+	return PresetDataAsset;
+}
+
+bool SKawaiiPhysicsWindScopeWindow::SaveCurrentWindAsPreset(int32 PresetIndex)
+{
+	UKawaiiPhysicsWindPresetDataAsset* PresetDataAsset = ResolveWritablePresetDataAsset(true);
+	if (!PresetDataAsset)
+	{
+		return false;
+	}
+
+	UAnimGraphNode_KawaiiPhysics* GraphNode = nullptr;
+	int32 ResolvedIndex = INDEX_NONE;
+	FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = ResolveEditableWind(GraphNode, ResolvedIndex);
+	if (!Wind)
+	{
+		return false;
+	}
+
+	const bool bAddNewPreset = PresetIndex == INDEX_NONE;
+	if (!bAddNewPreset && !PresetDataAsset->Presets.IsValidIndex(PresetIndex))
+	{
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
+			LOCTEXT("SavePresetInvalidOverwriteTarget", "Failed to resolve the wind preset to overwrite."),
+			SNotificationItem::CS_Fail);
+		return false;
+	}
+
+	FKawaiiProceduralWindPreset Preset = MakeWindPresetFromCurrentWind(*Wind);
+	FText SavedPresetName;
+	const FScopedTransaction Transaction(LOCTEXT("SaveWindPresetTransaction", "Save Kawaii Physics Wind Preset"));
+	PresetDataAsset->Modify();
+	if (bAddNewPreset)
+	{
+		Preset.PresetName = FText::Format(
+			LOCTEXT("SavePresetCustomNameFormat", "Custom {0}"),
+			FText::AsNumber(PresetDataAsset->Presets.Num() + 1));
+		SavedPresetName = Preset.PresetName;
+		PresetDataAsset->Presets.Add(Preset);
+	}
+	else
+	{
+		FKawaiiProceduralWindPreset& TargetPreset = PresetDataAsset->Presets[PresetIndex];
+		SavedPresetName = ResolveWindPresetDisplayName(TargetPreset, PresetIndex);
+		Preset.PresetTag = TargetPreset.PresetTag;
+		Preset.PresetName = TargetPreset.PresetName;
+		TargetPreset = Preset;
+	}
+
+	PresetDataAsset->MarkPackageDirty();
+	Args.ExternalForceIndex = ResolvedIndex;
+	RebuildPresetButtons();
+	KawaiiPhysicsEdWindowUtils::ShowNotification(
+		FText::Format(
+			bAddNewPreset
+				? LOCTEXT("SavePresetSucceededAdd", "Saved {0} wind preset.")
+				: LOCTEXT("SavePresetSucceededOverwrite", "Overwrote {0} wind preset."),
+			SavedPresetName),
+		SNotificationItem::CS_Success);
+	return true;
+}
+
+FReply SKawaiiPhysicsWindScopeWindow::OnCopyWindParametersClicked()
+{
+	UAnimGraphNode_KawaiiPhysics* GraphNode = nullptr;
+	int32 ResolvedIndex = INDEX_NONE;
+	FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = ResolveEditableWind(GraphNode, ResolvedIndex);
+	if (!Wind)
+	{
+		return FReply::Handled();
+	}
+
+	FString ClipboardText;
+	FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct()->ExportText(
+		ClipboardText,
+		Wind,
+		nullptr,
+		nullptr,
+		PPF_None,
+		nullptr);
+	FPlatformApplicationMisc::ClipboardCopy(*ClipboardText);
+	Args.ExternalForceIndex = ResolvedIndex;
+	KawaiiPhysicsEdWindowUtils::ShowNotification(
+		LOCTEXT("CopyWindParametersSucceeded", "Copied ProceduralWind parameters to clipboard."),
+		SNotificationItem::CS_Success);
+	return FReply::Handled();
+}
+
+FReply SKawaiiPhysicsWindScopeWindow::OnPasteWindParametersClicked()
+{
+	FString ClipboardText;
+	FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind PastedWind;
+	const UScriptStruct* WindStruct = FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct();
+	const TCHAR* ImportResult = WindStruct->ImportText(
+		*ClipboardText,
+		&PastedWind,
+		nullptr,
+		PPF_None,
+		nullptr,
+		WindStruct->GetName());
+	if (!ImportResult)
+	{
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
+			LOCTEXT("PasteWindParametersInvalidClipboard", "クリップボードに ProceduralWind パラメータがありません / Clipboard does not contain ProceduralWind parameters."),
+			SNotificationItem::CS_Fail);
+		return FReply::Handled();
+	}
+
+	UAnimGraphNode_KawaiiPhysics* GraphNode = nullptr;
+	int32 ResolvedIndex = INDEX_NONE;
+	FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = ResolveEditableWind(GraphNode, ResolvedIndex);
+	if (!Wind)
+	{
+		return FReply::Handled();
+	}
+
+	const FScopedTransaction Transaction(LOCTEXT("PasteWindParametersTransaction", "Paste Kawaii Physics Wind Parameters"));
+	GraphNode->Modify();
+	*Wind = PastedWind;
+	MarkWindScopeGraphNodeModified(GraphNode);
+	Args.ExternalForceIndex = ResolvedIndex;
+	const bool bAppliedLive = PushParamsToLiveRuntime(Wind->BuildDynamicParamsSnapshot());
+	RefreshExternalForceItems();
+	KawaiiPhysicsEdWindowUtils::ShowNotification(
+		bAppliedLive
+			? LOCTEXT("PasteWindParametersSucceededLive", "Pasted ProceduralWind parameters. (live)")
+			: LOCTEXT("PasteWindParametersSucceededNodeOnly", "Pasted ProceduralWind parameters. (node only — no live target)"),
 		SNotificationItem::CS_Success);
 	return FReply::Handled();
 }

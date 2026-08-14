@@ -180,6 +180,12 @@ private:
 	void RebuildPresetButtons();
 	FReply OnPresetButtonClicked(int32 PresetIndex);
 	FReply ApplyPreset(const FKawaiiProceduralWindPreset& Preset);
+	TSharedRef<SWidget> GenerateSavePresetMenu();
+	bool CanSaveWindPreset() const;
+	class UKawaiiPhysicsWindPresetDataAsset* ResolveWritablePresetDataAsset(bool bShowNotification) const;
+	bool SaveCurrentWindAsPreset(int32 PresetIndex);
+	FReply OnCopyWindParametersClicked();
+	FReply OnPasteWindParametersClicked();
 	FKawaiiPhysics_ExternalForce_ProceduralWind* ResolveEditableWind(
 		UAnimGraphNode_KawaiiPhysics*& OutGraphNode,
 		int32& OutResolvedIndex,
