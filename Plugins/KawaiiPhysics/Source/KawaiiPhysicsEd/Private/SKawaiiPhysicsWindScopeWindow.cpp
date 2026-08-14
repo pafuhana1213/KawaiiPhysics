@@ -17,6 +17,7 @@
 #include "KawaiiPhysicsEdStyle.h"
 #include "KawaiiPhysicsEdUtils.h"
 #include "KawaiiPhysicsEdWindowUtils.h"
+#include "KawaiiPhysicsWindScopeStyle.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeLock.h"
@@ -96,15 +97,6 @@ namespace
 		return nullptr;
 	}
 
-	struct FKawaiiWindScopeComponentStyle
-	{
-		EKawaiiPhysicsWindScopeComponent Component;
-		FText Label;
-		FLinearColor Color;
-		float Thickness = 1.0f;
-		bool bDashed = false;
-	};
-
 	struct FKawaiiWindScopeRange
 	{
 		float MinTime = 0.0f;
@@ -112,22 +104,6 @@ namespace
 		float MinValue = -1.0f;
 		float MaxValue = 1.0f;
 	};
-
-	// 各波形成分の表示スタイル（色・凡例ラベル・線種）を定義する
-	const TArray<FKawaiiWindScopeComponentStyle>& GetWindScopeComponentStyles()
-	{
-		static const TArray<FKawaiiWindScopeComponentStyle> Styles =
-		{
-			{EKawaiiPhysicsWindScopeComponent::Total, LOCTEXT("TotalLabel", "Total"), FLinearColor::White, 2.0f, false},
-			{EKawaiiPhysicsWindScopeComponent::Steady, LOCTEXT("SteadyLabel", "Steady"), FLinearColor(1.0f, 0.48f, 0.08f), 1.0f, false},
-			{EKawaiiPhysicsWindScopeComponent::Oscillation, LOCTEXT("OscillationLabel", "Oscillation"), FLinearColor(1.0f, 0.86f, 0.05f), 1.0f, false},
-			{EKawaiiPhysicsWindScopeComponent::Wave, LOCTEXT("WaveLabel", "Wave"), FLinearColor(0.0f, 0.85f, 1.0f), 1.0f, false},
-			{EKawaiiPhysicsWindScopeComponent::Envelope, LOCTEXT("EnvelopeLabel", "Envelope"), FLinearColor(0.2f, 0.42f, 1.0f), 1.0f, true},
-			{EKawaiiPhysicsWindScopeComponent::Random, LOCTEXT("RandomLabel", "Random"), FLinearColor(1.0f, 0.25f, 0.78f), 1.0f, false},
-			{EKawaiiPhysicsWindScopeComponent::Gust, LOCTEXT("GustLabel", "Gust"), FLinearColor(1.0f, 0.12f, 0.08f), 1.0f, false},
-		};
-		return Styles;
-	}
 
 	// FKawaiiPhysicsProceduralWindSample から指定成分の値を取り出す
 	float GetWindScopeComponentValue(const FKawaiiPhysicsProceduralWindSample& Sample,
@@ -1131,33 +1107,11 @@ FReply SKawaiiPhysicsWindScopeWindow::OnPresetButtonClicked(int32 PresetIndex)
 
 FReply SKawaiiPhysicsWindScopeWindow::ApplyPreset(const FKawaiiProceduralWindPreset& Preset)
 {
-	// 対象グラフノードを解決（失敗時は通知して終了）
-	UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
-	if (!GraphNode)
-	{
-		KawaiiPhysicsEdWindowUtils::ShowNotification(
-			LOCTEXT("ApplyPresetNoNode", "Failed to resolve the KawaiiPhysics graph node."),
-			SNotificationItem::CS_Fail);
-		return FReply::Handled();
-	}
-
-	// ProceduralWind 外力を解決・型チェック
-	const int32 ResolvedIndex = ResolveProceduralWindIndex(GraphNode->Node, Args.ExternalForceIndex);
-	if (!GraphNode->Node.ExternalForces.IsValidIndex(ResolvedIndex))
-	{
-		KawaiiPhysicsEdWindowUtils::ShowNotification(
-			LOCTEXT("ApplyPresetNoWind", "No ProceduralWind external force was found."),
-			SNotificationItem::CS_Fail);
-		return FReply::Handled();
-	}
-
-	FKawaiiPhysics_ExternalForce_ProceduralWind* Wind =
-		GraphNode->Node.ExternalForces[ResolvedIndex].GetMutablePtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+	UAnimGraphNode_KawaiiPhysics* GraphNode = nullptr;
+	int32 ResolvedIndex = INDEX_NONE;
+	FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = ResolveEditableWind(GraphNode, ResolvedIndex);
 	if (!Wind)
 	{
-		KawaiiPhysicsEdWindowUtils::ShowNotification(
-			LOCTEXT("ApplyPresetInvalidWind", "The selected external force is not ProceduralWind."),
-			SNotificationItem::CS_Fail);
 		return FReply::Handled();
 	}
 
@@ -1174,7 +1128,7 @@ FReply SKawaiiPhysicsWindScopeWindow::ApplyPreset(const FKawaiiProceduralWindPre
 	Args.ExternalForceIndex = ResolvedIndex;
 	// シミュレーションリセット回避のため PostEditChangeProperty / NotifyGraphNodePropertyChanged は呼ばず、
 	// ライブ側には PendingParams 経由で同じ値を送る
-	const bool bAppliedLive = PushPresetToLiveRuntime(Params);
+	const bool bAppliedLive = PushParamsToLiveRuntime(Params);
 
 	// 外力一覧を更新し、成功通知を表示
 	RefreshExternalForceItems();
@@ -1191,7 +1145,49 @@ FReply SKawaiiPhysicsWindScopeWindow::ApplyPreset(const FKawaiiProceduralWindPre
 	return FReply::Handled();
 }
 
-bool SKawaiiPhysicsWindScopeWindow::PushPresetToLiveRuntime(
+FKawaiiPhysics_ExternalForce_ProceduralWind* SKawaiiPhysicsWindScopeWindow::ResolveEditableWind(
+	UAnimGraphNode_KawaiiPhysics*& OutGraphNode,
+	int32& OutResolvedIndex)
+{
+	OutGraphNode = nullptr;
+	OutResolvedIndex = INDEX_NONE;
+
+	// 対象グラフノードを解決（失敗時は通知して終了）
+	UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
+	if (!GraphNode)
+	{
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
+			LOCTEXT("ApplyPresetNoNode", "Failed to resolve the KawaiiPhysics graph node."),
+			SNotificationItem::CS_Fail);
+		return nullptr;
+	}
+
+	// ProceduralWind 外力を解決・型チェック
+	const int32 ResolvedIndex = ResolveProceduralWindIndex(GraphNode->Node, Args.ExternalForceIndex);
+	if (!GraphNode->Node.ExternalForces.IsValidIndex(ResolvedIndex))
+	{
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
+			LOCTEXT("ApplyPresetNoWind", "No ProceduralWind external force was found."),
+			SNotificationItem::CS_Fail);
+		return nullptr;
+	}
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind* Wind =
+		GraphNode->Node.ExternalForces[ResolvedIndex].GetMutablePtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+	if (!Wind)
+	{
+		KawaiiPhysicsEdWindowUtils::ShowNotification(
+			LOCTEXT("ApplyPresetInvalidWind", "The selected external force is not ProceduralWind."),
+			SNotificationItem::CS_Fail);
+		return nullptr;
+	}
+
+	OutGraphNode = GraphNode;
+	OutResolvedIndex = ResolvedIndex;
+	return Wind;
+}
+
+bool SKawaiiPhysicsWindScopeWindow::PushParamsToLiveRuntime(
 	const FKawaiiProceduralWindDynamicParams& Params)
 {
 	UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
