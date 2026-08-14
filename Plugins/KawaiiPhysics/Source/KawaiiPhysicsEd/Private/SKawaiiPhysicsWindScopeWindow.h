@@ -98,6 +98,10 @@ public:
 	void SetHighlightSeries(TOptional<EKawaiiPhysicsWindScopeComponent> InHighlightSeries);
 	void SetActiveEditGuide(TOptional<FName> PropertyName);
 	void SetEditValues(const FKawaiiWindScopeEditValues* InEditValues);
+	void SetGhostSamples(TArray<FVector2D> InGhostSamples);
+
+	virtual FReply OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override;
 
 	// グラフの描画本体 / Slate paint callback for the graph.
 	virtual int32 OnPaint(const FPaintArgs& Args,
@@ -112,9 +116,11 @@ public:
 
 private:
 	TArray<FKawaiiProceduralWindScopeSample> Samples;
+	TArray<FVector2D> GhostSamples;
 	FKawaiiPhysicsWindScopeSeriesVisibility Visibility;
 	TOptional<EKawaiiPhysicsWindScopeComponent> HighlightSeries;
 	TOptional<FName> ActiveEditGuide;
+	TOptional<FVector2D> HoverMousePosition;
 	const FKawaiiWindScopeEditValues* EditValues = nullptr;
 	float DisplaySeconds = 8.0f;
 };
@@ -179,6 +185,8 @@ private:
 
 	void RebuildPresetButtons();
 	FReply OnPresetButtonClicked(int32 PresetIndex);
+	void OnPresetButtonHovered(int32 PresetIndex);
+	void OnPresetButtonUnhovered();
 	FReply ApplyPreset(const FKawaiiProceduralWindPreset& Preset);
 	TSharedRef<SWidget> GenerateSavePresetMenu();
 	bool CanSaveWindPreset() const;

@@ -486,6 +486,35 @@ namespace
 		return Points;
 	}
 
+	static TArray<FVector2D> BuildWindScopeGhostPolylinePoints(
+		const TArray<FVector2D>& GhostSamples,
+		float MinTime,
+		float MaxTime,
+		float MinValue,
+		float MaxValue,
+		const FVector2D& GraphOrigin,
+		const FVector2D& GraphSize)
+	{
+		TArray<FVector2D> Points;
+		const float TimeSpan = FMath::Max(MaxTime - MinTime, KINDA_SMALL_NUMBER);
+		const float ValueSpan = FMath::Max(MaxValue - MinValue, KINDA_SMALL_NUMBER);
+
+		for (const FVector2D& SamplePoint : GhostSamples)
+		{
+			if (SamplePoint.X < MinTime || SamplePoint.X > MaxTime)
+			{
+				continue;
+			}
+
+			const float XRate = (SamplePoint.X - MinTime) / TimeSpan;
+			const float YRate = (SamplePoint.Y - MinValue) / ValueSpan;
+			Points.Add(FVector2D(
+				GraphOrigin.X + GraphSize.X * XRate,
+				GraphOrigin.Y + GraphSize.Y * (1.0f - YRate)));
+		}
+		return Points;
+	}
+
 	// セグメントごとに Dash/Gap を繰り返して破線を描画する
 	void DrawWindScopeDashedLine(FSlateWindowElementList& OutDrawElements,
 	                             int32 LayerId,
@@ -725,6 +754,26 @@ void SKawaiiPhysicsWindScopeGraph::SetEditValues(const FKawaiiWindScopeEditValue
 	Invalidate(EInvalidateWidgetReason::Paint);
 }
 
+void SKawaiiPhysicsWindScopeGraph::SetGhostSamples(TArray<FVector2D> InGhostSamples)
+{
+	GhostSamples = MoveTemp(InGhostSamples);
+	Invalidate(EInvalidateWidgetReason::Paint);
+}
+
+FReply SKawaiiPhysicsWindScopeGraph::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	HoverMousePosition = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+	Invalidate(EInvalidateWidgetReason::Paint);
+	return FReply::Handled();
+}
+
+void SKawaiiPhysicsWindScopeGraph::OnMouseLeave(const FPointerEvent& MouseEvent)
+{
+	(void)MouseEvent;
+	HoverMousePosition.Reset();
+	Invalidate(EInvalidateWidgetReason::Paint);
+}
+
 int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
                                             const FGeometry& AllottedGeometry,
                                             const FSlateRect& MyCullingRect,
@@ -860,6 +909,28 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 				DrawColor,
 				true,
 				DrawThickness);
+		}
+	}
+
+	if (GhostSamples.Num() >= 2)
+	{
+		const TArray<FVector2D> GhostPoints = BuildWindScopeGhostPolylinePoints(
+			GhostSamples,
+			Range.MinTime,
+			Range.MaxTime,
+			Range.MinValue,
+			Range.MaxValue,
+			GraphOrigin,
+			GraphSize);
+		if (GhostPoints.Num() >= 2)
+		{
+			DrawWindScopeDashedLine(
+				OutDrawElements,
+				LayerId + 4,
+				AllottedGeometry,
+				GhostPoints,
+				FLinearColor(1.0f, 1.0f, 1.0f, 0.5f),
+				1.5f);
 		}
 	}
 
@@ -1060,7 +1131,114 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 	DrawAxisText(FString::Printf(TEXT("-%.0fs"), DisplaySeconds), FVector2D(GraphOrigin.X, GraphOrigin.Y + GraphSize.Y + 4.0f));
 	DrawAxisText(TEXT("0s"), FVector2D(GraphOrigin.X + GraphSize.X - 24.0f, GraphOrigin.Y + GraphSize.Y + 4.0f));
 
-	return LayerId + 7;
+	if (HoverMousePosition.IsSet() && Samples.Num() > 0)
+	{
+		const FVector2D CursorPosition = HoverMousePosition.GetValue();
+		const float GraphRight = GraphOrigin.X + GraphSize.X;
+		const float GraphBottom = GraphOrigin.Y + GraphSize.Y;
+		if (CursorPosition.X >= GraphOrigin.X && CursorPosition.X <= GraphRight &&
+			CursorPosition.Y >= GraphOrigin.Y && CursorPosition.Y <= GraphBottom)
+		{
+			const float TimeSpan = FMath::Max(Range.MaxTime - Range.MinTime, KINDA_SMALL_NUMBER);
+			const float CursorTime = Range.MinTime + TimeSpan * ((CursorPosition.X - GraphOrigin.X) / GraphSize.X);
+
+			int32 LowerIndex = 0;
+			int32 UpperIndex = Samples.Num();
+			while (LowerIndex < UpperIndex)
+			{
+				const int32 MiddleIndex = LowerIndex + (UpperIndex - LowerIndex) / 2;
+				if (Samples[MiddleIndex].Time < CursorTime)
+				{
+					LowerIndex = MiddleIndex + 1;
+				}
+				else
+				{
+					UpperIndex = MiddleIndex;
+				}
+			}
+
+			int32 ClosestIndex = FMath::Clamp(LowerIndex, 0, Samples.Num() - 1);
+			if (ClosestIndex > 0 &&
+				FMath::Abs(Samples[ClosestIndex - 1].Time - CursorTime) < FMath::Abs(Samples[ClosestIndex].Time - CursorTime))
+			{
+				--ClosestIndex;
+			}
+
+			TArray<FVector2D> CursorLine;
+			CursorLine.Add(FVector2D(CursorPosition.X, GraphOrigin.Y));
+			CursorLine.Add(FVector2D(CursorPosition.X, GraphBottom));
+			FSlateDrawElement::MakeLines(
+				OutDrawElements,
+				LayerId + 7,
+				AllottedGeometry.ToPaintGeometry(),
+				CursorLine,
+				ESlateDrawEffect::None,
+				FLinearColor(1.0f, 1.0f, 1.0f, 0.32f),
+				true,
+				1.0f);
+
+			struct FCursorTextLine
+			{
+				FString Text;
+				FLinearColor Color;
+
+				FCursorTextLine(const FString& InText, const FLinearColor& InColor)
+					: Text(InText)
+					, Color(InColor)
+				{
+				}
+			};
+
+			TArray<FCursorTextLine> CursorTextLines;
+			CursorTextLines.Emplace(
+				FString::Printf(TEXT("t=%.2fs"), Samples[ClosestIndex].Time),
+				FLinearColor(1.0f, 1.0f, 1.0f, 0.92f));
+			for (const FKawaiiWindScopeComponentStyle& Style : GetWindScopeComponentStyles())
+			{
+				if (!Visibility.IsVisible(Style.Component))
+				{
+					continue;
+				}
+
+				FLinearColor TextColor = Style.Color;
+				TextColor.A = FMath::Max(TextColor.A, 0.9f);
+				const FString LabelString = Style.Label.ToString();
+				CursorTextLines.Emplace(
+					FString::Printf(TEXT("%s %.2f"), *LabelString, GetWindScopeComponentValue(Samples[ClosestIndex].Sample, Style.Component)),
+					TextColor);
+			}
+
+			const FSlateFontInfo CursorFont(FCoreStyle::GetDefaultFont(), 9);
+			constexpr float CursorTextWidth = 128.0f;
+			constexpr float CursorTextHeight = 13.0f;
+			const float PreferredTextX = CursorPosition.X + CursorTextWidth + 8.0f > GraphRight
+				                           ? CursorPosition.X - CursorTextWidth - 8.0f
+				                           : CursorPosition.X + 8.0f;
+			const float TextX = FMath::Clamp(
+				PreferredTextX,
+				GraphOrigin.X,
+				FMath::Max(GraphOrigin.X, GraphRight - CursorTextWidth));
+			const float TextY = FMath::Clamp(
+				CursorPosition.Y - CursorTextHeight * CursorTextLines.Num() - 4.0f,
+				GraphOrigin.Y,
+				FMath::Max(GraphOrigin.Y, GraphBottom - CursorTextHeight * CursorTextLines.Num()));
+			for (int32 LineIndex = 0; LineIndex < CursorTextLines.Num(); ++LineIndex)
+			{
+				FSlateDrawElement::MakeText(
+					OutDrawElements,
+					LayerId + 8,
+					AllottedGeometry.ToPaintGeometry(
+						FVector2D(CursorTextWidth, CursorTextHeight),
+						FSlateLayoutTransform(FVector2D(TextX, TextY + CursorTextHeight * LineIndex))),
+					CursorTextLines[LineIndex].Text,
+					CursorFont,
+					ESlateDrawEffect::None,
+					CursorTextLines[LineIndex].Color);
+			}
+		}
+	}
+
+	return LayerId + 9;
 }
 
 FVector2D SKawaiiPhysicsWindScopeGraph::ComputeDesiredSize(float LayoutScaleMultiplier) const
@@ -1591,6 +1769,7 @@ void SKawaiiPhysicsWindScopeWindow::SetArgs(FKawaiiPhysicsWindScopeWindowArgs In
 	if (GraphWidget.IsValid())
 	{
 		GraphWidget->SetActiveEditGuide(TOptional<FName>());
+		GraphWidget->SetGhostSamples(TArray<FVector2D>());
 	}
 	CurrentModeText = LOCTEXT("PreviewMode", "Preview");
 	RefreshExternalForceItems();
@@ -1623,6 +1802,7 @@ void SKawaiiPhysicsWindScopeWindow::OnExternalForceSelectionChanged(
 	if (GraphWidget.IsValid())
 	{
 		GraphWidget->SetActiveEditGuide(TOptional<FName>());
+		GraphWidget->SetGhostSamples(TArray<FVector2D>());
 	}
 }
 
@@ -1761,6 +1941,11 @@ void SKawaiiPhysicsWindScopeWindow::RebuildPresetButtons()
 		return;
 	}
 
+	if (GraphWidget.IsValid())
+	{
+		GraphWidget->SetGhostSamples(TArray<FVector2D>());
+	}
+
 	PresetButtonBox->ClearChildren();
 	for (int32 PresetIndex = 0; PresetIndex < CachedPresets.Num(); ++PresetIndex)
 	{
@@ -1769,6 +1954,14 @@ void SKawaiiPhysicsWindScopeWindow::RebuildPresetButtons()
 			SNew(SButton)
 			.Text(ResolveWindPresetDisplayName(CachedPresets[PresetIndex], PresetIndex))
 			.OnClicked(this, &SKawaiiPhysicsWindScopeWindow::OnPresetButtonClicked, PresetIndex)
+			.OnHovered_Lambda([this, PresetIndex]()
+			{
+				OnPresetButtonHovered(PresetIndex);
+			})
+			.OnUnhovered_Lambda([this]()
+			{
+				OnPresetButtonUnhovered();
+			})
 		];
 	}
 }
@@ -1781,6 +1974,51 @@ FReply SKawaiiPhysicsWindScopeWindow::OnPresetButtonClicked(int32 PresetIndex)
 	}
 
 	return ApplyPreset(CachedPresets[PresetIndex]);
+}
+
+void SKawaiiPhysicsWindScopeWindow::OnPresetButtonHovered(int32 PresetIndex)
+{
+	if (!GraphWidget.IsValid())
+	{
+		return;
+	}
+
+	if (!CachedPresets.IsValidIndex(PresetIndex))
+	{
+		GraphWidget->SetGhostSamples(TArray<FVector2D>());
+		return;
+	}
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind PreviewWind;
+	if (!TryGetPreviewForceCopy(PreviewWind))
+	{
+		GraphWidget->SetGhostSamples(TArray<FVector2D>());
+		return;
+	}
+
+	PreviewWind.ApplyDynamicParams(CachedPresets[PresetIndex].ToDynamicParams());
+
+	TArray<FVector2D> NewGhostSamples;
+	NewGhostSamples.Reserve(WindScopePreviewSampleCount);
+	const float EndTime = DisplaySamples.Num() > 0 ? DisplaySamples.Last().Time : PreviewTime;
+	const float StartTime = EndTime - DisplaySeconds;
+	const int32 SampleCount = FMath::Max(WindScopePreviewSampleCount, 2);
+	for (int32 SampleIndex = 0; SampleIndex < SampleCount; ++SampleIndex)
+	{
+		const float Alpha = static_cast<float>(SampleIndex) / static_cast<float>(SampleCount - 1);
+		const float SampleTime = FMath::Lerp(StartTime, EndTime, Alpha);
+		NewGhostSamples.Add(FVector2D(SampleTime, PreviewWind.ComputeWindSample(SampleTime, 0.0f).Total));
+	}
+
+	GraphWidget->SetGhostSamples(MoveTemp(NewGhostSamples));
+}
+
+void SKawaiiPhysicsWindScopeWindow::OnPresetButtonUnhovered()
+{
+	if (GraphWidget.IsValid())
+	{
+		GraphWidget->SetGhostSamples(TArray<FVector2D>());
+	}
 }
 
 FReply SKawaiiPhysicsWindScopeWindow::ApplyPreset(const FKawaiiProceduralWindPreset& Preset)
