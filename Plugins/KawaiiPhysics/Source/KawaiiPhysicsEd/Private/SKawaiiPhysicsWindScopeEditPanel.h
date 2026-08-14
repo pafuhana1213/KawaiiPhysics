@@ -38,6 +38,7 @@ public:
 		{
 		}
 		SLATE_ATTRIBUTE(const FKawaiiWindScopeEditValues*, EditValues)
+		SLATE_ATTRIBUTE(const FKawaiiWindScopeEditValues*, LiveEditValues)
 		SLATE_EVENT(FOnWindParamEdit, OnParamEdit)
 		SLATE_EVENT(FOnWindParamReset, OnParamReset)
 		SLATE_EVENT(FIsWindParamPinExposed, IsParamPinExposed)
@@ -48,6 +49,8 @@ public:
 	void Construct(const FArguments& InArgs);
 
 private:
+	TSharedRef<SWidget> MakeFormulaHelpButton() const;
+	TSharedRef<SWidget> MakeFormulaHelpContent() const;
 	TSharedRef<SWidget> MakeGroupWidget(const FKawaiiWindScopeParamGroup& Group);
 	TSharedRef<SWidget> MakeParamRow(const FKawaiiWindScopeParamDef& ParamDef);
 	TSharedRef<SWidget> MakeCurveRow() const;
@@ -56,6 +59,8 @@ private:
 
 	EVisibility GetResetVisibility(FName PropertyName) const;
 	EVisibility GetPinWarningVisibility(FName PropertyName) const;
+	EVisibility GetLiveValueVisibility(FName PropertyName) const;
+	FText GetLiveValueText(FName PropertyName) const;
 	ECheckBoxState GetBoolCheckState(FName PropertyName) const;
 	float GetFloatValue(FName PropertyName) const;
 	int32 GetIntValue(FName PropertyName) const;
@@ -69,6 +74,7 @@ private:
 	void HandleBoolChanged(ECheckBoxState NewState, FName PropertyName) const;
 
 	TAttribute<const FKawaiiWindScopeEditValues*> EditValues;
+	TAttribute<const FKawaiiWindScopeEditValues*> LiveEditValues;
 	FOnWindParamEdit OnParamEdit;
 	FOnWindParamReset OnParamReset;
 	FIsWindParamPinExposed IsParamPinExposed;

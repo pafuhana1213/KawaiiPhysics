@@ -182,6 +182,7 @@ private:
 	void OnEditPanelSlotResized(float NewFraction);
 	bool IsWindEditable() const;
 	const FKawaiiWindScopeEditValues* GetEditValues() const;
+	const FKawaiiWindScopeEditValues* GetLiveEditValues() const;
 
 	void RebuildPresetButtons();
 	FReply OnPresetButtonClicked(int32 PresetIndex);
@@ -215,6 +216,7 @@ private:
 	// Preview 計算用に ProceduralWind 設定値のコピーを取得する / Gets a ProceduralWind copy for Preview calculation.
 	bool TryGetPreviewForceCopy(struct FKawaiiPhysics_ExternalForce_ProceduralWind& OutForce) const;
 	void UpdateEditValuesFromWind(const FKawaiiPhysics_ExternalForce_ProceduralWind* Wind);
+	void UpdateLiveEditValuesFromRuntime();
 	void LoadEditPanelConfig();
 	void SaveEditPanelConfig() const;
 	// 弱参照、または AnimBlueprintPath+NodeGuid から対象ノードを再解決する / Resolves the target node from weak reference or AnimBlueprintPath+NodeGuid.
@@ -240,6 +242,7 @@ private:
 	FText CurrentModeText;
 	float DisplaySeconds = 8.0f;
 	FKawaiiWindScopeEditValues CachedEditValues;
+	FKawaiiWindScopeEditValues CachedLiveEditValues;
 	FKawaiiPhysics_ExternalForce_ProceduralWind DragStartWind;
 	FName DragStartPropertyName;
 	float GustStrength = 6.0f;

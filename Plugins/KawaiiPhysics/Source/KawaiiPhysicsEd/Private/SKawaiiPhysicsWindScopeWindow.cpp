@@ -389,6 +389,61 @@ namespace
 		return Sample;
 	}
 
+	void FillWindScopeEditValuesFromWind(
+		const FKawaiiPhysics_ExternalForce_ProceduralWind* Wind,
+		FKawaiiWindScopeEditValues& OutValues,
+		const bool bTrackDefaultDiff)
+	{
+		OutValues = FKawaiiWindScopeEditValues();
+		if (!Wind)
+		{
+			return;
+		}
+
+		static const FKawaiiPhysics_ExternalForce_ProceduralWind DefaultWind;
+		OutValues.bValid = true;
+		for (const FKawaiiWindScopeParamGroup& Group : GetWindScopeParamGroups())
+		{
+			for (const FKawaiiWindScopeParamDef& Param : Group.Params)
+			{
+				FProperty* Property = FindProceduralWindProperty(Param.PropertyName);
+				if (!Property)
+				{
+					continue;
+				}
+
+				if (const FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property))
+				{
+					if (Param.PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce, bIsEnabled))
+					{
+						OutValues.bIsEnabled = BoolProperty->GetPropertyValue_InContainer(Wind);
+					}
+				}
+				else if (const FFloatProperty* FloatProperty = CastField<FFloatProperty>(Property))
+				{
+					OutValues.FloatValues.Add(Param.PropertyName, FloatProperty->GetPropertyValue_InContainer(Wind));
+				}
+				else if (const FIntProperty* IntProperty = CastField<FIntProperty>(Property))
+				{
+					if (Param.PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomSeed))
+					{
+						OutValues.RandomSeed = IntProperty->GetPropertyValue_InContainer(Wind);
+					}
+				}
+				else if (IsFVectorProperty(Property) &&
+					Param.PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindDirection))
+				{
+					OutValues.WindDirection = *Property->ContainerPtrToValuePtr<FVector>(Wind);
+				}
+
+				if (bTrackDefaultDiff && IsProceduralWindPropertyModifiedFromDefault(*Wind, DefaultWind, Property))
+				{
+					OutValues.ModifiedFromDefault.Add(Param.PropertyName);
+				}
+			}
+		}
+	}
+
 	FText FormatFloat2(float Value)
 	{
 		FNumberFormattingOptions Options;
@@ -1546,6 +1601,7 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 				[
 					SNew(SKawaiiPhysicsWindScopeEditPanel)
 					.EditValues(this, &SKawaiiPhysicsWindScopeWindow::GetEditValues)
+					.LiveEditValues(this, &SKawaiiPhysicsWindScopeWindow::GetLiveEditValues)
 					.OnParamEdit(this, &SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit)
 					.OnParamReset(this, &SKawaiiPhysicsWindScopeWindow::ResetWindParamToDefault)
 					.IsParamPinExposed(this, &SKawaiiPhysicsWindScopeWindow::IsWindParamPinExposed)
@@ -1765,6 +1821,7 @@ void SKawaiiPhysicsWindScopeWindow::SetArgs(FKawaiiPhysicsWindScopeWindowArgs In
 	DisplaySamples.Reset();
 	PreviewTime = 0.0f;
 	LastLiveSampleCount = 0;
+	CachedLiveEditValues = FKawaiiWindScopeEditValues();
 	bHasDragStartWind = false;
 	if (GraphWidget.IsValid())
 	{
@@ -1798,6 +1855,7 @@ void SKawaiiPhysicsWindScopeWindow::OnExternalForceSelectionChanged(
 	DisplaySamples.Reset();
 	LastLiveSampleCount = 0;
 	PreviewTime = 0.0f;
+	CachedLiveEditValues = FKawaiiWindScopeEditValues();
 	bHasDragStartWind = false;
 	if (GraphWidget.IsValid())
 	{
@@ -1923,6 +1981,11 @@ bool SKawaiiPhysicsWindScopeWindow::IsWindEditable() const
 const FKawaiiWindScopeEditValues* SKawaiiPhysicsWindScopeWindow::GetEditValues() const
 {
 	return &CachedEditValues;
+}
+
+const FKawaiiWindScopeEditValues* SKawaiiPhysicsWindScopeWindow::GetLiveEditValues() const
+{
+	return CachedLiveEditValues.bValid ? &CachedLiveEditValues : nullptr;
 }
 
 void SKawaiiPhysicsWindScopeWindow::SetHighlightSeries(TOptional<EKawaiiPhysicsWindScopeComponent> InHighlightSeries)
@@ -2603,6 +2666,7 @@ EActiveTimerReturnType SKawaiiPhysicsWindScopeWindow::TickWindScope(double InCur
 	{
 		bHasWindSnapshot = TryGetPreviewForceCopy(WindSnapshot);
 		UpdateEditValuesFromWind(bHasWindSnapshot ? &WindSnapshot : nullptr);
+		UpdateLiveEditValuesFromRuntime();
 	}
 
 	if (bPaused)
@@ -2716,54 +2780,26 @@ void SKawaiiPhysicsWindScopeWindow::RebuildPreviewSamples(
 void SKawaiiPhysicsWindScopeWindow::UpdateEditValuesFromWind(
 	const FKawaiiPhysics_ExternalForce_ProceduralWind* Wind)
 {
-	CachedEditValues = FKawaiiWindScopeEditValues();
-	if (!Wind)
+	FillWindScopeEditValuesFromWind(Wind, CachedEditValues, true);
+}
+
+void SKawaiiPhysicsWindScopeWindow::UpdateLiveEditValuesFromRuntime()
+{
+	CachedLiveEditValues = FKawaiiWindScopeEditValues();
+
+	UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
+	FAnimNode_KawaiiPhysics* RuntimeNode = KawaiiPhysicsEdUtils::ResolveLiveKawaiiPhysicsNode(GraphNode);
+	FKawaiiPhysics_ExternalForce_ProceduralWind* RuntimeWind = ResolveLiveProceduralWind(
+		GraphNode,
+		RuntimeNode,
+		Args.ExternalForceIndex);
+	if (!RuntimeWind)
 	{
 		return;
 	}
 
-	static const FKawaiiPhysics_ExternalForce_ProceduralWind DefaultWind;
-	CachedEditValues.bValid = true;
-	for (const FKawaiiWindScopeParamGroup& Group : GetWindScopeParamGroups())
-	{
-		for (const FKawaiiWindScopeParamDef& Param : Group.Params)
-		{
-			FProperty* Property = FindProceduralWindProperty(Param.PropertyName);
-			if (!Property)
-			{
-				continue;
-			}
-
-			if (const FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property))
-			{
-				if (Param.PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce, bIsEnabled))
-				{
-					CachedEditValues.bIsEnabled = BoolProperty->GetPropertyValue_InContainer(Wind);
-				}
-			}
-			else if (const FFloatProperty* FloatProperty = CastField<FFloatProperty>(Property))
-			{
-				CachedEditValues.FloatValues.Add(Param.PropertyName, FloatProperty->GetPropertyValue_InContainer(Wind));
-			}
-			else if (const FIntProperty* IntProperty = CastField<FIntProperty>(Property))
-			{
-				if (Param.PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomSeed))
-				{
-					CachedEditValues.RandomSeed = IntProperty->GetPropertyValue_InContainer(Wind);
-				}
-			}
-			else if (IsFVectorProperty(Property) &&
-				Param.PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindDirection))
-			{
-				CachedEditValues.WindDirection = *Property->ContainerPtrToValuePtr<FVector>(Wind);
-			}
-
-			if (IsProceduralWindPropertyModifiedFromDefault(*Wind, DefaultWind, Property))
-			{
-				CachedEditValues.ModifiedFromDefault.Add(Param.PropertyName);
-			}
-		}
-	}
+	// Worker スレッドが DynamicParams 反映で値を書き換える可能性があるが、表示専用の乖離ヒントなので torn-read を許容し Mutex は取得しない。
+	FillWindScopeEditValuesFromWind(RuntimeWind, CachedLiveEditValues, false);
 }
 
 bool SKawaiiPhysicsWindScopeWindow::TryUpdateFromLiveRuntime()

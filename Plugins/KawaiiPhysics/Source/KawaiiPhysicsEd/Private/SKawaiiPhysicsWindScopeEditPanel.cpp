@@ -12,11 +12,13 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SVectorInputBox.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysicsWindScopeEditPanel"
@@ -24,6 +26,7 @@
 namespace
 {
 	constexpr float LabelColumnWidth = 150.0f;
+	constexpr float LiveValueTolerance = 0.01f;
 
 	FText GetPinDrivenWarningText()
 	{
@@ -72,6 +75,39 @@ namespace
 			}
 		}
 		return FLinearColor(0.28f, 0.3f, 0.34f, 1.0f);
+	}
+
+	FLinearColor ResolveComponentColor(EKawaiiPhysicsWindScopeComponent Component)
+	{
+		for (const FKawaiiWindScopeComponentStyle& Style : GetWindScopeComponentStyles())
+		{
+			if (Style.Component == Component)
+			{
+				return Style.Color;
+			}
+		}
+		return FLinearColor::White;
+	}
+
+	FSlateColor ResolveLiveWarningColor()
+	{
+		return FSlateColor(FLinearColor(1.0f, 0.7f, 0.2f));
+	}
+
+	FText FormatLiveFloat(float Value)
+	{
+		FNumberFormattingOptions Options;
+		Options.MinimumFractionalDigits = 2;
+		Options.MaximumFractionalDigits = 2;
+		return FText::AsNumber(Value, &Options);
+	}
+
+	TSharedRef<STextBlock> MakeFormulaText(const FText& Text, const FSlateColor& Color = FSlateColor::UseForeground())
+	{
+		return SNew(STextBlock)
+			.Text(Text)
+			.ColorAndOpacity(Color)
+			.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9));
 	}
 
 	class SKawaiiWindScopeGroupHoverBorder : public SBorder
@@ -197,6 +233,7 @@ const TArray<FKawaiiWindScopeParamGroup>& GetWindScopeParamGroups()
 void SKawaiiPhysicsWindScopeEditPanel::Construct(const FArguments& InArgs)
 {
 	EditValues = InArgs._EditValues;
+	LiveEditValues = InArgs._LiveEditValues;
 	OnParamEdit = InArgs._OnParamEdit;
 	OnParamReset = InArgs._OnParamReset;
 	IsParamPinExposed = InArgs._IsParamPinExposed;
@@ -204,6 +241,25 @@ void SKawaiiPhysicsWindScopeEditPanel::Construct(const FArguments& InArgs)
 	OnHighlightSeries = InArgs._OnHighlightSeries;
 
 	TSharedRef<SScrollBox> ScrollBox = SNew(SScrollBox);
+	ScrollBox->AddSlot()
+	.Padding(0.0f, 0.0f, 0.0f, 6.0f)
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.FillWidth(1.0f)
+		.VAlign(VAlign_Center)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("EditPanelHeader", "Procedural Wind"))
+			.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 10, TEXT("Bold")))
+		]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		[
+			MakeFormulaHelpButton()
+		]
+	];
 	for (const FKawaiiWindScopeParamGroup& Group : GetWindScopeParamGroups())
 	{
 		ScrollBox->AddSlot()
@@ -226,6 +282,72 @@ void SKawaiiPhysicsWindScopeEditPanel::Construct(const FArguments& InArgs)
 	[
 		ScrollBox
 	];
+}
+
+TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeFormulaHelpButton() const
+{
+	return SNew(SComboButton)
+		.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
+		.ContentPadding(FMargin(4.0f, 1.0f))
+		.ToolTipText(LOCTEXT("FormulaHelpTooltip", "合成式のヘルプ / Composition formula help."))
+		.OnGetMenuContent(this, &SKawaiiPhysicsWindScopeEditPanel::MakeFormulaHelpContent)
+		.ButtonContent()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("FormulaHelpButton", "?"))
+			.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9, TEXT("Bold")))
+		];
+}
+
+TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeFormulaHelpContent() const
+{
+	return SNew(SBox)
+		.WidthOverride(500.0f)
+		.Padding(10.0f)
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(0.0f, 0.0f, 0.0f, 8.0f)
+			[
+				SNew(SWrapBox)
+				.UseAllottedSize(true)
+				.InnerSlotPadding(FVector2D(1.0f, 1.0f))
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaTotalPrefix", "Sample."))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaTotal", "Total"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Total))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaEquals", " = ("))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaSteadyPrefix", "Sample."))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaSteady", "Steady"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Steady))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaPlusOscillation", " + Sample."))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaOscillation", "Oscillation"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Oscillation))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaPlusWave", " + Sample."))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaWave", "Wave"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Wave))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaEnvelopePrefix", ") * Sample."))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaEnvelope", "Envelope"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Envelope))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaPlusRandom", " + Sample."))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaRandom", "Random"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Random))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaPlusGust", " + Sample."))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaGust", "Gust"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Gust))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaSemicolon", ";"))]
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("FormulaHelpGroupLine1", "Steady/Oscillation/Wave/Envelope/Random は同名グループに対応 / Steady, Oscillation, Wave, Envelope, and Random map to their groups."))
+				.AutoWrapText(true)
+				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(0.0f, 3.0f, 0.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("FormulaHelpGroupLine2", "Gust は上部の Gust ボタンと S/R/D 入力に対応 / Gust maps to the Gust button and S/R/D inputs above."))
+				.AutoWrapText(true)
+				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+			]
+		];
 }
 
 TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeGroupWidget(const FKawaiiWindScopeParamGroup& Group)
@@ -434,6 +556,17 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeParamRow(const FKawaii
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
+		.Padding(6.0f, 0.0f, 0.0f, 0.0f)
+		[
+			SNew(STextBlock)
+			.Text(this, &SKawaiiPhysicsWindScopeEditPanel::GetLiveValueText, ParamDef.PropertyName)
+			.Visibility(this, &SKawaiiPhysicsWindScopeEditPanel::GetLiveValueVisibility, ParamDef.PropertyName)
+			.ColorAndOpacity(ResolveLiveWarningColor())
+			.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+		]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
 		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
 		[
 			MakeResetButton(ParamDef.PropertyName)
@@ -510,6 +643,94 @@ EVisibility SKawaiiPhysicsWindScopeEditPanel::GetPinWarningVisibility(FName Prop
 	return IsParamPinExposed.IsBound() && IsParamPinExposed.Execute(PropertyName)
 		       ? EVisibility::Visible
 		       : EVisibility::Collapsed;
+}
+
+EVisibility SKawaiiPhysicsWindScopeEditPanel::GetLiveValueVisibility(FName PropertyName) const
+{
+	const FKawaiiWindScopeEditValues* Values = EditValues.Get();
+	const FKawaiiWindScopeEditValues* LiveValues = LiveEditValues.Get();
+	if (!Values || !Values->bValid || !LiveValues || !LiveValues->bValid)
+	{
+		return EVisibility::Collapsed;
+	}
+
+	FProperty* Property = FindWindScopeProperty(PropertyName);
+	if (CastField<FBoolProperty>(Property))
+	{
+		return PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce, bIsEnabled) &&
+			Values->bIsEnabled != LiveValues->bIsEnabled
+			       ? EVisibility::Visible
+			       : EVisibility::Collapsed;
+	}
+	if (CastField<FIntProperty>(Property))
+	{
+		return PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomSeed) &&
+			Values->RandomSeed != LiveValues->RandomSeed
+			       ? EVisibility::Visible
+			       : EVisibility::Collapsed;
+	}
+	if (CastField<FStructProperty>(Property) &&
+		PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindDirection))
+	{
+		for (int32 ComponentIndex = 0; ComponentIndex < 3; ++ComponentIndex)
+		{
+			if (!FMath::IsNearlyEqual(
+				static_cast<float>(Values->WindDirection[ComponentIndex]),
+				static_cast<float>(LiveValues->WindDirection[ComponentIndex]),
+				LiveValueTolerance))
+			{
+				return EVisibility::Visible;
+			}
+		}
+		return EVisibility::Collapsed;
+	}
+
+	const float* Value = Values->FloatValues.Find(PropertyName);
+	const float* LiveValue = LiveValues->FloatValues.Find(PropertyName);
+	return Value && LiveValue && !FMath::IsNearlyEqual(*Value, *LiveValue, LiveValueTolerance)
+		       ? EVisibility::Visible
+		       : EVisibility::Collapsed;
+}
+
+FText SKawaiiPhysicsWindScopeEditPanel::GetLiveValueText(FName PropertyName) const
+{
+	const FKawaiiWindScopeEditValues* LiveValues = LiveEditValues.Get();
+	if (!LiveValues || !LiveValues->bValid)
+	{
+		return FText::GetEmpty();
+	}
+
+	FProperty* Property = FindWindScopeProperty(PropertyName);
+	FText ValueText;
+	if (CastField<FBoolProperty>(Property) &&
+		PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce, bIsEnabled))
+	{
+		ValueText = LiveValues->bIsEnabled ? LOCTEXT("LiveBoolTrue", "true") : LOCTEXT("LiveBoolFalse", "false");
+	}
+	else if (CastField<FIntProperty>(Property) &&
+		PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomSeed))
+	{
+		ValueText = FText::AsNumber(LiveValues->RandomSeed);
+	}
+	else if (CastField<FStructProperty>(Property) &&
+		PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindDirection))
+	{
+		ValueText = FText::Format(
+			LOCTEXT("LiveVectorValueFormat", "({0}, {1}, {2})"),
+			FormatLiveFloat(static_cast<float>(LiveValues->WindDirection.X)),
+			FormatLiveFloat(static_cast<float>(LiveValues->WindDirection.Y)),
+			FormatLiveFloat(static_cast<float>(LiveValues->WindDirection.Z)));
+	}
+	else if (const float* LiveValue = LiveValues->FloatValues.Find(PropertyName))
+	{
+		ValueText = FormatLiveFloat(*LiveValue);
+	}
+	else
+	{
+		return FText::GetEmpty();
+	}
+
+	return FText::Format(LOCTEXT("LiveValueFormat", "→ {0} (live)"), ValueText);
 }
 
 ECheckBoxState SKawaiiPhysicsWindScopeEditPanel::GetBoolCheckState(FName PropertyName) const
