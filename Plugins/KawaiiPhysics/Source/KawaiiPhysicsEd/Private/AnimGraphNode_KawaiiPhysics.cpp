@@ -126,6 +126,12 @@ namespace
 			FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct()->FindPropertyByName(PropertyName) != nullptr;
 	}
 
+	bool IsProceduralWindExternalForce(const FInstancedStruct& ExternalForce)
+	{
+		return ExternalForce.IsValid() &&
+			ExternalForce.GetScriptStruct() == FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct();
+	}
+
 	bool IsOtherExternalForceStructProperty(const FProperty* Property)
 	{
 		const UStruct* OwnerStruct = Property ? Property->GetOwnerStruct() : nullptr;
@@ -1148,18 +1154,18 @@ void UAnimGraphNode_KawaiiPhysics::CheckPresetDiff()
 	SKawaiiPhysicsPresetDiffWindow::OpenWindow(MoveTemp(Args));
 }
 
-void UAnimGraphNode_KawaiiPhysics::OpenWindScopeWindow()
+void UAnimGraphNode_KawaiiPhysics::OpenWindScopeWindow(int32 ExternalForceIndex)
 {
-	// ExternalForcesから最初のProceduralWindを探す
-	int32 ExternalForceIndex = INDEX_NONE;
-	for (int32 Index = 0; Index < Node.ExternalForces.Num(); ++Index)
+	if (ExternalForceIndex == INDEX_NONE)
 	{
-		if (Node.ExternalForces[Index].IsValid() &&
-			Node.ExternalForces[Index].GetScriptStruct() ==
-			FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct())
+		// ExternalForcesから最初のProceduralWindを探す
+		for (int32 Index = 0; Index < Node.ExternalForces.Num(); ++Index)
 		{
-			ExternalForceIndex = Index;
-			break;
+			if (IsProceduralWindExternalForce(Node.ExternalForces[Index]))
+			{
+				ExternalForceIndex = Index;
+				break;
+			}
 		}
 	}
 
@@ -1211,14 +1217,48 @@ void UAnimGraphNode_KawaiiPhysics::GetNodeContextMenuActions(UToolMenu* Menu, UG
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateUObject(MutableThis, &UAnimGraphNode_KawaiiPhysics::ApplyPresetDataAsset)));
 
-	// コンテキストメニューにも Wind Scope を追加
-	Section.AddMenuEntry(
-		"KawaiiPhysicsWindScope",
-		LOCTEXT("WindScopeContextMenu", "Wind Scope"),
-		LOCTEXT("WindScopeMenuToolTip",
-		        "Procedural Wind の波形プレビュータブを開きます / Opens the waveform preview tab for Procedural Wind."),
-		FSlateIcon(),
-		FUIAction(FExecuteAction::CreateUObject(MutableThis, &UAnimGraphNode_KawaiiPhysics::OpenWindScopeWindow)));
+	TArray<int32> ProceduralWindExternalForceIndices;
+	for (int32 Index = 0; Index < Node.ExternalForces.Num(); ++Index)
+	{
+		if (IsProceduralWindExternalForce(Node.ExternalForces[Index]))
+		{
+			ProceduralWindExternalForceIndices.Add(Index);
+		}
+	}
+
+	if (ProceduralWindExternalForceIndices.Num() >= 2)
+	{
+		for (const int32 ExternalForceIndex : ProceduralWindExternalForceIndices)
+		{
+			const int32 MenuExternalForceIndex = ExternalForceIndex;
+			Section.AddMenuEntry(
+				FName(*FString::Printf(TEXT("KawaiiPhysicsWindScope_%d"), MenuExternalForceIndex)),
+				FText::Format(
+					LOCTEXT("WindScopeContextMenuWithForceIndex", "Wind Scope (Force [{0}])"),
+					FText::AsNumber(MenuExternalForceIndex)),
+				LOCTEXT("WindScopeMenuToolTip",
+				        "Procedural Wind の波形プレビュータブを開きます / Opens the waveform preview tab for Procedural Wind."),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateUObject(
+					MutableThis,
+					&UAnimGraphNode_KawaiiPhysics::OpenWindScopeWindow,
+					MenuExternalForceIndex)));
+		}
+	}
+	else
+	{
+		// コンテキストメニューにも Wind Scope を追加
+		Section.AddMenuEntry(
+			"KawaiiPhysicsWindScope",
+			LOCTEXT("WindScopeContextMenu", "Wind Scope"),
+			LOCTEXT("WindScopeMenuToolTip",
+			        "Procedural Wind の波形プレビュータブを開きます / Opens the waveform preview tab for Procedural Wind."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateUObject(
+				MutableThis,
+				&UAnimGraphNode_KawaiiPhysics::OpenWindScopeWindow,
+				static_cast<int32>(INDEX_NONE))));
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

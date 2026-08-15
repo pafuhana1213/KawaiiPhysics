@@ -277,117 +277,117 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	* Corrects the Force Rate applied to each bone.
 	* Multiplies the ForceRate by the curve value for "Length from RootBone to specific bone / Length from RootBone to end bone" (0.0~1.0)
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=2),
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=21),
 		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
 	FRuntimeFloatCurve ForceRateByBoneLengthRate;
 
 	/**
-	* 常に一定で掛かる風の強さ。上げるとボーンが風下へ流されたままになる
-	* Constant wind strength. Higher values keep bones pushed downwind.
+	* 常に一定で掛かる風の強さ。上げるとボーンが風下へ流されたままになる。Wind Scope の Steady 系列に対応
+	* Constant wind strength. Higher values keep bones pushed downwind. Corresponds to the Steady series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=6, ClampMin=0, UIMin=0, PinHiddenByDefault),
 		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
 	float SteadyForce = 0.0f;
 
 	/**
-	* サイン波で周期的に強弱する成分の振幅。上げると規則的な揺れが強くなる
-	* Amplitude of the sine-based oscillation. Higher values strengthen the rhythmic sway.
+	* サイン波で周期的に強弱する成分の振幅。上げると規則的な揺れが強くなる。Wind Scope の Oscillation 系列に対応
+	* Amplitude of the sine-based oscillation. Higher values strengthen the rhythmic sway. Corresponds to the Oscillation series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=7, ClampMin=0, UIMin=0, PinHiddenByDefault),
 		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
 	float OscillationForce = 0.0f;
 
 	/**
-	* 振動の周期（秒）。短いほど速く揺れる
-	* Oscillation period in seconds. Shorter values sway faster.
+	* 振動の周期（秒）。短いほど速く揺れる。Wind Scope の Oscillation 系列に対応
+	* Oscillation period in seconds. Shorter values sway faster. Corresponds to the Oscillation series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=8, ClampMin=0.01, UIMin=0.01,
 		PinHiddenByDefault), Category="KawaiiPhysics|ExternalForce|Procedural Wind")
 	float OscillationPeriod = 1.0f;
 
 	/**
-	* ボーン列に沿って伝わる波成分の振幅。WaveSpatialOffset と組で使う
-	* Amplitude of the traveling wave along the bone chain. Use together with WaveSpatialOffset.
+	* ボーン列に沿って伝わる波成分の振幅。WaveSpatialOffset と組で使う。Wind Scope の Wave 系列に対応
+	* Amplitude of the traveling wave along the bone chain. Use together with WaveSpatialOffset. Corresponds to the Wave series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=9, ClampMin=0, UIMin=0, PinHiddenByDefault),
 		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
 	float WaveAmplitude = 0.0f;
 
 	/**
-	* 波の周期（秒）
-	* Wave period in seconds.
+	* 波の周期（秒）。Wind Scope の Wave 系列に対応
+	* Wave period in seconds. Corresponds to the Wave series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=10, ClampMin=0.01, UIMin=0.01,
 		PinHiddenByDefault), Category="KawaiiPhysics|ExternalForce|Procedural Wind")
 	float WavePeriod = 1.0f;
 
 	/**
-	* 開始位相のオフセット。複数キャラや複数外力の揺れタイミングをずらす用途
-	* Initial phase offset. Use to desynchronize multiple characters or forces.
+	* 波成分の開始位相オフセット。複数キャラや複数外力の波のタイミングをずらす用途。Wind Scope の Wave 系列に対応
+	* Start phase offset of the wave component. Use to stagger wave timing across multiple characters or external forces. Corresponds to the Wave series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=11, Units="Degrees", PinHiddenByDefault),
 		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
 	float WavePhase = 0.0f;
 
 	/**
-	* 毛先（LengthRate=1）での位相遅れ量。正の値で根元から毛先へ波が走って見える。0なら全ボーン同時に揺れる
-	* Phase delay at the tip. Positive values make the wave travel from root to tip; 0 sways all bones together.
+	* 毛先（LengthRate=1）での位相遅れ量。正の値で根元から毛先へ波が走って見える。0なら全ボーン同時に揺れる。Wind Scope の Wave 系列に対応
+	* Phase delay at the tip. Positive values make the wave travel from root to tip; 0 sways all bones together. Corresponds to the Wave series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=12, Units="Degrees", PinHiddenByDefault),
 		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
 	float WaveSpatialOffset = 0.0f;
 
 	/**
-	* 風全体の強弱のうねり（低周波変調）の上限倍率。Min を下げると凪↔強風の緩急が生まれる。Min=Max=1 で無効
-	* Upper multiplier of the slow global intensity swell. Lower Min creates calm-to-gust dynamics. Disabled when Min=Max=1.
+	* 風全体の強弱のうねり（低周波変調）の上限倍率。Min を下げると凪↔強風の緩急が生まれる。Min=Max=1 で無効。Wind Scope の Envelope 系列に対応
+	* Upper multiplier of the slow global intensity swell. Lower Min creates calm-to-gust dynamics. Disabled when Min=Max=1. Corresponds to the Envelope series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=13, ClampMin=0, UIMin=0, PinHiddenByDefault),
 		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
 	float EnvelopeMax = 1.0f;
 
 	/**
-	* 風全体の強弱のうねり（低周波変調）の下限倍率。Min を下げると凪↔強風の緩急が生まれる。Min=Max=1 で無効
-	* Lower multiplier of the slow global intensity swell. Lower Min creates calm-to-gust dynamics. Disabled when Min=Max=1.
+	* 風全体の強弱のうねり（低周波変調）の下限倍率。Min を下げると凪↔強風の緩急が生まれる。Min=Max=1 で無効。Wind Scope の Envelope 系列に対応
+	* Lower multiplier of the slow global intensity swell. Lower Min creates calm-to-gust dynamics. Disabled when Min=Max=1. Corresponds to the Envelope series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=14, ClampMin=0, UIMin=0, PinHiddenByDefault),
 		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
 	float EnvelopeMin = 1.0f;
 
 	/**
-	* うねりの速さ（Hz）。低いほどゆったり
-	* Swell speed in Hz. Lower is slower.
+	* うねりの速さ（Hz）。低いほどゆったり。Wind Scope の Envelope 系列に対応
+	* Swell speed in Hz. Lower is slower. Corresponds to the Envelope series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=15, ClampMin=0, UIMin=0, PinHiddenByDefault),
 		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
 	float EnvelopeFrequency = 0.1f;
 
 	/**
-	* 開始位相のオフセット。複数キャラや複数外力の揺れタイミングをずらす用途
-	* Initial phase offset. Use to desynchronize multiple characters or forces.
+	* エンベロープ（強弱のうねり）の開始位相オフセット。複数キャラや複数外力のうねりタイミングをずらす用途。Wind Scope の Envelope 系列に対応
+	* Start phase offset of the envelope (strength undulation). Use to stagger envelope timing across multiple characters or external forces. Corresponds to the Envelope series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=16, Units="Degrees", PinHiddenByDefault),
 		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
 	float EnvelopePhase = 0.0f;
 
 	/**
-	* 不規則な揺らぎ成分の強さ。自然なランダム感を足す
-	* Strength of the irregular fluctuation. Adds natural randomness.
+	* 不規則な揺らぎ成分の強さ。自然なランダム感を足す。Wind Scope の Random 系列に対応
+	* Strength of the irregular fluctuation. Adds natural randomness. Corresponds to the Random series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=17, ClampMin=0, UIMin=0, PinHiddenByDefault),
 		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
 	float RandomForce = 0.0f;
 
 	/**
-	* 揺らぎが変化する速さ（秒）。短いほど細かく震える
-	* How fast the fluctuation changes, in seconds. Shorter values jitter faster.
+	* 揺らぎが変化する速さ（秒）。短いほど細かく震える。Wind Scope の Random 系列に対応
+	* How fast the fluctuation changes, in seconds. Shorter values jitter faster. Corresponds to the Random series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=18, ClampMin=0.01, UIMin=0.01,
 		PinHiddenByDefault), Category="KawaiiPhysics|ExternalForce|Procedural Wind")
 	float RandomPeriod = 0.5f;
 
 	/**
-	* ランダム系列のシード。同じ値なら同じ揺らぎを再現できる。基底の RandomForceScaleRange が (1,1) 以外の場合は再現性が失われる
-	* Seed of the random sequence. Same seed reproduces the same fluctuation. Reproducibility is lost if the base RandomForceScaleRange is not (1,1).
+	* ランダム系列のシード。同じ値なら同じ揺らぎを再現できる。基底の RandomForceScaleRange が (1,1) 以外の場合は再現性が失われる。PIE中のライブ反映対象外（ノード値のみ・次回再生から反映）
+	* Seed of the random sequence. Same seed reproduces the same fluctuation. Reproducibility is lost if the base RandomForceScaleRange is not (1,1). Not live-updated during PIE; the node value takes effect from the next play session.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=19),
 		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
