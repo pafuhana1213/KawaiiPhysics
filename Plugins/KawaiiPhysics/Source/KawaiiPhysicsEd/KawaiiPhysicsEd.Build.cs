@@ -28,6 +28,7 @@ public class KawaiiPhysicsEd : ModuleRules
 			"Slate",
 			"SlateCore",
 			"DeveloperSettings",
+			"Settings",
 			"PropertyEditor",
 			"ContentBrowser",
 			"SourceControl",

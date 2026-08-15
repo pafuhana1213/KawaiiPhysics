@@ -17,6 +17,7 @@
 #include "Framework/Docking/WorkspaceItem.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "ISettingsModule.h"
 #include "KawaiiPhysicsDeveloperSettings.h"
 #include "KawaiiPhysicsEdStyle.h"
 #include "KawaiiPhysicsEdUtils.h"
@@ -27,6 +28,7 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeLock.h"
+#include "Modules/ModuleManager.h"
 #include "Rendering/DrawElements.h"
 #include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
@@ -1557,7 +1559,7 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 				SNew(SComboButton)
 				.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
 				.ContentPadding(FMargin(6.0f, 2.0f))
-				.ToolTipText(LOCTEXT("SavePresetTooltip", "現在のパラメータをプリセットDataAssetへ保存します / Save current parameters to the preset DataAsset."))
+				.ToolTipText(this, &SKawaiiPhysicsWindScopeWindow::GetSavePresetToolTipText)
 				.IsEnabled(this, &SKawaiiPhysicsWindScopeWindow::CanSaveWindPreset)
 				.OnGetMenuContent(this, &SKawaiiPhysicsWindScopeWindow::GenerateSavePresetMenu)
 				.ButtonContent()
@@ -2151,6 +2153,39 @@ FReply SKawaiiPhysicsWindScopeWindow::ApplyPreset(const FKawaiiProceduralWindPre
 
 TSharedRef<SWidget> SKawaiiPhysicsWindScopeWindow::GenerateSavePresetMenu()
 {
+	const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
+	if (!Settings || Settings->WindScopePresetDataAsset.IsNull())
+	{
+		FMenuBuilder MenuBuilder(true, nullptr);
+		const FText NoDataAssetText = LOCTEXT("SavePresetNoDataAssetMenuInfo", "プリセットを保存するにはプロジェクト設定で Wind Scope Preset Data Asset を設定してください / Set the Wind Scope Preset Data Asset in Project Settings to save presets.");
+		MenuBuilder.AddWidget(
+			SNew(SBox)
+			.MaxDesiredWidth(320.0f)
+			.Padding(FMargin(8.0f, 4.0f))
+			[
+				SNew(STextBlock)
+				.Text(NoDataAssetText)
+				.AutoWrapText(true)
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+			],
+			FText::GetEmpty());
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("OpenProjectSettingsMenu", "プロジェクト設定を開く / Open Project Settings"),
+			LOCTEXT("OpenProjectSettingsTooltip", "Project Settings > Plugins > Kawaii Physics を開きます / Open Project Settings > Plugins > Kawaii Physics."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateLambda([Settings]()
+			{
+				if (ISettingsModule* SettingsModule = FModuleManager::LoadModulePtr<ISettingsModule>("Settings"))
+				{
+					const FName SettingsSectionName = Settings
+						                                  ? Settings->GetSectionName()
+						                                  : UKawaiiPhysicsDeveloperSettings::StaticClass()->GetFName();
+					SettingsModule->ShowViewer("Project", "Plugins", SettingsSectionName);
+				}
+			})));
+		return MenuBuilder.MakeWidget();
+	}
+
 	FMenuBuilder MenuBuilder(true, nullptr);
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("SavePresetAddNewMenu", "新規追加 / Add New Preset"),
@@ -2187,7 +2222,18 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeWindow::GenerateSavePresetMenu()
 bool SKawaiiPhysicsWindScopeWindow::CanSaveWindPreset() const
 {
 	const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
-	return Settings && !Settings->WindScopePresetDataAsset.IsNull() && IsWindEditable();
+	return Settings && IsWindEditable();
+}
+
+FText SKawaiiPhysicsWindScopeWindow::GetSavePresetToolTipText() const
+{
+	const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
+	if (!Settings || Settings->WindScopePresetDataAsset.IsNull())
+	{
+		return LOCTEXT("SavePresetNoDataAssetTooltip", "プリセットを保存するにはプロジェクト設定で Wind Scope Preset Data Asset を設定してください / Set the Wind Scope Preset Data Asset in Project Settings to save presets.");
+	}
+
+	return LOCTEXT("SavePresetTooltip", "現在のパラメータをプリセットDataAssetへ保存します / Save current parameters to the preset DataAsset.");
 }
 
 UKawaiiPhysicsWindPresetDataAsset* SKawaiiPhysicsWindScopeWindow::ResolveWritablePresetDataAsset(

@@ -191,6 +191,7 @@ private:
 	FReply ApplyPreset(const FKawaiiProceduralWindPreset& Preset);
 	TSharedRef<SWidget> GenerateSavePresetMenu();
 	bool CanSaveWindPreset() const;
+	FText GetSavePresetToolTipText() const;
 	class UKawaiiPhysicsWindPresetDataAsset* ResolveWritablePresetDataAsset(bool bShowNotification) const;
 	bool SaveCurrentWindAsPreset(int32 PresetIndex);
 	FReply OnCopyWindParametersClicked();
