@@ -197,7 +197,7 @@ TArray<FKawaiiProceduralWindPreset> UKawaiiPhysicsWindPresetDataAsset::GetDefaul
 
 	DefaultPresets.Add(MakeWindPreset(
 		TAG_KawaiiPhysics_WindPreset_Breeze,
-		NSLOCTEXT("KawaiiPhysicsWindPresetDataAsset", "BreezePresetName", "Breeze / そよ風"),
+		NSLOCTEXT("KawaiiPhysicsWindPresetDataAsset", "BreezePresetName", "Breeze"),
 		2.0f,
 		1.0f,
 		2.0f,
@@ -213,7 +213,7 @@ TArray<FKawaiiProceduralWindPreset> UKawaiiPhysicsWindPresetDataAsset::GetDefaul
 
 	DefaultPresets.Add(MakeWindPreset(
 		TAG_KawaiiPhysics_WindPreset_Strong,
-		NSLOCTEXT("KawaiiPhysicsWindPresetDataAsset", "StrongPresetName", "Strong / 強風"),
+		NSLOCTEXT("KawaiiPhysicsWindPresetDataAsset", "StrongPresetName", "Strong"),
 		8.0f,
 		4.0f,
 		0.8f,
@@ -229,7 +229,7 @@ TArray<FKawaiiProceduralWindPreset> UKawaiiPhysicsWindPresetDataAsset::GetDefaul
 
 	DefaultPresets.Add(MakeWindPreset(
 		TAG_KawaiiPhysics_WindPreset_Storm,
-		NSLOCTEXT("KawaiiPhysicsWindPresetDataAsset", "StormPresetName", "Storm / 嵐"),
+		NSLOCTEXT("KawaiiPhysicsWindPresetDataAsset", "StormPresetName", "Storm"),
 		15.0f,
 		10.0f,
 		0.4f,

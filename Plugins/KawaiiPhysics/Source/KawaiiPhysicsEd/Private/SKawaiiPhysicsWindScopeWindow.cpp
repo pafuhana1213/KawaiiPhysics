@@ -1392,7 +1392,7 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 				SNew(SButton)
 				.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
 				.ContentPadding(FMargin(3.0f))
-				.ToolTipText(LOCTEXT("ToggleEditPanelTooltip", "編集パネルの表示切替 / Toggle the parameter edit panel."))
+				.ToolTipText(LOCTEXT("ToggleEditPanelTooltip", "Toggle the parameter edit panel."))
 				.OnClicked(this, &SKawaiiPhysicsWindScopeWindow::OnToggleEditPanelClicked)
 				[
 					SNew(SImage)
@@ -1422,7 +1422,7 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 				SNew(SButton)
 				.Text(LOCTEXT("GustButton", "Gust"))
 				.ContentPadding(FMargin(6.0f, 2.0f))
-				.ToolTipText(LOCTEXT("GustButtonTooltip", "実行中のライブ対象へテスト突風を送ります / Sends a test gust to the live target."))
+				.ToolTipText(LOCTEXT("GustButtonTooltip", "Sends a test gust to the live target."))
 				.OnClicked_Lambda([this]()
 				{
 					const bool bAppliedLive = PushGustToLiveRuntime(
@@ -1444,7 +1444,7 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("GustStrengthShortLabel", "S"))
-				.ToolTipText(LOCTEXT("GustStrengthTooltip", "突風の強さ / Gust strength."))
+				.ToolTipText(LOCTEXT("GustStrengthTooltip", "Gust strength."))
 				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
 			]
 			+ SHorizontalBox::Slot()
@@ -1467,7 +1467,7 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 					{
 						GustStrength = FMath::Clamp(NewValue, 0.0f, 50.0f);
 					})
-					.ToolTipText(LOCTEXT("GustStrengthSpinTooltip", "突風の強さ / Gust strength."))
+					.ToolTipText(LOCTEXT("GustStrengthSpinTooltip", "Gust strength."))
 				]
 			]
 			+ SHorizontalBox::Slot()
@@ -1477,7 +1477,7 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("GustRiseShortLabel", "R"))
-				.ToolTipText(LOCTEXT("GustRiseTooltip", "突風の立ち上がり時間 / Gust rise time."))
+				.ToolTipText(LOCTEXT("GustRiseTooltip", "Gust rise time."))
 				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
 			]
 			+ SHorizontalBox::Slot()
@@ -1500,7 +1500,7 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 					{
 						GustRiseTime = FMath::Clamp(NewValue, 0.01f, 5.0f);
 					})
-					.ToolTipText(LOCTEXT("GustRiseSpinTooltip", "突風の立ち上がり時間 / Gust rise time."))
+					.ToolTipText(LOCTEXT("GustRiseSpinTooltip", "Gust rise time."))
 				]
 			]
 			+ SHorizontalBox::Slot()
@@ -1510,7 +1510,7 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("GustDecayShortLabel", "D"))
-				.ToolTipText(LOCTEXT("GustDecayTooltip", "突風の減衰時間 / Gust decay time."))
+				.ToolTipText(LOCTEXT("GustDecayTooltip", "Gust decay time."))
 				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
 			]
 			+ SHorizontalBox::Slot()
@@ -1533,7 +1533,7 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 					{
 						GustDecayTime = FMath::Clamp(NewValue, 0.01f, 10.0f);
 					})
-					.ToolTipText(LOCTEXT("GustDecaySpinTooltip", "突風の減衰時間 / Gust decay time."))
+					.ToolTipText(LOCTEXT("GustDecaySpinTooltip", "Gust decay time."))
 				]
 			]
 			+ SHorizontalBox::Slot()
@@ -1544,7 +1544,7 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 				SNew(SButton)
 				.Text(LOCTEXT("ReloadPresetsButton", "Reload"))
 				.ContentPadding(FMargin(6.0f, 2.0f))
-				.ToolTipText(LOCTEXT("ReloadPresetsTooltip", "プリセットDataAssetを再読み込みします / Reload the preset DataAsset."))
+				.ToolTipText(LOCTEXT("ReloadPresetsTooltip", "Reload the preset DataAsset."))
 				.OnClicked_Lambda([this]()
 				{
 					RebuildPresetButtons();
@@ -1576,7 +1576,7 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 				SNew(SButton)
 				.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
 				.ContentPadding(FMargin(3.0f))
-				.ToolTipText(LOCTEXT("CopyWindParametersTooltip", "現在のProceduralWindパラメータをコピー / Copy current ProceduralWind parameters."))
+				.ToolTipText(LOCTEXT("CopyWindParametersTooltip", "Copy current ProceduralWind parameters."))
 				.OnClicked(this, &SKawaiiPhysicsWindScopeWindow::OnCopyWindParametersClicked)
 				[
 					SNew(SImage)
@@ -1591,7 +1591,7 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 				SNew(SButton)
 				.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
 				.ContentPadding(FMargin(3.0f))
-				.ToolTipText(LOCTEXT("PasteWindParametersTooltip", "クリップボードからProceduralWindパラメータを貼り付け / Paste ProceduralWind parameters from the clipboard."))
+				.ToolTipText(LOCTEXT("PasteWindParametersTooltip", "Paste ProceduralWind parameters from the clipboard."))
 				.OnClicked(this, &SKawaiiPhysicsWindScopeWindow::OnPasteWindParametersClicked)
 				[
 					SNew(SImage)
@@ -1747,7 +1747,7 @@ void SKawaiiPhysicsWindScopeWindow::RegisterTabSpawner(const TSharedRef<FWorkspa
 			WindScopeTabId,
 			FOnSpawnTab::CreateStatic(&SKawaiiPhysicsWindScopeWindow::SpawnWindScopeTab))
 		.SetDisplayName(LOCTEXT("WindScopeMenuDisplayName", "Kawaii Physics: Wind Scope"))
-		.SetTooltipText(LOCTEXT("WindScopeMenuTooltip", "KawaiiPhysics の風プレビュータブを開きます / Opens the KawaiiPhysics wind preview tab."))
+		.SetTooltipText(LOCTEXT("WindScopeMenuTooltip", "Opens the KawaiiPhysics wind preview tab."))
 		.SetGroup(InMenuGroup)
 		.SetIcon(KawaiiPhysicsIcon);
 }
@@ -1898,7 +1898,7 @@ FText SKawaiiPhysicsWindScopeWindow::GetTargetNodeText() const
 {
 	if (!HasTargetArgs())
 	{
-		return LOCTEXT("NoTargetNodeGuidance", "ノード未選択: KawaiiPhysics ノードの [Wind Scope] から開いてください / No node selected: open from [Wind Scope] on a KawaiiPhysics node.");
+		return LOCTEXT("NoTargetNodeGuidance", "No node selected: open from [Wind Scope] on a KawaiiPhysics node.");
 	}
 
 	if (const UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode())
@@ -2157,7 +2157,7 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeWindow::GenerateSavePresetMenu()
 	if (!Settings || Settings->WindScopePresetDataAsset.IsNull())
 	{
 		FMenuBuilder MenuBuilder(true, nullptr);
-		const FText NoDataAssetText = LOCTEXT("SavePresetNoDataAssetMenuInfo", "プリセットを保存するにはプロジェクト設定で Wind Scope Preset Data Asset を設定してください / Set the Wind Scope Preset Data Asset in Project Settings to save presets.");
+		const FText NoDataAssetText = LOCTEXT("SavePresetNoDataAssetMenuInfo", "Set the Wind Scope Preset Data Asset in Project Settings to save presets.");
 		MenuBuilder.AddWidget(
 			SNew(SBox)
 			.MaxDesiredWidth(320.0f)
@@ -2170,8 +2170,8 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeWindow::GenerateSavePresetMenu()
 			],
 			FText::GetEmpty());
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("OpenProjectSettingsMenu", "プロジェクト設定を開く / Open Project Settings"),
-			LOCTEXT("OpenProjectSettingsTooltip", "Project Settings > Plugins > Kawaii Physics を開きます / Open Project Settings > Plugins > Kawaii Physics."),
+			LOCTEXT("OpenProjectSettingsMenu", "Open Project Settings"),
+			LOCTEXT("OpenProjectSettingsTooltip", "Open Project Settings > Plugins > Kawaii Physics."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateLambda([Settings]()
 			{
@@ -2188,21 +2188,21 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeWindow::GenerateSavePresetMenu()
 
 	FMenuBuilder MenuBuilder(true, nullptr);
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("SavePresetAddNewMenu", "新規追加 / Add New Preset"),
-		LOCTEXT("SavePresetAddNewTooltip", "現在のパラメータを新しいプリセットとして追加します / Add current parameters as a new preset."),
+		LOCTEXT("SavePresetAddNewMenu", "Add New Preset"),
+		LOCTEXT("SavePresetAddNewTooltip", "Add current parameters as a new preset."),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateLambda([this]()
 		{
 			SaveCurrentWindAsPreset(INDEX_NONE);
 		})));
 
-	MenuBuilder.BeginSection(NAME_None, LOCTEXT("SavePresetOverwriteSection", "既存を上書き / Overwrite:"));
+	MenuBuilder.BeginSection(NAME_None, LOCTEXT("SavePresetOverwriteSection", "Overwrite:"));
 	UKawaiiPhysicsWindPresetDataAsset* WritablePresetDataAsset = ResolveWritablePresetDataAsset(false);
 	for (int32 PresetIndex = 0; PresetIndex < CachedPresets.Num(); ++PresetIndex)
 	{
 		MenuBuilder.AddMenuEntry(
 			ResolveWindPresetDisplayName(CachedPresets[PresetIndex], PresetIndex),
-			LOCTEXT("SavePresetOverwriteTooltip", "現在のパラメータでこのプリセットを上書きします / Overwrite this preset with current parameters."),
+			LOCTEXT("SavePresetOverwriteTooltip", "Overwrite this preset with current parameters."),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateLambda([this, PresetIndex]()
@@ -2230,10 +2230,10 @@ FText SKawaiiPhysicsWindScopeWindow::GetSavePresetToolTipText() const
 	const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
 	if (!Settings || Settings->WindScopePresetDataAsset.IsNull())
 	{
-		return LOCTEXT("SavePresetNoDataAssetTooltip", "プリセットを保存するにはプロジェクト設定で Wind Scope Preset Data Asset を設定してください / Set the Wind Scope Preset Data Asset in Project Settings to save presets.");
+		return LOCTEXT("SavePresetNoDataAssetTooltip", "Set the Wind Scope Preset Data Asset in Project Settings to save presets.");
 	}
 
-	return LOCTEXT("SavePresetTooltip", "現在のパラメータをプリセットDataAssetへ保存します / Save current parameters to the preset DataAsset.");
+	return LOCTEXT("SavePresetTooltip", "Save current parameters to the preset DataAsset.");
 }
 
 UKawaiiPhysicsWindPresetDataAsset* SKawaiiPhysicsWindScopeWindow::ResolveWritablePresetDataAsset(
@@ -2245,7 +2245,7 @@ UKawaiiPhysicsWindPresetDataAsset* SKawaiiPhysicsWindScopeWindow::ResolveWritabl
 		if (bShowNotification)
 		{
 			KawaiiPhysicsEdWindowUtils::ShowNotification(
-				LOCTEXT("SavePresetNoDataAsset", "プロジェクト設定で Wind Scope Preset Data Asset を設定してください / Set the Wind Scope Preset Data Asset in Project Settings first."),
+				LOCTEXT("SavePresetNoDataAsset", "Set the Wind Scope Preset Data Asset in Project Settings first."),
 				SNotificationItem::CS_Fail);
 		}
 		return nullptr;
@@ -2293,7 +2293,7 @@ bool SKawaiiPhysicsWindScopeWindow::SaveCurrentWindAsPreset(int32 PresetIndex)
 			TargetPreset.PresetTag != CachedPresets[PresetIndex].PresetTag)
 		{
 			KawaiiPhysicsEdWindowUtils::ShowNotification(
-				LOCTEXT("SavePresetListChanged", "プリセット一覧が変更されています。Reload してください / Preset list has changed. Reload first."),
+				LOCTEXT("SavePresetListChanged", "Preset list has changed. Reload first."),
 				SNotificationItem::CS_Fail);
 			return false;
 		}
@@ -2367,7 +2367,7 @@ FReply SKawaiiPhysicsWindScopeWindow::OnPasteWindParametersClicked()
 	if (!ClipboardText.StartsWith(WindScopeClipboardMarker))
 	{
 		KawaiiPhysicsEdWindowUtils::ShowNotification(
-			LOCTEXT("PasteWindParametersInvalidClipboard", "クリップボードに ProceduralWind パラメータがありません / Clipboard does not contain ProceduralWind parameters."),
+			LOCTEXT("PasteWindParametersInvalidClipboard", "Clipboard does not contain ProceduralWind parameters."),
 			SNotificationItem::CS_Fail);
 		return FReply::Handled();
 	}
@@ -2386,7 +2386,7 @@ FReply SKawaiiPhysicsWindScopeWindow::OnPasteWindParametersClicked()
 	if (!ImportResult)
 	{
 		KawaiiPhysicsEdWindowUtils::ShowNotification(
-			LOCTEXT("PasteWindParametersInvalidClipboard", "クリップボードに ProceduralWind パラメータがありません / Clipboard does not contain ProceduralWind parameters."),
+			LOCTEXT("PasteWindParametersInvalidClipboard", "Clipboard does not contain ProceduralWind parameters."),
 			SNotificationItem::CS_Fail);
 		return FReply::Handled();
 	}

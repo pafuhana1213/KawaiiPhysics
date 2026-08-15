@@ -175,7 +175,7 @@ FText UAnimGraphNode_KawaiiPhysics::GetNodeTitle(ENodeTitleType::Type TitleType)
 	{
 		const FText Title = Node.KawaiiPhysicsTag.IsValid()
 			                    ? FText::Format(
-				                    LOCTEXT("AnimGraphNode_KawaiiPhysics_ListTitle",
+				                    LOCTEXT("AnimGraphNode_KawaiiPhysics_ListTitleWithTag",
 				                            "{ControllerDescription} - Root: {RootBoneName} - Tag: {Tag}"), Args)
 			                    : FText::Format(
 				                    LOCTEXT("AnimGraphNode_KawaiiPhysics_ListTitle",
@@ -187,7 +187,7 @@ FText UAnimGraphNode_KawaiiPhysics::GetNodeTitle(ENodeTitleType::Type TitleType)
 	{
 		const FText Title = Node.KawaiiPhysicsTag.IsValid()
 			                    ? FText::Format(
-				                    LOCTEXT("AnimGraphNode_KawaiiPhysics_Title",
+				                    LOCTEXT("AnimGraphNode_KawaiiPhysics_TitleWithTag",
 				                            "{ControllerDescription}\nRoot: {RootBoneName}\nTag:  {Tag} "), Args)
 			                    : FText::Format(
 				                    LOCTEXT("AnimGraphNode_KawaiiPhysics_Title",
@@ -722,7 +722,7 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 		SNew(SButton)
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
-		.ToolTipText(LOCTEXT("OpenWindScopeToolTip", "Procedural Wind の波形プレビュータブを開く / Opens the waveform preview tab for Procedural Wind."))
+		.ToolTipText(LOCTEXT("OpenWindScopeToolTip", "Opens the waveform preview tab for Procedural Wind."))
 		.OnClicked_Lambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics>(this)]()
 		{
 			if (UAnimGraphNode_KawaiiPhysics* Node = WeakThis.Get())
@@ -1172,7 +1172,7 @@ void UAnimGraphNode_KawaiiPhysics::OpenWindScopeWindow(int32 ExternalForceIndex)
 	if (ExternalForceIndex == INDEX_NONE)
 	{
 		KawaiiPhysicsEdWindowUtils::ShowNotification(
-			LOCTEXT("NoProceduralWindExternalForce", "Procedural Wind の外力がありません / No Procedural Wind external force on this node."),
+			LOCTEXT("NoProceduralWindExternalForce", "No Procedural Wind external force on this node."),
 			SNotificationItem::CS_Fail);
 		return;
 	}
@@ -1205,7 +1205,7 @@ void UAnimGraphNode_KawaiiPhysics::GetNodeContextMenuActions(UToolMenu* Menu, UG
 		"KawaiiPhysicsCheckPresetDiff",
 		LOCTEXT("CheckPresetDiffMenuLabel", "Check Preset Diff"),
 		LOCTEXT("CheckPresetDiffMenuToolTip",
-		        "このノードとプリセットの差分をタブで確認します / Shows the diff between this node and its presets in a tab."),
+		        "Shows the diff between this node and its presets in a tab."),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateUObject(MutableThis, &UAnimGraphNode_KawaiiPhysics::CheckPresetDiff)));
 
@@ -1213,7 +1213,7 @@ void UAnimGraphNode_KawaiiPhysics::GetNodeContextMenuActions(UToolMenu* Menu, UG
 		"KawaiiPhysicsApplyPreset",
 		LOCTEXT("ApplyPresetMenuLabel", "Apply Preset..."),
 		LOCTEXT("ApplyPresetMenuToolTip",
-		        "プリセットDataAssetをこのノードへ適用します / Applies a preset data asset to this node."),
+		        "Applies a preset data asset to this node."),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateUObject(MutableThis, &UAnimGraphNode_KawaiiPhysics::ApplyPresetDataAsset)));
 
@@ -1237,7 +1237,7 @@ void UAnimGraphNode_KawaiiPhysics::GetNodeContextMenuActions(UToolMenu* Menu, UG
 					LOCTEXT("WindScopeContextMenuWithForceIndex", "Wind Scope (Force [{0}])"),
 					FText::AsNumber(MenuExternalForceIndex)),
 				LOCTEXT("WindScopeMenuToolTip",
-				        "Procedural Wind の波形プレビュータブを開きます / Opens the waveform preview tab for Procedural Wind."),
+				        "Opens the waveform preview tab for Procedural Wind."),
 				FSlateIcon(),
 				FUIAction(FExecuteAction::CreateUObject(
 					MutableThis,
@@ -1252,7 +1252,7 @@ void UAnimGraphNode_KawaiiPhysics::GetNodeContextMenuActions(UToolMenu* Menu, UG
 			"KawaiiPhysicsWindScope",
 			LOCTEXT("WindScopeContextMenu", "Wind Scope"),
 			LOCTEXT("WindScopeMenuToolTip",
-			        "Procedural Wind の波形プレビュータブを開きます / Opens the waveform preview tab for Procedural Wind."),
+			        "Opens the waveform preview tab for Procedural Wind."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateUObject(
 				MutableThis,
