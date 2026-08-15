@@ -1,0 +1,1870 @@
+﻿# KawaiiPhysics Japanese translation.
+# Fill out your copyright notice in the Description page of Project Settings.
+# 
+msgid ""
+msgstr ""
+"Project-Id-Version: KawaiiPhysics\n"
+"POT-Creation-Date: 2026-08-15 03:51\n"
+"PO-Revision-Date: 2026-08-15 03:51\n"
+"Language-Team: \n"
+"Language: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#. Key:	BreezePresetName
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/KawaiiPhysicsWindPresetDataAsset.cpp(200)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/KawaiiPhysicsWindPresetDataAsset.cpp(200)
+msgctxt "KawaiiPhysicsWindPresetDataAsset,BreezePresetName"
+msgid "Breeze"
+msgstr "そよ風"
+
+#. Key:	StrongPresetName
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/KawaiiPhysicsWindPresetDataAsset.cpp(216)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/KawaiiPhysicsWindPresetDataAsset.cpp(216)
+msgctxt "KawaiiPhysicsWindPresetDataAsset,StrongPresetName"
+msgid "Strong"
+msgstr "強風"
+
+#. Key:	StormPresetName
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/KawaiiPhysicsWindPresetDataAsset.cpp(232)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/KawaiiPhysicsWindPresetDataAsset.cpp(232)
+msgctxt "KawaiiPhysicsWindPresetDataAsset,StormPresetName"
+msgid "Storm"
+msgstr "嵐"
+
+#. Key:	ExportedPresetDataAsset
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1004)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1004)
+msgctxt "KawaiiPhysics,ExportedPresetDataAsset"
+msgid "Exported Preset Data Asset: {0}"
+msgstr ""
+
+#. Key:	ExportedPresetDataAssetNoTag
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1008)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1008)
+msgctxt "KawaiiPhysics,ExportedPresetDataAssetNoTag"
+msgid "Exported Preset Data Asset: {0}\nWarning: this node has no KawaiiPhysicsTag, so TargetTags is empty. Set a tag to include it in Reapply/Audit."
+msgstr ""
+
+#. Key:	ApplyPresetDialogTitle
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1019)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1019)
+msgctxt "KawaiiPhysics,ApplyPresetDialogTitle"
+msgid "Choose Kawaii Physics Preset"
+msgstr "Kawaii Physics プリセットを選択"
+
+#. Key:	ApplyPresetLoadFailed
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1036)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1036)
+msgctxt "KawaiiPhysics,ApplyPresetLoadFailed"
+msgid "Failed to load selected Kawaii Physics preset."
+msgstr "選択した Kawaii Physics プリセットの読み込みに失敗しました"
+
+#. Key:	ApplyPresetFailed
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1065)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1065)
+msgctxt "KawaiiPhysics,ApplyPresetFailed"
+msgid "Failed to apply Preset: {0}"
+msgstr "プリセットの適用に失敗しました: {0}"
+
+#. Key:	OpenPresetAsset
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1067)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1067)
+msgctxt "KawaiiPhysics,OpenPresetAsset"
+msgid "Open Preset"
+msgstr "プリセットを開く"
+
+#. Key:	OpenAppliedPresetAsset
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1095)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1095)
+msgctxt "KawaiiPhysics,OpenAppliedPresetAsset"
+msgid "Open Preset"
+msgstr "プリセットを開く"
+
+#. Key:	NoPresetTargetsNodeTag
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1107)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1107)
+msgctxt "KawaiiPhysics,NoPresetTargetsNodeTag"
+msgid "No preset targets this node's tag."
+msgstr "このノードのタグを対象とするプリセットがありません"
+
+#. Key:	CheckPresetDiffContextLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1141)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1141)
+msgctxt "KawaiiPhysics,CheckPresetDiffContextLabel"
+msgid "{0}  |  {1}  |  Tag: {2}"
+msgstr ""
+
+#. Key:	CheckPresetDiffUnknownAnimBlueprint
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1145)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1145)
+msgctxt "KawaiiPhysics,CheckPresetDiffUnknownAnimBlueprint"
+msgid "(Unknown AnimBlueprint)"
+msgstr ""
+
+#. Key:	NoProceduralWindExternalForce
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1175)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1175)
+msgctxt "KawaiiPhysics,NoProceduralWindExternalForce"
+msgid "No Procedural Wind external force on this node."
+msgstr "Procedural Wind の外力がありません"
+
+#. Key:	KawaiiPhysicsContextMenuSection
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1199)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1199)
+msgctxt "KawaiiPhysics,KawaiiPhysicsContextMenuSection"
+msgid "Kawaii Physics"
+msgstr ""
+
+#. Key:	CheckPresetDiffMenuLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1206)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1206)
+msgctxt "KawaiiPhysics,CheckPresetDiffMenuLabel"
+msgid "Check Preset Diff"
+msgstr "プリセット差分を確認"
+
+#. Key:	CheckPresetDiffMenuToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1207)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1207)
+msgctxt "KawaiiPhysics,CheckPresetDiffMenuToolTip"
+msgid "Shows the diff between this node and its presets in a tab."
+msgstr "このノードとプリセットの差分をタブで確認します"
+
+#. Key:	ApplyPresetMenuLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1214)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1214)
+msgctxt "KawaiiPhysics,ApplyPresetMenuLabel"
+msgid "Apply Preset..."
+msgstr "プリセットを適用..."
+
+#. Key:	ApplyPresetMenuToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1215)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1215)
+msgctxt "KawaiiPhysics,ApplyPresetMenuToolTip"
+msgid "Applies a preset data asset to this node."
+msgstr "プリセットDataAssetをこのノードへ適用します"
+
+#. Key:	WindScopeContextMenuWithForceIndex
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1237)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1237)
+msgctxt "KawaiiPhysics,WindScopeContextMenuWithForceIndex"
+msgid "Wind Scope (Force [{0}])"
+msgstr ""
+
+#. Key:	WindScopeMenuToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1239)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1239)
+msgctxt "KawaiiPhysics,WindScopeMenuToolTip"
+msgid "Opens the waveform preview tab for Procedural Wind."
+msgstr "Procedural Wind の波形プレビュータブを開きます"
+
+#. Key:	WindScopeContextMenu
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1253)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1253)
+msgctxt "KawaiiPhysics,WindScopeContextMenu"
+msgid "Wind Scope"
+msgstr ""
+
+#. Key:	Kawaii Physics
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(153)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(153)
+msgctxt "KawaiiPhysics,Kawaii Physics"
+msgid "Kawaii Physics"
+msgstr ""
+
+#. Key:	AnimGraphNode_KawaiiPhysics_ListTitleWithTag
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(178)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(178)
+msgctxt "KawaiiPhysics,AnimGraphNode_KawaiiPhysics_ListTitleWithTag"
+msgid "{ControllerDescription} - Root: {RootBoneName} - Tag: {Tag}"
+msgstr ""
+
+#. Key:	AnimGraphNode_KawaiiPhysics_ListTitle
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(181)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(181)
+msgctxt "KawaiiPhysics,AnimGraphNode_KawaiiPhysics_ListTitle"
+msgid "{ControllerDescription} - Root: {RootBoneName}"
+msgstr ""
+
+#. Key:	AnimGraphNode_KawaiiPhysics_TitleWithTag
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(190)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(190)
+msgctxt "KawaiiPhysics,AnimGraphNode_KawaiiPhysics_TitleWithTag"
+msgid "{ControllerDescription}\nRoot: {RootBoneName}\nTag:  {Tag} "
+msgstr ""
+
+#. Key:	AnimGraphNode_KawaiiPhysics_Title
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(193)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(193)
+msgctxt "KawaiiPhysics,AnimGraphNode_KawaiiPhysics_Title"
+msgid "{ControllerDescription}\nRoot: {RootBoneName}"
+msgstr ""
+
+#. Key:	KawaiiPhysics
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(455)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(455)
+msgctxt "KawaiiPhysics,KawaiiPhysics"
+msgid "KawaiiPhysicsTools"
+msgstr ""
+
+#. Key:	ToggleDebugVisualizationButtonRow
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(568)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(568)
+msgctxt "KawaiiPhysics,ToggleDebugVisualizationButtonRow"
+msgid "DebugVisualization"
+msgstr ""
+
+#. Key:	OpenWindScope
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(719)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(719)
+msgctxt "KawaiiPhysics,OpenWindScope"
+msgid "Wind Scope"
+msgstr ""
+
+#. Key:	OpenWindScopeToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(725)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(725)
+msgctxt "KawaiiPhysics,OpenWindScopeToolTip"
+msgid "Opens the waveform preview tab for Procedural Wind."
+msgstr "Procedural Wind の波形プレビュータブを開く"
+
+#. Key:	OpenCreatedAsset
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(851)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(851)
+msgctxt "KawaiiPhysics,OpenCreatedAsset"
+msgid "Open Created Asset"
+msgstr ""
+
+#. Key:	ExportedLimitsDataAsset
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(904)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(904)
+msgctxt "KawaiiPhysics,ExportedLimitsDataAsset"
+msgid "Exported Limits Data Asset: {0}"
+msgstr ""
+
+#. Key:	ExportedBoneConstraintsDataAsset
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(952)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(952)
+msgctxt "KawaiiPhysics,ExportedBoneConstraintsDataAsset"
+msgid "Exported BoneConstraints Data Asset: {0}"
+msgstr ""
+
+#. Key:	ExportedPresetDataAssetDescription
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(989)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(989)
+msgctxt "KawaiiPhysics,ExportedPresetDataAssetDescription"
+msgid "Exported from Anim Blueprint: {0}"
+msgstr ""
+
+#. Key:	KawaiiPhysicsMenuGroup
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEd.cpp(119)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEd.cpp(119)
+msgctxt "FKawaiiPhysicsModuleEd,KawaiiPhysicsMenuGroup"
+msgid "Kawaii Physics"
+msgstr ""
+
+#. Key:	FKawaiiPhysicsEditMode
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEd.cpp(42)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEd.cpp(42)
+msgctxt "FKawaiiPhysicsModuleEd,FKawaiiPhysicsEditMode"
+msgid "Kawaii Physics"
+msgstr ""
+
+#. Key:	DeleteKawaiiCollision
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(830)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(830)
+msgctxt "KawaiiPhysicsEditMode,DeleteKawaiiCollision"
+msgid "Delete KawaiiPhysics Collision"
+msgstr ""
+
+#. Key:	AddKawaiiPhysicsNodes
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(1700)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(1700)
+msgctxt "KawaiiPhysicsEditorLibrary,AddKawaiiPhysicsNodes"
+msgid "Add Kawaii Physics Nodes"
+msgstr ""
+
+#. Key:	SetGraphNodePropertyByString
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(1992)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(1992)
+msgctxt "KawaiiPhysicsEditorLibrary,SetGraphNodePropertyByString"
+msgid "Set Kawaii Physics Graph Node Property"
+msgstr ""
+
+#. Key:	SetGraphNodeTag
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2106)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2106)
+msgctxt "KawaiiPhysicsEditorLibrary,SetGraphNodeTag"
+msgid "Set Kawaii Physics Graph Node Tag"
+msgstr ""
+
+#. Key:	SetGraphNodeRootBoneName
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2135)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2135)
+msgctxt "KawaiiPhysicsEditorLibrary,SetGraphNodeRootBoneName"
+msgid "Set Kawaii Physics Graph Node Root Bone"
+msgstr ""
+
+#. Key:	ApplyPresetToGraphNode
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2170)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2170)
+msgctxt "KawaiiPhysicsEditorLibrary,ApplyPresetToGraphNode"
+msgid "Apply Kawaii Physics Preset"
+msgstr ""
+
+#. Key:	ExportGraphNodeToPreset
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2257)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2257)
+msgctxt "KawaiiPhysicsEditorLibrary,ExportGraphNodeToPreset"
+msgid "Export Kawaii Physics Graph Node To Preset"
+msgstr ""
+
+#. Key:	ReapplyPresetToProjectProgress
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2298)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2298)
+msgctxt "KawaiiPhysicsEditorLibrary,ReapplyPresetToProjectProgress"
+msgid "Applying Kawaii Physics preset to AnimBlueprints..."
+msgstr ""
+
+#. Key:	SetGraphNodeWildcardProperty
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2462)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2462)
+msgctxt "KawaiiPhysicsEditorLibrary,SetGraphNodeWildcardProperty"
+msgid "Set Kawaii Physics Graph Node Wildcard Property"
+msgstr ""
+
+#. Key:	FindTargetNodesWindowTitle
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(146)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(146)
+msgctxt "KawaiiPhysicsPresetDataAssetDetails,FindTargetNodesWindowTitle"
+msgid "Find Target Nodes: {0}"
+msgstr ""
+
+#. Key:	FindTargetNodesResult
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(149)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(149)
+msgctxt "KawaiiPhysicsPresetDataAssetDetails,FindTargetNodesResult"
+msgid "{0} nodes in {1} AnimBlueprints match TargetTags."
+msgstr ""
+
+#. Key:	ApplyToProjectDryRunWindowTitle
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(187)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(187)
+msgctxt "KawaiiPhysicsPresetDataAssetDetails,ApplyToProjectDryRunWindowTitle"
+msgid "Apply To Project (Dry Run): {0}"
+msgstr ""
+
+#. Key:	ApplyToProjectDryRunResult
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(190)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(190)
+msgctxt "KawaiiPhysicsPresetDataAssetDetails,ApplyToProjectDryRunResult"
+msgid "Dry run: {0} nodes matched, {1} differ from preset."
+msgstr ""
+
+#. Key:	KawaiiPhysicsPresetTargetTools
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(228)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(228)
+msgctxt "KawaiiPhysicsPresetDataAssetDetails,KawaiiPhysicsPresetTargetTools"
+msgid "KawaiiPhysicsPresetTargetTools"
+msgstr ""
+
+#. Key:	FindTargetNodesToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(243)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(243)
+msgctxt "KawaiiPhysicsPresetDataAssetDetails,FindTargetNodesToolTip"
+msgid "TargetTags に一致する KawaiiPhysics ノードをプロジェクト内の全 AnimBlueprint から検索し、結果をタブで一覧表示します（詳細は Output Log にも出力） / Searches all AnimBlueprints in the project for KawaiiPhysics nodes matching TargetTags and lists the results in a tab (details are also logged to the Output Log)."
+msgstr ""
+
+#. Key:	TargetTagsEmpty
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(63)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(63)
+msgctxt "KawaiiPhysicsPresetDataAssetDetails,TargetTagsEmpty"
+msgid "TargetTags is empty - no nodes will be targeted."
+msgstr ""
+
+#. Key:	FindTargetNodesProgress
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(80)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(80)
+msgctxt "KawaiiPhysicsPresetDataAssetDetails,FindTargetNodesProgress"
+msgid "Searching AnimBlueprints for KawaiiPhysics nodes..."
+msgstr ""
+
+#. Key:	TotalLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeStyle.h(23)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeStyle.h(23)
+msgctxt "KawaiiPhysicsWindScopeWindow,TotalLabel"
+msgid "Total"
+msgstr ""
+
+#. Key:	SteadyLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeStyle.h(24)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeStyle.h(24)
+msgctxt "KawaiiPhysicsWindScopeWindow,SteadyLabel"
+msgid "Steady"
+msgstr ""
+
+#. Key:	OscillationLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeStyle.h(25)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeStyle.h(25)
+msgctxt "KawaiiPhysicsWindScopeWindow,OscillationLabel"
+msgid "Oscillation"
+msgstr ""
+
+#. Key:	WaveLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeStyle.h(26)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeStyle.h(26)
+msgctxt "KawaiiPhysicsWindScopeWindow,WaveLabel"
+msgid "Wave"
+msgstr ""
+
+#. Key:	EnvelopeLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeStyle.h(27)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeStyle.h(27)
+msgctxt "KawaiiPhysicsWindScopeWindow,EnvelopeLabel"
+msgid "Envelope"
+msgstr ""
+
+#. Key:	RandomLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeStyle.h(28)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeStyle.h(28)
+msgctxt "KawaiiPhysicsWindScopeWindow,RandomLabel"
+msgid "Random"
+msgstr ""
+
+#. Key:	GustLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeStyle.h(29)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeStyle.h(29)
+msgctxt "KawaiiPhysicsWindScopeWindow,GustLabel"
+msgid "Gust"
+msgstr ""
+
+#. Key:	MatchesCheckMark
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(100)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(100)
+msgctxt "KawaiiPhysicsNodeAuditWindow,MatchesCheckMark"
+msgid "✓"
+msgstr ""
+
+#. Key:	ViewDiffButton
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(187)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(187)
+msgctxt "KawaiiPhysicsNodeAuditWindow,ViewDiffButton"
+msgid "View Diff"
+msgstr ""
+
+#. Key:	ViewDiffButtonToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(188)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(188)
+msgctxt "KawaiiPhysicsNodeAuditWindow,ViewDiffButtonToolTip"
+msgid "このノードとマッチしたプリセットの差分を表示します / Shows the diff between this node and its matched preset."
+msgstr ""
+
+#. Key:	NodeAuditMenuDisplayName
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(234)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(234)
+msgctxt "KawaiiPhysicsNodeAuditWindow,NodeAuditMenuDisplayName"
+msgid "Kawaii Physics: Node Audit"
+msgstr ""
+
+#. Key:	NodeAuditMenuTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(235)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(235)
+msgctxt "KawaiiPhysicsNodeAuditWindow,NodeAuditMenuTooltip"
+msgid "KawaiiPhysics のノード監査タブを開きます / Opens the KawaiiPhysics node audit tab."
+msgstr ""
+
+#. Key:	NodeAuditTabLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(252)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(252)
+msgctxt "KawaiiPhysicsNodeAuditWindow,NodeAuditTabLabel"
+msgid "Kawaii Node Audit"
+msgstr ""
+
+#. Key:	NoAuditResultsGuidance
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(335)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(335)
+msgctxt "KawaiiPhysicsNodeAuditWindow,NoAuditResultsGuidance"
+msgid "監査結果なし: プリセット DataAsset 詳細の [Find Target Nodes] / [Apply To Project (Dry Run)] から開いてください / No audit results: open from the preset DataAsset details."
+msgstr ""
+
+#. Key:	AnimBlueprintColumnLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(351)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(351)
+msgctxt "KawaiiPhysicsNodeAuditWindow,AnimBlueprintColumnLabel"
+msgid "AnimBlueprint"
+msgstr ""
+
+#. Key:	AnimBlueprintColumnToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(352)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(352)
+msgctxt "KawaiiPhysicsNodeAuditWindow,AnimBlueprintColumnToolTip"
+msgid "Anim Blueprint のアセット名を表示します。ツールチップにフルパスを表示します / Shows the Anim Blueprint asset name. The tooltip shows the full path."
+msgstr ""
+
+#. Key:	GraphColumnLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(357)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(357)
+msgctxt "KawaiiPhysicsNodeAuditWindow,GraphColumnLabel"
+msgid "Graph"
+msgstr ""
+
+#. Key:	GraphColumnToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(358)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(358)
+msgctxt "KawaiiPhysicsNodeAuditWindow,GraphColumnToolTip"
+msgid "ノードを含むグラフ名を表示します / Shows the name of the graph that owns the node."
+msgstr ""
+
+#. Key:	TagColumnLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(361)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(361)
+msgctxt "KawaiiPhysicsNodeAuditWindow,TagColumnLabel"
+msgid "Tag"
+msgstr ""
+
+#. Key:	TagColumnToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(362)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(362)
+msgctxt "KawaiiPhysicsNodeAuditWindow,TagColumnToolTip"
+msgid "KawaiiPhysicsTag を表示します / Shows the KawaiiPhysicsTag."
+msgstr ""
+
+#. Key:	RootBoneColumnLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(367)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(367)
+msgctxt "KawaiiPhysicsNodeAuditWindow,RootBoneColumnLabel"
+msgid "RootBone"
+msgstr ""
+
+#. Key:	RootBoneColumnToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(368)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(368)
+msgctxt "KawaiiPhysicsNodeAuditWindow,RootBoneColumnToolTip"
+msgid "RootBone のボーン名を表示します / Shows the RootBone bone name."
+msgstr ""
+
+#. Key:	MatchesColumnLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(375)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(375)
+msgctxt "KawaiiPhysicsNodeAuditWindow,MatchesColumnLabel"
+msgid "Matches"
+msgstr ""
+
+#. Key:	MatchesColumnToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(376)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(376)
+msgctxt "KawaiiPhysicsNodeAuditWindow,MatchesColumnToolTip"
+msgid "プリセットと一致していればチェック、そうでなければ差分プロパティ数を表示します / Shows a check mark when the node matches the preset, otherwise the number of differing properties."
+msgstr ""
+
+#. Key:	DiffPropertiesColumnLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(383)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(383)
+msgctxt "KawaiiPhysicsNodeAuditWindow,DiffPropertiesColumnLabel"
+msgid "DiffProperties"
+msgstr ""
+
+#. Key:	DiffPropertiesColumnToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(384)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(384)
+msgctxt "KawaiiPhysicsNodeAuditWindow,DiffPropertiesColumnToolTip"
+msgid "差分のあるプロパティ名をカンマ区切りで表示します / Shows differing property names, comma-separated."
+msgstr ""
+
+#. Key:	ViewDiffColumnToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(390)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(390)
+msgctxt "KawaiiPhysicsNodeAuditWindow,ViewDiffColumnToolTip"
+msgid "ノードとマッチしたプリセットの差分をウィンドウで表示します / Shows the diff between the node and its matched preset in a window."
+msgstr ""
+
+#. Key:	ShowDifferingOnlyToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(426)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(426)
+msgctxt "KawaiiPhysicsNodeAuditWindow,ShowDifferingOnlyToolTip"
+msgid "プリセットと一致していない行だけを表示します（表示のみのフィルタ） / Shows only rows that do not match the preset (display filter only)."
+msgstr ""
+
+#. Key:	ShowDifferingOnlyLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(429)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(429)
+msgctxt "KawaiiPhysicsNodeAuditWindow,ShowDifferingOnlyLabel"
+msgid "Show Differing Only"
+msgstr ""
+
+#. Key:	CheckOutFilesToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(442)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(442)
+msgctxt "KawaiiPhysicsNodeAuditWindow,CheckOutFilesToolTip"
+msgid "Apply to Project 実行時にソース管理でパッケージをチェックアウトします / Checks out packages via source control when running Apply to Project."
+msgstr ""
+
+#. Key:	CheckOutFilesLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(445)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(445)
+msgctxt "KawaiiPhysicsNodeAuditWindow,CheckOutFilesLabel"
+msgid "Check out files"
+msgstr ""
+
+#. Key:	RefreshButton
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(458)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(458)
+msgctxt "KawaiiPhysicsNodeAuditWindow,RefreshButton"
+msgid "Refresh"
+msgstr ""
+
+#. Key:	RefreshButtonToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(459)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(459)
+msgctxt "KawaiiPhysicsNodeAuditWindow,RefreshButtonToolTip"
+msgid "プリセットを対象ノードへドライラン適用し直し、一覧を再計算します / Re-runs a dry-run apply of the preset against the target nodes and rebuilds the list."
+msgstr ""
+
+#. Key:	ExportButton
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(471)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(471)
+msgctxt "KawaiiPhysicsNodeAuditWindow,ExportButton"
+msgid "Export..."
+msgstr ""
+
+#. Key:	ExportButtonToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(472)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(472)
+msgctxt "KawaiiPhysicsNodeAuditWindow,ExportButtonToolTip"
+msgid "監査結果を JSON または CSV ファイルへ書き出します / Exports the audit results to a JSON or CSV file."
+msgstr ""
+
+#. Key:	ApplyToProjectButton
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(480)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(480)
+msgctxt "KawaiiPhysicsNodeAuditWindow,ApplyToProjectButton"
+msgid "Apply to Project..."
+msgstr ""
+
+#. Key:	ApplyToProjectButtonToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(481)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(481)
+msgctxt "KawaiiPhysicsNodeAuditWindow,ApplyToProjectButtonToolTip"
+msgid "このプリセットを、対象タグに一致するプロジェクト内の全ノードへ適用します / Applies this preset to every node in the project that matches its target tags."
+msgstr ""
+
+#. Key:	ExportSucceeded
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(56)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(56)
+msgctxt "KawaiiPhysicsNodeAuditWindow,ExportSucceeded"
+msgid "Exported Kawaii Physics audit results."
+msgstr ""
+
+#. Key:	OpenAnimBlueprintFailed
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(605)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(605)
+msgctxt "KawaiiPhysicsNodeAuditWindow,OpenAnimBlueprintFailed"
+msgid "Failed to open the AnimBlueprint."
+msgstr ""
+
+#. Key:	ViewDiffResolveFailed
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(628)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(628)
+msgctxt "KawaiiPhysicsNodeAuditWindow,ViewDiffResolveFailed"
+msgid "Failed to resolve the KawaiiPhysics graph node."
+msgstr ""
+
+#. Key:	ExportSucceededHyperlink
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(63)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(63)
+msgctxt "KawaiiPhysicsNodeAuditWindow,ExportSucceededHyperlink"
+msgid "Show in Folder"
+msgstr ""
+
+#. Key:	ViewDiffPresetLoadFailed
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(638)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(638)
+msgctxt "KawaiiPhysicsNodeAuditWindow,ViewDiffPresetLoadFailed"
+msgid "Failed to load the matched preset."
+msgstr ""
+
+#. Key:	ViewDiffContextLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(650)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(650)
+msgctxt "KawaiiPhysicsNodeAuditWindow,ViewDiffContextLabel"
+msgid "{0}  |  {1}  |  Tag: {2}"
+msgstr ""
+
+#. Key:	ViewDiffUnknownAnimBlueprint
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(654)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(654)
+msgctxt "KawaiiPhysicsNodeAuditWindow,ViewDiffUnknownAnimBlueprint"
+msgid "(Unknown AnimBlueprint)"
+msgstr ""
+
+#. Key:	RefreshPresetLoadFailed
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(710)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(710)
+msgctxt "KawaiiPhysicsNodeAuditWindow,RefreshPresetLoadFailed"
+msgid "Failed to load the preset for Refresh."
+msgstr ""
+
+#. Key:	ApplyToProjectConfirm
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(740)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(740)
+msgctxt "KawaiiPhysicsNodeAuditWindow,ApplyToProjectConfirm"
+msgid "Apply preset '{0}' to the project?\n{1} node(s) currently differ from this preset."
+msgstr ""
+
+#. Key:	ApplyToProjectPresetLoadFailed
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(753)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(753)
+msgctxt "KawaiiPhysicsNodeAuditWindow,ApplyToProjectPresetLoadFailed"
+msgid "Failed to load the preset for Apply to Project."
+msgstr ""
+
+#. Key:	ApplyToProjectSucceeded
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(765)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(765)
+msgctxt "KawaiiPhysicsNodeAuditWindow,ApplyToProjectSucceeded"
+msgid "Applied preset to {0} node(s)."
+msgstr ""
+
+#. Key:	AuditSummaryFormat
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(78)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(78)
+msgctxt "KawaiiPhysicsNodeAuditWindow,AuditSummaryFormat"
+msgid "{0} nodes, {1} differ"
+msgstr ""
+
+#. Key:	ExportDialogTitle
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(791)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(791)
+msgctxt "KawaiiPhysicsNodeAuditWindow,ExportDialogTitle"
+msgid "Export Kawaii Physics Audit"
+msgstr ""
+
+#. Key:	ExportFailed
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(809)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(809)
+msgctxt "KawaiiPhysicsNodeAuditWindow,ExportFailed"
+msgid "Failed to export the Kawaii Physics audit results."
+msgstr ""
+
+#. Key:	RowSelectionToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(219)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(219)
+msgctxt "KawaiiPhysicsPresetDiffWindow,RowSelectionToolTip"
+msgid "このプロパティを Apply Selected / Update Preset from Node の対象にします / Selects this property for Apply Selected or Update Preset from Node."
+msgstr ""
+
+#. Key:	NoDiffSelectedGuidance
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(305)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(305)
+msgctxt "KawaiiPhysicsPresetDiffWindow,NoDiffSelectedGuidance"
+msgid "差分未選択: KawaiiPhysics ノードの [Check Preset Diff] から開いてください / No diff selected: open from a KawaiiPhysics node's [Check Preset Diff]."
+msgstr ""
+
+#. Key:	PresetComboToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(323)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(323)
+msgctxt "KawaiiPhysicsPresetDiffWindow,PresetComboToolTip"
+msgid "表示するプリセット差分を選択します / Selects the preset diff to display."
+msgstr ""
+
+#. Key:	OpenPresetButtonToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(336)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(336)
+msgctxt "KawaiiPhysicsPresetDiffWindow,OpenPresetButtonToolTip"
+msgid "選択中のプリセットアセットを開きます / Opens the selected preset asset."
+msgstr ""
+
+#. Key:	RefreshButtonToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(351)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(351)
+msgctxt "KawaiiPhysicsPresetDiffWindow,RefreshButtonToolTip"
+msgid "ノードを再解決して差分を再計算します / Re-resolves the node and rebuilds the diffs."
+msgstr ""
+
+#. Key:	ShowAllPropertiesToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(377)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(377)
+msgctxt "KawaiiPhysicsPresetDiffWindow,ShowAllPropertiesToolTip"
+msgid "一致しているプロパティも表示します / Shows properties that already match too."
+msgstr ""
+
+#. Key:	ShowAllPropertiesLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(380)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(380)
+msgctxt "KawaiiPhysicsPresetDiffWindow,ShowAllPropertiesLabel"
+msgid "Show All Properties"
+msgstr ""
+
+#. Key:	SearchToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(394)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(394)
+msgctxt "KawaiiPhysicsPresetDiffWindow,SearchToolTip"
+msgid "カテゴリ、表示名、内部プロパティ名で絞り込みます / Filters by category, display name, or internal property name."
+msgstr ""
+
+#. Key:	CopyButtonToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(403)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(403)
+msgctxt "KawaiiPhysicsPresetDiffWindow,CopyButtonToolTip"
+msgid "差分をタブ区切りテキストとしてクリップボードへコピーします / Copies the diff as tab-separated text to the clipboard."
+msgstr ""
+
+#. Key:	SelectionColumnToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(426)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(426)
+msgctxt "KawaiiPhysicsPresetDiffWindow,SelectionColumnToolTip"
+msgid "プロパティを操作対象として選択します / Selects a property for operations."
+msgstr ""
+
+#. Key:	CategoryColumnLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(429)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(429)
+msgctxt "KawaiiPhysicsPresetDiffWindow,CategoryColumnLabel"
+msgid "Category"
+msgstr ""
+
+#. Key:	CategoryColumnToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(430)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(430)
+msgctxt "KawaiiPhysicsPresetDiffWindow,CategoryColumnToolTip"
+msgid "プロパティカテゴリを表示します / Shows the property category."
+msgstr ""
+
+#. Key:	PropertyColumnLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(433)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(433)
+msgctxt "KawaiiPhysicsPresetDiffWindow,PropertyColumnLabel"
+msgid "Property"
+msgstr ""
+
+#. Key:	PropertyColumnToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(434)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(434)
+msgctxt "KawaiiPhysicsPresetDiffWindow,PropertyColumnToolTip"
+msgid "表示名を表示し、ツールチップで内部名を表示します / Shows the display name, with the internal name in the tooltip."
+msgstr ""
+
+#. Key:	NodeValueColumnLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(437)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(437)
+msgctxt "KawaiiPhysicsPresetDiffWindow,NodeValueColumnLabel"
+msgid "Node Value"
+msgstr ""
+
+#. Key:	NodeValueColumnToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(438)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(438)
+msgctxt "KawaiiPhysicsPresetDiffWindow,NodeValueColumnToolTip"
+msgid "現在のノード側の値を表示します / Shows the current value on the node."
+msgstr ""
+
+#. Key:	PresetValueColumnLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(441)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(441)
+msgctxt "KawaiiPhysicsPresetDiffWindow,PresetValueColumnLabel"
+msgid "Preset Value"
+msgstr ""
+
+#. Key:	PresetValueColumnToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(442)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(442)
+msgctxt "KawaiiPhysicsPresetDiffWindow,PresetValueColumnToolTip"
+msgid "プリセット側の値を表示します / Shows the value stored in the preset."
+msgstr ""
+
+#. Key:	ApplySelectedButton
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(465)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(465)
+msgctxt "KawaiiPhysicsPresetDiffWindow,ApplySelectedButton"
+msgid "Apply Selected"
+msgstr ""
+
+#. Key:	ApplySelectedButtonToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(466)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(466)
+msgctxt "KawaiiPhysicsPresetDiffWindow,ApplySelectedButtonToolTip"
+msgid "チェックしたプロパティだけをプリセットからノードへ適用します / Applies only checked properties from the preset to the node."
+msgstr ""
+
+#. Key:	ApplyPresetToNodeButton
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(473)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(473)
+msgctxt "KawaiiPhysicsPresetDiffWindow,ApplyPresetToNodeButton"
+msgid "Apply Preset to Node"
+msgstr ""
+
+#. Key:	ApplyPresetToNodeButtonToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(474)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(474)
+msgctxt "KawaiiPhysicsPresetDiffWindow,ApplyPresetToNodeButtonToolTip"
+msgid "選択中のプリセット全体をノードへ適用します / Applies the whole selected preset to the node."
+msgstr ""
+
+#. Key:	UpdatePresetFromNodeButton
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(480)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(480)
+msgctxt "KawaiiPhysicsPresetDiffWindow,UpdatePresetFromNodeButton"
+msgid "Update Preset from Node"
+msgstr ""
+
+#. Key:	UpdatePresetFromNodeButtonToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(481)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(481)
+msgctxt "KawaiiPhysicsPresetDiffWindow,UpdatePresetFromNodeButtonToolTip"
+msgid "チェックした差分、または未チェック時は全差分をノードからプリセットへ反映します / Updates checked diffs, or all diffs when none are checked, from the node to the preset."
+msgstr ""
+
+#. Key:	PresetDiffMenuDisplayName
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(499)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(499)
+msgctxt "KawaiiPhysicsPresetDiffWindow,PresetDiffMenuDisplayName"
+msgid "Kawaii Physics: Preset Diff"
+msgstr ""
+
+#. Key:	PresetDiffMenuTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(500)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(500)
+msgctxt "KawaiiPhysicsPresetDiffWindow,PresetDiffMenuTooltip"
+msgid "KawaiiPhysics のプリセット差分タブを開きます / Opens the KawaiiPhysics preset diff tab."
+msgstr ""
+
+#. Key:	PresetDiffTabLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(517)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(517)
+msgctxt "KawaiiPhysicsPresetDiffWindow,PresetDiffTabLabel"
+msgid "Kawaii Preset Diff"
+msgstr ""
+
+#. Key:	OpenAnimBlueprintFailed
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(633)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(633)
+msgctxt "KawaiiPhysicsPresetDiffWindow,OpenAnimBlueprintFailed"
+msgid "Failed to open the AnimBlueprint."
+msgstr ""
+
+#. Key:	NoPresetSelected
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(665)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(665)
+msgctxt "KawaiiPhysicsPresetDiffWindow,NoPresetSelected"
+msgid "No Preset"
+msgstr ""
+
+#. Key:	NoSnapshotSummary
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(672)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(672)
+msgctxt "KawaiiPhysicsPresetDiffWindow,NoSnapshotSummary"
+msgid "No preset selected"
+msgstr ""
+
+#. Key:	MatchesPresetSummary
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(676)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(676)
+msgctxt "KawaiiPhysicsPresetDiffWindow,MatchesPresetSummary"
+msgid "Matches preset"
+msgstr ""
+
+#. Key:	DiffCountSummary
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(678)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(678)
+msgctxt "KawaiiPhysicsPresetDiffWindow,DiffCountSummary"
+msgid "{0} properties differ"
+msgstr ""
+
+#. Key:	OpenPresetFailed
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(715)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(715)
+msgctxt "KawaiiPhysicsPresetDiffWindow,OpenPresetFailed"
+msgid "Failed to load the selected preset."
+msgstr ""
+
+#. Key:	CopySucceeded
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(737)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(737)
+msgctxt "KawaiiPhysicsPresetDiffWindow,CopySucceeded"
+msgid "Copied preset diff to clipboard."
+msgstr ""
+
+#. Key:	RefreshResolveFailed
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(752)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(752)
+msgctxt "KawaiiPhysicsPresetDiffWindow,RefreshResolveFailed"
+msgid "Failed to resolve the KawaiiPhysics node."
+msgstr ""
+
+#. Key:	ApplySelectedResolveFailed
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(770)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(770)
+msgctxt "KawaiiPhysicsPresetDiffWindow,ApplySelectedResolveFailed"
+msgid "Failed to resolve the KawaiiPhysics graph node."
+msgstr ""
+
+#. Key:	ApplySelectedPresetLoadFailed
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(780)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(780)
+msgctxt "KawaiiPhysicsPresetDiffWindow,ApplySelectedPresetLoadFailed"
+msgid "Failed to load the selected preset."
+msgstr ""
+
+#. Key:	ApplySelectedPresetChanged
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(792)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(792)
+msgctxt "KawaiiPhysicsPresetDiffWindow,ApplySelectedPresetChanged"
+msgid "The preset or node changed. Review the refreshed diff before applying."
+msgstr ""
+
+#. Key:	ApplySelectedTransaction
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(799)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(799)
+msgctxt "KawaiiPhysicsPresetDiffWindow,ApplySelectedTransaction"
+msgid "Apply Selected Kawaii Physics Preset Properties"
+msgstr ""
+
+#. Key:	ApplySelectedCopyFailed
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(805)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(805)
+msgctxt "KawaiiPhysicsPresetDiffWindow,ApplySelectedCopyFailed"
+msgid "Failed to copy one or more selected properties."
+msgstr ""
+
+#. Key:	ApplySelectedSucceeded
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(817)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(817)
+msgctxt "KawaiiPhysicsPresetDiffWindow,ApplySelectedSucceeded"
+msgid "Applied selected properties to the node."
+msgstr ""
+
+#. Key:	ApplyPresetResolveFailed
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(834)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(834)
+msgctxt "KawaiiPhysicsPresetDiffWindow,ApplyPresetResolveFailed"
+msgid "Failed to resolve the KawaiiPhysics graph node."
+msgstr ""
+
+#. Key:	ApplyPresetLoadFailed
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(844)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(844)
+msgctxt "KawaiiPhysicsPresetDiffWindow,ApplyPresetLoadFailed"
+msgid "Failed to load the selected preset."
+msgstr ""
+
+#. Key:	ApplyPresetChanged
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(856)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(856)
+msgctxt "KawaiiPhysicsPresetDiffWindow,ApplyPresetChanged"
+msgid "The preset or node changed. Review the refreshed diff before applying."
+msgstr ""
+
+#. Key:	ApplyPresetFailed
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(864)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(864)
+msgctxt "KawaiiPhysicsPresetDiffWindow,ApplyPresetFailed"
+msgid "Failed to apply the preset to the node."
+msgstr ""
+
+#. Key:	ApplyPresetSucceeded
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(872)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(872)
+msgctxt "KawaiiPhysicsPresetDiffWindow,ApplyPresetSucceeded"
+msgid "Applied the preset to the node."
+msgstr ""
+
+#. Key:	NoPresetPropertiesToUpdate
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(890)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(890)
+msgctxt "KawaiiPhysicsPresetDiffWindow,NoPresetPropertiesToUpdate"
+msgid "No differing properties to update."
+msgstr ""
+
+#. Key:	UpdatePresetConfirm
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(898)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(898)
+msgctxt "KawaiiPhysicsPresetDiffWindow,UpdatePresetConfirm"
+msgid "Update preset '{0}' from the node and overwrite {1} properties?"
+msgstr ""
+
+#. Key:	UpdatePresetResolveFailed
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(911)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(911)
+msgctxt "KawaiiPhysicsPresetDiffWindow,UpdatePresetResolveFailed"
+msgid "Failed to resolve the KawaiiPhysics graph node."
+msgstr ""
+
+#. Key:	UpdatePresetLoadFailed
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(921)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(921)
+msgctxt "KawaiiPhysicsPresetDiffWindow,UpdatePresetLoadFailed"
+msgid "Failed to load the selected preset."
+msgstr ""
+
+#. Key:	UpdatePresetTransaction
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(927)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(927)
+msgctxt "KawaiiPhysicsPresetDiffWindow,UpdatePresetTransaction"
+msgid "Update Kawaii Physics Preset From Node"
+msgstr ""
+
+#. Key:	UpdatePresetCopyFailed
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(933)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(933)
+msgctxt "KawaiiPhysicsPresetDiffWindow,UpdatePresetCopyFailed"
+msgid "Failed to copy one or more properties to the preset."
+msgstr ""
+
+#. Key:	UpdatePresetSucceeded
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(943)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsPresetDiffWindow.cpp(943)
+msgctxt "KawaiiPhysicsPresetDiffWindow,UpdatePresetSucceeded"
+msgid "Updated the preset from the node."
+msgstr ""
+
+#. Key:	CommonGroupLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(163)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(163)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,CommonGroupLabel"
+msgid "Common"
+msgstr ""
+
+#. Key:	DirectionGroupLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(170)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(170)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,DirectionGroupLabel"
+msgid "Direction"
+msgstr ""
+
+#. Key:	SteadyGroupLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(179)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(179)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,SteadyGroupLabel"
+msgid "Steady"
+msgstr ""
+
+#. Key:	OscillationGroupLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(186)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(186)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,OscillationGroupLabel"
+msgid "Oscillation"
+msgstr ""
+
+#. Key:	WaveGroupLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(194)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(194)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,WaveGroupLabel"
+msgid "Wave"
+msgstr ""
+
+#. Key:	EnvelopeGroupLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(204)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(204)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,EnvelopeGroupLabel"
+msgid "Envelope"
+msgstr ""
+
+#. Key:	RandomGroupLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(214)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(214)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,RandomGroupLabel"
+msgid "Random"
+msgstr ""
+
+#. Key:	TimeGroupLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(223)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(223)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,TimeGroupLabel"
+msgid "Time"
+msgstr ""
+
+#. Key:	EditPanelHeader
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(253)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(253)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,EditPanelHeader"
+msgid "Procedural Wind"
+msgstr ""
+
+#. Key:	FormulaHelpTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(292)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(292)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaHelpTooltip"
+msgid "Composition formula help."
+msgstr "合成式のヘルプ"
+
+#. Key:	FormulaHelpButton
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(297)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(297)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaHelpButton"
+msgid "?"
+msgstr ""
+
+#. Key:	FormulaTotalPrefix
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(316)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(316)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaTotalPrefix"
+msgid "Sample."
+msgstr ""
+
+#. Key:	FormulaTotal
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(317)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(317)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaTotal"
+msgid "Total"
+msgstr ""
+
+#. Key:	FormulaEquals
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(318)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(318)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaEquals"
+msgid " = ("
+msgstr ""
+
+#. Key:	FormulaSteadyPrefix
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(319)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(319)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaSteadyPrefix"
+msgid "Sample."
+msgstr ""
+
+#. Key:	FormulaSteady
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(320)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(320)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaSteady"
+msgid "Steady"
+msgstr ""
+
+#. Key:	FormulaPlusOscillation
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(321)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(321)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaPlusOscillation"
+msgid " + Sample."
+msgstr ""
+
+#. Key:	FormulaOscillation
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(322)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(322)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaOscillation"
+msgid "Oscillation"
+msgstr ""
+
+#. Key:	FormulaPlusWave
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(323)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(323)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaPlusWave"
+msgid " + Sample."
+msgstr ""
+
+#. Key:	FormulaWave
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(324)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(324)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaWave"
+msgid "Wave"
+msgstr ""
+
+#. Key:	FormulaEnvelopePrefix
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(325)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(325)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaEnvelopePrefix"
+msgid ") * Sample."
+msgstr ""
+
+#. Key:	FormulaEnvelope
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(326)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(326)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaEnvelope"
+msgid "Envelope"
+msgstr ""
+
+#. Key:	FormulaPlusRandom
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(327)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(327)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaPlusRandom"
+msgid " + Sample."
+msgstr ""
+
+#. Key:	FormulaRandom
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(328)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(328)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaRandom"
+msgid "Random"
+msgstr ""
+
+#. Key:	FormulaPlusGust
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(329)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(329)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaPlusGust"
+msgid " + Sample."
+msgstr ""
+
+#. Key:	PinDrivenWarningTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(33)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(33)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,PinDrivenWarningTooltip"
+msgid "Pin-driven values take precedence over panel edits."
+msgstr "ピン接続中のパラメータはグラフ側の値が優先されます"
+
+#. Key:	FormulaGust
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(330)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(330)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaGust"
+msgid "Gust"
+msgstr ""
+
+#. Key:	FormulaSemicolon
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(331)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(331)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaSemicolon"
+msgid ";"
+msgstr ""
+
+#. Key:	FormulaHelpGroupLine1
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(337)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(337)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaHelpGroupLine1"
+msgid "Steady, Oscillation, Wave, Envelope, and Random map to their groups."
+msgstr "Steady/Oscillation/Wave/Envelope/Random は同名グループに対応"
+
+#. Key:	FormulaHelpGroupLine2
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(346)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(346)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaHelpGroupLine2"
+msgid "Gust maps to the Gust button and S/R/D inputs above."
+msgstr "Gust は上部の Gust ボタンと S/R/D 入力に対応"
+
+#. Key:	CurveEditGuide
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(593)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(593)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,CurveEditGuide"
+msgid "Edit the curve in the Details panel"
+msgstr "カーブ(ForceRateByBoneLengthRate)は詳細パネルで編集"
+
+#. Key:	FocusNodeButton
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(603)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(603)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FocusNodeButton"
+msgid "Focus Node"
+msgstr "ノードへフォーカス"
+
+#. Key:	ResetToDefaultTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(618)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(618)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,ResetToDefaultTooltip"
+msgid "Reset to default."
+msgstr "既定値へ戻します"
+
+#. Key:	LiveBoolFalse
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(708)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(708)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,LiveBoolFalse"
+msgid "false"
+msgstr ""
+
+#. Key:	LiveBoolTrue
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(708)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(708)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,LiveBoolTrue"
+msgid "true"
+msgstr ""
+
+#. Key:	LiveVectorValueFormat
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(719)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(719)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,LiveVectorValueFormat"
+msgid "({0}, {1}, {2})"
+msgstr ""
+
+#. Key:	LiveValueFormat
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(733)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(733)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,LiveValueFormat"
+msgid "→ {0} (live)"
+msgstr ""
+
+#. Key:	InitialMode
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1331)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1331)
+msgctxt "KawaiiPhysicsWindScopeWindow,InitialMode"
+msgid "Preview"
+msgstr "プレビュー"
+
+#. Key:	ExternalForceLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1361)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1361)
+msgctxt "KawaiiPhysicsWindScopeWindow,ExternalForceLabel"
+msgid "Force"
+msgstr "外力"
+
+#. Key:	ToggleEditPanelTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1395)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1395)
+msgctxt "KawaiiPhysicsWindScopeWindow,ToggleEditPanelTooltip"
+msgid "Toggle the parameter edit panel."
+msgstr "編集パネルの表示切替"
+
+#. Key:	GustButton
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1423)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1423)
+msgctxt "KawaiiPhysicsWindScopeWindow,GustButton"
+msgid "Gust"
+msgstr ""
+
+#. Key:	GustButtonTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1425)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1425)
+msgctxt "KawaiiPhysicsWindScopeWindow,GustButtonTooltip"
+msgid "Sends a test gust to the live target."
+msgstr "実行中のライブ対象へテスト突風を送ります"
+
+#. Key:	GustSucceededLive
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1434)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1434)
+msgctxt "KawaiiPhysicsWindScopeWindow,GustSucceededLive"
+msgid "Triggered wind gust. (live)"
+msgstr "突風をトリガーしました。(ライブ)"
+
+#. Key:	GustNoLiveTarget
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1435)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1435)
+msgctxt "KawaiiPhysicsWindScopeWindow,GustNoLiveTarget"
+msgid "Skipped wind gust. (no live target)"
+msgstr "突風をスキップしました。(ライブ対象なし)"
+
+#. Key:	GustStrengthShortLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1446)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1446)
+msgctxt "KawaiiPhysicsWindScopeWindow,GustStrengthShortLabel"
+msgid "S"
+msgstr ""
+
+#. Key:	GustStrengthTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1447)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1447)
+msgctxt "KawaiiPhysicsWindScopeWindow,GustStrengthTooltip"
+msgid "Gust strength."
+msgstr "突風の強さ"
+
+#. Key:	GustStrengthSpinTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1470)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1470)
+msgctxt "KawaiiPhysicsWindScopeWindow,GustStrengthSpinTooltip"
+msgid "Gust strength."
+msgstr "突風の強さ"
+
+#. Key:	GustRiseShortLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1479)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1479)
+msgctxt "KawaiiPhysicsWindScopeWindow,GustRiseShortLabel"
+msgid "R"
+msgstr ""
+
+#. Key:	GustRiseTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1480)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1480)
+msgctxt "KawaiiPhysicsWindScopeWindow,GustRiseTooltip"
+msgid "Gust rise time."
+msgstr "突風の立ち上がり時間"
+
+#. Key:	GustRiseSpinTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1503)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1503)
+msgctxt "KawaiiPhysicsWindScopeWindow,GustRiseSpinTooltip"
+msgid "Gust rise time."
+msgstr "突風の立ち上がり時間"
+
+#. Key:	GustDecayShortLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1512)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1512)
+msgctxt "KawaiiPhysicsWindScopeWindow,GustDecayShortLabel"
+msgid "D"
+msgstr ""
+
+#. Key:	GustDecayTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1513)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1513)
+msgctxt "KawaiiPhysicsWindScopeWindow,GustDecayTooltip"
+msgid "Gust decay time."
+msgstr "突風の減衰時間"
+
+#. Key:	GustDecaySpinTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1536)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1536)
+msgctxt "KawaiiPhysicsWindScopeWindow,GustDecaySpinTooltip"
+msgid "Gust decay time."
+msgstr "突風の減衰時間"
+
+#. Key:	ReloadPresetsButton
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1545)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1545)
+msgctxt "KawaiiPhysicsWindScopeWindow,ReloadPresetsButton"
+msgid "Reload"
+msgstr "リロード"
+
+#. Key:	ReloadPresetsTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1547)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1547)
+msgctxt "KawaiiPhysicsWindScopeWindow,ReloadPresetsTooltip"
+msgid "Reload the preset DataAsset."
+msgstr "プリセットDataAssetを再読み込みします"
+
+#. Key:	SavePresetButton
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1568)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1568)
+msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetButton"
+msgid "Save as Preset"
+msgstr "プリセットとして保存"
+
+#. Key:	CopyWindParametersTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1579)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1579)
+msgctxt "KawaiiPhysicsWindScopeWindow,CopyWindParametersTooltip"
+msgid "Copy current ProceduralWind parameters."
+msgstr "現在のProceduralWindパラメータをコピー"
+
+#. Key:	PasteWindParametersTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1594)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1594)
+msgctxt "KawaiiPhysicsWindScopeWindow,PasteWindParametersTooltip"
+msgid "Paste ProceduralWind parameters from the clipboard."
+msgstr "クリップボードからProceduralWindパラメータを貼り付け"
+
+#. Key:	DisplaySecondsLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1690)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1690)
+msgctxt "KawaiiPhysicsWindScopeWindow,DisplaySecondsLabel"
+msgid "Seconds"
+msgstr "秒"
+
+#. Key:	PauseLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1715)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1715)
+msgctxt "KawaiiPhysicsWindScopeWindow,PauseLabel"
+msgid "Pause"
+msgstr "一時停止"
+
+#. Key:	WindScopeMenuDisplayName
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1749)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1749)
+msgctxt "KawaiiPhysicsWindScopeWindow,WindScopeMenuDisplayName"
+msgid "Kawaii Physics: Wind Scope"
+msgstr ""
+
+#. Key:	WindScopeMenuTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1750)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1750)
+msgctxt "KawaiiPhysicsWindScopeWindow,WindScopeMenuTooltip"
+msgid "Opens the KawaiiPhysics wind preview tab."
+msgstr "KawaiiPhysics の風プレビュータブを開きます"
+
+#. Key:	WindScopeTabLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1772)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1772)
+msgctxt "KawaiiPhysicsWindScopeWindow,WindScopeTabLabel"
+msgid "Kawaii Wind Scope"
+msgstr ""
+
+#. Key:	PreviewMode
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1853)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1853)
+msgctxt "KawaiiPhysicsWindScopeWindow,PreviewMode"
+msgid "Preview"
+msgstr "プレビュー"
+
+#. Key:	ExternalForceItemFormat
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1865)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1865)
+msgctxt "KawaiiPhysicsWindScopeWindow,ExternalForceItemFormat"
+msgid "#{0} ProceduralWind"
+msgstr ""
+
+#. Key:	NoExternalForceItem
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1866)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1866)
+msgctxt "KawaiiPhysicsWindScopeWindow,NoExternalForceItem"
+msgid "None"
+msgstr "なし"
+
+#. Key:	SelectedExternalForceFormat
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1893)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1893)
+msgctxt "KawaiiPhysicsWindScopeWindow,SelectedExternalForceFormat"
+msgid "#{0} ProceduralWind"
+msgstr ""
+
+#. Key:	NoExternalForceSelected
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1894)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1894)
+msgctxt "KawaiiPhysicsWindScopeWindow,NoExternalForceSelected"
+msgid "No ProceduralWind"
+msgstr "ProceduralWind なし"
+
+#. Key:	NoTargetNodeGuidance
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1901)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1901)
+msgctxt "KawaiiPhysicsWindScopeWindow,NoTargetNodeGuidance"
+msgid "No node selected: open from [Wind Scope] on a KawaiiPhysics node."
+msgstr "ノード未選択: KawaiiPhysics ノードの [Wind Scope] から開いてください"
+
+#. Key:	UnknownTargetNode
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1908)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1908)
+msgctxt "KawaiiPhysicsWindScopeWindow,UnknownTargetNode"
+msgid "KawaiiPhysics Node"
+msgstr "KawaiiPhysics ノード"
+
+#. Key:	CurrentValuesFormat
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1921)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1921)
+msgctxt "KawaiiPhysicsWindScopeWindow,CurrentValuesFormat"
+msgid "Total {0}  Steady {1}  Osc {2}  Wave {3}  Env {4}  Rand {5}  Gust {6}"
+msgstr ""
+
+#. Key:	ApplyWindPresetTransaction
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2125)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2125)
+msgctxt "KawaiiPhysicsWindScopeWindow,ApplyWindPresetTransaction"
+msgid "Apply Kawaii Physics Wind Preset"
+msgstr "Kawaii Physics 風プリセットの適用"
+
+#. Key:	ApplyPresetSucceededLive
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2147)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2147)
+msgctxt "KawaiiPhysicsWindScopeWindow,ApplyPresetSucceededLive"
+msgid "Applied {0} wind preset. (live)"
+msgstr "風プリセット {0} を適用しました。(ライブ)"
+
+#. Key:	ApplyPresetSucceededNodeOnly
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2148)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2148)
+msgctxt "KawaiiPhysicsWindScopeWindow,ApplyPresetSucceededNodeOnly"
+msgid "Applied {0} wind preset. (node only — no live target)"
+msgstr "風プリセット {0} を適用しました。(ノードのみ — ライブ対象なし)"
+
+#. Key:	SavePresetNoDataAssetMenuInfo
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2160)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2160)
+msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetNoDataAssetMenuInfo"
+msgid "Set the Wind Scope Preset Data Asset in Project Settings to save presets."
+msgstr "プリセットを保存するにはプロジェクト設定で Wind Scope Preset Data Asset を設定してください"
+
+#. Key:	OpenProjectSettingsMenu
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2173)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2173)
+msgctxt "KawaiiPhysicsWindScopeWindow,OpenProjectSettingsMenu"
+msgid "Open Project Settings"
+msgstr "プロジェクト設定を開く"
+
+#. Key:	OpenProjectSettingsTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2174)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2174)
+msgctxt "KawaiiPhysicsWindScopeWindow,OpenProjectSettingsTooltip"
+msgid "Open Project Settings > Plugins > Kawaii Physics."
+msgstr "Project Settings > Plugins > Kawaii Physics を開きます"
+
+#. Key:	SavePresetAddNewMenu
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2191)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2191)
+msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetAddNewMenu"
+msgid "Add New Preset"
+msgstr "新規追加"
+
+#. Key:	SavePresetAddNewTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2192)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2192)
+msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetAddNewTooltip"
+msgid "Add current parameters as a new preset."
+msgstr "現在のパラメータを新しいプリセットとして追加します"
+
+#. Key:	SavePresetOverwriteSection
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2199)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2199)
+msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetOverwriteSection"
+msgid "Overwrite:"
+msgstr "既存を上書き:"
+
+#. Key:	SavePresetOverwriteTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2205)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2205)
+msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetOverwriteTooltip"
+msgid "Overwrite this preset with current parameters."
+msgstr "現在のパラメータでこのプリセットを上書きします"
+
+#. Key:	SavePresetNoDataAssetTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2233)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2233)
+msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetNoDataAssetTooltip"
+msgid "Set the Wind Scope Preset Data Asset in Project Settings to save presets."
+msgstr "プリセットを保存するにはプロジェクト設定で Wind Scope Preset Data Asset を設定してください"
+
+#. Key:	SavePresetTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2236)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2236)
+msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetTooltip"
+msgid "Save current parameters to the preset DataAsset."
+msgstr "現在のパラメータをプリセットDataAssetへ保存します"
+
+#. Key:	SavePresetNoDataAsset
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2248)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2248)
+msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetNoDataAsset"
+msgid "Set the Wind Scope Preset Data Asset in Project Settings first."
+msgstr "プロジェクト設定で Wind Scope Preset Data Asset を設定してください"
+
+#. Key:	SavePresetLoadDataAssetFailed
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2258)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2258)
+msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetLoadDataAssetFailed"
+msgid "Failed to load the Wind Scope Preset Data Asset."
+msgstr "Wind Scope Preset Data Asset の読み込みに失敗しました"
+
+#. Key:	SavePresetInvalidOverwriteTarget
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2284)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2284)
+msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetInvalidOverwriteTarget"
+msgid "Failed to resolve the wind preset to overwrite."
+msgstr "上書き対象の風プリセットを特定できませんでした"
+
+#. Key:	SavePresetListChanged
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2296)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2296)
+msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetListChanged"
+msgid "Preset list has changed. Reload first."
+msgstr "プリセット一覧が変更されています。Reload してください"
+
+#. Key:	SaveWindPresetTransaction
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2304)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2304)
+msgctxt "KawaiiPhysicsWindScopeWindow,SaveWindPresetTransaction"
+msgid "Save Kawaii Physics Wind Preset"
+msgstr "Kawaii Physics 風プリセットの保存"
+
+#. Key:	SavePresetCustomNameFormat
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2309)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2309)
+msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetCustomNameFormat"
+msgid "Custom {0}"
+msgstr "カスタム {0}"
+
+#. Key:	SavePresetSucceededAdd
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2329)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2329)
+msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetSucceededAdd"
+msgid "Saved {0} wind preset."
+msgstr "風プリセット {0} を保存しました"
+
+#. Key:	SavePresetSucceededOverwrite
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2330)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2330)
+msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetSucceededOverwrite"
+msgid "Overwrote {0} wind preset."
+msgstr "風プリセット {0} を上書きしました"
+
+#. Key:	CopyWindParametersSucceeded
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2358)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2358)
+msgctxt "KawaiiPhysicsWindScopeWindow,CopyWindParametersSucceeded"
+msgid "Copied ProceduralWind parameters to clipboard."
+msgstr "ProceduralWind パラメータをクリップボードへコピーしました"
+
+#. Key:	PasteWindParametersInvalidClipboard
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2370)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2370)
+msgctxt "KawaiiPhysicsWindScopeWindow,PasteWindParametersInvalidClipboard"
+msgid "Clipboard does not contain ProceduralWind parameters."
+msgstr "クリップボードに ProceduralWind パラメータがありません"
+
+#. Key:	PasteWindParametersTransaction
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2402)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2402)
+msgctxt "KawaiiPhysicsWindScopeWindow,PasteWindParametersTransaction"
+msgid "Paste Kawaii Physics Wind Parameters"
+msgstr "Kawaii Physics 風パラメータの貼り付け"
+
+#. Key:	PasteWindParametersSucceededLive
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2411)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2411)
+msgctxt "KawaiiPhysicsWindScopeWindow,PasteWindParametersSucceededLive"
+msgid "Pasted ProceduralWind parameters. (live)"
+msgstr "ProceduralWind パラメータを貼り付けました。(ライブ)"
+
+#. Key:	PasteWindParametersSucceededNodeOnly
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2412)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2412)
+msgctxt "KawaiiPhysicsWindScopeWindow,PasteWindParametersSucceededNodeOnly"
+msgid "Pasted ProceduralWind parameters. (node only — no live target)"
+msgstr "ProceduralWind パラメータを貼り付けました。(ノードのみ — ライブ対象なし)"
+
+#. Key:	ApplyPresetNoNode
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2432)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2432)
+msgctxt "KawaiiPhysicsWindScopeWindow,ApplyPresetNoNode"
+msgid "Failed to resolve the KawaiiPhysics graph node."
+msgstr "KawaiiPhysics グラフノードを特定できませんでした"
+
+#. Key:	ApplyPresetNoWind
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2445)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2445)
+msgctxt "KawaiiPhysicsWindScopeWindow,ApplyPresetNoWind"
+msgid "No ProceduralWind external force was found."
+msgstr "ProceduralWind の外力が見つかりませんでした"
+
+#. Key:	ApplyPresetInvalidWind
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2458)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2458)
+msgctxt "KawaiiPhysicsWindScopeWindow,ApplyPresetInvalidWind"
+msgid "The selected external force is not ProceduralWind."
+msgstr "選択中の外力は ProceduralWind ではありません"
+
+#. Key:	EditWindParamPropertyMissing
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2553)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2553)
+msgctxt "KawaiiPhysicsWindScopeWindow,EditWindParamPropertyMissing"
+msgid "Failed to resolve the wind parameter property."
+msgstr "風パラメータのプロパティを特定できませんでした"
+
+#. Key:	EditWindParameterTransaction
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2604)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2604)
+msgctxt "KawaiiPhysicsWindScopeWindow,EditWindParameterTransaction"
+msgid "Edit Kawaii Physics Wind Parameter"
+msgstr "Kawaii Physics 風パラメータの編集"
+
+#. Key:	EditWindParamSetFailed
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2610)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2610)
+msgctxt "KawaiiPhysicsWindScopeWindow,EditWindParamSetFailed"
+msgid "Failed to update the wind parameter."
+msgstr "風パラメータの更新に失敗しました"
+
+#. Key:	ResetWindParamPropertyMissing
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2711)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2711)
+msgctxt "KawaiiPhysicsWindScopeWindow,ResetWindParamPropertyMissing"
+msgid "Failed to resolve the wind parameter property."
+msgstr "風パラメータのプロパティを特定できませんでした"
+
+#. Key:	FocusWindScopeNodeFailed
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2838)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2838)
+msgctxt "KawaiiPhysicsWindScopeWindow,FocusWindScopeNodeFailed"
+msgid "Failed to resolve the KawaiiPhysics graph node."
+msgstr "KawaiiPhysics グラフノードを特定できませんでした"
+
+#. Key:	PreviewModeTick
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2886)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2886)
+msgctxt "KawaiiPhysicsWindScopeWindow,PreviewModeTick"
+msgid "Preview"
+msgstr "プレビュー"
+
+#. Key:	LiveModeTick
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2890)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2890)
+msgctxt "KawaiiPhysicsWindScopeWindow,LiveModeTick"
+msgid "Live"
+msgstr "ライブ"
+
+#. Key:	WindPresetFallbackNameFormat
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(367)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(367)
+msgctxt "KawaiiPhysicsWindScopeWindow,WindPresetFallbackNameFormat"
+msgid "Preset {0}"
+msgstr "プリセット {0}"
+
