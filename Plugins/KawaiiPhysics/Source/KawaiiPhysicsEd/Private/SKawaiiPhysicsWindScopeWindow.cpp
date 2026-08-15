@@ -1345,21 +1345,6 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(0.0f, 0.0f, 6.0f, 0.0f)
-			[
-				SNew(SButton)
-				.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
-				.ContentPadding(FMargin(3.0f))
-				.ToolTipText(LOCTEXT("ToggleEditPanelTooltip", "編集パネルの表示切替 / Toggle the parameter edit panel."))
-				.OnClicked(this, &SKawaiiPhysicsWindScopeWindow::OnToggleEditPanelClicked)
-				[
-					SNew(SImage)
-					.Image(this, &SKawaiiPhysicsWindScopeWindow::GetEditPanelToggleIcon)
-				]
-			]
-			+ SHorizontalBox::Slot()
 			.FillWidth(1.0f)
 			.VAlign(VAlign_Center)
 			[
@@ -1398,6 +1383,21 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 				SNew(STextBlock)
 				.Text(this, &SKawaiiPhysicsWindScopeWindow::GetModeText)
 				.ColorAndOpacity(FAppStyle::Get().GetSlateColor(TEXT("Colors.AccentGreen")))
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(8.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(SButton)
+				.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
+				.ContentPadding(FMargin(3.0f))
+				.ToolTipText(LOCTEXT("ToggleEditPanelTooltip", "編集パネルの表示切替 / Toggle the parameter edit panel."))
+				.OnClicked(this, &SKawaiiPhysicsWindScopeWindow::OnToggleEditPanelClicked)
+				[
+					SNew(SImage)
+					.Image(this, &SKawaiiPhysicsWindScopeWindow::GetEditPanelToggleIcon)
+				]
 			]
 		]
 		// プリセットボタン列
@@ -1599,37 +1599,13 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 				]
 			]
 		]
-		// 編集パネル・凡例・波形グラフ本体
+		// 凡例・波形グラフ本体・編集パネル
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
 		.Padding(8.0f, 2.0f, 8.0f, 4.0f)
 		[
 			SAssignNew(EditPanelSplitter, SSplitter)
 			.Orientation(Orient_Horizontal)
-			+ SSplitter::Slot()
-			.Value_Lambda([this]()
-			{
-				return EditPanelSplitterFraction;
-			})
-			.MinSize(220.0f)
-			.OnSlotResized(SSplitter::FOnSlotResized::CreateSP(this, &SKawaiiPhysicsWindScopeWindow::OnEditPanelSlotResized))
-			[
-				SNew(SBorder)
-				.BorderImage(FCoreStyle::Get().GetBrush(TEXT("NoBrush")))
-				.Visibility(this, &SKawaiiPhysicsWindScopeWindow::GetEditPanelVisibility)
-				.IsEnabled(this, &SKawaiiPhysicsWindScopeWindow::IsWindEditable)
-				.Padding(0.0f, 0.0f, 8.0f, 0.0f)
-				[
-					SNew(SKawaiiPhysicsWindScopeEditPanel)
-					.EditValues(this, &SKawaiiPhysicsWindScopeWindow::GetEditValues)
-					.LiveEditValues(this, &SKawaiiPhysicsWindScopeWindow::GetLiveEditValues)
-					.OnParamEdit(this, &SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit)
-					.OnParamReset(this, &SKawaiiPhysicsWindScopeWindow::ResetWindParamToDefault)
-					.IsParamPinExposed(this, &SKawaiiPhysicsWindScopeWindow::IsWindParamPinExposed)
-					.OnFocusNode(FSimpleDelegate::CreateSP(this, &SKawaiiPhysicsWindScopeWindow::OnFocusWindScopeNodeClicked))
-					.OnHighlightSeries(this, &SKawaiiPhysicsWindScopeWindow::SetHighlightSeries)
-				]
-			]
 			+ SSplitter::Slot()
 			.Value_Lambda([this]()
 			{
@@ -1657,6 +1633,30 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 				.FillHeight(1.0f)
 				[
 					SAssignNew(GraphWidget, SKawaiiPhysicsWindScopeGraph)
+				]
+			]
+			+ SSplitter::Slot()
+			.Value_Lambda([this]()
+			{
+				return EditPanelSplitterFraction;
+			})
+			.MinSize(220.0f)
+			.OnSlotResized(SSplitter::FOnSlotResized::CreateSP(this, &SKawaiiPhysicsWindScopeWindow::OnEditPanelSlotResized))
+			[
+				SNew(SBorder)
+				.BorderImage(FCoreStyle::Get().GetBrush(TEXT("NoBrush")))
+				.Visibility(this, &SKawaiiPhysicsWindScopeWindow::GetEditPanelVisibility)
+				.IsEnabled(this, &SKawaiiPhysicsWindScopeWindow::IsWindEditable)
+				.Padding(8.0f, 0.0f, 0.0f, 0.0f)
+				[
+					SNew(SKawaiiPhysicsWindScopeEditPanel)
+					.EditValues(this, &SKawaiiPhysicsWindScopeWindow::GetEditValues)
+					.LiveEditValues(this, &SKawaiiPhysicsWindScopeWindow::GetLiveEditValues)
+					.OnParamEdit(this, &SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit)
+					.OnParamReset(this, &SKawaiiPhysicsWindScopeWindow::ResetWindParamToDefault)
+					.IsParamPinExposed(this, &SKawaiiPhysicsWindScopeWindow::IsWindParamPinExposed)
+					.OnFocusNode(FSimpleDelegate::CreateSP(this, &SKawaiiPhysicsWindScopeWindow::OnFocusWindScopeNodeClicked))
+					.OnHighlightSeries(this, &SKawaiiPhysicsWindScopeWindow::SetHighlightSeries)
 				]
 			]
 		]
@@ -1981,7 +1981,7 @@ EVisibility SKawaiiPhysicsWindScopeWindow::GetEditPanelVisibility() const
 
 const FSlateBrush* SKawaiiPhysicsWindScopeWindow::GetEditPanelToggleIcon() const
 {
-	return FAppStyle::Get().GetBrush(IsEditPanelExpanded() ? TEXT("Icons.ChevronLeft") : TEXT("Icons.ChevronRight"));
+	return FAppStyle::Get().GetBrush(IsEditPanelExpanded() ? TEXT("Icons.ChevronRight") : TEXT("Icons.ChevronLeft"));
 }
 
 FReply SKawaiiPhysicsWindScopeWindow::OnToggleEditPanelClicked()
