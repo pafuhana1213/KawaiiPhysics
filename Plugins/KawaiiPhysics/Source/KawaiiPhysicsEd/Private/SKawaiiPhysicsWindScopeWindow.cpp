@@ -988,6 +988,11 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 			GraphSize);
 		if (GhostPoints.Num() >= 2)
 		{
+			const FPaintGeometry GhostClipGeometry = AllottedGeometry.ToPaintGeometry(
+				GraphSize,
+				FSlateLayoutTransform(GraphOrigin));
+			// ゴーストはYレンジ超過時にプロット矩形外へはみ出しうるためクリップする
+			OutDrawElements.PushClip(FSlateClippingZone(GhostClipGeometry));
 			DrawWindScopeDashedLine(
 				OutDrawElements,
 				LayerId + 4,
@@ -995,6 +1000,7 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 				GhostPoints,
 				FLinearColor(1.0f, 1.0f, 1.0f, 0.5f),
 				1.5f);
+			OutDrawElements.PopClip();
 		}
 	}
 
