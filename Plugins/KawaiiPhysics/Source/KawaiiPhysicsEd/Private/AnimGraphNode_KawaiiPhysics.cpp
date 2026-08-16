@@ -101,6 +101,7 @@ namespace
 		for (const FName& CategoryName : KawaiiPhysicsEditorCategoryNames::GetCategorySortOrderNames())
 		{
 			if (CategoryName != KawaiiPhysicsEditorCategoryNames::KawaiiPhysicsTools &&
+				CategoryName != KawaiiPhysicsEditorCategoryNames::CategoryFilter &&
 				!FilterGroup->CategoryNames.Contains(CategoryName))
 			{
 				DetailBuilder.HideCategory(CategoryName);
@@ -521,8 +522,11 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 	const FName SelectedFilterGroupId = ReadKawaiiPhysicsCategoryFilter();
 	IDetailLayoutBuilder* LayoutBuilder = &DetailBuilder;
 
-	// カテゴリの表示範囲をワンクリックで切り替えるため、ツール行の先頭にフィルタチップを置く。
-	FDetailWidgetRow& FilterWidgetRow = ViewportCategory.AddCustomRow(LOCTEXT("CategoryFilterRow", "Category Filter"));
+	// カテゴリの表示範囲をワンクリックで切り替えるため、独立したカテゴリにフィルタチップを置く。
+	IDetailCategoryBuilder& FilterCategory = DetailBuilder.EditCategory(
+		KawaiiPhysicsEditorCategoryNames::CategoryFilter,
+		LOCTEXT("CategoryFilterRow", "Category Filter"));
+	FDetailWidgetRow& FilterWidgetRow = FilterCategory.AddCustomRow(LOCTEXT("CategoryFilterRow", "Category Filter"));
 	FilterWidgetRow.WholeRowContent()
 	[
 		SNew(SSegmentedControl<FName>)
@@ -874,6 +878,8 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 
 		const FCategoryDisplayNameOverride DisplayNameOverrides[] =
 		{
+			{ KawaiiPhysicsEditorCategoryNames::CategoryFilter,
+			  LOCTEXT("CategoryFilterRow", "Category Filter") },
 			{ KawaiiPhysicsEditorCategoryNames::BonesBoneSubdivision,
 			  LOCTEXT("Category_Bones_BoneSubdivision", "Bones > Bone Subdivision") },
 			{ KawaiiPhysicsEditorCategoryNames::PhysicsSettingsCurves,
