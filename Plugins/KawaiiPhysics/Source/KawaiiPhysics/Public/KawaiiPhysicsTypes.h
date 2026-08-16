@@ -88,14 +88,14 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSettings
 	* 減衰度：揺れの強さを制御。値が小さいほど、加速度を物理挙動に反映
 	* Damping physical behavior. As the value is smaller, the acceleration is more reflected to the physical behavior
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), category = "KawaiiPhysics")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), Category = "Kawaii Physics")
 	float Damping = 0.1f;
 
 	/** 
 	* 剛性度：値が大きいほど、元の形状を維持
 	* Stiffness of physical behavior. As the value is larger, pre-physics shape is more respected
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), category = "KawaiiPhysics")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), Category = "Kawaii Physics")
 	float Stiffness = 0.05f;
 
 	/**
@@ -104,7 +104,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSettings
 	* Damping (suppression) of the Skeletal Mesh Component's world-space movement.
 	* 0 = movement fully reflected (max sway) / 1 = follows component (no reflection). Actual reflection factor = (1 - WorldDampingLocation).
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), category = "KawaiiPhysics")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), Category = "Kawaii Physics")
 	float WorldDampingLocation = 0.8f;
 
 	/**
@@ -113,7 +113,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSettings
 	* Damping (suppression) of the Skeletal Mesh Component's world-space rotation.
 	* 0 = rotation fully reflected (max sway) / 1 = follows component (no reflection). Actual reflection factor = (1 - WorldDampingRotation).
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), category = "KawaiiPhysics")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), Category = "Kawaii Physics")
 	float WorldDampingRotation = 0.8f;
 
 	/** 
@@ -121,14 +121,14 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSettings
 	* Radius of bone's collision
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", DisplayName="Collision Radius"),
-		category = "KawaiiPhysics")
+		Category = "Kawaii Physics")
 	float Radius = 3.0f;
 
 	/** 
 	* 物理挙動による回転制限。適切に設定することで荒ぶりを抑制
 	* Rotational limitations in physical behavior. Setting the value properly can suppress excessive shaking
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), category = "KawaiiPhysics")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), Category = "Kawaii Physics")
 	float LimitAngle = 0.0f;
 };
 
@@ -145,39 +145,39 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsModifyBone
 	FBoneReference BoneRef;
 
 	/** Index of the bone */
-	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|ModifyBone")
 	int32 Index = -1;
 
 	/** Index of the parent bone */
-	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|ModifyBone")
 	int32 ParentIndex = -1;
 
 	/** Indices of the child bones */
-	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|ModifyBone")
 	TArray<int32> ChildIndices;
 
 	/** Physics settings for the bone */
-	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|ModifyBone")
 	FKawaiiPhysicsSettings PhysicsSettings;
 
 	/** Current location of the bone */
-	UPROPERTY(BlueprintReadWrite, Category = "KawaiiPhysics|ModifyBone")
+	UPROPERTY(BlueprintReadWrite, Category = "Kawaii Physics|ModifyBone")
 	FVector Location = FVector::ZeroVector;
 
 	/** Previous location of the bone */
-	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|ModifyBone")
 	FVector PrevLocation = FVector::ZeroVector;
 
 	/** Previous rotation of the bone */
-	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|ModifyBone")
 	FQuat PrevRotation = FQuat::Identity;
 
 	/** Pose location of the bone */
-	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|ModifyBone")
 	FVector PoseLocation = FVector::ZeroVector;
 
 	/** Pose rotation of the bone */
-	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|ModifyBone")
 	FQuat PoseRotation = FQuat::Identity;
 
 	// ===== 固定サブステップのポーズ補間用（Transient, 非シリアライズ） =====
@@ -193,30 +193,30 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsModifyBone
 	FQuat CurrentPoseRotation = FQuat::Identity;
 
 	/** Pose scale of the bone */
-	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|ModifyBone")
 	FVector PoseScale = FVector::OneVector;
 
 	/** Length of the bone */
-	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|ModifyBone")
 	float BoneLength = 0.0f;
 
 	/** Length from the root bone */
-	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|ModifyBone")
 	float LengthFromRoot = 0.0f;
 
 	/** Length rate from the root bone */
-	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|ModifyBone")
 	float LengthRateFromRoot = 0.0f;
 
 	/** Flag indicating if this is a dummy bone */
-	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|ModifyBone")
 	bool bDummy = false;
 
 	/**
 	* ボーン間ダミーボーンフラグ（2つの実ボーン間に挿入されたダミー）
 	* Flag: this is an inter-bone dummy (inserted between two real bones)
 	*/
-	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|ModifyBone")
 	bool bInterBoneDummy = false;
 
 	/**
@@ -243,11 +243,11 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsModifyBone
 	* 配置用に InterBoneRealParentIndex/InterBoneRealChildIndex/InterBoneAlpha を端点1/端点2/補間率として流用する。
 	* Reuses InterBoneRealParentIndex/InterBoneRealChildIndex/InterBoneAlpha as endpoint1/endpoint2/lerp-alpha for placement.
 	*/
-	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|ModifyBone")
 	bool bBridgeDummy = false;
 
 	/** Flag indicating if simulation should be skipped for this bone */
-	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics|ModifyBone")
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|ModifyBone")
 	bool bSkipSimulate = false;
 
 	/**

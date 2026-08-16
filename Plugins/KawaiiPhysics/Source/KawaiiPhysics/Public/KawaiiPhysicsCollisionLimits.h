@@ -78,7 +78,7 @@ struct FCollisionLimitBase
 #if WITH_EDITORONLY_DATA
 
 	/** コリジョンの一意な識別子（エディタ専用） / Unique identifier for the collision limit (editor only) */
-	UPROPERTY(VisibleAnywhere, Category = Debug, meta = (IgnoreForMemberInitializationTest))
+	UPROPERTY(VisibleAnywhere, Category = "Debug", meta = (IgnoreForMemberInitializationTest))
 	FGuid Guid = FGuid::NewGuid();
 
 	/** Type of the collision limit (editor only) */

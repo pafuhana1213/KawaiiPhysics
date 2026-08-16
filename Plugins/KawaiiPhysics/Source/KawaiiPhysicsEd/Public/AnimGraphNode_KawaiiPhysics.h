@@ -17,7 +17,7 @@ UCLASS()
 class UAnimGraphNode_KawaiiPhysics : public UAnimGraphNode_SkeletalControlBase
 {
 	GENERATED_UCLASS_BODY()
-	UPROPERTY(EditAnywhere, Category = Settings)
+	UPROPERTY(EditAnywhere, Category = "Settings")
 	FAnimNode_KawaiiPhysics Node;
 
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;

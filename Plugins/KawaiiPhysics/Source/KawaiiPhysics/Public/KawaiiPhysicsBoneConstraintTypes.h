@@ -32,26 +32,26 @@ struct FModifyBoneConstraint
 	}
 
 	/** Constraintの1本目のボーン参照 / The first bone reference in the constraint */
-	UPROPERTY(EditAnywhere, category = "Kawaii Physics")
+	UPROPERTY(EditAnywhere, Category = "Kawaii Physics")
 	FBoneReference Bone1;
 
 	/** Constraintの2本目のボーン参照 / The second bone reference in the constraint */
-	UPROPERTY(EditAnywhere, category = "Kawaii Physics")
+	UPROPERTY(EditAnywhere, Category = "Kawaii Physics")
 	FBoneReference Bone2;
 
 	/** ComplianceTypeを個別に上書きするフラグ / Flag to override the compliance type */
-	UPROPERTY(EditAnywhere, category = "Kawaii Physics", meta=(InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = "Kawaii Physics", meta=(InlineEditConditionToggle))
 	bool bOverrideCompliance = false;
 
 	/** 上書きする場合に使用するComplianceType / The compliance type to use if overridden */
-	UPROPERTY(EditAnywhere, category = "Kawaii Physics", meta=(EditCondition="bOverrideCompliance"))
+	UPROPERTY(EditAnywhere, Category = "Kawaii Physics", meta=(EditCondition="bOverrideCompliance"))
 	EXPBDComplianceType ComplianceType = EXPBDComplianceType::Leather;
 
 	/**
 	 * このConstraintをBoneConstraintSubdivisionの対象から除外する（構造/対角Constraint用のオプトアウト）
 	 * Exclude this constraint from BoneConstraintSubdivision (opt-out for structural/diagonal constraints).
 	 */
-	UPROPERTY(EditAnywhere, category = "Kawaii Physics")
+	UPROPERTY(EditAnywhere, Category = "Kawaii Physics")
 	bool bExcludeFromSubdivision = false;
 
 	/** Index of the first modify bone */

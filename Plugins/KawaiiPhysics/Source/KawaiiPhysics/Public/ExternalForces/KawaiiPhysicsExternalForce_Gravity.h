@@ -26,21 +26,21 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Gravity : public FKawaiiPh
 	* Corrects the Force Rate applied to each bone.
 	* Multiplies the ForceRate by the curve value for "Length from RootBone to specific bone / Length from RootBone to end bone" (0.0~1.0)
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce")
 	FRuntimeFloatCurve ForceRateByBoneLengthRate;
 
 	/**
 	* Character側で設定されたCustomGravityDirectionを使用するフラグ(UE5.4以降)
 	* Flag to use CustomGravityDirection set on the Character side (UE5.4 and later)
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce")
 	bool bUseCharacterGravityDirection = false;
 
 	/**
 	* Character側で設定されたGravityScaleを使用するフラグ
 	* Flag to use GravityScale set on the Character side
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce")
 	bool bUseCharacterGravityScale = false;
 
 	/**
@@ -50,7 +50,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Gravity : public FKawaiiPh
 	 * This direction is used when bUseOverrideGravityDirection is true.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,
-		meta = (EditCondition = "bUseOverrideGravityDirection"), Category="KawaiiPhysics|ExternalForce")
+		meta = (EditCondition = "bUseOverrideGravityDirection"), Category="Kawaii Physics|ExternalForce")
 	FVector OverrideGravityDirection = FVector::Zero();
 
 	/**
@@ -60,7 +60,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Gravity : public FKawaiiPh
 	 * If true, the gravity direction will be overridden by OverrideGravityDirection.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (InlineEditConditionToggle),
-		Category="KawaiiPhysics|ExternalForce")
+		Category="Kawaii Physics|ExternalForce")
 	bool bUseOverrideGravityDirection = false;
 
 private:

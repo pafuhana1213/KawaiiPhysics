@@ -694,7 +694,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	UPROPERTY(Transient, BlueprintReadWrite, Category = "Bones")
 	TArray<FKawaiiPhysicsModifyBone> ModifyBones;
 
-	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics")
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics")
 	float DeltaTime = 0.0f;
 
 private:
