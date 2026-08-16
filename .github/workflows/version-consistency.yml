@@ -22,6 +22,9 @@ on:
       - Tools/check_version_consistency.py
       - .github/workflows/version-consistency.yml
 
+permissions:
+  contents: read
+
 jobs:
   version-consistency:
     runs-on: ubuntu-latest
