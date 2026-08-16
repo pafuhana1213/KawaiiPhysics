@@ -475,7 +475,7 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 			.Content()
 			[
 				SNew(STextBlock)
-				.Text(FText::FromString(TEXT("Export Limits")))
+				.Text(LOCTEXT("ExportCollisionButton", "Export Collision"))
 				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
 			]
 		]
@@ -765,11 +765,11 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 		SafeSetOrder(FName("Physics Settings"));
 		SafeSetOrder(FName("Physics Settings|Curves"));
 
-		// Limits
-		SafeSetOrder(FName("Limits"));
-		SafeSetOrder(FName("Limits|Bone Constraint"));
-		SafeSetOrder(FName("Limits|Shared Collision"));
-		SafeSetOrder(FName("Limits|World Collision"));
+		// Collision
+		SafeSetOrder(FName("Collision"));
+		SafeSetOrder(FName("Collision|Bone Constraint"));
+		SafeSetOrder(FName("Collision|Shared Collision"));
+		SafeSetOrder(FName("Collision|World Collision"));
 
 		// Force
 		SafeSetOrder(FName("Force"));
@@ -825,7 +825,7 @@ void UAnimGraphNode_KawaiiPhysics::CreateExportDataAssetPath(FString& PackageNam
 	AssetToolsModule.Get().CreateUniqueAssetName(AnimBlueprintPath, DefaultSuffix, PackageName, AssetName);
 }
 
-UPackage* UAnimGraphNode_KawaiiPhysics::CreateDataAssetPackage(const FString& DialogTitle, const FString& DefaultSuffix,
+UPackage* UAnimGraphNode_KawaiiPhysics::CreateDataAssetPackage(const FText& DialogTitle, const FString& DefaultSuffix,
                                                                FString& AssetName) const
 {
 	FString PackageName;
@@ -833,7 +833,7 @@ UPackage* UAnimGraphNode_KawaiiPhysics::CreateDataAssetPackage(const FString& Di
 
 	const TSharedRef<SDlgPickAssetPath> NewAssetDlg =
 		SNew(SDlgPickAssetPath)
-		.Title(FText::FromString(DialogTitle))
+		.Title(DialogTitle)
 		.DefaultAssetPath(FText::FromString(PackageName));
 
 	if (NewAssetDlg->ShowModal() == EAppReturnType::Cancel)
@@ -858,7 +858,7 @@ void UAnimGraphNode_KawaiiPhysics::ExportLimitsDataAsset()
 {
 	FString AssetName;
 	UPackage* Package = CreateDataAssetPackage(
-		TEXT("Choose Location for Collision Data Asset"), TEXT("_Collision"), AssetName);
+		LOCTEXT("ExportCollisionDialogTitle", "Choose Location for Collision Data Asset"), TEXT("_Collision"), AssetName);
 	if (!Package)
 	{
 		return;
@@ -903,7 +903,7 @@ void UAnimGraphNode_KawaiiPhysics::ExportLimitsDataAsset()
 
 		// Add Notification
 		FText NotificationText = FText::Format(
-			LOCTEXT("ExportedLimitsDataAsset", "Exported Limits Data Asset: {0}"), FText::FromString(AssetName));
+			LOCTEXT("ExportedCollisionDataAsset", "Exported Collision Data Asset: {0}"), FText::FromString(AssetName));
 		ShowExportAssetNotification(NewDataAsset, NotificationText);
 	}
 }
@@ -912,7 +912,7 @@ void UAnimGraphNode_KawaiiPhysics::ExportBoneConstraintsDataAsset()
 {
 	FString AssetName;
 	UPackage* Package = CreateDataAssetPackage(
-		TEXT("Choose Location for BoneConstraints Data Asset"), TEXT("_BoneConstraint"), AssetName);
+		LOCTEXT("ExportBoneConstraintsDialogTitle", "Choose Location for BoneConstraints Data Asset"), TEXT("_BoneConstraint"), AssetName);
 	if (!Package)
 	{
 		return;
@@ -961,7 +961,7 @@ void UAnimGraphNode_KawaiiPhysics::ExportPresetDataAsset()
 {
 	FString AssetName;
 	UPackage* Package = CreateDataAssetPackage(
-		TEXT("Choose Location for Preset Data Asset"), TEXT("_Preset"), AssetName);
+		LOCTEXT("ExportPresetDialogTitle", "Choose Location for Preset Data Asset"), TEXT("_Preset"), AssetName);
 	if (!Package)
 	{
 		return;

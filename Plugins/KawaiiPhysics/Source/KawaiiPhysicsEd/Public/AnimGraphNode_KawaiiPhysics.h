@@ -63,7 +63,7 @@ private:
 	void CreateExportDataAssetPath(FString& PackageName, const FString& DefaultSuffix) const;
 
 	/** Creates the data asset package. */
-	UPackage* CreateDataAssetPackage(const FString& DialogTitle, const FString& DefaultSuffix,
+	UPackage* CreateDataAssetPackage(const FText& DialogTitle, const FString& DefaultSuffix,
 	                                 FString& AssetName) const;
 
 	/** Shows the export asset notification. */
