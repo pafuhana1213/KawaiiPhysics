@@ -11,10 +11,12 @@ class KAWAIIPHYSICS_API UKawaiiPhysics_CustomExternalForce : public UObject
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1), Category="KawaiiPhysics|CustomExternalForce")
+	/** CustomExternalForceを有効にするフラグ / Whether the custom external force is enabled */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1), Category="Kawaii Physics|CustomExternalForce")
 	bool bIsEnabled = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1), Category="KawaiiPhysics|CustomExternalForce")
+	/** CustomExternalForceのデバッグ表示を行うフラグ / Whether to draw debug information for the custom external force */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1), Category="Kawaii Physics|CustomExternalForce")
 	bool bDrawDebug = false;
 
 public:
@@ -40,7 +42,7 @@ public:
 	{
 	}
 
-	UFUNCTION(BlueprintCallable, Category="KawaiiPhysics|CustomExternalForce")
+	UFUNCTION(BlueprintCallable, Category="Kawaii Physics|CustomExternalForce")
 	virtual bool IsDebugEnabled()
 	{
 #if ENABLE_ANIM_DEBUG

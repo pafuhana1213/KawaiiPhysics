@@ -17,7 +17,7 @@ UCLASS()
 class UAnimGraphNode_KawaiiPhysics : public UAnimGraphNode_SkeletalControlBase
 {
 	GENERATED_UCLASS_BODY()
-	UPROPERTY(EditAnywhere, Category = Settings)
+	UPROPERTY(EditAnywhere, Category = "Settings")
 	FAnimNode_KawaiiPhysics Node;
 
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
@@ -63,7 +63,7 @@ private:
 	void CreateExportDataAssetPath(FString& PackageName, const FString& DefaultSuffix) const;
 
 	/** Creates the data asset package. */
-	UPackage* CreateDataAssetPackage(const FString& DialogTitle, const FString& DefaultSuffix,
+	UPackage* CreateDataAssetPackage(const FText& DialogTitle, const FString& DefaultSuffix,
 	                                 FString& AssetName) const;
 
 	/** Shows the export asset notification. */

@@ -31,5 +31,11 @@
 				"Linux"
 			]
 		}
+	],
+	"LocalizationTargets": [
+		{
+			"Name": "KawaiiPhysics",
+			"LoadingPolicy": "Editor"
+		}
 	]
 }

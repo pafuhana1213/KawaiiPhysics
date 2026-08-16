@@ -54,147 +54,147 @@ struct KAWAIIPHYSICS_API FKawaiiProceduralWindDynamicParams
 	GENERATED_BODY()
 
 	/** bIsEnabled を上書きする / Override bIsEnabled. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	bool bOverrideIsEnabled = false;
 
 	/** 外力の有効状態 / External force enabled state. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	bool bIsEnabled = true;
 
 	/** WindDirection を上書きする / Override WindDirection. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	bool bOverrideWindDirection = false;
 
 	/** 風方向。内部で正規化するため非正規化でも可 / Wind direction. Non-normalized values are allowed because this is normalized internally. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	FVector WindDirection = FVector::ForwardVector;
 
 	/** SteadyForce を上書きする / Override SteadyForce. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	bool bOverrideSteadyForce = false;
 
 	/** 定常風力 / Steady wind force. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float SteadyForce = 0.0f;
 
 	/** OscillationForce を上書きする / Override OscillationForce. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	bool bOverrideOscillationForce = false;
 
 	/** 振動風力 / Oscillating wind force. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float OscillationForce = 0.0f;
 
 	/** OscillationPeriod を上書きする / Override OscillationPeriod. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	bool bOverrideOscillationPeriod = false;
 
 	/** 振動周期（秒） / Oscillation period, in seconds. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float OscillationPeriod = 1.0f;
 
 	/** WaveAmplitude を上書きする / Override WaveAmplitude. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	bool bOverrideWaveAmplitude = false;
 
 	/** 空間波の振幅 / Spatial wave amplitude. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float WaveAmplitude = 0.0f;
 
 	/** WavePeriod を上書きする / Override WavePeriod. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	bool bOverrideWavePeriod = false;
 
 	/** 空間波の周期（秒） / Spatial wave period, in seconds. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float WavePeriod = 1.0f;
 
 	/** WavePhase を上書きする / Override WavePhase. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	bool bOverrideWavePhase = false;
 
 	/** 空間波の位相 / Spatial wave phase. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float WavePhase = 0.0f;
 
 	/** WaveSpatialOffset を上書きする / Override WaveSpatialOffset. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	bool bOverrideWaveSpatialOffset = false;
 
 	/** 毛先 r=1 での位相遅れ量 / Phase delay at tip r=1. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float WaveSpatialOffset = 0.0f;
 
 	/** EnvelopeMax を上書きする / Override EnvelopeMax. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	bool bOverrideEnvelopeMax = false;
 
 	/** エンベロープ最大値 / Maximum envelope value. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float EnvelopeMax = 1.0f;
 
 	/** EnvelopeMin を上書きする / Override EnvelopeMin. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	bool bOverrideEnvelopeMin = false;
 
 	/** エンベロープ最小値 / Minimum envelope value. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float EnvelopeMin = 1.0f;
 
 	/** EnvelopeFrequency を上書きする / Override EnvelopeFrequency. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	bool bOverrideEnvelopeFrequency = false;
 
 	/** エンベロープ周波数（Hz） / Envelope frequency, in Hz. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float EnvelopeFrequency = 0.1f;
 
 	/** EnvelopePhase を上書きする / Override EnvelopePhase. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	bool bOverrideEnvelopePhase = false;
 
 	/** エンベロープ位相 / Envelope phase. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float EnvelopePhase = 0.0f;
 
 	/** RandomForce を上書きする / Override RandomForce. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	bool bOverrideRandomForce = false;
 
 	/** ランダム風力 / Random wind force. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float RandomForce = 0.0f;
 
 	/** RandomPeriod を上書きする / Override RandomPeriod. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	bool bOverrideRandomPeriod = false;
 
 	/** ランダム風力の周期（秒） / Random wind period, in seconds. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float RandomPeriod = 0.5f;
 
 	/** DirectionNoiseAngle を上書きする / Override DirectionNoiseAngle. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	bool bOverrideDirectionNoiseAngle = false;
 
 	/** 方向揺らぎの円錐半角 / Cone half-angle for directional noise. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float DirectionNoiseAngle = 0.0f;
 
 	/** DirectionNoisePeriod を上書きする / Override DirectionNoisePeriod. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	bool bOverrideDirectionNoisePeriod = false;
 
 	/** 方向揺らぎの周期（秒） / Period for directional noise, in seconds. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float DirectionNoisePeriod = 1.0f;
 
 	/** TimeScale を上書きする / Override TimeScale. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	bool bOverrideTimeScale = false;
 
 	/** 時間スケール / Time scale. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce|ProceduralWind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float TimeScale = 1.0f;
 };
 
@@ -244,7 +244,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	* Direction the wind blows. Controllable from BP via SetExternalForceVectorProperty("WindDirection"). Non-normalized values are allowed because this is normalized internally.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=3, PinHiddenByDefault),
-		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
+		Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	FVector WindDirection = FVector::ForwardVector;
 
 	/**
@@ -252,7 +252,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	* Cone half-angle of the wind direction wander. Breaks directional monotony.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=4, Units="Degrees", ClampMin=0, UIMin=0,
-		PinHiddenByDefault), Category="KawaiiPhysics|ExternalForce|Procedural Wind")
+		PinHiddenByDefault), Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	float DirectionNoiseAngle = 0.0f;
 
 	/**
@@ -260,7 +260,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	* Period of the direction wander, in seconds.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=5, ClampMin=0.01, UIMin=0.01,
-		PinHiddenByDefault), Category="KawaiiPhysics|ExternalForce|Procedural Wind")
+		PinHiddenByDefault), Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	float DirectionNoisePeriod = 1.0f;
 
 	/**
@@ -268,7 +268,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	* Time scale of this force. 0 freezes, 2 doubles speed.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=20, ClampMin=0, UIMin=0, PinHiddenByDefault),
-		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
+		Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	float TimeScale = 1.0f;
 
 	/**
@@ -278,7 +278,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	* Multiplies the ForceRate by the curve value for "Length from RootBone to specific bone / Length from RootBone to end bone" (0.0~1.0)
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=21),
-		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
+		Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	FRuntimeFloatCurve ForceRateByBoneLengthRate;
 
 	/**
@@ -286,7 +286,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	* Constant wind strength. Higher values keep bones pushed downwind. Corresponds to the Steady series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=6, ClampMin=0, UIMin=0, PinHiddenByDefault),
-		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
+		Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	float SteadyForce = 0.0f;
 
 	/**
@@ -294,7 +294,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	* Amplitude of the sine-based oscillation. Higher values strengthen the rhythmic sway. Corresponds to the Oscillation series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=7, ClampMin=0, UIMin=0, PinHiddenByDefault),
-		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
+		Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	float OscillationForce = 0.0f;
 
 	/**
@@ -302,7 +302,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	* Oscillation period in seconds. Shorter values sway faster. Corresponds to the Oscillation series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=8, ClampMin=0.01, UIMin=0.01,
-		PinHiddenByDefault), Category="KawaiiPhysics|ExternalForce|Procedural Wind")
+		PinHiddenByDefault), Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	float OscillationPeriod = 1.0f;
 
 	/**
@@ -310,7 +310,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	* Amplitude of the traveling wave along the bone chain. Use together with WaveSpatialOffset. Corresponds to the Wave series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=9, ClampMin=0, UIMin=0, PinHiddenByDefault),
-		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
+		Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	float WaveAmplitude = 0.0f;
 
 	/**
@@ -318,7 +318,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	* Wave period in seconds. Corresponds to the Wave series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=10, ClampMin=0.01, UIMin=0.01,
-		PinHiddenByDefault), Category="KawaiiPhysics|ExternalForce|Procedural Wind")
+		PinHiddenByDefault), Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	float WavePeriod = 1.0f;
 
 	/**
@@ -326,7 +326,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	* Start phase offset of the wave component. Use to stagger wave timing across multiple characters or external forces. Corresponds to the Wave series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=11, Units="Degrees", PinHiddenByDefault),
-		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
+		Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	float WavePhase = 0.0f;
 
 	/**
@@ -334,7 +334,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	* Phase delay at the tip. Positive values make the wave travel from root to tip; 0 sways all bones together. Corresponds to the Wave series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=12, Units="Degrees", PinHiddenByDefault),
-		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
+		Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	float WaveSpatialOffset = 0.0f;
 
 	/**
@@ -342,7 +342,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	* Upper multiplier of the slow global intensity swell. Lower Min creates calm-to-gust dynamics. Disabled when Min=Max=1. Corresponds to the Envelope series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=13, ClampMin=0, UIMin=0, PinHiddenByDefault),
-		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
+		Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	float EnvelopeMax = 1.0f;
 
 	/**
@@ -350,7 +350,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	* Lower multiplier of the slow global intensity swell. Lower Min creates calm-to-gust dynamics. Disabled when Min=Max=1. Corresponds to the Envelope series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=14, ClampMin=0, UIMin=0, PinHiddenByDefault),
-		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
+		Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	float EnvelopeMin = 1.0f;
 
 	/**
@@ -358,7 +358,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	* Swell speed in Hz. Lower is slower. Corresponds to the Envelope series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=15, ClampMin=0, UIMin=0, PinHiddenByDefault),
-		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
+		Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	float EnvelopeFrequency = 0.1f;
 
 	/**
@@ -366,7 +366,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	* Start phase offset of the envelope (strength undulation). Use to stagger envelope timing across multiple characters or external forces. Corresponds to the Envelope series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=16, Units="Degrees", PinHiddenByDefault),
-		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
+		Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	float EnvelopePhase = 0.0f;
 
 	/**
@@ -374,7 +374,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	* Strength of the irregular fluctuation. Adds natural randomness. Corresponds to the Random series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=17, ClampMin=0, UIMin=0, PinHiddenByDefault),
-		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
+		Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	float RandomForce = 0.0f;
 
 	/**
@@ -382,7 +382,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	* How fast the fluctuation changes, in seconds. Shorter values jitter faster. Corresponds to the Random series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=18, ClampMin=0.01, UIMin=0.01,
-		PinHiddenByDefault), Category="KawaiiPhysics|ExternalForce|Procedural Wind")
+		PinHiddenByDefault), Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	float RandomPeriod = 0.5f;
 
 	/**
@@ -390,7 +390,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	* Seed of the random sequence. Same seed reproduces the same fluctuation. Reproducibility is lost if the base RandomForceScaleRange is not (1,1). Not live-updated during PIE; the node value takes effect from the next play session.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=19),
-		Category="KawaiiPhysics|ExternalForce|Procedural Wind")
+		Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	int32 RandomSeed = 0;
 
 	TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> RuntimeState;

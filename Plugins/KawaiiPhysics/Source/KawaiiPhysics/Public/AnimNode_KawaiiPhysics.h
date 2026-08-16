@@ -218,6 +218,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 		meta = (PinHiddenByDefault, EditCondition="bNeedWarmUp"))
 	bool bUseWarmUpWhenResetDynamics = true;
 
+	/** 物理の空回し（ウォームアップ）を行うフラグ / Flag to warm up the physics simulation */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings",
 		meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	bool bNeedWarmUp = false;
@@ -337,97 +338,97 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* コリジョン（球）
 	* Spherical Collision
 	*/
-	UPROPERTY(EditAnywhere, Category = "Limits")
+	UPROPERTY(EditAnywhere, Category = "Collision", meta = (DisplayName = "Spherical Collision"))
 	TArray<FSphericalLimit> SphericalLimits;
 	/** 
 	* コリジョン（カプセル）
 	* Capsule Collision
 	*/
-	UPROPERTY(EditAnywhere, Category = "Limits")
+	UPROPERTY(EditAnywhere, Category = "Collision", meta = (DisplayName = "Capsule Collision"))
 	TArray<FCapsuleLimit> CapsuleLimits;
 	/**
 	* コリジョン（テーパードカプセル）
 	* Tapered Capsule Collision
 	*/
-	UPROPERTY(EditAnywhere, Category = "Limits")
+	UPROPERTY(EditAnywhere, Category = "Collision", meta = (DisplayName = "Tapered Capsule Collision"))
 	TArray<FTaperedCapsuleLimit> TaperedCapsuleLimits;
 	/** 
 	* コリジョン（ボックス）
 	* Box Collision
 	*/
-	UPROPERTY(EditAnywhere, Category = "Limits")
+	UPROPERTY(EditAnywhere, Category = "Collision", meta = (DisplayName = "Box Collision"))
 	TArray<FBoxLimit> BoxLimits;
 	/** 
 	* コリジョン（平面）
 	* Planar Collision
 	*/
-	UPROPERTY(EditAnywhere, Category = "Limits")
+	UPROPERTY(EditAnywhere, Category = "Collision", meta = (DisplayName = "Planar Collision"))
 	TArray<FPlanarLimit> PlanarLimits;
 
 	/** 
 	* コリジョン設定（DataAsset版）。別AnimNode・ABPで設定を流用したい場合はこちらを推奨
 	* Collision settings (DataAsset version). This is recommended if you want to reuse the settings for another AnimNode or ABP.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision", meta = (PinHiddenByDefault, DisplayName = "Collision Data Asset"))
 	TObjectPtr<UKawaiiPhysicsLimitsDataAsset> LimitsDataAsset = nullptr;
 
 	/** 
 	* コリジョン設定（PhysicsAsset版）。別AnimNode・ABPで設定を流用したい場合はこちらを推奨
 	* Collision settings (PhysicsAsset). This is recommended if you want to reuse the settings for another AnimNode or ABP.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision", meta = (PinHiddenByDefault, DisplayName = "Physics Asset for Collision"))
 	TObjectPtr<UPhysicsAsset> PhysicsAssetForLimits = nullptr;
 
 	/**
 	* コリジョンのミラーリング設定。設定すると既存コリジョン（AnimNode直値 / DataAsset / PhysicsAsset）をMirrorDataTableで解決したミラー先ボーンへ自動複製（中央ボーンはスキップ）
 	* Mirroring source for collisions. If set, existing collisions are automatically duplicated onto the mirrored bones resolved via the MirrorDataTable (center bones are skipped).
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision", meta = (PinHiddenByDefault, DisplayName = "Mirror Data Table for Collision"))
 	TObjectPtr<UMirrorDataTable> MirrorDataTableForLimits = nullptr;
 
 	/**
 	* ONの場合、ミラー先ボーンに同形状タイプのコリジョン（Mirror由来を除く）が既にあればミラー生成をスキップ
 	* If true, skip generating a mirrored collision when the mirrored bone already has a collision of the same shape type (excluding Mirror-sourced ones).
 	*/
-	UPROPERTY(EditAnywhere, Category = "Limits", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, Category = "Collision", meta = (PinHiddenByDefault))
 	bool bSkipMirroredBoneWithExistingCollision = true;
 
 	/**
 	* コリジョン設定（DataAsset版）における球コリジョンのプレビュー
 	* Preview of sphere collision in collision settings (DataAsset version)
 	*/
-	UPROPERTY(Transient, VisibleAnywhere, AdvancedDisplay, Category = "Limits")
+	UPROPERTY(Transient, VisibleAnywhere, AdvancedDisplay, Category = "Collision", meta = (DisplayName = "Spherical Collision Data"))
 	TArray<FSphericalLimit> SphericalLimitsData;
 	/** 
 	* コリジョン設定（DataAsset版）におけるカプセルコリジョンのプレビュー
 	* Preview of capsule collision in collision settings (DataAsset version)
 	*/
-	UPROPERTY(Transient, VisibleAnywhere, AdvancedDisplay, Category = "Limits")
+	UPROPERTY(Transient, VisibleAnywhere, AdvancedDisplay, Category = "Collision", meta = (DisplayName = "Capsule Collision Data"))
 	TArray<FCapsuleLimit> CapsuleLimitsData;
 	/**
 	* コリジョン設定（DataAsset版）におけるテーパードカプセルコリジョンのプレビュー
 	* Preview of tapered capsule collision in collision settings (DataAsset version)
 	*/
-	UPROPERTY(Transient, VisibleAnywhere, AdvancedDisplay, Category = "Limits")
+	UPROPERTY(Transient, VisibleAnywhere, AdvancedDisplay, Category = "Collision", meta = (DisplayName = "Tapered Capsule Collision Data"))
 	TArray<FTaperedCapsuleLimit> TaperedCapsuleLimitsData;
 	/** 
 	* コリジョン設定（DataAsset版）におけるボックスコリジョンのプレビュー
 	* Preview of box collision in collision settings (DataAsset version)
 	*/
-	UPROPERTY(Transient, VisibleAnywhere, AdvancedDisplay, Category = "Limits")
+	UPROPERTY(Transient, VisibleAnywhere, AdvancedDisplay, Category = "Collision", meta = (DisplayName = "Box Collision Data"))
 	TArray<FBoxLimit> BoxLimitsData;
 	/** 
 	* コリジョン設定（DataAsset版）における平面コリジョンのプレビュー
 	* Preview of planar collision in collision settings (DataAsset version)
 	*/
-	UPROPERTY(Transient, VisibleAnywhere, AdvancedDisplay, Category = "Limits")
+	UPROPERTY(Transient, VisibleAnywhere, AdvancedDisplay, Category = "Collision", meta = (DisplayName = "Planar Collision Data"))
 	TArray<FPlanarLimit> PlanarLimitsData;
 
 	/**
 	 * コリジョンを同じActor/ChildActorファミリー内のKawaiiPhysicsに共有する
 	 * Provide this node's collision limits to KawaiiPhysics nodes in the same attached actor family
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|Shared Collision", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Shared Collision", meta = (PinHiddenByDefault))
 	bool bSharedCollisionSource = false;
 
 	/**
@@ -436,7 +437,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	 * Use shared collision limits from source KawaiiPhysics nodes in the same attached actor family.
 	 * To use same-frame data in one AnimGraph, place the source node so it evaluates before the target node.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|Shared Collision",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Shared Collision",
 		meta = (PinHiddenByDefault, EditCondition = "!bSharedCollisionSource"))
 	bool bUseSharedCollision = false;
 
@@ -444,7 +445,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	 * 共有コリジョンのグループタグ（同じActor/ChildActorファミリー内のSource/Target両方で使用）
 	 * Group tag for shared collision (used by both source and target in the same attached actor family)
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|Shared Collision",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Shared Collision",
 		meta = (PinHiddenByDefault, EditCondition = "bSharedCollisionSource || bUseSharedCollision"))
 	FGameplayTag SharedCollisionGroupTag;
 
@@ -458,28 +459,28 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* Stiffness type to use in Bone Constraint
 	* http://blog.mmacklin.com/2016/10/12/xpbd-slides-and-stiffness/
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|Bone Constraint",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Bone Constraint",
 		meta = (PinHiddenByDefault))
 	EXPBDComplianceType BoneConstraintGlobalComplianceType = EXPBDComplianceType::Leather;
 	/** 
 	* Bone Constraintの処理回数（コリジョン処理前）
 	* Number of Bone Constraints processed before collision processing
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|Bone Constraint",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Bone Constraint",
 		meta = (PinHiddenByDefault))
 	int32 BoneConstraintIterationCountBeforeCollision = 1;
 	/** 
 	* Bone Constraintの処理回数（コリジョン処理後）
 	* Number of Bone Constraints processed after collision processing
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|Bone Constraint",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Bone Constraint",
 		meta = (PinHiddenByDefault))
 	int32 BoneConstraintIterationCountAfterCollision = 1;
 	/** 
 	* 末端ボーンをBoneConstraint処理の対象にした場合、自動的にダミーボーンも処理対象にするフラグ
 	* Flag to automatically processes dummy bones when the end bones are subject to BoneConstraint processing.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|Bone Constraint",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Bone Constraint",
 		meta = (PinHiddenByDefault))
 	bool bAutoAddChildDummyBoneConstraint = true;
 
@@ -487,14 +488,14 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* BoneConstraint処理の対象となるボーンのペアを設定。スカートのように、ボーン間の距離を維持したい場合に使用
 	* Sets the bone pair to be processed by BoneConstraint. Used when you want to maintain the distance between bones, such as a skirt.
 	*/
-	UPROPERTY(EditAnywhere, Category = "Limits|Bone Constraint", meta=(TitleProperty="{Bone1} - {Bone2}"))
+	UPROPERTY(EditAnywhere, Category = "Collision|Bone Constraint", meta=(TitleProperty="{Bone1} - {Bone2}"))
 	TArray<FModifyBoneConstraint> BoneConstraints;
 
 	/** 
 	* BoneConstraint処理の対象となるボーンのペアを設定 (DataAsset版）。別AnimNode・ABPで設定を流用したい場合はこちらを推奨
 	* Set the bone pairs to be processed by BoneConstraint (DataAsset version). If you want to reuse the settings for another AnimNode or another ABP, this is recommended.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|Bone Constraint",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Bone Constraint",
 		meta = (PinHiddenByDefault))
 	TObjectPtr<UKawaiiPhysicsBoneConstraintsDataAsset> BoneConstraintsDataAsset;
 
@@ -502,7 +503,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* BoneConstraint処理の対象となるボーンのペアのプレビュー
 	* Preview of bone pairs that will be processed by BoneConstraint
 	*/
-	UPROPERTY(Transient, VisibleAnywhere, Category = "Limits|Bone Constraint", AdvancedDisplay,
+	UPROPERTY(Transient, VisibleAnywhere, Category = "Collision|Bone Constraint", AdvancedDisplay,
 		meta=(TitleProperty="{Bone1} - {Bone2}"))
 	TArray<FModifyBoneConstraint> BoneConstraintsData;
 	// ランタイムキャッシュ(BoneConstraints + BoneConstraintsData)。InitBoneConstraints で再構築されるため非シリアライズ。
@@ -640,18 +641,19 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* レベル上の各コリジョンとの判定を行うフラグ。有効にすると物理処理の負荷が大幅に上がります
 	* Flag for collision detection with each collision on the level. Enabling this will significantly increase the load of physics processing.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|World Collision", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|World Collision", meta = (PinHiddenByDefault))
 	bool bAllowWorldCollision = false;
 
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|World Collision",
+	/** WorldCollisionで独自のコリジョン設定を使用するフラグ / Flag to use custom collision settings in WorldCollision */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|World Collision",
 		meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	bool bOverrideCollisionParams = false;
 	/** 
 	* SkeletalMeshComponentが持つコリジョン設定ではなく、独自のコリジョン設定をWorldCollisionで使用する際に設定
 	* Use custom collision settings in WorldCollision instead of the collision settings set in SkeletalMeshComponent.
 	*/
-	UPROPERTY(EditAnywhere, Category = "Limits|World Collision",
+	UPROPERTY(EditAnywhere, Category = "Collision|World Collision",
 		meta = (PinHiddenByDefault, EditCondition = "bOverrideCollisionParams", DisplayName=
 			"Override SkelComp Collision Params"))
 	FBodyInstance CollisionChannelSettings;
@@ -660,7 +662,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* WorldCollisionにて、SkeletalMeshComponentが持つコリジョン(PhysicsAsset)を無視するフラグ
 	* In WorldCollision, Flag to ignore collisions for SkeletalMeshComponent(PhysicsAsset) in WorldCollision
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|World Collision",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|World Collision",
 		meta = (PinHiddenByDefault, EditCondition = "bAllowWorldCollision"))
 	bool bIgnoreSelfComponent = true;
 
@@ -668,14 +670,14 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* WorldCollisionにて、SkeletalMeshComponentが持つコリジョン(PhysicsAsset)を無視する設定（骨）
 	* In WorldCollision, set to ignore collision (PhysicsAsset) of SkeletalMeshComponent using bone
 	*/
-	UPROPERTY(EditAnywhere, Category = "Limits|World Collision", meta = (EditCondition = "!bIgnoreSelfComponent"))
+	UPROPERTY(EditAnywhere, Category = "Collision|World Collision", meta = (EditCondition = "!bIgnoreSelfComponent"))
 	TArray<FBoneReference> IgnoreBones;
 
 	/** 
 	* WorldCollisionにて、SkeletalMeshComponentが持つコリジョン(PhysicsAsset)を無視する設定（骨名のプリフィックス）
 	* In WorldCollision, set to ignore collision (PhysicsAsset) of SkeletalMeshComponent using bone name prefix
 	*/
-	UPROPERTY(EditAnywhere, Category = "Limits|World Collision", meta = (EditCondition = "!bIgnoreSelfComponent"))
+	UPROPERTY(EditAnywhere, Category = "Collision|World Collision", meta = (EditCondition = "!bIgnoreSelfComponent"))
 	TArray<FName> IgnoreBoneNamePrefix;
 
 	/**
@@ -692,7 +694,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	UPROPERTY(Transient, BlueprintReadWrite, Category = "Bones")
 	TArray<FKawaiiPhysicsModifyBone> ModifyBones;
 
-	UPROPERTY(BlueprintReadOnly, Category = "KawaiiPhysics")
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics")
 	float DeltaTime = 0.0f;
 
 private:

@@ -30,7 +30,7 @@ namespace
 
 	FText GetPinDrivenWarningText()
 	{
-		return LOCTEXT("PinDrivenWarningTooltip", "ピン接続中のパラメータはグラフ側の値が優先されます / Pin-driven values take precedence over panel edits.");
+		return LOCTEXT("PinDrivenWarningTooltip", "Pin-driven values take precedence over panel edits.");
 	}
 
 	FProperty* FindWindScopeProperty(const FName PropertyName)
@@ -289,7 +289,7 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeFormulaHelpButton() co
 	return SNew(SComboButton)
 		.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
 		.ContentPadding(FMargin(4.0f, 1.0f))
-		.ToolTipText(LOCTEXT("FormulaHelpTooltip", "合成式のヘルプ / Composition formula help."))
+		.ToolTipText(LOCTEXT("FormulaHelpTooltip", "Composition formula help."))
 		.OnGetMenuContent(this, &SKawaiiPhysicsWindScopeEditPanel::MakeFormulaHelpContent)
 		.ButtonContent()
 		[
@@ -334,7 +334,7 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeFormulaHelpContent() c
 			.AutoHeight()
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("FormulaHelpGroupLine1", "Steady/Oscillation/Wave/Envelope/Random は同名グループに対応 / Steady, Oscillation, Wave, Envelope, and Random map to their groups."))
+				.Text(LOCTEXT("FormulaHelpGroupLine1", "Steady, Oscillation, Wave, Envelope, and Random map to their groups."))
 				.AutoWrapText(true)
 				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
 			]
@@ -343,7 +343,7 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeFormulaHelpContent() c
 			.Padding(0.0f, 3.0f, 0.0f, 0.0f)
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("FormulaHelpGroupLine2", "Gust は上部の Gust ボタンと S/R/D 入力に対応 / Gust maps to the Gust button and S/R/D inputs above."))
+				.Text(LOCTEXT("FormulaHelpGroupLine2", "Gust maps to the Gust button and S/R/D inputs above."))
 				.AutoWrapText(true)
 				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
 			]
@@ -590,7 +590,7 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeCurveRow() const
 		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
-			.Text(LOCTEXT("CurveEditGuide", "カーブ(ForceRateByBoneLengthRate)は詳細パネルで編集 / Edit the curve in the Details panel"))
+			.Text(LOCTEXT("CurveEditGuide", "Edit the curve in the Details panel"))
 			.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
 			.AutoWrapText(true)
 		]
@@ -615,7 +615,7 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeResetButton(FName Prop
 		.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
 		.ContentPadding(FMargin(2.0f))
 		.Visibility(this, &SKawaiiPhysicsWindScopeEditPanel::GetResetVisibility, PropertyName)
-		.ToolTipText(LOCTEXT("ResetToDefaultTooltip", "既定値へ戻します / Reset to default."))
+		.ToolTipText(LOCTEXT("ResetToDefaultTooltip", "Reset to default."))
 		.OnClicked_Lambda([this, PropertyName]()
 		{
 			if (OnParamReset.IsBound())

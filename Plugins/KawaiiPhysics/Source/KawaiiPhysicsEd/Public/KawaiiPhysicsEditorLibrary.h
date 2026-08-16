@@ -294,7 +294,7 @@ public:
 	 * プロジェクト内の KawaiiPhysics プリセットDataAssetを Blueprint / Python 向けの生ポインタ配列で返す。C++ 呼び出し側は GC 安全性のため GetAllPresetAssets (TStrongObjectPtr) を使用すること。
 	 * Return all KawaiiPhysics preset data assets as raw pointers for Blueprint / Python. C++ callers should use GetAllPresetAssets (TStrongObjectPtr) for GC safety.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "KawaiiPhysics|Editor|Preset")
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor|Preset")
 	static TArray<UKawaiiPhysicsPresetDataAsset*> FindAllPresetAssets();
 
 	/**
@@ -406,7 +406,7 @@ public:
 	 * タグ名配列から GameplayTagContainer を作る（未登録タグ名は警告してスキップ。入力非空で全滅した場合は false）。
 	 * Make a GameplayTagContainer from tag names (unregistered names are skipped with a warning; returns false when non-empty input resolves to no tags).
 	 */
-	UFUNCTION(BlueprintCallable, Category = "KawaiiPhysics|Editor|Preset")
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor|Preset")
 	static bool MakeGameplayTagContainerFromNames(
 		const TArray<FName>& TagNames,
 		FGameplayTagContainer& OutContainer);
@@ -415,14 +415,14 @@ public:
 	 * プリセットの TargetTags をタグ名配列から設定する（未登録タグ名は警告してスキップ。入力非空で全滅した場合は変更せず false）。
 	 * Set a preset's TargetTags from tag names (unregistered names are skipped with a warning; leaves the preset unchanged and returns false when non-empty input resolves to no tags).
 	 */
-	UFUNCTION(BlueprintCallable, Category = "KawaiiPhysics|Editor|Preset")
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor|Preset")
 	static bool SetPresetTargetTags(
 		UKawaiiPhysicsPresetDataAsset* Preset,
 		const TArray<FName>& TagNames,
 		bool bExactMatch);
 
 	/** プリセットの説明文を設定 / Set the preset description. */
-	UFUNCTION(BlueprintCallable, Category = "KawaiiPhysics|Editor|Preset")
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor|Preset")
 	static bool SetPresetDescription(UKawaiiPhysicsPresetDataAsset* Preset, const FText& Description);
 
 	/** プリセットの説明文を取得 / Get the preset description. */
