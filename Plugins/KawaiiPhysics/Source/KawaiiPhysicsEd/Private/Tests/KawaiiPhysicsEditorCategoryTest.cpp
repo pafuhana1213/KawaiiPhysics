@@ -39,6 +39,7 @@ bool FKawaiiPhysicsEditorCategoryConsistencyTest::RunTest(const FString& Paramet
 	CollectCategoryMetadata(UAnimGraphNode_KawaiiPhysics::StaticClass(), ExistingCategories);
 	ExistingCategories.Add(KawaiiPhysicsEditorCategoryNames::KawaiiPhysicsTools);
 	ExistingCategories.Add(KawaiiPhysicsEditorCategoryNames::DebugVisualization);
+	ExistingCategories.Add(KawaiiPhysicsEditorCategoryNames::CategoryFilter);
 
 	bool bOk = true;
 	for (const FName& CategoryName : KawaiiPhysicsEditorCategoryNames::GetCategorySortOrderNames())

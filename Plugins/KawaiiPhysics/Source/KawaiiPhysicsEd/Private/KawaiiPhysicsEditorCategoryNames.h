@@ -12,6 +12,7 @@ namespace KawaiiPhysicsEditorCategoryNames
 		TArray<FName> CategoryNames;
 	};
 
+	inline const FName CategoryFilter(TEXT("Category Filter"));
 	inline const FName KawaiiPhysicsTools(TEXT("Kawaii Physics Tools"));
 	inline const FName DebugVisualization(TEXT("Debug Visualization"));
 	inline const FName Functions(TEXT("Functions"));
@@ -50,6 +51,7 @@ namespace KawaiiPhysicsEditorCategoryNames
 	{
 		static const TArray<FName> CategoryNames =
 		{
+			CategoryFilter,
 			KawaiiPhysicsTools,
 			DebugVisualization,
 			Functions,
