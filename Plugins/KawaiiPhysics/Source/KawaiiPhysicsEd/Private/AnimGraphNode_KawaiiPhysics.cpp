@@ -16,6 +16,7 @@
 #include "IContentBrowserSingleton.h"
 #include "KawaiiPhysics.h"
 #include "KawaiiPhysicsBoneConstraintsDataAsset.h"
+#include "KawaiiPhysicsEditorCategoryNames.h"
 #include "KawaiiPhysicsEditorLibrary.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
 #include "KawaiiPhysicsPresetDataAsset.h"
@@ -34,8 +35,10 @@
 #include "Dialogs/DlgPickAssetPath.h"
 #include "EdGraph/EdGraphNode.h"
 #include "Kismet2/CompilerResultsLog.h"
+#include "Misc/ConfigCacheIni.h"
 #include "ToolMenu.h"
 #include "ToolMenuSection.h"
+#include "Widgets/Input/SSegmentedControl.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Layout/SSeparator.h"
 
@@ -49,6 +52,67 @@
 
 namespace
 {
+	const TCHAR* const CategoryFilterConfigSection = TEXT("KawaiiPhysicsEd");
+	const TCHAR* const CategoryFilterConfigKey = TEXT("NodeDetailsCategoryFilter");
+
+	const KawaiiPhysicsEditorCategoryNames::FCategoryFilterGroup* FindCategoryFilterGroup(const FName GroupId)
+	{
+		for (const KawaiiPhysicsEditorCategoryNames::FCategoryFilterGroup& Group :
+		     KawaiiPhysicsEditorCategoryNames::GetFilterGroups())
+		{
+			if (Group.GroupId == GroupId)
+			{
+				return &Group;
+			}
+		}
+
+		return nullptr;
+	}
+
+	FName NormalizeCategoryFilterGroupId(const FName GroupId)
+	{
+		return FindCategoryFilterGroup(GroupId) ? GroupId : NAME_None;
+	}
+
+	FName ReadKawaiiPhysicsCategoryFilter()
+	{
+		FString FilterValue;
+		if (GConfig)
+		{
+			GConfig->GetString(CategoryFilterConfigSection, CategoryFilterConfigKey, FilterValue, GEditorPerProjectIni);
+		}
+
+		return FilterValue.IsEmpty() ? NAME_None : NormalizeCategoryFilterGroupId(FName(*FilterValue));
+	}
+
+	void HideCategoriesOutsideFilter(IDetailLayoutBuilder& DetailBuilder, const FName GroupId)
+	{
+		if (GroupId.IsNone())
+		{
+			return;
+		}
+
+		const KawaiiPhysicsEditorCategoryNames::FCategoryFilterGroup* FilterGroup = FindCategoryFilterGroup(GroupId);
+		if (!FilterGroup)
+		{
+			return;
+		}
+
+		for (const FName& CategoryName : KawaiiPhysicsEditorCategoryNames::GetCategorySortOrderNames())
+		{
+			if (CategoryName != KawaiiPhysicsEditorCategoryNames::KawaiiPhysicsTools &&
+				!FilterGroup->CategoryNames.Contains(CategoryName))
+			{
+				DetailBuilder.HideCategory(CategoryName);
+			}
+		}
+
+		for (const FName& CategoryName : KawaiiPhysicsEditorCategoryNames::GetFilterAdditionalHiddenNames())
+		{
+			DetailBuilder.HideCategory(CategoryName);
+		}
+	}
+
 	void ShowKawaiiPhysicsNotification(const FText& NotificationText,
 	                                   const SNotificationItem::ECompletionState CompletionState)
 	{
@@ -452,7 +516,44 @@ void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* Ani
 void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& DetailBuilder)
 {
 	IDetailCategoryBuilder& ViewportCategory = DetailBuilder.EditCategory(
-		TEXT("Kawaii Physics Tools"), LOCTEXT("KawaiiPhysicsToolsCategory", "Kawaii Physics Tools"));
+		KawaiiPhysicsEditorCategoryNames::KawaiiPhysicsTools,
+		LOCTEXT("KawaiiPhysicsToolsCategory", "Kawaii Physics Tools"));
+	const FName SelectedFilterGroupId = ReadKawaiiPhysicsCategoryFilter();
+	IDetailLayoutBuilder* LayoutBuilder = &DetailBuilder;
+
+	// カテゴリの表示範囲をワンクリックで切り替えるため、ツール行の先頭にフィルタチップを置く。
+	FDetailWidgetRow& FilterWidgetRow = ViewportCategory.AddCustomRow(LOCTEXT("CategoryFilterRow", "Category Filter"));
+	FilterWidgetRow.WholeRowContent()
+	[
+		SNew(SSegmentedControl<FName>)
+		.Value(SelectedFilterGroupId)
+		.OnValueChanged_Lambda([LayoutBuilder](const FName NewFilterGroupId)
+		{
+			const FName NormalizedFilterGroupId = NormalizeCategoryFilterGroupId(NewFilterGroupId);
+			const FString SavedFilterValue = NormalizedFilterGroupId.IsNone()
+				                                 ? FString()
+				                                 : NormalizedFilterGroupId.ToString();
+			if (GConfig)
+			{
+				GConfig->SetString(CategoryFilterConfigSection, CategoryFilterConfigKey, *SavedFilterValue,
+				                   GEditorPerProjectIni);
+				GConfig->Flush(false, GEditorPerProjectIni);
+			}
+
+			LayoutBuilder->ForceRefreshDetails();
+		})
+		+ SSegmentedControl<FName>::Slot(NAME_None)
+		.Text(LOCTEXT("CategoryFilter_All", "All"))
+		+ SSegmentedControl<FName>::Slot(KawaiiPhysicsEditorCategoryNames::Bones)
+		.Text(LOCTEXT("CategoryFilter_Bones", "Bones"))
+		+ SSegmentedControl<FName>::Slot(KawaiiPhysicsEditorCategoryNames::Physics)
+		.Text(LOCTEXT("CategoryFilter_Physics", "Physics"))
+		+ SSegmentedControl<FName>::Slot(KawaiiPhysicsEditorCategoryNames::Collision)
+		.Text(LOCTEXT("CategoryFilter_Collision", "Collision"))
+		+ SSegmentedControl<FName>::Slot(KawaiiPhysicsEditorCategoryNames::Force)
+		.Text(LOCTEXT("CategoryFilter_Force", "Force"))
+	];
+
 	FDetailWidgetRow& WidgetRow = ViewportCategory.AddCustomRow(LOCTEXT("KawaiiPhysics", "KawaiiPhysicsTools"));
 
 	WidgetRow
@@ -565,7 +666,8 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 void UAnimGraphNode_KawaiiPhysics::CustomizeDetailDebugVisualizations(IDetailLayoutBuilder& DetailBuilder)
 {
 	IDetailCategoryBuilder& ViewportCategory = DetailBuilder.EditCategory(
-		TEXT("Debug Visualization"), LOCTEXT("DebugVisualizationCategory", "Debug Visualization"));
+		KawaiiPhysicsEditorCategoryNames::DebugVisualization,
+		LOCTEXT("DebugVisualizationCategory", "Debug Visualization"));
 	FDetailWidgetRow& WidgetRow = ViewportCategory.AddCustomRow(
 		LOCTEXT("ToggleDebugVisualizationButtonRow", "DebugVisualization"));
 
@@ -713,11 +815,14 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 {
 	Super::CustomizeDetails(DetailBuilder);
 
+	const FName SelectedFilterGroupId = ReadKawaiiPhysicsCategoryFilter();
+
 	CustomizeDetailTools(DetailBuilder);
 	CustomizeDetailDebugVisualizations(DetailBuilder);
 
 	// External Forceカテゴリに Wind Scope ボタン（波形プレビュータブを開く）を追加
-	IDetailCategoryBuilder& ExternalForceCategory = DetailBuilder.EditCategory(TEXT("Force|External Force"));
+	IDetailCategoryBuilder& ExternalForceCategory = DetailBuilder.EditCategory(
+		KawaiiPhysicsEditorCategoryNames::ForceExternalForce);
 	FDetailWidgetRow& WindScopeWidgetRow = ExternalForceCategory.AddCustomRow(LOCTEXT("OpenWindScope", "Wind Scope"));
 	WindScopeWidgetRow
 	[
@@ -741,7 +846,9 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 		]
 	];
 
-	// Force order of details panel categories - Must set order for all of them as any that are edited automatically move to the top.
+	HideCategoriesOutsideFilter(DetailBuilder, SelectedFilterGroupId);
+
+	// 編集したカテゴリは自動で上に移動するため、すべてのカテゴリ順を固定する。
 	auto CategorySorter = [](const TMap<FName, IDetailCategoryBuilder*>& Categories)
 	{
 		int32 Order = 0;
@@ -753,32 +860,43 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 			}
 		};
 
-		// Tools, Debug
-		SafeSetOrder(FName("Kawaii Physics Tools"));
-		SafeSetOrder(FName("Debug Visualization"));
-		SafeSetOrder(FName("Functions"));
-		SafeSetOrder(FName("Preset"));
+		for (const FName& CategoryName : KawaiiPhysicsEditorCategoryNames::GetCategorySortOrderNames())
+		{
+			SafeSetOrder(CategoryName);
+		}
 
-		// Basic
-		SafeSetOrder(FName("Bones"));
-		SafeSetOrder(FName("Bones|Bone Subdivision"));
-		SafeSetOrder(FName("Physics Settings"));
-		SafeSetOrder(FName("Physics Settings|Curves"));
+		// エンジンのFAnimGraphNodeDetails::CustomizeDetailsがUAnimGraphNode::CustomizeDetails後にEditCategory(表示名引数なし)で表示名を既定へ戻すため、後段で必ず実行されるSortCategories内で再適用する。
+		struct FCategoryDisplayNameOverride
+		{
+			FName CategoryName;
+			FText DisplayName;
+		};
 
-		// Collision
-		SafeSetOrder(FName("Collision"));
-		SafeSetOrder(FName("Collision|Bone Constraint"));
-		SafeSetOrder(FName("Collision|Shared Collision"));
-		SafeSetOrder(FName("Collision|World Collision"));
+		const FCategoryDisplayNameOverride DisplayNameOverrides[] =
+		{
+			{ KawaiiPhysicsEditorCategoryNames::BonesBoneSubdivision,
+			  LOCTEXT("Category_Bones_BoneSubdivision", "Bones > Bone Subdivision") },
+			{ KawaiiPhysicsEditorCategoryNames::PhysicsSettingsCurves,
+			  LOCTEXT("Category_PhysicsSettings_Curves", "Physics Settings > Curves") },
+			{ KawaiiPhysicsEditorCategoryNames::CollisionBoneConstraint,
+			  LOCTEXT("Category_Collision_BoneConstraint", "Collision > Bone Constraint") },
+			{ KawaiiPhysicsEditorCategoryNames::CollisionSharedCollision,
+			  LOCTEXT("Category_Collision_SharedCollision", "Collision > Shared Collision") },
+			{ KawaiiPhysicsEditorCategoryNames::CollisionWorldCollision,
+			  LOCTEXT("Category_Collision_WorldCollision", "Collision > World Collision") },
+			{ KawaiiPhysicsEditorCategoryNames::ForceExternalForce,
+			  LOCTEXT("Category_Force_ExternalForce", "Force > External Force") },
+			{ KawaiiPhysicsEditorCategoryNames::ForceSyncBone,
+			  LOCTEXT("Category_Force_SyncBone", "Force > Sync Bone") },
+		};
 
-		// Force
-		SafeSetOrder(FName("Force"));
-		SafeSetOrder(FName("Force|External Force"));
-		SafeSetOrder(FName("Force|Sync Bone"));
-
-		// AnimNode
-		SafeSetOrder(FName("Tag"));
-		SafeSetOrder(FName("Alpha"));
+		for (const FCategoryDisplayNameOverride& Override : DisplayNameOverrides)
+		{
+			if (IDetailCategoryBuilder* const* Builder = Categories.Find(Override.CategoryName))
+			{
+				(*Builder)->SetDisplayName(Override.DisplayName);
+			}
+		}
 	};
 
 	DetailBuilder.SortCategories(CategorySorter);
