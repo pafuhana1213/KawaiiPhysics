@@ -276,7 +276,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* Corrects the Physics Settings/Damping parameters applied to each bone.
 	* Multiplies each parameter by the curve value for "Length from RootBone to specific bone / Length from RootBone to end bone" (0.0~1.0).
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings|Curves", AdvancedDisplay,
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings|Curves",
 		meta = (PinHiddenByDefault, DisplayName = "Damping Rate by Bone Length Rate"))
 	FRuntimeFloatCurve DampingCurveData;
 
@@ -286,7 +286,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* Corrects the Physics Settings/Stiffness parameters applied to each bone.
 	* Multiplies each parameter by the curve value for "Length from RootBone to specific bone / Length from RootBone to end bone" (0.0~1.0).
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings|Curves", AdvancedDisplay,
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings|Curves",
 		meta = (PinHiddenByDefault, DisplayName = "Stiffness Rate by Bone Length Rate"))
 	FRuntimeFloatCurve StiffnessCurveData;
 
@@ -298,7 +298,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* ※基となる値の意味は WorldDampingLocation を参照（大きいほど移動量を抑制 = 反映率は 1 - 値）
 	* Note: see WorldDampingLocation for the base value's meaning (higher = more suppression; reflection factor = 1 - value).
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings|Curves", AdvancedDisplay,
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings|Curves",
 		meta = (PinHiddenByDefault, DisplayName = "World Damping Location Rate by Bone Length Rate"))
 	FRuntimeFloatCurve WorldDampingLocationCurveData;
 
@@ -310,7 +310,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* ※基となる値の意味は WorldDampingRotation を参照（大きいほど回転量を抑制 = 反映率は 1 - 値）
 	* Note: see WorldDampingRotation for the base value's meaning (higher = more suppression; reflection factor = 1 - value).
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings|Curves", AdvancedDisplay,
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings|Curves",
 		meta = (PinHiddenByDefault, DisplayName = "World Damping Rotation Rate by Bone Length Rate"))
 	FRuntimeFloatCurve WorldDampingRotationCurveData;
 
@@ -320,7 +320,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* Corrects the Physics Settings/CollisionRadius parameters applied to each bone.
 	* Multiplies each parameter by the curve value for "Length from RootBone to specific bone / Length from RootBone to end bone" (0.0~1.0).
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings|Curves", AdvancedDisplay,
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings|Curves",
 		meta = (PinHiddenByDefault, DisplayName = "Radius Rate by Bone Length Rate"))
 	FRuntimeFloatCurve RadiusCurveData;
 
@@ -330,7 +330,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* Corrects the Physics Settings/LimitAngle parameters applied to each bone.
 	* Multiplies each parameter by the curve value for "Length from RootBone to specific bone / Length from RootBone to end bone" (0.0~1.0).
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings|Curves", AdvancedDisplay,
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings|Curves",
 		meta = (PinHiddenByDefault, DisplayName = "LimitAngle Rate by Bone Length Rate"))
 	FRuntimeFloatCurve LimitAngleCurveData;
 
