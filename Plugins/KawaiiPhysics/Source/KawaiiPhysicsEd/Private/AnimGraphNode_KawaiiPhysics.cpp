@@ -451,7 +451,8 @@ void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* Ani
 
 void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& DetailBuilder)
 {
-	IDetailCategoryBuilder& ViewportCategory = DetailBuilder.EditCategory(TEXT("Kawaii Physics Tools"));
+	IDetailCategoryBuilder& ViewportCategory = DetailBuilder.EditCategory(
+		TEXT("Kawaii Physics Tools"), LOCTEXT("KawaiiPhysicsToolsCategory", "Kawaii Physics Tools"));
 	FDetailWidgetRow& WidgetRow = ViewportCategory.AddCustomRow(LOCTEXT("KawaiiPhysics", "KawaiiPhysicsTools"));
 
 	WidgetRow
@@ -563,7 +564,8 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 
 void UAnimGraphNode_KawaiiPhysics::CustomizeDetailDebugVisualizations(IDetailLayoutBuilder& DetailBuilder)
 {
-	IDetailCategoryBuilder& ViewportCategory = DetailBuilder.EditCategory(TEXT("Debug Visualization"));
+	IDetailCategoryBuilder& ViewportCategory = DetailBuilder.EditCategory(
+		TEXT("Debug Visualization"), LOCTEXT("DebugVisualizationCategory", "Debug Visualization"));
 	FDetailWidgetRow& WidgetRow = ViewportCategory.AddCustomRow(
 		LOCTEXT("ToggleDebugVisualizationButtonRow", "DebugVisualization"));
 

@@ -14,7 +14,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Basic : public FKawaiiPhys
 {
 	GENERATED_BODY()
 
-	/** Direction of the force */
+	/** 外力の方向 / Direction of the force */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
 	FVector ForceDir = FVector::Zero();
 
@@ -27,7 +27,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Basic : public FKawaiiPhys
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
 	FRuntimeFloatCurve ForceRateByBoneLengthRate;
 
-	/** Interval for applying the force */
+	/** 外力を適用する間隔 / Interval for applying the force */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
 	float Interval = 0.0f;
 

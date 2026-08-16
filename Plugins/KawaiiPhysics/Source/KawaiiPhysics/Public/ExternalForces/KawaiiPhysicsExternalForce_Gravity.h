@@ -44,6 +44,8 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Gravity : public FKawaiiPh
 	bool bUseCharacterGravityScale = false;
 
 	/**
+	 * 重力方向を上書きするベクトル。
+	 * bUseOverrideGravityDirectionが有効な場合に使用。
 	 * Direction to override the gravity.
 	 * This direction is used when bUseOverrideGravityDirection is true.
 	 */
@@ -52,6 +54,8 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Gravity : public FKawaiiPh
 	FVector OverrideGravityDirection = FVector::Zero();
 
 	/**
+	 * 重力方向の上書きを使用するフラグ。
+	 * 有効な場合、重力方向をOverrideGravityDirectionで上書きする。
 	 * Flag to determine whether to use the override gravity direction.
 	 * If true, the gravity direction will be overridden by OverrideGravityDirection.
 	 */

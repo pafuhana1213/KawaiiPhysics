@@ -64,29 +64,29 @@ public:
 
 	// プレビュー用のボーンを表示するか
 	// Whether to show the preview bone
-	UPROPERTY(VisibleAnywhere, Category = "SyncTarget", meta=(EditCondition="false", EditConditionHides))
+	UPROPERTY(VisibleAnywhere, Category = "Sync Target", meta=(EditCondition="false", EditConditionHides))
 	bool IsShowPreviewBone = true;
 
 	// エディタ上でのプレビュー用
 	// For preview in the editor
-	UPROPERTY(VisibleAnywhere, Category = "SyncTarget",
+	UPROPERTY(VisibleAnywhere, Category = "Sync Target",
 		meta=(EditCondition="IsShowPreviewBone", EditConditionHides))
 	FBoneReference PreviewBone;
 
 	// SyncBoneにより最終的に受けた移動量
 	// Final translation received from SyncBone
-	UPROPERTY(VisibleAnywhere, Category = "SyncTarget")
+	UPROPERTY(VisibleAnywhere, Category = "Sync Target")
 	FVector TranslationBySyncBone = FVector::ZeroVector;
 #endif
 
 	// 移動を適用する度合い
 	// Degree to apply translation (how much movement is applied)
-	UPROPERTY(VisibleAnywhere, Category = "SyncTarget")
+	UPROPERTY(VisibleAnywhere, Category = "Sync Target")
 	float ScaleByLengthRateCurve = 1.0f;
 
 	// SyncTargetRootからの長さ割合
 	// Length rate from TargetRoot for the target bone
-	UPROPERTY(VisibleAnywhere, Category = "SyncTarget")
+	UPROPERTY(VisibleAnywhere, Category = "Sync Target")
 	float LengthRateFromSyncTargetRoot = 0.0f;
 
 	// 適用対象のボーンのModifyBoneにおけるIndex
@@ -115,22 +115,22 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSyncTargetRoot : public FKawaiiPhysicsSyn
 
 	// 適用対象のボーン
 	// Target bone to apply to
-	UPROPERTY(EditAnywhere, Category = "SyncTarget")
+	UPROPERTY(EditAnywhere, Category = "Sync Target")
 	FBoneReference Bone;
 
 	// このボーンの子ボーンもすべて対象にするか
 	// Whether to include all child bones of this bone
-	UPROPERTY(EditAnywhere, Category = "SyncTarget")
+	UPROPERTY(EditAnywhere, Category = "Sync Target")
 	bool bIncludeChildBones = true;
 
 	// TargetRootからの長さ割合に応じてSyncBoneの影響度にスケールを適用（X: LengthRate、Y: Scale）
 	// Curve that scales SyncBone's influence based on length rate from TargetRoot (X: Length, Y: Scale)
-	UPROPERTY(EditAnywhere, Category = "SyncBone", meta=(XAxisName="LengthRate", YAxisName="Scale"))
+	UPROPERTY(EditAnywhere, Category = "Sync Bone", meta=(XAxisName="LengthRate", YAxisName="Scale"))
 	FRuntimeFloatCurve ScaleCurveByBoneLengthRate;
 
 	// 適用対象である子ボーン
 	// Child bones that are targets for application
-	UPROPERTY(VisibleAnywhere, Category = "SyncBone", DisplayName="ChildTargets(Preview)", meta=(TitleProperty="PreviewBone"))
+	UPROPERTY(VisibleAnywhere, Category = "Sync Bone", DisplayName="ChildTargets(Preview)", meta=(TitleProperty="PreviewBone"))
 	TArray<FKawaiiPhysicsSyncTarget> ChildTargets;
 };
 
@@ -145,39 +145,39 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSyncBone
 
 	// 同期元のボーン
 	// Source bone to sync from
-	UPROPERTY(EditAnywhere, Category = "SyncBone")
+	UPROPERTY(EditAnywhere, Category = "Sync Bone")
 	FBoneReference Bone;
 
 	// 適用対象のボーンと適用度
 	// Target bones and their application alpha
-	UPROPERTY(EditAnywhere, Category = "SyncBone", meta=(TitleProperty="{Bone}"))
+	UPROPERTY(EditAnywhere, Category = "Sync Bone", meta=(TitleProperty="{Bone}"))
 	TArray<FKawaiiPhysicsSyncTargetRoot> TargetRoots;
 
 	// 全体に適用される移動の度合い
 	// Overall translation application amount
-	UPROPERTY(EditAnywhere, Category = "SyncBone",
+	UPROPERTY(EditAnywhere, Category = "Sync Bone",
 		meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	FVector GlobalScale = FVector::OneVector;
 	
 	// SyncBoneの移動距離に応じて
 	// 各Targetに対しての補正処理にスケールをかけるカーブ（X: 移動距離、Y: スケール）
 	// Curve that scales correction for each Target based on SyncBone's movement distance (X: Distance, Y: Scale)
-	UPROPERTY(EditAnywhere, Category = "SyncBone", meta=(XAxisName="Distance", YAxisName="Scale"))
+	UPROPERTY(EditAnywhere, Category = "Sync Bone", meta=(XAxisName="Distance", YAxisName="Scale"))
 	FRuntimeFloatCurve ScaleCurveByDeltaDistance;
 
 	// X軸の移動を適用する方向
 	// Direction to apply movement on the X axis
-	UPROPERTY(EditAnywhere, Category = "SyncBone")
+	UPROPERTY(EditAnywhere, Category = "Sync Bone")
 	ESyncBoneDirection ApplyDirectionX = ESyncBoneDirection::Both;
 
 	// Y軸の移動を適用する方向
 	// Direction to apply movement on the Y axis
-	UPROPERTY(EditAnywhere, Category = "SyncBone")
+	UPROPERTY(EditAnywhere, Category = "Sync Bone")
 	ESyncBoneDirection ApplyDirectionY = ESyncBoneDirection::Both;
 
 	// Z軸の移動を適用する方向
 	// Direction to apply movement on the Z axis
-	UPROPERTY(EditAnywhere, Category = "SyncBone")
+	UPROPERTY(EditAnywhere, Category = "Sync Bone")
 	ESyncBoneDirection ApplyDirectionZ = ESyncBoneDirection::Both;
 	
 	// SyncBoneの初期座標
@@ -187,24 +187,24 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSyncBone
 
 	// SyncBoneとの距離に応じてTargetへの適用量(Alpha)を減衰させる設定
 	// Attenuation of application amount(Alpha) based on distance from SyncBone to each Target
-	UPROPERTY(EditAnywhere, Category = "SyncBone|Distance Attenuation", meta=(InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = "Sync Bone|Distance Attenuation", meta=(InlineEditConditionToggle))
 	bool bEnableDistanceAttenuation = false;
 
 	// 内半径：この距離以内は減衰しません
 	// Inner radius: no attenuation within this radius
-	UPROPERTY(EditAnywhere, Category = "SyncBone|Distance Attenuation",
+	UPROPERTY(EditAnywhere, Category = "Sync Bone|Distance Attenuation",
 		meta=(EditCondition="bEnableDistanceAttenuation", ClampMin="0.0", UIMin = "0.0", Units="cm"))
 	float AttenuationInnerRadius = 0.0f;
 
 	// 外半径：この距離以上は最大減衰量がかかります
 	// Outer radius: maximum attenuation is applied outside this radius
-	UPROPERTY(EditAnywhere, Category = "SyncBone|Distance Attenuation",
+	UPROPERTY(EditAnywhere, Category = "Sync Bone|Distance Attenuation",
 		meta=(EditCondition="bEnableDistanceAttenuation", ClampMin="0.0", UIMin = "0.0", Units="cm"))
 	float AttenuationOuterRadius = 0.0f;
 
 	// 最大減衰量(0以上)：0=減衰なし, 1=減衰MAX（SyncBoneの適用量が0になる）
 	// Max attenuation amount (>=0): 0=no attenuation, 1=max attenuation (SyncBone application amount becomes 0)
-	UPROPERTY(EditAnywhere, Category = "SyncBone|Distance Attenuation",
+	UPROPERTY(EditAnywhere, Category = "Sync Bone|Distance Attenuation",
 		meta=(EditCondition="bEnableDistanceAttenuation", ClampMin="0.0", ClampMax="1.0", UIMin = "0.0", UIMax = "1.0"))
 	float MaxAttenuationRate = 1.0f;
 

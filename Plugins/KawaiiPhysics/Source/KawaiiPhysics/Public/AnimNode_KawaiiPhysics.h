@@ -218,6 +218,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 		meta = (PinHiddenByDefault, EditCondition="bNeedWarmUp"))
 	bool bUseWarmUpWhenResetDynamics = true;
 
+	/** 物理の空回し（ウォームアップ）を行うフラグ / Flag to warm up the physics simulation */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings",
 		meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	bool bNeedWarmUp = false;
@@ -644,6 +645,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	bool bAllowWorldCollision = false;
 
 
+	/** WorldCollisionで独自のコリジョン設定を使用するフラグ / Flag to use custom collision settings in WorldCollision */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|World Collision",
 		meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	bool bOverrideCollisionParams = false;

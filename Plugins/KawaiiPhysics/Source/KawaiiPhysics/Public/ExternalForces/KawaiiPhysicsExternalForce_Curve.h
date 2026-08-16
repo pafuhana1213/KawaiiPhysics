@@ -43,6 +43,8 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Curve : public FKawaiiPhys
 	int SubstepCount = 10;
 
 	/**
+	 * 時間のスケール係数。
+	 * 外力のカーブ評価に使う時間経過をこの値でスケールする。
 	 * Scale factor for the time.
 	 * This value is used to scale the time for the external force.
 	 */

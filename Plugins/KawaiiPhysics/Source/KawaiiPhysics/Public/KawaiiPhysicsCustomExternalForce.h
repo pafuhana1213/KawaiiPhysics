@@ -11,9 +11,11 @@ class KAWAIIPHYSICS_API UKawaiiPhysics_CustomExternalForce : public UObject
 	GENERATED_BODY()
 
 public:
+	/** CustomExternalForceを有効にするフラグ / Whether the custom external force is enabled */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1), Category="KawaiiPhysics|CustomExternalForce")
 	bool bIsEnabled = true;
 
+	/** CustomExternalForceのデバッグ表示を行うフラグ / Whether to draw debug information for the custom external force */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1), Category="KawaiiPhysics|CustomExternalForce")
 	bool bDrawDebug = false;
 

@@ -48,6 +48,7 @@ enum class EBoneForwardAxis : uint8
 };
 
 /**
+ * 追加のRootBone設定を表す構造体。
  * Structure representing the root bone settings for KawaiiPhysics.
  */
 USTRUCT(BlueprintType)
@@ -68,12 +69,14 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsRootBoneSetting
 	*/
 	UPROPERTY(EditAnywhere, Category = "Bones", meta = (EditCondition = "bUseOverrideExcludeBones"))
 	TArray<FBoneReference> OverrideExcludeBones;
+	/** OverrideExcludeBonesを使用するフラグ / Flag to use OverrideExcludeBones */
 	UPROPERTY(EditAnywhere, Category = "Bones", meta = (InlineEditConditionToggle))
 	bool bUseOverrideExcludeBones = false;
 };
 
 
 /**
+ * 物理制御の設定を表す構造体。
  * Structure representing the settings for KawaiiPhysics.
  */
 USTRUCT(BlueprintType)
