@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: KawaiiPhysics\n"
-"POT-Creation-Date: 2026-08-16 04:16\n"
-"PO-Revision-Date: 2026-08-16 04:16\n"
+"POT-Creation-Date: 2026-08-16 07:49\n"
+"PO-Revision-Date: 2026-08-16 07:49\n"
 "Language-Team: \n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
@@ -34,12 +34,12 @@ msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:AdditionalRootBones"
 msgid "指定ボーンとそれ以下のボーンを制御対象に(追加用)\nControl the specified bone and the bones below it (For Addition)"
 msgstr "指定ボーンとそれ以下のボーンを制御対象に(追加用)\nControl the specified bone and the bones below it (For Addition)"
 
-#. Key:	Limits|World Collision
+#. Key:	Collision|World Collision
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bAllowWorldCollision [BoolProperty Category meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bAllowWorldCollision [BoolProperty Category meta-data]
-msgctxt "UObjectCategory,Limits|World Collision"
-msgid "Limits|World Collision"
-msgstr "Limits|World Collision"
+msgctxt "UObjectCategory,Collision|World Collision"
+msgid "Collision|World Collision"
+msgstr "Collision|World Collision"
 
 #. Key:	AnimNode_KawaiiPhysics:bAllowWorldCollision
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bAllowWorldCollision [BoolProperty DisplayName meta-data]
@@ -139,12 +139,12 @@ msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:bNeedWarmUp"
 msgid "物理の空回し（ウォームアップ）を行うフラグ / Flag to warm up the physics simulation"
 msgstr "物理の空回し（ウォームアップ）を行うフラグ / Flag to warm up the physics simulation"
 
-#. Key:	Limits|Bone Constraint
+#. Key:	Collision|Bone Constraint
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintGlobalComplianceType [EnumProperty Category meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintGlobalComplianceType [EnumProperty Category meta-data]
-msgctxt "UObjectCategory,Limits|Bone Constraint"
-msgid "Limits|Bone Constraint"
-msgstr "Limits|Bone Constraint"
+msgctxt "UObjectCategory,Collision|Bone Constraint"
+msgid "Collision|Bone Constraint"
+msgstr "Collision|Bone Constraint"
 
 #. Key:	AnimNode_KawaiiPhysics:BoneConstraintGlobalComplianceType
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintGlobalComplianceType [EnumProperty DisplayName meta-data]
@@ -311,8 +311,8 @@ msgstr "WorldCollisionで独自のコリジョン設定を使用するフラグ 
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoxLimits [ArrayProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoxLimits [ArrayProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:BoxLimits"
-msgid "Box Limits"
-msgstr "Box Limits"
+msgid "Box Collision"
+msgstr "Box Collision"
 
 #. Key:	AnimNode_KawaiiPhysics:BoxLimits
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoxLimits [ArrayProperty ToolTip meta-data]
@@ -325,8 +325,8 @@ msgstr "コリジョン（ボックス）\nBox Collision"
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoxLimitsData [ArrayProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoxLimitsData [ArrayProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:BoxLimitsData"
-msgid "Box Limits Data"
-msgstr "Box Limits Data"
+msgid "Box Collision Data"
+msgstr "Box Collision Data"
 
 #. Key:	AnimNode_KawaiiPhysics:BoxLimitsData
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoxLimitsData [ArrayProperty ToolTip meta-data]
@@ -335,12 +335,12 @@ msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:BoxLimitsData"
 msgid "コリジョン設定（DataAsset版）におけるボックスコリジョンのプレビュー\nPreview of box collision in collision settings (DataAsset version)"
 msgstr "コリジョン設定（DataAsset版）におけるボックスコリジョンのプレビュー\nPreview of box collision in collision settings (DataAsset version)"
 
-#. Key:	Limits|Shared Collision
+#. Key:	Collision|Shared Collision
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bSharedCollisionSource [BoolProperty Category meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bSharedCollisionSource [BoolProperty Category meta-data]
-msgctxt "UObjectCategory,Limits|Shared Collision"
-msgid "Limits|Shared Collision"
-msgstr "Limits|Shared Collision"
+msgctxt "UObjectCategory,Collision|Shared Collision"
+msgid "Collision|Shared Collision"
+msgstr "Collision|Shared Collision"
 
 #. Key:	AnimNode_KawaiiPhysics:bSharedCollisionSource
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bSharedCollisionSource [BoolProperty DisplayName meta-data]
@@ -472,8 +472,8 @@ msgstr "単純な外力をワールド座標系で扱うかどうかのフラグ
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:CapsuleLimits [ArrayProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:CapsuleLimits [ArrayProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:CapsuleLimits"
-msgid "Capsule Limits"
-msgstr "Capsule Limits"
+msgid "Capsule Collision"
+msgstr "Capsule Collision"
 
 #. Key:	AnimNode_KawaiiPhysics:CapsuleLimits
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:CapsuleLimits [ArrayProperty ToolTip meta-data]
@@ -486,8 +486,8 @@ msgstr "コリジョン（カプセル）\nCapsule Collision"
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:CapsuleLimitsData [ArrayProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:CapsuleLimitsData [ArrayProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:CapsuleLimitsData"
-msgid "Capsule Limits Data"
-msgstr "Capsule Limits Data"
+msgid "Capsule Collision Data"
+msgstr "Capsule Collision Data"
 
 #. Key:	AnimNode_KawaiiPhysics:CapsuleLimitsData
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:CapsuleLimitsData [ArrayProperty ToolTip meta-data]
@@ -682,8 +682,8 @@ msgstr "各ボーンに適用するPhysics Settings/ LimitAngle パラメータ�
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:LimitsDataAsset [ObjectProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:LimitsDataAsset [ObjectProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:LimitsDataAsset"
-msgid "Limits Data Asset"
-msgstr "Limits Data Asset"
+msgid "Collision Data Asset"
+msgstr "Collision Data Asset"
 
 #. Key:	AnimNode_KawaiiPhysics:LimitsDataAsset
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:LimitsDataAsset [ObjectProperty ToolTip meta-data]
@@ -710,8 +710,8 @@ msgstr "ランタイムキャッシュ(BoneConstraints + BoneConstraintsData)。
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:MirrorDataTableForLimits [ObjectProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:MirrorDataTableForLimits [ObjectProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:MirrorDataTableForLimits"
-msgid "Mirror Data Table for Limits"
-msgstr "Mirror Data Table for Limits"
+msgid "Mirror Data Table for Collision"
+msgstr "Mirror Data Table for Collision"
 
 #. Key:	AnimNode_KawaiiPhysics:MirrorDataTableForLimits
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:MirrorDataTableForLimits [ObjectProperty ToolTip meta-data]
@@ -738,8 +738,8 @@ msgstr "物理制御対象ボーンのランタイムキャッシュ。Initializ
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:PhysicsAssetForLimits [ObjectProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:PhysicsAssetForLimits [ObjectProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:PhysicsAssetForLimits"
-msgid "Physics Asset for Limits"
-msgstr "Physics Asset for Limits"
+msgid "Physics Asset for Collision"
+msgstr "Physics Asset for Collision"
 
 #. Key:	AnimNode_KawaiiPhysics:PhysicsAssetForLimits
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:PhysicsAssetForLimits [ObjectProperty ToolTip meta-data]
@@ -787,8 +787,8 @@ msgstr "指定した軸に応じた平面上に各ボーンを固定\nFix the bo
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:PlanarLimits [ArrayProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:PlanarLimits [ArrayProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:PlanarLimits"
-msgid "Planar Limits"
-msgstr "Planar Limits"
+msgid "Planar Collision"
+msgstr "Planar Collision"
 
 #. Key:	AnimNode_KawaiiPhysics:PlanarLimits
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:PlanarLimits [ArrayProperty ToolTip meta-data]
@@ -801,8 +801,8 @@ msgstr "コリジョン（平面）\nPlanar Collision"
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:PlanarLimitsData [ArrayProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:PlanarLimitsData [ArrayProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:PlanarLimitsData"
-msgid "Planar Limits Data"
-msgstr "Planar Limits Data"
+msgid "Planar Collision Data"
+msgstr "Planar Collision Data"
 
 #. Key:	AnimNode_KawaiiPhysics:PlanarLimitsData
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:PlanarLimitsData [ArrayProperty ToolTip meta-data]
@@ -930,19 +930,19 @@ msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:SkelCompMoveScale"
 msgid "SkeletalMeshComponentの移動量を物理挙動に反映する際に適用されるスケール。\nScale to apply when reflecting the movement of the SkeletalMeshComponent in physical behavior."
 msgstr "SkeletalMeshComponentの移動量を物理挙動に反映する際に適用されるスケール。\nScale to apply when reflecting the movement of the SkeletalMeshComponent in physical behavior."
 
-#. Key:	Limits
+#. Key:	Collision
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SphericalLimits [ArrayProperty Category meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SphericalLimits [ArrayProperty Category meta-data]
-msgctxt "UObjectCategory,Limits"
-msgid "Limits"
-msgstr "Limits"
+msgctxt "UObjectCategory,Collision"
+msgid "Collision"
+msgstr "Collision"
 
 #. Key:	AnimNode_KawaiiPhysics:SphericalLimits
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SphericalLimits [ArrayProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SphericalLimits [ArrayProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:SphericalLimits"
-msgid "Spherical Limits"
-msgstr "Spherical Limits"
+msgid "Spherical Collision"
+msgstr "Spherical Collision"
 
 #. Key:	AnimNode_KawaiiPhysics:SphericalLimits
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SphericalLimits [ArrayProperty ToolTip meta-data]
@@ -955,8 +955,8 @@ msgstr "コリジョン（球）\nSpherical Collision"
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SphericalLimitsData [ArrayProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SphericalLimitsData [ArrayProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:SphericalLimitsData"
-msgid "Spherical Limits Data"
-msgstr "Spherical Limits Data"
+msgid "Spherical Collision Data"
+msgstr "Spherical Collision Data"
 
 #. Key:	AnimNode_KawaiiPhysics:SphericalLimitsData
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SphericalLimitsData [ArrayProperty ToolTip meta-data]
@@ -1004,8 +1004,8 @@ msgstr "同期元のボーンの移動・回転を物理制御下のボーンに
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TaperedCapsuleLimits [ArrayProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TaperedCapsuleLimits [ArrayProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:TaperedCapsuleLimits"
-msgid "Tapered Capsule Limits"
-msgstr "Tapered Capsule Limits"
+msgid "Tapered Capsule Collision"
+msgstr "Tapered Capsule Collision"
 
 #. Key:	AnimNode_KawaiiPhysics:TaperedCapsuleLimits
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TaperedCapsuleLimits [ArrayProperty ToolTip meta-data]
@@ -1018,8 +1018,8 @@ msgstr "コリジョン（テーパードカプセル）\nTapered Capsule Collis
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TaperedCapsuleLimitsData [ArrayProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TaperedCapsuleLimitsData [ArrayProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:TaperedCapsuleLimitsData"
-msgid "Tapered Capsule Limits Data"
-msgstr "Tapered Capsule Limits Data"
+msgid "Tapered Capsule Collision Data"
+msgstr "Tapered Capsule Collision Data"
 
 #. Key:	AnimNode_KawaiiPhysics:TaperedCapsuleLimitsData
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TaperedCapsuleLimitsData [ArrayProperty ToolTip meta-data]
@@ -3121,13 +3121,6 @@ msgctxt "UObjectToolTips,KawaiiPhysicsSyncBone:bEnableDistanceAttenuation"
 msgid "SyncBoneとの距離に応じてTargetへの適用量(Alpha)を減衰させる設定\nAttenuation of application amount(Alpha) based on distance from SyncBone to each Target"
 msgstr "SyncBoneとの距離に応じてTargetへの適用量(Alpha)を減衰させる設定\nAttenuation of application amount(Alpha) based on distance from SyncBone to each Target"
 
-#. Key:	Sync Bone
-#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty Category meta-data]
-#: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty Category meta-data]
-msgctxt "UObjectCategory,Sync Bone"
-msgid "Sync Bone"
-msgstr "Sync Bone"
-
 #. Key:	KawaiiPhysicsSyncBone:Bone
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty DisplayName meta-data]
@@ -3386,6 +3379,13 @@ msgstr "ChildTargets(Preview)"
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncTargetRoot:ChildTargets"
 msgid "適用対象である子ボーン\nChild bones that are targets for application"
 msgstr "適用対象である子ボーン\nChild bones that are targets for application"
+
+#. Key:	Sync Bone
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty Category meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty Category meta-data]
+msgctxt "UObjectCategory,Sync Bone"
+msgid "Sync Bone"
+msgstr "Sync Bone"
 
 #. Key:	KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty DisplayName meta-data]
@@ -4857,6 +4857,13 @@ msgctxt "KawaiiPhysics,KawaiiPhysics"
 msgid "KawaiiPhysicsTools"
 msgstr "KawaiiPhysicsTools"
 
+#. Key:	ExportCollisionButton
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(478)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(478)
+msgctxt "KawaiiPhysics,ExportCollisionButton"
+msgid "Export Collision"
+msgstr "Export Collision"
+
 #. Key:	DebugVisualizationCategory
 #. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(568)
 #: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(568)
@@ -4892,12 +4899,26 @@ msgctxt "KawaiiPhysics,OpenCreatedAsset"
 msgid "Open Created Asset"
 msgstr "Open Created Asset"
 
-#. Key:	ExportedLimitsDataAsset
+#. Key:	ExportCollisionDialogTitle
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(861)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(861)
+msgctxt "KawaiiPhysics,ExportCollisionDialogTitle"
+msgid "Choose Location for Collision Data Asset"
+msgstr "Choose Location for Collision Data Asset"
+
+#. Key:	ExportedCollisionDataAsset
 #. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(906)
 #: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(906)
-msgctxt "KawaiiPhysics,ExportedLimitsDataAsset"
-msgid "Exported Limits Data Asset: {0}"
-msgstr "Exported Limits Data Asset: {0}"
+msgctxt "KawaiiPhysics,ExportedCollisionDataAsset"
+msgid "Exported Collision Data Asset: {0}"
+msgstr "Exported Collision Data Asset: {0}"
+
+#. Key:	ExportBoneConstraintsDialogTitle
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(915)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(915)
+msgctxt "KawaiiPhysics,ExportBoneConstraintsDialogTitle"
+msgid "Choose Location for BoneConstraints Data Asset"
+msgstr "Choose Location for BoneConstraints Data Asset"
 
 #. Key:	ExportedBoneConstraintsDataAsset
 #. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(954)
@@ -4905,6 +4926,13 @@ msgstr "Exported Limits Data Asset: {0}"
 msgctxt "KawaiiPhysics,ExportedBoneConstraintsDataAsset"
 msgid "Exported BoneConstraints Data Asset: {0}"
 msgstr "Exported BoneConstraints Data Asset: {0}"
+
+#. Key:	ExportPresetDialogTitle
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(964)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(964)
+msgctxt "KawaiiPhysics,ExportPresetDialogTitle"
+msgid "Choose Location for Preset Data Asset"
+msgstr "Choose Location for Preset Data Asset"
 
 #. Key:	ExportedPresetDataAssetDescription
 #. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(991)
