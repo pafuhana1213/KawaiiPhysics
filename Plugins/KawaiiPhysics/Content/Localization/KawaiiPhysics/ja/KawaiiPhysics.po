@@ -25,168 +25,168 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:AdditionalRootBones [ArrayProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:AdditionalRootBones"
 msgid "Additional Root Bones"
-msgstr ""
+msgstr "追加Root Bone"
 
 #. Key:	AnimNode_KawaiiPhysics:AdditionalRootBones
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:AdditionalRootBones [ArrayProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:AdditionalRootBones [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:AdditionalRootBones"
 msgid "指定ボーンとそれ以下のボーンを制御対象に(追加用)\nControl the specified bone and the bones below it (For Addition)"
-msgstr ""
+msgstr "指定ボーンとそれ以下のボーンを制御対象に(追加用)"
 
 #. Key:	Limits|World Collision
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bAllowWorldCollision [BoolProperty Category meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bAllowWorldCollision [BoolProperty Category meta-data]
 msgctxt "UObjectCategory,Limits|World Collision"
 msgid "Limits|World Collision"
-msgstr ""
+msgstr "制限|ワールドコリジョン"
 
 #. Key:	AnimNode_KawaiiPhysics:bAllowWorldCollision
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bAllowWorldCollision [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bAllowWorldCollision [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:bAllowWorldCollision"
 msgid "Allow World Collision"
-msgstr ""
+msgstr "World Collisionを許可"
 
 #. Key:	AnimNode_KawaiiPhysics:bAllowWorldCollision
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bAllowWorldCollision [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bAllowWorldCollision [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:bAllowWorldCollision"
 msgid "レベル上の各コリジョンとの判定を行うフラグ。有効にすると物理処理の負荷が大幅に上がります\nFlag for collision detection with each collision on the level. Enabling this will significantly increase the load of physics processing."
-msgstr ""
+msgstr "レベル上の各コリジョンとの判定を行うフラグ。有効にすると物理処理の負荷が大幅に上がります"
 
 #. Key:	AnimNode_KawaiiPhysics:bAutoAddChildDummyBoneConstraint
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bAutoAddChildDummyBoneConstraint [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bAutoAddChildDummyBoneConstraint [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:bAutoAddChildDummyBoneConstraint"
 msgid "Auto Add Child Dummy Bone Constraint"
-msgstr ""
+msgstr "子Dummy BoneのBone Constraintを自動追加"
 
 #. Key:	AnimNode_KawaiiPhysics:bAutoAddChildDummyBoneConstraint
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bAutoAddChildDummyBoneConstraint [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bAutoAddChildDummyBoneConstraint [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:bAutoAddChildDummyBoneConstraint"
 msgid "末端ボーンをBoneConstraint処理の対象にした場合、自動的にダミーボーンも処理対象にするフラグ\nFlag to automatically processes dummy bones when the end bones are subject to BoneConstraint processing."
-msgstr ""
+msgstr "末端ボーンをBoneConstraint処理の対象にした場合、自動的にダミーボーンも処理対象にするフラグ"
 
 #. Key:	AnimNode_KawaiiPhysics:bBoneSubdivisionCollisionOnly
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bBoneSubdivisionCollisionOnly [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bBoneSubdivisionCollisionOnly [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:bBoneSubdivisionCollisionOnly"
 msgid "Bone Subdivision Collision Only"
-msgstr ""
+msgstr "Bone SubdivisionをCollision専用にする"
 
 #. Key:	AnimNode_KawaiiPhysics:bBoneSubdivisionCollisionOnly
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bBoneSubdivisionCollisionOnly [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bBoneSubdivisionCollisionOnly [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:bBoneSubdivisionCollisionOnly"
 msgid "ボーン間ダミーボーンの速度積分（重力・風など）をスキップし、実ボーン間の補間位置からコリジョン・制約に参加（配置数には影響しない）。\nWhen true, inter-bone dummy bones skip velocity integration (gravity/wind/etc.) and participate in collision and constraints from interpolated positions. Does not affect the number of dummies."
-msgstr ""
+msgstr "ボーン間ダミーボーンの速度積分（重力・風など）をスキップし、実ボーン間の補間位置からコリジョン・制約に参加（配置数には影響しない）。"
 
 #. Key:	AnimNode_KawaiiPhysics:bBoneSubdivisionDensifyByRadius
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bBoneSubdivisionDensifyByRadius [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bBoneSubdivisionDensifyByRadius [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:bBoneSubdivisionDensifyByRadius"
 msgid "Bone Subdivision Densify by Radius"
-msgstr ""
+msgstr "Radiusに応じてBone Subdivisionを密に配置"
 
 #. Key:	AnimNode_KawaiiPhysics:bBoneSubdivisionDensifyByRadius
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bBoneSubdivisionDensifyByRadius [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bBoneSubdivisionDensifyByRadius [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:bBoneSubdivisionDensifyByRadius"
 msgid "半径に応じてダミーを追加配置し、コリジョン球でボーン間を概ね隙間なく被覆する。BoneSubdivisionCount を最小として、\nボーン間が半径に対して離れている区間ほど多く配置する（近接区間は最小のまま。1区間あたり最大50本）。\n有効中に Radius / RadiusCurve を変更した場合、ダミー数の再計算には再初期化（ABP再コンパイル等）が必要なことがある。\nAdd dummies based on radius so collision spheres roughly cover the gap between bones. Uses BoneSubdivisionCount as the\nminimum and places more where bones are far apart relative to their radius (close segments keep the minimum; up to 50 per segment).\nWhile enabled, changing Radius / RadiusCurve may need a re-init (e.g. recompiling the ABP) for the dummy count to update."
-msgstr ""
+msgstr "半径に応じてダミーを追加配置し、コリジョン球でボーン間を概ね隙間なく被覆する。BoneSubdivisionCount を最小として、\nボーン間が半径に対して離れている区間ほど多く配置する（近接区間は最小のまま。1区間あたり最大50本）。\n有効中に Radius / RadiusCurve を変更した場合、ダミー数の再計算には再初期化（ABP再コンパイル等）が必要なことがある。"
 
 #. Key:	AnimNode_KawaiiPhysics:bEnableWind
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bEnableWind [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bEnableWind [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:bEnableWind"
 msgid "Enable Wind"
-msgstr ""
+msgstr "Windを有効化"
 
 #. Key:	AnimNode_KawaiiPhysics:bEnableWind
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bEnableWind [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bEnableWind [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:bEnableWind"
 msgid "外力としてWindDirectionalSourceの影響を受けるかどうかのフラグ\nFlag to receive the influence of WindDirectionalSource as an external force"
-msgstr ""
+msgstr "外力としてWindDirectionalSourceの影響を受けるかどうかのフラグ"
 
 #. Key:	AnimNode_KawaiiPhysics:bIgnoreSelfComponent
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bIgnoreSelfComponent [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bIgnoreSelfComponent [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:bIgnoreSelfComponent"
 msgid "Ignore Self Component"
-msgstr ""
+msgstr "自身のComponentを無視"
 
 #. Key:	AnimNode_KawaiiPhysics:bIgnoreSelfComponent
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bIgnoreSelfComponent [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bIgnoreSelfComponent [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:bIgnoreSelfComponent"
 msgid "WorldCollisionにて、SkeletalMeshComponentが持つコリジョン(PhysicsAsset)を無視するフラグ\nIn WorldCollision, Flag to ignore collisions for SkeletalMeshComponent(PhysicsAsset) in WorldCollision"
-msgstr ""
+msgstr "WorldCollisionにて、SkeletalMeshComponentが持つコリジョン(PhysicsAsset)を無視するフラグ"
 
 #. Key:	AnimNode_KawaiiPhysics:bNeedWarmUp
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bNeedWarmUp [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bNeedWarmUp [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:bNeedWarmUp"
 msgid "Need Warm Up"
-msgstr ""
+msgstr "Warm Upを行う"
 
 #. Key:	AnimNode_KawaiiPhysics:bNeedWarmUp
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bNeedWarmUp [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bNeedWarmUp [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:bNeedWarmUp"
 msgid "物理の空回し（ウォームアップ）を行うフラグ / Flag to warm up the physics simulation"
-msgstr ""
+msgstr "物理の空回し（ウォームアップ）を行うフラグ"
 
 #. Key:	Limits|Bone Constraint
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintGlobalComplianceType [EnumProperty Category meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintGlobalComplianceType [EnumProperty Category meta-data]
 msgctxt "UObjectCategory,Limits|Bone Constraint"
 msgid "Limits|Bone Constraint"
-msgstr ""
+msgstr "制限|Bone Constraint"
 
 #. Key:	AnimNode_KawaiiPhysics:BoneConstraintGlobalComplianceType
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintGlobalComplianceType [EnumProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintGlobalComplianceType [EnumProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:BoneConstraintGlobalComplianceType"
 msgid "Bone Constraint Global Compliance Type"
-msgstr ""
+msgstr "Bone Constraint全体のCompliance Type"
 
 #. Key:	AnimNode_KawaiiPhysics:BoneConstraintGlobalComplianceType
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintGlobalComplianceType [EnumProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintGlobalComplianceType [EnumProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:BoneConstraintGlobalComplianceType"
 msgid "Bone Constraintで用いる剛性タイプ\nStiffness type to use in Bone Constraint\nhttp://blog.mmacklin.com/2016/10/12/xpbd-slides-and-stiffness/"
-msgstr ""
+msgstr "Bone Constraintで用いる剛性タイプ"
 
 #. Key:	AnimNode_KawaiiPhysics:BoneConstraintIterationCountAfterCollision
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintIterationCountAfterCollision [IntProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintIterationCountAfterCollision [IntProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:BoneConstraintIterationCountAfterCollision"
 msgid "Bone Constraint Iteration Count After Collision"
-msgstr ""
+msgstr "Bone Constraint反復回数（Collision後）"
 
 #. Key:	AnimNode_KawaiiPhysics:BoneConstraintIterationCountAfterCollision
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintIterationCountAfterCollision [IntProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintIterationCountAfterCollision [IntProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:BoneConstraintIterationCountAfterCollision"
 msgid "Bone Constraintの処理回数（コリジョン処理後）\nNumber of Bone Constraints processed after collision processing"
-msgstr ""
+msgstr "Bone Constraintの処理回数（コリジョン処理後）"
 
 #. Key:	AnimNode_KawaiiPhysics:BoneConstraintIterationCountBeforeCollision
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintIterationCountBeforeCollision [IntProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintIterationCountBeforeCollision [IntProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:BoneConstraintIterationCountBeforeCollision"
 msgid "Bone Constraint Iteration Count Before Collision"
-msgstr ""
+msgstr "Bone Constraint反復回数（Collision前）"
 
 #. Key:	AnimNode_KawaiiPhysics:BoneConstraintIterationCountBeforeCollision
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintIterationCountBeforeCollision [IntProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintIterationCountBeforeCollision [IntProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:BoneConstraintIterationCountBeforeCollision"
 msgid "Bone Constraintの処理回数（コリジョン処理前）\nNumber of Bone Constraints processed before collision processing"
-msgstr ""
+msgstr "Bone Constraintの処理回数（コリジョン処理前）"
 
 #. Key:	AnimNode_KawaiiPhysics:BoneConstraints
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraints [ArrayProperty DisplayName meta-data]
@@ -200,7 +200,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraints [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:BoneConstraints"
 msgid "BoneConstraint処理の対象となるボーンのペアを設定。スカートのように、ボーン間の距離を維持したい場合に使用\nSets the bone pair to be processed by BoneConstraint. Used when you want to maintain the distance between bones, such as a skirt."
-msgstr ""
+msgstr "BoneConstraint処理の対象となるボーンのペアを設定。スカートのように、ボーン間の距離を維持したい場合に使用"
 
 #. Key:	AnimNode_KawaiiPhysics:BoneConstraintsData
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintsData [ArrayProperty DisplayName meta-data]
@@ -214,7 +214,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintsData [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:BoneConstraintsData"
 msgid "BoneConstraint処理の対象となるボーンのペアのプレビュー\nPreview of bone pairs that will be processed by BoneConstraint"
-msgstr ""
+msgstr "BoneConstraint処理の対象となるボーンのペアのプレビュー"
 
 #. Key:	AnimNode_KawaiiPhysics:BoneConstraintsDataAsset
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintsDataAsset [ObjectProperty DisplayName meta-data]
@@ -228,21 +228,21 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintsDataAsset [ObjectProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:BoneConstraintsDataAsset"
 msgid "BoneConstraint処理の対象となるボーンのペアを設定 (DataAsset版）。別AnimNode・ABPで設定を流用したい場合はこちらを推奨\nSet the bone pairs to be processed by BoneConstraint (DataAsset version). If you want to reuse the settings for another AnimNode or another ABP, this is recommended."
-msgstr ""
+msgstr "BoneConstraint処理の対象となるボーンのペアを設定 (DataAsset版）。別AnimNode・ABPで設定を流用したい場合はこちらを推奨"
 
 #. Key:	AnimNode_KawaiiPhysics:BoneConstraintSubdivisionCount
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintSubdivisionCount [IntProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintSubdivisionCount [IntProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:BoneConstraintSubdivisionCount"
 msgid "Bone Constraint Subdivision Count"
-msgstr ""
+msgstr "Bone Constraint Subdivision 分割数"
 
 #. Key:	AnimNode_KawaiiPhysics:BoneConstraintSubdivisionCount
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintSubdivisionCount [IntProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintSubdivisionCount [IntProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:BoneConstraintSubdivisionCount"
 msgid "横方向BoneConstraintに沿って挿入するコリジョン代理ダミーの分割数。隣接チェーン（列）間の隙間をコリジョン点で埋めて貫通を防ぐ。\nNumber of collision-proxy dummies to insert along each horizontal BoneConstraint. Fills horizontal gaps between adjacent chains (columns) to prevent penetration.\nBoneSubdivisionCountと組み合わせると布面に2Dグリッド状のコリジョン点が並ぶ。0で無効。端点コリジョンが既に重なる接続(間隔<=2*半径)には挿入しない。BoneSubdivisionCountとは独立。\nCombine with BoneSubdivisionCount for a 2D grid of collision points. 0 to disable. Skipped where the endpoint collisions already overlap (spacing <= 2*radius). Independent of BoneSubdivisionCount."
-msgstr ""
+msgstr "横方向BoneConstraintに沿って挿入するコリジョン代理ダミーの分割数。隣接チェーン（列）間の隙間をコリジョン点で埋めて貫通を防ぐ。\nNumber of collision-proxy dummies to insert along each horizontal BoneConstraint. Fills horizontal gaps between adjacent chains (columns) to prevent penetration.\nBoneSubdivisionCountと組み合わせると布面に2Dグリッド状のコリジョン点が並ぶ。0で無効。端点コリジョンが既に重なる接続(間隔<=2*半径)には挿入しない。BoneSubdivisionCountとは独立。"
 
 #. Key:	AnimNode_KawaiiPhysics:BoneConstraintSubdivisionFeedbackScale
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintSubdivisionFeedbackScale [FloatProperty DisplayName meta-data]
@@ -256,56 +256,56 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneConstraintSubdivisionFeedbackScale [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:BoneConstraintSubdivisionFeedbackScale"
 msgid "bridge dummyが受けたコリジョン変位を端点ボーンへ転送する強さ。0=転送なし、1=端点との距離比に応じた標準的な押し出し。\nこれにより列の間で動くコライダーが実ボーンを押し出せる（貫通防止フィードバックの本体）。剛性が強すぎる場合は下げる。\nStrength of transferring a bridge dummy's collision displacement to its endpoint bones (0 = none, 1 = standard\npush weighted by proximity). This is what lets a collider moving between columns actually push the real bones."
-msgstr ""
+msgstr "bridge dummyが受けたコリジョン変位を端点ボーンへ転送する強さ。0=転送なし、1=端点との距離比に応じた標準的な押し出し。\nこれにより列の間で動くコライダーが実ボーンを押し出せる（貫通防止フィードバックの本体）。剛性が強すぎる場合は下げる。"
 
 #. Key:	AnimNode_KawaiiPhysics:BoneForwardAxis
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneForwardAxis [EnumProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneForwardAxis [EnumProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:BoneForwardAxis"
 msgid "Bone Forward Axis"
-msgstr ""
+msgstr "Boneの前方軸"
 
 #. Key:	AnimNode_KawaiiPhysics:BoneForwardAxis
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneForwardAxis [EnumProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneForwardAxis [EnumProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:BoneForwardAxis"
 msgid "ボーンの前方。物理制御やダミーボーンの配置位置に影響\nBone forward direction. Affects the placement of physical controls and dummy bones"
-msgstr ""
+msgstr "ボーンの前方。物理制御やダミーボーンの配置位置に影響"
 
 #. Key:	Bones|Bone Subdivision
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneSubdivisionCount [IntProperty Category meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneSubdivisionCount [IntProperty Category meta-data]
 msgctxt "UObjectCategory,Bones|Bone Subdivision"
 msgid "Bones|Bone Subdivision"
-msgstr ""
+msgstr "ボーン|ボーン分割"
 
 #. Key:	AnimNode_KawaiiPhysics:BoneSubdivisionCount
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneSubdivisionCount [IntProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneSubdivisionCount [IntProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:BoneSubdivisionCount"
 msgid "Bone Subdivision Count"
-msgstr ""
+msgstr "Bone Subdivision 分割数"
 
 #. Key:	AnimNode_KawaiiPhysics:BoneSubdivisionCount
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneSubdivisionCount [IntProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoneSubdivisionCount [IntProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:BoneSubdivisionCount"
 msgid "隣接するボーン間に挿入するダミーボーンの最小分割数。コリジョン検出の精度を向上させる（例: スカートの足貫通防止）。0で無効。\nbBoneSubdivisionDensifyByRadius が有効なときは、これを最小として半径に応じ追加配置される。\nMinimum number of DummyBone subdivisions to insert between adjacent physics bones.\nImproves collision detection (e.g., prevents skirts from penetrating legs). Set to 0 to disable.\nWhen bBoneSubdivisionDensifyByRadius is enabled, this acts as a floor and more are added based on radius."
-msgstr ""
+msgstr "隣接するボーン間に挿入するダミーボーンの最小分割数。コリジョン検出の精度を向上させる（例: スカートの足貫通防止）。0で無効。\nbBoneSubdivisionDensifyByRadius が有効なときは、これを最小として半径に応じ追加配置される。"
 
 #. Key:	AnimNode_KawaiiPhysics:bOverrideCollisionParams
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bOverrideCollisionParams [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bOverrideCollisionParams [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:bOverrideCollisionParams"
 msgid "Override Collision Params"
-msgstr ""
+msgstr "Collisionパラメータを上書き"
 
 #. Key:	AnimNode_KawaiiPhysics:bOverrideCollisionParams
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bOverrideCollisionParams [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bOverrideCollisionParams [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:bOverrideCollisionParams"
 msgid "WorldCollisionで独自のコリジョン設定を使用するフラグ / Flag to use custom collision settings in WorldCollision"
-msgstr ""
+msgstr "WorldCollisionで独自のコリジョン設定を使用するフラグ"
 
 #. Key:	AnimNode_KawaiiPhysics:BoxLimits
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoxLimits [ArrayProperty DisplayName meta-data]
@@ -319,7 +319,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoxLimits [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:BoxLimits"
 msgid "コリジョン（ボックス）\nBox Collision"
-msgstr ""
+msgstr "コリジョン（ボックス）"
 
 #. Key:	AnimNode_KawaiiPhysics:BoxLimitsData
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoxLimitsData [ArrayProperty DisplayName meta-data]
@@ -333,140 +333,140 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:BoxLimitsData [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:BoxLimitsData"
 msgid "コリジョン設定（DataAsset版）におけるボックスコリジョンのプレビュー\nPreview of box collision in collision settings (DataAsset version)"
-msgstr ""
+msgstr "コリジョン設定（DataAsset版）におけるボックスコリジョンのプレビュー"
 
 #. Key:	Limits|Shared Collision
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bSharedCollisionSource [BoolProperty Category meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bSharedCollisionSource [BoolProperty Category meta-data]
 msgctxt "UObjectCategory,Limits|Shared Collision"
 msgid "Limits|Shared Collision"
-msgstr ""
+msgstr "制限|共有コリジョン"
 
 #. Key:	AnimNode_KawaiiPhysics:bSharedCollisionSource
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bSharedCollisionSource [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bSharedCollisionSource [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:bSharedCollisionSource"
 msgid "Shared Collision Source"
-msgstr ""
+msgstr "共有Collisionの提供元"
 
 #. Key:	AnimNode_KawaiiPhysics:bSharedCollisionSource
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bSharedCollisionSource [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bSharedCollisionSource [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:bSharedCollisionSource"
 msgid "コリジョンを同じActor/ChildActorファミリー内のKawaiiPhysicsに共有する\nProvide this node's collision limits to KawaiiPhysics nodes in the same attached actor family"
-msgstr ""
+msgstr "コリジョンを同じActor/ChildActorファミリー内のKawaiiPhysicsに共有する"
 
 #. Key:	AnimNode_KawaiiPhysics:bSkipMirroredBoneWithExistingCollision
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bSkipMirroredBoneWithExistingCollision [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bSkipMirroredBoneWithExistingCollision [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:bSkipMirroredBoneWithExistingCollision"
 msgid "Skip Mirrored Bone with Existing Collision"
-msgstr ""
+msgstr "既存CollisionがあるBoneのミラーをスキップ"
 
 #. Key:	AnimNode_KawaiiPhysics:bSkipMirroredBoneWithExistingCollision
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bSkipMirroredBoneWithExistingCollision [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bSkipMirroredBoneWithExistingCollision [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:bSkipMirroredBoneWithExistingCollision"
 msgid "ONの場合、ミラー先ボーンに同形状タイプのコリジョン（Mirror由来を除く）が既にあればミラー生成をスキップ\nIf true, skip generating a mirrored collision when the mirrored bone already has a collision of the same shape type (excluding Mirror-sourced ones)."
-msgstr ""
+msgstr "ONの場合、ミラー先ボーンに同形状タイプのコリジョン（Mirror由来を除く）が既にあればミラー生成をスキップ"
 
 #. Key:	AnimNode_KawaiiPhysics:bUpdatePhysicsSettingsInGame
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUpdatePhysicsSettingsInGame [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUpdatePhysicsSettingsInGame [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:bUpdatePhysicsSettingsInGame"
 msgid "Update Physics Settings in Game"
-msgstr ""
+msgstr "ゲーム中にPhysics Settingsを更新"
 
 #. Key:	AnimNode_KawaiiPhysics:bUpdatePhysicsSettingsInGame
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUpdatePhysicsSettingsInGame [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUpdatePhysicsSettingsInGame [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:bUpdatePhysicsSettingsInGame"
 msgid "各ボーンの物理パラメータを毎フレーム更新するフラグ。\n無効にするとパフォーマンスが僅かに改善するが、実行中に物理パラメータを変更することが不可能に\nFlag to update the physics parameters of each bone every frame.\nDisabling this will slightly improve performance, but it will make it impossible to change physics parameters during execution."
-msgstr ""
+msgstr "各ボーンの物理パラメータを毎フレーム更新するフラグ。\n無効にするとパフォーマンスが僅かに改善するが、実行中に物理パラメータを変更することが不可能に"
 
 #. Key:	AnimNode_KawaiiPhysics:bUseDefaultGravityZProjectSetting
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUseDefaultGravityZProjectSetting [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUseDefaultGravityZProjectSetting [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:bUseDefaultGravityZProjectSetting"
 msgid "Use Default Gravity ZProject Setting"
-msgstr ""
+msgstr "プロジェクト設定のDefault Gravity Zを使用"
 
 #. Key:	AnimNode_KawaiiPhysics:bUseDefaultGravityZProjectSetting
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUseDefaultGravityZProjectSetting [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUseDefaultGravityZProjectSetting [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:bUseDefaultGravityZProjectSetting"
 msgid "Gravityベクトルにプロジェクト設定の DefaultGravityZ（絶対値）を乗算する処理のフラグ\nFlag to multiply the DefaultGravityZ (absolute value) of the project settings to the Gravity vector"
-msgstr ""
+msgstr "Gravityベクトルにプロジェクト設定の DefaultGravityZ（絶対値）を乗算する処理のフラグ"
 
 #. Key:	AnimNode_KawaiiPhysics:bUseLegacyGravity
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUseLegacyGravity [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUseLegacyGravity [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:bUseLegacyGravity"
 msgid "Use Legacy Gravity"
-msgstr ""
+msgstr "レガシーGravityを使用"
 
 #. Key:	AnimNode_KawaiiPhysics:bUseLegacyGravity
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUseLegacyGravity [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUseLegacyGravity [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:bUseLegacyGravity"
 msgid "Gravityの適用方式（レガシー互換）\ntrue : 従来互換（位置に 0.5 * Gravity * dt^2 を加算）\nfalse: AnimDynamics互換（速度に Gravity * dt を加算してから位置更新）\nGravity application method (legacy compatibility)\ntrue : Legacy compatibility (add 0.5 * Gravity * dt^2 to position)\nfalse: AnimDynamics compatibility (add Gravity * dt to velocity before updating position)"
-msgstr ""
+msgstr "Gravityの適用方式（レガシー互換）\ntrue : 従来互換（位置に 0.5 * Gravity * dt^2 を加算）\nfalse: AnimDynamics互換（速度に Gravity * dt を加算してから位置更新）"
 
 #. Key:	AnimNode_KawaiiPhysics:bUseSharedCollision
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUseSharedCollision [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUseSharedCollision [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:bUseSharedCollision"
 msgid "Use Shared Collision"
-msgstr ""
+msgstr "共有Collisionを使用"
 
 #. Key:	AnimNode_KawaiiPhysics:bUseSharedCollision
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUseSharedCollision [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUseSharedCollision [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:bUseSharedCollision"
 msgid "同じActor/ChildActorファミリー内のKawaiiPhysicsから共有コリジョンを使用する\n同じAnimGraph内で同一フレームの結果を使うには、SourceノードをTargetノードより先に評価される位置へ配置してください。\nUse shared collision limits from source KawaiiPhysics nodes in the same attached actor family.\nTo use same-frame data in one AnimGraph, place the source node so it evaluates before the target node."
-msgstr ""
+msgstr "同じActor/ChildActorファミリー内のKawaiiPhysicsから共有コリジョンを使用する\n同じAnimGraph内で同一フレームの結果を使うには、SourceノードをTargetノードより先に評価される位置へ配置してください。"
 
 #. Key:	AnimNode_KawaiiPhysics:bUseWarmUpWhenResetDynamics
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUseWarmUpWhenResetDynamics [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUseWarmUpWhenResetDynamics [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:bUseWarmUpWhenResetDynamics"
 msgid "Use Warm Up when Reset Dynamics"
-msgstr ""
+msgstr "Reset Dynamics時にWarm Upを行う"
 
 #. Key:	AnimNode_KawaiiPhysics:bUseWarmUpWhenResetDynamics
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUseWarmUpWhenResetDynamics [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUseWarmUpWhenResetDynamics [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:bUseWarmUpWhenResetDynamics"
 msgid "ResetDynamics時に物理の空回しを行うフラグ\nFlags to use warmup physics when ResetDynamics"
-msgstr ""
+msgstr "ResetDynamics時に物理の空回しを行うフラグ"
 
 #. Key:	AnimNode_KawaiiPhysics:bUseWorldSpaceGravity
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUseWorldSpaceGravity [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUseWorldSpaceGravity [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:bUseWorldSpaceGravity"
 msgid "Use World Space Gravity"
-msgstr ""
+msgstr "GravityをWorld Spaceで扱う"
 
 #. Key:	AnimNode_KawaiiPhysics:bUseWorldSpaceGravity
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUseWorldSpaceGravity [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUseWorldSpaceGravity [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:bUseWorldSpaceGravity"
 msgid "重力をワールド座標系で扱うかどうかのフラグ\nFlag to handle gravity in world coordinate system"
-msgstr ""
+msgstr "重力をワールド座標系で扱うかどうかのフラグ"
 
 #. Key:	AnimNode_KawaiiPhysics:bUseWorldSpaceSimpleExternalForce
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUseWorldSpaceSimpleExternalForce [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUseWorldSpaceSimpleExternalForce [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:bUseWorldSpaceSimpleExternalForce"
 msgid "Use World Space Simple External Force"
-msgstr ""
+msgstr "単純なExternal ForceをWorld Spaceで扱う"
 
 #. Key:	AnimNode_KawaiiPhysics:bUseWorldSpaceSimpleExternalForce
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUseWorldSpaceSimpleExternalForce [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bUseWorldSpaceSimpleExternalForce [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:bUseWorldSpaceSimpleExternalForce"
 msgid "単純な外力をワールド座標系で扱うかどうかのフラグ\nFlag to handle simple external forces in world coordinate system"
-msgstr ""
+msgstr "単純な外力をワールド座標系で扱うかどうかのフラグ"
 
 #. Key:	AnimNode_KawaiiPhysics:CapsuleLimits
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:CapsuleLimits [ArrayProperty DisplayName meta-data]
@@ -480,7 +480,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:CapsuleLimits [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:CapsuleLimits"
 msgid "コリジョン（カプセル）\nCapsule Collision"
-msgstr ""
+msgstr "コリジョン（カプセル）"
 
 #. Key:	AnimNode_KawaiiPhysics:CapsuleLimitsData
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:CapsuleLimitsData [ArrayProperty DisplayName meta-data]
@@ -494,21 +494,21 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:CapsuleLimitsData [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:CapsuleLimitsData"
 msgid "コリジョン設定（DataAsset版）におけるカプセルコリジョンのプレビュー\nPreview of capsule collision in collision settings (DataAsset version)"
-msgstr ""
+msgstr "コリジョン設定（DataAsset版）におけるカプセルコリジョンのプレビュー"
 
 #. Key:	AnimNode_KawaiiPhysics:CollisionChannelSettings
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:CollisionChannelSettings [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:CollisionChannelSettings [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:CollisionChannelSettings"
 msgid "Override SkelComp Collision Params"
-msgstr ""
+msgstr "SkelComp Collisionパラメータを上書き"
 
 #. Key:	AnimNode_KawaiiPhysics:CollisionChannelSettings
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:CollisionChannelSettings [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:CollisionChannelSettings [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:CollisionChannelSettings"
 msgid "SkeletalMeshComponentが持つコリジョン設定ではなく、独自のコリジョン設定をWorldCollisionで使用する際に設定\nUse custom collision settings in WorldCollision instead of the collision settings set in SkeletalMeshComponent."
-msgstr ""
+msgstr "SkeletalMeshComponentが持つコリジョン設定ではなく、独自のコリジョン設定をWorldCollisionで使用する際に設定"
 
 #. Key:	AnimNode_KawaiiPhysics:CustomExternalForces
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:CustomExternalForces [ArrayProperty DisplayName meta-data]
@@ -522,28 +522,28 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:CustomExternalForces [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:CustomExternalForces"
 msgid "EXPERIMENTAL: 外力のプリセット。BP・C++で独自のプリセットを追加可能(Instanced Property)\n注意：AnimNodeをクリック or ABPをコンパイルしないと正常に動作しません\nExternal force presets (experimental). You can add your own presets in BP or C++.\nNote: If you do not click on AnimNode or compile ABP, it will not work properly."
-msgstr ""
+msgstr "EXPERIMENTAL: 外力のプリセット。BP・C++で独自のプリセットを追加可能(Instanced Property)\n注意：AnimNodeをクリック or ABPをコンパイルしないと正常に動作しません"
 
 #. Key:	Physics Settings|Curves
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:DampingCurveData [StructProperty Category meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:DampingCurveData [StructProperty Category meta-data]
 msgctxt "UObjectCategory,Physics Settings|Curves"
 msgid "Physics Settings|Curves"
-msgstr ""
+msgstr "物理設定|カーブ"
 
 #. Key:	AnimNode_KawaiiPhysics:DampingCurveData
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:DampingCurveData [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:DampingCurveData [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:DampingCurveData"
 msgid "Damping Rate by Bone Length Rate"
-msgstr ""
+msgstr "ボーン長割合によるDamping Rate補正"
 
 #. Key:	AnimNode_KawaiiPhysics:DampingCurveData
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:DampingCurveData [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:DampingCurveData [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:DampingCurveData"
 msgid "各ボーンに適用するPhysics Settings/ Damping パラメータを補正。\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値を各パラメータに乗算\nCorrects the Physics Settings/Damping parameters applied to each bone.\nMultiplies each parameter by the curve value for \"Length from RootBone to specific bone / Length from RootBone to end bone\" (0.0~1.0)."
-msgstr ""
+msgstr "各ボーンに適用するPhysics Settings/ Damping パラメータを補正。\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値を各パラメータに乗算"
 
 #. Key:	AnimNode_KawaiiPhysics:DeltaTime
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:DeltaTime [FloatProperty DisplayName meta-data]
@@ -557,28 +557,28 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:DummyBoneLength [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:DummyBoneLength"
 msgid "Dummy Bone Length"
-msgstr ""
+msgstr "Dummy Boneの長さ"
 
 #. Key:	AnimNode_KawaiiPhysics:DummyBoneLength
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:DummyBoneLength [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:DummyBoneLength [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:DummyBoneLength"
 msgid "0より大きい場合は、制御ボーンの末端にダミーボーンを追加。ダミーボーンを追加することで、末端のボーンの物理制御を改善\nAdd a dummy bone to the end bone if it's above 0. It affects end bone rotation."
-msgstr ""
+msgstr "0より大きい場合は、制御ボーンの末端にダミーボーンを追加。ダミーボーンを追加することで、末端のボーンの物理制御を改善"
 
 #. Key:	AnimNode_KawaiiPhysics:ExcludeBones
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:ExcludeBones [ArrayProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:ExcludeBones [ArrayProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:ExcludeBones"
 msgid "Exclude Bones"
-msgstr ""
+msgstr "除外Bone"
 
 #. Key:	AnimNode_KawaiiPhysics:ExcludeBones
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:ExcludeBones [ArrayProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:ExcludeBones [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:ExcludeBones"
 msgid "指定したボーンとそれ以下のボーンを制御対象から除去\nDo NOT control the specified bone and the bones below it"
-msgstr ""
+msgstr "指定したボーンとそれ以下のボーンを制御対象から除去"
 
 #. Key:	AnimNode_KawaiiPhysics:ExternalForces
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:ExternalForces [ArrayProperty DisplayName meta-data]
@@ -592,14 +592,14 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:ExternalForces [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:ExternalForces"
 msgid "外力のプリセット。C++で独自のプリセットを追加可能(Instanced Struct)\nExternal force presets. You can add your own presets in C++."
-msgstr ""
+msgstr "外力のプリセット。C++で独自のプリセットを追加可能(Instanced Struct)"
 
 #. Key:	Force
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:Gravity [StructProperty Category meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:Gravity [StructProperty Category meta-data]
 msgctxt "UObjectCategory,Force"
 msgid "Force"
-msgstr ""
+msgstr "フォース"
 
 #. Key:	AnimNode_KawaiiPhysics:Gravity
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:Gravity [StructProperty DisplayName meta-data]
@@ -613,42 +613,42 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:Gravity [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:Gravity"
 msgid "重力\nGravity"
-msgstr ""
+msgstr "重力"
 
 #. Key:	AnimNode_KawaiiPhysics:IgnoreBoneNamePrefix
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:IgnoreBoneNamePrefix [ArrayProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:IgnoreBoneNamePrefix [ArrayProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:IgnoreBoneNamePrefix"
 msgid "Ignore Bone Name Prefix"
-msgstr ""
+msgstr "無視するBone名の接頭辞"
 
 #. Key:	AnimNode_KawaiiPhysics:IgnoreBoneNamePrefix
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:IgnoreBoneNamePrefix [ArrayProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:IgnoreBoneNamePrefix [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:IgnoreBoneNamePrefix"
 msgid "WorldCollisionにて、SkeletalMeshComponentが持つコリジョン(PhysicsAsset)を無視する設定（骨名のプリフィックス）\nIn WorldCollision, set to ignore collision (PhysicsAsset) of SkeletalMeshComponent using bone name prefix"
-msgstr ""
+msgstr "WorldCollisionにて、SkeletalMeshComponentが持つコリジョン(PhysicsAsset)を無視する設定（骨名のプリフィックス）"
 
 #. Key:	AnimNode_KawaiiPhysics:IgnoreBones
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:IgnoreBones [ArrayProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:IgnoreBones [ArrayProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:IgnoreBones"
 msgid "Ignore Bones"
-msgstr ""
+msgstr "無視Bone"
 
 #. Key:	AnimNode_KawaiiPhysics:IgnoreBones
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:IgnoreBones [ArrayProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:IgnoreBones [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:IgnoreBones"
 msgid "WorldCollisionにて、SkeletalMeshComponentが持つコリジョン(PhysicsAsset)を無視する設定（骨）\nIn WorldCollision, set to ignore collision (PhysicsAsset) of SkeletalMeshComponent using bone"
-msgstr ""
+msgstr "WorldCollisionにて、SkeletalMeshComponentが持つコリジョン(PhysicsAsset)を無視する設定（骨）"
 
 #. Key:	Tag
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:KawaiiPhysicsTag [StructProperty Category meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:KawaiiPhysicsTag [StructProperty Category meta-data]
 msgctxt "UObjectCategory,Tag"
 msgid "Tag"
-msgstr ""
+msgstr "タグ"
 
 #. Key:	AnimNode_KawaiiPhysics:KawaiiPhysicsTag
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:KawaiiPhysicsTag [StructProperty DisplayName meta-data]
@@ -662,21 +662,21 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:KawaiiPhysicsTag [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:KawaiiPhysicsTag"
 msgid "ExternalForceなどで使用するフィルタリング用タグ\nTag for filtering of ExternalForce etc"
-msgstr ""
+msgstr "ExternalForceなどで使用するフィルタリング用タグ"
 
 #. Key:	AnimNode_KawaiiPhysics:LimitAngleCurveData
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:LimitAngleCurveData [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:LimitAngleCurveData [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:LimitAngleCurveData"
 msgid "LimitAngle Rate by Bone Length Rate"
-msgstr ""
+msgstr "ボーン長割合によるLimitAngle Rate補正"
 
 #. Key:	AnimNode_KawaiiPhysics:LimitAngleCurveData
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:LimitAngleCurveData [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:LimitAngleCurveData [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:LimitAngleCurveData"
 msgid "各ボーンに適用するPhysics Settings/ LimitAngle パラメータを補正。\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値を各パラメータに乗算\nCorrects the Physics Settings/LimitAngle parameters applied to each bone.\nMultiplies each parameter by the curve value for \"Length from RootBone to specific bone / Length from RootBone to end bone\" (0.0~1.0)."
-msgstr ""
+msgstr "各ボーンに適用するPhysics Settings/ LimitAngle パラメータを補正。\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値を各パラメータに乗算"
 
 #. Key:	AnimNode_KawaiiPhysics:LimitsDataAsset
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:LimitsDataAsset [ObjectProperty DisplayName meta-data]
@@ -690,35 +690,35 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:LimitsDataAsset [ObjectProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:LimitsDataAsset"
 msgid "コリジョン設定（DataAsset版）。別AnimNode・ABPで設定を流用したい場合はこちらを推奨\nCollision settings (DataAsset version). This is recommended if you want to reuse the settings for another AnimNode or ABP."
-msgstr ""
+msgstr "コリジョン設定（DataAsset版）。別AnimNode・ABPで設定を流用したい場合はこちらを推奨"
 
 #. Key:	AnimNode_KawaiiPhysics:MergedBoneConstraints
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:MergedBoneConstraints [ArrayProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:MergedBoneConstraints [ArrayProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:MergedBoneConstraints"
 msgid "Merged Bone Constraints"
-msgstr ""
+msgstr "統合済みBone Constraint"
 
 #. Key:	AnimNode_KawaiiPhysics:MergedBoneConstraints
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:MergedBoneConstraints [ArrayProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:MergedBoneConstraints [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:MergedBoneConstraints"
 msgid "ランタイムキャッシュ(BoneConstraints + BoneConstraintsData)。InitBoneConstraints で再構築されるため非シリアライズ。\nRuntime cache rebuilt in InitBoneConstraints; not serialized."
-msgstr ""
+msgstr "ランタイムキャッシュ(BoneConstraints + BoneConstraintsData)。InitBoneConstraints で再構築されるため非シリアライズ。"
 
 #. Key:	AnimNode_KawaiiPhysics:MirrorDataTableForLimits
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:MirrorDataTableForLimits [ObjectProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:MirrorDataTableForLimits [ObjectProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:MirrorDataTableForLimits"
 msgid "Mirror Data Table for Limits"
-msgstr ""
+msgstr "Limit用Mirror Data Table"
 
 #. Key:	AnimNode_KawaiiPhysics:MirrorDataTableForLimits
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:MirrorDataTableForLimits [ObjectProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:MirrorDataTableForLimits [ObjectProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:MirrorDataTableForLimits"
 msgid "コリジョンのミラーリング設定。設定すると既存コリジョン（AnimNode直値 / DataAsset / PhysicsAsset）をMirrorDataTableで解決したミラー先ボーンへ自動複製（中央ボーンはスキップ）\nMirroring source for collisions. If set, existing collisions are automatically duplicated onto the mirrored bones resolved via the MirrorDataTable (center bones are skipped)."
-msgstr ""
+msgstr "コリジョンのミラーリング設定。設定すると既存コリジョン（AnimNode直値 / DataAsset / PhysicsAsset）をMirrorDataTableで解決したミラー先ボーンへ自動複製（中央ボーンはスキップ）"
 
 #. Key:	AnimNode_KawaiiPhysics:ModifyBones
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:ModifyBones [ArrayProperty DisplayName meta-data]
@@ -732,28 +732,28 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:ModifyBones [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:ModifyBones"
 msgid "物理制御対象ボーンのランタイムキャッシュ。Initialize_AnyThread で毎回再構築されるため非シリアライズ(Transient)。\nRuntime cache of bones under physics control. Rebuilt every Initialize_AnyThread, so it is Transient (not serialized)."
-msgstr ""
+msgstr "物理制御対象ボーンのランタイムキャッシュ。Initialize_AnyThread で毎回再構築されるため非シリアライズ(Transient)。"
 
 #. Key:	AnimNode_KawaiiPhysics:PhysicsAssetForLimits
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:PhysicsAssetForLimits [ObjectProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:PhysicsAssetForLimits [ObjectProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:PhysicsAssetForLimits"
 msgid "Physics Asset for Limits"
-msgstr ""
+msgstr "Limit用Physics Asset"
 
 #. Key:	AnimNode_KawaiiPhysics:PhysicsAssetForLimits
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:PhysicsAssetForLimits [ObjectProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:PhysicsAssetForLimits [ObjectProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:PhysicsAssetForLimits"
 msgid "コリジョン設定（PhysicsAsset版）。別AnimNode・ABPで設定を流用したい場合はこちらを推奨\nCollision settings (PhysicsAsset). This is recommended if you want to reuse the settings for another AnimNode or ABP."
-msgstr ""
+msgstr "コリジョン設定（PhysicsAsset版）。別AnimNode・ABPで設定を流用したい場合はこちらを推奨"
 
 #. Key:	Physics Settings
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:PhysicsSettings [StructProperty Category meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:PhysicsSettings [StructProperty Category meta-data]
 msgctxt "UObjectCategory,Physics Settings"
 msgid "Physics Settings"
-msgstr ""
+msgstr "物理設定"
 
 #. Key:	AnimNode_KawaiiPhysics:PhysicsSettings
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:PhysicsSettings [StructProperty DisplayName meta-data]
@@ -767,7 +767,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:PhysicsSettings [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:PhysicsSettings"
 msgid "物理制御の基本設定\nBasic physics settings"
-msgstr ""
+msgstr "物理制御の基本設定"
 
 #. Key:	AnimNode_KawaiiPhysics:PlanarConstraint
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:PlanarConstraint [EnumProperty DisplayName meta-data]
@@ -781,7 +781,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:PlanarConstraint [EnumProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:PlanarConstraint"
 msgid "指定した軸に応じた平面上に各ボーンを固定\nFix the bone on the specified plane"
-msgstr ""
+msgstr "指定した軸に応じた平面上に各ボーンを固定"
 
 #. Key:	AnimNode_KawaiiPhysics:PlanarLimits
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:PlanarLimits [ArrayProperty DisplayName meta-data]
@@ -795,7 +795,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:PlanarLimits [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:PlanarLimits"
 msgid "コリジョン（平面）\nPlanar Collision"
-msgstr ""
+msgstr "コリジョン（平面）"
 
 #. Key:	AnimNode_KawaiiPhysics:PlanarLimitsData
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:PlanarLimitsData [ArrayProperty DisplayName meta-data]
@@ -809,35 +809,35 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:PlanarLimitsData [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:PlanarLimitsData"
 msgid "コリジョン設定（DataAsset版）における平面コリジョンのプレビュー\nPreview of planar collision in collision settings (DataAsset version)"
-msgstr ""
+msgstr "コリジョン設定（DataAsset版）における平面コリジョンのプレビュー"
 
 #. Key:	AnimNode_KawaiiPhysics:RadiusCurveData
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:RadiusCurveData [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:RadiusCurveData [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:RadiusCurveData"
 msgid "Radius Rate by Bone Length Rate"
-msgstr ""
+msgstr "ボーン長割合によるRadius Rate補正"
 
 #. Key:	AnimNode_KawaiiPhysics:RadiusCurveData
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:RadiusCurveData [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:RadiusCurveData [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:RadiusCurveData"
 msgid "各ボーンに適用するPhysics Settings/ CollisionRadius パラメータを補正。\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値を各パラメータに乗算\nCorrects the Physics Settings/CollisionRadius parameters applied to each bone.\nMultiplies each parameter by the curve value for \"Length from RootBone to specific bone / Length from RootBone to end bone\" (0.0~1.0)."
-msgstr ""
+msgstr "各ボーンに適用するPhysics Settings/ CollisionRadius パラメータを補正。\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値を各パラメータに乗算"
 
 #. Key:	AnimNode_KawaiiPhysics:ResetBoneTransformWhenBoneNotFound
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:ResetBoneTransformWhenBoneNotFound [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:ResetBoneTransformWhenBoneNotFound [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:ResetBoneTransformWhenBoneNotFound"
 msgid "Reset Bone Transform when Bone Not Found"
-msgstr ""
+msgstr "Boneが見つからない場合にBone Transformをリセット"
 
 #. Key:	AnimNode_KawaiiPhysics:ResetBoneTransformWhenBoneNotFound
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:ResetBoneTransformWhenBoneNotFound [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:ResetBoneTransformWhenBoneNotFound [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:ResetBoneTransformWhenBoneNotFound"
 msgid "制御対象のボーンが見つからない場合にTransformをリセットするフラグ。基本的には無効を推奨\nFlag to reset Transform when the controlled bone is not found. It is generally recommended to disable this."
-msgstr ""
+msgstr "制御対象のボーンが見つからない場合にTransformをリセットするフラグ。基本的には無効を推奨"
 
 #. Key:	AnimNode_KawaiiPhysics:RootBone
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:RootBone [StructProperty DisplayName meta-data]
@@ -851,42 +851,42 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:RootBone [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:RootBone"
 msgid "指定ボーンとそれ以下のボーンを制御対象に\nControl the specified bone and the bones below it"
-msgstr ""
+msgstr "指定ボーンとそれ以下のボーンを制御対象に"
 
 #. Key:	AnimNode_KawaiiPhysics:SharedCollisionGroupTag
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SharedCollisionGroupTag [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SharedCollisionGroupTag [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:SharedCollisionGroupTag"
 msgid "Shared Collision Group Tag"
-msgstr ""
+msgstr "共有Collisionのグループタグ"
 
 #. Key:	AnimNode_KawaiiPhysics:SharedCollisionGroupTag
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SharedCollisionGroupTag [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SharedCollisionGroupTag [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:SharedCollisionGroupTag"
 msgid "共有コリジョンのグループタグ（同じActor/ChildActorファミリー内のSource/Target両方で使用）\nGroup tag for shared collision (used by both source and target in the same attached actor family)"
-msgstr ""
+msgstr "共有コリジョンのグループタグ（同じActor/ChildActorファミリー内のSource/Target両方で使用）"
 
 #. Key:	Force|External Force
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleExternalForce [StructProperty Category meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleExternalForce [StructProperty Category meta-data]
 msgctxt "UObjectCategory,Force|External Force"
 msgid "Force|External Force"
-msgstr ""
+msgstr "フォース|外力"
 
 #. Key:	AnimNode_KawaiiPhysics:SimpleExternalForce
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleExternalForce [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleExternalForce [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:SimpleExternalForce"
 msgid "Simple External Force"
-msgstr ""
+msgstr "単純なExternal Force"
 
 #. Key:	AnimNode_KawaiiPhysics:SimpleExternalForce
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleExternalForce [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleExternalForce [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:SimpleExternalForce"
 msgid "単純な外力ベクトル\nSimple external force vector"
-msgstr ""
+msgstr "単純な外力ベクトル"
 
 #. Key:	AnimNode_KawaiiPhysics:SimulationBaseBone
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimulationBaseBone [StructProperty DisplayName meta-data]
@@ -900,7 +900,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimulationBaseBone [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:SimulationBaseBone"
 msgid "BaseBone座標系時の基準となるボーン\nBaseBone coordinate system reference bone"
-msgstr ""
+msgstr "BaseBone座標系時の基準となるボーン"
 
 #. Key:	AnimNode_KawaiiPhysics:SimulationSpace
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimulationSpace [EnumProperty DisplayName meta-data]
@@ -914,28 +914,28 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimulationSpace [EnumProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:SimulationSpace"
 msgid "物理制御を行う座標系（Component以外の場合は微小のパフォーマンス低下が発生しますが、急激なRootボーンの移動・回転の影響を回避することができます）\nSimulation space for physics control (Using anything other than ComponentSpace may cause a slight performance drop, but it can avoid the impact of sudden Root bone movement and rotation)"
-msgstr ""
+msgstr "物理制御を行う座標系（Component以外の場合は微小のパフォーマンス低下が発生しますが、急激なRootボーンの移動・回転の影響を回避することができます）"
 
 #. Key:	AnimNode_KawaiiPhysics:SkelCompMoveScale
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SkelCompMoveScale [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SkelCompMoveScale [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:SkelCompMoveScale"
 msgid "Skel Comp Move Scale"
-msgstr ""
+msgstr "SkelCompの移動スケール"
 
 #. Key:	AnimNode_KawaiiPhysics:SkelCompMoveScale
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SkelCompMoveScale [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SkelCompMoveScale [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:SkelCompMoveScale"
 msgid "SkeletalMeshComponentの移動量を物理挙動に反映する際に適用されるスケール。\nScale to apply when reflecting the movement of the SkeletalMeshComponent in physical behavior."
-msgstr ""
+msgstr "SkeletalMeshComponentの移動量を物理挙動に反映する際に適用されるスケール。"
 
 #. Key:	Limits
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SphericalLimits [ArrayProperty Category meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SphericalLimits [ArrayProperty Category meta-data]
 msgctxt "UObjectCategory,Limits"
 msgid "Limits"
-msgstr ""
+msgstr "制限"
 
 #. Key:	AnimNode_KawaiiPhysics:SphericalLimits
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SphericalLimits [ArrayProperty DisplayName meta-data]
@@ -949,7 +949,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SphericalLimits [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:SphericalLimits"
 msgid "コリジョン（球）\nSpherical Collision"
-msgstr ""
+msgstr "コリジョン（球）"
 
 #. Key:	AnimNode_KawaiiPhysics:SphericalLimitsData
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SphericalLimitsData [ArrayProperty DisplayName meta-data]
@@ -963,28 +963,28 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SphericalLimitsData [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:SphericalLimitsData"
 msgid "コリジョン設定（DataAsset版）における球コリジョンのプレビュー\nPreview of sphere collision in collision settings (DataAsset version)"
-msgstr ""
+msgstr "コリジョン設定（DataAsset版）における球コリジョンのプレビュー"
 
 #. Key:	AnimNode_KawaiiPhysics:StiffnessCurveData
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:StiffnessCurveData [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:StiffnessCurveData [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:StiffnessCurveData"
 msgid "Stiffness Rate by Bone Length Rate"
-msgstr ""
+msgstr "ボーン長割合によるStiffness Rate補正"
 
 #. Key:	AnimNode_KawaiiPhysics:StiffnessCurveData
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:StiffnessCurveData [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:StiffnessCurveData [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:StiffnessCurveData"
 msgid "各ボーンに適用するPhysics Settings/ Stiffness パラメータを補正。\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値を各パラメータに乗算\nCorrects the Physics Settings/Stiffness parameters applied to each bone.\nMultiplies each parameter by the curve value for \"Length from RootBone to specific bone / Length from RootBone to end bone\" (0.0~1.0)."
-msgstr ""
+msgstr "各ボーンに適用するPhysics Settings/ Stiffness パラメータを補正。\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値を各パラメータに乗算"
 
 #. Key:	Force|Sync Bone
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SyncBones [ArrayProperty Category meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SyncBones [ArrayProperty Category meta-data]
 msgctxt "UObjectCategory,Force|Sync Bone"
 msgid "Force|Sync Bone"
-msgstr ""
+msgstr "フォース|同期ボーン"
 
 #. Key:	AnimNode_KawaiiPhysics:SyncBones
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SyncBones [ArrayProperty DisplayName meta-data]
@@ -998,7 +998,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SyncBones [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:SyncBones"
 msgid "同期元のボーンの移動・回転を物理制御下のボーンに適用します。スカートが足などを貫通するのを防ぐのに役立ちます\nApplies the movement and rotation of the sync source bone to the bone under physics control. Helps prevent skirts from penetrating legs, etc."
-msgstr ""
+msgstr "同期元のボーンの移動・回転を物理制御下のボーンに適用します。スカートが足などを貫通するのを防ぐのに役立ちます"
 
 #. Key:	AnimNode_KawaiiPhysics:TaperedCapsuleLimits
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TaperedCapsuleLimits [ArrayProperty DisplayName meta-data]
@@ -1012,7 +1012,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TaperedCapsuleLimits [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:TaperedCapsuleLimits"
 msgid "コリジョン（テーパードカプセル）\nTapered Capsule Collision"
-msgstr ""
+msgstr "コリジョン（テーパードカプセル）"
 
 #. Key:	AnimNode_KawaiiPhysics:TaperedCapsuleLimitsData
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TaperedCapsuleLimitsData [ArrayProperty DisplayName meta-data]
@@ -1026,77 +1026,77 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TaperedCapsuleLimitsData [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:TaperedCapsuleLimitsData"
 msgid "コリジョン設定（DataAsset版）におけるテーパードカプセルコリジョンのプレビュー\nPreview of tapered capsule collision in collision settings (DataAsset version)"
-msgstr ""
+msgstr "コリジョン設定（DataAsset版）におけるテーパードカプセルコリジョンのプレビュー"
 
 #. Key:	AnimNode_KawaiiPhysics:TargetFramerate
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TargetFramerate [IntProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TargetFramerate [IntProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:TargetFramerate"
 msgid "Target Framerate"
-msgstr ""
+msgstr "目標フレームレート"
 
 #. Key:	AnimNode_KawaiiPhysics:TargetFramerate
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TargetFramerate [IntProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TargetFramerate [IntProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:TargetFramerate"
 msgid "ターゲットとなるフレームレート\nTarget Frame Rate"
-msgstr ""
+msgstr "ターゲットとなるフレームレート"
 
 #. Key:	AnimNode_KawaiiPhysics:TeleportDistanceThreshold
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TeleportDistanceThreshold [FloatProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TeleportDistanceThreshold [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:TeleportDistanceThreshold"
 msgid "Teleport Distance Threshold"
-msgstr ""
+msgstr "Teleport距離しきい値"
 
 #. Key:	AnimNode_KawaiiPhysics:TeleportDistanceThreshold
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TeleportDistanceThreshold [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TeleportDistanceThreshold [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:TeleportDistanceThreshold"
 msgid "1フレームにおけるSkeletalMeshComponentの移動量が設定値を超えた場合、その移動量を物理制御に反映しない\nIf the amount of movement of a SkeletalMeshComponent in one frame exceeds the set value, that amount of movement will not be reflected in the physics control."
-msgstr ""
+msgstr "1フレームにおけるSkeletalMeshComponentの移動量が設定値を超えた場合、その移動量を物理制御に反映しない"
 
 #. Key:	AnimNode_KawaiiPhysics:TeleportRotationThreshold
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TeleportRotationThreshold [FloatProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TeleportRotationThreshold [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:TeleportRotationThreshold"
 msgid "Teleport Rotation Threshold"
-msgstr ""
+msgstr "Teleport回転しきい値"
 
 #. Key:	AnimNode_KawaiiPhysics:TeleportRotationThreshold
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TeleportRotationThreshold [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TeleportRotationThreshold [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:TeleportRotationThreshold"
 msgid "1フレームにおけるSkeletalMeshComponentの回転量が設定値を超えた場合、その回転量を物理制御に反映しない\nIf the rotation amount of SkeletalMeshComponent in one frame exceeds the set value, the rotation amount will not be reflected in the physics control."
-msgstr ""
+msgstr "1フレームにおけるSkeletalMeshComponentの回転量が設定値を超えた場合、その回転量を物理制御に反映しない"
 
 #. Key:	AnimNode_KawaiiPhysics:WarmUpFrames
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:WarmUpFrames [IntProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:WarmUpFrames [IntProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:WarmUpFrames"
 msgid "Warm Up Frames"
-msgstr ""
+msgstr "Warm Upフレーム数"
 
 #. Key:	AnimNode_KawaiiPhysics:WarmUpFrames
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:WarmUpFrames [IntProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:WarmUpFrames [IntProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:WarmUpFrames"
 msgid "物理の空回し回数。物理処理が落ち着いてから開始・表示したい際に使用\nNumber of times physics has been idle. Used when you want to start/display after physics processing has settled down"
-msgstr ""
+msgstr "物理の空回し回数。物理処理が落ち着いてから開始・表示したい際に使用"
 
 #. Key:	AnimNode_KawaiiPhysics:WindDirectionNoiseAngle
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:WindDirectionNoiseAngle [FloatProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:WindDirectionNoiseAngle [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:WindDirectionNoiseAngle"
 msgid "Wind Direction Noise Angle"
-msgstr ""
+msgstr "風向きの揺らぎ角"
 
 #. Key:	AnimNode_KawaiiPhysics:WindDirectionNoiseAngle
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:WindDirectionNoiseAngle [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:WindDirectionNoiseAngle [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:WindDirectionNoiseAngle"
 msgid "WindDirectionalSourceによる風方向に与えるノイズ（角度）\nNoise(Degree) of wind by WindDirectionalSource. For use with Cloth and SpeedTree"
-msgstr ""
+msgstr "WindDirectionalSourceによる風方向に与えるノイズ（角度）"
 
 #. Key:	AnimNode_KawaiiPhysics:WindScale
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:WindScale [FloatProperty DisplayName meta-data]
@@ -1110,35 +1110,35 @@ msgstr ""
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:WindScale [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:WindScale"
 msgid "WindDirectionalSourceによる風の影響度。ClothやSpeedTreeとの併用目的\nInfluence of wind by WindDirectionalSource. For use with Cloth and SpeedTree"
-msgstr ""
+msgstr "WindDirectionalSourceによる風の影響度。ClothやSpeedTreeとの併用目的"
 
 #. Key:	AnimNode_KawaiiPhysics:WorldDampingLocationCurveData
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:WorldDampingLocationCurveData [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:WorldDampingLocationCurveData [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:WorldDampingLocationCurveData"
 msgid "World Damping Location Rate by Bone Length Rate"
-msgstr ""
+msgstr "ボーン長割合によるWorld Damping Location Rate補正"
 
 #. Key:	AnimNode_KawaiiPhysics:WorldDampingLocationCurveData
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:WorldDampingLocationCurveData [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:WorldDampingLocationCurveData [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:WorldDampingLocationCurveData"
 msgid "各ボーンに適用するPhysics Settings/ WorldDampingLocation パラメータを補正。\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値を各パラメータに乗算\nCorrects the Physics Settings/WorldDampingLocation parameters applied to each bone.\nMultiplies each parameter by the curve value for \"Length from RootBone to specific bone / Length from RootBone to end bone\" (0.0~1.0).\n※基となる値の意味は WorldDampingLocation を参照（大きいほど移動量を抑制 = 反映率は 1 - 値）\nNote: see WorldDampingLocation for the base value's meaning (higher = more suppression; reflection factor = 1 - value)."
-msgstr ""
+msgstr "各ボーンに適用するPhysics Settings/ WorldDampingLocation パラメータを補正。\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値を各パラメータに乗算\nCorrects the Physics Settings/WorldDampingLocation parameters applied to each bone.\nMultiplies each parameter by the curve value for \"Length from RootBone to specific bone / Length from RootBone to end bone\" (0.0~1.0).\n※基となる値の意味は WorldDampingLocation を参照（大きいほど移動量を抑制 = 反映率は 1 - 値）"
 
 #. Key:	AnimNode_KawaiiPhysics:WorldDampingRotationCurveData
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:WorldDampingRotationCurveData [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:WorldDampingRotationCurveData [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:WorldDampingRotationCurveData"
 msgid "World Damping Rotation Rate by Bone Length Rate"
-msgstr ""
+msgstr "ボーン長割合によるWorld Damping Rotation Rate補正"
 
 #. Key:	AnimNode_KawaiiPhysics:WorldDampingRotationCurveData
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:WorldDampingRotationCurveData [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:WorldDampingRotationCurveData [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:WorldDampingRotationCurveData"
 msgid "各ボーンに適用するPhysics Settings/ WorldDampingRotation パラメータを補正。\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値を各パラメータに乗算\nCorrects the Physics Settings/WorldDampingRotation parameters applied to each bone.\nMultiplies each parameter by the curve value for \"Length from RootBone to specific bone / Length from RootBone to end bone\" (0.0~1.0).\n※基となる値の意味は WorldDampingRotation を参照（大きいほど回転量を抑制 = 反映率は 1 - 値）\nNote: see WorldDampingRotation for the base value's meaning (higher = more suppression; reflection factor = 1 - value)."
-msgstr ""
+msgstr "各ボーンに適用するPhysics Settings/ WorldDampingRotation パラメータを補正。\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値を各パラメータに乗算\nCorrects the Physics Settings/WorldDampingRotation parameters applied to each bone.\nMultiplies each parameter by the curve value for \"Length from RootBone to specific bone / Length from RootBone to end bone\" (0.0~1.0).\n※基となる値の意味は WorldDampingRotation を参照（大きいほど回転量を抑制 = 反映率は 1 - 値）"
 
 #. Key:	BoxLimit
 #. SourceLocation:	/Script/KawaiiPhysics.BoxLimit [ScriptStruct DisplayName meta-data]
@@ -1152,14 +1152,14 @@ msgstr ""
 #: /Script/KawaiiPhysics.BoxLimit [ScriptStruct ToolTip meta-data]
 msgctxt "UObjectToolTips,BoxLimit"
 msgid "ボックスのコリジョンLimitを表す構造体。\nStructure representing a box limit for collision in KawaiiPhysics."
-msgstr ""
+msgstr "ボックスのコリジョンLimitを表す構造体。"
 
 #. Key:	Box Limit
 #. SourceLocation:	/Script/KawaiiPhysics.BoxLimit:Extent [StructProperty Category meta-data]
 #: /Script/KawaiiPhysics.BoxLimit:Extent [StructProperty Category meta-data]
 msgctxt "UObjectCategory,Box Limit"
 msgid "Box Limit"
-msgstr ""
+msgstr "ボックスリミット"
 
 #. Key:	BoxLimit:Extent
 #. SourceLocation:	/Script/KawaiiPhysics.BoxLimit:Extent [StructProperty DisplayName meta-data]
@@ -1173,7 +1173,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.BoxLimit:Extent [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,BoxLimit:Extent"
 msgid "ボックスの各軸方向のサイズ（半分の大きさ） / The extent of the box defining the box limit"
-msgstr ""
+msgstr "ボックスの各軸方向のサイズ（半分の大きさ）"
 
 #. Key:	CapsuleLimit
 #. SourceLocation:	/Script/KawaiiPhysics.CapsuleLimit [ScriptStruct DisplayName meta-data]
@@ -1187,28 +1187,28 @@ msgstr ""
 #: /Script/KawaiiPhysics.CapsuleLimit [ScriptStruct ToolTip meta-data]
 msgctxt "UObjectToolTips,CapsuleLimit"
 msgid "カプセルのコリジョンLimitを表す構造体。\nStructure representing a capsule limit for collision in KawaiiPhysics."
-msgstr ""
+msgstr "カプセルのコリジョンLimitを表す構造体。"
 
 #. Key:	CapsuleLimit:Length
 #. SourceLocation:	/Script/KawaiiPhysics.CapsuleLimit:Length [FloatProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.CapsuleLimit:Length [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,CapsuleLimit:Length"
 msgid "Length"
-msgstr ""
+msgstr "長さ"
 
 #. Key:	CapsuleLimit:Length
 #. SourceLocation:	/Script/KawaiiPhysics.CapsuleLimit:Length [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.CapsuleLimit:Length [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,CapsuleLimit:Length"
 msgid "カプセルの長さ / Length of the capsule"
-msgstr ""
+msgstr "カプセルの長さ"
 
 #. Key:	Capsule Limit
 #. SourceLocation:	/Script/KawaiiPhysics.CapsuleLimit:Radius [FloatProperty Category meta-data]
 #: /Script/KawaiiPhysics.CapsuleLimit:Radius [FloatProperty Category meta-data]
 msgctxt "UObjectCategory,Capsule Limit"
 msgid "Capsule Limit"
-msgstr ""
+msgstr "カプセルリミット"
 
 #. Key:	CapsuleLimit:Radius
 #. SourceLocation:	/Script/KawaiiPhysics.CapsuleLimit:Radius [FloatProperty DisplayName meta-data]
@@ -1222,7 +1222,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.CapsuleLimit:Radius [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,CapsuleLimit:Radius"
 msgid "カプセルの半径 / Radius of the capsule"
-msgstr ""
+msgstr "カプセルの半径"
 
 #. Key:	CollisionLimitBase
 #. SourceLocation:	/Script/KawaiiPhysics.CollisionLimitBase [ScriptStruct DisplayName meta-data]
@@ -1236,7 +1236,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.CollisionLimitBase [ScriptStruct ToolTip meta-data]
 msgctxt "UObjectToolTips,CollisionLimitBase"
 msgid "コリジョンLimitの基底構造体。\nBase structure for defining collision limits in KawaiiPhysics."
-msgstr ""
+msgstr "コリジョンLimitの基底構造体。"
 
 #. Key:	CollisionLimitBase:bEnable
 #. SourceLocation:	/Script/KawaiiPhysics.CollisionLimitBase:bEnable [BoolProperty DisplayName meta-data]
@@ -1257,7 +1257,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.CollisionLimitBase:DrivingBone [StructProperty Category meta-data]
 msgctxt "UObjectCategory,Collision Limit Base"
 msgid "Collision Limit Base"
-msgstr ""
+msgstr "コリジョンリミットベース"
 
 #. Key:	CollisionLimitBase:DrivingBone
 #. SourceLocation:	/Script/KawaiiPhysics.CollisionLimitBase:DrivingBone [StructProperty DisplayName meta-data]
@@ -1271,14 +1271,14 @@ msgstr ""
 #: /Script/KawaiiPhysics.CollisionLimitBase:DrivingBone [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,CollisionLimitBase:DrivingBone"
 msgid "コリジョンをアタッチするボーン / Bone to attach the sphere to"
-msgstr ""
+msgstr "コリジョンをアタッチするボーン"
 
 #. Key:	Debug
 #. SourceLocation:	/Script/KawaiiPhysics.CollisionLimitBase:Guid [StructProperty Category meta-data]
 #: /Script/KawaiiPhysics.CollisionLimitBase:Guid [StructProperty Category meta-data]
 msgctxt "UObjectCategory,Debug"
 msgid "Debug"
-msgstr ""
+msgstr "デバッグ"
 
 #. Key:	CollisionLimitBase:Guid
 #. SourceLocation:	/Script/KawaiiPhysics.CollisionLimitBase:Guid [StructProperty DisplayName meta-data]
@@ -1292,7 +1292,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.CollisionLimitBase:Guid [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,CollisionLimitBase:Guid"
 msgid "コリジョンの一意な識別子（エディタ専用） / Unique identifier for the collision limit (editor only)"
-msgstr ""
+msgstr "コリジョンの一意な識別子（エディタ専用）"
 
 #. Key:	CollisionLimitBase:Location
 #. SourceLocation:	/Script/KawaiiPhysics.CollisionLimitBase:Location [StructProperty DisplayName meta-data]
@@ -1313,28 +1313,28 @@ msgstr ""
 #: /Script/KawaiiPhysics.CollisionLimitBase:OffsetLocation [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,CollisionLimitBase:OffsetLocation"
 msgid "Offset Location"
-msgstr ""
+msgstr "位置オフセット"
 
 #. Key:	CollisionLimitBase:OffsetLocation
 #. SourceLocation:	/Script/KawaiiPhysics.CollisionLimitBase:OffsetLocation [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.CollisionLimitBase:OffsetLocation [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,CollisionLimitBase:OffsetLocation"
 msgid "DrivingBoneからの位置オフセット / Offset location from the driving bone"
-msgstr ""
+msgstr "DrivingBoneからの位置オフセット"
 
 #. Key:	CollisionLimitBase:OffsetRotation
 #. SourceLocation:	/Script/KawaiiPhysics.CollisionLimitBase:OffsetRotation [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.CollisionLimitBase:OffsetRotation [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,CollisionLimitBase:OffsetRotation"
 msgid "Offset Rotation"
-msgstr ""
+msgstr "回転オフセット"
 
 #. Key:	CollisionLimitBase:OffsetRotation
 #. SourceLocation:	/Script/KawaiiPhysics.CollisionLimitBase:OffsetRotation [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.CollisionLimitBase:OffsetRotation [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,CollisionLimitBase:OffsetRotation"
 msgid "DrivingBoneからの回転オフセット / Offset rotation from the driving bone"
-msgstr ""
+msgstr "DrivingBoneからの回転オフセット"
 
 #. Key:	CollisionLimitBase:Rotation
 #. SourceLocation:	/Script/KawaiiPhysics.CollisionLimitBase:Rotation [StructProperty DisplayName meta-data]
@@ -1355,14 +1355,14 @@ msgstr ""
 #: /Script/KawaiiPhysics.CollisionLimitBase:SourceType [EnumProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,CollisionLimitBase:SourceType"
 msgid "Source Type"
-msgstr ""
+msgstr "定義元タイプ"
 
 #. Key:	CollisionLimitBase:SourceType
 #. SourceLocation:	/Script/KawaiiPhysics.CollisionLimitBase:SourceType [EnumProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.CollisionLimitBase:SourceType [EnumProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,CollisionLimitBase:SourceType"
 msgid "このコリジョンの定義元 / Source type of the collision limit"
-msgstr ""
+msgstr "このコリジョンの定義元"
 
 #. Key:	CollisionLimitBase:Type
 #. SourceLocation:	/Script/KawaiiPhysics.CollisionLimitBase:Type [EnumProperty DisplayName meta-data]
@@ -1418,35 +1418,35 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysics_CustomExternalForce:bDrawDebug [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysics_CustomExternalForce:bDrawDebug"
 msgid "Draw Debug"
-msgstr ""
+msgstr "デバッグ表示"
 
 #. Key:	KawaiiPhysics_CustomExternalForce:bDrawDebug
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_CustomExternalForce:bDrawDebug [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_CustomExternalForce:bDrawDebug [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysics_CustomExternalForce:bDrawDebug"
 msgid "CustomExternalForceのデバッグ表示を行うフラグ / Whether to draw debug information for the custom external force"
-msgstr ""
+msgstr "CustomExternalForceのデバッグ表示を行うフラグ"
 
 #. Key:	KawaiiPhysics|CustomExternalForce
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_CustomExternalForce:bIsEnabled [BoolProperty Category meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_CustomExternalForce:bIsEnabled [BoolProperty Category meta-data]
 msgctxt "UObjectCategory,KawaiiPhysics|CustomExternalForce"
 msgid "KawaiiPhysics|CustomExternalForce"
-msgstr ""
+msgstr "KawaiiPhysics|カスタム外力"
 
 #. Key:	KawaiiPhysics_CustomExternalForce:bIsEnabled
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_CustomExternalForce:bIsEnabled [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_CustomExternalForce:bIsEnabled [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysics_CustomExternalForce:bIsEnabled"
 msgid "Is Enabled"
-msgstr ""
+msgstr "有効"
 
 #. Key:	KawaiiPhysics_CustomExternalForce:bIsEnabled
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_CustomExternalForce:bIsEnabled [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_CustomExternalForce:bIsEnabled [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysics_CustomExternalForce:bIsEnabled"
 msgid "CustomExternalForceを有効にするフラグ / Whether the custom external force is enabled"
-msgstr ""
+msgstr "CustomExternalForceを有効にするフラグ"
 
 #. Key:	KawaiiPhysics_CustomExternalForce:IsDebugEnabled:ReturnValue
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_CustomExternalForce:IsDebugEnabled:ReturnValue [BoolProperty DisplayName meta-data]
@@ -1677,42 +1677,42 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Basic:ForceDir [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_Basic:ForceDir"
 msgid "Force Dir"
-msgstr ""
+msgstr "外力の方向"
 
 #. Key:	KawaiiPhysics_ExternalForce_Basic:ForceDir
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Basic:ForceDir [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Basic:ForceDir [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_Basic:ForceDir"
 msgid "外力の方向 / Direction of the force"
-msgstr ""
+msgstr "外力の方向"
 
 #. Key:	KawaiiPhysics_ExternalForce_Basic:ForceRateByBoneLengthRate
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Basic:ForceRateByBoneLengthRate [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Basic:ForceRateByBoneLengthRate [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_Basic:ForceRateByBoneLengthRate"
 msgid "Force Rate by Bone Length Rate"
-msgstr ""
+msgstr "ボーン長割合によるForce Rate補正"
 
 #. Key:	KawaiiPhysics_ExternalForce_Basic:ForceRateByBoneLengthRate
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Basic:ForceRateByBoneLengthRate [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Basic:ForceRateByBoneLengthRate [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_Basic:ForceRateByBoneLengthRate"
 msgid "各ボーンに適用するForce Rateを補正。\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値をForceRateに乗算\nCorrects the Force Rate applied to each bone.\nMultiplies the ForceRate by the curve value for \"Length from RootBone to specific bone / Length from RootBone to end bone\" (0.0~1.0)"
-msgstr ""
+msgstr "各ボーンに適用するForce Rateを補正。\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値をForceRateに乗算"
 
 #. Key:	KawaiiPhysics_ExternalForce_Basic:Interval
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Basic:Interval [FloatProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Basic:Interval [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_Basic:Interval"
 msgid "Interval"
-msgstr ""
+msgstr "適用間隔"
 
 #. Key:	KawaiiPhysics_ExternalForce_Basic:Interval
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Basic:Interval [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Basic:Interval [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_Basic:Interval"
 msgid "外力を適用する間隔 / Interval for applying the force"
-msgstr ""
+msgstr "外力を適用する間隔"
 
 #. Key:	KawaiiPhysics_ExternalForce_Basic:PrevTime
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Basic:PrevTime [FloatProperty DisplayName meta-data]
@@ -1761,42 +1761,42 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Curve:CurveEvaluateType [EnumProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_Curve:CurveEvaluateType"
 msgid "Curve Evaluate Type"
-msgstr ""
+msgstr "Curveの評価方式"
 
 #. Key:	KawaiiPhysics_ExternalForce_Curve:CurveEvaluateType
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Curve:CurveEvaluateType [EnumProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Curve:CurveEvaluateType [EnumProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_Curve:CurveEvaluateType"
 msgid "カーブの評価方式。\nSingle以外に設定した場合：前フレームからの経過時間をSubstepCountで分割し、\n分割後の各時間におけるカーブの値の平均・最大値・最小値を外力として使用\nCurve evaluation method\nIf set to anything other than Single: The time elapsed from the previous frame is divided by SubstepCount,\nand the Average, Maximum, or Minimum values of the curve at each time point after division are used as external forces."
-msgstr ""
+msgstr "カーブの評価方式。\nSingle以外に設定した場合：前フレームからの経過時間をSubstepCountで分割し、\n分割後の各時間におけるカーブの値の平均・最大値・最小値を外力として使用"
 
 #. Key:	KawaiiPhysics_ExternalForce_Curve:ForceCurve
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Curve:ForceCurve [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Curve:ForceCurve [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_Curve:ForceCurve"
 msgid "Force Curve"
-msgstr ""
+msgstr "外力Curve"
 
 #. Key:	KawaiiPhysics_ExternalForce_Curve:ForceCurve
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Curve:ForceCurve [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Curve:ForceCurve [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_Curve:ForceCurve"
 msgid "時間に応じて変化する外力をカーブで設定。X軸:Time Y軸:Force\nSet the external force that changes over time using a curve. X-axis: Time Y-axis: Force"
-msgstr ""
+msgstr "時間に応じて変化する外力をカーブで設定。X軸:Time Y軸:Force"
 
 #. Key:	KawaiiPhysics_ExternalForce_Curve:ForceRateByBoneLengthRate
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Curve:ForceRateByBoneLengthRate [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Curve:ForceRateByBoneLengthRate [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_Curve:ForceRateByBoneLengthRate"
 msgid "Force Rate by Bone Length Rate"
-msgstr ""
+msgstr "ボーン長割合によるForce Rate補正"
 
 #. Key:	KawaiiPhysics_ExternalForce_Curve:ForceRateByBoneLengthRate
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Curve:ForceRateByBoneLengthRate [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Curve:ForceRateByBoneLengthRate [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_Curve:ForceRateByBoneLengthRate"
 msgid "各ボーンに適用するForce Rateを補正。\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値をForceRateに乗算\nCorrects the Force Rate applied to each bone.\nMultiplies the ForceRate by the curve value for \"Length from RootBone to specific bone / Length from RootBone to end bone\" (0.0~1.0)"
-msgstr ""
+msgstr "各ボーンに適用するForce Rateを補正。\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値をForceRateに乗算"
 
 #. Key:	KawaiiPhysics_ExternalForce_Curve:MaxCurveTime
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Curve:MaxCurveTime [FloatProperty DisplayName meta-data]
@@ -1817,14 +1817,14 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Curve:SubstepCount [IntProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_Curve:SubstepCount"
 msgid "Substep Count"
-msgstr ""
+msgstr "Substep数"
 
 #. Key:	KawaiiPhysics_ExternalForce_Curve:SubstepCount
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Curve:SubstepCount [IntProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Curve:SubstepCount [IntProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_Curve:SubstepCount"
 msgid "経過時間の分割数\nNumber of divisions of elapsed time"
-msgstr ""
+msgstr "経過時間の分割数"
 
 #. Key:	KawaiiPhysics_ExternalForce_Curve:Time
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Curve:Time [FloatProperty DisplayName meta-data]
@@ -1838,14 +1838,14 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Curve:TimeScale [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_Curve:TimeScale"
 msgid "Time Scale"
-msgstr ""
+msgstr "時間スケール"
 
 #. Key:	KawaiiPhysics_ExternalForce_Curve:TimeScale
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Curve:TimeScale [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Curve:TimeScale [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_Curve:TimeScale"
 msgid "時間のスケール係数。\n外力のカーブ評価に使う時間経過をこの値でスケールする。\nScale factor for the time.\nThis value is used to scale the time for the external force."
-msgstr ""
+msgstr "時間のスケール係数。\n外力のカーブ評価に使う時間経過をこの値でスケールする。"
 
 #. Key:	KawaiiPhysics_ExternalForce_Gravity
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity [ScriptStruct DisplayName meta-data]
@@ -1866,70 +1866,70 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityDirection [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityDirection"
 msgid "Use Character Gravity Direction"
-msgstr ""
+msgstr "CharacterのGravity方向を使用"
 
 #. Key:	KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityDirection
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityDirection [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityDirection [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityDirection"
 msgid "Character側で設定されたCustomGravityDirectionを使用するフラグ(UE5.4以降)\nFlag to use CustomGravityDirection set on the Character side (UE5.4 and later)"
-msgstr ""
+msgstr "Character側で設定されたCustomGravityDirectionを使用するフラグ(UE5.4以降)"
 
 #. Key:	KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityScale
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityScale [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityScale [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityScale"
 msgid "Use Character Gravity Scale"
-msgstr ""
+msgstr "CharacterのGravity Scaleを使用"
 
 #. Key:	KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityScale
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityScale [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityScale [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityScale"
 msgid "Character側で設定されたGravityScaleを使用するフラグ\nFlag to use GravityScale set on the Character side"
-msgstr ""
+msgstr "Character側で設定されたGravityScaleを使用するフラグ"
 
 #. Key:	KawaiiPhysics_ExternalForce_Gravity:bUseOverrideGravityDirection
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:bUseOverrideGravityDirection [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:bUseOverrideGravityDirection [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_Gravity:bUseOverrideGravityDirection"
 msgid "Use Override Gravity Direction"
-msgstr ""
+msgstr "Gravity方向の上書きを使用"
 
 #. Key:	KawaiiPhysics_ExternalForce_Gravity:bUseOverrideGravityDirection
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:bUseOverrideGravityDirection [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:bUseOverrideGravityDirection [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_Gravity:bUseOverrideGravityDirection"
 msgid "重力方向の上書きを使用するフラグ。\n有効な場合、重力方向をOverrideGravityDirectionで上書きする。\nFlag to determine whether to use the override gravity direction.\nIf true, the gravity direction will be overridden by OverrideGravityDirection."
-msgstr ""
+msgstr "重力方向の上書きを使用するフラグ。\n有効な場合、重力方向をOverrideGravityDirectionで上書きする。"
 
 #. Key:	KawaiiPhysics_ExternalForce_Gravity:ForceRateByBoneLengthRate
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:ForceRateByBoneLengthRate [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:ForceRateByBoneLengthRate [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_Gravity:ForceRateByBoneLengthRate"
 msgid "Force Rate by Bone Length Rate"
-msgstr ""
+msgstr "ボーン長割合によるForce Rate補正"
 
 #. Key:	KawaiiPhysics_ExternalForce_Gravity:ForceRateByBoneLengthRate
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:ForceRateByBoneLengthRate [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:ForceRateByBoneLengthRate [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_Gravity:ForceRateByBoneLengthRate"
 msgid "各ボーンに適用するForce Rateを補正。\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値をForceRateに乗算\nCorrects the Force Rate applied to each bone.\nMultiplies the ForceRate by the curve value for \"Length from RootBone to specific bone / Length from RootBone to end bone\" (0.0~1.0)"
-msgstr ""
+msgstr "各ボーンに適用するForce Rateを補正。\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値をForceRateに乗算"
 
 #. Key:	KawaiiPhysics_ExternalForce_Gravity:OverrideGravityDirection
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:OverrideGravityDirection [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:OverrideGravityDirection [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_Gravity:OverrideGravityDirection"
 msgid "Override Gravity Direction"
-msgstr ""
+msgstr "Gravity方向を上書き"
 
 #. Key:	KawaiiPhysics_ExternalForce_Gravity:OverrideGravityDirection
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:OverrideGravityDirection [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:OverrideGravityDirection [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_Gravity:OverrideGravityDirection"
 msgid "重力方向を上書きするベクトル。\nbUseOverrideGravityDirectionが有効な場合に使用。\nDirection to override the gravity.\nThis direction is used when bUseOverrideGravityDirection is true."
-msgstr ""
+msgstr "重力方向を上書きするベクトル。\nbUseOverrideGravityDirectionが有効な場合に使用。"
 
 #. Key:	KawaiiPhysics_ExternalForce_Gravity:OwnerCharacter
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:OwnerCharacter [ObjectProperty DisplayName meta-data]
@@ -2237,28 +2237,28 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Wind:ForceRateByBoneLengthRate [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_Wind:ForceRateByBoneLengthRate"
 msgid "Force Rate by Bone Length Rate"
-msgstr ""
+msgstr "ボーン長割合によるForce Rate補正"
 
 #. Key:	KawaiiPhysics_ExternalForce_Wind:ForceRateByBoneLengthRate
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Wind:ForceRateByBoneLengthRate [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Wind:ForceRateByBoneLengthRate [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_Wind:ForceRateByBoneLengthRate"
 msgid "各ボーンに適用するForce Rateを補正。\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値をForceRateに乗算\nCorrects the Force Rate applied to each bone.\nMultiplies the ForceRate by the curve value for \"Length from RootBone to specific bone / Length from RootBone to end bone\" (0.0~1.0)"
-msgstr ""
+msgstr "各ボーンに適用するForce Rateを補正。\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値をForceRateに乗算"
 
 #. Key:	KawaiiPhysics_ExternalForce_Wind:WindDirectionNoiseAngle
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Wind:WindDirectionNoiseAngle [FloatProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Wind:WindDirectionNoiseAngle [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_Wind:WindDirectionNoiseAngle"
 msgid "Wind Direction Noise Angle"
-msgstr ""
+msgstr "風向きの揺らぎ角"
 
 #. Key:	KawaiiPhysics_ExternalForce_Wind:WindDirectionNoiseAngle
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Wind:WindDirectionNoiseAngle [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Wind:WindDirectionNoiseAngle [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_Wind:WindDirectionNoiseAngle"
 msgid "WindDirectionalSourceによる風方向に与えるノイズ（角度）\nNoise(Degree) of wind by WindDirectionalSource. For use with Cloth and SpeedTree"
-msgstr ""
+msgstr "WindDirectionalSourceによる風方向に与えるノイズ（角度）"
 
 #. Key:	KawaiiPhysics_ExternalForce_Wind:World
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Wind:World [ObjectProperty DisplayName meta-data]
@@ -2279,14 +2279,14 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset [Class ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsBoneConstraintsDataAsset"
 msgid "BoneConstraintの設定をまとめて定義し、複数のKawaiiPhysicsノードで流用するためのDataAsset。\nData asset for managing bone constraints in KawaiiPhysics."
-msgstr ""
+msgstr "BoneConstraintの設定をまとめて定義し、複数のKawaiiPhysicsノードで流用するためのDataAsset。"
 
 #. Key:	Bone Constraint (Experimental)
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:BoneConstraintsData [ArrayProperty Category meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:BoneConstraintsData [ArrayProperty Category meta-data]
 msgctxt "UObjectCategory,Bone Constraint (Experimental)"
 msgid "Bone Constraint (Experimental)"
-msgstr ""
+msgstr "Bone Constraint（実験的）"
 
 #. Key:	KawaiiPhysicsBoneConstraintsDataAsset:BoneConstraintsData
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:BoneConstraintsData [ArrayProperty DisplayName meta-data]
@@ -2300,21 +2300,21 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:BoneConstraintsData [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsBoneConstraintsDataAsset:BoneConstraintsData"
 msgid "BoneConstraintの設定リスト / Array of bone constraint data"
-msgstr ""
+msgstr "BoneConstraintの設定リスト"
 
 #. Key:	KawaiiPhysicsBoneConstraintsDataAsset:PreviewBoneList
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:PreviewBoneList [ArrayProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:PreviewBoneList [ArrayProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsBoneConstraintsDataAsset:PreviewBoneList"
 msgid "Preview Bone List"
-msgstr ""
+msgstr "プレビュー用Boneリスト"
 
 #. Key:	KawaiiPhysicsBoneConstraintsDataAsset:PreviewBoneList
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:PreviewBoneList [ArrayProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:PreviewBoneList [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsBoneConstraintsDataAsset:PreviewBoneList"
 msgid "プレビュー用のボーンリスト / List of preview bones"
-msgstr ""
+msgstr "プレビュー用のボーンリスト"
 
 #. Key:	KawaiiPhysicsBoneConstraintsDataAsset:PreviewBoneListString
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:PreviewBoneListString [StrProperty DisplayName meta-data]
@@ -2335,35 +2335,35 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:PreviewSkeleton [SoftObjectProperty Category meta-data]
 msgctxt "UObjectCategory,Skeleton"
 msgid "Skeleton"
-msgstr ""
+msgstr "スケルトン"
 
 #. Key:	KawaiiPhysicsBoneConstraintsDataAsset:PreviewSkeleton
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:PreviewSkeleton [SoftObjectProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:PreviewSkeleton [SoftObjectProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsBoneConstraintsDataAsset:PreviewSkeleton"
 msgid "Preview Skeleton"
-msgstr ""
+msgstr "プレビュー用Skeleton"
 
 #. Key:	KawaiiPhysicsBoneConstraintsDataAsset:PreviewSkeleton
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:PreviewSkeleton [SoftObjectProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:PreviewSkeleton [SoftObjectProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsBoneConstraintsDataAsset:PreviewSkeleton"
 msgid "エディタでのプレビューに使用するSkeleton / Preview skeleton for editor"
-msgstr ""
+msgstr "エディタでのプレビューに使用するSkeleton"
 
 #. Key:	KawaiiPhysicsBoneConstraintsDataAsset:RegexPatternList
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:RegexPatternList [ArrayProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:RegexPatternList [ArrayProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsBoneConstraintsDataAsset:RegexPatternList"
 msgid "Regex Pattern List"
-msgstr ""
+msgstr "正規表現パターンリスト"
 
 #. Key:	KawaiiPhysicsBoneConstraintsDataAsset:RegexPatternList
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:RegexPatternList [ArrayProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:RegexPatternList [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsBoneConstraintsDataAsset:RegexPatternList"
 msgid "ボーンペアを自動生成するための正規表現パターンリスト / List of regex patterns for bones"
-msgstr ""
+msgstr "ボーンペアを自動生成するための正規表現パターンリスト"
 
 #. Key:	KawaiiPhysicsLimitsDataAsset
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset [Class DisplayName meta-data]
@@ -2377,14 +2377,14 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset [Class ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsLimitsDataAsset"
 msgid "コリジョン Limit（球/カプセル/テーパードカプセル/ボックス/平面）をまとめて定義し、複数の KawaiiPhysics ノードで流用するための DataAsset。\nDataAsset that defines collision limits (sphere/capsule/tapered capsule/box/planar) for reuse across multiple KawaiiPhysics nodes."
-msgstr ""
+msgstr "コリジョン Limit（球/カプセル/テーパードカプセル/ボックス/平面）をまとめて定義し、複数の KawaiiPhysics ノードで流用するための DataAsset。"
 
 #. Key:	Box Limits
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:BoxLimits [ArrayProperty Category meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:BoxLimits [ArrayProperty Category meta-data]
 msgctxt "UObjectCategory,Box Limits"
 msgid "Box Limits"
-msgstr ""
+msgstr "ボックスリミット"
 
 #. Key:	KawaiiPhysicsLimitsDataAsset:BoxLimits
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:BoxLimits [ArrayProperty DisplayName meta-data]
@@ -2398,7 +2398,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:BoxLimits [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsLimitsDataAsset:BoxLimits"
 msgid "コリジョン（ボックス） / Box collision limits"
-msgstr ""
+msgstr "コリジョン（ボックス）"
 
 #. Key:	KawaiiPhysicsLimitsDataAsset:BoxLimitsData
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:BoxLimitsData [ArrayProperty DisplayName meta-data]
@@ -2412,7 +2412,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:CapsuleLimits [ArrayProperty Category meta-data]
 msgctxt "UObjectCategory,Capsule Limits"
 msgid "Capsule Limits"
-msgstr ""
+msgstr "カプセルリミット"
 
 #. Key:	KawaiiPhysicsLimitsDataAsset:CapsuleLimits
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:CapsuleLimits [ArrayProperty DisplayName meta-data]
@@ -2426,7 +2426,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:CapsuleLimits [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsLimitsDataAsset:CapsuleLimits"
 msgid "コリジョン（カプセル） / Capsule collision limits"
-msgstr ""
+msgstr "コリジョン（カプセル）"
 
 #. Key:	KawaiiPhysicsLimitsDataAsset:CapsuleLimitsData
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:CapsuleLimitsData [ArrayProperty DisplayName meta-data]
@@ -2440,7 +2440,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:PlanarLimits [ArrayProperty Category meta-data]
 msgctxt "UObjectCategory,Planar Limits"
 msgid "Planar Limits"
-msgstr ""
+msgstr "プレーンリミット"
 
 #. Key:	KawaiiPhysicsLimitsDataAsset:PlanarLimits
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:PlanarLimits [ArrayProperty DisplayName meta-data]
@@ -2454,7 +2454,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:PlanarLimits [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsLimitsDataAsset:PlanarLimits"
 msgid "コリジョン（平面） / Planar collision limits"
-msgstr ""
+msgstr "コリジョン（平面）"
 
 #. Key:	KawaiiPhysicsLimitsDataAsset:PlanarLimitsData
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:PlanarLimitsData [ArrayProperty DisplayName meta-data]
@@ -2475,14 +2475,14 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:Skeleton [ObjectProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsLimitsDataAsset:Skeleton"
 msgid "ボーン参照の解決とプレビューに使用するSkeleton / Skeleton used to resolve bone references and preview"
-msgstr ""
+msgstr "ボーン参照の解決とプレビューに使用するSkeleton"
 
 #. Key:	Spherical Limits
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:SphericalLimits [ArrayProperty Category meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:SphericalLimits [ArrayProperty Category meta-data]
 msgctxt "UObjectCategory,Spherical Limits"
 msgid "Spherical Limits"
-msgstr ""
+msgstr "スフィアリミット"
 
 #. Key:	KawaiiPhysicsLimitsDataAsset:SphericalLimits
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:SphericalLimits [ArrayProperty DisplayName meta-data]
@@ -2496,7 +2496,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:SphericalLimits [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsLimitsDataAsset:SphericalLimits"
 msgid "コリジョン（球） / Spherical collision limits"
-msgstr ""
+msgstr "コリジョン（球）"
 
 #. Key:	KawaiiPhysicsLimitsDataAsset:SphericalLimitsData
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:SphericalLimitsData [ArrayProperty DisplayName meta-data]
@@ -2517,7 +2517,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:TaperedCapsuleLimits [ArrayProperty Category meta-data]
 msgctxt "UObjectCategory,Tapered Capsule Limits"
 msgid "Tapered Capsule Limits"
-msgstr ""
+msgstr "テーパードカプセルリミット"
 
 #. Key:	KawaiiPhysicsLimitsDataAsset:TaperedCapsuleLimits
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:TaperedCapsuleLimits [ArrayProperty DisplayName meta-data]
@@ -2531,7 +2531,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:TaperedCapsuleLimits [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsLimitsDataAsset:TaperedCapsuleLimits"
 msgid "コリジョン（テーパードカプセル） / Tapered capsule collision limits"
-msgstr ""
+msgstr "コリジョン（テーパードカプセル）"
 
 #. Key:	KawaiiPhysicsModifyBone
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsModifyBone [ScriptStruct DisplayName meta-data]
@@ -2559,7 +2559,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsModifyBone:bBridgeDummy [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsModifyBone:bBridgeDummy"
 msgid "横方向BoneConstraint上に挿入されたコリジョン代理ダミー（縦階層に属さず、常にコリジョン専用）\nCollision-proxy dummy inserted along a horizontal BoneConstraint (not in the vertical hierarchy; always collision-only).\n配置用に InterBoneRealParentIndex/InterBoneRealChildIndex/InterBoneAlpha を端点1/端点2/補間率として流用する。\nReuses InterBoneRealParentIndex/InterBoneRealChildIndex/InterBoneAlpha as endpoint1/endpoint2/lerp-alpha for placement."
-msgstr ""
+msgstr "横方向BoneConstraint上に挿入されたコリジョン代理ダミー（縦階層に属さず、常にコリジョン専用）\nCollision-proxy dummy inserted along a horizontal BoneConstraint (not in the vertical hierarchy; always collision-only).\n配置用に InterBoneRealParentIndex/InterBoneRealChildIndex/InterBoneAlpha を端点1/端点2/補間率として流用する。"
 
 #. Key:	KawaiiPhysicsModifyBone:bDummy
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsModifyBone:bDummy [BoolProperty DisplayName meta-data]
@@ -2580,14 +2580,14 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsModifyBone:bInterBoneDummy [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsModifyBone:bInterBoneDummy"
 msgid "Inter Bone Dummy"
-msgstr ""
+msgstr "Bone間ダミー"
 
 #. Key:	KawaiiPhysicsModifyBone:bInterBoneDummy
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsModifyBone:bInterBoneDummy [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsModifyBone:bInterBoneDummy [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsModifyBone:bInterBoneDummy"
 msgid "ボーン間ダミーボーンフラグ（2つの実ボーン間に挿入されたダミー）\nFlag: this is an inter-bone dummy (inserted between two real bones)"
-msgstr ""
+msgstr "ボーン間ダミーボーンフラグ（2つの実ボーン間に挿入されたダミー）"
 
 #. Key:	KawaiiPhysicsModifyBone:BoneLength
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsModifyBone:BoneLength [FloatProperty DisplayName meta-data]
@@ -2650,7 +2650,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsModifyBone:Index [IntProperty Category meta-data]
 msgctxt "UObjectCategory,KawaiiPhysics|ModifyBone"
 msgid "KawaiiPhysics|ModifyBone"
-msgstr ""
+msgstr "KawaiiPhysics|物理制御ボーン"
 
 #. Key:	KawaiiPhysicsModifyBone:Index
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsModifyBone:Index [IntProperty DisplayName meta-data]
@@ -2671,42 +2671,42 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsModifyBone:InterBoneAlpha [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsModifyBone:InterBoneAlpha"
 msgid "Inter Bone Alpha"
-msgstr ""
+msgstr "Bone間補間Alpha"
 
 #. Key:	KawaiiPhysicsModifyBone:InterBoneAlpha
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsModifyBone:InterBoneAlpha [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsModifyBone:InterBoneAlpha [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsModifyBone:InterBoneAlpha"
 msgid "ボーン間ダミーの補間アルファ（0.0=実親, 1.0=実子）/ Interpolation alpha between real parent and child"
-msgstr ""
+msgstr "ボーン間ダミーの補間アルファ（0.0=実親, 1.0=実子）"
 
 #. Key:	KawaiiPhysicsModifyBone:InterBoneRealChildIndex
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsModifyBone:InterBoneRealChildIndex [IntProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsModifyBone:InterBoneRealChildIndex [IntProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsModifyBone:InterBoneRealChildIndex"
 msgid "Inter Bone Real Child Index"
-msgstr ""
+msgstr "Bone間ダミーの実子Bone Index"
 
 #. Key:	KawaiiPhysicsModifyBone:InterBoneRealChildIndex
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsModifyBone:InterBoneRealChildIndex [IntProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsModifyBone:InterBoneRealChildIndex [IntProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsModifyBone:InterBoneRealChildIndex"
 msgid "ボーン間ダミーの補間先（実子ボーン）のインデックス / Real child bone index for PoseLocation interpolation"
-msgstr ""
+msgstr "ボーン間ダミーの補間先（実子ボーン）のインデックス"
 
 #. Key:	KawaiiPhysicsModifyBone:InterBoneRealParentIndex
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsModifyBone:InterBoneRealParentIndex [IntProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsModifyBone:InterBoneRealParentIndex [IntProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsModifyBone:InterBoneRealParentIndex"
 msgid "Inter Bone Real Parent Index"
-msgstr ""
+msgstr "Bone間ダミーの実親Bone Index"
 
 #. Key:	KawaiiPhysicsModifyBone:InterBoneRealParentIndex
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsModifyBone:InterBoneRealParentIndex [IntProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsModifyBone:InterBoneRealParentIndex [IntProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsModifyBone:InterBoneRealParentIndex"
 msgid "ボーン間ダミーの補間元（実親ボーン）のインデックス / Real parent bone index for PoseLocation interpolation"
-msgstr ""
+msgstr "ボーン間ダミーの補間元（実親ボーン）のインデックス"
 
 #. Key:	KawaiiPhysicsModifyBone:LengthFromRoot
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsModifyBone:LengthFromRoot [FloatProperty DisplayName meta-data]
@@ -2860,42 +2860,42 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsRootBoneSetting [ScriptStruct ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsRootBoneSetting"
 msgid "追加のRootBone設定を表す構造体。\nStructure representing the root bone settings for KawaiiPhysics."
-msgstr ""
+msgstr "追加のRootBone設定を表す構造体。"
 
 #. Key:	KawaiiPhysicsRootBoneSetting:bUseOverrideExcludeBones
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRootBoneSetting:bUseOverrideExcludeBones [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsRootBoneSetting:bUseOverrideExcludeBones [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsRootBoneSetting:bUseOverrideExcludeBones"
 msgid "Use Override Exclude Bones"
-msgstr ""
+msgstr "除外Boneの上書きを使用"
 
 #. Key:	KawaiiPhysicsRootBoneSetting:bUseOverrideExcludeBones
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRootBoneSetting:bUseOverrideExcludeBones [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsRootBoneSetting:bUseOverrideExcludeBones [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsRootBoneSetting:bUseOverrideExcludeBones"
 msgid "OverrideExcludeBonesを使用するフラグ / Flag to use OverrideExcludeBones"
-msgstr ""
+msgstr "OverrideExcludeBonesを使用するフラグ"
 
 #. Key:	KawaiiPhysicsRootBoneSetting:OverrideExcludeBones
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRootBoneSetting:OverrideExcludeBones [ArrayProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsRootBoneSetting:OverrideExcludeBones [ArrayProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsRootBoneSetting:OverrideExcludeBones"
 msgid "Override Exclude Bones"
-msgstr ""
+msgstr "除外Boneを上書き"
 
 #. Key:	KawaiiPhysicsRootBoneSetting:OverrideExcludeBones
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRootBoneSetting:OverrideExcludeBones [ArrayProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsRootBoneSetting:OverrideExcludeBones [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsRootBoneSetting:OverrideExcludeBones"
 msgid "指定したボーンとそれ以下のボーンを制御対象から除去\nDo NOT control the specified bone and the bones below it"
-msgstr ""
+msgstr "指定したボーンとそれ以下のボーンを制御対象から除去"
 
 #. Key:	Bones
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRootBoneSetting:RootBone [StructProperty Category meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsRootBoneSetting:RootBone [StructProperty Category meta-data]
 msgctxt "UObjectCategory,Bones"
 msgid "Bones"
-msgstr ""
+msgstr "ボーン"
 
 #. Key:	KawaiiPhysicsRootBoneSetting:RootBone
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRootBoneSetting:RootBone [StructProperty DisplayName meta-data]
@@ -2909,7 +2909,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsRootBoneSetting:RootBone [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsRootBoneSetting:RootBone"
 msgid "指定ボーンとそれ以下のボーンを制御対象に\nControl the specified bone and the bones below it"
-msgstr ""
+msgstr "指定ボーンとそれ以下のボーンを制御対象に"
 
 #. Key:	KawaiiPhysicsSettings
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettings [ScriptStruct DisplayName meta-data]
@@ -2923,7 +2923,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsSettings [ScriptStruct ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSettings"
 msgid "物理制御の設定を表す構造体。\nStructure representing the settings for KawaiiPhysics."
-msgstr ""
+msgstr "物理制御の設定を表す構造体。"
 
 #. Key:	KawaiiPhysics
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettings:Damping [FloatProperty Category meta-data]
@@ -2944,7 +2944,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsSettings:Damping [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSettings:Damping"
 msgid "減衰度：揺れの強さを制御。値が小さいほど、加速度を物理挙動に反映\nDamping physical behavior. As the value is smaller, the acceleration is more reflected to the physical behavior"
-msgstr ""
+msgstr "減衰度：揺れの強さを制御。値が小さいほど、加速度を物理挙動に反映"
 
 #. Key:	KawaiiPhysicsSettings:LimitAngle
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettings:LimitAngle [FloatProperty DisplayName meta-data]
@@ -2958,7 +2958,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsSettings:LimitAngle [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSettings:LimitAngle"
 msgid "物理挙動による回転制限。適切に設定することで荒ぶりを抑制\nRotational limitations in physical behavior. Setting the value properly can suppress excessive shaking"
-msgstr ""
+msgstr "物理挙動による回転制限。適切に設定することで荒ぶりを抑制"
 
 #. Key:	KawaiiPhysicsSettings:Radius
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettings:Radius [FloatProperty DisplayName meta-data]
@@ -2972,7 +2972,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsSettings:Radius [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSettings:Radius"
 msgid "各ボーンのコリジョン半径\nRadius of bone's collision"
-msgstr ""
+msgstr "各ボーンのコリジョン半径"
 
 #. Key:	KawaiiPhysicsSettings:Stiffness
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettings:Stiffness [FloatProperty DisplayName meta-data]
@@ -2986,7 +2986,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsSettings:Stiffness [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSettings:Stiffness"
 msgid "剛性度：値が大きいほど、元の形状を維持\nStiffness of physical behavior. As the value is larger, pre-physics shape is more respected"
-msgstr ""
+msgstr "剛性度：値が大きいほど、元の形状を維持"
 
 #. Key:	KawaiiPhysicsSettings:WorldDampingLocation
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettings:WorldDampingLocation [FloatProperty DisplayName meta-data]
@@ -3000,7 +3000,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsSettings:WorldDampingLocation [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSettings:WorldDampingLocation"
 msgid "ワールド座標系における Skeletal Mesh Component の移動量のダンピング(抑制)量。\n0 = 移動量をフル反映(揺れ最大) / 1 = コンポーネントに追従(反映なし)。実際の反映率 = (1 - WorldDampingLocation)\nDamping (suppression) of the Skeletal Mesh Component's world-space movement.\n0 = movement fully reflected (max sway) / 1 = follows component (no reflection). Actual reflection factor = (1 - WorldDampingLocation)."
-msgstr ""
+msgstr "ワールド座標系における Skeletal Mesh Component の移動量のダンピング(抑制)量。\n0 = 移動量をフル反映(揺れ最大) / 1 = コンポーネントに追従(反映なし)。実際の反映率 = (1 - WorldDampingLocation)"
 
 #. Key:	KawaiiPhysicsSettings:WorldDampingRotation
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettings:WorldDampingRotation [FloatProperty DisplayName meta-data]
@@ -3014,7 +3014,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsSettings:WorldDampingRotation [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSettings:WorldDampingRotation"
 msgid "ワールド座標系における Skeletal Mesh Component の回転量のダンピング(抑制)量。\n0 = 回転量をフル反映(揺れ最大) / 1 = コンポーネントに追従(反映なし)。実際の反映率 = (1 - WorldDampingRotation)\nDamping (suppression) of the Skeletal Mesh Component's world-space rotation.\n0 = rotation fully reflected (max sway) / 1 = follows component (no reflection). Actual reflection factor = (1 - WorldDampingRotation)."
-msgstr ""
+msgstr "ワールド座標系における Skeletal Mesh Component の回転量のダンピング(抑制)量。\n0 = 回転量をフル反映(揺れ最大) / 1 = コンポーネントに追従(反映なし)。実際の反映率 = (1 - WorldDampingRotation)"
 
 #. Key:	KawaiiPhysicsSyncBone
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone [ScriptStruct DisplayName meta-data]
@@ -3028,105 +3028,105 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone [ScriptStruct ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncBone"
 msgid "SyncBone：同期元のボーンの移動・回転を物理制御下のボーンに適用します。\nスカートが足などを貫通するのを防ぐのに役立ちます\nApplies the movement and rotation of the sync source bone to the bone under physics control.\nHelps prevent skirts from penetrating legs, etc."
-msgstr ""
+msgstr "SyncBone：同期元のボーンの移動・回転を物理制御下のボーンに適用します。\nスカートが足などを貫通するのを防ぐのに役立ちます"
 
 #. Key:	KawaiiPhysicsSyncBone:ApplyDirectionX
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:ApplyDirectionX [EnumProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:ApplyDirectionX [EnumProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsSyncBone:ApplyDirectionX"
 msgid "Apply Direction X"
-msgstr ""
+msgstr "X軸の適用方向"
 
 #. Key:	KawaiiPhysicsSyncBone:ApplyDirectionX
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:ApplyDirectionX [EnumProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:ApplyDirectionX [EnumProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncBone:ApplyDirectionX"
 msgid "X軸の移動を適用する方向\nDirection to apply movement on the X axis"
-msgstr ""
+msgstr "X軸の移動を適用する方向"
 
 #. Key:	KawaiiPhysicsSyncBone:ApplyDirectionY
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:ApplyDirectionY [EnumProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:ApplyDirectionY [EnumProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsSyncBone:ApplyDirectionY"
 msgid "Apply Direction Y"
-msgstr ""
+msgstr "Y軸の適用方向"
 
 #. Key:	KawaiiPhysicsSyncBone:ApplyDirectionY
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:ApplyDirectionY [EnumProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:ApplyDirectionY [EnumProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncBone:ApplyDirectionY"
 msgid "Y軸の移動を適用する方向\nDirection to apply movement on the Y axis"
-msgstr ""
+msgstr "Y軸の移動を適用する方向"
 
 #. Key:	KawaiiPhysicsSyncBone:ApplyDirectionZ
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:ApplyDirectionZ [EnumProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:ApplyDirectionZ [EnumProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsSyncBone:ApplyDirectionZ"
 msgid "Apply Direction Z"
-msgstr ""
+msgstr "Z軸の適用方向"
 
 #. Key:	KawaiiPhysicsSyncBone:ApplyDirectionZ
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:ApplyDirectionZ [EnumProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:ApplyDirectionZ [EnumProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncBone:ApplyDirectionZ"
 msgid "Z軸の移動を適用する方向\nDirection to apply movement on the Z axis"
-msgstr ""
+msgstr "Z軸の移動を適用する方向"
 
 #. Key:	KawaiiPhysicsSyncBone:AttenuationInnerRadius
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:AttenuationInnerRadius [FloatProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:AttenuationInnerRadius [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsSyncBone:AttenuationInnerRadius"
 msgid "Attenuation Inner Radius"
-msgstr ""
+msgstr "減衰の内側Radius"
 
 #. Key:	KawaiiPhysicsSyncBone:AttenuationInnerRadius
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:AttenuationInnerRadius [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:AttenuationInnerRadius [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncBone:AttenuationInnerRadius"
 msgid "内半径：この距離以内は減衰しません\nInner radius: no attenuation within this radius"
-msgstr ""
+msgstr "内半径：この距離以内は減衰しません"
 
 #. Key:	KawaiiPhysicsSyncBone:AttenuationOuterRadius
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:AttenuationOuterRadius [FloatProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:AttenuationOuterRadius [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsSyncBone:AttenuationOuterRadius"
 msgid "Attenuation Outer Radius"
-msgstr ""
+msgstr "減衰の外側Radius"
 
 #. Key:	KawaiiPhysicsSyncBone:AttenuationOuterRadius
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:AttenuationOuterRadius [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:AttenuationOuterRadius [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncBone:AttenuationOuterRadius"
 msgid "外半径：この距離以上は最大減衰量がかかります\nOuter radius: maximum attenuation is applied outside this radius"
-msgstr ""
+msgstr "外半径：この距離以上は最大減衰量がかかります"
 
 #. Key:	Sync Bone|Distance Attenuation
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:bEnableDistanceAttenuation [BoolProperty Category meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:bEnableDistanceAttenuation [BoolProperty Category meta-data]
 msgctxt "UObjectCategory,Sync Bone|Distance Attenuation"
 msgid "Sync Bone|Distance Attenuation"
-msgstr ""
+msgstr "同期ボーン|距離減衰"
 
 #. Key:	KawaiiPhysicsSyncBone:bEnableDistanceAttenuation
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:bEnableDistanceAttenuation [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:bEnableDistanceAttenuation [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsSyncBone:bEnableDistanceAttenuation"
 msgid "Enable Distance Attenuation"
-msgstr ""
+msgstr "距離減衰を有効化"
 
 #. Key:	KawaiiPhysicsSyncBone:bEnableDistanceAttenuation
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:bEnableDistanceAttenuation [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:bEnableDistanceAttenuation [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncBone:bEnableDistanceAttenuation"
 msgid "SyncBoneとの距離に応じてTargetへの適用量(Alpha)を減衰させる設定\nAttenuation of application amount(Alpha) based on distance from SyncBone to each Target"
-msgstr ""
+msgstr "SyncBoneとの距離に応じてTargetへの適用量(Alpha)を減衰させる設定"
 
 #. Key:	Sync Bone
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty Category meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty Category meta-data]
 msgctxt "UObjectCategory,Sync Bone"
 msgid "Sync Bone"
-msgstr ""
+msgstr "同期ボーン"
 
 #. Key:	KawaiiPhysicsSyncBone:Bone
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty DisplayName meta-data]
@@ -3140,91 +3140,91 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncBone:Bone"
 msgid "同期元のボーン\nSource bone to sync from"
-msgstr ""
+msgstr "同期元のボーン"
 
 #. Key:	KawaiiPhysicsSyncBone:DeltaDistance
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:DeltaDistance [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:DeltaDistance [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsSyncBone:DeltaDistance"
 msgid "Delta Distance"
-msgstr ""
+msgstr "移動距離"
 
 #. Key:	KawaiiPhysicsSyncBone:DeltaDistance
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:DeltaDistance [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:DeltaDistance [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncBone:DeltaDistance"
 msgid "SyncBoneの移動距離\nSyncBone movement distance"
-msgstr ""
+msgstr "SyncBoneの移動距離"
 
 #. Key:	KawaiiPhysicsSyncBone:GlobalScale
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:GlobalScale [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:GlobalScale [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsSyncBone:GlobalScale"
 msgid "Global Scale"
-msgstr ""
+msgstr "全体スケール"
 
 #. Key:	KawaiiPhysicsSyncBone:GlobalScale
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:GlobalScale [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:GlobalScale [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncBone:GlobalScale"
 msgid "全体に適用される移動の度合い\nOverall translation application amount"
-msgstr ""
+msgstr "全体に適用される移動の度合い"
 
 #. Key:	KawaiiPhysicsSyncBone:InitialPoseLocation
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:InitialPoseLocation [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:InitialPoseLocation [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsSyncBone:InitialPoseLocation"
 msgid "Initial Pose Location"
-msgstr ""
+msgstr "初期Poseの位置"
 
 #. Key:	KawaiiPhysicsSyncBone:InitialPoseLocation
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:InitialPoseLocation [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:InitialPoseLocation [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncBone:InitialPoseLocation"
 msgid "SyncBoneの初期座標\nInitial pose location of the SyncBone"
-msgstr ""
+msgstr "SyncBoneの初期座標"
 
 #. Key:	KawaiiPhysicsSyncBone:MaxAttenuationRate
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:MaxAttenuationRate [FloatProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:MaxAttenuationRate [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsSyncBone:MaxAttenuationRate"
 msgid "Max Attenuation Rate"
-msgstr ""
+msgstr "最大減衰量"
 
 #. Key:	KawaiiPhysicsSyncBone:MaxAttenuationRate
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:MaxAttenuationRate [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:MaxAttenuationRate [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncBone:MaxAttenuationRate"
 msgid "最大減衰量(0以上)：0=減衰なし, 1=減衰MAX（SyncBoneの適用量が0になる）\nMax attenuation amount (>=0): 0=no attenuation, 1=max attenuation (SyncBone application amount becomes 0)"
-msgstr ""
+msgstr "最大減衰量(0以上)：0=減衰なし, 1=減衰MAX（SyncBoneの適用量が0になる）"
 
 #. Key:	KawaiiPhysicsSyncBone:ScaleCurveByDeltaDistance
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:ScaleCurveByDeltaDistance [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:ScaleCurveByDeltaDistance [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsSyncBone:ScaleCurveByDeltaDistance"
 msgid "Scale Curve by Delta Distance"
-msgstr ""
+msgstr "移動距離によるScale Curve"
 
 #. Key:	KawaiiPhysicsSyncBone:ScaleCurveByDeltaDistance
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:ScaleCurveByDeltaDistance [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:ScaleCurveByDeltaDistance [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncBone:ScaleCurveByDeltaDistance"
 msgid "SyncBoneの移動距離に応じて\n各Targetに対しての補正処理にスケールをかけるカーブ（X: 移動距離、Y: スケール）\nCurve that scales correction for each Target based on SyncBone's movement distance (X: Distance, Y: Scale)"
-msgstr ""
+msgstr "SyncBoneの移動距離に応じて\n各Targetに対しての補正処理にスケールをかけるカーブ（X: 移動距離、Y: スケール）"
 
 #. Key:	KawaiiPhysicsSyncBone:ScaledDeltaDistance
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:ScaledDeltaDistance [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:ScaledDeltaDistance [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsSyncBone:ScaledDeltaDistance"
 msgid "Scaled Delta Distance"
-msgstr ""
+msgstr "スケール適用後の移動距離"
 
 #. Key:	KawaiiPhysicsSyncBone:ScaledDeltaDistance
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:ScaledDeltaDistance [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:ScaledDeltaDistance [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncBone:ScaledDeltaDistance"
 msgid "SyncBoneの移動距離(Alpha, Scale計算後)\nSyncBone movement distance (after Alpha and Scale calculations)"
-msgstr ""
+msgstr "SyncBoneの移動距離(Alpha, Scale計算後)"
 
 #. Key:	KawaiiPhysicsSyncBone:TargetRoots
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:TargetRoots [ArrayProperty DisplayName meta-data]
@@ -3238,7 +3238,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:TargetRoots [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncBone:TargetRoots"
 msgid "適用対象のボーンと適用度\nTarget bones and their application alpha"
-msgstr ""
+msgstr "適用対象のボーンと適用度"
 
 #. Key:	KawaiiPhysicsSyncTarget
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTarget [ScriptStruct DisplayName meta-data]
@@ -3252,35 +3252,35 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncTarget:IsShowPreviewBone [BoolProperty Category meta-data]
 msgctxt "UObjectCategory,Sync Target"
 msgid "Sync Target"
-msgstr ""
+msgstr "同期ターゲット"
 
 #. Key:	KawaiiPhysicsSyncTarget:IsShowPreviewBone
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTarget:IsShowPreviewBone [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncTarget:IsShowPreviewBone [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsSyncTarget:IsShowPreviewBone"
 msgid "Is Show Preview Bone"
-msgstr ""
+msgstr "プレビュー用Boneを表示"
 
 #. Key:	KawaiiPhysicsSyncTarget:IsShowPreviewBone
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTarget:IsShowPreviewBone [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncTarget:IsShowPreviewBone [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncTarget:IsShowPreviewBone"
 msgid "プレビュー用のボーンを表示するか\nWhether to show the preview bone"
-msgstr ""
+msgstr "プレビュー用のボーンを表示するか"
 
 #. Key:	KawaiiPhysicsSyncTarget:LengthRateFromSyncTargetRoot
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTarget:LengthRateFromSyncTargetRoot [FloatProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncTarget:LengthRateFromSyncTargetRoot [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsSyncTarget:LengthRateFromSyncTargetRoot"
 msgid "Length Rate from Sync Target Root"
-msgstr ""
+msgstr "Sync Target Rootからの長さ割合"
 
 #. Key:	KawaiiPhysicsSyncTarget:LengthRateFromSyncTargetRoot
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTarget:LengthRateFromSyncTargetRoot [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncTarget:LengthRateFromSyncTargetRoot [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncTarget:LengthRateFromSyncTargetRoot"
 msgid "SyncTargetRootからの長さ割合\nLength rate from TargetRoot for the target bone"
-msgstr ""
+msgstr "SyncTargetRootからの長さ割合"
 
 #. Key:	KawaiiPhysicsSyncTarget:ModifyBoneIndex
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTarget:ModifyBoneIndex [IntProperty DisplayName meta-data]
@@ -3294,49 +3294,49 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncTarget:ModifyBoneIndex [IntProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncTarget:ModifyBoneIndex"
 msgid "適用対象のボーンのModifyBoneにおけるIndex\nIndex in ModifyBone for the target bone"
-msgstr ""
+msgstr "適用対象のボーンのModifyBoneにおけるIndex"
 
 #. Key:	KawaiiPhysicsSyncTarget:PreviewBone
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTarget:PreviewBone [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncTarget:PreviewBone [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsSyncTarget:PreviewBone"
 msgid "Preview Bone"
-msgstr ""
+msgstr "プレビュー用Bone"
 
 #. Key:	KawaiiPhysicsSyncTarget:PreviewBone
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTarget:PreviewBone [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncTarget:PreviewBone [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncTarget:PreviewBone"
 msgid "エディタ上でのプレビュー用\nFor preview in the editor"
-msgstr ""
+msgstr "エディタ上でのプレビュー用"
 
 #. Key:	KawaiiPhysicsSyncTarget:ScaleByLengthRateCurve
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTarget:ScaleByLengthRateCurve [FloatProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncTarget:ScaleByLengthRateCurve [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsSyncTarget:ScaleByLengthRateCurve"
 msgid "Scale by Length Rate Curve"
-msgstr ""
+msgstr "長さ割合によるScale Curve"
 
 #. Key:	KawaiiPhysicsSyncTarget:ScaleByLengthRateCurve
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTarget:ScaleByLengthRateCurve [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncTarget:ScaleByLengthRateCurve [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncTarget:ScaleByLengthRateCurve"
 msgid "移動を適用する度合い\nDegree to apply translation (how much movement is applied)"
-msgstr ""
+msgstr "移動を適用する度合い"
 
 #. Key:	KawaiiPhysicsSyncTarget:TranslationBySyncBone
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTarget:TranslationBySyncBone [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncTarget:TranslationBySyncBone [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsSyncTarget:TranslationBySyncBone"
 msgid "Translation by Sync Bone"
-msgstr ""
+msgstr "Sync Boneによる移動量"
 
 #. Key:	KawaiiPhysicsSyncTarget:TranslationBySyncBone
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTarget:TranslationBySyncBone [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncTarget:TranslationBySyncBone [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncTarget:TranslationBySyncBone"
 msgid "SyncBoneにより最終的に受けた移動量\nFinal translation received from SyncBone"
-msgstr ""
+msgstr "SyncBoneにより最終的に受けた移動量"
 
 #. Key:	KawaiiPhysicsSyncTargetRoot
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot [ScriptStruct DisplayName meta-data]
@@ -3350,14 +3350,14 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:bIncludeChildBones [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsSyncTargetRoot:bIncludeChildBones"
 msgid "Include Child Bones"
-msgstr ""
+msgstr "子Boneを含める"
 
 #. Key:	KawaiiPhysicsSyncTargetRoot:bIncludeChildBones
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:bIncludeChildBones [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:bIncludeChildBones [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncTargetRoot:bIncludeChildBones"
 msgid "このボーンの子ボーンもすべて対象にするか\nWhether to include all child bones of this bone"
-msgstr ""
+msgstr "このボーンの子ボーンもすべて対象にするか"
 
 #. Key:	KawaiiPhysicsSyncTargetRoot:Bone
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:Bone [StructProperty DisplayName meta-data]
@@ -3371,35 +3371,35 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:Bone [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncTargetRoot:Bone"
 msgid "適用対象のボーン\nTarget bone to apply to"
-msgstr ""
+msgstr "適用対象のボーン"
 
 #. Key:	KawaiiPhysicsSyncTargetRoot:ChildTargets
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ChildTargets [ArrayProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ChildTargets [ArrayProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsSyncTargetRoot:ChildTargets"
 msgid "ChildTargets(Preview)"
-msgstr ""
+msgstr "子Target（プレビュー）"
 
 #. Key:	KawaiiPhysicsSyncTargetRoot:ChildTargets
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ChildTargets [ArrayProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ChildTargets [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncTargetRoot:ChildTargets"
 msgid "適用対象である子ボーン\nChild bones that are targets for application"
-msgstr ""
+msgstr "適用対象である子ボーン"
 
 #. Key:	KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate"
 msgid "Scale Curve by Bone Length Rate"
-msgstr ""
+msgstr "ボーン長割合によるScale Curve"
 
 #. Key:	KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate"
 msgid "TargetRootからの長さ割合に応じてSyncBoneの影響度にスケールを適用（X: LengthRate、Y: Scale）\nCurve that scales SyncBone's influence based on length rate from TargetRoot (X: Length, Y: Scale)"
-msgstr ""
+msgstr "TargetRootからの長さ割合に応じてSyncBoneの影響度にスケールを適用（X: LengthRate、Y: Scale）"
 
 #. Key:	KawaiiPhysicsWindPresetDataAsset
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsWindPresetDataAsset [Class DisplayName meta-data]
@@ -3413,42 +3413,42 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysicsWindPresetDataAsset [Class ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsWindPresetDataAsset"
 msgid "Wind Scope の風プリセットを保存する DataAsset。\nDataAsset that stores Wind Scope wind presets."
-msgstr ""
+msgstr "Wind Scope の風プリセットを保存する DataAsset。"
 
 #. Key:	Description
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsWindPresetDataAsset:Description [TextProperty Category meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsWindPresetDataAsset:Description [TextProperty Category meta-data]
 msgctxt "UObjectCategory,Description"
 msgid "Description"
-msgstr ""
+msgstr "ディスクリプション"
 
 #. Key:	KawaiiPhysicsWindPresetDataAsset:Description
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsWindPresetDataAsset:Description [TextProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsWindPresetDataAsset:Description [TextProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsWindPresetDataAsset:Description"
 msgid "Description"
-msgstr ""
+msgstr "説明"
 
 #. Key:	KawaiiPhysicsWindPresetDataAsset:Description
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsWindPresetDataAsset:Description [TextProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsWindPresetDataAsset:Description [TextProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsWindPresetDataAsset:Description"
 msgid "説明 / Description."
-msgstr ""
+msgstr "説明"
 
 #. Key:	KawaiiPhysicsWindPresetDataAsset:Presets
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsWindPresetDataAsset:Presets [ArrayProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsWindPresetDataAsset:Presets [ArrayProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysicsWindPresetDataAsset:Presets"
 msgid "Presets"
-msgstr ""
+msgstr "プリセット一覧"
 
 #. Key:	KawaiiPhysicsWindPresetDataAsset:Presets
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsWindPresetDataAsset:Presets [ArrayProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsWindPresetDataAsset:Presets [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsWindPresetDataAsset:Presets"
 msgid "Wind Scope に表示するプリセット一覧 / Presets shown in Wind Scope."
-msgstr ""
+msgstr "Wind Scope に表示するプリセット一覧"
 
 #. Key:	KawaiiProceduralWindDynamicParams
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams [ScriptStruct DisplayName meta-data]
@@ -3987,147 +3987,147 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:DirectionNoiseAngle [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiProceduralWindPreset:DirectionNoiseAngle"
 msgid "Direction Noise Angle"
-msgstr ""
+msgstr "風向きの揺らぎ角"
 
 #. Key:	KawaiiProceduralWindPreset:DirectionNoiseAngle
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:DirectionNoiseAngle [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:DirectionNoiseAngle [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiProceduralWindPreset:DirectionNoiseAngle"
 msgid "風向き自体の揺らぎの円錐半角 / Cone half-angle of the wind direction wander."
-msgstr ""
+msgstr "風向き自体の揺らぎの円錐半角"
 
 #. Key:	KawaiiProceduralWindPreset:EnvelopeFrequency
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:EnvelopeFrequency [FloatProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:EnvelopeFrequency [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiProceduralWindPreset:EnvelopeFrequency"
 msgid "Envelope Frequency"
-msgstr ""
+msgstr "エンベロープ周波数"
 
 #. Key:	KawaiiProceduralWindPreset:EnvelopeFrequency
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:EnvelopeFrequency [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:EnvelopeFrequency [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiProceduralWindPreset:EnvelopeFrequency"
 msgid "うねりの速さ（Hz） / Swell speed in Hz."
-msgstr ""
+msgstr "うねりの速さ（Hz）"
 
 #. Key:	KawaiiProceduralWindPreset:EnvelopeMax
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:EnvelopeMax [FloatProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:EnvelopeMax [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiProceduralWindPreset:EnvelopeMax"
 msgid "Envelope Max"
-msgstr ""
+msgstr "エンベロープ最大倍率"
 
 #. Key:	KawaiiProceduralWindPreset:EnvelopeMax
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:EnvelopeMax [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:EnvelopeMax [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiProceduralWindPreset:EnvelopeMax"
 msgid "風全体の強弱のうねりの上限倍率 / Upper multiplier of the slow global intensity swell."
-msgstr ""
+msgstr "風全体の強弱のうねりの上限倍率"
 
 #. Key:	KawaiiProceduralWindPreset:EnvelopeMin
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:EnvelopeMin [FloatProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:EnvelopeMin [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiProceduralWindPreset:EnvelopeMin"
 msgid "Envelope Min"
-msgstr ""
+msgstr "エンベロープ最小倍率"
 
 #. Key:	KawaiiProceduralWindPreset:EnvelopeMin
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:EnvelopeMin [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:EnvelopeMin [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiProceduralWindPreset:EnvelopeMin"
 msgid "風全体の強弱のうねりの下限倍率 / Lower multiplier of the slow global intensity swell."
-msgstr ""
+msgstr "風全体の強弱のうねりの下限倍率"
 
 #. Key:	KawaiiProceduralWindPreset:OscillationForce
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:OscillationForce [FloatProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:OscillationForce [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiProceduralWindPreset:OscillationForce"
 msgid "Oscillation Force"
-msgstr ""
+msgstr "振動風力"
 
 #. Key:	KawaiiProceduralWindPreset:OscillationForce
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:OscillationForce [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:OscillationForce [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiProceduralWindPreset:OscillationForce"
 msgid "サイン波で周期的に強弱する成分の振幅 / Amplitude of the sine-based oscillation."
-msgstr ""
+msgstr "サイン波で周期的に強弱する成分の振幅"
 
 #. Key:	KawaiiProceduralWindPreset:OscillationPeriod
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:OscillationPeriod [FloatProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:OscillationPeriod [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiProceduralWindPreset:OscillationPeriod"
 msgid "Oscillation Period"
-msgstr ""
+msgstr "振動周期"
 
 #. Key:	KawaiiProceduralWindPreset:OscillationPeriod
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:OscillationPeriod [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:OscillationPeriod [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiProceduralWindPreset:OscillationPeriod"
 msgid "振動の周期（秒） / Oscillation period in seconds."
-msgstr ""
+msgstr "振動の周期（秒）"
 
 #. Key:	KawaiiProceduralWindPreset:PresetName
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:PresetName [TextProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:PresetName [TextProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiProceduralWindPreset:PresetName"
 msgid "Preset Name"
-msgstr ""
+msgstr "プリセット名"
 
 #. Key:	KawaiiProceduralWindPreset:PresetName
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:PresetName [TextProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:PresetName [TextProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiProceduralWindPreset:PresetName"
 msgid "表示名 / Display name."
-msgstr ""
+msgstr "表示名"
 
 #. Key:	Wind Preset
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:PresetTag [StructProperty Category meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:PresetTag [StructProperty Category meta-data]
 msgctxt "UObjectCategory,Wind Preset"
 msgid "Wind Preset"
-msgstr ""
+msgstr "風プリセット"
 
 #. Key:	KawaiiProceduralWindPreset:PresetTag
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:PresetTag [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:PresetTag [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiProceduralWindPreset:PresetTag"
 msgid "Preset Tag"
-msgstr ""
+msgstr "プリセットタグ"
 
 #. Key:	KawaiiProceduralWindPreset:PresetTag
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:PresetTag [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:PresetTag [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiProceduralWindPreset:PresetTag"
 msgid "ランタイム API でプリセットを照合するためのキー\nKey used by runtime APIs to match a wind preset."
-msgstr ""
+msgstr "ランタイム API でプリセットを照合するためのキー"
 
 #. Key:	KawaiiProceduralWindPreset:RandomForce
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:RandomForce [FloatProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:RandomForce [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiProceduralWindPreset:RandomForce"
 msgid "Random Force"
-msgstr ""
+msgstr "ランダム風力"
 
 #. Key:	KawaiiProceduralWindPreset:RandomForce
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:RandomForce [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:RandomForce [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiProceduralWindPreset:RandomForce"
 msgid "不規則な揺らぎ成分の強さ / Strength of the irregular fluctuation."
-msgstr ""
+msgstr "不規則な揺らぎ成分の強さ"
 
 #. Key:	KawaiiProceduralWindPreset:RandomPeriod
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:RandomPeriod [FloatProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:RandomPeriod [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiProceduralWindPreset:RandomPeriod"
 msgid "Random Period"
-msgstr ""
+msgstr "ランダム周期"
 
 #. Key:	KawaiiProceduralWindPreset:RandomPeriod
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:RandomPeriod [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:RandomPeriod [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiProceduralWindPreset:RandomPeriod"
 msgid "揺らぎが変化する速さ（秒） / How fast the fluctuation changes, in seconds."
-msgstr ""
+msgstr "揺らぎが変化する速さ（秒）"
 
 #. Key:	KawaiiPhysics|ExternalForce|Procedural Wind
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:SteadyForce [FloatProperty Category meta-data]
@@ -4141,56 +4141,56 @@ msgstr "KawaiiPhysics|外力|Procedural Wind"
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:SteadyForce [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiProceduralWindPreset:SteadyForce"
 msgid "Steady Force"
-msgstr ""
+msgstr "定常風力"
 
 #. Key:	KawaiiProceduralWindPreset:SteadyForce
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:SteadyForce [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:SteadyForce [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiProceduralWindPreset:SteadyForce"
 msgid "常に一定で掛かる風の強さ / Constant wind strength."
-msgstr ""
+msgstr "常に一定で掛かる風の強さ"
 
 #. Key:	KawaiiProceduralWindPreset:WaveAmplitude
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:WaveAmplitude [FloatProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:WaveAmplitude [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiProceduralWindPreset:WaveAmplitude"
 msgid "Wave Amplitude"
-msgstr ""
+msgstr "波の振幅"
 
 #. Key:	KawaiiProceduralWindPreset:WaveAmplitude
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:WaveAmplitude [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:WaveAmplitude [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiProceduralWindPreset:WaveAmplitude"
 msgid "ボーン列に沿って伝わる波成分の振幅 / Amplitude of the traveling wave along the bone chain."
-msgstr ""
+msgstr "ボーン列に沿って伝わる波成分の振幅"
 
 #. Key:	KawaiiProceduralWindPreset:WavePeriod
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:WavePeriod [FloatProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:WavePeriod [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiProceduralWindPreset:WavePeriod"
 msgid "Wave Period"
-msgstr ""
+msgstr "波の周期"
 
 #. Key:	KawaiiProceduralWindPreset:WavePeriod
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:WavePeriod [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:WavePeriod [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiProceduralWindPreset:WavePeriod"
 msgid "波の周期（秒） / Wave period in seconds."
-msgstr ""
+msgstr "波の周期（秒）"
 
 #. Key:	KawaiiProceduralWindPreset:WaveSpatialOffset
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:WaveSpatialOffset [FloatProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:WaveSpatialOffset [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiProceduralWindPreset:WaveSpatialOffset"
 msgid "Wave Spatial Offset"
-msgstr ""
+msgstr "波の空間オフセット"
 
 #. Key:	KawaiiProceduralWindPreset:WaveSpatialOffset
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindPreset:WaveSpatialOffset [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindPreset:WaveSpatialOffset [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiProceduralWindPreset:WaveSpatialOffset"
 msgid "毛先（LengthRate=1）での位相遅れ量 / Phase delay at the tip."
-msgstr ""
+msgstr "毛先（LengthRate=1）での位相遅れ量"
 
 #. Key:	ModifyBoneConstraint
 #. SourceLocation:	/Script/KawaiiPhysics.ModifyBoneConstraint [ScriptStruct DisplayName meta-data]
@@ -4204,21 +4204,21 @@ msgstr ""
 #: /Script/KawaiiPhysics.ModifyBoneConstraint [ScriptStruct ToolTip meta-data]
 msgctxt "UObjectToolTips,ModifyBoneConstraint"
 msgid "2本のボーン間のConstraintを表す構造体。\nStructure representing a constraint between two bones for the KawaiiPhysics system."
-msgstr ""
+msgstr "2本のボーン間のConstraintを表す構造体。"
 
 #. Key:	ModifyBoneConstraint:bExcludeFromSubdivision
 #. SourceLocation:	/Script/KawaiiPhysics.ModifyBoneConstraint:bExcludeFromSubdivision [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.ModifyBoneConstraint:bExcludeFromSubdivision [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,ModifyBoneConstraint:bExcludeFromSubdivision"
 msgid "Exclude from Subdivision"
-msgstr ""
+msgstr "Subdivisionの対象から除外"
 
 #. Key:	ModifyBoneConstraint:bExcludeFromSubdivision
 #. SourceLocation:	/Script/KawaiiPhysics.ModifyBoneConstraint:bExcludeFromSubdivision [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.ModifyBoneConstraint:bExcludeFromSubdivision [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,ModifyBoneConstraint:bExcludeFromSubdivision"
 msgid "このConstraintをBoneConstraintSubdivisionの対象から除外する（構造/対角Constraint用のオプトアウト）\nExclude this constraint from BoneConstraintSubdivision (opt-out for structural/diagonal constraints)."
-msgstr ""
+msgstr "このConstraintをBoneConstraintSubdivisionの対象から除外する（構造/対角Constraint用のオプトアウト）"
 
 #. Key:	ModifyBoneConstraint:bIsDummy
 #. SourceLocation:	/Script/KawaiiPhysics.ModifyBoneConstraint:bIsDummy [BoolProperty DisplayName meta-data]
@@ -4253,7 +4253,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.ModifyBoneConstraint:Bone1 [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,ModifyBoneConstraint:Bone1"
 msgid "Constraintの1本目のボーン参照 / The first bone reference in the constraint"
-msgstr ""
+msgstr "Constraintの1本目のボーン参照"
 
 #. Key:	ModifyBoneConstraint:Bone2
 #. SourceLocation:	/Script/KawaiiPhysics.ModifyBoneConstraint:Bone2 [StructProperty DisplayName meta-data]
@@ -4267,21 +4267,21 @@ msgstr ""
 #: /Script/KawaiiPhysics.ModifyBoneConstraint:Bone2 [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,ModifyBoneConstraint:Bone2"
 msgid "Constraintの2本目のボーン参照 / The second bone reference in the constraint"
-msgstr ""
+msgstr "Constraintの2本目のボーン参照"
 
 #. Key:	ModifyBoneConstraint:bOverrideCompliance
 #. SourceLocation:	/Script/KawaiiPhysics.ModifyBoneConstraint:bOverrideCompliance [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.ModifyBoneConstraint:bOverrideCompliance [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,ModifyBoneConstraint:bOverrideCompliance"
 msgid "Override Compliance"
-msgstr ""
+msgstr "Complianceを上書き"
 
 #. Key:	ModifyBoneConstraint:bOverrideCompliance
 #. SourceLocation:	/Script/KawaiiPhysics.ModifyBoneConstraint:bOverrideCompliance [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.ModifyBoneConstraint:bOverrideCompliance [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,ModifyBoneConstraint:bOverrideCompliance"
 msgid "ComplianceTypeを個別に上書きするフラグ / Flag to override the compliance type"
-msgstr ""
+msgstr "ComplianceTypeを個別に上書きするフラグ"
 
 #. Key:	ModifyBoneConstraint:ComplianceType
 #. SourceLocation:	/Script/KawaiiPhysics.ModifyBoneConstraint:ComplianceType [EnumProperty DisplayName meta-data]
@@ -4295,7 +4295,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.ModifyBoneConstraint:ComplianceType [EnumProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,ModifyBoneConstraint:ComplianceType"
 msgid "上書きする場合に使用するComplianceType / The compliance type to use if overridden"
-msgstr ""
+msgstr "上書きする場合に使用するComplianceType"
 
 #. Key:	ModifyBoneConstraint:Lambda
 #. SourceLocation:	/Script/KawaiiPhysics.ModifyBoneConstraint:Lambda [FloatProperty DisplayName meta-data]
@@ -4365,21 +4365,21 @@ msgstr ""
 #: /Script/KawaiiPhysics.ModifyBoneConstraintData [ScriptStruct ToolTip meta-data]
 msgctxt "UObjectToolTips,ModifyBoneConstraintData"
 msgid "BoneConstraintの設定をDataAssetで保持するための構造体。\nStruct representing the data for modifying bone constraints in KawaiiPhysics."
-msgstr ""
+msgstr "BoneConstraintの設定をDataAssetで保持するための構造体。"
 
 #. Key:	ModifyBoneConstraintData:bExcludeFromSubdivision
 #. SourceLocation:	/Script/KawaiiPhysics.ModifyBoneConstraintData:bExcludeFromSubdivision [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.ModifyBoneConstraintData:bExcludeFromSubdivision [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,ModifyBoneConstraintData:bExcludeFromSubdivision"
 msgid "Exclude from Subdivision"
-msgstr ""
+msgstr "Subdivisionの対象から除外"
 
 #. Key:	ModifyBoneConstraintData:bExcludeFromSubdivision
 #. SourceLocation:	/Script/KawaiiPhysics.ModifyBoneConstraintData:bExcludeFromSubdivision [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.ModifyBoneConstraintData:bExcludeFromSubdivision [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,ModifyBoneConstraintData:bExcludeFromSubdivision"
 msgid "このConstraintをBoneConstraintSubdivisionの対象から除外する（構造/対角Constraint用のオプトアウト）\nExclude this constraint from BoneConstraintSubdivision (opt-out for structural/diagonal constraints)."
-msgstr ""
+msgstr "このConstraintをBoneConstraintSubdivisionの対象から除外する（構造/対角Constraint用のオプトアウト）"
 
 #. Key:	ModifyBoneConstraintData:BoneName1
 #. SourceLocation:	/Script/KawaiiPhysics.ModifyBoneConstraintData:BoneName1 [NameProperty DisplayName meta-data]
@@ -4414,42 +4414,42 @@ msgstr ""
 #: /Script/KawaiiPhysics.ModifyBoneConstraintData:BoneReference1 [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,ModifyBoneConstraintData:BoneReference1"
 msgid "Bone Reference 1"
-msgstr ""
+msgstr "Bone参照 1"
 
 #. Key:	ModifyBoneConstraintData:BoneReference1
 #. SourceLocation:	/Script/KawaiiPhysics.ModifyBoneConstraintData:BoneReference1 [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.ModifyBoneConstraintData:BoneReference1 [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,ModifyBoneConstraintData:BoneReference1"
 msgid "1本目のボーン参照 / Reference to the first bone"
-msgstr ""
+msgstr "1本目のボーン参照"
 
 #. Key:	ModifyBoneConstraintData:BoneReference2
 #. SourceLocation:	/Script/KawaiiPhysics.ModifyBoneConstraintData:BoneReference2 [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.ModifyBoneConstraintData:BoneReference2 [StructProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,ModifyBoneConstraintData:BoneReference2"
 msgid "Bone Reference 2"
-msgstr ""
+msgstr "Bone参照 2"
 
 #. Key:	ModifyBoneConstraintData:BoneReference2
 #. SourceLocation:	/Script/KawaiiPhysics.ModifyBoneConstraintData:BoneReference2 [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.ModifyBoneConstraintData:BoneReference2 [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,ModifyBoneConstraintData:BoneReference2"
 msgid "2本目のボーン参照 / Reference to the second bone"
-msgstr ""
+msgstr "2本目のボーン参照"
 
 #. Key:	ModifyBoneConstraintData:bOverrideCompliance
 #. SourceLocation:	/Script/KawaiiPhysics.ModifyBoneConstraintData:bOverrideCompliance [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.ModifyBoneConstraintData:bOverrideCompliance [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,ModifyBoneConstraintData:bOverrideCompliance"
 msgid "Override Compliance"
-msgstr ""
+msgstr "Complianceを上書き"
 
 #. Key:	ModifyBoneConstraintData:bOverrideCompliance
 #. SourceLocation:	/Script/KawaiiPhysics.ModifyBoneConstraintData:bOverrideCompliance [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.ModifyBoneConstraintData:bOverrideCompliance [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,ModifyBoneConstraintData:bOverrideCompliance"
 msgid "ComplianceTypeを個別に上書きするフラグ / Whether to override the compliance type"
-msgstr ""
+msgstr "ComplianceTypeを個別に上書きするフラグ"
 
 #. Key:	ModifyBoneConstraintData:ComplianceType
 #. SourceLocation:	/Script/KawaiiPhysics.ModifyBoneConstraintData:ComplianceType [EnumProperty DisplayName meta-data]
@@ -4463,7 +4463,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.ModifyBoneConstraintData:ComplianceType [EnumProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,ModifyBoneConstraintData:ComplianceType"
 msgid "上書きする場合に使用するComplianceType / The compliance type to use if overriding"
-msgstr ""
+msgstr "上書きする場合に使用するComplianceType"
 
 #. Key:	PlanarLimit
 #. SourceLocation:	/Script/KawaiiPhysics.PlanarLimit [ScriptStruct DisplayName meta-data]
@@ -4477,7 +4477,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.PlanarLimit [ScriptStruct ToolTip meta-data]
 msgctxt "UObjectToolTips,PlanarLimit"
 msgid "平面のコリジョンLimitを表す構造体。\nStructure representing a planar limit for collision in KawaiiPhysics."
-msgstr ""
+msgstr "平面のコリジョンLimitを表す構造体。"
 
 #. Key:	PlanarLimit:Plane
 #. SourceLocation:	/Script/KawaiiPhysics.PlanarLimit:Plane [StructProperty DisplayName meta-data]
@@ -4498,49 +4498,49 @@ msgstr ""
 #: /Script/KawaiiPhysics.RegexPatternBoneSet [ScriptStruct DisplayName meta-data]
 msgctxt "UObjectDisplayNames,RegexPatternBoneSet"
 msgid "Regex Pattern Bone Set"
-msgstr ""
+msgstr "正規表現パターンのBoneセット"
 
 #. Key:	RegexPatternBoneSet
 #. SourceLocation:	/Script/KawaiiPhysics.RegexPatternBoneSet [ScriptStruct ToolTip meta-data]
 #: /Script/KawaiiPhysics.RegexPatternBoneSet [ScriptStruct ToolTip meta-data]
 msgctxt "UObjectToolTips,RegexPatternBoneSet"
 msgid "ボーン名のマッチングに使う正規表現パターンのペア。\nStruct representing a set of regex patterns for bones in KawaiiPhysics."
-msgstr ""
+msgstr "ボーン名のマッチングに使う正規表現パターンのペア。"
 
 #. Key:	Helper
 #. SourceLocation:	/Script/KawaiiPhysics.RegexPatternBoneSet:RegexPatternBone1 [StrProperty Category meta-data]
 #: /Script/KawaiiPhysics.RegexPatternBoneSet:RegexPatternBone1 [StrProperty Category meta-data]
 msgctxt "UObjectCategory,Helper"
 msgid "Helper"
-msgstr ""
+msgstr "ヘルパー"
 
 #. Key:	RegexPatternBoneSet:RegexPatternBone1
 #. SourceLocation:	/Script/KawaiiPhysics.RegexPatternBoneSet:RegexPatternBone1 [StrProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.RegexPatternBoneSet:RegexPatternBone1 [StrProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,RegexPatternBoneSet:RegexPatternBone1"
 msgid "Regex Pattern Bone 1"
-msgstr ""
+msgstr "Bone 1 の正規表現パターン"
 
 #. Key:	RegexPatternBoneSet:RegexPatternBone1
 #. SourceLocation:	/Script/KawaiiPhysics.RegexPatternBoneSet:RegexPatternBone1 [StrProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.RegexPatternBoneSet:RegexPatternBone1 [StrProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,RegexPatternBoneSet:RegexPatternBone1"
 msgid "1本目のボーン名にマッチさせる正規表現パターン / Regex pattern for the first bone"
-msgstr ""
+msgstr "1本目のボーン名にマッチさせる正規表現パターン"
 
 #. Key:	RegexPatternBoneSet:RegexPatternBone2
 #. SourceLocation:	/Script/KawaiiPhysics.RegexPatternBoneSet:RegexPatternBone2 [StrProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.RegexPatternBoneSet:RegexPatternBone2 [StrProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,RegexPatternBoneSet:RegexPatternBone2"
 msgid "Regex Pattern Bone 2"
-msgstr ""
+msgstr "Bone 2 の正規表現パターン"
 
 #. Key:	RegexPatternBoneSet:RegexPatternBone2
 #. SourceLocation:	/Script/KawaiiPhysics.RegexPatternBoneSet:RegexPatternBone2 [StrProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.RegexPatternBoneSet:RegexPatternBone2 [StrProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,RegexPatternBoneSet:RegexPatternBone2"
 msgid "2本目のボーン名にマッチさせる正規表現パターン / Regex pattern for the second bone"
-msgstr ""
+msgstr "2本目のボーン名にマッチさせる正規表現パターン"
 
 #. Key:	SphericalLimit
 #. SourceLocation:	/Script/KawaiiPhysics.SphericalLimit [ScriptStruct DisplayName meta-data]
@@ -4554,7 +4554,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.SphericalLimit [ScriptStruct ToolTip meta-data]
 msgctxt "UObjectToolTips,SphericalLimit"
 msgid "球のコリジョンLimitを表す構造体。\nStructure representing a spherical limit for collision in KawaiiPhysics."
-msgstr ""
+msgstr "球のコリジョンLimitを表す構造体。"
 
 #. Key:	SphericalLimit:LimitType
 #. SourceLocation:	/Script/KawaiiPhysics.SphericalLimit:LimitType [EnumProperty DisplayName meta-data]
@@ -4568,14 +4568,14 @@ msgstr ""
 #: /Script/KawaiiPhysics.SphericalLimit:LimitType [EnumProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,SphericalLimit:LimitType"
 msgid "球の外側と内側のどちらに拘束するか / Whether to lock bodies inside or outside of the sphere"
-msgstr ""
+msgstr "球の外側と内側のどちらに拘束するか"
 
 #. Key:	Spherical Limit
 #. SourceLocation:	/Script/KawaiiPhysics.SphericalLimit:Radius [FloatProperty Category meta-data]
 #: /Script/KawaiiPhysics.SphericalLimit:Radius [FloatProperty Category meta-data]
 msgctxt "UObjectCategory,Spherical Limit"
 msgid "Spherical Limit"
-msgstr ""
+msgstr "スフィアリミット"
 
 #. Key:	SphericalLimit:Radius
 #. SourceLocation:	/Script/KawaiiPhysics.SphericalLimit:Radius [FloatProperty DisplayName meta-data]
@@ -4589,7 +4589,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.SphericalLimit:Radius [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,SphericalLimit:Radius"
 msgid "球の半径 / Radius of the sphere"
-msgstr ""
+msgstr "球の半径"
 
 #. Key:	TaperedCapsuleLimit
 #. SourceLocation:	/Script/KawaiiPhysics.TaperedCapsuleLimit [ScriptStruct DisplayName meta-data]
@@ -4603,28 +4603,28 @@ msgstr ""
 #: /Script/KawaiiPhysics.TaperedCapsuleLimit [ScriptStruct ToolTip meta-data]
 msgctxt "UObjectToolTips,TaperedCapsuleLimit"
 msgid "テーパードカプセルのコリジョンLimitを表す構造体。\nStructure representing a tapered capsule limit for collision in KawaiiPhysics."
-msgstr ""
+msgstr "テーパードカプセルのコリジョンLimitを表す構造体。"
 
 #. Key:	TaperedCapsuleLimit:Length
 #. SourceLocation:	/Script/KawaiiPhysics.TaperedCapsuleLimit:Length [FloatProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.TaperedCapsuleLimit:Length [FloatProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,TaperedCapsuleLimit:Length"
 msgid "Length"
-msgstr ""
+msgstr "長さ"
 
 #. Key:	TaperedCapsuleLimit:Length
 #. SourceLocation:	/Script/KawaiiPhysics.TaperedCapsuleLimit:Length [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.TaperedCapsuleLimit:Length [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,TaperedCapsuleLimit:Length"
 msgid "カプセルの長さ / Length of the capsule"
-msgstr ""
+msgstr "カプセルの長さ"
 
 #. Key:	Tapered Capsule Limit
 #. SourceLocation:	/Script/KawaiiPhysics.TaperedCapsuleLimit:Radius0 [FloatProperty Category meta-data]
 #: /Script/KawaiiPhysics.TaperedCapsuleLimit:Radius0 [FloatProperty Category meta-data]
 msgctxt "UObjectCategory,Tapered Capsule Limit"
 msgid "Tapered Capsule Limit"
-msgstr ""
+msgstr "テーパードカプセルリミット"
 
 #. Key:	TaperedCapsuleLimit:Radius0
 #. SourceLocation:	/Script/KawaiiPhysics.TaperedCapsuleLimit:Radius0 [FloatProperty DisplayName meta-data]
@@ -4638,7 +4638,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.TaperedCapsuleLimit:Radius0 [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,TaperedCapsuleLimit:Radius0"
 msgid "+Z端の半径 / Radius at the +Z end"
-msgstr ""
+msgstr "+Z端の半径"
 
 #. Key:	TaperedCapsuleLimit:Radius1
 #. SourceLocation:	/Script/KawaiiPhysics.TaperedCapsuleLimit:Radius1 [FloatProperty DisplayName meta-data]
@@ -4652,7 +4652,7 @@ msgstr ""
 #: /Script/KawaiiPhysics.TaperedCapsuleLimit:Radius1 [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,TaperedCapsuleLimit:Radius1"
 msgid "-Z端の半径 / Radius at the -Z end"
-msgstr ""
+msgstr "-Z端の半径"
 
 #. Key:	BreezePresetName
 #. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/KawaiiPhysicsWindPresetDataAsset.cpp(200)
@@ -4848,7 +4848,7 @@ msgstr ""
 #: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(455)
 msgctxt "KawaiiPhysics,KawaiiPhysicsToolsCategory"
 msgid "Kawaii Physics Tools"
-msgstr ""
+msgstr "Kawaii Physics ツール"
 
 #. Key:	KawaiiPhysics
 #. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(456)
@@ -4862,7 +4862,7 @@ msgstr ""
 #: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(568)
 msgctxt "KawaiiPhysics,DebugVisualizationCategory"
 msgid "Debug Visualization"
-msgstr ""
+msgstr "デバッグ表示"
 
 #. Key:	ToggleDebugVisualizationButtonRow
 #. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(570)
