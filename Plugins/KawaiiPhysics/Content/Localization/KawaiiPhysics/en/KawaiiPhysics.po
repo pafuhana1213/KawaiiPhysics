@@ -4,14 +4,1015 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: KawaiiPhysics\n"
-"POT-Creation-Date: 2026-08-15 05:04\n"
-"PO-Revision-Date: 2026-08-15 05:04\n"
+"POT-Creation-Date: 2026-08-15 16:24\n"
+"PO-Revision-Date: 2026-08-15 16:24\n"
 "Language-Team: \n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. Key:	KawaiiPhysics_ExternalForce
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce [ScriptStruct DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce [ScriptStruct DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce"
+msgid "Kawaii Physics External Force"
+msgstr "Kawaii Physics External Force"
+
+#. Key:	KawaiiPhysics_ExternalForce
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce [ScriptStruct ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce [ScriptStruct ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce"
+msgid "Base"
+msgstr "Base"
+
+#. Key:	KawaiiPhysics_ExternalForce:ApplyBoneFilter
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:ApplyBoneFilter [ArrayProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:ApplyBoneFilter [ArrayProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce:ApplyBoneFilter"
+msgid "Apply Bone Filter"
+msgstr "Apply Bone Filter"
+
+#. Key:	KawaiiPhysics_ExternalForce:ApplyBoneFilter
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:ApplyBoneFilter [ArrayProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:ApplyBoneFilter [ArrayProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce:ApplyBoneFilter"
+msgid "外力を適用するボーンを指定（＝指定しなかったボーンには適用しない）\n空の場合、全ての物理対象のボーンに適用\nSpecify the bones to which the external force will be applied (= the force will not be applied to bones that are not specified)\nIf empty, it will be applied to all physical target bones"
+msgstr "外力を適用するボーンを指定（＝指定しなかったボーンには適用しない）\n空の場合、全ての物理対象のボーンに適用\nSpecify the bones to which the external force will be applied (= the force will not be applied to bones that are not specified)\nIf empty, it will be applied to all physical target bones"
+
+#. Key:	KawaiiPhysics_ExternalForce:bCanSelectForceSpace
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bCanSelectForceSpace [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bCanSelectForceSpace [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce:bCanSelectForceSpace"
+msgid "Can Select Force Space"
+msgstr "Can Select Force Space"
+
+#. Key:	KawaiiPhysics_ExternalForce:bCanSelectForceSpace
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bCanSelectForceSpace [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bCanSelectForceSpace [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce:bCanSelectForceSpace"
+msgid "Whether the force space can be selected"
+msgstr "Whether the force space can be selected"
+
+#. Key:	KawaiiPhysics_ExternalForce:bDrawDebug
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bDrawDebug [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bDrawDebug [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce:bDrawDebug"
+msgid "Draw Debug"
+msgstr "Draw Debug"
+
+#. Key:	KawaiiPhysics_ExternalForce:bDrawDebug
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bDrawDebug [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bDrawDebug [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce:bDrawDebug"
+msgid "Whether to draw debug information for the external force"
+msgstr "Whether to draw debug information for the external force"
+
+#. Key:	KawaiiPhysics|ExternalForce
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bIsEnabled [BoolProperty Category meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bIsEnabled [BoolProperty Category meta-data]
+msgctxt "UObjectCategory,KawaiiPhysics|ExternalForce"
+msgid "KawaiiPhysics|ExternalForce"
+msgstr "KawaiiPhysics|ExternalForce"
+
+#. Key:	KawaiiPhysics_ExternalForce:bIsEnabled
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bIsEnabled [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bIsEnabled [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce:bIsEnabled"
+msgid "Is Enabled"
+msgstr "Is Enabled"
+
+#. Key:	KawaiiPhysics_ExternalForce:bIsEnabled
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bIsEnabled [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bIsEnabled [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce:bIsEnabled"
+msgid "Whether the external force is enabled"
+msgstr "Whether the external force is enabled"
+
+#. Key:	KawaiiPhysics_ExternalForce:bIsOneShot
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bIsOneShot [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bIsOneShot [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce:bIsOneShot"
+msgid "Is One Shot"
+msgstr "Is One Shot"
+
+#. Key:	KawaiiPhysics_ExternalForce:bIsOneShot
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bIsOneShot [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bIsOneShot [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce:bIsOneShot"
+msgid "Whether the external force is applied only once"
+msgstr "Whether the external force is applied only once"
+
+#. Key:	KawaiiPhysics_ExternalForce:ComponentTransform
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:ComponentTransform [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:ComponentTransform [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce:ComponentTransform"
+msgid "Component Transform"
+msgstr "Component Transform"
+
+#. Key:	KawaiiPhysics_ExternalForce:ComponentTransform
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:ComponentTransform [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:ComponentTransform [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce:ComponentTransform"
+msgid "Transform of the component"
+msgstr "Transform of the component"
+
+#. Key:	KawaiiPhysics_ExternalForce:ExternalForceSpace
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:ExternalForceSpace [EnumProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:ExternalForceSpace [EnumProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce:ExternalForceSpace"
+msgid "External Force Space"
+msgstr "External Force Space"
+
+#. Key:	KawaiiPhysics_ExternalForce:ExternalForceSpace
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:ExternalForceSpace [EnumProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:ExternalForceSpace [EnumProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce:ExternalForceSpace"
+msgid "The space in which the external force is simulated"
+msgstr "The space in which the external force is simulated"
+
+#. Key:	KawaiiPhysics_ExternalForce:ExternalOwner
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:ExternalOwner [ObjectProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:ExternalOwner [ObjectProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce:ExternalOwner"
+msgid "External Owner"
+msgstr "External Owner"
+
+#. Key:	KawaiiPhysics_ExternalForce:ExternalOwner
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:ExternalOwner [ObjectProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:ExternalOwner [ObjectProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce:ExternalOwner"
+msgid "Owner of the external force"
+msgstr "Owner of the external force"
+
+#. Key:	KawaiiPhysics_ExternalForce:Force
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:Force [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:Force [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce:Force"
+msgid "Force"
+msgstr "Force"
+
+#. Key:	KawaiiPhysics_ExternalForce:Force
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:Force [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:Force [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce:Force"
+msgid "The force vector"
+msgstr "The force vector"
+
+#. Key:	KawaiiPhysics_ExternalForce:IgnoreBoneFilter
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:IgnoreBoneFilter [ArrayProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:IgnoreBoneFilter [ArrayProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce:IgnoreBoneFilter"
+msgid "Ignore Bone Filter"
+msgstr "Ignore Bone Filter"
+
+#. Key:	KawaiiPhysics_ExternalForce:IgnoreBoneFilter
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:IgnoreBoneFilter [ArrayProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:IgnoreBoneFilter [ArrayProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce:IgnoreBoneFilter"
+msgid "外力を適用しないボーンを指定\nSpecify the bones to which the external force will NOT be applied"
+msgstr "外力を適用しないボーンを指定\nSpecify the bones to which the external force will NOT be applied"
+
+#. Key:	KawaiiPhysics_ExternalForce:RandomForceScaleRange
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:RandomForceScaleRange [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:RandomForceScaleRange [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce:RandomForceScaleRange"
+msgid "Random Force Scale Range"
+msgstr "Random Force Scale Range"
+
+#. Key:	KawaiiPhysics_ExternalForce:RandomForceScaleRange
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:RandomForceScaleRange [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:RandomForceScaleRange [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce:RandomForceScaleRange"
+msgid "Range for randomizing the force scale"
+msgstr "Range for randomizing the force scale"
+
+#. Key:	KawaiiPhysics_ExternalForce:RandomizedForceScale
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:RandomizedForceScale [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:RandomizedForceScale [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce:RandomizedForceScale"
+msgid "Randomized Force Scale"
+msgstr "Randomized Force Scale"
+
+#. Key:	KawaiiPhysics_ExternalForce:RandomizedForceScale
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:RandomizedForceScale [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:RandomizedForceScale [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce:RandomizedForceScale"
+msgid "Randomized scale of the force"
+msgstr "Randomized scale of the force"
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind [ScriptStruct DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind [ScriptStruct DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_ProceduralWind"
+msgid "Procedural Wind"
+msgstr "Procedural Wind"
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind [ScriptStruct ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind [ScriptStruct ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_ProceduralWind"
+msgid "パラメトリック合成風。UE の WindDirectionalSource に依存しない。\n合成式: Total = (SteadyForce + Oscillation + Wave) × Envelope + Random + Gust（Gust は TriggerProceduralWindGust API から発生）\nParametric synthesized wind. This does not depend on UE WindDirectionalSource.\nComposition: Total = (SteadyForce + Oscillation + Wave) x Envelope + Random + Gust (Gust is triggered via the TriggerProceduralWindGust API)."
+msgstr "パラメトリック合成風。UE の WindDirectionalSource に依存しない。\n合成式: Total = (SteadyForce + Oscillation + Wave) × Envelope + Random + Gust（Gust は TriggerProceduralWindGust API から発生）\nParametric synthesized wind. This does not depend on UE WindDirectionalSource.\nComposition: Total = (SteadyForce + Oscillation + Wave) x Envelope + Random + Gust (Gust is triggered via the TriggerProceduralWindGust API)."
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:DirectionNoiseAngle
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:DirectionNoiseAngle [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:DirectionNoiseAngle [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_ProceduralWind:DirectionNoiseAngle"
+msgid "Direction Noise Angle"
+msgstr "Direction Noise Angle"
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:DirectionNoiseAngle
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:DirectionNoiseAngle [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:DirectionNoiseAngle [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_ProceduralWind:DirectionNoiseAngle"
+msgid "風向き自体の揺らぎの円錐半角。向きの単調さを消す\nCone half-angle of the wind direction wander. Breaks directional monotony."
+msgstr "風向き自体の揺らぎの円錐半角。向きの単調さを消す\nCone half-angle of the wind direction wander. Breaks directional monotony."
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:DirectionNoisePeriod
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:DirectionNoisePeriod [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:DirectionNoisePeriod [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_ProceduralWind:DirectionNoisePeriod"
+msgid "Direction Noise Period"
+msgstr "Direction Noise Period"
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:DirectionNoisePeriod
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:DirectionNoisePeriod [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:DirectionNoisePeriod [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_ProceduralWind:DirectionNoisePeriod"
+msgid "向きの揺らぎの周期（秒）\nPeriod of the direction wander, in seconds."
+msgstr "向きの揺らぎの周期（秒）\nPeriod of the direction wander, in seconds."
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopeFrequency
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopeFrequency [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopeFrequency [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopeFrequency"
+msgid "Envelope Frequency"
+msgstr "Envelope Frequency"
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopeFrequency
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopeFrequency [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopeFrequency [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopeFrequency"
+msgid "うねりの速さ（Hz）。低いほどゆったり。Wind Scope の Envelope 系列に対応\nSwell speed in Hz. Lower is slower. Corresponds to the Envelope series in Wind Scope."
+msgstr "うねりの速さ（Hz）。低いほどゆったり。Wind Scope の Envelope 系列に対応\nSwell speed in Hz. Lower is slower. Corresponds to the Envelope series in Wind Scope."
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopeMax
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopeMax [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopeMax [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopeMax"
+msgid "Envelope Max"
+msgstr "Envelope Max"
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopeMax
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopeMax [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopeMax [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopeMax"
+msgid "風全体の強弱のうねり（低周波変調）の上限倍率。Min を下げると凪↔強風の緩急が生まれる。Min=Max=1 で無効。Wind Scope の Envelope 系列に対応\nUpper multiplier of the slow global intensity swell. Lower Min creates calm-to-gust dynamics. Disabled when Min=Max=1. Corresponds to the Envelope series in Wind Scope."
+msgstr "風全体の強弱のうねり（低周波変調）の上限倍率。Min を下げると凪↔強風の緩急が生まれる。Min=Max=1 で無効。Wind Scope の Envelope 系列に対応\nUpper multiplier of the slow global intensity swell. Lower Min creates calm-to-gust dynamics. Disabled when Min=Max=1. Corresponds to the Envelope series in Wind Scope."
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopeMin
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopeMin [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopeMin [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopeMin"
+msgid "Envelope Min"
+msgstr "Envelope Min"
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopeMin
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopeMin [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopeMin [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopeMin"
+msgid "風全体の強弱のうねり（低周波変調）の下限倍率。Min を下げると凪↔強風の緩急が生まれる。Min=Max=1 で無効。Wind Scope の Envelope 系列に対応\nLower multiplier of the slow global intensity swell. Lower Min creates calm-to-gust dynamics. Disabled when Min=Max=1. Corresponds to the Envelope series in Wind Scope."
+msgstr "風全体の強弱のうねり（低周波変調）の下限倍率。Min を下げると凪↔強風の緩急が生まれる。Min=Max=1 で無効。Wind Scope の Envelope 系列に対応\nLower multiplier of the slow global intensity swell. Lower Min creates calm-to-gust dynamics. Disabled when Min=Max=1. Corresponds to the Envelope series in Wind Scope."
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopePhase
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopePhase [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopePhase [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopePhase"
+msgid "Envelope Phase"
+msgstr "Envelope Phase"
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopePhase
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopePhase [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopePhase [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_ProceduralWind:EnvelopePhase"
+msgid "エンベロープ（強弱のうねり）の開始位相オフセット。複数キャラや複数外力のうねりタイミングをずらす用途。Wind Scope の Envelope 系列に対応\nStart phase offset of the envelope (strength undulation). Use to stagger envelope timing across multiple characters or external forces. Corresponds to the Envelope series in Wind Scope."
+msgstr "エンベロープ（強弱のうねり）の開始位相オフセット。複数キャラや複数外力のうねりタイミングをずらす用途。Wind Scope の Envelope 系列に対応\nStart phase offset of the envelope (strength undulation). Use to stagger envelope timing across multiple characters or external forces. Corresponds to the Envelope series in Wind Scope."
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:ForceRateByBoneLengthRate
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:ForceRateByBoneLengthRate [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:ForceRateByBoneLengthRate [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_ProceduralWind:ForceRateByBoneLengthRate"
+msgid "Force Rate by Bone Length Rate"
+msgstr "Force Rate by Bone Length Rate"
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:ForceRateByBoneLengthRate
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:ForceRateByBoneLengthRate [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:ForceRateByBoneLengthRate [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_ProceduralWind:ForceRateByBoneLengthRate"
+msgid "各ボーンに適用するForce Rateを補正。\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値をForceRateに乗算\nCorrects the Force Rate applied to each bone.\nMultiplies the ForceRate by the curve value for \"Length from RootBone to specific bone / Length from RootBone to end bone\" (0.0~1.0)"
+msgstr "各ボーンに適用するForce Rateを補正。\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値をForceRateに乗算\nCorrects the Force Rate applied to each bone.\nMultiplies the ForceRate by the curve value for \"Length from RootBone to specific bone / Length from RootBone to end bone\" (0.0~1.0)"
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:OscillationForce
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:OscillationForce [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:OscillationForce [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_ProceduralWind:OscillationForce"
+msgid "Oscillation Force"
+msgstr "Oscillation Force"
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:OscillationForce
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:OscillationForce [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:OscillationForce [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_ProceduralWind:OscillationForce"
+msgid "サイン波で周期的に強弱する成分の振幅。上げると規則的な揺れが強くなる。Wind Scope の Oscillation 系列に対応\nAmplitude of the sine-based oscillation. Higher values strengthen the rhythmic sway. Corresponds to the Oscillation series in Wind Scope."
+msgstr "サイン波で周期的に強弱する成分の振幅。上げると規則的な揺れが強くなる。Wind Scope の Oscillation 系列に対応\nAmplitude of the sine-based oscillation. Higher values strengthen the rhythmic sway. Corresponds to the Oscillation series in Wind Scope."
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:OscillationPeriod
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:OscillationPeriod [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:OscillationPeriod [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_ProceduralWind:OscillationPeriod"
+msgid "Oscillation Period"
+msgstr "Oscillation Period"
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:OscillationPeriod
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:OscillationPeriod [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:OscillationPeriod [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_ProceduralWind:OscillationPeriod"
+msgid "振動の周期（秒）。短いほど速く揺れる。Wind Scope の Oscillation 系列に対応\nOscillation period in seconds. Shorter values sway faster. Corresponds to the Oscillation series in Wind Scope."
+msgstr "振動の周期（秒）。短いほど速く揺れる。Wind Scope の Oscillation 系列に対応\nOscillation period in seconds. Shorter values sway faster. Corresponds to the Oscillation series in Wind Scope."
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:RandomForce
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:RandomForce [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:RandomForce [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_ProceduralWind:RandomForce"
+msgid "Random Force"
+msgstr "Random Force"
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:RandomForce
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:RandomForce [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:RandomForce [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_ProceduralWind:RandomForce"
+msgid "不規則な揺らぎ成分の強さ。自然なランダム感を足す。Wind Scope の Random 系列に対応\nStrength of the irregular fluctuation. Adds natural randomness. Corresponds to the Random series in Wind Scope."
+msgstr "不規則な揺らぎ成分の強さ。自然なランダム感を足す。Wind Scope の Random 系列に対応\nStrength of the irregular fluctuation. Adds natural randomness. Corresponds to the Random series in Wind Scope."
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:RandomPeriod
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:RandomPeriod [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:RandomPeriod [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_ProceduralWind:RandomPeriod"
+msgid "Random Period"
+msgstr "Random Period"
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:RandomPeriod
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:RandomPeriod [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:RandomPeriod [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_ProceduralWind:RandomPeriod"
+msgid "揺らぎが変化する速さ（秒）。短いほど細かく震える。Wind Scope の Random 系列に対応\nHow fast the fluctuation changes, in seconds. Shorter values jitter faster. Corresponds to the Random series in Wind Scope."
+msgstr "揺らぎが変化する速さ（秒）。短いほど細かく震える。Wind Scope の Random 系列に対応\nHow fast the fluctuation changes, in seconds. Shorter values jitter faster. Corresponds to the Random series in Wind Scope."
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:RandomSeed
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:RandomSeed [IntProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:RandomSeed [IntProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_ProceduralWind:RandomSeed"
+msgid "Random Seed"
+msgstr "Random Seed"
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:RandomSeed
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:RandomSeed [IntProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:RandomSeed [IntProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_ProceduralWind:RandomSeed"
+msgid "ランダム系列のシード。同じ値なら同じ揺らぎを再現できる。基底の RandomForceScaleRange が (1,1) 以外の場合は再現性が失われる。PIE中のライブ反映対象外（ノード値のみ・次回再生から反映）\nSeed of the random sequence. Same seed reproduces the same fluctuation. Reproducibility is lost if the base RandomForceScaleRange is not (1,1). Not live-updated during PIE; the node value takes effect from the next play session."
+msgstr "ランダム系列のシード。同じ値なら同じ揺らぎを再現できる。基底の RandomForceScaleRange が (1,1) 以外の場合は再現性が失われる。PIE中のライブ反映対象外（ノード値のみ・次回再生から反映）\nSeed of the random sequence. Same seed reproduces the same fluctuation. Reproducibility is lost if the base RandomForceScaleRange is not (1,1). Not live-updated during PIE; the node value takes effect from the next play session."
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:SteadyForce
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:SteadyForce [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:SteadyForce [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_ProceduralWind:SteadyForce"
+msgid "Steady Force"
+msgstr "Steady Force"
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:SteadyForce
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:SteadyForce [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:SteadyForce [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_ProceduralWind:SteadyForce"
+msgid "常に一定で掛かる風の強さ。上げるとボーンが風下へ流されたままになる。Wind Scope の Steady 系列に対応\nConstant wind strength. Higher values keep bones pushed downwind. Corresponds to the Steady series in Wind Scope."
+msgstr "常に一定で掛かる風の強さ。上げるとボーンが風下へ流されたままになる。Wind Scope の Steady 系列に対応\nConstant wind strength. Higher values keep bones pushed downwind. Corresponds to the Steady series in Wind Scope."
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:TimeScale
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:TimeScale [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:TimeScale [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_ProceduralWind:TimeScale"
+msgid "Time Scale"
+msgstr "Time Scale"
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:TimeScale
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:TimeScale [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:TimeScale [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_ProceduralWind:TimeScale"
+msgid "この外力内の時間の進み。0で凍結、2で倍速\nTime scale of this force. 0 freezes, 2 doubles speed."
+msgstr "この外力内の時間の進み。0で凍結、2で倍速\nTime scale of this force. 0 freezes, 2 doubles speed."
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:WaveAmplitude
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WaveAmplitude [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WaveAmplitude [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_ProceduralWind:WaveAmplitude"
+msgid "Wave Amplitude"
+msgstr "Wave Amplitude"
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:WaveAmplitude
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WaveAmplitude [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WaveAmplitude [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_ProceduralWind:WaveAmplitude"
+msgid "ボーン列に沿って伝わる波成分の振幅。WaveSpatialOffset と組で使う。Wind Scope の Wave 系列に対応\nAmplitude of the traveling wave along the bone chain. Use together with WaveSpatialOffset. Corresponds to the Wave series in Wind Scope."
+msgstr "ボーン列に沿って伝わる波成分の振幅。WaveSpatialOffset と組で使う。Wind Scope の Wave 系列に対応\nAmplitude of the traveling wave along the bone chain. Use together with WaveSpatialOffset. Corresponds to the Wave series in Wind Scope."
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:WavePeriod
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WavePeriod [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WavePeriod [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_ProceduralWind:WavePeriod"
+msgid "Wave Period"
+msgstr "Wave Period"
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:WavePeriod
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WavePeriod [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WavePeriod [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_ProceduralWind:WavePeriod"
+msgid "波の周期（秒）。Wind Scope の Wave 系列に対応\nWave period in seconds. Corresponds to the Wave series in Wind Scope."
+msgstr "波の周期（秒）。Wind Scope の Wave 系列に対応\nWave period in seconds. Corresponds to the Wave series in Wind Scope."
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:WavePhase
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WavePhase [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WavePhase [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_ProceduralWind:WavePhase"
+msgid "Wave Phase"
+msgstr "Wave Phase"
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:WavePhase
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WavePhase [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WavePhase [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_ProceduralWind:WavePhase"
+msgid "波成分の開始位相オフセット。複数キャラや複数外力の波のタイミングをずらす用途。Wind Scope の Wave 系列に対応\nStart phase offset of the wave component. Use to stagger wave timing across multiple characters or external forces. Corresponds to the Wave series in Wind Scope."
+msgstr "波成分の開始位相オフセット。複数キャラや複数外力の波のタイミングをずらす用途。Wind Scope の Wave 系列に対応\nStart phase offset of the wave component. Use to stagger wave timing across multiple characters or external forces. Corresponds to the Wave series in Wind Scope."
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:WaveSpatialOffset
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WaveSpatialOffset [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WaveSpatialOffset [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_ProceduralWind:WaveSpatialOffset"
+msgid "Wave Spatial Offset"
+msgstr "Wave Spatial Offset"
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:WaveSpatialOffset
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WaveSpatialOffset [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WaveSpatialOffset [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_ProceduralWind:WaveSpatialOffset"
+msgid "毛先（LengthRate=1）での位相遅れ量。正の値で根元から毛先へ波が走って見える。0なら全ボーン同時に揺れる。Wind Scope の Wave 系列に対応\nPhase delay at the tip. Positive values make the wave travel from root to tip; 0 sways all bones together. Corresponds to the Wave series in Wind Scope."
+msgstr "毛先（LengthRate=1）での位相遅れ量。正の値で根元から毛先へ波が走って見える。0なら全ボーン同時に揺れる。Wind Scope の Wave 系列に対応\nPhase delay at the tip. Positive values make the wave travel from root to tip; 0 sways all bones together. Corresponds to the Wave series in Wind Scope."
+
+#. Key:	KawaiiPhysics|ExternalForce|Procedural Wind
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WindDirection [StructProperty Category meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WindDirection [StructProperty Category meta-data]
+msgctxt "UObjectCategory,KawaiiPhysics|ExternalForce|Procedural Wind"
+msgid "KawaiiPhysics|ExternalForce|Procedural Wind"
+msgstr "KawaiiPhysics|ExternalForce|Procedural Wind"
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:WindDirection
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WindDirection [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WindDirection [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_ProceduralWind:WindDirection"
+msgid "Wind Direction"
+msgstr "Wind Direction"
+
+#. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:WindDirection
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WindDirection [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WindDirection [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_ProceduralWind:WindDirection"
+msgid "風の吹く方向。BP からは SetExternalForceVectorProperty(\"WindDirection\") で変更可能。内部で正規化するため非正規化でも可\nDirection the wind blows. Controllable from BP via SetExternalForceVectorProperty(\"WindDirection\"). Non-normalized values are allowed because this is normalized internally."
+msgstr "風の吹く方向。BP からは SetExternalForceVectorProperty(\"WindDirection\") で変更可能。内部で正規化するため非正規化でも可\nDirection the wind blows. Controllable from BP via SetExternalForceVectorProperty(\"WindDirection\"). Non-normalized values are allowed because this is normalized internally."
+
+#. Key:	KawaiiProceduralWindDynamicParams
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams [ScriptStruct DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams [ScriptStruct DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams"
+msgid "Kawaii Procedural Wind Dynamic Params"
+msgstr "Kawaii Procedural Wind Dynamic Params"
+
+#. Key:	KawaiiProceduralWindDynamicParams
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams [ScriptStruct ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams [ScriptStruct ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams"
+msgid "ProceduralWind のランタイム更新パラメータ。bOverride が true の項目だけ次回 PreApply で反映される。\nRuntime update parameters for ProceduralWind. Only entries whose bOverride flag is true are applied on the next PreApply."
+msgstr "ProceduralWind のランタイム更新パラメータ。bOverride が true の項目だけ次回 PreApply で反映される。\nRuntime update parameters for ProceduralWind. Only entries whose bOverride flag is true are applied on the next PreApply."
+
+#. Key:	KawaiiProceduralWindDynamicParams:bIsEnabled
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bIsEnabled [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bIsEnabled [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:bIsEnabled"
+msgid "Is Enabled"
+msgstr "Is Enabled"
+
+#. Key:	KawaiiProceduralWindDynamicParams:bIsEnabled
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bIsEnabled [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bIsEnabled [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:bIsEnabled"
+msgid "外力の有効状態 / External force enabled state."
+msgstr "外力の有効状態 / External force enabled state."
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideDirectionNoiseAngle
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideDirectionNoiseAngle [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideDirectionNoiseAngle [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:bOverrideDirectionNoiseAngle"
+msgid "Override Direction Noise Angle"
+msgstr "Override Direction Noise Angle"
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideDirectionNoiseAngle
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideDirectionNoiseAngle [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideDirectionNoiseAngle [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:bOverrideDirectionNoiseAngle"
+msgid "DirectionNoiseAngle を上書きする / Override DirectionNoiseAngle."
+msgstr "DirectionNoiseAngle を上書きする / Override DirectionNoiseAngle."
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideDirectionNoisePeriod
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideDirectionNoisePeriod [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideDirectionNoisePeriod [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:bOverrideDirectionNoisePeriod"
+msgid "Override Direction Noise Period"
+msgstr "Override Direction Noise Period"
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideDirectionNoisePeriod
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideDirectionNoisePeriod [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideDirectionNoisePeriod [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:bOverrideDirectionNoisePeriod"
+msgid "DirectionNoisePeriod を上書きする / Override DirectionNoisePeriod."
+msgstr "DirectionNoisePeriod を上書きする / Override DirectionNoisePeriod."
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideEnvelopeFrequency
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideEnvelopeFrequency [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideEnvelopeFrequency [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:bOverrideEnvelopeFrequency"
+msgid "Override Envelope Frequency"
+msgstr "Override Envelope Frequency"
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideEnvelopeFrequency
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideEnvelopeFrequency [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideEnvelopeFrequency [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:bOverrideEnvelopeFrequency"
+msgid "EnvelopeFrequency を上書きする / Override EnvelopeFrequency."
+msgstr "EnvelopeFrequency を上書きする / Override EnvelopeFrequency."
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideEnvelopeMax
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideEnvelopeMax [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideEnvelopeMax [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:bOverrideEnvelopeMax"
+msgid "Override Envelope Max"
+msgstr "Override Envelope Max"
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideEnvelopeMax
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideEnvelopeMax [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideEnvelopeMax [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:bOverrideEnvelopeMax"
+msgid "EnvelopeMax を上書きする / Override EnvelopeMax."
+msgstr "EnvelopeMax を上書きする / Override EnvelopeMax."
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideEnvelopeMin
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideEnvelopeMin [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideEnvelopeMin [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:bOverrideEnvelopeMin"
+msgid "Override Envelope Min"
+msgstr "Override Envelope Min"
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideEnvelopeMin
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideEnvelopeMin [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideEnvelopeMin [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:bOverrideEnvelopeMin"
+msgid "EnvelopeMin を上書きする / Override EnvelopeMin."
+msgstr "EnvelopeMin を上書きする / Override EnvelopeMin."
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideEnvelopePhase
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideEnvelopePhase [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideEnvelopePhase [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:bOverrideEnvelopePhase"
+msgid "Override Envelope Phase"
+msgstr "Override Envelope Phase"
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideEnvelopePhase
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideEnvelopePhase [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideEnvelopePhase [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:bOverrideEnvelopePhase"
+msgid "EnvelopePhase を上書きする / Override EnvelopePhase."
+msgstr "EnvelopePhase を上書きする / Override EnvelopePhase."
+
+#. Key:	KawaiiPhysics|ExternalForce|Procedural Wind|DynamicParams
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideIsEnabled [BoolProperty Category meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideIsEnabled [BoolProperty Category meta-data]
+msgctxt "UObjectCategory,KawaiiPhysics|ExternalForce|Procedural Wind|DynamicParams"
+msgid "KawaiiPhysics|ExternalForce|Procedural Wind|DynamicParams"
+msgstr "KawaiiPhysics|ExternalForce|Procedural Wind|DynamicParams"
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideIsEnabled
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideIsEnabled [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideIsEnabled [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:bOverrideIsEnabled"
+msgid "Override Is Enabled"
+msgstr "Override Is Enabled"
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideIsEnabled
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideIsEnabled [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideIsEnabled [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:bOverrideIsEnabled"
+msgid "bIsEnabled を上書きする / Override bIsEnabled."
+msgstr "bIsEnabled を上書きする / Override bIsEnabled."
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideOscillationForce
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideOscillationForce [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideOscillationForce [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:bOverrideOscillationForce"
+msgid "Override Oscillation Force"
+msgstr "Override Oscillation Force"
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideOscillationForce
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideOscillationForce [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideOscillationForce [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:bOverrideOscillationForce"
+msgid "OscillationForce を上書きする / Override OscillationForce."
+msgstr "OscillationForce を上書きする / Override OscillationForce."
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideOscillationPeriod
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideOscillationPeriod [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideOscillationPeriod [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:bOverrideOscillationPeriod"
+msgid "Override Oscillation Period"
+msgstr "Override Oscillation Period"
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideOscillationPeriod
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideOscillationPeriod [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideOscillationPeriod [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:bOverrideOscillationPeriod"
+msgid "OscillationPeriod を上書きする / Override OscillationPeriod."
+msgstr "OscillationPeriod を上書きする / Override OscillationPeriod."
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideRandomForce
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideRandomForce [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideRandomForce [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:bOverrideRandomForce"
+msgid "Override Random Force"
+msgstr "Override Random Force"
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideRandomForce
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideRandomForce [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideRandomForce [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:bOverrideRandomForce"
+msgid "RandomForce を上書きする / Override RandomForce."
+msgstr "RandomForce を上書きする / Override RandomForce."
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideRandomPeriod
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideRandomPeriod [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideRandomPeriod [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:bOverrideRandomPeriod"
+msgid "Override Random Period"
+msgstr "Override Random Period"
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideRandomPeriod
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideRandomPeriod [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideRandomPeriod [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:bOverrideRandomPeriod"
+msgid "RandomPeriod を上書きする / Override RandomPeriod."
+msgstr "RandomPeriod を上書きする / Override RandomPeriod."
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideSteadyForce
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideSteadyForce [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideSteadyForce [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:bOverrideSteadyForce"
+msgid "Override Steady Force"
+msgstr "Override Steady Force"
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideSteadyForce
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideSteadyForce [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideSteadyForce [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:bOverrideSteadyForce"
+msgid "SteadyForce を上書きする / Override SteadyForce."
+msgstr "SteadyForce を上書きする / Override SteadyForce."
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideTimeScale
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideTimeScale [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideTimeScale [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:bOverrideTimeScale"
+msgid "Override Time Scale"
+msgstr "Override Time Scale"
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideTimeScale
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideTimeScale [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideTimeScale [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:bOverrideTimeScale"
+msgid "TimeScale を上書きする / Override TimeScale."
+msgstr "TimeScale を上書きする / Override TimeScale."
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideWaveAmplitude
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideWaveAmplitude [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideWaveAmplitude [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:bOverrideWaveAmplitude"
+msgid "Override Wave Amplitude"
+msgstr "Override Wave Amplitude"
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideWaveAmplitude
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideWaveAmplitude [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideWaveAmplitude [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:bOverrideWaveAmplitude"
+msgid "WaveAmplitude を上書きする / Override WaveAmplitude."
+msgstr "WaveAmplitude を上書きする / Override WaveAmplitude."
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideWavePeriod
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideWavePeriod [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideWavePeriod [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:bOverrideWavePeriod"
+msgid "Override Wave Period"
+msgstr "Override Wave Period"
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideWavePeriod
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideWavePeriod [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideWavePeriod [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:bOverrideWavePeriod"
+msgid "WavePeriod を上書きする / Override WavePeriod."
+msgstr "WavePeriod を上書きする / Override WavePeriod."
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideWavePhase
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideWavePhase [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideWavePhase [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:bOverrideWavePhase"
+msgid "Override Wave Phase"
+msgstr "Override Wave Phase"
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideWavePhase
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideWavePhase [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideWavePhase [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:bOverrideWavePhase"
+msgid "WavePhase を上書きする / Override WavePhase."
+msgstr "WavePhase を上書きする / Override WavePhase."
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideWaveSpatialOffset
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideWaveSpatialOffset [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideWaveSpatialOffset [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:bOverrideWaveSpatialOffset"
+msgid "Override Wave Spatial Offset"
+msgstr "Override Wave Spatial Offset"
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideWaveSpatialOffset
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideWaveSpatialOffset [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideWaveSpatialOffset [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:bOverrideWaveSpatialOffset"
+msgid "WaveSpatialOffset を上書きする / Override WaveSpatialOffset."
+msgstr "WaveSpatialOffset を上書きする / Override WaveSpatialOffset."
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideWindDirection
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideWindDirection [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideWindDirection [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:bOverrideWindDirection"
+msgid "Override Wind Direction"
+msgstr "Override Wind Direction"
+
+#. Key:	KawaiiProceduralWindDynamicParams:bOverrideWindDirection
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideWindDirection [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:bOverrideWindDirection [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:bOverrideWindDirection"
+msgid "WindDirection を上書きする / Override WindDirection."
+msgstr "WindDirection を上書きする / Override WindDirection."
+
+#. Key:	KawaiiProceduralWindDynamicParams:DirectionNoiseAngle
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:DirectionNoiseAngle [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:DirectionNoiseAngle [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:DirectionNoiseAngle"
+msgid "Direction Noise Angle"
+msgstr "Direction Noise Angle"
+
+#. Key:	KawaiiProceduralWindDynamicParams:DirectionNoiseAngle
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:DirectionNoiseAngle [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:DirectionNoiseAngle [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:DirectionNoiseAngle"
+msgid "方向揺らぎの円錐半角 / Cone half-angle for directional noise."
+msgstr "方向揺らぎの円錐半角 / Cone half-angle for directional noise."
+
+#. Key:	KawaiiProceduralWindDynamicParams:DirectionNoisePeriod
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:DirectionNoisePeriod [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:DirectionNoisePeriod [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:DirectionNoisePeriod"
+msgid "Direction Noise Period"
+msgstr "Direction Noise Period"
+
+#. Key:	KawaiiProceduralWindDynamicParams:DirectionNoisePeriod
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:DirectionNoisePeriod [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:DirectionNoisePeriod [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:DirectionNoisePeriod"
+msgid "方向揺らぎの周期（秒） / Period for directional noise, in seconds."
+msgstr "方向揺らぎの周期（秒） / Period for directional noise, in seconds."
+
+#. Key:	KawaiiProceduralWindDynamicParams:EnvelopeFrequency
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:EnvelopeFrequency [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:EnvelopeFrequency [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:EnvelopeFrequency"
+msgid "Envelope Frequency"
+msgstr "Envelope Frequency"
+
+#. Key:	KawaiiProceduralWindDynamicParams:EnvelopeFrequency
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:EnvelopeFrequency [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:EnvelopeFrequency [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:EnvelopeFrequency"
+msgid "エンベロープ周波数（Hz） / Envelope frequency, in Hz."
+msgstr "エンベロープ周波数（Hz） / Envelope frequency, in Hz."
+
+#. Key:	KawaiiProceduralWindDynamicParams:EnvelopeMax
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:EnvelopeMax [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:EnvelopeMax [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:EnvelopeMax"
+msgid "Envelope Max"
+msgstr "Envelope Max"
+
+#. Key:	KawaiiProceduralWindDynamicParams:EnvelopeMax
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:EnvelopeMax [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:EnvelopeMax [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:EnvelopeMax"
+msgid "エンベロープ最大値 / Maximum envelope value."
+msgstr "エンベロープ最大値 / Maximum envelope value."
+
+#. Key:	KawaiiProceduralWindDynamicParams:EnvelopeMin
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:EnvelopeMin [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:EnvelopeMin [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:EnvelopeMin"
+msgid "Envelope Min"
+msgstr "Envelope Min"
+
+#. Key:	KawaiiProceduralWindDynamicParams:EnvelopeMin
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:EnvelopeMin [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:EnvelopeMin [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:EnvelopeMin"
+msgid "エンベロープ最小値 / Minimum envelope value."
+msgstr "エンベロープ最小値 / Minimum envelope value."
+
+#. Key:	KawaiiProceduralWindDynamicParams:EnvelopePhase
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:EnvelopePhase [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:EnvelopePhase [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:EnvelopePhase"
+msgid "Envelope Phase"
+msgstr "Envelope Phase"
+
+#. Key:	KawaiiProceduralWindDynamicParams:EnvelopePhase
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:EnvelopePhase [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:EnvelopePhase [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:EnvelopePhase"
+msgid "エンベロープ位相 / Envelope phase."
+msgstr "エンベロープ位相 / Envelope phase."
+
+#. Key:	KawaiiProceduralWindDynamicParams:OscillationForce
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:OscillationForce [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:OscillationForce [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:OscillationForce"
+msgid "Oscillation Force"
+msgstr "Oscillation Force"
+
+#. Key:	KawaiiProceduralWindDynamicParams:OscillationForce
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:OscillationForce [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:OscillationForce [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:OscillationForce"
+msgid "振動風力 / Oscillating wind force."
+msgstr "振動風力 / Oscillating wind force."
+
+#. Key:	KawaiiProceduralWindDynamicParams:OscillationPeriod
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:OscillationPeriod [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:OscillationPeriod [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:OscillationPeriod"
+msgid "Oscillation Period"
+msgstr "Oscillation Period"
+
+#. Key:	KawaiiProceduralWindDynamicParams:OscillationPeriod
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:OscillationPeriod [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:OscillationPeriod [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:OscillationPeriod"
+msgid "振動周期（秒） / Oscillation period, in seconds."
+msgstr "振動周期（秒） / Oscillation period, in seconds."
+
+#. Key:	KawaiiProceduralWindDynamicParams:RandomForce
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:RandomForce [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:RandomForce [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:RandomForce"
+msgid "Random Force"
+msgstr "Random Force"
+
+#. Key:	KawaiiProceduralWindDynamicParams:RandomForce
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:RandomForce [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:RandomForce [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:RandomForce"
+msgid "ランダム風力 / Random wind force."
+msgstr "ランダム風力 / Random wind force."
+
+#. Key:	KawaiiProceduralWindDynamicParams:RandomPeriod
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:RandomPeriod [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:RandomPeriod [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:RandomPeriod"
+msgid "Random Period"
+msgstr "Random Period"
+
+#. Key:	KawaiiProceduralWindDynamicParams:RandomPeriod
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:RandomPeriod [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:RandomPeriod [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:RandomPeriod"
+msgid "ランダム風力の周期（秒） / Random wind period, in seconds."
+msgstr "ランダム風力の周期（秒） / Random wind period, in seconds."
+
+#. Key:	KawaiiProceduralWindDynamicParams:SteadyForce
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:SteadyForce [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:SteadyForce [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:SteadyForce"
+msgid "Steady Force"
+msgstr "Steady Force"
+
+#. Key:	KawaiiProceduralWindDynamicParams:SteadyForce
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:SteadyForce [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:SteadyForce [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:SteadyForce"
+msgid "定常風力 / Steady wind force."
+msgstr "定常風力 / Steady wind force."
+
+#. Key:	KawaiiProceduralWindDynamicParams:TimeScale
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:TimeScale [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:TimeScale [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:TimeScale"
+msgid "Time Scale"
+msgstr "Time Scale"
+
+#. Key:	KawaiiProceduralWindDynamicParams:TimeScale
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:TimeScale [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:TimeScale [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:TimeScale"
+msgid "時間スケール / Time scale."
+msgstr "時間スケール / Time scale."
+
+#. Key:	KawaiiProceduralWindDynamicParams:WaveAmplitude
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:WaveAmplitude [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:WaveAmplitude [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:WaveAmplitude"
+msgid "Wave Amplitude"
+msgstr "Wave Amplitude"
+
+#. Key:	KawaiiProceduralWindDynamicParams:WaveAmplitude
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:WaveAmplitude [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:WaveAmplitude [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:WaveAmplitude"
+msgid "空間波の振幅 / Spatial wave amplitude."
+msgstr "空間波の振幅 / Spatial wave amplitude."
+
+#. Key:	KawaiiProceduralWindDynamicParams:WavePeriod
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:WavePeriod [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:WavePeriod [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:WavePeriod"
+msgid "Wave Period"
+msgstr "Wave Period"
+
+#. Key:	KawaiiProceduralWindDynamicParams:WavePeriod
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:WavePeriod [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:WavePeriod [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:WavePeriod"
+msgid "空間波の周期（秒） / Spatial wave period, in seconds."
+msgstr "空間波の周期（秒） / Spatial wave period, in seconds."
+
+#. Key:	KawaiiProceduralWindDynamicParams:WavePhase
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:WavePhase [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:WavePhase [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:WavePhase"
+msgid "Wave Phase"
+msgstr "Wave Phase"
+
+#. Key:	KawaiiProceduralWindDynamicParams:WavePhase
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:WavePhase [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:WavePhase [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:WavePhase"
+msgid "空間波の位相 / Spatial wave phase."
+msgstr "空間波の位相 / Spatial wave phase."
+
+#. Key:	KawaiiProceduralWindDynamicParams:WaveSpatialOffset
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:WaveSpatialOffset [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:WaveSpatialOffset [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:WaveSpatialOffset"
+msgid "Wave Spatial Offset"
+msgstr "Wave Spatial Offset"
+
+#. Key:	KawaiiProceduralWindDynamicParams:WaveSpatialOffset
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:WaveSpatialOffset [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:WaveSpatialOffset [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:WaveSpatialOffset"
+msgid "毛先 r=1 での位相遅れ量 / Phase delay at tip r=1."
+msgstr "毛先 r=1 での位相遅れ量 / Phase delay at tip r=1."
+
+#. Key:	KawaiiProceduralWindDynamicParams:WindDirection
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:WindDirection [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:WindDirection [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiProceduralWindDynamicParams:WindDirection"
+msgid "Wind Direction"
+msgstr "Wind Direction"
+
+#. Key:	KawaiiProceduralWindDynamicParams:WindDirection
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:WindDirection [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:WindDirection [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:WindDirection"
+msgid "風方向。内部で正規化するため非正規化でも可 / Wind direction. Non-normalized values are allowed because this is normalized internally."
+msgstr "風方向。内部で正規化するため非正規化でも可 / Wind direction. Non-normalized values are allowed because this is normalized internally."
 
 #. Key:	BreezePresetName
 #. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/KawaiiPhysicsWindPresetDataAsset.cpp(200)
