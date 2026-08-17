@@ -105,12 +105,12 @@ FVector ApplyConeNoiseToDirection(const FVector& InDirection, const float NoiseX
 float ComputeDebugTotalRate(const FKawaiiPhysics_ExternalForce_ProceduralWind& Force, const float Total)
 {
 	// パラメータ設定から起こりうる最大振幅を基準値として概算する
-	const float MaxSine = FMath::Abs(Force.SteadyForce) + FMath::Abs(Force.OscillationForce) +
+	const float MaxSine = FMath::Abs(Force.SteadyForce) + FMath::Abs(Force.PulseForce) +
 		FMath::Abs(Force.WaveAmplitude);
-	const float MaxEnvelope = FMath::Max(FMath::Abs(Force.EnvelopeMin), FMath::Abs(Force.EnvelopeMax));
+	const float MaxBreathing = FMath::Max(FMath::Abs(Force.BreathingMin), FMath::Abs(Force.BreathingMax));
 	const float MaxRandom = FMath::Abs(Force.RandomForce);
 	// 基準値が0にならないよう下限1.0を保証（ゼロ除算防止）
-	const float Reference = FMath::Max(MaxSine * MaxEnvelope + MaxRandom, 1.0f);
+	const float Reference = FMath::Max(MaxSine * MaxBreathing + MaxRandom, 1.0f);
 	return FMath::Abs(Total) / Reference;
 }
 
@@ -121,7 +121,7 @@ void InitializeRuntimeStateContents(FKawaiiProceduralWindRuntimeState& State)
 	State.Time = 0.0f;
 	State.ActiveGust = FKawaiiProceduralWindActiveGust();
 	State.CachedSinesWithoutWave = 0.0f;
-	State.CachedEnvelope = 1.0f;
+	State.CachedBreathing = 1.0f;
 	State.CachedRandom = 0.0f;
 	State.CachedGust = 0.0f;
 	State.CachedWindVector = FVector::ZeroVector;
@@ -153,15 +153,15 @@ void MergePendingDynamicParams(FKawaiiProceduralWindDynamicParams& PendingParams
 		PendingParams.bOverrideSteadyForce = true;
 		PendingParams.SteadyForce = IncomingParams.SteadyForce;
 	}
-	if (IncomingParams.bOverrideOscillationForce)
+	if (IncomingParams.bOverridePulseForce)
 	{
-		PendingParams.bOverrideOscillationForce = true;
-		PendingParams.OscillationForce = IncomingParams.OscillationForce;
+		PendingParams.bOverridePulseForce = true;
+		PendingParams.PulseForce = IncomingParams.PulseForce;
 	}
-	if (IncomingParams.bOverrideOscillationPeriod)
+	if (IncomingParams.bOverridePulsePeriod)
 	{
-		PendingParams.bOverrideOscillationPeriod = true;
-		PendingParams.OscillationPeriod = IncomingParams.OscillationPeriod;
+		PendingParams.bOverridePulsePeriod = true;
+		PendingParams.PulsePeriod = IncomingParams.PulsePeriod;
 	}
 	if (IncomingParams.bOverrideWaveAmplitude)
 	{
@@ -183,25 +183,25 @@ void MergePendingDynamicParams(FKawaiiProceduralWindDynamicParams& PendingParams
 		PendingParams.bOverrideWaveSpatialOffset = true;
 		PendingParams.WaveSpatialOffset = IncomingParams.WaveSpatialOffset;
 	}
-	if (IncomingParams.bOverrideEnvelopeMax)
+	if (IncomingParams.bOverrideBreathingMax)
 	{
-		PendingParams.bOverrideEnvelopeMax = true;
-		PendingParams.EnvelopeMax = IncomingParams.EnvelopeMax;
+		PendingParams.bOverrideBreathingMax = true;
+		PendingParams.BreathingMax = IncomingParams.BreathingMax;
 	}
-	if (IncomingParams.bOverrideEnvelopeMin)
+	if (IncomingParams.bOverrideBreathingMin)
 	{
-		PendingParams.bOverrideEnvelopeMin = true;
-		PendingParams.EnvelopeMin = IncomingParams.EnvelopeMin;
+		PendingParams.bOverrideBreathingMin = true;
+		PendingParams.BreathingMin = IncomingParams.BreathingMin;
 	}
-	if (IncomingParams.bOverrideEnvelopeFrequency)
+	if (IncomingParams.bOverrideBreathingPeriod)
 	{
-		PendingParams.bOverrideEnvelopeFrequency = true;
-		PendingParams.EnvelopeFrequency = IncomingParams.EnvelopeFrequency;
+		PendingParams.bOverrideBreathingPeriod = true;
+		PendingParams.BreathingPeriod = IncomingParams.BreathingPeriod;
 	}
-	if (IncomingParams.bOverrideEnvelopePhase)
+	if (IncomingParams.bOverrideBreathingPhase)
 	{
-		PendingParams.bOverrideEnvelopePhase = true;
-		PendingParams.EnvelopePhase = IncomingParams.EnvelopePhase;
+		PendingParams.bOverrideBreathingPhase = true;
+		PendingParams.BreathingPhase = IncomingParams.BreathingPhase;
 	}
 	if (IncomingParams.bOverrideRandomForce)
 	{
@@ -262,16 +262,16 @@ FKawaiiPhysics_ExternalForce_ProceduralWind& FKawaiiPhysics_ExternalForce_Proced
 	TimeScale = Other.TimeScale;
 	ForceRateByBoneLengthRate = Other.ForceRateByBoneLengthRate;
 	SteadyForce = Other.SteadyForce;
-	OscillationForce = Other.OscillationForce;
-	OscillationPeriod = Other.OscillationPeriod;
+	PulseForce = Other.PulseForce;
+	PulsePeriod = Other.PulsePeriod;
 	WaveAmplitude = Other.WaveAmplitude;
 	WavePeriod = Other.WavePeriod;
 	WavePhase = Other.WavePhase;
 	WaveSpatialOffset = Other.WaveSpatialOffset;
-	EnvelopeMax = Other.EnvelopeMax;
-	EnvelopeMin = Other.EnvelopeMin;
-	EnvelopeFrequency = Other.EnvelopeFrequency;
-	EnvelopePhase = Other.EnvelopePhase;
+	BreathingMax = Other.BreathingMax;
+	BreathingMin = Other.BreathingMin;
+	BreathingPeriod = Other.BreathingPeriod;
+	BreathingPhase = Other.BreathingPhase;
 	RandomForce = Other.RandomForce;
 	RandomPeriod = Other.RandomPeriod;
 	RandomSeed = Other.RandomSeed;
@@ -322,13 +322,13 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::ApplyDynamicParams(
 	{
 		SteadyForce = FMath::Max(Params.SteadyForce, 0.0f);
 	}
-	if (Params.bOverrideOscillationForce)
+	if (Params.bOverridePulseForce)
 	{
-		OscillationForce = FMath::Max(Params.OscillationForce, 0.0f);
+		PulseForce = FMath::Max(Params.PulseForce, 0.0f);
 	}
-	if (Params.bOverrideOscillationPeriod)
+	if (Params.bOverridePulsePeriod)
 	{
-		OscillationPeriod = FMath::Max(Params.OscillationPeriod, 0.01f);
+		PulsePeriod = FMath::Max(Params.PulsePeriod, 0.01f);
 	}
 	if (Params.bOverrideWaveAmplitude)
 	{
@@ -346,21 +346,21 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::ApplyDynamicParams(
 	{
 		WaveSpatialOffset = Params.WaveSpatialOffset;
 	}
-	if (Params.bOverrideEnvelopeMax)
+	if (Params.bOverrideBreathingMax)
 	{
-		EnvelopeMax = FMath::Max(Params.EnvelopeMax, 0.0f);
+		BreathingMax = FMath::Max(Params.BreathingMax, 0.0f);
 	}
-	if (Params.bOverrideEnvelopeMin)
+	if (Params.bOverrideBreathingMin)
 	{
-		EnvelopeMin = FMath::Max(Params.EnvelopeMin, 0.0f);
+		BreathingMin = FMath::Max(Params.BreathingMin, 0.0f);
 	}
-	if (Params.bOverrideEnvelopeFrequency)
+	if (Params.bOverrideBreathingPeriod)
 	{
-		EnvelopeFrequency = FMath::Max(Params.EnvelopeFrequency, 0.0f);
+		BreathingPeriod = FMath::Max(Params.BreathingPeriod, 0.01f);
 	}
-	if (Params.bOverrideEnvelopePhase)
+	if (Params.bOverrideBreathingPhase)
 	{
-		EnvelopePhase = Params.EnvelopePhase;
+		BreathingPhase = Params.BreathingPhase;
 	}
 	if (Params.bOverrideRandomForce)
 	{
@@ -408,16 +408,16 @@ bool FKawaiiPhysics_ExternalForce_ProceduralWind::BuildDynamicParamsForProperty(
 		OutParams.SteadyForce = SteadyForce;
 		return true;
 	}
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, OscillationForce))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, PulseForce))
 	{
-		OutParams.bOverrideOscillationForce = true;
-		OutParams.OscillationForce = OscillationForce;
+		OutParams.bOverridePulseForce = true;
+		OutParams.PulseForce = PulseForce;
 		return true;
 	}
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, OscillationPeriod))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, PulsePeriod))
 	{
-		OutParams.bOverrideOscillationPeriod = true;
-		OutParams.OscillationPeriod = OscillationPeriod;
+		OutParams.bOverridePulsePeriod = true;
+		OutParams.PulsePeriod = PulsePeriod;
 		return true;
 	}
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WaveAmplitude))
@@ -444,28 +444,28 @@ bool FKawaiiPhysics_ExternalForce_ProceduralWind::BuildDynamicParamsForProperty(
 		OutParams.WaveSpatialOffset = WaveSpatialOffset;
 		return true;
 	}
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, EnvelopeMax))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingMax))
 	{
-		OutParams.bOverrideEnvelopeMax = true;
-		OutParams.EnvelopeMax = EnvelopeMax;
+		OutParams.bOverrideBreathingMax = true;
+		OutParams.BreathingMax = BreathingMax;
 		return true;
 	}
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, EnvelopeMin))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingMin))
 	{
-		OutParams.bOverrideEnvelopeMin = true;
-		OutParams.EnvelopeMin = EnvelopeMin;
+		OutParams.bOverrideBreathingMin = true;
+		OutParams.BreathingMin = BreathingMin;
 		return true;
 	}
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, EnvelopeFrequency))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingPeriod))
 	{
-		OutParams.bOverrideEnvelopeFrequency = true;
-		OutParams.EnvelopeFrequency = EnvelopeFrequency;
+		OutParams.bOverrideBreathingPeriod = true;
+		OutParams.BreathingPeriod = BreathingPeriod;
 		return true;
 	}
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, EnvelopePhase))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingPhase))
 	{
-		OutParams.bOverrideEnvelopePhase = true;
-		OutParams.EnvelopePhase = EnvelopePhase;
+		OutParams.bOverrideBreathingPhase = true;
+		OutParams.BreathingPhase = BreathingPhase;
 		return true;
 	}
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomForce))
@@ -512,10 +512,10 @@ FKawaiiProceduralWindDynamicParams FKawaiiPhysics_ExternalForce_ProceduralWind::
 	Params.WindDirection = WindDirection;
 	Params.bOverrideSteadyForce = true;
 	Params.SteadyForce = SteadyForce;
-	Params.bOverrideOscillationForce = true;
-	Params.OscillationForce = OscillationForce;
-	Params.bOverrideOscillationPeriod = true;
-	Params.OscillationPeriod = OscillationPeriod;
+	Params.bOverridePulseForce = true;
+	Params.PulseForce = PulseForce;
+	Params.bOverridePulsePeriod = true;
+	Params.PulsePeriod = PulsePeriod;
 	Params.bOverrideWaveAmplitude = true;
 	Params.WaveAmplitude = WaveAmplitude;
 	Params.bOverrideWavePeriod = true;
@@ -524,14 +524,14 @@ FKawaiiProceduralWindDynamicParams FKawaiiPhysics_ExternalForce_ProceduralWind::
 	Params.WavePhase = WavePhase;
 	Params.bOverrideWaveSpatialOffset = true;
 	Params.WaveSpatialOffset = WaveSpatialOffset;
-	Params.bOverrideEnvelopeMax = true;
-	Params.EnvelopeMax = EnvelopeMax;
-	Params.bOverrideEnvelopeMin = true;
-	Params.EnvelopeMin = EnvelopeMin;
-	Params.bOverrideEnvelopeFrequency = true;
-	Params.EnvelopeFrequency = EnvelopeFrequency;
-	Params.bOverrideEnvelopePhase = true;
-	Params.EnvelopePhase = EnvelopePhase;
+	Params.bOverrideBreathingMax = true;
+	Params.BreathingMax = BreathingMax;
+	Params.bOverrideBreathingMin = true;
+	Params.BreathingMin = BreathingMin;
+	Params.bOverrideBreathingPeriod = true;
+	Params.BreathingPeriod = BreathingPeriod;
+	Params.bOverrideBreathingPhase = true;
+	Params.BreathingPhase = BreathingPhase;
 	Params.bOverrideRandomForce = true;
 	Params.RandomForce = RandomForce;
 	Params.bOverrideRandomPeriod = true;
@@ -614,21 +614,22 @@ FKawaiiPhysicsProceduralWindSample FKawaiiPhysics_ExternalForce_ProceduralWind::
 	FKawaiiPhysicsProceduralWindSample Sample;
 
 	// 周期パラメータのゼロ除算防止クランプ
-	const float SafeOscillationPeriod = FMath::Max(OscillationPeriod, 0.01f);
+	const float SafePulsePeriod = FMath::Max(PulsePeriod, 0.01f);
 	const float SafeWavePeriod = FMath::Max(WavePeriod, 0.01f);
 	const float SafeRandomPeriod = FMath::Max(RandomPeriod, 0.01f);
+	const float SafeBreathingPeriod = FMath::Max(BreathingPeriod, 0.01f);
 
 	// 定常成分
 	Sample.Steady = SteadyForce;
-	// 周期振動成分
-	Sample.Oscillation = OscillationForce * FMath::Sin(TwoPi * InTime / SafeOscillationPeriod);
+	// パルス成分（周期的な押し引き）
+	Sample.Pulse = PulseForce * FMath::Sin(TwoPi * InTime / SafePulsePeriod);
 	// ボーン列に沿って伝わる空間波。InLengthRate（毛先方向の距離率）ぶんだけ位相をずらし、根元から毛先へ
 	// 波が伝播しているように見せる
 	Sample.Wave = WaveAmplitude * FMath::Sin(TwoPi * InTime / SafeWavePeriod -
 		FMath::DegreesToRadians(InLengthRate * WaveSpatialOffset) + FMath::DegreesToRadians(WavePhase));
-	// 低周波の強弱うねり（envelope）。sin を [0,1] に正規化してから EnvelopeMin-Max 間を補間する
-	Sample.Envelope = FMath::Lerp(EnvelopeMin, EnvelopeMax,
-		0.5f * (1.0f + FMath::Sin(TwoPi * EnvelopeFrequency * InTime + FMath::DegreesToRadians(EnvelopePhase))));
+	// 低周波の呼吸変調。sin を [0,1] に正規化してから BreathingMin-Max 間を補間する
+	Sample.Breathing = FMath::Lerp(BreathingMin, BreathingMax,
+		0.5f * (1.0f + FMath::Sin(TwoPi * InTime / SafeBreathingPeriod + FMath::DegreesToRadians(BreathingPhase))));
 	// seeded smooth noise によるランダム成分。同一 RandomSeed なら実行のたびに同じ揺らぎを再現する
 	Sample.Random = RandomForce * SampleSmoothNoise(InTime / SafeRandomPeriod, RandomSeed, 0);
 
@@ -638,8 +639,8 @@ FKawaiiPhysicsProceduralWindSample FKawaiiPhysics_ExternalForce_ProceduralWind::
 		Sample.Gust = EvaluateActiveGust(RuntimeState->ActiveGust, InTime);
 	}
 
-	// 最終合成: (定常 + 振動 + 波) × envelope + random + gust
-	Sample.Total = (Sample.Steady + Sample.Oscillation + Sample.Wave) * Sample.Envelope +
+	// 最終合成: (定常 + パルス + 波) × breathing + random + gust
+	Sample.Total = (Sample.Steady + Sample.Pulse + Sample.Wave) * Sample.Breathing +
 		Sample.Random + Sample.Gust;
 	return Sample;
 }
@@ -718,11 +719,11 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::PreApply(FAnimNode_KawaiiPhysi
 	// TimeScale を考慮したシミュレーション内時間を進める
 	RuntimeState->Time += Node.GetStepDeltaTime() * TimeScale;
 
-	// ボーンに依存しない成分（Steady/Oscillation/Envelope/Random/Gust）はここで1回だけ計算してキャッシュする。
+	// ボーンに依存しない成分（Steady/Pulse/Breathing/Random/Gust）はここで1回だけ計算してキャッシュする。
 	// Apply は全ボーンで呼ばれるため、毎ボーン再計算しないための最適化（Waveのみボーン依存で Apply 側が再計算する）
 	const FKawaiiPhysicsProceduralWindSample Sample = ComputeWindSample(RuntimeState->Time, 0.0f);
-	RuntimeState->CachedSinesWithoutWave = Sample.Steady + Sample.Oscillation;
-	RuntimeState->CachedEnvelope = Sample.Envelope;
+	RuntimeState->CachedSinesWithoutWave = Sample.Steady + Sample.Pulse;
+	RuntimeState->CachedBreathing = Sample.Breathing;
 	RuntimeState->CachedRandom = Sample.Random;
 	RuntimeState->CachedGust = Sample.Gust;
 
@@ -774,7 +775,7 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::Apply(FKawaiiPhysicsModifyBone
 	// 他成分と合算する。式は ComputeWindSample の Sample.Wave 計算と一致させること
 	const float Wave = WaveAmplitude * FMath::Sin(TwoPi * RuntimeState->Time / FMath::Max(WavePeriod, 0.01f) -
 		FMath::DegreesToRadians(Bone.LengthRateFromRoot * WaveSpatialOffset) + FMath::DegreesToRadians(WavePhase));
-	const float Total = (RuntimeState->CachedSinesWithoutWave + Wave) * RuntimeState->CachedEnvelope +
+	const float Total = (RuntimeState->CachedSinesWithoutWave + Wave) * RuntimeState->CachedBreathing +
 		RuntimeState->CachedRandom + RuntimeState->CachedGust;
 
 	float ForceRate = 1.0f;
@@ -825,7 +826,7 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::AnimDrawDebugForEditMode(
 	const float Wave = WaveAmplitude * FMath::Sin(TwoPi * RuntimeState->Time / FMath::Max(WavePeriod, 0.01f) -
 		FMath::DegreesToRadians(ModifyBone.LengthRateFromRoot * WaveSpatialOffset) +
 		FMath::DegreesToRadians(WavePhase));
-	const float Total = (RuntimeState->CachedSinesWithoutWave + Wave) * RuntimeState->CachedEnvelope +
+	const float Total = (RuntimeState->CachedSinesWithoutWave + Wave) * RuntimeState->CachedBreathing +
 		RuntimeState->CachedRandom + RuntimeState->CachedGust;
 
 	float ForceRate = 1.0f;

@@ -16,22 +16,22 @@ FKawaiiProceduralWindDynamicParams FKawaiiProceduralWindPreset::ToDynamicParams(
 
 	Params.bOverrideSteadyForce = true;
 	Params.SteadyForce = SteadyForce;
-	Params.bOverrideOscillationForce = true;
-	Params.OscillationForce = OscillationForce;
-	Params.bOverrideOscillationPeriod = true;
-	Params.OscillationPeriod = OscillationPeriod;
+	Params.bOverridePulseForce = true;
+	Params.PulseForce = PulseForce;
+	Params.bOverridePulsePeriod = true;
+	Params.PulsePeriod = PulsePeriod;
 	Params.bOverrideWaveAmplitude = true;
 	Params.WaveAmplitude = WaveAmplitude;
 	Params.bOverrideWavePeriod = true;
 	Params.WavePeriod = WavePeriod;
 	Params.bOverrideWaveSpatialOffset = true;
 	Params.WaveSpatialOffset = WaveSpatialOffset;
-	Params.bOverrideEnvelopeMin = true;
-	Params.EnvelopeMin = EnvelopeMin;
-	Params.bOverrideEnvelopeMax = true;
-	Params.EnvelopeMax = EnvelopeMax;
-	Params.bOverrideEnvelopeFrequency = true;
-	Params.EnvelopeFrequency = EnvelopeFrequency;
+	Params.bOverrideBreathingMin = true;
+	Params.BreathingMin = BreathingMin;
+	Params.bOverrideBreathingMax = true;
+	Params.BreathingMax = BreathingMax;
+	Params.bOverrideBreathingPeriod = true;
+	Params.BreathingPeriod = BreathingPeriod;
 	Params.bOverrideRandomForce = true;
 	Params.RandomForce = RandomForce;
 	Params.bOverrideRandomPeriod = true;
@@ -104,14 +104,14 @@ namespace
 		const FGameplayTag& PresetTag,
 		const FText& PresetName,
 		float SteadyForce,
-		float OscillationForce,
-		float OscillationPeriod,
+		float PulseForce,
+		float PulsePeriod,
 		float WaveAmplitude,
 		float WavePeriod,
 		float WaveSpatialOffset,
-		float EnvelopeMin,
-		float EnvelopeMax,
-		float EnvelopeFrequency,
+		float BreathingMin,
+		float BreathingMax,
+		float BreathingPeriod,
 		float RandomForce,
 		float RandomPeriod,
 		float DirectionNoiseAngle)
@@ -120,14 +120,14 @@ namespace
 		Preset.PresetTag = PresetTag;
 		Preset.PresetName = PresetName;
 		Preset.SteadyForce = SteadyForce;
-		Preset.OscillationForce = OscillationForce;
-		Preset.OscillationPeriod = OscillationPeriod;
+		Preset.PulseForce = PulseForce;
+		Preset.PulsePeriod = PulsePeriod;
 		Preset.WaveAmplitude = WaveAmplitude;
 		Preset.WavePeriod = WavePeriod;
 		Preset.WaveSpatialOffset = WaveSpatialOffset;
-		Preset.EnvelopeMin = EnvelopeMin;
-		Preset.EnvelopeMax = EnvelopeMax;
-		Preset.EnvelopeFrequency = EnvelopeFrequency;
+		Preset.BreathingMin = BreathingMin;
+		Preset.BreathingMax = BreathingMax;
+		Preset.BreathingPeriod = BreathingPeriod;
 		Preset.RandomForce = RandomForce;
 		Preset.RandomPeriod = RandomPeriod;
 		Preset.DirectionNoiseAngle = DirectionNoiseAngle;
@@ -206,7 +206,7 @@ TArray<FKawaiiProceduralWindPreset> UKawaiiPhysicsWindPresetDataAsset::GetDefaul
 		90.0f,
 		0.6f,
 		1.0f,
-		0.05f,
+		20.0f,
 		0.5f,
 		0.8f,
 		5.0f));
@@ -222,7 +222,7 @@ TArray<FKawaiiProceduralWindPreset> UKawaiiPhysicsWindPresetDataAsset::GetDefaul
 		120.0f,
 		0.7f,
 		1.3f,
-		0.08f,
+		12.0f,
 		2.0f,
 		0.5f,
 		10.0f));
@@ -238,7 +238,7 @@ TArray<FKawaiiProceduralWindPreset> UKawaiiPhysicsWindPresetDataAsset::GetDefaul
 		180.0f,
 		0.5f,
 		1.6f,
-		0.15f,
+		7.0f,
 		6.0f,
 		0.3f,
 		20.0f));

@@ -210,13 +210,13 @@ const TArray<FKawaiiWindScopeParamGroup>& GetWindScopeParamGroups()
 			}
 		},
 		{
-			LOCTEXT("OscillationGroupLabel", "Oscillation"),
-			FName(TEXT("Oscillation")),
-			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, OscillationForce),
-			TOptional<EKawaiiPhysicsWindScopeComponent>(EKawaiiPhysicsWindScopeComponent::Oscillation),
+			LOCTEXT("PulseGroupLabel", "Pulse"),
+			FName(TEXT("Pulse")),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, PulseForce),
+			TOptional<EKawaiiPhysicsWindScopeComponent>(EKawaiiPhysicsWindScopeComponent::Pulse),
 			{
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, OscillationForce), 0.0f, 50.0f, true},
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, OscillationPeriod), 0.01f, 10.0f, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, PulseForce), 0.0f, 50.0f, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, PulsePeriod), 0.01f, 10.0f, true},
 			}
 		},
 		{
@@ -232,15 +232,15 @@ const TArray<FKawaiiWindScopeParamGroup>& GetWindScopeParamGroups()
 			}
 		},
 		{
-			LOCTEXT("EnvelopeGroupLabel", "Envelope"),
-			FName(TEXT("Envelope")),
-			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, EnvelopeMax),
-			TOptional<EKawaiiPhysicsWindScopeComponent>(EKawaiiPhysicsWindScopeComponent::Envelope),
+			LOCTEXT("BreathingGroupLabel", "Breathing"),
+			FName(TEXT("Breathing")),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingMax),
+			TOptional<EKawaiiPhysicsWindScopeComponent>(EKawaiiPhysicsWindScopeComponent::Breathing),
 			{
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, EnvelopeMax), 0.0f, 3.0f, true},
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, EnvelopeMin), 0.0f, 3.0f, true},
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, EnvelopeFrequency), 0.0f, 2.0f, true},
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, EnvelopePhase), -360.0f, 360.0f, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingMax), 0.0f, 3.0f, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingMin), 0.0f, 3.0f, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingPeriod), 0.01f, 60.0f, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingPhase), -360.0f, 360.0f, true},
 			}
 		},
 		{
@@ -448,12 +448,12 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeFormulaHelpContent() c
 				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaEquals", " = ("))]
 				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaSteadyPrefix", "Sample."))]
 				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaSteady", "Steady"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Steady))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaPlusOscillation", " + Sample."))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaOscillation", "Oscillation"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Oscillation))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaPlusPulse", " + Sample."))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaPulse", "Pulse"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Pulse))]
 				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaPlusWave", " + Sample."))]
 				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaWave", "Wave"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Wave))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaEnvelopePrefix", ") * Sample."))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaEnvelope", "Envelope"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Envelope))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaBreathingPrefix", ") * Sample."))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaBreathing", "Breathing"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Breathing))]
 				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaPlusRandom", " + Sample."))]
 				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaRandom", "Random"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Random))]
 				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaPlusGust", " + Sample."))]
@@ -464,7 +464,7 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeFormulaHelpContent() c
 			.AutoHeight()
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("FormulaHelpGroupLine1", "Steady, Oscillation, Wave, Envelope, and Random map to their groups."))
+				.Text(LOCTEXT("FormulaHelpGroupLine1", "Steady, Pulse, Wave, Breathing, and Random map to their groups."))
 				.AutoWrapText(true)
 				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
 			]

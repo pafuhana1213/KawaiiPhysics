@@ -30,9 +30,9 @@ struct FKawaiiProceduralWindActiveGust
 struct FKawaiiPhysicsProceduralWindSample
 {
 	float Steady = 0.0f;
-	float Oscillation = 0.0f;
+	float Pulse = 0.0f;
 	float Wave = 0.0f;
-	float Envelope = 1.0f;
+	float Breathing = 1.0f;
 	float Random = 0.0f;
 	float Gust = 0.0f;
 	float Total = 0.0f;
@@ -77,21 +77,21 @@ struct KAWAIIPHYSICS_API FKawaiiProceduralWindDynamicParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float SteadyForce = 0.0f;
 
-	/** OscillationForce を上書きする / Override OscillationForce. */
+	/** PulseForce を上書きする / Override PulseForce. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
-	bool bOverrideOscillationForce = false;
+	bool bOverridePulseForce = false;
 
-	/** 振動風力 / Oscillating wind force. */
+	/** パルス風力 / Pulse wind force. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
-	float OscillationForce = 0.0f;
+	float PulseForce = 0.0f;
 
-	/** OscillationPeriod を上書きする / Override OscillationPeriod. */
+	/** PulsePeriod を上書きする / Override PulsePeriod. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
-	bool bOverrideOscillationPeriod = false;
+	bool bOverridePulsePeriod = false;
 
-	/** 振動周期（秒） / Oscillation period, in seconds. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
-	float OscillationPeriod = 1.0f;
+	/** パルス周期（秒） / Pulse period, in seconds. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(Units="s"), Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
+	float PulsePeriod = 1.0f;
 
 	/** WaveAmplitude を上書きする / Override WaveAmplitude. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
@@ -106,7 +106,7 @@ struct KAWAIIPHYSICS_API FKawaiiProceduralWindDynamicParams
 	bool bOverrideWavePeriod = false;
 
 	/** 空間波の周期（秒） / Spatial wave period, in seconds. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(Units="s"), Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float WavePeriod = 1.0f;
 
 	/** WavePhase を上書きする / Override WavePhase. */
@@ -125,37 +125,37 @@ struct KAWAIIPHYSICS_API FKawaiiProceduralWindDynamicParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float WaveSpatialOffset = 0.0f;
 
-	/** EnvelopeMax を上書きする / Override EnvelopeMax. */
+	/** BreathingMax を上書きする / Override BreathingMax. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
-	bool bOverrideEnvelopeMax = false;
+	bool bOverrideBreathingMax = false;
 
-	/** エンベロープ最大値 / Maximum envelope value. */
+	/** 呼吸最大倍率 / Maximum breathing multiplier. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
-	float EnvelopeMax = 1.0f;
+	float BreathingMax = 1.0f;
 
-	/** EnvelopeMin を上書きする / Override EnvelopeMin. */
+	/** BreathingMin を上書きする / Override BreathingMin. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
-	bool bOverrideEnvelopeMin = false;
+	bool bOverrideBreathingMin = false;
 
-	/** エンベロープ最小値 / Minimum envelope value. */
+	/** 呼吸最小倍率 / Minimum breathing multiplier. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
-	float EnvelopeMin = 1.0f;
+	float BreathingMin = 1.0f;
 
-	/** EnvelopeFrequency を上書きする / Override EnvelopeFrequency. */
+	/** BreathingPeriod を上書きする / Override BreathingPeriod. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
-	bool bOverrideEnvelopeFrequency = false;
+	bool bOverrideBreathingPeriod = false;
 
-	/** エンベロープ周波数（Hz） / Envelope frequency, in Hz. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
-	float EnvelopeFrequency = 0.1f;
+	/** 呼吸周期（秒） / Breathing period, in seconds. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(Units="s"), Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
+	float BreathingPeriod = 10.0f;
 
-	/** EnvelopePhase を上書きする / Override EnvelopePhase. */
+	/** BreathingPhase を上書きする / Override BreathingPhase. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
-	bool bOverrideEnvelopePhase = false;
+	bool bOverrideBreathingPhase = false;
 
-	/** エンベロープ位相 / Envelope phase. */
+	/** 呼吸位相 / Breathing phase. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
-	float EnvelopePhase = 0.0f;
+	float BreathingPhase = 0.0f;
 
 	/** RandomForce を上書きする / Override RandomForce. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
@@ -170,7 +170,7 @@ struct KAWAIIPHYSICS_API FKawaiiProceduralWindDynamicParams
 	bool bOverrideRandomPeriod = false;
 
 	/** ランダム風力の周期（秒） / Random wind period, in seconds. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(Units="s"), Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float RandomPeriod = 0.5f;
 
 	/** DirectionNoiseAngle を上書きする / Override DirectionNoiseAngle. */
@@ -186,7 +186,7 @@ struct KAWAIIPHYSICS_API FKawaiiProceduralWindDynamicParams
 	bool bOverrideDirectionNoisePeriod = false;
 
 	/** 方向揺らぎの周期（秒） / Period for directional noise, in seconds. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(Units="s"), Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float DirectionNoisePeriod = 1.0f;
 
 	/** TimeScale を上書きする / Override TimeScale. */
@@ -208,7 +208,7 @@ struct FKawaiiProceduralWindRuntimeState
 	FKawaiiProceduralWindActiveGust ActiveGust;
 
 	float CachedSinesWithoutWave = 0.0f;
-	float CachedEnvelope = 1.0f;
+	float CachedBreathing = 1.0f;
 	float CachedRandom = 0.0f;
 	float CachedGust = 0.0f;
 	FVector CachedWindVector = FVector::ZeroVector;
@@ -225,9 +225,9 @@ struct FKawaiiProceduralWindRuntimeState
 ///
 /**
 * パラメトリック合成風。UE の WindDirectionalSource に依存しない。
-* 合成式: Total = (SteadyForce + Oscillation + Wave) × Envelope + Random + Gust（Gust は TriggerProceduralWindGust API から発生）
+* 合成式: Total = (SteadyForce + Pulse + Wave) × Breathing + Random + Gust（Gust は TriggerProceduralWindGust API から発生）
 * Parametric synthesized wind. This does not depend on UE WindDirectionalSource.
-* Composition: Total = (SteadyForce + Oscillation + Wave) x Envelope + Random + Gust (Gust is triggered via the TriggerProceduralWindGust API).
+* Composition: Total = (SteadyForce + Pulse + Wave) x Breathing + Random + Gust (Gust is triggered via the TriggerProceduralWindGust API).
 */
 USTRUCT(BlueprintType, DisplayName = "Procedural Wind")
 struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FKawaiiPhysics_ExternalForce
@@ -260,7 +260,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	* Period of the direction wander, in seconds.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=5, ClampMin=0.01, UIMin=0.01,
-		PinHiddenByDefault), Category="Kawaii Physics|ExternalForce|Procedural Wind")
+		PinHiddenByDefault, Units="s"), Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	float DirectionNoisePeriod = 1.0f;
 
 	/**
@@ -290,20 +290,20 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	float SteadyForce = 0.0f;
 
 	/**
-	* サイン波で周期的に強弱する成分の振幅。上げると規則的な揺れが強くなる。Wind Scope の Oscillation 系列に対応
-	* Amplitude of the sine-based oscillation. Higher values strengthen the rhythmic sway. Corresponds to the Oscillation series in Wind Scope.
+	* サイン波で周期的に強弱する成分の振幅。上げると規則的な揺れが強くなる。Wind Scope の Pulse 系列に対応
+	* Amplitude of the sine-based pulse. Higher values strengthen the rhythmic sway. Corresponds to the Pulse series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=7, ClampMin=0, UIMin=0, PinHiddenByDefault),
 		Category="Kawaii Physics|ExternalForce|Procedural Wind")
-	float OscillationForce = 0.0f;
+	float PulseForce = 0.0f;
 
 	/**
-	* 振動の周期（秒）。短いほど速く揺れる。Wind Scope の Oscillation 系列に対応
-	* Oscillation period in seconds. Shorter values sway faster. Corresponds to the Oscillation series in Wind Scope.
+	* パルスの周期（秒）。短いほど速く揺れる。Wind Scope の Pulse 系列に対応
+	* Pulse period in seconds. Shorter values sway faster. Corresponds to the Pulse series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=8, ClampMin=0.01, UIMin=0.01,
-		PinHiddenByDefault), Category="Kawaii Physics|ExternalForce|Procedural Wind")
-	float OscillationPeriod = 1.0f;
+		PinHiddenByDefault, Units="s"), Category="Kawaii Physics|ExternalForce|Procedural Wind")
+	float PulsePeriod = 1.0f;
 
 	/**
 	* ボーン列に沿って伝わる波成分の振幅。WaveSpatialOffset と組で使う。Wind Scope の Wave 系列に対応
@@ -318,7 +318,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	* Wave period in seconds. Corresponds to the Wave series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=10, ClampMin=0.01, UIMin=0.01,
-		PinHiddenByDefault), Category="Kawaii Physics|ExternalForce|Procedural Wind")
+		PinHiddenByDefault, Units="s"), Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	float WavePeriod = 1.0f;
 
 	/**
@@ -338,36 +338,36 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	float WaveSpatialOffset = 0.0f;
 
 	/**
-	* 風全体の強弱のうねり（低周波変調）の上限倍率。Min を下げると凪↔強風の緩急が生まれる。Min=Max=1 で無効。Wind Scope の Envelope 系列に対応
-	* Upper multiplier of the slow global intensity swell. Lower Min creates calm-to-gust dynamics. Disabled when Min=Max=1. Corresponds to the Envelope series in Wind Scope.
+	* 風全体の強弱のうねり（低周波変調）の上限倍率。Min を下げると凪↔強風の緩急が生まれる。Min=Max=1 で無効。Wind Scope の Breathing 系列に対応
+	* Upper multiplier of the slow global intensity swell. Lower Min creates calm-to-gust dynamics. Disabled when Min=Max=1. Corresponds to the Breathing series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=13, ClampMin=0, UIMin=0, PinHiddenByDefault),
 		Category="Kawaii Physics|ExternalForce|Procedural Wind")
-	float EnvelopeMax = 1.0f;
+	float BreathingMax = 1.0f;
 
 	/**
-	* 風全体の強弱のうねり（低周波変調）の下限倍率。Min を下げると凪↔強風の緩急が生まれる。Min=Max=1 で無効。Wind Scope の Envelope 系列に対応
-	* Lower multiplier of the slow global intensity swell. Lower Min creates calm-to-gust dynamics. Disabled when Min=Max=1. Corresponds to the Envelope series in Wind Scope.
+	* 風全体の強弱のうねり（低周波変調）の下限倍率。Min を下げると凪↔強風の緩急が生まれる。Min=Max=1 で無効。Wind Scope の Breathing 系列に対応
+	* Lower multiplier of the slow global intensity swell. Lower Min creates calm-to-gust dynamics. Disabled when Min=Max=1. Corresponds to the Breathing series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=14, ClampMin=0, UIMin=0, PinHiddenByDefault),
 		Category="Kawaii Physics|ExternalForce|Procedural Wind")
-	float EnvelopeMin = 1.0f;
+	float BreathingMin = 1.0f;
 
 	/**
-	* うねりの速さ（Hz）。低いほどゆったり。Wind Scope の Envelope 系列に対応
-	* Swell speed in Hz. Lower is slower. Corresponds to the Envelope series in Wind Scope.
+	* 呼吸（強弱のうねり）の周期（秒）。長いほどゆったり。Wind Scope の Breathing 系列に対応
+	* Breathing (slow intensity swell) period in seconds. Longer is slower. Corresponds to the Breathing series in Wind Scope.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=15, ClampMin=0, UIMin=0, PinHiddenByDefault),
-		Category="Kawaii Physics|ExternalForce|Procedural Wind")
-	float EnvelopeFrequency = 0.1f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=15, ClampMin=0.01, UIMin=0.01,
+		PinHiddenByDefault, Units="s"), Category="Kawaii Physics|ExternalForce|Procedural Wind")
+	float BreathingPeriod = 10.0f;
 
 	/**
-	* エンベロープ（強弱のうねり）の開始位相オフセット。複数キャラや複数外力のうねりタイミングをずらす用途。Wind Scope の Envelope 系列に対応
-	* Start phase offset of the envelope (strength undulation). Use to stagger envelope timing across multiple characters or external forces. Corresponds to the Envelope series in Wind Scope.
+	* 呼吸（強弱のうねり）の開始位相オフセット。複数キャラや複数外力のうねりタイミングをずらす用途。Wind Scope の Breathing 系列に対応
+	* Start phase offset of the breathing modulation. Use to stagger breathing timing across multiple characters or external forces. Corresponds to the Breathing series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=16, Units="Degrees", PinHiddenByDefault),
 		Category="Kawaii Physics|ExternalForce|Procedural Wind")
-	float EnvelopePhase = 0.0f;
+	float BreathingPhase = 0.0f;
 
 	/**
 	* 不規則な揺らぎ成分の強さ。自然なランダム感を足す。Wind Scope の Random 系列に対応
@@ -382,7 +382,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	* How fast the fluctuation changes, in seconds. Shorter values jitter faster. Corresponds to the Random series in Wind Scope.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=18, ClampMin=0.01, UIMin=0.01,
-		PinHiddenByDefault), Category="Kawaii Physics|ExternalForce|Procedural Wind")
+		PinHiddenByDefault, Units="s"), Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	float RandomPeriod = 0.5f;
 
 	/**

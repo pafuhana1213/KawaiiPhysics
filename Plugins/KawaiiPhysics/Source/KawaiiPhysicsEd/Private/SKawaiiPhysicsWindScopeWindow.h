@@ -40,9 +40,9 @@ enum class EKawaiiPhysicsWindScopeComponent : uint8
 {
 	Total,
 	Steady,
-	Oscillation,
+	Pulse,
 	Wave,
-	Envelope,
+	Breathing,
 	Random,
 	Gust,
 };
@@ -52,9 +52,9 @@ struct FKawaiiPhysicsWindScopeSeriesVisibility
 {
 	bool bTotal = true;
 	bool bSteady = true;
-	bool bOscillation = true;
+	bool bPulse = true;
 	bool bWave = true;
-	bool bEnvelope = true;
+	bool bBreathing = true;
 	bool bRandom = true;
 	bool bGust = true;
 
