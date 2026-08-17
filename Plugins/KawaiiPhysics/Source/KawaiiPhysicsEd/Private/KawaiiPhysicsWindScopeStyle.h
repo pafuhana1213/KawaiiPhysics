@@ -22,9 +22,9 @@ inline const TArray<FKawaiiWindScopeComponentStyle>& GetWindScopeComponentStyles
 	{
 		{EKawaiiPhysicsWindScopeComponent::Total, NSLOCTEXT("KawaiiPhysicsWindScopeWindow", "TotalLabel", "Total"), FLinearColor::White, 2.0f, false},
 		{EKawaiiPhysicsWindScopeComponent::Steady, NSLOCTEXT("KawaiiPhysicsWindScopeWindow", "SteadyLabel", "Steady"), FLinearColor(1.0f, 0.48f, 0.08f), 1.0f, false},
-		{EKawaiiPhysicsWindScopeComponent::Oscillation, NSLOCTEXT("KawaiiPhysicsWindScopeWindow", "OscillationLabel", "Oscillation"), FLinearColor(1.0f, 0.86f, 0.05f), 1.0f, false},
+		{EKawaiiPhysicsWindScopeComponent::Pulse, NSLOCTEXT("KawaiiPhysicsWindScopeWindow", "PulseLabel", "Pulse"), FLinearColor(1.0f, 0.86f, 0.05f), 1.0f, false},
 		{EKawaiiPhysicsWindScopeComponent::Wave, NSLOCTEXT("KawaiiPhysicsWindScopeWindow", "WaveLabel", "Wave"), FLinearColor(0.0f, 0.85f, 1.0f), 1.0f, false},
-		{EKawaiiPhysicsWindScopeComponent::Envelope, NSLOCTEXT("KawaiiPhysicsWindScopeWindow", "EnvelopeLabel", "Envelope"), FLinearColor(0.2f, 0.42f, 1.0f), 1.0f, true},
+		{EKawaiiPhysicsWindScopeComponent::Breathing, NSLOCTEXT("KawaiiPhysicsWindScopeWindow", "BreathingLabel", "Breathing"), FLinearColor(0.2f, 0.42f, 1.0f), 1.0f, true},
 		{EKawaiiPhysicsWindScopeComponent::Random, NSLOCTEXT("KawaiiPhysicsWindScopeWindow", "RandomLabel", "Random"), FLinearColor(1.0f, 0.25f, 0.78f), 1.0f, false},
 		{EKawaiiPhysicsWindScopeComponent::Gust, NSLOCTEXT("KawaiiPhysicsWindScopeWindow", "GustLabel", "Gust"), FLinearColor(1.0f, 0.12f, 0.08f), 1.0f, false},
 	};

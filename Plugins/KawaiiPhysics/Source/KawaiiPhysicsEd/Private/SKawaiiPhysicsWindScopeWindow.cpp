@@ -132,12 +132,12 @@ namespace
 			return Sample.Total;
 		case EKawaiiPhysicsWindScopeComponent::Steady:
 			return Sample.Steady;
-		case EKawaiiPhysicsWindScopeComponent::Oscillation:
-			return Sample.Oscillation;
+		case EKawaiiPhysicsWindScopeComponent::Pulse:
+			return Sample.Pulse;
 		case EKawaiiPhysicsWindScopeComponent::Wave:
 			return Sample.Wave;
-		case EKawaiiPhysicsWindScopeComponent::Envelope:
-			return Sample.Envelope;
+		case EKawaiiPhysicsWindScopeComponent::Breathing:
+			return Sample.Breathing;
 		case EKawaiiPhysicsWindScopeComponent::Random:
 			return Sample.Random;
 		case EKawaiiPhysicsWindScopeComponent::Gust:
@@ -371,13 +371,13 @@ namespace
 	{
 		FKawaiiProceduralWindPreset Preset;
 		Preset.SteadyForce = Wind.SteadyForce;
-		Preset.OscillationForce = Wind.OscillationForce;
-		Preset.OscillationPeriod = Wind.OscillationPeriod;
+		Preset.PulseForce = Wind.PulseForce;
+		Preset.PulsePeriod = Wind.PulsePeriod;
 		Preset.WaveAmplitude = Wind.WaveAmplitude;
 		Preset.WavePeriod = Wind.WavePeriod;
 		Preset.WaveSpatialOffset = Wind.WaveSpatialOffset;
-		Preset.EnvelopeMin = Wind.EnvelopeMin;
-		Preset.EnvelopeMax = Wind.EnvelopeMax;
+		Preset.BreathingMin = Wind.BreathingMin;
+		Preset.BreathingMax = Wind.BreathingMax;
 		Preset.EnvelopeFrequency = Wind.EnvelopeFrequency;
 		Preset.RandomForce = Wind.RandomForce;
 		Preset.RandomPeriod = Wind.RandomPeriod;
@@ -385,11 +385,11 @@ namespace
 		return Preset;
 	}
 
-	// サンプルが無い時の初期表示値。Envelope=1にして Total=0（無風）を表すサンプルにする
+	// サンプルが無い時の初期表示値。Breathing=1にして Total=0（無風）を表すサンプルにする
 	FKawaiiPhysicsProceduralWindSample MakeZeroWindSample()
 	{
 		FKawaiiPhysicsProceduralWindSample Sample;
-		Sample.Envelope = 1.0f;
+		Sample.Breathing = 1.0f;
 		return Sample;
 	}
 
@@ -728,12 +728,12 @@ bool FKawaiiPhysicsWindScopeSeriesVisibility::IsVisible(EKawaiiPhysicsWindScopeC
 		return bTotal;
 	case EKawaiiPhysicsWindScopeComponent::Steady:
 		return bSteady;
-	case EKawaiiPhysicsWindScopeComponent::Oscillation:
-		return bOscillation;
+	case EKawaiiPhysicsWindScopeComponent::Pulse:
+		return bPulse;
 	case EKawaiiPhysicsWindScopeComponent::Wave:
 		return bWave;
-	case EKawaiiPhysicsWindScopeComponent::Envelope:
-		return bEnvelope;
+	case EKawaiiPhysicsWindScopeComponent::Breathing:
+		return bBreathing;
 	case EKawaiiPhysicsWindScopeComponent::Random:
 		return bRandom;
 	case EKawaiiPhysicsWindScopeComponent::Gust:
@@ -755,14 +755,14 @@ void FKawaiiPhysicsWindScopeSeriesVisibility::SetVisible(
 	case EKawaiiPhysicsWindScopeComponent::Steady:
 		bSteady = bVisible;
 		break;
-	case EKawaiiPhysicsWindScopeComponent::Oscillation:
-		bOscillation = bVisible;
+	case EKawaiiPhysicsWindScopeComponent::Pulse:
+		bPulse = bVisible;
 		break;
 	case EKawaiiPhysicsWindScopeComponent::Wave:
 		bWave = bVisible;
 		break;
-	case EKawaiiPhysicsWindScopeComponent::Envelope:
-		bEnvelope = bVisible;
+	case EKawaiiPhysicsWindScopeComponent::Breathing:
+		bBreathing = bVisible;
 		break;
 	case EKawaiiPhysicsWindScopeComponent::Random:
 		bRandom = bVisible;
@@ -923,7 +923,7 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 			1.0f);
 	}
 
-	// 各波形成分のポリラインを描画（Envelope等 bDashed 指定の系列は破線）
+	// 各波形成分のポリラインを描画（Breathing等 bDashed 指定の系列は破線）
 	for (const FKawaiiWindScopeComponentStyle& Style : GetWindScopeComponentStyles())
 	{
 		if (!Visibility.IsVisible(Style.Component))
@@ -1104,16 +1104,16 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 			DrawVerticalGuideLine(Range.MinTime + PhaseTime, GuideLineColor);
 		};
 
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, EnvelopeMax) ||
-			PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, EnvelopeMin))
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingMax) ||
+			PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingMin))
 		{
-			float EnvelopeMax = 0.0f;
-			float EnvelopeMin = 0.0f;
-			if (GetFloatEditValue(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, EnvelopeMax), EnvelopeMax) &&
-				GetFloatEditValue(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, EnvelopeMin), EnvelopeMin))
+			float BreathingMax = 0.0f;
+			float BreathingMin = 0.0f;
+			if (GetFloatEditValue(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingMax), BreathingMax) &&
+				GetFloatEditValue(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingMin), BreathingMin))
 			{
-				const float MaxY = ValueToY(EnvelopeMax);
-				const float MinY = ValueToY(EnvelopeMin);
+				const float MaxY = ValueToY(BreathingMax);
+				const float MinY = ValueToY(BreathingMin);
 				const float BandTop = FMath::Clamp(FMath::Min(MaxY, MinY), GraphOrigin.Y, GraphBottom);
 				const float BandBottom = FMath::Clamp(FMath::Max(MaxY, MinY), GraphOrigin.Y, GraphBottom);
 				if (BandBottom > BandTop)
@@ -1128,8 +1128,8 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 						ESlateDrawEffect::None,
 						GuideBandColor);
 				}
-				DrawHorizontalGuideLine(EnvelopeMax, GuideLineColor);
-				DrawHorizontalGuideLine(EnvelopeMin, GuideLineColor);
+				DrawHorizontalGuideLine(BreathingMax, GuideLineColor);
+				DrawHorizontalGuideLine(BreathingMin, GuideLineColor);
 			}
 		}
 		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, SteadyForce))
@@ -1140,7 +1140,7 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 				DrawHorizontalGuideLine(SteadyForce, GuideLineColor);
 			}
 		}
-		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, OscillationPeriod) ||
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, PulsePeriod) ||
 			PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WavePeriod) ||
 			PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomPeriod) ||
 			PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, DirectionNoisePeriod))
@@ -1169,7 +1169,7 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 				DrawPhaseGuideLine(Phase, Period);
 			}
 		}
-		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, EnvelopePhase))
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingPhase))
 		{
 			float Phase = 0.0f;
 			float Frequency = 0.0f;
@@ -1916,12 +1916,12 @@ FText SKawaiiPhysicsWindScopeWindow::GetCurrentValuesText() const
 	const FKawaiiPhysicsProceduralWindSample Sample =
 		DisplaySamples.Num() > 0 ? DisplaySamples.Last().Sample : MakeZeroWindSample();
 	return FText::Format(
-		LOCTEXT("CurrentValuesFormat", "Total {0}  Steady {1}  Osc {2}  Wave {3}  Env {4}  Rand {5}  Gust {6}"),
+		LOCTEXT("CurrentValuesFormat", "Total {0}  Steady {1}  Pulse {2}  Wave {3}  Breath {4}  Rand {5}  Gust {6}"),
 		FormatFloat2(Sample.Total),
 		FormatFloat2(Sample.Steady),
-		FormatFloat2(Sample.Oscillation),
+		FormatFloat2(Sample.Pulse),
 		FormatFloat2(Sample.Wave),
-		FormatFloat2(Sample.Envelope),
+		FormatFloat2(Sample.Breathing),
 		FormatFloat2(Sample.Random),
 		FormatFloat2(Sample.Gust));
 }

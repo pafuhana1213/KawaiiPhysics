@@ -34,15 +34,15 @@ struct KAWAIIPHYSICS_API FKawaiiProceduralWindPreset
 		Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	float SteadyForce = 2.0f;
 
-	/** サイン波で周期的に強弱する成分の振幅 / Amplitude of the sine-based oscillation. */
+	/** サイン波で周期的に強弱する成分の振幅 / Amplitude of the sine-based pulse. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=7, ClampMin=0, UIMin=0, PinHiddenByDefault),
 		Category="Kawaii Physics|ExternalForce|Procedural Wind")
-	float OscillationForce = 1.0f;
+	float PulseForce = 1.0f;
 
-	/** 振動の周期（秒） / Oscillation period in seconds. */
+	/** パルスの周期（秒） / Pulse period in seconds. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=8, ClampMin=0.01, UIMin=0.01,
 		PinHiddenByDefault), Category="Kawaii Physics|ExternalForce|Procedural Wind")
-	float OscillationPeriod = 2.0f;
+	float PulsePeriod = 2.0f;
 
 	/** ボーン列に沿って伝わる波成分の振幅 / Amplitude of the traveling wave along the bone chain. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=9, ClampMin=0, UIMin=0, PinHiddenByDefault),
@@ -62,12 +62,12 @@ struct KAWAIIPHYSICS_API FKawaiiProceduralWindPreset
 	/** 風全体の強弱のうねりの下限倍率 / Lower multiplier of the slow global intensity swell. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=14, ClampMin=0, UIMin=0, PinHiddenByDefault),
 		Category="Kawaii Physics|ExternalForce|Procedural Wind")
-	float EnvelopeMin = 0.6f;
+	float BreathingMin = 0.6f;
 
 	/** 風全体の強弱のうねりの上限倍率 / Upper multiplier of the slow global intensity swell. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=13, ClampMin=0, UIMin=0, PinHiddenByDefault),
 		Category="Kawaii Physics|ExternalForce|Procedural Wind")
-	float EnvelopeMax = 1.0f;
+	float BreathingMax = 1.0f;
 
 	/** うねりの速さ（Hz） / Swell speed in Hz. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=15, ClampMin=0, UIMin=0, PinHiddenByDefault),

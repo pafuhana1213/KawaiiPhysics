@@ -16,20 +16,20 @@ FKawaiiProceduralWindDynamicParams FKawaiiProceduralWindPreset::ToDynamicParams(
 
 	Params.bOverrideSteadyForce = true;
 	Params.SteadyForce = SteadyForce;
-	Params.bOverrideOscillationForce = true;
-	Params.OscillationForce = OscillationForce;
-	Params.bOverrideOscillationPeriod = true;
-	Params.OscillationPeriod = OscillationPeriod;
+	Params.bOverridePulseForce = true;
+	Params.PulseForce = PulseForce;
+	Params.bOverridePulsePeriod = true;
+	Params.PulsePeriod = PulsePeriod;
 	Params.bOverrideWaveAmplitude = true;
 	Params.WaveAmplitude = WaveAmplitude;
 	Params.bOverrideWavePeriod = true;
 	Params.WavePeriod = WavePeriod;
 	Params.bOverrideWaveSpatialOffset = true;
 	Params.WaveSpatialOffset = WaveSpatialOffset;
-	Params.bOverrideEnvelopeMin = true;
-	Params.EnvelopeMin = EnvelopeMin;
-	Params.bOverrideEnvelopeMax = true;
-	Params.EnvelopeMax = EnvelopeMax;
+	Params.bOverrideBreathingMin = true;
+	Params.BreathingMin = BreathingMin;
+	Params.bOverrideBreathingMax = true;
+	Params.BreathingMax = BreathingMax;
 	Params.bOverrideEnvelopeFrequency = true;
 	Params.EnvelopeFrequency = EnvelopeFrequency;
 	Params.bOverrideRandomForce = true;
@@ -104,13 +104,13 @@ namespace
 		const FGameplayTag& PresetTag,
 		const FText& PresetName,
 		float SteadyForce,
-		float OscillationForce,
-		float OscillationPeriod,
+		float PulseForce,
+		float PulsePeriod,
 		float WaveAmplitude,
 		float WavePeriod,
 		float WaveSpatialOffset,
-		float EnvelopeMin,
-		float EnvelopeMax,
+		float BreathingMin,
+		float BreathingMax,
 		float EnvelopeFrequency,
 		float RandomForce,
 		float RandomPeriod,
@@ -120,13 +120,13 @@ namespace
 		Preset.PresetTag = PresetTag;
 		Preset.PresetName = PresetName;
 		Preset.SteadyForce = SteadyForce;
-		Preset.OscillationForce = OscillationForce;
-		Preset.OscillationPeriod = OscillationPeriod;
+		Preset.PulseForce = PulseForce;
+		Preset.PulsePeriod = PulsePeriod;
 		Preset.WaveAmplitude = WaveAmplitude;
 		Preset.WavePeriod = WavePeriod;
 		Preset.WaveSpatialOffset = WaveSpatialOffset;
-		Preset.EnvelopeMin = EnvelopeMin;
-		Preset.EnvelopeMax = EnvelopeMax;
+		Preset.BreathingMin = BreathingMin;
+		Preset.BreathingMax = BreathingMax;
 		Preset.EnvelopeFrequency = EnvelopeFrequency;
 		Preset.RandomForce = RandomForce;
 		Preset.RandomPeriod = RandomPeriod;

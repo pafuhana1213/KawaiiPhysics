@@ -552,11 +552,11 @@ public:
 
 	/**
 	 * DataAsset のプリセットから ProceduralWind の動的パラメータ更新をリクエストする。プリセットの調整可能な12項目のみ上書きし、
-	 * TimeScale, WindDirection, WavePhase, EnvelopePhase, DirectionNoisePeriod は維持する。PendingRequest 経由でスレッドセーフ。次フレームの PreApply で反映。
+	 * TimeScale, WindDirection, WavePhase, BreathingPhase, DirectionNoisePeriod は維持する。PendingRequest 経由でスレッドセーフ。次フレームの PreApply で反映。
 	 * PresetDataAsset が null または Presets 配列が空の場合は、組み込み既定プリセット3件（KawaiiPhysics.WindPreset.Breeze / Strong / Storm）からタグ照合する。
 	 * 呼び出し側で DataAsset を事前ロードし、シミュレーション中に編集または再ロードしないこと。
 	 * Request a ProceduralWind dynamic parameter update from a DataAsset preset. Only the preset's 12 tunable fields are overwritten;
-	 * TimeScale, WindDirection, WavePhase, EnvelopePhase, and DirectionNoisePeriod are left untouched. Thread-safe via PendingRequest. Applied in the next frame's PreApply.
+	 * TimeScale, WindDirection, WavePhase, BreathingPhase, and DirectionNoisePeriod are left untouched. Thread-safe via PendingRequest. Applied in the next frame's PreApply.
 	 * When PresetDataAsset is null or its Presets array is empty, the tag is matched against the 3 built-in default presets (KawaiiPhysics.WindPreset.Breeze / Strong / Storm).
 	 * The DataAsset must be pre-loaded by the caller and must not be edited or reloaded while simulation is running.
 	 * @param ExecResult 対象 ProceduralWind へのアクセス結果 / Result of accessing the target ProceduralWind.
@@ -576,11 +576,11 @@ public:
 
 	/**
 	 * DataAsset のプリセットから Component 内の ProceduralWind へ動的パラメータ更新を一括リクエストする。プリセットの調整可能な12項目のみ上書きし、
-	 * TimeScale, WindDirection, WavePhase, EnvelopePhase, DirectionNoisePeriod は維持する。PendingRequest 経由でスレッドセーフ。次フレームの PreApply で反映。
+	 * TimeScale, WindDirection, WavePhase, BreathingPhase, DirectionNoisePeriod は維持する。PendingRequest 経由でスレッドセーフ。次フレームの PreApply で反映。
 	 * PresetDataAsset が null または Presets 配列が空の場合は、組み込み既定プリセット3件（KawaiiPhysics.WindPreset.Breeze / Strong / Storm）からタグ照合する。
 	 * 呼び出し側で DataAsset を事前ロードし、シミュレーション中に編集または再ロードしないこと。
 	 * Request dynamic parameter updates for ProceduralWind entries in a component from a DataAsset preset. Only the preset's 12 tunable fields are overwritten;
-	 * TimeScale, WindDirection, WavePhase, EnvelopePhase, and DirectionNoisePeriod are left untouched. Thread-safe via PendingRequest. Applied in the next frame's PreApply.
+	 * TimeScale, WindDirection, WavePhase, BreathingPhase, and DirectionNoisePeriod are left untouched. Thread-safe via PendingRequest. Applied in the next frame's PreApply.
 	 * When PresetDataAsset is null or its Presets array is empty, the tag is matched against the 3 built-in default presets (KawaiiPhysics.WindPreset.Breeze / Strong / Storm).
 	 * The DataAsset must be pre-loaded by the caller and must not be edited or reloaded while simulation is running.
 	 * @param MeshComp 対象の SkeletalMeshComponent / Target SkeletalMeshComponent.
