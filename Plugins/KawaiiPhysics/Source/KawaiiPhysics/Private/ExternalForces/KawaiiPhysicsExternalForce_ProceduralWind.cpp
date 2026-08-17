@@ -193,10 +193,10 @@ void MergePendingDynamicParams(FKawaiiProceduralWindDynamicParams& PendingParams
 		PendingParams.bOverrideBreathingMin = true;
 		PendingParams.BreathingMin = IncomingParams.BreathingMin;
 	}
-	if (IncomingParams.bOverrideEnvelopeFrequency)
+	if (IncomingParams.bOverrideBreathingPeriod)
 	{
-		PendingParams.bOverrideEnvelopeFrequency = true;
-		PendingParams.EnvelopeFrequency = IncomingParams.EnvelopeFrequency;
+		PendingParams.bOverrideBreathingPeriod = true;
+		PendingParams.BreathingPeriod = IncomingParams.BreathingPeriod;
 	}
 	if (IncomingParams.bOverrideBreathingPhase)
 	{
@@ -270,7 +270,7 @@ FKawaiiPhysics_ExternalForce_ProceduralWind& FKawaiiPhysics_ExternalForce_Proced
 	WaveSpatialOffset = Other.WaveSpatialOffset;
 	BreathingMax = Other.BreathingMax;
 	BreathingMin = Other.BreathingMin;
-	EnvelopeFrequency = Other.EnvelopeFrequency;
+	BreathingPeriod = Other.BreathingPeriod;
 	BreathingPhase = Other.BreathingPhase;
 	RandomForce = Other.RandomForce;
 	RandomPeriod = Other.RandomPeriod;
@@ -354,9 +354,9 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::ApplyDynamicParams(
 	{
 		BreathingMin = FMath::Max(Params.BreathingMin, 0.0f);
 	}
-	if (Params.bOverrideEnvelopeFrequency)
+	if (Params.bOverrideBreathingPeriod)
 	{
-		EnvelopeFrequency = FMath::Max(Params.EnvelopeFrequency, 0.0f);
+		BreathingPeriod = FMath::Max(Params.BreathingPeriod, 0.01f);
 	}
 	if (Params.bOverrideBreathingPhase)
 	{
@@ -456,10 +456,10 @@ bool FKawaiiPhysics_ExternalForce_ProceduralWind::BuildDynamicParamsForProperty(
 		OutParams.BreathingMin = BreathingMin;
 		return true;
 	}
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, EnvelopeFrequency))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingPeriod))
 	{
-		OutParams.bOverrideEnvelopeFrequency = true;
-		OutParams.EnvelopeFrequency = EnvelopeFrequency;
+		OutParams.bOverrideBreathingPeriod = true;
+		OutParams.BreathingPeriod = BreathingPeriod;
 		return true;
 	}
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingPhase))
@@ -528,8 +528,8 @@ FKawaiiProceduralWindDynamicParams FKawaiiPhysics_ExternalForce_ProceduralWind::
 	Params.BreathingMax = BreathingMax;
 	Params.bOverrideBreathingMin = true;
 	Params.BreathingMin = BreathingMin;
-	Params.bOverrideEnvelopeFrequency = true;
-	Params.EnvelopeFrequency = EnvelopeFrequency;
+	Params.bOverrideBreathingPeriod = true;
+	Params.BreathingPeriod = BreathingPeriod;
 	Params.bOverrideBreathingPhase = true;
 	Params.BreathingPhase = BreathingPhase;
 	Params.bOverrideRandomForce = true;
@@ -617,6 +617,7 @@ FKawaiiPhysicsProceduralWindSample FKawaiiPhysics_ExternalForce_ProceduralWind::
 	const float SafePulsePeriod = FMath::Max(PulsePeriod, 0.01f);
 	const float SafeWavePeriod = FMath::Max(WavePeriod, 0.01f);
 	const float SafeRandomPeriod = FMath::Max(RandomPeriod, 0.01f);
+	const float SafeBreathingPeriod = FMath::Max(BreathingPeriod, 0.01f);
 
 	// 定常成分
 	Sample.Steady = SteadyForce;
@@ -628,7 +629,7 @@ FKawaiiPhysicsProceduralWindSample FKawaiiPhysics_ExternalForce_ProceduralWind::
 		FMath::DegreesToRadians(InLengthRate * WaveSpatialOffset) + FMath::DegreesToRadians(WavePhase));
 	// 低周波の呼吸変調。sin を [0,1] に正規化してから BreathingMin-Max 間を補間する
 	Sample.Breathing = FMath::Lerp(BreathingMin, BreathingMax,
-		0.5f * (1.0f + FMath::Sin(TwoPi * EnvelopeFrequency * InTime + FMath::DegreesToRadians(BreathingPhase))));
+		0.5f * (1.0f + FMath::Sin(TwoPi * InTime / SafeBreathingPeriod + FMath::DegreesToRadians(BreathingPhase))));
 	// seeded smooth noise によるランダム成分。同一 RandomSeed なら実行のたびに同じ揺らぎを再現する
 	Sample.Random = RandomForce * SampleSmoothNoise(InTime / SafeRandomPeriod, RandomSeed, 0);
 

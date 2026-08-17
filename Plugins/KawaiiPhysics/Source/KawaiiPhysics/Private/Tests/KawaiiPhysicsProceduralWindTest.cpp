@@ -50,7 +50,7 @@ int32 CountDynamicParamOverrideFlags(const FKawaiiProceduralWindDynamicParams& P
 		(Params.bOverrideWaveSpatialOffset ? 1 : 0) +
 		(Params.bOverrideBreathingMax ? 1 : 0) +
 		(Params.bOverrideBreathingMin ? 1 : 0) +
-		(Params.bOverrideEnvelopeFrequency ? 1 : 0) +
+		(Params.bOverrideBreathingPeriod ? 1 : 0) +
 		(Params.bOverrideBreathingPhase ? 1 : 0) +
 		(Params.bOverrideRandomForce ? 1 : 0) +
 		(Params.bOverrideRandomPeriod ? 1 : 0) +
@@ -276,7 +276,7 @@ bool FKawaiiPhysicsProceduralWindBreathingBoundsTest::RunTest(const FString& Par
 	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
 	Wind.BreathingMin = 0.2f;
 	Wind.BreathingMax = 1.5f;
-	Wind.EnvelopeFrequency = 0.73f;
+	Wind.BreathingPeriod = 1.37f;
 	Wind.BreathingPhase = 17.0f;
 
 	// 1000点サンプリングし、Breathingが常に[BreathingMin, BreathingMax]の範囲内に収まることを確認

@@ -378,7 +378,7 @@ namespace
 		Preset.WaveSpatialOffset = Wind.WaveSpatialOffset;
 		Preset.BreathingMin = Wind.BreathingMin;
 		Preset.BreathingMax = Wind.BreathingMax;
-		Preset.EnvelopeFrequency = Wind.EnvelopeFrequency;
+		Preset.BreathingPeriod = Wind.BreathingPeriod;
 		Preset.RandomForce = Wind.RandomForce;
 		Preset.RandomPeriod = Wind.RandomPeriod;
 		Preset.DirectionNoiseAngle = Wind.DirectionNoiseAngle;
@@ -1143,20 +1143,13 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, PulsePeriod) ||
 			PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WavePeriod) ||
 			PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomPeriod) ||
-			PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, DirectionNoisePeriod))
+			PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, DirectionNoisePeriod) ||
+			PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingPeriod))
 		{
 			float Period = 0.0f;
 			if (GetFloatEditValue(PropertyName, Period))
 			{
 				DrawPeriodGuideLines(Period);
-			}
-		}
-		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, EnvelopeFrequency))
-		{
-			float Frequency = 0.0f;
-			if (GetFloatEditValue(PropertyName, Frequency))
-			{
-				DrawPeriodGuideLines(1.0f / FMath::Max(Frequency, KINDA_SMALL_NUMBER));
 			}
 		}
 		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WavePhase))
@@ -1172,11 +1165,11 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingPhase))
 		{
 			float Phase = 0.0f;
-			float Frequency = 0.0f;
+			float Period = 0.0f;
 			if (GetFloatEditValue(PropertyName, Phase) &&
-				GetFloatEditValue(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, EnvelopeFrequency), Frequency))
+				GetFloatEditValue(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingPeriod), Period))
 			{
-				DrawPhaseGuideLine(Phase, 1.0f / FMath::Max(Frequency, KINDA_SMALL_NUMBER));
+				DrawPhaseGuideLine(Phase, Period);
 			}
 		}
 	}

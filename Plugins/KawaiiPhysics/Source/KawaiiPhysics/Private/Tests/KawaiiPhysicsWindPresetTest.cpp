@@ -84,11 +84,11 @@ const FWindPresetParamMapping GWindPresetParamMappings[] = {
 		&FKawaiiPhysics_ExternalForce_ProceduralWind::BreathingMax
 	},
 	{
-		TEXT("EnvelopeFrequency"),
-		&FKawaiiProceduralWindDynamicParams::bOverrideEnvelopeFrequency,
-		&FKawaiiProceduralWindDynamicParams::EnvelopeFrequency,
-		&FKawaiiProceduralWindPreset::EnvelopeFrequency,
-		&FKawaiiPhysics_ExternalForce_ProceduralWind::EnvelopeFrequency
+		TEXT("BreathingPeriod"),
+		&FKawaiiProceduralWindDynamicParams::bOverrideBreathingPeriod,
+		&FKawaiiProceduralWindDynamicParams::BreathingPeriod,
+		&FKawaiiProceduralWindPreset::BreathingPeriod,
+		&FKawaiiPhysics_ExternalForce_ProceduralWind::BreathingPeriod
 	},
 	{
 		TEXT("RandomForce"),
@@ -130,7 +130,7 @@ FKawaiiProceduralWindPreset MakeExpectedPreset(
 	const float WaveSpatialOffset,
 	const float BreathingMin,
 	const float BreathingMax,
-	const float EnvelopeFrequency,
+	const float BreathingPeriod,
 	const float RandomForce,
 	const float RandomPeriod,
 	const float DirectionNoiseAngle)
@@ -145,7 +145,7 @@ FKawaiiProceduralWindPreset MakeExpectedPreset(
 	Preset.WaveSpatialOffset = WaveSpatialOffset;
 	Preset.BreathingMin = BreathingMin;
 	Preset.BreathingMax = BreathingMax;
-	Preset.EnvelopeFrequency = EnvelopeFrequency;
+	Preset.BreathingPeriod = BreathingPeriod;
 	Preset.RandomForce = RandomForce;
 	Preset.RandomPeriod = RandomPeriod;
 	Preset.DirectionNoiseAngle = DirectionNoiseAngle;
@@ -217,7 +217,7 @@ bool FKawaiiPhysicsWindPresetToDynamicParamsTest::RunTest(const FString& Paramet
 	Preset.WaveSpatialOffset = 135.0f;
 	Preset.BreathingMin = 0.35f;
 	Preset.BreathingMax = 1.45f;
-	Preset.EnvelopeFrequency = 0.12f;
+	Preset.BreathingPeriod = 8.33f;
 	Preset.RandomForce = 1.25f;
 	Preset.RandomPeriod = 0.42f;
 	Preset.DirectionNoiseAngle = 12.5f;
@@ -252,13 +252,13 @@ bool FKawaiiPhysicsWindPresetDefaultsTest::RunTest(const FString& Parameters)
 
 	const FKawaiiProceduralWindPreset ExpectedBreeze = MakeExpectedPreset(
 		TAG_KawaiiPhysics_WindPreset_Breeze,
-		2.0f, 1.0f, 2.0f, 1.0f, 1.5f, 90.0f, 0.6f, 1.0f, 0.05f, 0.5f, 0.8f, 5.0f);
+		2.0f, 1.0f, 2.0f, 1.0f, 1.5f, 90.0f, 0.6f, 1.0f, 20.0f, 0.5f, 0.8f, 5.0f);
 	const FKawaiiProceduralWindPreset ExpectedStrong = MakeExpectedPreset(
 		TAG_KawaiiPhysics_WindPreset_Strong,
-		8.0f, 4.0f, 0.8f, 3.0f, 0.6f, 120.0f, 0.7f, 1.3f, 0.08f, 2.0f, 0.5f, 10.0f);
+		8.0f, 4.0f, 0.8f, 3.0f, 0.6f, 120.0f, 0.7f, 1.3f, 12.0f, 2.0f, 0.5f, 10.0f);
 	const FKawaiiProceduralWindPreset ExpectedStorm = MakeExpectedPreset(
 		TAG_KawaiiPhysics_WindPreset_Storm,
-		15.0f, 10.0f, 0.4f, 8.0f, 0.35f, 180.0f, 0.5f, 1.6f, 0.15f, 6.0f, 0.3f, 20.0f);
+		15.0f, 10.0f, 0.4f, 8.0f, 0.35f, 180.0f, 0.5f, 1.6f, 7.0f, 6.0f, 0.3f, 20.0f);
 
 	bOk &= TestPresetValues(*this, TEXT("Breeze"), Defaults[0], ExpectedBreeze);
 	bOk &= TestPresetValues(*this, TEXT("Strong"), Defaults[1], ExpectedStrong);

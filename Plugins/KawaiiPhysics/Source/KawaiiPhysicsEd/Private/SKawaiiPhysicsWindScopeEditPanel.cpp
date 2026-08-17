@@ -239,7 +239,7 @@ const TArray<FKawaiiWindScopeParamGroup>& GetWindScopeParamGroups()
 			{
 				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingMax), 0.0f, 3.0f, true},
 				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingMin), 0.0f, 3.0f, true},
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, EnvelopeFrequency), 0.0f, 2.0f, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingPeriod), 0.01f, 60.0f, true},
 				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingPhase), -360.0f, 360.0f, true},
 			}
 		},

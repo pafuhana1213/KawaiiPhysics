@@ -41,7 +41,7 @@ struct KAWAIIPHYSICS_API FKawaiiProceduralWindPreset
 
 	/** パルスの周期（秒） / Pulse period in seconds. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=8, ClampMin=0.01, UIMin=0.01,
-		PinHiddenByDefault), Category="Kawaii Physics|ExternalForce|Procedural Wind")
+		PinHiddenByDefault, Units="s"), Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	float PulsePeriod = 2.0f;
 
 	/** ボーン列に沿って伝わる波成分の振幅 / Amplitude of the traveling wave along the bone chain. */
@@ -51,7 +51,7 @@ struct KAWAIIPHYSICS_API FKawaiiProceduralWindPreset
 
 	/** 波の周期（秒） / Wave period in seconds. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=10, ClampMin=0.01, UIMin=0.01,
-		PinHiddenByDefault), Category="Kawaii Physics|ExternalForce|Procedural Wind")
+		PinHiddenByDefault, Units="s"), Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	float WavePeriod = 1.5f;
 
 	/** 毛先（LengthRate=1）での位相遅れ量 / Phase delay at the tip. */
@@ -69,10 +69,10 @@ struct KAWAIIPHYSICS_API FKawaiiProceduralWindPreset
 		Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	float BreathingMax = 1.0f;
 
-	/** うねりの速さ（Hz） / Swell speed in Hz. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=15, ClampMin=0, UIMin=0, PinHiddenByDefault),
-		Category="Kawaii Physics|ExternalForce|Procedural Wind")
-	float EnvelopeFrequency = 0.05f;
+	/** 呼吸周期（秒） / Breathing period in seconds. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=15, ClampMin=0.01, UIMin=0.01,
+		PinHiddenByDefault, Units="s"), Category="Kawaii Physics|ExternalForce|Procedural Wind")
+	float BreathingPeriod = 20.0f;
 
 	/** 不規則な揺らぎ成分の強さ / Strength of the irregular fluctuation. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=17, ClampMin=0, UIMin=0, PinHiddenByDefault),
@@ -81,7 +81,7 @@ struct KAWAIIPHYSICS_API FKawaiiProceduralWindPreset
 
 	/** 揺らぎが変化する速さ（秒） / How fast the fluctuation changes, in seconds. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=18, ClampMin=0.01, UIMin=0.01,
-		PinHiddenByDefault), Category="Kawaii Physics|ExternalForce|Procedural Wind")
+		PinHiddenByDefault, Units="s"), Category="Kawaii Physics|ExternalForce|Procedural Wind")
 	float RandomPeriod = 0.8f;
 
 	/** 風向き自体の揺らぎの円錐半角 / Cone half-angle of the wind direction wander. */
