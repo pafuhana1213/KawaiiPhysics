@@ -25,7 +25,6 @@
 #include "SKawaiiPhysicsWindScopeEditPanel.h"
 #include "KawaiiPhysicsWindScopeStyle.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Kismet2/KismetEditorUtilities.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeLock.h"
 #include "Modules/ModuleManager.h"
@@ -1655,7 +1654,6 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 					.OnParamEdit(this, &SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit)
 					.OnParamReset(this, &SKawaiiPhysicsWindScopeWindow::ResetWindParamToDefault)
 					.IsParamPinExposed(this, &SKawaiiPhysicsWindScopeWindow::IsWindParamPinExposed)
-					.OnFocusNode(FSimpleDelegate::CreateSP(this, &SKawaiiPhysicsWindScopeWindow::OnFocusWindScopeNodeClicked))
 					.OnHighlightSeries(this, &SKawaiiPhysicsWindScopeWindow::SetHighlightSeries)
 				]
 			]
@@ -2827,20 +2825,6 @@ bool SKawaiiPhysicsWindScopeWindow::ComputeWindParamPinExposure(FName PropertyNa
 	}
 
 	return false;
-}
-
-void SKawaiiPhysicsWindScopeWindow::OnFocusWindScopeNodeClicked()
-{
-	UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
-	if (!GraphNode)
-	{
-		KawaiiPhysicsEdWindowUtils::ShowNotification(
-			LOCTEXT("FocusWindScopeNodeFailed", "Failed to resolve the KawaiiPhysics graph node."),
-			SNotificationItem::CS_Fail);
-		return;
-	}
-
-	FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(GraphNode);
 }
 
 EActiveTimerReturnType SKawaiiPhysicsWindScopeWindow::TickWindScope(double InCurrentTime, float InDeltaTime)

@@ -51,7 +51,6 @@ public:
 		SLATE_EVENT(FOnWindParamEdit, OnParamEdit)
 		SLATE_EVENT(FOnWindParamReset, OnParamReset)
 		SLATE_EVENT(FIsWindParamPinExposed, IsParamPinExposed)
-		SLATE_EVENT(FSimpleDelegate, OnFocusNode)
 		SLATE_EVENT(FOnWindScopeHighlightSeries, OnHighlightSeries)
 	SLATE_END_ARGS()
 
@@ -62,7 +61,6 @@ private:
 	TSharedRef<SWidget> MakeFormulaHelpContent() const;
 	TSharedRef<SWidget> MakeGroupWidget(const FKawaiiWindScopeParamGroup& Group);
 	TSharedRef<SWidget> MakeParamRow(const FKawaiiWindScopeParamDef& ParamDef);
-	TSharedRef<SWidget> MakeCurveRow() const;
 	TSharedRef<SWidget> MakeResetButton(FName PropertyName) const;
 	TSharedRef<SWidget> MakePinWarningIcon(FName PropertyName) const;
 	TSharedRef<SWidget> MakeHeaderIconButton(const FName IconName, const FText& ToolTipText, FOnClicked OnClicked) const;
@@ -97,7 +95,6 @@ private:
 	FOnWindParamEdit OnParamEdit;
 	FOnWindParamReset OnParamReset;
 	FIsWindParamPinExposed IsParamPinExposed;
-	FSimpleDelegate OnFocusNode;
 	FOnWindScopeHighlightSeries OnHighlightSeries;
 	TSet<FName> CollapsedGroups;
 	TMap<FName, TArray<FName>> GroupPropertyNames;

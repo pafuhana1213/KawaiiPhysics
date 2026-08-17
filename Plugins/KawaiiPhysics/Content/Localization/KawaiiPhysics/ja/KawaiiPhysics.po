@@ -6152,20 +6152,6 @@ msgctxt "KawaiiPhysicsWindScopeEditPanel,CollapsedGroupModifiedTooltip"
 msgid "This collapsed category has edits that differ from defaults."
 msgstr "この折りたたみ中のカテゴリにデフォルトから変更されたパラメータがあります"
 
-#. Key:	CurveEditGuide
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(770)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(770)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,CurveEditGuide"
-msgid "Edit the curve in the Details panel"
-msgstr "カーブ(ForceRateByBoneLengthRate)は詳細パネルで編集"
-
-#. Key:	FocusNodeButton
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(780)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(780)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,FocusNodeButton"
-msgid "Focus Node"
-msgstr "ノードへフォーカス"
-
 #. Key:	ResetToDefaultTooltip
 #. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(795)
 #: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(795)
@@ -6634,13 +6620,6 @@ msgstr "風パラメータの更新に失敗しました"
 msgctxt "KawaiiPhysicsWindScopeWindow,ResetWindParamPropertyMissing"
 msgid "Failed to resolve the wind parameter property."
 msgstr "風パラメータのプロパティを特定できませんでした"
-
-#. Key:	FocusWindScopeNodeFailed
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2838)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2838)
-msgctxt "KawaiiPhysicsWindScopeWindow,FocusWindScopeNodeFailed"
-msgid "Failed to resolve the KawaiiPhysics graph node."
-msgstr "KawaiiPhysics グラフノードを特定できませんでした"
 
 #. Key:	PreviewModeTick
 #. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2886)

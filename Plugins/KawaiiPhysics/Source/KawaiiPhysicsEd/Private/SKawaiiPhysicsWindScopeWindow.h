@@ -210,7 +210,6 @@ private:
 	void ClearWindParamPinExposureCache();
 	void RefreshWindParamPinExposureCache();
 	bool ComputeWindParamPinExposure(FName PropertyName) const;
-	void OnFocusWindScopeNodeClicked();
 
 	// 毎フレームの active timer コールバック / Active timer callback that updates Live or Preview samples.
 	EActiveTimerReturnType TickWindScope(double InCurrentTime, float InDeltaTime);

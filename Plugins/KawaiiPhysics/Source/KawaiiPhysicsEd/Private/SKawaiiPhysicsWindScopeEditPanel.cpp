@@ -305,7 +305,6 @@ void SKawaiiPhysicsWindScopeEditPanel::Construct(const FArguments& InArgs)
 	OnParamEdit = InArgs._OnParamEdit;
 	OnParamReset = InArgs._OnParamReset;
 	IsParamPinExposed = InArgs._IsParamPinExposed;
-	OnFocusNode = InArgs._OnFocusNode;
 	OnHighlightSeries = InArgs._OnHighlightSeries;
 
 	LoadCollapsedGroupsFromConfig();
@@ -561,17 +560,6 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeGroupWidget(const FKaw
 		];
 	}
 
-	if (Group.Params.Num() > 0 &&
-		Group.Params[0].PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce, bIsEnabled))
-	{
-		BodyBox->AddSlot()
-		.AutoHeight()
-		.Padding(4.0f, 4.0f, 4.0f, 0.0f)
-		[
-			MakeCurveRow()
-		];
-	}
-
 	TSharedPtr<SExpandableArea> GroupArea;
 	SAssignNew(GroupArea, SExpandableArea)
 		.BorderImage(FCoreStyle::Get().GetBrush(TEXT("NoBrush")))
@@ -757,33 +745,6 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakePinWarningIcon(FName P
 		.ColorAndOpacity(FLinearColor(1.0f, 0.72f, 0.18f, 1.0f))
 		.Visibility(this, &SKawaiiPhysicsWindScopeEditPanel::GetPinWarningVisibility, PropertyName)
 		.ToolTipText(GetPinDrivenWarningText());
-}
-
-TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeCurveRow() const
-{
-	return SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.FillWidth(1.0f)
-		.VAlign(VAlign_Center)
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("CurveEditGuide", "Edit the curve in the Details panel"))
-			.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
-			.AutoWrapText(true)
-		]
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		.Padding(6.0f, 0.0f, 0.0f, 0.0f)
-		[
-			SNew(SButton)
-			.Text(LOCTEXT("FocusNodeButton", "Focus Node"))
-			.OnClicked_Lambda([this]()
-			{
-				OnFocusNode.ExecuteIfBound();
-				return FReply::Handled();
-			})
-		];
 }
 
 TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeResetButton(FName PropertyName) const
