@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: KawaiiPhysics\n"
-"POT-Creation-Date: 2026-08-16 11:46\n"
-"PO-Revision-Date: 2026-08-16 11:46\n"
+"POT-Creation-Date: 2026-08-16 23:25\n"
+"PO-Revision-Date: 2026-08-16 23:25\n"
 "Language-Team: \n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
@@ -2330,6 +2330,13 @@ msgctxt "UObjectToolTips,KawaiiPhysicsBoneConstraintsDataAsset:PreviewBoneListSt
 msgid "String representation of the preview bone list"
 msgstr "String representation of the preview bone list"
 
+#. Key:	Skeleton
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:PreviewSkeleton [SoftObjectProperty Category meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:PreviewSkeleton [SoftObjectProperty Category meta-data]
+msgctxt "UObjectCategory,Skeleton"
+msgid "Skeleton"
+msgstr "Skeleton"
+
 #. Key:	KawaiiPhysicsBoneConstraintsDataAsset:PreviewSkeleton
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:PreviewSkeleton [SoftObjectProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:PreviewSkeleton [SoftObjectProperty DisplayName meta-data]
@@ -2455,13 +2462,6 @@ msgstr "コリジョン（平面） / Planar collision limits"
 msgctxt "UObjectDisplayNames,KawaiiPhysicsLimitsDataAsset:PlanarLimitsData"
 msgid "Planar Limits Data"
 msgstr "Planar Limits Data"
-
-#. Key:	Skeleton
-#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:Skeleton [ObjectProperty Category meta-data]
-#: /Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:Skeleton [ObjectProperty Category meta-data]
-msgctxt "UObjectCategory,Skeleton"
-msgid "Skeleton"
-msgstr "Skeleton"
 
 #. Key:	KawaiiPhysicsLimitsDataAsset:Skeleton
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:Skeleton [ObjectProperty DisplayName meta-data]
@@ -3114,6 +3114,13 @@ msgctxt "UObjectToolTips,KawaiiPhysicsSyncBone:bEnableDistanceAttenuation"
 msgid "SyncBoneとの距離に応じてTargetへの適用量(Alpha)を減衰させる設定\nAttenuation of application amount(Alpha) based on distance from SyncBone to each Target"
 msgstr "SyncBoneとの距離に応じてTargetへの適用量(Alpha)を減衰させる設定\nAttenuation of application amount(Alpha) based on distance from SyncBone to each Target"
 
+#. Key:	Sync Bone
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty Category meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty Category meta-data]
+msgctxt "UObjectCategory,Sync Bone"
+msgid "Sync Bone"
+msgstr "Sync Bone"
+
 #. Key:	KawaiiPhysicsSyncBone:Bone
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty DisplayName meta-data]
@@ -3372,13 +3379,6 @@ msgstr "ChildTargets(Preview)"
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncTargetRoot:ChildTargets"
 msgid "適用対象である子ボーン\nChild bones that are targets for application"
 msgstr "適用対象である子ボーン\nChild bones that are targets for application"
-
-#. Key:	Sync Bone
-#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty Category meta-data]
-#: /Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty Category meta-data]
-msgctxt "UObjectCategory,Sync Bone"
-msgid "Sync Bone"
-msgstr "Sync Bone"
 
 #. Key:	KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty DisplayName meta-data]
@@ -5886,264 +5886,292 @@ msgctxt "KawaiiPhysicsPresetDiffWindow,UpdatePresetSucceeded"
 msgid "Updated the preset from the node."
 msgstr "Updated the preset from the node."
 
-#. Key:	CommonGroupLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(163)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(163)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,CommonGroupLabel"
-msgid "Common"
-msgstr "Common"
-
-#. Key:	DirectionGroupLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(170)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(170)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,DirectionGroupLabel"
-msgid "Direction"
-msgstr "Direction"
-
-#. Key:	SteadyGroupLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(179)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(179)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,SteadyGroupLabel"
-msgid "Steady"
-msgstr "Steady"
-
-#. Key:	OscillationGroupLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(186)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(186)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,OscillationGroupLabel"
-msgid "Oscillation"
-msgstr "Oscillation"
-
-#. Key:	WaveGroupLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(194)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(194)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,WaveGroupLabel"
-msgid "Wave"
-msgstr "Wave"
-
-#. Key:	EnvelopeGroupLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(204)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(204)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,EnvelopeGroupLabel"
-msgid "Envelope"
-msgstr "Envelope"
-
-#. Key:	RandomGroupLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(214)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(214)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,RandomGroupLabel"
-msgid "Random"
-msgstr "Random"
-
-#. Key:	TimeGroupLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(223)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(223)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,TimeGroupLabel"
-msgid "Time"
-msgstr "Time"
-
-#. Key:	EditPanelHeader
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(253)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(253)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,EditPanelHeader"
-msgid "Procedural Wind"
-msgstr "Procedural Wind"
-
-#. Key:	FormulaHelpTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(292)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(292)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaHelpTooltip"
-msgid "Composition formula help."
-msgstr "Composition formula help."
-
-#. Key:	FormulaHelpButton
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(297)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(297)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaHelpButton"
-msgid "?"
-msgstr "?"
-
-#. Key:	FormulaTotalPrefix
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(316)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(316)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaTotalPrefix"
-msgid "Sample."
-msgstr "Sample."
-
-#. Key:	FormulaTotal
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(317)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(317)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaTotal"
-msgid "Total"
-msgstr "Total"
-
-#. Key:	FormulaEquals
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(318)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(318)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaEquals"
-msgid " = ("
-msgstr " = ("
-
-#. Key:	FormulaSteadyPrefix
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(319)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(319)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaSteadyPrefix"
-msgid "Sample."
-msgstr "Sample."
-
-#. Key:	FormulaSteady
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(320)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(320)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaSteady"
-msgid "Steady"
-msgstr "Steady"
-
-#. Key:	FormulaPlusOscillation
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(321)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(321)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaPlusOscillation"
-msgid " + Sample."
-msgstr " + Sample."
-
-#. Key:	FormulaOscillation
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(322)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(322)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaOscillation"
-msgid "Oscillation"
-msgstr "Oscillation"
-
-#. Key:	FormulaPlusWave
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(323)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(323)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaPlusWave"
-msgid " + Sample."
-msgstr " + Sample."
-
-#. Key:	FormulaWave
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(324)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(324)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaWave"
-msgid "Wave"
-msgstr "Wave"
-
-#. Key:	FormulaEnvelopePrefix
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(325)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(325)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaEnvelopePrefix"
-msgid ") * Sample."
-msgstr ") * Sample."
-
-#. Key:	FormulaEnvelope
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(326)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(326)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaEnvelope"
-msgid "Envelope"
-msgstr "Envelope"
-
-#. Key:	FormulaPlusRandom
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(327)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(327)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaPlusRandom"
-msgid " + Sample."
-msgstr " + Sample."
-
-#. Key:	FormulaRandom
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(328)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(328)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaRandom"
-msgid "Random"
-msgstr "Random"
-
-#. Key:	FormulaPlusGust
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(329)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(329)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaPlusGust"
-msgid " + Sample."
-msgstr " + Sample."
-
-#. Key:	PinDrivenWarningTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(33)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(33)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,PinDrivenWarningTooltip"
-msgid "Pin-driven values take precedence over panel edits."
-msgstr "Pin-driven values take precedence over panel edits."
-
-#. Key:	FormulaGust
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(330)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(330)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaGust"
-msgid "Gust"
-msgstr "Gust"
-
-#. Key:	FormulaSemicolon
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(331)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(331)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaSemicolon"
-msgid ";"
-msgstr ";"
-
-#. Key:	FormulaHelpGroupLine1
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(337)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(337)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaHelpGroupLine1"
-msgid "Steady, Oscillation, Wave, Envelope, and Random map to their groups."
-msgstr "Steady, Oscillation, Wave, Envelope, and Random map to their groups."
-
-#. Key:	FormulaHelpGroupLine2
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(346)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(346)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaHelpGroupLine2"
-msgid "Gust maps to the Gust button and S/R/D inputs above."
-msgstr "Gust maps to the Gust button and S/R/D inputs above."
-
-#. Key:	CurveEditGuide
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(593)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(593)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,CurveEditGuide"
-msgid "Edit the curve in the Details panel"
-msgstr "Edit the curve in the Details panel"
-
-#. Key:	FocusNodeButton
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(603)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(603)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,FocusNodeButton"
-msgid "Focus Node"
-msgstr "Focus Node"
-
-#. Key:	ResetToDefaultTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(618)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(618)
-msgctxt "KawaiiPhysicsWindScopeEditPanel,ResetToDefaultTooltip"
-msgid "Reset to default."
-msgstr "Reset to default."
-
 #. Key:	LiveBoolFalse
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(708)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(708)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1011)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1011)
 msgctxt "KawaiiPhysicsWindScopeEditPanel,LiveBoolFalse"
 msgid "false"
 msgstr "false"
 
 #. Key:	LiveBoolTrue
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(708)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(708)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1011)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1011)
 msgctxt "KawaiiPhysicsWindScopeEditPanel,LiveBoolTrue"
 msgid "true"
 msgstr "true"
 
 #. Key:	LiveVectorValueFormat
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(719)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(719)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1022)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1022)
 msgctxt "KawaiiPhysicsWindScopeEditPanel,LiveVectorValueFormat"
 msgid "({0}, {1}, {2})"
 msgstr "({0}, {1}, {2})"
 
 #. Key:	LiveValueFormat
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(733)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(733)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1036)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1036)
 msgctxt "KawaiiPhysicsWindScopeEditPanel,LiveValueFormat"
 msgid "→ {0} (live)"
 msgstr "→ {0} (live)"
+
+#. Key:	CollapsedGroupSummaryFormat
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1058)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1058)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,CollapsedGroupSummaryFormat"
+msgid "{0} {1}"
+msgstr "{0} {1}"
+
+#. Key:	CommonGroupLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(184)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(184)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,CommonGroupLabel"
+msgid "Common"
+msgstr "Common"
+
+#. Key:	DirectionGroupLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(193)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(193)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,DirectionGroupLabel"
+msgid "Direction"
+msgstr "Direction"
+
+#. Key:	SteadyGroupLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(204)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(204)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,SteadyGroupLabel"
+msgid "Steady"
+msgstr "Steady"
+
+#. Key:	OscillationGroupLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(213)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(213)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,OscillationGroupLabel"
+msgid "Oscillation"
+msgstr "Oscillation"
+
+#. Key:	WaveGroupLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(223)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(223)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,WaveGroupLabel"
+msgid "Wave"
+msgstr "Wave"
+
+#. Key:	EnvelopeGroupLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(235)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(235)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,EnvelopeGroupLabel"
+msgid "Envelope"
+msgstr "Envelope"
+
+#. Key:	RandomGroupLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(247)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(247)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,RandomGroupLabel"
+msgid "Random"
+msgstr "Random"
+
+#. Key:	TimeGroupLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(258)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(258)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,TimeGroupLabel"
+msgid "Time"
+msgstr "Time"
+
+#. Key:	EditPanelHeader
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(335)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(335)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,EditPanelHeader"
+msgid "Procedural Wind"
+msgstr "Procedural Wind"
+
+#. Key:	ExpandAllGroupsTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(345)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(345)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,ExpandAllGroupsTooltip"
+msgid "Expand all categories."
+msgstr "Expand all categories."
+
+#. Key:	CollapseAllGroupsTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(355)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(355)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,CollapseAllGroupsTooltip"
+msgid "Collapse all categories."
+msgstr "Collapse all categories."
+
+#. Key:	PinDrivenWarningTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(37)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(37)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,PinDrivenWarningTooltip"
+msgid "Pin-driven values take precedence over panel edits."
+msgstr "Pin-driven values take precedence over panel edits."
+
+#. Key:	FormulaHelpTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(394)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(394)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaHelpTooltip"
+msgid "Composition formula help."
+msgstr "Composition formula help."
+
+#. Key:	FormulaHelpButton
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(399)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(399)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaHelpButton"
+msgid "?"
+msgstr "?"
+
+#. Key:	FormulaTotalPrefix
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(447)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(447)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaTotalPrefix"
+msgid "Sample."
+msgstr "Sample."
+
+#. Key:	FormulaTotal
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(448)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(448)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaTotal"
+msgid "Total"
+msgstr "Total"
+
+#. Key:	FormulaEquals
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(449)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(449)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaEquals"
+msgid " = ("
+msgstr " = ("
+
+#. Key:	FormulaSteadyPrefix
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(450)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(450)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaSteadyPrefix"
+msgid "Sample."
+msgstr "Sample."
+
+#. Key:	FormulaSteady
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(451)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(451)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaSteady"
+msgid "Steady"
+msgstr "Steady"
+
+#. Key:	FormulaPlusOscillation
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(452)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(452)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaPlusOscillation"
+msgid " + Sample."
+msgstr " + Sample."
+
+#. Key:	FormulaOscillation
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(453)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(453)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaOscillation"
+msgid "Oscillation"
+msgstr "Oscillation"
+
+#. Key:	FormulaPlusWave
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(454)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(454)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaPlusWave"
+msgid " + Sample."
+msgstr " + Sample."
+
+#. Key:	FormulaWave
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(455)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(455)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaWave"
+msgid "Wave"
+msgstr "Wave"
+
+#. Key:	FormulaEnvelopePrefix
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(456)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(456)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaEnvelopePrefix"
+msgid ") * Sample."
+msgstr ") * Sample."
+
+#. Key:	FormulaEnvelope
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(457)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(457)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaEnvelope"
+msgid "Envelope"
+msgstr "Envelope"
+
+#. Key:	FormulaPlusRandom
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(458)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(458)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaPlusRandom"
+msgid " + Sample."
+msgstr " + Sample."
+
+#. Key:	FormulaRandom
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(459)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(459)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaRandom"
+msgid "Random"
+msgstr "Random"
+
+#. Key:	FormulaPlusGust
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(460)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(460)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaPlusGust"
+msgid " + Sample."
+msgstr " + Sample."
+
+#. Key:	FormulaGust
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(461)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(461)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaGust"
+msgid "Gust"
+msgstr "Gust"
+
+#. Key:	FormulaSemicolon
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(462)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(462)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaSemicolon"
+msgid ";"
+msgstr ";"
+
+#. Key:	FormulaHelpGroupLine1
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(468)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(468)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaHelpGroupLine1"
+msgid "Steady, Oscillation, Wave, Envelope, and Random map to their groups."
+msgstr "Steady, Oscillation, Wave, Envelope, and Random map to their groups."
+
+#. Key:	FormulaHelpGroupLine2
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(477)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(477)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FormulaHelpGroupLine2"
+msgid "Gust maps to the Gust button and S/R/D inputs above."
+msgstr "Gust maps to the Gust button and S/R/D inputs above."
+
+#. Key:	CollapsedGroupModifiedTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(547)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(547)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,CollapsedGroupModifiedTooltip"
+msgid "This collapsed category has edits that differ from defaults."
+msgstr "This collapsed category has edits that differ from defaults."
+
+#. Key:	CurveEditGuide
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(770)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(770)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,CurveEditGuide"
+msgid "Edit the curve in the Details panel"
+msgstr "Edit the curve in the Details panel"
+
+#. Key:	FocusNodeButton
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(780)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(780)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,FocusNodeButton"
+msgid "Focus Node"
+msgstr "Focus Node"
+
+#. Key:	ResetToDefaultTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(795)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(795)
+msgctxt "KawaiiPhysicsWindScopeEditPanel,ResetToDefaultTooltip"
+msgid "Reset to default."
+msgstr "Reset to default."
 
 #. Key:	InitialMode
 #. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1331)

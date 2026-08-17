@@ -5,6 +5,9 @@
 #include "CoreMinimal.h"
 #include "SKawaiiPhysicsWindScopeWindow.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Input/SButton.h"
+
+class SExpandableArea;
 
 // Wind Scope 編集パネルの1プロパティ定義
 struct FKawaiiWindScopeParamDef
@@ -19,11 +22,17 @@ struct FKawaiiWindScopeParamDef
 struct FKawaiiWindScopeParamGroup
 {
 	FText GroupLabel;
+	/** グループ永続化ID / Stable group ID used for persistence. */
+	FName GroupId;
+	/** 折りたたみ時に表示する代表プロパティ / Representative property shown when collapsed. */
+	FName SummaryProperty;
 	TOptional<EKawaiiPhysicsWindScopeComponent> LinkedSeries;
 	TArray<FKawaiiWindScopeParamDef> Params;
 };
 
 const TArray<FKawaiiWindScopeParamGroup>& GetWindScopeParamGroups();
+FString SerializeWindScopeCollapsedGroups(const TSet<FName>& CollapsedGroups);
+TSet<FName> ParseWindScopeCollapsedGroups(const FString& CollapsedGroupsValue);
 
 DECLARE_DELEGATE_RetVal_FourParams(bool, FOnWindParamEdit, FName, double, int32, EKawaiiWindEditPhase);
 DECLARE_DELEGATE_RetVal_OneParam(bool, FOnWindParamReset, FName);
@@ -56,15 +65,25 @@ private:
 	TSharedRef<SWidget> MakeCurveRow() const;
 	TSharedRef<SWidget> MakeResetButton(FName PropertyName) const;
 	TSharedRef<SWidget> MakePinWarningIcon(FName PropertyName) const;
+	TSharedRef<SWidget> MakeHeaderIconButton(const FName IconName, const FText& ToolTipText, FOnClicked OnClicked) const;
 
 	EVisibility GetResetVisibility(FName PropertyName) const;
 	EVisibility GetPinWarningVisibility(FName PropertyName) const;
 	EVisibility GetLiveValueVisibility(FName PropertyName) const;
+	EVisibility GetGroupModifiedDotVisibility(FName GroupId) const;
+	EVisibility GetGroupSummaryVisibility(FName GroupId, FName SummaryProperty) const;
 	FText GetLiveValueText(FName PropertyName) const;
+	FText GetGroupSummaryText(FName SummaryProperty) const;
 	ECheckBoxState GetBoolCheckState(FName PropertyName) const;
 	float GetFloatValue(FName PropertyName) const;
 	int32 GetIntValue(FName PropertyName) const;
 	TOptional<FVector::FReal> GetVectorValue(FName PropertyName, int32 ComponentIndex) const;
+
+	void LoadCollapsedGroupsFromConfig();
+	void SaveCollapsedGroupsToConfig() const;
+	void HandleGroupExpansionChanged(bool bExpanded, FName GroupId);
+	FReply OnExpandAllClicked();
+	FReply OnCollapseAllClicked();
 
 	void HandleBegin(FName PropertyName, int32 VectorComponentIndex) const;
 	void HandleScalarChanged(FName PropertyName, double NewValue) const;
@@ -80,4 +99,8 @@ private:
 	FIsWindParamPinExposed IsParamPinExposed;
 	FSimpleDelegate OnFocusNode;
 	FOnWindScopeHighlightSeries OnHighlightSeries;
+	TSet<FName> CollapsedGroups;
+	TMap<FName, TArray<FName>> GroupPropertyNames;
+	TArray<TSharedPtr<SExpandableArea>> GroupAreas;
+	bool bApplyingGroupExpansionBatch = false;
 };

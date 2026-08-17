@@ -35,10 +35,35 @@ bool FKawaiiPhysicsWindScopeEditPanelDefinitionsTest::RunTest(const FString& Par
 	bool bOk = true;
 	TSet<FName> TableDynamicParamsSupportedNames;
 	TSet<FName> RuntimeDynamicParamsSupportedNames;
+	TSet<FName> GroupIds;
 	const FKawaiiPhysics_ExternalForce_ProceduralWind DefaultWind;
 
 	for (const FKawaiiWindScopeParamGroup& Group : GetWindScopeParamGroups())
 	{
+		bOk &= TestFalse(
+			FString::Printf(TEXT("Wind Scope edit group ID is set: %s"), *Group.GroupLabel.ToString()),
+			Group.GroupId.IsNone());
+		bOk &= TestFalse(
+			FString::Printf(TEXT("Wind Scope edit group ID is unique: %s"), *Group.GroupId.ToString()),
+			GroupIds.Contains(Group.GroupId));
+		GroupIds.Add(Group.GroupId);
+
+		if (!Group.SummaryProperty.IsNone())
+		{
+			bool bSummaryPropertyExistsInGroup = false;
+			for (const FKawaiiWindScopeParamDef& Param : Group.Params)
+			{
+				if (Param.PropertyName == Group.SummaryProperty)
+				{
+					bSummaryPropertyExistsInGroup = true;
+					break;
+				}
+			}
+			bOk &= TestTrue(
+				FString::Printf(TEXT("SummaryProperty exists in group params: %s"), *Group.SummaryProperty.ToString()),
+				bSummaryPropertyExistsInGroup);
+		}
+
 		for (const FKawaiiWindScopeParamDef& Param : Group.Params)
 		{
 			FProperty* Property = FindWindScopeTestProperty(Param.PropertyName);
@@ -96,6 +121,29 @@ bool FKawaiiPhysicsWindScopeEditPanelDefinitionsTest::RunTest(const FString& Par
 	}
 	bOk &= TestFalse(TEXT("RandomSeed is not live DynamicParams supported"),
 	                 TableDynamicParamsSupportedNames.Contains(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomSeed)));
+
+	const TSet<FName> EmptyParsedGroups = ParseWindScopeCollapsedGroups(FString());
+	bOk &= TestEqual(TEXT("Empty collapsed group string parses as empty"), EmptyParsedGroups.Num(), 0);
+
+	TSet<FName> CollapsedGroupRoundTripInput;
+	CollapsedGroupRoundTripInput.Add(FName(TEXT("Steady")));
+	CollapsedGroupRoundTripInput.Add(FName(TEXT("Wave")));
+	const TSet<FName> CollapsedGroupRoundTripOutput =
+		ParseWindScopeCollapsedGroups(SerializeWindScopeCollapsedGroups(CollapsedGroupRoundTripInput));
+	bOk &= TestEqual(TEXT("Collapsed group round-trip count"),
+	                 CollapsedGroupRoundTripOutput.Num(),
+	                 CollapsedGroupRoundTripInput.Num());
+	for (const FName& GroupId : CollapsedGroupRoundTripInput)
+	{
+		bOk &= TestTrue(
+			FString::Printf(TEXT("Collapsed group round-trip keeps ID: %s"), *GroupId.ToString()),
+			CollapsedGroupRoundTripOutput.Contains(GroupId));
+	}
+
+	const TSet<FName> ParsedWithUnknown = ParseWindScopeCollapsedGroups(FString(TEXT("Steady,UnknownGroup,Wave")));
+	bOk &= TestTrue(TEXT("Known collapsed group is parsed"), ParsedWithUnknown.Contains(FName(TEXT("Steady"))));
+	bOk &= TestTrue(TEXT("Known collapsed group after unknown is parsed"), ParsedWithUnknown.Contains(FName(TEXT("Wave"))));
+	bOk &= TestFalse(TEXT("Unknown collapsed group is discarded"), ParsedWithUnknown.Contains(FName(TEXT("UnknownGroup"))));
 
 	return bOk;
 }
