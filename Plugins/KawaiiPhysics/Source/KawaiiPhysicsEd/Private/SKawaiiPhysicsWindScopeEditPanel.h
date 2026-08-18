@@ -16,6 +16,7 @@ struct FKawaiiWindScopeParamDef
 	float SliderMin = 0.0f;
 	float SliderMax = 10.0f;
 	bool bDynamicParamsSupported = true;
+	bool bAdvancedOnly = false;
 };
 
 // Wind Scope 編集パネルのグループ定義
@@ -68,14 +69,26 @@ private:
 	EVisibility GetResetVisibility(FName PropertyName) const;
 	EVisibility GetPinWarningVisibility(FName PropertyName) const;
 	EVisibility GetLiveValueVisibility(FName PropertyName) const;
+	EVisibility GetParamRowVisibility(FName PropertyName) const;
+	EVisibility GetGroupVisibility(FName GroupId) const;
 	EVisibility GetGroupModifiedDotVisibility(FName GroupId) const;
 	EVisibility GetGroupSummaryVisibility(FName GroupId, FName SummaryProperty) const;
+	EVisibility GetSimpleHiddenHintVisibility() const;
+	FText GetSimpleHiddenHintText() const;
 	FText GetLiveValueText(FName PropertyName) const;
 	FText GetGroupSummaryText(FName SummaryProperty) const;
+	FText GetParameterModeText() const;
 	ECheckBoxState GetBoolCheckState(FName PropertyName) const;
 	float GetFloatValue(FName PropertyName) const;
 	int32 GetIntValue(FName PropertyName) const;
+	TOptional<float> GetIntervalValue(FName PropertyName, int32 ComponentIndex) const;
 	TOptional<FVector::FReal> GetVectorValue(FName PropertyName, int32 ComponentIndex) const;
+
+	bool IsAdvancedMode() const;
+	bool IsParamAdvancedOnly(FName PropertyName) const;
+	bool IsParamVisibleInCurrentMode(FName PropertyName) const;
+	int32 CountHiddenAdvancedParams() const;
+	FLinearColor ResolveSeriesDisplayColor(TOptional<EKawaiiPhysicsWindScopeComponent> LinkedSeries) const;
 
 	void LoadCollapsedGroupsFromConfig();
 	void SaveCollapsedGroupsToConfig() const;

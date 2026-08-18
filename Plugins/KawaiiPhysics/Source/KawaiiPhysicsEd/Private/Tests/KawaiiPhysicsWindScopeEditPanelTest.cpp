@@ -119,15 +119,15 @@ bool FKawaiiPhysicsWindScopeEditPanelDefinitionsTest::RunTest(const FString& Par
 			FString::Printf(TEXT("Table supported property is supported by DynamicParams: %s"), *TableName.ToString()),
 			RuntimeDynamicParamsSupportedNames.Contains(TableName));
 	}
-	bOk &= TestFalse(TEXT("RandomSeed is not live DynamicParams supported"),
-	                 TableDynamicParamsSupportedNames.Contains(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomSeed)));
+	bOk &= TestFalse(TEXT("Seed is not live DynamicParams supported"),
+	                 TableDynamicParamsSupportedNames.Contains(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, Seed)));
 
 	const TSet<FName> EmptyParsedGroups = ParseWindScopeCollapsedGroups(FString());
 	bOk &= TestEqual(TEXT("Empty collapsed group string parses as empty"), EmptyParsedGroups.Num(), 0);
 
 	TSet<FName> CollapsedGroupRoundTripInput;
-	CollapsedGroupRoundTripInput.Add(FName(TEXT("Steady")));
-	CollapsedGroupRoundTripInput.Add(FName(TEXT("Wave")));
+	CollapsedGroupRoundTripInput.Add(FName(TEXT("Constant")));
+	CollapsedGroupRoundTripInput.Add(FName(TEXT("Ripple")));
 	const TSet<FName> CollapsedGroupRoundTripOutput =
 		ParseWindScopeCollapsedGroups(SerializeWindScopeCollapsedGroups(CollapsedGroupRoundTripInput));
 	bOk &= TestEqual(TEXT("Collapsed group round-trip count"),
@@ -140,9 +140,9 @@ bool FKawaiiPhysicsWindScopeEditPanelDefinitionsTest::RunTest(const FString& Par
 			CollapsedGroupRoundTripOutput.Contains(GroupId));
 	}
 
-	const TSet<FName> ParsedWithUnknown = ParseWindScopeCollapsedGroups(FString(TEXT("Steady,UnknownGroup,Wave")));
-	bOk &= TestTrue(TEXT("Known collapsed group is parsed"), ParsedWithUnknown.Contains(FName(TEXT("Steady"))));
-	bOk &= TestTrue(TEXT("Known collapsed group after unknown is parsed"), ParsedWithUnknown.Contains(FName(TEXT("Wave"))));
+	const TSet<FName> ParsedWithUnknown = ParseWindScopeCollapsedGroups(FString(TEXT("Constant,UnknownGroup,Ripple")));
+	bOk &= TestTrue(TEXT("Known collapsed group is parsed"), ParsedWithUnknown.Contains(FName(TEXT("Constant"))));
+	bOk &= TestTrue(TEXT("Known collapsed group after unknown is parsed"), ParsedWithUnknown.Contains(FName(TEXT("Ripple"))));
 	bOk &= TestFalse(TEXT("Unknown collapsed group is discarded"), ParsedWithUnknown.Contains(FName(TEXT("UnknownGroup"))));
 
 	return bOk;

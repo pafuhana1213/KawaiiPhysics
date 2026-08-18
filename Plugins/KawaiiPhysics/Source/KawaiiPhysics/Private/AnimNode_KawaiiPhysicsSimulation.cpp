@@ -85,9 +85,9 @@ namespace
 		{
 			Wind->ExternalForceSpace = Source->ExternalForceSpace;
 			Wind->WindDirection = Source->WindDirection;
-			Wind->DirectionNoiseAngle = Source->DirectionNoiseAngle;
-			Wind->DirectionNoisePeriod = Source->DirectionNoisePeriod;
-			Wind->RandomSeed = Source->RandomSeed;
+			Wind->WindDirectionNoiseAngle = Source->WindDirectionNoiseAngle;
+			Wind->WindDirectionNoisePeriod = Source->WindDirectionNoisePeriod;
+			Wind->Seed = Source->Seed;
 		}
 
 		const float EffectiveTimeScale = Wind->TimeScale;

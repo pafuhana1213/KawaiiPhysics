@@ -18,10 +18,10 @@ constexpr float GProceduralWindTol = KINDA_SMALL_NUMBER;
 bool SamplesExactlyEqual(const FKawaiiPhysicsProceduralWindSample& A,
                          const FKawaiiPhysicsProceduralWindSample& B)
 {
-	return A.Steady == B.Steady &&
-		A.Pulse == B.Pulse &&
-		A.Wave == B.Wave &&
-		A.Breathing == B.Breathing &&
+	return A.Constant == B.Constant &&
+		A.Sway == B.Sway &&
+		A.Ripple == B.Ripple &&
+		A.StrengthCycle == B.StrengthCycle &&
 		A.Random == B.Random &&
 		A.Gust == B.Gust &&
 		A.Total == B.Total;
@@ -41,26 +41,26 @@ int32 CountDynamicParamOverrideFlags(const FKawaiiProceduralWindDynamicParams& P
 	return
 		(Params.bOverrideIsEnabled ? 1 : 0) +
 		(Params.bOverrideWindDirection ? 1 : 0) +
-		(Params.bOverrideSteadyForce ? 1 : 0) +
-		(Params.bOverridePulseForce ? 1 : 0) +
-		(Params.bOverridePulsePeriod ? 1 : 0) +
-		(Params.bOverrideWaveAmplitude ? 1 : 0) +
-		(Params.bOverrideWavePeriod ? 1 : 0) +
-		(Params.bOverrideWavePhase ? 1 : 0) +
-		(Params.bOverrideWaveSpatialOffset ? 1 : 0) +
-		(Params.bOverrideBreathingMax ? 1 : 0) +
-		(Params.bOverrideBreathingMin ? 1 : 0) +
-		(Params.bOverrideBreathingPeriod ? 1 : 0) +
-		(Params.bOverrideBreathingPhase ? 1 : 0) +
+		(Params.bOverrideConstantForce ? 1 : 0) +
+		(Params.bOverrideSwayForce ? 1 : 0) +
+		(Params.bOverrideSwayPeriod ? 1 : 0) +
+		(Params.bOverrideSwayPhaseOffset ? 1 : 0) +
+		(Params.bOverrideRippleForce ? 1 : 0) +
+		(Params.bOverrideRipplePeriod ? 1 : 0) +
+		(Params.bOverrideRipplePhaseOffset ? 1 : 0) +
+		(Params.bOverrideRippleTipPhaseDelay ? 1 : 0) +
+		(Params.bOverrideStrengthCycleRange ? 1 : 0) +
+		(Params.bOverrideStrengthCyclePeriod ? 1 : 0) +
+		(Params.bOverrideStrengthCyclePhaseOffset ? 1 : 0) +
 		(Params.bOverrideRandomForce ? 1 : 0) +
-		(Params.bOverrideRandomPeriod ? 1 : 0) +
-		(Params.bOverrideDirectionNoiseAngle ? 1 : 0) +
-		(Params.bOverrideDirectionNoisePeriod ? 1 : 0) +
+		(Params.bOverrideRandomForcePeriod ? 1 : 0) +
+		(Params.bOverrideWindDirectionNoiseAngle ? 1 : 0) +
+		(Params.bOverrideWindDirectionNoisePeriod ? 1 : 0) +
 		(Params.bOverrideTimeScale ? 1 : 0);
 }
 
-// Rate=[0,1]をNumSegments分割で走査し、Waveが最大となる区間インデックスを求める（WavePropagationテストでピーク位置の移動検出に使用）
-int32 FindWavePeakIndex(const FKawaiiPhysics_ExternalForce_ProceduralWind& Wind, const float Time,
+// Rate=[0,1]をNumSegments分割で走査し、Rippleが最大となる区間インデックスを求める（RipplePropagationテストでピーク位置の移動検出に使用）
+int32 FindRipplePeakIndex(const FKawaiiPhysics_ExternalForce_ProceduralWind& Wind, const float Time,
                         const int32 NumSegments)
 {
 	int32 PeakIndex = 0;
@@ -68,10 +68,10 @@ int32 FindWavePeakIndex(const FKawaiiPhysics_ExternalForce_ProceduralWind& Wind,
 	for (int32 Index = 0; Index <= NumSegments; ++Index)
 	{
 		const float Rate = static_cast<float>(Index) / static_cast<float>(NumSegments);
-		const float Wave = Wind.ComputeWindSample(Time, Rate).Wave;
-		if (Wave > PeakValue)
+		const float Ripple = Wind.ComputeWindSample(Time, Rate).Ripple;
+		if (Ripple > PeakValue)
 		{
-			PeakValue = Wave;
+			PeakValue = Ripple;
 			PeakIndex = Index;
 		}
 	}
@@ -86,16 +86,26 @@ struct FKawaiiPhysicsProceduralWindApplyTestForce : FKawaiiPhysics_ExternalForce
 	{
 		RandomizedForceScale = InScale;
 	}
+
+	float GetRandomizedForceScaleForTest() const
+	{
+		return RandomizedForceScale;
+	}
+
+	void SetSupportsRandomForceScaleRangeForTest(const bool bInSupports)
+	{
+		bSupportsRandomForceScaleRange = bInSupports;
+	}
 };
 
-// PreApplyが行うキャッシュ更新（合成波・breathing・random・gust・風向ベクトル）を、ポーズ評価なしで手動再現するヘルパー
+// PreApplyが行うキャッシュ更新（合成波・StrengthCycle・random・gust・風向ベクトル）を、ポーズ評価なしで手動再現するヘルパー
 void PrimeApplyCache(FKawaiiPhysicsProceduralWindApplyTestForce& Wind, const float Time)
 {
 	Wind.ResetRuntimeState();
 	const FKawaiiPhysicsProceduralWindSample Sample = Wind.ComputeWindSample(Time, 0.0f);
 	Wind.RuntimeState->Time = Time;
-	Wind.RuntimeState->CachedSinesWithoutWave = Sample.Steady + Sample.Pulse;
-	Wind.RuntimeState->CachedBreathing = Sample.Breathing;
+	Wind.RuntimeState->CachedSinesWithoutRipple = Sample.Constant + Sample.Sway;
+	Wind.RuntimeState->CachedStrengthCycle = Sample.StrengthCycle;
 	Wind.RuntimeState->CachedRandom = Sample.Random;
 	Wind.RuntimeState->CachedGust = Sample.Gust;
 	Wind.RuntimeState->CachedWindVector = Wind.WindDirection.GetSafeNormal();
@@ -103,8 +113,9 @@ void PrimeApplyCache(FKawaiiPhysicsProceduralWindApplyTestForce& Wind, const flo
 }
 
 // 2ボーンチェーンへ同一フレーム分のWindを1回適用/NumSubsteps回に分割適用し、フレーム末の累積変位を返す
-// （FramerateIndependenceテストでsubstep分割数への非依存性を検証するために使用）
-FVector ApplyProceduralWindDisplacement(const int32 NumSubsteps)
+// （FramerateIndependenceテストでsubstep分割数への非依存性を検証するために使用。
+//  InRandomizedForceScale は基底ランダム倍率の無視検証用で、Apply が参照しないことを確認する）
+FVector ApplyProceduralWindDisplacement(const int32 NumSubsteps, const float InRandomizedForceScale = 1.0f)
 {
 	const float TotalDt = 1.0f / 30.0f;
 	FKawaiiPhysicsTestAccessor Accessor;
@@ -115,15 +126,15 @@ FVector ApplyProceduralWindDisplacement(const int32 NumSubsteps)
 	FKawaiiPhysicsProceduralWindApplyTestForce Wind;
 	Wind.ExternalForceSpace = EExternalForceSpace::ComponentSpace;
 	Wind.WindDirection = FVector::ForwardVector;
-	Wind.SteadyForce = 3.0f;
-	Wind.PulseForce = 2.0f;
-	Wind.PulsePeriod = 0.5f;
-	Wind.WaveAmplitude = 4.0f;
-	Wind.WavePeriod = 0.75f;
-	Wind.WaveSpatialOffset = 120.0f;
-	Wind.BreathingMin = 1.0f;
-	Wind.BreathingMax = 1.0f;
+	Wind.ConstantForce = 3.0f;
+	Wind.SwayForce = 2.0f;
+	Wind.SwayPeriod = 0.5f;
+	Wind.RippleForce = 4.0f;
+	Wind.RipplePeriod = 0.75f;
+	Wind.RippleTipPhaseDelay = 120.0f;
+	Wind.StrengthCycleRange = FFloatInterval(1.0f, 1.0f);
 	PrimeApplyCache(Wind, TotalDt);
+	Wind.SetRandomizedForceScaleForTest(InRandomizedForceScale);
 
 	FAnimInstanceProxy AnimInstanceProxy;
 	FComponentSpacePoseContext PoseContext(&AnimInstanceProxy);
@@ -148,6 +159,71 @@ FVector ApplyProceduralWindDisplacement(const int32 NumSubsteps)
 }
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindIgnoresBaseRandomScaleTest,
+                                 "KawaiiPhysics.ProceduralWind.IgnoresBaseRandomForceScale",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindIgnoresBaseRandomScaleTest::RunTest(const FString& Parameters)
+{
+	// 基底の RandomizedForceScale（RandomForceScaleRange 由来）は ProceduralWind では無視される契約。
+	// 倍率 1.0 と 2.0 で Apply の変位が完全一致することを確認する（ランダム性は Seed 系列に一本化）
+	const FVector BaselineDisplacement = ApplyProceduralWindDisplacement(1, 1.0f);
+	const FVector ScaledDisplacement = ApplyProceduralWindDisplacement(1, 2.0f);
+
+	bool bOk = true;
+	bOk &= TestEqual(TEXT("RandomizedForceScale=2.0 でも変位が不変（X）"),
+	                 ScaledDisplacement.X, BaselineDisplacement.X);
+	bOk &= TestEqual(TEXT("RandomizedForceScale=2.0 でも変位が不変（Y）"),
+	                 ScaledDisplacement.Y, BaselineDisplacement.Y);
+	bOk &= TestEqual(TEXT("RandomizedForceScale=2.0 でも変位が不変（Z）"),
+	                 ScaledDisplacement.Z, BaselineDisplacement.Z);
+	bOk &= TestTrue(TEXT("変位自体はゼロでない（風が適用されている）"),
+	                !BaselineDisplacement.IsNearlyZero());
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindPreApplyNoGlobalRandomTest,
+                                 "KawaiiPhysics.ProceduralWind.PreApplyConsumesNoGlobalRandom",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindPreApplyNoGlobalRandomTest::RunTest(const FString& Parameters)
+{
+	// bSupportsRandomForceScaleRange=false（ProceduralWind既定）の PreApply はグローバル乱数を消費せず、
+	// RandomizedForceScale は1固定になる契約。外力の追加/削除/並び替えが他外力の乱数列に影響しないことを保証する
+	FKawaiiPhysicsTestAccessor Accessor;
+	Accessor.BuildVerticalChain(2, 10.0f, FVector::ZeroVector, FVector(0.0f, 0.0f, -1.0f));
+	Accessor.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+	Accessor.SetTimeState(1.0f / 30.0f, 1.0f / 30.0f);
+
+	FAnimInstanceProxy AnimInstanceProxy;
+	FComponentSpacePoseContext PoseContext(&AnimInstanceProxy);
+
+	// 基準: 固定シード直後に得られる乱数値
+	FMath::RandInit(20260818);
+	const int32 ExpectedNext = FMath::Rand();
+
+	// 本命: PreApply（フラグfalse）を挟んでも乱数列が進まない
+	FKawaiiPhysicsProceduralWindApplyTestForce Wind;
+	Wind.ExternalForceSpace = EExternalForceSpace::ComponentSpace;
+	FMath::RandInit(20260818);
+	Wind.PreApply(Accessor.Node, PoseContext);
+	const int32 ActualNext = FMath::Rand();
+
+	bool bOk = true;
+	bOk &= TestEqual(TEXT("PreApply がグローバル乱数を消費しない"), ActualNext, ExpectedNext);
+	bOk &= TestEqual(TEXT("RandomizedForceScale は1固定"), Wind.GetRandomizedForceScaleForTest(), 1.0f);
+
+	// 対照: フラグtrueに戻すと従来どおり乱数列が進む（RandRangeが1回消費する）
+	FKawaiiPhysicsProceduralWindApplyTestForce SupportedWind;
+	SupportedWind.ExternalForceSpace = EExternalForceSpace::ComponentSpace;
+	SupportedWind.SetSupportsRandomForceScaleRangeForTest(true);
+	FMath::RandInit(20260818);
+	SupportedWind.PreApply(Accessor.Node, PoseContext);
+	const int32 AdvancedNext = FMath::Rand();
+	bOk &= TestNotEqual(TEXT("フラグtrueでは乱数列が進む（対照）"), AdvancedNext, ExpectedNext);
+	return bOk;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindDeterminismTest,
                                  "KawaiiPhysics.ProceduralWind.Determinism",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -161,12 +237,12 @@ bool FKawaiiPhysicsProceduralWindDeterminismTest::RunTest(const FString& Paramet
 	A.RandomForce = 3.0f;
 	B.RandomForce = 3.0f;
 	C.RandomForce = 3.0f;
-	A.RandomPeriod = 0.37f;
-	B.RandomPeriod = 0.37f;
-	C.RandomPeriod = 0.37f;
-	A.RandomSeed = 12345;
-	B.RandomSeed = 12345;
-	C.RandomSeed = 54321;
+	A.RandomForcePeriod = 0.37f;
+	B.RandomForcePeriod = 0.37f;
+	C.RandomForcePeriod = 0.37f;
+	A.Seed = 12345;
+	B.Seed = 12345;
+	C.Seed = 54321;
 
 	// 64点の時刻でサンプルを取り、同一seed(A/B)の完全一致と異seed(C)とのRandom成分の差分有無を集計する
 	bool bDifferentSeedChangedRandom = false;
@@ -184,21 +260,21 @@ bool FKawaiiPhysicsProceduralWindDeterminismTest::RunTest(const FString& Paramet
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindSteadyOnlyTest,
-                                 "KawaiiPhysics.ProceduralWind.SteadyOnly",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindConstantOnlyTest,
+                                 "KawaiiPhysics.ProceduralWind.ConstantOnly",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FKawaiiPhysicsProceduralWindSteadyOnlyTest::RunTest(const FString& Parameters)
+bool FKawaiiPhysicsProceduralWindConstantOnlyTest::RunTest(const FString& Parameters)
 {
 	// 定常風だけが有効な場合、時刻に関係なく合計が定常風と一致することを確認する。
 	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
-	Wind.SteadyForce = 7.25f;
+	Wind.ConstantForce = 7.25f;
 
 	for (const float Time : {0.0f, 0.1f, 0.5f, 1.0f, 3.75f})
 	{
 		const FKawaiiPhysicsProceduralWindSample Sample = Wind.ComputeWindSample(Time, 0.5f);
-		TestSampleNear(*this, TEXT("Steady"), Sample.Steady, Wind.SteadyForce);
-		TestSampleNear(*this, TEXT("Total"), Sample.Total, Wind.SteadyForce);
+		TestSampleNear(*this, TEXT("Constant"), Sample.Constant, Wind.ConstantForce);
+		TestSampleNear(*this, TEXT("Total"), Sample.Total, Wind.ConstantForce);
 	}
 
 	return true;
@@ -210,91 +286,119 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindSinePhaseTest,
 
 bool FKawaiiPhysicsProceduralWindSinePhaseTest::RunTest(const FString& Parameters)
 {
-	// パルスと波の位相、および周期性が実装式どおりになることを確認する。
+	// 一斉揺れ(Sway)と波揺れ(Ripple)の位相、および周期性が実装式どおりになることを確認する。
 	const float Period = 2.0f;
 
-	// パルス成分: 1/4周期でsin位相がpi/2となり振幅そのものが出力される点、および1周期後の値が一致する周期性を確認
-	FKawaiiPhysics_ExternalForce_ProceduralWind PulseWind;
-	PulseWind.PulseForce = 1.0f;
-	PulseWind.PulsePeriod = Period;
-	TestSampleNear(*this, TEXT("Pulse P/4"), PulseWind.ComputeWindSample(Period * 0.25f).Pulse,
+	// 一斉揺れ(Sway)成分: 1/4周期でsin位相がpi/2となり振幅そのものが出力される点、および1周期後の値が一致する周期性を確認
+	FKawaiiPhysics_ExternalForce_ProceduralWind SwayWind;
+	SwayWind.SwayForce = 1.0f;
+	SwayWind.SwayPeriod = Period;
+	TestSampleNear(*this, TEXT("Sway P/4"), SwayWind.ComputeWindSample(Period * 0.25f).Sway,
 	               1.0f);
 
 	const float Time = 0.37f;
-	TestSampleNear(*this, TEXT("Pulse periodicity"),
-	               PulseWind.ComputeWindSample(Time).Pulse,
-	               PulseWind.ComputeWindSample(Time + Period).Pulse, 0.000001f);
+	TestSampleNear(*this, TEXT("Sway periodicity"),
+	               SwayWind.ComputeWindSample(Time).Sway,
+	               SwayWind.ComputeWindSample(Time + Period).Sway, 0.000001f);
 
-	// 波成分: WavePhase=90度によりt=0・Rate=0で位相pi/2（振幅最大）となる設定で、位相と周期性を確認
-	FKawaiiPhysics_ExternalForce_ProceduralWind WaveWind;
-	WaveWind.WaveAmplitude = 1.0f;
-	WaveWind.WavePeriod = Period;
-	WaveWind.WavePhase = 90.0f;
-	TestSampleNear(*this, TEXT("Wave phase"), WaveWind.ComputeWindSample(0.0f, 0.0f).Wave, 1.0f);
-	TestSampleNear(*this, TEXT("Wave periodicity"),
-	               WaveWind.ComputeWindSample(Time, 0.35f).Wave,
-	               WaveWind.ComputeWindSample(Time + Period, 0.35f).Wave, 0.000001f);
+	// SwayPhaseOffset: 既定0では従来式（オフセット無し）と一致し、非0では位相がシフトすることを確認
+	FKawaiiPhysics_ExternalForce_ProceduralWind SwayPhaseWind;
+	SwayPhaseWind.SwayForce = 1.0f;
+	SwayPhaseWind.SwayPeriod = Period;
+	TestSampleNear(*this, TEXT("SwayPhaseOffset=0 matches legacy"),
+	               SwayPhaseWind.ComputeWindSample(Time).Sway,
+	               SwayWind.ComputeWindSample(Time).Sway);
+
+	// 90度オフセットで t=0 に sin(pi/2)=1（振幅最大）となり、1/4周期の時間シフトと等価になることを確認
+	SwayPhaseWind.SwayPhaseOffset = 90.0f;
+	TestSampleNear(*this, TEXT("SwayPhaseOffset=90 at t=0"),
+	               SwayPhaseWind.ComputeWindSample(0.0f).Sway, 1.0f);
+	TestSampleNear(*this, TEXT("SwayPhaseOffset equals time shift"),
+	               SwayPhaseWind.ComputeWindSample(Time).Sway,
+	               SwayWind.ComputeWindSample(Time + Period * 0.25f).Sway, 0.000001f);
+
+	// 波揺れ(Ripple)成分: RipplePhaseOffset=90度によりt=0・Rate=0で位相pi/2（振幅最大）となる設定で、位相と周期性を確認
+	FKawaiiPhysics_ExternalForce_ProceduralWind RippleWind;
+	RippleWind.RippleForce = 1.0f;
+	RippleWind.RipplePeriod = Period;
+	RippleWind.RipplePhaseOffset = 90.0f;
+	TestSampleNear(*this, TEXT("Ripple phase"), RippleWind.ComputeWindSample(0.0f, 0.0f).Ripple, 1.0f);
+	TestSampleNear(*this, TEXT("Ripple periodicity"),
+	               RippleWind.ComputeWindSample(Time, 0.35f).Ripple,
+	               RippleWind.ComputeWindSample(Time + Period, 0.35f).Ripple, 0.000001f);
 
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindWavePropagationTest,
-                                 "KawaiiPhysics.ProceduralWind.WavePropagation",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindRipplePropagationTest,
+                                 "KawaiiPhysics.ProceduralWind.RipplePropagation",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FKawaiiPhysicsProceduralWindWavePropagationTest::RunTest(const FString& Parameters)
+bool FKawaiiPhysicsProceduralWindRipplePropagationTest::RunTest(const FString& Parameters)
 {
 	// 空間位相差で根元と毛先が逆相になり、時間経過でピークが毛先方向へ移動することを確認する。
 	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
-	Wind.WaveAmplitude = 1.0f;
-	Wind.WavePeriod = 2.0f;
-	Wind.WaveSpatialOffset = 180.0f;
+	Wind.RippleForce = 1.0f;
+	Wind.RipplePeriod = 2.0f;
+	Wind.RippleTipPhaseDelay = 180.0f;
 
-	// WaveSpatialOffset=180度により根元(Rate=0)と毛先(Rate=1)は空間位相差piとなり、符号が反転するはず
-	const float FixedTime = Wind.WavePeriod * 0.25f;
-	const float RootWave = Wind.ComputeWindSample(FixedTime, 0.0f).Wave;
-	const float TipWave = Wind.ComputeWindSample(FixedTime, 1.0f).Wave;
-	TestTrue(FString::Printf(TEXT("Opposite sign: root=%.6f tip=%.6f"), RootWave, TipWave),
-	         RootWave * TipWave < 0.0f);
+	// RippleTipPhaseDelay=180度により根元(Rate=0)と毛先(Rate=1)は空間位相差piとなり、符号が反転するはず
+	const float FixedTime = Wind.RipplePeriod * 0.25f;
+	const float RootRipple = Wind.ComputeWindSample(FixedTime, 0.0f).Ripple;
+	const float TipRipple = Wind.ComputeWindSample(FixedTime, 1.0f).Ripple;
+	TestTrue(FString::Printf(TEXT("Opposite sign: root=%.6f tip=%.6f"), RootRipple, TipRipple),
+	         RootRipple * TipRipple < 0.0f);
 
 	// 時間を1/4周期進めるとピークが根元寄りから毛先寄りへ移動する（進行波としての空間伝播）ことを確認
-	const int32 Peak0 = FindWavePeakIndex(Wind, Wind.WavePeriod * 0.25f, 1000);
-	const int32 Peak1 = FindWavePeakIndex(Wind, Wind.WavePeriod * 0.50f, 1000);
+	const int32 Peak0 = FindRipplePeakIndex(Wind, Wind.RipplePeriod * 0.25f, 1000);
+	const int32 Peak1 = FindRipplePeakIndex(Wind, Wind.RipplePeriod * 0.50f, 1000);
 	TestTrue(FString::Printf(TEXT("Peak moves root to tip: %d -> %d"), Peak0, Peak1),
 	         Peak1 > Peak0);
 
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindBreathingBoundsTest,
-                                 "KawaiiPhysics.ProceduralWind.BreathingBounds",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindStrengthCycleBoundsTest,
+                                 "KawaiiPhysics.ProceduralWind.StrengthCycleBounds",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FKawaiiPhysicsProceduralWindBreathingBoundsTest::RunTest(const FString& Parameters)
+bool FKawaiiPhysicsProceduralWindStrengthCycleBoundsTest::RunTest(const FString& Parameters)
 {
-	// 呼吸変調が指定範囲内に収まり、最小最大が同値なら定数へ潰れることを確認する。
+	// 強弱サイクル(StrengthCycle)変調が指定範囲内に収まり、最小最大が同値なら定数へ潰れることを確認する。
 	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
-	Wind.BreathingMin = 0.2f;
-	Wind.BreathingMax = 1.5f;
-	Wind.BreathingPeriod = 1.37f;
-	Wind.BreathingPhase = 17.0f;
+	Wind.StrengthCycleRange = FFloatInterval(0.2f, 1.5f);
+	Wind.StrengthCyclePeriod = 1.37f;
+	Wind.StrengthCyclePhaseOffset = 17.0f;
 
-	// 1000点サンプリングし、Breathingが常に[BreathingMin, BreathingMax]の範囲内に収まることを確認
+	// 1000点サンプリングし、StrengthCycleが常に StrengthCycleRange 内に収まることを確認
 	for (int32 Index = 0; Index < 1000; ++Index)
 	{
 		const float Time = static_cast<float>(Index) * 0.013f;
-		const float Breathing = Wind.ComputeWindSample(Time, 0.0f).Breathing;
-		TestTrue(FString::Printf(TEXT("Breathing bounds %d: %.9f"), Index, Breathing),
-		         Breathing >= Wind.BreathingMin - GProceduralWindTol &&
-		         Breathing <= Wind.BreathingMax + GProceduralWindTol);
+		const float StrengthCycle = Wind.ComputeWindSample(Time, 0.0f).StrengthCycle;
+		TestTrue(FString::Printf(TEXT("StrengthCycle bounds %d: %.9f"), Index, StrengthCycle),
+		         StrengthCycle >= Wind.StrengthCycleRange.Min - GProceduralWindTol &&
+		         StrengthCycle <= Wind.StrengthCycleRange.Max + GProceduralWindTol);
 	}
 
 	// MinとMaxを同値にした場合、Lerpの結果が時刻によらず定数へ潰れることを確認
-	Wind.BreathingMin = 0.625f;
-	Wind.BreathingMax = 0.625f;
+	Wind.StrengthCycleRange = FFloatInterval(0.625f, 0.625f);
 	for (const float Time : {0.0f, 0.4f, 1.7f, 8.0f})
 	{
-		TestSampleNear(*this, TEXT("Breathing identity"), Wind.ComputeWindSample(Time, 0.0f).Breathing, 0.625f);
+		TestSampleNear(*this, TEXT("StrengthCycle identity"), Wind.ComputeWindSample(Time, 0.0f).StrengthCycle, 0.625f);
+	}
+
+	// Min>Max の逆転 Range でも Lerp としてそのまま評価され、指定端点の範囲内に収まることを確認
+	Wind.StrengthCycleRange = FFloatInterval(1.5f, 0.25f);
+	Wind.StrengthCyclePeriod = 2.0f;
+	Wind.StrengthCyclePhaseOffset = 90.0f;
+	TestSampleNear(*this, TEXT("StrengthCycle reversed range starts at max endpoint"),
+	               Wind.ComputeWindSample(0.0f, 0.0f).StrengthCycle, 0.25f);
+	for (int32 Index = 0; Index < 128; ++Index)
+	{
+		const float StrengthCycle = Wind.ComputeWindSample(static_cast<float>(Index) * 0.031f, 0.0f).StrengthCycle;
+		TestTrue(FString::Printf(TEXT("StrengthCycle reversed range %d: %.9f"), Index, StrengthCycle),
+		         StrengthCycle >= Wind.StrengthCycleRange.Max - GProceduralWindTol &&
+		         StrengthCycle <= Wind.StrengthCycleRange.Min + GProceduralWindTol);
 	}
 
 	return true;
@@ -403,30 +507,33 @@ bool FKawaiiPhysicsProceduralWindDynamicParamsTest::RunTest(const FString& Param
 	// 上書き指定された項目だけが反映され、下限付き項目は安全化されることを確認する。
 	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
 	Wind.WindDirection = FVector(1.0f, 2.0f, 3.0f);
-	Wind.SteadyForce = 2.0f;
-	Wind.PulseForce = 3.0f;
-	Wind.PulsePeriod = 1.0f;
-	Wind.WaveAmplitude = 4.0f;
-	Wind.WavePhase = 10.0f;
-	Wind.DirectionNoiseAngle = 5.0f;
+	Wind.ConstantForce = 2.0f;
+	Wind.SwayForce = 3.0f;
+	Wind.SwayPeriod = 1.0f;
+	Wind.RippleForce = 4.0f;
+	Wind.RipplePhaseOffset = 10.0f;
+	Wind.StrengthCycleRange = FFloatInterval(0.5f, 1.5f);
+	Wind.WindDirectionNoiseAngle = 5.0f;
 	Wind.TimeScale = 1.0f;
 
 	// bOverride*をtrue/false交互に設定し、上書き対象と非対象の双方を1回のApplyDynamicParams呼び出しで検証する
 	FKawaiiProceduralWindDynamicParams Params;
 	Params.bOverrideWindDirection = false;
 	Params.WindDirection = FVector(10.0f, 20.0f, 30.0f);
-	Params.bOverrideSteadyForce = true;
-	Params.SteadyForce = -5.0f;
-	Params.bOverridePulseForce = false;
-	Params.PulseForce = 99.0f;
-	Params.bOverridePulsePeriod = true;
-	Params.PulsePeriod = -10.0f;
-	Params.bOverrideWaveAmplitude = false;
-	Params.WaveAmplitude = 99.0f;
-	Params.bOverrideWavePhase = true;
-	Params.WavePhase = -45.0f;
-	Params.bOverrideDirectionNoiseAngle = true;
-	Params.DirectionNoiseAngle = -20.0f;
+	Params.bOverrideConstantForce = true;
+	Params.ConstantForce = -5.0f;
+	Params.bOverrideSwayForce = false;
+	Params.SwayForce = 99.0f;
+	Params.bOverrideSwayPeriod = true;
+	Params.SwayPeriod = -10.0f;
+	Params.bOverrideRippleForce = false;
+	Params.RippleForce = 99.0f;
+	Params.bOverrideRipplePhaseOffset = true;
+	Params.RipplePhaseOffset = -45.0f;
+	Params.bOverrideStrengthCycleRange = true;
+	Params.StrengthCycleRange = FFloatInterval(-0.25f, 2.25f);
+	Params.bOverrideWindDirectionNoiseAngle = true;
+	Params.WindDirectionNoiseAngle = -20.0f;
 	Params.bOverrideTimeScale = true;
 	Params.TimeScale = -1.0f;
 
@@ -434,12 +541,14 @@ bool FKawaiiPhysicsProceduralWindDynamicParamsTest::RunTest(const FString& Param
 
 	// 上書きされた項目は負値でも下限（0 または 0.01）へ安全化され、上書きされない項目は元値のまま残ることを確認
 	TestTrue(TEXT("WindDirection unchanged"), Wind.WindDirection.Equals(FVector(1.0f, 2.0f, 3.0f)));
-	TestSampleNear(*this, TEXT("SteadyForce clamped"), Wind.SteadyForce, 0.0f);
-	TestSampleNear(*this, TEXT("PulseForce unchanged"), Wind.PulseForce, 3.0f);
-	TestSampleNear(*this, TEXT("PulsePeriod clamped"), Wind.PulsePeriod, 0.01f);
-	TestSampleNear(*this, TEXT("WaveAmplitude unchanged"), Wind.WaveAmplitude, 4.0f);
-	TestSampleNear(*this, TEXT("WavePhase unclamped"), Wind.WavePhase, -45.0f);
-	TestSampleNear(*this, TEXT("DirectionNoiseAngle clamped"), Wind.DirectionNoiseAngle, 0.0f);
+	TestSampleNear(*this, TEXT("ConstantForce clamped"), Wind.ConstantForce, 0.0f);
+	TestSampleNear(*this, TEXT("SwayForce unchanged"), Wind.SwayForce, 3.0f);
+	TestSampleNear(*this, TEXT("SwayPeriod clamped"), Wind.SwayPeriod, 0.01f);
+	TestSampleNear(*this, TEXT("RippleForce unchanged"), Wind.RippleForce, 4.0f);
+	TestSampleNear(*this, TEXT("RipplePhaseOffset unclamped"), Wind.RipplePhaseOffset, -45.0f);
+	TestSampleNear(*this, TEXT("StrengthCycleRange Min clamped"), Wind.StrengthCycleRange.Min, 0.0f);
+	TestSampleNear(*this, TEXT("StrengthCycleRange Max applied"), Wind.StrengthCycleRange.Max, 2.25f);
+	TestSampleNear(*this, TEXT("WindDirectionNoiseAngle clamped"), Wind.WindDirectionNoiseAngle, 0.0f);
 	TestSampleNear(*this, TEXT("TimeScale clamped"), Wind.TimeScale, 0.0f);
 
 	return true;
@@ -457,10 +566,10 @@ bool FKawaiiPhysicsProceduralWindPendingConsumptionTest::RunTest(const FString& 
 	Wind.RuntimeState->Time = 2.25f;
 
 	FKawaiiProceduralWindDynamicParams Params;
-	Params.bOverrideSteadyForce = true;
-	Params.SteadyForce = 8.0f;
-	Params.bOverridePulsePeriod = true;
-	Params.PulsePeriod = 0.25f;
+	Params.bOverrideConstantForce = true;
+	Params.ConstantForce = 8.0f;
+	Params.bOverrideSwayPeriod = true;
+	Params.SwayPeriod = 0.25f;
 
 	// Mutex配下でPendingParams/PendingGustを設定し、Apply側スレッドからの非同期リクエストを模擬する
 	{
@@ -475,8 +584,8 @@ bool FKawaiiPhysicsProceduralWindPendingConsumptionTest::RunTest(const FString& 
 
 	Wind.ConsumePendingRequests();
 
-	TestSampleNear(*this, TEXT("Pending SteadyForce applied"), Wind.SteadyForce, 8.0f);
-	TestSampleNear(*this, TEXT("Pending PulsePeriod applied"), Wind.PulsePeriod, 0.25f);
+	TestSampleNear(*this, TEXT("Pending ConstantForce applied"), Wind.ConstantForce, 8.0f);
+	TestSampleNear(*this, TEXT("Pending SwayPeriod applied"), Wind.SwayPeriod, 0.25f);
 	TestSampleNear(*this, TEXT("ActiveGust StartTime"), Wind.RuntimeState->ActiveGust.StartTime, 2.25f);
 	TestSampleNear(*this, TEXT("ActiveGust Strength"), Wind.RuntimeState->ActiveGust.Strength, 6.0f);
 	TestSampleNear(*this, TEXT("ActiveGust RiseTime"), Wind.RuntimeState->ActiveGust.RiseTime, 0.1f);
@@ -502,10 +611,10 @@ bool FKawaiiPhysicsProceduralWindRequestDynamicParamsMergeTest::RunTest(const FS
 	DirectionParams.WindDirection = FVector(0.0f, 20.0f, 30.0f);
 	Wind.RequestDynamicParams(DirectionParams);
 
-	FKawaiiProceduralWindDynamicParams SteadyParams;
-	SteadyParams.bOverrideSteadyForce = true;
-	SteadyParams.SteadyForce = 9.0f;
-	Wind.RequestDynamicParams(SteadyParams);
+	FKawaiiProceduralWindDynamicParams ConstantParams;
+	ConstantParams.bOverrideConstantForce = true;
+	ConstantParams.ConstantForce = 9.0f;
+	Wind.RequestDynamicParams(ConstantParams);
 
 	TestTrue(TEXT("PendingParams merged"), Wind.RuntimeState->PendingParams.IsSet());
 	if (!Wind.RuntimeState->PendingParams.IsSet())
@@ -515,12 +624,12 @@ bool FKawaiiPhysicsProceduralWindRequestDynamicParamsMergeTest::RunTest(const FS
 
 	const FKawaiiProceduralWindDynamicParams& PendingParams = Wind.RuntimeState->PendingParams.GetValue();
 	TestTrue(TEXT("Pending WindDirection override merged"), PendingParams.bOverrideWindDirection);
-	TestTrue(TEXT("Pending SteadyForce override merged"), PendingParams.bOverrideSteadyForce);
+	TestTrue(TEXT("Pending ConstantForce override merged"), PendingParams.bOverrideConstantForce);
 
 	Wind.ConsumePendingRequests();
 
 	TestTrue(TEXT("Merged WindDirection applied"), Wind.WindDirection.Equals(FVector(0.0f, 20.0f, 30.0f)));
-	TestSampleNear(*this, TEXT("Merged SteadyForce applied"), Wind.SteadyForce, 9.0f);
+	TestSampleNear(*this, TEXT("Merged ConstantForce applied"), Wind.ConstantForce, 9.0f);
 
 	FKawaiiProceduralWindDynamicParams FirstDirectionParams;
 	FirstDirectionParams.bOverrideWindDirection = true;
@@ -550,7 +659,7 @@ bool FKawaiiPhysicsProceduralWindFramerateIndependenceTest::RunTest(const FStrin
 	// 両者はfloat演算順序の違いによる誤差のみを含むはずなので、既定のGProceduralWindTolより厳しい許容誤差で比較する
 	TestTrue(FString::Printf(TEXT("Apply displacement 1 vs 4: %s vs %s"), *OneStep.ToString(), *FourSteps.ToString()),
 	         OneStep.Equals(FourSteps, 0.000001f));
-	TestTrue(TEXT("Wave-including displacement is non-zero"), !OneStep.IsNearlyZero());
+	TestTrue(TEXT("Ripple-including displacement is non-zero"), !OneStep.IsNearlyZero());
 	return true;
 }
 
@@ -570,8 +679,8 @@ bool FKawaiiPhysicsProceduralWindResetRuntimeStateTest::RunTest(const FString& P
 	Wind.RuntimeState->ActiveGust.RiseTime = 0.5f;
 	Wind.RuntimeState->ActiveGust.DecayTime = 3.0f;
 	Wind.RuntimeState->ActiveGust.bIsActive = true;
-	Wind.RuntimeState->CachedSinesWithoutWave = 1.0f;
-	Wind.RuntimeState->CachedBreathing = 2.0f;
+	Wind.RuntimeState->CachedSinesWithoutRipple = 1.0f;
+	Wind.RuntimeState->CachedStrengthCycle = 2.0f;
 	Wind.RuntimeState->CachedRandom = 3.0f;
 	Wind.RuntimeState->CachedGust = 4.0f;
 	Wind.RuntimeState->CachedWindVector = FVector(1.0f, 2.0f, 3.0f);
@@ -591,8 +700,8 @@ bool FKawaiiPhysicsProceduralWindResetRuntimeStateTest::RunTest(const FString& P
 	TestFalse(TEXT("ActiveGust inactive after reset"), Wind.RuntimeState->ActiveGust.bIsActive);
 	TestFalse(TEXT("PendingParams reset"), Wind.RuntimeState->PendingParams.IsSet());
 	TestFalse(TEXT("PendingGust reset"), Wind.RuntimeState->PendingGust.IsSet());
-	TestSampleNear(*this, TEXT("CachedSinesWithoutWave after reset"), Wind.RuntimeState->CachedSinesWithoutWave, 0.0f);
-	TestSampleNear(*this, TEXT("CachedBreathing after reset"), Wind.RuntimeState->CachedBreathing, 1.0f);
+	TestSampleNear(*this, TEXT("CachedSinesWithoutRipple after reset"), Wind.RuntimeState->CachedSinesWithoutRipple, 0.0f);
+	TestSampleNear(*this, TEXT("CachedStrengthCycle after reset"), Wind.RuntimeState->CachedStrengthCycle, 1.0f);
 	TestSampleNear(*this, TEXT("CachedRandom after reset"), Wind.RuntimeState->CachedRandom, 0.0f);
 	TestSampleNear(*this, TEXT("CachedGust after reset"), Wind.RuntimeState->CachedGust, 0.0f);
 	TestTrue(TEXT("CachedWindVector after reset"), Wind.RuntimeState->CachedWindVector.IsNearlyZero());
@@ -618,14 +727,14 @@ bool FKawaiiPhysicsProceduralWindAssignmentPreservesDestinationRuntimeStateTest:
 	Destination.RuntimeState->Time = 7.0f;
 
 	FKawaiiProceduralWindDynamicParams PendingParams;
-	PendingParams.bOverrideSteadyForce = true;
-	PendingParams.SteadyForce = 11.0f;
+	PendingParams.bOverrideConstantForce = true;
+	PendingParams.ConstantForce = 11.0f;
 	Destination.RequestDynamicParams(PendingParams);
 
 	FKawaiiPhysics_ExternalForce_ProceduralWind Source;
 	Source.WindDirection = FVector(0.0f, 20.0f, 30.0f);
-	Source.SteadyForce = 5.0f;
-	Source.PulseForce = 6.0f;
+	Source.ConstantForce = 5.0f;
+	Source.SwayForce = 6.0f;
 	Source.TimeScale = 0.5f;
 	Source.RuntimeState->Time = 3.0f;
 
@@ -636,12 +745,12 @@ bool FKawaiiPhysicsProceduralWindAssignmentPreservesDestinationRuntimeStateTest:
 	TestSampleNear(*this, TEXT("Destination Time preserved"), Destination.RuntimeState->Time, 7.0f);
 	TestTrue(TEXT("Destination PendingParams preserved"), Destination.RuntimeState->PendingParams.IsSet());
 	TestTrue(TEXT("PendingParams override preserved"),
-	         Destination.RuntimeState->PendingParams.GetValue().bOverrideSteadyForce);
+	         Destination.RuntimeState->PendingParams.GetValue().bOverrideConstantForce);
 	TestSampleNear(*this, TEXT("PendingParams value preserved"),
-	               Destination.RuntimeState->PendingParams.GetValue().SteadyForce, 11.0f);
+	               Destination.RuntimeState->PendingParams.GetValue().ConstantForce, 11.0f);
 	TestTrue(TEXT("WindDirection copied"), Destination.WindDirection.Equals(Source.WindDirection));
-	TestSampleNear(*this, TEXT("SteadyForce copied"), Destination.SteadyForce, Source.SteadyForce);
-	TestSampleNear(*this, TEXT("PulseForce copied"), Destination.PulseForce, Source.PulseForce);
+	TestSampleNear(*this, TEXT("ConstantForce copied"), Destination.ConstantForce, Source.ConstantForce);
+	TestSampleNear(*this, TEXT("SwayForce copied"), Destination.SwayForce, Source.SwayForce);
 	TestSampleNear(*this, TEXT("TimeScale copied"), Destination.TimeScale, Source.TimeScale);
 	TestTrue(TEXT("RuntimeState is not shared with source"),
 	         Destination.RuntimeState.Get() != Source.RuntimeState.Get());
@@ -658,7 +767,7 @@ bool FKawaiiPhysicsProceduralWindInPlaceCopyScriptStructPreservesRuntimeStateTes
 	// エディタの in-place 同期と同じ CopyScriptStruct 経路で、プロパティだけがコピーされ実行中状態が維持されることを確認する。
 	FKawaiiPhysics_ExternalForce_ProceduralWind Source;
 	Source.WindDirection = FVector(0.0f, 20.0f, 30.0f);
-	Source.SteadyForce = 5.0f;
+	Source.ConstantForce = 5.0f;
 	Source.RuntimeState->Time = 3.0f;
 
 	FKawaiiPhysics_ExternalForce_ProceduralWind Destination;
@@ -672,7 +781,7 @@ bool FKawaiiPhysicsProceduralWindInPlaceCopyScriptStructPreservesRuntimeStateTes
 	         Destination.RuntimeState.Get() == DestinationRuntimeState.Get());
 	TestSampleNear(*this, TEXT("Destination Time preserved"), Destination.RuntimeState->Time, 7.0f);
 	TestTrue(TEXT("WindDirection copied"), Destination.WindDirection.Equals(Source.WindDirection));
-	TestSampleNear(*this, TEXT("SteadyForce copied"), Destination.SteadyForce, Source.SteadyForce);
+	TestSampleNear(*this, TEXT("ConstantForce copied"), Destination.ConstantForce, Source.ConstantForce);
 	TestTrue(TEXT("RuntimeState is not shared with source"),
 	         Destination.RuntimeState.Get() != Source.RuntimeState.Get());
 
@@ -690,14 +799,14 @@ bool FKawaiiPhysicsProceduralWindRequestCreatesRuntimeStateTest::RunTest(const F
 	ParamsWind.RuntimeState.Reset();
 
 	FKawaiiProceduralWindDynamicParams Params;
-	Params.bOverrideSteadyForce = true;
-	Params.SteadyForce = 9.0f;
+	Params.bOverrideConstantForce = true;
+	Params.ConstantForce = 9.0f;
 	ParamsWind.RequestDynamicParams(Params);
 
 	TestTrue(TEXT("RequestDynamicParams creates RuntimeState"), ParamsWind.RuntimeState.IsValid());
 	TestTrue(TEXT("PendingParams set after request"), ParamsWind.RuntimeState->PendingParams.IsSet());
 	ParamsWind.ConsumePendingRequests();
-	TestSampleNear(*this, TEXT("PendingParams applied"), ParamsWind.SteadyForce, 9.0f);
+	TestSampleNear(*this, TEXT("PendingParams applied"), ParamsWind.ConstantForce, 9.0f);
 	TestFalse(TEXT("PendingParams reset after consume"), ParamsWind.RuntimeState->PendingParams.IsSet());
 
 	FKawaiiPhysics_ExternalForce_ProceduralWind GustWind;
@@ -733,23 +842,23 @@ bool FKawaiiPhysicsProceduralWindDynamicParamsForPropertyTest::RunTest(const FSt
 	TestTrue(TEXT("WindDirection params built"), bBuilt);
 	TestTrue(TEXT("Only one override flag is set"), CountDynamicParamOverrideFlags(Params) == 1);
 	TestTrue(TEXT("WindDirection override is set"), Params.bOverrideWindDirection);
-	TestFalse(TEXT("SteadyForce override is not set"), Params.bOverrideSteadyForce);
+	TestFalse(TEXT("ConstantForce override is not set"), Params.bOverrideConstantForce);
 	TestFalse(TEXT("TimeScale override is not set"), Params.bOverrideTimeScale);
 	TestFalse(TEXT("IsEnabled override is not set"), Params.bOverrideIsEnabled);
 	TestTrue(TEXT("WindDirection value matches"), Params.WindDirection.Equals(Wind.WindDirection));
 
 	FKawaiiPhysics_ExternalForce_ProceduralWind AppliedWind;
-	AppliedWind.SteadyForce = 2.5f;
+	AppliedWind.ConstantForce = 2.5f;
 	AppliedWind.TimeScale = 0.75f;
 	AppliedWind.ApplyDynamicParams(Params);
 
 	TestTrue(TEXT("WindDirection applied"), AppliedWind.WindDirection.Equals(Wind.WindDirection));
-	TestSampleNear(*this, TEXT("SteadyForce untouched"), AppliedWind.SteadyForce, 2.5f);
+	TestSampleNear(*this, TEXT("ConstantForce untouched"), AppliedWind.ConstantForce, 2.5f);
 	TestSampleNear(*this, TEXT("TimeScale untouched"), AppliedWind.TimeScale, 0.75f);
 
 	FKawaiiProceduralWindDynamicParams UnmappedParams;
-	const bool bUnmappedBuilt = Wind.BuildDynamicParamsForProperty(FName(TEXT("RandomSeed")), UnmappedParams);
-	TestFalse(TEXT("RandomSeed is unmapped"), bUnmappedBuilt);
+	const bool bUnmappedBuilt = Wind.BuildDynamicParamsForProperty(FName(TEXT("Seed")), UnmappedParams);
+	TestFalse(TEXT("Seed is unmapped"), bUnmappedBuilt);
 	TestTrue(TEXT("Unmapped leaves no override flags"), CountDynamicParamOverrideFlags(UnmappedParams) == 0);
 
 	return true;
@@ -764,11 +873,12 @@ bool FKawaiiPhysicsProceduralWindDynamicParamsSnapshotTest::RunTest(const FStrin
 	// スナップショットは DynamicParams 対応項目をすべて上書き対象にして現在値を保持する。
 	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
 	Wind.WindDirection = FVector(0.0f, 20.0f, 30.0f);
-	Wind.SteadyForce = 5.0f;
-	Wind.PulsePeriod = 0.25f;
-	Wind.WavePeriod = 0.5f;
-	Wind.RandomPeriod = 0.75f;
-	Wind.DirectionNoisePeriod = 1.25f;
+	Wind.ConstantForce = 5.0f;
+	Wind.SwayPeriod = 0.25f;
+	Wind.RipplePeriod = 0.5f;
+	Wind.StrengthCycleRange = FFloatInterval(0.4f, 1.8f);
+	Wind.RandomForcePeriod = 0.75f;
+	Wind.WindDirectionNoisePeriod = 1.25f;
 	Wind.TimeScale = 0.5f;
 	Wind.bIsEnabled = false;
 
@@ -777,18 +887,22 @@ bool FKawaiiPhysicsProceduralWindDynamicParamsSnapshotTest::RunTest(const FStrin
 	TestTrue(TEXT("All override flags are set"), CountDynamicParamOverrideFlags(Params) == 18);
 	TestTrue(TEXT("IsEnabled override is set"), Params.bOverrideIsEnabled);
 	TestTrue(TEXT("WindDirection override is set"), Params.bOverrideWindDirection);
-	TestTrue(TEXT("SteadyForce override is set"), Params.bOverrideSteadyForce);
+	TestTrue(TEXT("ConstantForce override is set"), Params.bOverrideConstantForce);
 	TestTrue(TEXT("TimeScale override is set"), Params.bOverrideTimeScale);
 	TestFalse(TEXT("Snapshot bIsEnabled matches"), Params.bIsEnabled);
 	TestTrue(TEXT("Snapshot WindDirection matches"), Params.WindDirection.Equals(Wind.WindDirection));
-	TestSampleNear(*this, TEXT("Snapshot SteadyForce matches"), Params.SteadyForce, 5.0f);
+	TestSampleNear(*this, TEXT("Snapshot ConstantForce matches"), Params.ConstantForce, 5.0f);
+	TestSampleNear(*this, TEXT("Snapshot StrengthCycleRange Min matches"), Params.StrengthCycleRange.Min, 0.4f);
+	TestSampleNear(*this, TEXT("Snapshot StrengthCycleRange Max matches"), Params.StrengthCycleRange.Max, 1.8f);
 	TestSampleNear(*this, TEXT("Snapshot TimeScale matches"), Params.TimeScale, 0.5f);
 
 	FKawaiiPhysics_ExternalForce_ProceduralWind AppliedWind;
 	AppliedWind.ApplyDynamicParams(Params);
 
 	TestTrue(TEXT("Snapshot WindDirection applied"), AppliedWind.WindDirection.Equals(Wind.WindDirection));
-	TestSampleNear(*this, TEXT("Snapshot SteadyForce applied"), AppliedWind.SteadyForce, 5.0f);
+	TestSampleNear(*this, TEXT("Snapshot ConstantForce applied"), AppliedWind.ConstantForce, 5.0f);
+	TestSampleNear(*this, TEXT("Snapshot StrengthCycleRange Min applied"), AppliedWind.StrengthCycleRange.Min, 0.4f);
+	TestSampleNear(*this, TEXT("Snapshot StrengthCycleRange Max applied"), AppliedWind.StrengthCycleRange.Max, 1.8f);
 	TestSampleNear(*this, TEXT("Snapshot TimeScale applied"), AppliedWind.TimeScale, 0.5f);
 	TestFalse(TEXT("Snapshot bIsEnabled applied"), AppliedWind.bIsEnabled);
 
@@ -802,14 +916,14 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindCopyRuntimeStateInd
 bool FKawaiiPhysicsProceduralWindCopyRuntimeStateIndependenceTest::RunTest(const FString& Parameters)
 {
 	FKawaiiPhysics_ExternalForce_ProceduralWind Source;
-	Source.SteadyForce = 12.0f;
+	Source.ConstantForce = 12.0f;
 	Source.RuntimeState->Time = 1.0f;
 
 	FKawaiiPhysics_ExternalForce_ProceduralWind Copied(Source);
 	TestTrue(TEXT("Copied RuntimeState is valid"), Copied.RuntimeState.IsValid());
 	TestTrue(TEXT("Copy constructor does not share RuntimeState"),
 	         Source.RuntimeState.Get() != Copied.RuntimeState.Get());
-	TestSampleNear(*this, TEXT("Copied SteadyForce"), Copied.SteadyForce, Source.SteadyForce);
+	TestSampleNear(*this, TEXT("Copied ConstantForce"), Copied.ConstantForce, Source.ConstantForce);
 
 	Source.RuntimeState->Time = 2.0f;
 	Copied.RuntimeState->Time = 3.0f;
@@ -821,7 +935,7 @@ bool FKawaiiPhysicsProceduralWindCopyRuntimeStateIndependenceTest::RunTest(const
 	TestTrue(TEXT("Assigned RuntimeState is valid"), Assigned.RuntimeState.IsValid());
 	TestTrue(TEXT("Copy assignment does not share RuntimeState"),
 	         Source.RuntimeState.Get() != Assigned.RuntimeState.Get());
-	TestSampleNear(*this, TEXT("Assigned SteadyForce"), Assigned.SteadyForce, Source.SteadyForce);
+	TestSampleNear(*this, TEXT("Assigned ConstantForce"), Assigned.ConstantForce, Source.ConstantForce);
 
 	Source.RuntimeState->Time = 4.0f;
 	Assigned.RuntimeState->Time = 5.0f;

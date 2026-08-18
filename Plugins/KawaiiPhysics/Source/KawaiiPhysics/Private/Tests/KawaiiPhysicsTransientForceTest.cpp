@@ -52,8 +52,8 @@ int32 GetPendingGustCount(FAnimNode_KawaiiPhysics& Node)
 
 void AddAuthoredProceduralWind(FAnimNode_KawaiiPhysics& Node, const bool bIsEnabled, const FVector& Direction,
                                const EExternalForceSpace ForceSpace, const float TimeScale,
-                               const bool bWithFiltersAndCurve, const float DirectionNoiseAngle = 0.0f,
-                               const float DirectionNoisePeriod = 1.0f, const int32 RandomSeed = 0,
+                               const bool bWithFiltersAndCurve, const float WindDirectionNoiseAngle = 0.0f,
+                               const float WindDirectionNoisePeriod = 1.0f, const int32 Seed = 0,
                                const FFloatInterval RandomForceScaleRange = FFloatInterval(1.0f, 1.0f))
 {
 	FInstancedStruct InstancedWind = FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_ProceduralWind>();
@@ -65,9 +65,9 @@ void AddAuthoredProceduralWind(FAnimNode_KawaiiPhysics& Node, const bool bIsEnab
 	Wind->WindDirection = Direction;
 	Wind->ExternalForceSpace = ForceSpace;
 	Wind->TimeScale = TimeScale;
-	Wind->DirectionNoiseAngle = DirectionNoiseAngle;
-	Wind->DirectionNoisePeriod = DirectionNoisePeriod;
-	Wind->RandomSeed = RandomSeed;
+	Wind->WindDirectionNoiseAngle = WindDirectionNoiseAngle;
+	Wind->WindDirectionNoisePeriod = WindDirectionNoisePeriod;
+	Wind->Seed = Seed;
 	Wind->RandomForceScaleRange = RandomForceScaleRange;
 
 	if (bWithFiltersAndCurve)
@@ -320,9 +320,9 @@ bool FKawaiiPhysicsTransientForceInheritFromAuthoredTest::RunTest(const FString&
 			bOk &= TestTrue(TEXT("Indexed WindDirection"), Wind->WindDirection.Equals(FVector(0.0f, 1.0f, 0.0f)));
 			bOk &= TestTrue(TEXT("Indexed ExternalForceSpace"), Wind->ExternalForceSpace == EExternalForceSpace::ComponentSpace);
 			bOk &= TestInheritedRuntimeFields(*this, *Wind);
-			bOk &= TestFloatNear(*this, TEXT("Indexed DirectionNoiseAngle"), Wind->DirectionNoiseAngle, 15.0f);
-			bOk &= TestFloatNear(*this, TEXT("Indexed DirectionNoisePeriod"), Wind->DirectionNoisePeriod, 0.5f);
-			bOk &= TestEqual(TEXT("Indexed RandomSeed"), Wind->RandomSeed, 42);
+			bOk &= TestFloatNear(*this, TEXT("Indexed WindDirectionNoiseAngle"), Wind->WindDirectionNoiseAngle, 15.0f);
+			bOk &= TestFloatNear(*this, TEXT("Indexed WindDirectionNoisePeriod"), Wind->WindDirectionNoisePeriod, 0.5f);
+			bOk &= TestEqual(TEXT("Indexed Seed"), Wind->Seed, 42);
 			bOk &= TestFloatNear(*this, TEXT("Indexed lifetime"), Node.TransientForceStore.Items[0].RemainingLifetime, 0.6f);
 		}
 	}
@@ -340,9 +340,9 @@ bool FKawaiiPhysicsTransientForceInheritFromAuthoredTest::RunTest(const FString&
 			bOk &= TestTrue(TEXT("Fallback skips disabled"), Wind->WindDirection.Equals(FVector(0.0f, 1.0f, 0.0f)));
 			bOk &= TestTrue(TEXT("Fallback ExternalForceSpace"), Wind->ExternalForceSpace == EExternalForceSpace::ComponentSpace);
 			bOk &= TestInheritedRuntimeFields(*this, *Wind);
-			bOk &= TestFloatNear(*this, TEXT("Fallback DirectionNoiseAngle"), Wind->DirectionNoiseAngle, 15.0f);
-			bOk &= TestFloatNear(*this, TEXT("Fallback DirectionNoisePeriod"), Wind->DirectionNoisePeriod, 0.5f);
-			bOk &= TestEqual(TEXT("Fallback RandomSeed"), Wind->RandomSeed, 42);
+			bOk &= TestFloatNear(*this, TEXT("Fallback WindDirectionNoiseAngle"), Wind->WindDirectionNoiseAngle, 15.0f);
+			bOk &= TestFloatNear(*this, TEXT("Fallback WindDirectionNoisePeriod"), Wind->WindDirectionNoisePeriod, 0.5f);
+			bOk &= TestEqual(TEXT("Fallback Seed"), Wind->Seed, 42);
 		}
 	}
 
@@ -359,9 +359,9 @@ bool FKawaiiPhysicsTransientForceInheritFromAuthoredTest::RunTest(const FString&
 			bOk &= TestTrue(TEXT("Explicit WindDirection"), Wind->WindDirection.Equals(FVector(0.0f, 0.0f, 3.0f)));
 			bOk &= TestTrue(TEXT("Explicit ExternalForceSpace"), Wind->ExternalForceSpace == EExternalForceSpace::WorldSpace);
 			bOk &= TestInheritedRuntimeFields(*this, *Wind);
-			bOk &= TestFloatNear(*this, TEXT("Explicit DirectionNoiseAngle"), Wind->DirectionNoiseAngle, 0.0f);
-			bOk &= TestFloatNear(*this, TEXT("Explicit DirectionNoisePeriod"), Wind->DirectionNoisePeriod, 1.0f);
-			bOk &= TestEqual(TEXT("Explicit RandomSeed"), Wind->RandomSeed, 0);
+			bOk &= TestFloatNear(*this, TEXT("Explicit WindDirectionNoiseAngle"), Wind->WindDirectionNoiseAngle, 0.0f);
+			bOk &= TestFloatNear(*this, TEXT("Explicit WindDirectionNoisePeriod"), Wind->WindDirectionNoisePeriod, 1.0f);
+			bOk &= TestEqual(TEXT("Explicit Seed"), Wind->Seed, 0);
 		}
 	}
 
@@ -492,14 +492,14 @@ bool FKawaiiPhysicsTransientForceSpreadAcrossAuthoredWindsTest::RunTest(const FS
 			bOk &= TestTrue(TEXT("Explicit Wind0 direction"), Wind0->WindDirection.Equals(FVector(5.0f, 0.0f, 0.0f)));
 			bOk &= TestTrue(TEXT("Explicit Wind0 space"), Wind0->ExternalForceSpace == EExternalForceSpace::WorldSpace);
 			bOk &= TestEqual(TEXT("Explicit Wind0 ApplyBoneFilter.Num"), Wind0->ApplyBoneFilter.Num(), 1);
-			bOk &= TestFloatNear(*this, TEXT("Explicit Wind0 DirectionNoiseAngle"), Wind0->DirectionNoiseAngle, 0.0f);
+			bOk &= TestFloatNear(*this, TEXT("Explicit Wind0 WindDirectionNoiseAngle"), Wind0->WindDirectionNoiseAngle, 0.0f);
 		}
 		if (Wind1)
 		{
 			bOk &= TestTrue(TEXT("Explicit Wind1 direction"), Wind1->WindDirection.Equals(FVector(5.0f, 0.0f, 0.0f)));
 			bOk &= TestTrue(TEXT("Explicit Wind1 space"), Wind1->ExternalForceSpace == EExternalForceSpace::WorldSpace);
 			bOk &= TestFloatNear(*this, TEXT("Explicit Wind1 TimeScale"), Wind1->TimeScale, 2.0f);
-			bOk &= TestFloatNear(*this, TEXT("Explicit Wind1 DirectionNoiseAngle"), Wind1->DirectionNoiseAngle, 0.0f);
+			bOk &= TestFloatNear(*this, TEXT("Explicit Wind1 WindDirectionNoiseAngle"), Wind1->WindDirectionNoiseAngle, 0.0f);
 		}
 	}
 

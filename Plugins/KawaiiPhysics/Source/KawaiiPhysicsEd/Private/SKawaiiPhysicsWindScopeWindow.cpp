@@ -130,14 +130,14 @@ namespace
 		{
 		case EKawaiiPhysicsWindScopeComponent::Total:
 			return Sample.Total;
-		case EKawaiiPhysicsWindScopeComponent::Steady:
-			return Sample.Steady;
-		case EKawaiiPhysicsWindScopeComponent::Pulse:
-			return Sample.Pulse;
-		case EKawaiiPhysicsWindScopeComponent::Wave:
-			return Sample.Wave;
-		case EKawaiiPhysicsWindScopeComponent::Breathing:
-			return Sample.Breathing;
+		case EKawaiiPhysicsWindScopeComponent::Constant:
+			return Sample.Constant;
+		case EKawaiiPhysicsWindScopeComponent::Sway:
+			return Sample.Sway;
+		case EKawaiiPhysicsWindScopeComponent::Ripple:
+			return Sample.Ripple;
+		case EKawaiiPhysicsWindScopeComponent::StrengthCycle:
+			return Sample.StrengthCycle;
 		case EKawaiiPhysicsWindScopeComponent::Random:
 			return Sample.Random;
 		case EKawaiiPhysicsWindScopeComponent::Gust:
@@ -171,6 +171,20 @@ namespace
 		return StructProperty && StructProperty->Struct == TBaseStructure<FVector>::Get();
 	}
 
+	bool IsFloatIntervalProperty(const FProperty* Property)
+	{
+		const FStructProperty* StructProperty = CastField<FStructProperty>(Property);
+		return StructProperty && StructProperty->Struct == TBaseStructure<FFloatInterval>::Get();
+	}
+
+	bool IsParameterModeProperty(const FProperty* Property)
+	{
+		const FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property);
+		return EnumProperty &&
+			EnumProperty->GetEnum() &&
+			EnumProperty->GetEnum()->GetFName() == StaticEnum<EKawaiiProceduralWindParameterMode>()->GetFName();
+	}
+
 	bool SetProceduralWindPropertyValue(
 		FKawaiiPhysics_ExternalForce_ProceduralWind& Wind,
 		const FProperty* Property,
@@ -200,10 +214,32 @@ namespace
 			return true;
 		}
 
+		if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
+		{
+			EnumProperty->GetUnderlyingProperty()->SetIntPropertyValue(
+				EnumProperty->ContainerPtrToValuePtr<void>(&Wind),
+				FMath::Clamp(FMath::RoundToInt64(NewValue), 0, 1));
+			return true;
+		}
+
 		if (IsFVectorProperty(Property) && VectorComponentIndex >= 0 && VectorComponentIndex <= 2)
 		{
 			FVector* Vector = Property->ContainerPtrToValuePtr<FVector>(&Wind);
 			(*Vector)[VectorComponentIndex] = static_cast<FVector::FReal>(NewValue);
+			return true;
+		}
+
+		if (IsFloatIntervalProperty(Property) && VectorComponentIndex >= 0 && VectorComponentIndex <= 1)
+		{
+			FFloatInterval* Interval = Property->ContainerPtrToValuePtr<FFloatInterval>(&Wind);
+			if (VectorComponentIndex == 0)
+			{
+				Interval->Min = static_cast<float>(NewValue);
+			}
+			else
+			{
+				Interval->Max = static_cast<float>(NewValue);
+			}
 			return true;
 		}
 
@@ -267,12 +303,35 @@ namespace
 			return IntProperty->GetPropertyValue_InContainer(&Wind) == FMath::RoundToInt32(NewValue);
 		}
 
+		if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
+		{
+			const int64 CurrentValue = EnumProperty->GetUnderlyingProperty()->GetSignedIntPropertyValue(
+				EnumProperty->ContainerPtrToValuePtr<void>(&Wind));
+			return CurrentValue == FMath::Clamp(FMath::RoundToInt64(NewValue), 0, 1);
+		}
+
 		if (IsFVectorProperty(Property) && VectorComponentIndex >= 0 && VectorComponentIndex <= 2)
 		{
 			const FVector* Vector = Property->ContainerPtrToValuePtr<FVector>(&Wind);
 			FVector EditedVector = *Vector;
 			EditedVector[VectorComponentIndex] = static_cast<FVector::FReal>(NewValue);
 			return Vector->Equals(EditedVector);
+		}
+
+		if (IsFloatIntervalProperty(Property) && VectorComponentIndex >= 0 && VectorComponentIndex <= 1)
+		{
+			const FFloatInterval* Interval = Property->ContainerPtrToValuePtr<FFloatInterval>(&Wind);
+			FFloatInterval EditedInterval = *Interval;
+			if (VectorComponentIndex == 0)
+			{
+				EditedInterval.Min = static_cast<float>(NewValue);
+			}
+			else
+			{
+				EditedInterval.Max = static_cast<float>(NewValue);
+			}
+			return FMath::IsNearlyEqual(Interval->Min, EditedInterval.Min) &&
+				FMath::IsNearlyEqual(Interval->Max, EditedInterval.Max);
 		}
 
 		return false;
@@ -370,26 +429,25 @@ namespace
 		const FKawaiiPhysics_ExternalForce_ProceduralWind& Wind)
 	{
 		FKawaiiProceduralWindPreset Preset;
-		Preset.SteadyForce = Wind.SteadyForce;
-		Preset.PulseForce = Wind.PulseForce;
-		Preset.PulsePeriod = Wind.PulsePeriod;
-		Preset.WaveAmplitude = Wind.WaveAmplitude;
-		Preset.WavePeriod = Wind.WavePeriod;
-		Preset.WaveSpatialOffset = Wind.WaveSpatialOffset;
-		Preset.BreathingMin = Wind.BreathingMin;
-		Preset.BreathingMax = Wind.BreathingMax;
-		Preset.BreathingPeriod = Wind.BreathingPeriod;
+		Preset.ConstantForce = Wind.ConstantForce;
+		Preset.SwayForce = Wind.SwayForce;
+		Preset.SwayPeriod = Wind.SwayPeriod;
+		Preset.RippleForce = Wind.RippleForce;
+		Preset.RipplePeriod = Wind.RipplePeriod;
+		Preset.RippleTipPhaseDelay = Wind.RippleTipPhaseDelay;
+		Preset.StrengthCycleRange = Wind.StrengthCycleRange;
+		Preset.StrengthCyclePeriod = Wind.StrengthCyclePeriod;
 		Preset.RandomForce = Wind.RandomForce;
-		Preset.RandomPeriod = Wind.RandomPeriod;
-		Preset.DirectionNoiseAngle = Wind.DirectionNoiseAngle;
+		Preset.RandomForcePeriod = Wind.RandomForcePeriod;
+		Preset.WindDirectionNoiseAngle = Wind.WindDirectionNoiseAngle;
 		return Preset;
 	}
 
-	// サンプルが無い時の初期表示値。Breathing=1にして Total=0（無風）を表すサンプルにする
+	// サンプルが無い時の初期表示値。StrengthCycle=1にして Total=0（無風）を表すサンプルにする
 	FKawaiiPhysicsProceduralWindSample MakeZeroWindSample()
 	{
 		FKawaiiPhysicsProceduralWindSample Sample;
-		Sample.Breathing = 1.0f;
+		Sample.StrengthCycle = 1.0f;
 		return Sample;
 	}
 
@@ -423,21 +481,34 @@ namespace
 						OutValues.bIsEnabled = BoolProperty->GetPropertyValue_InContainer(Wind);
 					}
 				}
+				else if (IsParameterModeProperty(Property))
+				{
+					const FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property);
+					const int64 EnumValue = EnumProperty->GetUnderlyingProperty()->GetSignedIntPropertyValue(
+						EnumProperty->ContainerPtrToValuePtr<void>(Wind));
+					OutValues.ParameterMode = EnumValue == static_cast<int64>(EKawaiiProceduralWindParameterMode::Advanced)
+						                          ? EKawaiiProceduralWindParameterMode::Advanced
+						                          : EKawaiiProceduralWindParameterMode::Simple;
+				}
 				else if (const FFloatProperty* FloatProperty = CastField<FFloatProperty>(Property))
 				{
 					OutValues.FloatValues.Add(Param.PropertyName, FloatProperty->GetPropertyValue_InContainer(Wind));
 				}
 				else if (const FIntProperty* IntProperty = CastField<FIntProperty>(Property))
 				{
-					if (Param.PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomSeed))
+					if (Param.PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, Seed))
 					{
-						OutValues.RandomSeed = IntProperty->GetPropertyValue_InContainer(Wind);
+						OutValues.Seed = IntProperty->GetPropertyValue_InContainer(Wind);
 					}
 				}
 				else if (IsFVectorProperty(Property) &&
 					Param.PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindDirection))
 				{
 					OutValues.WindDirection = *Property->ContainerPtrToValuePtr<FVector>(Wind);
+				}
+				else if (IsFloatIntervalProperty(Property))
+				{
+					OutValues.IntervalValues.Add(Param.PropertyName, *Property->ContainerPtrToValuePtr<FFloatInterval>(Wind));
 				}
 
 				if (bTrackDefaultDiff && IsProceduralWindPropertyModifiedFromDefault(*Wind, DefaultWind, Property))
@@ -454,6 +525,71 @@ namespace
 		Options.MinimumFractionalDigits = 2;
 		Options.MaximumFractionalDigits = 2;
 		return FText::AsNumber(Value, &Options);
+	}
+
+	FLinearColor MakeInactiveSeriesColor(FLinearColor Color)
+	{
+		Color = Color.Desaturate(0.65f);
+		Color.A *= 0.38f;
+		return Color;
+	}
+
+	FLinearColor ResolveBaseComponentColor(EKawaiiPhysicsWindScopeComponent Component)
+	{
+		for (const FKawaiiWindScopeComponentStyle& Style : GetWindScopeComponentStyles())
+		{
+			if (Style.Component == Component)
+			{
+				return Style.Color;
+			}
+		}
+		return FLinearColor::White;
+	}
+
+	bool IsSeriesActiveFromValues(
+		const FKawaiiWindScopeEditValues* Values,
+		EKawaiiPhysicsWindScopeComponent Component,
+		bool bGustActive)
+	{
+		if (Component == EKawaiiPhysicsWindScopeComponent::Total)
+		{
+			return true;
+		}
+		if (Component == EKawaiiPhysicsWindScopeComponent::Gust)
+		{
+			return bGustActive;
+		}
+		if (!Values || !Values->bValid)
+		{
+			return true;
+		}
+
+		const auto IsNonZeroFloat = [Values](const FName PropertyName)
+		{
+			const float* Value = Values->FloatValues.Find(PropertyName);
+			return Value && !FMath::IsNearlyZero(*Value);
+		};
+
+		switch (Component)
+		{
+		case EKawaiiPhysicsWindScopeComponent::Constant:
+			return IsNonZeroFloat(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, ConstantForce));
+		case EKawaiiPhysicsWindScopeComponent::Sway:
+			return IsNonZeroFloat(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, SwayForce));
+		case EKawaiiPhysicsWindScopeComponent::Ripple:
+			return IsNonZeroFloat(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RippleForce));
+		case EKawaiiPhysicsWindScopeComponent::StrengthCycle:
+			if (const FFloatInterval* Range = Values->IntervalValues.Find(
+				GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, StrengthCycleRange)))
+			{
+				return !FMath::IsNearlyEqual(Range->Min, 1.0f) || !FMath::IsNearlyEqual(Range->Max, 1.0f);
+			}
+			return true;
+		case EKawaiiPhysicsWindScopeComponent::Random:
+			return IsNonZeroFloat(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomForce));
+		default:
+			return true;
+		}
 	}
 
 	FKawaiiWindScopeRange ComputeWindScopeRange(const TArray<FKawaiiProceduralWindScopeSample>& Samples,
@@ -688,7 +824,10 @@ namespace
 					.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 					[
 						SNew(SColorBlock)
-						.Color(Style.Color)
+						.Color_Lambda([Owner, Component = Style.Component]()
+						{
+							return Owner->ResolveSeriesDisplayColor(Component);
+						})
 						.Size(FVector2D(12.0f, 8.0f))
 					]
 					+ SHorizontalBox::Slot()
@@ -697,10 +836,56 @@ namespace
 					[
 						SNew(STextBlock)
 						.Text(Style.Label)
+						.ColorAndOpacity_Lambda([Owner, Component = Style.Component]()
+						{
+							return FSlateColor(Owner->ResolveSeriesDisplayColor(Component));
+						})
 						.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
 					]
 				]
 			];
+	}
+
+	TSharedRef<STextBlock> MakeFormulaHeaderStaticText(const FText& Text)
+	{
+		return SNew(STextBlock)
+			.Text(Text)
+			.ColorAndOpacity(FSlateColor::UseForeground())
+			.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 10, TEXT("Bold")));
+	}
+
+	TSharedRef<STextBlock> MakeFormulaHeaderSeriesText(
+		SKawaiiPhysicsWindScopeWindow* Owner,
+		EKawaiiPhysicsWindScopeComponent Component,
+		const FText& Text)
+	{
+		return SNew(STextBlock)
+			.Text(Text)
+			.ColorAndOpacity_Lambda([Owner, Component]()
+			{
+				return FSlateColor(Owner->ResolveSeriesDisplayColor(Component));
+			})
+			.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 10, TEXT("Bold")));
+	}
+
+	TSharedRef<SWidget> MakeWindScopeFormulaHeader(SKawaiiPhysicsWindScopeWindow* Owner)
+	{
+		return SNew(SWrapBox)
+			.UseAllottedSize(true)
+			.InnerSlotPadding(FVector2D(1.0f, 1.0f))
+			+ SWrapBox::Slot()[MakeFormulaHeaderSeriesText(Owner, EKawaiiPhysicsWindScopeComponent::Total, LOCTEXT("FormulaHeaderTotal", "Total"))]
+			+ SWrapBox::Slot()[MakeFormulaHeaderStaticText(LOCTEXT("FormulaHeaderEquals", " = ("))]
+			+ SWrapBox::Slot()[MakeFormulaHeaderSeriesText(Owner, EKawaiiPhysicsWindScopeComponent::Constant, LOCTEXT("FormulaHeaderConstant", "Constant"))]
+			+ SWrapBox::Slot()[MakeFormulaHeaderStaticText(LOCTEXT("FormulaHeaderPlusSway", " + "))]
+			+ SWrapBox::Slot()[MakeFormulaHeaderSeriesText(Owner, EKawaiiPhysicsWindScopeComponent::Sway, LOCTEXT("FormulaHeaderSway", "Sway"))]
+			+ SWrapBox::Slot()[MakeFormulaHeaderStaticText(LOCTEXT("FormulaHeaderPlusRipple", " + "))]
+			+ SWrapBox::Slot()[MakeFormulaHeaderSeriesText(Owner, EKawaiiPhysicsWindScopeComponent::Ripple, LOCTEXT("FormulaHeaderRipple", "Ripple"))]
+			+ SWrapBox::Slot()[MakeFormulaHeaderStaticText(LOCTEXT("FormulaHeaderStrengthCyclePrefix", ") × "))]
+			+ SWrapBox::Slot()[MakeFormulaHeaderSeriesText(Owner, EKawaiiPhysicsWindScopeComponent::StrengthCycle, LOCTEXT("FormulaHeaderStrengthCycle", "StrengthCycle"))]
+			+ SWrapBox::Slot()[MakeFormulaHeaderStaticText(LOCTEXT("FormulaHeaderPlusRandom", " + "))]
+			+ SWrapBox::Slot()[MakeFormulaHeaderSeriesText(Owner, EKawaiiPhysicsWindScopeComponent::Random, LOCTEXT("FormulaHeaderRandom", "Random"))]
+			+ SWrapBox::Slot()[MakeFormulaHeaderStaticText(LOCTEXT("FormulaHeaderPlusGust", " + "))]
+			+ SWrapBox::Slot()[MakeFormulaHeaderSeriesText(Owner, EKawaiiPhysicsWindScopeComponent::Gust, LOCTEXT("FormulaHeaderGust", "Gust"))];
 	}
 
 	// 所属 AnimBlueprint を変更済みとしてマークする（プリセット適用の Undo/Redo・保存ダーティ化用）
@@ -726,14 +911,14 @@ bool FKawaiiPhysicsWindScopeSeriesVisibility::IsVisible(EKawaiiPhysicsWindScopeC
 	{
 	case EKawaiiPhysicsWindScopeComponent::Total:
 		return bTotal;
-	case EKawaiiPhysicsWindScopeComponent::Steady:
-		return bSteady;
-	case EKawaiiPhysicsWindScopeComponent::Pulse:
-		return bPulse;
-	case EKawaiiPhysicsWindScopeComponent::Wave:
-		return bWave;
-	case EKawaiiPhysicsWindScopeComponent::Breathing:
-		return bBreathing;
+	case EKawaiiPhysicsWindScopeComponent::Constant:
+		return bConstant;
+	case EKawaiiPhysicsWindScopeComponent::Sway:
+		return bSway;
+	case EKawaiiPhysicsWindScopeComponent::Ripple:
+		return bRipple;
+	case EKawaiiPhysicsWindScopeComponent::StrengthCycle:
+		return bStrengthCycle;
 	case EKawaiiPhysicsWindScopeComponent::Random:
 		return bRandom;
 	case EKawaiiPhysicsWindScopeComponent::Gust:
@@ -752,17 +937,17 @@ void FKawaiiPhysicsWindScopeSeriesVisibility::SetVisible(
 	case EKawaiiPhysicsWindScopeComponent::Total:
 		bTotal = bVisible;
 		break;
-	case EKawaiiPhysicsWindScopeComponent::Steady:
-		bSteady = bVisible;
+	case EKawaiiPhysicsWindScopeComponent::Constant:
+		bConstant = bVisible;
 		break;
-	case EKawaiiPhysicsWindScopeComponent::Pulse:
-		bPulse = bVisible;
+	case EKawaiiPhysicsWindScopeComponent::Sway:
+		bSway = bVisible;
 		break;
-	case EKawaiiPhysicsWindScopeComponent::Wave:
-		bWave = bVisible;
+	case EKawaiiPhysicsWindScopeComponent::Ripple:
+		bRipple = bVisible;
 		break;
-	case EKawaiiPhysicsWindScopeComponent::Breathing:
-		bBreathing = bVisible;
+	case EKawaiiPhysicsWindScopeComponent::StrengthCycle:
+		bStrengthCycle = bVisible;
 		break;
 	case EKawaiiPhysicsWindScopeComponent::Random:
 		bRandom = bVisible;
@@ -923,7 +1108,7 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 			1.0f);
 	}
 
-	// 各波形成分のポリラインを描画（Breathing等 bDashed 指定の系列は破線）
+	// 各波形成分のポリラインを描画（StrengthCycle等 bDashed 指定の系列は破線）
 	for (const FKawaiiWindScopeComponentStyle& Style : GetWindScopeComponentStyles())
 	{
 		if (!Visibility.IsVisible(Style.Component))
@@ -1024,6 +1209,15 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 			}
 			return false;
 		};
+		const auto GetIntervalEditValue = [this](const FName InPropertyName, FFloatInterval& OutValue)
+		{
+			if (const FFloatInterval* Value = EditValues->IntervalValues.Find(InPropertyName))
+			{
+				OutValue = *Value;
+				return true;
+			}
+			return false;
+		};
 		const auto TimeToX = [&](const float Time)
 		{
 			return GraphOrigin.X + GraphSize.X * ((Time - Range.MinTime) / TimeSpan);
@@ -1104,16 +1298,13 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 			DrawVerticalGuideLine(Range.MinTime + PhaseTime, GuideLineColor);
 		};
 
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingMax) ||
-			PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingMin))
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, StrengthCycleRange))
 		{
-			float BreathingMax = 0.0f;
-			float BreathingMin = 0.0f;
-			if (GetFloatEditValue(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingMax), BreathingMax) &&
-				GetFloatEditValue(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingMin), BreathingMin))
+			FFloatInterval StrengthCycleRange;
+			if (GetIntervalEditValue(PropertyName, StrengthCycleRange))
 			{
-				const float MaxY = ValueToY(BreathingMax);
-				const float MinY = ValueToY(BreathingMin);
+				const float MaxY = ValueToY(StrengthCycleRange.Max);
+				const float MinY = ValueToY(StrengthCycleRange.Min);
 				const float BandTop = FMath::Clamp(FMath::Min(MaxY, MinY), GraphOrigin.Y, GraphBottom);
 				const float BandBottom = FMath::Clamp(FMath::Max(MaxY, MinY), GraphOrigin.Y, GraphBottom);
 				if (BandBottom > BandTop)
@@ -1125,26 +1316,26 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 							FVector2D(GraphSize.X, BandBottom - BandTop),
 							FSlateLayoutTransform(FVector2D(GraphOrigin.X, BandTop))),
 						WhiteBrush,
-						ESlateDrawEffect::None,
-						GuideBandColor);
+					ESlateDrawEffect::None,
+					GuideBandColor);
 				}
-				DrawHorizontalGuideLine(BreathingMax, GuideLineColor);
-				DrawHorizontalGuideLine(BreathingMin, GuideLineColor);
+				DrawHorizontalGuideLine(StrengthCycleRange.Max, GuideLineColor);
+				DrawHorizontalGuideLine(StrengthCycleRange.Min, GuideLineColor);
 			}
 		}
-		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, SteadyForce))
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, ConstantForce))
 		{
-			float SteadyForce = 0.0f;
-			if (GetFloatEditValue(PropertyName, SteadyForce))
+			float ConstantForce = 0.0f;
+			if (GetFloatEditValue(PropertyName, ConstantForce))
 			{
-				DrawHorizontalGuideLine(SteadyForce, GuideLineColor);
+				DrawHorizontalGuideLine(ConstantForce, GuideLineColor);
 			}
 		}
-		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, PulsePeriod) ||
-			PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WavePeriod) ||
-			PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomPeriod) ||
-			PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, DirectionNoisePeriod) ||
-			PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingPeriod))
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, SwayPeriod) ||
+			PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RipplePeriod) ||
+			PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomForcePeriod) ||
+			PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindDirectionNoisePeriod) ||
+			PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, StrengthCyclePeriod))
 		{
 			float Period = 0.0f;
 			if (GetFloatEditValue(PropertyName, Period))
@@ -1152,22 +1343,22 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 				DrawPeriodGuideLines(Period);
 			}
 		}
-		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WavePhase))
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RipplePhaseOffset))
 		{
 			float Phase = 0.0f;
 			float Period = 0.0f;
 			if (GetFloatEditValue(PropertyName, Phase) &&
-				GetFloatEditValue(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WavePeriod), Period))
+				GetFloatEditValue(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RipplePeriod), Period))
 			{
 				DrawPhaseGuideLine(Phase, Period);
 			}
 		}
-		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingPhase))
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, StrengthCyclePhaseOffset))
 		{
 			float Phase = 0.0f;
 			float Period = 0.0f;
 			if (GetFloatEditValue(PropertyName, Phase) &&
-				GetFloatEditValue(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingPeriod), Period))
+				GetFloatEditValue(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, StrengthCyclePeriod), Period))
 			{
 				DrawPhaseGuideLine(Phase, Period);
 			}
@@ -1610,6 +1801,12 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 				.AutoHeight()
 				.Padding(0.0f, 0.0f, 0.0f, 4.0f)
 				[
+					MakeWindScopeFormulaHeader(this)
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.0f, 0.0f, 0.0f, 4.0f)
+				[
 					SNew(SWrapBox)
 					.UseAllottedSize(true)
 					.InnerSlotPadding(FVector2D(6.0f, 2.0f))
@@ -1909,12 +2106,12 @@ FText SKawaiiPhysicsWindScopeWindow::GetCurrentValuesText() const
 	const FKawaiiPhysicsProceduralWindSample Sample =
 		DisplaySamples.Num() > 0 ? DisplaySamples.Last().Sample : MakeZeroWindSample();
 	return FText::Format(
-		LOCTEXT("CurrentValuesFormat", "Total {0}  Steady {1}  Pulse {2}  Wave {3}  Breath {4}  Rand {5}  Gust {6}"),
+		LOCTEXT("CurrentValuesFormat", "Total {0}  Constant {1}  Sway {2}  Ripple {3}  StrCycle {4}  Rand {5}  Gust {6}"),
 		FormatFloat2(Sample.Total),
-		FormatFloat2(Sample.Steady),
-		FormatFloat2(Sample.Pulse),
-		FormatFloat2(Sample.Wave),
-		FormatFloat2(Sample.Breathing),
+		FormatFloat2(Sample.Constant),
+		FormatFloat2(Sample.Sway),
+		FormatFloat2(Sample.Ripple),
+		FormatFloat2(Sample.StrengthCycle),
 		FormatFloat2(Sample.Random),
 		FormatFloat2(Sample.Gust));
 }
@@ -2012,6 +2209,21 @@ void SKawaiiPhysicsWindScopeWindow::SetHighlightSeries(TOptional<EKawaiiPhysicsW
 	{
 		GraphWidget->SetHighlightSeries(InHighlightSeries);
 	}
+}
+
+bool SKawaiiPhysicsWindScopeWindow::IsSeriesActive(EKawaiiPhysicsWindScopeComponent Component) const
+{
+	const bool bGustActive = DisplaySamples.Num() > 0 && !FMath::IsNearlyZero(DisplaySamples.Last().Sample.Gust);
+	// Live 値が有効な間は runtime 側（DynamicParams 反映後）で判定し、グラフの live 波形と凡例/式ヘッダの淡色表示を一致させる
+	const FKawaiiWindScopeEditValues* Values = CachedLiveEditValues.bValid ? &CachedLiveEditValues : &CachedEditValues;
+	return IsSeriesActiveFromValues(Values, Component, bGustActive);
+}
+
+FLinearColor SKawaiiPhysicsWindScopeWindow::ResolveSeriesDisplayColor(
+	EKawaiiPhysicsWindScopeComponent Component) const
+{
+	const FLinearColor Color = ResolveBaseComponentColor(Component);
+	return IsSeriesActive(Component) ? Color : MakeInactiveSeriesColor(Color);
 }
 
 void SKawaiiPhysicsWindScopeWindow::RebuildPresetButtons()
@@ -2841,11 +3053,10 @@ EActiveTimerReturnType SKawaiiPhysicsWindScopeWindow::TickWindScope(double InCur
 			RefreshWindParamPinExposureCache();
 			WindParamPinExposureRefreshElapsedTime = 0.0f;
 		}
-
-		bHasWindSnapshot = TryGetPreviewForceCopy(WindSnapshot);
-		UpdateEditValuesFromWind(bHasWindSnapshot ? &WindSnapshot : nullptr);
-		UpdateLiveEditValuesFromRuntime();
 	}
+	bHasWindSnapshot = TryGetPreviewForceCopy(WindSnapshot);
+	UpdateEditValuesFromWind(bHasWindSnapshot ? &WindSnapshot : nullptr);
+	UpdateLiveEditValuesFromRuntime();
 
 	if (bPaused)
 	{
@@ -2949,7 +3160,7 @@ void SKawaiiPhysicsWindScopeWindow::RebuildPreviewSamples(
 		FKawaiiProceduralWindScopeSample ScopeSample;
 		ScopeSample.Time = SampleTime;
 		// LengthRate=0（ルート相当）で評価。PreApply が ScopeBuffer に書き込む Live サンプルも同じ LengthRate=0
-		// で計算されるため、両者は同一基準で比較できる（実ボーンの LengthRateFromRoot による Wave 位相ずれは含まない）
+		// で計算されるため、両者は同一基準で比較できる（実ボーンの LengthRateFromRoot による Ripple 位相ずれは含まない）
 		ScopeSample.Sample = Wind.ComputeWindSample(SampleTime, 0.0f);
 		DisplaySamples.Add(ScopeSample);
 	}
