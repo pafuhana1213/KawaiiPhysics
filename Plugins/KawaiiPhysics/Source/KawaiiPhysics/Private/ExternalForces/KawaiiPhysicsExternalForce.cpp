@@ -21,7 +21,10 @@ void FKawaiiPhysics_ExternalForce::PreApply(FAnimNode_KawaiiPhysics& Node,
                                             FComponentSpacePoseContext& PoseContext)
 {
 	ComponentTransform = PoseContext.AnimInstanceProxy->GetComponentTransform();
-	RandomizedForceScale = FMath::RandRange(RandomForceScaleRange.Min, RandomForceScaleRange.Max);
+	// 非対応の外力（ProceduralWind等）ではグローバル乱数を消費せず1固定にする（乱数列への副作用も残さない）
+	RandomizedForceScale = bSupportsRandomForceScaleRange
+		                       ? FMath::RandRange(RandomForceScaleRange.Min, RandomForceScaleRange.Max)
+		                       : 1.0f;
 }
 
 void FKawaiiPhysics_ExternalForce::ApplyToVelocity(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,

@@ -39,10 +39,10 @@ struct FKawaiiPhysicsWindScopeWindowArgs
 enum class EKawaiiPhysicsWindScopeComponent : uint8
 {
 	Total,
-	Steady,
-	Pulse,
-	Wave,
-	Breathing,
+	Constant,
+	Sway,
+	Ripple,
+	StrengthCycle,
 	Random,
 	Gust,
 };
@@ -51,10 +51,10 @@ enum class EKawaiiPhysicsWindScopeComponent : uint8
 struct FKawaiiPhysicsWindScopeSeriesVisibility
 {
 	bool bTotal = true;
-	bool bSteady = true;
-	bool bPulse = true;
-	bool bWave = true;
-	bool bBreathing = true;
+	bool bConstant = true;
+	bool bSway = true;
+	bool bRipple = true;
+	bool bStrengthCycle = true;
 	bool bRandom = true;
 	bool bGust = true;
 
@@ -67,9 +67,11 @@ struct FKawaiiWindScopeEditValues
 {
 	bool bValid = false;
 	bool bIsEnabled = true;
+	EKawaiiProceduralWindParameterMode ParameterMode = EKawaiiProceduralWindParameterMode::Simple;
 	FVector WindDirection = FVector::ForwardVector;
 	TMap<FName, float> FloatValues;
-	int32 RandomSeed = 0;
+	TMap<FName, FFloatInterval> IntervalValues;
+	int32 Seed = 0;
 	TSet<FName> ModifiedFromDefault;
 };
 
@@ -160,6 +162,8 @@ public:
 	ECheckBoxState GetSeriesCheckState(EKawaiiPhysicsWindScopeComponent Component) const;
 	void OnSeriesCheckStateChanged(ECheckBoxState NewState, EKawaiiPhysicsWindScopeComponent Component);
 	void SetHighlightSeries(TOptional<EKawaiiPhysicsWindScopeComponent> InHighlightSeries);
+	bool IsSeriesActive(EKawaiiPhysicsWindScopeComponent Component) const;
+	FLinearColor ResolveSeriesDisplayColor(EKawaiiPhysicsWindScopeComponent Component) const;
 
 private:
 	// ExternalForces 配列のインデックスを保持するコンボボックス項目型 / Combo item type storing an ExternalForces array index.

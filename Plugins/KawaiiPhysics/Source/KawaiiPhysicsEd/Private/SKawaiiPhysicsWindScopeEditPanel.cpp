@@ -14,6 +14,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SVectorInputBox.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Layout/SBorder.h"
@@ -64,6 +65,44 @@ namespace
 		return TOptional<float>();
 	}
 
+	bool IsFloatIntervalProperty(const FProperty* Property)
+	{
+		const FStructProperty* StructProperty = CastField<FStructProperty>(Property);
+		return StructProperty && StructProperty->Struct == TBaseStructure<FFloatInterval>::Get();
+	}
+
+	bool IsParameterModeProperty(const FProperty* Property)
+	{
+		const FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property);
+		return EnumProperty &&
+			EnumProperty->GetEnum() &&
+			EnumProperty->GetEnum()->GetFName() == StaticEnum<EKawaiiProceduralWindParameterMode>()->GetFName();
+	}
+
+	TArray<TSharedPtr<EKawaiiProceduralWindParameterMode>>& GetParameterModeItems()
+	{
+		static TArray<TSharedPtr<EKawaiiProceduralWindParameterMode>> Items;
+		if (Items.Num() == 0)
+		{
+			Items.Add(MakeShared<EKawaiiProceduralWindParameterMode>(EKawaiiProceduralWindParameterMode::Simple));
+			Items.Add(MakeShared<EKawaiiProceduralWindParameterMode>(EKawaiiProceduralWindParameterMode::Advanced));
+		}
+		return Items;
+	}
+
+	FText FormatParameterMode(EKawaiiProceduralWindParameterMode Mode)
+	{
+		switch (Mode)
+		{
+		case EKawaiiProceduralWindParameterMode::Simple:
+			return LOCTEXT("ParameterModeSimple", "Simple");
+		case EKawaiiProceduralWindParameterMode::Advanced:
+			return LOCTEXT("ParameterModeAdvanced", "Advanced");
+		default:
+			return FText::GetEmpty();
+		}
+	}
+
 	FLinearColor ResolveGroupColor(const TOptional<EKawaiiPhysicsWindScopeComponent>& LinkedSeries)
 	{
 		if (!LinkedSeries.IsSet())
@@ -91,6 +130,50 @@ namespace
 			}
 		}
 		return FLinearColor::White;
+	}
+
+	FLinearColor MakeInactiveSeriesColor(FLinearColor Color)
+	{
+		Color = Color.Desaturate(0.65f);
+		Color.A *= 0.38f;
+		return Color;
+	}
+
+	bool IsSeriesActiveFromValues(
+		const FKawaiiWindScopeEditValues* Values,
+		EKawaiiPhysicsWindScopeComponent Component)
+	{
+		if (!Values || !Values->bValid || Component == EKawaiiPhysicsWindScopeComponent::Total)
+		{
+			return true;
+		}
+
+		const auto IsNonZeroFloat = [Values](const FName PropertyName)
+		{
+			const float* Value = Values->FloatValues.Find(PropertyName);
+			return Value && !FMath::IsNearlyZero(*Value);
+		};
+
+		switch (Component)
+		{
+		case EKawaiiPhysicsWindScopeComponent::Constant:
+			return IsNonZeroFloat(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, ConstantForce));
+		case EKawaiiPhysicsWindScopeComponent::Sway:
+			return IsNonZeroFloat(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, SwayForce));
+		case EKawaiiPhysicsWindScopeComponent::Ripple:
+			return IsNonZeroFloat(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RippleForce));
+		case EKawaiiPhysicsWindScopeComponent::StrengthCycle:
+			if (const FFloatInterval* Range = Values->IntervalValues.Find(
+				GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, StrengthCycleRange)))
+			{
+				return !FMath::IsNearlyEqual(Range->Min, 1.0f) || !FMath::IsNearlyEqual(Range->Max, 1.0f);
+			}
+			return true;
+		case EKawaiiPhysicsWindScopeComponent::Random:
+			return IsNonZeroFloat(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomForce));
+		default:
+			return true;
+		}
 	}
 
 	FSlateColor ResolveLiveWarningColor()
@@ -186,61 +269,62 @@ const TArray<FKawaiiWindScopeParamGroup>& GetWindScopeParamGroups()
 			NAME_None,
 			TOptional<EKawaiiPhysicsWindScopeComponent>(),
 			{
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, ParameterMode), 0.0f, 1.0f, false},
 				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce, bIsEnabled), 0.0f, 1.0f, true},
 			}
 		},
 		{
 			LOCTEXT("DirectionGroupLabel", "Direction"),
 			FName(TEXT("Direction")),
-			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, DirectionNoiseAngle),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindDirectionNoiseAngle),
 			TOptional<EKawaiiPhysicsWindScopeComponent>(),
 			{
 				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindDirection), -1.0f, 1.0f, true},
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, DirectionNoiseAngle), 0.0f, 90.0f, true},
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, DirectionNoisePeriod), 0.01f, 10.0f, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindDirectionNoiseAngle), 0.0f, 90.0f, true, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindDirectionNoisePeriod), 0.01f, 10.0f, true, true},
 			}
 		},
 		{
-			LOCTEXT("SteadyGroupLabel", "Steady"),
-			FName(TEXT("Steady")),
-			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, SteadyForce),
-			TOptional<EKawaiiPhysicsWindScopeComponent>(EKawaiiPhysicsWindScopeComponent::Steady),
+			LOCTEXT("ConstantGroupLabel", "Constant"),
+			FName(TEXT("Constant")),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, ConstantForce),
+			TOptional<EKawaiiPhysicsWindScopeComponent>(EKawaiiPhysicsWindScopeComponent::Constant),
 			{
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, SteadyForce), 0.0f, 50.0f, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, ConstantForce), 0.0f, 50.0f, true},
 			}
 		},
 		{
-			LOCTEXT("PulseGroupLabel", "Pulse"),
-			FName(TEXT("Pulse")),
-			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, PulseForce),
-			TOptional<EKawaiiPhysicsWindScopeComponent>(EKawaiiPhysicsWindScopeComponent::Pulse),
+			LOCTEXT("SwayGroupLabel", "Sway"),
+			FName(TEXT("Sway")),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, SwayForce),
+			TOptional<EKawaiiPhysicsWindScopeComponent>(EKawaiiPhysicsWindScopeComponent::Sway),
 			{
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, PulseForce), 0.0f, 50.0f, true},
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, PulsePeriod), 0.01f, 10.0f, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, SwayForce), 0.0f, 50.0f, true, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, SwayPeriod), 0.01f, 10.0f, true, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, SwayPhaseOffset), -360.0f, 360.0f, true, true},
 			}
 		},
 		{
-			LOCTEXT("WaveGroupLabel", "Wave"),
-			FName(TEXT("Wave")),
-			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WaveAmplitude),
-			TOptional<EKawaiiPhysicsWindScopeComponent>(EKawaiiPhysicsWindScopeComponent::Wave),
+			LOCTEXT("RippleGroupLabel", "Ripple"),
+			FName(TEXT("Ripple")),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RippleForce),
+			TOptional<EKawaiiPhysicsWindScopeComponent>(EKawaiiPhysicsWindScopeComponent::Ripple),
 			{
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WaveAmplitude), 0.0f, 50.0f, true},
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WavePeriod), 0.01f, 10.0f, true},
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WavePhase), -360.0f, 360.0f, true},
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WaveSpatialOffset), 0.0f, 720.0f, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RippleForce), 0.0f, 50.0f, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RipplePeriod), 0.01f, 10.0f, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RipplePhaseOffset), -360.0f, 360.0f, true, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RippleTipPhaseDelay), 0.0f, 720.0f, true},
 			}
 		},
 		{
-			LOCTEXT("BreathingGroupLabel", "Breathing"),
-			FName(TEXT("Breathing")),
-			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingMax),
-			TOptional<EKawaiiPhysicsWindScopeComponent>(EKawaiiPhysicsWindScopeComponent::Breathing),
+			LOCTEXT("StrengthCycleGroupLabel", "StrengthCycle"),
+			FName(TEXT("StrengthCycle")),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, StrengthCycleRange),
+			TOptional<EKawaiiPhysicsWindScopeComponent>(EKawaiiPhysicsWindScopeComponent::StrengthCycle),
 			{
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingMax), 0.0f, 3.0f, true},
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingMin), 0.0f, 3.0f, true},
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingPeriod), 0.01f, 60.0f, true},
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, BreathingPhase), -360.0f, 360.0f, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, StrengthCycleRange), 0.0f, 3.0f, true, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, StrengthCyclePeriod), 0.01f, 60.0f, true, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, StrengthCyclePhaseOffset), -360.0f, 360.0f, true, true},
 			}
 		},
 		{
@@ -250,8 +334,8 @@ const TArray<FKawaiiWindScopeParamGroup>& GetWindScopeParamGroups()
 			TOptional<EKawaiiPhysicsWindScopeComponent>(EKawaiiPhysicsWindScopeComponent::Random),
 			{
 				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomForce), 0.0f, 50.0f, true},
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomPeriod), 0.01f, 5.0f, true},
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomSeed), 0.0f, 10000.0f, false},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomForcePeriod), 0.01f, 5.0f, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, Seed), 0.0f, 10000.0f, false, true},
 			}
 		},
 		{
@@ -260,7 +344,7 @@ const TArray<FKawaiiWindScopeParamGroup>& GetWindScopeParamGroups()
 			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, TimeScale),
 			TOptional<EKawaiiPhysicsWindScopeComponent>(),
 			{
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, TimeScale), 0.0f, 3.0f, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, TimeScale), 0.0f, 3.0f, true, true},
 			}
 		},
 	};
@@ -361,6 +445,16 @@ void SKawaiiPhysicsWindScopeEditPanel::Construct(const FArguments& InArgs)
 			MakeFormulaHelpButton()
 		]
 	];
+	ScrollBox->AddSlot()
+	.Padding(0.0f, 0.0f, 0.0f, 6.0f)
+	[
+		SNew(STextBlock)
+		.Text(this, &SKawaiiPhysicsWindScopeEditPanel::GetSimpleHiddenHintText)
+		.Visibility(this, &SKawaiiPhysicsWindScopeEditPanel::GetSimpleHiddenHintVisibility)
+		.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+		.AutoWrapText(true)
+		.ColorAndOpacity(FLinearColor(0.72f, 0.72f, 0.68f, 1.0f))
+	];
 	for (const FKawaiiWindScopeParamGroup& Group : GetWindScopeParamGroups())
 	{
 		ScrollBox->AddSlot()
@@ -446,14 +540,14 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeFormulaHelpContent() c
 				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaTotalPrefix", "Sample."))]
 				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaTotal", "Total"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Total))]
 				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaEquals", " = ("))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaSteadyPrefix", "Sample."))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaSteady", "Steady"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Steady))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaPlusPulse", " + Sample."))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaPulse", "Pulse"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Pulse))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaPlusWave", " + Sample."))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaWave", "Wave"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Wave))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaBreathingPrefix", ") * Sample."))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaBreathing", "Breathing"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Breathing))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaConstantPrefix", "Sample."))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaConstant", "Constant"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Constant))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaPlusSway", " + Sample."))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaSway", "Sway"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Sway))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaPlusRipple", " + Sample."))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaRipple", "Ripple"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Ripple))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaStrengthCyclePrefix", ") * Sample."))]
+				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaStrengthCycle", "StrengthCycle"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::StrengthCycle))]
 				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaPlusRandom", " + Sample."))]
 				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaRandom", "Random"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Random))]
 				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaPlusGust", " + Sample."))]
@@ -464,7 +558,7 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeFormulaHelpContent() c
 			.AutoHeight()
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("FormulaHelpGroupLine1", "Steady, Pulse, Wave, Breathing, and Random map to their groups."))
+				.Text(LOCTEXT("FormulaHelpGroupLine1", "Constant, Sway, Ripple, StrengthCycle, and Random map to their groups."))
 				.AutoWrapText(true)
 				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
 			]
@@ -482,12 +576,13 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeFormulaHelpContent() c
 
 TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeGroupWidget(const FKawaiiWindScopeParamGroup& Group)
 {
-	const FLinearColor GroupColor = ResolveGroupColor(Group.LinkedSeries);
-
 	TSharedRef<SWidget> HeaderContent =
 		SNew(SKawaiiWindScopeGroupHoverBorder)
 		.BorderImage(FAppStyle::Get().GetBrush(TEXT("Brushes.Header")))
-		.BorderBackgroundColor(GroupColor.CopyWithNewOpacity(0.28f))
+		.BorderBackgroundColor_Lambda([this, LinkedSeries = Group.LinkedSeries]()
+		{
+			return FSlateColor(ResolveSeriesDisplayColor(LinkedSeries).CopyWithNewOpacity(0.28f));
+		})
 		.Padding(FMargin(8.0f, 4.0f))
 		.OnHovered_Lambda([this, LinkedSeries = Group.LinkedSeries]()
 		{
@@ -505,7 +600,10 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeGroupWidget(const FKaw
 			.Padding(0.0f, 0.0f, 6.0f, 0.0f)
 			[
 				SNew(SColorBlock)
-				.Color(GroupColor)
+				.Color_Lambda([this, LinkedSeries = Group.LinkedSeries]()
+				{
+					return ResolveSeriesDisplayColor(LinkedSeries);
+				})
 				.Size(FVector2D(10.0f, 10.0f))
 			]
 			+ SHorizontalBox::Slot()
@@ -515,6 +613,10 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeGroupWidget(const FKaw
 				SNew(STextBlock)
 				.Text(Group.GroupLabel)
 				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 10, TEXT("Bold")))
+				.ColorAndOpacity_Lambda([this, LinkedSeries = Group.LinkedSeries]()
+				{
+					return FSlateColor(ResolveSeriesDisplayColor(LinkedSeries));
+				})
 			]
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
@@ -562,6 +664,7 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeGroupWidget(const FKaw
 
 	TSharedPtr<SExpandableArea> GroupArea;
 	SAssignNew(GroupArea, SExpandableArea)
+		.Visibility(this, &SKawaiiPhysicsWindScopeEditPanel::GetGroupVisibility, Group.GroupId)
 		.BorderImage(FCoreStyle::Get().GetBrush(TEXT("NoBrush")))
 		.BodyBorderImage(FCoreStyle::Get().GetBrush(TEXT("NoBrush")))
 		.HeaderPadding(FMargin(0.0f))
@@ -597,6 +700,33 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeParamRow(const FKawaii
 			.OnCheckStateChanged(this, &SKawaiiPhysicsWindScopeEditPanel::HandleBoolChanged, ParamDef.PropertyName)
 			.ToolTipText(ToolTipText);
 	}
+	else if (IsParameterModeProperty(Property))
+	{
+		ValueWidget =
+			SNew(SComboBox<TSharedPtr<EKawaiiProceduralWindParameterMode>>)
+			.OptionsSource(&GetParameterModeItems())
+			.InitiallySelectedItem(GetParameterModeItems()[0])
+			.OnGenerateWidget_Lambda([](TSharedPtr<EKawaiiProceduralWindParameterMode> Item)
+			{
+				return SNew(STextBlock)
+					.Text(Item.IsValid() ? FormatParameterMode(*Item) : FText::GetEmpty())
+					.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9));
+			})
+			.OnSelectionChanged_Lambda([this, PropertyName = ParamDef.PropertyName](TSharedPtr<EKawaiiProceduralWindParameterMode> Item, ESelectInfo::Type SelectInfo)
+			{
+				(void)SelectInfo;
+				if (Item.IsValid() && OnParamEdit.IsBound())
+				{
+					OnParamEdit.Execute(PropertyName, static_cast<double>(static_cast<uint8>(*Item)), INDEX_NONE, EKawaiiWindEditPhase::Committed);
+				}
+			})
+			.ToolTipText(ToolTipText)
+			[
+				SNew(STextBlock)
+				.Text(this, &SKawaiiPhysicsWindScopeEditPanel::GetParameterModeText)
+				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+			];
+	}
 	else if (CastField<FIntProperty>(Property))
 	{
 		ValueWidget =
@@ -619,6 +749,86 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeParamRow(const FKawaii
 				HandleScalarCommitted(PropertyName, NewValue, CommitType);
 			})
 			.ToolTipText(ToolTipText);
+	}
+	else if (IsFloatIntervalProperty(Property))
+	{
+		ValueWidget =
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("IntervalMinLabel", "Min"))
+				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+			]
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.VAlign(VAlign_Center)
+			.Padding(0.0f, 0.0f, 8.0f, 0.0f)
+			[
+				SNew(SSpinBox<float>)
+				.MinValue(ClampMin)
+				.MaxValue(TOptional<float>())
+				.MinSliderValue(ParamDef.SliderMin)
+				.MaxSliderValue(ParamDef.SliderMax)
+				.Value_Lambda([this, PropertyName = ParamDef.PropertyName]()
+				{
+					const TOptional<float> Value = GetIntervalValue(PropertyName, 0);
+					return Value.IsSet() ? Value.GetValue() : 0.0f;
+				})
+				.OnBeginSliderMovement_Lambda([this, PropertyName = ParamDef.PropertyName]()
+				{
+					HandleBegin(PropertyName, 0);
+				})
+				.OnValueChanged_Lambda([this, PropertyName = ParamDef.PropertyName](float NewValue)
+				{
+					HandleVectorChanged(PropertyName, 0, NewValue);
+				})
+				.OnValueCommitted_Lambda([this, PropertyName = ParamDef.PropertyName](float NewValue, ETextCommit::Type CommitType)
+				{
+					HandleVectorCommitted(PropertyName, 0, NewValue, CommitType);
+				})
+				.ToolTipText(ToolTipText)
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("IntervalMaxLabel", "Max"))
+				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+			]
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SSpinBox<float>)
+				.MinValue(ClampMin)
+				.MaxValue(TOptional<float>())
+				.MinSliderValue(ParamDef.SliderMin)
+				.MaxSliderValue(ParamDef.SliderMax)
+				.Value_Lambda([this, PropertyName = ParamDef.PropertyName]()
+				{
+					const TOptional<float> Value = GetIntervalValue(PropertyName, 1);
+					return Value.IsSet() ? Value.GetValue() : 0.0f;
+				})
+				.OnBeginSliderMovement_Lambda([this, PropertyName = ParamDef.PropertyName]()
+				{
+					HandleBegin(PropertyName, 1);
+				})
+				.OnValueChanged_Lambda([this, PropertyName = ParamDef.PropertyName](float NewValue)
+				{
+					HandleVectorChanged(PropertyName, 1, NewValue);
+				})
+				.OnValueCommitted_Lambda([this, PropertyName = ParamDef.PropertyName](float NewValue, ETextCommit::Type CommitType)
+				{
+					HandleVectorCommitted(PropertyName, 1, NewValue, CommitType);
+				})
+				.ToolTipText(ToolTipText)
+			];
 	}
 	else if (CastField<FStructProperty>(Property) && ParamDef.PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindDirection))
 	{
@@ -686,6 +896,7 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeParamRow(const FKawaii
 	}
 
 	return SNew(SHorizontalBox)
+		.Visibility(this, &SKawaiiPhysicsWindScopeEditPanel::GetParamRowVisibility, ParamDef.PropertyName)
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
@@ -858,6 +1069,64 @@ FReply SKawaiiPhysicsWindScopeEditPanel::OnCollapseAllClicked()
 	return FReply::Handled();
 }
 
+bool SKawaiiPhysicsWindScopeEditPanel::IsAdvancedMode() const
+{
+	const FKawaiiWindScopeEditValues* Values = EditValues.Get();
+	return Values && Values->bValid && Values->ParameterMode == EKawaiiProceduralWindParameterMode::Advanced;
+}
+
+bool SKawaiiPhysicsWindScopeEditPanel::IsParamAdvancedOnly(FName PropertyName) const
+{
+	for (const FKawaiiWindScopeParamGroup& Group : GetWindScopeParamGroups())
+	{
+		for (const FKawaiiWindScopeParamDef& Param : Group.Params)
+		{
+			if (Param.PropertyName == PropertyName)
+			{
+				return Param.bAdvancedOnly;
+			}
+		}
+	}
+	return false;
+}
+
+bool SKawaiiPhysicsWindScopeEditPanel::IsParamVisibleInCurrentMode(FName PropertyName) const
+{
+	return IsAdvancedMode() || !IsParamAdvancedOnly(PropertyName);
+}
+
+int32 SKawaiiPhysicsWindScopeEditPanel::CountHiddenAdvancedParams() const
+{
+	if (IsAdvancedMode())
+	{
+		return 0;
+	}
+
+	int32 HiddenCount = 0;
+	for (const FKawaiiWindScopeParamGroup& Group : GetWindScopeParamGroups())
+	{
+		for (const FKawaiiWindScopeParamDef& Param : Group.Params)
+		{
+			if (Param.bAdvancedOnly)
+			{
+				++HiddenCount;
+			}
+		}
+	}
+	return HiddenCount;
+}
+
+FLinearColor SKawaiiPhysicsWindScopeEditPanel::ResolveSeriesDisplayColor(
+	TOptional<EKawaiiPhysicsWindScopeComponent> LinkedSeries) const
+{
+	const FLinearColor Color = ResolveGroupColor(LinkedSeries);
+	if (!LinkedSeries.IsSet() || IsSeriesActiveFromValues(EditValues.Get(), LinkedSeries.GetValue()))
+	{
+		return Color;
+	}
+	return MakeInactiveSeriesColor(Color);
+}
+
 EVisibility SKawaiiPhysicsWindScopeEditPanel::GetResetVisibility(FName PropertyName) const
 {
 	const FKawaiiWindScopeEditValues* Values = EditValues.Get();
@@ -871,6 +1140,41 @@ EVisibility SKawaiiPhysicsWindScopeEditPanel::GetPinWarningVisibility(FName Prop
 	return IsParamPinExposed.IsBound() && IsParamPinExposed.Execute(PropertyName)
 		       ? EVisibility::Visible
 		       : EVisibility::Collapsed;
+}
+
+EVisibility SKawaiiPhysicsWindScopeEditPanel::GetParamRowVisibility(FName PropertyName) const
+{
+	return IsParamVisibleInCurrentMode(PropertyName) ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+EVisibility SKawaiiPhysicsWindScopeEditPanel::GetGroupVisibility(FName GroupId) const
+{
+	const TArray<FName>* PropertyNames = GroupPropertyNames.Find(GroupId);
+	if (!PropertyNames)
+	{
+		return EVisibility::Collapsed;
+	}
+
+	for (const FName& PropertyName : *PropertyNames)
+	{
+		if (IsParamVisibleInCurrentMode(PropertyName))
+		{
+			return EVisibility::Visible;
+		}
+	}
+	return EVisibility::Collapsed;
+}
+
+EVisibility SKawaiiPhysicsWindScopeEditPanel::GetSimpleHiddenHintVisibility() const
+{
+	return CountHiddenAdvancedParams() > 0 ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+FText SKawaiiPhysicsWindScopeEditPanel::GetSimpleHiddenHintText() const
+{
+	return FText::Format(
+		LOCTEXT("SimpleHiddenParamsHint", "Simple hides {0} advanced parameters."),
+		FText::AsNumber(CountHiddenAdvancedParams()));
 }
 
 EVisibility SKawaiiPhysicsWindScopeEditPanel::GetGroupModifiedDotVisibility(FName GroupId) const
@@ -889,7 +1193,7 @@ EVisibility SKawaiiPhysicsWindScopeEditPanel::GetGroupModifiedDotVisibility(FNam
 
 	for (const FName& PropertyName : *PropertyNames)
 	{
-		if (Values->ModifiedFromDefault.Contains(PropertyName))
+		if (IsParamVisibleInCurrentMode(PropertyName) && Values->ModifiedFromDefault.Contains(PropertyName))
 		{
 			return EVisibility::Visible;
 		}
@@ -902,9 +1206,10 @@ EVisibility SKawaiiPhysicsWindScopeEditPanel::GetGroupSummaryVisibility(FName Gr
 	const FKawaiiWindScopeEditValues* Values = EditValues.Get();
 	return CollapsedGroups.Contains(GroupId) &&
 		!SummaryProperty.IsNone() &&
+		IsParamVisibleInCurrentMode(SummaryProperty) &&
 		Values &&
 		Values->bValid &&
-		Values->FloatValues.Contains(SummaryProperty)
+		(Values->FloatValues.Contains(SummaryProperty) || Values->IntervalValues.Contains(SummaryProperty))
 		       ? EVisibility::Visible
 		       : EVisibility::Collapsed;
 }
@@ -919,6 +1224,12 @@ EVisibility SKawaiiPhysicsWindScopeEditPanel::GetLiveValueVisibility(FName Prope
 	}
 
 	FProperty* Property = FindWindScopeProperty(PropertyName);
+	if (IsParameterModeProperty(Property))
+	{
+		return Values->ParameterMode != LiveValues->ParameterMode
+			       ? EVisibility::Visible
+			       : EVisibility::Collapsed;
+	}
 	if (CastField<FBoolProperty>(Property))
 	{
 		return PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce, bIsEnabled) &&
@@ -928,8 +1239,8 @@ EVisibility SKawaiiPhysicsWindScopeEditPanel::GetLiveValueVisibility(FName Prope
 	}
 	if (CastField<FIntProperty>(Property))
 	{
-		return PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomSeed) &&
-			Values->RandomSeed != LiveValues->RandomSeed
+		return PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, Seed) &&
+			Values->Seed != LiveValues->Seed
 			       ? EVisibility::Visible
 			       : EVisibility::Collapsed;
 	}
@@ -947,6 +1258,16 @@ EVisibility SKawaiiPhysicsWindScopeEditPanel::GetLiveValueVisibility(FName Prope
 			}
 		}
 		return EVisibility::Collapsed;
+	}
+	if (IsFloatIntervalProperty(Property))
+	{
+		const FFloatInterval* Value = Values->IntervalValues.Find(PropertyName);
+		const FFloatInterval* LiveValue = LiveValues->IntervalValues.Find(PropertyName);
+		return Value && LiveValue &&
+			(!FMath::IsNearlyEqual(Value->Min, LiveValue->Min, LiveValueTolerance) ||
+				!FMath::IsNearlyEqual(Value->Max, LiveValue->Max, LiveValueTolerance))
+			       ? EVisibility::Visible
+			       : EVisibility::Collapsed;
 	}
 
 	const float* Value = Values->FloatValues.Find(PropertyName);
@@ -966,15 +1287,19 @@ FText SKawaiiPhysicsWindScopeEditPanel::GetLiveValueText(FName PropertyName) con
 
 	FProperty* Property = FindWindScopeProperty(PropertyName);
 	FText ValueText;
-	if (CastField<FBoolProperty>(Property) &&
+	if (IsParameterModeProperty(Property))
+	{
+		ValueText = FormatParameterMode(LiveValues->ParameterMode);
+	}
+	else if (CastField<FBoolProperty>(Property) &&
 		PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce, bIsEnabled))
 	{
 		ValueText = LiveValues->bIsEnabled ? LOCTEXT("LiveBoolTrue", "true") : LOCTEXT("LiveBoolFalse", "false");
 	}
 	else if (CastField<FIntProperty>(Property) &&
-		PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomSeed))
+		PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, Seed))
 	{
-		ValueText = FText::AsNumber(LiveValues->RandomSeed);
+		ValueText = FText::AsNumber(LiveValues->Seed);
 	}
 	else if (CastField<FStructProperty>(Property) &&
 		PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindDirection))
@@ -984,6 +1309,20 @@ FText SKawaiiPhysicsWindScopeEditPanel::GetLiveValueText(FName PropertyName) con
 			FormatLiveFloat(static_cast<float>(LiveValues->WindDirection.X)),
 			FormatLiveFloat(static_cast<float>(LiveValues->WindDirection.Y)),
 			FormatLiveFloat(static_cast<float>(LiveValues->WindDirection.Z)));
+	}
+	else if (IsFloatIntervalProperty(Property))
+	{
+		if (const FFloatInterval* LiveValue = LiveValues->IntervalValues.Find(PropertyName))
+		{
+			ValueText = FText::Format(
+				LOCTEXT("LiveIntervalValueFormat", "{0} - {1}"),
+				FormatLiveFloat(LiveValue->Min),
+				FormatLiveFloat(LiveValue->Max));
+		}
+		else
+		{
+			return FText::GetEmpty();
+		}
 	}
 	else if (const float* LiveValue = LiveValues->FloatValues.Find(PropertyName))
 	{
@@ -1008,17 +1347,36 @@ FText SKawaiiPhysicsWindScopeEditPanel::GetGroupSummaryText(FName SummaryPropert
 	const float* SummaryValue = Values && Values->bValid
 		                            ? Values->FloatValues.Find(SummaryProperty)
 		                            : nullptr;
-	if (!SummaryValue)
+	const FFloatInterval* SummaryInterval = Values && Values->bValid
+		                                        ? Values->IntervalValues.Find(SummaryProperty)
+		                                        : nullptr;
+	if (!SummaryValue && !SummaryInterval)
 	{
 		return FText::GetEmpty();
 	}
 
 	FProperty* Property = FindWindScopeProperty(SummaryProperty);
 	const FText Label = Property ? Property->GetDisplayNameText() : FText::FromString(SummaryProperty.ToString());
+	if (SummaryInterval)
+	{
+		return FText::Format(
+			LOCTEXT("CollapsedGroupIntervalSummaryFormat", "{0} {1}-{2}"),
+			Label,
+			FormatLiveFloat(SummaryInterval->Min),
+			FormatLiveFloat(SummaryInterval->Max));
+	}
 	return FText::Format(
 		LOCTEXT("CollapsedGroupSummaryFormat", "{0} {1}"),
 		Label,
 		FormatLiveFloat(*SummaryValue));
+}
+
+FText SKawaiiPhysicsWindScopeEditPanel::GetParameterModeText() const
+{
+	const FKawaiiWindScopeEditValues* Values = EditValues.Get();
+	return Values && Values->bValid
+		       ? FormatParameterMode(Values->ParameterMode)
+		       : FText::GetEmpty();
 }
 
 ECheckBoxState SKawaiiPhysicsWindScopeEditPanel::GetBoolCheckState(FName PropertyName) const
@@ -1049,11 +1407,24 @@ float SKawaiiPhysicsWindScopeEditPanel::GetFloatValue(FName PropertyName) const
 int32 SKawaiiPhysicsWindScopeEditPanel::GetIntValue(FName PropertyName) const
 {
 	const FKawaiiWindScopeEditValues* Values = EditValues.Get();
-	if (!Values || !Values->bValid || PropertyName != GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomSeed))
+	if (!Values || !Values->bValid || PropertyName != GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, Seed))
 	{
 		return 0;
 	}
-	return Values->RandomSeed;
+	return Values->Seed;
+}
+
+TOptional<float> SKawaiiPhysicsWindScopeEditPanel::GetIntervalValue(FName PropertyName, int32 ComponentIndex) const
+{
+	const FKawaiiWindScopeEditValues* Values = EditValues.Get();
+	const FFloatInterval* Interval = Values && Values->bValid
+		                                 ? Values->IntervalValues.Find(PropertyName)
+		                                 : nullptr;
+	if (!Interval || ComponentIndex < 0 || ComponentIndex > 1)
+	{
+		return TOptional<float>();
+	}
+	return ComponentIndex == 0 ? Interval->Min : Interval->Max;
 }
 
 TOptional<FVector::FReal> SKawaiiPhysicsWindScopeEditPanel::GetVectorValue(FName PropertyName, int32 ComponentIndex) const

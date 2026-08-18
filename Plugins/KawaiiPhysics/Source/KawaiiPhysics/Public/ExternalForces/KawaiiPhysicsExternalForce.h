@@ -81,7 +81,8 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce
 	EExternalForceSpace ExternalForceSpace = EExternalForceSpace::WorldSpace;
 
 	/** Range for randomizing the force scale */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1), Category="Kawaii Physics|ExternalForce")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1, EditCondition=bSupportsRandomForceScaleRange,
+		EditConditionHides), Category="Kawaii Physics|ExternalForce")
 	FFloatInterval RandomForceScaleRange = FFloatInterval(1.0f, 1.0f);
 
 	/** Owner of the external force */
@@ -120,8 +121,12 @@ protected:
 	FTransform ComponentTransform;
 
 	/** Whether the force space can be selected */
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce")
+	UPROPERTY(BlueprintReadWrite, Category="Kawaii Physics|ExternalForce")
 	bool bCanSelectForceSpace = true;
+
+	/** Whether RandomForceScaleRange is supported (controls both edit visibility and the runtime randomization; when false, RandomizedForceScale stays 1) */
+	UPROPERTY(BlueprintReadWrite, Category="Kawaii Physics|ExternalForce")
+	bool bSupportsRandomForceScaleRange = true;
 
 public:
 	virtual ~FKawaiiPhysics_ExternalForce() = default;

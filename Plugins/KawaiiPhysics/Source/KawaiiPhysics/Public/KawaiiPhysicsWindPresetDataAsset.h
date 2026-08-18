@@ -32,47 +32,42 @@ struct KAWAIIPHYSICS_API FKawaiiProceduralWindPreset
 	/** 常に一定で掛かる風の強さ / Constant wind strength. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=6, ClampMin=0, UIMin=0, PinHiddenByDefault),
 		Category="Kawaii Physics|ExternalForce|Procedural Wind")
-	float SteadyForce = 2.0f;
+	float ConstantForce = 2.0f;
 
 	/** サイン波で周期的に強弱する成分の振幅 / Amplitude of the sine-based pulse. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=7, ClampMin=0, UIMin=0, PinHiddenByDefault),
 		Category="Kawaii Physics|ExternalForce|Procedural Wind")
-	float PulseForce = 1.0f;
+	float SwayForce = 1.0f;
 
-	/** パルスの周期（秒） / Pulse period in seconds. */
+	/** 一斉揺れ(Sway)の周期（秒） / Sway period in seconds. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=8, ClampMin=0.01, UIMin=0.01,
 		PinHiddenByDefault, Units="s"), Category="Kawaii Physics|ExternalForce|Procedural Wind")
-	float PulsePeriod = 2.0f;
+	float SwayPeriod = 2.0f;
 
-	/** ボーン列に沿って伝わる波成分の振幅 / Amplitude of the traveling wave along the bone chain. */
+	/** ボーン列に沿って伝わる波揺れ(Ripple)成分の振幅 / Amplitude of the traveling wave along the bone chain. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=9, ClampMin=0, UIMin=0, PinHiddenByDefault),
 		Category="Kawaii Physics|ExternalForce|Procedural Wind")
-	float WaveAmplitude = 1.0f;
+	float RippleForce = 1.0f;
 
-	/** 波の周期（秒） / Wave period in seconds. */
+	/** 波揺れ(Ripple)の周期（秒） / Ripple period in seconds. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=10, ClampMin=0.01, UIMin=0.01,
 		PinHiddenByDefault, Units="s"), Category="Kawaii Physics|ExternalForce|Procedural Wind")
-	float WavePeriod = 1.5f;
+	float RipplePeriod = 1.5f;
 
 	/** 毛先（LengthRate=1）での位相遅れ量 / Phase delay at the tip. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=12, Units="Degrees", PinHiddenByDefault),
 		Category="Kawaii Physics|ExternalForce|Procedural Wind")
-	float WaveSpatialOffset = 90.0f;
+	float RippleTipPhaseDelay = 90.0f;
 
-	/** 風全体の強弱のうねりの下限倍率 / Lower multiplier of the slow global intensity swell. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=14, ClampMin=0, UIMin=0, PinHiddenByDefault),
+	/** 風全体の強弱のうねりの倍率範囲 / Multiplier range of the slow global intensity swell. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=14, ClampMin=0, UIMin=0, UIMax=3, PinHiddenByDefault),
 		Category="Kawaii Physics|ExternalForce|Procedural Wind")
-	float BreathingMin = 0.6f;
+	FFloatInterval StrengthCycleRange = FFloatInterval(0.6f, 1.0f);
 
-	/** 風全体の強弱のうねりの上限倍率 / Upper multiplier of the slow global intensity swell. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=13, ClampMin=0, UIMin=0, PinHiddenByDefault),
-		Category="Kawaii Physics|ExternalForce|Procedural Wind")
-	float BreathingMax = 1.0f;
-
-	/** 呼吸周期（秒） / Breathing period in seconds. */
+	/** 強弱サイクル(StrengthCycle)周期（秒） / StrengthCycle period in seconds. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=15, ClampMin=0.01, UIMin=0.01,
 		PinHiddenByDefault, Units="s"), Category="Kawaii Physics|ExternalForce|Procedural Wind")
-	float BreathingPeriod = 20.0f;
+	float StrengthCyclePeriod = 20.0f;
 
 	/** 不規則な揺らぎ成分の強さ / Strength of the irregular fluctuation. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=17, ClampMin=0, UIMin=0, PinHiddenByDefault),
@@ -82,12 +77,12 @@ struct KAWAIIPHYSICS_API FKawaiiProceduralWindPreset
 	/** 揺らぎが変化する速さ（秒） / How fast the fluctuation changes, in seconds. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=18, ClampMin=0.01, UIMin=0.01,
 		PinHiddenByDefault, Units="s"), Category="Kawaii Physics|ExternalForce|Procedural Wind")
-	float RandomPeriod = 0.8f;
+	float RandomForcePeriod = 0.8f;
 
 	/** 風向き自体の揺らぎの円錐半角 / Cone half-angle of the wind direction wander. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=4, Units="Degrees", ClampMin=0, UIMin=0,
 		PinHiddenByDefault), Category="Kawaii Physics|ExternalForce|Procedural Wind")
-	float DirectionNoiseAngle = 5.0f;
+	float WindDirectionNoiseAngle = 5.0f;
 
 	/** 動的パラメータへ変換する / Convert to dynamic parameters. */
 	FKawaiiProceduralWindDynamicParams ToDynamicParams() const;
