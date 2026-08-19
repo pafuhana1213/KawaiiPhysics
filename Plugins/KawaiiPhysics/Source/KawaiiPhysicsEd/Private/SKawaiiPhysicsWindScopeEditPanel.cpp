@@ -26,7 +26,7 @@
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysicsWindScopeEditPanel"
 
-namespace
+namespace KawaiiPhysicsWindScopeEditPanelPrivate
 {
 	constexpr float LabelColumnWidth = 150.0f;
 	constexpr float LiveValueTolerance = 0.01f;
@@ -374,7 +374,7 @@ TSet<FName> ParseWindScopeCollapsedGroups(const FString& CollapsedGroupsValue)
 	{
 		GroupIdString.TrimStartAndEndInline();
 		const FName GroupId(*GroupIdString);
-		if (IsKnownWindScopeGroupId(GroupId))
+		if (KawaiiPhysicsWindScopeEditPanelPrivate::IsKnownWindScopeGroupId(GroupId))
 		{
 			ParsedGroups.Add(GroupId);
 		}
@@ -467,7 +467,7 @@ void SKawaiiPhysicsWindScopeEditPanel::Construct(const FArguments& InArgs)
 	.Padding(0.0f, 2.0f, 0.0f, 0.0f)
 	[
 		SNew(STextBlock)
-		.Text(GetPinDrivenWarningText())
+		.Text(KawaiiPhysicsWindScopeEditPanelPrivate::GetPinDrivenWarningText())
 		.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
 		.AutoWrapText(true)
 		.ColorAndOpacity(FLinearColor(0.78f, 0.78f, 0.72f, 1.0f))
@@ -537,22 +537,22 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeFormulaHelpContent() c
 				SNew(SWrapBox)
 				.UseAllottedSize(true)
 				.InnerSlotPadding(FVector2D(1.0f, 1.0f))
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaTotalPrefix", "Sample."))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaTotal", "Total"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Total))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaEquals", " = ("))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaConstantPrefix", "Sample."))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaConstant", "Constant"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Constant))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaPlusSway", " + Sample."))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaSway", "Sway"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Sway))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaPlusRipple", " + Sample."))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaRipple", "Ripple"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Ripple))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaStrengthCyclePrefix", ") * Sample."))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaStrengthCycle", "StrengthCycle"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::StrengthCycle))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaPlusRandom", " + Sample."))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaRandom", "Random"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Random))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaPlusGust", " + Sample."))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaGust", "Gust"), ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Gust))]
-				+ SWrapBox::Slot()[MakeFormulaText(LOCTEXT("FormulaSemicolon", ";"))]
+				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaTotalPrefix", "Sample."))]
+				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaTotal", "Total"), KawaiiPhysicsWindScopeEditPanelPrivate::ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Total))]
+				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaEquals", " = ("))]
+				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaConstantPrefix", "Sample."))]
+				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaConstant", "Constant"), KawaiiPhysicsWindScopeEditPanelPrivate::ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Constant))]
+				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaPlusSway", " + Sample."))]
+				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaSway", "Sway"), KawaiiPhysicsWindScopeEditPanelPrivate::ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Sway))]
+				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaPlusRipple", " + Sample."))]
+				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaRipple", "Ripple"), KawaiiPhysicsWindScopeEditPanelPrivate::ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Ripple))]
+				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaStrengthCyclePrefix", ") * Sample."))]
+				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaStrengthCycle", "StrengthCycle"), KawaiiPhysicsWindScopeEditPanelPrivate::ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::StrengthCycle))]
+				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaPlusRandom", " + Sample."))]
+				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaRandom", "Random"), KawaiiPhysicsWindScopeEditPanelPrivate::ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Random))]
+				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaPlusGust", " + Sample."))]
+				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaGust", "Gust"), KawaiiPhysicsWindScopeEditPanelPrivate::ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Gust))]
+				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaSemicolon", ";"))]
 			]
 			+ SVerticalBox::Slot()
 			.AutoHeight()
@@ -577,7 +577,7 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeFormulaHelpContent() c
 TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeGroupWidget(const FKawaiiWindScopeParamGroup& Group)
 {
 	TSharedRef<SWidget> HeaderContent =
-		SNew(SKawaiiWindScopeGroupHoverBorder)
+		SNew(KawaiiPhysicsWindScopeEditPanelPrivate::SKawaiiWindScopeGroupHoverBorder)
 		.BorderImage(FAppStyle::Get().GetBrush(TEXT("Brushes.Header")))
 		.BorderBackgroundColor_Lambda([this, LinkedSeries = Group.LinkedSeries]()
 		{
@@ -686,10 +686,10 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeGroupWidget(const FKaw
 
 TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeParamRow(const FKawaiiWindScopeParamDef& ParamDef)
 {
-	FProperty* Property = FindWindScopeProperty(ParamDef.PropertyName);
+	FProperty* Property = KawaiiPhysicsWindScopeEditPanelPrivate::FindWindScopeProperty(ParamDef.PropertyName);
 	const FText Label = Property ? Property->GetDisplayNameText() : FText::FromString(ParamDef.PropertyName.ToString());
 	const FText ToolTipText = Property ? Property->GetToolTipText() : FText::GetEmpty();
-	const TOptional<float> ClampMin = GetClampMinValue(Property);
+	const TOptional<float> ClampMin = KawaiiPhysicsWindScopeEditPanelPrivate::GetClampMinValue(Property);
 
 	TSharedPtr<SWidget> ValueWidget;
 	if (CastField<FBoolProperty>(Property))
@@ -700,16 +700,16 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeParamRow(const FKawaii
 			.OnCheckStateChanged(this, &SKawaiiPhysicsWindScopeEditPanel::HandleBoolChanged, ParamDef.PropertyName)
 			.ToolTipText(ToolTipText);
 	}
-	else if (IsEditPanelParameterModeProperty(Property))
+	else if (KawaiiPhysicsWindScopeEditPanelPrivate::IsEditPanelParameterModeProperty(Property))
 	{
 		ValueWidget =
 			SNew(SComboBox<TSharedPtr<EKawaiiProceduralWindParameterMode>>)
-			.OptionsSource(&GetParameterModeItems())
-			.InitiallySelectedItem(GetParameterModeItems()[0])
+			.OptionsSource(&KawaiiPhysicsWindScopeEditPanelPrivate::GetParameterModeItems())
+			.InitiallySelectedItem(KawaiiPhysicsWindScopeEditPanelPrivate::GetParameterModeItems()[0])
 			.OnGenerateWidget_Lambda([](TSharedPtr<EKawaiiProceduralWindParameterMode> Item)
 			{
 				return SNew(STextBlock)
-					.Text(Item.IsValid() ? FormatParameterMode(*Item) : FText::GetEmpty())
+					.Text(Item.IsValid() ? KawaiiPhysicsWindScopeEditPanelPrivate::FormatParameterMode(*Item) : FText::GetEmpty())
 					.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9));
 			})
 			.OnSelectionChanged_Lambda([this, PropertyName = ParamDef.PropertyName](TSharedPtr<EKawaiiProceduralWindParameterMode> Item, ESelectInfo::Type SelectInfo)
@@ -750,7 +750,7 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeParamRow(const FKawaii
 			})
 			.ToolTipText(ToolTipText);
 	}
-	else if (IsEditPanelFloatIntervalProperty(Property))
+	else if (KawaiiPhysicsWindScopeEditPanelPrivate::IsEditPanelFloatIntervalProperty(Property))
 	{
 		ValueWidget =
 			SNew(SHorizontalBox)
@@ -902,7 +902,7 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeParamRow(const FKawaii
 		.VAlign(VAlign_Center)
 		[
 			SNew(SBox)
-			.WidthOverride(LabelColumnWidth)
+			.WidthOverride(KawaiiPhysicsWindScopeEditPanelPrivate::LabelColumnWidth)
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
@@ -937,7 +937,7 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeParamRow(const FKawaii
 			SNew(STextBlock)
 			.Text(this, &SKawaiiPhysicsWindScopeEditPanel::GetLiveValueText, ParamDef.PropertyName)
 			.Visibility(this, &SKawaiiPhysicsWindScopeEditPanel::GetLiveValueVisibility, ParamDef.PropertyName)
-			.ColorAndOpacity(ResolveLiveWarningColor())
+			.ColorAndOpacity(KawaiiPhysicsWindScopeEditPanelPrivate::ResolveLiveWarningColor())
 			.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
 		]
 		+ SHorizontalBox::Slot()
@@ -955,7 +955,7 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakePinWarningIcon(FName P
 		.Image(FAppStyle::Get().GetBrush(TEXT("Icons.Warning")))
 		.ColorAndOpacity(FLinearColor(1.0f, 0.72f, 0.18f, 1.0f))
 		.Visibility(this, &SKawaiiPhysicsWindScopeEditPanel::GetPinWarningVisibility, PropertyName)
-		.ToolTipText(GetPinDrivenWarningText());
+		.ToolTipText(KawaiiPhysicsWindScopeEditPanelPrivate::GetPinDrivenWarningText());
 }
 
 TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeResetButton(FName PropertyName) const
@@ -987,8 +987,8 @@ void SKawaiiPhysicsWindScopeEditPanel::LoadCollapsedGroupsFromConfig()
 	if (GConfig)
 	{
 		GConfig->GetString(
-			EditPanelConfigSectionName,
-			WindScopeCollapsedGroupsKey,
+			KawaiiPhysicsWindScopeEditPanelPrivate::EditPanelConfigSectionName,
+			KawaiiPhysicsWindScopeEditPanelPrivate::WindScopeCollapsedGroupsKey,
 			SavedCollapsedGroups,
 			GEditorPerProjectIni);
 	}
@@ -1003,8 +1003,8 @@ void SKawaiiPhysicsWindScopeEditPanel::SaveCollapsedGroupsToConfig() const
 	}
 
 	GConfig->SetString(
-		EditPanelConfigSectionName,
-		WindScopeCollapsedGroupsKey,
+		KawaiiPhysicsWindScopeEditPanelPrivate::EditPanelConfigSectionName,
+		KawaiiPhysicsWindScopeEditPanelPrivate::WindScopeCollapsedGroupsKey,
 		*SerializeWindScopeCollapsedGroups(CollapsedGroups),
 		GEditorPerProjectIni);
 	GConfig->Flush(false, GEditorPerProjectIni);
@@ -1012,7 +1012,7 @@ void SKawaiiPhysicsWindScopeEditPanel::SaveCollapsedGroupsToConfig() const
 
 void SKawaiiPhysicsWindScopeEditPanel::HandleGroupExpansionChanged(bool bExpanded, FName GroupId)
 {
-	if (!IsKnownWindScopeGroupId(GroupId))
+	if (!KawaiiPhysicsWindScopeEditPanelPrivate::IsKnownWindScopeGroupId(GroupId))
 	{
 		return;
 	}
@@ -1119,12 +1119,12 @@ int32 SKawaiiPhysicsWindScopeEditPanel::CountHiddenAdvancedParams() const
 FLinearColor SKawaiiPhysicsWindScopeEditPanel::ResolveSeriesDisplayColor(
 	TOptional<EKawaiiPhysicsWindScopeComponent> LinkedSeries) const
 {
-	const FLinearColor Color = ResolveGroupColor(LinkedSeries);
-	if (!LinkedSeries.IsSet() || IsSeriesActiveFromValues(EditValues.Get(), LinkedSeries.GetValue()))
+	const FLinearColor Color = KawaiiPhysicsWindScopeEditPanelPrivate::ResolveGroupColor(LinkedSeries);
+	if (!LinkedSeries.IsSet() || KawaiiPhysicsWindScopeEditPanelPrivate::IsSeriesActiveFromValues(EditValues.Get(), LinkedSeries.GetValue()))
 	{
 		return Color;
 	}
-	return MakeEditPanelInactiveSeriesColor(Color);
+	return KawaiiPhysicsWindScopeEditPanelPrivate::MakeEditPanelInactiveSeriesColor(Color);
 }
 
 EVisibility SKawaiiPhysicsWindScopeEditPanel::GetResetVisibility(FName PropertyName) const
@@ -1223,8 +1223,8 @@ EVisibility SKawaiiPhysicsWindScopeEditPanel::GetLiveValueVisibility(FName Prope
 		return EVisibility::Collapsed;
 	}
 
-	FProperty* Property = FindWindScopeProperty(PropertyName);
-	if (IsEditPanelParameterModeProperty(Property))
+	FProperty* Property = KawaiiPhysicsWindScopeEditPanelPrivate::FindWindScopeProperty(PropertyName);
+	if (KawaiiPhysicsWindScopeEditPanelPrivate::IsEditPanelParameterModeProperty(Property))
 	{
 		return Values->ParameterMode != LiveValues->ParameterMode
 			       ? EVisibility::Visible
@@ -1252,27 +1252,27 @@ EVisibility SKawaiiPhysicsWindScopeEditPanel::GetLiveValueVisibility(FName Prope
 			if (!FMath::IsNearlyEqual(
 				static_cast<float>(Values->WindDirection[ComponentIndex]),
 				static_cast<float>(LiveValues->WindDirection[ComponentIndex]),
-				LiveValueTolerance))
+				KawaiiPhysicsWindScopeEditPanelPrivate::LiveValueTolerance))
 			{
 				return EVisibility::Visible;
 			}
 		}
 		return EVisibility::Collapsed;
 	}
-	if (IsEditPanelFloatIntervalProperty(Property))
+	if (KawaiiPhysicsWindScopeEditPanelPrivate::IsEditPanelFloatIntervalProperty(Property))
 	{
 		const FFloatInterval* Value = Values->IntervalValues.Find(PropertyName);
 		const FFloatInterval* LiveValue = LiveValues->IntervalValues.Find(PropertyName);
 		return Value && LiveValue &&
-			(!FMath::IsNearlyEqual(Value->Min, LiveValue->Min, LiveValueTolerance) ||
-				!FMath::IsNearlyEqual(Value->Max, LiveValue->Max, LiveValueTolerance))
+			(!FMath::IsNearlyEqual(Value->Min, LiveValue->Min, KawaiiPhysicsWindScopeEditPanelPrivate::LiveValueTolerance) ||
+				!FMath::IsNearlyEqual(Value->Max, LiveValue->Max, KawaiiPhysicsWindScopeEditPanelPrivate::LiveValueTolerance))
 			       ? EVisibility::Visible
 			       : EVisibility::Collapsed;
 	}
 
 	const float* Value = Values->FloatValues.Find(PropertyName);
 	const float* LiveValue = LiveValues->FloatValues.Find(PropertyName);
-	return Value && LiveValue && !FMath::IsNearlyEqual(*Value, *LiveValue, LiveValueTolerance)
+	return Value && LiveValue && !FMath::IsNearlyEqual(*Value, *LiveValue, KawaiiPhysicsWindScopeEditPanelPrivate::LiveValueTolerance)
 		       ? EVisibility::Visible
 		       : EVisibility::Collapsed;
 }
@@ -1285,11 +1285,11 @@ FText SKawaiiPhysicsWindScopeEditPanel::GetLiveValueText(FName PropertyName) con
 		return FText::GetEmpty();
 	}
 
-	FProperty* Property = FindWindScopeProperty(PropertyName);
+	FProperty* Property = KawaiiPhysicsWindScopeEditPanelPrivate::FindWindScopeProperty(PropertyName);
 	FText ValueText;
-	if (IsEditPanelParameterModeProperty(Property))
+	if (KawaiiPhysicsWindScopeEditPanelPrivate::IsEditPanelParameterModeProperty(Property))
 	{
-		ValueText = FormatParameterMode(LiveValues->ParameterMode);
+		ValueText = KawaiiPhysicsWindScopeEditPanelPrivate::FormatParameterMode(LiveValues->ParameterMode);
 	}
 	else if (CastField<FBoolProperty>(Property) &&
 		PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce, bIsEnabled))
@@ -1306,18 +1306,18 @@ FText SKawaiiPhysicsWindScopeEditPanel::GetLiveValueText(FName PropertyName) con
 	{
 		ValueText = FText::Format(
 			LOCTEXT("LiveVectorValueFormat", "({0}, {1}, {2})"),
-			FormatLiveFloat(static_cast<float>(LiveValues->WindDirection.X)),
-			FormatLiveFloat(static_cast<float>(LiveValues->WindDirection.Y)),
-			FormatLiveFloat(static_cast<float>(LiveValues->WindDirection.Z)));
+			KawaiiPhysicsWindScopeEditPanelPrivate::FormatLiveFloat(static_cast<float>(LiveValues->WindDirection.X)),
+			KawaiiPhysicsWindScopeEditPanelPrivate::FormatLiveFloat(static_cast<float>(LiveValues->WindDirection.Y)),
+			KawaiiPhysicsWindScopeEditPanelPrivate::FormatLiveFloat(static_cast<float>(LiveValues->WindDirection.Z)));
 	}
-	else if (IsEditPanelFloatIntervalProperty(Property))
+	else if (KawaiiPhysicsWindScopeEditPanelPrivate::IsEditPanelFloatIntervalProperty(Property))
 	{
 		if (const FFloatInterval* LiveValue = LiveValues->IntervalValues.Find(PropertyName))
 		{
 			ValueText = FText::Format(
 				LOCTEXT("LiveIntervalValueFormat", "{0} - {1}"),
-				FormatLiveFloat(LiveValue->Min),
-				FormatLiveFloat(LiveValue->Max));
+				KawaiiPhysicsWindScopeEditPanelPrivate::FormatLiveFloat(LiveValue->Min),
+				KawaiiPhysicsWindScopeEditPanelPrivate::FormatLiveFloat(LiveValue->Max));
 		}
 		else
 		{
@@ -1326,7 +1326,7 @@ FText SKawaiiPhysicsWindScopeEditPanel::GetLiveValueText(FName PropertyName) con
 	}
 	else if (const float* LiveValue = LiveValues->FloatValues.Find(PropertyName))
 	{
-		ValueText = FormatLiveFloat(*LiveValue);
+		ValueText = KawaiiPhysicsWindScopeEditPanelPrivate::FormatLiveFloat(*LiveValue);
 	}
 	else
 	{
@@ -1355,27 +1355,27 @@ FText SKawaiiPhysicsWindScopeEditPanel::GetGroupSummaryText(FName SummaryPropert
 		return FText::GetEmpty();
 	}
 
-	FProperty* Property = FindWindScopeProperty(SummaryProperty);
+	FProperty* Property = KawaiiPhysicsWindScopeEditPanelPrivate::FindWindScopeProperty(SummaryProperty);
 	const FText Label = Property ? Property->GetDisplayNameText() : FText::FromString(SummaryProperty.ToString());
 	if (SummaryInterval)
 	{
 		return FText::Format(
 			LOCTEXT("CollapsedGroupIntervalSummaryFormat", "{0} {1}-{2}"),
 			Label,
-			FormatLiveFloat(SummaryInterval->Min),
-			FormatLiveFloat(SummaryInterval->Max));
+			KawaiiPhysicsWindScopeEditPanelPrivate::FormatLiveFloat(SummaryInterval->Min),
+			KawaiiPhysicsWindScopeEditPanelPrivate::FormatLiveFloat(SummaryInterval->Max));
 	}
 	return FText::Format(
 		LOCTEXT("CollapsedGroupSummaryFormat", "{0} {1}"),
 		Label,
-		FormatLiveFloat(*SummaryValue));
+		KawaiiPhysicsWindScopeEditPanelPrivate::FormatLiveFloat(*SummaryValue));
 }
 
 FText SKawaiiPhysicsWindScopeEditPanel::GetParameterModeText() const
 {
 	const FKawaiiWindScopeEditValues* Values = EditValues.Get();
 	return Values && Values->bValid
-		       ? FormatParameterMode(Values->ParameterMode)
+		       ? KawaiiPhysicsWindScopeEditPanelPrivate::FormatParameterMode(Values->ParameterMode)
 		       : FText::GetEmpty();
 }
 

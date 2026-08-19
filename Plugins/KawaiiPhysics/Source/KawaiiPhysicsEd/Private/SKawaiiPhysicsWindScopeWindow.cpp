@@ -51,7 +51,7 @@
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysicsWindScopeWindow"
 
-namespace
+namespace KawaiiPhysicsWindScopeWindowPrivate
 {
 	constexpr int32 WindScopePreviewSampleCount = 240;
 	constexpr float WindScopeGraphPaddingLeft = 42.0f;
@@ -1046,11 +1046,11 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 		FLinearColor(0.015f, 0.018f, 0.022f, 1.0f));
 
 	// 描画領域（余白を除いたグラフ内側の矩形）と値レンジを計算
-	const FVector2D GraphOrigin(WindScopeGraphPaddingLeft, WindScopeGraphPaddingTop);
+	const FVector2D GraphOrigin(KawaiiPhysicsWindScopeWindowPrivate::WindScopeGraphPaddingLeft, KawaiiPhysicsWindScopeWindowPrivate::WindScopeGraphPaddingTop);
 	const FVector2D GraphSize(
-		FMath::Max(LocalSize.X - WindScopeGraphPaddingLeft - WindScopeGraphPaddingRight, 1.0f),
-		FMath::Max(LocalSize.Y - WindScopeGraphPaddingTop - WindScopeGraphPaddingBottom, 1.0f));
-	const FKawaiiWindScopeRange Range = ComputeWindScopeRange(Samples, DisplaySeconds, Visibility);
+		FMath::Max(LocalSize.X - KawaiiPhysicsWindScopeWindowPrivate::WindScopeGraphPaddingLeft - KawaiiPhysicsWindScopeWindowPrivate::WindScopeGraphPaddingRight, 1.0f),
+		FMath::Max(LocalSize.Y - KawaiiPhysicsWindScopeWindowPrivate::WindScopeGraphPaddingTop - KawaiiPhysicsWindScopeWindowPrivate::WindScopeGraphPaddingBottom, 1.0f));
+	const KawaiiPhysicsWindScopeWindowPrivate::FKawaiiWindScopeRange Range = KawaiiPhysicsWindScopeWindowPrivate::ComputeWindScopeRange(Samples, DisplaySeconds, Visibility);
 	const FLinearColor GridColor(0.22f, 0.24f, 0.28f, 0.55f);
 	const FLinearColor AxisColor(0.52f, 0.56f, 0.62f, 0.9f);
 	const FSlateFontInfo AxisFont(FCoreStyle::GetDefaultFont(), 9);
@@ -1116,7 +1116,7 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 			continue;
 		}
 
-		const TArray<FVector2D> Points = BuildWindScopePolylinePoints(
+		const TArray<FVector2D> Points = KawaiiPhysicsWindScopeWindowPrivate::BuildWindScopePolylinePoints(
 			Samples,
 			Style.Component,
 			Range.MinTime,
@@ -1146,7 +1146,7 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 
 		if (Style.bDashed)
 		{
-			DrawWindScopeDashedLine(OutDrawElements, LayerId + 3, AllottedGeometry, Points, DrawColor, DrawThickness);
+			KawaiiPhysicsWindScopeWindowPrivate::DrawWindScopeDashedLine(OutDrawElements, LayerId + 3, AllottedGeometry, Points, DrawColor, DrawThickness);
 		}
 		else
 		{
@@ -1164,7 +1164,7 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 
 	if (GhostSamples.Num() >= 2)
 	{
-		const TArray<FVector2D> GhostPoints = BuildWindScopeGhostPolylinePoints(
+		const TArray<FVector2D> GhostPoints = KawaiiPhysicsWindScopeWindowPrivate::BuildWindScopeGhostPolylinePoints(
 			GhostSamples,
 			Range.MinTime,
 			Range.MaxTime,
@@ -1179,7 +1179,7 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 				FSlateLayoutTransform(GraphOrigin));
 			// ゴーストはYレンジ超過時にプロット矩形外へはみ出しうるためクリップする
 			OutDrawElements.PushClip(FSlateClippingZone(GhostClipGeometry));
-			DrawWindScopeDashedLine(
+			KawaiiPhysicsWindScopeWindowPrivate::DrawWindScopeDashedLine(
 				OutDrawElements,
 				LayerId + 4,
 				AllottedGeometry,
@@ -1463,7 +1463,7 @@ int32 SKawaiiPhysicsWindScopeGraph::OnPaint(const FPaintArgs& Args,
 				TextColor.A = FMath::Max(TextColor.A, 0.9f);
 				const FString LabelString = Style.Label.ToString();
 				CursorTextLines.Emplace(
-					FString::Printf(TEXT("%s %.2f"), *LabelString, GetWindScopeComponentValue(Samples[ClosestIndex].Sample, Style.Component)),
+					FString::Printf(TEXT("%s %.2f"), *LabelString, KawaiiPhysicsWindScopeWindowPrivate::GetWindScopeComponentValue(Samples[ClosestIndex].Sample, Style.Component)),
 					TextColor);
 			}
 
@@ -1801,7 +1801,7 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 				.AutoHeight()
 				.Padding(0.0f, 0.0f, 0.0f, 4.0f)
 				[
-					MakeWindScopeFormulaHeader(this)
+					KawaiiPhysicsWindScopeWindowPrivate::MakeWindScopeFormulaHeader(this)
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
@@ -1810,13 +1810,13 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 					SNew(SWrapBox)
 					.UseAllottedSize(true)
 					.InnerSlotPadding(FVector2D(6.0f, 2.0f))
-					+ SWrapBox::Slot()[MakeWindScopeLegendItem(this, GetWindScopeComponentStyles()[0])]
-					+ SWrapBox::Slot()[MakeWindScopeLegendItem(this, GetWindScopeComponentStyles()[1])]
-					+ SWrapBox::Slot()[MakeWindScopeLegendItem(this, GetWindScopeComponentStyles()[2])]
-					+ SWrapBox::Slot()[MakeWindScopeLegendItem(this, GetWindScopeComponentStyles()[3])]
-					+ SWrapBox::Slot()[MakeWindScopeLegendItem(this, GetWindScopeComponentStyles()[4])]
-					+ SWrapBox::Slot()[MakeWindScopeLegendItem(this, GetWindScopeComponentStyles()[5])]
-					+ SWrapBox::Slot()[MakeWindScopeLegendItem(this, GetWindScopeComponentStyles()[6])]
+					+ SWrapBox::Slot()[KawaiiPhysicsWindScopeWindowPrivate::MakeWindScopeLegendItem(this, GetWindScopeComponentStyles()[0])]
+					+ SWrapBox::Slot()[KawaiiPhysicsWindScopeWindowPrivate::MakeWindScopeLegendItem(this, GetWindScopeComponentStyles()[1])]
+					+ SWrapBox::Slot()[KawaiiPhysicsWindScopeWindowPrivate::MakeWindScopeLegendItem(this, GetWindScopeComponentStyles()[2])]
+					+ SWrapBox::Slot()[KawaiiPhysicsWindScopeWindowPrivate::MakeWindScopeLegendItem(this, GetWindScopeComponentStyles()[3])]
+					+ SWrapBox::Slot()[KawaiiPhysicsWindScopeWindowPrivate::MakeWindScopeLegendItem(this, GetWindScopeComponentStyles()[4])]
+					+ SWrapBox::Slot()[KawaiiPhysicsWindScopeWindowPrivate::MakeWindScopeLegendItem(this, GetWindScopeComponentStyles()[5])]
+					+ SWrapBox::Slot()[KawaiiPhysicsWindScopeWindowPrivate::MakeWindScopeLegendItem(this, GetWindScopeComponentStyles()[6])]
 				]
 				+ SVerticalBox::Slot()
 				.FillHeight(1.0f)
@@ -1961,15 +1961,15 @@ TSharedRef<SDockTab> SKawaiiPhysicsWindScopeWindow::SpawnWindScopeTab(const FSpa
 		.OnTabClosed_Lambda([](TSharedRef<SDockTab> ClosedTab)
 		{
 			(void)ClosedTab;
-			KawaiiWindScopeTabWeak.Reset();
-			KawaiiWindScopeWidgetWeak.Reset();
+			KawaiiPhysicsWindScopeWindowPrivate::KawaiiWindScopeTabWeak.Reset();
+			KawaiiPhysicsWindScopeWindowPrivate::KawaiiWindScopeWidgetWeak.Reset();
 		})
 		[
 			ScopeWidget
 		];
 
-	KawaiiWindScopeTabWeak = ScopeTab;
-	KawaiiWindScopeWidgetWeak = ScopeWidget;
+	KawaiiPhysicsWindScopeWindowPrivate::KawaiiWindScopeTabWeak = ScopeTab;
+	KawaiiPhysicsWindScopeWindowPrivate::KawaiiWindScopeWidgetWeak = ScopeWidget;
 	return ScopeTab;
 }
 
@@ -1993,7 +1993,7 @@ void SKawaiiPhysicsWindScopeWindow::OpenWindow(FKawaiiPhysicsWindScopeWindowArgs
 		return;
 	}
 
-	if (TSharedPtr<SKawaiiPhysicsWindScopeWindow> ExistingWidget = KawaiiWindScopeWidgetWeak.Pin())
+	if (TSharedPtr<SKawaiiPhysicsWindScopeWindow> ExistingWidget = KawaiiPhysicsWindScopeWindowPrivate::KawaiiWindScopeWidgetWeak.Pin())
 	{
 		ExistingWidget->ClearPendingReconnect();
 		ExistingWidget->SetArgs(MoveTemp(Args));
@@ -2005,8 +2005,8 @@ void SKawaiiPhysicsWindScopeWindow::OpenWindow(FKawaiiPhysicsWindScopeWindowArgs
 	{
 		TSharedPtr<SKawaiiPhysicsWindScopeWindow> RecoveredWidget =
 			StaticCastSharedPtr<SKawaiiPhysicsWindScopeWindow>(TabContent);
-		KawaiiWindScopeTabWeak = InvokedTab;
-		KawaiiWindScopeWidgetWeak = RecoveredWidget;
+		KawaiiPhysicsWindScopeWindowPrivate::KawaiiWindScopeTabWeak = InvokedTab;
+		KawaiiPhysicsWindScopeWindowPrivate::KawaiiWindScopeWidgetWeak = RecoveredWidget;
 		RecoveredWidget->ClearPendingReconnect();
 		RecoveredWidget->SetArgs(MoveTemp(Args));
 	}
@@ -2014,12 +2014,12 @@ void SKawaiiPhysicsWindScopeWindow::OpenWindow(FKawaiiPhysicsWindScopeWindowArgs
 
 void SKawaiiPhysicsWindScopeWindow::CloseAllWindows()
 {
-	if (TSharedPtr<SDockTab> ScopeTab = KawaiiWindScopeTabWeak.Pin())
+	if (TSharedPtr<SDockTab> ScopeTab = KawaiiPhysicsWindScopeWindowPrivate::KawaiiWindScopeTabWeak.Pin())
 	{
 		ScopeTab->RequestCloseTab();
 	}
-	KawaiiWindScopeTabWeak.Reset();
-	KawaiiWindScopeWidgetWeak.Reset();
+	KawaiiPhysicsWindScopeWindowPrivate::KawaiiWindScopeTabWeak.Reset();
+	KawaiiPhysicsWindScopeWindowPrivate::KawaiiWindScopeWidgetWeak.Reset();
 }
 
 void SKawaiiPhysicsWindScopeWindow::SetArgs(FKawaiiPhysicsWindScopeWindowArgs InArgs)
@@ -2104,16 +2104,16 @@ FText SKawaiiPhysicsWindScopeWindow::GetModeText() const
 FText SKawaiiPhysicsWindScopeWindow::GetCurrentValuesText() const
 {
 	const FKawaiiPhysicsProceduralWindSample Sample =
-		DisplaySamples.Num() > 0 ? DisplaySamples.Last().Sample : MakeZeroWindSample();
+		DisplaySamples.Num() > 0 ? DisplaySamples.Last().Sample : KawaiiPhysicsWindScopeWindowPrivate::MakeZeroWindSample();
 	return FText::Format(
 		LOCTEXT("CurrentValuesFormat", "Total {0}  Constant {1}  Sway {2}  Ripple {3}  StrCycle {4}  Rand {5}  Gust {6}"),
-		FormatFloat2(Sample.Total),
-		FormatFloat2(Sample.Constant),
-		FormatFloat2(Sample.Sway),
-		FormatFloat2(Sample.Ripple),
-		FormatFloat2(Sample.StrengthCycle),
-		FormatFloat2(Sample.Random),
-		FormatFloat2(Sample.Gust));
+		KawaiiPhysicsWindScopeWindowPrivate::FormatFloat2(Sample.Total),
+		KawaiiPhysicsWindScopeWindowPrivate::FormatFloat2(Sample.Constant),
+		KawaiiPhysicsWindScopeWindowPrivate::FormatFloat2(Sample.Sway),
+		KawaiiPhysicsWindScopeWindowPrivate::FormatFloat2(Sample.Ripple),
+		KawaiiPhysicsWindScopeWindowPrivate::FormatFloat2(Sample.StrengthCycle),
+		KawaiiPhysicsWindScopeWindowPrivate::FormatFloat2(Sample.Random),
+		KawaiiPhysicsWindScopeWindowPrivate::FormatFloat2(Sample.Gust));
 }
 
 ECheckBoxState SKawaiiPhysicsWindScopeWindow::GetSeriesCheckState(
@@ -2216,19 +2216,19 @@ bool SKawaiiPhysicsWindScopeWindow::IsSeriesActive(EKawaiiPhysicsWindScopeCompon
 	const bool bGustActive = DisplaySamples.Num() > 0 && !FMath::IsNearlyZero(DisplaySamples.Last().Sample.Gust);
 	// Live 値が有効な間は runtime 側（DynamicParams 反映後）で判定し、グラフの live 波形と凡例/式ヘッダの淡色表示を一致させる
 	const FKawaiiWindScopeEditValues* Values = CachedLiveEditValues.bValid ? &CachedLiveEditValues : &CachedEditValues;
-	return IsSeriesActiveFromValues(Values, Component, bGustActive);
+	return KawaiiPhysicsWindScopeWindowPrivate::IsSeriesActiveFromValues(Values, Component, bGustActive);
 }
 
 FLinearColor SKawaiiPhysicsWindScopeWindow::ResolveSeriesDisplayColor(
 	EKawaiiPhysicsWindScopeComponent Component) const
 {
-	const FLinearColor Color = ResolveBaseComponentColor(Component);
-	return IsSeriesActive(Component) ? Color : MakeInactiveSeriesColor(Color);
+	const FLinearColor Color = KawaiiPhysicsWindScopeWindowPrivate::ResolveBaseComponentColor(Component);
+	return IsSeriesActive(Component) ? Color : KawaiiPhysicsWindScopeWindowPrivate::MakeInactiveSeriesColor(Color);
 }
 
 void SKawaiiPhysicsWindScopeWindow::RebuildPresetButtons()
 {
-	CachedPresets = ResolveWindScopePresets();
+	CachedPresets = KawaiiPhysicsWindScopeWindowPrivate::ResolveWindScopePresets();
 	if (!PresetButtonBox.IsValid())
 	{
 		return;
@@ -2245,7 +2245,7 @@ void SKawaiiPhysicsWindScopeWindow::RebuildPresetButtons()
 		PresetButtonBox->AddSlot()
 		[
 			SNew(SButton)
-			.Text(ResolveWindPresetDisplayName(CachedPresets[PresetIndex], PresetIndex))
+			.Text(KawaiiPhysicsWindScopeWindowPrivate::ResolveWindPresetDisplayName(CachedPresets[PresetIndex], PresetIndex))
 			.OnClicked(this, &SKawaiiPhysicsWindScopeWindow::OnPresetButtonClicked, PresetIndex)
 			.OnHovered_Lambda([this, PresetIndex]()
 			{
@@ -2292,10 +2292,10 @@ void SKawaiiPhysicsWindScopeWindow::OnPresetButtonHovered(int32 PresetIndex)
 	PreviewWind.ApplyDynamicParams(CachedPresets[PresetIndex].ToDynamicParams());
 
 	TArray<FVector2D> NewGhostSamples;
-	NewGhostSamples.Reserve(WindScopePreviewSampleCount);
+	NewGhostSamples.Reserve(KawaiiPhysicsWindScopeWindowPrivate::WindScopePreviewSampleCount);
 	const float EndTime = DisplaySamples.Num() > 0 ? DisplaySamples.Last().Time : PreviewTime;
 	const float StartTime = EndTime - DisplaySeconds;
-	const int32 SampleCount = FMath::Max(WindScopePreviewSampleCount, 2);
+	const int32 SampleCount = FMath::Max(KawaiiPhysicsWindScopeWindowPrivate::WindScopePreviewSampleCount, 2);
 	for (int32 SampleIndex = 0; SampleIndex < SampleCount; ++SampleIndex)
 	{
 		const float Alpha = static_cast<float>(SampleIndex) / static_cast<float>(SampleCount - 1);
@@ -2333,7 +2333,7 @@ FReply SKawaiiPhysicsWindScopeWindow::ApplyPreset(const FKawaiiProceduralWindPre
 	Params.bOverrideTimeScale = true;
 	Params.TimeScale = 1.0f;
 	Wind->ApplyDynamicParams(Params);
-	MarkWindScopeGraphNodeModified(GraphNode);
+	KawaiiPhysicsWindScopeWindowPrivate::MarkWindScopeGraphNodeModified(GraphNode);
 	Args.ExternalForceIndex = ResolvedIndex;
 	// シミュレーションリセット回避のため PostEditChangeProperty / NotifyGraphNodePropertyChanged は呼ばず、
 	// ライブ側には PendingParams 経由で同じ値を送る
@@ -2349,7 +2349,7 @@ FReply SKawaiiPhysicsWindScopeWindow::ApplyPreset(const FKawaiiProceduralWindPre
 		FText::Format(bAppliedLive
 			              ? LOCTEXT("ApplyPresetSucceededLive", "Applied {0} wind preset. (live)")
 			              : LOCTEXT("ApplyPresetSucceededNodeOnly", "Applied {0} wind preset. (node only — no live target)"),
-			ResolveWindPresetDisplayName(Preset, PresetIndex)),
+			KawaiiPhysicsWindScopeWindowPrivate::ResolveWindPresetDisplayName(Preset, PresetIndex)),
 		SNotificationItem::CS_Success);
 	return FReply::Handled();
 }
@@ -2404,7 +2404,7 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeWindow::GenerateSavePresetMenu()
 	for (int32 PresetIndex = 0; PresetIndex < CachedPresets.Num(); ++PresetIndex)
 	{
 		MenuBuilder.AddMenuEntry(
-			ResolveWindPresetDisplayName(CachedPresets[PresetIndex], PresetIndex),
+			KawaiiPhysicsWindScopeWindowPrivate::ResolveWindPresetDisplayName(CachedPresets[PresetIndex], PresetIndex),
 			LOCTEXT("SavePresetOverwriteTooltip", "Overwrite this preset with current parameters."),
 			FSlateIcon(),
 			FUIAction(
@@ -2502,7 +2502,7 @@ bool SKawaiiPhysicsWindScopeWindow::SaveCurrentWindAsPreset(int32 PresetIndex)
 		}
 	}
 
-	FKawaiiProceduralWindPreset Preset = MakeWindPresetFromCurrentWind(*Wind);
+	FKawaiiProceduralWindPreset Preset = KawaiiPhysicsWindScopeWindowPrivate::MakeWindPresetFromCurrentWind(*Wind);
 	FText SavedPresetName;
 	const FScopedTransaction Transaction(LOCTEXT("SaveWindPresetTransaction", "Save Kawaii Physics Wind Preset"));
 	PresetDataAsset->Modify();
@@ -2517,7 +2517,7 @@ bool SKawaiiPhysicsWindScopeWindow::SaveCurrentWindAsPreset(int32 PresetIndex)
 	else
 	{
 		FKawaiiProceduralWindPreset& TargetPreset = PresetDataAsset->Presets[PresetIndex];
-		SavedPresetName = ResolveWindPresetDisplayName(TargetPreset, PresetIndex);
+		SavedPresetName = KawaiiPhysicsWindScopeWindowPrivate::ResolveWindPresetDisplayName(TargetPreset, PresetIndex);
 		Preset.PresetTag = TargetPreset.PresetTag;
 		Preset.PresetName = TargetPreset.PresetName;
 		TargetPreset = Preset;
@@ -2554,7 +2554,7 @@ FReply SKawaiiPhysicsWindScopeWindow::OnCopyWindParametersClicked()
 		nullptr,
 		PPF_None,
 		nullptr);
-	const FString ClipboardText = FString::Printf(TEXT("%s%s%s"), WindScopeClipboardMarker, LINE_TERMINATOR, *ExportedText);
+	const FString ClipboardText = FString::Printf(TEXT("%s%s%s"), KawaiiPhysicsWindScopeWindowPrivate::WindScopeClipboardMarker, LINE_TERMINATOR, *ExportedText);
 	FPlatformApplicationMisc::ClipboardCopy(*ClipboardText);
 	Args.ExternalForceIndex = ResolvedIndex;
 	KawaiiPhysicsEdWindowUtils::ShowNotification(
@@ -2567,7 +2567,7 @@ FReply SKawaiiPhysicsWindScopeWindow::OnPasteWindParametersClicked()
 {
 	FString ClipboardText;
 	FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
-	if (!ClipboardText.StartsWith(WindScopeClipboardMarker))
+	if (!ClipboardText.StartsWith(KawaiiPhysicsWindScopeWindowPrivate::WindScopeClipboardMarker))
 	{
 		KawaiiPhysicsEdWindowUtils::ShowNotification(
 			LOCTEXT("PasteWindParametersInvalidClipboard", "Clipboard does not contain ProceduralWind parameters."),
@@ -2575,7 +2575,7 @@ FReply SKawaiiPhysicsWindScopeWindow::OnPasteWindParametersClicked()
 		return FReply::Handled();
 	}
 
-	const FString ImportText = ClipboardText.RightChop(FCString::Strlen(WindScopeClipboardMarker)).TrimStartAndEnd();
+	const FString ImportText = ClipboardText.RightChop(FCString::Strlen(KawaiiPhysicsWindScopeWindowPrivate::WindScopeClipboardMarker)).TrimStartAndEnd();
 
 	FKawaiiPhysics_ExternalForce_ProceduralWind PastedWind;
 	const UScriptStruct* WindStruct = FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct();
@@ -2605,7 +2605,7 @@ FReply SKawaiiPhysicsWindScopeWindow::OnPasteWindParametersClicked()
 	const FScopedTransaction Transaction(LOCTEXT("PasteWindParametersTransaction", "Paste Kawaii Physics Wind Parameters"));
 	GraphNode->Modify();
 	*Wind = PastedWind;
-	MarkWindScopeGraphNodeModified(GraphNode);
+	KawaiiPhysicsWindScopeWindowPrivate::MarkWindScopeGraphNodeModified(GraphNode);
 	Args.ExternalForceIndex = ResolvedIndex;
 	const bool bAppliedLive = PushParamsToLiveRuntime(Wind->BuildDynamicParamsSnapshot());
 	RefreshExternalForceItems();
@@ -2639,7 +2639,7 @@ FKawaiiPhysics_ExternalForce_ProceduralWind* SKawaiiPhysicsWindScopeWindow::Reso
 	}
 
 	// ProceduralWind 外力を解決・型チェック
-	const int32 ResolvedIndex = ResolveProceduralWindIndex(GraphNode->Node, Args.ExternalForceIndex);
+	const int32 ResolvedIndex = KawaiiPhysicsWindScopeWindowPrivate::ResolveProceduralWindIndex(GraphNode->Node, Args.ExternalForceIndex);
 	if (!GraphNode->Node.ExternalForces.IsValidIndex(ResolvedIndex))
 	{
 		if (bShowNotification)
@@ -2674,7 +2674,7 @@ bool SKawaiiPhysicsWindScopeWindow::PushParamsToLiveRuntime(
 {
 	UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
 	FAnimNode_KawaiiPhysics* RuntimeNode = KawaiiPhysicsEdUtils::ResolveLiveKawaiiPhysicsNode(GraphNode);
-	FKawaiiPhysics_ExternalForce_ProceduralWind* RuntimeWind = ResolveLiveProceduralWind(
+	FKawaiiPhysics_ExternalForce_ProceduralWind* RuntimeWind = KawaiiPhysicsWindScopeWindowPrivate::ResolveLiveProceduralWind(
 		GraphNode,
 		RuntimeNode,
 		Args.ExternalForceIndex);
@@ -2692,7 +2692,7 @@ bool SKawaiiPhysicsWindScopeWindow::PushGustToLiveRuntime(
 {
 	UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
 	FAnimNode_KawaiiPhysics* RuntimeNode = KawaiiPhysicsEdUtils::ResolveLiveKawaiiPhysicsNode(GraphNode);
-	FKawaiiPhysics_ExternalForce_ProceduralWind* RuntimeWind = ResolveLiveProceduralWind(
+	FKawaiiPhysics_ExternalForce_ProceduralWind* RuntimeWind = KawaiiPhysicsWindScopeWindowPrivate::ResolveLiveProceduralWind(
 		GraphNode,
 		RuntimeNode,
 		Args.ExternalForceIndex);
@@ -2747,7 +2747,7 @@ bool SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit(
 	}
 	Args.ExternalForceIndex = ResolvedIndex;
 
-	FProperty* Property = FindProceduralWindProperty(PropertyName);
+	FProperty* Property = KawaiiPhysicsWindScopeWindowPrivate::FindProceduralWindProperty(PropertyName);
 	if (!Property)
 	{
 		if (bApplyAsCommitted)
@@ -2769,7 +2769,7 @@ bool SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit(
 
 	if (Phase == EKawaiiWindEditPhase::Interactive && bHasMatchingDragStart)
 	{
-		if (!SetProceduralWindPropertyValue(*Wind, Property, NewValue, VectorComponentIndex))
+		if (!KawaiiPhysicsWindScopeWindowPrivate::SetProceduralWindPropertyValue(*Wind, Property, NewValue, VectorComponentIndex))
 		{
 			return FailEdit();
 		}
@@ -2784,11 +2784,11 @@ bool SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit(
 
 	const bool bUseDragStartValue = bHasMatchingDragStart;
 	const FKawaiiPhysics_ExternalForce_ProceduralWind& CompareWind = bUseDragStartValue ? DragStartWind : *Wind;
-	if (IsProceduralWindPropertyValueEqualToEdit(CompareWind, Property, NewValue, VectorComponentIndex))
+	if (KawaiiPhysicsWindScopeWindowPrivate::IsProceduralWindPropertyValueEqualToEdit(CompareWind, Property, NewValue, VectorComponentIndex))
 	{
 		if (bUseDragStartValue)
 		{
-			CopyProceduralWindPropertyValue(*Wind, DragStartWind, Property);
+			KawaiiPhysicsWindScopeWindowPrivate::CopyProceduralWindPropertyValue(*Wind, DragStartWind, Property);
 			FKawaiiProceduralWindDynamicParams Params;
 			if (Wind->BuildDynamicParamsForProperty(PropertyName, Params))
 			{
@@ -2801,12 +2801,12 @@ bool SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit(
 
 	if (bUseDragStartValue)
 	{
-		CopyProceduralWindPropertyValue(*Wind, DragStartWind, Property);
+		KawaiiPhysicsWindScopeWindowPrivate::CopyProceduralWindPropertyValue(*Wind, DragStartWind, Property);
 	}
 
 	const FScopedTransaction Transaction(LOCTEXT("EditWindParameterTransaction", "Edit Kawaii Physics Wind Parameter"));
 	GraphNode->Modify();
-	if (!SetProceduralWindPropertyValue(*Wind, Property, NewValue, VectorComponentIndex))
+	if (!KawaiiPhysicsWindScopeWindowPrivate::SetProceduralWindPropertyValue(*Wind, Property, NewValue, VectorComponentIndex))
 	{
 		bHasDragStartWind = false;
 		KawaiiPhysicsEdWindowUtils::ShowNotification(
@@ -2815,7 +2815,7 @@ bool SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit(
 		return FailEdit();
 	}
 
-	MarkWindScopeGraphNodeModified(GraphNode);
+	KawaiiPhysicsWindScopeWindowPrivate::MarkWindScopeGraphNodeModified(GraphNode);
 	Args.ExternalForceIndex = ResolvedIndex;
 	bHasDragStartWind = false;
 
@@ -2852,7 +2852,7 @@ void SKawaiiPhysicsWindScopeWindow::FinalizeAbandonedWindDrag()
 		return;
 	}
 
-	FProperty* Property = FindProceduralWindProperty(DragStartPropertyName);
+	FProperty* Property = KawaiiPhysicsWindScopeWindowPrivate::FindProceduralWindProperty(DragStartPropertyName);
 	if (!Property)
 	{
 		bHasDragStartWind = false;
@@ -2868,19 +2868,19 @@ void SKawaiiPhysicsWindScopeWindow::FinalizeAbandonedWindDrag()
 	}
 
 	FKawaiiPhysics_ExternalForce_ProceduralWind DraggedWind = DragStartWind;
-	if (!CopyProceduralWindPropertyValue(DraggedWind, *Wind, Property))
+	if (!KawaiiPhysicsWindScopeWindowPrivate::CopyProceduralWindPropertyValue(DraggedWind, *Wind, Property))
 	{
 		bHasDragStartWind = false;
 		ClearActiveEditGuide();
 		return;
 	}
 
-	CopyProceduralWindPropertyValue(*Wind, DragStartWind, Property);
+	KawaiiPhysicsWindScopeWindowPrivate::CopyProceduralWindPropertyValue(*Wind, DragStartWind, Property);
 
 	const FScopedTransaction Transaction(LOCTEXT("EditWindParameterTransaction", "Edit Kawaii Physics Wind Parameter"));
 	GraphNode->Modify();
-	CopyProceduralWindPropertyValue(*Wind, DraggedWind, Property);
-	MarkWindScopeGraphNodeModified(GraphNode);
+	KawaiiPhysicsWindScopeWindowPrivate::CopyProceduralWindPropertyValue(*Wind, DraggedWind, Property);
+	KawaiiPhysicsWindScopeWindowPrivate::MarkWindScopeGraphNodeModified(GraphNode);
 	Args.ExternalForceIndex = ResolvedIndex;
 	bHasDragStartWind = false;
 	ClearActiveEditGuide();
@@ -2907,7 +2907,7 @@ bool SKawaiiPhysicsWindScopeWindow::ResetWindParamToDefault(FName PropertyName)
 		return false;
 	}
 
-	FProperty* Property = FindProceduralWindProperty(PropertyName);
+	FProperty* Property = KawaiiPhysicsWindScopeWindowPrivate::FindProceduralWindProperty(PropertyName);
 	if (!Property)
 	{
 		KawaiiPhysicsEdWindowUtils::ShowNotification(
@@ -2919,8 +2919,8 @@ bool SKawaiiPhysicsWindScopeWindow::ResetWindParamToDefault(FName PropertyName)
 	static const FKawaiiPhysics_ExternalForce_ProceduralWind DefaultWind;
 	const FScopedTransaction Transaction(LOCTEXT("EditWindParameterTransaction", "Edit Kawaii Physics Wind Parameter"));
 	GraphNode->Modify();
-	CopyProceduralWindPropertyValue(*Wind, DefaultWind, Property);
-	MarkWindScopeGraphNodeModified(GraphNode);
+	KawaiiPhysicsWindScopeWindowPrivate::CopyProceduralWindPropertyValue(*Wind, DefaultWind, Property);
+	KawaiiPhysicsWindScopeWindowPrivate::MarkWindScopeGraphNodeModified(GraphNode);
 	Args.ExternalForceIndex = ResolvedIndex;
 	bHasDragStartWind = false;
 
@@ -2944,7 +2944,7 @@ bool SKawaiiPhysicsWindScopeWindow::IsWindParamPinExposed(FName PropertyName) co
 void SKawaiiPhysicsWindScopeWindow::ClearWindParamPinExposureCache()
 {
 	WindParamPinExposureCache.Reset();
-	WindParamPinExposureRefreshElapsedTime = WindScopePinExposureRefreshInterval;
+	WindParamPinExposureRefreshElapsedTime = KawaiiPhysicsWindScopeWindowPrivate::WindScopePinExposureRefreshInterval;
 }
 
 void SKawaiiPhysicsWindScopeWindow::RefreshWindParamPinExposureCache()
@@ -2967,7 +2967,7 @@ bool SKawaiiPhysicsWindScopeWindow::ComputeWindParamPinExposure(FName PropertyNa
 		return false;
 	}
 
-	const int32 ResolvedIndex = ResolveProceduralWindIndex(GraphNode->Node, Args.ExternalForceIndex);
+	const int32 ResolvedIndex = KawaiiPhysicsWindScopeWindowPrivate::ResolveProceduralWindIndex(GraphNode->Node, Args.ExternalForceIndex);
 	if (!GraphNode->Node.ExternalForces.IsValidIndex(ResolvedIndex))
 	{
 		return false;
@@ -3048,7 +3048,7 @@ EActiveTimerReturnType SKawaiiPhysicsWindScopeWindow::TickWindScope(double InCur
 	{
 		WindParamPinExposureRefreshElapsedTime += InDeltaTime;
 		if (WindParamPinExposureCache.Num() == 0 ||
-			WindParamPinExposureRefreshElapsedTime >= WindScopePinExposureRefreshInterval)
+			WindParamPinExposureRefreshElapsedTime >= KawaiiPhysicsWindScopeWindowPrivate::WindScopePinExposureRefreshInterval)
 		{
 			RefreshWindParamPinExposureCache();
 			WindParamPinExposureRefreshElapsedTime = 0.0f;
@@ -3099,7 +3099,7 @@ void SKawaiiPhysicsWindScopeWindow::RefreshExternalForceItems()
 	{
 		for (int32 Index = 0; Index < GraphNode->Node.ExternalForces.Num(); ++Index)
 		{
-			if (IsProceduralWindStruct(GraphNode->Node.ExternalForces[Index]))
+			if (KawaiiPhysicsWindScopeWindowPrivate::IsProceduralWindStruct(GraphNode->Node.ExternalForces[Index]))
 			{
 				ExternalForceItems.Add(MakeShared<int32>(Index));
 			}
@@ -3149,10 +3149,10 @@ void SKawaiiPhysicsWindScopeWindow::RebuildPreviewSamples(
 	// エディタ経過時間を積算し、直近 DisplaySeconds 秒分を等間隔サンプリングする
 	PreviewTime += FMath::Clamp(InDeltaTime, 0.0f, 0.1f);
 	DisplaySamples.Reset();
-	DisplaySamples.Reserve(WindScopePreviewSampleCount);
+	DisplaySamples.Reserve(KawaiiPhysicsWindScopeWindowPrivate::WindScopePreviewSampleCount);
 	const float EndTime = PreviewTime;
 	const float StartTime = EndTime - DisplaySeconds;
-	const int32 SampleCount = FMath::Max(WindScopePreviewSampleCount, 2);
+	const int32 SampleCount = FMath::Max(KawaiiPhysicsWindScopeWindowPrivate::WindScopePreviewSampleCount, 2);
 	for (int32 SampleIndex = 0; SampleIndex < SampleCount; ++SampleIndex)
 	{
 		const float Alpha = static_cast<float>(SampleIndex) / static_cast<float>(SampleCount - 1);
@@ -3169,7 +3169,7 @@ void SKawaiiPhysicsWindScopeWindow::RebuildPreviewSamples(
 void SKawaiiPhysicsWindScopeWindow::UpdateEditValuesFromWind(
 	const FKawaiiPhysics_ExternalForce_ProceduralWind* Wind)
 {
-	FillWindScopeEditValuesFromWind(Wind, CachedEditValues, true);
+	KawaiiPhysicsWindScopeWindowPrivate::FillWindScopeEditValuesFromWind(Wind, CachedEditValues, true);
 }
 
 void SKawaiiPhysicsWindScopeWindow::UpdateLiveEditValuesFromRuntime()
@@ -3178,7 +3178,7 @@ void SKawaiiPhysicsWindScopeWindow::UpdateLiveEditValuesFromRuntime()
 
 	UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
 	FAnimNode_KawaiiPhysics* RuntimeNode = KawaiiPhysicsEdUtils::ResolveLiveKawaiiPhysicsNode(GraphNode);
-	FKawaiiPhysics_ExternalForce_ProceduralWind* RuntimeWind = ResolveLiveProceduralWind(
+	FKawaiiPhysics_ExternalForce_ProceduralWind* RuntimeWind = KawaiiPhysicsWindScopeWindowPrivate::ResolveLiveProceduralWind(
 		GraphNode,
 		RuntimeNode,
 		Args.ExternalForceIndex);
@@ -3188,7 +3188,7 @@ void SKawaiiPhysicsWindScopeWindow::UpdateLiveEditValuesFromRuntime()
 	}
 
 	// Worker スレッドが DynamicParams 反映で値を書き換える可能性があるが、表示専用の乖離ヒントなので torn-read を許容し Mutex は取得しない。
-	FillWindScopeEditValuesFromWind(RuntimeWind, CachedLiveEditValues, false);
+	KawaiiPhysicsWindScopeWindowPrivate::FillWindScopeEditValuesFromWind(RuntimeWind, CachedLiveEditValues, false);
 }
 
 bool SKawaiiPhysicsWindScopeWindow::TryUpdateFromLiveRuntime()
@@ -3206,7 +3206,7 @@ bool SKawaiiPhysicsWindScopeWindow::TryUpdateFromLiveRuntime()
 		return false;
 	}
 
-	const int32 ResolvedIndex = ResolveProceduralWindIndex(*RuntimeNode, Args.ExternalForceIndex);
+	const int32 ResolvedIndex = KawaiiPhysicsWindScopeWindowPrivate::ResolveProceduralWindIndex(*RuntimeNode, Args.ExternalForceIndex);
 	if (!RuntimeNode->ExternalForces.IsValidIndex(ResolvedIndex))
 	{
 		return false;
@@ -3258,7 +3258,7 @@ bool SKawaiiPhysicsWindScopeWindow::TryGetPreviewForceCopy(
 		return false;
 	}
 
-	const int32 ResolvedIndex = ResolveProceduralWindIndex(GraphNode->Node, Args.ExternalForceIndex);
+	const int32 ResolvedIndex = KawaiiPhysicsWindScopeWindowPrivate::ResolveProceduralWindIndex(GraphNode->Node, Args.ExternalForceIndex);
 	if (!GraphNode->Node.ExternalForces.IsValidIndex(ResolvedIndex))
 	{
 		return false;
@@ -3292,7 +3292,7 @@ UAnimGraphNode_KawaiiPhysics* SKawaiiPhysicsWindScopeWindow::ResolveGraphNode() 
 
 	if (Args.AnimBlueprintPath.IsValid() && Args.NodeGuid.IsValid())
 	{
-		if (UAnimGraphNode_KawaiiPhysics* ResolvedGraphNode = FindLoadedGraphNodeByGuid(
+		if (UAnimGraphNode_KawaiiPhysics* ResolvedGraphNode = KawaiiPhysicsWindScopeWindowPrivate::FindLoadedGraphNodeByGuid(
 			Args.AnimBlueprintPath.ResolveObject(),
 			Args.NodeGuid))
 		{
@@ -3322,18 +3322,18 @@ void SKawaiiPhysicsWindScopeWindow::SaveLastTargetArgs(const FKawaiiPhysicsWindS
 	}
 
 	GConfig->SetString(
-		WindScopeConfigSectionName,
-		WindScopeLastAnimBlueprintKey,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeConfigSectionName,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeLastAnimBlueprintKey,
 		*InArgs.AnimBlueprintPath.ToString(),
 		GEditorPerProjectIni);
 	GConfig->SetString(
-		WindScopeConfigSectionName,
-		WindScopeLastNodeGuidKey,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeConfigSectionName,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeLastNodeGuidKey,
 		*InArgs.NodeGuid.ToString(EGuidFormats::DigitsWithHyphens),
 		GEditorPerProjectIni);
 	GConfig->SetInt(
-		WindScopeConfigSectionName,
-		WindScopeLastForceIndexKey,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeConfigSectionName,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeLastForceIndexKey,
 		InArgs.ExternalForceIndex,
 		GEditorPerProjectIni);
 	GConfig->Flush(false, GEditorPerProjectIni);
@@ -3341,9 +3341,9 @@ void SKawaiiPhysicsWindScopeWindow::SaveLastTargetArgs(const FKawaiiPhysicsWindS
 
 void SKawaiiPhysicsWindScopeWindow::LoadEditPanelConfig()
 {
-	GustStrength = WindScopeDefaultGustStrength;
-	GustRiseTime = WindScopeDefaultGustRiseTime;
-	GustDecayTime = WindScopeDefaultGustDecayTime;
+	GustStrength = KawaiiPhysicsWindScopeWindowPrivate::WindScopeDefaultGustStrength;
+	GustRiseTime = KawaiiPhysicsWindScopeWindowPrivate::WindScopeDefaultGustRiseTime;
+	GustDecayTime = KawaiiPhysicsWindScopeWindowPrivate::WindScopeDefaultGustDecayTime;
 
 	if (!GConfig)
 	{
@@ -3351,29 +3351,29 @@ void SKawaiiPhysicsWindScopeWindow::LoadEditPanelConfig()
 	}
 
 	GConfig->GetBool(
-		WindScopeConfigSectionName,
-		WindScopeEditPanelExpandedKey,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeConfigSectionName,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeEditPanelExpandedKey,
 		bEditPanelExpanded,
 		GEditorPerProjectIni);
 	GConfig->GetFloat(
-		WindScopeConfigSectionName,
-		WindScopeEditPanelSplitterFractionKey,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeConfigSectionName,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeEditPanelSplitterFractionKey,
 		EditPanelSplitterFraction,
 		GEditorPerProjectIni);
 	EditPanelSplitterFraction = FMath::Clamp(EditPanelSplitterFraction, 0.2f, 0.8f);
 	GConfig->GetFloat(
-		WindScopeConfigSectionName,
-		WindScopeGustStrengthKey,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeConfigSectionName,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeGustStrengthKey,
 		GustStrength,
 		GEditorPerProjectIni);
 	GConfig->GetFloat(
-		WindScopeConfigSectionName,
-		WindScopeGustRiseTimeKey,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeConfigSectionName,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeGustRiseTimeKey,
 		GustRiseTime,
 		GEditorPerProjectIni);
 	GConfig->GetFloat(
-		WindScopeConfigSectionName,
-		WindScopeGustDecayTimeKey,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeConfigSectionName,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeGustDecayTimeKey,
 		GustDecayTime,
 		GEditorPerProjectIni);
 	GustStrength = FMath::Clamp(GustStrength, 0.0f, 50.0f);
@@ -3389,28 +3389,28 @@ void SKawaiiPhysicsWindScopeWindow::SaveEditPanelConfig() const
 	}
 
 	GConfig->SetBool(
-		WindScopeConfigSectionName,
-		WindScopeEditPanelExpandedKey,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeConfigSectionName,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeEditPanelExpandedKey,
 		bEditPanelExpanded,
 		GEditorPerProjectIni);
 	GConfig->SetFloat(
-		WindScopeConfigSectionName,
-		WindScopeEditPanelSplitterFractionKey,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeConfigSectionName,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeEditPanelSplitterFractionKey,
 		EditPanelSplitterFraction,
 		GEditorPerProjectIni);
 	GConfig->SetFloat(
-		WindScopeConfigSectionName,
-		WindScopeGustStrengthKey,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeConfigSectionName,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeGustStrengthKey,
 		GustStrength,
 		GEditorPerProjectIni);
 	GConfig->SetFloat(
-		WindScopeConfigSectionName,
-		WindScopeGustRiseTimeKey,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeConfigSectionName,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeGustRiseTimeKey,
 		GustRiseTime,
 		GEditorPerProjectIni);
 	GConfig->SetFloat(
-		WindScopeConfigSectionName,
-		WindScopeGustDecayTimeKey,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeConfigSectionName,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeGustDecayTimeKey,
 		GustDecayTime,
 		GEditorPerProjectIni);
 	GConfig->Flush(false, GEditorPerProjectIni);
@@ -3426,8 +3426,8 @@ void SKawaiiPhysicsWindScopeWindow::LoadPendingReconnectFromConfig()
 
 	FString AnimBlueprintPathString;
 	FString NodeGuidString;
-	if (!GConfig->GetString(WindScopeConfigSectionName, WindScopeLastAnimBlueprintKey, AnimBlueprintPathString, GEditorPerProjectIni) ||
-		!GConfig->GetString(WindScopeConfigSectionName, WindScopeLastNodeGuidKey, NodeGuidString, GEditorPerProjectIni))
+	if (!GConfig->GetString(KawaiiPhysicsWindScopeWindowPrivate::WindScopeConfigSectionName, KawaiiPhysicsWindScopeWindowPrivate::WindScopeLastAnimBlueprintKey, AnimBlueprintPathString, GEditorPerProjectIni) ||
+		!GConfig->GetString(KawaiiPhysicsWindScopeWindowPrivate::WindScopeConfigSectionName, KawaiiPhysicsWindScopeWindowPrivate::WindScopeLastNodeGuidKey, NodeGuidString, GEditorPerProjectIni))
 	{
 		return;
 	}
@@ -3448,8 +3448,8 @@ void SKawaiiPhysicsWindScopeWindow::LoadPendingReconnectFromConfig()
 	PendingReconnectArgs.NodeGuid = ParsedNodeGuid;
 	PendingReconnectArgs.ExternalForceIndex = INDEX_NONE;
 	GConfig->GetInt(
-		WindScopeConfigSectionName,
-		WindScopeLastForceIndexKey,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeConfigSectionName,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeLastForceIndexKey,
 		PendingReconnectArgs.ExternalForceIndex,
 		GEditorPerProjectIni);
 	bHasPendingReconnect = true;
@@ -3493,7 +3493,7 @@ void SKawaiiPhysicsWindScopeWindow::TryResolvePendingReconnect(float InDeltaTime
 	}
 
 	PendingReconnectElapsedTime += FMath::Max(InDeltaTime, 0.0f);
-	if (bPendingReconnectAsyncLoadStarted || PendingReconnectElapsedTime < WindScopeReconnectTryLoadDelay)
+	if (bPendingReconnectAsyncLoadStarted || PendingReconnectElapsedTime < KawaiiPhysicsWindScopeWindowPrivate::WindScopeReconnectTryLoadDelay)
 	{
 		return;
 	}
@@ -3521,7 +3521,7 @@ void SKawaiiPhysicsWindScopeWindow::StartPendingReconnectAsyncLoad()
 void SKawaiiPhysicsWindScopeWindow::OnPendingReconnectAsyncLoadComplete(FKawaiiPhysicsWindScopeWindowArgs ExpectedArgs)
 {
 	PendingReconnectAsyncLoadHandle.Reset();
-	if (!bHasPendingReconnect || !AreReconnectArgsSame(PendingReconnectArgs, ExpectedArgs))
+	if (!bHasPendingReconnect || !KawaiiPhysicsWindScopeWindowPrivate::AreReconnectArgsSame(PendingReconnectArgs, ExpectedArgs))
 	{
 		return;
 	}
