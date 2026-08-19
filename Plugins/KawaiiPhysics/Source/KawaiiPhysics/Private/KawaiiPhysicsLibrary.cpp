@@ -865,6 +865,35 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetProceduralWindParameters(
 	return KawaiiPhysics;
 }
 
+// 指定したExternalForceIndexのProceduralWindから現在の動的パラメータを取得する
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::GetProceduralWindParameters(
+	EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+	const FKawaiiPhysicsReference& KawaiiPhysics,
+	const int32 ExternalForceIndex,
+	FKawaiiProceduralWindDynamicParams& OutParams)
+{
+	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
+
+	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+		TEXT("GetProceduralWindParameters"),
+		[&ExecResult, ExternalForceIndex, &OutParams](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			if (!InKawaiiPhysics.ExternalForces.IsValidIndex(ExternalForceIndex))
+			{
+				return;
+			}
+
+			if (FKawaiiPhysics_ExternalForce_ProceduralWind* ProceduralWind =
+				GetMutableProceduralWind(InKawaiiPhysics.ExternalForces[ExternalForceIndex]))
+			{
+				OutParams = ProceduralWind->BuildDynamicParamsSnapshot();
+				ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
+			}
+		});
+
+	return KawaiiPhysics;
+}
+
 // Component内の対象ノード（Tagフィルタ適用）を走査し、一時ProceduralWindとして突風をキューイングする
 int32 UKawaiiPhysicsLibrary::TriggerProceduralWindGustOnComponent(
 	USkeletalMeshComponent* MeshComp,

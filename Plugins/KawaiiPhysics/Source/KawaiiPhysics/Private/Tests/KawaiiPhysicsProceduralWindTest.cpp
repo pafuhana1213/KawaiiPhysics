@@ -1044,6 +1044,82 @@ bool FKawaiiPhysicsProceduralWindDynamicParamsSnapshotTest::RunTest(const FStrin
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindDynamicParamsSnapshotPendingMergeTest,
+                                 "KawaiiPhysics.ProceduralWind.DynamicParamsSnapshotPendingMerge",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindDynamicParamsSnapshotPendingMergeTest::RunTest(const FString& Parameters)
+{
+	// 1. デフォルト構築直後のスナップショットは全項目を上書き対象にし、各値がメンバのデフォルト値と一致することを確認する。
+	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
+	const FKawaiiProceduralWindDynamicParams DefaultParams = Wind.BuildDynamicParamsSnapshot();
+
+	TestTrue(TEXT("Default snapshot: all override flags set"), CountDynamicParamOverrideFlags(DefaultParams) == 18);
+	TestTrue(TEXT("Default snapshot: bIsEnabled matches"), DefaultParams.bIsEnabled == Wind.bIsEnabled);
+	TestTrue(TEXT("Default snapshot: WindDirection matches"), DefaultParams.WindDirection.Equals(Wind.WindDirection));
+	TestSampleNear(*this, TEXT("Default snapshot: ConstantForce"), DefaultParams.ConstantForce, Wind.ConstantForce);
+	TestSampleNear(*this, TEXT("Default snapshot: SwayForce"), DefaultParams.SwayForce, Wind.SwayForce);
+	TestSampleNear(*this, TEXT("Default snapshot: SwayPeriod"), DefaultParams.SwayPeriod, Wind.SwayPeriod);
+	TestSampleNear(*this, TEXT("Default snapshot: SwayPhaseOffset"), DefaultParams.SwayPhaseOffset, Wind.SwayPhaseOffset);
+	TestSampleNear(*this, TEXT("Default snapshot: RippleForce"), DefaultParams.RippleForce, Wind.RippleForce);
+	TestSampleNear(*this, TEXT("Default snapshot: RipplePeriod"), DefaultParams.RipplePeriod, Wind.RipplePeriod);
+	TestSampleNear(*this, TEXT("Default snapshot: RipplePhaseOffset"), DefaultParams.RipplePhaseOffset, Wind.RipplePhaseOffset);
+	TestSampleNear(*this, TEXT("Default snapshot: RippleTipPhaseDelay"), DefaultParams.RippleTipPhaseDelay, Wind.RippleTipPhaseDelay);
+	TestSampleNear(*this, TEXT("Default snapshot: StrengthCycleRange Min"), DefaultParams.StrengthCycleRange.Min, Wind.StrengthCycleRange.Min);
+	TestSampleNear(*this, TEXT("Default snapshot: StrengthCycleRange Max"), DefaultParams.StrengthCycleRange.Max, Wind.StrengthCycleRange.Max);
+	TestSampleNear(*this, TEXT("Default snapshot: StrengthCyclePeriod"), DefaultParams.StrengthCyclePeriod, Wind.StrengthCyclePeriod);
+	TestSampleNear(*this, TEXT("Default snapshot: StrengthCyclePhaseOffset"), DefaultParams.StrengthCyclePhaseOffset, Wind.StrengthCyclePhaseOffset);
+	TestSampleNear(*this, TEXT("Default snapshot: RandomForce"), DefaultParams.RandomForce, Wind.RandomForce);
+	TestSampleNear(*this, TEXT("Default snapshot: RandomForcePeriod"), DefaultParams.RandomForcePeriod, Wind.RandomForcePeriod);
+	TestSampleNear(*this, TEXT("Default snapshot: WindDirectionNoiseAngle"), DefaultParams.WindDirectionNoiseAngle, Wind.WindDirectionNoiseAngle);
+	TestSampleNear(*this, TEXT("Default snapshot: WindDirectionNoisePeriod"), DefaultParams.WindDirectionNoisePeriod, Wind.WindDirectionNoisePeriod);
+	TestSampleNear(*this, TEXT("Default snapshot: TimeScale"), DefaultParams.TimeScale, Wind.TimeScale);
+
+	// 2. ApplyDynamicParamsで数項目（WindDirection/ConstantForce/TimeScale）を変更すると、スナップショットに反映されることを確認する。
+	FKawaiiProceduralWindDynamicParams ApplyParams;
+	ApplyParams.bOverrideWindDirection = true;
+	ApplyParams.WindDirection = FVector(1.0f, 0.0f, 0.0f);
+	ApplyParams.bOverrideConstantForce = true;
+	ApplyParams.ConstantForce = 12.5f;
+	ApplyParams.bOverrideTimeScale = true;
+	ApplyParams.TimeScale = 2.0f;
+	Wind.ApplyDynamicParams(ApplyParams);
+
+	const FKawaiiProceduralWindDynamicParams AppliedParams = Wind.BuildDynamicParamsSnapshot();
+	TestTrue(TEXT("Applied snapshot: WindDirection reflects change"),
+	        AppliedParams.WindDirection.Equals(FVector(1.0f, 0.0f, 0.0f)));
+	TestSampleNear(*this, TEXT("Applied snapshot: ConstantForce reflects change"), AppliedParams.ConstantForce, 12.5f);
+	TestSampleNear(*this, TEXT("Applied snapshot: TimeScale reflects change"), AppliedParams.TimeScale, 2.0f);
+
+	// 3. RequestDynamicParamsでSwayForceのみをpendingとして積むと、consume前のスナップショットにもpending値が
+	// 反映され（read-your-writes）、他項目は現在値のまま維持されることを確認する。
+	FKawaiiProceduralWindDynamicParams PendingParams;
+	PendingParams.bOverrideSwayForce = true;
+	PendingParams.SwayForce = 8.5f;
+	Wind.RequestDynamicParams(PendingParams);
+
+	const FKawaiiProceduralWindDynamicParams PendingSnapshot = Wind.BuildDynamicParamsSnapshot();
+	TestTrue(TEXT("Pending snapshot: all override flags remain set"),
+	        CountDynamicParamOverrideFlags(PendingSnapshot) == 18);
+	TestSampleNear(*this, TEXT("Pending snapshot: SwayForce reflects pending value"), PendingSnapshot.SwayForce, 8.5f);
+	TestTrue(TEXT("Pending snapshot: WindDirection unaffected"),
+	        PendingSnapshot.WindDirection.Equals(FVector(1.0f, 0.0f, 0.0f)));
+	TestSampleNear(*this, TEXT("Pending snapshot: ConstantForce unaffected"), PendingSnapshot.ConstantForce, 12.5f);
+	TestSampleNear(*this, TEXT("Pending snapshot: TimeScale unaffected"), PendingSnapshot.TimeScale, 2.0f);
+	TestSampleNear(*this, TEXT("Pending snapshot: SwayPeriod unaffected"), PendingSnapshot.SwayPeriod, Wind.SwayPeriod);
+
+	// pendingが消費されていないことを、実メンバへ未反映であること・PendingParamsが依然setであること・
+	// もう一度スナップショットしても同じ値が返ることの3点で確認する
+	TestSampleNear(*this, TEXT("SwayForce member not yet applied"), Wind.SwayForce, 0.0f);
+	TestTrue(TEXT("PendingParams still set after snapshot"),
+	        Wind.RuntimeState.IsValid() && Wind.RuntimeState->PendingParams.IsSet());
+
+	const FKawaiiProceduralWindDynamicParams PendingSnapshotAgain = Wind.BuildDynamicParamsSnapshot();
+	TestSampleNear(*this, TEXT("Repeated pending snapshot: SwayForce unchanged"), PendingSnapshotAgain.SwayForce, 8.5f);
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindCopyRuntimeStateIndependenceTest,
                                  "KawaiiPhysics.ProceduralWind.CopyRuntimeStateIndependence",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

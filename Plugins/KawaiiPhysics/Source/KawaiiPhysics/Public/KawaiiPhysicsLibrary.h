@@ -565,6 +565,22 @@ public:
 		const FKawaiiProceduralWindDynamicParams& Params);
 
 	/**
+	 * ProceduralWind の現在の動的パラメータを取得する。全 bOverride フラグは true で返るため、一部だけ変えて SetProceduralWindParameters に渡す用途（例: 風向きだけ変更）にそのまま使える。未反映の PendingRequest（同フレーム内の Set 内容）も反映済みの値として返る。
+	 * Get the current ProceduralWind dynamic parameters. Every bOverride flag comes back true, so the result can be passed straight into SetProceduralWindParameters after changing only a few fields (e.g. wind direction only). Unapplied PendingRequest content (a Set issued earlier in the same frame) is also returned as if already applied.
+	 * @param ExecResult 対象 ProceduralWind へのアクセス結果 / Result of accessing the target ProceduralWind.
+	 * @param KawaiiPhysics 対象の KawaiiPhysics ノード参照 / Target KawaiiPhysics node reference.
+	 * @param ExternalForceIndex 対象の ExternalForces インデックス / Target ExternalForces index.
+	 * @param OutParams 取得した ProceduralWind の動的パラメータ / Retrieved ProceduralWind dynamic parameters.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FKawaiiPhysicsReference GetProceduralWindParameters(
+		EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+		const FKawaiiPhysicsReference& KawaiiPhysics,
+		const int32 ExternalForceIndex,
+		FKawaiiProceduralWindDynamicParams& OutParams);
+
+	/**
 	 * Component 内の対象 KawaiiPhysics ノードへ、enabled な authored ProceduralWind ごとにランタイム専用の一時 ProceduralWind 突風をスポーンする。有効な authored ProceduralWind がないノードではデフォルト突風を 1 つスポーンし、複数の同時突風は加算される。
 	 * 突風は明示的な gameplay イベントとして扱われ、authored ProceduralWind の有無・有効無効に関わらず対象ノードで発火する（対象を絞るには FilterTags を使用）。
 	 * 突風はノード再初期化時に失われる。キュー経由でスレッドセーフに適用され、次回 Evaluate から反映される。

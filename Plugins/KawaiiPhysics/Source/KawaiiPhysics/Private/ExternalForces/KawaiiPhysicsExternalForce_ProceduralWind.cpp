@@ -554,6 +554,18 @@ FKawaiiProceduralWindDynamicParams FKawaiiPhysics_ExternalForce_ProceduralWind::
 	Params.WindDirectionNoisePeriod = WindDirectionNoisePeriod;
 	Params.bOverrideTimeScale = true;
 	Params.TimeScale = TimeScale;
+
+	// consume前のPendingParamsがあれば上乗せし、Set直後・PreApply前のGetでも指定済みの値を返す（read-your-writes）。
+	// PendingParamsはここでは消費しない（Resetしない）
+	if (RuntimeState.IsValid())
+	{
+		FScopeLock Lock(&RuntimeState->Mutex);
+		if (RuntimeState->PendingParams.IsSet())
+		{
+			MergePendingDynamicParams(Params, RuntimeState->PendingParams.GetValue());
+		}
+	}
+
 	return Params;
 }
 
