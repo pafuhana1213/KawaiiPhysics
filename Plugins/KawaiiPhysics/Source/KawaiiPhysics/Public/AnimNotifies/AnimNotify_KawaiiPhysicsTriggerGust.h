@@ -35,6 +35,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Procedural Wind", meta=(ClampMin="0.0", UIMin="0.0"))
 	float RiseTime = 0.0f;
 
+	/** ピーク強度を保持する時間（秒）。0で従来の三角形エンベロープ / Hold time at peak strength, in seconds. 0 keeps the legacy triangular envelope. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Procedural Wind", meta=(ClampMin="0.0", UIMin="0.0"))
+	float HoldTime = 0.0f;
+
 	/** 減衰時間（秒） / Decay time, in seconds. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Procedural Wind", meta=(ClampMin="0.0", UIMin="0.0"))
 	float DecayTime = 0.0f;

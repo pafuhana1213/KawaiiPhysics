@@ -34,6 +34,38 @@ enum class EPlanarConstraint : uint8
 };
 
 /**
+ * 一時外力（Blow など）の停止用ハンドル。Id=0 は未設定。ノード再初期化や上限超過破棄で対象が消えた後も値は残り、その場合の停止要求は何もしない
+ * Handle used to stop transient external forces (blows). Id=0 means unset. The value survives after the target is lost (node re-init or cap eviction); stop requests then do nothing.
+ */
+USTRUCT(BlueprintType)
+struct KAWAIIPHYSICS_API FKawaiiPhysicsTransientForceHandle
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	int64 Id = 0;
+
+	bool IsSet() const { return Id != 0; }
+};
+
+namespace KawaiiPhysics
+{
+	struct FWindBlowEnvelope
+	{
+		float RiseTime = 0.f;
+		float HoldTime = 0.f;
+		float DecayTime = 0.f;
+	};
+
+	// Duration 合計実秒から台形エンベロープを解決する。Hold = max(0, Duration - Rise - Decay)。
+	// Rise+Decay > Duration の場合は Rise/Decay を Duration/(Rise+Decay) で比例圧縮し合計を Duration に一致させる。Duration <= 0 は全て 0
+	KAWAIIPHYSICS_API FWindBlowEnvelope ResolveWindBlowEnvelope(float Duration, float RiseTime, float DecayTime);
+
+	// GC追跡外ストレージへ持ち込めないlive UObject参照の検出用。
+	KAWAIIPHYSICS_API bool StructInstanceHasLiveObjectReference(const UScriptStruct* Struct, const void* StructMemory);
+}
+
+/**
  * Enum representing the forward axis of a bone in KawaiiPhysics.
  */
 UENUM()

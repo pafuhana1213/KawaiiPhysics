@@ -65,6 +65,106 @@ namespace
 			PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, CustomExternalForces);
 	}
 
+	bool PropertyValueHasLiveObjectReference(const FProperty* Property, const void* ValuePtr);
+
+	bool StructMemoryHasLiveObjectReference(const UScriptStruct* Struct, const void* StructMemory)
+	{
+		if (!Struct || !StructMemory)
+		{
+			return false;
+		}
+
+		for (TFieldIterator<FProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+		{
+			const FProperty* Property = *PropertyIt;
+			if (!Property)
+			{
+				continue;
+			}
+
+			for (int32 ArrayIndex = 0; ArrayIndex < Property->ArrayDim; ++ArrayIndex)
+			{
+				const void* ValuePtr = Property->ContainerPtrToValuePtr<void>(StructMemory, ArrayIndex);
+				if (PropertyValueHasLiveObjectReference(Property, ValuePtr))
+				{
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	bool PropertyValueHasLiveObjectReference(const FProperty* Property, const void* ValuePtr)
+	{
+		if (!Property || !ValuePtr)
+		{
+			return false;
+		}
+
+		if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
+		{
+			return ObjectProperty->GetObjectPropertyValue(ValuePtr) != nullptr;
+		}
+
+		if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+		{
+			return StructMemoryHasLiveObjectReference(StructProperty->Struct, ValuePtr);
+		}
+
+		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
+		{
+			FScriptArrayHelper ArrayHelper(ArrayProperty, ValuePtr);
+			for (int32 Index = 0; Index < ArrayHelper.Num(); ++Index)
+			{
+				if (PropertyValueHasLiveObjectReference(ArrayProperty->Inner, ArrayHelper.GetRawPtr(Index)))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
+		if (const FSetProperty* SetProperty = CastField<FSetProperty>(Property))
+		{
+			FScriptSetHelper SetHelper(SetProperty, ValuePtr);
+			for (int32 Index = 0; Index < SetHelper.GetMaxIndex(); ++Index)
+			{
+				if (!SetHelper.IsValidIndex(Index))
+				{
+					continue;
+				}
+
+				if (PropertyValueHasLiveObjectReference(SetProperty->ElementProp, SetHelper.GetElementPtr(Index)))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
+		if (const FMapProperty* MapProperty = CastField<FMapProperty>(Property))
+		{
+			FScriptMapHelper MapHelper(MapProperty, ValuePtr);
+			for (int32 Index = 0; Index < MapHelper.GetMaxIndex(); ++Index)
+			{
+				if (!MapHelper.IsValidIndex(Index))
+				{
+					continue;
+				}
+
+				if (PropertyValueHasLiveObjectReference(MapProperty->KeyProp, MapHelper.GetKeyPtr(Index)) ||
+					PropertyValueHasLiveObjectReference(MapProperty->ValueProp, MapHelper.GetValuePtr(Index)))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
+		return false;
+	}
+
 	// InstancedStructがProceduralWindであれば可変ポインタを返す（型不一致・無効ならnullptr）
 	FKawaiiPhysics_ExternalForce_ProceduralWind* GetMutableProceduralWind(FInstancedStruct& InstancedStruct)
 	{
@@ -151,6 +251,37 @@ namespace
 		TEXT("Dump runtime KawaiiPhysics nodes in all valid skeletal mesh components."),
 		FConsoleCommandDelegate::CreateStatic(&DumpKawaiiPhysicsNodes));
 #endif
+}
+
+KawaiiPhysics::FWindBlowEnvelope KawaiiPhysics::ResolveWindBlowEnvelope(const float Duration, const float RiseTime,
+                                                                        const float DecayTime)
+{
+	FWindBlowEnvelope Envelope;
+	if (Duration <= 0.0f)
+	{
+		return Envelope;
+	}
+
+	Envelope.RiseTime = FMath::Max(0.0f, RiseTime);
+	Envelope.DecayTime = FMath::Max(0.0f, DecayTime);
+
+	const float EdgeTime = Envelope.RiseTime + Envelope.DecayTime;
+	if (EdgeTime > Duration && EdgeTime > 0.0f)
+	{
+		const float Scale = Duration / EdgeTime;
+		Envelope.RiseTime *= Scale;
+		Envelope.DecayTime *= Scale;
+		Envelope.HoldTime = 0.0f;
+		return Envelope;
+	}
+
+	Envelope.HoldTime = FMath::Max(0.0f, Duration - EdgeTime);
+	return Envelope;
+}
+
+bool KawaiiPhysics::StructInstanceHasLiveObjectReference(const UScriptStruct* Struct, const void* StructMemory)
+{
+	return StructMemoryHasLiveObjectReference(Struct, StructMemory);
 }
 
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::ConvertToKawaiiPhysics(const FAnimNodeReference& Node,
@@ -592,6 +723,54 @@ bool UKawaiiPhysicsLibrary::RemoveExternalForcesFromComponent(USkeletalMeshCompo
 	return bResult;
 }
 
+// ランタイム専用の一時外力をノードへキューイングする
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::AddTransientExternalForce(
+	EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+	FKawaiiPhysicsTransientForceHandle& OutHandle,
+	const FKawaiiPhysicsReference& KawaiiPhysics,
+	FInstancedStruct ExternalForce,
+	const float LifetimeSeconds)
+{
+	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
+	OutHandle.Id = 0;
+
+	if (!ExternalForce.IsValid())
+	{
+		return KawaiiPhysics;
+	}
+
+	const UScriptStruct* ScriptStruct = ExternalForce.GetScriptStruct();
+	if (!ScriptStruct || !ScriptStruct->IsChildOf(FKawaiiPhysics_ExternalForce::StaticStruct()))
+	{
+		return KawaiiPhysics;
+	}
+
+	if (::KawaiiPhysics::StructInstanceHasLiveObjectReference(ScriptStruct, ExternalForce.GetMemory()))
+	{
+		UE_LOG(LogKawaiiPhysics, Warning,
+		       TEXT("AddTransientExternalForce: transient force storage is not GC-tracked; rejected a force containing live UObject references (e.g. ExternalOwner or curve assets). Clear the references or use the authored ExternalForces array instead."));
+		return KawaiiPhysics;
+	}
+
+	const int64 HandleId = FAnimNode_KawaiiPhysics::GenerateTransientForceHandleId();
+
+	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+		TEXT("AddTransientExternalForce"),
+		[&ExecResult, ExternalForce = MoveTemp(ExternalForce), LifetimeSeconds, HandleId](
+			FAnimNode_KawaiiPhysics& InKawaiiPhysics) mutable
+		{
+			InKawaiiPhysics.RequestTransientExternalForce(MoveTemp(ExternalForce), LifetimeSeconds, HandleId);
+			ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
+		});
+
+	if (ExecResult == EKawaiiPhysicsAccessExternalForceResult::Valid)
+	{
+		OutHandle.Id = HandleId;
+	}
+
+	return KawaiiPhysics;
+}
+
 // 一時ProceduralWindとして突風をノードへキューイングする
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::TriggerProceduralWindGust(
 	EKawaiiPhysicsAccessExternalForceResult& ExecResult,
@@ -600,18 +779,57 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::TriggerProceduralWindGust(
 	const float Strength,
 	const float RiseTime,
 	const float DecayTime,
-	const FVector GustDirection)
+	const FVector GustDirection,
+	const float HoldTime)
 {
 	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
 
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 		TEXT("TriggerProceduralWindGust"),
-		[&ExecResult, ExternalForceIndex, Strength, RiseTime, DecayTime, GustDirection](
+		[&ExecResult, ExternalForceIndex, Strength, RiseTime, DecayTime, GustDirection, HoldTime](
 			FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 		{
-			InKawaiiPhysics.RequestTransientGust(Strength, RiseTime, DecayTime, GustDirection, ExternalForceIndex);
+			InKawaiiPhysics.RequestTransientGust(Strength, RiseTime, DecayTime, GustDirection, ExternalForceIndex,
+			                                     HoldTime);
 			ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
 		});
+
+	return KawaiiPhysics;
+}
+
+// 停止ハンドル付きの実時間Blowをノードへキューイングする
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::StartProceduralWindBlow(
+	EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+	FKawaiiPhysicsTransientForceHandle& OutHandle,
+	const FKawaiiPhysicsReference& KawaiiPhysics,
+	const float Strength,
+	const float Duration,
+	const float RiseTime,
+	const float DecayTime,
+	const FVector GustDirection,
+	const int32 ExternalForceIndex)
+{
+	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
+	OutHandle.Id = 0;
+
+	const ::KawaiiPhysics::FWindBlowEnvelope Envelope =
+		::KawaiiPhysics::ResolveWindBlowEnvelope(Duration, RiseTime, DecayTime);
+	const int64 HandleId = FAnimNode_KawaiiPhysics::GenerateTransientForceHandleId();
+
+	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+		TEXT("StartProceduralWindBlow"),
+		[&ExecResult, Strength, Envelope, GustDirection, ExternalForceIndex, HandleId](
+			FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			InKawaiiPhysics.RequestTransientGust(Strength, Envelope.RiseTime, Envelope.DecayTime, GustDirection,
+			                                     ExternalForceIndex, Envelope.HoldTime, HandleId, true);
+			ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
+		});
+
+	if (ExecResult == EKawaiiPhysicsAccessExternalForceResult::Valid)
+	{
+		OutHandle.Id = HandleId;
+	}
 
 	return KawaiiPhysics;
 }
@@ -655,7 +873,8 @@ int32 UKawaiiPhysicsLibrary::TriggerProceduralWindGustOnComponent(
 	const float DecayTime,
 	const FGameplayTagContainer& FilterTags,
 	const bool bFilterExactMatch,
-	const FVector GustDirection)
+	const FVector GustDirection,
+	const float HoldTime)
 {
 	int32 AppliedNodeCount = 0;
 
@@ -665,16 +884,163 @@ int32 UKawaiiPhysicsLibrary::TriggerProceduralWindGustOnComponent(
 	{
 		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 			TEXT("TriggerProceduralWindGustOnComponent"),
-			[&AppliedNodeCount, Strength, RiseTime, DecayTime, GustDirection](
+			[&AppliedNodeCount, Strength, RiseTime, DecayTime, GustDirection, HoldTime](
 				FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 			{
 				InKawaiiPhysics.RequestTransientGust(Strength, RiseTime, DecayTime, GustDirection,
-				                                     FAnimNode_KawaiiPhysics::TransientGustInheritAllWinds);
+				                                     FAnimNode_KawaiiPhysics::TransientGustInheritAllWinds,
+				                                     HoldTime);
 				++AppliedNodeCount;
 			});
 	}
 
 	return AppliedNodeCount;
+}
+
+// Component内の対象ノードへ停止ハンドル付きの実時間Blowをキューイングする
+int32 UKawaiiPhysicsLibrary::StartProceduralWindBlowOnComponent(
+	USkeletalMeshComponent* MeshComp,
+	FKawaiiPhysicsTransientForceHandle& OutHandle,
+	const float Strength,
+	const float Duration,
+	const float RiseTime,
+	const float DecayTime,
+	const FGameplayTagContainer& FilterTags,
+	const bool bFilterExactMatch,
+	const FVector GustDirection)
+{
+	OutHandle.Id = 0;
+	int32 AppliedNodeCount = 0;
+
+	const ::KawaiiPhysics::FWindBlowEnvelope Envelope =
+		::KawaiiPhysics::ResolveWindBlowEnvelope(Duration, RiseTime, DecayTime);
+	const int64 HandleId = FAnimNode_KawaiiPhysics::GenerateTransientForceHandleId();
+
+	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
+	CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, MeshComp, FilterTags, bFilterExactMatch);
+	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
+	{
+		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("StartProceduralWindBlowOnComponent"),
+			[&AppliedNodeCount, Strength, Envelope, GustDirection, HandleId](
+				FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				InKawaiiPhysics.RequestTransientGust(Strength, Envelope.RiseTime, Envelope.DecayTime, GustDirection,
+				                                     FAnimNode_KawaiiPhysics::TransientGustInheritAllWinds,
+				                                     Envelope.HoldTime, HandleId, true);
+				++AppliedNodeCount;
+			});
+	}
+
+	if (AppliedNodeCount > 0)
+	{
+		OutHandle.Id = HandleId;
+	}
+
+	return AppliedNodeCount;
+}
+
+// ハンドルに一致する一時外力の停止をノードへキューイングする
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::StopTransientExternalForce(
+	EKawaiiPhysicsAccessExternalForceResult& ExecResult,
+	const FKawaiiPhysicsReference& KawaiiPhysics,
+	const FKawaiiPhysicsTransientForceHandle Handle,
+	const float BlendOutTime)
+{
+	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
+
+	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+		TEXT("StopTransientExternalForce"),
+		[&ExecResult, Handle, BlendOutTime](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			InKawaiiPhysics.RequestStopTransientExternalForce(Handle.Id, BlendOutTime);
+			ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
+		});
+
+	return KawaiiPhysics;
+}
+
+// Component内の対象ノードへ一時外力停止をキューイングする
+int32 UKawaiiPhysicsLibrary::StopTransientExternalForcesOnComponent(
+	USkeletalMeshComponent* MeshComp,
+	const FKawaiiPhysicsTransientForceHandle Handle,
+	const FGameplayTagContainer& FilterTags,
+	const bool bFilterExactMatch,
+	const float BlendOutTime)
+{
+	if (!Handle.IsSet())
+	{
+		return 0;
+	}
+
+	int32 AppliedNodeCount = 0;
+
+	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
+	CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, MeshComp, FilterTags, bFilterExactMatch);
+	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
+	{
+		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("StopTransientExternalForcesOnComponent"),
+			[&AppliedNodeCount, Handle, BlendOutTime](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				InKawaiiPhysics.RequestStopTransientExternalForce(Handle.Id, BlendOutTime);
+				++AppliedNodeCount;
+			});
+	}
+
+	return AppliedNodeCount;
+}
+
+bool UKawaiiPhysicsLibrary::IsTransientForceHandleSet(const FKawaiiPhysicsTransientForceHandle& Handle)
+{
+	return Handle.IsSet();
+}
+
+// ExternalForces配列から指定型のindexを検索する
+TArray<int32> UKawaiiPhysicsLibrary::FindExternalForceIndicesByStruct(
+	const FKawaiiPhysicsReference& KawaiiPhysics,
+	UScriptStruct* StructType,
+	const bool bEnabledOnly)
+{
+	TArray<int32> Indices;
+	if (!StructType)
+	{
+		return Indices;
+	}
+
+	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+		TEXT("FindExternalForceIndicesByStruct"),
+		[&Indices, StructType, bEnabledOnly](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			for (int32 Index = 0; Index < InKawaiiPhysics.ExternalForces.Num(); ++Index)
+			{
+				FInstancedStruct& InstancedStruct = InKawaiiPhysics.ExternalForces[Index];
+				if (!InstancedStruct.IsValid())
+				{
+					continue;
+				}
+
+				const UScriptStruct* ScriptStruct = InstancedStruct.GetScriptStruct();
+				if (!ScriptStruct || !ScriptStruct->IsChildOf(StructType))
+				{
+					continue;
+				}
+
+				if (bEnabledOnly)
+				{
+					const FKawaiiPhysics_ExternalForce* Force =
+						InstancedStruct.GetMutablePtr<FKawaiiPhysics_ExternalForce>();
+					if (!Force || !Force->bIsEnabled)
+					{
+						continue;
+					}
+				}
+
+				Indices.Add(Index);
+			}
+		});
+
+	return Indices;
 }
 
 // Component内の対象ノード（Tagフィルタ適用）を走査し、ProceduralWindへ一括でパラメータ更新をリクエストする
