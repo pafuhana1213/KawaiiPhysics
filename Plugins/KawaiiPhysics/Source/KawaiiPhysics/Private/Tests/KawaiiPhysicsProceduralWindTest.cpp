@@ -498,6 +498,126 @@ bool FKawaiiPhysicsProceduralWindGustEnvelopeTest::RunTest(const FString& Parame
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindGustEnvelopeHoldTest,
+                                 "KawaiiPhysics.ProceduralWind.GustEnvelopeHold",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindGustEnvelopeHoldTest::RunTest(const FString& Parameters)
+{
+	// HoldTime を含む台形ガストが立ち上がり、保持、減衰の各区間で評価されることを確認する。
+	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
+	Wind.ResetRuntimeState();
+	Wind.RuntimeState->ActiveGust.StartTime = 0.0f;
+	Wind.RuntimeState->ActiveGust.Strength = 5.0f;
+	Wind.RuntimeState->ActiveGust.RiseTime = 1.0f;
+	Wind.RuntimeState->ActiveGust.DecayTime = 2.0f;
+	Wind.RuntimeState->ActiveGust.HoldTime = 2.0f;
+	Wind.RuntimeState->ActiveGust.bIsActive = true;
+
+	TestSampleNear(*this, TEXT("Hold Gust t=0.5"), Wind.ComputeWindSample(0.5f, 0.0f).Gust, 2.5f);
+	TestSampleNear(*this, TEXT("Hold Gust t=1.0"), Wind.ComputeWindSample(1.0f, 0.0f).Gust, 5.0f);
+	TestSampleNear(*this, TEXT("Hold Gust t=2.0"), Wind.ComputeWindSample(2.0f, 0.0f).Gust, 5.0f);
+	TestSampleNear(*this, TEXT("Hold Gust t=3.0"), Wind.ComputeWindSample(3.0f, 0.0f).Gust, 5.0f);
+	TestSampleNear(*this, TEXT("Hold Gust t=4.0"), Wind.ComputeWindSample(4.0f, 0.0f).Gust, 2.5f);
+	TestSampleNear(*this, TEXT("Hold Gust t=5.0"), Wind.ComputeWindSample(5.0f, 0.0f).Gust, 0.0f);
+	TestSampleNear(*this, TEXT("Hold Gust t=6.0"), Wind.ComputeWindSample(6.0f, 0.0f).Gust, 0.0f);
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind StepWind;
+	StepWind.ResetRuntimeState();
+	StepWind.RuntimeState->ActiveGust.StartTime = 0.0f;
+	StepWind.RuntimeState->ActiveGust.Strength = 5.0f;
+	StepWind.RuntimeState->ActiveGust.RiseTime = 0.0f;
+	StepWind.RuntimeState->ActiveGust.DecayTime = 0.0f;
+	StepWind.RuntimeState->ActiveGust.HoldTime = 1.0f;
+	StepWind.RuntimeState->ActiveGust.bIsActive = true;
+
+	TestSampleNear(*this, TEXT("Step Gust t=0.5"), StepWind.ComputeWindSample(0.5f, 0.0f).Gust, 5.0f);
+	TestSampleNear(*this, TEXT("Step Gust t=1.001"), StepWind.ComputeWindSample(1.001f, 0.0f).Gust, 0.0f);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindRequestGustStopTest,
+                                 "KawaiiPhysics.ProceduralWind.RequestGustStop",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindRequestGustStopTest::RunTest(const FString& Parameters)
+{
+	// rise 途中の現在値から指定秒数で線形フェードアウトすることを確認する。
+	FKawaiiPhysics_ExternalForce_ProceduralWind BlendOutWind;
+	BlendOutWind.ResetRuntimeState();
+	BlendOutWind.RuntimeState->Time = 1.0f;
+	BlendOutWind.RuntimeState->ActiveGust.StartTime = 0.0f;
+	BlendOutWind.RuntimeState->ActiveGust.Strength = 10.0f;
+	BlendOutWind.RuntimeState->ActiveGust.RiseTime = 2.0f;
+	BlendOutWind.RuntimeState->ActiveGust.DecayTime = 3.0f;
+	BlendOutWind.RuntimeState->ActiveGust.bIsActive = true;
+
+	BlendOutWind.RequestGustStop(1.0f);
+	BlendOutWind.ConsumePendingRequests();
+
+	TestSampleNear(*this, TEXT("Stop blend start"), BlendOutWind.ComputeWindSample(1.0f, 0.0f).Gust, 5.0f);
+	TestSampleNear(*this, TEXT("Stop blend middle"), BlendOutWind.ComputeWindSample(1.5f, 0.0f).Gust, 2.5f);
+	TestSampleNear(*this, TEXT("Stop blend end"), BlendOutWind.ComputeWindSample(2.0f, 0.0f).Gust, 0.0f);
+
+	// BlendOutTime が0なら即時停止する。
+	FKawaiiPhysics_ExternalForce_ProceduralWind ImmediateWind;
+	ImmediateWind.ResetRuntimeState();
+	ImmediateWind.RuntimeState->Time = 0.5f;
+	ImmediateWind.RuntimeState->ActiveGust.StartTime = 0.0f;
+	ImmediateWind.RuntimeState->ActiveGust.Strength = 10.0f;
+	ImmediateWind.RuntimeState->ActiveGust.RiseTime = 1.0f;
+	ImmediateWind.RuntimeState->ActiveGust.DecayTime = 1.0f;
+	ImmediateWind.RuntimeState->ActiveGust.bIsActive = true;
+
+	ImmediateWind.RequestGustStop(0.0f);
+	ImmediateWind.ConsumePendingRequests();
+
+	TestFalse(TEXT("Immediate stop deactivates gust"), ImmediateWind.RuntimeState->ActiveGust.bIsActive);
+	TestSampleNear(*this, TEXT("Immediate stop gust"), ImmediateWind.ComputeWindSample(0.5f, 0.0f).Gust, 0.0f);
+
+	// 非アクティブ時の停止要求は何もせず、クラッシュせずに消費される。
+	FKawaiiPhysics_ExternalForce_ProceduralWind InactiveWind;
+	InactiveWind.ResetRuntimeState();
+	InactiveWind.RequestGustStop(1.0f);
+	InactiveWind.ConsumePendingRequests();
+
+	TestFalse(TEXT("Inactive stop keeps gust inactive"), InactiveWind.RuntimeState->ActiveGust.bIsActive);
+	TestSampleNear(*this, TEXT("Inactive stop gust"), InactiveWind.ComputeWindSample(1.0f, 0.0f).Gust, 0.0f);
+	TestFalse(TEXT("Inactive stop pending reset"), InactiveWind.RuntimeState->PendingGustStop.IsSet());
+
+	// consume 前に複数停止要求が来た場合は最後の BlendOutTime が勝つ。
+	FKawaiiPhysics_ExternalForce_ProceduralWind LastWinsWind;
+	LastWinsWind.ResetRuntimeState();
+	LastWinsWind.RuntimeState->Time = 1.0f;
+	LastWinsWind.RuntimeState->ActiveGust.StartTime = 0.0f;
+	LastWinsWind.RuntimeState->ActiveGust.Strength = 10.0f;
+	LastWinsWind.RuntimeState->ActiveGust.RiseTime = 2.0f;
+	LastWinsWind.RuntimeState->ActiveGust.DecayTime = 3.0f;
+	LastWinsWind.RuntimeState->ActiveGust.bIsActive = true;
+
+	LastWinsWind.RequestGustStop(0.25f);
+	LastWinsWind.RequestGustStop(2.0f);
+	LastWinsWind.ConsumePendingRequests();
+
+	TestSampleNear(*this, TEXT("Last stop request wins"), LastWinsWind.ComputeWindSample(2.0f, 0.0f).Gust, 2.5f);
+
+	// 同フレームに起動と即時停止が来た場合は停止を優先する。
+	FKawaiiPhysics_ExternalForce_ProceduralWind SameFrameWind;
+	SameFrameWind.ResetRuntimeState();
+	SameFrameWind.RuntimeState->Time = 3.0f;
+
+	SameFrameWind.RequestGust(10.0f, 0.0f, 2.0f, 1.0f);
+	SameFrameWind.RequestGustStop(0.0f);
+	SameFrameWind.ConsumePendingRequests();
+
+	TestFalse(TEXT("Same-frame stop wins"), SameFrameWind.RuntimeState->ActiveGust.bIsActive);
+	TestSampleNear(*this, TEXT("Same-frame stop gust"), SameFrameWind.ComputeWindSample(3.0f, 0.0f).Gust, 0.0f);
+	TestFalse(TEXT("Same-frame stop pending reset"), SameFrameWind.RuntimeState->PendingGustStop.IsSet());
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindDynamicParamsTest,
                                  "KawaiiPhysics.ProceduralWind.DynamicParams",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -578,7 +698,8 @@ bool FKawaiiPhysicsProceduralWindPendingConsumptionTest::RunTest(const FString& 
 		Wind.RuntimeState->PendingGust = FKawaiiProceduralWindGustRequest{
 			6.0f,
 			0.1f,
-			0.5f
+			0.5f,
+			0.75f
 		};
 	}
 
@@ -590,6 +711,7 @@ bool FKawaiiPhysicsProceduralWindPendingConsumptionTest::RunTest(const FString& 
 	TestSampleNear(*this, TEXT("ActiveGust Strength"), Wind.RuntimeState->ActiveGust.Strength, 6.0f);
 	TestSampleNear(*this, TEXT("ActiveGust RiseTime"), Wind.RuntimeState->ActiveGust.RiseTime, 0.1f);
 	TestSampleNear(*this, TEXT("ActiveGust DecayTime"), Wind.RuntimeState->ActiveGust.DecayTime, 0.5f);
+	TestSampleNear(*this, TEXT("ActiveGust HoldTime"), Wind.RuntimeState->ActiveGust.HoldTime, 0.75f);
 	TestTrue(TEXT("ActiveGust active"), Wind.RuntimeState->ActiveGust.bIsActive);
 	TestFalse(TEXT("PendingParams reset"), Wind.RuntimeState->PendingParams.IsSet());
 	TestFalse(TEXT("PendingGust reset"), Wind.RuntimeState->PendingGust.IsSet());
@@ -678,6 +800,7 @@ bool FKawaiiPhysicsProceduralWindResetRuntimeStateTest::RunTest(const FString& P
 	Wind.RuntimeState->ActiveGust.Strength = 4.0f;
 	Wind.RuntimeState->ActiveGust.RiseTime = 0.5f;
 	Wind.RuntimeState->ActiveGust.DecayTime = 3.0f;
+	Wind.RuntimeState->ActiveGust.HoldTime = 1.0f;
 	Wind.RuntimeState->ActiveGust.bIsActive = true;
 	Wind.RuntimeState->CachedSinesWithoutRipple = 1.0f;
 	Wind.RuntimeState->CachedStrengthCycle = 2.0f;
@@ -686,6 +809,7 @@ bool FKawaiiPhysicsProceduralWindResetRuntimeStateTest::RunTest(const FString& P
 	Wind.RuntimeState->CachedWindVector = FVector(1.0f, 2.0f, 3.0f);
 	Wind.RuntimeState->PendingParams = FKawaiiProceduralWindDynamicParams();
 	Wind.RuntimeState->PendingGust = FKawaiiProceduralWindGustRequest{1.0f, 0.2f, 0.3f};
+	Wind.RuntimeState->PendingGustStop = 0.4f;
 #if WITH_EDITOR
 	Wind.RuntimeState->ScopeWriteIndex = 10;
 	Wind.RuntimeState->ScopeSampleCount = 20;
@@ -700,6 +824,7 @@ bool FKawaiiPhysicsProceduralWindResetRuntimeStateTest::RunTest(const FString& P
 	TestFalse(TEXT("ActiveGust inactive after reset"), Wind.RuntimeState->ActiveGust.bIsActive);
 	TestFalse(TEXT("PendingParams reset"), Wind.RuntimeState->PendingParams.IsSet());
 	TestFalse(TEXT("PendingGust reset"), Wind.RuntimeState->PendingGust.IsSet());
+	TestFalse(TEXT("PendingGustStop reset"), Wind.RuntimeState->PendingGustStop.IsSet());
 	TestSampleNear(*this, TEXT("CachedSinesWithoutRipple after reset"), Wind.RuntimeState->CachedSinesWithoutRipple, 0.0f);
 	TestSampleNear(*this, TEXT("CachedStrengthCycle after reset"), Wind.RuntimeState->CachedStrengthCycle, 1.0f);
 	TestSampleNear(*this, TEXT("CachedRandom after reset"), Wind.RuntimeState->CachedRandom, 0.0f);
@@ -821,6 +946,16 @@ bool FKawaiiPhysicsProceduralWindRequestCreatesRuntimeStateTest::RunTest(const F
 	TestSampleNear(*this, TEXT("ActiveGust RiseTime applied"), GustWind.RuntimeState->ActiveGust.RiseTime, 0.2f);
 	TestSampleNear(*this, TEXT("ActiveGust DecayTime applied"), GustWind.RuntimeState->ActiveGust.DecayTime, 0.6f);
 	TestFalse(TEXT("PendingGust reset after consume"), GustWind.RuntimeState->PendingGust.IsSet());
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind StopWind;
+	StopWind.RuntimeState.Reset();
+	StopWind.RequestGustStop(0.5f);
+
+	TestTrue(TEXT("RequestGustStop creates RuntimeState"), StopWind.RuntimeState.IsValid());
+	TestTrue(TEXT("PendingGustStop set after request"), StopWind.RuntimeState->PendingGustStop.IsSet());
+	StopWind.ConsumePendingRequests();
+	TestFalse(TEXT("PendingGustStop reset after consume"), StopWind.RuntimeState->PendingGustStop.IsSet());
+	TestFalse(TEXT("Inactive gust remains inactive after stop consume"), StopWind.RuntimeState->ActiveGust.bIsActive);
 
 	return true;
 }
