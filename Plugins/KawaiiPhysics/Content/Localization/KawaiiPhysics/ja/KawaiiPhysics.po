@@ -1,11 +1,11 @@
-# KawaiiPhysics Japanese translation.
+﻿# KawaiiPhysics Japanese translation.
 # Fill out your copyright notice in the Description page of Project Settings.
 # 
 msgid ""
 msgstr ""
 "Project-Id-Version: KawaiiPhysics\n"
-"POT-Creation-Date: 2026-08-17 18:27\n"
-"PO-Revision-Date: 2026-08-17 18:27\n"
+"POT-Creation-Date: 2026-08-19 00:57\n"
+"PO-Revision-Date: 2026-08-19 00:57\n"
 "Language-Team: \n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
@@ -1497,20 +1497,6 @@ msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce:ApplyBoneFilter"
 msgid "外力を適用するボーンを指定（＝指定しなかったボーンには適用しない）\n空の場合、全ての物理対象のボーンに適用\nSpecify the bones to which the external force will be applied (= the force will not be applied to bones that are not specified)\nIf empty, it will be applied to all physical target bones"
 msgstr "外力を適用するボーンを指定（＝指定しなかったボーンには適用しない）\n空の場合、全ての物理対象のボーンに適用"
 
-#. Key:	KawaiiPhysics_ExternalForce:bCanEditRandomForceScaleRange
-#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bCanEditRandomForceScaleRange [BoolProperty DisplayName meta-data]
-#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bCanEditRandomForceScaleRange [BoolProperty DisplayName meta-data]
-msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce:bCanEditRandomForceScaleRange"
-msgid "Can Edit Random Force Scale Range"
-msgstr ""
-
-#. Key:	KawaiiPhysics_ExternalForce:bCanEditRandomForceScaleRange
-#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bCanEditRandomForceScaleRange [BoolProperty ToolTip meta-data]
-#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bCanEditRandomForceScaleRange [BoolProperty ToolTip meta-data]
-msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce:bCanEditRandomForceScaleRange"
-msgid "Whether RandomForceScaleRange can be edited"
-msgstr ""
-
 #. Key:	KawaiiPhysics_ExternalForce:bCanSelectForceSpace
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bCanSelectForceSpace [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bCanSelectForceSpace [BoolProperty DisplayName meta-data]
@@ -1572,6 +1558,20 @@ msgstr ""
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bIsOneShot [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce:bIsOneShot"
 msgid "Whether the external force is applied only once"
+msgstr ""
+
+#. Key:	KawaiiPhysics_ExternalForce:bSupportsRandomForceScaleRange
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bSupportsRandomForceScaleRange [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bSupportsRandomForceScaleRange [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce:bSupportsRandomForceScaleRange"
+msgid "Supports Random Force Scale Range"
+msgstr ""
+
+#. Key:	KawaiiPhysics_ExternalForce:bSupportsRandomForceScaleRange
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bSupportsRandomForceScaleRange [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce:bSupportsRandomForceScaleRange [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce:bSupportsRandomForceScaleRange"
+msgid "Whether RandomForceScaleRange is supported (controls both edit visibility and the runtime randomization; when false, RandomizedForceScale stays 1)"
 msgstr ""
 
 #. Key:	KawaiiPhysics_ExternalForce:ComponentTransform
@@ -3142,13 +3142,6 @@ msgctxt "UObjectToolTips,KawaiiPhysicsSyncBone:bEnableDistanceAttenuation"
 msgid "SyncBoneとの距離に応じてTargetへの適用量(Alpha)を減衰させる設定\nAttenuation of application amount(Alpha) based on distance from SyncBone to each Target"
 msgstr "SyncBoneとの距離に応じてTargetへの適用量(Alpha)を減衰させる設定"
 
-#. Key:	Sync Bone
-#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty Category meta-data]
-#: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty Category meta-data]
-msgctxt "UObjectCategory,Sync Bone"
-msgid "Sync Bone"
-msgstr "同期ボーン"
-
 #. Key:	KawaiiPhysicsSyncBone:Bone
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty DisplayName meta-data]
@@ -3408,6 +3401,13 @@ msgctxt "UObjectToolTips,KawaiiPhysicsSyncTargetRoot:ChildTargets"
 msgid "適用対象である子ボーン\nChild bones that are targets for application"
 msgstr "適用対象である子ボーン"
 
+#. Key:	Sync Bone
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty Category meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty Category meta-data]
+msgctxt "UObjectCategory,Sync Bone"
+msgid "Sync Bone"
+msgstr "同期ボーン"
+
 #. Key:	KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty DisplayName meta-data]
@@ -3421,6 +3421,27 @@ msgstr "ボーン長割合によるScale Curve"
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate"
 msgid "TargetRootからの長さ割合に応じてSyncBoneの影響度にスケールを適用（X: LengthRate、Y: Scale）\nCurve that scales SyncBone's influence based on length rate from TargetRoot (X: Length, Y: Scale)"
 msgstr "TargetRootからの長さ割合に応じてSyncBoneの影響度にスケールを適用（X: LengthRate、Y: Scale）"
+
+#. Key:	KawaiiPhysicsTransientForceHandle
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsTransientForceHandle [ScriptStruct DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsTransientForceHandle [ScriptStruct DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsTransientForceHandle"
+msgid "Kawaii Physics Transient Force Handle"
+msgstr ""
+
+#. Key:	KawaiiPhysicsTransientForceHandle
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsTransientForceHandle [ScriptStruct ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsTransientForceHandle [ScriptStruct ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsTransientForceHandle"
+msgid "一時外力（Blow など）の停止用ハンドル。Id=0 は未設定。ノード再初期化や上限超過破棄で対象が消えた後も値は残り、その場合の停止要求は何もしない\nHandle used to stop transient external forces (blows). Id=0 means unset. The value survives after the target is lost (node re-init or cap eviction); stop requests then do nothing."
+msgstr "一時外力（Blow など）の停止用ハンドル。Id=0 は未設定。ノード再初期化や上限超過破棄で対象が消えた後も値は残り、その場合の停止要求は何もしない"
+
+#. Key:	KawaiiPhysicsTransientForceHandle:Id
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsTransientForceHandle:Id [Int64Property DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsTransientForceHandle:Id [Int64Property DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsTransientForceHandle:Id"
+msgid "Id"
+msgstr ""
 
 #. Key:	KawaiiPhysicsWindPresetDataAsset
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsWindPresetDataAsset [Class DisplayName meta-data]
@@ -6461,239 +6482,239 @@ msgid "Total {0}  Constant {1}  Sway {2}  Ripple {3}  StrCycle {4}  Rand {5}  Gu
 msgstr "Total {0}  Constant {1}  Sway {2}  Ripple {3}  StrCycle {4}  Rand {5}  Gust {6}"
 
 #. Key:	ApplyWindPresetTransaction
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2326)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2326)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2328)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2328)
 msgctxt "KawaiiPhysicsWindScopeWindow,ApplyWindPresetTransaction"
 msgid "Apply Kawaii Physics Wind Preset"
 msgstr "Kawaii Physics 風プリセットの適用"
 
 #. Key:	ApplyPresetSucceededLive
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2348)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2348)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2350)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2350)
 msgctxt "KawaiiPhysicsWindScopeWindow,ApplyPresetSucceededLive"
 msgid "Applied {0} wind preset. (live)"
 msgstr "風プリセット {0} を適用しました。(ライブ)"
 
 #. Key:	ApplyPresetSucceededNodeOnly
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2349)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2349)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2351)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2351)
 msgctxt "KawaiiPhysicsWindScopeWindow,ApplyPresetSucceededNodeOnly"
 msgid "Applied {0} wind preset. (node only — no live target)"
 msgstr "風プリセット {0} を適用しました。(ノードのみ — ライブ対象なし)"
 
 #. Key:	SavePresetNoDataAssetMenuInfo
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2361)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2361)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2363)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2363)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetNoDataAssetMenuInfo"
 msgid "Set the Wind Scope Preset Data Asset in Project Settings to save presets."
 msgstr "プリセットを保存するにはプロジェクト設定で Wind Scope Preset Data Asset を設定してください"
 
 #. Key:	OpenProjectSettingsMenu
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2374)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2374)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2376)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2376)
 msgctxt "KawaiiPhysicsWindScopeWindow,OpenProjectSettingsMenu"
 msgid "Open Project Settings"
 msgstr "プロジェクト設定を開く"
 
 #. Key:	OpenProjectSettingsTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2375)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2375)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2377)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2377)
 msgctxt "KawaiiPhysicsWindScopeWindow,OpenProjectSettingsTooltip"
 msgid "Open Project Settings > Plugins > Kawaii Physics."
 msgstr "Project Settings > Plugins > Kawaii Physics を開きます"
 
 #. Key:	SavePresetAddNewMenu
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2392)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2392)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2394)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2394)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetAddNewMenu"
 msgid "Add New Preset"
 msgstr "新規追加"
 
 #. Key:	SavePresetAddNewTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2393)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2393)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2395)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2395)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetAddNewTooltip"
 msgid "Add current parameters as a new preset."
 msgstr "現在のパラメータを新しいプリセットとして追加します"
 
 #. Key:	SavePresetOverwriteSection
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2400)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2400)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2402)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2402)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetOverwriteSection"
 msgid "Overwrite:"
 msgstr "既存を上書き:"
 
 #. Key:	SavePresetOverwriteTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2406)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2406)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2408)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2408)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetOverwriteTooltip"
 msgid "Overwrite this preset with current parameters."
 msgstr "現在のパラメータでこのプリセットを上書きします"
 
 #. Key:	SavePresetNoDataAssetTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2434)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2434)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2436)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2436)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetNoDataAssetTooltip"
 msgid "Set the Wind Scope Preset Data Asset in Project Settings to save presets."
 msgstr "プリセットを保存するにはプロジェクト設定で Wind Scope Preset Data Asset を設定してください"
 
 #. Key:	SavePresetTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2437)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2437)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2439)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2439)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetTooltip"
 msgid "Save current parameters to the preset DataAsset."
 msgstr "現在のパラメータをプリセットDataAssetへ保存します"
 
 #. Key:	SavePresetNoDataAsset
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2449)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2449)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2451)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2451)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetNoDataAsset"
 msgid "Set the Wind Scope Preset Data Asset in Project Settings first."
 msgstr "プロジェクト設定で Wind Scope Preset Data Asset を設定してください"
 
 #. Key:	SavePresetLoadDataAssetFailed
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2459)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2459)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2461)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2461)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetLoadDataAssetFailed"
 msgid "Failed to load the Wind Scope Preset Data Asset."
 msgstr "Wind Scope Preset Data Asset の読み込みに失敗しました"
 
 #. Key:	SavePresetInvalidOverwriteTarget
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2485)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2485)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2487)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2487)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetInvalidOverwriteTarget"
 msgid "Failed to resolve the wind preset to overwrite."
 msgstr "上書き対象の風プリセットを特定できませんでした"
 
 #. Key:	SavePresetListChanged
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2497)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2497)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2499)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2499)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetListChanged"
 msgid "Preset list has changed. Reload first."
 msgstr "プリセット一覧が変更されています。Reload してください"
 
 #. Key:	SaveWindPresetTransaction
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2505)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2505)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2507)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2507)
 msgctxt "KawaiiPhysicsWindScopeWindow,SaveWindPresetTransaction"
 msgid "Save Kawaii Physics Wind Preset"
 msgstr "Kawaii Physics 風プリセットの保存"
 
 #. Key:	SavePresetCustomNameFormat
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2510)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2510)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2512)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2512)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetCustomNameFormat"
 msgid "Custom {0}"
 msgstr "カスタム {0}"
 
 #. Key:	SavePresetSucceededAdd
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2530)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2530)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2532)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2532)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetSucceededAdd"
 msgid "Saved {0} wind preset."
 msgstr "風プリセット {0} を保存しました"
 
 #. Key:	SavePresetSucceededOverwrite
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2531)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2531)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2533)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2533)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetSucceededOverwrite"
 msgid "Overwrote {0} wind preset."
 msgstr "風プリセット {0} を上書きしました"
 
 #. Key:	CopyWindParametersSucceeded
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2559)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2559)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2561)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2561)
 msgctxt "KawaiiPhysicsWindScopeWindow,CopyWindParametersSucceeded"
 msgid "Copied ProceduralWind parameters to clipboard."
 msgstr "ProceduralWind パラメータをクリップボードへコピーしました"
 
 #. Key:	PasteWindParametersInvalidClipboard
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2571)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2571)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2573)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2573)
 msgctxt "KawaiiPhysicsWindScopeWindow,PasteWindParametersInvalidClipboard"
 msgid "Clipboard does not contain ProceduralWind parameters."
 msgstr "クリップボードに ProceduralWind パラメータがありません"
 
 #. Key:	PasteWindParametersTransaction
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2603)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2603)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2605)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2605)
 msgctxt "KawaiiPhysicsWindScopeWindow,PasteWindParametersTransaction"
 msgid "Paste Kawaii Physics Wind Parameters"
 msgstr "Kawaii Physics 風パラメータの貼り付け"
 
 #. Key:	PasteWindParametersSucceededLive
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2612)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2612)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2614)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2614)
 msgctxt "KawaiiPhysicsWindScopeWindow,PasteWindParametersSucceededLive"
 msgid "Pasted ProceduralWind parameters. (live)"
 msgstr "ProceduralWind パラメータを貼り付けました。(ライブ)"
 
 #. Key:	PasteWindParametersSucceededNodeOnly
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2613)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2613)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2615)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2615)
 msgctxt "KawaiiPhysicsWindScopeWindow,PasteWindParametersSucceededNodeOnly"
 msgid "Pasted ProceduralWind parameters. (node only — no live target)"
 msgstr "ProceduralWind パラメータを貼り付けました。(ノードのみ — ライブ対象なし)"
 
 #. Key:	ApplyPresetNoNode
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2633)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2633)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2635)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2635)
 msgctxt "KawaiiPhysicsWindScopeWindow,ApplyPresetNoNode"
 msgid "Failed to resolve the KawaiiPhysics graph node."
 msgstr "KawaiiPhysics グラフノードを特定できませんでした"
 
 #. Key:	ApplyPresetNoWind
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2646)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2646)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2648)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2648)
 msgctxt "KawaiiPhysicsWindScopeWindow,ApplyPresetNoWind"
 msgid "No ProceduralWind external force was found."
 msgstr "ProceduralWind の外力が見つかりませんでした"
 
 #. Key:	ApplyPresetInvalidWind
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2659)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2659)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2661)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2661)
 msgctxt "KawaiiPhysicsWindScopeWindow,ApplyPresetInvalidWind"
 msgid "The selected external force is not ProceduralWind."
 msgstr "選択中の外力は ProceduralWind ではありません"
 
 #. Key:	EditWindParamPropertyMissing
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2754)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2754)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2756)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2756)
 msgctxt "KawaiiPhysicsWindScopeWindow,EditWindParamPropertyMissing"
 msgid "Failed to resolve the wind parameter property."
 msgstr "風パラメータのプロパティを特定できませんでした"
 
 #. Key:	EditWindParameterTransaction
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2805)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2805)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2807)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2807)
 msgctxt "KawaiiPhysicsWindScopeWindow,EditWindParameterTransaction"
 msgid "Edit Kawaii Physics Wind Parameter"
 msgstr "Kawaii Physics 風パラメータの編集"
 
 #. Key:	EditWindParamSetFailed
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2811)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2811)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2813)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2813)
 msgctxt "KawaiiPhysicsWindScopeWindow,EditWindParamSetFailed"
 msgid "Failed to update the wind parameter."
 msgstr "風パラメータの更新に失敗しました"
 
 #. Key:	ResetWindParamPropertyMissing
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2912)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2912)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2914)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2914)
 msgctxt "KawaiiPhysicsWindScopeWindow,ResetWindParamPropertyMissing"
 msgid "Failed to resolve the wind parameter property."
 msgstr "風パラメータのプロパティを特定できませんでした"
 
 #. Key:	PreviewModeTick
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3072)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3072)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3074)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3074)
 msgctxt "KawaiiPhysicsWindScopeWindow,PreviewModeTick"
 msgid "Preview"
 msgstr "プレビュー"
 
 #. Key:	LiveModeTick
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3076)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3076)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3078)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3078)
 msgctxt "KawaiiPhysicsWindScopeWindow,LiveModeTick"
 msgid "Live"
 msgstr "ライブ"

@@ -25,8 +25,8 @@ FVector SafeDirectionOrForward(const FVector& InVector)
 	return Normalized.IsNearlyZero() ? FVector::ForwardVector : Normalized;
 }
 
-// アクティブな gust envelope を経過時間から評価する（0 → Strength → 0 の線形 rise/decay）。
-// Strength/RiseTime/DecayTime は TriggerProceduralWindGust API 経由で ActiveGust にセットされる
+// アクティブな gust envelope を経過時間から評価する（線形 rise → hold → 線形 decay の台形エンベロープ）。
+// Strength/RiseTime/DecayTime/HoldTime は TriggerProceduralWindGust API 経由で ActiveGust にセットされる
 float EvaluateActiveGust(const FKawaiiProceduralWindActiveGust& ActiveGust, const float InTime)
 {
 	if (!ActiveGust.bIsActive)
@@ -41,11 +41,18 @@ float EvaluateActiveGust(const FKawaiiProceduralWindActiveGust& ActiveGust, cons
 	}
 
 	const float RiseTime = FMath::Max(ActiveGust.RiseTime, 0.0f);
+	const float HoldTime = FMath::Max(ActiveGust.HoldTime, 0.0f);
 	const float DecayTime = FMath::Max(ActiveGust.DecayTime, 0.0f);
 	// rise フェーズ: 0 から Strength へ線形に立ち上がる
 	if (RiseTime > KINDA_SMALL_NUMBER && ElapsedTime < RiseTime)
 	{
 		return ActiveGust.Strength * (ElapsedTime / RiseTime);
+	}
+
+	// hold フェーズ: Strength を維持する
+	if (ElapsedTime < RiseTime + HoldTime)
+	{
+		return ActiveGust.Strength;
 	}
 
 	// DecayTime が実質ゼロならここで即終了（ゼロ除算防止）
@@ -55,7 +62,7 @@ float EvaluateActiveGust(const FKawaiiProceduralWindActiveGust& ActiveGust, cons
 	}
 
 	// decay フェーズ: Strength から 0 へ線形に収束
-	const float DecayElapsedTime = ElapsedTime - RiseTime;
+	const float DecayElapsedTime = ElapsedTime - RiseTime - HoldTime;
 	if (DecayElapsedTime < DecayTime)
 	{
 		return ActiveGust.Strength * (1.0f - DecayElapsedTime / DecayTime);
@@ -118,6 +125,7 @@ void InitializeRuntimeStateContents(FKawaiiProceduralWindRuntimeState& State)
 {
 	State.PendingParams.Reset();
 	State.PendingGust.Reset();
+	State.PendingGustStop.Reset();
 	State.Time = 0.0f;
 	State.ActiveGust = FKawaiiProceduralWindActiveGust();
 	State.CachedSinesWithoutRipple = 0.0f;
@@ -546,6 +554,18 @@ FKawaiiProceduralWindDynamicParams FKawaiiPhysics_ExternalForce_ProceduralWind::
 	Params.WindDirectionNoisePeriod = WindDirectionNoisePeriod;
 	Params.bOverrideTimeScale = true;
 	Params.TimeScale = TimeScale;
+
+	// consume前のPendingParamsがあれば上乗せし、Set直後・PreApply前のGetでも指定済みの値を返す（read-your-writes）。
+	// PendingParamsはここでは消費しない（Resetしない）
+	if (RuntimeState.IsValid())
+	{
+		FScopeLock Lock(&RuntimeState->Mutex);
+		if (RuntimeState->PendingParams.IsSet())
+		{
+			MergePendingDynamicParams(Params, RuntimeState->PendingParams.GetValue());
+		}
+	}
+
 	return Params;
 }
 
@@ -567,15 +587,24 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::RequestDynamicParams(
 
 // 突風要求を PendingGust として積み、次回 PreApply で反映する
 void FKawaiiPhysics_ExternalForce_ProceduralWind::RequestGust(
-	const float Strength, const float RiseTime, const float DecayTime)
+	const float Strength, const float RiseTime, const float DecayTime, const float HoldTime)
 {
 	const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> LocalRuntimeState = EnsureRuntimeState();
 	FScopeLock Lock(&LocalRuntimeState->Mutex);
 	LocalRuntimeState->PendingGust = FKawaiiProceduralWindGustRequest{
 		Strength,
 		RiseTime,
-		DecayTime
+		DecayTime,
+		HoldTime
 	};
+}
+
+// アクティブな突風の早期停止要求を PendingGustStop として積み、次回 PreApply で反映する
+void FKawaiiPhysics_ExternalForce_ProceduralWind::RequestGustStop(const float BlendOutTime)
+{
+	const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> LocalRuntimeState = EnsureRuntimeState();
+	FScopeLock Lock(&LocalRuntimeState->Mutex);
+	LocalRuntimeState->PendingGustStop = BlendOutTime;
 }
 
 // 他スレッド（Game Thread の BP API など）から積まれた Pending 要求を Worker 側の PreApply で取り込む。
@@ -604,8 +633,33 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::ConsumePendingRequests()
 		LocalRuntimeState->ActiveGust.Strength = PendingGust.Strength;
 		LocalRuntimeState->ActiveGust.RiseTime = PendingGust.RiseTime;
 		LocalRuntimeState->ActiveGust.DecayTime = PendingGust.DecayTime;
+		LocalRuntimeState->ActiveGust.HoldTime = PendingGust.HoldTime;
 		LocalRuntimeState->ActiveGust.bIsActive = true;
 		LocalRuntimeState->PendingGust.Reset();
+	}
+
+	// gust 停止要求は起動要求の後に処理し、同フレームでは停止を優先する
+	if (LocalRuntimeState->PendingGustStop.IsSet())
+	{
+		const float BlendOutTime = LocalRuntimeState->PendingGustStop.GetValue();
+		if (LocalRuntimeState->ActiveGust.bIsActive)
+		{
+			if (BlendOutTime <= KINDA_SMALL_NUMBER)
+			{
+				LocalRuntimeState->ActiveGust.bIsActive = false;
+			}
+			else
+			{
+				const float CurrentGust = EvaluateActiveGust(LocalRuntimeState->ActiveGust, LocalRuntimeState->Time);
+				LocalRuntimeState->ActiveGust.StartTime = LocalRuntimeState->Time;
+				LocalRuntimeState->ActiveGust.Strength = CurrentGust;
+				LocalRuntimeState->ActiveGust.RiseTime = 0.0f;
+				LocalRuntimeState->ActiveGust.DecayTime = BlendOutTime;
+				LocalRuntimeState->ActiveGust.HoldTime = 0.0f;
+				LocalRuntimeState->ActiveGust.bIsActive = true;
+			}
+		}
+		LocalRuntimeState->PendingGustStop.Reset();
 	}
 }
 

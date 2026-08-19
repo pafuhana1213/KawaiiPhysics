@@ -49,6 +49,7 @@ struct FKawaiiPhysicsTransientExternalForce
 {
 	FInstancedStruct Force;
 	float RemainingLifetime = 0.0f;
+	int64 HandleId = 0;
 };
 
 // 一時突風の構築リクエスト
@@ -57,8 +58,18 @@ struct FKawaiiPhysicsTransientGustRequest
 	float Strength = 0.0f;
 	float RiseTime = 0.0f;
 	float DecayTime = 0.0f;
+	float HoldTime = 0.0f;
 	FVector Direction = FVector::ZeroVector;
 	int32 InheritForceIndex = INDEX_NONE;
+	int64 HandleId = 0;
+	bool bRealTimeEnvelope = false;
+};
+
+// 一時外力の停止リクエスト
+struct FKawaiiPhysicsTransientForceStopRequest
+{
+	int64 HandleId = 0;
+	float BlendOutTime = 0.0f;
 };
 
 // 任意スレッドからの一時外力キュー
@@ -67,6 +78,7 @@ struct FKawaiiPhysicsTransientForceQueue
 	FCriticalSection Mutex;
 	TArray<FKawaiiPhysicsTransientExternalForce> PendingForces;
 	TArray<FKawaiiPhysicsTransientGustRequest> PendingGusts;
+	TArray<FKawaiiPhysicsTransientForceStopRequest> PendingStops;
 };
 
 // worker専用ストアと共有キュー
@@ -596,15 +608,19 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	// Sentinel for InheritForceIndex: spawn one transient gust per enabled authored ProceduralWind (expansion is bounded by MaxTransientExternalForces).
 	static constexpr int32 TransientGustInheritAllWinds = -2;
 
+	// 一時外力ハンドルIDを生成する。ID は同期データを運ばず payload はキュー Mutex 保護のため relaxed で十分。
+	static int64 GenerateTransientForceHandleId();
+
 	/**
 	 * 実行時専用の一時外力をリクエストする。任意スレッド可で、Mutex 保護されたキューへ積む。
 	 * BP再コンパイルやノード再初期化で失われる。Initialize(Context) は呼ばれないため汎用外力では制限あり
 	 * （ProceduralWind は PreApply で RuntimeState を遅延生成するため安全）。
+	 * ストアはGC追跡外。UObject参照を含む外力を渡す場合は呼び出し側が参照の生存を保証すること / The store is not GC-tracked; callers passing forces with UObject references must keep those objects alive.
 	 * Request a runtime-only transient external force. Callable from any thread; it is queued under a mutex.
 	 * Lost on BP recompile or node re-init. Initialize(Context) is not called, which limits generic use
 	 * (ProceduralWind is safe because it lazily creates RuntimeState in PreApply).
 	 */
-	void RequestTransientExternalForce(FInstancedStruct&& InForce, float InLifetimeSeconds);
+	int64 RequestTransientExternalForce(FInstancedStruct&& InForce, float InLifetimeSeconds, int64 InHandleId = 0);
 
 	/**
 	 * 実行時専用の一時突風をリクエストする。任意スレッド可で、Mutex 保護されたキューへパラメータだけを積む。
@@ -614,8 +630,12 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	 * Lost on BP recompile or node re-init. Initialize(Context) is not called, which limits generic use
 	 * (ProceduralWind is safe because it lazily creates RuntimeState in PreApply).
 	 */
-	void RequestTransientGust(float Strength, float RiseTime, float DecayTime,
-	                          const FVector& GustDirection, int32 InheritForceIndex = INDEX_NONE);
+	int64 RequestTransientGust(float Strength, float RiseTime, float DecayTime,
+	                           const FVector& GustDirection, int32 InheritForceIndex = INDEX_NONE,
+	                           float HoldTime = 0.0f, int64 InHandleId = 0, bool bRealTimeEnvelope = false);
+
+	// 実行中またはキュー済みの一時外力をハンドル単位で停止する。任意スレッド可。
+	void RequestStopTransientExternalForce(int64 HandleId, float BlendOutTime);
 
 	/**
 	 * キュー済み一時外力を worker で取り込み、寿命切れを掃除する。worker 専用で 1 evaluate 1 回だけ呼ぶ。

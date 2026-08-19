@@ -38,6 +38,8 @@
 #include "AnimNode_KawaiiPhysicsInternal.h"
 #include "KawaiiPhysicsNodeWarning.h"
 
+#include <atomic>
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_KawaiiPhysics)
 
 namespace
@@ -209,6 +211,7 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 		FScopeLock Lock(&TransientForceStore.Queue->Mutex);
 		TransientForceStore.Queue->PendingForces.Reset();
 		TransientForceStore.Queue->PendingGusts.Reset();
+		TransientForceStore.Queue->PendingStops.Reset();
 	}
 
 	for (int i = 0; i < ExternalForces.Num(); ++i)
@@ -254,31 +257,77 @@ void FAnimNode_KawaiiPhysics::ResetDynamics(ETeleportType InTeleportType)
 	bSubstepPoseInitialized = false;
 }
 
-void FAnimNode_KawaiiPhysics::RequestTransientExternalForce(FInstancedStruct&& InForce, const float InLifetimeSeconds)
+int64 FAnimNode_KawaiiPhysics::GenerateTransientForceHandleId()
 {
+	static std::atomic<int64> NextHandleId{1};
+	return NextHandleId.fetch_add(1, std::memory_order_relaxed);
+}
+
+int64 FAnimNode_KawaiiPhysics::RequestTransientExternalForce(FInstancedStruct&& InForce, const float InLifetimeSeconds,
+                                                             const int64 InHandleId)
+{
+	const int64 HandleId = InHandleId != 0 ? InHandleId : GenerateTransientForceHandleId();
+
 	FScopeLock Lock(&TransientForceStore.Queue->Mutex);
 	DropOldestPendingTransientForceIfFull(*TransientForceStore.Queue, false);
 
 	FKawaiiPhysicsTransientExternalForce Entry;
 	Entry.Force = MoveTemp(InForce);
 	Entry.RemainingLifetime = InLifetimeSeconds;
+	Entry.HandleId = HandleId;
 
 	TransientForceStore.Queue->PendingForces.Emplace(MoveTemp(Entry));
+	return HandleId;
 }
 
-void FAnimNode_KawaiiPhysics::RequestTransientGust(const float Strength, const float RiseTime, const float DecayTime,
-                                                   const FVector& GustDirection, const int32 InheritForceIndex)
+int64 FAnimNode_KawaiiPhysics::RequestTransientGust(const float Strength, const float RiseTime, const float DecayTime,
+                                                    const FVector& GustDirection, const int32 InheritForceIndex,
+                                                    const float HoldTime, const int64 InHandleId,
+                                                    const bool bRealTimeEnvelope)
 {
 	FKawaiiPhysicsTransientGustRequest Request;
 	Request.Strength = Strength;
 	Request.RiseTime = RiseTime;
 	Request.DecayTime = DecayTime;
+	Request.HoldTime = HoldTime;
 	Request.Direction = GustDirection;
 	Request.InheritForceIndex = InheritForceIndex;
+	Request.HandleId = InHandleId;
+	Request.bRealTimeEnvelope = bRealTimeEnvelope;
 
 	FScopeLock Lock(&TransientForceStore.Queue->Mutex);
 	DropOldestPendingTransientForceIfFull(*TransientForceStore.Queue, true);
 	TransientForceStore.Queue->PendingGusts.Emplace(Request);
+	return InHandleId;
+}
+
+void FAnimNode_KawaiiPhysics::RequestStopTransientExternalForce(const int64 HandleId, const float BlendOutTime)
+{
+	if (HandleId == 0 || !TransientForceStore.Queue.IsValid())
+	{
+		return;
+	}
+
+	FScopeLock Lock(&TransientForceStore.Queue->Mutex);
+	for (FKawaiiPhysicsTransientForceStopRequest& PendingStop : TransientForceStore.Queue->PendingStops)
+	{
+		if (PendingStop.HandleId == HandleId)
+		{
+			PendingStop.BlendOutTime = BlendOutTime;
+			return;
+		}
+	}
+
+	if (TransientForceStore.Queue->PendingStops.Num() >= MaxTransientExternalForces)
+	{
+		// 評価が走らないノードへの連打でも停止要求が MaxTransientExternalForces を超えないよう最古から破棄する。
+		TransientForceStore.Queue->PendingStops.RemoveAt(0);
+	}
+
+	FKawaiiPhysicsTransientForceStopRequest Request;
+	Request.HandleId = HandleId;
+	Request.BlendOutTime = BlendOutTime;
+	TransientForceStore.Queue->PendingStops.Emplace(Request);
 }
 
 void FAnimNode_KawaiiPhysics::UpdateInternal(const FAnimationUpdateContext& Context)
