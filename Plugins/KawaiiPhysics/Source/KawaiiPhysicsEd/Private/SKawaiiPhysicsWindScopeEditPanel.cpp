@@ -30,7 +30,7 @@ namespace
 {
 	constexpr float LabelColumnWidth = 150.0f;
 	constexpr float LiveValueTolerance = 0.01f;
-	const TCHAR* const WindScopeConfigSectionName = TEXT("KawaiiPhysicsEd");
+	const TCHAR* const EditPanelConfigSectionName = TEXT("KawaiiPhysicsEd");
 	const TCHAR* const WindScopeCollapsedGroupsKey = TEXT("WindScopeEditPanelCollapsedGroups");
 
 	FText GetPinDrivenWarningText()
@@ -65,13 +65,13 @@ namespace
 		return TOptional<float>();
 	}
 
-	bool IsFloatIntervalProperty(const FProperty* Property)
+	bool IsEditPanelFloatIntervalProperty(const FProperty* Property)
 	{
 		const FStructProperty* StructProperty = CastField<FStructProperty>(Property);
 		return StructProperty && StructProperty->Struct == TBaseStructure<FFloatInterval>::Get();
 	}
 
-	bool IsParameterModeProperty(const FProperty* Property)
+	bool IsEditPanelParameterModeProperty(const FProperty* Property)
 	{
 		const FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property);
 		return EnumProperty &&
@@ -132,7 +132,7 @@ namespace
 		return FLinearColor::White;
 	}
 
-	FLinearColor MakeInactiveSeriesColor(FLinearColor Color)
+	FLinearColor MakeEditPanelInactiveSeriesColor(FLinearColor Color)
 	{
 		Color = Color.Desaturate(0.65f);
 		Color.A *= 0.38f;
@@ -700,7 +700,7 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeParamRow(const FKawaii
 			.OnCheckStateChanged(this, &SKawaiiPhysicsWindScopeEditPanel::HandleBoolChanged, ParamDef.PropertyName)
 			.ToolTipText(ToolTipText);
 	}
-	else if (IsParameterModeProperty(Property))
+	else if (IsEditPanelParameterModeProperty(Property))
 	{
 		ValueWidget =
 			SNew(SComboBox<TSharedPtr<EKawaiiProceduralWindParameterMode>>)
@@ -750,7 +750,7 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeParamRow(const FKawaii
 			})
 			.ToolTipText(ToolTipText);
 	}
-	else if (IsFloatIntervalProperty(Property))
+	else if (IsEditPanelFloatIntervalProperty(Property))
 	{
 		ValueWidget =
 			SNew(SHorizontalBox)
@@ -987,7 +987,7 @@ void SKawaiiPhysicsWindScopeEditPanel::LoadCollapsedGroupsFromConfig()
 	if (GConfig)
 	{
 		GConfig->GetString(
-			WindScopeConfigSectionName,
+			EditPanelConfigSectionName,
 			WindScopeCollapsedGroupsKey,
 			SavedCollapsedGroups,
 			GEditorPerProjectIni);
@@ -1003,7 +1003,7 @@ void SKawaiiPhysicsWindScopeEditPanel::SaveCollapsedGroupsToConfig() const
 	}
 
 	GConfig->SetString(
-		WindScopeConfigSectionName,
+		EditPanelConfigSectionName,
 		WindScopeCollapsedGroupsKey,
 		*SerializeWindScopeCollapsedGroups(CollapsedGroups),
 		GEditorPerProjectIni);
@@ -1124,7 +1124,7 @@ FLinearColor SKawaiiPhysicsWindScopeEditPanel::ResolveSeriesDisplayColor(
 	{
 		return Color;
 	}
-	return MakeInactiveSeriesColor(Color);
+	return MakeEditPanelInactiveSeriesColor(Color);
 }
 
 EVisibility SKawaiiPhysicsWindScopeEditPanel::GetResetVisibility(FName PropertyName) const
@@ -1224,7 +1224,7 @@ EVisibility SKawaiiPhysicsWindScopeEditPanel::GetLiveValueVisibility(FName Prope
 	}
 
 	FProperty* Property = FindWindScopeProperty(PropertyName);
-	if (IsParameterModeProperty(Property))
+	if (IsEditPanelParameterModeProperty(Property))
 	{
 		return Values->ParameterMode != LiveValues->ParameterMode
 			       ? EVisibility::Visible
@@ -1259,7 +1259,7 @@ EVisibility SKawaiiPhysicsWindScopeEditPanel::GetLiveValueVisibility(FName Prope
 		}
 		return EVisibility::Collapsed;
 	}
-	if (IsFloatIntervalProperty(Property))
+	if (IsEditPanelFloatIntervalProperty(Property))
 	{
 		const FFloatInterval* Value = Values->IntervalValues.Find(PropertyName);
 		const FFloatInterval* LiveValue = LiveValues->IntervalValues.Find(PropertyName);
@@ -1287,7 +1287,7 @@ FText SKawaiiPhysicsWindScopeEditPanel::GetLiveValueText(FName PropertyName) con
 
 	FProperty* Property = FindWindScopeProperty(PropertyName);
 	FText ValueText;
-	if (IsParameterModeProperty(Property))
+	if (IsEditPanelParameterModeProperty(Property))
 	{
 		ValueText = FormatParameterMode(LiveValues->ParameterMode);
 	}
@@ -1310,7 +1310,7 @@ FText SKawaiiPhysicsWindScopeEditPanel::GetLiveValueText(FName PropertyName) con
 			FormatLiveFloat(static_cast<float>(LiveValues->WindDirection.Y)),
 			FormatLiveFloat(static_cast<float>(LiveValues->WindDirection.Z)));
 	}
-	else if (IsFloatIntervalProperty(Property))
+	else if (IsEditPanelFloatIntervalProperty(Property))
 	{
 		if (const FFloatInterval* LiveValue = LiveValues->IntervalValues.Find(PropertyName))
 		{
