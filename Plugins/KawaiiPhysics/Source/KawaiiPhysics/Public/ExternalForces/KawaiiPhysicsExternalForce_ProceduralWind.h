@@ -17,6 +17,7 @@ struct FKawaiiProceduralWindGustRequest
 	float Strength = 0.0f;
 	float RiseTime = 0.0f;
 	float DecayTime = 0.0f;
+	float HoldTime = 0.0f;
 };
 
 struct FKawaiiProceduralWindActiveGust
@@ -25,6 +26,7 @@ struct FKawaiiProceduralWindActiveGust
 	float Strength = 0.0f;
 	float RiseTime = 0.0f;
 	float DecayTime = 0.0f;
+	float HoldTime = 0.0f;
 	bool bIsActive = false;
 };
 
@@ -211,6 +213,7 @@ struct FKawaiiProceduralWindRuntimeState
 	FCriticalSection Mutex;
 	TOptional<FKawaiiProceduralWindDynamicParams> PendingParams;
 	TOptional<FKawaiiProceduralWindGustRequest> PendingGust;
+	TOptional<float> PendingGustStop;
 
 	float Time = 0.0f;
 	FKawaiiProceduralWindActiveGust ActiveGust;
@@ -430,7 +433,9 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	bool BuildDynamicParamsForProperty(FName PropertyName, FKawaiiProceduralWindDynamicParams& OutParams) const;
 	// 全項目の bOverride を立てた現在値スナップショットを作る / Builds a snapshot of current values with every override flag set
 	FKawaiiProceduralWindDynamicParams BuildDynamicParamsSnapshot() const;
-	void RequestGust(float Strength, float RiseTime, float DecayTime);
+	void RequestGust(float Strength, float RiseTime, float DecayTime, float HoldTime = 0.0f);
+	// 現在のガストを指定時間でフェードアウト停止する
+	void RequestGustStop(float BlendOutTime);
 	void ConsumePendingRequests();
 
 	FKawaiiPhysicsProceduralWindSample ComputeWindSample(float InTime, float InLengthRate = 0.0f) const;

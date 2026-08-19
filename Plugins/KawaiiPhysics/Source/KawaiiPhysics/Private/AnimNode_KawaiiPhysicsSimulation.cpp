@@ -57,6 +57,7 @@ namespace
 	{
 		FKawaiiPhysicsTransientExternalForce& Entry = Node.TransientForceStore.Items.AddDefaulted_GetRef();
 		Entry.Force = FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+		Entry.HandleId = Request.HandleId;
 
 		FKawaiiPhysics_ExternalForce_ProceduralWind* Wind =
 			Entry.Force.GetMutablePtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
@@ -73,6 +74,11 @@ namespace
 			Wind->ForceRateByBoneLengthRate = Source->ForceRateByBoneLengthRate;
 			Wind->RandomForceScaleRange = Source->RandomForceScaleRange;
 			Wind->TimeScale = Source->TimeScale;
+		}
+		if (Request.bRealTimeEnvelope)
+		{
+			// TimeScale 継承後に 1.0 へ戻し、突風エンベロープの持続時間を実秒基準に固定する。
+			Wind->TimeScale = 1.0f;
 		}
 
 		// 明示方向は決定論的なバーストとしてノイズ無し、方向継承時は旧挙動（authored のノイズ入り方向）に合わせて揺らぎも継承する。
@@ -92,11 +98,12 @@ namespace
 
 		const float EffectiveTimeScale = Wind->TimeScale;
 		Entry.RemainingLifetime =
-			(FMath::Max(Request.RiseTime, 0.0f) + FMath::Max(Request.DecayTime, 0.0f)) /
+			(FMath::Max(Request.RiseTime, 0.0f) + FMath::Max(Request.HoldTime, 0.0f) +
+				FMath::Max(Request.DecayTime, 0.0f)) /
 			FMath::Max(EffectiveTimeScale, KINDA_SMALL_NUMBER) + TransientGustLifetimeMargin;
 
 		// RequestGust後にProceduralWind本体をコピーするとRuntimeState内のPendingGustが失われる
-		Wind->RequestGust(Request.Strength, Request.RiseTime, Request.DecayTime);
+		Wind->RequestGust(Request.Strength, Request.RiseTime, Request.DecayTime, Request.HoldTime);
 	}
 
 	// worker上で突風用ProceduralWindを構築する
@@ -206,11 +213,13 @@ void FAnimNode_KawaiiPhysics::ConsumeAndSweepTransientExternalForces(const float
 
 	TArray<FKawaiiPhysicsTransientExternalForce> PendingForces;
 	TArray<FKawaiiPhysicsTransientGustRequest> PendingGusts;
+	TArray<FKawaiiPhysicsTransientForceStopRequest> PendingStops;
 	if (TransientForceStore.Queue.IsValid())
 	{
 		FScopeLock Lock(&TransientForceStore.Queue->Mutex);
 		PendingForces = MoveTemp(TransientForceStore.Queue->PendingForces);
 		PendingGusts = MoveTemp(TransientForceStore.Queue->PendingGusts);
+		PendingStops = MoveTemp(TransientForceStore.Queue->PendingStops);
 	}
 
 	for (FKawaiiPhysicsTransientExternalForce& PendingForce : PendingForces)
@@ -228,8 +237,53 @@ void FAnimNode_KawaiiPhysics::ConsumeAndSweepTransientExternalForces(const float
 		BuildTransientGustForce(*this, PendingGust);
 	}
 
+	for (const FKawaiiPhysicsTransientForceStopRequest& PendingStop : PendingStops)
+	{
+		if (PendingStop.HandleId == 0)
+		{
+			continue;
+		}
+
+		if (PendingStop.BlendOutTime <= KINDA_SMALL_NUMBER)
+		{
+			for (int32 i = TransientForceStore.Items.Num() - 1; i >= 0; --i)
+			{
+				if (TransientForceStore.Items[i].HandleId == PendingStop.HandleId)
+				{
+					TransientForceStore.Items.RemoveAt(i);
+				}
+			}
+			continue;
+		}
+
+		for (FKawaiiPhysicsTransientExternalForce& Item : TransientForceStore.Items)
+		{
+			if (Item.HandleId != PendingStop.HandleId)
+			{
+				continue;
+			}
+
+			if (FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = GetMutableProceduralWindInNode(Item.Force))
+			{
+				Wind->RequestGustStop(PendingStop.BlendOutTime);
+				// RequestGustStopはエンベロープを現在値からのフェードへ完全に置き換えるため、
+				// 寿命も新フェードに合わせて再設定する（Minで旧残寿命を採用するとフェード途中で掃除されポップが出る）
+				Item.RemainingLifetime =
+					PendingStop.BlendOutTime / FMath::Max(Wind->TimeScale, KINDA_SMALL_NUMBER) +
+					TransientGustLifetimeMargin;
+			}
+			else
+			{
+				Item.RemainingLifetime = FMath::Min(Item.RemainingLifetime, FMath::Max(PendingStop.BlendOutTime, 0.0f));
+			}
+		}
+	}
+
 	while (TransientForceStore.Items.Num() > MaxTransientExternalForces)
 	{
+		UE_LOG(LogKawaiiPhysics, Verbose,
+		       TEXT("Transient external force cap exceeded; dropping oldest force. HandleId=%lld"),
+		       static_cast<long long>(TransientForceStore.Items[0].HandleId));
 		TransientForceStore.Items.RemoveAt(0);
 	}
 }
