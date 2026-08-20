@@ -279,6 +279,46 @@ KawaiiPhysics::FWindBlowEnvelope KawaiiPhysics::ResolveWindBlowEnvelope(const fl
 	return Envelope;
 }
 
+float KawaiiPhysics::EvaluateEnvelopeAlpha01(const float RiseTime, const float HoldTime, const float DecayTime,
+                                             const float ElapsedTime)
+{
+	if (ElapsedTime < 0.0f)
+	{
+		return 0.0f;
+	}
+
+	const float SafeRiseTime = FMath::Max(RiseTime, 0.0f);
+	const float SafeHoldTime = FMath::Max(HoldTime, 0.0f);
+	const float SafeDecayTime = FMath::Max(DecayTime, 0.0f);
+
+	// rise フェーズ: 0 から 1 へ線形に立ち上がる
+	if (SafeRiseTime > KINDA_SMALL_NUMBER && ElapsedTime < SafeRiseTime)
+	{
+		return ElapsedTime / SafeRiseTime;
+	}
+
+	// hold フェーズ: 1 を維持する
+	if (ElapsedTime < SafeRiseTime + SafeHoldTime)
+	{
+		return 1.0f;
+	}
+
+	// DecayTime が実質ゼロならここで即終了（ゼロ除算防止）
+	if (SafeDecayTime <= KINDA_SMALL_NUMBER)
+	{
+		return 0.0f;
+	}
+
+	// decay フェーズ: 1 から 0 へ線形に収束
+	const float DecayElapsedTime = ElapsedTime - SafeRiseTime - SafeHoldTime;
+	if (DecayElapsedTime < SafeDecayTime)
+	{
+		return 1.0f - DecayElapsedTime / SafeDecayTime;
+	}
+
+	return 0.0f;
+}
+
 bool KawaiiPhysics::StructInstanceHasLiveObjectReference(const UScriptStruct* Struct, const void* StructMemory)
 {
 	return StructMemoryHasLiveObjectReference(Struct, StructMemory);

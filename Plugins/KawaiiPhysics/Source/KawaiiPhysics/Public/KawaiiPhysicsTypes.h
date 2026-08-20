@@ -48,6 +48,68 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsTransientForceHandle
 	bool IsSet() const { return Id != 0; }
 };
 
+/**
+ * 物理設定への一時的な倍率。全項目の既定値 1.0 は「変更なし」。ベースの設定値は書き換えず、毎フレーム再計算される各ボーンの実効値に乗算する
+ * Temporary multipliers for physics settings. Every value defaults to 1.0 (no change). The base settings are never rewritten;
+ * the multipliers are applied to each bone's effective values, which are recomputed every frame.
+ */
+USTRUCT(BlueprintType)
+struct KAWAIIPHYSICS_API FKawaiiPhysicsSettingsScale
+{
+	GENERATED_BODY()
+
+	/**
+	* Dampingへの倍率。1未満で減衰が弱まり、揺れが大きくなる
+	* Multiplier for Damping. Below 1 the damping weakens and the sway grows.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), Category = "Kawaii Physics")
+	float Damping = 1.0f;
+
+	/**
+	* Stiffnessへの倍率。1未満で元の形状への引き戻しが弱まり、揺れが大きくなる
+	* Multiplier for Stiffness. Below 1 the pull back to the pre-physics shape weakens and the sway grows.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), Category = "Kawaii Physics")
+	float Stiffness = 1.0f;
+
+	/**
+	* WorldDampingLocationへの倍率。実際の反映率は (1 - WorldDampingLocation) のため意味が反転し、
+	* 1未満の倍率ではコンポーネントの移動量がより強く反映されて揺れが大きくなる
+	* Multiplier for WorldDampingLocation. The semantics are inverted because the actual reflection factor is
+	* (1 - WorldDampingLocation): a multiplier below 1 reflects more of the component movement and increases the sway.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), Category = "Kawaii Physics")
+	float WorldDampingLocation = 1.0f;
+
+	/**
+	* WorldDampingRotationへの倍率。実際の反映率は (1 - WorldDampingRotation) のため意味が反転し、
+	* 1未満の倍率ではコンポーネントの回転量がより強く反映されて揺れが大きくなる
+	* Multiplier for WorldDampingRotation. The semantics are inverted because the actual reflection factor is
+	* (1 - WorldDampingRotation): a multiplier below 1 reflects more of the component rotation and increases the sway.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), Category = "Kawaii Physics")
+	float WorldDampingRotation = 1.0f;
+
+	/**
+	* コリジョン半径への倍率。0にするとワールドコリジョンのスイープと押し出しが実質無効になる。
+	* 半径によるダミーボーンの本数はベースの半径から決まるため、1未満ではコリジョンの被覆に隙間が生じうる
+	* Multiplier for the collision radius. At 0 the world sweep and push-out are effectively disabled.
+	* The radius-based dummy bone count comes from the base radius, so below 1 the collision coverage can leave gaps.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), Category = "Kawaii Physics")
+	float Radius = 1.0f;
+
+	/**
+	* LimitAngleへの倍率。ベースが0（無制限）のボーンは倍率に関わらず無制限のまま。ベースが0より大きいボーンは
+	* 極小値で下限クランプされ、倍率0でも無制限へは反転せず、ほぼ完全にポーズへ追従する
+	* Multiplier for LimitAngle. Bones whose base value is 0 (unlimited) stay unlimited whatever the multiplier is.
+	* Bones with a base above 0 are clamped to a tiny positive minimum, so even a multiplier of 0 never flips them back to
+	* unlimited; they follow the pose almost exactly instead.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), Category = "Kawaii Physics")
+	float LimitAngle = 1.0f;
+};
+
 namespace KawaiiPhysics
 {
 	struct FWindBlowEnvelope
@@ -60,6 +122,9 @@ namespace KawaiiPhysics
 	// Duration 合計実秒から台形エンベロープを解決する。Hold = max(0, Duration - Rise - Decay)。
 	// Rise+Decay > Duration の場合は Rise/Decay を Duration/(Rise+Decay) で比例圧縮し合計を Duration に一致させる。Duration <= 0 は全て 0
 	KAWAIIPHYSICS_API FWindBlowEnvelope ResolveWindBlowEnvelope(float Duration, float RiseTime, float DecayTime);
+
+	// 台形エンベロープ（線形 rise → hold → 線形 decay）を 0..1 で評価する。総時間を超えた ElapsedTime は 0
+	KAWAIIPHYSICS_API float EvaluateEnvelopeAlpha01(float RiseTime, float HoldTime, float DecayTime, float ElapsedTime);
 
 	// GC追跡外ストレージへ持ち込めないlive UObject参照の検出用。
 	KAWAIIPHYSICS_API bool StructInstanceHasLiveObjectReference(const UScriptStruct* Struct, const void* StructMemory);
