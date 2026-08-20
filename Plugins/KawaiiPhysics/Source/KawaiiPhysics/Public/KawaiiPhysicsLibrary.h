@@ -685,6 +685,124 @@ public:
 		float BlendOutTime = 0.5f);
 
 	/**
+	 * 物理設定への一時的な倍率オーバーライドを開始する。ベースの設定値は書き換えず、毎フレーム再計算される各ボーンの実効値へ倍率を乗算するため、期間終了後は常に元の挙動へ戻る。
+	 * Duration は BlendInTime/BlendOutTime を含めた合計秒で、エンベロープは BlendIn→Hold→BlendOut の台形（Hold=max(0,Duration-BlendIn-BlendOut)、BlendIn+BlendOut>Duration は比例圧縮）。Duration<=0 は何もキューせず ExecResult=NotValid・ハンドル未設定で返る。
+	 * 進行はアニメーションの DeltaTime ベースのため、URO や LOD で評価が止まると実時間としては長く伸びる。
+	 * 同時に保持できるオーバーライドはノードあたり8件までで、超過時は最古が破棄される。破棄されたオーバーライドのハンドルは失効し Stop は no-op。ノード再初期化や BP 再コンパイルでも失われる。
+	 * 複数のオーバーライドは各成分ごとに乗算で合成される。
+	 * エッジケース: LimitAngle はベースが0（無制限）なら倍率に関わらず無制限のまま、ベースが0より大きいボーンは倍率0でも無制限へは反転しない。
+	 * WorldDampingLocation/Rotation は実際の反映率が (1 - 値) のため意味が反転し、倍率1未満では揺れが増える。Radius の倍率0はワールドコリジョンのスイープと押し出しを実質無効にする。
+	 * Start a temporary multiplier override for the physics settings. The base settings are never rewritten: the multipliers are applied to each bone's effective values, which are recomputed every frame, so the original behavior always comes back once the override ends.
+	 * Duration is the total seconds including BlendInTime/BlendOutTime, and the envelope is a BlendIn-Hold-BlendOut trapezoid (Hold=max(0,Duration-BlendIn-BlendOut); BlendIn+BlendOut>Duration is scaled proportionally). Duration<=0 queues nothing and returns NotValid with an unset handle.
+	 * Progress is driven by the animation DeltaTime, so if URO or LOD stops evaluation the override lasts longer in real time.
+	 * Overrides are capped at 8 per node; beyond the cap, the oldest entry is evicted. Handles for evicted overrides become stale and Stop is a no-op. They are also lost on node re-initialization or BP recompile.
+	 * Multiple overrides are composed by multiplying each component.
+	 * Edge cases: LimitAngle stays unlimited whatever the multiplier is when the base value is 0 (unlimited), and bones with a base above 0 never flip back to unlimited even with a multiplier of 0.
+	 * WorldDampingLocation/Rotation have inverted semantics because the actual reflection factor is (1 - value): a multiplier below 1 increases the sway. A Radius multiplier of 0 effectively disables the world collision sweep and push-out.
+	 * @param ExecResult ノード参照の解決結果 / Result of resolving the node reference.
+	 * @param OutHandle 停止に使うハンドル / Handle used to stop the override.
+	 * @param KawaiiPhysics 対象の KawaiiPhysics ノード参照 / Target KawaiiPhysics node reference.
+	 * @param SettingsScale 物理設定へ適用する倍率（全項目1.0で変更なし） / Multipliers applied to the physics settings (all 1.0 means no change).
+	 * @param Duration BlendIn/BlendOut 込みの合計秒 / Total seconds including BlendIn/BlendOut.
+	 * @param BlendInTime 倍率0%->100% へのブレンドイン時間（秒） / Time in seconds to blend in from 0% to 100% of the multipliers.
+	 * @param BlendOutTime 倍率100%->0% へのブレンドアウト時間（秒） / Time in seconds to blend out from 100% to 0% of the multipliers.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FKawaiiPhysicsReference StartPhysicsSettingsOverride(
+		EKawaiiPhysicsAccessResult& ExecResult,
+		FKawaiiPhysicsTransientForceHandle& OutHandle,
+		const FKawaiiPhysicsReference& KawaiiPhysics,
+		FKawaiiPhysicsSettingsScale SettingsScale,
+		float Duration = 2.0f,
+		float BlendInTime = 0.2f,
+		float BlendOutTime = 0.5f);
+
+	/**
+	 * ハンドルに一致する物理設定オーバーライドの停止をリクエストする。現在の適用率から BlendOutTime で 0 へ線形フェードする。BlendOutTime=0 は即時除去。
+	 * まだ評価されていない（pending の）同一ハンドルへの Stop は BlendOutTime を上書きする。ハンドル不一致・失効ハンドルは no-op。
+	 * Request stopping a physics settings override that matches the handle. It fades linearly from the current applied ratio to 0 over BlendOutTime. BlendOutTime=0 removes immediately.
+	 * A Stop for the same handle that is still pending (not yet evaluated) overwrites its BlendOutTime. Handle mismatch or a stale handle is a no-op.
+	 * @param ExecResult ノード参照の解決結果 / Result of resolving the node reference.
+	 * @param KawaiiPhysics 対象の KawaiiPhysics ノード参照 / Target KawaiiPhysics node reference.
+	 * @param Handle 停止対象のハンドル / Handle to stop.
+	 * @param BlendOutTime フェードアウト時間（秒） / Fade-out time in seconds.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FKawaiiPhysicsReference StopPhysicsSettingsOverride(
+		EKawaiiPhysicsAccessResult& ExecResult,
+		const FKawaiiPhysicsReference& KawaiiPhysics,
+		FKawaiiPhysicsTransientForceHandle Handle,
+		float BlendOutTime = 0.5f);
+
+	/**
+	 * Component 内の対象 KawaiiPhysics ノードへ、物理設定への一時的な倍率オーバーライドを共通の1ハンドルで開始する。ベースの設定値は書き換えず、毎フレーム再計算される各ボーンの実効値へ倍率を乗算するため、期間終了後は常に元の挙動へ戻る。
+	 * Duration は BlendInTime/BlendOutTime を含めた合計秒で、エンベロープは BlendIn→Hold→BlendOut の台形（Hold=max(0,Duration-BlendIn-BlendOut)、BlendIn+BlendOut>Duration は比例圧縮）。Duration<=0 は何もキューせず 0 を返す（ハンドル未設定）。
+	 * 進行はアニメーションの DeltaTime ベースのため、URO や LOD で評価が止まると実時間としては長く伸びる。
+	 * 同時に保持できるオーバーライドはノードあたり8件までで、超過時は最古が破棄される。破棄されたオーバーライドのハンドルは失効し Stop は no-op。ノード再初期化や BP 再コンパイルでも失われる。
+	 * 複数のオーバーライドは各成分ごとに乗算で合成される。
+	 * エッジケース: LimitAngle はベースが0（無制限）なら倍率に関わらず無制限のまま、ベースが0より大きいボーンは倍率0でも無制限へは反転しない。
+	 * WorldDampingLocation/Rotation は実際の反映率が (1 - 値) のため意味が反転し、倍率1未満では揺れが増える。Radius の倍率0はワールドコリジョンのスイープと押し出しを実質無効にする。
+	 * Component / Linked AnimInstance / PostProcess から KawaiiPhysics ノード参照を収集する（FilterTags が空なら全件）。
+	 * AnimGraph の BlueprintThreadSafe 文脈から呼ぶ場合、対象は呼び出し元（呼び出しノード自身）の Component に限ります。
+	 * それ以外のオブジェクトから収集する場合は、そのオブジェクトが評価中でない GameThread で呼び出してください。
+	 * Start temporary multiplier overrides for the physics settings on target KawaiiPhysics nodes in a component under one shared handle. The base settings are never rewritten: the multipliers are applied to each bone's effective values, which are recomputed every frame, so the original behavior always comes back once the override ends.
+	 * Duration is the total seconds including BlendInTime/BlendOutTime, and the envelope is a BlendIn-Hold-BlendOut trapezoid (Hold=max(0,Duration-BlendIn-BlendOut); BlendIn+BlendOut>Duration is scaled proportionally). Duration<=0 queues nothing and returns 0 with an unset handle.
+	 * Progress is driven by the animation DeltaTime, so if URO or LOD stops evaluation the override lasts longer in real time.
+	 * Overrides are capped at 8 per node; beyond the cap, the oldest entry is evicted. Handles for evicted overrides become stale and Stop is a no-op. They are also lost on node re-initialization or BP recompile.
+	 * Multiple overrides are composed by multiplying each component.
+	 * Edge cases: LimitAngle stays unlimited whatever the multiplier is when the base value is 0 (unlimited), and bones with a base above 0 never flip back to unlimited even with a multiplier of 0.
+	 * WorldDampingLocation/Rotation have inverted semantics because the actual reflection factor is (1 - value): a multiplier below 1 increases the sway. A Radius multiplier of 0 effectively disables the world collision sweep and push-out.
+	 * When called from an AnimGraph BlueprintThreadSafe context, the target must be the caller's (the calling node's) own Component. Collecting from any other object must be done from the GameThread while that object is not being evaluated.
+	 * @param MeshComp 対象の SkeletalMeshComponent / Target SkeletalMeshComponent.
+	 * @param OutHandle 停止に使うハンドル（全ノード共通） / Handle used to stop the overrides (shared by every node).
+	 * @param SettingsScale 物理設定へ適用する倍率（全項目1.0で変更なし） / Multipliers applied to the physics settings (all 1.0 means no change).
+	 * @param Duration BlendIn/BlendOut 込みの合計秒 / Total seconds including BlendIn/BlendOut.
+	 * @param BlendInTime 倍率0%->100% へのブレンドイン時間（秒） / Time in seconds to blend in from 0% to 100% of the multipliers.
+	 * @param BlendOutTime 倍率100%->0% へのブレンドアウト時間（秒） / Time in seconds to blend out from 100% to 0% of the multipliers.
+	 * @param FilterTags ノードの KawaiiPhysicsTag に対するフィルタ（空なら全ノード対象） / Filter against each node KawaiiPhysicsTag; empty matches all nodes.
+	 * @param bFilterExactMatch タグを完全一致で比較するか / Whether tags must match exactly.
+	 * @return オーバーライドをキューしたノード数 / Number of nodes where overrides were queued.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, AutoCreateRefTerm = "FilterTags"))
+	static int32 StartPhysicsSettingsOverrideOnComponent(
+		USkeletalMeshComponent* MeshComp,
+		FKawaiiPhysicsTransientForceHandle& OutHandle,
+		FKawaiiPhysicsSettingsScale SettingsScale,
+		float Duration,
+		float BlendInTime,
+		float BlendOutTime,
+		const FGameplayTagContainer& FilterTags,
+		bool bFilterExactMatch = false);
+
+	/**
+	 * Component 内の対象 KawaiiPhysics ノードへ、ハンドルに一致する物理設定オーバーライドの停止をリクエストする。現在の適用率から BlendOutTime で 0 へ線形フェードする。BlendOutTime=0 は即時除去。
+	 * まだ評価されていない（pending の）同一ハンドルへの Stop は BlendOutTime を上書きする。ハンドル不一致・失効ハンドルは no-op。
+	 * Component / Linked AnimInstance / PostProcess から KawaiiPhysics ノード参照を収集する（FilterTags が空なら全件）。
+	 * AnimGraph の BlueprintThreadSafe 文脈から呼ぶ場合、対象は呼び出し元（呼び出しノード自身）の Component に限ります。
+	 * それ以外のオブジェクトから収集する場合は、そのオブジェクトが評価中でない GameThread で呼び出してください。
+	 * Request stopping physics settings overrides that match the handle on target KawaiiPhysics nodes in a component. They fade linearly from the current applied ratio to 0 over BlendOutTime. BlendOutTime=0 removes immediately.
+	 * A Stop for the same handle that is still pending (not yet evaluated) overwrites its BlendOutTime. Handle mismatch or a stale handle is a no-op.
+	 * When called from an AnimGraph BlueprintThreadSafe context, the target must be the caller's (the calling node's) own Component. Collecting from any other object must be done from the GameThread while that object is not being evaluated.
+	 * @param MeshComp 対象の SkeletalMeshComponent / Target SkeletalMeshComponent.
+	 * @param Handle 停止対象のハンドル / Handle to stop.
+	 * @param FilterTags ノードの KawaiiPhysicsTag に対するフィルタ（空なら全ノード対象） / Filter against each node KawaiiPhysicsTag; empty matches all nodes.
+	 * @param bFilterExactMatch タグを完全一致で比較するか / Whether tags must match exactly.
+	 * @param BlendOutTime フェードアウト時間（秒） / Fade-out time in seconds.
+	 * @return 停止リクエストを送ったノード数 / Number of nodes where stop requests were sent.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, AutoCreateRefTerm = "FilterTags"))
+	static int32 StopPhysicsSettingsOverridesOnComponent(
+		USkeletalMeshComponent* MeshComp,
+		FKawaiiPhysicsTransientForceHandle Handle,
+		const FGameplayTagContainer& FilterTags,
+		bool bFilterExactMatch = false,
+		float BlendOutTime = 0.5f);
+
+	/**
 	 * Id が設定済みかだけを返す。対象の風が現在も生存しているかの確認ではない（ノード再初期化・上限超過破棄後も true のまま。その場合 Stop は何もしない）。
 	 * Returns only whether Id is set. This does not check whether the target wind is still alive (it remains true after node re-init or cap eviction; Stop then does nothing).
 	 */

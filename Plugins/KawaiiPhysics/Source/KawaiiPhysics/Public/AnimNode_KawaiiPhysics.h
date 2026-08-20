@@ -72,6 +72,29 @@ struct FKawaiiPhysicsTransientForceStopRequest
 	float BlendOutTime = 0.0f;
 };
 
+// 物理設定の一時倍率オーバーライドの構築リクエスト
+struct FKawaiiPhysicsSettingsOverrideRequest
+{
+	FKawaiiPhysicsSettingsScale Scale;
+	float RiseTime = 0.0f;
+	float HoldTime = 0.0f;
+	float DecayTime = 0.0f;
+	int64 HandleId = 0;
+};
+
+// 実行中の物理設定の一時倍率オーバーライド
+struct FKawaiiPhysicsActiveSettingsOverride
+{
+	FKawaiiPhysicsSettingsScale Scale;
+	float RiseTime = 0.0f;
+	float HoldTime = 0.0f;
+	float DecayTime = 0.0f;
+	float ElapsedTime = 0.0f;
+	// 停止時にそれまでの適用率を退避し、そこを起点にフェードアウトさせるための係数
+	float PeakAlpha = 1.0f;
+	int64 HandleId = 0;
+};
+
 // 任意スレッドからの一時外力キュー
 struct FKawaiiPhysicsTransientForceQueue
 {
@@ -79,12 +102,15 @@ struct FKawaiiPhysicsTransientForceQueue
 	TArray<FKawaiiPhysicsTransientExternalForce> PendingForces;
 	TArray<FKawaiiPhysicsTransientGustRequest> PendingGusts;
 	TArray<FKawaiiPhysicsTransientForceStopRequest> PendingStops;
+	TArray<FKawaiiPhysicsSettingsOverrideRequest> PendingSettingsOverrides;
+	TArray<FKawaiiPhysicsTransientForceStopRequest> PendingSettingsOverrideStops;
 };
 
 // worker専用ストアと共有キュー
 struct FKawaiiPhysicsTransientForceStore
 {
 	TArray<FKawaiiPhysicsTransientExternalForce> Items;
+	TArray<FKawaiiPhysicsActiveSettingsOverride> SettingsOverrideItems;
 	TSharedPtr<FKawaiiPhysicsTransientForceQueue, ESPMode::ThreadSafe> Queue =
 		MakeShared<FKawaiiPhysicsTransientForceQueue, ESPMode::ThreadSafe>();
 
@@ -604,6 +630,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 
 	FKawaiiPhysicsTransientForceStore TransientForceStore;
 	static constexpr int32 MaxTransientExternalForces = 8;
+	static constexpr int32 MaxPhysicsSettingsOverrides = 8;
 	// InheritForceIndex 用センチネル: 有効な authored ProceduralWind すべてに 1 つずつ transient 突風を展開する（展開はノードの一時外力上限 MaxTransientExternalForces の範囲内）
 	// Sentinel for InheritForceIndex: spawn one transient gust per enabled authored ProceduralWind (expansion is bounded by MaxTransientExternalForces).
 	static constexpr int32 TransientGustInheritAllWinds = -2;
@@ -646,6 +673,38 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	 * (ProceduralWind is safe because it lazily creates RuntimeState in PreApply).
 	 */
 	void ConsumeAndSweepTransientExternalForces(float InFrameDeltaTime);
+
+	/**
+	 * 物理設定への一時倍率オーバーライドをリクエストする。任意スレッド可で、Mutex 保護されたキューへ積む。
+	 * ベースの設定値は書き換えず、有効な間だけ各ボーンの実効値へ倍率を乗算するため、期間終了後は常に元の挙動へ戻る。
+	 * BP再コンパイルやノード再初期化で失われる。
+	 * Request a temporary multiplier override for the physics settings. Callable from any thread; it is queued under a mutex.
+	 * The base settings are never rewritten: the multipliers are applied to each bone's effective values only while the
+	 * override is alive, so the original behavior always comes back once it ends.
+	 * Lost on BP recompile or node re-init.
+	 */
+	int64 RequestPhysicsSettingsOverride(const FKawaiiPhysicsSettingsScale& InScale, float RiseTime, float HoldTime,
+	                                     float DecayTime, int64 InHandleId = 0);
+
+	// 実行中またはキュー済みの物理設定オーバーライドをハンドル単位で停止する。任意スレッド可。
+	void RequestStopPhysicsSettingsOverride(int64 HandleId, float BlendOutTime);
+
+	/**
+	 * キュー済みの物理設定オーバーライドを worker で取り込み、経過時間を進めて期限切れを掃除する。
+	 * worker 専用で 1 evaluate 1 回だけ、UpdatePhysicsSettingsOfModifyBones の前に呼ぶ。
+	 * Consume queued physics settings overrides on the worker, advance their elapsed time and sweep expired entries.
+	 * Worker-only; call once per evaluate, before UpdatePhysicsSettingsOfModifyBones.
+	 * @return アクティブなオーバーライドが1件以上あるか / whether at least one override is active
+	 */
+	bool ConsumeAndAdvancePhysicsSettingsOverrides(float InFrameDeltaTime);
+
+	// UpdatePhysicsSettingsOfModifyBones を走らせるべきかの判定（EvaluateSkeletalControl_AnyThread とテストハーネスで共有）
+	bool ShouldUpdatePhysicsSettings(const bool bHasActiveSettingsOverride) const
+	{
+		// bUpdatePhysicsSettingsInGame が無効でも、オーバーライドの有効中と終了直後の1回は更新してベース値へ戻す
+		return !bInitPhysicsSettings || bUpdatePhysicsSettingsInGame ||
+			bHasActiveSettingsOverride || bPhysicsSettingsOverrideAppliedLastUpdate;
+	}
 
 	/**
 	* EXPERIMENTAL: 外力のプリセット。BP・C++で独自のプリセットを追加可能(Instanced Property)
@@ -767,6 +826,13 @@ private:
 	 * Flag indicating whether the physics settings have been initialized.
 	 */
 	bool bInitPhysicsSettings = false;
+
+	/**
+	 * 前回の更新で倍率オーバーライドが適用されていたか。終了直後にもう1回だけ更新を走らせ、ベース値へ確実に戻すために使う
+	 * Whether a scale override was applied on the previous update. Used to run one more update right after it ends so the
+	 * base values are guaranteed to be restored.
+	 */
+	bool bPhysicsSettingsOverrideAppliedLastUpdate = false;
 
 	/**
 	 * Transform of the skeletal component in last frame.
@@ -1170,6 +1236,13 @@ protected:
 	 * Updates the physics settings for all modified bones based on the current physics settings and curves.
 	 */
 	void UpdatePhysicsSettingsOfModifyBones();
+
+	/**
+	 * 実行中の全オーバーライドを合成した実効倍率を返す。成分ごとに Lerp(1.0, Scale, α) の積で、α はボーンに依存しない
+	 * Returns the effective multipliers of every active override combined: per component, the product of Lerp(1.0, Scale, α).
+	 * α does not depend on the bone.
+	 */
+	FKawaiiPhysicsSettingsScale ComputeEffectivePhysicsSettingsOverrideScale() const;
 
 	/**
 	 * Updates the spherical limits for the given bones.

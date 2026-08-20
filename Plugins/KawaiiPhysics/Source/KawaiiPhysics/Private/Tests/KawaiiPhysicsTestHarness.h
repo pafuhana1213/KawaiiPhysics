@@ -352,6 +352,33 @@ struct FKawaiiPhysicsTestAccessor
 		Node.UpdatePhysicsSettingsOfModifyBones();
 	}
 
+	FKawaiiPhysicsSettingsScale CallComputeEffectiveSettingsOverrideScale() const
+	{
+		return Node.ComputeEffectivePhysicsSettingsOverrideScale();
+	}
+
+	void SetInitPhysicsSettings(bool bInit) { Node.bInitPhysicsSettings = bInit; }
+	bool IsPhysicsSettingsOverrideAppliedLastUpdate() const { return Node.bPhysicsSettingsOverrideAppliedLastUpdate; }
+
+	/**
+	 * EvaluateSkeletalControl_AnyThread の物理設定更新 gating（判定は ShouldUpdatePhysicsSettings を共有）を Output 無しで実行する
+	 * （bEditing は WITH_EDITORONLY_DATA 既定の false 相当として扱う）。
+	 * @return このフレームで UpdatePhysicsSettingsOfModifyBones が走ったか
+	 */
+	bool RunPhysicsSettingsUpdateGate(float FrameDt)
+	{
+		const bool bHasActiveSettingsOverride = Node.ConsumeAndAdvancePhysicsSettingsOverrides(FrameDt);
+		if (Node.ShouldUpdatePhysicsSettings(bHasActiveSettingsOverride))
+		{
+			Node.UpdatePhysicsSettingsOfModifyBones();
+			Node.bPhysicsSettingsOverrideAppliedLastUpdate = bHasActiveSettingsOverride;
+			Node.bInitPhysicsSettings = true;
+			return true;
+		}
+
+		return false;
+	}
+
 	FKawaiiPhysicsSyncTargetRoot CollectSyncChildTargetsForRoot(int32 RootIndex)
 	{
 		FKawaiiPhysicsSyncTargetRoot TargetRoot;

@@ -160,9 +160,32 @@ namespace
 	}
 }
 
+FKawaiiPhysicsSettingsScale FAnimNode_KawaiiPhysics::ComputeEffectivePhysicsSettingsOverrideScale() const
+{
+	FKawaiiPhysicsSettingsScale Effective;
+
+	for (const FKawaiiPhysicsActiveSettingsOverride& Item : TransientForceStore.SettingsOverrideItems)
+	{
+		const float EnvelopeAlpha = Item.PeakAlpha * KawaiiPhysics::EvaluateEnvelopeAlpha01(
+			Item.RiseTime, Item.HoldTime, Item.DecayTime, Item.ElapsedTime);
+
+		Effective.Damping *= FMath::Lerp(1.0f, Item.Scale.Damping, EnvelopeAlpha);
+		Effective.Stiffness *= FMath::Lerp(1.0f, Item.Scale.Stiffness, EnvelopeAlpha);
+		Effective.WorldDampingLocation *= FMath::Lerp(1.0f, Item.Scale.WorldDampingLocation, EnvelopeAlpha);
+		Effective.WorldDampingRotation *= FMath::Lerp(1.0f, Item.Scale.WorldDampingRotation, EnvelopeAlpha);
+		Effective.Radius *= FMath::Lerp(1.0f, Item.Scale.Radius, EnvelopeAlpha);
+		Effective.LimitAngle *= FMath::Lerp(1.0f, Item.Scale.LimitAngle, EnvelopeAlpha);
+	}
+
+	return Effective;
+}
+
 void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdatePhysicsSetting);
+
+	// αはボーンに依存しないためループ前に1回だけ解決する
+	const FKawaiiPhysicsSettingsScale OverrideScale = ComputeEffectivePhysicsSettingsOverrideScale();
 
 	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 	{
@@ -171,32 +194,37 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 		// Damping
 		Bone.PhysicsSettings.Damping = FMath::Clamp(
 			PhysicsSettings.Damping * DampingCurveData.GetRichCurveConst()->Eval(
-				LengthRate, 1.0f), 0.0f, 1.0f);
-		
+				LengthRate, 1.0f) * OverrideScale.Damping, 0.0f, 1.0f);
+
 		// WorldLocationDamping
 		Bone.PhysicsSettings.WorldDampingLocation = FMath::Clamp(
 			PhysicsSettings.WorldDampingLocation * WorldDampingLocationCurveData.GetRichCurveConst()->Eval(
-				LengthRate, 1.0f), 0.0f, 1.0f);
-		
+				LengthRate, 1.0f) * OverrideScale.WorldDampingLocation, 0.0f, 1.0f);
+
 		// WorldRotationDamping
 		Bone.PhysicsSettings.WorldDampingRotation = FMath::Clamp(
 			PhysicsSettings.WorldDampingRotation * WorldDampingRotationCurveData.GetRichCurveConst()->Eval(
-				LengthRate, 1.0f), 0.0f, 1.0f);
-		
+				LengthRate, 1.0f) * OverrideScale.WorldDampingRotation, 0.0f, 1.0f);
+
 		// Stiffness
 		Bone.PhysicsSettings.Stiffness = FMath::Clamp(
 			PhysicsSettings.Stiffness * StiffnessCurveData.GetRichCurveConst()->Eval(
-				LengthRate, 1.0f), 0.0f, 1.0f);
-		
+				LengthRate, 1.0f) * OverrideScale.Stiffness, 0.0f, 1.0f);
+
 		// Radius
 		Bone.PhysicsSettings.Radius = FMath::Max(
 			PhysicsSettings.Radius * RadiusCurveData.GetRichCurveConst()->Eval(
-				LengthRate, 1.0f), 0.0f);
-		
+				LengthRate, 1.0f) * OverrideScale.Radius, 0.0f);
+
 		// LimitAngle
-		Bone.PhysicsSettings.LimitAngle = FMath::Max(
+		const float BaseLimitAngle = FMath::Max(
 			PhysicsSettings.LimitAngle * LimitAngleCurveData.GetRichCurveConst()->Eval(
 				LengthRate, 1.0f), 0.0f);
+		// LimitAngle==0 は「制限なし」を意味するため、制限ありのボーンが倍率で0へ落ちて反転しないよう極小値で止める
+		Bone.PhysicsSettings.LimitAngle = BaseLimitAngle > 0.0f
+			                                  ? FMath::Max(BaseLimitAngle * OverrideScale.LimitAngle,
+			                                               KINDA_SMALL_NUMBER)
+			                                  : 0.0f;
 	}
 }
 
@@ -286,6 +314,85 @@ void FAnimNode_KawaiiPhysics::ConsumeAndSweepTransientExternalForces(const float
 		       static_cast<long long>(TransientForceStore.Items[0].HandleId));
 		TransientForceStore.Items.RemoveAt(0);
 	}
+}
+
+bool FAnimNode_KawaiiPhysics::ConsumeAndAdvancePhysicsSettingsOverrides(const float InFrameDeltaTime)
+{
+	// 取り込み前に進めることで、このフレームで積まれた分は α=0（rise 開始点）から始まる
+	for (FKawaiiPhysicsActiveSettingsOverride& Item : TransientForceStore.SettingsOverrideItems)
+	{
+		Item.ElapsedTime += InFrameDeltaTime;
+	}
+
+	TArray<FKawaiiPhysicsSettingsOverrideRequest> PendingOverrides;
+	TArray<FKawaiiPhysicsTransientForceStopRequest> PendingStops;
+	if (TransientForceStore.Queue.IsValid())
+	{
+		FScopeLock Lock(&TransientForceStore.Queue->Mutex);
+		PendingOverrides = MoveTemp(TransientForceStore.Queue->PendingSettingsOverrides);
+		PendingStops = MoveTemp(TransientForceStore.Queue->PendingSettingsOverrideStops);
+	}
+
+	for (const FKawaiiPhysicsSettingsOverrideRequest& PendingOverride : PendingOverrides)
+	{
+		FKawaiiPhysicsActiveSettingsOverride& Item = TransientForceStore.SettingsOverrideItems.AddDefaulted_GetRef();
+		Item.Scale = PendingOverride.Scale;
+		Item.RiseTime = PendingOverride.RiseTime;
+		Item.HoldTime = PendingOverride.HoldTime;
+		Item.DecayTime = PendingOverride.DecayTime;
+		Item.HandleId = PendingOverride.HandleId;
+	}
+
+	for (const FKawaiiPhysicsTransientForceStopRequest& PendingStop : PendingStops)
+	{
+		if (PendingStop.HandleId == 0)
+		{
+			continue;
+		}
+
+		for (int32 i = TransientForceStore.SettingsOverrideItems.Num() - 1; i >= 0; --i)
+		{
+			FKawaiiPhysicsActiveSettingsOverride& Item = TransientForceStore.SettingsOverrideItems[i];
+			if (Item.HandleId != PendingStop.HandleId)
+			{
+				continue;
+			}
+
+			if (PendingStop.BlendOutTime <= KINDA_SMALL_NUMBER)
+			{
+				TransientForceStore.SettingsOverrideItems.RemoveAt(i);
+				continue;
+			}
+
+			// 現在の適用率を PeakAlpha へ畳み込み、そこから decay だけのエンベロープでフェードさせる。
+			// 乗算なのでフェード中の再Stopでも適用率が跳ね上がらない
+			Item.PeakAlpha *= KawaiiPhysics::EvaluateEnvelopeAlpha01(Item.RiseTime, Item.HoldTime, Item.DecayTime,
+			                                                        Item.ElapsedTime);
+			Item.RiseTime = 0.0f;
+			Item.HoldTime = 0.0f;
+			Item.DecayTime = PendingStop.BlendOutTime;
+			Item.ElapsedTime = 0.0f;
+		}
+	}
+
+	for (int32 i = TransientForceStore.SettingsOverrideItems.Num() - 1; i >= 0; --i)
+	{
+		const FKawaiiPhysicsActiveSettingsOverride& Item = TransientForceStore.SettingsOverrideItems[i];
+		if (Item.ElapsedTime >= Item.RiseTime + Item.HoldTime + Item.DecayTime)
+		{
+			TransientForceStore.SettingsOverrideItems.RemoveAt(i);
+		}
+	}
+
+	while (TransientForceStore.SettingsOverrideItems.Num() > MaxPhysicsSettingsOverrides)
+	{
+		UE_LOG(LogKawaiiPhysics, Verbose,
+		       TEXT("Physics settings override cap exceeded; dropping oldest override. HandleId=%lld"),
+		       static_cast<long long>(TransientForceStore.SettingsOverrideItems[0].HandleId));
+		TransientForceStore.SettingsOverrideItems.RemoveAt(0);
+	}
+
+	return !TransientForceStore.SettingsOverrideItems.IsEmpty();
 }
 
 

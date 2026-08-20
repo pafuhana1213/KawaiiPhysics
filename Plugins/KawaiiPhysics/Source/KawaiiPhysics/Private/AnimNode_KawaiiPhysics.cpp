@@ -204,14 +204,18 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 	SubstepAccumulator = 0.0f;
 	bSubstepPoseInitialized = false;
 
-	// ノード再初期化時は実行時専用の一時外力を破棄する
+	// ノード再初期化時は実行時専用の一時外力と物理設定オーバーライドを破棄する
 	TransientForceStore.Items.Reset();
+	TransientForceStore.SettingsOverrideItems.Reset();
+	bPhysicsSettingsOverrideAppliedLastUpdate = false;
 	if (TransientForceStore.Queue.IsValid())
 	{
 		FScopeLock Lock(&TransientForceStore.Queue->Mutex);
 		TransientForceStore.Queue->PendingForces.Reset();
 		TransientForceStore.Queue->PendingGusts.Reset();
 		TransientForceStore.Queue->PendingStops.Reset();
+		TransientForceStore.Queue->PendingSettingsOverrides.Reset();
+		TransientForceStore.Queue->PendingSettingsOverrideStops.Reset();
 	}
 
 	for (int i = 0; i < ExternalForces.Num(); ++i)
@@ -328,6 +332,59 @@ void FAnimNode_KawaiiPhysics::RequestStopTransientExternalForce(const int64 Hand
 	Request.HandleId = HandleId;
 	Request.BlendOutTime = BlendOutTime;
 	TransientForceStore.Queue->PendingStops.Emplace(Request);
+}
+
+int64 FAnimNode_KawaiiPhysics::RequestPhysicsSettingsOverride(const FKawaiiPhysicsSettingsScale& InScale,
+                                                              const float RiseTime, const float HoldTime,
+                                                              const float DecayTime, const int64 InHandleId)
+{
+	const int64 HandleId = InHandleId != 0 ? InHandleId : GenerateTransientForceHandleId();
+
+	FKawaiiPhysicsSettingsOverrideRequest Request;
+	Request.Scale = InScale;
+	Request.RiseTime = RiseTime;
+	Request.HoldTime = HoldTime;
+	Request.DecayTime = DecayTime;
+	Request.HandleId = HandleId;
+
+	FScopeLock Lock(&TransientForceStore.Queue->Mutex);
+	if (TransientForceStore.Queue->PendingSettingsOverrides.Num() >= MaxPhysicsSettingsOverrides)
+	{
+		// 評価が走らないノードへの連打でも pending が MaxPhysicsSettingsOverrides を超えないよう最古から破棄する。
+		TransientForceStore.Queue->PendingSettingsOverrides.RemoveAt(0);
+	}
+
+	TransientForceStore.Queue->PendingSettingsOverrides.Emplace(Request);
+	return HandleId;
+}
+
+void FAnimNode_KawaiiPhysics::RequestStopPhysicsSettingsOverride(const int64 HandleId, const float BlendOutTime)
+{
+	if (HandleId == 0 || !TransientForceStore.Queue.IsValid())
+	{
+		return;
+	}
+
+	FScopeLock Lock(&TransientForceStore.Queue->Mutex);
+	for (FKawaiiPhysicsTransientForceStopRequest& PendingStop : TransientForceStore.Queue->PendingSettingsOverrideStops)
+	{
+		if (PendingStop.HandleId == HandleId)
+		{
+			PendingStop.BlendOutTime = BlendOutTime;
+			return;
+		}
+	}
+
+	if (TransientForceStore.Queue->PendingSettingsOverrideStops.Num() >= MaxPhysicsSettingsOverrides)
+	{
+		// 評価が走らないノードへの連打でも停止要求が MaxPhysicsSettingsOverrides を超えないよう最古から破棄する。
+		TransientForceStore.Queue->PendingSettingsOverrideStops.RemoveAt(0);
+	}
+
+	FKawaiiPhysicsTransientForceStopRequest Request;
+	Request.HandleId = HandleId;
+	Request.BlendOutTime = BlendOutTime;
+	TransientForceStore.Queue->PendingSettingsOverrideStops.Emplace(Request);
 }
 
 void FAnimNode_KawaiiPhysics::UpdateInternal(const FAnimationUpdateContext& Context)
@@ -554,10 +611,14 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 
 	}
 
+	// 倍率オーバーライドは UpdatePhysicsSettingsOfModifyBones より前に取り込み、このフレームの倍率を確定させる
+	const bool bHasActiveSettingsOverride = ConsumeAndAdvancePhysicsSettingsOverrides(DeltaTime);
+
 	// 各パラメータとコリジョンを更新する
-	if (!bInitPhysicsSettings || bUpdatePhysicsSettingsInGame)
+	if (ShouldUpdatePhysicsSettings(bHasActiveSettingsOverride))
 	{
 		UpdatePhysicsSettingsOfModifyBones();
+		bPhysicsSettingsOverrideAppliedLastUpdate = bHasActiveSettingsOverride;
 
 #if WITH_EDITORONLY_DATA
 		if (!bEditing)
