@@ -686,14 +686,14 @@ public:
 
 	/**
 	 * 物理設定への一時的な倍率オーバーライドを開始する。ベースの設定値は書き換えず、毎フレーム再計算される各ボーンの実効値へ倍率を乗算するため、期間終了後は常に元の挙動へ戻る。
-	 * Duration は BlendInTime/BlendOutTime を含めた合計秒で、エンベロープは BlendIn→Hold→BlendOut の台形（Hold=max(0,Duration-BlendIn-BlendOut)、BlendIn+BlendOut>Duration は比例圧縮）。Duration<=0 は no-op。
+	 * Duration は BlendInTime/BlendOutTime を含めた合計秒で、エンベロープは BlendIn→Hold→BlendOut の台形（Hold=max(0,Duration-BlendIn-BlendOut)、BlendIn+BlendOut>Duration は比例圧縮）。Duration<=0 は何もキューせず ExecResult=NotValid・ハンドル未設定で返る。
 	 * 進行はアニメーションの DeltaTime ベースのため、URO や LOD で評価が止まると実時間としては長く伸びる。
 	 * 同時に保持できるオーバーライドはノードあたり8件までで、超過時は最古が破棄される。破棄されたオーバーライドのハンドルは失効し Stop は no-op。ノード再初期化や BP 再コンパイルでも失われる。
 	 * 複数のオーバーライドは各成分ごとに乗算で合成される。
 	 * エッジケース: LimitAngle はベースが0（無制限）なら倍率に関わらず無制限のまま、ベースが0より大きいボーンは倍率0でも無制限へは反転しない。
 	 * WorldDampingLocation/Rotation は実際の反映率が (1 - 値) のため意味が反転し、倍率1未満では揺れが増える。Radius の倍率0はワールドコリジョンのスイープと押し出しを実質無効にする。
 	 * Start a temporary multiplier override for the physics settings. The base settings are never rewritten: the multipliers are applied to each bone's effective values, which are recomputed every frame, so the original behavior always comes back once the override ends.
-	 * Duration is the total seconds including BlendInTime/BlendOutTime, and the envelope is a BlendIn-Hold-BlendOut trapezoid (Hold=max(0,Duration-BlendIn-BlendOut); BlendIn+BlendOut>Duration is scaled proportionally). Duration<=0 is a no-op.
+	 * Duration is the total seconds including BlendInTime/BlendOutTime, and the envelope is a BlendIn-Hold-BlendOut trapezoid (Hold=max(0,Duration-BlendIn-BlendOut); BlendIn+BlendOut>Duration is scaled proportionally). Duration<=0 queues nothing and returns NotValid with an unset handle.
 	 * Progress is driven by the animation DeltaTime, so if URO or LOD stops evaluation the override lasts longer in real time.
 	 * Overrides are capped at 8 per node; beyond the cap, the oldest entry is evicted. Handles for evicted overrides become stale and Stop is a no-op. They are also lost on node re-initialization or BP recompile.
 	 * Multiple overrides are composed by multiplying each component.
@@ -738,7 +738,7 @@ public:
 
 	/**
 	 * Component 内の対象 KawaiiPhysics ノードへ、物理設定への一時的な倍率オーバーライドを共通の1ハンドルで開始する。ベースの設定値は書き換えず、毎フレーム再計算される各ボーンの実効値へ倍率を乗算するため、期間終了後は常に元の挙動へ戻る。
-	 * Duration は BlendInTime/BlendOutTime を含めた合計秒で、エンベロープは BlendIn→Hold→BlendOut の台形（Hold=max(0,Duration-BlendIn-BlendOut)、BlendIn+BlendOut>Duration は比例圧縮）。Duration<=0 は no-op。
+	 * Duration は BlendInTime/BlendOutTime を含めた合計秒で、エンベロープは BlendIn→Hold→BlendOut の台形（Hold=max(0,Duration-BlendIn-BlendOut)、BlendIn+BlendOut>Duration は比例圧縮）。Duration<=0 は何もキューせず 0 を返す（ハンドル未設定）。
 	 * 進行はアニメーションの DeltaTime ベースのため、URO や LOD で評価が止まると実時間としては長く伸びる。
 	 * 同時に保持できるオーバーライドはノードあたり8件までで、超過時は最古が破棄される。破棄されたオーバーライドのハンドルは失効し Stop は no-op。ノード再初期化や BP 再コンパイルでも失われる。
 	 * 複数のオーバーライドは各成分ごとに乗算で合成される。
@@ -748,7 +748,7 @@ public:
 	 * AnimGraph の BlueprintThreadSafe 文脈から呼ぶ場合、対象は呼び出し元（呼び出しノード自身）の Component に限ります。
 	 * それ以外のオブジェクトから収集する場合は、そのオブジェクトが評価中でない GameThread で呼び出してください。
 	 * Start temporary multiplier overrides for the physics settings on target KawaiiPhysics nodes in a component under one shared handle. The base settings are never rewritten: the multipliers are applied to each bone's effective values, which are recomputed every frame, so the original behavior always comes back once the override ends.
-	 * Duration is the total seconds including BlendInTime/BlendOutTime, and the envelope is a BlendIn-Hold-BlendOut trapezoid (Hold=max(0,Duration-BlendIn-BlendOut); BlendIn+BlendOut>Duration is scaled proportionally). Duration<=0 is a no-op.
+	 * Duration is the total seconds including BlendInTime/BlendOutTime, and the envelope is a BlendIn-Hold-BlendOut trapezoid (Hold=max(0,Duration-BlendIn-BlendOut); BlendIn+BlendOut>Duration is scaled proportionally). Duration<=0 queues nothing and returns 0 with an unset handle.
 	 * Progress is driven by the animation DeltaTime, so if URO or LOD stops evaluation the override lasts longer in real time.
 	 * Overrides are capped at 8 per node; beyond the cap, the oldest entry is evicted. Handles for evicted overrides become stale and Stop is a no-op. They are also lost on node re-initialization or BP recompile.
 	 * Multiple overrides are composed by multiplying each component.

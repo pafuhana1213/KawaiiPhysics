@@ -361,15 +361,14 @@ struct FKawaiiPhysicsTestAccessor
 	bool IsPhysicsSettingsOverrideAppliedLastUpdate() const { return Node.bPhysicsSettingsOverrideAppliedLastUpdate; }
 
 	/**
-	 * EvaluateSkeletalControl_AnyThread の物理設定更新 gating を Output 無しで複製する
+	 * EvaluateSkeletalControl_AnyThread の物理設定更新 gating（判定は ShouldUpdatePhysicsSettings を共有）を Output 無しで実行する
 	 * （bEditing は WITH_EDITORONLY_DATA 既定の false 相当として扱う）。
 	 * @return このフレームで UpdatePhysicsSettingsOfModifyBones が走ったか
 	 */
 	bool RunPhysicsSettingsUpdateGate(float FrameDt)
 	{
 		const bool bHasActiveSettingsOverride = Node.ConsumeAndAdvancePhysicsSettingsOverrides(FrameDt);
-		if (!Node.bInitPhysicsSettings || Node.bUpdatePhysicsSettingsInGame ||
-			bHasActiveSettingsOverride || Node.bPhysicsSettingsOverrideAppliedLastUpdate)
+		if (Node.ShouldUpdatePhysicsSettings(bHasActiveSettingsOverride))
 		{
 			Node.UpdatePhysicsSettingsOfModifyBones();
 			Node.bPhysicsSettingsOverrideAppliedLastUpdate = bHasActiveSettingsOverride;

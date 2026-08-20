@@ -1073,6 +1073,12 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::StartPhysicsSettingsOverride(
 	ExecResult = EKawaiiPhysicsAccessResult::NotValid;
 	OutHandle.Id = 0;
 
+	// Duration<=0 は完全な no-op（キューへ積まず pending スロットも消費しない）
+	if (Duration <= 0.0f)
+	{
+		return KawaiiPhysics;
+	}
+
 	// BlendIn/BlendOut を Rise/Decay として扱い、Duration 合計秒から台形エンベロープへ分解する
 	const ::KawaiiPhysics::FWindBlowEnvelope Envelope =
 		::KawaiiPhysics::ResolveWindBlowEnvelope(Duration, BlendInTime, BlendOutTime);
@@ -1128,6 +1134,12 @@ int32 UKawaiiPhysicsLibrary::StartPhysicsSettingsOverrideOnComponent(
 {
 	OutHandle.Id = 0;
 	int32 AppliedNodeCount = 0;
+
+	// Duration<=0 は完全な no-op（キューへ積まず pending スロットも消費しない）
+	if (Duration <= 0.0f)
+	{
+		return 0;
+	}
 
 	// BlendIn/BlendOut を Rise/Decay として扱い、Duration 合計秒から台形エンベロープへ分解する
 	const ::KawaiiPhysics::FWindBlowEnvelope Envelope =

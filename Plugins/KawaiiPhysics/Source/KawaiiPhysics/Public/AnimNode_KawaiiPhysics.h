@@ -698,6 +698,14 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	 */
 	bool ConsumeAndAdvancePhysicsSettingsOverrides(float InFrameDeltaTime);
 
+	// UpdatePhysicsSettingsOfModifyBones を走らせるべきかの判定（EvaluateSkeletalControl_AnyThread とテストハーネスで共有）
+	bool ShouldUpdatePhysicsSettings(const bool bHasActiveSettingsOverride) const
+	{
+		// bUpdatePhysicsSettingsInGame が無効でも、オーバーライドの有効中と終了直後の1回は更新してベース値へ戻す
+		return !bInitPhysicsSettings || bUpdatePhysicsSettingsInGame ||
+			bHasActiveSettingsOverride || bPhysicsSettingsOverrideAppliedLastUpdate;
+	}
+
 	/**
 	* EXPERIMENTAL: 外力のプリセット。BP・C++で独自のプリセットを追加可能(Instanced Property)
 	* 注意：AnimNodeをクリック or ABPをコンパイルしないと正常に動作しません

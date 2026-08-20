@@ -615,9 +615,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	const bool bHasActiveSettingsOverride = ConsumeAndAdvancePhysicsSettingsOverrides(DeltaTime);
 
 	// 各パラメータとコリジョンを更新する
-	// bUpdatePhysicsSettingsInGame が無効でも、オーバーライドの有効中と終了直後の1回は更新してベース値へ戻す
-	if (!bInitPhysicsSettings || bUpdatePhysicsSettingsInGame ||
-		bHasActiveSettingsOverride || bPhysicsSettingsOverrideAppliedLastUpdate)
+	if (ShouldUpdatePhysicsSettings(bHasActiveSettingsOverride))
 	{
 		UpdatePhysicsSettingsOfModifyBones();
 		bPhysicsSettingsOverrideAppliedLastUpdate = bHasActiveSettingsOverride;
