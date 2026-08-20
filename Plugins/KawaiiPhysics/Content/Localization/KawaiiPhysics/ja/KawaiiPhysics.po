@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: KawaiiPhysics\n"
-"POT-Creation-Date: 2026-08-19 00:57\n"
-"PO-Revision-Date: 2026-08-19 00:57\n"
+"POT-Creation-Date: 2026-08-20 01:00\n"
+"PO-Revision-Date: 2026-08-20 01:00\n"
 "Language-Team: \n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
@@ -3036,6 +3036,104 @@ msgstr ""
 msgctxt "UObjectToolTips,KawaiiPhysicsSettings:WorldDampingRotation"
 msgid "ワールド座標系における Skeletal Mesh Component の回転量のダンピング(抑制)量。\n0 = 回転量をフル反映(揺れ最大) / 1 = コンポーネントに追従(反映なし)。実際の反映率 = (1 - WorldDampingRotation)\nDamping (suppression) of the Skeletal Mesh Component's world-space rotation.\n0 = rotation fully reflected (max sway) / 1 = follows component (no reflection). Actual reflection factor = (1 - WorldDampingRotation)."
 msgstr "ワールド座標系における Skeletal Mesh Component の回転量のダンピング(抑制)量。\n0 = 回転量をフル反映(揺れ最大) / 1 = コンポーネントに追従(反映なし)。実際の反映率 = (1 - WorldDampingRotation)"
+
+#. Key:	KawaiiPhysicsSettingsScale
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettingsScale [ScriptStruct DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSettingsScale [ScriptStruct DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsSettingsScale"
+msgid "Kawaii Physics Settings Scale"
+msgstr ""
+
+#. Key:	KawaiiPhysicsSettingsScale
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettingsScale [ScriptStruct ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSettingsScale [ScriptStruct ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsSettingsScale"
+msgid "物理設定への一時的な倍率。全項目の既定値 1.0 は「変更なし」。ベースの設定値は書き換えず、毎フレーム再計算される各ボーンの実効値に乗算する\nTemporary multipliers for physics settings. Every value defaults to 1.0 (no change). The base settings are never rewritten;\nthe multipliers are applied to each bone's effective values, which are recomputed every frame."
+msgstr "物理設定への一時的な倍率。全項目の既定値 1.0 は「変更なし」。ベースの設定値は書き換えず、毎フレーム再計算される各ボーンの実効値に乗算する"
+
+#. Key:	KawaiiPhysicsSettingsScale:Damping
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettingsScale:Damping [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSettingsScale:Damping [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsSettingsScale:Damping"
+msgid "Damping"
+msgstr ""
+
+#. Key:	KawaiiPhysicsSettingsScale:Damping
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettingsScale:Damping [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSettingsScale:Damping [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsSettingsScale:Damping"
+msgid "Dampingへの倍率。1未満で減衰が弱まり、揺れが大きくなる\nMultiplier for Damping. Below 1 the damping weakens and the sway grows."
+msgstr "Dampingへの倍率。1未満で減衰が弱まり、揺れが大きくなる"
+
+#. Key:	KawaiiPhysicsSettingsScale:LimitAngle
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettingsScale:LimitAngle [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSettingsScale:LimitAngle [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsSettingsScale:LimitAngle"
+msgid "Limit Angle"
+msgstr ""
+
+#. Key:	KawaiiPhysicsSettingsScale:LimitAngle
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettingsScale:LimitAngle [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSettingsScale:LimitAngle [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsSettingsScale:LimitAngle"
+msgid "LimitAngleへの倍率。ベースが0（無制限）のボーンは倍率に関わらず無制限のまま。ベースが0より大きいボーンは\n極小値で下限クランプされ、倍率0でも無制限へは反転せず、ほぼ完全にポーズへ追従する\nMultiplier for LimitAngle. Bones whose base value is 0 (unlimited) stay unlimited whatever the multiplier is.\nBones with a base above 0 are clamped to a tiny positive minimum, so even a multiplier of 0 never flips them back to\nunlimited; they follow the pose almost exactly instead."
+msgstr "LimitAngleへの倍率。ベースが0（無制限）のボーンは倍率に関わらず無制限のまま。ベースが0より大きいボーンは\n極小値で下限クランプされ、倍率0でも無制限へは反転せず、ほぼ完全にポーズへ追従する"
+
+#. Key:	KawaiiPhysicsSettingsScale:Radius
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettingsScale:Radius [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSettingsScale:Radius [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsSettingsScale:Radius"
+msgid "Radius"
+msgstr ""
+
+#. Key:	KawaiiPhysicsSettingsScale:Radius
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettingsScale:Radius [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSettingsScale:Radius [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsSettingsScale:Radius"
+msgid "コリジョン半径への倍率。0にするとワールドコリジョンのスイープと押し出しが実質無効になる。\n半径によるダミーボーンの本数はベースの半径から決まるため、1未満ではコリジョンの被覆に隙間が生じうる\nMultiplier for the collision radius. At 0 the world sweep and push-out are effectively disabled.\nThe radius-based dummy bone count comes from the base radius, so below 1 the collision coverage can leave gaps."
+msgstr "コリジョン半径への倍率。0にするとワールドコリジョンのスイープと押し出しが実質無効になる。\n半径によるダミーボーンの本数はベースの半径から決まるため、1未満ではコリジョンの被覆に隙間が生じうる"
+
+#. Key:	KawaiiPhysicsSettingsScale:Stiffness
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettingsScale:Stiffness [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSettingsScale:Stiffness [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsSettingsScale:Stiffness"
+msgid "Stiffness"
+msgstr ""
+
+#. Key:	KawaiiPhysicsSettingsScale:Stiffness
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettingsScale:Stiffness [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSettingsScale:Stiffness [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsSettingsScale:Stiffness"
+msgid "Stiffnessへの倍率。1未満で元の形状への引き戻しが弱まり、揺れが大きくなる\nMultiplier for Stiffness. Below 1 the pull back to the pre-physics shape weakens and the sway grows."
+msgstr "Stiffnessへの倍率。1未満で元の形状への引き戻しが弱まり、揺れが大きくなる"
+
+#. Key:	KawaiiPhysicsSettingsScale:WorldDampingLocation
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettingsScale:WorldDampingLocation [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSettingsScale:WorldDampingLocation [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsSettingsScale:WorldDampingLocation"
+msgid "World Damping Location"
+msgstr ""
+
+#. Key:	KawaiiPhysicsSettingsScale:WorldDampingLocation
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettingsScale:WorldDampingLocation [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSettingsScale:WorldDampingLocation [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsSettingsScale:WorldDampingLocation"
+msgid "WorldDampingLocationへの倍率。実際の反映率は (1 - WorldDampingLocation) のため意味が反転し、\n1未満の倍率ではコンポーネントの移動量がより強く反映されて揺れが大きくなる\nMultiplier for WorldDampingLocation. The semantics are inverted because the actual reflection factor is\n(1 - WorldDampingLocation): a multiplier below 1 reflects more of the component movement and increases the sway."
+msgstr "WorldDampingLocationへの倍率。実際の反映率は (1 - WorldDampingLocation) のため意味が反転し、\n1未満の倍率ではコンポーネントの移動量がより強く反映されて揺れが大きくなる"
+
+#. Key:	KawaiiPhysicsSettingsScale:WorldDampingRotation
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettingsScale:WorldDampingRotation [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSettingsScale:WorldDampingRotation [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsSettingsScale:WorldDampingRotation"
+msgid "World Damping Rotation"
+msgstr ""
+
+#. Key:	KawaiiPhysicsSettingsScale:WorldDampingRotation
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettingsScale:WorldDampingRotation [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSettingsScale:WorldDampingRotation [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsSettingsScale:WorldDampingRotation"
+msgid "WorldDampingRotationへの倍率。実際の反映率は (1 - WorldDampingRotation) のため意味が反転し、\n1未満の倍率ではコンポーネントの回転量がより強く反映されて揺れが大きくなる\nMultiplier for WorldDampingRotation. The semantics are inverted because the actual reflection factor is\n(1 - WorldDampingRotation): a multiplier below 1 reflects more of the component rotation and increases the sway."
+msgstr "WorldDampingRotationへの倍率。実際の反映率は (1 - WorldDampingRotation) のため意味が反転し、\n1未満の倍率ではコンポーネントの回転量がより強く反映されて揺れが大きくなる"
 
 #. Key:	KawaiiPhysicsSyncBone
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone [ScriptStruct DisplayName meta-data]
