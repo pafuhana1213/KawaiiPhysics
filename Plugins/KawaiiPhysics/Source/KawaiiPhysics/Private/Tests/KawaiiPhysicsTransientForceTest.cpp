@@ -31,7 +31,7 @@ FKawaiiPhysics_ExternalForce_ProceduralWind* GetTransientWind(FAnimNode_KawaiiPh
 	return Node.TransientForceStore.Items[Index].Force.GetMutablePtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
 }
 
-bool TestFloatNear(FAutomationTestBase& Test, const TCHAR* Name, const float Actual, const float Expected)
+bool TestTransientForceFloatNear(FAutomationTestBase& Test, const TCHAR* Name, const float Actual, const float Expected)
 {
 	return Test.TestTrue(FString::Printf(TEXT("%s: got %.9f expected %.9f"), Name, Actual, Expected),
 	                     FMath::IsNearlyEqual(Actual, Expected, GTransientForceTol));
@@ -124,13 +124,13 @@ bool TestInheritedRuntimeFields(FAutomationTestBase& Test, FKawaiiPhysics_Extern
 	bool bOk = true;
 	bOk &= Test.TestEqual(TEXT("ApplyBoneFilter.Num"), Wind.ApplyBoneFilter.Num(), 1);
 	bOk &= Test.TestEqual(TEXT("Curve key count"), Wind.ForceRateByBoneLengthRate.GetRichCurveConst()->GetNumKeys(), 1);
-	bOk &= TestFloatNear(Test, TEXT("RandomForceScaleRange.Min"), Wind.RandomForceScaleRange.Min, 0.5f);
-	bOk &= TestFloatNear(Test, TEXT("RandomForceScaleRange.Max"), Wind.RandomForceScaleRange.Max, 2.0f);
-	bOk &= TestFloatNear(Test, TEXT("TimeScale"), Wind.TimeScale, 2.0f);
+	bOk &= TestTransientForceFloatNear(Test, TEXT("RandomForceScaleRange.Min"), Wind.RandomForceScaleRange.Min, 0.5f);
+	bOk &= TestTransientForceFloatNear(Test, TEXT("RandomForceScaleRange.Max"), Wind.RandomForceScaleRange.Max, 2.0f);
+	bOk &= TestTransientForceFloatNear(Test, TEXT("TimeScale"), Wind.TimeScale, 2.0f);
 	return bOk;
 }
 
-void ApplyDefaultPresetStyleCopy(FAnimNode_KawaiiPhysics& TargetNode)
+void ApplyDefaultPresetStyleForTransientForce(FAnimNode_KawaiiPhysics& TargetNode)
 {
 	FAnimNode_KawaiiPhysics DefaultNode;
 	const FKawaiiPhysicsPresetApplyOptions Options;
@@ -249,10 +249,10 @@ bool FKawaiiPhysicsTransientForceGustConsumeCreatesActiveGustTest::RunTest(const
 	RunPreApply(Node, *Wind);
 
 	bOk &= TestTrue(TEXT("ActiveGust active"), Wind->RuntimeState->ActiveGust.bIsActive);
-	TestFloatNear(*this, TEXT("ActiveGust Strength"), Wind->RuntimeState->ActiveGust.Strength, 4.0f);
-	TestFloatNear(*this, TEXT("ActiveGust RiseTime"), Wind->RuntimeState->ActiveGust.RiseTime, 0.2f);
-	TestFloatNear(*this, TEXT("ActiveGust DecayTime"), Wind->RuntimeState->ActiveGust.DecayTime, 0.6f);
-	TestFloatNear(*this, TEXT("RemainingLifetime"),
+	TestTransientForceFloatNear(*this, TEXT("ActiveGust Strength"), Wind->RuntimeState->ActiveGust.Strength, 4.0f);
+	TestTransientForceFloatNear(*this, TEXT("ActiveGust RiseTime"), Wind->RuntimeState->ActiveGust.RiseTime, 0.2f);
+	TestTransientForceFloatNear(*this, TEXT("ActiveGust DecayTime"), Wind->RuntimeState->ActiveGust.DecayTime, 0.6f);
+	TestTransientForceFloatNear(*this, TEXT("RemainingLifetime"),
 	              Node.TransientForceStore.Items[0].RemainingLifetime, 1.0f);
 
 	return bOk;
@@ -415,10 +415,10 @@ bool FKawaiiPhysicsTransientForceInheritFromAuthoredTest::RunTest(const FString&
 			bOk &= TestTrue(TEXT("Indexed WindDirection"), Wind->WindDirection.Equals(FVector(0.0f, 1.0f, 0.0f)));
 			bOk &= TestTrue(TEXT("Indexed ExternalForceSpace"), Wind->ExternalForceSpace == EExternalForceSpace::ComponentSpace);
 			bOk &= TestInheritedRuntimeFields(*this, *Wind);
-			bOk &= TestFloatNear(*this, TEXT("Indexed WindDirectionNoiseAngle"), Wind->WindDirectionNoiseAngle, 15.0f);
-			bOk &= TestFloatNear(*this, TEXT("Indexed WindDirectionNoisePeriod"), Wind->WindDirectionNoisePeriod, 0.5f);
+			bOk &= TestTransientForceFloatNear(*this, TEXT("Indexed WindDirectionNoiseAngle"), Wind->WindDirectionNoiseAngle, 15.0f);
+			bOk &= TestTransientForceFloatNear(*this, TEXT("Indexed WindDirectionNoisePeriod"), Wind->WindDirectionNoisePeriod, 0.5f);
 			bOk &= TestEqual(TEXT("Indexed Seed"), Wind->Seed, 42);
-			bOk &= TestFloatNear(*this, TEXT("Indexed lifetime"), Node.TransientForceStore.Items[0].RemainingLifetime, 0.6f);
+			bOk &= TestTransientForceFloatNear(*this, TEXT("Indexed lifetime"), Node.TransientForceStore.Items[0].RemainingLifetime, 0.6f);
 		}
 	}
 
@@ -435,8 +435,8 @@ bool FKawaiiPhysicsTransientForceInheritFromAuthoredTest::RunTest(const FString&
 			bOk &= TestTrue(TEXT("Fallback skips disabled"), Wind->WindDirection.Equals(FVector(0.0f, 1.0f, 0.0f)));
 			bOk &= TestTrue(TEXT("Fallback ExternalForceSpace"), Wind->ExternalForceSpace == EExternalForceSpace::ComponentSpace);
 			bOk &= TestInheritedRuntimeFields(*this, *Wind);
-			bOk &= TestFloatNear(*this, TEXT("Fallback WindDirectionNoiseAngle"), Wind->WindDirectionNoiseAngle, 15.0f);
-			bOk &= TestFloatNear(*this, TEXT("Fallback WindDirectionNoisePeriod"), Wind->WindDirectionNoisePeriod, 0.5f);
+			bOk &= TestTransientForceFloatNear(*this, TEXT("Fallback WindDirectionNoiseAngle"), Wind->WindDirectionNoiseAngle, 15.0f);
+			bOk &= TestTransientForceFloatNear(*this, TEXT("Fallback WindDirectionNoisePeriod"), Wind->WindDirectionNoisePeriod, 0.5f);
 			bOk &= TestEqual(TEXT("Fallback Seed"), Wind->Seed, 42);
 		}
 	}
@@ -454,8 +454,8 @@ bool FKawaiiPhysicsTransientForceInheritFromAuthoredTest::RunTest(const FString&
 			bOk &= TestTrue(TEXT("Explicit WindDirection"), Wind->WindDirection.Equals(FVector(0.0f, 0.0f, 3.0f)));
 			bOk &= TestTrue(TEXT("Explicit ExternalForceSpace"), Wind->ExternalForceSpace == EExternalForceSpace::WorldSpace);
 			bOk &= TestInheritedRuntimeFields(*this, *Wind);
-			bOk &= TestFloatNear(*this, TEXT("Explicit WindDirectionNoiseAngle"), Wind->WindDirectionNoiseAngle, 0.0f);
-			bOk &= TestFloatNear(*this, TEXT("Explicit WindDirectionNoisePeriod"), Wind->WindDirectionNoisePeriod, 1.0f);
+			bOk &= TestTransientForceFloatNear(*this, TEXT("Explicit WindDirectionNoiseAngle"), Wind->WindDirectionNoiseAngle, 0.0f);
+			bOk &= TestTransientForceFloatNear(*this, TEXT("Explicit WindDirectionNoisePeriod"), Wind->WindDirectionNoisePeriod, 1.0f);
 			bOk &= TestEqual(TEXT("Explicit Seed"), Wind->Seed, 0);
 		}
 	}
@@ -469,9 +469,9 @@ bool FKawaiiPhysicsTransientForceInheritFromAuthoredTest::RunTest(const FString&
 		bOk &= TestTrue(TEXT("Default inherited wind valid"), Wind != nullptr);
 		if (Wind)
 		{
-			bOk &= TestFloatNear(*this, TEXT("Default RandomForceScaleRange.Min"),
+			bOk &= TestTransientForceFloatNear(*this, TEXT("Default RandomForceScaleRange.Min"),
 			                      Wind->RandomForceScaleRange.Min, 1.0f);
-			bOk &= TestFloatNear(*this, TEXT("Default RandomForceScaleRange.Max"),
+			bOk &= TestTransientForceFloatNear(*this, TEXT("Default RandomForceScaleRange.Max"),
 			                      Wind->RandomForceScaleRange.Max, 1.0f);
 		}
 	}
@@ -513,8 +513,8 @@ bool FKawaiiPhysicsTransientForceSpreadAcrossAuthoredWindsTest::RunTest(const FS
 		if (Wind1)
 		{
 			bOk &= TestTrue(TEXT("Spread Wind1 direction"), Wind1->WindDirection.Equals(FVector(0.0f, 0.0f, 1.0f)));
-			bOk &= TestFloatNear(*this, TEXT("Spread Wind1 TimeScale"), Wind1->TimeScale, 2.0f);
-			bOk &= TestFloatNear(*this, TEXT("Spread Wind1 lifetime"),
+			bOk &= TestTransientForceFloatNear(*this, TEXT("Spread Wind1 TimeScale"), Wind1->TimeScale, 2.0f);
+			bOk &= TestTransientForceFloatNear(*this, TEXT("Spread Wind1 lifetime"),
 			                      Node.TransientForceStore.Items[1].RemainingLifetime, 0.4f);
 		}
 	}
@@ -541,7 +541,7 @@ bool FKawaiiPhysicsTransientForceSpreadAcrossAuthoredWindsTest::RunTest(const FS
 			if (Wind)
 			{
 				const float ExpectedDirectionX = static_cast<float>(ItemIndex + 3);
-				bOk &= TestFloatNear(*this,
+				bOk &= TestTransientForceFloatNear(*this,
 				                      *FString::Printf(TEXT("Spread cap Wind %d direction X"), ItemIndex),
 				                      Wind->WindDirection.X,
 				                      ExpectedDirectionX);
@@ -587,14 +587,14 @@ bool FKawaiiPhysicsTransientForceSpreadAcrossAuthoredWindsTest::RunTest(const FS
 			bOk &= TestTrue(TEXT("Explicit Wind0 direction"), Wind0->WindDirection.Equals(FVector(5.0f, 0.0f, 0.0f)));
 			bOk &= TestTrue(TEXT("Explicit Wind0 space"), Wind0->ExternalForceSpace == EExternalForceSpace::WorldSpace);
 			bOk &= TestEqual(TEXT("Explicit Wind0 ApplyBoneFilter.Num"), Wind0->ApplyBoneFilter.Num(), 1);
-			bOk &= TestFloatNear(*this, TEXT("Explicit Wind0 WindDirectionNoiseAngle"), Wind0->WindDirectionNoiseAngle, 0.0f);
+			bOk &= TestTransientForceFloatNear(*this, TEXT("Explicit Wind0 WindDirectionNoiseAngle"), Wind0->WindDirectionNoiseAngle, 0.0f);
 		}
 		if (Wind1)
 		{
 			bOk &= TestTrue(TEXT("Explicit Wind1 direction"), Wind1->WindDirection.Equals(FVector(5.0f, 0.0f, 0.0f)));
 			bOk &= TestTrue(TEXT("Explicit Wind1 space"), Wind1->ExternalForceSpace == EExternalForceSpace::WorldSpace);
-			bOk &= TestFloatNear(*this, TEXT("Explicit Wind1 TimeScale"), Wind1->TimeScale, 2.0f);
-			bOk &= TestFloatNear(*this, TEXT("Explicit Wind1 WindDirectionNoiseAngle"), Wind1->WindDirectionNoiseAngle, 0.0f);
+			bOk &= TestTransientForceFloatNear(*this, TEXT("Explicit Wind1 TimeScale"), Wind1->TimeScale, 2.0f);
+			bOk &= TestTransientForceFloatNear(*this, TEXT("Explicit Wind1 WindDirectionNoiseAngle"), Wind1->WindDirectionNoiseAngle, 0.0f);
 		}
 	}
 
@@ -615,7 +615,7 @@ bool FKawaiiPhysicsTransientForceGustHoldLifetimeTest::RunTest(const FString& Pa
 	bool bOk = TestEqual(TEXT("Items.Num"), Node.TransientForceStore.Items.Num(), 1);
 	if (Node.TransientForceStore.Items.IsValidIndex(0))
 	{
-		bOk &= TestFloatNear(*this, TEXT("RemainingLifetime"),
+		bOk &= TestTransientForceFloatNear(*this, TEXT("RemainingLifetime"),
 		                      Node.TransientForceStore.Items[0].RemainingLifetime, 2.0f);
 	}
 	return bOk;
@@ -638,11 +638,11 @@ bool FKawaiiPhysicsTransientForceRealTimeEnvelopeTest::RunTest(const FString& Pa
 	bOk &= TestTrue(TEXT("Wind valid"), Wind != nullptr);
 	if (Wind)
 	{
-		bOk &= TestFloatNear(*this, TEXT("TimeScale"), Wind->TimeScale, 1.0f);
+		bOk &= TestTransientForceFloatNear(*this, TEXT("TimeScale"), Wind->TimeScale, 1.0f);
 	}
 	if (Node.TransientForceStore.Items.IsValidIndex(0))
 	{
-		bOk &= TestFloatNear(*this, TEXT("RemainingLifetime"),
+		bOk &= TestTransientForceFloatNear(*this, TEXT("RemainingLifetime"),
 		                      Node.TransientForceStore.Items[0].RemainingLifetime, 2.0f);
 	}
 	return bOk;
@@ -712,8 +712,8 @@ bool FKawaiiPhysicsTransientForceStopTest::RunTest(const FString& Parameters)
 		Node.ConsumeAndSweepTransientExternalForces(0.0f);
 
 		bOk &= TestEqual(TEXT("Stop Items.Num"), Node.TransientForceStore.Items.Num(), 2);
-		bOk &= TestFloatNear(*this, TEXT("Stopped lifetime"), Node.TransientForceStore.Items[0].RemainingLifetime, 0.7f);
-		bOk &= TestFloatNear(*this, TEXT("Unmatched lifetime"), Node.TransientForceStore.Items[1].RemainingLifetime, 2.0f);
+		bOk &= TestTransientForceFloatNear(*this, TEXT("Stopped lifetime"), Node.TransientForceStore.Items[0].RemainingLifetime, 0.7f);
+		bOk &= TestTransientForceFloatNear(*this, TEXT("Unmatched lifetime"), Node.TransientForceStore.Items[1].RemainingLifetime, 2.0f);
 		FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = GetTransientWind(Node, 0);
 		bOk &= TestTrue(TEXT("Stopped wind valid"), Wind != nullptr);
 		if (Wind && Wind->RuntimeState.IsValid())
@@ -721,7 +721,7 @@ bool FKawaiiPhysicsTransientForceStopTest::RunTest(const FString& Parameters)
 			bOk &= TestTrue(TEXT("PendingGustStop set"), Wind->RuntimeState->PendingGustStop.IsSet());
 			if (Wind->RuntimeState->PendingGustStop.IsSet())
 			{
-				bOk &= TestFloatNear(*this, TEXT("PendingGustStop BlendOut"),
+				bOk &= TestTransientForceFloatNear(*this, TEXT("PendingGustStop BlendOut"),
 				                      Wind->RuntimeState->PendingGustStop.GetValue(), 0.5f);
 			}
 		}
@@ -729,7 +729,7 @@ bool FKawaiiPhysicsTransientForceStopTest::RunTest(const FString& Parameters)
 		Node.RequestStopTransientExternalForce(999, 0.1f);
 		Node.ConsumeAndSweepTransientExternalForces(0.0f);
 		bOk &= TestEqual(TEXT("No-op Items.Num"), Node.TransientForceStore.Items.Num(), 2);
-		bOk &= TestFloatNear(*this, TEXT("No-op lifetime"),
+		bOk &= TestTransientForceFloatNear(*this, TEXT("No-op lifetime"),
 		                      Node.TransientForceStore.Items[1].RemainingLifetime, 2.0f);
 	}
 
@@ -742,7 +742,7 @@ bool FKawaiiPhysicsTransientForceStopTest::RunTest(const FString& Parameters)
 		Node.ConsumeAndSweepTransientExternalForces(0.0f);
 
 		bOk &= TestEqual(TEXT("Generic Items.Num"), Node.TransientForceStore.Items.Num(), 1);
-		bOk &= TestFloatNear(*this, TEXT("Generic lifetime"),
+		bOk &= TestTransientForceFloatNear(*this, TEXT("Generic lifetime"),
 		                      Node.TransientForceStore.Items[0].RemainingLifetime, 0.4f);
 	}
 
@@ -753,7 +753,7 @@ bool FKawaiiPhysicsTransientForceStopTest::RunTest(const FString& Parameters)
 		Node.ConsumeAndSweepTransientExternalForces(0.0f);
 
 		bOk &= TestEqual(TEXT("StartStop Items.Num"), Node.TransientForceStore.Items.Num(), 1);
-		bOk &= TestFloatNear(*this, TEXT("StartStop lifetime"),
+		bOk &= TestTransientForceFloatNear(*this, TEXT("StartStop lifetime"),
 		                      Node.TransientForceStore.Items[0].RemainingLifetime, 0.5f);
 		FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = GetTransientWind(Node);
 		bOk &= TestTrue(TEXT("StartStop wind valid"), Wind != nullptr);
@@ -779,12 +779,12 @@ bool FKawaiiPhysicsTransientForceStopTest::RunTest(const FString& Parameters)
 		FAnimNode_KawaiiPhysics Node;
 		Node.RequestTransientGust(4.0f, 0.2f, 0.6f, FVector::ForwardVector, INDEX_NONE, 0.0f, 606);
 		Node.ConsumeAndSweepTransientExternalForces(0.0f);
-		bOk &= TestFloatNear(*this, TEXT("Extend initial lifetime"),
+		bOk &= TestTransientForceFloatNear(*this, TEXT("Extend initial lifetime"),
 		                      Node.TransientForceStore.Items[0].RemainingLifetime, 1.0f);
 
 		// 自然終了間際まで経過させ、残寿命をこれから要求するBlendOutTimeより短くしておく
 		Node.ConsumeAndSweepTransientExternalForces(0.85f);
-		bOk &= TestFloatNear(*this, TEXT("Extend near-expiry lifetime"),
+		bOk &= TestTransientForceFloatNear(*this, TEXT("Extend near-expiry lifetime"),
 		                      Node.TransientForceStore.Items[0].RemainingLifetime, 0.15f);
 
 		Node.RequestStopTransientExternalForce(606, 2.0f);
@@ -794,7 +794,7 @@ bool FKawaiiPhysicsTransientForceStopTest::RunTest(const FString& Parameters)
 		if (Node.TransientForceStore.Items.IsValidIndex(0))
 		{
 			// 2.0 (BlendOutTime) / 1.0 (TimeScale) + 0.2 (margin) = 2.2 まで延長されるはず
-			bOk &= TestFloatNear(*this, TEXT("Extended lifetime covers new fade"),
+			bOk &= TestTransientForceFloatNear(*this, TEXT("Extended lifetime covers new fade"),
 			                      Node.TransientForceStore.Items[0].RemainingLifetime, 2.2f);
 		}
 	}
@@ -814,7 +814,7 @@ bool FKawaiiPhysicsTransientForceStopCoalesceTest::RunTest(const FString& Parame
 	Node.RequestStopTransientExternalForce(777, 0.3f);
 
 	bool bOk = TestEqual(TEXT("Coalesced PendingStops.Num"), GetPendingStopCount(Node), 1);
-	bOk &= TestFloatNear(*this, TEXT("Coalesced BlendOutTime"), GetPendingStopBlendOutTime(Node, 0), 0.3f);
+	bOk &= TestTransientForceFloatNear(*this, TEXT("Coalesced BlendOutTime"), GetPendingStopBlendOutTime(Node, 0), 0.3f);
 
 	for (int32 Index = 0; Index < 12; ++Index)
 	{
@@ -889,7 +889,7 @@ bool FKawaiiPhysicsTransientForceSurviveReflectionCopyTest::RunTest(const FStrin
 	bOk &= TestTrue(TEXT("TransientForceStore is not reflected"),
 	                FindFProperty<FProperty>(FAnimNode_KawaiiPhysics::StaticStruct(), TEXT("TransientForceStore")) == nullptr);
 
-	ApplyDefaultPresetStyleCopy(A);
+	ApplyDefaultPresetStyleForTransientForce(A);
 
 	bOk &= TestEqual(TEXT("Items survive preset-style copy"), A.TransientForceStore.Items.Num(), 1);
 	bOk &= TestEqual(TEXT("Pending survives preset-style copy"), GetPendingGustCount(A), 1);
@@ -909,43 +909,43 @@ bool FKawaiiPhysicsTransientForceResolveWindBlowEnvelopeTest::RunTest(const FStr
 	{
 		const KawaiiPhysics::FWindBlowEnvelope Envelope =
 			KawaiiPhysics::ResolveWindBlowEnvelope(3.0f, 0.5f, 1.0f);
-		bOk &= TestFloatNear(*this, TEXT("Normal RiseTime"), Envelope.RiseTime, 0.5f);
-		bOk &= TestFloatNear(*this, TEXT("Normal HoldTime"), Envelope.HoldTime, 1.5f);
-		bOk &= TestFloatNear(*this, TEXT("Normal DecayTime"), Envelope.DecayTime, 1.0f);
+		bOk &= TestTransientForceFloatNear(*this, TEXT("Normal RiseTime"), Envelope.RiseTime, 0.5f);
+		bOk &= TestTransientForceFloatNear(*this, TEXT("Normal HoldTime"), Envelope.HoldTime, 1.5f);
+		bOk &= TestTransientForceFloatNear(*this, TEXT("Normal DecayTime"), Envelope.DecayTime, 1.0f);
 	}
 
 	{
 		const KawaiiPhysics::FWindBlowEnvelope Envelope =
 			KawaiiPhysics::ResolveWindBlowEnvelope(1.0f, 1.0f, 1.0f);
-		bOk &= TestFloatNear(*this, TEXT("Compressed RiseTime"), Envelope.RiseTime, 0.5f);
-		bOk &= TestFloatNear(*this, TEXT("Compressed HoldTime"), Envelope.HoldTime, 0.0f);
-		bOk &= TestFloatNear(*this, TEXT("Compressed DecayTime"), Envelope.DecayTime, 0.5f);
-		bOk &= TestFloatNear(*this, TEXT("Compressed Total"),
+		bOk &= TestTransientForceFloatNear(*this, TEXT("Compressed RiseTime"), Envelope.RiseTime, 0.5f);
+		bOk &= TestTransientForceFloatNear(*this, TEXT("Compressed HoldTime"), Envelope.HoldTime, 0.0f);
+		bOk &= TestTransientForceFloatNear(*this, TEXT("Compressed DecayTime"), Envelope.DecayTime, 0.5f);
+		bOk &= TestTransientForceFloatNear(*this, TEXT("Compressed Total"),
 		                      Envelope.RiseTime + Envelope.HoldTime + Envelope.DecayTime, 1.0f);
 	}
 
 	{
 		const KawaiiPhysics::FWindBlowEnvelope Envelope =
 			KawaiiPhysics::ResolveWindBlowEnvelope(0.0f, 1.0f, 1.0f);
-		bOk &= TestFloatNear(*this, TEXT("Zero Duration RiseTime"), Envelope.RiseTime, 0.0f);
-		bOk &= TestFloatNear(*this, TEXT("Zero Duration HoldTime"), Envelope.HoldTime, 0.0f);
-		bOk &= TestFloatNear(*this, TEXT("Zero Duration DecayTime"), Envelope.DecayTime, 0.0f);
+		bOk &= TestTransientForceFloatNear(*this, TEXT("Zero Duration RiseTime"), Envelope.RiseTime, 0.0f);
+		bOk &= TestTransientForceFloatNear(*this, TEXT("Zero Duration HoldTime"), Envelope.HoldTime, 0.0f);
+		bOk &= TestTransientForceFloatNear(*this, TEXT("Zero Duration DecayTime"), Envelope.DecayTime, 0.0f);
 	}
 
 	{
 		const KawaiiPhysics::FWindBlowEnvelope Envelope =
 			KawaiiPhysics::ResolveWindBlowEnvelope(2.0f, -1.0f, -1.0f);
-		bOk &= TestFloatNear(*this, TEXT("Negative RiseTime"), Envelope.RiseTime, 0.0f);
-		bOk &= TestFloatNear(*this, TEXT("Negative HoldTime"), Envelope.HoldTime, 2.0f);
-		bOk &= TestFloatNear(*this, TEXT("Negative DecayTime"), Envelope.DecayTime, 0.0f);
+		bOk &= TestTransientForceFloatNear(*this, TEXT("Negative RiseTime"), Envelope.RiseTime, 0.0f);
+		bOk &= TestTransientForceFloatNear(*this, TEXT("Negative HoldTime"), Envelope.HoldTime, 2.0f);
+		bOk &= TestTransientForceFloatNear(*this, TEXT("Negative DecayTime"), Envelope.DecayTime, 0.0f);
 	}
 
 	{
 		const KawaiiPhysics::FWindBlowEnvelope Envelope =
 			KawaiiPhysics::ResolveWindBlowEnvelope(1.0f, 0.25f, 0.75f);
-		bOk &= TestFloatNear(*this, TEXT("Exact RiseTime"), Envelope.RiseTime, 0.25f);
-		bOk &= TestFloatNear(*this, TEXT("Exact HoldTime"), Envelope.HoldTime, 0.0f);
-		bOk &= TestFloatNear(*this, TEXT("Exact DecayTime"), Envelope.DecayTime, 0.75f);
+		bOk &= TestTransientForceFloatNear(*this, TEXT("Exact RiseTime"), Envelope.RiseTime, 0.25f);
+		bOk &= TestTransientForceFloatNear(*this, TEXT("Exact HoldTime"), Envelope.HoldTime, 0.0f);
+		bOk &= TestTransientForceFloatNear(*this, TEXT("Exact DecayTime"), Envelope.DecayTime, 0.75f);
 	}
 
 	return bOk;

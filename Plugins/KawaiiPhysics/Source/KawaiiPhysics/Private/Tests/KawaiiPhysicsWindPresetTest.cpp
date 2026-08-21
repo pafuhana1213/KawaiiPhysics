@@ -99,7 +99,7 @@ const FWindPresetParamMapping GWindPresetParamMappings[] = {
 	}
 };
 
-bool TestFloatNear(FAutomationTestBase& Test, const FString& Name, const float Actual, const float Expected,
+bool TestWindPresetFloatNear(FAutomationTestBase& Test, const FString& Name, const float Actual, const float Expected,
                    const float Tol = GWindPresetTol)
 {
 	return Test.TestTrue(FString::Printf(TEXT("%s: got %.9f expected %.9f"), *Name, Actual, Expected),
@@ -109,8 +109,8 @@ bool TestFloatNear(FAutomationTestBase& Test, const FString& Name, const float A
 bool TestIntervalNear(FAutomationTestBase& Test, const FString& Name, const FFloatInterval& Actual, const FFloatInterval& Expected)
 {
 	bool bOk = true;
-	bOk &= TestFloatNear(Test, FString::Printf(TEXT("%s Min"), *Name), Actual.Min, Expected.Min);
-	bOk &= TestFloatNear(Test, FString::Printf(TEXT("%s Max"), *Name), Actual.Max, Expected.Max);
+	bOk &= TestWindPresetFloatNear(Test, FString::Printf(TEXT("%s Min"), *Name), Actual.Min, Expected.Min);
+	bOk &= TestWindPresetFloatNear(Test, FString::Printf(TEXT("%s Max"), *Name), Actual.Max, Expected.Max);
 	return bOk;
 }
 
@@ -154,7 +154,7 @@ bool TestDynamicParamsMatchPreset(FAutomationTestBase& Test, const FString& Pref
 	{
 		bOk &= Test.TestTrue(FString::Printf(TEXT("%s %s override"), *Prefix, Mapping.Name),
 		                     Params.*(Mapping.DynamicOverride));
-		bOk &= TestFloatNear(Test,
+		bOk &= TestWindPresetFloatNear(Test,
 		                      FString::Printf(TEXT("%s %s value"), *Prefix, Mapping.Name),
 		                      Params.*(Mapping.DynamicValue),
 		                      Preset.*(Mapping.PresetValue));
@@ -177,7 +177,7 @@ bool TestPresetValues(FAutomationTestBase& Test, const FString& Prefix,
 	                     Actual.PresetTag.MatchesTagExact(Expected.PresetTag));
 	for (const FWindPresetParamMapping& Mapping : GWindPresetParamMappings)
 	{
-		bOk &= TestFloatNear(Test,
+		bOk &= TestWindPresetFloatNear(Test,
 		                      FString::Printf(TEXT("%s %s"), *Prefix, Mapping.Name),
 		                      Actual.*(Mapping.PresetValue),
 		                      Expected.*(Mapping.PresetValue));
@@ -196,7 +196,7 @@ bool TestWindValuesMatchPreset(FAutomationTestBase& Test, const FString& Prefix,
 	bool bOk = true;
 	for (const FWindPresetParamMapping& Mapping : GWindPresetParamMappings)
 	{
-		bOk &= TestFloatNear(Test,
+		bOk &= TestWindPresetFloatNear(Test,
 		                      FString::Printf(TEXT("%s %s"), *Prefix, Mapping.Name),
 		                      Wind.*(Mapping.WindValue),
 		                      Preset.*(Mapping.PresetValue));
@@ -296,11 +296,11 @@ bool FKawaiiPhysicsWindPresetApplyRoundTripTest::RunTest(const FString& Paramete
 	Wind.ApplyDynamicParams(Preset.ToDynamicParams());
 
 	bOk &= TestWindValuesMatchPreset(*this, TEXT("Strong applied"), Wind, Preset);
-	bOk &= TestFloatNear(*this, TEXT("TimeScale unchanged"), Wind.TimeScale, BeforeTimeScale);
+	bOk &= TestWindPresetFloatNear(*this, TEXT("TimeScale unchanged"), Wind.TimeScale, BeforeTimeScale);
 	bOk &= TestTrue(TEXT("WindDirection unchanged"), Wind.WindDirection.Equals(BeforeWindDirection));
-	bOk &= TestFloatNear(*this, TEXT("RipplePhaseOffset unchanged"), Wind.RipplePhaseOffset, BeforeRipplePhaseOffset);
-	bOk &= TestFloatNear(*this, TEXT("StrengthCyclePhaseOffset unchanged"), Wind.StrengthCyclePhaseOffset, BeforeStrengthCyclePhaseOffset);
-	bOk &= TestFloatNear(*this, TEXT("WindDirectionNoisePeriod unchanged"),
+	bOk &= TestWindPresetFloatNear(*this, TEXT("RipplePhaseOffset unchanged"), Wind.RipplePhaseOffset, BeforeRipplePhaseOffset);
+	bOk &= TestWindPresetFloatNear(*this, TEXT("StrengthCyclePhaseOffset unchanged"), Wind.StrengthCyclePhaseOffset, BeforeStrengthCyclePhaseOffset);
+	bOk &= TestWindPresetFloatNear(*this, TEXT("WindDirectionNoisePeriod unchanged"),
 	                     Wind.WindDirectionNoisePeriod,
 	                     BeforeWindDirectionNoisePeriod);
 	return bOk;
@@ -365,12 +365,12 @@ bool FKawaiiPhysicsWindPresetRequestDynamicParamsStateTest::RunTest(const FStrin
 
 	bOk &= TestWindValuesMatchPreset(*this, TEXT("Requested preset applied"), Wind, Preset);
 	bOk &= TestTrue(TEXT("bIsEnabled applied"), Wind.bIsEnabled);
-	bOk &= TestFloatNear(*this, TEXT("TimeScale applied"), Wind.TimeScale, 1.0f);
-	bOk &= TestFloatNear(*this, TEXT("Time preserved"), Wind.RuntimeState->Time, 5.0f);
-	bOk &= TestFloatNear(*this, TEXT("ActiveGust StartTime preserved"), Wind.RuntimeState->ActiveGust.StartTime, 4.5f);
-	bOk &= TestFloatNear(*this, TEXT("ActiveGust Strength preserved"), Wind.RuntimeState->ActiveGust.Strength, 7.0f);
-	bOk &= TestFloatNear(*this, TEXT("ActiveGust RiseTime preserved"), Wind.RuntimeState->ActiveGust.RiseTime, 0.2f);
-	bOk &= TestFloatNear(*this, TEXT("ActiveGust DecayTime preserved"), Wind.RuntimeState->ActiveGust.DecayTime, 0.7f);
+	bOk &= TestWindPresetFloatNear(*this, TEXT("TimeScale applied"), Wind.TimeScale, 1.0f);
+	bOk &= TestWindPresetFloatNear(*this, TEXT("Time preserved"), Wind.RuntimeState->Time, 5.0f);
+	bOk &= TestWindPresetFloatNear(*this, TEXT("ActiveGust StartTime preserved"), Wind.RuntimeState->ActiveGust.StartTime, 4.5f);
+	bOk &= TestWindPresetFloatNear(*this, TEXT("ActiveGust Strength preserved"), Wind.RuntimeState->ActiveGust.Strength, 7.0f);
+	bOk &= TestWindPresetFloatNear(*this, TEXT("ActiveGust RiseTime preserved"), Wind.RuntimeState->ActiveGust.RiseTime, 0.2f);
+	bOk &= TestWindPresetFloatNear(*this, TEXT("ActiveGust DecayTime preserved"), Wind.RuntimeState->ActiveGust.DecayTime, 0.7f);
 	bOk &= TestTrue(TEXT("ActiveGust active preserved"), Wind.RuntimeState->ActiveGust.bIsActive);
 	bOk &= TestFalse(TEXT("PendingParams reset"), Wind.RuntimeState->PendingParams.IsSet());
 
@@ -385,7 +385,7 @@ bool FKawaiiPhysicsWindPresetRequestDynamicParamsStateTest::RunTest(const FStrin
 	LazyWind.ConsumePendingRequests();
 	bOk &= TestWindValuesMatchPreset(*this, TEXT("Lazy requested preset applied"), LazyWind, Preset);
 	bOk &= TestTrue(TEXT("Lazy bIsEnabled applied"), LazyWind.bIsEnabled);
-	bOk &= TestFloatNear(*this, TEXT("Lazy TimeScale applied"), LazyWind.TimeScale, 1.0f);
+	bOk &= TestWindPresetFloatNear(*this, TEXT("Lazy TimeScale applied"), LazyWind.TimeScale, 1.0f);
 	bOk &= TestFalse(TEXT("Lazy PendingParams reset"), LazyWind.RuntimeState->PendingParams.IsSet());
 	return bOk;
 }
@@ -406,11 +406,11 @@ bool FKawaiiPhysicsWindPresetRequestGustTest::RunTest(const FString& Parameters)
 	bOk &= TestTrue(TEXT("PendingGust queued"), Wind.RuntimeState->PendingGust.IsSet());
 	bOk &= TestFalse(TEXT("PendingParams unchanged before consume"), Wind.RuntimeState->PendingParams.IsSet());
 	Wind.ConsumePendingRequests();
-	bOk &= TestFloatNear(*this, TEXT("Time unchanged"), Wind.RuntimeState->Time, 3.25f);
-	bOk &= TestFloatNear(*this, TEXT("ActiveGust StartTime"), Wind.RuntimeState->ActiveGust.StartTime, 3.25f);
-	bOk &= TestFloatNear(*this, TEXT("ActiveGust Strength"), Wind.RuntimeState->ActiveGust.Strength, 6.0f);
-	bOk &= TestFloatNear(*this, TEXT("ActiveGust RiseTime"), Wind.RuntimeState->ActiveGust.RiseTime, 0.1f);
-	bOk &= TestFloatNear(*this, TEXT("ActiveGust DecayTime"), Wind.RuntimeState->ActiveGust.DecayTime, 0.5f);
+	bOk &= TestWindPresetFloatNear(*this, TEXT("Time unchanged"), Wind.RuntimeState->Time, 3.25f);
+	bOk &= TestWindPresetFloatNear(*this, TEXT("ActiveGust StartTime"), Wind.RuntimeState->ActiveGust.StartTime, 3.25f);
+	bOk &= TestWindPresetFloatNear(*this, TEXT("ActiveGust Strength"), Wind.RuntimeState->ActiveGust.Strength, 6.0f);
+	bOk &= TestWindPresetFloatNear(*this, TEXT("ActiveGust RiseTime"), Wind.RuntimeState->ActiveGust.RiseTime, 0.1f);
+	bOk &= TestWindPresetFloatNear(*this, TEXT("ActiveGust DecayTime"), Wind.RuntimeState->ActiveGust.DecayTime, 0.5f);
 	bOk &= TestTrue(TEXT("ActiveGust active"), Wind.RuntimeState->ActiveGust.bIsActive);
 	bOk &= TestFalse(TEXT("PendingGust reset"), Wind.RuntimeState->PendingGust.IsSet());
 	bOk &= TestFalse(TEXT("PendingParams unchanged after consume"), Wind.RuntimeState->PendingParams.IsSet());
@@ -440,7 +440,7 @@ bool FKawaiiPhysicsWindPresetFindPresetByTagTest::RunTest(const FString& Paramet
 	{
 		bOk &= TestTrue(TEXT("Strong preset tag matches"),
 		                StrongPreset->PresetTag.MatchesTagExact(TAG_KawaiiPhysics_WindPreset_Strong));
-		bOk &= TestFloatNear(*this, TEXT("Strong preset value"), StrongPreset->ConstantForce, 8.0f);
+		bOk &= TestWindPresetFloatNear(*this, TEXT("Strong preset value"), StrongPreset->ConstantForce, 8.0f);
 	}
 
 	bOk &= TestTrue(TEXT("Empty tag returns null"), DataAsset->FindPresetByTag(FGameplayTag()) == nullptr);
@@ -456,7 +456,7 @@ bool FKawaiiPhysicsWindPresetFindPresetByTagTest::RunTest(const FString& Paramet
 	bOk &= TestTrue(TEXT("Duplicate tag returns first preset"), FirstStrongPreset == &DataAsset->Presets[1]);
 	if (FirstStrongPreset)
 	{
-		bOk &= TestFloatNear(*this, TEXT("Duplicate tag keeps first value"), FirstStrongPreset->ConstantForce, 8.0f);
+		bOk &= TestWindPresetFloatNear(*this, TEXT("Duplicate tag keeps first value"), FirstStrongPreset->ConstantForce, 8.0f);
 	}
 
 	return bOk;
