@@ -674,6 +674,36 @@ void FAnimNode_KawaiiPhysics::AdjustBySphereCollision(FKawaiiPhysicsModifyBone& 
 	}
 }
 
+void FAnimNode_KawaiiPhysics::PrepareCollisionShapeCaches()
+{
+	// キャッシュは operator= に意図的に載せていない（フィールド追加漏れで静かに陳腐化するため）。
+	// またコピー構築（Shared 経路の auto Converted = Limit 等）は古いキャッシュ値ごと運ぶため、
+	// AdjustBy* の前に必ず本関数で再計算することが正しさの前提。
+	auto UpdateEnabledCaches = [](auto& Limits)
+	{
+		for (auto& Limit : Limits)
+		{
+			if (Limit.bEnable)
+			{
+				Limit.UpdateRuntimeCache();
+			}
+		}
+	};
+
+	UpdateEnabledCaches(CapsuleLimits);
+	UpdateEnabledCaches(CapsuleLimitsData);
+	UpdateEnabledCaches(SharedCapsuleLimits);
+	UpdateEnabledCaches(TaperedCapsuleLimits);
+	UpdateEnabledCaches(TaperedCapsuleLimitsData);
+	UpdateEnabledCaches(SharedTaperedCapsuleLimits);
+	UpdateEnabledCaches(BoxLimits);
+	UpdateEnabledCaches(BoxLimitsData);
+	UpdateEnabledCaches(SharedBoxLimits);
+	UpdateEnabledCaches(PlanarLimits);
+	UpdateEnabledCaches(PlanarLimitsData);
+	UpdateEnabledCaches(SharedPlanarLimits);
+}
+
 void FAnimNode_KawaiiPhysics::AdjustByCapsuleCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FCapsuleLimit>& Limits)
 {
 	for (auto& Capsule : Limits)
@@ -683,8 +713,8 @@ void FAnimNode_KawaiiPhysics::AdjustByCapsuleCollision(FKawaiiPhysicsModifyBone&
 			continue;
 		}
 
-		FVector StartPoint = Capsule.Location + Capsule.Rotation.GetAxisZ() * Capsule.Length * 0.5f;
-		FVector EndPoint = Capsule.Location + Capsule.Rotation.GetAxisZ() * Capsule.Length * -0.5f;
+		FVector StartPoint = Capsule.CachedStartPoint;
+		FVector EndPoint = Capsule.CachedEndPoint;
 		const float DistSquared = FMath::PointDistToSegmentSquared(Bone.Location, StartPoint, EndPoint);
 
 		const float LimitDistance = Bone.PhysicsSettings.Radius + Capsule.Radius;
@@ -695,7 +725,7 @@ void FAnimNode_KawaiiPhysics::AdjustByCapsuleCollision(FKawaiiPhysicsModifyBone&
 			if (PushDir.IsNearlyZero())
 			{
 				// ボーンがカプセル軸上に乗ると押し出し方向が消えるため軸直交方向を代替に使う
-				PushDir = Capsule.Rotation.GetAxisX();
+				PushDir = Capsule.CachedFallbackPushDir;
 			}
 			Bone.Location = ClosestPoint + PushDir * LimitDistance;
 		}
@@ -718,11 +748,9 @@ void FAnimNode_KawaiiPhysics::AdjustByTaperedCapsuleCollision(FKawaiiPhysicsModi
 
 		if (TaperedCapsule.Length > KINDA_SMALL_NUMBER)
 		{
-			const FVector AxisZ = TaperedCapsule.Rotation.GetAxisZ();
-			const FVector StartPoint = TaperedCapsule.Location + AxisZ * TaperedCapsule.Length * 0.5f;
-			const FVector EndPoint = TaperedCapsule.Location - AxisZ * TaperedCapsule.Length * 0.5f;
-			const FVector Segment = EndPoint - StartPoint;
-			const float T = FMath::Clamp(FVector::DotProduct(Bone.Location - StartPoint, Segment) / Segment.SizeSquared(),
+			const FVector StartPoint = TaperedCapsule.CachedStartPoint;
+			const FVector Segment = TaperedCapsule.CachedSegment;
+			const float T = FMath::Clamp(FVector::DotProduct(Bone.Location - StartPoint, Segment) / TaperedCapsule.CachedSegmentSizeSq,
 			                             0.0f, 1.0f);
 			ClosestPoint = StartPoint + Segment * T;
 			// Chaos PhiWithNormal 準拠の近似（厳密な2球凸包SDFではない）
@@ -737,7 +765,7 @@ void FAnimNode_KawaiiPhysics::AdjustByTaperedCapsuleCollision(FKawaiiPhysicsModi
 			if (PushDir.IsNearlyZero())
 			{
 				// ボーンがカプセル軸上に乗ると押し出し方向が消えるため軸直交方向を代替に使う
-				PushDir = TaperedCapsule.Rotation.GetAxisX();
+				PushDir = TaperedCapsule.CachedFallbackPushDir;
 			}
 			Bone.Location = ClosestPoint + PushDir * LimitDistance;
 		}
@@ -753,11 +781,11 @@ void FAnimNode_KawaiiPhysics::AdjustByBoxCollision(FKawaiiPhysicsModifyBone& Bon
 			continue;
 		}
 
-		FTransform BoxTransform(Box.Rotation, Box.Location);
+		FTransform BoxTransform = Box.CachedBoxTransform;
 		float SphereRadius = Bone.PhysicsSettings.Radius;
 
 		FVector LocalSphereCenter = BoxTransform.InverseTransformPosition(Bone.Location);
-		FBox LocalBox(-Box.Extent, Box.Extent);
+		FBox LocalBox = Box.CachedLocalBox;
 		if (FMath::SphereAABBIntersection(FSphere(LocalSphereCenter, SphereRadius), LocalBox))
 		{
 			// Sphere の中心に最も近い Box 上の点を計算
@@ -821,7 +849,7 @@ void FAnimNode_KawaiiPhysics::AdjustByPlanerCollision(FKawaiiPhysicsModifyBone& 
 		if (DistSquared < Bone.PhysicsSettings.Radius * Bone.PhysicsSettings.Radius ||
 			FMath::SegmentPlaneIntersection(Bone.Location, Bone.PrevLocation, Planar.Plane, IntersectionPoint))
 		{
-			Bone.Location = PointOnPlane + Planar.Rotation.GetUpVector() * Bone.PhysicsSettings.Radius;
+			Bone.Location = PointOnPlane + Planar.CachedNormal * Bone.PhysicsSettings.Radius;
 		}
 	}
 }

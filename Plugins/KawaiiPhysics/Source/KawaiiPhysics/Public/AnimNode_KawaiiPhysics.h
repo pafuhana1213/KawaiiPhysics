@@ -1430,6 +1430,9 @@ protected:
 	 */
 	void AdjustBySphereCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FSphericalLimit>& Limits);
 
+	// コリジョン形状の派生値キャッシュを再計算 / Recompute derived-value caches of collision shapes
+	void PrepareCollisionShapeCaches();
+
 	/**
 	 * Adjusts the bone position based on capsule collision limits.
 	 *
