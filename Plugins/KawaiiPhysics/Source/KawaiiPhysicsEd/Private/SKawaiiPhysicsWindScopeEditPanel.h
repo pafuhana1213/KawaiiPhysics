@@ -90,6 +90,9 @@ private:
 	int32 CountHiddenAdvancedParams() const;
 	FLinearColor ResolveSeriesDisplayColor(TOptional<EKawaiiPhysicsWindScopeComponent> LinkedSeries) const;
 
+	// ParameterMode コンボの内部選択状態をノードの実値へ合わせる / Syncs the ParameterMode combo's internal selection with the node value.
+	void SyncParameterModeComboSelection();
+
 	void LoadCollapsedGroupsFromConfig();
 	void SaveCollapsedGroupsToConfig() const;
 	void HandleGroupExpansionChanged(bool bExpanded, FName GroupId);
@@ -112,5 +115,8 @@ private:
 	TSet<FName> CollapsedGroups;
 	TMap<FName, TArray<FName>> GroupPropertyNames;
 	TArray<TSharedPtr<SExpandableArea>> GroupAreas;
+	TSharedPtr<SComboBox<TSharedPtr<EKawaiiProceduralWindParameterMode>>> ParameterModeComboBox;
 	bool bApplyingGroupExpansionBatch = false;
+	// SetSelectedItem が誘発する OnSelectionChanged を自前ハンドラで無視するためのガード / Guards against the OnSelectionChanged triggered by SetSelectedItem.
+	bool bSyncingParameterModeCombo = false;
 };

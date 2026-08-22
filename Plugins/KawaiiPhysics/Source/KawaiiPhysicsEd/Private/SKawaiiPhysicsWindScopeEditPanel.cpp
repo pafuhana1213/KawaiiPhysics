@@ -703,7 +703,7 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeParamRow(const FKawaii
 	else if (KawaiiPhysicsWindScopeEditPanelPrivate::IsEditPanelParameterModeProperty(Property))
 	{
 		ValueWidget =
-			SNew(SComboBox<TSharedPtr<EKawaiiProceduralWindParameterMode>>)
+			SAssignNew(ParameterModeComboBox, SComboBox<TSharedPtr<EKawaiiProceduralWindParameterMode>>)
 			.OptionsSource(&KawaiiPhysicsWindScopeEditPanelPrivate::GetParameterModeItems())
 			.InitiallySelectedItem(KawaiiPhysicsWindScopeEditPanelPrivate::GetParameterModeItems()[0])
 			.OnGenerateWidget_Lambda([](TSharedPtr<EKawaiiProceduralWindParameterMode> Item)
@@ -712,9 +712,20 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeParamRow(const FKawaii
 					.Text(Item.IsValid() ? KawaiiPhysicsWindScopeEditPanelPrivate::FormatParameterMode(*Item) : FText::GetEmpty())
 					.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9));
 			})
+			// SComboBox は内部 SelectedItem と異なる項目を選んだときしか OnSelectionChanged を発火しない。
+			// 内部状態はここでしか更新されないため、開く直前にノードの実値へ合わせておかないと
+			// 「1回目の選択が無視される」「ドロップダウンのハイライトが実値とずれる」が起きる
+			.OnComboBoxOpening_Lambda([this]()
+			{
+				SyncParameterModeComboSelection();
+			})
 			.OnSelectionChanged_Lambda([this, PropertyName = ParamDef.PropertyName](TSharedPtr<EKawaiiProceduralWindParameterMode> Item, ESelectInfo::Type SelectInfo)
 			{
 				(void)SelectInfo;
+				if (bSyncingParameterModeCombo)
+				{
+					return;
+				}
 				if (Item.IsValid() && OnParamEdit.IsBound())
 				{
 					OnParamEdit.Execute(PropertyName, static_cast<double>(static_cast<uint8>(*Item)), INDEX_NONE, EKawaiiWindEditPhase::Committed);
@@ -977,6 +988,37 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeResetButton(FName Prop
 			SNew(SImage)
 			.Image(FAppStyle::Get().GetBrush(TEXT("PropertyWindow.DiffersFromDefault")))
 		];
+}
+
+// SetSelectedItem は SListView 経由で OnSelectionChanged を誘発するため、
+// ガードを立てて自前ハンドラ（＝不要な編集イベント）を抑止してから同期する
+void SKawaiiPhysicsWindScopeEditPanel::SyncParameterModeComboSelection()
+{
+	if (!ParameterModeComboBox.IsValid())
+	{
+		return;
+	}
+
+	const FKawaiiWindScopeEditValues* Values = EditValues.Get();
+	if (!Values || !Values->bValid)
+	{
+		return;
+	}
+
+	const TArray<TSharedPtr<EKawaiiProceduralWindParameterMode>>& Items =
+		KawaiiPhysicsWindScopeEditPanelPrivate::GetParameterModeItems();
+	const TSharedPtr<EKawaiiProceduralWindParameterMode>* MatchedItem = Items.FindByPredicate(
+		[Mode = Values->ParameterMode](const TSharedPtr<EKawaiiProceduralWindParameterMode>& Item)
+		{
+			return Item.IsValid() && *Item == Mode;
+		});
+	if (!MatchedItem || *MatchedItem == ParameterModeComboBox->GetSelectedItem())
+	{
+		return;
+	}
+
+	TGuardValue<bool> SyncGuard(bSyncingParameterModeCombo, true);
+	ParameterModeComboBox->SetSelectedItem(*MatchedItem);
 }
 
 void SKawaiiPhysicsWindScopeEditPanel::LoadCollapsedGroupsFromConfig()
