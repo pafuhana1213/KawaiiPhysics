@@ -303,18 +303,34 @@ struct FKawaiiPhysicsTestAccessor
 	}
 	void CallCapsuleCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FCapsuleLimit>& Limits)
 	{
+		for (FCapsuleLimit& Limit : Limits)
+		{
+			Limit.UpdateRuntimeCache();
+		}
 		Node.AdjustByCapsuleCollision(Bone, Limits);
 	}
 	void CallTaperedCapsuleCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FTaperedCapsuleLimit>& Limits)
 	{
+		for (FTaperedCapsuleLimit& Limit : Limits)
+		{
+			Limit.UpdateRuntimeCache();
+		}
 		Node.AdjustByTaperedCapsuleCollision(Bone, Limits);
 	}
 	void CallBoxCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FBoxLimit>& Limits)
 	{
+		for (FBoxLimit& Limit : Limits)
+		{
+			Limit.UpdateRuntimeCache();
+		}
 		Node.AdjustByBoxCollision(Bone, Limits);
 	}
 	void CallPlanarCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FPlanarLimit>& Limits)
 	{
+		for (FPlanarLimit& Limit : Limits)
+		{
+			Limit.UpdateRuntimeCache();
+		}
 		Node.AdjustByPlanerCollision(Bone, Limits);
 	}
 	void CallAngleLimit(FKawaiiPhysicsModifyBone& Bone, const FKawaiiPhysicsModifyBone& ParentBone)
@@ -535,6 +551,9 @@ private:
 				Node.AdjustByBoneConstraints();
 			}
 		}
+
+		// 本番 SimulateOnce と同様、形状キャッシュはステップ毎に再計算
+		Node.PrepareCollisionShapeCaches();
 
 		// コリジョン（SimulateOnce 413-445、AnimNode 側 limits のみ）
 		for (FKawaiiPhysicsModifyBone& Bone : Node.ModifyBones)

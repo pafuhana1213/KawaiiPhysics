@@ -167,6 +167,18 @@ struct FCapsuleLimit : public FCollisionLimitBase
 	UPROPERTY(EditAnywhere, Category = "Capsule Limit", meta = (ClampMin = "0"))
 	float Length = 10.0f;
 
+	// 実行時キャッシュ（毎ステップ再計算、シリアライズ対象外） / Runtime cache (recomputed every step, not serialized)
+	FVector CachedStartPoint = FVector::ZeroVector;
+	FVector CachedEndPoint = FVector::ZeroVector;
+	FVector CachedFallbackPushDir = FVector::ZeroVector;
+
+	void UpdateRuntimeCache()
+	{
+		CachedStartPoint = Location + Rotation.GetAxisZ() * Length * 0.5f;
+		CachedEndPoint = Location + Rotation.GetAxisZ() * Length * -0.5f;
+		CachedFallbackPushDir = Rotation.GetAxisX();
+	}
+
 	/** Assignment operator */
 	FCapsuleLimit& operator=(const FCapsuleLimit& Other)
 	{
@@ -207,6 +219,23 @@ struct FTaperedCapsuleLimit : public FCollisionLimitBase
 	UPROPERTY(EditAnywhere, Category = "Tapered Capsule Limit", meta = (ClampMin = "0"))
 	float Length = 10.0f;
 
+	// 実行時キャッシュ（毎ステップ再計算、シリアライズ対象外） / Runtime cache (recomputed every step, not serialized)
+	FVector CachedStartPoint = FVector::ZeroVector;
+	FVector CachedEndPoint = FVector::ZeroVector;
+	FVector CachedSegment = FVector::ZeroVector;
+	FVector::FReal CachedSegmentSizeSq = 0.0;
+	FVector CachedFallbackPushDir = FVector::ZeroVector;
+
+	void UpdateRuntimeCache()
+	{
+		const FVector AxisZ = Rotation.GetAxisZ();
+		CachedStartPoint = Location + AxisZ * Length * 0.5f;
+		CachedEndPoint = Location - AxisZ * Length * 0.5f;
+		CachedSegment = CachedEndPoint - CachedStartPoint;
+		CachedSegmentSizeSq = CachedSegment.SizeSquared();
+		CachedFallbackPushDir = Rotation.GetAxisX();
+	}
+
 	/** Assignment operator */
 	FTaperedCapsuleLimit& operator=(const FTaperedCapsuleLimit& Other)
 	{
@@ -240,6 +269,17 @@ struct FBoxLimit : public FCollisionLimitBase
 	UPROPERTY(EditAnywhere, Category = "Box Limit")
 	FVector Extent = FVector(5.0f, 5.0f, 5.0f);
 
+	// 実行時キャッシュ（毎ステップ再計算、シリアライズ対象外） / Runtime cache (recomputed every step, not serialized)
+	FTransform CachedBoxTransform = FTransform::Identity;
+	// FBox は既定構築で Min/Max が未初期化のため ForceInit で明示ゼロ化 / FBox default construction leaves Min/Max uninitialized, so ForceInit explicitly zeroes it
+	FBox CachedLocalBox = FBox(ForceInit);
+
+	void UpdateRuntimeCache()
+	{
+		CachedBoxTransform = FTransform(Rotation, Location);
+		CachedLocalBox = FBox(-Extent, Extent);
+	}
+
 	/** Assignment operator */
 	FBoxLimit& operator=(const FBoxLimit& Other)
 	{
@@ -270,6 +310,14 @@ struct FPlanarLimit : public FCollisionLimitBase
 	/** The plane defining the planar limit */
 	UPROPERTY()
 	FPlane Plane = FPlane(0, 0, 0, 0);
+
+	// 実行時キャッシュ（毎ステップ再計算、シリアライズ対象外） / Runtime cache (recomputed every step, not serialized)
+	FVector CachedNormal = FVector::ZeroVector;
+
+	void UpdateRuntimeCache()
+	{
+		CachedNormal = Rotation.GetUpVector();
+	}
 
 	/** Assignment operator */
 	FPlanarLimit& operator=(const FPlanarLimit& Other)

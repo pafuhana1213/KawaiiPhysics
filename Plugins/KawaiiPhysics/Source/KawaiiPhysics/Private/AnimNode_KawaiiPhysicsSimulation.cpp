@@ -763,6 +763,10 @@ void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
 		}
 	}
 
+	// ExternalForce::PostApply が substep 毎にコリジョン limit を書き換え得るため、
+	// 形状派生値キャッシュは毎ステップ再計算する（コストは形状数オーダーで誤差級）
+	PrepareCollisionShapeCaches();
+
 	// Adjust by Bone Constraints Before Collision
 	if (BoneConstraintIterationCountBeforeCollision > 0)
 	{
