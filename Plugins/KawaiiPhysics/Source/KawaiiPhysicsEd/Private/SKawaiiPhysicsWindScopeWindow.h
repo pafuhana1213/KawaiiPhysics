@@ -225,6 +225,8 @@ private:
 	// Preview 計算用に ProceduralWind 設定値のコピーを取得する / Gets a ProceduralWind copy for Preview calculation.
 	bool TryGetPreviewForceCopy(struct FKawaiiPhysics_ExternalForce_ProceduralWind& OutForce) const;
 	void UpdateEditValuesFromWind(const FKawaiiPhysics_ExternalForce_ProceduralWind* Wind);
+	// ノードへ書いた直後に表示キャッシュを同期する / Syncs the display cache immediately after writing to the node.
+	void SyncEditValuesAfterWrite(const FKawaiiPhysics_ExternalForce_ProceduralWind* Wind);
 	void UpdateLiveEditValuesFromRuntime();
 	void LoadEditPanelConfig();
 	void SaveEditPanelConfig() const;

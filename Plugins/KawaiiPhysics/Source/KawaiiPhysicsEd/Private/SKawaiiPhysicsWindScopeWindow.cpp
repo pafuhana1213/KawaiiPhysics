@@ -2338,6 +2338,7 @@ FReply SKawaiiPhysicsWindScopeWindow::ApplyPreset(const FKawaiiProceduralWindPre
 	// シミュレーションリセット回避のため PostEditChangeProperty / NotifyGraphNodePropertyChanged は呼ばず、
 	// ライブ側には PendingParams 経由で同じ値を送る
 	const bool bAppliedLive = PushParamsToLiveRuntime(Params);
+	SyncEditValuesAfterWrite(Wind);
 
 	// 外力一覧を更新し、成功通知を表示
 	RefreshExternalForceItems();
@@ -2608,6 +2609,7 @@ FReply SKawaiiPhysicsWindScopeWindow::OnPasteWindParametersClicked()
 	KawaiiPhysicsWindScopeWindowPrivate::MarkWindScopeGraphNodeModified(GraphNode);
 	Args.ExternalForceIndex = ResolvedIndex;
 	const bool bAppliedLive = PushParamsToLiveRuntime(Wind->BuildDynamicParamsSnapshot());
+	SyncEditValuesAfterWrite(Wind);
 	RefreshExternalForceItems();
 	KawaiiPhysicsEdWindowUtils::ShowNotification(
 		bAppliedLive
@@ -2779,6 +2781,7 @@ bool SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit(
 		{
 			PushParamsToLiveRuntime(Params);
 		}
+		SyncEditValuesAfterWrite(Wind);
 		return true;
 	}
 
@@ -2796,6 +2799,7 @@ bool SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit(
 			}
 		}
 		bHasDragStartWind = false;
+		SyncEditValuesAfterWrite(Wind);
 		return true;
 	}
 
@@ -2812,6 +2816,7 @@ bool SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit(
 		KawaiiPhysicsEdWindowUtils::ShowNotification(
 			LOCTEXT("EditWindParamSetFailed", "Failed to update the wind parameter."),
 			SNotificationItem::CS_Fail);
+		SyncEditValuesAfterWrite(Wind);
 		return FailEdit();
 	}
 
@@ -2824,6 +2829,7 @@ bool SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit(
 	{
 		PushParamsToLiveRuntime(Params);
 	}
+	SyncEditValuesAfterWrite(Wind);
 	return true;
 }
 
@@ -2890,6 +2896,7 @@ void SKawaiiPhysicsWindScopeWindow::FinalizeAbandonedWindDrag()
 	{
 		PushParamsToLiveRuntime(Params);
 	}
+	SyncEditValuesAfterWrite(Wind);
 }
 
 bool SKawaiiPhysicsWindScopeWindow::ResetWindParamToDefault(FName PropertyName)
@@ -2929,6 +2936,7 @@ bool SKawaiiPhysicsWindScopeWindow::ResetWindParamToDefault(FName PropertyName)
 	{
 		PushParamsToLiveRuntime(Params);
 	}
+	SyncEditValuesAfterWrite(Wind);
 	return true;
 }
 
@@ -3170,6 +3178,17 @@ void SKawaiiPhysicsWindScopeWindow::UpdateEditValuesFromWind(
 	const FKawaiiPhysics_ExternalForce_ProceduralWind* Wind)
 {
 	KawaiiPhysicsWindScopeWindowPrivate::FillWindScopeEditValuesFromWind(Wind, CachedEditValues, true);
+}
+
+// ノード実体を書き換えた経路は必ずここを通す。編集パネルの SSpinBox は Value を CachedEditValues に
+// バインドしており、Slate のテキスト確定は OnTextCommitted の直後、同一コールスタック内で
+// バインド値を読み直す（FSlateEditableTextLayout::LoadText）。TickWindScope による次フレームの更新を
+// 待つと、そこで旧値が読まれて入力欄が巻き戻り、さらにフォーカスを外した際にその旧値が
+// ノードへ書き戻されてしまう
+void SKawaiiPhysicsWindScopeWindow::SyncEditValuesAfterWrite(
+	const FKawaiiPhysics_ExternalForce_ProceduralWind* Wind)
+{
+	UpdateEditValuesFromWind(Wind);
 }
 
 void SKawaiiPhysicsWindScopeWindow::UpdateLiveEditValuesFromRuntime()
