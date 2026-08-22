@@ -712,13 +712,6 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeParamRow(const FKawaii
 					.Text(Item.IsValid() ? KawaiiPhysicsWindScopeEditPanelPrivate::FormatParameterMode(*Item) : FText::GetEmpty())
 					.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9));
 			})
-			// SComboBox は内部 SelectedItem と異なる項目を選んだときしか OnSelectionChanged を発火しない。
-			// 内部状態はここでしか更新されないため、開く直前にノードの実値へ合わせておかないと
-			// 「1回目の選択が無視される」「ドロップダウンのハイライトが実値とずれる」が起きる
-			.OnComboBoxOpening_Lambda([this]()
-			{
-				SyncParameterModeComboSelection();
-			})
 			.OnSelectionChanged_Lambda([this, PropertyName = ParamDef.PropertyName](TSharedPtr<EKawaiiProceduralWindParameterMode> Item, ESelectInfo::Type SelectInfo)
 			{
 				(void)SelectInfo;
@@ -990,11 +983,26 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeResetButton(FName Prop
 		];
 }
 
-// SetSelectedItem は SListView 経由で OnSelectionChanged を誘発するため、
-// ガードを立てて自前ハンドラ（＝不要な編集イベント）を抑止してから同期する
+// SComboBox は内部 SelectedItem と異なる項目を選んだときしか OnSelectionChanged を発火せず、
+// さらにキーボードの Up/Down はメニューを開かずにその内部 SelectedItem を起点に隣の項目を選ぶ
+// （SComboBox::OnKeyDown）。開いた瞬間だけ同期してもキーボード・ゲームパッド経路を取りこぼすため、
+// 毎フレーム実値へ寄せる。未生成・展開中・既に一致のいずれかで即 return するので、
+// 親ウィンドウが毎フレーム行っている CachedEditValues の再構築に比べれば無視できるコスト
+void SKawaiiPhysicsWindScopeEditPanel::Tick(
+	const FGeometry& AllottedGeometry,
+	const double InCurrentTime,
+	const float InDeltaTime)
+{
+	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+	SyncParameterModeComboSelection();
+}
+
+// SetSelectedItem は SListView 経由で OnSelectionChanged を誘発するため、ガードを立てて
+// 自前ハンドラ（＝不要な編集イベント）を抑止してから同期する。展開中に呼ぶと
+// OnSelectionChanged_Internal の SetIsOpen(false) でドロップダウンが閉じてしまうので触らない
 void SKawaiiPhysicsWindScopeEditPanel::SyncParameterModeComboSelection()
 {
-	if (!ParameterModeComboBox.IsValid())
+	if (!ParameterModeComboBox.IsValid() || ParameterModeComboBox->IsOpen())
 	{
 		return;
 	}
