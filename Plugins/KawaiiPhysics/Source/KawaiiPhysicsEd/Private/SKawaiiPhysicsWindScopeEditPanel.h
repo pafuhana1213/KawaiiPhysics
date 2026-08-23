@@ -29,6 +29,8 @@ struct FKawaiiWindScopeParamGroup
 	FName SummaryProperty;
 	TOptional<EKawaiiPhysicsWindScopeComponent> LinkedSeries;
 	TArray<FKawaiiWindScopeParamDef> Params;
+	/** 折りたたみカテゴリにせずヘッダー直下に常時表示する / Pinned below the header instead of a collapsible category. */
+	bool bPinned = false;
 };
 
 const TArray<FKawaiiWindScopeParamGroup>& GetWindScopeParamGroups();
@@ -75,8 +77,6 @@ private:
 	EVisibility GetGroupVisibility(FName GroupId) const;
 	EVisibility GetGroupModifiedDotVisibility(FName GroupId) const;
 	EVisibility GetGroupSummaryVisibility(FName GroupId, FName SummaryProperty) const;
-	EVisibility GetSimpleHiddenHintVisibility() const;
-	FText GetSimpleHiddenHintText() const;
 	FText GetLiveValueText(FName PropertyName) const;
 	FText GetGroupSummaryText(FName SummaryProperty) const;
 	FText GetParameterModeText() const;
@@ -89,7 +89,6 @@ private:
 	bool IsAdvancedMode() const;
 	bool IsParamAdvancedOnly(FName PropertyName) const;
 	bool IsParamVisibleInCurrentMode(FName PropertyName) const;
-	int32 CountHiddenAdvancedParams() const;
 	FLinearColor ResolveSeriesDisplayColor(TOptional<EKawaiiPhysicsWindScopeComponent> LinkedSeries) const;
 
 	// ParameterMode コンボの内部選択状態をノードの実値へ合わせる / Syncs the ParameterMode combo's internal selection with the node value.
