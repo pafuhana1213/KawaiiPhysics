@@ -2,12 +2,14 @@
 
 #include "KawaiiPhysicsEditorTabFactories.h"
 
+#include "KawaiiPhysicsEdWindowUtils.h"
 #include "KawaiiPhysicsEdStyle.h"
 #include "SKawaiiPhysicsNodeAuditWindow.h"
 #include "SKawaiiPhysicsPresetDiffWindow.h"
 #include "SKawaiiPhysicsWindScopeWindow.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/SWidget.h"
+#include "WorkflowOrientedApp/ApplicationMode.h"
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysicsEditorTabFactories"
 
@@ -21,8 +23,35 @@ namespace
 	}
 }
 
+FKawaiiPhysicsTabFactoryBase::FKawaiiPhysicsTabFactoryBase(FName TabId, TSharedPtr<FAssetEditorToolkit> InHostingApp)
+	: FWorkflowTabFactory(TabId, InHostingApp)
+{
+}
+
+FTabSpawnerEntry& FKawaiiPhysicsTabFactoryBase::RegisterTabSpawner(
+	TSharedRef<FTabManager> InTabManager,
+	const FApplicationMode* CurrentApplicationMode) const
+{
+	// 基底に Mode を渡すとモードカテゴリ直下にも親付けされ二重表示になるため nullptr を渡す
+	FTabSpawnerEntry& Entry = FWorkflowTabFactory::RegisterTabSpawner(InTabManager, nullptr);
+	Entry.SetDisplayName(ViewMenuDescription);
+	if (CurrentApplicationMode)
+	{
+		const TSharedRef<FWorkspaceItem> MenuGroup = KawaiiPhysicsEdWindowUtils::FindOrAddKawaiiPhysicsMenuGroup(CurrentApplicationMode->GetWorkspaceMenuCategory());
+		KawaiiPhysicsEdWindowUtils::RemoveStaleSpawnerChildren(MenuGroup, GetIdentifier());
+		Entry.SetGroup(MenuGroup);
+	}
+	return Entry;
+}
+
+FText FKawaiiPhysicsTabFactoryBase::GetTabToolTipText(const FWorkflowTabSpawnInfo& Info) const
+{
+	(void)Info;
+	return ViewMenuTooltip;
+}
+
 FKawaiiPhysicsWindScopeTabFactory::FKawaiiPhysicsWindScopeTabFactory(TSharedPtr<FAssetEditorToolkit> InHostingApp)
-	: FWorkflowTabFactory(SKawaiiPhysicsWindScopeWindow::WindScopeTabId, InHostingApp)
+	: FKawaiiPhysicsTabFactoryBase(SKawaiiPhysicsWindScopeWindow::WindScopeTabId, InHostingApp)
 {
 	TabLabel = LOCTEXT("WindScopeTabLabel", "Kawaii Wind Scope");
 	TabIcon = MakeKawaiiPhysicsTabIcon();
@@ -55,7 +84,7 @@ TSharedRef<SDockTab> FKawaiiPhysicsWindScopeTabFactory::SpawnTab(const FWorkflow
 }
 
 FKawaiiPhysicsPresetDiffTabFactory::FKawaiiPhysicsPresetDiffTabFactory(TSharedPtr<FAssetEditorToolkit> InHostingApp)
-	: FWorkflowTabFactory(SKawaiiPhysicsPresetDiffWindow::PresetDiffTabId, InHostingApp)
+	: FKawaiiPhysicsTabFactoryBase(SKawaiiPhysicsPresetDiffWindow::PresetDiffTabId, InHostingApp)
 {
 	TabLabel = LOCTEXT("PresetDiffTabLabel", "Kawaii Preset Diff");
 	TabIcon = MakeKawaiiPhysicsTabIcon();
@@ -82,7 +111,7 @@ TSharedRef<SDockTab> FKawaiiPhysicsPresetDiffTabFactory::SpawnTab(const FWorkflo
 }
 
 FKawaiiPhysicsNodeAuditTabFactory::FKawaiiPhysicsNodeAuditTabFactory(TSharedPtr<FAssetEditorToolkit> InHostingApp)
-	: FWorkflowTabFactory(SKawaiiPhysicsNodeAuditWindow::NodeAuditTabId, InHostingApp)
+	: FKawaiiPhysicsTabFactoryBase(SKawaiiPhysicsNodeAuditWindow::NodeAuditTabId, InHostingApp)
 {
 	TabLabel = LOCTEXT("NodeAuditTabLabel", "Kawaii Node Audit");
 	TabIcon = MakeKawaiiPhysicsTabIcon();

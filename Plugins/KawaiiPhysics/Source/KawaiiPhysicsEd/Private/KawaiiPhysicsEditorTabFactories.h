@@ -8,7 +8,21 @@
 class FAssetEditorToolkit;
 class SDockTab;
 
-class FKawaiiPhysicsWindScopeTabFactory : public FWorkflowTabFactory
+class FKawaiiPhysicsTabFactoryBase : public FWorkflowTabFactory
+{
+public:
+	/** Window メニュー登録時に Kawaii Physics サブメニューへ配置する / Registers the tab spawner under the Kawaii Physics submenu in the Window menu. */
+	virtual FTabSpawnerEntry& RegisterTabSpawner(TSharedRef<FTabManager> InTabManager, const FApplicationMode* CurrentApplicationMode) const override;
+
+	/** Window メニューのツールチップテキストを返す / Returns tooltip text for the Window menu entry. */
+	virtual FText GetTabToolTipText(const FWorkflowTabSpawnInfo& Info) const override;
+
+protected:
+	/** Kawaii Physics 共通 Workflow タブファクトリを生成する / Creates the shared Kawaii Physics workflow tab factory. */
+	FKawaiiPhysicsTabFactoryBase(FName TabId, TSharedPtr<FAssetEditorToolkit> InHostingApp);
+};
+
+class FKawaiiPhysicsWindScopeTabFactory : public FKawaiiPhysicsTabFactoryBase
 {
 public:
 	/** Wind Scope Workflow タブファクトリを生成する / Creates the Wind Scope workflow tab factory. */
@@ -21,7 +35,7 @@ public:
 	virtual TSharedRef<SDockTab> SpawnTab(const FWorkflowTabSpawnInfo& Info) const override;
 };
 
-class FKawaiiPhysicsPresetDiffTabFactory : public FWorkflowTabFactory
+class FKawaiiPhysicsPresetDiffTabFactory : public FKawaiiPhysicsTabFactoryBase
 {
 public:
 	/** Preset Diff Workflow タブファクトリを生成する / Creates the Preset Diff workflow tab factory. */
@@ -34,7 +48,7 @@ public:
 	virtual TSharedRef<SDockTab> SpawnTab(const FWorkflowTabSpawnInfo& Info) const override;
 };
 
-class FKawaiiPhysicsNodeAuditTabFactory : public FWorkflowTabFactory
+class FKawaiiPhysicsNodeAuditTabFactory : public FKawaiiPhysicsTabFactoryBase
 {
 public:
 	/** Node Audit Workflow タブファクトリを生成する / Creates the Node Audit workflow tab factory. */
