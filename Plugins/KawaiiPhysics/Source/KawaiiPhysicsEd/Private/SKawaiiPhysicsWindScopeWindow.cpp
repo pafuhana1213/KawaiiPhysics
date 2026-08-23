@@ -1589,6 +1589,17 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 		.Padding(8.0f, 2.0f)
 		[
 			SNew(SHorizontalBox)
+			// プリセット群: 見出しを付けて「適用ボタン」であることを明示する（右側の Gust テスト群との混同防止）
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("PresetRowLabel", "Presets:"))
+				.ToolTipText(LOCTEXT("PresetRowLabelTooltip", "Click a preset to apply it to the current wind parameters. Hover to preview it on the graph."))
+				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+			]
 			+ SHorizontalBox::Slot()
 			.FillWidth(1.0f)
 			.VAlign(VAlign_Center)
@@ -1597,15 +1608,22 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 				.UseAllottedSize(true)
 				.InnerSlotPadding(FVector2D(4.0f, 2.0f))
 			]
+			// Gust テスト群: セパレータで区切り、ボタン名でもテスト用であることを示す
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(8.0f, 0.0f)
+			[
+				SNew(SSeparator)
+				.Orientation(Orient_Vertical)
+			]
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.VAlign(VAlign_Center)
-			.Padding(6.0f, 0.0f, 0.0f, 0.0f)
 			[
 				SNew(SButton)
-				.Text(LOCTEXT("GustButton", "Gust"))
+				.Text(LOCTEXT("GustButton", "Test Gust"))
 				.ContentPadding(FMargin(6.0f, 2.0f))
-				.ToolTipText(LOCTEXT("GustButtonTooltip", "Sends a test gust to the live target."))
+				.ToolTipText(LOCTEXT("GustButtonTooltip", "Sends a one-shot test gust to the live target. Does not change any parameters."))
 				.OnClicked_Lambda([this]()
 				{
 					const bool bAppliedLive = PushGustToLiveRuntime(
@@ -2245,10 +2263,15 @@ void SKawaiiPhysicsWindScopeWindow::RebuildPresetButtons()
 	PresetButtonBox->ClearChildren();
 	for (int32 PresetIndex = 0; PresetIndex < CachedPresets.Num(); ++PresetIndex)
 	{
+		const FText PresetDisplayName =
+			KawaiiPhysicsWindScopeWindowPrivate::ResolveWindPresetDisplayName(CachedPresets[PresetIndex], PresetIndex);
 		PresetButtonBox->AddSlot()
 		[
 			SNew(SButton)
-			.Text(KawaiiPhysicsWindScopeWindowPrivate::ResolveWindPresetDisplayName(CachedPresets[PresetIndex], PresetIndex))
+			.Text(PresetDisplayName)
+			.ToolTipText(FText::Format(
+				LOCTEXT("PresetButtonTooltipFormat", "Apply the \"{0}\" wind preset to the current parameters.\nHover to preview it on the graph."),
+				PresetDisplayName))
 			.OnClicked(this, &SKawaiiPhysicsWindScopeWindow::OnPresetButtonClicked, PresetIndex)
 			.OnHovered_Lambda([this, PresetIndex]()
 			{
