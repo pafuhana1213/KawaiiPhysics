@@ -10,8 +10,6 @@
 #include "Widgets/Views/SListView.h"
 
 class ITableRow;
-class FSpawnTabArgs;
-class FWorkspaceItem;
 class SDockTab;
 class STableViewBase;
 
@@ -32,6 +30,8 @@ struct FKawaiiPhysicsPresetDiffWindowArgs
 
 class SKawaiiPhysicsPresetDiffWindow : public SCompoundWidget
 {
+	SLATE_DECLARE_WIDGET(SKawaiiPhysicsPresetDiffWindow, SCompoundWidget)
+
 public:
 	SLATE_BEGIN_ARGS(SKawaiiPhysicsPresetDiffWindow)
 		{
@@ -42,20 +42,14 @@ public:
 
 	static const FName PresetDiffTabId;
 
-	/** 差分タブスポナーを登録する / Registers the diff tab spawner. */
-	static void RegisterTabSpawner(const TSharedRef<FWorkspaceItem>& InMenuGroup);
-
-	/** 差分タブスポナーを解除する / Unregisters the diff tab spawner. */
-	static void UnregisterTabSpawner();
-
-	/** 差分タブを生成する / Spawns the diff tab. */
-	static TSharedRef<SDockTab> SpawnPresetDiffTab(const FSpawnTabArgs& SpawnTabArgs);
-
 	/** 差分タブを開くか既存タブを更新する / Opens the diff tab or updates the existing one. */
 	static void OpenWindow(FKawaiiPhysicsPresetDiffWindowArgs Args);
 
 	/** 開いている差分タブをすべて閉じる / Closes all open diff tabs. */
 	static void CloseAllWindows();
+
+	/** 所有 DockTab を弱参照で保持する / Stores the owning DockTab as a weak reference. */
+	void SetOwnerTab(TSharedRef<SDockTab> InOwnerTab);
 
 	/** 現在の引数でウィジェット状態を置き換える / Replaces the widget state with the current arguments. */
 	void SetArgs(FKawaiiPhysicsPresetDiffWindowArgs Args);
@@ -98,5 +92,6 @@ private:
 	TArray<FRowPtr> FilteredRows;
 	TSet<FName> SelectedPropertyNames;
 
+	TWeakPtr<SDockTab> OwnerTabWeak;
 	TSharedPtr<SListView<FRowPtr>> DiffListView;
 };

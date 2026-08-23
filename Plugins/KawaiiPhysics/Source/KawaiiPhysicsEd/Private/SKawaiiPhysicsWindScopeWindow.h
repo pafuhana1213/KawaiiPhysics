@@ -11,9 +11,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboBox.h"
 
-class FSpawnTabArgs;
 struct FStreamableHandle;
-class FWorkspaceItem;
 class SDockTab;
 class SComboBoxBase;
 class SSplitter;
@@ -130,6 +128,8 @@ private:
 // Wind Scope タブ本体 / Wind Scope tab content widget.
 class SKawaiiPhysicsWindScopeWindow : public SCompoundWidget
 {
+	SLATE_DECLARE_WIDGET(SKawaiiPhysicsWindScopeWindow, SCompoundWidget)
+
 public:
 	SLATE_BEGIN_ARGS(SKawaiiPhysicsWindScopeWindow)
 		{
@@ -141,23 +141,20 @@ public:
 
 	static const FName WindScopeTabId;
 
-	/** Wind Scope タブスポナーを登録する / Registers the Wind Scope tab spawner. */
-	static void RegisterTabSpawner(const TSharedRef<FWorkspaceItem>& InMenuGroup);
-
-	/** Wind Scope タブスポナーを解除する / Unregisters the Wind Scope tab spawner. */
-	static void UnregisterTabSpawner();
-
-	/** Wind Scope タブを生成する / Spawns the Wind Scope tab. */
-	static TSharedRef<SDockTab> SpawnWindScopeTab(const FSpawnTabArgs& SpawnTabArgs);
-
 	/** Wind Scope タブを開くか既存タブを更新する / Opens the Wind Scope tab or updates the existing one. */
 	static void OpenWindow(FKawaiiPhysicsWindScopeWindowArgs Args);
 
 	/** 開いている Wind Scope タブをすべて閉じる / Closes all open Wind Scope tabs. */
 	static void CloseAllWindows();
 
+	/** 所有 DockTab を弱参照で保持する / Stores the owning DockTab as a weak reference. */
+	void SetOwnerTab(TSharedRef<SDockTab> InOwnerTab);
+
 	/** 現在の引数でウィジェット状態を置き換える / Replaces the widget state with the current arguments. */
 	void SetArgs(FKawaiiPhysicsWindScopeWindowArgs Args);
+
+	bool HasTargetArgs() const;
+	void LoadPendingReconnectFromConfig();
 
 	ECheckBoxState GetSeriesCheckState(EKawaiiPhysicsWindScopeComponent Component) const;
 	void OnSeriesCheckStateChanged(ECheckBoxState NewState, EKawaiiPhysicsWindScopeComponent Component);
@@ -232,10 +229,8 @@ private:
 	void SaveEditPanelConfig() const;
 	// 弱参照、または AnimBlueprintPath+NodeGuid から対象ノードを再解決する / Resolves the target node from weak reference or AnimBlueprintPath+NodeGuid.
 	UAnimGraphNode_KawaiiPhysics* ResolveGraphNode() const;
-	bool HasTargetArgs() const;
 	static bool HasTargetArgs(const FKawaiiPhysicsWindScopeWindowArgs& InArgs);
 	static void SaveLastTargetArgs(const FKawaiiPhysicsWindScopeWindowArgs& InArgs);
-	void LoadPendingReconnectFromConfig();
 	void ClearPendingReconnect(bool bCancelAsyncLoad = true);
 	void TryResolvePendingReconnect(float InDeltaTime);
 	void StartPendingReconnectAsyncLoad();
@@ -274,6 +269,7 @@ private:
 	bool bPendingReconnectAsyncLoadStarted = false;
 	TSharedPtr<FStreamableHandle> PendingReconnectAsyncLoadHandle;
 
+	TWeakPtr<SDockTab> OwnerTabWeak;
 	TSharedPtr<SComboBox<FExternalForceIndexPtr>> ExternalForceComboBox;
 	TSharedPtr<SKawaiiPhysicsWindScopeGraph> GraphWidget;
 	TSharedPtr<SSplitter> EditPanelSplitter;

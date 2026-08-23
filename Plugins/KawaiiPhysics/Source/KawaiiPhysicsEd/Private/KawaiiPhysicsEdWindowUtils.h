@@ -3,7 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/SoftObjectPath.h"
 #include "Widgets/Notifications/SNotificationList.h"
+
+class SDockTab;
 
 // 通知ユーティリティ / Notification utilities.
 namespace KawaiiPhysicsEdWindowUtils
@@ -14,4 +17,7 @@ namespace KawaiiPhysicsEdWindowUtils
 	                      float ExpireDuration = 5.0f,
 	                      const FSimpleDelegate& Hyperlink = FSimpleDelegate(),
 	                      const FText& HyperlinkText = FText::GetEmpty());
+
+	/** AnimBlueprint のアセットエディタを（必要なら開いて）取得し、指定タブを呼び出す。失敗時は通知を表示して nullptr を返す / Finds (or opens) the asset editor for the AnimBlueprint and invokes the given tab. Shows a notification and returns nullptr on failure. */
+	TSharedPtr<SDockTab> InvokeAnimBlueprintEditorTab(const FSoftObjectPath& AnimBlueprintPath, FName TabId, const FText& ResolveFailedMessage);
 }

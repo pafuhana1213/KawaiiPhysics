@@ -12,14 +12,11 @@
 #include "Engine/StreamableManager.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Docking/TabManager.h"
-#include "Framework/Docking/WorkspaceItem.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "ISettingsModule.h"
 #include "KawaiiPhysicsDeveloperSettings.h"
-#include "KawaiiPhysicsEdStyle.h"
 #include "KawaiiPhysicsEdUtils.h"
 #include "KawaiiPhysicsEdWindowUtils.h"
 #include "SKawaiiPhysicsWindScopeEditPanel.h"
@@ -32,7 +29,6 @@
 #include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
-#include "Textures/SlateIcon.h"
 #include "UObject/UnrealType.h"
 #include "Widgets/Colors/SColorBlock.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -50,6 +46,13 @@
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysicsWindScopeWindow"
+
+SLATE_IMPLEMENT_WIDGET(SKawaiiPhysicsWindScopeWindow)
+
+void SKawaiiPhysicsWindScopeWindow::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
+{
+	(void)AttributeInitializer;
+}
 
 namespace KawaiiPhysicsWindScopeWindowPrivate
 {
@@ -74,8 +77,23 @@ namespace KawaiiPhysicsWindScopeWindowPrivate
 	const TCHAR* WindScopeGustRiseTimeKey = TEXT("WindScopeGustRiseTime");
 	const TCHAR* WindScopeGustDecayTimeKey = TEXT("WindScopeGustDecayTime");
 
-	TWeakPtr<SDockTab> KawaiiWindScopeTabWeak;
-	TWeakPtr<SKawaiiPhysicsWindScopeWindow> KawaiiWindScopeWidgetWeak;
+	TArray<TWeakPtr<SKawaiiPhysicsWindScopeWindow>> LiveWindScopeWindows;
+
+	void RegisterLiveWindow(TSharedRef<SKawaiiPhysicsWindScopeWindow> Window)
+	{
+		LiveWindScopeWindows.RemoveAllSwap([](const TWeakPtr<SKawaiiPhysicsWindScopeWindow>& ExistingWindow)
+		{
+			return !ExistingWindow.IsValid();
+		});
+		for (const TWeakPtr<SKawaiiPhysicsWindScopeWindow>& ExistingWindow : LiveWindScopeWindows)
+		{
+			if (ExistingWindow.Pin().Get() == &Window.Get())
+			{
+				return;
+			}
+		}
+		LiveWindScopeWindows.Add(Window);
+	}
 
 	bool AreReconnectArgsSame(const FKawaiiPhysicsWindScopeWindowArgs& Lhs, const FKawaiiPhysicsWindScopeWindowArgs& Rhs)
 	{
@@ -1947,53 +1965,6 @@ SKawaiiPhysicsWindScopeWindow::~SKawaiiPhysicsWindScopeWindow()
 	ClearPendingReconnect();
 }
 
-void SKawaiiPhysicsWindScopeWindow::RegisterTabSpawner(const TSharedRef<FWorkspaceItem>& InMenuGroup)
-{
-	const FSlateIcon KawaiiPhysicsIcon(
-		FKawaiiPhysicsEdStyle::GetStyleSetName(),
-		TEXT("KawaiiPhysics.TabIcon"));
-	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
-			WindScopeTabId,
-			FOnSpawnTab::CreateStatic(&SKawaiiPhysicsWindScopeWindow::SpawnWindScopeTab))
-		.SetDisplayName(LOCTEXT("WindScopeMenuDisplayName", "Wind Scope"))
-		.SetTooltipText(LOCTEXT("WindScopeMenuTooltip", "Opens the KawaiiPhysics wind preview tab."))
-		.SetGroup(InMenuGroup)
-		.SetIcon(KawaiiPhysicsIcon);
-}
-
-void SKawaiiPhysicsWindScopeWindow::UnregisterTabSpawner()
-{
-	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(WindScopeTabId);
-}
-
-TSharedRef<SDockTab> SKawaiiPhysicsWindScopeWindow::SpawnWindScopeTab(const FSpawnTabArgs& SpawnTabArgs)
-{
-	(void)SpawnTabArgs;
-
-	TSharedRef<SKawaiiPhysicsWindScopeWindow> ScopeWidget = SNew(SKawaiiPhysicsWindScopeWindow);
-	if (!ScopeWidget->HasTargetArgs())
-	{
-		ScopeWidget->LoadPendingReconnectFromConfig();
-	}
-
-	TSharedRef<SDockTab> ScopeTab = SNew(SDockTab)
-		.TabRole(ETabRole::NomadTab)
-		.Label(LOCTEXT("WindScopeTabLabel", "Kawaii Wind Scope"))
-		.OnTabClosed_Lambda([](TSharedRef<SDockTab> ClosedTab)
-		{
-			(void)ClosedTab;
-			KawaiiPhysicsWindScopeWindowPrivate::KawaiiWindScopeTabWeak.Reset();
-			KawaiiPhysicsWindScopeWindowPrivate::KawaiiWindScopeWidgetWeak.Reset();
-		})
-		[
-			ScopeWidget
-		];
-
-	KawaiiPhysicsWindScopeWindowPrivate::KawaiiWindScopeTabWeak = ScopeTab;
-	KawaiiPhysicsWindScopeWindowPrivate::KawaiiWindScopeWidgetWeak = ScopeWidget;
-	return ScopeTab;
-}
-
 void SKawaiiPhysicsWindScopeWindow::OpenWindow(FKawaiiPhysicsWindScopeWindowArgs Args)
 {
 	if (HasTargetArgs(Args))
@@ -2001,8 +1972,10 @@ void SKawaiiPhysicsWindScopeWindow::OpenWindow(FKawaiiPhysicsWindScopeWindowArgs
 		SaveLastTargetArgs(Args);
 	}
 
-	// タブを呼び出してから、選択ノード由来の引数を既存コンテンツへ注入する
-	TSharedPtr<SDockTab> InvokedTab = FGlobalTabmanager::Get()->TryInvokeTab(WindScopeTabId);
+	TSharedPtr<SDockTab> InvokedTab = KawaiiPhysicsEdWindowUtils::InvokeAnimBlueprintEditorTab(
+		Args.AnimBlueprintPath,
+		WindScopeTabId,
+		LOCTEXT("WindScopeOpenEditorFailed", "Failed to open the Animation Blueprint editor for Wind Scope."));
 	if (!InvokedTab.IsValid())
 	{
 		return;
@@ -2014,33 +1987,47 @@ void SKawaiiPhysicsWindScopeWindow::OpenWindow(FKawaiiPhysicsWindScopeWindowArgs
 		return;
 	}
 
-	if (TSharedPtr<SKawaiiPhysicsWindScopeWindow> ExistingWidget = KawaiiPhysicsWindScopeWindowPrivate::KawaiiWindScopeWidgetWeak.Pin())
+	if (TabContent->GetType() == FName(TEXT("SKawaiiPhysicsWindScopeWindow")))
 	{
-		ExistingWidget->ClearPendingReconnect();
-		ExistingWidget->SetArgs(MoveTemp(Args));
+		TSharedPtr<SKawaiiPhysicsWindScopeWindow> WindowWidget =
+			StaticCastSharedPtr<SKawaiiPhysicsWindScopeWindow>(TabContent);
+		WindowWidget->SetOwnerTab(InvokedTab.ToSharedRef());
+		WindowWidget->ClearPendingReconnect();
+		WindowWidget->SetArgs(MoveTemp(Args));
 		return;
 	}
 
-	// Hot Reload等でファイルスコープの弱参照だけが失効した場合、タブ内容から復旧する
-	if (TabContent->GetType() == FName(TEXT("SKawaiiPhysicsWindScopeWindow")))
-	{
-		TSharedPtr<SKawaiiPhysicsWindScopeWindow> RecoveredWidget =
-			StaticCastSharedPtr<SKawaiiPhysicsWindScopeWindow>(TabContent);
-		KawaiiPhysicsWindScopeWindowPrivate::KawaiiWindScopeTabWeak = InvokedTab;
-		KawaiiPhysicsWindScopeWindowPrivate::KawaiiWindScopeWidgetWeak = RecoveredWidget;
-		RecoveredWidget->ClearPendingReconnect();
-		RecoveredWidget->SetArgs(MoveTemp(Args));
-	}
+	KawaiiPhysicsEdWindowUtils::ShowNotification(
+		LOCTEXT("WindScopeTabContentInvalid", "Failed to update the Wind Scope tab content."),
+		SNotificationItem::CS_Fail);
 }
 
 void SKawaiiPhysicsWindScopeWindow::CloseAllWindows()
 {
-	if (TSharedPtr<SDockTab> ScopeTab = KawaiiPhysicsWindScopeWindowPrivate::KawaiiWindScopeTabWeak.Pin())
+	TArray<TSharedPtr<SDockTab>> TabsToClose;
+	for (const TWeakPtr<SKawaiiPhysicsWindScopeWindow>& WeakWindow : KawaiiPhysicsWindScopeWindowPrivate::LiveWindScopeWindows)
 	{
-		ScopeTab->RequestCloseTab();
+		if (TSharedPtr<SKawaiiPhysicsWindScopeWindow> Window = WeakWindow.Pin())
+		{
+			if (TSharedPtr<SDockTab> OwnerTab = Window->OwnerTabWeak.Pin())
+			{
+				TabsToClose.Add(OwnerTab);
+			}
+		}
 	}
-	KawaiiPhysicsWindScopeWindowPrivate::KawaiiWindScopeTabWeak.Reset();
-	KawaiiPhysicsWindScopeWindowPrivate::KawaiiWindScopeWidgetWeak.Reset();
+
+	for (const TSharedPtr<SDockTab>& Tab : TabsToClose)
+	{
+		Tab->RequestCloseTab();
+	}
+	KawaiiPhysicsWindScopeWindowPrivate::LiveWindScopeWindows.Reset();
+}
+
+void SKawaiiPhysicsWindScopeWindow::SetOwnerTab(TSharedRef<SDockTab> InOwnerTab)
+{
+	OwnerTabWeak = InOwnerTab;
+	KawaiiPhysicsWindScopeWindowPrivate::RegisterLiveWindow(
+		StaticCastSharedRef<SKawaiiPhysicsWindScopeWindow>(AsShared()));
 }
 
 void SKawaiiPhysicsWindScopeWindow::SetArgs(FKawaiiPhysicsWindScopeWindowArgs InArgs)
