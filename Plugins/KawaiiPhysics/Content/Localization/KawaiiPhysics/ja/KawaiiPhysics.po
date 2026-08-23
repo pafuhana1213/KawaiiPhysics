@@ -6845,3 +6845,66 @@ msgctxt "KawaiiPhysicsWindScopeWindow,FormulaHeaderGust"
 msgid "Gust"
 msgstr ""
 
+#. Key:	PresetToolbarButton
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1711)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1711)
+msgctxt "KawaiiPhysicsWindScopeWindow,PresetToolbarButton"
+msgid "Presets"
+msgstr "プリセット"
+
+#. Key:	GustSettingsTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1749)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1749)
+msgctxt "KawaiiPhysicsWindScopeWindow,GustSettingsTooltip"
+msgid "Adjust the test gust settings."
+msgstr "テスト突風の設定を調整します"
+
+#. Key:	CopyWindParametersButton
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1789)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1789)
+msgctxt "KawaiiPhysicsWindScopeWindow,CopyWindParametersButton"
+msgid "Copy"
+msgstr "コピー"
+
+#. Key:	PasteWindParametersButton
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1819)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1819)
+msgctxt "KawaiiPhysicsWindScopeWindow,PasteWindParametersButton"
+msgid "Paste"
+msgstr "貼り付け"
+
+#. Key:	NoPresetsMenuInfo
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2361)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2361)
+msgctxt "KawaiiPhysicsWindScopeWindow,NoPresetsMenuInfo"
+msgid "No wind presets found."
+msgstr "風プリセットが見つかりません"
+
+#. Key:	GustStrengthLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2444)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2444)
+msgctxt "KawaiiPhysicsWindScopeWindow,GustStrengthLabel"
+msgid "Strength"
+msgstr "強さ"
+
+#. Key:	GustRiseLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2483)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2483)
+msgctxt "KawaiiPhysicsWindScopeWindow,GustRiseLabel"
+msgid "Rise"
+msgstr "立ち上がり"
+
+#. Key:	GustDecayLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2521)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2521)
+msgctxt "KawaiiPhysicsWindScopeWindow,GustDecayLabel"
+msgid "Decay"
+msgstr "減衰"
+
+#. Key:	DisplayWindowLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1963)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1963)
+msgctxt "KawaiiPhysicsWindScopeWindow,DisplayWindowLabel"
+msgid "Window"
+msgstr "表示幅"
+

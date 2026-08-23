@@ -140,9 +140,10 @@ bool FKawaiiPhysicsWindScopeEditPanelDefinitionsTest::RunTest(const FString& Par
 			CollapsedGroupRoundTripOutput.Contains(GroupId));
 	}
 
-	const TSet<FName> ParsedWithUnknown = ParseWindScopeCollapsedGroups(FString(TEXT("Constant,UnknownGroup,Ripple")));
+	const TSet<FName> ParsedWithUnknown = ParseWindScopeCollapsedGroups(FString(TEXT("Constant,Time,UnknownGroup,Ripple")));
 	bOk &= TestTrue(TEXT("Known collapsed group is parsed"), ParsedWithUnknown.Contains(FName(TEXT("Constant"))));
 	bOk &= TestTrue(TEXT("Known collapsed group after unknown is parsed"), ParsedWithUnknown.Contains(FName(TEXT("Ripple"))));
+	bOk &= TestFalse(TEXT("Removed Time collapsed group is discarded"), ParsedWithUnknown.Contains(FName(TEXT("Time"))));
 	bOk &= TestFalse(TEXT("Unknown collapsed group is discarded"), ParsedWithUnknown.Contains(FName(TEXT("UnknownGroup"))));
 
 	return bOk;
