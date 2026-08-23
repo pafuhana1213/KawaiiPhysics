@@ -1934,7 +1934,7 @@ void SKawaiiPhysicsWindScopeWindow::RegisterTabSpawner(const TSharedRef<FWorkspa
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 			WindScopeTabId,
 			FOnSpawnTab::CreateStatic(&SKawaiiPhysicsWindScopeWindow::SpawnWindScopeTab))
-		.SetDisplayName(LOCTEXT("WindScopeMenuDisplayName", "Kawaii Physics: Wind Scope"))
+		.SetDisplayName(LOCTEXT("WindScopeMenuDisplayName", "Wind Scope"))
 		.SetTooltipText(LOCTEXT("WindScopeMenuTooltip", "Opens the KawaiiPhysics wind preview tab."))
 		.SetGroup(InMenuGroup)
 		.SetIcon(KawaiiPhysicsIcon);

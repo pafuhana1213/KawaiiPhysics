@@ -85,7 +85,7 @@ void FKawaiiPhysicsEdModule::ShutdownModule()
 
 		if (KawaiiPhysicsMenuGroup.IsValid())
 		{
-			WorkspaceMenu::GetMenuStructure().GetStructureRoot()->RemoveItem(KawaiiPhysicsMenuGroup.ToSharedRef());
+			WorkspaceMenu::GetMenuStructure().GetLevelEditorCategory()->RemoveItem(KawaiiPhysicsMenuGroup.ToSharedRef());
 			KawaiiPhysicsMenuGroup.Reset();
 		}
 
@@ -115,7 +115,9 @@ void FKawaiiPhysicsEdModule::RegisterTabSpawners()
 	const FSlateIcon KawaiiPhysicsIcon(
 		FKawaiiPhysicsEdStyle::GetStyleSetName(),
 		TEXT("KawaiiPhysics.TabIcon"));
-	KawaiiPhysicsMenuGroup = WorkspaceMenu::GetMenuStructure().GetStructureRoot()->AddGroup(
+	// ルート直下のグループは Window メニュー上で「セクション見出し」として平坦に展開される。
+	// Level Editor カテゴリの子にすることで「Kawaii Physics >」サブメニュー（Viewports と同階層）として畳まれる
+	KawaiiPhysicsMenuGroup = WorkspaceMenu::GetMenuStructure().GetLevelEditorCategory()->AddGroup(
 		LOCTEXT("KawaiiPhysicsMenuGroup", "Kawaii Physics"),
 		KawaiiPhysicsIcon,
 		false);
