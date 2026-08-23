@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: KawaiiPhysics\n"
-"POT-Creation-Date: 2026-08-23 08:53\n"
-"PO-Revision-Date: 2026-08-23 08:53\n"
+"POT-Creation-Date: 2026-08-23 10:00\n"
+"PO-Revision-Date: 2026-08-23 10:00\n"
 "Language-Team: \n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
@@ -5228,68 +5228,82 @@ msgctxt "KawaiiPhysicsEditorLibrary,SetGraphNodeWildcardProperty"
 msgid "Set Kawaii Physics Graph Node Wildcard Property"
 msgstr ""
 
-#. Key:	WindScopeTabLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(27)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(27)
-msgctxt "KawaiiPhysicsEditorTabFactories,WindScopeTabLabel"
-msgid "Kawaii Wind Scope"
-msgstr ""
-
-#. Key:	WindScopeViewMenuDescription
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(29)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(29)
-msgctxt "KawaiiPhysicsEditorTabFactories,WindScopeViewMenuDescription"
-msgid "Wind Scope"
-msgstr ""
-
-#. Key:	WindScopeMenuTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(30)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(30)
-msgctxt "KawaiiPhysicsEditorTabFactories,WindScopeMenuTooltip"
-msgid "KawaiiPhysics の風プレビュータブを開きます / Opens the KawaiiPhysics wind preview tab."
-msgstr "KawaiiPhysics の風プレビュータブを開きます"
-
-#. Key:	PresetDiffTabLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(60)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(60)
-msgctxt "KawaiiPhysicsEditorTabFactories,PresetDiffTabLabel"
-msgid "Kawaii Preset Diff"
-msgstr ""
-
-#. Key:	PresetDiffViewMenuDescription
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(62)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(62)
-msgctxt "KawaiiPhysicsEditorTabFactories,PresetDiffViewMenuDescription"
-msgid "Preset Diff"
-msgstr ""
-
-#. Key:	PresetDiffMenuTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(63)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(63)
-msgctxt "KawaiiPhysicsEditorTabFactories,PresetDiffMenuTooltip"
-msgid "KawaiiPhysics のプリセット差分タブを開きます / Opens the KawaiiPhysics preset diff tab."
-msgstr "KawaiiPhysics のプリセット差分タブを開きます"
-
 #. Key:	NodeAuditTabLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(87)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(87)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(116)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(116)
 msgctxt "KawaiiPhysicsEditorTabFactories,NodeAuditTabLabel"
 msgid "Kawaii Node Audit"
 msgstr ""
 
 #. Key:	NodeAuditViewMenuDescription
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(89)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(89)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(118)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(118)
 msgctxt "KawaiiPhysicsEditorTabFactories,NodeAuditViewMenuDescription"
 msgid "Node Audit"
 msgstr ""
 
 #. Key:	NodeAuditMenuTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(90)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(90)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(119)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(119)
 msgctxt "KawaiiPhysicsEditorTabFactories,NodeAuditMenuTooltip"
 msgid "KawaiiPhysics のノード監査タブを開きます / Opens the KawaiiPhysics node audit tab."
 msgstr "KawaiiPhysics のノード監査タブを開きます"
+
+#. Key:	WindScopeTabLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(56)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(56)
+msgctxt "KawaiiPhysicsEditorTabFactories,WindScopeTabLabel"
+msgid "Kawaii Wind Scope"
+msgstr ""
+
+#. Key:	WindScopeViewMenuDescription
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(58)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(58)
+msgctxt "KawaiiPhysicsEditorTabFactories,WindScopeViewMenuDescription"
+msgid "Wind Scope"
+msgstr ""
+
+#. Key:	WindScopeMenuTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(59)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(59)
+msgctxt "KawaiiPhysicsEditorTabFactories,WindScopeMenuTooltip"
+msgid "KawaiiPhysics の風プレビュータブを開きます / Opens the KawaiiPhysics wind preview tab."
+msgstr "KawaiiPhysics の風プレビュータブを開きます"
+
+#. Key:	PresetDiffTabLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(89)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(89)
+msgctxt "KawaiiPhysicsEditorTabFactories,PresetDiffTabLabel"
+msgid "Kawaii Preset Diff"
+msgstr ""
+
+#. Key:	PresetDiffViewMenuDescription
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(91)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(91)
+msgctxt "KawaiiPhysicsEditorTabFactories,PresetDiffViewMenuDescription"
+msgid "Preset Diff"
+msgstr ""
+
+#. Key:	PresetDiffMenuTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(92)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorTabFactories.cpp(92)
+msgctxt "KawaiiPhysicsEditorTabFactories,PresetDiffMenuTooltip"
+msgid "KawaiiPhysics のプリセット差分タブを開きます / Opens the KawaiiPhysics preset diff tab."
+msgstr "KawaiiPhysics のプリセット差分タブを開きます"
+
+#. Key:	KawaiiPhysicsMenuGroupTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEdWindowUtils.cpp(113)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEdWindowUtils.cpp(113)
+msgctxt "KawaiiPhysicsEdWindowUtils,KawaiiPhysicsMenuGroupTooltip"
+msgid "KawaiiPhysics のツール群 / KawaiiPhysics tools"
+msgstr "KawaiiPhysics のツール群"
+
+#. Key:	KawaiiPhysicsMenuGroup
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEdWindowUtils.cpp(87)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEdWindowUtils.cpp(87)
+msgctxt "KawaiiPhysicsEdWindowUtils,KawaiiPhysicsMenuGroup"
+msgid "Kawaii Physics"
+msgstr ""
 
 #. Key:	FindTargetNodesWindowTitle
 #. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(146)
