@@ -703,7 +703,7 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeParamRow(const FKawaii
 	else if (KawaiiPhysicsWindScopeEditPanelPrivate::IsEditPanelParameterModeProperty(Property))
 	{
 		ValueWidget =
-			SNew(SComboBox<TSharedPtr<EKawaiiProceduralWindParameterMode>>)
+			SAssignNew(ParameterModeComboBox, SComboBox<TSharedPtr<EKawaiiProceduralWindParameterMode>>)
 			.OptionsSource(&KawaiiPhysicsWindScopeEditPanelPrivate::GetParameterModeItems())
 			.InitiallySelectedItem(KawaiiPhysicsWindScopeEditPanelPrivate::GetParameterModeItems()[0])
 			.OnGenerateWidget_Lambda([](TSharedPtr<EKawaiiProceduralWindParameterMode> Item)
@@ -715,6 +715,10 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeParamRow(const FKawaii
 			.OnSelectionChanged_Lambda([this, PropertyName = ParamDef.PropertyName](TSharedPtr<EKawaiiProceduralWindParameterMode> Item, ESelectInfo::Type SelectInfo)
 			{
 				(void)SelectInfo;
+				if (bSyncingParameterModeCombo)
+				{
+					return;
+				}
 				if (Item.IsValid() && OnParamEdit.IsBound())
 				{
 					OnParamEdit.Execute(PropertyName, static_cast<double>(static_cast<uint8>(*Item)), INDEX_NONE, EKawaiiWindEditPhase::Committed);
@@ -977,6 +981,52 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeResetButton(FName Prop
 			SNew(SImage)
 			.Image(FAppStyle::Get().GetBrush(TEXT("PropertyWindow.DiffersFromDefault")))
 		];
+}
+
+// SComboBox は内部 SelectedItem と異なる項目を選んだときしか OnSelectionChanged を発火せず、
+// さらにキーボードの Up/Down はメニューを開かずにその内部 SelectedItem を起点に隣の項目を選ぶ
+// （SComboBox::OnKeyDown）。開いた瞬間だけ同期してもキーボード・ゲームパッド経路を取りこぼすため、
+// 毎フレーム実値へ寄せる。未生成・展開中・既に一致のいずれかで即 return するので、
+// 親ウィンドウが毎フレーム行っている CachedEditValues の再構築に比べれば無視できるコスト
+void SKawaiiPhysicsWindScopeEditPanel::Tick(
+	const FGeometry& AllottedGeometry,
+	const double InCurrentTime,
+	const float InDeltaTime)
+{
+	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+	SyncParameterModeComboSelection();
+}
+
+// SetSelectedItem は SListView 経由で OnSelectionChanged を誘発するため、ガードを立てて
+// 自前ハンドラ（＝不要な編集イベント）を抑止してから同期する。展開中に呼ぶと
+// OnSelectionChanged_Internal の SetIsOpen(false) でドロップダウンが閉じてしまうので触らない
+void SKawaiiPhysicsWindScopeEditPanel::SyncParameterModeComboSelection()
+{
+	if (!ParameterModeComboBox.IsValid() || ParameterModeComboBox->IsOpen())
+	{
+		return;
+	}
+
+	const FKawaiiWindScopeEditValues* Values = EditValues.Get();
+	if (!Values || !Values->bValid)
+	{
+		return;
+	}
+
+	const TArray<TSharedPtr<EKawaiiProceduralWindParameterMode>>& Items =
+		KawaiiPhysicsWindScopeEditPanelPrivate::GetParameterModeItems();
+	const TSharedPtr<EKawaiiProceduralWindParameterMode>* MatchedItem = Items.FindByPredicate(
+		[Mode = Values->ParameterMode](const TSharedPtr<EKawaiiProceduralWindParameterMode>& Item)
+		{
+			return Item.IsValid() && *Item == Mode;
+		});
+	if (!MatchedItem || *MatchedItem == ParameterModeComboBox->GetSelectedItem())
+	{
+		return;
+	}
+
+	TGuardValue<bool> SyncGuard(bSyncingParameterModeCombo, true);
+	ParameterModeComboBox->SetSelectedItem(*MatchedItem);
 }
 
 void SKawaiiPhysicsWindScopeEditPanel::LoadCollapsedGroupsFromConfig()
