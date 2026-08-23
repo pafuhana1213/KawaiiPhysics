@@ -496,7 +496,7 @@ void SKawaiiPhysicsPresetDiffWindow::RegisterTabSpawner(const TSharedRef<FWorksp
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 			PresetDiffTabId,
 			FOnSpawnTab::CreateStatic(&SKawaiiPhysicsPresetDiffWindow::SpawnPresetDiffTab))
-		.SetDisplayName(LOCTEXT("PresetDiffMenuDisplayName", "Kawaii Physics: Preset Diff"))
+		.SetDisplayName(LOCTEXT("PresetDiffMenuDisplayName", "Preset Diff"))
 		.SetTooltipText(LOCTEXT("PresetDiffMenuTooltip", "KawaiiPhysics のプリセット差分タブを開きます / Opens the KawaiiPhysics preset diff tab."))
 		.SetGroup(InMenuGroup)
 		.SetIcon(KawaiiPhysicsIcon);

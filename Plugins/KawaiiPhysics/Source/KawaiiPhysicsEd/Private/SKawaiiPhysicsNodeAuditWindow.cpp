@@ -231,7 +231,7 @@ void SKawaiiPhysicsNodeAuditWindow::RegisterTabSpawner(const TSharedRef<FWorkspa
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 			NodeAuditTabId,
 			FOnSpawnTab::CreateStatic(&SKawaiiPhysicsNodeAuditWindow::SpawnNodeAuditTab))
-		.SetDisplayName(LOCTEXT("NodeAuditMenuDisplayName", "Kawaii Physics: Node Audit"))
+		.SetDisplayName(LOCTEXT("NodeAuditMenuDisplayName", "Node Audit"))
 		.SetTooltipText(LOCTEXT("NodeAuditMenuTooltip", "KawaiiPhysics のノード監査タブを開きます / Opens the KawaiiPhysics node audit tab."))
 		.SetGroup(InMenuGroup)
 		.SetIcon(KawaiiPhysicsIcon);
