@@ -1612,11 +1612,14 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 						GustStrength,
 						GustRiseTime,
 						GustDecayTime);
-					KawaiiPhysicsEdWindowUtils::ShowNotification(
-						bAppliedLive
-							? LOCTEXT("GustSucceededLive", "Triggered wind gust. (live)")
-							: LOCTEXT("GustNoLiveTarget", "Skipped wind gust. (no live target)"),
-						bAppliedLive ? SNotificationItem::CS_Success : SNotificationItem::CS_Fail);
+					// 成功時は通知を出さない: 連打時に右下ポップアップがエディタを重くし、波形の目視確認を妨げるため。
+					// 失敗時（ライブ対象なし）のみ理由を通知する
+					if (!bAppliedLive)
+					{
+						KawaiiPhysicsEdWindowUtils::ShowNotification(
+							LOCTEXT("GustNoLiveTarget", "Skipped wind gust. (no live target)"),
+							SNotificationItem::CS_Fail);
+					}
 					return FReply::Handled();
 				})
 			]
