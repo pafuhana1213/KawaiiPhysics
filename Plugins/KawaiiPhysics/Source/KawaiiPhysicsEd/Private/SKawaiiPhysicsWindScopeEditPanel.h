@@ -62,8 +62,6 @@ public:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 private:
-	TSharedRef<SWidget> MakeFormulaHelpButton() const;
-	TSharedRef<SWidget> MakeFormulaHelpContent() const;
 	TSharedRef<SWidget> MakeGroupWidget(const FKawaiiWindScopeParamGroup& Group);
 	TSharedRef<SWidget> MakeParamRow(const FKawaiiWindScopeParamDef& ParamDef);
 	TSharedRef<SWidget> MakeResetButton(FName PropertyName) const;

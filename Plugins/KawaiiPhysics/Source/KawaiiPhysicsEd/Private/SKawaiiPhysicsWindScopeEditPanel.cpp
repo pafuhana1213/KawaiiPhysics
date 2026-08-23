@@ -121,18 +121,6 @@ namespace KawaiiPhysicsWindScopeEditPanelPrivate
 		return FLinearColor(0.28f, 0.3f, 0.34f, 1.0f);
 	}
 
-	FLinearColor ResolveComponentColor(EKawaiiPhysicsWindScopeComponent Component)
-	{
-		for (const FKawaiiWindScopeComponentStyle& Style : GetWindScopeComponentStyles())
-		{
-			if (Style.Component == Component)
-			{
-				return Style.Color;
-			}
-		}
-		return FLinearColor::White;
-	}
-
 	FSlateColor ResolveLiveWarningColor()
 	{
 		return FSlateColor(FLinearColor(1.0f, 0.7f, 0.2f));
@@ -161,14 +149,6 @@ namespace KawaiiPhysicsWindScopeEditPanelPrivate
 			}
 		}
 		return false;
-	}
-
-	TSharedRef<STextBlock> MakeFormulaText(const FText& Text, const FSlateColor& Color = FSlateColor::UseForeground())
-	{
-		return SNew(STextBlock)
-			.Text(Text)
-			.ColorAndOpacity(Color)
-			.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9));
 	}
 
 	class SKawaiiWindScopeGroupHoverBorder : public SBorder
@@ -396,12 +376,6 @@ void SKawaiiPhysicsWindScopeEditPanel::Construct(const FArguments& InArgs)
 				LOCTEXT("CollapseAllGroupsTooltip", "Collapse all categories."),
 				FOnClicked::CreateSP(this, &SKawaiiPhysicsWindScopeEditPanel::OnCollapseAllClicked))
 		]
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		[
-			MakeFormulaHelpButton()
-		]
 	];
 	// 固定グループ（表示モード・有効）はカテゴリ化せずヘッダー直下に常時表示
 	for (const FKawaiiWindScopeParamGroup& Group : GetWindScopeParamGroups())
@@ -453,21 +427,6 @@ void SKawaiiPhysicsWindScopeEditPanel::Construct(const FArguments& InArgs)
 	];
 }
 
-TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeFormulaHelpButton() const
-{
-	return SNew(SComboButton)
-		.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
-		.ContentPadding(FMargin(4.0f, 1.0f))
-		.ToolTipText(LOCTEXT("FormulaHelpTooltip", "Composition formula help."))
-		.OnGetMenuContent(this, &SKawaiiPhysicsWindScopeEditPanel::MakeFormulaHelpContent)
-		.ButtonContent()
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("FormulaHelpButton", "?"))
-			.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9, TEXT("Bold")))
-		];
-}
-
 TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeHeaderIconButton(
 	const FName IconName,
 	const FText& ToolTipText,
@@ -493,57 +452,6 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeHeaderIconButton(
 			[
 				SNew(SImage)
 				.Image(IconBrush)
-			]
-		];
-}
-
-TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeFormulaHelpContent() const
-{
-	return SNew(SBox)
-		.WidthOverride(500.0f)
-		.Padding(10.0f)
-		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(0.0f, 0.0f, 0.0f, 8.0f)
-			[
-				SNew(SWrapBox)
-				.UseAllottedSize(true)
-				.InnerSlotPadding(FVector2D(1.0f, 1.0f))
-				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaTotalPrefix", "Sample."))]
-				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaTotal", "Total"), KawaiiPhysicsWindScopeEditPanelPrivate::ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Total))]
-				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaEquals", " = ("))]
-				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaConstantPrefix", "Sample."))]
-				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaConstant", "Constant"), KawaiiPhysicsWindScopeEditPanelPrivate::ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Constant))]
-				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaPlusSway", " + Sample."))]
-				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaSway", "Sway"), KawaiiPhysicsWindScopeEditPanelPrivate::ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Sway))]
-				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaPlusRipple", " + Sample."))]
-				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaRipple", "Ripple"), KawaiiPhysicsWindScopeEditPanelPrivate::ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Ripple))]
-				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaStrengthCyclePrefix", ") * Sample."))]
-				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaStrengthCycle", "StrengthCycle"), KawaiiPhysicsWindScopeEditPanelPrivate::ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::StrengthCycle))]
-				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaPlusRandom", " + Sample."))]
-				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaRandom", "Random"), KawaiiPhysicsWindScopeEditPanelPrivate::ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Random))]
-				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaPlusGust", " + Sample."))]
-				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaGust", "Gust"), KawaiiPhysicsWindScopeEditPanelPrivate::ResolveComponentColor(EKawaiiPhysicsWindScopeComponent::Gust))]
-				+ SWrapBox::Slot()[KawaiiPhysicsWindScopeEditPanelPrivate::MakeFormulaText(LOCTEXT("FormulaSemicolon", ";"))]
-			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("FormulaHelpGroupLine1", "Constant, Sway, Ripple, StrengthCycle, and Random map to their groups."))
-				.AutoWrapText(true)
-				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
-			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(0.0f, 3.0f, 0.0f, 0.0f)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("FormulaHelpGroupLine2", "Gust maps to the Gust button and S/R/D inputs above."))
-				.AutoWrapText(true)
-				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
 			]
 		];
 }
