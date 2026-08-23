@@ -21,6 +21,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Text/STextBlock.h"
 
@@ -132,50 +133,6 @@ namespace KawaiiPhysicsWindScopeEditPanelPrivate
 		return FLinearColor::White;
 	}
 
-	FLinearColor MakeEditPanelInactiveSeriesColor(FLinearColor Color)
-	{
-		Color = Color.Desaturate(0.65f);
-		Color.A *= 0.38f;
-		return Color;
-	}
-
-	bool IsSeriesActiveFromValues(
-		const FKawaiiWindScopeEditValues* Values,
-		EKawaiiPhysicsWindScopeComponent Component)
-	{
-		if (!Values || !Values->bValid || Component == EKawaiiPhysicsWindScopeComponent::Total)
-		{
-			return true;
-		}
-
-		const auto IsNonZeroFloat = [Values](const FName PropertyName)
-		{
-			const float* Value = Values->FloatValues.Find(PropertyName);
-			return Value && !FMath::IsNearlyZero(*Value);
-		};
-
-		switch (Component)
-		{
-		case EKawaiiPhysicsWindScopeComponent::Constant:
-			return IsNonZeroFloat(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, ConstantForce));
-		case EKawaiiPhysicsWindScopeComponent::Sway:
-			return IsNonZeroFloat(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, SwayForce));
-		case EKawaiiPhysicsWindScopeComponent::Ripple:
-			return IsNonZeroFloat(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RippleForce));
-		case EKawaiiPhysicsWindScopeComponent::StrengthCycle:
-			if (const FFloatInterval* Range = Values->IntervalValues.Find(
-				GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, StrengthCycleRange)))
-			{
-				return !FMath::IsNearlyEqual(Range->Min, 1.0f) || !FMath::IsNearlyEqual(Range->Max, 1.0f);
-			}
-			return true;
-		case EKawaiiPhysicsWindScopeComponent::Random:
-			return IsNonZeroFloat(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomForce));
-		default:
-			return true;
-		}
-	}
-
 	FSlateColor ResolveLiveWarningColor()
 	{
 		return FSlateColor(FLinearColor(1.0f, 0.7f, 0.2f));
@@ -271,7 +228,8 @@ const TArray<FKawaiiWindScopeParamGroup>& GetWindScopeParamGroups()
 			{
 				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, ParameterMode), 0.0f, 1.0f, false},
 				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce, bIsEnabled), 0.0f, 1.0f, true},
-			}
+			},
+			true
 		},
 		{
 			LOCTEXT("DirectionGroupLabel", "Direction"),
@@ -445,18 +403,34 @@ void SKawaiiPhysicsWindScopeEditPanel::Construct(const FArguments& InArgs)
 			MakeFormulaHelpButton()
 		]
 	];
+	// 固定グループ（表示モード・有効）はカテゴリ化せずヘッダー直下に常時表示
+	for (const FKawaiiWindScopeParamGroup& Group : GetWindScopeParamGroups())
+	{
+		if (!Group.bPinned)
+		{
+			continue;
+		}
+		for (const FKawaiiWindScopeParamDef& Param : Group.Params)
+		{
+			ScrollBox->AddSlot()
+			.Padding(4.0f, 0.0f, 4.0f, 4.0f)
+			[
+				MakeParamRow(Param)
+			];
+		}
+	}
 	ScrollBox->AddSlot()
-	.Padding(0.0f, 0.0f, 0.0f, 6.0f)
+	.Padding(0.0f, 2.0f, 0.0f, 6.0f)
 	[
-		SNew(STextBlock)
-		.Text(this, &SKawaiiPhysicsWindScopeEditPanel::GetSimpleHiddenHintText)
-		.Visibility(this, &SKawaiiPhysicsWindScopeEditPanel::GetSimpleHiddenHintVisibility)
-		.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
-		.AutoWrapText(true)
-		.ColorAndOpacity(FLinearColor(0.72f, 0.72f, 0.68f, 1.0f))
+		SNew(SSeparator)
+		.Orientation(Orient_Horizontal)
 	];
 	for (const FKawaiiWindScopeParamGroup& Group : GetWindScopeParamGroups())
 	{
+		if (Group.bPinned)
+		{
+			continue;
+		}
 		ScrollBox->AddSlot()
 		.Padding(0.0f, 0.0f, 0.0f, 6.0f)
 		[
@@ -1145,36 +1119,11 @@ bool SKawaiiPhysicsWindScopeEditPanel::IsParamVisibleInCurrentMode(FName Propert
 	return IsAdvancedMode() || !IsParamAdvancedOnly(PropertyName);
 }
 
-int32 SKawaiiPhysicsWindScopeEditPanel::CountHiddenAdvancedParams() const
-{
-	if (IsAdvancedMode())
-	{
-		return 0;
-	}
-
-	int32 HiddenCount = 0;
-	for (const FKawaiiWindScopeParamGroup& Group : GetWindScopeParamGroups())
-	{
-		for (const FKawaiiWindScopeParamDef& Param : Group.Params)
-		{
-			if (Param.bAdvancedOnly)
-			{
-				++HiddenCount;
-			}
-		}
-	}
-	return HiddenCount;
-}
-
 FLinearColor SKawaiiPhysicsWindScopeEditPanel::ResolveSeriesDisplayColor(
 	TOptional<EKawaiiPhysicsWindScopeComponent> LinkedSeries) const
 {
-	const FLinearColor Color = KawaiiPhysicsWindScopeEditPanelPrivate::ResolveGroupColor(LinkedSeries);
-	if (!LinkedSeries.IsSet() || KawaiiPhysicsWindScopeEditPanelPrivate::IsSeriesActiveFromValues(EditValues.Get(), LinkedSeries.GetValue()))
-	{
-		return Color;
-	}
-	return KawaiiPhysicsWindScopeEditPanelPrivate::MakeEditPanelInactiveSeriesColor(Color);
+	// 非アクティブ系列の淡色表示は左上の計算式ヘッダに任せ、編集パネル側はカテゴリ名の視認性を優先して常に本来の色で表示する
+	return KawaiiPhysicsWindScopeEditPanelPrivate::ResolveGroupColor(LinkedSeries);
 }
 
 EVisibility SKawaiiPhysicsWindScopeEditPanel::GetResetVisibility(FName PropertyName) const
@@ -1213,18 +1162,6 @@ EVisibility SKawaiiPhysicsWindScopeEditPanel::GetGroupVisibility(FName GroupId) 
 		}
 	}
 	return EVisibility::Collapsed;
-}
-
-EVisibility SKawaiiPhysicsWindScopeEditPanel::GetSimpleHiddenHintVisibility() const
-{
-	return CountHiddenAdvancedParams() > 0 ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-FText SKawaiiPhysicsWindScopeEditPanel::GetSimpleHiddenHintText() const
-{
-	return FText::Format(
-		LOCTEXT("SimpleHiddenParamsHint", "Simple hides {0} advanced parameters."),
-		FText::AsNumber(CountHiddenAdvancedParams()));
 }
 
 EVisibility SKawaiiPhysicsWindScopeEditPanel::GetGroupModifiedDotVisibility(FName GroupId) const
