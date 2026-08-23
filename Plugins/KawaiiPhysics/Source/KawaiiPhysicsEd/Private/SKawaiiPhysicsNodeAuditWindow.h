@@ -12,7 +12,6 @@
 
 class ITableRow;
 class FSpawnTabArgs;
-class FWorkspaceItem;
 class SDockTab;
 class STableViewBase;
 
@@ -36,6 +35,8 @@ struct FKawaiiPhysicsNodeAuditWindowArgs
 
 class SKawaiiPhysicsNodeAuditWindow : public SCompoundWidget
 {
+	SLATE_DECLARE_WIDGET(SKawaiiPhysicsNodeAuditWindow, SCompoundWidget)
+
 public:
 	SLATE_BEGIN_ARGS(SKawaiiPhysicsNodeAuditWindow)
 		{
@@ -47,7 +48,7 @@ public:
 	static const FName NodeAuditTabId;
 
 	/** 監査タブスポナーを登録する / Registers the audit tab spawner. */
-	static void RegisterTabSpawner(const TSharedRef<FWorkspaceItem>& InMenuGroup);
+	static void RegisterTabSpawner();
 
 	/** 監査タブスポナーを解除する / Unregisters the audit tab spawner. */
 	static void UnregisterTabSpawner();
@@ -60,6 +61,9 @@ public:
 
 	/** 開いている監査タブをすべて閉じる / Closes all open audit tabs. */
 	static void CloseAllWindows();
+
+	/** 所有 DockTab を弱参照で保持する / Stores the owning DockTab as a weak reference. */
+	void SetOwnerTab(TSharedRef<SDockTab> InOwnerTab);
 
 	/** 現在の引数でウィジェット状態を置き換える / Replaces the widget state with the current arguments. */
 	void SetArgs(FKawaiiPhysicsNodeAuditWindowArgs Args);
@@ -101,5 +105,6 @@ private:
 	FName SortColumnId;
 	EColumnSortMode::Type SortMode = EColumnSortMode::None;
 
+	TWeakPtr<SDockTab> OwnerTabWeak;
 	TSharedPtr<SListView<FEntryPtr>> ListView;
 };

@@ -6,10 +6,9 @@
 #include "Animation/AnimBlueprint.h"
 #include "BlueprintEditorModule.h"
 #include "EdGraph/EdGraph.h"
+#include "Editor.h"
 #include "Framework/Docking/TabManager.h"
-#include "Framework/Docking/WorkspaceItem.h"
 #include "HAL/PlatformApplicationMisc.h"
-#include "KawaiiPhysicsEdStyle.h"
 #include "KawaiiPhysicsEdWindowUtils.h"
 #include "KawaiiPhysicsEditorLibrary.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -17,7 +16,6 @@
 #include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
 #include "Subsystems/AssetEditorSubsystem.h"
-#include "Textures/SlateIcon.h"
 #include "UObject/UnrealType.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
@@ -38,6 +36,13 @@
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysicsPresetDiffWindow"
 
+SLATE_IMPLEMENT_WIDGET(SKawaiiPhysicsPresetDiffWindow)
+
+void SKawaiiPhysicsPresetDiffWindow::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
+{
+	(void)AttributeInitializer;
+}
+
 namespace
 {
 	const FName SelectionColumnName(TEXT("Selection"));
@@ -46,8 +51,23 @@ namespace
 	const FName NodeValueColumnName(TEXT("NodeValue"));
 	const FName PresetValueColumnName(TEXT("PresetValue"));
 
-	TWeakPtr<SDockTab> DiffTabWeak;
-	TWeakPtr<SKawaiiPhysicsPresetDiffWindow> DiffWidgetWeak;
+	TArray<TWeakPtr<SKawaiiPhysicsPresetDiffWindow>> LivePresetDiffWindows;
+
+	void RegisterLiveWindow(TSharedRef<SKawaiiPhysicsPresetDiffWindow> Window)
+	{
+		LivePresetDiffWindows.RemoveAllSwap([](const TWeakPtr<SKawaiiPhysicsPresetDiffWindow>& ExistingWindow)
+		{
+			return !ExistingWindow.IsValid();
+		});
+		for (const TWeakPtr<SKawaiiPhysicsPresetDiffWindow>& ExistingWindow : LivePresetDiffWindows)
+		{
+			if (ExistingWindow.Pin().Get() == &Window.Get())
+			{
+				return;
+			}
+		}
+		LivePresetDiffWindows.Add(Window);
+	}
 
 	FKawaiiPhysicsGraphNodeHandle MakePresetDiffHandle(UAnimGraphNode_KawaiiPhysics* GraphNode)
 	{
@@ -488,52 +508,12 @@ void SKawaiiPhysicsPresetDiffWindow::Construct(const FArguments& InArgs, FKawaii
 	RefreshFilteredRows();
 }
 
-void SKawaiiPhysicsPresetDiffWindow::RegisterTabSpawner(const TSharedRef<FWorkspaceItem>& InMenuGroup)
-{
-	const FSlateIcon KawaiiPhysicsIcon(
-		FKawaiiPhysicsEdStyle::GetStyleSetName(),
-		TEXT("KawaiiPhysics.TabIcon"));
-	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
-			PresetDiffTabId,
-			FOnSpawnTab::CreateStatic(&SKawaiiPhysicsPresetDiffWindow::SpawnPresetDiffTab))
-		.SetDisplayName(LOCTEXT("PresetDiffMenuDisplayName", "Preset Diff"))
-		.SetTooltipText(LOCTEXT("PresetDiffMenuTooltip", "KawaiiPhysics のプリセット差分タブを開きます / Opens the KawaiiPhysics preset diff tab."))
-		.SetGroup(InMenuGroup)
-		.SetIcon(KawaiiPhysicsIcon);
-}
-
-void SKawaiiPhysicsPresetDiffWindow::UnregisterTabSpawner()
-{
-	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(PresetDiffTabId);
-}
-
-TSharedRef<SDockTab> SKawaiiPhysicsPresetDiffWindow::SpawnPresetDiffTab(const FSpawnTabArgs& SpawnTabArgs)
-{
-	(void)SpawnTabArgs;
-
-	TSharedRef<SKawaiiPhysicsPresetDiffWindow> DiffWidget = SNew(SKawaiiPhysicsPresetDiffWindow);
-	TSharedRef<SDockTab> DiffTab = SNew(SDockTab)
-		.TabRole(ETabRole::NomadTab)
-		.Label(LOCTEXT("PresetDiffTabLabel", "Kawaii Preset Diff"))
-		.OnTabClosed_Lambda([](TSharedRef<SDockTab> ClosedTab)
-		{
-			(void)ClosedTab;
-			DiffTabWeak.Reset();
-			DiffWidgetWeak.Reset();
-		})
-		[
-			DiffWidget
-		];
-
-	DiffTabWeak = DiffTab;
-	DiffWidgetWeak = DiffWidget;
-	return DiffTab;
-}
-
 void SKawaiiPhysicsPresetDiffWindow::OpenWindow(FKawaiiPhysicsPresetDiffWindowArgs Args)
 {
-	// タブを呼び出してから、差分対象の引数を既存コンテンツへ注入する
-	TSharedPtr<SDockTab> InvokedTab = FGlobalTabmanager::Get()->TryInvokeTab(PresetDiffTabId);
+	TSharedPtr<SDockTab> InvokedTab = KawaiiPhysicsEdWindowUtils::InvokeAnimBlueprintEditorTab(
+		Args.AnimBlueprintPath,
+		PresetDiffTabId,
+		LOCTEXT("PresetDiffOpenEditorFailed", "Failed to open the Animation Blueprint editor for Preset Diff."));
 	if (!InvokedTab.IsValid())
 	{
 		return;
@@ -545,31 +525,45 @@ void SKawaiiPhysicsPresetDiffWindow::OpenWindow(FKawaiiPhysicsPresetDiffWindowAr
 		return;
 	}
 
-	if (TSharedPtr<SKawaiiPhysicsPresetDiffWindow> ExistingWidget = DiffWidgetWeak.Pin())
+	if (TabContent->GetType() == FName(TEXT("SKawaiiPhysicsPresetDiffWindow")))
 	{
-		ExistingWidget->SetArgs(MoveTemp(Args));
+		TSharedPtr<SKawaiiPhysicsPresetDiffWindow> WindowWidget =
+			StaticCastSharedPtr<SKawaiiPhysicsPresetDiffWindow>(TabContent);
+		WindowWidget->SetOwnerTab(InvokedTab.ToSharedRef());
+		WindowWidget->SetArgs(MoveTemp(Args));
 		return;
 	}
 
-	// Hot Reload等でファイルスコープの弱参照だけが失効した場合、タブ内容から復旧する
-	if (TabContent->GetType() == FName(TEXT("SKawaiiPhysicsPresetDiffWindow")))
-	{
-		TSharedPtr<SKawaiiPhysicsPresetDiffWindow> RecoveredWidget =
-			StaticCastSharedPtr<SKawaiiPhysicsPresetDiffWindow>(TabContent);
-		DiffTabWeak = InvokedTab;
-		DiffWidgetWeak = RecoveredWidget;
-		RecoveredWidget->SetArgs(MoveTemp(Args));
-	}
+	KawaiiPhysicsEdWindowUtils::ShowNotification(
+		LOCTEXT("PresetDiffTabContentInvalid", "Failed to update the Preset Diff tab content."),
+		SNotificationItem::CS_Fail);
 }
 
 void SKawaiiPhysicsPresetDiffWindow::CloseAllWindows()
 {
-	if (TSharedPtr<SDockTab> DiffTab = DiffTabWeak.Pin())
+	TArray<TSharedPtr<SDockTab>> TabsToClose;
+	for (const TWeakPtr<SKawaiiPhysicsPresetDiffWindow>& WeakWindow : LivePresetDiffWindows)
 	{
-		DiffTab->RequestCloseTab();
+		if (TSharedPtr<SKawaiiPhysicsPresetDiffWindow> Window = WeakWindow.Pin())
+		{
+			if (TSharedPtr<SDockTab> OwnerTab = Window->OwnerTabWeak.Pin())
+			{
+				TabsToClose.Add(OwnerTab);
+			}
+		}
 	}
-	DiffTabWeak.Reset();
-	DiffWidgetWeak.Reset();
+
+	for (const TSharedPtr<SDockTab>& Tab : TabsToClose)
+	{
+		Tab->RequestCloseTab();
+	}
+	LivePresetDiffWindows.Reset();
+}
+
+void SKawaiiPhysicsPresetDiffWindow::SetOwnerTab(TSharedRef<SDockTab> InOwnerTab)
+{
+	OwnerTabWeak = InOwnerTab;
+	RegisterLiveWindow(StaticCastSharedRef<SKawaiiPhysicsPresetDiffWindow>(AsShared()));
 }
 
 void SKawaiiPhysicsPresetDiffWindow::SetArgs(FKawaiiPhysicsPresetDiffWindowArgs Args)

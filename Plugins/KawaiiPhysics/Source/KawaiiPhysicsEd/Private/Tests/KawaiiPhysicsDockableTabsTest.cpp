@@ -29,10 +29,10 @@ bool FKawaiiPhysicsDockableTabsSpawnersTest::RunTest(const FString& Parameters)
 	const FName NodeAuditTabId = SKawaiiPhysicsNodeAuditWindow::NodeAuditTabId;
 
 	bool bOk = true;
-	bOk &= TestTrue(TEXT("Wind Scope tab spawner is registered"),
-	                FGlobalTabmanager::Get()->HasTabSpawner(WindScopeTabId));
-	bOk &= TestTrue(TEXT("Preset Diff tab spawner is registered"),
-	                FGlobalTabmanager::Get()->HasTabSpawner(PresetDiffTabId));
+	bOk &= TestFalse(TEXT("Wind Scope tab spawner is not registered globally"),
+	                 FGlobalTabmanager::Get()->HasTabSpawner(WindScopeTabId));
+	bOk &= TestFalse(TEXT("Preset Diff tab spawner is not registered globally"),
+	                 FGlobalTabmanager::Get()->HasTabSpawner(PresetDiffTabId));
 	bOk &= TestTrue(TEXT("Node Audit tab spawner is registered"),
 	                FGlobalTabmanager::Get()->HasTabSpawner(NodeAuditTabId));
 	bOk &= TestTrue(TEXT("Wind Scope and Preset Diff tab ids are distinct"),
