@@ -29,7 +29,7 @@
 
 namespace KawaiiPhysicsWindScopeEditPanelPrivate
 {
-	constexpr float LabelColumnWidth = 150.0f;
+	constexpr float LabelColumnWidth = 190.0f;
 	constexpr float LiveValueTolerance = 0.01f;
 	const TCHAR* const EditPanelConfigSectionName = TEXT("KawaiiPhysicsEd");
 	const TCHAR* const WindScopeCollapsedGroupsKey = TEXT("WindScopeEditPanelCollapsedGroups");
@@ -208,6 +208,7 @@ const TArray<FKawaiiWindScopeParamGroup>& GetWindScopeParamGroups()
 			{
 				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, ParameterMode), 0.0f, 1.0f, false},
 				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce, bIsEnabled), 0.0f, 1.0f, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, TimeScale), 0.0f, 3.0f, true, true},
 			},
 			true
 		},
@@ -274,15 +275,6 @@ const TArray<FKawaiiWindScopeParamGroup>& GetWindScopeParamGroups()
 				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomForce), 0.0f, 50.0f, true},
 				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomForcePeriod), 0.01f, 5.0f, true},
 				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, Seed), 0.0f, 10000.0f, false, true},
-			}
-		},
-		{
-			LOCTEXT("TimeGroupLabel", "Time"),
-			FName(TEXT("Time")),
-			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, TimeScale),
-			TOptional<EKawaiiPhysicsWindScopeComponent>(),
-			{
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, TimeScale), 0.0f, 3.0f, true, true},
 			}
 		},
 	};
@@ -419,6 +411,25 @@ void SKawaiiPhysicsWindScopeEditPanel::Construct(const FArguments& InArgs)
 		.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
 		.AutoWrapText(true)
 		.ColorAndOpacity(FLinearColor(0.78f, 0.78f, 0.72f, 1.0f))
+		.Visibility_Lambda([this]()
+		{
+			if (!IsParamPinExposed.IsBound())
+			{
+				return EVisibility::Collapsed;
+			}
+
+			for (const FKawaiiWindScopeParamGroup& Group : GetWindScopeParamGroups())
+			{
+				for (const FKawaiiWindScopeParamDef& Param : Group.Params)
+				{
+					if (IsParamPinExposed.Execute(Param.PropertyName))
+					{
+						return EVisibility::Visible;
+					}
+				}
+			}
+			return EVisibility::Collapsed;
+		})
 	];
 
 	ChildSlot
@@ -781,6 +792,8 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeParamRow(const FKawaii
 			.ToolTipText(ToolTipText);
 	}
 
+	// 値ウィジェットはパネル幅に追従させるため FillWidth + HAlign_Fill で伸縮させる
+	// （固定幅の SBox で包まない。CheckBox もこの扱いで問題ない）
 	return SNew(SHorizontalBox)
 		.Visibility(this, &SKawaiiPhysicsWindScopeEditPanel::GetParamRowVisibility, ParamDef.PropertyName)
 		+ SHorizontalBox::Slot()
@@ -799,6 +812,8 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeParamRow(const FKawaii
 					.Text(Label)
 					.ToolTipText(ToolTipText)
 					.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+					// ラベル列を広げたので折り返しは不要。クリップ（省略記号）も付けず全文表示する
+					.AutoWrapText(false)
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
@@ -811,6 +826,7 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeParamRow(const FKawaii
 		]
 		+ SHorizontalBox::Slot()
 		.FillWidth(1.0f)
+		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Center)
 		[
 			ValueWidget.ToSharedRef()
@@ -818,20 +834,33 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeParamRow(const FKawaii
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
-		.Padding(6.0f, 0.0f, 0.0f, 0.0f)
+		.Padding(8.0f, 0.0f, 0.0f, 0.0f)
 		[
 			SNew(STextBlock)
 			.Text(this, &SKawaiiPhysicsWindScopeEditPanel::GetLiveValueText, ParamDef.PropertyName)
-			.Visibility(this, &SKawaiiPhysicsWindScopeEditPanel::GetLiveValueVisibility, ParamDef.PropertyName)
+			.Visibility_Lambda([this, PropertyName = ParamDef.PropertyName]()
+			{
+				// Hidden ではなく Collapsed で幅を消し、値ウィジェットの右端の位置が揺れないようにする
+				return GetLiveValueVisibility(PropertyName) == EVisibility::Visible
+					       ? EVisibility::Visible
+					       : EVisibility::Collapsed;
+			})
 			.ColorAndOpacity(KawaiiPhysicsWindScopeEditPanelPrivate::ResolveLiveWarningColor())
 			.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+			.Justification(ETextJustify::Left)
 		]
+		// リセットボタンは非表示時も Hidden（Collapsed ではない）で 24px 分の幅を確保し、
+		// 行ごとに右端の位置がずれないようにする
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
 		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
 		[
-			MakeResetButton(ParamDef.PropertyName)
+			SNew(SBox)
+			.WidthOverride(24.0f)
+			[
+				MakeResetButton(ParamDef.PropertyName)
+			]
 		];
 }
 

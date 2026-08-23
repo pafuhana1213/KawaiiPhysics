@@ -13,9 +13,9 @@
 
 struct FStreamableHandle;
 class SDockTab;
+class SComboButton;
 class SComboBoxBase;
 class SSplitter;
-class SWrapBox;
 class UAnimGraphNode_KawaiiPhysics;
 
 struct FKawaiiPhysicsWindScopeWindowArgs
@@ -99,6 +99,7 @@ public:
 	void SetActiveEditGuide(TOptional<FName> PropertyName);
 	void SetEditValues(const FKawaiiWindScopeEditValues* InEditValues);
 	void SetGhostSamples(TArray<FVector2D> InGhostSamples);
+	void SetPaused(bool bInPaused);
 
 	virtual FReply OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override;
@@ -123,6 +124,7 @@ private:
 	TOptional<FVector2D> HoverMousePosition;
 	const FKawaiiWindScopeEditValues* EditValues = nullptr;
 	float DisplaySeconds = 8.0f;
+	bool bPaused = false;
 };
 
 // Wind Scope タブ本体 / Wind Scope tab content widget.
@@ -171,7 +173,6 @@ private:
 	FText GetSelectedExternalForceText() const;
 	FText GetTargetNodeText() const;
 	FText GetModeText() const;
-	FText GetCurrentValuesText() const;
 	ECheckBoxState GetPauseCheckState() const;
 	void OnPauseCheckStateChanged(ECheckBoxState NewState);
 	float GetDisplaySeconds() const;
@@ -181,14 +182,19 @@ private:
 	const FSlateBrush* GetEditPanelToggleIcon() const;
 	FReply OnToggleEditPanelClicked();
 	void OnEditPanelSlotResized(float NewFraction);
+	FSlateColor GetModeBadgeColor() const;
+	EVisibility GetTargetNodeEmptyStateVisibility() const;
 	bool IsWindEditable() const;
 	const FKawaiiWindScopeEditValues* GetEditValues() const;
 	const FKawaiiWindScopeEditValues* GetLiveEditValues() const;
 
 	void RebuildPresetButtons();
+	TSharedRef<SWidget> GeneratePresetMenu();
+	TSharedRef<SWidget> GenerateGustMenu();
 	FReply OnPresetButtonClicked(int32 PresetIndex);
 	void OnPresetButtonHovered(int32 PresetIndex);
 	void OnPresetButtonUnhovered();
+	void OnPresetMenuOpenChanged(bool bIsOpen);
 	FReply ApplyPreset(const FKawaiiProceduralWindPreset& Preset);
 	TSharedRef<SWidget> GenerateSavePresetMenu();
 	bool CanSaveWindPreset() const;
@@ -218,7 +224,10 @@ private:
 	// Live 実行中でない場合の理論波形を再計算する / Rebuilds theoretical Preview samples when Live data is unavailable.
 	void RebuildPreviewSamples(float InDeltaTime, const FKawaiiPhysics_ExternalForce_ProceduralWind* WindSnapshot = nullptr);
 	// 実行中の RuntimeState からライブ波形を取得する / Reads Live samples from RuntimeState.
-	bool TryUpdateFromLiveRuntime();
+	bool TryUpdateFromLiveRuntime(bool& bOutLiveTargetResolved);
+	// Live対象（ProceduralWind + RuntimeState）が現在解決可能かだけを判定する（サンプル取得は行わない）
+	// Checks only whether a Live target currently resolves (does not fetch samples).
+	bool IsLiveTargetResolved() const;
 	// Preview 計算用に ProceduralWind 設定値のコピーを取得する / Gets a ProceduralWind copy for Preview calculation.
 	bool TryGetPreviewForceCopy(struct FKawaiiPhysics_ExternalForce_ProceduralWind& OutForce) const;
 	void UpdateEditValuesFromWind(const FKawaiiPhysics_ExternalForce_ProceduralWind* Wind);
@@ -257,6 +266,7 @@ private:
 	float GustDecayTime;
 	float WindParamPinExposureRefreshElapsedTime = 0.0f;
 	bool bHasDragStartWind = false;
+	bool bIsLiveMode = false;
 	bool bEditPanelExpanded = false;
 	float EditPanelSplitterFraction = 0.4f;
 	// Preview モードでの積算経過時間 / Accumulated elapsed time in Preview mode.
@@ -270,10 +280,10 @@ private:
 	TSharedPtr<FStreamableHandle> PendingReconnectAsyncLoadHandle;
 
 	TWeakPtr<SDockTab> OwnerTabWeak;
+	TSharedPtr<SComboButton> PresetComboButton;
 	TSharedPtr<SComboBox<FExternalForceIndexPtr>> ExternalForceComboBox;
 	TSharedPtr<SKawaiiPhysicsWindScopeGraph> GraphWidget;
 	TSharedPtr<SSplitter> EditPanelSplitter;
 	// ボタンindexとの整合を保つプリセットスナップショット / Preset snapshot aligned with button indices.
 	TArray<FKawaiiProceduralWindPreset> CachedPresets;
-	TSharedPtr<SWrapBox> PresetButtonBox;
 };
