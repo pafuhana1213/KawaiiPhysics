@@ -213,10 +213,6 @@ private:
 	// 放棄されたドラッグ編集をトランザクションとして確定する / Finalizes an abandoned drag edit as a transaction.
 	void FinalizeAbandonedWindDrag();
 	bool ResetWindParamToDefault(FName PropertyName);
-	bool IsWindParamPinExposed(FName PropertyName) const;
-	void ClearWindParamPinExposureCache();
-	void RefreshWindParamPinExposureCache();
-	bool ComputeWindParamPinExposure(FName PropertyName) const;
 
 	// 毎フレームの active timer コールバック / Active timer callback that updates Live or Preview samples.
 	EActiveTimerReturnType TickWindScope(double InCurrentTime, float InDeltaTime);
@@ -258,13 +254,11 @@ private:
 	float DisplaySeconds = 8.0f;
 	FKawaiiWindScopeEditValues CachedEditValues;
 	FKawaiiWindScopeEditValues CachedLiveEditValues;
-	TMap<FName, bool> WindParamPinExposureCache;
 	FKawaiiPhysics_ExternalForce_ProceduralWind DragStartWind;
 	FName DragStartPropertyName;
 	float GustStrength;
 	float GustRiseTime;
 	float GustDecayTime;
-	float WindParamPinExposureRefreshElapsedTime = 0.0f;
 	bool bHasDragStartWind = false;
 	bool bIsLiveMode = false;
 	bool bEditPanelExpanded = false;

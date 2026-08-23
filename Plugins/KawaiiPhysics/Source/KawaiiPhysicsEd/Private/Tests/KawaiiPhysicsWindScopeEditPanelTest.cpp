@@ -48,20 +48,60 @@ bool FKawaiiPhysicsWindScopeEditPanelDefinitionsTest::RunTest(const FString& Par
 			GroupIds.Contains(Group.GroupId));
 		GroupIds.Add(Group.GroupId);
 
-		if (!Group.SummaryProperty.IsNone())
+		// 折りたたみ可能なグループはサマリーを最低1項目持つ（折りたたみ時に情報ゼロにならない）
+		if (!Group.bPinned)
 		{
-			bool bSummaryPropertyExistsInGroup = false;
+			bOk &= TestTrue(
+				FString::Printf(TEXT("Collapsible group has at least one summary item: %s"), *Group.GroupId.ToString()),
+				Group.SummaryItems.Num() > 0);
+		}
+
+		for (const FKawaiiWindScopeSummaryItem& SummaryItem : Group.SummaryItems)
+		{
+			bool bSummaryItemPropertyExistsInGroup = false;
 			for (const FKawaiiWindScopeParamDef& Param : Group.Params)
 			{
-				if (Param.PropertyName == Group.SummaryProperty)
+				if (Param.PropertyName == SummaryItem.PropertyName)
 				{
-					bSummaryPropertyExistsInGroup = true;
+					bSummaryItemPropertyExistsInGroup = true;
 					break;
 				}
 			}
 			bOk &= TestTrue(
-				FString::Printf(TEXT("SummaryProperty exists in group params: %s"), *Group.SummaryProperty.ToString()),
-				bSummaryPropertyExistsInGroup);
+				FString::Printf(TEXT("SummaryItem property exists in group params: %s"), *SummaryItem.PropertyName.ToString()),
+				bSummaryItemPropertyExistsInGroup);
+
+			FProperty* SummaryItemProperty = FindWindScopeTestProperty(SummaryItem.PropertyName);
+			bOk &= TestNotNull(
+				FString::Printf(TEXT("SummaryItem property exists: %s"), *SummaryItem.PropertyName.ToString()),
+				SummaryItemProperty);
+
+			// ラベル無し表示（値のみ）が許されるのはベクトル表示の WindDirection だけ
+			if (SummaryItem.PropertyName != GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindDirection))
+			{
+				bOk &= TestFalse(
+					FString::Printf(TEXT("SummaryItem has a short label: %s"), *SummaryItem.PropertyName.ToString()),
+					SummaryItem.ShortLabel.IsEmpty());
+			}
+
+			if (SummaryItem.bHideWhenZero)
+			{
+				bOk &= TestNotNull(
+					FString::Printf(TEXT("bHideWhenZero summary item is a float property: %s"), *SummaryItem.PropertyName.ToString()),
+					CastField<FFloatProperty>(SummaryItemProperty));
+			}
+
+			if (SummaryItem.Unit == EKawaiiWindScopeSummaryUnit::Seconds ||
+				SummaryItem.Unit == EKawaiiWindScopeSummaryUnit::Degrees)
+			{
+				const bool bSupportedSummaryUnitType =
+					CastField<FFloatProperty>(SummaryItemProperty) ||
+					(CastField<FStructProperty>(SummaryItemProperty) &&
+						CastField<FStructProperty>(SummaryItemProperty)->Struct == TBaseStructure<FFloatInterval>::Get());
+				bOk &= TestTrue(
+					FString::Printf(TEXT("SummaryItem unit type is float or interval: %s"), *SummaryItem.PropertyName.ToString()),
+					bSupportedSummaryUnitType);
+			}
 		}
 
 		for (const FKawaiiWindScopeParamDef& Param : Group.Params)

@@ -7,7 +7,6 @@
 #include "Animation/AnimInstance.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
-#include "EdGraph/EdGraphPin.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
@@ -66,7 +65,6 @@ namespace KawaiiPhysicsWindScopeWindowPrivate
 	constexpr float WindScopeDefaultGustStrength = 6.0f;
 	constexpr float WindScopeDefaultGustRiseTime = 0.1f;
 	constexpr float WindScopeDefaultGustDecayTime = 0.5f;
-	constexpr float WindScopePinExposureRefreshInterval = 1.0f;
 	constexpr float WindScopeReconnectTryLoadDelay = 5.0f;
 	const TCHAR* WindScopeClipboardMarker = TEXT("KawaiiPhysicsProceduralWind:");
 	const TCHAR* WindScopeConfigSectionName = TEXT("KawaiiPhysicsEd");
@@ -2012,7 +2010,6 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 					.LiveEditValues(this, &SKawaiiPhysicsWindScopeWindow::GetLiveEditValues)
 					.OnParamEdit(this, &SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit)
 					.OnParamReset(this, &SKawaiiPhysicsWindScopeWindow::ResetWindParamToDefault)
-					.IsParamPinExposed(this, &SKawaiiPhysicsWindScopeWindow::IsWindParamPinExposed)
 					.OnHighlightSeries(this, &SKawaiiPhysicsWindScopeWindow::SetHighlightSeries)
 				]
 			]
@@ -2110,7 +2107,6 @@ void SKawaiiPhysicsWindScopeWindow::SetArgs(FKawaiiPhysicsWindScopeWindowArgs In
 	// 対象引数を差し替え、表示状態をリセットして外力一覧を再構築する
 	ResolvedGraphNodeCache.Reset();
 	Args = MoveTemp(InArgs);
-	ClearWindParamPinExposureCache();
 	DisplaySamples.Reset();
 	// Pause 中でも旧波形を残さないため即時反映
 	if (GraphWidget.IsValid())
@@ -2150,7 +2146,6 @@ void SKawaiiPhysicsWindScopeWindow::OnExternalForceSelectionChanged(
 	(void)SelectInfo;
 	SelectedExternalForceItem = Item;
 	Args.ExternalForceIndex = Item.IsValid() ? *Item : INDEX_NONE;
-	ClearWindParamPinExposureCache();
 	// 選択切替時は別の外力の波形を混在させないよう表示状態を丸ごとリセットする
 	DisplaySamples.Reset();
 	// Pause 中でも旧波形を残さないため即時反映
@@ -2258,10 +2253,6 @@ const FSlateBrush* SKawaiiPhysicsWindScopeWindow::GetEditPanelToggleIcon() const
 FReply SKawaiiPhysicsWindScopeWindow::OnToggleEditPanelClicked()
 {
 	bEditPanelExpanded = !bEditPanelExpanded;
-	if (bEditPanelExpanded)
-	{
-		ClearWindParamPinExposureCache();
-	}
 	SaveEditPanelConfig();
 	return FReply::Handled();
 }
@@ -3292,106 +3283,6 @@ bool SKawaiiPhysicsWindScopeWindow::ResetWindParamToDefault(FName PropertyName)
 	return true;
 }
 
-bool SKawaiiPhysicsWindScopeWindow::IsWindParamPinExposed(FName PropertyName) const
-{
-	if (const bool* bPinExposed = WindParamPinExposureCache.Find(PropertyName))
-	{
-		return *bPinExposed;
-	}
-	return false;
-}
-
-void SKawaiiPhysicsWindScopeWindow::ClearWindParamPinExposureCache()
-{
-	WindParamPinExposureCache.Reset();
-	WindParamPinExposureRefreshElapsedTime = KawaiiPhysicsWindScopeWindowPrivate::WindScopePinExposureRefreshInterval;
-}
-
-void SKawaiiPhysicsWindScopeWindow::RefreshWindParamPinExposureCache()
-{
-	WindParamPinExposureCache.Reset();
-	for (const FKawaiiWindScopeParamGroup& Group : GetWindScopeParamGroups())
-	{
-		for (const FKawaiiWindScopeParamDef& Param : Group.Params)
-		{
-			WindParamPinExposureCache.Add(Param.PropertyName, ComputeWindParamPinExposure(Param.PropertyName));
-		}
-	}
-}
-
-bool SKawaiiPhysicsWindScopeWindow::ComputeWindParamPinExposure(FName PropertyName) const
-{
-	const UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
-	if (!GraphNode || PropertyName == NAME_None)
-	{
-		return false;
-	}
-
-	const int32 ResolvedIndex = KawaiiPhysicsWindScopeWindowPrivate::ResolveProceduralWindIndex(GraphNode->Node, Args.ExternalForceIndex);
-	if (!GraphNode->Node.ExternalForces.IsValidIndex(ResolvedIndex))
-	{
-		return false;
-	}
-
-	const FString PropertyNameString = PropertyName.ToString();
-	const FString ExternalForcesName = GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_KawaiiPhysics, ExternalForces);
-	const FString ExternalForceElementPinName = FString::Printf(TEXT("%s_%d"), *ExternalForcesName, ResolvedIndex);
-
-	const auto IsExactPinDriven = [GraphNode](const FString& PinName)
-	{
-		return GraphNode->IsPinExposedAndLinked(PinName, EGPD_Input) ||
-			GraphNode->IsPinExposedAndBound(PinName, EGPD_Input);
-	};
-
-	// FInstancedStruct配列の要素ピンが接続されている場合、その要素全体がグラフ側の値になる。
-	if (IsExactPinDriven(ExternalForceElementPinName))
-	{
-		return true;
-	}
-
-	TArray<FString> CandidatePinNames;
-	CandidatePinNames.Reserve(
-		PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindDirection) ? 10 : 4);
-	CandidatePinNames.Add(PropertyNameString);
-	CandidatePinNames.Add(FString::Printf(TEXT("%s_%s"), *ExternalForceElementPinName, *PropertyNameString));
-	CandidatePinNames.Add(FString::Printf(TEXT("%s.%s"), *ExternalForceElementPinName, *PropertyNameString));
-	CandidatePinNames.Add(FString::Printf(TEXT("%s[%d].%s"), *ExternalForcesName, ResolvedIndex, *PropertyNameString));
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindDirection))
-	{
-		static const TCHAR* ComponentSuffixes[] = {TEXT("X"), TEXT("Y"), TEXT("Z")};
-		for (const TCHAR* ComponentSuffix : ComponentSuffixes)
-		{
-			CandidatePinNames.Add(FString::Printf(TEXT("%s_%s_%s"), *ExternalForceElementPinName, *PropertyNameString, ComponentSuffix));
-			CandidatePinNames.Add(FString::Printf(TEXT("%s.%s.%s"), *ExternalForceElementPinName, *PropertyNameString, ComponentSuffix));
-		}
-	}
-
-	for (const FString& CandidatePinName : CandidatePinNames)
-	{
-		if (IsExactPinDriven(CandidatePinName))
-		{
-			return true;
-		}
-	}
-
-	const FString InternalPrefix = FString::Printf(TEXT("%s_%s_"), *ExternalForceElementPinName, *PropertyNameString);
-	for (const UEdGraphPin* Pin : GraphNode->Pins)
-	{
-		if (!Pin || Pin->Direction != EGPD_Input || Pin->LinkedTo.Num() == 0)
-		{
-			continue;
-		}
-
-		const FString PinNameString = Pin->PinName.ToString();
-		if (PinNameString.StartsWith(InternalPrefix))
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
 bool SKawaiiPhysicsWindScopeWindow::IsLiveTargetResolved() const
 {
 	// Editor側ノードからLive実行中のランタイムノードを解決し、対象ProceduralWindの
@@ -3427,16 +3318,6 @@ EActiveTimerReturnType SKawaiiPhysicsWindScopeWindow::TickWindScope(double InCur
 
 	FKawaiiPhysics_ExternalForce_ProceduralWind WindSnapshot;
 	bool bHasWindSnapshot = false;
-	if (bEditPanelExpanded)
-	{
-		WindParamPinExposureRefreshElapsedTime += InDeltaTime;
-		if (WindParamPinExposureCache.Num() == 0 ||
-			WindParamPinExposureRefreshElapsedTime >= KawaiiPhysicsWindScopeWindowPrivate::WindScopePinExposureRefreshInterval)
-		{
-			RefreshWindParamPinExposureCache();
-			WindParamPinExposureRefreshElapsedTime = 0.0f;
-		}
-	}
 	bHasWindSnapshot = TryGetPreviewForceCopy(WindSnapshot);
 	if (!bHasWindSnapshot)
 	{

@@ -19,14 +19,31 @@ struct FKawaiiWindScopeParamDef
 	bool bAdvancedOnly = false;
 };
 
+// 折りたたみ時サマリーの単位 / Unit suffix for collapsed summaries.
+enum class EKawaiiWindScopeSummaryUnit : uint8
+{
+	None,
+	Seconds,
+	Degrees,
+};
+
+// 折りたたみ時サマリーの1項目 / Single item shown in a collapsed summary.
+struct FKawaiiWindScopeSummaryItem
+{
+	FName PropertyName;
+	FText ShortLabel;
+	EKawaiiWindScopeSummaryUnit Unit = EKawaiiWindScopeSummaryUnit::None;
+	bool bHideWhenZero = false;
+};
+
 // Wind Scope 編集パネルのグループ定義
 struct FKawaiiWindScopeParamGroup
 {
 	FText GroupLabel;
 	/** グループ永続化ID / Stable group ID used for persistence. */
 	FName GroupId;
-	/** 折りたたみ時に表示する代表プロパティ / Representative property shown when collapsed. */
-	FName SummaryProperty;
+	/** 折りたたみ時に表示するサマリー項目 / Summary items shown when collapsed. */
+	TArray<FKawaiiWindScopeSummaryItem> SummaryItems;
 	TOptional<EKawaiiPhysicsWindScopeComponent> LinkedSeries;
 	TArray<FKawaiiWindScopeParamDef> Params;
 	/** 折りたたみカテゴリにせずヘッダー直下に常時表示する / Pinned below the header instead of a collapsible category. */
@@ -39,7 +56,6 @@ TSet<FName> ParseWindScopeCollapsedGroups(const FString& CollapsedGroupsValue);
 
 DECLARE_DELEGATE_RetVal_FourParams(bool, FOnWindParamEdit, FName, double, int32, EKawaiiWindEditPhase);
 DECLARE_DELEGATE_RetVal_OneParam(bool, FOnWindParamReset, FName);
-DECLARE_DELEGATE_RetVal_OneParam(bool, FIsWindParamPinExposed, FName);
 DECLARE_DELEGATE_OneParam(FOnWindScopeHighlightSeries, TOptional<EKawaiiPhysicsWindScopeComponent>);
 
 // Wind Scope の ProceduralWind パラメータ編集パネル
@@ -53,7 +69,6 @@ public:
 		SLATE_ATTRIBUTE(const FKawaiiWindScopeEditValues*, LiveEditValues)
 		SLATE_EVENT(FOnWindParamEdit, OnParamEdit)
 		SLATE_EVENT(FOnWindParamReset, OnParamReset)
-		SLATE_EVENT(FIsWindParamPinExposed, IsParamPinExposed)
 		SLATE_EVENT(FOnWindScopeHighlightSeries, OnHighlightSeries)
 	SLATE_END_ARGS()
 
@@ -65,18 +80,16 @@ private:
 	TSharedRef<SWidget> MakeGroupWidget(const FKawaiiWindScopeParamGroup& Group);
 	TSharedRef<SWidget> MakeParamRow(const FKawaiiWindScopeParamDef& ParamDef);
 	TSharedRef<SWidget> MakeResetButton(FName PropertyName) const;
-	TSharedRef<SWidget> MakePinWarningIcon(FName PropertyName) const;
 	TSharedRef<SWidget> MakeHeaderIconButton(const FName IconName, const FText& ToolTipText, FOnClicked OnClicked) const;
 
 	EVisibility GetResetVisibility(FName PropertyName) const;
-	EVisibility GetPinWarningVisibility(FName PropertyName) const;
 	EVisibility GetLiveValueVisibility(FName PropertyName) const;
 	EVisibility GetParamRowVisibility(FName PropertyName) const;
 	EVisibility GetGroupVisibility(FName GroupId) const;
 	EVisibility GetGroupModifiedDotVisibility(FName GroupId) const;
-	EVisibility GetGroupSummaryVisibility(FName GroupId, FName SummaryProperty) const;
+	EVisibility GetGroupSummaryVisibility(FName GroupId) const;
 	FText GetLiveValueText(FName PropertyName) const;
-	FText GetGroupSummaryText(FName SummaryProperty) const;
+	FText GetGroupSummaryText(FName GroupId) const;
 	FText GetParameterModeText() const;
 	ECheckBoxState GetBoolCheckState(FName PropertyName) const;
 	float GetFloatValue(FName PropertyName) const;
@@ -109,7 +122,6 @@ private:
 	TAttribute<const FKawaiiWindScopeEditValues*> LiveEditValues;
 	FOnWindParamEdit OnParamEdit;
 	FOnWindParamReset OnParamReset;
-	FIsWindParamPinExposed IsParamPinExposed;
 	FOnWindScopeHighlightSeries OnHighlightSeries;
 	TSet<FName> CollapsedGroups;
 	TMap<FName, TArray<FName>> GroupPropertyNames;
