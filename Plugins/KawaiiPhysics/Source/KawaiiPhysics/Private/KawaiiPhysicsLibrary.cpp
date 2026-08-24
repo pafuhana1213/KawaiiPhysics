@@ -1199,6 +1199,93 @@ int32 UKawaiiPhysicsLibrary::StopPhysicsSettingsOverridesOnComponent(
 	return AppliedNodeCount;
 }
 
+FKawaiiPhysicsTransientForceHandle UKawaiiPhysicsLibrary::GenerateTransientForceHandle()
+{
+	FKawaiiPhysicsTransientForceHandle Handle;
+	Handle.Id = FAnimNode_KawaiiPhysics::GenerateTransientForceHandleId();
+	return Handle;
+}
+
+// 外部駆動の物理設定倍率オーバーライドをノードへキューイングする
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetPhysicsSettingsOverride(
+	EKawaiiPhysicsAccessResult& ExecResult,
+	const FKawaiiPhysicsReference& KawaiiPhysics,
+	const FKawaiiPhysicsTransientForceHandle Handle,
+	const FKawaiiPhysicsSettingsScale SettingsScale,
+	const float Alpha)
+{
+	ExecResult = EKawaiiPhysicsAccessResult::NotValid;
+
+	if (!Handle.IsSet())
+	{
+		return KawaiiPhysics;
+	}
+
+	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
+	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+		TEXT("SetPhysicsSettingsOverride"),
+		[&ExecResult, Handle, SettingsScale, ClampedAlpha](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		{
+			if (InKawaiiPhysics.RequestSetPhysicsSettingsOverride(SettingsScale, ClampedAlpha, Handle.Id))
+			{
+				ExecResult = EKawaiiPhysicsAccessResult::Valid;
+			}
+		});
+
+	return KawaiiPhysics;
+}
+
+int32 UKawaiiPhysicsLibrary::SetPhysicsSettingsOverrideOnComponent(
+	USkeletalMeshComponent* MeshComp,
+	const FKawaiiPhysicsTransientForceHandle Handle,
+	const FKawaiiPhysicsSettingsScale SettingsScale,
+	const float Alpha,
+	const FGameplayTagContainer& FilterTags,
+	const bool bFilterExactMatch)
+{
+	return SetPhysicsSettingsOverrideOnComponent(MeshComp, Handle, SettingsScale, Alpha, FilterTags, bFilterExactMatch,
+	                                             0, 0.2f);
+}
+
+// Component内の対象ノードへ外部駆動の物理設定倍率オーバーライドをキューイングする
+int32 UKawaiiPhysicsLibrary::SetPhysicsSettingsOverrideOnComponent(
+	USkeletalMeshComponent* MeshComp,
+	const FKawaiiPhysicsTransientForceHandle Handle,
+	const FKawaiiPhysicsSettingsScale& SettingsScale,
+	const float Alpha,
+	const FGameplayTagContainer& FilterTags,
+	const bool bFilterExactMatch,
+	const int32 LeaseEvaluations,
+	const float LeaseExpireBlendOutTime)
+{
+	if (!Handle.IsSet())
+	{
+		return 0;
+	}
+
+	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
+	int32 AppliedNodeCount = 0;
+
+	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
+	CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, MeshComp, FilterTags, bFilterExactMatch);
+	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
+	{
+		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("SetPhysicsSettingsOverrideOnComponent"),
+			[&AppliedNodeCount, Handle, &SettingsScale, ClampedAlpha, LeaseEvaluations, LeaseExpireBlendOutTime](
+				FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				if (InKawaiiPhysics.RequestSetPhysicsSettingsOverride(SettingsScale, ClampedAlpha, Handle.Id,
+				                                                      LeaseEvaluations, LeaseExpireBlendOutTime))
+				{
+					++AppliedNodeCount;
+				}
+			});
+	}
+
+	return AppliedNodeCount;
+}
+
 bool UKawaiiPhysicsLibrary::IsTransientForceHandleSet(const FKawaiiPhysicsTransientForceHandle& Handle)
 {
 	return Handle.IsSet();

@@ -68,6 +68,31 @@ float GetPendingOverrideStopBlendOutTime(FAnimNode_KawaiiPhysics& Node, const in
 		       : 0.0f;
 }
 
+int32 GetPendingOverrideSetCount(FAnimNode_KawaiiPhysics& Node)
+{
+	if (!Node.TransientForceStore.Queue.IsValid())
+	{
+		return 0;
+	}
+
+	FScopeLock Lock(&Node.TransientForceStore.Queue->Mutex);
+	return Node.TransientForceStore.Queue->PendingSettingsOverrideSets.Num();
+}
+
+FKawaiiPhysicsSettingsOverrideSetRequest GetPendingOverrideSet(FAnimNode_KawaiiPhysics& Node, const int32 Index)
+{
+	FKawaiiPhysicsSettingsOverrideSetRequest Request;
+	if (!Node.TransientForceStore.Queue.IsValid())
+	{
+		return Request;
+	}
+
+	FScopeLock Lock(&Node.TransientForceStore.Queue->Mutex);
+	return Node.TransientForceStore.Queue->PendingSettingsOverrideSets.IsValidIndex(Index)
+		       ? Node.TransientForceStore.Queue->PendingSettingsOverrideSets[Index]
+		       : Request;
+}
+
 // 検証しやすいよう全項目に異なる値を入れたベース設定
 FKawaiiPhysicsSettings MakeBaseSettings()
 {
@@ -98,6 +123,15 @@ FKawaiiPhysicsSettingsScale MakeScale(const float Damping, const float Stiffness
 	Scale.Radius = Radius;
 	Scale.LimitAngle = LimitAngle;
 	return Scale;
+}
+
+bool ContainsSettingsOverrideHandle(const FAnimNode_KawaiiPhysics& Node, const int64 HandleId)
+{
+	return Node.TransientForceStore.SettingsOverrideItems.ContainsByPredicate(
+		[HandleId](const FKawaiiPhysicsActiveSettingsOverride& Item)
+		{
+			return Item.HandleId == HandleId;
+		});
 }
 
 bool TestBoneSettings(FAutomationTestBase& Test, const TCHAR* Context, const FKawaiiPhysicsModifyBone& Bone,
@@ -629,6 +663,489 @@ bool FKawaiiPhysicsSettingsOverrideGatingRestoreTest::RunTest(const FString& Par
 	return bOk;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsOverrideDrivenSetCreateAndUpdateTest,
+                                 "KawaiiPhysics.SettingsOverride.DrivenSetCreateAndUpdate",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSettingsOverrideDrivenSetCreateAndUpdateTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor Accessor;
+	SetupChainWithBaseSettings(Accessor);
+	const FKawaiiPhysicsSettings Base = MakeBaseSettings();
+	const FKawaiiPhysicsSettingsScale Scale1 = MakeScale(0.5f, 0.25f, 0.5f, 0.5f, 2.0f, 0.5f);
+	const FKawaiiPhysicsSettingsScale Scale2 = MakeScale(0.25f, 0.5f, 0.75f, 0.8f, 1.5f, 0.75f);
+
+	bool bOk = TestTrue(TEXT("Request set"), Accessor.Node.RequestSetPhysicsSettingsOverride(Scale1, 0.5f, 7));
+	bOk &= TestTrue(TEXT("Consume set"), Accessor.Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f));
+	bOk &= TestEqual(TEXT("Item count"), Accessor.Node.TransientForceStore.SettingsOverrideItems.Num(), 1);
+	if (Accessor.Node.TransientForceStore.SettingsOverrideItems.IsValidIndex(0))
+	{
+		const FKawaiiPhysicsActiveSettingsOverride& Item = Accessor.Node.TransientForceStore.SettingsOverrideItems[0];
+		bOk &= TestTrue(TEXT("Driven"), Item.bExternallyDriven);
+		bOk &= TestFloatNear(*this, TEXT("DrivenAlpha"), Item.DrivenAlpha, 0.5f);
+		bOk &= TestFloatNear(*this, TEXT("PeakAlpha"), Item.PeakAlpha, 1.0f);
+	}
+	Accessor.CallUpdatePhysicsSettings();
+	bOk &= TestFloatNear(*this, TEXT("Damping half alpha"), Accessor.Bone(1).PhysicsSettings.Damping,
+	                     Base.Damping * FMath::Lerp(1.0f, Scale1.Damping, 0.5f));
+
+	bOk &= TestTrue(TEXT("Request update"), Accessor.Node.RequestSetPhysicsSettingsOverride(Scale2, 1.0f, 7));
+	bOk &= TestTrue(TEXT("Consume update"), Accessor.Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f));
+	bOk &= TestEqual(TEXT("Updated item count"), Accessor.Node.TransientForceStore.SettingsOverrideItems.Num(), 1);
+	if (Accessor.Node.TransientForceStore.SettingsOverrideItems.IsValidIndex(0))
+	{
+		const FKawaiiPhysicsActiveSettingsOverride& Item = Accessor.Node.TransientForceStore.SettingsOverrideItems[0];
+		bOk &= TestFloatNear(*this, TEXT("Updated Damping scale"), Item.Scale.Damping, Scale2.Damping);
+		bOk &= TestFloatNear(*this, TEXT("Updated alpha"), Item.DrivenAlpha, 1.0f);
+	}
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsOverrideDrivenSetCoalesceTest,
+                                 "KawaiiPhysics.SettingsOverride.DrivenSetCoalesce",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSettingsOverrideDrivenSetCoalesceTest::RunTest(const FString& Parameters)
+{
+	bool bOk = true;
+	{
+		FAnimNode_KawaiiPhysics Node;
+		Node.RequestSetPhysicsSettingsOverride(MakeScale(0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f), 0.25f, 7);
+		Node.RequestSetPhysicsSettingsOverride(MakeScale(0.25f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f), 0.5f, 7);
+		Node.RequestSetPhysicsSettingsOverride(MakeScale(0.125f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f), 0.75f, 7);
+
+		bOk &= TestEqual(TEXT("Coalesced pending set"), GetPendingOverrideSetCount(Node), 1);
+		const FKawaiiPhysicsSettingsOverrideSetRequest PendingSet = GetPendingOverrideSet(Node, 0);
+		bOk &= TestEqual(TEXT("Coalesced handle"), PendingSet.HandleId, static_cast<int64>(7));
+		bOk &= TestFloatNear(*this, TEXT("Coalesced alpha"), PendingSet.Alpha, 0.75f);
+		bOk &= TestFloatNear(*this, TEXT("Coalesced scale"), PendingSet.Scale.Damping, 0.125f);
+	}
+
+	{
+		FAnimNode_KawaiiPhysics Node;
+		for (int32 Index = 0; Index < 12; ++Index)
+		{
+			Node.RequestSetPhysicsSettingsOverride(FKawaiiPhysicsSettingsScale(), 1.0f, 100 + Index);
+		}
+		bOk &= TestTrue(TEXT("Pending sets bounded"),
+		                GetPendingOverrideSetCount(Node) <= FAnimNode_KawaiiPhysics::MaxPhysicsSettingsOverrides);
+	}
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsOverrideDrivenAlphaClampTest,
+                                 "KawaiiPhysics.SettingsOverride.DrivenAlphaClamp",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSettingsOverrideDrivenAlphaClampTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor Accessor;
+	SetupChainWithBaseSettings(Accessor);
+	const FKawaiiPhysicsSettingsScale Scale = MakeScale(0.5f, 0.5f, 0.5f, 0.5f, 2.0f, 0.5f);
+
+	bool bOk = TestTrue(TEXT("Request alpha high"), Accessor.Node.RequestSetPhysicsSettingsOverride(Scale, 2.0f, 7));
+	Accessor.Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f);
+	bOk &= TestFloatNear(*this, TEXT("Alpha clamped high"),
+	                     Accessor.Node.TransientForceStore.SettingsOverrideItems[0].DrivenAlpha, 1.0f);
+
+	bOk &= TestTrue(TEXT("Request alpha low"), Accessor.Node.RequestSetPhysicsSettingsOverride(Scale, -1.0f, 7));
+	bOk &= TestTrue(TEXT("Alpha zero remains active"), Accessor.Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f));
+	bOk &= TestFloatNear(*this, TEXT("Alpha clamped low"),
+	                     Accessor.Node.TransientForceStore.SettingsOverrideItems[0].DrivenAlpha, 0.0f);
+	const FKawaiiPhysicsSettingsScale Effective = Accessor.CallComputeEffectiveSettingsOverrideScale();
+	bOk &= TestFloatNear(*this, TEXT("Effective Damping identity"), Effective.Damping, 1.0f);
+	Accessor.CallUpdatePhysicsSettings();
+	bOk &= TestBoneSettings(*this, TEXT("Alpha zero base"), Accessor.Bone(1), MakeBaseSettings());
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsOverrideDrivenNoExpiryTest,
+                                 "KawaiiPhysics.SettingsOverride.DrivenNoExpiry",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSettingsOverrideDrivenNoExpiryTest::RunTest(const FString& Parameters)
+{
+	FAnimNode_KawaiiPhysics Node;
+	Node.RequestSetPhysicsSettingsOverride(FKawaiiPhysicsSettingsScale(), 1.0f, 7);
+
+	bool bOk = true;
+	for (int32 Index = 0; Index < 3; ++Index)
+	{
+		bOk &= TestTrue(*FString::Printf(TEXT("Consume %d active"), Index),
+		                Node.ConsumeAndAdvancePhysicsSettingsOverrides(100.0f));
+		bOk &= TestEqual(*FString::Printf(TEXT("Consume %d item count"), Index),
+		                 Node.TransientForceStore.SettingsOverrideItems.Num(), 1);
+	}
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsOverrideDrivenStopBlendOutTest,
+                                 "KawaiiPhysics.SettingsOverride.DrivenStopBlendOut",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSettingsOverrideDrivenStopBlendOutTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor Accessor;
+	SetupChainWithBaseSettings(Accessor);
+	const FKawaiiPhysicsSettings Base = MakeBaseSettings();
+	const FKawaiiPhysicsSettingsScale Scale = MakeScale(0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f);
+
+	Accessor.Node.RequestSetPhysicsSettingsOverride(Scale, 0.6f, 7);
+	Accessor.Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f);
+	Accessor.Node.RequestStopPhysicsSettingsOverride(7, 1.0f);
+
+	bool bOk = TestTrue(TEXT("Stop consume active"), Accessor.Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f));
+	if (Accessor.Node.TransientForceStore.SettingsOverrideItems.IsValidIndex(0))
+	{
+		const FKawaiiPhysicsActiveSettingsOverride& Item = Accessor.Node.TransientForceStore.SettingsOverrideItems[0];
+		bOk &= TestFalse(TEXT("No longer driven"), Item.bExternallyDriven);
+		bOk &= TestFloatNear(*this, TEXT("Peak from driven alpha"), Item.PeakAlpha, 0.6f);
+		bOk &= TestFloatNear(*this, TEXT("Rise zero"), Item.RiseTime, 0.0f);
+		bOk &= TestFloatNear(*this, TEXT("Hold zero"), Item.HoldTime, 0.0f);
+		bOk &= TestFloatNear(*this, TEXT("Decay one"), Item.DecayTime, 1.0f);
+		bOk &= TestFloatNear(*this, TEXT("Elapsed zero"), Item.ElapsedTime, 0.0f);
+	}
+	Accessor.CallUpdatePhysicsSettings();
+	bOk &= TestFloatNear(*this, TEXT("Damping at stop"), Accessor.Bone(1).PhysicsSettings.Damping,
+	                     Base.Damping * FMath::Lerp(1.0f, Scale.Damping, 0.6f));
+
+	bOk &= TestTrue(TEXT("Half fade active"), Accessor.Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.5f));
+	Accessor.CallUpdatePhysicsSettings();
+	bOk &= TestFloatNear(*this, TEXT("Damping half fade"), Accessor.Bone(1).PhysicsSettings.Damping,
+	                     Base.Damping * FMath::Lerp(1.0f, Scale.Damping, 0.3f));
+
+	bOk &= TestFalse(TEXT("Fade completed"), Accessor.Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.5f));
+	bOk &= TestEqual(TEXT("Item removed"), Accessor.Node.TransientForceStore.SettingsOverrideItems.Num(), 0);
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsOverrideDrivenStopImmediateTest,
+                                 "KawaiiPhysics.SettingsOverride.DrivenStopImmediate",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSettingsOverrideDrivenStopImmediateTest::RunTest(const FString& Parameters)
+{
+	FAnimNode_KawaiiPhysics Node;
+	Node.RequestSetPhysicsSettingsOverride(FKawaiiPhysicsSettingsScale(), 1.0f, 7);
+	Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f);
+	Node.RequestStopPhysicsSettingsOverride(7, 0.0f);
+
+	bool bOk = TestFalse(TEXT("Immediate stop inactive"), Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f));
+	bOk &= TestEqual(TEXT("Immediate stop removed"), Node.TransientForceStore.SettingsOverrideItems.Num(), 0);
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsOverrideDrivenResetDuringFadeTest,
+                                 "KawaiiPhysics.SettingsOverride.DrivenResetDuringFade",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSettingsOverrideDrivenResetDuringFadeTest::RunTest(const FString& Parameters)
+{
+	FAnimNode_KawaiiPhysics Node;
+	Node.RequestSetPhysicsSettingsOverride(FKawaiiPhysicsSettingsScale(), 0.6f, 7);
+	Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f);
+	Node.RequestStopPhysicsSettingsOverride(7, 1.0f);
+	Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f);
+	Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.5f);
+
+	Node.RequestSetPhysicsSettingsOverride(FKawaiiPhysicsSettingsScale(), 1.0f, 7);
+	bool bOk = TestTrue(TEXT("Redriven active"), Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f));
+	bOk &= TestEqual(TEXT("Redriven count"), Node.TransientForceStore.SettingsOverrideItems.Num(), 1);
+	if (Node.TransientForceStore.SettingsOverrideItems.IsValidIndex(0))
+	{
+		const FKawaiiPhysicsActiveSettingsOverride& Item = Node.TransientForceStore.SettingsOverrideItems[0];
+		bOk &= TestTrue(TEXT("Redriven flag"), Item.bExternallyDriven);
+		bOk &= TestFloatNear(*this, TEXT("Redriven peak"), Item.PeakAlpha, 1.0f);
+		bOk &= TestFloatNear(*this, TEXT("Redriven alpha"), Item.DrivenAlpha, 1.0f);
+	}
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsOverrideDrivenSetSupersedesPendingStopTest,
+                                 "KawaiiPhysics.SettingsOverride.DrivenSetSupersedesPendingStop",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSettingsOverrideDrivenSetSupersedesPendingStopTest::RunTest(const FString& Parameters)
+{
+	FAnimNode_KawaiiPhysics Node;
+	Node.RequestStopPhysicsSettingsOverride(7, 1.0f);
+	Node.RequestSetPhysicsSettingsOverride(FKawaiiPhysicsSettingsScale(), 1.0f, 7);
+
+	bool bOk = TestEqual(TEXT("Pending stop removed"), GetPendingOverrideStopCount(Node), 0);
+	bOk &= TestTrue(TEXT("Consume driven"), Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f));
+	bOk &= TestTrue(TEXT("Driven item"), Node.TransientForceStore.SettingsOverrideItems[0].bExternallyDriven);
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsOverrideDrivenSetThenStopSameFrameTest,
+                                 "KawaiiPhysics.SettingsOverride.DrivenSetThenStopSameFrame",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSettingsOverrideDrivenSetThenStopSameFrameTest::RunTest(const FString& Parameters)
+{
+	FAnimNode_KawaiiPhysics Node;
+	Node.RequestSetPhysicsSettingsOverride(FKawaiiPhysicsSettingsScale(), 0.8f, 7);
+	Node.RequestStopPhysicsSettingsOverride(7, 1.0f);
+
+	bool bOk = TestTrue(TEXT("Same frame active"), Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f));
+	bOk &= TestEqual(TEXT("Same frame item count"), Node.TransientForceStore.SettingsOverrideItems.Num(), 1);
+	if (Node.TransientForceStore.SettingsOverrideItems.IsValidIndex(0))
+	{
+		const FKawaiiPhysicsActiveSettingsOverride& Item = Node.TransientForceStore.SettingsOverrideItems[0];
+		bOk &= TestFalse(TEXT("Same frame fading"), Item.bExternallyDriven);
+		bOk &= TestFloatNear(*this, TEXT("Same frame peak"), Item.PeakAlpha, 0.8f);
+	}
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsOverrideDrivenHandleZeroIgnoredTest,
+                                 "KawaiiPhysics.SettingsOverride.DrivenHandleZeroIgnored",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSettingsOverrideDrivenHandleZeroIgnoredTest::RunTest(const FString& Parameters)
+{
+	FAnimNode_KawaiiPhysics Node;
+	bool bOk = TestFalse(TEXT("Zero handle rejected"),
+	                     Node.RequestSetPhysicsSettingsOverride(FKawaiiPhysicsSettingsScale(), 1.0f, 0));
+	bOk &= TestEqual(TEXT("No pending set"), GetPendingOverrideSetCount(Node), 0);
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsOverrideDrivenCapEvictionTest,
+                                 "KawaiiPhysics.SettingsOverride.DrivenCapEviction",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSettingsOverrideDrivenCapEvictionTest::RunTest(const FString& Parameters)
+{
+	FAnimNode_KawaiiPhysics Node;
+	for (int32 Index = 0; Index < FAnimNode_KawaiiPhysics::MaxPhysicsSettingsOverrides; ++Index)
+	{
+		Node.RequestSetPhysicsSettingsOverride(FKawaiiPhysicsSettingsScale(), 1.0f, 100 + Index);
+	}
+	Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f);
+	Node.RequestPhysicsSettingsOverride(FKawaiiPhysicsSettingsScale(), 0.0f, 10.0f, 0.0f, 999);
+	Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f);
+
+	bool bOk = TestEqual(TEXT("Cap item count"), Node.TransientForceStore.SettingsOverrideItems.Num(),
+	                     FAnimNode_KawaiiPhysics::MaxPhysicsSettingsOverrides);
+	bOk &= TestFalse(TEXT("Oldest driven evicted"), ContainsSettingsOverrideHandle(Node, 100));
+	bOk &= TestTrue(TEXT("Timed item kept"), ContainsSettingsOverrideHandle(Node, 999));
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsOverrideDrivenConvertsTimedItemTest,
+                                 "KawaiiPhysics.SettingsOverride.DrivenConvertsTimedItem",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSettingsOverrideDrivenConvertsTimedItemTest::RunTest(const FString& Parameters)
+{
+	FAnimNode_KawaiiPhysics Node;
+	Node.RequestPhysicsSettingsOverride(FKawaiiPhysicsSettingsScale(), 1.0f, 10.0f, 1.0f, 7);
+	Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f);
+	Node.RequestSetPhysicsSettingsOverride(FKawaiiPhysicsSettingsScale(), 1.0f, 7);
+	Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f);
+
+	bool bOk = TestEqual(TEXT("Converted count"), Node.TransientForceStore.SettingsOverrideItems.Num(), 1);
+	if (Node.TransientForceStore.SettingsOverrideItems.IsValidIndex(0))
+	{
+		const FKawaiiPhysicsActiveSettingsOverride& Item = Node.TransientForceStore.SettingsOverrideItems[0];
+		bOk &= TestTrue(TEXT("Converted driven"), Item.bExternallyDriven);
+		bOk &= TestFloatNear(*this, TEXT("Converted rise"), Item.RiseTime, 0.0f);
+		bOk &= TestFloatNear(*this, TEXT("Converted hold"), Item.HoldTime, 0.0f);
+		bOk &= TestFloatNear(*this, TEXT("Converted decay"), Item.DecayTime, 0.0f);
+	}
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsOverrideSetRemovesPendingStartTest,
+                                 "KawaiiPhysics.SettingsOverride.SetRemovesPendingStart",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSettingsOverrideSetRemovesPendingStartTest::RunTest(const FString& Parameters)
+{
+	FAnimNode_KawaiiPhysics Node;
+	Node.RequestPhysicsSettingsOverride(FKawaiiPhysicsSettingsScale(), 0.0f, 10.0f, 0.0f, 7);
+	Node.RequestSetPhysicsSettingsOverride(FKawaiiPhysicsSettingsScale(), 1.0f, 7);
+
+	bool bOk = TestEqual(TEXT("Pending start removed"), GetPendingOverrideCount(Node), 0);
+	bOk &= TestEqual(TEXT("Pending set kept"), GetPendingOverrideSetCount(Node), 1);
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsOverrideStartReplacesSameHandleTest,
+                                 "KawaiiPhysics.SettingsOverride.StartReplacesSameHandle",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSettingsOverrideStartReplacesSameHandleTest::RunTest(const FString& Parameters)
+{
+	FAnimNode_KawaiiPhysics Node;
+	Node.RequestSetPhysicsSettingsOverride(FKawaiiPhysicsSettingsScale(), 1.0f, 7);
+	Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f);
+	Node.RequestPhysicsSettingsOverride(FKawaiiPhysicsSettingsScale(), 0.2f, 10.0f, 0.3f, 7);
+	Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f);
+
+	bool bOk = TestEqual(TEXT("Start replacement count"), Node.TransientForceStore.SettingsOverrideItems.Num(), 1);
+	if (Node.TransientForceStore.SettingsOverrideItems.IsValidIndex(0))
+	{
+		const FKawaiiPhysicsActiveSettingsOverride& Item = Node.TransientForceStore.SettingsOverrideItems[0];
+		bOk &= TestFalse(TEXT("Timed after start"), Item.bExternallyDriven);
+		bOk &= TestFloatNear(*this, TEXT("Timed rise"), Item.RiseTime, 0.2f);
+		bOk &= TestFloatNear(*this, TEXT("Timed hold"), Item.HoldTime, 10.0f);
+		bOk &= TestFloatNear(*this, TEXT("Timed decay"), Item.DecayTime, 0.3f);
+	}
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsOverrideDrivenLeaseExpiresTest,
+                                 "KawaiiPhysics.SettingsOverride.DrivenLeaseExpires",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSettingsOverrideDrivenLeaseExpiresTest::RunTest(const FString& Parameters)
+{
+	FAnimNode_KawaiiPhysics Node;
+	Node.RequestSetPhysicsSettingsOverride(FKawaiiPhysicsSettingsScale(), 0.6f, 7, 2, 1.0f);
+
+	bool bOk = TestTrue(TEXT("Lease first consume"), Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f));
+	bOk &= TestEqual(TEXT("Lease first remaining"), Node.TransientForceStore.SettingsOverrideItems[0].LeaseRemaining, 2);
+	bOk &= TestTrue(TEXT("Lease second consume"), Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f));
+	bOk &= TestEqual(TEXT("Lease second remaining"), Node.TransientForceStore.SettingsOverrideItems[0].LeaseRemaining, 1);
+	bOk &= TestTrue(TEXT("Lease expiry fades"), Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f));
+	if (Node.TransientForceStore.SettingsOverrideItems.IsValidIndex(0))
+	{
+		const FKawaiiPhysicsActiveSettingsOverride& Item = Node.TransientForceStore.SettingsOverrideItems[0];
+		bOk &= TestFalse(TEXT("Lease no longer driven"), Item.bExternallyDriven);
+		bOk &= TestFloatNear(*this, TEXT("Lease peak"), Item.PeakAlpha, 0.6f);
+		bOk &= TestFloatNear(*this, TEXT("Lease decay"), Item.DecayTime, 1.0f);
+	}
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsOverrideDrivenLeaseRefreshedTest,
+                                 "KawaiiPhysics.SettingsOverride.DrivenLeaseRefreshed",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSettingsOverrideDrivenLeaseRefreshedTest::RunTest(const FString& Parameters)
+{
+	FAnimNode_KawaiiPhysics Node;
+	bool bOk = true;
+	for (int32 Index = 0; Index < 5; ++Index)
+	{
+		Node.RequestSetPhysicsSettingsOverride(FKawaiiPhysicsSettingsScale(), 1.0f, 7, 2, 1.0f);
+		bOk &= TestTrue(*FString::Printf(TEXT("Lease refresh consume %d"), Index),
+		                Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f));
+		bOk &= TestTrue(*FString::Printf(TEXT("Lease refresh driven %d"), Index),
+		                Node.TransientForceStore.SettingsOverrideItems[0].bExternallyDriven);
+		bOk &= TestEqual(*FString::Printf(TEXT("Lease refresh remaining %d"), Index),
+		                 Node.TransientForceStore.SettingsOverrideItems[0].LeaseRemaining, 2);
+	}
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsOverrideDrivenLeaseInfiniteTest,
+                                 "KawaiiPhysics.SettingsOverride.DrivenLeaseInfinite",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSettingsOverrideDrivenLeaseInfiniteTest::RunTest(const FString& Parameters)
+{
+	FAnimNode_KawaiiPhysics Node;
+	Node.RequestSetPhysicsSettingsOverride(FKawaiiPhysicsSettingsScale(), 1.0f, 7, 0, 1.0f);
+	bool bOk = true;
+	for (int32 Index = 0; Index < 10; ++Index)
+	{
+		bOk &= TestTrue(*FString::Printf(TEXT("Infinite consume %d"), Index),
+		                Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f));
+		bOk &= TestTrue(*FString::Printf(TEXT("Infinite driven %d"), Index),
+		                Node.TransientForceStore.SettingsOverrideItems[0].bExternallyDriven);
+	}
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsOverrideDrivenLeaseExpireImmediateTest,
+                                 "KawaiiPhysics.SettingsOverride.DrivenLeaseExpireImmediate",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSettingsOverrideDrivenLeaseExpireImmediateTest::RunTest(const FString& Parameters)
+{
+	FAnimNode_KawaiiPhysics Node;
+	Node.RequestSetPhysicsSettingsOverride(FKawaiiPhysicsSettingsScale(), 1.0f, 7, 1, 0.0f);
+	bool bOk = TestTrue(TEXT("Immediate lease first consume"), Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f));
+	bOk &= TestFalse(TEXT("Immediate lease removed"), Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f));
+	bOk &= TestEqual(TEXT("Immediate lease count"), Node.TransientForceStore.SettingsOverrideItems.Num(), 0);
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsOverrideDrivenGatingTest,
+                                 "KawaiiPhysics.SettingsOverride.DrivenGating",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSettingsOverrideDrivenGatingTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor Accessor;
+	SetupChainWithBaseSettings(Accessor);
+	Accessor.Node.bUpdatePhysicsSettingsInGame = false;
+	Accessor.SetInitPhysicsSettings(false);
+
+	bool bOk = TestTrue(TEXT("Driven first update"), Accessor.RunPhysicsSettingsUpdateGate(0.0f));
+	Accessor.Bone(1).PhysicsSettings.Damping = 123.0f;
+	bOk &= TestFalse(TEXT("Driven idle skipped"), Accessor.RunPhysicsSettingsUpdateGate(0.016f));
+
+	Accessor.Node.RequestSetPhysicsSettingsOverride(
+		MakeScale(0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f), 0.0f, 7);
+	bOk &= TestTrue(TEXT("Driven alpha zero runs"), Accessor.RunPhysicsSettingsUpdateGate(0.0f));
+	bOk &= TestTrue(TEXT("Driven applied flag set"), Accessor.IsPhysicsSettingsOverrideAppliedLastUpdate());
+	bOk &= TestBoneSettings(*this, TEXT("Driven alpha zero base"), Accessor.Bone(1), MakeBaseSettings());
+
+	Accessor.Node.RequestStopPhysicsSettingsOverride(7, 0.0f);
+	bOk &= TestTrue(TEXT("Driven restore frame runs"), Accessor.RunPhysicsSettingsUpdateGate(0.0f));
+	bOk &= TestFalse(TEXT("Driven applied flag cleared"), Accessor.IsPhysicsSettingsOverrideAppliedLastUpdate());
+	bOk &= TestBoneSettings(*this, TEXT("Driven restored"), Accessor.Bone(1), MakeBaseSettings());
+
+	Accessor.Bone(1).PhysicsSettings.Damping = 123.0f;
+	bOk &= TestFalse(TEXT("Driven post restore skipped"), Accessor.RunPhysicsSettingsUpdateGate(0.016f));
+	bOk &= TestFloatNear(*this, TEXT("Driven post restore untouched"), Accessor.Bone(1).PhysicsSettings.Damping, 123.0f);
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsOverrideDrivenReinitClearsTest,
+                                 "KawaiiPhysics.SettingsOverride.DrivenReinitClears",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSettingsOverrideDrivenReinitClearsTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor Accessor;
+	SetupChainWithBaseSettings(Accessor);
+	Accessor.Node.RequestSetPhysicsSettingsOverride(FKawaiiPhysicsSettingsScale(), 1.0f, 7);
+	Accessor.Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f);
+	Accessor.Node.RequestSetPhysicsSettingsOverride(FKawaiiPhysicsSettingsScale(), 1.0f, 8);
+	Accessor.Node.RequestPhysicsSettingsOverride(FKawaiiPhysicsSettingsScale(), 0.0f, 10.0f, 0.0f, 9);
+	Accessor.Node.RequestStopPhysicsSettingsOverride(10, 0.5f);
+	Accessor.SetPhysicsSettingsOverrideAppliedLastUpdate(true);
+
+	Accessor.CallResetTransientRuntimeState();
+
+	bool bOk = TestEqual(TEXT("Reinit items clear"), Accessor.Node.TransientForceStore.Items.Num(), 0);
+	bOk &= TestEqual(TEXT("Reinit settings items clear"), Accessor.Node.TransientForceStore.SettingsOverrideItems.Num(), 0);
+	bOk &= TestEqual(TEXT("Reinit pending starts clear"), GetPendingOverrideCount(Accessor.Node), 0);
+	bOk &= TestEqual(TEXT("Reinit pending sets clear"), GetPendingOverrideSetCount(Accessor.Node), 0);
+	bOk &= TestEqual(TEXT("Reinit pending stops clear"), GetPendingOverrideStopCount(Accessor.Node), 0);
+	bOk &= TestFalse(TEXT("Reinit applied flag clear"), Accessor.IsPhysicsSettingsOverrideAppliedLastUpdate());
+
+	return bOk;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsOverrideLimitAngleZeroSemanticsTest,
                                  "KawaiiPhysics.SettingsOverride.LimitAngleZeroSemantics",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -731,10 +1248,12 @@ bool FKawaiiPhysicsSettingsOverrideReflectionCopySurvivalTest::RunTest(const FSt
 		Node.RequestPhysicsSettingsOverride(MakeScale(0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f), 0.0f, 10.0f, 0.0f, 11);
 		Node.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f);
 		Node.RequestPhysicsSettingsOverride(MakeScale(0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f), 0.0f, 10.0f, 0.0f, 22);
+		Node.RequestSetPhysicsSettingsOverride(MakeScale(0.25f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f), 0.75f, 33);
 		Node.RequestStopPhysicsSettingsOverride(11, 0.25f);
 
 		bOk &= TestEqual(TEXT("Initial items"), Node.TransientForceStore.SettingsOverrideItems.Num(), 1);
 		bOk &= TestEqual(TEXT("Initial pending"), GetPendingOverrideCount(Node), 1);
+		bOk &= TestEqual(TEXT("Initial pending sets"), GetPendingOverrideSetCount(Node), 1);
 		bOk &= TestEqual(TEXT("Initial pending stops"), GetPendingOverrideStopCount(Node), 1);
 
 		ApplyDefaultPresetStyleCopy(Node);
@@ -742,6 +1261,7 @@ bool FKawaiiPhysicsSettingsOverrideReflectionCopySurvivalTest::RunTest(const FSt
 		bOk &= TestEqual(TEXT("Items survive preset-style copy"),
 		                 Node.TransientForceStore.SettingsOverrideItems.Num(), 1);
 		bOk &= TestEqual(TEXT("Pending survives preset-style copy"), GetPendingOverrideCount(Node), 1);
+		bOk &= TestEqual(TEXT("Pending sets survive preset-style copy"), GetPendingOverrideSetCount(Node), 1);
 		bOk &= TestEqual(TEXT("Pending stops survive preset-style copy"), GetPendingOverrideStopCount(Node), 1);
 	}
 
@@ -751,16 +1271,19 @@ bool FKawaiiPhysicsSettingsOverrideReflectionCopySurvivalTest::RunTest(const FSt
 		A.RequestPhysicsSettingsOverride(MakeScale(0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f), 0.0f, 10.0f, 0.0f, 33);
 		A.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f);
 		A.RequestPhysicsSettingsOverride(MakeScale(0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f), 0.0f, 10.0f, 0.0f, 44);
+		A.RequestSetPhysicsSettingsOverride(MakeScale(0.25f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f), 0.75f, 55);
 
 		FAnimNode_KawaiiPhysics B = A;
 		bOk &= TestTrue(TEXT("Copied queue is distinct"),
 		                A.TransientForceStore.Queue.Get() != B.TransientForceStore.Queue.Get());
 		bOk &= TestEqual(TEXT("B items empty"), B.TransientForceStore.SettingsOverrideItems.Num(), 0);
 		bOk &= TestEqual(TEXT("B pending empty"), GetPendingOverrideCount(B), 0);
+		bOk &= TestEqual(TEXT("B pending sets empty"), GetPendingOverrideSetCount(B), 0);
 		bOk &= TestFalse(TEXT("B consume yields nothing"), B.ConsumeAndAdvancePhysicsSettingsOverrides(0.0f));
 
 		bOk &= TestEqual(TEXT("A items preserved"), A.TransientForceStore.SettingsOverrideItems.Num(), 1);
 		bOk &= TestEqual(TEXT("A pending preserved"), GetPendingOverrideCount(A), 1);
+		bOk &= TestEqual(TEXT("A pending sets preserved"), GetPendingOverrideSetCount(A), 1);
 	}
 
 	return bOk;
