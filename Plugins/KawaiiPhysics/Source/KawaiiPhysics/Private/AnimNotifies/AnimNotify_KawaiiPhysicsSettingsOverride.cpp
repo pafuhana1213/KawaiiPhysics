@@ -1,0 +1,74 @@
+// Copyright 2019-2026 pafuhana1213. All Rights Reserved.
+
+#include "AnimNotifies/AnimNotify_KawaiiPhysicsSettingsOverride.h"
+
+#include "KawaiiPhysicsLibrary.h"
+#include "Misc/UObjectToken.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotify_KawaiiPhysicsSettingsOverride)
+
+#define LOCTEXT_NAMESPACE "KawaiiPhysics_AnimNotify"
+
+UAnimNotify_KawaiiPhysicsSettingsOverride::UAnimNotify_KawaiiPhysicsSettingsOverride(
+	const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	NotifyColor = FColor(255, 120, 200, 255);
+#endif
+}
+
+FString UAnimNotify_KawaiiPhysicsSettingsOverride::GetNotifyName_Implementation() const
+{
+	return FString(TEXT("KP: Settings Override Pulse"));
+}
+
+void UAnimNotify_KawaiiPhysicsSettingsOverride::Notify(USkeletalMeshComponent* MeshComp,
+                                                       UAnimSequenceBase* Animation,
+                                                       const FAnimNotifyEventReference& EventReference)
+{
+	if (!MeshComp)
+	{
+		return;
+	}
+
+	// コンポーネント内の対象ノードへ時間型の物理設定倍率オーバーライドを開始する
+	FKawaiiPhysicsTransientForceHandle UnusedHandle;
+	UKawaiiPhysicsLibrary::StartPhysicsSettingsOverrideOnComponent(MeshComp, UnusedHandle, SettingsScale, Duration,
+	                                                               BlendInTime, BlendOutTime, FilterTags,
+	                                                               bFilterExactMatch);
+
+	Super::Notify(MeshComp, Animation, EventReference);
+}
+
+#if WITH_EDITOR
+void UAnimNotify_KawaiiPhysicsSettingsOverride::ValidateAssociatedAssets()
+{
+	static const FName NAME_AssetCheck("AssetCheck");
+
+	if (const UAnimSequenceBase* ContainingAsset = Cast<UAnimSequenceBase>(GetContainingAsset()))
+	{
+		if (Duration <= 0.0f)
+		{
+			FMessageLog AssetCheckLog(NAME_AssetCheck);
+
+			const FText Message = FText::Format(
+				NSLOCTEXT("AnimNotify", "KawaiiPhysicsSettingsOverride_DurationNotPositive",
+				          " AnimNotify(KawaiiPhysics_SettingsOverride) Duration is 0 or less in {0}"),
+				FText::AsCultureInvariant(ContainingAsset->GetPathName()));
+
+			AssetCheckLog.Warning()
+			             ->AddToken(FUObjectToken::Create(ContainingAsset))
+			             ->AddToken(FTextToken::Create(Message));
+
+			if (GIsEditor)
+			{
+				constexpr bool bForce = true;
+				AssetCheckLog.Notify(Message, EMessageSeverity::Warning, bForce);
+			}
+		}
+	}
+}
+#endif
+
+#undef LOCTEXT_NAMESPACE
