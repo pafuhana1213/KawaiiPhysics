@@ -9,12 +9,14 @@
 #include "KawaiiPhysicsEditorTabFactories.h"
 #include "KawaiiPhysicsEditMode.h"
 #include "KawaiiPhysicsPresetDataAssetDetails.h"
+#include "ISequencerModule.h"
 #include "Misc/App.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/EngineVersionComparison.h"
 #include "Modules/ModuleManager.h"
 #include "PersonaModule.h"
 #include "PropertyEditorModule.h"
+#include "Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.h"
 #include "SKawaiiPhysicsNodeAuditWindow.h"
 #include "SKawaiiPhysicsPresetDiffWindow.h"
 #include "SKawaiiPhysicsWindScopeWindow.h"
@@ -50,6 +52,10 @@ void FKawaiiPhysicsEdModule::StartupModule()
 
 	if (GIsEditor && !IsRunningCommandlet())
 	{
+		ISequencerModule& SequencerModule = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer");
+		SequencerTrackEditorHandle = SequencerModule.RegisterTrackEditor(
+			FOnCreateTrackEditor::CreateStatic(&FKawaiiPhysicsSettingsOverrideTrackEditor::CreateTrackEditor));
+
 		if (FSlateApplication::IsInitialized())
 		{
 			RegisterTabSpawners();
@@ -88,6 +94,15 @@ void FKawaiiPhysicsEdModule::ShutdownModule()
 
 		FKawaiiPhysicsEdStyle::Shutdown();
 		bTabSpawnersRegistered = false;
+	}
+
+	if (SequencerTrackEditorHandle.IsValid())
+	{
+		if (ISequencerModule* SequencerModule = FModuleManager::GetModulePtr<ISequencerModule>("Sequencer"))
+		{
+			SequencerModule->UnRegisterTrackEditor(SequencerTrackEditorHandle);
+		}
+		SequencerTrackEditorHandle.Reset();
 	}
 
 	if (FPropertyEditorModule* PropertyEditorModule = FModuleManager::GetModulePtr<FPropertyEditorModule>(
