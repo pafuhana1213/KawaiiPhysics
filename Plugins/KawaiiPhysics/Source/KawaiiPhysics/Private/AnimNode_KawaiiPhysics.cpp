@@ -205,18 +205,7 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 	bSubstepPoseInitialized = false;
 
 	// ノード再初期化時は実行時専用の一時外力と物理設定オーバーライドを破棄する
-	TransientForceStore.Items.Reset();
-	TransientForceStore.SettingsOverrideItems.Reset();
-	bPhysicsSettingsOverrideAppliedLastUpdate = false;
-	if (TransientForceStore.Queue.IsValid())
-	{
-		FScopeLock Lock(&TransientForceStore.Queue->Mutex);
-		TransientForceStore.Queue->PendingForces.Reset();
-		TransientForceStore.Queue->PendingGusts.Reset();
-		TransientForceStore.Queue->PendingStops.Reset();
-		TransientForceStore.Queue->PendingSettingsOverrides.Reset();
-		TransientForceStore.Queue->PendingSettingsOverrideStops.Reset();
-	}
+	ResetTransientRuntimeState();
 
 	for (int i = 0; i < ExternalForces.Num(); ++i)
 	{
@@ -358,6 +347,54 @@ int64 FAnimNode_KawaiiPhysics::RequestPhysicsSettingsOverride(const FKawaiiPhysi
 	return HandleId;
 }
 
+bool FAnimNode_KawaiiPhysics::RequestSetPhysicsSettingsOverride(const FKawaiiPhysicsSettingsScale& InScale,
+                                                                const float InAlpha, const int64 InHandleId,
+                                                                const int32 LeaseEvaluations,
+                                                                const float LeaseExpireBlendOutTime)
+{
+	if (InHandleId == 0 || !TransientForceStore.Queue.IsValid())
+	{
+		return false;
+	}
+
+	FKawaiiPhysicsSettingsOverrideSetRequest Request;
+	Request.Scale = InScale;
+	Request.Alpha = FMath::Clamp(InAlpha, 0.0f, 1.0f);
+	Request.HandleId = InHandleId;
+	Request.LeaseEvaluations = FMath::Max(0, LeaseEvaluations);
+	Request.LeaseExpireBlendOutTime = FMath::Max(0.0f, LeaseExpireBlendOutTime);
+
+	FScopeLock Lock(&TransientForceStore.Queue->Mutex);
+	TransientForceStore.Queue->PendingSettingsOverrideStops.RemoveAll(
+		[InHandleId](const FKawaiiPhysicsTransientForceStopRequest& PendingStop)
+		{
+			return PendingStop.HandleId == InHandleId;
+		});
+	TransientForceStore.Queue->PendingSettingsOverrides.RemoveAll(
+		[InHandleId](const FKawaiiPhysicsSettingsOverrideRequest& PendingOverride)
+		{
+			return PendingOverride.HandleId == InHandleId;
+		});
+
+	for (FKawaiiPhysicsSettingsOverrideSetRequest& PendingSet : TransientForceStore.Queue->PendingSettingsOverrideSets)
+	{
+		if (PendingSet.HandleId == InHandleId)
+		{
+			PendingSet = Request;
+			return true;
+		}
+	}
+
+	if (TransientForceStore.Queue->PendingSettingsOverrideSets.Num() >= MaxPhysicsSettingsOverrides)
+	{
+		// 評価が走らないノードへの連打でも Set 要求が MaxPhysicsSettingsOverrides を超えないよう最古から破棄する。
+		TransientForceStore.Queue->PendingSettingsOverrideSets.RemoveAt(0);
+	}
+
+	TransientForceStore.Queue->PendingSettingsOverrideSets.Emplace(Request);
+	return true;
+}
+
 void FAnimNode_KawaiiPhysics::RequestStopPhysicsSettingsOverride(const int64 HandleId, const float BlendOutTime)
 {
 	if (HandleId == 0 || !TransientForceStore.Queue.IsValid())
@@ -385,6 +422,23 @@ void FAnimNode_KawaiiPhysics::RequestStopPhysicsSettingsOverride(const int64 Han
 	Request.HandleId = HandleId;
 	Request.BlendOutTime = BlendOutTime;
 	TransientForceStore.Queue->PendingSettingsOverrideStops.Emplace(Request);
+}
+
+void FAnimNode_KawaiiPhysics::ResetTransientRuntimeState()
+{
+	TransientForceStore.Items.Reset();
+	TransientForceStore.SettingsOverrideItems.Reset();
+	bPhysicsSettingsOverrideAppliedLastUpdate = false;
+	if (TransientForceStore.Queue.IsValid())
+	{
+		FScopeLock Lock(&TransientForceStore.Queue->Mutex);
+		TransientForceStore.Queue->PendingForces.Reset();
+		TransientForceStore.Queue->PendingGusts.Reset();
+		TransientForceStore.Queue->PendingStops.Reset();
+		TransientForceStore.Queue->PendingSettingsOverrides.Reset();
+		TransientForceStore.Queue->PendingSettingsOverrideSets.Reset();
+		TransientForceStore.Queue->PendingSettingsOverrideStops.Reset();
+	}
 }
 
 void FAnimNode_KawaiiPhysics::UpdateInternal(const FAnimationUpdateContext& Context)

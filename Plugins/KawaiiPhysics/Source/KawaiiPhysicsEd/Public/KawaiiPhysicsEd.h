@@ -24,5 +24,6 @@ private:
 
 	FDelegateHandle PostEngineInitHandle;
 	FDelegateHandle PersonaRegisterTabsHandle;
+	FDelegateHandle SequencerTrackEditorHandle;
 	bool bTabSpawnersRegistered = false;
 };

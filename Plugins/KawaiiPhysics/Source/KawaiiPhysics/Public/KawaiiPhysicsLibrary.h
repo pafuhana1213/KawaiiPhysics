@@ -688,6 +688,7 @@ public:
 	 * 物理設定への一時的な倍率オーバーライドを開始する。ベースの設定値は書き換えず、毎フレーム再計算される各ボーンの実効値へ倍率を乗算するため、期間終了後は常に元の挙動へ戻る。
 	 * Duration は BlendInTime/BlendOutTime を含めた合計秒で、エンベロープは BlendIn→Hold→BlendOut の台形（Hold=max(0,Duration-BlendIn-BlendOut)、BlendIn+BlendOut>Duration は比例圧縮）。Duration<=0 は何もキューせず ExecResult=NotValid・ハンドル未設定で返る。
 	 * 進行はアニメーションの DeltaTime ベースのため、URO や LOD で評価が止まると実時間としては長く伸びる。
+	 * 同一ハンドルの既存オーバーライドがある場合は置換される。Stop は外部駆動オーバーライドにも有効で、現在の Alpha から BlendOutTime で 0 へフェードする。
 	 * 同時に保持できるオーバーライドはノードあたり8件までで、超過時は最古が破棄される。破棄されたオーバーライドのハンドルは失効し Stop は no-op。ノード再初期化や BP 再コンパイルでも失われる。
 	 * 複数のオーバーライドは各成分ごとに乗算で合成される。
 	 * エッジケース: LimitAngle はベースが0（無制限）なら倍率に関わらず無制限のまま、ベースが0より大きいボーンは倍率0でも無制限へは反転しない。
@@ -695,6 +696,7 @@ public:
 	 * Start a temporary multiplier override for the physics settings. The base settings are never rewritten: the multipliers are applied to each bone's effective values, which are recomputed every frame, so the original behavior always comes back once the override ends.
 	 * Duration is the total seconds including BlendInTime/BlendOutTime, and the envelope is a BlendIn-Hold-BlendOut trapezoid (Hold=max(0,Duration-BlendIn-BlendOut); BlendIn+BlendOut>Duration is scaled proportionally). Duration<=0 queues nothing and returns NotValid with an unset handle.
 	 * Progress is driven by the animation DeltaTime, so if URO or LOD stops evaluation the override lasts longer in real time.
+	 * An existing override with the same handle is replaced. Stop also works on externally driven overrides and fades from the current Alpha to 0 over BlendOutTime.
 	 * Overrides are capped at 8 per node; beyond the cap, the oldest entry is evicted. Handles for evicted overrides become stale and Stop is a no-op. They are also lost on node re-initialization or BP recompile.
 	 * Multiple overrides are composed by multiplying each component.
 	 * Edge cases: LimitAngle stays unlimited whatever the multiplier is when the base value is 0 (unlimited), and bones with a base above 0 never flip back to unlimited even with a multiplier of 0.
@@ -720,8 +722,10 @@ public:
 
 	/**
 	 * ハンドルに一致する物理設定オーバーライドの停止をリクエストする。現在の適用率から BlendOutTime で 0 へ線形フェードする。BlendOutTime=0 は即時除去。
+	 * 外部駆動オーバーライドにも有効で、その時点の Alpha を起点にフェードアウトする。
 	 * まだ評価されていない（pending の）同一ハンドルへの Stop は BlendOutTime を上書きする。ハンドル不一致・失効ハンドルは no-op。
 	 * Request stopping a physics settings override that matches the handle. It fades linearly from the current applied ratio to 0 over BlendOutTime. BlendOutTime=0 removes immediately.
+	 * Also works on externally driven overrides and fades out from the Alpha at the time of Stop.
 	 * A Stop for the same handle that is still pending (not yet evaluated) overwrites its BlendOutTime. Handle mismatch or a stale handle is a no-op.
 	 * @param ExecResult ノード参照の解決結果 / Result of resolving the node reference.
 	 * @param KawaiiPhysics 対象の KawaiiPhysics ノード参照 / Target KawaiiPhysics node reference.
@@ -740,6 +744,7 @@ public:
 	 * Component 内の対象 KawaiiPhysics ノードへ、物理設定への一時的な倍率オーバーライドを共通の1ハンドルで開始する。ベースの設定値は書き換えず、毎フレーム再計算される各ボーンの実効値へ倍率を乗算するため、期間終了後は常に元の挙動へ戻る。
 	 * Duration は BlendInTime/BlendOutTime を含めた合計秒で、エンベロープは BlendIn→Hold→BlendOut の台形（Hold=max(0,Duration-BlendIn-BlendOut)、BlendIn+BlendOut>Duration は比例圧縮）。Duration<=0 は何もキューせず 0 を返す（ハンドル未設定）。
 	 * 進行はアニメーションの DeltaTime ベースのため、URO や LOD で評価が止まると実時間としては長く伸びる。
+	 * 同一ハンドルの既存オーバーライドがある場合は置換される。Stop は外部駆動オーバーライドにも有効で、現在の Alpha から BlendOutTime で 0 へフェードする。
 	 * 同時に保持できるオーバーライドはノードあたり8件までで、超過時は最古が破棄される。破棄されたオーバーライドのハンドルは失効し Stop は no-op。ノード再初期化や BP 再コンパイルでも失われる。
 	 * 複数のオーバーライドは各成分ごとに乗算で合成される。
 	 * エッジケース: LimitAngle はベースが0（無制限）なら倍率に関わらず無制限のまま、ベースが0より大きいボーンは倍率0でも無制限へは反転しない。
@@ -750,6 +755,7 @@ public:
 	 * Start temporary multiplier overrides for the physics settings on target KawaiiPhysics nodes in a component under one shared handle. The base settings are never rewritten: the multipliers are applied to each bone's effective values, which are recomputed every frame, so the original behavior always comes back once the override ends.
 	 * Duration is the total seconds including BlendInTime/BlendOutTime, and the envelope is a BlendIn-Hold-BlendOut trapezoid (Hold=max(0,Duration-BlendIn-BlendOut); BlendIn+BlendOut>Duration is scaled proportionally). Duration<=0 queues nothing and returns 0 with an unset handle.
 	 * Progress is driven by the animation DeltaTime, so if URO or LOD stops evaluation the override lasts longer in real time.
+	 * An existing override with the same handle is replaced. Stop also works on externally driven overrides and fades from the current Alpha to 0 over BlendOutTime.
 	 * Overrides are capped at 8 per node; beyond the cap, the oldest entry is evicted. Handles for evicted overrides become stale and Stop is a no-op. They are also lost on node re-initialization or BP recompile.
 	 * Multiple overrides are composed by multiplying each component.
 	 * Edge cases: LimitAngle stays unlimited whatever the multiplier is when the base value is 0 (unlimited), and bones with a base above 0 never flip back to unlimited even with a multiplier of 0.
@@ -779,11 +785,13 @@ public:
 
 	/**
 	 * Component 内の対象 KawaiiPhysics ノードへ、ハンドルに一致する物理設定オーバーライドの停止をリクエストする。現在の適用率から BlendOutTime で 0 へ線形フェードする。BlendOutTime=0 は即時除去。
+	 * 外部駆動オーバーライドにも有効で、その時点の Alpha を起点にフェードアウトする。
 	 * まだ評価されていない（pending の）同一ハンドルへの Stop は BlendOutTime を上書きする。ハンドル不一致・失効ハンドルは no-op。
 	 * Component / Linked AnimInstance / PostProcess から KawaiiPhysics ノード参照を収集する（FilterTags が空なら全件）。
 	 * AnimGraph の BlueprintThreadSafe 文脈から呼ぶ場合、対象は呼び出し元（呼び出しノード自身）の Component に限ります。
 	 * それ以外のオブジェクトから収集する場合は、そのオブジェクトが評価中でない GameThread で呼び出してください。
 	 * Request stopping physics settings overrides that match the handle on target KawaiiPhysics nodes in a component. They fade linearly from the current applied ratio to 0 over BlendOutTime. BlendOutTime=0 removes immediately.
+	 * Also works on externally driven overrides and fades out from the Alpha at the time of Stop.
 	 * A Stop for the same handle that is still pending (not yet evaluated) overwrites its BlendOutTime. Handle mismatch or a stale handle is a no-op.
 	 * When called from an AnimGraph BlueprintThreadSafe context, the target must be the caller's (the calling node's) own Component. Collecting from any other object must be done from the GameThread while that object is not being evaluated.
 	 * @param MeshComp 対象の SkeletalMeshComponent / Target SkeletalMeshComponent.
@@ -801,6 +809,96 @@ public:
 		const FGameplayTagContainer& FilterTags,
 		bool bFilterExactMatch = false,
 		float BlendOutTime = 0.5f);
+
+	/**
+	 * 一時外力ハンドルを新規発行する。SetPhysicsSettingsOverride など、呼び出し側が同じハンドルで継続更新する API に渡す。
+	 * BlueprintPure にはしない。Pure ノードにするとピン参照のたびに別ハンドルが発行され、Stop や同一項目更新が成立しないため。
+	 * Generate a new transient force handle. Pass it to APIs such as SetPhysicsSettingsOverride where the caller keeps updating with the same handle.
+	 * This is intentionally not BlueprintPure: a Pure node would issue another handle every time a pin is read, breaking Stop and same-entry updates.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	static FKawaiiPhysicsTransientForceHandle GenerateTransientForceHandle();
+
+	/**
+	 * 外部駆動の物理設定倍率オーバーライドを設定する。AnimNotifyState や Sequencer など、呼び出し側が毎フレームまたは値が変化した時に Alpha を押し込む用途向け。
+	 * 内部時間では消えないため、不要になったら必ず StopPhysicsSettingsOverride で解放する。Stop は現在の Alpha から BlendOutTime で 0 へフェードし、BlendOutTime=0 なら即時除去する。
+	 * GenerateTransientForceHandle などで事前発行した設定済みハンドルが必要。未設定ハンドルは no-op で ExecResult=NotValid。同一ハンドルの Set は同じ項目を更新し、Stop 済みでフェード中の項目に Set すると再び外部駆動へ戻る。同一ハンドルの時間型 Start は置換される。
+	 * URO/LOD などで評価が止まっている間に同一ハンドルで連続呼び出しされた場合、未評価キューには最新値だけが保持される。
+	 * 同時に保持できるオーバーライドはノードあたり8件までで、時間型 Start と共有される。超過時は最古が破棄される。破棄・ノード再初期化・BP再コンパイルで失われ、その後の Set は新規作成、Stop は no-op になる。
+	 * Alpha は 0..1 にクランプされる。Alpha=0 は「項目は存在するが効果なし」で、毎フレーム設定更新コストは掛かるため不要なら Stop する。
+	 * エッジケース: LimitAngle はベースが0（無制限）なら倍率に関わらず無制限のまま、ベースが0より大きいボーンは倍率0でも無制限へは反転しない。
+	 * WorldDampingLocation/Rotation は実際の反映率が (1 - 値) のため意味が反転し、倍率1未満では揺れが増える。Radius の倍率0はワールドコリジョンのスイープと押し出しを実質無効にする。
+	 * Set an externally driven multiplier override for the physics settings. Intended for AnimNotifyState, Sequencer, and similar callers that push Alpha every frame or when the value changes.
+	 * It does not disappear by internal time, so always release it with StopPhysicsSettingsOverride when it is no longer needed. Stop fades from the current Alpha to 0 over BlendOutTime, or removes immediately when BlendOutTime=0.
+	 * Requires a set handle issued beforehand, for example by GenerateTransientForceHandle. An unset handle is a no-op with ExecResult=NotValid. Sets with the same handle update the same entry; setting a stopped/fading entry drives it again. A timed Start with the same handle replaces it.
+	 * If evaluation is stopped by URO/LOD and the same handle is called repeatedly, only the latest pending value is kept.
+	 * Overrides are capped at 8 per node and share the cap with timed Starts. Beyond the cap, the oldest entry is evicted. Entries are lost on eviction, node re-initialization, or BP recompile; a later Set recreates the entry and Stop is a no-op until then.
+	 * Alpha is clamped to 0..1. Alpha=0 means the entry exists but has no effect; it still costs a settings update every frame, so Stop it when unnecessary.
+	 * Edge cases: LimitAngle stays unlimited whatever the multiplier is when the base value is 0 (unlimited), and bones with a base above 0 never flip back to unlimited even with a multiplier of 0.
+	 * WorldDampingLocation/Rotation have inverted semantics because the actual reflection factor is (1 - value): a multiplier below 1 increases the sway. A Radius multiplier of 0 effectively disables the world collision sweep and push-out.
+	 * @param ExecResult ノード参照の解決結果 / Result of resolving the node reference.
+	 * @param KawaiiPhysics 対象の KawaiiPhysics ノード参照 / Target KawaiiPhysics node reference.
+	 * @param Handle 更新・停止対象のハンドル / Handle to update and stop.
+	 * @param SettingsScale 物理設定へ適用する倍率（全項目1.0で変更なし） / Multipliers applied to the physics settings (all 1.0 means no change).
+	 * @param Alpha 倍率の適用率 0..1 / Applied ratio of the multipliers, 0..1.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
+	static FKawaiiPhysicsReference SetPhysicsSettingsOverride(
+		EKawaiiPhysicsAccessResult& ExecResult,
+		const FKawaiiPhysicsReference& KawaiiPhysics,
+		FKawaiiPhysicsTransientForceHandle Handle,
+		FKawaiiPhysicsSettingsScale SettingsScale,
+		float Alpha = 1.0f);
+
+	/**
+	 * Component 内の対象 KawaiiPhysics ノードへ、外部駆動の物理設定倍率オーバーライドを共通ハンドルで設定する。AnimNotifyState や Sequencer など、呼び出し側が毎フレームまたは値が変化した時に Alpha を押し込む用途向け。
+	 * 内部時間では消えないため、不要になったら必ず StopPhysicsSettingsOverridesOnComponent で解放する。Stop は現在の Alpha から BlendOutTime で 0 へフェードし、BlendOutTime=0 なら即時除去する。
+	 * GenerateTransientForceHandle などで事前発行した設定済みハンドルが必要。未設定ハンドルは no-op で 0 を返す。同一ハンドルの Set は同じ項目を更新し、Stop 済みでフェード中の項目に Set すると再び外部駆動へ戻る。同一ハンドルの時間型 Start は置換される。
+	 * URO/LOD などで評価が止まっている間に同一ハンドルで連続呼び出しされた場合、未評価キューには最新値だけが保持される。
+	 * 同時に保持できるオーバーライドはノードあたり8件までで、時間型 Start と共有される。超過時は最古が破棄される。破棄・ノード再初期化・BP再コンパイルで失われ、その後の Set は新規作成、Stop は no-op になる。
+	 * Alpha は 0..1 にクランプされる。Alpha=0 は「項目は存在するが効果なし」で、毎フレーム設定更新コストは掛かるため不要なら Stop する。
+	 * エッジケース: LimitAngle はベースが0（無制限）なら倍率に関わらず無制限のまま、ベースが0より大きいボーンは倍率0でも無制限へは反転しない。
+	 * WorldDampingLocation/Rotation は実際の反映率が (1 - 値) のため意味が反転し、倍率1未満では揺れが増える。Radius の倍率0はワールドコリジョンのスイープと押し出しを実質無効にする。
+	 * Component / Linked AnimInstance / PostProcess から KawaiiPhysics ノード参照を収集する（FilterTags が空なら全件）。
+	 * AnimGraph の BlueprintThreadSafe 文脈から呼ぶ場合、対象は呼び出し元（呼び出しノード自身）の Component に限ります。
+	 * それ以外のオブジェクトから収集する場合は、そのオブジェクトが評価中でない GameThread で呼び出してください。
+	 * Set externally driven multiplier overrides for the physics settings on target KawaiiPhysics nodes in a component under one shared handle. Intended for AnimNotifyState, Sequencer, and similar callers that push Alpha every frame or when the value changes.
+	 * They do not disappear by internal time, so always release them with StopPhysicsSettingsOverridesOnComponent when no longer needed. Stop fades from the current Alpha to 0 over BlendOutTime, or removes immediately when BlendOutTime=0.
+	 * Requires a set handle issued beforehand, for example by GenerateTransientForceHandle. An unset handle is a no-op and returns 0. Sets with the same handle update the same entry; setting a stopped/fading entry drives it again. A timed Start with the same handle replaces it.
+	 * If evaluation is stopped by URO/LOD and the same handle is called repeatedly, only the latest pending value is kept.
+	 * Overrides are capped at 8 per node and share the cap with timed Starts. Beyond the cap, the oldest entry is evicted. Entries are lost on eviction, node re-initialization, or BP recompile; a later Set recreates the entry and Stop is a no-op until then.
+	 * Alpha is clamped to 0..1. Alpha=0 means the entry exists but has no effect; it still costs a settings update every frame, so Stop it when unnecessary.
+	 * Edge cases: LimitAngle stays unlimited whatever the multiplier is when the base value is 0 (unlimited), and bones with a base above 0 never flip back to unlimited even with a multiplier of 0.
+	 * WorldDampingLocation/Rotation have inverted semantics because the actual reflection factor is (1 - value): a multiplier below 1 increases the sway. A Radius multiplier of 0 effectively disables the world collision sweep and push-out.
+	 * When called from an AnimGraph BlueprintThreadSafe context, the target must be the caller's (the calling node's) own Component. Collecting from any other object must be done from the GameThread while that object is not being evaluated.
+	 * @param MeshComp 対象の SkeletalMeshComponent / Target SkeletalMeshComponent.
+	 * @param Handle 更新・停止対象のハンドル（全ノード共通） / Handle to update and stop (shared by every node).
+	 * @param SettingsScale 物理設定へ適用する倍率（全項目1.0で変更なし） / Multipliers applied to the physics settings (all 1.0 means no change).
+	 * @param Alpha 倍率の適用率 0..1 / Applied ratio of the multipliers, 0..1.
+	 * @param FilterTags ノードの KawaiiPhysicsTag に対するフィルタ（空なら全ノード対象） / Filter against each node KawaiiPhysicsTag; empty matches all nodes.
+	 * @param bFilterExactMatch タグを完全一致で比較するか / Whether tags must match exactly.
+	 * @return オーバーライドをキューしたノード数 / Number of nodes where overrides were queued.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, AutoCreateRefTerm = "FilterTags"))
+	static int32 SetPhysicsSettingsOverrideOnComponent(
+		USkeletalMeshComponent* MeshComp,
+		FKawaiiPhysicsTransientForceHandle Handle,
+		FKawaiiPhysicsSettingsScale SettingsScale,
+		float Alpha,
+		const FGameplayTagContainer& FilterTags,
+		bool bFilterExactMatch = false);
+
+	static int32 SetPhysicsSettingsOverrideOnComponent(
+		USkeletalMeshComponent* MeshComp,
+		FKawaiiPhysicsTransientForceHandle Handle,
+		const FKawaiiPhysicsSettingsScale& SettingsScale,
+		float Alpha,
+		const FGameplayTagContainer& FilterTags,
+		bool bFilterExactMatch,
+		int32 LeaseEvaluations,
+		float LeaseExpireBlendOutTime);
 
 	/**
 	 * Id が設定済みかだけを返す。対象の風が現在も生存しているかの確認ではない（ノード再初期化・上限超過破棄後も true のまま。その場合 Stop は何もしない）。

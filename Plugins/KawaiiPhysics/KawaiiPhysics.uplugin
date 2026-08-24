@@ -22,6 +22,12 @@
 			"PlatformDenyList": []
 		},
 		{
+			"Name": "KawaiiPhysicsSequencer",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault",
+			"PlatformDenyList": []
+		},
+		{
 			"Name": "KawaiiPhysicsEd",
 			"Type": "UncookedOnly",
 			"LoadingPhase": "PreDefault",

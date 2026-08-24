@@ -368,6 +368,11 @@ struct FKawaiiPhysicsTestAccessor
 		Node.UpdatePhysicsSettingsOfModifyBones();
 	}
 
+	void CallResetTransientRuntimeState()
+	{
+		Node.ResetTransientRuntimeState();
+	}
+
 	FKawaiiPhysicsSettingsScale CallComputeEffectiveSettingsOverrideScale() const
 	{
 		return Node.ComputeEffectivePhysicsSettingsOverrideScale();
@@ -375,6 +380,7 @@ struct FKawaiiPhysicsTestAccessor
 
 	void SetInitPhysicsSettings(bool bInit) { Node.bInitPhysicsSettings = bInit; }
 	bool IsPhysicsSettingsOverrideAppliedLastUpdate() const { return Node.bPhysicsSettingsOverrideAppliedLastUpdate; }
+	void SetPhysicsSettingsOverrideAppliedLastUpdate(const bool bValue) { Node.bPhysicsSettingsOverrideAppliedLastUpdate = bValue; }
 
 	/**
 	 * EvaluateSkeletalControl_AnyThread の物理設定更新 gating（判定は ShouldUpdatePhysicsSettings を共有）を Output 無しで実行する

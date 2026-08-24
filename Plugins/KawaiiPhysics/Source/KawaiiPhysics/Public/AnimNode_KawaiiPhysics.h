@@ -82,6 +82,16 @@ struct FKawaiiPhysicsSettingsOverrideRequest
 	int64 HandleId = 0;
 };
 
+// 外部駆動の物理設定倍率オーバーライドの Set リクエスト
+struct FKawaiiPhysicsSettingsOverrideSetRequest
+{
+	FKawaiiPhysicsSettingsScale Scale;
+	float Alpha = 1.0f;                   // 0..1 クランプ済み
+	int64 HandleId = 0;                   // 0 は無効
+	int32 LeaseEvaluations = 0;           // 0=無期限。N回の評価でSetを受けなければ自動フェード
+	float LeaseExpireBlendOutTime = 0.2f; // リース失効時のフェード秒
+};
+
 // 実行中の物理設定の一時倍率オーバーライド
 struct FKawaiiPhysicsActiveSettingsOverride
 {
@@ -93,6 +103,11 @@ struct FKawaiiPhysicsActiveSettingsOverride
 	// 停止時にそれまでの適用率を退避し、そこを起点にフェードアウトさせるための係数
 	float PeakAlpha = 1.0f;
 	int64 HandleId = 0;
+	bool bExternallyDriven = false; // 外部駆動項目。内部時間では消えず Stop/リース失効でのみフェード/除去
+	float DrivenAlpha = 0.0f;       // 外部駆動時の適用率（0..1）
+	int32 LeaseEvaluations = 0;     // 0=無期限
+	int32 LeaseRemaining = 0;       // Set のたびに LeaseEvaluations へリセット、評価ごとに減算
+	float LeaseExpireBlendOutTime = 0.2f;
 };
 
 // 任意スレッドからの一時外力キュー
@@ -103,6 +118,7 @@ struct FKawaiiPhysicsTransientForceQueue
 	TArray<FKawaiiPhysicsTransientGustRequest> PendingGusts;
 	TArray<FKawaiiPhysicsTransientForceStopRequest> PendingStops;
 	TArray<FKawaiiPhysicsSettingsOverrideRequest> PendingSettingsOverrides;
+	TArray<FKawaiiPhysicsSettingsOverrideSetRequest> PendingSettingsOverrideSets;
 	TArray<FKawaiiPhysicsTransientForceStopRequest> PendingSettingsOverrideStops;
 };
 
@@ -690,6 +706,17 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	void RequestStopPhysicsSettingsOverride(int64 HandleId, float BlendOutTime);
 
 	/**
+	 * 外部駆動の物理設定倍率オーバーライドを設定する。任意スレッド可で、Mutex 保護されたキューへ積む。
+	 * 呼び出し側が同じハンドルで Alpha を押し込み続ける用途向けで、内部時間では終了せず Stop またはリース失効でフェードする。
+	 * HandleId=0 またはキュー無効時は false。Alpha は 0..1 にクランプされ、同一ハンドルの未評価 Set は最新値へ集約される。
+	 * Request an externally driven multiplier override for the physics settings. Callable from any thread; it is queued under a mutex.
+	 * Intended for callers that keep pushing Alpha with the same handle. It does not end by internal time and fades only by Stop or lease expiration.
+	 * Returns false for HandleId=0 or an invalid queue. Alpha is clamped to 0..1, and pending Sets with the same handle are coalesced to the latest value.
+	 */
+	bool RequestSetPhysicsSettingsOverride(const FKawaiiPhysicsSettingsScale& InScale, float InAlpha, int64 InHandleId,
+	                                       int32 LeaseEvaluations = 0, float LeaseExpireBlendOutTime = 0.2f);
+
+	/**
 	 * キュー済みの物理設定オーバーライドを worker で取り込み、経過時間を進めて期限切れを掃除する。
 	 * worker 専用で 1 evaluate 1 回だけ、UpdatePhysicsSettingsOfModifyBones の前に呼ぶ。
 	 * Consume queued physics settings overrides on the worker, advance their elapsed time and sweep expired entries.
@@ -777,6 +804,8 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	float DeltaTime = 0.0f;
 
 private:
+	void ResetTransientRuntimeState();
+
 	/**
 	* コリジョン球がボーン間の隙間を埋めるのに必要なダミーボーン数（半径ベースの被覆数）を計算。
 	* Calculates how many inter-bone dummy bones are needed so collision spheres cover the gap (radius-based coverage count).

@@ -39,7 +39,10 @@ public class KawaiiPhysicsEd : ModuleRules
 			"Json",
 			"JsonUtilities",
 			"DesktopPlatform",
-			"Projects"
+			"Projects",
+			"Sequencer",
+			"MovieScene",
+			"KawaiiPhysicsSequencer"
 		});
 
 		if (Target.Version.MajorVersion > 5 || (Target.Version.MajorVersion == 5 && Target.Version.MinorVersion >= 5))
