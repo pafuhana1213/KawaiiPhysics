@@ -43,4 +43,8 @@ public:
 
 	/** 破棄時に、このセクション由来の外部駆動を停止する / Stops externally driven overrides created by this section on destruction */
 	virtual void BeginDestroy() override;
+
+#if WITH_EDITOR
+	virtual void PostEditUndo() override;
+#endif
 };

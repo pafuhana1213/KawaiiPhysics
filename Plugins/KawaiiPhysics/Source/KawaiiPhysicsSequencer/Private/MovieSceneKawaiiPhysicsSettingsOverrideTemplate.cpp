@@ -19,6 +19,8 @@ namespace
 struct FSectionData : IPersistentEvaluationData
 {
 	TMap<TWeakObjectPtr<USkeletalMeshComponent>, TSharedRef<FKawaiiPhysicsSequencerOverrideEntry>> Entries;
+	TSet<TWeakObjectPtr<USkeletalMeshComponent>> PreAnimatedSavedComponents;
+	TSharedRef<uint8> InstanceOwner = MakeShared<uint8>(0);
 
 	virtual ~FSectionData() override
 	{
@@ -32,32 +34,48 @@ struct FSectionData : IPersistentEvaluationData
 
 struct FPreAnimatedToken : IMovieScenePreAnimatedToken
 {
-	explicit FPreAnimatedToken(const TSharedRef<FKawaiiPhysicsSequencerOverrideEntry>& InEntry)
-		: Entry(InEntry)
+	FPreAnimatedToken(const UMovieSceneSection* InSourceSection, const TWeakPtr<uint8>& InOwner)
+		: SourceSection(InSourceSection)
+		, Owner(InOwner)
 	{
 	}
 
 	virtual void RestoreState(UObject& Object, const UE::MovieScene::FRestoreStateParams& Params) override
 	{
-		Entry->Stop();
+		if (const UMovieSceneSection* Section = SourceSection.Get())
+		{
+			// SavePreAnimatedState は Component 単位なので、復元対象の Component の Entry だけ止める（兄弟 Component を巻き込まない）
+			const USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(&Object);
+			if (Component)
+			{
+				FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(Section, Owner, Component);
+			}
+			else
+			{
+				FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(Section, Owner);
+			}
+		}
 	}
 
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> Entry;
+	TWeakObjectPtr<const UMovieSceneSection> SourceSection;
+	TWeakPtr<uint8> Owner;
 };
 
 struct FPreAnimatedTokenProducer : IMovieScenePreAnimatedTokenProducer
 {
-	explicit FPreAnimatedTokenProducer(const TSharedRef<FKawaiiPhysicsSequencerOverrideEntry>& InEntry)
-		: Entry(InEntry)
+	FPreAnimatedTokenProducer(const UMovieSceneSection* InSourceSection, const TSharedRef<uint8>& InOwner)
+		: SourceSection(InSourceSection)
+		, Owner(InOwner)
 	{
 	}
 
 	virtual IMovieScenePreAnimatedTokenPtr CacheExistingState(UObject& Object) const override
 	{
-		return FPreAnimatedToken(Entry);
+		return FPreAnimatedToken(SourceSection.Get(), Owner);
 	}
 
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> Entry;
+	TWeakObjectPtr<const UMovieSceneSection> SourceSection;
+	TWeakPtr<uint8> Owner;
 };
 
 struct FExecutionToken : IMovieSceneExecutionToken
@@ -134,6 +152,7 @@ struct FExecutionToken : IMovieSceneExecutionToken
 			if (!ExistingEntry)
 			{
 				Entry->Component = Component;
+				Entry->Owner = Data.InstanceOwner;
 				Entry->Handle.Id = FAnimNode_KawaiiPhysics::GenerateTransientForceHandleId();
 				Entry->FilterTags = FilterTags;
 				Entry->bFilterExactMatch = bFilterExactMatch;
@@ -146,10 +165,14 @@ struct FExecutionToken : IMovieSceneExecutionToken
 				}
 			}
 
-			if (!Entry->bPreAnimatedSaved)
+			if (!Data.PreAnimatedSavedComponents.Contains(ComponentKey))
 			{
-				Player.SavePreAnimatedState(*Component, AnimTypeID, FPreAnimatedTokenProducer(Entry));
-				Entry->bPreAnimatedSaved = true;
+				if (const UMovieSceneSection* Section = SourceSection.Get())
+				{
+					Player.SavePreAnimatedState(*Component, AnimTypeID,
+					                            FPreAnimatedTokenProducer(Section, Data.InstanceOwner));
+					Data.PreAnimatedSavedComponents.Add(ComponentKey);
+				}
 			}
 
 			UKawaiiPhysicsLibrary::SetPhysicsSettingsOverrideOnComponent(Component, Entry->Handle, Scale, Alpha,
@@ -216,5 +239,6 @@ void FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate::TearDown(
 			Pair.Value->Stop();
 		}
 		Data->Entries.Empty();
+		Data->PreAnimatedSavedComponents.Empty();
 	}
 }

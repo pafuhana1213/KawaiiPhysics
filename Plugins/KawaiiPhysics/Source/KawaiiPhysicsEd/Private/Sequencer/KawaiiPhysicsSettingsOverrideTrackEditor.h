@@ -9,6 +9,8 @@
 /**
  * Sequencer に Kawaii Physics Settings Override トラックを追加する TrackEditor
  * Track editor that adds Kawaii Physics Settings Override tracks to Sequencer.
+ * 同一 SkeletalMeshComponent に複数セクション/トラックが重なる場合、倍率は成分ごとに乗算合成される
+ * Overlapping sections or tracks on the same component multiply their scales per component.
  */
 class FKawaiiPhysicsSettingsOverrideTrackEditor : public FMovieSceneTrackEditor
 {
