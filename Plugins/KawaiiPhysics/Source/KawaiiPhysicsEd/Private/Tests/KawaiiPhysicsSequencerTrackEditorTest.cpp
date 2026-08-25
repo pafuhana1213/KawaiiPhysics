@@ -19,10 +19,15 @@ bool FKawaiiPhysicsSequencerTrackEditorScaleSummaryNoChangeTest::RunTest(const F
 	(void)Parameters;
 
 	const FKawaiiPhysicsSettingsScale Scale;
-	return TestEqual(
-		TEXT("全倍率が 1.0 の場合は変更なし表示になること"),
-		MakeKawaiiPhysicsScaleSummaryText(Scale).ToString(),
-		FString(TEXT("×1.0 (no change)")));
+
+	bool bOk = true;
+	bOk &= TestTrue(
+		TEXT("全倍率が 1.0 の場合はロケール非依存サマリが空文字列になること"),
+		MakeKawaiiPhysicsScaleSummaryString(Scale).IsEmpty());
+	bOk &= TestFalse(
+		TEXT("全倍率が 1.0 の場合でも表示用テキストは空にならないこと"),
+		MakeKawaiiPhysicsScaleSummaryText(Scale).ToString().IsEmpty());
+	return bOk;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerTrackEditorScaleSummaryPartialTest,
@@ -39,7 +44,7 @@ bool FKawaiiPhysicsSequencerTrackEditorScaleSummaryPartialTest::RunTest(const FS
 
 	return TestEqual(
 		TEXT("1.0 以外の倍率だけが順番通りに表示されること"),
-		MakeKawaiiPhysicsScaleSummaryText(Scale).ToString(),
+		MakeKawaiiPhysicsScaleSummaryString(Scale),
 		FString(TEXT("D×0.50  S×1.20")));
 }
 
@@ -61,7 +66,7 @@ bool FKawaiiPhysicsSequencerTrackEditorScaleSummaryAllTest::RunTest(const FStrin
 
 	return TestEqual(
 		TEXT("6 成分が D, S, WL, WR, R, LA の順で表示されること"),
-		MakeKawaiiPhysicsScaleSummaryText(Scale).ToString(),
+		MakeKawaiiPhysicsScaleSummaryString(Scale),
 		FString(TEXT("D×0.50  S×1.20  WL×0.80  WR×0.70  R×1.50  LA×0.25")));
 }
 

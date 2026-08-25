@@ -14,48 +14,38 @@ namespace
 		return !FMath::IsNearlyEqual(Value, 1.0f, KINDA_SMALL_NUMBER);
 	}
 
-	FText MakeScaleEntryText(const TCHAR* Abbreviation, const float Value, const FNumberFormattingOptions& FormatOptions)
-	{
-		return FText::Format(
-			LOCTEXT("ScaleEntryFormat", "{0}×{1}"),
-			FText::FromString(FString(Abbreviation)),
-			FText::AsNumber(Value, &FormatOptions));
-	}
-
-	void AddScaleEntry(
-		TArray<FText>& Entries,
-		const TCHAR* Abbreviation,
-		const float Value,
-		const FNumberFormattingOptions& FormatOptions)
+	void AddScaleEntry(TArray<FString>& Entries, const TCHAR* Abbreviation, const float Value)
 	{
 		if (ShouldShowScaleValue(Value))
 		{
-			Entries.Add(MakeScaleEntryText(Abbreviation, Value, FormatOptions));
+			// カルチャ依存の FText::AsNumber を使わず Printf で組み立てることで小数点表記を常に '.' に固定する
+			Entries.Add(FString::Printf(TEXT("%s×%.2f"), Abbreviation, Value));
 		}
 	}
 }
 
+FString MakeKawaiiPhysicsScaleSummaryString(const FKawaiiPhysicsSettingsScale& Scale)
+{
+	TArray<FString> Entries;
+	AddScaleEntry(Entries, TEXT("D"), Scale.Damping);
+	AddScaleEntry(Entries, TEXT("S"), Scale.Stiffness);
+	AddScaleEntry(Entries, TEXT("WL"), Scale.WorldDampingLocation);
+	AddScaleEntry(Entries, TEXT("WR"), Scale.WorldDampingRotation);
+	AddScaleEntry(Entries, TEXT("R"), Scale.Radius);
+	AddScaleEntry(Entries, TEXT("LA"), Scale.LimitAngle);
+
+	return FString::Join(Entries, TEXT("  "));
+}
+
 FText MakeKawaiiPhysicsScaleSummaryText(const FKawaiiPhysicsSettingsScale& Scale)
 {
-	FNumberFormattingOptions FormatOptions;
-	FormatOptions.SetUseGrouping(false);
-	FormatOptions.SetMinimumFractionalDigits(2);
-	FormatOptions.SetMaximumFractionalDigits(2);
-
-	TArray<FText> Entries;
-	AddScaleEntry(Entries, TEXT("D"), Scale.Damping, FormatOptions);
-	AddScaleEntry(Entries, TEXT("S"), Scale.Stiffness, FormatOptions);
-	AddScaleEntry(Entries, TEXT("WL"), Scale.WorldDampingLocation, FormatOptions);
-	AddScaleEntry(Entries, TEXT("WR"), Scale.WorldDampingRotation, FormatOptions);
-	AddScaleEntry(Entries, TEXT("R"), Scale.Radius, FormatOptions);
-	AddScaleEntry(Entries, TEXT("LA"), Scale.LimitAngle, FormatOptions);
-
-	if (Entries.IsEmpty())
+	const FString Summary = MakeKawaiiPhysicsScaleSummaryString(Scale);
+	if (Summary.IsEmpty())
 	{
 		return LOCTEXT("NoScaleChange", "×1.0 (no change)");
 	}
 
-	return FText::Join(FText::FromString(TEXT("  ")), Entries);
+	return FText::FromString(Summary);
 }
 
 #undef LOCTEXT_NAMESPACE
