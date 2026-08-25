@@ -22,8 +22,9 @@ void FKawaiiPhysicsSequencerOverrideEntry::Stop(const float OverrideBlendOutTime
 	{
 		const float EffectiveBlendOutTime =
 			OverrideBlendOutTime >= 0.0f ? OverrideBlendOutTime : FMath::Max(BlendOutTime, 0.0f);
+		// ハンドルは Entry ごとに一意なので、リタグ後のノードも確実に止めるためフィルタを使わない
 		UKawaiiPhysicsLibrary::StopPhysicsSettingsOverridesOnComponent(
-			TargetComponent, Handle, FilterTags, bFilterExactMatch, EffectiveBlendOutTime);
+			TargetComponent, Handle, FGameplayTagContainer(), false, EffectiveBlendOutTime);
 	}
 }
 
