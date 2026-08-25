@@ -18,9 +18,40 @@ class UMovieSceneKawaiiPhysicsSettingsOverrideSection : public UMovieSceneSectio
 public:
 	UMovieSceneKawaiiPhysicsSettingsOverrideSection(const FObjectInitializer& ObjectInitializer);
 
-	/** 物理設定へ適用する倍率（全項目1.0で変更なし） / Multipliers applied to the physics settings (all 1.0 means no change) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kawaii Physics")
-	FKawaiiPhysicsSettingsScale Scale;
+	/** Dampingへの倍率。1未満で減衰が弱まり、揺れが大きくなる / Multiplier for Damping. Below 1 the damping weakens and the sway grows. */
+	UPROPERTY()
+	FMovieSceneFloatChannel Damping;
+
+	/** Stiffnessへの倍率。1未満で元の形状への引き戻しが弱まり、揺れが大きくなる / Multiplier for Stiffness. Below 1 the pull back to the pre-physics shape weakens and the sway grows. */
+	UPROPERTY()
+	FMovieSceneFloatChannel Stiffness;
+
+	/** WorldDampingLocationへの倍率。実際の反映率は (1 - WorldDampingLocation) のため意味が反転し、1未満の倍率ではコンポーネントの移動量がより強く反映されて揺れが大きくなる / Multiplier for WorldDampingLocation. The semantics are inverted because the actual reflection factor is (1 - WorldDampingLocation): a multiplier below 1 reflects more of the component movement and increases the sway. */
+	UPROPERTY()
+	FMovieSceneFloatChannel WorldDampingLocation;
+
+	/** WorldDampingRotationへの倍率。実際の反映率は (1 - WorldDampingRotation) のため意味が反転し、1未満の倍率ではコンポーネントの回転量がより強く反映されて揺れが大きくなる / Multiplier for WorldDampingRotation. The semantics are inverted because the actual reflection factor is (1 - WorldDampingRotation): a multiplier below 1 reflects more of the component rotation and increases the sway. */
+	UPROPERTY()
+	FMovieSceneFloatChannel WorldDampingRotation;
+
+	/**
+	 * コリジョン半径への倍率。0にするとワールドコリジョンのスイープと押し出しが実質無効になる。
+	 * 半径によるダミーボーンの本数はベースの半径から決まるため、1未満ではコリジョンの被覆に隙間が生じうる
+	 * Multiplier for the collision radius. At 0 the world sweep and push-out are effectively disabled.
+	 * The radius-based dummy bone count comes from the base radius, so below 1 the collision coverage can leave gaps.
+	 */
+	UPROPERTY()
+	FMovieSceneFloatChannel Radius;
+
+	/**
+	 * LimitAngleへの倍率。ベースが0（無制限）のボーンは倍率に関わらず無制限のまま。ベースが0より大きいボーンは
+	 * 極小値で下限クランプされ、倍率0でも無制限へは反転せず、ほぼ完全にポーズへ追従する
+	 * Multiplier for LimitAngle. Bones whose base value is 0 (unlimited) stay unlimited whatever the multiplier is.
+	 * Bones with a base above 0 are clamped to a tiny positive minimum, so even a multiplier of 0 never flips them back to
+	 * unlimited; they follow the pose almost exactly instead.
+	 */
+	UPROPERTY()
+	FMovieSceneFloatChannel LimitAngle;
 
 	/** 倍率の適用率（0..1）。セクションの Ease In/Out と乗算される / Applied ratio (0..1) of the multipliers, multiplied with the section easing */
 	UPROPERTY()
@@ -40,6 +71,9 @@ public:
 
 	/** 指定時刻の実効重み = Clamp(Weight,0,1) x EvaluateEasing / Effective weight at the time = Clamp(Weight,0,1) x EvaluateEasing (exposed for tests) */
 	KAWAIIPHYSICSSEQUENCER_API float EvaluateWeightAtTime(FFrameTime InTime) const;
+
+	/** 指定時刻の物理設定倍率（負値は0にクランプ） / Physics settings multipliers at the time (negative values are clamped to 0) */
+	KAWAIIPHYSICSSEQUENCER_API FKawaiiPhysicsSettingsScale EvaluateScaleAtTime(FFrameTime InTime) const;
 
 	/** 破棄時に、このセクション由来の外部駆動を停止する / Stops externally driven overrides created by this section on destruction */
 	virtual void BeginDestroy() override;

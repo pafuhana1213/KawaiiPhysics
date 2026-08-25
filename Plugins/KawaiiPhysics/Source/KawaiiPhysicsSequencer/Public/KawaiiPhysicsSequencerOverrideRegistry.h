@@ -20,6 +20,7 @@ struct KAWAIIPHYSICSSEQUENCER_API FKawaiiPhysicsSequencerOverrideEntry
 	FGameplayTagContainer FilterTags;
 	bool bFilterExactMatch = false;
 	float BlendOutTime = 0.2f;
+	int32 LastQueuedNodeCount = 0;
 	bool bStopped = false;
 
 	void Stop(float OverrideBlendOutTime = -1.0f);
@@ -41,6 +42,12 @@ public:
 	void StopForWorld(const UWorld* World);
 	void StopForSectionsNotIn(const UMovieSceneTrack* Track, TConstArrayView<UMovieSceneSection*> LiveSections);
 	void PruneInvalidEntries();
+	// 現在のフィルタと一致する生存 Entry の LastQueuedNodeCount 合計（適用済み数ではない）。生存 Entry が無ければ bOutHasLiveEntry=false（未評価と 0 件を区別するため）
+	int32 GetQueuedNodeCount(
+		const UMovieSceneSection* Section,
+		const FGameplayTagContainer& FilterTags,
+		bool bFilterExactMatch,
+		bool& bOutHasLiveEntry) const;
 	// モジュール終了・アンロード時の最終保険。全 Entry を即時停止して除去する
 	void StopAll();
 	void RegisterDelegates();

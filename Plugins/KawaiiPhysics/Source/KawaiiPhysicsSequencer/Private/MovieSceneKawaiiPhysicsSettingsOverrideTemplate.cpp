@@ -10,6 +10,7 @@
 #include "KawaiiPhysicsLibrary.h"
 #include "KawaiiPhysicsSequencerOverrideRegistry.h"
 #include "MovieSceneExecutionToken.h"
+#include "MovieSceneKawaiiPhysicsSettingsOverrideChannels.h"
 #include "MovieSceneKawaiiPhysicsSettingsOverrideSection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneKawaiiPhysicsSettingsOverrideTemplate)
@@ -175,8 +176,9 @@ struct FExecutionToken : IMovieSceneExecutionToken
 				}
 			}
 
-			UKawaiiPhysicsLibrary::SetPhysicsSettingsOverrideOnComponent(Component, Entry->Handle, Scale, Alpha,
-			                                                             FilterTags, bFilterExactMatch);
+			Entry->LastQueuedNodeCount =
+				UKawaiiPhysicsLibrary::SetPhysicsSettingsOverrideOnComponent(Component, Entry->Handle, Scale, Alpha,
+				                                                             FilterTags, bFilterExactMatch);
 			SeenComponents.Add(ComponentKey);
 		}
 
@@ -203,7 +205,12 @@ struct FExecutionToken : IMovieSceneExecutionToken
 FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate::
 FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate(
 	const UMovieSceneKawaiiPhysicsSettingsOverrideSection& Section)
-	: Scale(Section.Scale)
+	: Damping(Section.Damping)
+	, Stiffness(Section.Stiffness)
+	, WorldDampingLocation(Section.WorldDampingLocation)
+	, WorldDampingRotation(Section.WorldDampingRotation)
+	, Radius(Section.Radius)
+	, LimitAngle(Section.LimitAngle)
 	, Weight(Section.Weight)
 	, FilterTags(Section.FilterTags)
 	, bFilterExactMatch(Section.bFilterExactMatch)
@@ -222,6 +229,16 @@ void FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate::Evaluate(
 	float WeightValue = 1.0f;
 	Weight.Evaluate(Context.GetTime(), WeightValue);
 	const float Alpha = FMath::Clamp(WeightValue, 0.0f, 1.0f) * EvaluateEasing(Context.GetTime());
+	const FMovieSceneFloatChannel* const Channels[6] = {
+		&Damping,
+		&Stiffness,
+		&WorldDampingLocation,
+		&WorldDampingRotation,
+		&Radius,
+		&LimitAngle
+	};
+	const FKawaiiPhysicsSettingsScale Scale =
+		KawaiiPhysicsSequencer::EvaluateKawaiiPhysicsScaleChannels(Channels, Context.GetTime());
 
 	ExecutionTokens.Add(FExecutionToken(Scale, Alpha, FilterTags, bFilterExactMatch, BlendOutTimeOnEnd, AnimTypeID,
 	                                    GetSourceSection()));

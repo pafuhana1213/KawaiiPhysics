@@ -231,6 +231,47 @@ void FKawaiiPhysicsSequencerOverrideRegistry::PruneInvalidEntries()
 	}
 }
 
+int32 FKawaiiPhysicsSequencerOverrideRegistry::GetQueuedNodeCount(
+	const UMovieSceneSection* Section,
+	const FGameplayTagContainer& FilterTags,
+	const bool bFilterExactMatch,
+	bool& bOutHasLiveEntry) const
+{
+	bOutHasLiveEntry = false;
+
+	if (!Section)
+	{
+		return 0;
+	}
+
+	const TWeakObjectPtr<const UMovieSceneSection> SectionKey(Section);
+	int32 Count = 0;
+	for (const TPair<TWeakObjectPtr<const UMovieSceneSection>, TWeakPtr<FKawaiiPhysicsSequencerOverrideEntry>>& Pair :
+	     Entries)
+	{
+		if (Pair.Key != SectionKey)
+		{
+			continue;
+		}
+
+		const TSharedPtr<FKawaiiPhysicsSequencerOverrideEntry> Entry = Pair.Value.Pin();
+		if (!Entry.IsValid() || Entry->bStopped || !IsValid(Entry->Component.Get()))
+		{
+			continue;
+		}
+
+		// フィルタが異なる Entry（過去のフィルタ設定で残っているもの等）は現在の表示に無関係なので合算から除外する
+		if (Entry->FilterTags != FilterTags || Entry->bFilterExactMatch != bFilterExactMatch)
+		{
+			continue;
+		}
+
+		bOutHasLiveEntry = true;
+		Count += Entry->LastQueuedNodeCount;
+	}
+	return Count;
+}
+
 void FKawaiiPhysicsSequencerOverrideRegistry::StopAll()
 {
 	for (auto It = Entries.CreateIterator(); It; ++It)

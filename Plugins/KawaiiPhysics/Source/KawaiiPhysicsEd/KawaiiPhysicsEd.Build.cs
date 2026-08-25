@@ -41,6 +41,7 @@ public class KawaiiPhysicsEd : ModuleRules
 			"DesktopPlatform",
 			"Projects",
 			"Sequencer",
+			"SequencerCore",
 			"MovieScene",
 			"KawaiiPhysicsSequencer"
 		});

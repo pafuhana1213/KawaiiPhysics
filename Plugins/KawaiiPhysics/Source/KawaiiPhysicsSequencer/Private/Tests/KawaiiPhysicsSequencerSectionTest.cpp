@@ -7,6 +7,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Generators/MovieSceneEasingCurves.h"
 #include "KawaiiPhysicsSequencerOverrideRegistry.h"
+#include "KawaiiPhysicsWindPresetTags.h"
 #include "MovieSceneKawaiiPhysicsSettingsOverrideSection.h"
 #include "MovieSceneKawaiiPhysicsSettingsOverrideTemplate.h"
 #include "MovieSceneKawaiiPhysicsSettingsOverrideTrack.h"
@@ -50,6 +51,17 @@ FKawaiiPhysicsSettingsScale MakeScale()
 	return Scale;
 }
 
+void ApplyScaleToSection(UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section,
+                         const FKawaiiPhysicsSettingsScale& Scale)
+{
+	Section->Damping.SetDefault(Scale.Damping);
+	Section->Stiffness.SetDefault(Scale.Stiffness);
+	Section->WorldDampingLocation.SetDefault(Scale.WorldDampingLocation);
+	Section->WorldDampingRotation.SetDefault(Scale.WorldDampingRotation);
+	Section->Radius.SetDefault(Scale.Radius);
+	Section->LimitAngle.SetDefault(Scale.LimitAngle);
+}
+
 bool TestScaleEqual(FAutomationTestBase& Test, const FKawaiiPhysicsSettingsScale& Actual,
                     const FKawaiiPhysicsSettingsScale& Expected)
 {
@@ -62,6 +74,18 @@ bool TestScaleEqual(FAutomationTestBase& Test, const FKawaiiPhysicsSettingsScale
 	                     Expected.WorldDampingRotation);
 	bOk &= TestFloatNear(Test, TEXT("Scale.Radius"), Actual.Radius, Expected.Radius);
 	bOk &= TestFloatNear(Test, TEXT("Scale.LimitAngle"), Actual.LimitAngle, Expected.LimitAngle);
+	return bOk;
+}
+
+bool TestChannelDefaultNear(FAutomationTestBase& Test, const TCHAR* Name, const FMovieSceneFloatChannel& Channel,
+                            const float Expected)
+{
+	const TOptional<float> DefaultValue = Channel.GetDefault();
+	bool bOk = Test.TestTrue(FString::Printf(TEXT("%s default set"), Name), DefaultValue.IsSet());
+	if (DefaultValue.IsSet())
+	{
+		bOk &= TestFloatNear(Test, Name, DefaultValue.GetValue(), Expected);
+	}
 	return bOk;
 }
 }
@@ -126,7 +150,7 @@ bool FKawaiiPhysicsSequencerTemplateFromTrackTest::RunTest(const FString& Parame
 		CastChecked<UMovieSceneKawaiiPhysicsSettingsOverrideSection>(Track->CreateNewSection());
 
 	const FKawaiiPhysicsSettingsScale ExpectedScale = MakeScale();
-	Section->Scale = ExpectedScale;
+	ApplyScaleToSection(Section, ExpectedScale);
 	Section->bFilterExactMatch = true;
 	Section->BlendOutTimeOnEnd = 0.75f;
 
@@ -151,7 +175,14 @@ bool FKawaiiPhysicsSequencerTemplateFromTrackTest::RunTest(const FString& Parame
 
 	const FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate* Template =
 		static_cast<const FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate*>(TemplatePtr.GetPtr());
-	bOk &= TestScaleEqual(*this, Template->Scale, ExpectedScale);
+	bOk &= TestChannelDefaultNear(*this, TEXT("Template.Damping"), Template->Damping, ExpectedScale.Damping);
+	bOk &= TestChannelDefaultNear(*this, TEXT("Template.Stiffness"), Template->Stiffness, ExpectedScale.Stiffness);
+	bOk &= TestChannelDefaultNear(*this, TEXT("Template.WorldDampingLocation"), Template->WorldDampingLocation,
+	                              ExpectedScale.WorldDampingLocation);
+	bOk &= TestChannelDefaultNear(*this, TEXT("Template.WorldDampingRotation"), Template->WorldDampingRotation,
+	                              ExpectedScale.WorldDampingRotation);
+	bOk &= TestChannelDefaultNear(*this, TEXT("Template.Radius"), Template->Radius, ExpectedScale.Radius);
+	bOk &= TestChannelDefaultNear(*this, TEXT("Template.LimitAngle"), Template->LimitAngle, ExpectedScale.LimitAngle);
 	bOk &= TestTrue(TEXT("FilterTags copied"), Template->FilterTags == Section->FilterTags);
 	bOk &= TestTrue(TEXT("Exact copied"), Template->bFilterExactMatch);
 	bOk &= TestFloatNear(*this, TEXT("BlendOut copied"), Template->BlendOutTimeOnEnd, 0.75f);
@@ -166,12 +197,38 @@ bool FKawaiiPhysicsSequencerChannelProxyAfterNewAndDuplicateTest::RunTest(const 
 {
 	UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section = NewSection();
 	bool bOk = TestEqual(TEXT("New channel count"),
-	                     Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>().Num(), 1);
+	                     Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>().Num(), 7);
 
 	UMovieSceneKawaiiPhysicsSettingsOverrideSection* Duplicate =
 		DuplicateObject<UMovieSceneKawaiiPhysicsSettingsOverrideSection>(Section, GetTransientPackage());
 	bOk &= TestEqual(TEXT("Duplicate channel count"),
-	                 Duplicate->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>().Num(), 1);
+	                 Duplicate->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>().Num(), 7);
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerEvaluateScaleChannelKeysTest,
+                                 "KawaiiPhysics.Sequencer.Section.EvaluateScale_ChannelKeys",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSequencerEvaluateScaleChannelKeysTest::RunTest(const FString& Parameters)
+{
+	UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section = NewSection();
+	Section->Damping.AddLinearKey(FFrameNumber(0), 0.5f);
+	Section->Damping.AddLinearKey(FFrameNumber(1000), 1.5f);
+
+	FKawaiiPhysicsSettingsScale Expected;
+	FKawaiiPhysicsSettingsScale Actual = Section->EvaluateScaleAtTime(FFrameTime(500));
+	Expected.Damping = 1.0f;
+	bool bOk = TestScaleEqual(*this, Actual, Expected);
+
+	Section->Damping.AddLinearKey(FFrameNumber(2000), -1.0f);
+	Actual = Section->EvaluateScaleAtTime(FFrameTime(2000));
+	bOk &= TestFloatNear(*this, TEXT("Scale.Damping clamp low"), Actual.Damping, 0.0f);
+	bOk &= TestFloatNear(*this, TEXT("Scale.Stiffness unchanged"), Actual.Stiffness, 1.0f);
+	bOk &= TestFloatNear(*this, TEXT("Scale.WorldDampingLocation unchanged"), Actual.WorldDampingLocation, 1.0f);
+	bOk &= TestFloatNear(*this, TEXT("Scale.WorldDampingRotation unchanged"), Actual.WorldDampingRotation, 1.0f);
+	bOk &= TestFloatNear(*this, TEXT("Scale.Radius unchanged"), Actual.Radius, 1.0f);
+	bOk &= TestFloatNear(*this, TEXT("Scale.LimitAngle unchanged"), Actual.LimitAngle, 1.0f);
 	return bOk;
 }
 
@@ -224,6 +281,67 @@ bool FKawaiiPhysicsSequencerRegistryRegisterIdempotentTest::RunTest(const FStrin
 	bOk &= TestTrue(TEXT("Entry stopped"), Entry->bStopped);
 	FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(Section);
 	bOk &= TestTrue(TEXT("Entry still stopped"), Entry->bStopped);
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerRegistryGetQueuedNodeCountTest,
+                                 "KawaiiPhysics.Sequencer.Section.Registry_GetQueuedNodeCount",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSequencerRegistryGetQueuedNodeCountTest::RunTest(const FString& Parameters)
+{
+	UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section = NewSection();
+	USkeletalMeshComponent* ComponentA = NewObject<USkeletalMeshComponent>(GetTransientPackage());
+	USkeletalMeshComponent* ComponentB = NewObject<USkeletalMeshComponent>(GetTransientPackage());
+	USkeletalMeshComponent* ComponentC = NewObject<USkeletalMeshComponent>(GetTransientPackage());
+
+	// (a) Entry が一つも登録されていないセクションは bOutHasLiveEntry=false（未評価と 0 件を区別）
+	bool bHasLiveEntry = true;
+	int32 Count = FKawaiiPhysicsSequencerOverrideRegistry::Get().GetQueuedNodeCount(
+		Section, Section->FilterTags, Section->bFilterExactMatch, bHasLiveEntry);
+	bool bOk = TestFalse(TEXT("No entries: bOutHasLiveEntry"), bHasLiveEntry);
+	bOk &= TestEqual(TEXT("No entries: count"), Count, 0);
+
+	// FilterTags がセクションと異なる Entry（フィルタ変更前の残留想定）
+	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> MismatchedFilterEntry =
+		MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
+	MismatchedFilterEntry->Component = ComponentC;
+	MismatchedFilterEntry->LastQueuedNodeCount = 11;
+	MismatchedFilterEntry->FilterTags.AddTag(TAG_KawaiiPhysics_WindPreset_Breeze);
+	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(Section, MismatchedFilterEntry);
+
+	// (b) フィルタが一致しない Entry しか無い場合は合算対象外→ bOutHasLiveEntry=false
+	bHasLiveEntry = true;
+	Count = FKawaiiPhysicsSequencerOverrideRegistry::Get().GetQueuedNodeCount(
+		Section, Section->FilterTags, Section->bFilterExactMatch, bHasLiveEntry);
+	bOk &= TestFalse(TEXT("Filter mismatch only: bOutHasLiveEntry"), bHasLiveEntry);
+	bOk &= TestEqual(TEXT("Filter mismatch only: count"), Count, 0);
+
+	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> EntryA = MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
+	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> EntryB = MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
+	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> InvalidComponentEntry =
+		MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
+	EntryA->Component = ComponentA;
+	EntryA->LastQueuedNodeCount = 3;
+	EntryB->Component = ComponentB;
+	EntryB->LastQueuedNodeCount = 2;
+	InvalidComponentEntry->LastQueuedNodeCount = 7;
+
+	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(Section, EntryA);
+	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(Section, EntryB);
+	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(Section, InvalidComponentEntry);
+
+	// (c) フィルタが一致し生存している Entry があれば合算されて bOutHasLiveEntry=true
+	//     （FilterTags 不一致の MismatchedFilterEntry と Component 無効な InvalidComponentEntry は除外される）
+	bHasLiveEntry = false;
+	Count = FKawaiiPhysicsSequencerOverrideRegistry::Get().GetQueuedNodeCount(
+		Section, Section->FilterTags, Section->bFilterExactMatch, bHasLiveEntry);
+	bOk &= TestTrue(TEXT("Matching entries: bOutHasLiveEntry"), bHasLiveEntry);
+	bOk &= TestEqual(TEXT("Matching entries: count"), Count, 5);
+
+	EntryA->Component = nullptr;
+	EntryB->Component = nullptr;
+	FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(Section);
 	return bOk;
 }
 
@@ -475,6 +593,12 @@ bool FKawaiiPhysicsSequencerSectionDefaultsTest::RunTest(const FString& Paramete
 	bOk &= TestTrue(TEXT("Section blend absolute"), BlendType.IsValid() && BlendType.Get() == EMovieSceneBlendType::Absolute);
 	bOk &= TestTrue(TEXT("Completion mode"), Section->GetCompletionMode() == EMovieSceneCompletionMode::RestoreState);
 	bOk &= TestFalse(TEXT("Completion mode locked"), Section->EvalOptions.bCanEditCompletionMode);
+	bOk &= TestChannelDefaultNear(*this, TEXT("Damping"), Section->Damping, 1.0f);
+	bOk &= TestChannelDefaultNear(*this, TEXT("Stiffness"), Section->Stiffness, 1.0f);
+	bOk &= TestChannelDefaultNear(*this, TEXT("WorldDampingLocation"), Section->WorldDampingLocation, 1.0f);
+	bOk &= TestChannelDefaultNear(*this, TEXT("WorldDampingRotation"), Section->WorldDampingRotation, 1.0f);
+	bOk &= TestChannelDefaultNear(*this, TEXT("Radius"), Section->Radius, 1.0f);
+	bOk &= TestChannelDefaultNear(*this, TEXT("LimitAngle"), Section->LimitAngle, 1.0f);
 	bOk &= TestTrue(TEXT("Track supports absolute"),
 	                Track->GetSupportedBlendTypes().Contains(EMovieSceneBlendType::Absolute));
 	return bOk;
