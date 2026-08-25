@@ -272,9 +272,18 @@ struct FExecutionToken : IMovieSceneExecutionToken
 				}
 			}
 
-			Entry->LastQueuedNodeCount =
+			const int32 PreviousQueuedNodeCount = Entry->LastQueuedNodeCount;
+			const int32 NewQueuedNodeCount =
 				UKawaiiPhysicsLibrary::SetPhysicsSettingsOverrideOnComponent(Component, Entry->Handle, Scale, Alpha,
 				                                                             FilterTags, bFilterExactMatch);
+			Entry->LastQueuedNodeCount = NewQueuedNodeCount;
+			if (PreviousQueuedNodeCount > 0 && NewQueuedNodeCount == 0)
+			{
+				// 駆動済みノードがセクション中にフィルタ外へ出た場合は全ノードに Stop を届かせて Entry を破棄する
+				Entry->Stop();
+				Data.Entries.Remove(ComponentKey);
+				continue;
+			}
 			SeenComponents.Add(ComponentKey);
 		}
 
