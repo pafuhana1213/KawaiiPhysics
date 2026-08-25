@@ -87,6 +87,11 @@ void UMovieSceneKawaiiPhysicsSettingsOverrideTrack::PostEditUndo()
 #if WITH_EDITORONLY_DATA
 FText UMovieSceneKawaiiPhysicsSettingsOverrideTrack::GetDefaultDisplayName() const
 {
+	if (bIsRootTrack)
+	{
+		return LOCTEXT("RootTrackName", "Kawaii Physics Settings Override (All)");
+	}
+
 	return LOCTEXT("TrackName", "Kawaii Physics Settings Override");
 }
 #endif

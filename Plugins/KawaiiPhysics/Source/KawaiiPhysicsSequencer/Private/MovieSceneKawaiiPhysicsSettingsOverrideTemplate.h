@@ -52,6 +52,9 @@ struct FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate : public FMovieSc
 	UPROPERTY()
 	float BlendOutTimeOnEnd = 0.2f;
 
+	UPROPERTY()
+	bool bIsRootTrack = false;
+
 private:
 	virtual UScriptStruct& GetScriptStructImpl() const override { return *StaticStruct(); }
 	virtual void SetupOverrides() override { EnableOverrides(RequiresTearDownFlag); }

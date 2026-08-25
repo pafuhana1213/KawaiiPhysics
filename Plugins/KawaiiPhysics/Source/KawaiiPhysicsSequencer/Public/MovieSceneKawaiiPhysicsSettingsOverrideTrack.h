@@ -22,6 +22,10 @@ class UMovieSceneKawaiiPhysicsSettingsOverrideTrack
 public:
 	UMovieSceneKawaiiPhysicsSettingsOverrideTrack(const FObjectInitializer& ObjectInitializer);
 
+	// バインディング無しのルートトラックとして追加された場合 true。再生コンテキストの World 内の全 SkeletalMeshComponent を対象にする / True when added as a root track without an object binding; targets every SkeletalMeshComponent in the playback world
+	UPROPERTY()
+	bool bIsRootTrack = false;
+
 	// UMovieSceneTrack
 	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
 	virtual UMovieSceneSection* CreateNewSection() override;
