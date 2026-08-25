@@ -42,7 +42,14 @@ private:
 class FKawaiiPhysicsSettingsOverrideSectionInterface : public FSequencerSection
 {
 public:
-	explicit FKawaiiPhysicsSettingsOverrideSectionInterface(UMovieSceneSection& InSection);
+	FKawaiiPhysicsSettingsOverrideSectionInterface(
+		UMovieSceneSection& InSection,
+		TWeakPtr<ISequencer> InSequencer);
 
 	virtual FText GetSectionTitle() const override;
+	virtual int32 OnPaintSection(FSequencerSectionPainter& Painter) const override;
+	virtual void BuildSectionContextMenu(FMenuBuilder& MenuBuilder, const FGuid& ObjectBinding) override;
+
+private:
+	TWeakPtr<ISequencer> WeakSequencer;
 };

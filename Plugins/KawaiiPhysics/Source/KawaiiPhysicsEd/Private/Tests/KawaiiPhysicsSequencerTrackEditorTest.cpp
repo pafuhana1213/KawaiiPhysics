@@ -2,13 +2,75 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "MovieSceneKawaiiPhysicsSettingsOverrideSection.h"
 #include "MovieSceneKawaiiPhysicsSettingsOverrideTrack.h"
+#include "Sequencer/KawaiiPhysicsSettingsOverrideSectionPresets.h"
 #include "Sequencer/KawaiiPhysicsSettingsOverrideSectionSummary.h"
 
 #include "Misc/AutomationTest.h"
 #include "MovieSceneTrack.h"
 #include "UObject/Class.h"
 #include "UObject/UObjectGlobals.h"
+
+namespace
+{
+constexpr float GSequencerTrackEditorTol = 0.000001f;
+
+UMovieSceneKawaiiPhysicsSettingsOverrideSection* NewSettingsOverrideSection()
+{
+	return NewObject<UMovieSceneKawaiiPhysicsSettingsOverrideSection>(GetTransientPackage());
+}
+
+bool TestFloatNear(FAutomationTestBase& Test, const TCHAR* Name, const float Actual, const float Expected)
+{
+	return Test.TestTrue(FString::Printf(TEXT("%s: got %.9f expected %.9f"), Name, Actual, Expected),
+	                     FMath::IsNearlyEqual(Actual, Expected, GSequencerTrackEditorTol));
+}
+
+bool TestScaleEqual(FAutomationTestBase& Test, const FKawaiiPhysicsSettingsScale& Actual,
+                    const FKawaiiPhysicsSettingsScale& Expected)
+{
+	bool bOk = true;
+	bOk &= TestFloatNear(Test, TEXT("Scale.Damping"), Actual.Damping, Expected.Damping);
+	bOk &= TestFloatNear(Test, TEXT("Scale.Stiffness"), Actual.Stiffness, Expected.Stiffness);
+	bOk &= TestFloatNear(Test, TEXT("Scale.WorldDampingLocation"), Actual.WorldDampingLocation,
+	                     Expected.WorldDampingLocation);
+	bOk &= TestFloatNear(Test, TEXT("Scale.WorldDampingRotation"), Actual.WorldDampingRotation,
+	                     Expected.WorldDampingRotation);
+	bOk &= TestFloatNear(Test, TEXT("Scale.Radius"), Actual.Radius, Expected.Radius);
+	bOk &= TestFloatNear(Test, TEXT("Scale.LimitAngle"), Actual.LimitAngle, Expected.LimitAngle);
+	return bOk;
+}
+
+void AddScaleKeys(UMovieSceneKawaiiPhysicsSettingsOverrideSection& Section)
+{
+	Section.Damping.AddLinearKey(FFrameNumber(0), 0.2f);
+	Section.Stiffness.AddLinearKey(FFrameNumber(0), 0.3f);
+	Section.WorldDampingLocation.AddLinearKey(FFrameNumber(0), 0.4f);
+	Section.WorldDampingRotation.AddLinearKey(FFrameNumber(0), 0.5f);
+	Section.Radius.AddLinearKey(FFrameNumber(0), 0.6f);
+	Section.LimitAngle.AddLinearKey(FFrameNumber(0), 0.7f);
+}
+
+bool TestScaleChannelsHaveNoKeys(FAutomationTestBase& Test,
+                                 const UMovieSceneKawaiiPhysicsSettingsOverrideSection& Section)
+{
+	bool bOk = true;
+	bOk &= Test.TestEqual(TEXT("Damping keys removed"), Section.Damping.GetNumKeys(), 0);
+	bOk &= Test.TestEqual(TEXT("Stiffness keys removed"), Section.Stiffness.GetNumKeys(), 0);
+	bOk &= Test.TestEqual(
+		TEXT("WorldDampingLocation keys removed"),
+		Section.WorldDampingLocation.GetNumKeys(),
+		0);
+	bOk &= Test.TestEqual(
+		TEXT("WorldDampingRotation keys removed"),
+		Section.WorldDampingRotation.GetNumKeys(),
+		0);
+	bOk &= Test.TestEqual(TEXT("Radius keys removed"), Section.Radius.GetNumKeys(), 0);
+	bOk &= Test.TestEqual(TEXT("LimitAngle keys removed"), Section.LimitAngle.GetNumKeys(), 0);
+	return bOk;
+}
+}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerTrackEditorScaleSummaryNoChangeTest,
                                  "KawaiiPhysics.Sequencer.TrackEditor.ScaleSummary_NoChange",
@@ -68,6 +130,48 @@ bool FKawaiiPhysicsSequencerTrackEditorScaleSummaryAllTest::RunTest(const FStrin
 		TEXT("6 成分が D, S, WL, WR, R, LA の順で表示されること"),
 		MakeKawaiiPhysicsScaleSummaryString(Scale),
 		FString(TEXT("D×0.50  S×1.20  WL×0.80  WR×0.70  R×1.50  LA×0.25")));
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerTrackEditorScalePresetApplyTest,
+                                 "KawaiiPhysics.Sequencer.TrackEditor.ScalePreset_Apply",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSequencerTrackEditorScalePresetApplyTest::RunTest(const FString& Parameters)
+{
+	(void)Parameters;
+
+	UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section = NewSettingsOverrideSection();
+	AddScaleKeys(*Section);
+
+	FKawaiiPhysicsSettingsScale StiffScale;
+	StiffScale.Damping = 1.5f;
+	StiffScale.Stiffness = 2.0f;
+	ApplyKawaiiPhysicsScalePresetToSection(*Section, StiffScale);
+
+	bool bOk = TestScaleEqual(*this, Section->EvaluateScaleAtTime(FFrameTime(0)), StiffScale);
+	bOk &= TestScaleChannelsHaveNoKeys(*this, *Section);
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerTrackEditorScalePresetResetTest,
+                                 "KawaiiPhysics.Sequencer.TrackEditor.ScalePreset_Reset",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSequencerTrackEditorScalePresetResetTest::RunTest(const FString& Parameters)
+{
+	(void)Parameters;
+
+	UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section = NewSettingsOverrideSection();
+	AddScaleKeys(*Section);
+
+	ApplyKawaiiPhysicsScalePresetToSection(*Section, FKawaiiPhysicsSettingsScale());
+
+	bool bOk = TestScaleEqual(
+		*this,
+		Section->EvaluateScaleAtTime(FFrameTime(0)),
+		FKawaiiPhysicsSettingsScale());
+	bOk &= TestScaleChannelsHaveNoKeys(*this, *Section);
+	return bOk;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerTrackEditorSupportsTypeTest,

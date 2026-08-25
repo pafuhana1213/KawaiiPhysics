@@ -23,7 +23,22 @@ struct FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate : public FMovieSc
 		const UMovieSceneKawaiiPhysicsSettingsOverrideSection& Section);
 
 	UPROPERTY()
-	FKawaiiPhysicsSettingsScale Scale;
+	FMovieSceneFloatChannel Damping;
+
+	UPROPERTY()
+	FMovieSceneFloatChannel Stiffness;
+
+	UPROPERTY()
+	FMovieSceneFloatChannel WorldDampingLocation;
+
+	UPROPERTY()
+	FMovieSceneFloatChannel WorldDampingRotation;
+
+	UPROPERTY()
+	FMovieSceneFloatChannel Radius;
+
+	UPROPERTY()
+	FMovieSceneFloatChannel LimitAngle;
 
 	UPROPERTY()
 	FMovieSceneFloatChannel Weight;
