@@ -195,4 +195,27 @@ bool FKawaiiPhysicsSequencerTrackEditorSupportsTypeTest::RunTest(const FString& 
 	return bOk;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerTrackEditorRootTrackDefaultDisplayNameTest,
+                                 "KawaiiPhysics.Sequencer.TrackEditor.RootTrack_DefaultDisplayName",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSequencerTrackEditorRootTrackDefaultDisplayNameTest::RunTest(const FString& Parameters)
+{
+	(void)Parameters;
+
+	UMovieSceneKawaiiPhysicsSettingsOverrideTrack* BoundTrack =
+		NewObject<UMovieSceneKawaiiPhysicsSettingsOverrideTrack>(GetTransientPackage());
+	UMovieSceneKawaiiPhysicsSettingsOverrideTrack* RootTrack =
+		NewObject<UMovieSceneKawaiiPhysicsSettingsOverrideTrack>(GetTransientPackage());
+	RootTrack->bIsRootTrack = true;
+
+	const FString BoundDisplayName = BoundTrack->GetDefaultDisplayName().ToString();
+	const FString RootDisplayName = RootTrack->GetDefaultDisplayName().ToString();
+
+	bool bOk = TestFalse(TEXT("Binding display name empty"), BoundDisplayName.IsEmpty());
+	bOk &= TestFalse(TEXT("Root display name empty"), RootDisplayName.IsEmpty());
+	bOk &= TestTrue(TEXT("Root display name differs"), BoundDisplayName != RootDisplayName);
+	return bOk;
+}
+
 #endif

@@ -189,6 +189,43 @@ bool FKawaiiPhysicsSequencerTemplateFromTrackTest::RunTest(const FString& Parame
 	return bOk;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerTrackRootFlagPropagatesToTemplateTest,
+                                 "KawaiiPhysics.Sequencer.Section.Track_RootFlagPropagatesToTemplate",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSequencerTrackRootFlagPropagatesToTemplateTest::RunTest(const FString& Parameters)
+{
+	(void)Parameters;
+
+	UMovieSceneKawaiiPhysicsSettingsOverrideTrack* DefaultTrack =
+		NewObject<UMovieSceneKawaiiPhysicsSettingsOverrideTrack>(GetTransientPackage());
+	UMovieSceneKawaiiPhysicsSettingsOverrideSection* DefaultSection =
+		CastChecked<UMovieSceneKawaiiPhysicsSettingsOverrideSection>(DefaultTrack->CreateNewSection());
+	FMovieSceneEvalTemplatePtr DefaultTemplatePtr = DefaultTrack->CreateTemplateForSection(*DefaultSection);
+
+	UMovieSceneKawaiiPhysicsSettingsOverrideTrack* RootTrack =
+		NewObject<UMovieSceneKawaiiPhysicsSettingsOverrideTrack>(GetTransientPackage());
+	RootTrack->bIsRootTrack = true;
+	UMovieSceneKawaiiPhysicsSettingsOverrideSection* RootSection =
+		CastChecked<UMovieSceneKawaiiPhysicsSettingsOverrideSection>(RootTrack->CreateNewSection());
+	FMovieSceneEvalTemplatePtr RootTemplatePtr = RootTrack->CreateTemplateForSection(*RootSection);
+
+	bool bOk = TestTrue(TEXT("Default template valid"), DefaultTemplatePtr.IsValid());
+	bOk &= TestTrue(TEXT("Root template valid"), RootTemplatePtr.IsValid());
+	if (!DefaultTemplatePtr.IsValid() || !RootTemplatePtr.IsValid())
+	{
+		return false;
+	}
+
+	const FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate* DefaultTemplate =
+		static_cast<const FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate*>(DefaultTemplatePtr.GetPtr());
+	const FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate* RootTemplate =
+		static_cast<const FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate*>(RootTemplatePtr.GetPtr());
+	bOk &= TestFalse(TEXT("Default track root flag"), DefaultTemplate->bIsRootTrack);
+	bOk &= TestTrue(TEXT("Root track root flag"), RootTemplate->bIsRootTrack);
+	return bOk;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerChannelProxyAfterNewAndDuplicateTest,
                                  "KawaiiPhysics.Sequencer.Section.ChannelProxy_AfterNewAndDuplicate",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

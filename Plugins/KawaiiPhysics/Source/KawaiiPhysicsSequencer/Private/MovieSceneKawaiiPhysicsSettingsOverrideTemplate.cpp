@@ -4,6 +4,8 @@
 
 #include "AnimNode_KawaiiPhysics.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "EngineUtils.h"
+#include "Engine/World.h"
 #include "Evaluation/MovieSceneExecutionTokens.h"
 #include "GameFramework/Actor.h"
 #include "IMovieScenePlayer.h"
@@ -12,6 +14,8 @@
 #include "MovieSceneExecutionToken.h"
 #include "MovieSceneKawaiiPhysicsSettingsOverrideChannels.h"
 #include "MovieSceneKawaiiPhysicsSettingsOverrideSection.h"
+#include "MovieSceneKawaiiPhysicsSettingsOverrideTrack.h"
+#include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneKawaiiPhysicsSettingsOverrideTemplate)
 
@@ -22,6 +26,9 @@ struct FSectionData : IPersistentEvaluationData
 	TMap<TWeakObjectPtr<USkeletalMeshComponent>, TSharedRef<FKawaiiPhysicsSequencerOverrideEntry>> Entries;
 	TSet<TWeakObjectPtr<USkeletalMeshComponent>> PreAnimatedSavedComponents;
 	TSharedRef<uint8> InstanceOwner = MakeShared<uint8>(0);
+	TArray<TWeakObjectPtr<USkeletalMeshComponent>> RootScanCache;
+	double RootScanCacheTime = -1.0;
+	TWeakObjectPtr<UWorld> RootScanWorld;
 
 	virtual ~FSectionData() override
 	{
@@ -32,6 +39,74 @@ struct FSectionData : IPersistentEvaluationData
 		}
 	}
 };
+
+bool KawaiiPhysicsIsRootTrackPlaybackWorld(const UWorld* World)
+{
+	return World &&
+		(World->WorldType == EWorldType::Game ||
+		 World->WorldType == EWorldType::PIE ||
+		 World->WorldType == EWorldType::Editor);
+}
+
+double KawaiiPhysicsGetRootScanTime(const UWorld& World)
+{
+	// World 時間はポーズ中に止まりキャッシュが永続してしまうため、常に実時間を使う
+	(void)World;
+	return FPlatformTime::Seconds();
+}
+
+bool KawaiiPhysicsIsRootScanCacheValid(const FSectionData& Data, const UWorld& World, const double CurrentTime)
+{
+	if (Data.RootScanWorld.Get() != &World ||
+		Data.RootScanCacheTime < 0.0 ||
+		CurrentTime < Data.RootScanCacheTime ||
+		CurrentTime - Data.RootScanCacheTime > 0.5)
+	{
+		return false;
+	}
+
+	for (const TWeakObjectPtr<USkeletalMeshComponent>& CachedComponent : Data.RootScanCache)
+	{
+		const USkeletalMeshComponent* Component = CachedComponent.Get();
+		if (!IsValid(Component) || Component->IsTemplate() || Component->GetWorld() != &World)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void KawaiiPhysicsGatherRootTrackComponents(UWorld& World, FSectionData& Data,
+                                            TArray<USkeletalMeshComponent*>& Components)
+{
+	const double CurrentTime = KawaiiPhysicsGetRootScanTime(World);
+	if (KawaiiPhysicsIsRootScanCacheValid(Data, World, CurrentTime))
+	{
+		for (const TWeakObjectPtr<USkeletalMeshComponent>& CachedComponent : Data.RootScanCache)
+		{
+			Components.Add(CachedComponent.Get());
+		}
+		return;
+	}
+
+	Data.RootScanCache.Reset();
+	Data.RootScanWorld = &World;
+	Data.RootScanCacheTime = CurrentTime;
+
+	for (TObjectIterator<USkeletalMeshComponent> It; It; ++It)
+	{
+		USkeletalMeshComponent* Component = *It;
+		if (Component &&
+			Component->GetWorld() == &World &&
+			IsValid(Component) &&
+			!Component->IsTemplate())
+		{
+			Components.Add(Component);
+			Data.RootScanCache.Add(Component);
+		}
+	}
+}
 
 struct FPreAnimatedToken : IMovieScenePreAnimatedToken
 {
@@ -84,7 +159,7 @@ struct FExecutionToken : IMovieSceneExecutionToken
 	FExecutionToken(const FKawaiiPhysicsSettingsScale& InScale, const float InAlpha,
 	                const FGameplayTagContainer& InFilterTags, const bool bInFilterExactMatch,
 	                const float InBlendOutTime, const FMovieSceneAnimTypeID InAnimTypeID,
-	                const UMovieSceneSection* InSourceSection)
+	                const UMovieSceneSection* InSourceSection, const bool bInIsRootTrack)
 		: Scale(InScale)
 		, Alpha(InAlpha)
 		, FilterTags(InFilterTags)
@@ -92,6 +167,7 @@ struct FExecutionToken : IMovieSceneExecutionToken
 		, BlendOutTime(InBlendOutTime)
 		, AnimTypeID(InAnimTypeID)
 		, SourceSection(InSourceSection)
+		, bIsRootTrack(bInIsRootTrack)
 	{
 	}
 
@@ -101,22 +177,42 @@ struct FExecutionToken : IMovieSceneExecutionToken
 		FSectionData& Data = PersistentData.GetOrAddSectionData<FSectionData>();
 
 		TArray<USkeletalMeshComponent*> Components;
-		for (const TWeakObjectPtr<> BoundObject : Player.FindBoundObjects(Operand))
+		if (bIsRootTrack)
 		{
-			UObject* Object = BoundObject.Get();
-			if (USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(Object))
+			UObject* ContextObject = Player.GetPlaybackContext();
+			UWorld* World = ContextObject ? ContextObject->GetWorld() : nullptr;
+			// FilterTags が空（安全装置で無効）／World が取れない／対象外のいずれでも、以前に適用した Entry を止めるため
+			// 早期 return はせず、キャッシュを捨てて空の Components で後段へ流す
+			if (FilterTags.IsEmpty() || !KawaiiPhysicsIsRootTrackPlaybackWorld(World))
 			{
-				Components.AddUnique(Component);
-				continue;
+				Data.RootScanCache.Reset();
+				Data.RootScanWorld = nullptr;
+				Data.RootScanCacheTime = -1.0;
 			}
-
-			if (AActor* Actor = Cast<AActor>(Object))
+			else
 			{
-				TArray<USkeletalMeshComponent*> ActorComponents;
-				Actor->GetComponents<USkeletalMeshComponent>(ActorComponents);
-				for (USkeletalMeshComponent* ActorComponent : ActorComponents)
+				KawaiiPhysicsGatherRootTrackComponents(*World, Data, Components);
+			}
+		}
+		else
+		{
+			for (const TWeakObjectPtr<> BoundObject : Player.FindBoundObjects(Operand))
+			{
+				UObject* Object = BoundObject.Get();
+				if (USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(Object))
 				{
-					Components.AddUnique(ActorComponent);
+					Components.AddUnique(Component);
+					continue;
+				}
+
+				if (AActor* Actor = Cast<AActor>(Object))
+				{
+					TArray<USkeletalMeshComponent*> ActorComponents;
+					Actor->GetComponents<USkeletalMeshComponent>(ActorComponents);
+					for (USkeletalMeshComponent* ActorComponent : ActorComponents)
+					{
+						Components.AddUnique(ActorComponent);
+					}
 				}
 			}
 		}
@@ -199,6 +295,7 @@ struct FExecutionToken : IMovieSceneExecutionToken
 	float BlendOutTime = 0.2f;
 	FMovieSceneAnimTypeID AnimTypeID;
 	TWeakObjectPtr<const UMovieSceneSection> SourceSection;
+	bool bIsRootTrack = false;
 };
 }
 
@@ -215,7 +312,14 @@ FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate(
 	, FilterTags(Section.FilterTags)
 	, bFilterExactMatch(Section.bFilterExactMatch)
 	, BlendOutTimeOnEnd(Section.BlendOutTimeOnEnd)
+	, bIsRootTrack(false)
 {
+	if (const UMovieSceneKawaiiPhysicsSettingsOverrideTrack* Track =
+		Section.GetTypedOuter<UMovieSceneKawaiiPhysicsSettingsOverrideTrack>())
+	{
+		bIsRootTrack = Track->bIsRootTrack;
+	}
+
 	SetSourceSection(&Section);
 	SetCompletionMode(Section.GetCompletionMode());
 }
@@ -241,7 +345,7 @@ void FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate::Evaluate(
 		KawaiiPhysicsSequencer::EvaluateKawaiiPhysicsScaleChannels(Channels, Context.GetTime());
 
 	ExecutionTokens.Add(FExecutionToken(Scale, Alpha, FilterTags, bFilterExactMatch, BlendOutTimeOnEnd, AnimTypeID,
-	                                    GetSourceSection()));
+	                                    GetSourceSection(), bIsRootTrack));
 }
 
 void FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate::TearDown(
@@ -257,5 +361,8 @@ void FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate::TearDown(
 		}
 		Data->Entries.Empty();
 		Data->PreAnimatedSavedComponents.Empty();
+		Data->RootScanCache.Empty();
+		Data->RootScanWorld.Reset();
+		Data->RootScanCacheTime = -1.0;
 	}
 }

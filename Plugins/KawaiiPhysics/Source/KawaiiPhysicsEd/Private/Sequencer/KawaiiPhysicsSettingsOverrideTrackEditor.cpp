@@ -209,6 +209,19 @@ bool FKawaiiPhysicsSettingsOverrideTrackEditor::SupportsSequence(UMovieSceneSequ
 		ETrackSupport::NotSupported;
 }
 
+void FKawaiiPhysicsSettingsOverrideTrackEditor::BuildAddTrackMenu(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("AddKawaiiPhysicsSettingsOverrideRootTrack", "Kawaii Physics Settings Override (All)"),
+		LOCTEXT(
+			"AddKawaiiPhysicsSettingsOverrideRootTrackTooltip",
+			"Adds a root track that drives Kawaii Physics settings multiplier overrides on every skeletal mesh component in the playback world. Filter Tags are required; an empty filter does nothing."),
+		FSlateIcon(FKawaiiPhysicsEdStyle::GetStyleSetName(), TEXT("KawaiiPhysics.TabIcon")),
+		FUIAction(FExecuteAction::CreateSP(
+			this,
+			&FKawaiiPhysicsSettingsOverrideTrackEditor::HandleAddRootTrack)));
+}
+
 void FKawaiiPhysicsSettingsOverrideTrackEditor::BuildObjectBindingTrackMenu(
 	FMenuBuilder& MenuBuilder,
 	const TArray<FGuid>& ObjectBindings,
@@ -299,6 +312,71 @@ void FKawaiiPhysicsSettingsOverrideTrackEditor::HandleAddTrack(TArray<FGuid> Obj
 	}
 }
 
+void FKawaiiPhysicsSettingsOverrideTrackEditor::HandleAddRootTrack()
+{
+	const TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
+	if (!SequencerPtr.IsValid())
+	{
+		return;
+	}
+
+	UMovieScene* MovieScene = GetFocusedMovieScene();
+	if (!MovieScene)
+	{
+		return;
+	}
+
+	const FScopedTransaction Transaction(
+		LOCTEXT("AddKawaiiPhysicsSettingsOverrideRootTrackTransaction",
+		        "Add Kawaii Physics Settings Override Root Track"));
+
+	// FindOrCreateRootTrack はクラス一致のみで既存トラックを拾ってしまい、バインディング付きで同クラスの
+	// トラックが root Tracks 配列に紛れ込んでいる場合に誤って早期 return してしまう。
+	// bIsRootTrack フラグが立っている本物の root track だけを探す。
+	UMovieSceneKawaiiPhysicsSettingsOverrideTrack* Track = nullptr;
+	for (UMovieSceneTrack* ExistingTrack : MovieScene->GetTracks())
+	{
+		UMovieSceneKawaiiPhysicsSettingsOverrideTrack* ExistingRootTrack =
+			Cast<UMovieSceneKawaiiPhysicsSettingsOverrideTrack>(ExistingTrack);
+		if (ExistingRootTrack && ExistingRootTrack->bIsRootTrack)
+		{
+			Track = ExistingRootTrack;
+			break;
+		}
+	}
+
+	if (!Track)
+	{
+		MovieScene->Modify();
+		Track = MovieScene->AddTrack<UMovieSceneKawaiiPhysicsSettingsOverrideTrack>();
+		if (!Track)
+		{
+			return;
+		}
+
+		Track->Modify();
+		Track->bIsRootTrack = true;
+	}
+
+	Track->Modify();
+	UMovieSceneSection* Section = Track->CreateNewSection();
+	if (!ensure(Section))
+	{
+		return;
+	}
+
+	const FFrameNumber KeyTime = SequencerPtr->GetLocalTime().Time.FrameNumber;
+	const FFrameNumber DurationFrames = SequencerPtr->GetFocusedTickResolution().AsFrameNumber(1.0);
+	Section->InitialPlacement(
+		Track->GetAllSections(),
+		KeyTime,
+		FMath::Max(1, DurationFrames.Value),
+		Track->SupportsMultipleRows());
+	Track->AddSection(*Section);
+
+	SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
+}
+
 FKeyPropertyResult FKawaiiPhysicsSettingsOverrideTrackEditor::AddTrackInternal(
 	const FFrameNumber KeyTime,
 	UObject* Object)
@@ -370,6 +448,21 @@ FText FKawaiiPhysicsSettingsOverrideSectionInterface::GetSectionTitle() const
 			                             ? FFrameTime(Section->GetInclusiveStartFrame())
 			                             : FFrameTime(0);
 		const FText Summary = MakeKawaiiPhysicsScaleSummaryText(Section->EvaluateScaleAtTime(StartTime));
+		const UMovieSceneKawaiiPhysicsSettingsOverrideTrack* Track =
+			Section->GetTypedOuter<UMovieSceneKawaiiPhysicsSettingsOverrideTrack>();
+		const bool bNeedsRootFilterWarning = Track && Track->bIsRootTrack && Section->FilterTags.IsEmpty();
+		const auto AddRootFilterWarning = [bNeedsRootFilterWarning](const FText& Title)
+		{
+			if (!bNeedsRootFilterWarning)
+			{
+				return Title;
+			}
+
+			return FText::Format(
+				LOCTEXT("RootTrackNoFilterWarningFormat", "{0}{1}"),
+				LOCTEXT("RootTrackNoFilterWarning", "[Filter Tags required] "),
+				Title);
+		};
 
 		bool bHasLiveEntry = false;
 		const int32 QueuedNodeCount = FKawaiiPhysicsSequencerOverrideRegistry::Get().GetQueuedNodeCount(
@@ -393,23 +486,23 @@ FText FKawaiiPhysicsSettingsOverrideSectionInterface::GetSectionTitle() const
 				Suffix);
 			if (!Section->FilterTags.IsEmpty())
 			{
-				return FText::Format(
+				return AddRootFilterWarning(FText::Format(
 					LOCTEXT("SectionTitleWithTags", "{0} {1}"),
 					KawaiiPhysicsMakeFilterTagsText(Section->FilterTags),
-					SummaryWithSuffix);
+					SummaryWithSuffix));
 			}
-			return SummaryWithSuffix;
+			return AddRootFilterWarning(SummaryWithSuffix);
 		}
 
 		if (!Section->FilterTags.IsEmpty())
 		{
-			return FText::Format(
+			return AddRootFilterWarning(FText::Format(
 				LOCTEXT("SectionTitleWithTags", "{0} {1}"),
 				KawaiiPhysicsMakeFilterTagsText(Section->FilterTags),
-				Summary);
+				Summary));
 		}
 
-		return Summary;
+		return AddRootFilterWarning(Summary);
 	}
 
 	return FText::GetEmpty();
