@@ -76,6 +76,14 @@ void UMovieSceneKawaiiPhysicsSettingsOverrideTrack::RemoveAllAnimationData()
 	Sections.Empty();
 }
 
+#if WITH_EDITOR
+void UMovieSceneKawaiiPhysicsSettingsOverrideTrack::PostEditUndo()
+{
+	Super::PostEditUndo();
+	FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSectionsNotIn(this, GetAllSections());
+}
+#endif
+
 #if WITH_EDITORONLY_DATA
 FText UMovieSceneKawaiiPhysicsSettingsOverrideTrack::GetDefaultDisplayName() const
 {

@@ -8,14 +8,90 @@
 #include "GameFramework/Actor.h"
 #include "ISequencer.h"
 #include "KawaiiPhysicsEdStyle.h"
+#include "MovieScene.h"
 #include "MovieSceneKawaiiPhysicsSettingsOverrideSection.h"
 #include "MovieSceneKawaiiPhysicsSettingsOverrideTrack.h"
+#include "MovieScenePossessable.h"
+#include "MovieSceneSequence.h"
 #include "ScopedTransaction.h"
 #include "Sequencer/KawaiiPhysicsSettingsOverrideSectionSummary.h"
 #include "Styling/ISlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 
 #define LOCTEXT_NAMESPACE "FKawaiiPhysicsSettingsOverrideTrackEditor"
+
+namespace
+{
+bool KawaiiPhysicsBindingHasSettingsOverrideTrack(UMovieScene* MovieScene, const FGuid& ObjectBinding)
+{
+	if (!MovieScene || !ObjectBinding.IsValid())
+	{
+		return false;
+	}
+
+	return MovieScene->FindTrack(UMovieSceneKawaiiPhysicsSettingsOverrideTrack::StaticClass(), ObjectBinding) !=
+		nullptr;
+}
+
+bool KawaiiPhysicsAnyParentBindingHasSettingsOverrideTrack(
+	UMovieScene* MovieScene,
+	const TArray<FGuid>& ObjectBindings)
+{
+	if (!MovieScene)
+	{
+		return false;
+	}
+
+	for (const FGuid& ObjectBinding : ObjectBindings)
+	{
+		const FMovieScenePossessable* Possessable = MovieScene->FindPossessable(ObjectBinding);
+		if (Possessable &&
+			KawaiiPhysicsBindingHasSettingsOverrideTrack(MovieScene, Possessable->GetParent()))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool KawaiiPhysicsAnyChildComponentBindingHasSettingsOverrideTrack(
+	UMovieScene* MovieScene,
+	const TArray<FGuid>& ObjectBindings)
+{
+	if (!MovieScene)
+	{
+		return false;
+	}
+
+	TSet<FGuid> ParentBindings;
+	for (const FGuid& ObjectBinding : ObjectBindings)
+	{
+		ParentBindings.Add(ObjectBinding);
+	}
+
+	for (int32 PossessableIndex = 0; PossessableIndex < MovieScene->GetPossessableCount(); ++PossessableIndex)
+	{
+		const FMovieScenePossessable& Possessable = MovieScene->GetPossessable(PossessableIndex);
+		const UClass* PossessedObjectClass = Possessable.GetPossessedObjectClass();
+		if (ParentBindings.Contains(Possessable.GetParent()) &&
+			PossessedObjectClass &&
+			PossessedObjectClass->IsChildOf(USkeletalMeshComponent::StaticClass()) &&
+			KawaiiPhysicsBindingHasSettingsOverrideTrack(MovieScene, Possessable.GetGuid()))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+FText KawaiiPhysicsAppendTrackWarning(const FText& ToolTip, const FText& Warning)
+{
+	return FText::Format(LOCTEXT("AddKawaiiPhysicsSettingsOverrideTrackTooltipWithWarning", "{0}{1}"),
+	                     ToolTip, Warning);
+}
+}
 
 TSharedRef<ISequencerTrackEditor> FKawaiiPhysicsSettingsOverrideTrackEditor::CreateTrackEditor(
 	TSharedRef<ISequencer> InSequencer)
@@ -53,11 +129,33 @@ void FKawaiiPhysicsSettingsOverrideTrackEditor::BuildObjectBindingTrackMenu(
 		return;
 	}
 
+	FText ToolTip = LOCTEXT(
+		"AddKawaiiPhysicsSettingsOverrideTrackTooltip",
+		"Adds a track that drives Kawaii Physics settings multiplier overrides on the bound skeletal mesh components.");
+
+	UMovieScene* MovieScene = GetSequencer().IsValid() ? GetFocusedMovieScene() : nullptr;
+	if (ObjectClass->IsChildOf(USkeletalMeshComponent::StaticClass()) &&
+		KawaiiPhysicsAnyParentBindingHasSettingsOverrideTrack(MovieScene, ObjectBindings))
+	{
+		ToolTip = KawaiiPhysicsAppendTrackWarning(
+			ToolTip,
+			LOCTEXT(
+				"AddKawaiiPhysicsSettingsOverrideTrackParentWarning",
+				"\nNote: the parent actor binding already has this track. Overlapping sections on the actor and this component multiply together."));
+	}
+	else if (ObjectClass->IsChildOf(AActor::StaticClass()) &&
+	         KawaiiPhysicsAnyChildComponentBindingHasSettingsOverrideTrack(MovieScene, ObjectBindings))
+	{
+		ToolTip = KawaiiPhysicsAppendTrackWarning(
+			ToolTip,
+			LOCTEXT(
+				"AddKawaiiPhysicsSettingsOverrideTrackChildWarning",
+				"\nNote: a child component binding already has this track. Overlapping sections on the actor and this component multiply together."));
+	}
+
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AddKawaiiPhysicsSettingsOverrideTrack", "Kawaii Physics Settings Override"),
-		LOCTEXT(
-			"AddKawaiiPhysicsSettingsOverrideTrackTooltip",
-			"Adds a track that drives Kawaii Physics settings multiplier overrides on the bound skeletal mesh components."),
+		ToolTip,
 		FSlateIcon(FKawaiiPhysicsEdStyle::GetStyleSetName(), TEXT("KawaiiPhysics.TabIcon")),
 		FUIAction(FExecuteAction::CreateSP(
 			this,

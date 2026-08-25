@@ -5,6 +5,7 @@
 #include "Channels/MovieSceneChannelEditorData.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "KawaiiPhysicsSequencerOverrideRegistry.h"
+#include "MovieSceneTrack.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneKawaiiPhysicsSettingsOverrideSection)
 
@@ -45,5 +46,18 @@ void UMovieSceneKawaiiPhysicsSettingsOverrideSection::BeginDestroy()
 	FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(this);
 	Super::BeginDestroy();
 }
+
+#if WITH_EDITOR
+void UMovieSceneKawaiiPhysicsSettingsOverrideSection::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	const UMovieSceneTrack* Track = GetTypedOuter<UMovieSceneTrack>();
+	if (!Track || !Track->GetAllSections().Contains(this))
+	{
+		FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(this);
+	}
+}
+#endif
 
 #undef LOCTEXT_NAMESPACE

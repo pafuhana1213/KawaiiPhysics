@@ -8,6 +8,10 @@
 
 #include "MovieSceneKawaiiPhysicsSettingsOverrideTrack.generated.h"
 
+/**
+ * Kawaii Physics 設定倍率を Sequencer から駆動するトラック。
+ * 同一 SkeletalMeshComponent に複数セクション/トラックが重なる場合、倍率は成分ごとに乗算合成される / Overlapping sections or tracks on the same component multiply their scales per component
+ */
 UCLASS(MinimalAPI)
 class UMovieSceneKawaiiPhysicsSettingsOverrideTrack
 	: public UMovieSceneNameableTrack
@@ -29,6 +33,10 @@ public:
 	virtual bool IsEmpty() const override;
 	virtual void RemoveAllAnimationData() override;
 	virtual bool SupportsMultipleRows() const override { return true; }
+
+#if WITH_EDITOR
+	virtual void PostEditUndo() override;
+#endif
 
 #if WITH_EDITORONLY_DATA
 	virtual FText GetDefaultDisplayName() const override;
