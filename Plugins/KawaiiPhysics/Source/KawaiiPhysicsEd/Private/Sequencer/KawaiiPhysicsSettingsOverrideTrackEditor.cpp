@@ -237,8 +237,11 @@ FKeyPropertyResult FKawaiiPhysicsSettingsOverrideTrackEditor::AddTrackInternal(
 		UMovieSceneKawaiiPhysicsSettingsOverrideTrack::StaticClass());
 	KeyPropertyResult.bTrackCreated |= TrackResult.bWasCreated;
 
-	if (TrackResult.bWasCreated && ensure(TrackResult.Track))
+	// 既存トラックへ 2 回目以降に追加した場合もセクションを作る（無反応にしない）
+	if (ensure(TrackResult.Track))
 	{
+		// 既存トラックの Sections を書き換えるため、トランザクションに事前状態を積む（Undo で追加分が戻るように）
+		TrackResult.Track->Modify();
 		UMovieSceneSection* Section = TrackResult.Track->CreateNewSection();
 		if (ensure(Section))
 		{

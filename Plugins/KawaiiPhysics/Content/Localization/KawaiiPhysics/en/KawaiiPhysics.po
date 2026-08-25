@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: KawaiiPhysics\n"
-"POT-Creation-Date: 2026-08-23 15:37\n"
-"PO-Revision-Date: 2026-08-23 15:37\n"
+"POT-Creation-Date: 2026-08-25 00:19\n"
+"PO-Revision-Date: 2026-08-25 00:19\n"
 "Language-Team: \n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
@@ -4780,6 +4780,160 @@ msgctxt "UObjectToolTips,TaperedCapsuleLimit:Radius1"
 msgid "-Z端の半径 / Radius at the -Z end"
 msgstr "-Z端の半径 / Radius at the -Z end"
 
+#. Key:	MovieSceneKawaiiPhysicsSettingsOverrideSection
+#. SourceLocation:	/Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideSection [Class DisplayName meta-data]
+#: /Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideSection [Class DisplayName meta-data]
+msgctxt "UObjectDisplayNames,MovieSceneKawaiiPhysicsSettingsOverrideSection"
+msgid "Movie Scene Kawaii Physics Settings Override Section"
+msgstr "Movie Scene Kawaii Physics Settings Override Section"
+
+#. Key:	MovieSceneKawaiiPhysicsSettingsOverrideSection:bFilterExactMatch
+#. SourceLocation:	/Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideSection:bFilterExactMatch [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideSection:bFilterExactMatch [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,MovieSceneKawaiiPhysicsSettingsOverrideSection:bFilterExactMatch"
+msgid "Filter Exact Match"
+msgstr "Filter Exact Match"
+
+#. Key:	MovieSceneKawaiiPhysicsSettingsOverrideSection:bFilterExactMatch
+#. SourceLocation:	/Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideSection:bFilterExactMatch [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideSection:bFilterExactMatch [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,MovieSceneKawaiiPhysicsSettingsOverrideSection:bFilterExactMatch"
+msgid "タグを完全一致で比較するか / Whether tags must match exactly"
+msgstr "タグを完全一致で比較するか / Whether tags must match exactly"
+
+#. Key:	MovieSceneKawaiiPhysicsSettingsOverrideSection:BlendOutTimeOnEnd
+#. SourceLocation:	/Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideSection:BlendOutTimeOnEnd [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideSection:BlendOutTimeOnEnd [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,MovieSceneKawaiiPhysicsSettingsOverrideSection:BlendOutTimeOnEnd"
+msgid "Blend Out Time on End"
+msgstr "Blend Out Time on End"
+
+#. Key:	MovieSceneKawaiiPhysicsSettingsOverrideSection:BlendOutTimeOnEnd
+#. SourceLocation:	/Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideSection:BlendOutTimeOnEnd [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideSection:BlendOutTimeOnEnd [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,MovieSceneKawaiiPhysicsSettingsOverrideSection:BlendOutTimeOnEnd"
+msgid "セクションの評価終了時（範囲外へのスクラブ・停止・削除）に、現在の適用率から 0 へフェードする秒数 / Blend-out seconds from the current applied ratio to 0 when the section stops evaluating (scrubbed out, stopped, or removed)"
+msgstr "セクションの評価終了時（範囲外へのスクラブ・停止・削除）に、現在の適用率から 0 へフェードする秒数 / Blend-out seconds from the current applied ratio to 0 when the section stops evaluating (scrubbed out, stopped, or removed)"
+
+#. Key:	Kawaii Physics|Filter
+#. SourceLocation:	/Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideSection:FilterTags [StructProperty Category meta-data]
+#: /Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideSection:FilterTags [StructProperty Category meta-data]
+msgctxt "UObjectCategory,Kawaii Physics|Filter"
+msgid "Kawaii Physics|Filter"
+msgstr "Kawaii Physics|Filter"
+
+#. Key:	MovieSceneKawaiiPhysicsSettingsOverrideSection:FilterTags
+#. SourceLocation:	/Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideSection:FilterTags [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideSection:FilterTags [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,MovieSceneKawaiiPhysicsSettingsOverrideSection:FilterTags"
+msgid "Filter Tags"
+msgstr "Filter Tags"
+
+#. Key:	MovieSceneKawaiiPhysicsSettingsOverrideSection:FilterTags
+#. SourceLocation:	/Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideSection:FilterTags [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideSection:FilterTags [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,MovieSceneKawaiiPhysicsSettingsOverrideSection:FilterTags"
+msgid "ノードの KawaiiPhysicsTag に対するフィルタ（空なら全ノード対象） / Filter against each node KawaiiPhysicsTag; empty targets all nodes"
+msgstr "ノードの KawaiiPhysicsTag に対するフィルタ（空なら全ノード対象） / Filter against each node KawaiiPhysicsTag; empty targets all nodes"
+
+#. Key:	MovieSceneKawaiiPhysicsSettingsOverrideSection:Scale
+#. SourceLocation:	/Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideSection:Scale [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideSection:Scale [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,MovieSceneKawaiiPhysicsSettingsOverrideSection:Scale"
+msgid "Scale"
+msgstr "Scale"
+
+#. Key:	MovieSceneKawaiiPhysicsSettingsOverrideSection:Scale
+#. SourceLocation:	/Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideSection:Scale [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideSection:Scale [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,MovieSceneKawaiiPhysicsSettingsOverrideSection:Scale"
+msgid "物理設定へ適用する倍率（全項目1.0で変更なし） / Multipliers applied to the physics settings (all 1.0 means no change)"
+msgstr "物理設定へ適用する倍率（全項目1.0で変更なし） / Multipliers applied to the physics settings (all 1.0 means no change)"
+
+#. Key:	MovieSceneKawaiiPhysicsSettingsOverrideSection:Weight
+#. SourceLocation:	/Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideSection:Weight [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideSection:Weight [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,MovieSceneKawaiiPhysicsSettingsOverrideSection:Weight"
+msgid "Weight"
+msgstr "Weight"
+
+#. Key:	MovieSceneKawaiiPhysicsSettingsOverrideSection:Weight
+#. SourceLocation:	/Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideSection:Weight [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideSection:Weight [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,MovieSceneKawaiiPhysicsSettingsOverrideSection:Weight"
+msgid "倍率の適用率（0..1）。セクションの Ease In/Out と乗算される / Applied ratio (0..1) of the multipliers, multiplied with the section easing"
+msgstr "倍率の適用率（0..1）。セクションの Ease In/Out と乗算される / Applied ratio (0..1) of the multipliers, multiplied with the section easing"
+
+#. Key:	MovieSceneKawaiiPhysicsSettingsOverrideTrack
+#. SourceLocation:	/Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideTrack [Class DisplayName meta-data]
+#: /Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideTrack [Class DisplayName meta-data]
+msgctxt "UObjectDisplayNames,MovieSceneKawaiiPhysicsSettingsOverrideTrack"
+msgid "Movie Scene Kawaii Physics Settings Override Track"
+msgstr "Movie Scene Kawaii Physics Settings Override Track"
+
+#. Key:	MovieSceneKawaiiPhysicsSettingsOverrideTrack
+#. SourceLocation:	/Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideTrack [Class ToolTip meta-data]
+#: /Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideTrack [Class ToolTip meta-data]
+msgctxt "UObjectToolTips,MovieSceneKawaiiPhysicsSettingsOverrideTrack"
+msgid "Kawaii Physics 設定倍率を Sequencer から駆動するトラック。\n同一 SkeletalMeshComponent に複数セクション/トラックが重なる場合、倍率は成分ごとに乗算合成される / Overlapping sections or tracks on the same component multiply their scales per component"
+msgstr "Kawaii Physics 設定倍率を Sequencer から駆動するトラック。\n同一 SkeletalMeshComponent に複数セクション/トラックが重なる場合、倍率は成分ごとに乗算合成される / Overlapping sections or tracks on the same component multiply their scales per component"
+
+#. Key:	MovieSceneKawaiiPhysicsSettingsOverrideTrack:Sections
+#. SourceLocation:	/Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideTrack:Sections [ArrayProperty DisplayName meta-data]
+#: /Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsOverrideTrack:Sections [ArrayProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,MovieSceneKawaiiPhysicsSettingsOverrideTrack:Sections"
+msgid "Sections"
+msgstr "Sections"
+
+#. Key:	ExternalForce_ShouldSet
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/AnimNotifies/AnimNotify_KawaiiPhysicsAddExternalForce.cpp(53)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/AnimNotifies/AnimNotify_KawaiiPhysicsAddExternalForce.cpp(53)
+msgctxt "AnimNotify,ExternalForce_ShouldSet"
+msgid " AnimNotify(KawaiiPhysics_AddExternalForce) doesn't have a valid ExternalForce in {0}"
+msgstr " AnimNotify(KawaiiPhysics_AddExternalForce) doesn't have a valid ExternalForce in {0}"
+
+#. Key:	KawaiiPhysicsSettingsOverride_DurationNotPositive
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/AnimNotifies/AnimNotify_KawaiiPhysicsSettingsOverride.cpp(56)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/AnimNotifies/AnimNotify_KawaiiPhysicsSettingsOverride.cpp(56)
+msgctxt "AnimNotify,KawaiiPhysicsSettingsOverride_DurationNotPositive"
+msgid " AnimNotify(KawaiiPhysics_SettingsOverride) Duration is 0 or less in {0}"
+msgstr " AnimNotify(KawaiiPhysics_SettingsOverride) Duration is 0 or less in {0}"
+
+#. Key:	ExternalForceState_ShouldSet
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/AnimNotifies/AnimNotifyState_KawaiiPhysicsAddExternalForce.cpp(69)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/AnimNotifies/AnimNotifyState_KawaiiPhysicsAddExternalForce.cpp(69)
+msgctxt "AnimNotify,ExternalForceState_ShouldSet"
+msgid " AnimNotifyState(KawaiiPhysics_AddExternalForce) doesn't have a valid ExternalForce in {0}"
+msgstr " AnimNotifyState(KawaiiPhysics_AddExternalForce) doesn't have a valid ExternalForce in {0}"
+
+#. Key:	KawaiiPhysicsSetAlpha_CurveNameEmpty
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/AnimNotifies/AnimNotifyState_KawaiiPhysicsSetAlpha.cpp(121)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/AnimNotifies/AnimNotifyState_KawaiiPhysicsSetAlpha.cpp(121)
+msgctxt "AnimNotify,KawaiiPhysicsSetAlpha_CurveNameEmpty"
+msgid " AnimNotifyState(KawaiiPhysics_SetAlpha) CurveName is empty in {0}"
+msgstr " AnimNotifyState(KawaiiPhysics_SetAlpha) CurveName is empty in {0}"
+
+#. Key:	KawaiiPhysicsSettingsOverride_CurveNameEmpty
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/AnimNotifies/AnimNotifyState_KawaiiPhysicsSettingsOverride.cpp(230)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/AnimNotifies/AnimNotifyState_KawaiiPhysicsSettingsOverride.cpp(230)
+msgctxt "AnimNotify,KawaiiPhysicsSettingsOverride_CurveNameEmpty"
+msgid " AnimNotifyState(KawaiiPhysics_SettingsOverride) CurveName is empty in {0}"
+msgstr " AnimNotifyState(KawaiiPhysics_SettingsOverride) CurveName is empty in {0}"
+
+#. Key:	InvalidPresetTagWarning
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/KawaiiPhysicsWindPresetDataAsset.cpp(145)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/KawaiiPhysicsWindPresetDataAsset.cpp(145)
+msgctxt "KawaiiPhysicsWindPresetDataAsset,InvalidPresetTagWarning"
+msgid "Wind preset at index {0} has an invalid PresetTag."
+msgstr "Wind preset at index {0} has an invalid PresetTag."
+
+#. Key:	DuplicatePresetTagWarning
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/KawaiiPhysicsWindPresetDataAsset.cpp(153)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/KawaiiPhysicsWindPresetDataAsset.cpp(153)
+msgctxt "KawaiiPhysicsWindPresetDataAsset,DuplicatePresetTagWarning"
+msgid "Wind preset at index {0} has a duplicate PresetTag: {1}."
+msgstr "Wind preset at index {0} has a duplicate PresetTag: {1}."
+
 #. Key:	BreezePresetName
 #. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/KawaiiPhysicsWindPresetDataAsset.cpp(196)
 #: Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/KawaiiPhysicsWindPresetDataAsset.cpp(196)
@@ -5159,8 +5313,8 @@ msgid "Choose Location for Collision Data Asset"
 msgstr "Choose Location for Collision Data Asset"
 
 #. Key:	FKawaiiPhysicsEditMode
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEd.cpp(41)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEd.cpp(41)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEd.cpp(43)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEd.cpp(43)
 msgctxt "FKawaiiPhysicsModuleEd,FKawaiiPhysicsEditMode"
 msgid "Kawaii Physics"
 msgstr "Kawaii Physics"
@@ -5409,6 +5563,55 @@ msgstr "Random"
 msgctxt "KawaiiPhysicsWindScopeWindow,GustLabel"
 msgid "Gust"
 msgstr "Gust"
+
+#. Key:	NoScaleChange
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideSectionSummary.cpp(45)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideSectionSummary.cpp(45)
+msgctxt "KawaiiPhysicsSettingsOverrideSectionSummary,NoScaleChange"
+msgid "×1.0 (no change)"
+msgstr "×1.0 (no change)"
+
+#. Key:	AddKawaiiPhysicsSettingsOverrideTrackTooltip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(132)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(132)
+msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,AddKawaiiPhysicsSettingsOverrideTrackTooltip"
+msgid "Adds a track that drives Kawaii Physics settings multiplier overrides on the bound skeletal mesh components."
+msgstr "Adds a track that drives Kawaii Physics settings multiplier overrides on the bound skeletal mesh components."
+
+#. Key:	AddKawaiiPhysicsSettingsOverrideTrackParentWarning
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(142)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(142)
+msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,AddKawaiiPhysicsSettingsOverrideTrackParentWarning"
+msgid "\nNote: the parent actor binding already has this track. Overlapping sections on the actor and this component multiply together."
+msgstr "\nNote: the parent actor binding already has this track. Overlapping sections on the actor and this component multiply together."
+
+#. Key:	AddKawaiiPhysicsSettingsOverrideTrackChildWarning
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(151)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(151)
+msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,AddKawaiiPhysicsSettingsOverrideTrackChildWarning"
+msgid "\nNote: a child component binding already has this track. Overlapping sections on the actor and this component multiply together."
+msgstr "\nNote: a child component binding already has this track. Overlapping sections on the actor and this component multiply together."
+
+#. Key:	AddKawaiiPhysicsSettingsOverrideTrack
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(157)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(157)
+msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,AddKawaiiPhysicsSettingsOverrideTrack"
+msgid "Kawaii Physics Settings Override"
+msgstr "Kawaii Physics Settings Override"
+
+#. Key:	AddKawaiiPhysicsSettingsOverrideTrackTransaction
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(189)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(189)
+msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,AddKawaiiPhysicsSettingsOverrideTrackTransaction"
+msgid "Add Kawaii Physics Settings Override Track"
+msgstr "Add Kawaii Physics Settings Override Track"
+
+#. Key:	AddKawaiiPhysicsSettingsOverrideTrackTooltipWithWarning
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(91)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(91)
+msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,AddKawaiiPhysicsSettingsOverrideTrackTooltipWithWarning"
+msgid "{0}{1}"
+msgstr "{0}{1}"
 
 #. Key:	MatchesCheckMark
 #. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsNodeAuditWindow.cpp(121)
@@ -6090,50 +6293,50 @@ msgid "Updated the preset from the node."
 msgstr "Updated the preset from the node."
 
 #. Key:	LiveBoolFalse
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1231)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1231)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1239)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1239)
 msgctxt "KawaiiPhysicsWindScopeEditPanel,LiveBoolFalse"
 msgid "false"
 msgstr "false"
 
 #. Key:	LiveBoolTrue
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1231)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1231)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1239)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1239)
 msgctxt "KawaiiPhysicsWindScopeEditPanel,LiveBoolTrue"
 msgid "true"
 msgstr "true"
 
 #. Key:	LiveVectorValueFormat
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1242)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1242)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1250)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1250)
 msgctxt "KawaiiPhysicsWindScopeEditPanel,LiveVectorValueFormat"
 msgid "({0}, {1}, {2})"
 msgstr "({0}, {1}, {2})"
 
 #. Key:	LiveIntervalValueFormat
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1252)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1252)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1260)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1260)
 msgctxt "KawaiiPhysicsWindScopeEditPanel,LiveIntervalValueFormat"
 msgid "{0} - {1}"
 msgstr "{0} - {1}"
 
 #. Key:	LiveValueFormat
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1270)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1270)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1278)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1278)
 msgctxt "KawaiiPhysicsWindScopeEditPanel,LiveValueFormat"
 msgid "→ {0} (live)"
 msgstr "→ {0} (live)"
 
 #. Key:	SummaryItemFormat
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1332)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1332)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1340)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1340)
 msgctxt "KawaiiPhysicsWindScopeEditPanel,SummaryItemFormat"
 msgid "{0} {1}"
 msgstr "{0} {1}"
 
 #. Key:	SummarySeparator
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1336)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1336)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1344)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(1344)
 msgctxt "KawaiiPhysicsWindScopeEditPanel,SummarySeparator"
 msgid " · "
 msgstr " · "
@@ -6258,29 +6461,29 @@ msgid "Collapse all categories."
 msgstr "Collapse all categories."
 
 #. Key:	CollapsedGroupModifiedTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(580)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(580)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(588)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(588)
 msgctxt "KawaiiPhysicsWindScopeEditPanel,CollapsedGroupModifiedTooltip"
 msgid "This collapsed category has edits that differ from defaults."
 msgstr "This collapsed category has edits that differ from defaults."
 
 #. Key:	IntervalMinLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(699)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(699)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(707)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(707)
 msgctxt "KawaiiPhysicsWindScopeEditPanel,IntervalMinLabel"
 msgid "Min"
 msgstr "Min"
 
 #. Key:	IntervalMaxLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(737)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(737)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(745)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(745)
 msgctxt "KawaiiPhysicsWindScopeEditPanel,IntervalMaxLabel"
 msgid "Max"
 msgstr "Max"
 
 #. Key:	ResetToDefaultTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(905)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(905)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(913)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeEditPanel.cpp(913)
 msgctxt "KawaiiPhysicsWindScopeEditPanel,ResetToDefaultTooltip"
 msgid "Reset to default."
 msgstr "Reset to default."
@@ -6851,4 +7054,18 @@ msgstr " + "
 msgctxt "KawaiiPhysicsWindScopeWindow,FormulaHeaderPlusGust"
 msgid " + "
 msgstr " + "
+
+#. Key:	WeightChannel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsSequencer/Private/MovieSceneKawaiiPhysicsSettingsOverrideSection.cpp(29)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsSequencer/Private/MovieSceneKawaiiPhysicsSettingsOverrideSection.cpp(29)
+msgctxt "MovieSceneKawaiiPhysicsSettingsOverrideSection,WeightChannel"
+msgid "Weight"
+msgstr "Weight"
+
+#. Key:	TrackName
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsSequencer/Private/MovieSceneKawaiiPhysicsSettingsOverrideTrack.cpp(90)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsSequencer/Private/MovieSceneKawaiiPhysicsSettingsOverrideTrack.cpp(90)
+msgctxt "MovieSceneKawaiiPhysicsSettingsOverrideTrack,TrackName"
+msgid "Kawaii Physics Settings Override"
+msgstr "Kawaii Physics Settings Override"
 

@@ -66,7 +66,7 @@ void UAnimNotifyState_KawaiiPhysicsAddExternalForce::ValidateAssociatedAssets()
 				FMessageLog AssetCheckLog(NAME_AssetCheck);
 
 				const FText MessageLooping = FText::Format(
-					NSLOCTEXT("AnimNotify", "ExternalForce_ShouldSet",
+					NSLOCTEXT("AnimNotify", "ExternalForceState_ShouldSet",
 					          " AnimNotifyState(KawaiiPhysics_AddExternalForce) doesn't have a valid ExternalForce in {0}"),
 					FText::AsCultureInvariant(ContainingAsset->GetPathName()));
 
