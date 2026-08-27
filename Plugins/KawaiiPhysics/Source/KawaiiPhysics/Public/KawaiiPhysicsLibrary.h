@@ -63,6 +63,20 @@ struct FKawaiiPhysicsReference : public FAnimNodeReference
 	using FInternalNodeType = FAnimNode_KawaiiPhysics;
 };
 
+namespace KawaiiPhysics
+{
+	// 一時外力 struct がキュー可能か検証する（IsValid / FKawaiiPhysics_ExternalForce 派生 / live UObject 参照なし）。拒否理由を Warning ログに出す。
+	// Validate that a transient external-force struct can be queued (IsValid / derives from FKawaiiPhysics_ExternalForce / no live UObject references). Logs a warning with the reason when rejected.
+	KAWAIIPHYSICS_API bool CanQueueTransientExternalForce(const FInstancedStruct& ExternalForce, const TCHAR* ContextName);
+
+	// 複数ノードへ同一ハンドルで一時外力をキューする。ノードごとに struct をコピーする。OutHandle は呼び出しごとに未設定（Id=0）へリセットされ、1 件以上適用時のみ設定される。検証（CanQueueTransientExternalForce）を内包する。
+	// Queue a transient external force to multiple nodes under one shared handle, copying the struct per node. OutHandle is reset to unset (Id=0) on every call and set only when at least one node is applied. Performs CanQueueTransientExternalForce validation internally.
+	KAWAIIPHYSICS_API int32 QueueTransientExternalForceToNodes(TArrayView<FAnimNode_KawaiiPhysics* const> Nodes,
+	                                                          const FInstancedStruct& ExternalForce,
+	                                                          float LifetimeSeconds,
+	                                                          FKawaiiPhysicsTransientForceHandle& OutHandle);
+}
+
 /**
  * KawaiiPhysics アニメーションノードに対する Blueprint 操作を公開する関数ライブラリ。
  * Blueprint function library exposing operations on a KawaiiPhysics anim node.
@@ -448,8 +462,12 @@ public:
 	                                                              UPARAM(meta=(BaseStruct="/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce", ExcludeBaseStruct)) FInstancedStruct& ExternalForce,
 	                                                              UObject* Owner);
 
-	/** Add ExternalForce */
-	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	/**
+	 * 非推奨。AddExternalForceWithExecResult を使ってください。
+	 * Deprecated. Use AddExternalForceWithExecResult.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
+		meta=(BlueprintThreadSafe, DeprecatedFunction, DeprecationMessage = "Use AddExternalForceWithExecResult instead. This node will keep working but is no longer recommended."))
 	static bool AddExternalForce(const FKawaiiPhysicsReference& KawaiiPhysics,
 	                             UPARAM(meta=(BaseStruct="/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce", ExcludeBaseStruct)) FInstancedStruct& ExternalForce,
 	                             UObject* Owner, bool bIsOneShot = false);
@@ -494,49 +512,49 @@ public:
 		float LifetimeSeconds = 3.0f);
 
 	/**
-	 * ランタイム専用の一時 ProceduralWind として突風をスポーンする。ノードに作成済み ProceduralWind がなくても動作し、複数の同時突風は加算される。
-	 * 突風はノード再初期化時に失われる。キュー経由でスレッドセーフに適用され、次回 Evaluate から反映される。
-	 * Spawn a gust as a runtime-only transient ProceduralWind. Works even without an authored ProceduralWind on the node, and multiple simultaneous gusts stack.
-	 * Gusts are lost on node re-initialization. Applied thread-safely through a queue and takes effect from the next Evaluate.
-	 * @param ExecResult ノード参照の解決結果 / Result of resolving the node reference.
-	 * @param KawaiiPhysics 対象の KawaiiPhysics ノード参照 / Target KawaiiPhysics node reference.
-	 * @param ExternalForceIndex 方向継承元の ExternalForces インデックス（無効なら最初の有効な ProceduralWind から継承） / ExternalForces index used as the inheritance source; falls back to the first enabled ProceduralWind when invalid.
-	 * @param Strength 突風のピーク強度 / Peak gust strength.
-	 * @param RiseTime 0->ピークまでの立ち上がり時間（秒） / Time in seconds to rise from zero to peak.
-	 * @param DecayTime ピーク->0 までの減衰時間（秒） / Time in seconds to decay from peak to zero.
-	 * @param GustDirection 突風の方向（ワールド空間・非正規化可）。ゼロベクトルなら既存 ProceduralWind の風向き・空間・ボーンフィルタ等を継承 / Gust direction (world space; may be non-normalized). Zero vector inherits direction, space, and bone filters from an authored ProceduralWind if present.
-	 * エンベロープは Rise→Hold→Decay の台形（HoldTime=0 で従来の三角波） / The envelope is a Rise-Hold-Decay trapezoid (HoldTime=0 keeps the legacy triangular shape).
-	 * @param HoldTime ピーク強度を保持する時間（秒） / Time in seconds to hold the peak strength.
+	 * Component 内の Kawaii Physics ノード（Linked / PostProcess 含む）へ、Tag フィルタ付きで一時外力をキューする。全ノードで同一ハンドルを共有し、StopTransientExternalForcesOnComponent で一括停止できる。
+	 * 戻り値は適用したノード数。OutHandle は呼び出しごとに未設定（Id=0）へリセットされ、1 件以上適用時のみ設定される。
+	 * Component / Linked AnimInstance / PostProcess から KawaiiPhysics ノード参照を収集する（FilterTags が空なら全件）。
+	 * AnimGraph の BlueprintThreadSafe 文脈から呼ぶ場合、対象は呼び出し元（呼び出しノード自身）の Component に限ります。
+	 * それ以外のオブジェクトから収集する場合は、そのオブジェクトが評価中でない GameThread で呼び出してください。
+	 * Queues a transient external force to every Kawaii Physics node in the component (including linked / post-process instances) that passes the tag filter. All nodes share one handle so StopTransientExternalForcesOnComponent can stop them together.
+	 * Returns the number of nodes applied. OutHandle is reset to unset (Id=0) on every call and set only when at least one node is applied.
+	 * When called from an AnimGraph BlueprintThreadSafe context, the target must be the caller's (the calling node's) own Component. Collecting from any other object must be done from the GameThread while that object is not being evaluated.
+	 * @param MeshComp 対象の SkeletalMeshComponent / Target SkeletalMeshComponent.
+	 * @param OutHandle 早期除去に使うハンドル / Handle used for early removal.
+	 * @param ExternalForce 追加する FKawaiiPhysics_ExternalForce 派生外力 / FKawaiiPhysics_ExternalForce-derived force to add.
+	 * @param LifetimeSeconds 自動除去までの寿命（秒） / Lifetime in seconds before automatic removal.
+	 * @param FilterTags ノードの KawaiiPhysicsTag に対するフィルタ（空なら全ノード対象） / Filter against each node KawaiiPhysicsTag; empty matches all nodes.
+	 * @param bFilterExactMatch タグを完全一致で比較するか / Whether tags must match exactly.
+	 * @return 一時外力リクエストをキューしたノード数 / Number of nodes where transient force requests were queued.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
-		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
-	static FKawaiiPhysicsReference TriggerProceduralWindGust(
-		EKawaiiPhysicsAccessExternalForceResult& ExecResult,
-		const FKawaiiPhysicsReference& KawaiiPhysics,
-		int32 ExternalForceIndex,
-		float Strength,
-		float RiseTime,
-		float DecayTime,
-		FVector GustDirection = FVector(0, 0, 0),
-		float HoldTime = 0.0f);
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe, AutoCreateRefTerm = "FilterTags"))
+	static int32 AddTransientExternalForceOnComponent(
+		USkeletalMeshComponent* MeshComp,
+		FKawaiiPhysicsTransientForceHandle& OutHandle,
+		UPARAM(meta=(BaseStruct="/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce", ExcludeBaseStruct)) FInstancedStruct ExternalForce,
+		float LifetimeSeconds = 3.0f,
+		const FGameplayTagContainer& FilterTags = FGameplayTagContainer(),
+		bool bFilterExactMatch = false);
 
 	/**
-	 * ハンドルで停止できるランタイム専用 ProceduralWind Blow を開始する。Duration は Rise/Decay 込みの合計実秒で、TimeScale を継承せず実時間で動作する（wind 時間で動く TriggerProceduralWindGust とは異なる）。
-	 * エンベロープは Rise→Hold→Decay の台形（Hold=max(0,Duration-Rise-Decay)、Rise+Decay>Duration は比例圧縮）。同時に保持できる transient スロットは上限8で、超過時は最古が破棄される。破棄された風のハンドルは失効し Stop は no-op。URO/LOD で評価が止まると実時間が伸びる。
-	 * Start a runtime-only ProceduralWind blow that can be stopped by handle. Duration is total real seconds including Rise/Decay, does not inherit TimeScale, and runs in real time (unlike TriggerProceduralWindGust, which runs in wind time).
-	 * The envelope is a Rise-Hold-Decay trapezoid (Hold=max(0,Duration-Rise-Decay); Rise+Decay>Duration is scaled proportionally). Transient slots are capped at 8; beyond the cap, the oldest entry is evicted. Handles for evicted winds become stale and Stop is a no-op. If URO/LOD stops evaluation, real time is extended.
+	 * ハンドルで停止できるランタイム専用 ProceduralWind Blow を開始する。Duration は Rise + Hold + Decay の合計実秒で、Hold = max(0, Duration - RiseTime - DecayTime)（KawaiiPhysics::ResolveWindBlowEnvelope）。
+	 * bRealTimeEnvelope: true = 実秒で進行（TimeScale を 1 に強制）/ false = wind 時間で進行（ProceduralWind の TimeScale の影響を受ける。旧 Trigger API 相当）。同時に保持できる transient スロットは上限8で、超過時は最古が破棄される。破棄された風のハンドルは失効し Stop は no-op。URO/LOD で評価が止まると実時間が伸びる。
+	 * Start a runtime-only ProceduralWind blow that can be stopped by handle. Duration is the total real seconds of Rise + Hold + Decay, where Hold = max(0, Duration - RiseTime - DecayTime) (KawaiiPhysics::ResolveWindBlowEnvelope).
+	 * bRealTimeEnvelope: true = progress in real seconds (forces TimeScale to 1) / false = progress in wind time (affected by ProceduralWind TimeScale; equivalent to the old Trigger API). Transient slots are capped at 8; beyond the cap, the oldest entry is evicted. Handles for evicted winds become stale and Stop is a no-op. If URO/LOD stops evaluation, real time is extended.
 	 * @param ExecResult ノード参照の解決結果 / Result of resolving the node reference.
 	 * @param OutHandle 停止に使うハンドル / Handle used to stop the blow.
 	 * @param KawaiiPhysics 対象の KawaiiPhysics ノード参照 / Target KawaiiPhysics node reference.
 	 * @param Strength Blow のピーク強度 / Peak blow strength.
-	 * @param Duration Rise/Decay 込みの合計実秒 / Total real seconds including Rise/Decay.
+	 * @param Duration Rise + Hold + Decay の合計実秒。Hold = max(0, Duration - RiseTime - DecayTime) / Total real seconds of Rise + Hold + Decay. Hold = max(0, Duration - RiseTime - DecayTime).
 	 * @param RiseTime 0->ピークまでの立ち上がり時間（秒） / Time in seconds to rise from zero to peak.
 	 * @param DecayTime ピーク->0 までの減衰時間（秒） / Time in seconds to decay from peak to zero.
 	 * @param GustDirection Blow の方向（ワールド空間・非正規化可）。ゼロベクトルなら既存 ProceduralWind の風向き・空間・ボーンフィルタ等を継承 / Blow direction (world space; may be non-normalized). Zero vector inherits direction, space, and bone filters from an authored ProceduralWind if present.
 	 * @param ExternalForceIndex 方向継承元の ExternalForces インデックス（-1なら最初の有効な ProceduralWind から継承） / ExternalForces index used as the inheritance source; -1 falls back to the first enabled ProceduralWind.
+	 * @param bRealTimeEnvelope true = 実秒で進行（TimeScale を 1 に強制）/ false = wind 時間で進行（ProceduralWind の TimeScale の影響を受ける） / true = progress in real seconds (forces TimeScale to 1) / false = progress in wind time (affected by ProceduralWind TimeScale).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
-		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult", AdvancedDisplay = "GustDirection,ExternalForceIndex"))
+		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult", AdvancedDisplay = "GustDirection,ExternalForceIndex,bRealTimeEnvelope"))
 	static FKawaiiPhysicsReference StartProceduralWindBlow(
 		EKawaiiPhysicsAccessExternalForceResult& ExecResult,
 		FKawaiiPhysicsTransientForceHandle& OutHandle,
@@ -546,7 +564,8 @@ public:
 		float RiseTime = 0.5f,
 		float DecayTime = 1.0f,
 		FVector GustDirection = FVector(0, 0, 0),
-		int32 ExternalForceIndex = -1);
+		int32 ExternalForceIndex = -1,
+		bool bRealTimeEnvelope = true);
 
 	/**
 	 * ProceduralWind の動的パラメータ更新をリクエストする。PendingRequest 経由でスレッドセーフ。次フレームの PreApply で反映。
@@ -581,59 +600,28 @@ public:
 		FKawaiiProceduralWindDynamicParams& OutParams);
 
 	/**
-	 * Component 内の対象 KawaiiPhysics ノードへ、enabled な authored ProceduralWind ごとにランタイム専用の一時 ProceduralWind 突風をスポーンする。有効な authored ProceduralWind がないノードではデフォルト突風を 1 つスポーンし、複数の同時突風は加算される。
-	 * 突風は明示的な gameplay イベントとして扱われ、authored ProceduralWind の有無・有効無効に関わらず対象ノードで発火する（対象を絞るには FilterTags を使用）。
-	 * 突風はノード再初期化時に失われる。キュー経由でスレッドセーフに適用され、次回 Evaluate から反映される。
-	 * 同時に保持できる一時外力はノードあたり MaxTransientExternalForces（8）件までで、超過分は最古から破棄される。
-	 * Spawn gusts on target KawaiiPhysics nodes in a component as runtime-only transient ProceduralWind entries, one per enabled authored ProceduralWind. Nodes without enabled authored ProceduralWind entries spawn one default gust, and multiple simultaneous gusts stack.
-	 * Gusts are explicit gameplay events: they fire on matched nodes regardless of whether authored ProceduralWind entries exist or are enabled (use FilterTags to narrow targets).
-	 * Gusts are lost on node re-initialization. Applied thread-safely through a queue and takes effect from the next Evaluate.
-	 * Transient forces are capped at MaxTransientExternalForces (8) per node; the oldest entries are dropped beyond that.
-	 * @param MeshComp 対象の SkeletalMeshComponent / Target SkeletalMeshComponent.
-	 * @param Strength 突風のピーク強度 / Peak gust strength.
-	 * @param RiseTime 0->ピークまでの立ち上がり時間（秒） / Time in seconds to rise from zero to peak.
-	 * @param DecayTime ピーク->0 までの減衰時間（秒） / Time in seconds to decay from peak to zero.
-	 * @param FilterTags ノードの KawaiiPhysicsTag に対するフィルタ（空なら全ノード対象） / Filter against each node KawaiiPhysicsTag; empty matches all nodes.
-	 * @param bFilterExactMatch タグを完全一致で比較するか / Whether tags must match exactly.
-	 * @param GustDirection 突風の方向（ワールド空間・非正規化可）。ゼロベクトルなら既存 ProceduralWind の風向き・空間・ボーンフィルタ等を継承 / Gust direction (world space; may be non-normalized). Zero vector inherits direction, space, and bone filters from an authored ProceduralWind if present.
-	 * エンベロープは Rise→Hold→Decay の台形（HoldTime=0 で従来の三角波） / The envelope is a Rise-Hold-Decay trapezoid (HoldTime=0 keeps the legacy triangular shape).
-	 * @param HoldTime ピーク強度を保持する時間（秒） / Time in seconds to hold the peak strength.
-	 * @return 突風リクエストをキューしたノード数 / Number of nodes where gust requests were queued.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
-		meta=(BlueprintThreadSafe, AutoCreateRefTerm = "FilterTags"))
-	static int32 TriggerProceduralWindGustOnComponent(
-		USkeletalMeshComponent* MeshComp,
-		float Strength,
-		float RiseTime,
-		float DecayTime,
-		const FGameplayTagContainer& FilterTags,
-		bool bFilterExactMatch = false,
-		FVector GustDirection = FVector(0, 0, 0),
-		float HoldTime = 0.0f);
-
-	/**
-	 * Component 内の対象 KawaiiPhysics ノードへ、ハンドルで停止できるランタイム専用 ProceduralWind Blow を開始する。Duration は Rise/Decay 込みの合計実秒で、TimeScale を継承せず実時間で動作する（wind 時間で動く TriggerProceduralWindGustOnComponent とは異なる）。
-	 * エンベロープは Rise→Hold→Decay の台形（Hold=max(0,Duration-Rise-Decay)、Rise+Decay>Duration は比例圧縮）。同時に保持できる transient スロットは上限8で、超過時は最古が破棄される。破棄された風のハンドルは失効し Stop は no-op。URO/LOD で評価が止まると実時間が伸びる。InheritAllWinds ファンアウトが上限8を超えた場合、共通ハンドルは保持された transient のみを指す。
+	 * Component 内の対象 KawaiiPhysics ノードへ、ハンドルで停止できるランタイム専用 ProceduralWind Blow を開始する。Duration は Rise + Hold + Decay の合計実秒で、Hold = max(0, Duration - RiseTime - DecayTime)（KawaiiPhysics::ResolveWindBlowEnvelope）。
+	 * bRealTimeEnvelope: true = 実秒で進行（TimeScale を 1 に強制）/ false = wind 時間で進行（ProceduralWind の TimeScale の影響を受ける。旧 Trigger API 相当）。同時に保持できる transient スロットは上限8で、超過時は最古が破棄される。破棄された風のハンドルは失効し Stop は no-op。URO/LOD で評価が止まると実時間が伸びる。InheritAllWinds ファンアウトが上限8を超えた場合、共通ハンドルは保持された transient のみを指す。
 	 * Component / Linked AnimInstance / PostProcess から KawaiiPhysics ノード参照を収集する（FilterTags が空なら全件）。
 	 * AnimGraph の BlueprintThreadSafe 文脈から呼ぶ場合、対象は呼び出し元（呼び出しノード自身）の Component に限ります。
 	 * それ以外のオブジェクトから収集する場合は、そのオブジェクトが評価中でない GameThread で呼び出してください。
-	 * Start runtime-only ProceduralWind blows on target KawaiiPhysics nodes in a component that can be stopped by handle. Duration is total real seconds including Rise/Decay, does not inherit TimeScale, and runs in real time (unlike TriggerProceduralWindGustOnComponent, which runs in wind time).
-	 * The envelope is a Rise-Hold-Decay trapezoid (Hold=max(0,Duration-Rise-Decay); Rise+Decay>Duration is scaled proportionally). Transient slots are capped at 8; beyond the cap, the oldest entry is evicted. Handles for evicted winds become stale and Stop is a no-op. If URO/LOD stops evaluation, real time is extended. If InheritAllWinds fan-out exceeds the cap of 8, the shared handle only points to retained transients.
+	 * Start runtime-only ProceduralWind blows on target KawaiiPhysics nodes in a component that can be stopped by handle. Duration is the total real seconds of Rise + Hold + Decay, where Hold = max(0, Duration - RiseTime - DecayTime) (KawaiiPhysics::ResolveWindBlowEnvelope).
+	 * bRealTimeEnvelope: true = progress in real seconds (forces TimeScale to 1) / false = progress in wind time (affected by ProceduralWind TimeScale; equivalent to the old Trigger API). Transient slots are capped at 8; beyond the cap, the oldest entry is evicted. Handles for evicted winds become stale and Stop is a no-op. If URO/LOD stops evaluation, real time is extended. If InheritAllWinds fan-out exceeds the cap of 8, the shared handle only points to retained transients.
 	 * When called from an AnimGraph BlueprintThreadSafe context, the target must be the caller's (the calling node's) own Component. Collecting from any other object must be done from the GameThread while that object is not being evaluated.
 	 * @param MeshComp 対象の SkeletalMeshComponent / Target SkeletalMeshComponent.
 	 * @param OutHandle 停止に使うハンドル / Handle used to stop the blows.
 	 * @param Strength Blow のピーク強度 / Peak blow strength.
-	 * @param Duration Rise/Decay 込みの合計実秒 / Total real seconds including Rise/Decay.
+	 * @param Duration Rise + Hold + Decay の合計実秒。Hold = max(0, Duration - RiseTime - DecayTime) / Total real seconds of Rise + Hold + Decay. Hold = max(0, Duration - RiseTime - DecayTime).
 	 * @param RiseTime 0->ピークまでの立ち上がり時間（秒） / Time in seconds to rise from zero to peak.
 	 * @param DecayTime ピーク->0 までの減衰時間（秒） / Time in seconds to decay from peak to zero.
 	 * @param FilterTags ノードの KawaiiPhysicsTag に対するフィルタ（空なら全ノード対象） / Filter against each node KawaiiPhysicsTag; empty matches all nodes.
 	 * @param bFilterExactMatch タグを完全一致で比較するか / Whether tags must match exactly.
 	 * @param GustDirection Blow の方向（ワールド空間・非正規化可）。ゼロベクトルなら既存 ProceduralWind の風向き・空間・ボーンフィルタ等を継承 / Blow direction (world space; may be non-normalized). Zero vector inherits direction, space, and bone filters from authored ProceduralWind entries if present.
+	 * @param bRealTimeEnvelope true = 実秒で進行（TimeScale を 1 に強制）/ false = wind 時間で進行（ProceduralWind の TimeScale の影響を受ける） / true = progress in real seconds (forces TimeScale to 1) / false = progress in wind time (affected by ProceduralWind TimeScale).
 	 * @return Blow リクエストをキューしたノード数 / Number of nodes where blow requests were queued.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
-		meta=(BlueprintThreadSafe, AutoCreateRefTerm = "FilterTags", AdvancedDisplay = "GustDirection"))
+		meta=(BlueprintThreadSafe, AutoCreateRefTerm = "FilterTags", AdvancedDisplay = "GustDirection,bRealTimeEnvelope"))
 	static int32 StartProceduralWindBlowOnComponent(
 		USkeletalMeshComponent* MeshComp,
 		FKawaiiPhysicsTransientForceHandle& OutHandle,
@@ -643,7 +631,8 @@ public:
 		float DecayTime,
 		const FGameplayTagContainer& FilterTags,
 		bool bFilterExactMatch = false,
-		FVector GustDirection = FVector(0, 0, 0));
+		FVector GustDirection = FVector(0, 0, 0),
+		bool bRealTimeEnvelope = true);
 
 	/**
 	 * ハンドルに一致する一時外力の停止をリクエストする。ProceduralWind は現在値から BlendOutTime（wind 時間）で線形フェードし、汎用外力は寿命短縮のみ行う。BlendOutTime=0 は即時除去。ハンドル不一致は no-op。
@@ -1429,9 +1418,9 @@ public:
 	}
 
 	/**
-	 * ExternalForces 配列から指定型（派生型含む）の index を検索する。SetExternalForce*Property / TriggerProceduralWindGust 等の ExternalForceIndex 指定に使える。
+	 * ExternalForces 配列から指定型（派生型含む）の index を検索する。SetExternalForce*Property / StartProceduralWindBlow 等の ExternalForceIndex 指定に使える。
 	 * スレッド契約は他のランタイムアクセス API と同じ（ノード評価文脈の BlueprintThreadSafe、または非評価中の GameThread）。
-	 * Finds indices in the ExternalForces array by the specified type, including derived types. Useful for ExternalForceIndex parameters in SetExternalForce*Property, TriggerProceduralWindGust, and similar APIs.
+	 * Finds indices in the ExternalForces array by the specified type, including derived types. Useful for ExternalForceIndex parameters in SetExternalForce*Property, StartProceduralWindBlow, and similar APIs.
 	 * The threading contract is the same as other runtime access APIs: BlueprintThreadSafe in a node evaluation context, or GameThread while not evaluating.
 	 * @param KawaiiPhysics 対象の KawaiiPhysics ノード参照 / Target KawaiiPhysics node reference.
 	 * @param StructType 検索する外力型 / External force struct type to find.

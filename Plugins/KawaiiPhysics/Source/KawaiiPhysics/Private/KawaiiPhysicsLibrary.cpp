@@ -18,6 +18,7 @@
 #include "HAL/IConsoleManager.h"
 #include "KawaiiPhysics.h"
 #include "KawaiiPhysicsWindPresetDataAsset.h"
+#include "UObject/ScriptInterface.h"
 #include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(KawaiiPhysicsLibrary)
@@ -107,8 +108,30 @@ namespace
 			return ObjectProperty->GetObjectPropertyValue(ValuePtr) != nullptr;
 		}
 
+		if (CastField<FSoftObjectProperty>(Property) || CastField<FWeakObjectProperty>(Property) ||
+			CastField<FLazyObjectProperty>(Property))
+		{
+			// Soft/Weak/Lazy は UObject を生存させないため live 参照として扱わない。
+			return false;
+		}
+
+		if (const FInterfaceProperty* InterfaceProperty = CastField<FInterfaceProperty>(Property))
+		{
+			// TScriptInterface は UObject ポインタを保持するため、transient ストアでは GC 追跡外になる。
+			const FScriptInterface* Interface = static_cast<const FScriptInterface*>(ValuePtr);
+			return Interface && Interface->GetObject() != nullptr;
+		}
+
 		if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 		{
+			if (StructProperty->Struct == FInstancedStruct::StaticStruct())
+			{
+				// FInstancedStruct のペイロードは反射フィールドに現れないため中身へ再帰する
+				const FInstancedStruct* Nested = static_cast<const FInstancedStruct*>(ValuePtr);
+				return Nested && Nested->IsValid() &&
+					StructMemoryHasLiveObjectReference(Nested->GetScriptStruct(), Nested->GetMemory());
+			}
+
 			return StructMemoryHasLiveObjectReference(StructProperty->Struct, ValuePtr);
 		}
 
@@ -182,6 +205,17 @@ namespace
 	                               const FKawaiiProceduralWindDynamicParams& Params)
 	{
 		ProceduralWind.RequestDynamicParams(Params);
+		return true;
+	}
+
+	// 検証済み前提の単一ノードキュー。公開 API は必ず CanQueueTransientExternalForce を通した後にこれを呼ぶ
+	bool QueueTransientExternalForceToNodeUnchecked(FAnimNode_KawaiiPhysics& Node,
+	                                                const FInstancedStruct& ExternalForce,
+	                                                const float LifetimeSeconds,
+	                                                const int64 HandleId)
+	{
+		FInstancedStruct ExternalForceCopy = ExternalForce;
+		Node.RequestTransientExternalForce(MoveTemp(ExternalForceCopy), LifetimeSeconds, HandleId);
 		return true;
 	}
 
@@ -322,6 +356,66 @@ float KawaiiPhysics::EvaluateEnvelopeAlpha01(const float RiseTime, const float H
 bool KawaiiPhysics::StructInstanceHasLiveObjectReference(const UScriptStruct* Struct, const void* StructMemory)
 {
 	return StructMemoryHasLiveObjectReference(Struct, StructMemory);
+}
+
+// transientストアはGC追跡外のため、UObject参照を保持する外力はここで拒否する
+bool KawaiiPhysics::CanQueueTransientExternalForce(const FInstancedStruct& ExternalForce, const TCHAR* ContextName)
+{
+	if (!ExternalForce.IsValid())
+	{
+		return false;
+	}
+
+	const UScriptStruct* ScriptStruct = ExternalForce.GetScriptStruct();
+	if (!ScriptStruct || !ScriptStruct->IsChildOf(FKawaiiPhysics_ExternalForce::StaticStruct()))
+	{
+		return false;
+	}
+
+	if (StructInstanceHasLiveObjectReference(ScriptStruct, ExternalForce.GetMemory()))
+	{
+		UE_LOG(LogKawaiiPhysics, Warning,
+		       TEXT("%s: transient force storage is not GC-tracked; rejected a force containing live UObject references (e.g. ExternalOwner or curve assets). Clear the references or use the authored ExternalForces array instead."),
+		       ContextName);
+		return false;
+	}
+
+	return true;
+}
+
+// 複数ノードへ同一ハンドルで一時外力をキューイングする
+int32 KawaiiPhysics::QueueTransientExternalForceToNodes(TArrayView<FAnimNode_KawaiiPhysics* const> Nodes,
+                                                        const FInstancedStruct& ExternalForce,
+                                                        const float LifetimeSeconds,
+                                                        FKawaiiPhysicsTransientForceHandle& OutHandle)
+{
+	OutHandle.Id = 0;
+	if (!CanQueueTransientExternalForce(ExternalForce, TEXT("QueueTransientExternalForceToNodes")))
+	{
+		return 0;
+	}
+
+	const int64 HandleId = FAnimNode_KawaiiPhysics::GenerateTransientForceHandleId();
+	int32 AppliedNodeCount = 0;
+	for (FAnimNode_KawaiiPhysics* Node : Nodes)
+	{
+		if (!Node)
+		{
+			continue;
+		}
+
+		if (QueueTransientExternalForceToNodeUnchecked(*Node, ExternalForce, LifetimeSeconds, HandleId))
+		{
+			++AppliedNodeCount;
+		}
+	}
+
+	if (AppliedNodeCount > 0)
+	{
+		OutHandle.Id = HandleId;
+	}
+
+	return AppliedNodeCount;
 }
 
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::ConvertToKawaiiPhysics(const FAnimNodeReference& Node,
@@ -774,21 +868,8 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::AddTransientExternalForce(
 	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
 	OutHandle.Id = 0;
 
-	if (!ExternalForce.IsValid())
+	if (!::KawaiiPhysics::CanQueueTransientExternalForce(ExternalForce, TEXT("AddTransientExternalForce")))
 	{
-		return KawaiiPhysics;
-	}
-
-	const UScriptStruct* ScriptStruct = ExternalForce.GetScriptStruct();
-	if (!ScriptStruct || !ScriptStruct->IsChildOf(FKawaiiPhysics_ExternalForce::StaticStruct()))
-	{
-		return KawaiiPhysics;
-	}
-
-	if (::KawaiiPhysics::StructInstanceHasLiveObjectReference(ScriptStruct, ExternalForce.GetMemory()))
-	{
-		UE_LOG(LogKawaiiPhysics, Warning,
-		       TEXT("AddTransientExternalForce: transient force storage is not GC-tracked; rejected a force containing live UObject references (e.g. ExternalOwner or curve assets). Clear the references or use the authored ExternalForces array instead."));
 		return KawaiiPhysics;
 	}
 
@@ -799,8 +880,11 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::AddTransientExternalForce(
 		[&ExecResult, ExternalForce = MoveTemp(ExternalForce), LifetimeSeconds, HandleId](
 			FAnimNode_KawaiiPhysics& InKawaiiPhysics) mutable
 		{
-			InKawaiiPhysics.RequestTransientExternalForce(MoveTemp(ExternalForce), LifetimeSeconds, HandleId);
-			ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
+			if (QueueTransientExternalForceToNodeUnchecked(InKawaiiPhysics, ExternalForce, LifetimeSeconds,
+			                                                HandleId))
+			{
+				ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
+			}
 		});
 
 	if (ExecResult == EKawaiiPhysicsAccessExternalForceResult::Valid)
@@ -811,33 +895,50 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::AddTransientExternalForce(
 	return KawaiiPhysics;
 }
 
-// 一時ProceduralWindとして突風をノードへキューイングする
-FKawaiiPhysicsReference UKawaiiPhysicsLibrary::TriggerProceduralWindGust(
-	EKawaiiPhysicsAccessExternalForceResult& ExecResult,
-	const FKawaiiPhysicsReference& KawaiiPhysics,
-	const int32 ExternalForceIndex,
-	const float Strength,
-	const float RiseTime,
-	const float DecayTime,
-	const FVector GustDirection,
-	const float HoldTime)
+// Component内の対象ノードへ停止ハンドル付きの一時外力をキューイングする
+int32 UKawaiiPhysicsLibrary::AddTransientExternalForceOnComponent(
+	USkeletalMeshComponent* MeshComp,
+	FKawaiiPhysicsTransientForceHandle& OutHandle,
+	FInstancedStruct ExternalForce,
+	const float LifetimeSeconds,
+	const FGameplayTagContainer& FilterTags,
+	const bool bFilterExactMatch)
 {
-	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
+	OutHandle.Id = 0;
+	if (!::KawaiiPhysics::CanQueueTransientExternalForce(ExternalForce, TEXT("AddTransientExternalForceOnComponent")))
+	{
+		return 0;
+	}
 
-	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-		TEXT("TriggerProceduralWindGust"),
-		[&ExecResult, ExternalForceIndex, Strength, RiseTime, DecayTime, GustDirection, HoldTime](
-			FAnimNode_KawaiiPhysics& InKawaiiPhysics)
-		{
-			InKawaiiPhysics.RequestTransientGust(Strength, RiseTime, DecayTime, GustDirection, ExternalForceIndex,
-			                                     HoldTime);
-			ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
-		});
+	const int64 HandleId = FAnimNode_KawaiiPhysics::GenerateTransientForceHandleId();
+	int32 AppliedNodeCount = 0;
 
-	return KawaiiPhysics;
+	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
+	CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, MeshComp, FilterTags, bFilterExactMatch);
+	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
+	{
+		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("AddTransientExternalForceOnComponent"),
+			[&AppliedNodeCount, &ExternalForce, LifetimeSeconds, HandleId](
+				FAnimNode_KawaiiPhysics& InKawaiiPhysics) mutable
+			{
+				if (QueueTransientExternalForceToNodeUnchecked(InKawaiiPhysics, ExternalForce, LifetimeSeconds,
+				                                                HandleId))
+				{
+					++AppliedNodeCount;
+				}
+			});
+	}
+
+	if (AppliedNodeCount > 0)
+	{
+		OutHandle.Id = HandleId;
+	}
+
+	return AppliedNodeCount;
 }
 
-// 停止ハンドル付きの実時間Blowをノードへキューイングする
+// 停止ハンドル付きのBlowをノードへキューイングする
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::StartProceduralWindBlow(
 	EKawaiiPhysicsAccessExternalForceResult& ExecResult,
 	FKawaiiPhysicsTransientForceHandle& OutHandle,
@@ -847,7 +948,8 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::StartProceduralWindBlow(
 	const float RiseTime,
 	const float DecayTime,
 	const FVector GustDirection,
-	const int32 ExternalForceIndex)
+	const int32 ExternalForceIndex,
+	const bool bRealTimeEnvelope)
 {
 	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
 	OutHandle.Id = 0;
@@ -858,11 +960,12 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::StartProceduralWindBlow(
 
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 		TEXT("StartProceduralWindBlow"),
-		[&ExecResult, Strength, Envelope, GustDirection, ExternalForceIndex, HandleId](
+		[&ExecResult, Strength, Envelope, GustDirection, ExternalForceIndex, HandleId, bRealTimeEnvelope](
 			FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 		{
 			InKawaiiPhysics.RequestTransientGust(Strength, Envelope.RiseTime, Envelope.DecayTime, GustDirection,
-			                                     ExternalForceIndex, Envelope.HoldTime, HandleId, true);
+			                                     ExternalForceIndex, Envelope.HoldTime, HandleId,
+			                                     bRealTimeEnvelope);
 			ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
 		});
 
@@ -934,39 +1037,7 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::GetProceduralWindParameters(
 	return KawaiiPhysics;
 }
 
-// Component内の対象ノード（Tagフィルタ適用）を走査し、一時ProceduralWindとして突風をキューイングする
-int32 UKawaiiPhysicsLibrary::TriggerProceduralWindGustOnComponent(
-	USkeletalMeshComponent* MeshComp,
-	const float Strength,
-	const float RiseTime,
-	const float DecayTime,
-	const FGameplayTagContainer& FilterTags,
-	const bool bFilterExactMatch,
-	const FVector GustDirection,
-	const float HoldTime)
-{
-	int32 AppliedNodeCount = 0;
-
-	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
-	CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, MeshComp, FilterTags, bFilterExactMatch);
-	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
-	{
-		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-			TEXT("TriggerProceduralWindGustOnComponent"),
-			[&AppliedNodeCount, Strength, RiseTime, DecayTime, GustDirection, HoldTime](
-				FAnimNode_KawaiiPhysics& InKawaiiPhysics)
-			{
-				InKawaiiPhysics.RequestTransientGust(Strength, RiseTime, DecayTime, GustDirection,
-				                                     FAnimNode_KawaiiPhysics::TransientGustInheritAllWinds,
-				                                     HoldTime);
-				++AppliedNodeCount;
-			});
-	}
-
-	return AppliedNodeCount;
-}
-
-// Component内の対象ノードへ停止ハンドル付きの実時間Blowをキューイングする
+// Component内の対象ノードへ停止ハンドル付きのBlowをキューイングする
 int32 UKawaiiPhysicsLibrary::StartProceduralWindBlowOnComponent(
 	USkeletalMeshComponent* MeshComp,
 	FKawaiiPhysicsTransientForceHandle& OutHandle,
@@ -976,7 +1047,8 @@ int32 UKawaiiPhysicsLibrary::StartProceduralWindBlowOnComponent(
 	const float DecayTime,
 	const FGameplayTagContainer& FilterTags,
 	const bool bFilterExactMatch,
-	const FVector GustDirection)
+	const FVector GustDirection,
+	const bool bRealTimeEnvelope)
 {
 	OutHandle.Id = 0;
 	int32 AppliedNodeCount = 0;
@@ -991,12 +1063,12 @@ int32 UKawaiiPhysicsLibrary::StartProceduralWindBlowOnComponent(
 	{
 		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 			TEXT("StartProceduralWindBlowOnComponent"),
-			[&AppliedNodeCount, Strength, Envelope, GustDirection, HandleId](
+			[&AppliedNodeCount, Strength, Envelope, GustDirection, HandleId, bRealTimeEnvelope](
 				FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 			{
 				InKawaiiPhysics.RequestTransientGust(Strength, Envelope.RiseTime, Envelope.DecayTime, GustDirection,
 				                                     FAnimNode_KawaiiPhysics::TransientGustInheritAllWinds,
-				                                     Envelope.HoldTime, HandleId, true);
+				                                     Envelope.HoldTime, HandleId, bRealTimeEnvelope);
 				++AppliedNodeCount;
 			});
 	}

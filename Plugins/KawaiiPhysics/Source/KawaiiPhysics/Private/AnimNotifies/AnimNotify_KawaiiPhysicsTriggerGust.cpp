@@ -31,10 +31,12 @@ void UAnimNotify_KawaiiPhysicsTriggerGust::Notify(USkeletalMeshComponent* MeshCo
 		return;
 	}
 
-	// タグでフィルタしつつ、Component内の対象ノードへ突風をキューイングする
-	UKawaiiPhysicsLibrary::TriggerProceduralWindGustOnComponent(MeshComp, Strength, RiseTime, DecayTime,
-	                                                            FilterTags, bFilterExactMatch, GustDirection,
-	                                                            HoldTime);
+	// Notify は Blow API の Trigger 型オーサリングラッパ。Hold は旧 Trigger 経路と同じく 0 クランプし、Duration = Rise + Hold + Decay で渡し、wind 時間で進行させる
+	FKawaiiPhysicsTransientForceHandle DiscardedHandle;
+	UKawaiiPhysicsLibrary::StartProceduralWindBlowOnComponent(MeshComp, DiscardedHandle, Strength,
+	                                                          RiseTime + FMath::Max(HoldTime, 0.0f) + DecayTime, RiseTime,
+	                                                          DecayTime, FilterTags, bFilterExactMatch,
+	                                                          GustDirection, /*bRealTimeEnvelope=*/false);
 
 	Super::Notify(MeshComp, Animation, EventReference);
 }

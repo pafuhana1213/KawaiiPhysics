@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: KawaiiPhysics\n"
-"POT-Creation-Date: 2026-08-25 06:35\n"
-"PO-Revision-Date: 2026-08-25 06:35\n"
+"POT-Creation-Date: 2026-08-26 03:56\n"
+"PO-Revision-Date: 2026-08-26 03:56\n"
 "Language-Team: \n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
@@ -1963,8 +1963,8 @@ msgstr ""
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind [ScriptStruct ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind [ScriptStruct ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_ProceduralWind"
-msgid "パラメトリック合成風。UE の WindDirectionalSource に依存しない。\n合成式: Total = (Constant + Sway + Ripple) × StrengthCycle + Random + Gust（Gust は TriggerProceduralWindGust API から発生）\nParametric synthesized wind. This does not depend on UE WindDirectionalSource.\nComposition: Total = (Constant + Sway + Ripple) x StrengthCycle + Random + Gust (Gust is triggered via the TriggerProceduralWindGust API)."
-msgstr "パラメトリック合成風。UE の WindDirectionalSource に依存しない。\n合成式: Total = (Constant + Sway + Ripple) × StrengthCycle + Random + Gust（Gust は TriggerProceduralWindGust API から発生）"
+msgid "パラメトリック合成風。UE の WindDirectionalSource に依存しない。\n合成式: Total = (Constant + Sway + Ripple) × StrengthCycle + Random + Gust（Gust は StartProceduralWindBlow API から発生）\nParametric synthesized wind. This does not depend on UE WindDirectionalSource.\nComposition: Total = (Constant + Sway + Ripple) x StrengthCycle + Random + Gust (Gust is triggered via the StartProceduralWindBlow API)."
+msgstr "パラメトリック合成風。UE の WindDirectionalSource に依存しない。\n合成式: Total = (Constant + Sway + Ripple) × StrengthCycle + Random + Gust（Gust は StartProceduralWindBlow API から発生）"
 
 #. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:ConstantForce
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:ConstantForce [FloatProperty DisplayName meta-data]
@@ -3240,13 +3240,6 @@ msgctxt "UObjectToolTips,KawaiiPhysicsSyncBone:bEnableDistanceAttenuation"
 msgid "SyncBoneとの距離に応じてTargetへの適用量(Alpha)を減衰させる設定\nAttenuation of application amount(Alpha) based on distance from SyncBone to each Target"
 msgstr "SyncBoneとの距離に応じてTargetへの適用量(Alpha)を減衰させる設定"
 
-#. Key:	Sync Bone
-#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty Category meta-data]
-#: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty Category meta-data]
-msgctxt "UObjectCategory,Sync Bone"
-msgid "Sync Bone"
-msgstr "同期ボーン"
-
 #. Key:	KawaiiPhysicsSyncBone:Bone
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty DisplayName meta-data]
@@ -3505,6 +3498,13 @@ msgstr "子Target（プレビュー）"
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncTargetRoot:ChildTargets"
 msgid "適用対象である子ボーン\nChild bones that are targets for application"
 msgstr "適用対象である子ボーン"
+
+#. Key:	Sync Bone
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty Category meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty Category meta-data]
+msgctxt "UObjectCategory,Sync Bone"
+msgid "Sync Bone"
+msgstr "同期ボーン"
 
 #. Key:	KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty DisplayName meta-data]
@@ -5712,46 +5712,25 @@ msgid "Add Kawaii Physics Settings Override Track"
 msgstr "Kawaii Physics 設定オーバーライドトラックを追加"
 
 #. Key:	AddKawaiiPhysicsSettingsOverrideRootTrackTransaction
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(324)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(324)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(330)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(330)
 msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,AddKawaiiPhysicsSettingsOverrideRootTrackTransaction"
 msgid "Add Kawaii Physics Settings Override Root Track"
 msgstr "Kawaii Physics 設定オーバーライドのルートトラックを追加"
 
 #. Key:	RootTrackNoFilterWarningFormat
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(446)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(446)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(462)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(462)
 msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,RootTrackNoFilterWarningFormat"
 msgid "{0}{1}"
 msgstr ""
 
 #. Key:	RootTrackNoFilterWarning
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(447)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(447)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(463)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(463)
 msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,RootTrackNoFilterWarning"
 msgid "[Filter Tags required] "
 msgstr "[Filter Tags が必要] "
-
-#. Key:	NoMatchSuffix
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(458)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(458)
-msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,NoMatchSuffix"
-msgid " (no match)"
-msgstr " (一致なし)"
-
-#. Key:	NodeCountSuffix
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(462)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(462)
-msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,NodeCountSuffix"
-msgid " ({0} nodes)"
-msgstr " ({0} ノード)"
-
-#. Key:	SectionTitleWithNodeCountSuffix
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(468)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(468)
-msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,SectionTitleWithNodeCountSuffix"
-msgid "{0}{1}"
-msgstr ""
 
 #. Key:	PresetStiff
 #. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(47)
@@ -5760,12 +5739,19 @@ msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,PresetStiff"
 msgid "Stiff"
 msgstr "硬め"
 
-#. Key:	SectionTitleWithTags
+#. Key:	NoMatchSuffix
 #. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(474)
 #: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(474)
-msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,SectionTitleWithTags"
-msgid "{0} {1}"
-msgstr ""
+msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,NoMatchSuffix"
+msgid " (no match)"
+msgstr " (一致なし)"
+
+#. Key:	NodeCountSuffix
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(478)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(478)
+msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,NodeCountSuffix"
+msgid " ({0} nodes)"
+msgstr " ({0} ノード)"
 
 #. Key:	PresetLoose
 #. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(48)
@@ -5774,6 +5760,13 @@ msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,PresetLoose"
 msgid "Loose"
 msgstr "柔らかめ"
 
+#. Key:	SectionTitleWithNodeCountSuffix
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(484)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(484)
+msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,SectionTitleWithNodeCountSuffix"
+msgid "{0}{1}"
+msgstr ""
+
 #. Key:	PresetFreeze
 #. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(49)
 #: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(49)
@@ -5781,44 +5774,51 @@ msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,PresetFreeze"
 msgid "Freeze"
 msgstr "固定"
 
+#. Key:	SectionTitleWithTags
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(490)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(490)
+msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,SectionTitleWithTags"
+msgid "{0} {1}"
+msgstr ""
+
 #. Key:	SectionMenuHeader
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(563)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(563)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(579)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(579)
 msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,SectionMenuHeader"
 msgid "Kawaii Physics"
 msgstr ""
 
 #. Key:	ResetScale
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(565)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(565)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(581)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(581)
 msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,ResetScale"
 msgid "Reset Scale to 1.0"
 msgstr "倍率を 1.0 にリセット"
 
 #. Key:	ResetScaleTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(566)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(566)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(582)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(582)
 msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,ResetScaleTooltip"
 msgid "Removes all keys from the six scale channels and resets their defaults to 1.0."
 msgstr "6 つの倍率チャンネルの全キーを削除し、既定値を 1.0 に戻します。"
 
 #. Key:	ResetScaleTransaction
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(575)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(575)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(591)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(591)
 msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,ResetScaleTransaction"
 msgid "Reset Kawaii Physics Scale"
 msgstr "Kawaii Physics 倍率をリセット"
 
 #. Key:	ApplyPreset
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(580)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(580)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(596)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(596)
 msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,ApplyPreset"
 msgid "Apply Preset"
 msgstr "プリセットを適用"
 
 #. Key:	ApplyPresetTransaction
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(598)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(598)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(614)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.cpp(614)
 msgctxt "FKawaiiPhysicsSettingsOverrideTrackEditor,ApplyPresetTransaction"
 msgid "Apply Kawaii Physics Scale Preset"
 msgstr "Kawaii Physics 倍率プリセットを適用"

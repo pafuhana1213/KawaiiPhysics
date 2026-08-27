@@ -236,9 +236,9 @@ struct FKawaiiProceduralWindRuntimeState
 ///
 /**
 * パラメトリック合成風。UE の WindDirectionalSource に依存しない。
-* 合成式: Total = (Constant + Sway + Ripple) × StrengthCycle + Random + Gust（Gust は TriggerProceduralWindGust API から発生）
+* 合成式: Total = (Constant + Sway + Ripple) × StrengthCycle + Random + Gust（Gust は StartProceduralWindBlow API から発生）
 * Parametric synthesized wind. This does not depend on UE WindDirectionalSource.
-* Composition: Total = (Constant + Sway + Ripple) x StrengthCycle + Random + Gust (Gust is triggered via the TriggerProceduralWindGust API).
+* Composition: Total = (Constant + Sway + Ripple) x StrengthCycle + Random + Gust (Gust is triggered via the StartProceduralWindBlow API).
 */
 USTRUCT(BlueprintType, DisplayName = "Procedural Wind")
 struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FKawaiiPhysics_ExternalForce
