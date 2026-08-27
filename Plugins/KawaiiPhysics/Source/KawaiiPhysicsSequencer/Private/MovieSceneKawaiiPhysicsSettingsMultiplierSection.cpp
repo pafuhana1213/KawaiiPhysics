@@ -1,25 +1,25 @@
 // Copyright 2019-2026 pafuhana1213. All Rights Reserved.
 
-#include "MovieSceneKawaiiPhysicsSettingsOverrideSection.h"
+#include "MovieSceneKawaiiPhysicsSettingsMultiplierSection.h"
 
 #include "Channels/MovieSceneChannelEditorData.h"
 #include "Channels/MovieSceneChannelProxy.h"
-#include "MovieSceneKawaiiPhysicsSettingsOverrideChannels.h"
-#include "KawaiiPhysicsSequencerOverrideRegistry.h"
+#include "MovieSceneKawaiiPhysicsSettingsMultiplierChannels.h"
+#include "KawaiiPhysicsSequencerMultiplierRegistry.h"
 #include "MovieSceneTrack.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneKawaiiPhysicsSettingsOverrideSection)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneKawaiiPhysicsSettingsMultiplierSection)
 
-#define LOCTEXT_NAMESPACE "MovieSceneKawaiiPhysicsSettingsOverrideSection"
+#define LOCTEXT_NAMESPACE "MovieSceneKawaiiPhysicsSettingsMultiplierSection"
 
-UMovieSceneKawaiiPhysicsSettingsOverrideSection::UMovieSceneKawaiiPhysicsSettingsOverrideSection(
+UMovieSceneKawaiiPhysicsSettingsMultiplierSection::UMovieSceneKawaiiPhysicsSettingsMultiplierSection(
 	const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// SetBlendType は Outer Track の対応 BlendType を見るため、CDO でも確実に設定できるよう直接代入する
 	BlendType = EMovieSceneBlendType::Absolute;
 
-	// 外部駆動オーバーライドは区間終了時に Stop するため、KeepState は意味を持たせない
+	// 外部駆動倍率は区間終了時に Stop するため、KeepState は意味を持たせない
 	EvalOptions.EnableAndSetCompletionMode(EMovieSceneCompletionMode::RestoreState);
 	EvalOptions.bCanEditCompletionMode = false;
 
@@ -70,14 +70,14 @@ UMovieSceneKawaiiPhysicsSettingsOverrideSection::UMovieSceneKawaiiPhysicsSetting
 	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(MoveTemp(Channels));
 }
 
-float UMovieSceneKawaiiPhysicsSettingsOverrideSection::EvaluateWeightAtTime(const FFrameTime InTime) const
+float UMovieSceneKawaiiPhysicsSettingsMultiplierSection::EvaluateWeightAtTime(const FFrameTime InTime) const
 {
 	float WeightValue = 1.0f;
 	Weight.Evaluate(InTime, WeightValue);
 	return FMath::Clamp(WeightValue, 0.0f, 1.0f) * EvaluateEasing(InTime);
 }
 
-FKawaiiPhysicsSettingsScale UMovieSceneKawaiiPhysicsSettingsOverrideSection::EvaluateScaleAtTime(
+FKawaiiPhysicsSettingsMultiplier UMovieSceneKawaiiPhysicsSettingsMultiplierSection::EvaluateScaleAtTime(
 	const FFrameTime InTime) const
 {
 	const FMovieSceneFloatChannel* const Channels[6] = {
@@ -91,21 +91,21 @@ FKawaiiPhysicsSettingsScale UMovieSceneKawaiiPhysicsSettingsOverrideSection::Eva
 	return KawaiiPhysicsSequencer::EvaluateKawaiiPhysicsScaleChannels(Channels, InTime);
 }
 
-void UMovieSceneKawaiiPhysicsSettingsOverrideSection::BeginDestroy()
+void UMovieSceneKawaiiPhysicsSettingsMultiplierSection::BeginDestroy()
 {
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(this);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().StopForSection(this);
 	Super::BeginDestroy();
 }
 
 #if WITH_EDITOR
-void UMovieSceneKawaiiPhysicsSettingsOverrideSection::PostEditUndo()
+void UMovieSceneKawaiiPhysicsSettingsMultiplierSection::PostEditUndo()
 {
 	Super::PostEditUndo();
 
 	const UMovieSceneTrack* Track = GetTypedOuter<UMovieSceneTrack>();
 	if (!Track || !Track->GetAllSections().Contains(this))
 	{
-		FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(this);
+		FKawaiiPhysicsSequencerMultiplierRegistry::Get().StopForSection(this);
 	}
 }
 #endif

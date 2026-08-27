@@ -2,15 +2,15 @@
 
 #pragma once
 
-#include "MovieSceneKawaiiPhysicsSettingsOverrideSection.h"
+#include "MovieSceneKawaiiPhysicsSettingsMultiplierSection.h"
 
 /**
- * Kawaii Physics Settings Override セクションへ設定倍率プリセットを適用する
- * Applies a settings multiplier preset to a Kawaii Physics Settings Override section.
+ * Kawaii Physics Settings Multiplier セクションへ設定倍率プリセットを適用する
+ * Applies a settings multiplier preset to a Kawaii Physics Settings Multiplier section.
  */
 inline void ApplyKawaiiPhysicsScalePresetToSection(
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection& Section,
-	const FKawaiiPhysicsSettingsScale& Scale)
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection& Section,
+	const FKawaiiPhysicsSettingsMultiplier& Scale)
 {
 	Section.Damping.Reset();
 	Section.Damping.SetDefault(Scale.Damping);

@@ -6,21 +6,21 @@
 #include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneNameableTrack.h"
 
-#include "MovieSceneKawaiiPhysicsSettingsOverrideTrack.generated.h"
+#include "MovieSceneKawaiiPhysicsSettingsMultiplierTrack.generated.h"
 
 /**
  * Kawaii Physics 設定倍率を Sequencer から駆動するトラック。
  * 同一 SkeletalMeshComponent に複数セクション/トラックが重なる場合、倍率は成分ごとに乗算合成される / Overlapping sections or tracks on the same component multiply their scales per component
  */
 UCLASS(MinimalAPI)
-class UMovieSceneKawaiiPhysicsSettingsOverrideTrack
+class UMovieSceneKawaiiPhysicsSettingsMultiplierTrack
 	: public UMovieSceneNameableTrack
 	, public IMovieSceneTrackTemplateProducer
 {
 	GENERATED_BODY()
 
 public:
-	UMovieSceneKawaiiPhysicsSettingsOverrideTrack(const FObjectInitializer& ObjectInitializer);
+	UMovieSceneKawaiiPhysicsSettingsMultiplierTrack(const FObjectInitializer& ObjectInitializer);
 
 	// バインディング無しのルートトラックとして追加された場合 true。再生コンテキストの World 内の全 SkeletalMeshComponent を対象にする / True when added as a root track without an object binding; targets every SkeletalMeshComponent in the playback world
 	UPROPERTY()

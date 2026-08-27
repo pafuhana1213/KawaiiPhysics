@@ -1,6 +1,6 @@
 // Copyright 2019-2026 pafuhana1213. All Rights Reserved.
 
-#include "MovieSceneKawaiiPhysicsSettingsOverrideTemplate.h"
+#include "MovieSceneKawaiiPhysicsSettingsMultiplierTemplate.h"
 
 #include "AnimNode_KawaiiPhysics.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -10,20 +10,20 @@
 #include "GameFramework/Actor.h"
 #include "IMovieScenePlayer.h"
 #include "KawaiiPhysicsLibrary.h"
-#include "KawaiiPhysicsSequencerOverrideRegistry.h"
+#include "KawaiiPhysicsSequencerMultiplierRegistry.h"
 #include "MovieSceneExecutionToken.h"
-#include "MovieSceneKawaiiPhysicsSettingsOverrideChannels.h"
-#include "MovieSceneKawaiiPhysicsSettingsOverrideSection.h"
-#include "MovieSceneKawaiiPhysicsSettingsOverrideTrack.h"
+#include "MovieSceneKawaiiPhysicsSettingsMultiplierChannels.h"
+#include "MovieSceneKawaiiPhysicsSettingsMultiplierSection.h"
+#include "MovieSceneKawaiiPhysicsSettingsMultiplierTrack.h"
 #include "UObject/UObjectIterator.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneKawaiiPhysicsSettingsOverrideTemplate)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneKawaiiPhysicsSettingsMultiplierTemplate)
 
 namespace
 {
 struct FSectionData : IPersistentEvaluationData
 {
-	TMap<TWeakObjectPtr<USkeletalMeshComponent>, TSharedRef<FKawaiiPhysicsSequencerOverrideEntry>> Entries;
+	TMap<TWeakObjectPtr<USkeletalMeshComponent>, TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry>> Entries;
 	TSet<TWeakObjectPtr<USkeletalMeshComponent>> PreAnimatedSavedComponents;
 	TSharedRef<uint8> InstanceOwner = MakeShared<uint8>(0);
 	TArray<TWeakObjectPtr<USkeletalMeshComponent>> RootScanCache;
@@ -32,7 +32,7 @@ struct FSectionData : IPersistentEvaluationData
 
 	virtual ~FSectionData() override
 	{
-		for (const TPair<TWeakObjectPtr<USkeletalMeshComponent>, TSharedRef<FKawaiiPhysicsSequencerOverrideEntry>>& Pair :
+		for (const TPair<TWeakObjectPtr<USkeletalMeshComponent>, TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry>>& Pair :
 		     Entries)
 		{
 			Pair.Value->Stop();
@@ -124,11 +124,11 @@ struct FPreAnimatedToken : IMovieScenePreAnimatedToken
 			const USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(&Object);
 			if (Component)
 			{
-				FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(Section, Owner, Component);
+				FKawaiiPhysicsSequencerMultiplierRegistry::Get().StopForSection(Section, Owner, Component);
 			}
 			else
 			{
-				FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(Section, Owner);
+				FKawaiiPhysicsSequencerMultiplierRegistry::Get().StopForSection(Section, Owner);
 			}
 		}
 	}
@@ -156,7 +156,7 @@ struct FPreAnimatedTokenProducer : IMovieScenePreAnimatedTokenProducer
 
 struct FExecutionToken : IMovieSceneExecutionToken
 {
-	FExecutionToken(const FKawaiiPhysicsSettingsScale& InScale, const float InAlpha,
+	FExecutionToken(const FKawaiiPhysicsSettingsMultiplier& InScale, const float InAlpha,
 	                const FGameplayTagContainer& InFilterTags, const bool bInFilterExactMatch,
 	                const float InBlendOutTime, const FMovieSceneAnimTypeID InAnimTypeID,
 	                const UMovieSceneSection* InSourceSection, const bool bInIsRootTrack)
@@ -226,7 +226,7 @@ struct FExecutionToken : IMovieSceneExecutionToken
 			}
 
 			const TWeakObjectPtr<USkeletalMeshComponent> ComponentKey(Component);
-			TSharedRef<FKawaiiPhysicsSequencerOverrideEntry>* ExistingEntry = Data.Entries.Find(ComponentKey);
+			TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry>* ExistingEntry = Data.Entries.Find(ComponentKey);
 			if (ExistingEntry && (*ExistingEntry)->bStopped)
 			{
 				// 停止済み Entry を再駆動すると以後の Stop が no-op になるため破棄して作り直す
@@ -244,8 +244,8 @@ struct FExecutionToken : IMovieSceneExecutionToken
 				ExistingEntry = nullptr;
 			}
 
-			TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> Entry =
-				ExistingEntry ? *ExistingEntry : MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
+			TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> Entry =
+				ExistingEntry ? *ExistingEntry : MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
 			if (!ExistingEntry)
 			{
 				Entry->Component = Component;
@@ -258,7 +258,7 @@ struct FExecutionToken : IMovieSceneExecutionToken
 
 				if (const UMovieSceneSection* Section = SourceSection.Get())
 				{
-					FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(Section, Entry);
+					FKawaiiPhysicsSequencerMultiplierRegistry::Get().Register(Section, Entry);
 				}
 			}
 
@@ -274,7 +274,7 @@ struct FExecutionToken : IMovieSceneExecutionToken
 
 			const int32 PreviousQueuedNodeCount = Entry->LastQueuedNodeCount;
 			const int32 NewQueuedNodeCount =
-				UKawaiiPhysicsLibrary::SetPhysicsSettingsOverrideOnComponent(Component, Entry->Handle, Scale, Alpha,
+				UKawaiiPhysicsLibrary::PushPhysicsSettingsMultiplierOnComponent(Component, Entry->Handle, Scale, Alpha,
 				                                                             FilterTags, bFilterExactMatch);
 			Entry->LastQueuedNodeCount = NewQueuedNodeCount;
 			if (PreviousQueuedNodeCount > 0 && NewQueuedNodeCount == 0)
@@ -297,7 +297,7 @@ struct FExecutionToken : IMovieSceneExecutionToken
 		}
 	}
 
-	FKawaiiPhysicsSettingsScale Scale;
+	FKawaiiPhysicsSettingsMultiplier Scale;
 	float Alpha = 1.0f;
 	FGameplayTagContainer FilterTags;
 	bool bFilterExactMatch = false;
@@ -308,9 +308,9 @@ struct FExecutionToken : IMovieSceneExecutionToken
 };
 }
 
-FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate::
-FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate(
-	const UMovieSceneKawaiiPhysicsSettingsOverrideSection& Section)
+FMovieSceneKawaiiPhysicsSettingsMultiplierSectionTemplate::
+FMovieSceneKawaiiPhysicsSettingsMultiplierSectionTemplate(
+	const UMovieSceneKawaiiPhysicsSettingsMultiplierSection& Section)
 	: Damping(Section.Damping)
 	, Stiffness(Section.Stiffness)
 	, WorldDampingLocation(Section.WorldDampingLocation)
@@ -323,8 +323,8 @@ FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate(
 	, BlendOutTimeOnEnd(Section.BlendOutTimeOnEnd)
 	, bIsRootTrack(false)
 {
-	if (const UMovieSceneKawaiiPhysicsSettingsOverrideTrack* Track =
-		Section.GetTypedOuter<UMovieSceneKawaiiPhysicsSettingsOverrideTrack>())
+	if (const UMovieSceneKawaiiPhysicsSettingsMultiplierTrack* Track =
+		Section.GetTypedOuter<UMovieSceneKawaiiPhysicsSettingsMultiplierTrack>())
 	{
 		bIsRootTrack = Track->bIsRootTrack;
 	}
@@ -333,7 +333,7 @@ FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate(
 	SetCompletionMode(Section.GetCompletionMode());
 }
 
-void FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate::Evaluate(
+void FMovieSceneKawaiiPhysicsSettingsMultiplierSectionTemplate::Evaluate(
 	const FMovieSceneEvaluationOperand& Operand,
 	const FMovieSceneContext& Context,
 	const FPersistentEvaluationData& PersistentData,
@@ -350,20 +350,20 @@ void FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate::Evaluate(
 		&Radius,
 		&LimitAngle
 	};
-	const FKawaiiPhysicsSettingsScale Scale =
+	const FKawaiiPhysicsSettingsMultiplier Scale =
 		KawaiiPhysicsSequencer::EvaluateKawaiiPhysicsScaleChannels(Channels, Context.GetTime());
 
 	ExecutionTokens.Add(FExecutionToken(Scale, Alpha, FilterTags, bFilterExactMatch, BlendOutTimeOnEnd, AnimTypeID,
 	                                    GetSourceSection(), bIsRootTrack));
 }
 
-void FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate::TearDown(
+void FMovieSceneKawaiiPhysicsSettingsMultiplierSectionTemplate::TearDown(
 	FPersistentEvaluationData& PersistentData,
 	IMovieScenePlayer& Player) const
 {
 	if (FSectionData* Data = PersistentData.FindSectionData<FSectionData>())
 	{
-		for (const TPair<TWeakObjectPtr<USkeletalMeshComponent>, TSharedRef<FKawaiiPhysicsSequencerOverrideEntry>>& Pair :
+		for (const TPair<TWeakObjectPtr<USkeletalMeshComponent>, TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry>>& Pair :
 		     Data->Entries)
 		{
 			Pair.Value->Stop();

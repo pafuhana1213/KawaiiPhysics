@@ -1,15 +1,15 @@
 // Copyright 2019-2026 pafuhana1213. All Rights Reserved.
 
-#include "AnimNotifies/AnimNotify_KawaiiPhysicsSettingsOverride.h"
+#include "AnimNotifies/AnimNotify_KawaiiPhysicsSettingsMultiplier.h"
 
 #include "KawaiiPhysicsLibrary.h"
 #include "Misc/UObjectToken.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotify_KawaiiPhysicsSettingsOverride)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotify_KawaiiPhysicsSettingsMultiplier)
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysics_AnimNotify"
 
-UAnimNotify_KawaiiPhysicsSettingsOverride::UAnimNotify_KawaiiPhysicsSettingsOverride(
+UAnimNotify_KawaiiPhysicsSettingsMultiplier::UAnimNotify_KawaiiPhysicsSettingsMultiplier(
 	const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -18,12 +18,12 @@ UAnimNotify_KawaiiPhysicsSettingsOverride::UAnimNotify_KawaiiPhysicsSettingsOver
 #endif
 }
 
-FString UAnimNotify_KawaiiPhysicsSettingsOverride::GetNotifyName_Implementation() const
+FString UAnimNotify_KawaiiPhysicsSettingsMultiplier::GetNotifyName_Implementation() const
 {
-	return FString(TEXT("KP: Settings Override Pulse"));
+	return FString(TEXT("KP: Settings Multiplier Pulse"));
 }
 
-void UAnimNotify_KawaiiPhysicsSettingsOverride::Notify(USkeletalMeshComponent* MeshComp,
+void UAnimNotify_KawaiiPhysicsSettingsMultiplier::Notify(USkeletalMeshComponent* MeshComp,
                                                        UAnimSequenceBase* Animation,
                                                        const FAnimNotifyEventReference& EventReference)
 {
@@ -32,9 +32,15 @@ void UAnimNotify_KawaiiPhysicsSettingsOverride::Notify(USkeletalMeshComponent* M
 		return;
 	}
 
-	// コンポーネント内の対象ノードへ時間型の物理設定倍率オーバーライドを開始する
+	// 一発 Notify に無限 Hold は許さない
+	if (Duration <= 0.0f)
+	{
+		return;
+	}
+
+	// コンポーネント内の対象ノードへ時間型の物理設定倍率を開始する
 	FKawaiiPhysicsTransientForceHandle UnusedHandle;
-	UKawaiiPhysicsLibrary::StartPhysicsSettingsOverrideOnComponent(MeshComp, UnusedHandle, SettingsScale, Duration,
+	UKawaiiPhysicsLibrary::StartPhysicsSettingsMultiplierOnComponent(MeshComp, UnusedHandle, SettingsScale, Duration,
 	                                                               BlendInTime, BlendOutTime, FilterTags,
 	                                                               bFilterExactMatch);
 
@@ -42,7 +48,7 @@ void UAnimNotify_KawaiiPhysicsSettingsOverride::Notify(USkeletalMeshComponent* M
 }
 
 #if WITH_EDITOR
-void UAnimNotify_KawaiiPhysicsSettingsOverride::ValidateAssociatedAssets()
+void UAnimNotify_KawaiiPhysicsSettingsMultiplier::ValidateAssociatedAssets()
 {
 	static const FName NAME_AssetCheck("AssetCheck");
 
@@ -53,8 +59,8 @@ void UAnimNotify_KawaiiPhysicsSettingsOverride::ValidateAssociatedAssets()
 			FMessageLog AssetCheckLog(NAME_AssetCheck);
 
 			const FText Message = FText::Format(
-				NSLOCTEXT("AnimNotify", "KawaiiPhysicsSettingsOverride_DurationNotPositive",
-				          " AnimNotify(KawaiiPhysics_SettingsOverride) Duration is 0 or less in {0}"),
+				NSLOCTEXT("AnimNotify", "KawaiiPhysicsSettingsMultiplier_DurationNotPositive",
+				          " AnimNotify(KawaiiPhysics_SettingsMultiplier) Duration is 0 or less in {0}"),
 				FText::AsCultureInvariant(ContainingAsset->GetPathName()));
 
 			AssetCheckLog.Warning()

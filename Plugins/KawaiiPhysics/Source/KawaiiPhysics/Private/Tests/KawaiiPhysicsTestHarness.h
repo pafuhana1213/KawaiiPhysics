@@ -373,14 +373,14 @@ struct FKawaiiPhysicsTestAccessor
 		Node.ResetTransientRuntimeState();
 	}
 
-	FKawaiiPhysicsSettingsScale CallComputeEffectiveSettingsOverrideScale() const
+	FKawaiiPhysicsSettingsMultiplier CallComputeEffectiveSettingsMultiplierScale() const
 	{
-		return Node.ComputeEffectivePhysicsSettingsOverrideScale();
+		return Node.ComputeEffectivePhysicsSettingsMultiplierScale();
 	}
 
 	void SetInitPhysicsSettings(bool bInit) { Node.bInitPhysicsSettings = bInit; }
-	bool IsPhysicsSettingsOverrideAppliedLastUpdate() const { return Node.bPhysicsSettingsOverrideAppliedLastUpdate; }
-	void SetPhysicsSettingsOverrideAppliedLastUpdate(const bool bValue) { Node.bPhysicsSettingsOverrideAppliedLastUpdate = bValue; }
+	bool IsPhysicsSettingsMultiplierAppliedLastUpdate() const { return Node.bPhysicsSettingsMultiplierAppliedLastUpdate; }
+	void SetPhysicsSettingsMultiplierAppliedLastUpdate(const bool bValue) { Node.bPhysicsSettingsMultiplierAppliedLastUpdate = bValue; }
 
 	/**
 	 * EvaluateSkeletalControl_AnyThread の物理設定更新 gating（判定は ShouldUpdatePhysicsSettings を共有）を Output 無しで実行する
@@ -389,11 +389,11 @@ struct FKawaiiPhysicsTestAccessor
 	 */
 	bool RunPhysicsSettingsUpdateGate(float FrameDt)
 	{
-		const bool bHasActiveSettingsOverride = Node.ConsumeAndAdvancePhysicsSettingsOverrides(FrameDt);
-		if (Node.ShouldUpdatePhysicsSettings(bHasActiveSettingsOverride))
+		const bool bHasActiveSettingsMultiplier = Node.ConsumeAndAdvancePhysicsSettingsMultipliers(FrameDt);
+		if (Node.ShouldUpdatePhysicsSettings(bHasActiveSettingsMultiplier))
 		{
 			Node.UpdatePhysicsSettingsOfModifyBones();
-			Node.bPhysicsSettingsOverrideAppliedLastUpdate = bHasActiveSettingsOverride;
+			Node.bPhysicsSettingsMultiplierAppliedLastUpdate = bHasActiveSettingsMultiplier;
 			Node.bInitPhysicsSettings = true;
 			return true;
 		}

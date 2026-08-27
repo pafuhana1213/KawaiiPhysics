@@ -8,10 +8,10 @@
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Misc/EngineVersionComparison.h"
 
-#include "AnimNotifyState_KawaiiPhysicsSettingsOverride.generated.h"
+#include "AnimNotifyState_KawaiiPhysicsSettingsMultiplier.generated.h"
 
 UENUM(BlueprintType)
-enum class EKawaiiPhysicsSettingsOverrideWeightSource : uint8
+enum class EKawaiiPhysicsSettingsMultiplierWeightSource : uint8
 {
 	/** BlendIn/BlendOut の台形。NotifyTick の実時間を累積するため PlayRate≠1・逆再生・スクラブでは区間とズレる / BlendIn/BlendOut trapezoid. Accumulates NotifyTick real time, so it can drift from the section with PlayRate != 1, reverse playback, or scrubbing. */
 	Envelope,
@@ -20,47 +20,47 @@ enum class EKawaiiPhysicsSettingsOverrideWeightSource : uint8
 };
 
 /**
- * NotifyState 区間中、KawaiiPhysics ノードの物理設定へ倍率オーバーライドを適用する。重みは Envelope（区間長に対する BlendIn/BlendOut の台形、実時間ベース）またはアニメカーブで決める。
+ * NotifyState 区間中、KawaiiPhysics ノードの物理設定へ倍率を適用する。重みは Envelope（区間長に対する BlendIn/BlendOut の台形、実時間ベース）またはアニメカーブで決める。
  * 5.7 以前では Component のみで再生対象を識別し、同一イベントの重なりは ActiveCount で統合して全ての End が来るまで保持する。
- * Applies multiplier overrides to KawaiiPhysics node physics settings during the NotifyState section. Weight is driven by Envelope (BlendIn/BlendOut trapezoid over section length, real-time based) or an animation curve.
+ * Applies multipliers to KawaiiPhysics node physics settings during the NotifyState section. Weight is driven by Envelope (BlendIn/BlendOut trapezoid over section length, real-time based) or an animation curve.
  * On 5.7 and earlier, only Component identifies the play target; overlaps of the same event are merged by ActiveCount until all Ends arrive.
  */
-UCLASS(Blueprintable, meta = (DisplayName = "KawaiiPhysics: Settings Override"))
-class KAWAIIPHYSICS_API UAnimNotifyState_KawaiiPhysicsSettingsOverride : public UAnimNotifyState
+UCLASS(Blueprintable, meta = (DisplayName = "KawaiiPhysics: Settings Multiplier"))
+class KAWAIIPHYSICS_API UAnimNotifyState_KawaiiPhysicsSettingsMultiplier : public UAnimNotifyState
 {
 	GENERATED_BODY()
 
 public:
-	UAnimNotifyState_KawaiiPhysicsSettingsOverride(const FObjectInitializer& ObjectInitializer);
+	UAnimNotifyState_KawaiiPhysicsSettingsMultiplier(const FObjectInitializer& ObjectInitializer);
 
 	/** Notify トラックに表示する名前を返す / Returns the name shown on the notify track. */
 	virtual FString GetNotifyName_Implementation() const override;
 
-	/** 区間開始時に物理設定倍率オーバーライドを開始する / Starts physics settings multiplier overrides when the state begins. */
+	/** 区間開始時に物理設定倍率を開始する / Starts physics settings multipliers when the state begins. */
 	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration,
 	                         const FAnimNotifyEventReference& EventReference) override;
 
-	/** 区間中に重みを更新する / Updates the override weight while the state is active. */
+	/** 区間中に重みを更新する / Updates the multiplier weight while the state is active. */
 	virtual void NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime,
 	                        const FAnimNotifyEventReference& EventReference) override;
 
-	/** 区間終了時に物理設定倍率オーバーライドを停止する / Stops physics settings multiplier overrides when the state ends. */
+	/** 区間終了時に物理設定倍率を停止する / Stops physics settings multipliers when the state ends. */
 	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
 	                       const FAnimNotifyEventReference& EventReference) override;
 
 public:
 	/** 物理設定への倍率（全 1.0 で変更なし） / Multipliers for physics settings; all 1.0 means no change. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings Override")
-	FKawaiiPhysicsSettingsScale SettingsScale;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings Multiplier")
+	FKawaiiPhysicsSettingsMultiplier SettingsScale;
 
 	/** 重みの取得元 / Source used to resolve weight. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weight")
-	EKawaiiPhysicsSettingsOverrideWeightSource WeightSource = EKawaiiPhysicsSettingsOverrideWeightSource::Envelope;
+	EKawaiiPhysicsSettingsMultiplierWeightSource WeightSource = EKawaiiPhysicsSettingsMultiplierWeightSource::Envelope;
 
 	/** 区間先頭からの立ち上がり秒 / Rise time from the start of the section, in seconds. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weight",
 		meta=(ClampMin="0.0", UIMin="0.0",
-			EditCondition="WeightSource == EKawaiiPhysicsSettingsOverrideWeightSource::Envelope", EditConditionHides))
+			EditCondition="WeightSource == EKawaiiPhysicsSettingsMultiplierWeightSource::Envelope", EditConditionHides))
 	float BlendInTime = 0.2f;
 
 	/** Envelope では区間末尾の減衰秒。区間が途中で終了した場合（Montage 中断など）と Curve モードでは、NotifyEnd 時にこの秒数で現在の重みから 0 へフェードする / In Envelope mode, decay seconds at the end of the section. If the section ends early (for example, Montage interruption) and in Curve mode, NotifyEnd fades from the current weight to 0 over this duration. */
@@ -69,12 +69,12 @@ public:
 
 	/** WeightSource=Curve の時に参照するカーブ名 / Curve name used when WeightSource is Curve. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weight",
-		meta=(EditCondition="WeightSource == EKawaiiPhysicsSettingsOverrideWeightSource::Curve", EditConditionHides))
+		meta=(EditCondition="WeightSource == EKawaiiPhysicsSettingsMultiplierWeightSource::Curve", EditConditionHides))
 	FName CurveName = NAME_None;
 
 	/** カーブが無い/取得できない時のフォールバック重み / Fallback weight when the curve is missing or cannot be read. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weight",
-		meta=(EditCondition="WeightSource == EKawaiiPhysicsSettingsOverrideWeightSource::Curve", EditConditionHides,
+		meta=(EditCondition="WeightSource == EKawaiiPhysicsSettingsMultiplierWeightSource::Curve", EditConditionHides,
 			ClampMin="0.0", ClampMax="1.0", UIMin="0.0", UIMax="1.0"))
 	float DefaultWeightIfNoCurve = 1.0f;
 
@@ -128,15 +128,15 @@ private:
 	TMap<FActiveStateKey, FActiveState> ActiveStates;
 
 	/**
-	 * エディタの再インスタンス化中は NotifyEnd がスキップされる（UAnimInstance::UninitializeAnimation）ため、この回数の評価で Set が来なければノード側が自動でフェードする保険。
-	 * Safety lease count: if Set is not received for this many evaluations, the node side auto-fades because NotifyEnd can be skipped during editor reinstancing (UAnimInstance::UninitializeAnimation).
+	 * エディタの再インスタンス化中は NotifyEnd がスキップされる（UAnimInstance::UninitializeAnimation）ため、この回数の評価で Push が来なければノード側が自動でフェードする保険。
+	 * Safety lease count: if Push is not received for this many evaluations, the node side auto-fades because NotifyEnd can be skipped during editor reinstancing (UAnimInstance::UninitializeAnimation).
 	 */
 	static constexpr int32 LeaseEvaluations = 4;
 
 	/**
-	 * 有効な NotifyState はアニメーション更新ごとに毎フレーム Tick されるため、このフレーム数だけ触られていないエントリは NotifyEnd を失って（例: エディタ再インスタンス化）Notify 側の帳簿だけが残っている。ノード側オーバーライドは Lease で既にフェード済み。
+	 * 有効な NotifyState はアニメーション更新ごとに毎フレーム Tick されるため、このフレーム数だけ触られていないエントリは NotifyEnd を失って（例: エディタ再インスタンス化）Notify 側の帳簿だけが残っている。ノード側の倍率は Lease で既にフェード済み。
 	 * 既知の制限: 掃除はこの Notify の次の NotifyBegin/NotifyEnd（どの Component 上でも可）で走るため、それまでは弱参照キーと数値だけの小さなエントリが残る。アセット共有オブジェクトに Ticker を持たせる寿命リスクの方が大きいため意図的にこの設計にしている。
-	 * A live NotifyState ticks every frame the animation updates, so an entry untouched for this many frames has lost NotifyEnd (for example, editor reinstancing) and only notify-side bookkeeping remains; the node-side override has already faded via the lease.
+	 * A live NotifyState ticks every frame the animation updates, so an entry untouched for this many frames has lost NotifyEnd (for example, editor reinstancing) and only notify-side bookkeeping remains; the node-side multiplier has already faded via the lease.
 	 * Known limitation: the sweep runs on the next NotifyBegin/NotifyEnd of this notify (on any component), so a small weak-keyed, numeric-only entry can linger until then. This is intentional: a ticker on an asset-shared object would carry a bigger lifetime risk.
 	 */
 	static constexpr uint64 StaleStateFrameThreshold = 300;

@@ -7,16 +7,16 @@
 #include "MovieSceneTrackEditor.h"
 
 /**
- * Sequencer に Kawaii Physics Settings Override トラックを追加する TrackEditor
- * Track editor that adds Kawaii Physics Settings Override tracks to Sequencer.
+ * Sequencer に Kawaii Physics Settings Multiplier トラックを追加する TrackEditor
+ * Track editor that adds Kawaii Physics Settings Multiplier tracks to Sequencer.
  * 同一 SkeletalMeshComponent に複数セクション/トラックが重なる場合、倍率は成分ごとに乗算合成される
  * Overlapping sections or tracks on the same component multiply their scales per component.
  */
-class FKawaiiPhysicsSettingsOverrideTrackEditor : public FMovieSceneTrackEditor
+class FKawaiiPhysicsSettingsMultiplierTrackEditor : public FMovieSceneTrackEditor
 {
 public:
 	static TSharedRef<ISequencerTrackEditor> CreateTrackEditor(TSharedRef<ISequencer> InSequencer);
-	explicit FKawaiiPhysicsSettingsOverrideTrackEditor(TSharedRef<ISequencer> InSequencer);
+	explicit FKawaiiPhysicsSettingsMultiplierTrackEditor(TSharedRef<ISequencer> InSequencer);
 
 	virtual bool SupportsType(TSubclassOf<UMovieSceneTrack> Type) const override;
 	virtual bool SupportsSequence(UMovieSceneSequence* InSequence) const override;
@@ -38,13 +38,13 @@ private:
 };
 
 /**
- * Kawaii Physics Settings Override セクションの表示 UI
- * Display UI for Kawaii Physics Settings Override sections.
+ * Kawaii Physics Settings Multiplier セクションの表示 UI
+ * Display UI for Kawaii Physics Settings Multiplier sections.
  */
-class FKawaiiPhysicsSettingsOverrideSectionInterface : public FSequencerSection
+class FKawaiiPhysicsSettingsMultiplierSectionInterface : public FSequencerSection
 {
 public:
-	FKawaiiPhysicsSettingsOverrideSectionInterface(
+	FKawaiiPhysicsSettingsMultiplierSectionInterface(
 		UMovieSceneSection& InSection,
 		TWeakPtr<ISequencer> InSequencer);
 

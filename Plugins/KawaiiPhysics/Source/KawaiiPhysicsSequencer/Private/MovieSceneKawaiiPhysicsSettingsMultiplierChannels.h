@@ -8,7 +8,7 @@
 
 namespace KawaiiPhysicsSequencer
 {
-inline FKawaiiPhysicsSettingsScale EvaluateKawaiiPhysicsScaleChannels(
+inline FKawaiiPhysicsSettingsMultiplier EvaluateKawaiiPhysicsScaleChannels(
 	const FMovieSceneFloatChannel* const (&Channels)[6],
 	const FFrameTime InTime)
 {
@@ -22,7 +22,7 @@ inline FKawaiiPhysicsSettingsScale EvaluateKawaiiPhysicsScaleChannels(
 		return FMath::Max(0.0f, Value);
 	};
 
-	FKawaiiPhysicsSettingsScale Scale;
+	FKawaiiPhysicsSettingsMultiplier Scale;
 	Scale.Damping = EvaluateChannel(Channels[0], InTime);
 	Scale.Stiffness = EvaluateChannel(Channels[1], InTime);
 	Scale.WorldDampingLocation = EvaluateChannel(Channels[2], InTime);

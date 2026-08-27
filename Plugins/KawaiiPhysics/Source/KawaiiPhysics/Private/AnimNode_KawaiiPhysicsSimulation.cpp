@@ -160,16 +160,29 @@ namespace
 	}
 }
 
-FKawaiiPhysicsSettingsScale FAnimNode_KawaiiPhysics::ComputeEffectivePhysicsSettingsOverrideScale() const
+FKawaiiPhysicsSettingsMultiplier FAnimNode_KawaiiPhysics::ComputeEffectivePhysicsSettingsMultiplierScale() const
 {
-	FKawaiiPhysicsSettingsScale Effective;
+	FKawaiiPhysicsSettingsMultiplier Effective;
 
-	for (const FKawaiiPhysicsActiveSettingsOverride& Item : TransientForceStore.SettingsOverrideItems)
+	for (const FKawaiiPhysicsActiveSettingsMultiplier& Item : TransientForceStore.SettingsMultiplierItems)
 	{
-		const float EnvelopeAlpha = Item.bExternallyDriven
-			                            ? Item.DrivenAlpha
-			                            : Item.PeakAlpha * KawaiiPhysics::EvaluateEnvelopeAlpha01(
-				                            Item.RiseTime, Item.HoldTime, Item.DecayTime, Item.ElapsedTime);
+		float EnvelopeAlpha = 0.0f;
+		if (Item.bExternallyDriven)
+		{
+			EnvelopeAlpha = Item.DrivenAlpha;
+		}
+		else if (Item.bInfiniteHold)
+		{
+			const float RiseAlpha = Item.RiseTime > 0.0f
+				                        ? FMath::Clamp(Item.ElapsedTime / Item.RiseTime, 0.0f, 1.0f)
+				                        : 1.0f;
+			EnvelopeAlpha = Item.PeakAlpha * RiseAlpha;
+		}
+		else
+		{
+			EnvelopeAlpha = Item.PeakAlpha * KawaiiPhysics::EvaluateEnvelopeAlpha01(
+				Item.RiseTime, Item.HoldTime, Item.DecayTime, Item.ElapsedTime);
+		}
 
 		Effective.Damping *= FMath::Lerp(1.0f, Item.Scale.Damping, EnvelopeAlpha);
 		Effective.Stiffness *= FMath::Lerp(1.0f, Item.Scale.Stiffness, EnvelopeAlpha);
@@ -187,7 +200,7 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdatePhysicsSetting);
 
 	// αはボーンに依存しないためループ前に1回だけ解決する
-	const FKawaiiPhysicsSettingsScale OverrideScale = ComputeEffectivePhysicsSettingsOverrideScale();
+	const FKawaiiPhysicsSettingsMultiplier OverrideScale = ComputeEffectivePhysicsSettingsMultiplierScale();
 
 	const FRichCurve* DampingCurve = DampingCurveData.GetRichCurveConst();
 	const FRichCurve* WorldDampingLocationCurve = WorldDampingLocationCurveData.GetRichCurveConst();
@@ -367,12 +380,12 @@ void FAnimNode_KawaiiPhysics::ConsumeAndSweepTransientExternalForces(const float
 	}
 }
 
-bool FAnimNode_KawaiiPhysics::ConsumeAndAdvancePhysicsSettingsOverrides(const float InFrameDeltaTime)
+bool FAnimNode_KawaiiPhysics::ConsumeAndAdvancePhysicsSettingsMultipliers(const float InFrameDeltaTime)
 {
-	auto FindSettingsOverrideByHandle =
-		[this](const int64 HandleId) -> FKawaiiPhysicsActiveSettingsOverride*
+	auto FindSettingsMultiplierByHandle =
+		[this](const int64 HandleId) -> FKawaiiPhysicsActiveSettingsMultiplier*
 		{
-			for (FKawaiiPhysicsActiveSettingsOverride& Item : TransientForceStore.SettingsOverrideItems)
+			for (FKawaiiPhysicsActiveSettingsMultiplier& Item : TransientForceStore.SettingsMultiplierItems)
 			{
 				if (Item.HandleId == HandleId)
 				{
@@ -382,18 +395,18 @@ bool FAnimNode_KawaiiPhysics::ConsumeAndAdvancePhysicsSettingsOverrides(const fl
 			return nullptr;
 		};
 
-	auto StopSettingsOverrideAtIndex =
+	auto StopSettingsMultiplierAtIndex =
 		[this](const int32 Index, const float BlendOutTime)
 		{
-			if (!TransientForceStore.SettingsOverrideItems.IsValidIndex(Index))
+			if (!TransientForceStore.SettingsMultiplierItems.IsValidIndex(Index))
 			{
 				return;
 			}
 
-			FKawaiiPhysicsActiveSettingsOverride& Item = TransientForceStore.SettingsOverrideItems[Index];
+			FKawaiiPhysicsActiveSettingsMultiplier& Item = TransientForceStore.SettingsMultiplierItems[Index];
 			if (BlendOutTime <= KINDA_SMALL_NUMBER)
 			{
-				TransientForceStore.SettingsOverrideItems.RemoveAt(Index);
+				TransientForceStore.SettingsMultiplierItems.RemoveAt(Index);
 				return;
 			}
 
@@ -405,10 +418,16 @@ bool FAnimNode_KawaiiPhysics::ConsumeAndAdvancePhysicsSettingsOverrides(const fl
 			{
 				// 現在の適用率を PeakAlpha へ畳み込み、そこから decay だけのエンベロープでフェードさせる。
 				// 乗算なのでフェード中の再Stopでも適用率が跳ね上がらない
-				Item.PeakAlpha *= KawaiiPhysics::EvaluateEnvelopeAlpha01(Item.RiseTime, Item.HoldTime, Item.DecayTime,
-				                                                        Item.ElapsedTime);
+				const float CurrentAlpha = Item.bInfiniteHold
+					                           ? (Item.RiseTime > 0.0f
+						                              ? FMath::Clamp(Item.ElapsedTime / Item.RiseTime, 0.0f, 1.0f)
+						                              : 1.0f)
+					                           : KawaiiPhysics::EvaluateEnvelopeAlpha01(
+						                           Item.RiseTime, Item.HoldTime, Item.DecayTime, Item.ElapsedTime);
+				Item.PeakAlpha *= CurrentAlpha;
 			}
 
+			Item.bInfiniteHold = false;
 			Item.bExternallyDriven = false;
 			Item.DrivenAlpha = 0.0f;
 			Item.LeaseEvaluations = 0;
@@ -421,7 +440,7 @@ bool FAnimNode_KawaiiPhysics::ConsumeAndAdvancePhysicsSettingsOverrides(const fl
 		};
 
 	// 取り込み前に進めることで、このフレームで積まれた時間型は α=0（rise 開始点）から始まる
-	for (FKawaiiPhysicsActiveSettingsOverride& Item : TransientForceStore.SettingsOverrideItems)
+	for (FKawaiiPhysicsActiveSettingsMultiplier& Item : TransientForceStore.SettingsMultiplierItems)
 	{
 		Item.ElapsedTime += InFrameDeltaTime;
 		if (Item.bExternallyDriven && Item.LeaseEvaluations > 0)
@@ -430,28 +449,28 @@ bool FAnimNode_KawaiiPhysics::ConsumeAndAdvancePhysicsSettingsOverrides(const fl
 		}
 	}
 
-	TArray<FKawaiiPhysicsSettingsOverrideSetRequest> PendingSets;
-	TArray<FKawaiiPhysicsSettingsOverrideRequest> PendingOverrides;
+	TArray<FKawaiiPhysicsSettingsMultiplierPushRequest> PendingSets;
+	TArray<FKawaiiPhysicsSettingsMultiplierRequest> PendingOverrides;
 	TArray<FKawaiiPhysicsTransientForceStopRequest> PendingStops;
 	if (TransientForceStore.Queue.IsValid())
 	{
 		FScopeLock Lock(&TransientForceStore.Queue->Mutex);
-		PendingSets = MoveTemp(TransientForceStore.Queue->PendingSettingsOverrideSets);
-		PendingOverrides = MoveTemp(TransientForceStore.Queue->PendingSettingsOverrides);
-		PendingStops = MoveTemp(TransientForceStore.Queue->PendingSettingsOverrideStops);
+		PendingSets = MoveTemp(TransientForceStore.Queue->PendingSettingsMultiplierPushes);
+		PendingOverrides = MoveTemp(TransientForceStore.Queue->PendingSettingsMultipliers);
+		PendingStops = MoveTemp(TransientForceStore.Queue->PendingSettingsMultiplierStops);
 	}
 
-	for (const FKawaiiPhysicsSettingsOverrideSetRequest& PendingSet : PendingSets)
+	for (const FKawaiiPhysicsSettingsMultiplierPushRequest& PendingSet : PendingSets)
 	{
 		if (PendingSet.HandleId == 0)
 		{
 			continue;
 		}
 
-		FKawaiiPhysicsActiveSettingsOverride* Item = FindSettingsOverrideByHandle(PendingSet.HandleId);
+		FKawaiiPhysicsActiveSettingsMultiplier* Item = FindSettingsMultiplierByHandle(PendingSet.HandleId);
 		if (!Item)
 		{
-			Item = &TransientForceStore.SettingsOverrideItems.AddDefaulted_GetRef();
+			Item = &TransientForceStore.SettingsMultiplierItems.AddDefaulted_GetRef();
 			Item->HandleId = PendingSet.HandleId;
 		}
 
@@ -460,6 +479,7 @@ bool FAnimNode_KawaiiPhysics::ConsumeAndAdvancePhysicsSettingsOverrides(const fl
 		Item->LeaseEvaluations = PendingSet.LeaseEvaluations;
 		Item->LeaseRemaining = PendingSet.LeaseEvaluations;
 		Item->LeaseExpireBlendOutTime = PendingSet.LeaseExpireBlendOutTime;
+		Item->bInfiniteHold = false;
 		Item->bExternallyDriven = true;
 		Item->PeakAlpha = 1.0f;
 		Item->RiseTime = 0.0f;
@@ -468,11 +488,11 @@ bool FAnimNode_KawaiiPhysics::ConsumeAndAdvancePhysicsSettingsOverrides(const fl
 		Item->ElapsedTime = 0.0f;
 	}
 
-	for (const FKawaiiPhysicsSettingsOverrideRequest& PendingOverride : PendingOverrides)
+	for (const FKawaiiPhysicsSettingsMultiplierRequest& PendingOverride : PendingOverrides)
 	{
-		FKawaiiPhysicsActiveSettingsOverride* ExistingItem = FindSettingsOverrideByHandle(PendingOverride.HandleId);
-		FKawaiiPhysicsActiveSettingsOverride& Item =
-			ExistingItem ? *ExistingItem : TransientForceStore.SettingsOverrideItems.AddDefaulted_GetRef();
+		FKawaiiPhysicsActiveSettingsMultiplier* ExistingItem = FindSettingsMultiplierByHandle(PendingOverride.HandleId);
+		FKawaiiPhysicsActiveSettingsMultiplier& Item =
+			ExistingItem ? *ExistingItem : TransientForceStore.SettingsMultiplierItems.AddDefaulted_GetRef();
 		Item.Scale = PendingOverride.Scale;
 		Item.RiseTime = PendingOverride.RiseTime;
 		Item.HoldTime = PendingOverride.HoldTime;
@@ -480,6 +500,7 @@ bool FAnimNode_KawaiiPhysics::ConsumeAndAdvancePhysicsSettingsOverrides(const fl
 		Item.ElapsedTime = 0.0f;
 		Item.PeakAlpha = 1.0f;
 		Item.HandleId = PendingOverride.HandleId;
+		Item.bInfiniteHold = PendingOverride.bInfiniteHold;
 		Item.bExternallyDriven = false;
 		Item.DrivenAlpha = 0.0f;
 		Item.LeaseEvaluations = 0;
@@ -494,52 +515,71 @@ bool FAnimNode_KawaiiPhysics::ConsumeAndAdvancePhysicsSettingsOverrides(const fl
 			continue;
 		}
 
-		for (int32 i = TransientForceStore.SettingsOverrideItems.Num() - 1; i >= 0; --i)
+		for (int32 i = TransientForceStore.SettingsMultiplierItems.Num() - 1; i >= 0; --i)
 		{
-			FKawaiiPhysicsActiveSettingsOverride& Item = TransientForceStore.SettingsOverrideItems[i];
+			FKawaiiPhysicsActiveSettingsMultiplier& Item = TransientForceStore.SettingsMultiplierItems[i];
 			if (Item.HandleId != PendingStop.HandleId)
 			{
 				continue;
 			}
 
-			StopSettingsOverrideAtIndex(i, PendingStop.BlendOutTime);
+			StopSettingsMultiplierAtIndex(i, PendingStop.BlendOutTime);
 		}
 	}
 
-	for (int32 i = TransientForceStore.SettingsOverrideItems.Num() - 1; i >= 0; --i)
+	for (int32 i = TransientForceStore.SettingsMultiplierItems.Num() - 1; i >= 0; --i)
 	{
-		const FKawaiiPhysicsActiveSettingsOverride& Item = TransientForceStore.SettingsOverrideItems[i];
+		const FKawaiiPhysicsActiveSettingsMultiplier& Item = TransientForceStore.SettingsMultiplierItems[i];
 		if (!Item.bExternallyDriven || Item.LeaseEvaluations <= 0 || Item.LeaseRemaining > 0)
 		{
 			continue;
 		}
 
 		UE_LOG(LogKawaiiPhysics, Verbose,
-		       TEXT("Externally driven physics settings override lease expired. HandleId=%lld BlendOutTime=%.3f"),
+		       TEXT("Externally driven physics settings multiplier lease expired. HandleId=%lld BlendOutTime=%.3f"),
 		       static_cast<long long>(Item.HandleId), Item.LeaseExpireBlendOutTime);
-		StopSettingsOverrideAtIndex(i, Item.LeaseExpireBlendOutTime);
+		StopSettingsMultiplierAtIndex(i, Item.LeaseExpireBlendOutTime);
 	}
 
-	for (int32 i = TransientForceStore.SettingsOverrideItems.Num() - 1; i >= 0; --i)
+	for (int32 i = TransientForceStore.SettingsMultiplierItems.Num() - 1; i >= 0; --i)
 	{
-		const FKawaiiPhysicsActiveSettingsOverride& Item = TransientForceStore.SettingsOverrideItems[i];
-		if (!Item.bExternallyDriven && Item.ElapsedTime >= Item.RiseTime + Item.HoldTime + Item.DecayTime)
+		const FKawaiiPhysicsActiveSettingsMultiplier& Item = TransientForceStore.SettingsMultiplierItems[i];
+		if (!Item.bExternallyDriven && !Item.bInfiniteHold &&
+			Item.ElapsedTime >= Item.RiseTime + Item.HoldTime + Item.DecayTime)
 		{
-			TransientForceStore.SettingsOverrideItems.RemoveAt(i);
+			TransientForceStore.SettingsMultiplierItems.RemoveAt(i);
 		}
 	}
 
-	while (TransientForceStore.SettingsOverrideItems.Num() > MaxPhysicsSettingsOverrides)
+	while (TransientForceStore.SettingsMultiplierItems.Num() > MaxPhysicsSettingsMultipliers)
 	{
-		const FKawaiiPhysicsActiveSettingsOverride& DroppedItem = TransientForceStore.SettingsOverrideItems[0];
-		UE_LOG(LogKawaiiPhysics, Verbose,
-		       TEXT("Physics settings override cap exceeded; dropping oldest override. HandleId=%lld Type=%s"),
-		       static_cast<long long>(DroppedItem.HandleId),
-		       DroppedItem.bExternallyDriven ? TEXT("Driven") : TEXT("Timed"));
-		TransientForceStore.SettingsOverrideItems.RemoveAt(0);
+		const FKawaiiPhysicsActiveSettingsMultiplier& DroppedItem = TransientForceStore.SettingsMultiplierItems[0];
+#if !UE_BUILD_SHIPPING
+		if (DroppedItem.bInfiniteHold &&
+			!WarnedInfiniteHoldSettingsMultiplierEvictionHandleIds.Contains(DroppedItem.HandleId))
+		{
+			if (WarnedInfiniteHoldSettingsMultiplierEvictionHandleIds.Num() >= MaxWarnedInfiniteHoldSettingsMultiplierEvictionHandleIds)
+			{
+				// 再 init まで無制限に増えないよう上限で丸ごとリセット。警告が再度出ることは許容
+				WarnedInfiniteHoldSettingsMultiplierEvictionHandleIds.Reset();
+			}
+			WarnedInfiniteHoldSettingsMultiplierEvictionHandleIds.Add(DroppedItem.HandleId);
+			UE_LOG(LogKawaiiPhysics, Warning,
+			       TEXT("Infinite-hold physics settings multiplier cap exceeded; dropping oldest override. HandleId=%lld Type=InfiniteHold"),
+			       static_cast<long long>(DroppedItem.HandleId));
+		}
+		else
+#endif
+		{
+			UE_LOG(LogKawaiiPhysics, Verbose,
+			       TEXT("Physics settings multiplier cap exceeded; dropping oldest override. HandleId=%lld Type=%s"),
+			       static_cast<long long>(DroppedItem.HandleId),
+			       DroppedItem.bExternallyDriven ? TEXT("Driven") : (DroppedItem.bInfiniteHold ? TEXT("InfiniteHold") : TEXT("Timed")));
+		}
+		TransientForceStore.SettingsMultiplierItems.RemoveAt(0);
 	}
 
-	return !TransientForceStore.SettingsOverrideItems.IsEmpty();
+	return !TransientForceStore.SettingsMultiplierItems.IsEmpty();
 }
 
 

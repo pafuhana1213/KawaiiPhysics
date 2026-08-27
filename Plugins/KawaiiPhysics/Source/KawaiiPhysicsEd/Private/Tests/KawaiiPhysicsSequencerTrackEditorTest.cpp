@@ -2,10 +2,10 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-#include "MovieSceneKawaiiPhysicsSettingsOverrideSection.h"
-#include "MovieSceneKawaiiPhysicsSettingsOverrideTrack.h"
-#include "Sequencer/KawaiiPhysicsSettingsOverrideSectionPresets.h"
-#include "Sequencer/KawaiiPhysicsSettingsOverrideSectionSummary.h"
+#include "MovieSceneKawaiiPhysicsSettingsMultiplierSection.h"
+#include "MovieSceneKawaiiPhysicsSettingsMultiplierTrack.h"
+#include "Sequencer/KawaiiPhysicsSettingsMultiplierSectionPresets.h"
+#include "Sequencer/KawaiiPhysicsSettingsMultiplierSectionSummary.h"
 
 #include "Misc/AutomationTest.h"
 #include "MovieSceneTrack.h"
@@ -16,9 +16,9 @@ namespace
 {
 constexpr float GSequencerTrackEditorTol = 0.000001f;
 
-UMovieSceneKawaiiPhysicsSettingsOverrideSection* NewSettingsOverrideSection()
+UMovieSceneKawaiiPhysicsSettingsMultiplierSection* NewSettingsMultiplierSection()
 {
-	return NewObject<UMovieSceneKawaiiPhysicsSettingsOverrideSection>(GetTransientPackage());
+	return NewObject<UMovieSceneKawaiiPhysicsSettingsMultiplierSection>(GetTransientPackage());
 }
 
 bool TestFloatNear(FAutomationTestBase& Test, const TCHAR* Name, const float Actual, const float Expected)
@@ -27,8 +27,8 @@ bool TestFloatNear(FAutomationTestBase& Test, const TCHAR* Name, const float Act
 	                     FMath::IsNearlyEqual(Actual, Expected, GSequencerTrackEditorTol));
 }
 
-bool TestScaleEqual(FAutomationTestBase& Test, const FKawaiiPhysicsSettingsScale& Actual,
-                    const FKawaiiPhysicsSettingsScale& Expected)
+bool TestScaleEqual(FAutomationTestBase& Test, const FKawaiiPhysicsSettingsMultiplier& Actual,
+                    const FKawaiiPhysicsSettingsMultiplier& Expected)
 {
 	bool bOk = true;
 	bOk &= TestFloatNear(Test, TEXT("Scale.Damping"), Actual.Damping, Expected.Damping);
@@ -42,7 +42,7 @@ bool TestScaleEqual(FAutomationTestBase& Test, const FKawaiiPhysicsSettingsScale
 	return bOk;
 }
 
-void AddScaleKeys(UMovieSceneKawaiiPhysicsSettingsOverrideSection& Section)
+void AddScaleKeys(UMovieSceneKawaiiPhysicsSettingsMultiplierSection& Section)
 {
 	Section.Damping.AddLinearKey(FFrameNumber(0), 0.2f);
 	Section.Stiffness.AddLinearKey(FFrameNumber(0), 0.3f);
@@ -53,7 +53,7 @@ void AddScaleKeys(UMovieSceneKawaiiPhysicsSettingsOverrideSection& Section)
 }
 
 bool TestScaleChannelsHaveNoKeys(FAutomationTestBase& Test,
-                                 const UMovieSceneKawaiiPhysicsSettingsOverrideSection& Section)
+                                 const UMovieSceneKawaiiPhysicsSettingsMultiplierSection& Section)
 {
 	bool bOk = true;
 	bOk &= Test.TestEqual(TEXT("Damping keys removed"), Section.Damping.GetNumKeys(), 0);
@@ -80,7 +80,7 @@ bool FKawaiiPhysicsSequencerTrackEditorScaleSummaryNoChangeTest::RunTest(const F
 {
 	(void)Parameters;
 
-	const FKawaiiPhysicsSettingsScale Scale;
+	const FKawaiiPhysicsSettingsMultiplier Scale;
 
 	bool bOk = true;
 	bOk &= TestTrue(
@@ -100,7 +100,7 @@ bool FKawaiiPhysicsSequencerTrackEditorScaleSummaryPartialTest::RunTest(const FS
 {
 	(void)Parameters;
 
-	FKawaiiPhysicsSettingsScale Scale;
+	FKawaiiPhysicsSettingsMultiplier Scale;
 	Scale.Damping = 0.5f;
 	Scale.Stiffness = 1.2f;
 
@@ -118,7 +118,7 @@ bool FKawaiiPhysicsSequencerTrackEditorScaleSummaryAllTest::RunTest(const FStrin
 {
 	(void)Parameters;
 
-	FKawaiiPhysicsSettingsScale Scale;
+	FKawaiiPhysicsSettingsMultiplier Scale;
 	Scale.Damping = 0.5f;
 	Scale.Stiffness = 1.2f;
 	Scale.WorldDampingLocation = 0.8f;
@@ -140,10 +140,10 @@ bool FKawaiiPhysicsSequencerTrackEditorScalePresetApplyTest::RunTest(const FStri
 {
 	(void)Parameters;
 
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section = NewSettingsOverrideSection();
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* Section = NewSettingsMultiplierSection();
 	AddScaleKeys(*Section);
 
-	FKawaiiPhysicsSettingsScale StiffScale;
+	FKawaiiPhysicsSettingsMultiplier StiffScale;
 	StiffScale.Damping = 1.5f;
 	StiffScale.Stiffness = 2.0f;
 	ApplyKawaiiPhysicsScalePresetToSection(*Section, StiffScale);
@@ -161,15 +161,15 @@ bool FKawaiiPhysicsSequencerTrackEditorScalePresetResetTest::RunTest(const FStri
 {
 	(void)Parameters;
 
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section = NewSettingsOverrideSection();
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* Section = NewSettingsMultiplierSection();
 	AddScaleKeys(*Section);
 
-	ApplyKawaiiPhysicsScalePresetToSection(*Section, FKawaiiPhysicsSettingsScale());
+	ApplyKawaiiPhysicsScalePresetToSection(*Section, FKawaiiPhysicsSettingsMultiplier());
 
 	bool bOk = TestScaleEqual(
 		*this,
 		Section->EvaluateScaleAtTime(FFrameTime(0)),
-		FKawaiiPhysicsSettingsScale());
+		FKawaiiPhysicsSettingsMultiplier());
 	bOk &= TestScaleChannelsHaveNoKeys(*this, *Section);
 	return bOk;
 }
@@ -182,15 +182,15 @@ bool FKawaiiPhysicsSequencerTrackEditorSupportsTypeTest::RunTest(const FString& 
 {
 	(void)Parameters;
 
-	const UMovieSceneKawaiiPhysicsSettingsOverrideTrack* Track =
-		GetDefault<UMovieSceneKawaiiPhysicsSettingsOverrideTrack>();
+	const UMovieSceneKawaiiPhysicsSettingsMultiplierTrack* Track =
+		GetDefault<UMovieSceneKawaiiPhysicsSettingsMultiplierTrack>();
 
 	bool bOk = true;
 	bOk &= TestTrue(
-		TEXT("Kawaii Physics Settings Override Track が UMovieSceneTrack 派生であること"),
-		UMovieSceneKawaiiPhysicsSettingsOverrideTrack::StaticClass()->IsChildOf(UMovieSceneTrack::StaticClass()));
+		TEXT("Kawaii Physics Settings Multiplier Track が UMovieSceneTrack 派生であること"),
+		UMovieSceneKawaiiPhysicsSettingsMultiplierTrack::StaticClass()->IsChildOf(UMovieSceneTrack::StaticClass()));
 	bOk &= TestTrue(
-		TEXT("Kawaii Physics Settings Override Track が複数行をサポートすること"),
+		TEXT("Kawaii Physics Settings Multiplier Track が複数行をサポートすること"),
 		Track && Track->SupportsMultipleRows());
 	return bOk;
 }
@@ -203,10 +203,10 @@ bool FKawaiiPhysicsSequencerTrackEditorRootTrackDefaultDisplayNameTest::RunTest(
 {
 	(void)Parameters;
 
-	UMovieSceneKawaiiPhysicsSettingsOverrideTrack* BoundTrack =
-		NewObject<UMovieSceneKawaiiPhysicsSettingsOverrideTrack>(GetTransientPackage());
-	UMovieSceneKawaiiPhysicsSettingsOverrideTrack* RootTrack =
-		NewObject<UMovieSceneKawaiiPhysicsSettingsOverrideTrack>(GetTransientPackage());
+	UMovieSceneKawaiiPhysicsSettingsMultiplierTrack* BoundTrack =
+		NewObject<UMovieSceneKawaiiPhysicsSettingsMultiplierTrack>(GetTransientPackage());
+	UMovieSceneKawaiiPhysicsSettingsMultiplierTrack* RootTrack =
+		NewObject<UMovieSceneKawaiiPhysicsSettingsMultiplierTrack>(GetTransientPackage());
 	RootTrack->bIsRootTrack = true;
 
 	const FString BoundDisplayName = BoundTrack->GetDefaultDisplayName().ToString();

@@ -1,6 +1,6 @@
 // Copyright 2019-2026 pafuhana1213. All Rights Reserved.
 
-#include "KawaiiPhysicsSequencerOverrideRegistry.h"
+#include "KawaiiPhysicsSequencerMultiplierRegistry.h"
 
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
@@ -9,7 +9,7 @@
 #include "MovieSceneTrack.h"
 #include "UObject/UObjectGlobals.h"
 
-void FKawaiiPhysicsSequencerOverrideEntry::Stop(const float OverrideBlendOutTime)
+void FKawaiiPhysicsSequencerMultiplierEntry::Stop(const float OverrideBlendOutTime)
 {
 	if (bStopped)
 	{
@@ -23,20 +23,20 @@ void FKawaiiPhysicsSequencerOverrideEntry::Stop(const float OverrideBlendOutTime
 		const float EffectiveBlendOutTime =
 			OverrideBlendOutTime >= 0.0f ? OverrideBlendOutTime : FMath::Max(BlendOutTime, 0.0f);
 		// ハンドルは Entry ごとに一意なので、リタグ後のノードも確実に止めるためフィルタを使わない
-		UKawaiiPhysicsLibrary::StopPhysicsSettingsOverridesOnComponent(
+		UKawaiiPhysicsLibrary::StopPhysicsSettingsMultipliersOnComponent(
 			TargetComponent, Handle, FGameplayTagContainer(), false, EffectiveBlendOutTime);
 	}
 }
 
-FKawaiiPhysicsSequencerOverrideRegistry& FKawaiiPhysicsSequencerOverrideRegistry::Get()
+FKawaiiPhysicsSequencerMultiplierRegistry& FKawaiiPhysicsSequencerMultiplierRegistry::Get()
 {
-	static FKawaiiPhysicsSequencerOverrideRegistry Registry;
+	static FKawaiiPhysicsSequencerMultiplierRegistry Registry;
 	return Registry;
 }
 
-void FKawaiiPhysicsSequencerOverrideRegistry::Register(
+void FKawaiiPhysicsSequencerMultiplierRegistry::Register(
 	const UMovieSceneSection* Section,
-	const TSharedRef<FKawaiiPhysicsSequencerOverrideEntry>& Entry)
+	const TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry>& Entry)
 {
 	if (!Section)
 	{
@@ -60,19 +60,19 @@ void FKawaiiPhysicsSequencerOverrideRegistry::Register(
 	Entries.Add(TWeakObjectPtr<const UMovieSceneSection>(Section), Entry);
 }
 
-void FKawaiiPhysicsSequencerOverrideRegistry::StopForSection(const UMovieSceneSection* Section)
+void FKawaiiPhysicsSequencerMultiplierRegistry::StopForSection(const UMovieSceneSection* Section)
 {
 	StopForSectionInternal(Section, nullptr, nullptr);
 }
 
-void FKawaiiPhysicsSequencerOverrideRegistry::StopForSection(
+void FKawaiiPhysicsSequencerMultiplierRegistry::StopForSection(
 	const UMovieSceneSection* Section,
 	const TWeakPtr<uint8>& OwnerFilter)
 {
 	StopForSectionInternal(Section, &OwnerFilter, nullptr);
 }
 
-void FKawaiiPhysicsSequencerOverrideRegistry::StopForSection(
+void FKawaiiPhysicsSequencerMultiplierRegistry::StopForSection(
 	const UMovieSceneSection* Section,
 	const TWeakPtr<uint8>& OwnerFilter,
 	const USkeletalMeshComponent* ComponentFilter)
@@ -80,7 +80,7 @@ void FKawaiiPhysicsSequencerOverrideRegistry::StopForSection(
 	StopForSectionInternal(Section, &OwnerFilter, ComponentFilter);
 }
 
-void FKawaiiPhysicsSequencerOverrideRegistry::StopForSectionInternal(
+void FKawaiiPhysicsSequencerMultiplierRegistry::StopForSectionInternal(
 	const UMovieSceneSection* Section,
 	const TWeakPtr<uint8>* OptionalOwnerFilter,
 	const USkeletalMeshComponent* OptionalComponentFilter)
@@ -108,7 +108,7 @@ void FKawaiiPhysicsSequencerOverrideRegistry::StopForSectionInternal(
 		if (bMatchesSection && OptionalOwnerFilter)
 		{
 			bStopAndRemove = false;
-			if (const TSharedPtr<FKawaiiPhysicsSequencerOverrideEntry> Entry = It.Value().Pin())
+			if (const TSharedPtr<FKawaiiPhysicsSequencerMultiplierEntry> Entry = It.Value().Pin())
 			{
 				const TSharedPtr<uint8> EntryOwner = Entry->Owner.Pin();
 				bStopAndRemove = EntryOwner.IsValid() && EntryOwner.Get() == OwnerFilterPin.Get();
@@ -123,7 +123,7 @@ void FKawaiiPhysicsSequencerOverrideRegistry::StopForSectionInternal(
 
 		if (bStopAndRemove)
 		{
-			if (const TSharedPtr<FKawaiiPhysicsSequencerOverrideEntry> Entry = It.Value().Pin())
+			if (const TSharedPtr<FKawaiiPhysicsSequencerMultiplierEntry> Entry = It.Value().Pin())
 			{
 				Entry->Stop();
 			}
@@ -136,7 +136,7 @@ void FKawaiiPhysicsSequencerOverrideRegistry::StopForSectionInternal(
 	}
 }
 
-void FKawaiiPhysicsSequencerOverrideRegistry::StopForWorld(const UWorld* World)
+void FKawaiiPhysicsSequencerMultiplierRegistry::StopForWorld(const UWorld* World)
 {
 	if (!World)
 	{
@@ -146,7 +146,7 @@ void FKawaiiPhysicsSequencerOverrideRegistry::StopForWorld(const UWorld* World)
 	for (auto It = Entries.CreateIterator(); It; ++It)
 	{
 		bool bRemove = !It.Key().IsValid();
-		if (const TSharedPtr<FKawaiiPhysicsSequencerOverrideEntry> Entry = It.Value().Pin())
+		if (const TSharedPtr<FKawaiiPhysicsSequencerMultiplierEntry> Entry = It.Value().Pin())
 		{
 			if (USkeletalMeshComponent* Component = Entry->Component.Get())
 			{
@@ -169,7 +169,7 @@ void FKawaiiPhysicsSequencerOverrideRegistry::StopForWorld(const UWorld* World)
 	}
 }
 
-void FKawaiiPhysicsSequencerOverrideRegistry::StopForSectionsNotIn(
+void FKawaiiPhysicsSequencerMultiplierRegistry::StopForSectionsNotIn(
 	const UMovieSceneTrack* Track,
 	TConstArrayView<UMovieSceneSection*> LiveSections)
 {
@@ -179,7 +179,7 @@ void FKawaiiPhysicsSequencerOverrideRegistry::StopForSectionsNotIn(
 	}
 
 	TArray<const UMovieSceneSection*> SectionsToStop;
-	for (const TPair<TWeakObjectPtr<const UMovieSceneSection>, TWeakPtr<FKawaiiPhysicsSequencerOverrideEntry>>& Pair :
+	for (const TPair<TWeakObjectPtr<const UMovieSceneSection>, TWeakPtr<FKawaiiPhysicsSequencerMultiplierEntry>>& Pair :
 	     Entries)
 	{
 		const UMovieSceneSection* Section = Pair.Key.Get();
@@ -210,12 +210,12 @@ void FKawaiiPhysicsSequencerOverrideRegistry::StopForSectionsNotIn(
 	}
 }
 
-void FKawaiiPhysicsSequencerOverrideRegistry::PruneInvalidEntries()
+void FKawaiiPhysicsSequencerMultiplierRegistry::PruneInvalidEntries()
 {
 	for (auto It = Entries.CreateIterator(); It; ++It)
 	{
 		bool bRemove = !It.Key().IsValid();
-		if (const TSharedPtr<FKawaiiPhysicsSequencerOverrideEntry> Entry = It.Value().Pin())
+		if (const TSharedPtr<FKawaiiPhysicsSequencerMultiplierEntry> Entry = It.Value().Pin())
 		{
 			USkeletalMeshComponent* Component = Entry->Component.Get();
 			bRemove |= !IsValid(Component) || !IsValid(Component->GetWorld());
@@ -232,7 +232,7 @@ void FKawaiiPhysicsSequencerOverrideRegistry::PruneInvalidEntries()
 	}
 }
 
-int32 FKawaiiPhysicsSequencerOverrideRegistry::GetQueuedNodeCount(
+int32 FKawaiiPhysicsSequencerMultiplierRegistry::GetQueuedNodeCount(
 	const UMovieSceneSection* Section,
 	const FGameplayTagContainer& FilterTags,
 	const bool bFilterExactMatch,
@@ -247,7 +247,7 @@ int32 FKawaiiPhysicsSequencerOverrideRegistry::GetQueuedNodeCount(
 
 	const TWeakObjectPtr<const UMovieSceneSection> SectionKey(Section);
 	int32 Count = 0;
-	for (const TPair<TWeakObjectPtr<const UMovieSceneSection>, TWeakPtr<FKawaiiPhysicsSequencerOverrideEntry>>& Pair :
+	for (const TPair<TWeakObjectPtr<const UMovieSceneSection>, TWeakPtr<FKawaiiPhysicsSequencerMultiplierEntry>>& Pair :
 	     Entries)
 	{
 		if (Pair.Key != SectionKey)
@@ -255,7 +255,7 @@ int32 FKawaiiPhysicsSequencerOverrideRegistry::GetQueuedNodeCount(
 			continue;
 		}
 
-		const TSharedPtr<FKawaiiPhysicsSequencerOverrideEntry> Entry = Pair.Value.Pin();
+		const TSharedPtr<FKawaiiPhysicsSequencerMultiplierEntry> Entry = Pair.Value.Pin();
 		if (!Entry.IsValid() || Entry->bStopped || !IsValid(Entry->Component.Get()))
 		{
 			continue;
@@ -273,11 +273,11 @@ int32 FKawaiiPhysicsSequencerOverrideRegistry::GetQueuedNodeCount(
 	return Count;
 }
 
-void FKawaiiPhysicsSequencerOverrideRegistry::StopAll()
+void FKawaiiPhysicsSequencerMultiplierRegistry::StopAll()
 {
 	for (auto It = Entries.CreateIterator(); It; ++It)
 	{
-		if (const TSharedPtr<FKawaiiPhysicsSequencerOverrideEntry> Entry = It.Value().Pin())
+		if (const TSharedPtr<FKawaiiPhysicsSequencerMultiplierEntry> Entry = It.Value().Pin())
 		{
 			Entry->Stop(0.0f);
 		}
@@ -286,22 +286,22 @@ void FKawaiiPhysicsSequencerOverrideRegistry::StopAll()
 	Entries.Empty();
 }
 
-void FKawaiiPhysicsSequencerOverrideRegistry::RegisterDelegates()
+void FKawaiiPhysicsSequencerMultiplierRegistry::RegisterDelegates()
 {
 	if (!WorldCleanupDelegateHandle.IsValid())
 	{
 		WorldCleanupDelegateHandle = FWorldDelegates::OnWorldCleanup.AddRaw(
-			this, &FKawaiiPhysicsSequencerOverrideRegistry::HandleWorldCleanup);
+			this, &FKawaiiPhysicsSequencerMultiplierRegistry::HandleWorldCleanup);
 	}
 
 	if (!PostGarbageCollectDelegateHandle.IsValid())
 	{
 		PostGarbageCollectDelegateHandle = FCoreUObjectDelegates::GetPostGarbageCollect().AddRaw(
-			this, &FKawaiiPhysicsSequencerOverrideRegistry::HandlePostGarbageCollect);
+			this, &FKawaiiPhysicsSequencerMultiplierRegistry::HandlePostGarbageCollect);
 	}
 }
 
-void FKawaiiPhysicsSequencerOverrideRegistry::UnregisterDelegates()
+void FKawaiiPhysicsSequencerMultiplierRegistry::UnregisterDelegates()
 {
 	if (WorldCleanupDelegateHandle.IsValid())
 	{
@@ -316,7 +316,7 @@ void FKawaiiPhysicsSequencerOverrideRegistry::UnregisterDelegates()
 	}
 }
 
-void FKawaiiPhysicsSequencerOverrideRegistry::HandleWorldCleanup(
+void FKawaiiPhysicsSequencerMultiplierRegistry::HandleWorldCleanup(
 	UWorld* World,
 	bool bSessionEnded,
 	bool bCleanupResources)
@@ -328,14 +328,14 @@ void FKawaiiPhysicsSequencerOverrideRegistry::HandleWorldCleanup(
 	StopForWorld(World);
 }
 
-void FKawaiiPhysicsSequencerOverrideRegistry::HandlePostGarbageCollect()
+void FKawaiiPhysicsSequencerMultiplierRegistry::HandlePostGarbageCollect()
 {
 	// GC 後デリゲートは GameThread 前提で呼ばれるため、Registry 側も既存方針どおり GameThread 限定で扱う
 	PruneInvalidEntries();
 }
 
 #if WITH_DEV_AUTOMATION_TESTS
-int32 FKawaiiPhysicsSequencerOverrideRegistry::CountEntriesForSectionForTesting(
+int32 FKawaiiPhysicsSequencerMultiplierRegistry::CountEntriesForSectionForTesting(
 	const UMovieSceneSection* Section) const
 {
 	if (!Section)
@@ -345,7 +345,7 @@ int32 FKawaiiPhysicsSequencerOverrideRegistry::CountEntriesForSectionForTesting(
 
 	const TWeakObjectPtr<const UMovieSceneSection> SectionKey(Section);
 	int32 Count = 0;
-	for (const TPair<TWeakObjectPtr<const UMovieSceneSection>, TWeakPtr<FKawaiiPhysicsSequencerOverrideEntry>>& Pair :
+	for (const TPair<TWeakObjectPtr<const UMovieSceneSection>, TWeakPtr<FKawaiiPhysicsSequencerMultiplierEntry>>& Pair :
 	     Entries)
 	{
 		if (Pair.Key == SectionKey)

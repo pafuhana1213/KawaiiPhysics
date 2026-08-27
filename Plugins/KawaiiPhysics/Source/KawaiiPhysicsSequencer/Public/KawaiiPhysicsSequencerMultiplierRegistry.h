@@ -11,8 +11,8 @@ class UMovieSceneTrack;
 class USkeletalMeshComponent;
 class UWorld;
 
-// Component 1 つ分の駆動オーバーライド。SectionData / PreAnimated トークン / レジストリで TSharedRef 共有
-struct KAWAIIPHYSICSSEQUENCER_API FKawaiiPhysicsSequencerOverrideEntry
+// Component 1 つ分の駆動倍率。SectionData / PreAnimated トークン / レジストリで TSharedRef 共有
+struct KAWAIIPHYSICSSEQUENCER_API FKawaiiPhysicsSequencerMultiplierEntry
 {
 	TWeakObjectPtr<USkeletalMeshComponent> Component;
 	TWeakPtr<uint8> Owner;
@@ -30,12 +30,12 @@ struct KAWAIIPHYSICSSEQUENCER_API FKawaiiPhysicsSequencerOverrideEntry
 // Owner 限定オーバーロードは PreAnimated 復元を評価インスタンス単位に絞り、1 引数版はセクション破棄用に全 Entry を停止する。
 // Component まで指定する版は PreAnimated の object 単位復元用（復元対象の Component の Entry だけ止める）。
 // GameThread 限定で使用する。
-class KAWAIIPHYSICSSEQUENCER_API FKawaiiPhysicsSequencerOverrideRegistry
+class KAWAIIPHYSICSSEQUENCER_API FKawaiiPhysicsSequencerMultiplierRegistry
 {
 public:
-	static FKawaiiPhysicsSequencerOverrideRegistry& Get();
+	static FKawaiiPhysicsSequencerMultiplierRegistry& Get();
 
-	void Register(const UMovieSceneSection* Section, const TSharedRef<FKawaiiPhysicsSequencerOverrideEntry>& Entry);
+	void Register(const UMovieSceneSection* Section, const TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry>& Entry);
 	void StopForSection(const UMovieSceneSection* Section);
 	void StopForSection(const UMovieSceneSection* Section, const TWeakPtr<uint8>& OwnerFilter);
 	void StopForSection(const UMovieSceneSection* Section, const TWeakPtr<uint8>& OwnerFilter, const USkeletalMeshComponent* ComponentFilter);
@@ -62,7 +62,7 @@ private:
 	void HandleWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources);
 	void HandlePostGarbageCollect();
 
-	TMultiMap<TWeakObjectPtr<const UMovieSceneSection>, TWeakPtr<FKawaiiPhysicsSequencerOverrideEntry>> Entries;
+	TMultiMap<TWeakObjectPtr<const UMovieSceneSection>, TWeakPtr<FKawaiiPhysicsSequencerMultiplierEntry>> Entries;
 	FDelegateHandle WorldCleanupDelegateHandle;
 	FDelegateHandle PostGarbageCollectDelegateHandle;
 };
