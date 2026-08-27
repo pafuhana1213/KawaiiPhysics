@@ -16,7 +16,7 @@
 #include "Modules/ModuleManager.h"
 #include "PersonaModule.h"
 #include "PropertyEditorModule.h"
-#include "Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.h"
+#include "Sequencer/KawaiiPhysicsSettingsMultiplierTrackEditor.h"
 #include "SKawaiiPhysicsNodeAuditWindow.h"
 #include "SKawaiiPhysicsPresetDiffWindow.h"
 #include "SKawaiiPhysicsWindScopeWindow.h"
@@ -54,7 +54,7 @@ void FKawaiiPhysicsEdModule::StartupModule()
 	{
 		ISequencerModule& SequencerModule = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer");
 		SequencerTrackEditorHandle = SequencerModule.RegisterTrackEditor(
-			FOnCreateTrackEditor::CreateStatic(&FKawaiiPhysicsSettingsOverrideTrackEditor::CreateTrackEditor));
+			FOnCreateTrackEditor::CreateStatic(&FKawaiiPhysicsSettingsMultiplierTrackEditor::CreateTrackEditor));
 
 		if (FSlateApplication::IsInitialized())
 		{

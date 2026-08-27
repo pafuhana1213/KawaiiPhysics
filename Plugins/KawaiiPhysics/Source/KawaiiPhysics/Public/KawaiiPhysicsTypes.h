@@ -54,7 +54,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsTransientForceHandle
  * the multipliers are applied to each bone's effective values, which are recomputed every frame.
  */
 USTRUCT(BlueprintType)
-struct KAWAIIPHYSICS_API FKawaiiPhysicsSettingsScale
+struct KAWAIIPHYSICS_API FKawaiiPhysicsSettingsMultiplier
 {
 	GENERATED_BODY()
 

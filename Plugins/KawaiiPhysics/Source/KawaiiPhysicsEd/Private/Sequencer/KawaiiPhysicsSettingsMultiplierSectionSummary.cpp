@@ -1,11 +1,11 @@
 // Copyright 2019-2026 pafuhana1213. All Rights Reserved.
 
-#include "Sequencer/KawaiiPhysicsSettingsOverrideSectionSummary.h"
+#include "Sequencer/KawaiiPhysicsSettingsMultiplierSectionSummary.h"
 
 #include "Internationalization/Text.h"
 #include "Math/UnrealMathUtility.h"
 
-#define LOCTEXT_NAMESPACE "KawaiiPhysicsSettingsOverrideSectionSummary"
+#define LOCTEXT_NAMESPACE "KawaiiPhysicsSettingsMultiplierSectionSummary"
 
 namespace
 {
@@ -24,7 +24,7 @@ namespace
 	}
 }
 
-FString MakeKawaiiPhysicsScaleSummaryString(const FKawaiiPhysicsSettingsScale& Scale)
+FString MakeKawaiiPhysicsScaleSummaryString(const FKawaiiPhysicsSettingsMultiplier& Scale)
 {
 	TArray<FString> Entries;
 	AddScaleEntry(Entries, TEXT("D"), Scale.Damping);
@@ -37,7 +37,7 @@ FString MakeKawaiiPhysicsScaleSummaryString(const FKawaiiPhysicsSettingsScale& S
 	return FString::Join(Entries, TEXT("  "));
 }
 
-FText MakeKawaiiPhysicsScaleSummaryText(const FKawaiiPhysicsSettingsScale& Scale)
+FText MakeKawaiiPhysicsScaleSummaryText(const FKawaiiPhysicsSettingsMultiplier& Scale)
 {
 	const FString Summary = MakeKawaiiPhysicsScaleSummaryString(Scale);
 	if (Summary.IsEmpty())

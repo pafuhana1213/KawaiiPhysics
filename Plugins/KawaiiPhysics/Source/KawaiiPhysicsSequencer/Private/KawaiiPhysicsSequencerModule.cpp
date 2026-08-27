@@ -2,19 +2,19 @@
 
 #include "KawaiiPhysicsSequencerModule.h"
 
-#include "KawaiiPhysicsSequencerOverrideRegistry.h"
+#include "KawaiiPhysicsSequencerMultiplierRegistry.h"
 #include "Modules/ModuleManager.h"
 
 void FKawaiiPhysicsSequencerModule::StartupModule()
 {
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().RegisterDelegates();
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().RegisterDelegates();
 }
 
 void FKawaiiPhysicsSequencerModule::ShutdownModule()
 {
 	// 無期限リースの Entry がモジュール終了後に残らないよう先に全停止
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().StopAll();
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().UnregisterDelegates();
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().StopAll();
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().UnregisterDelegates();
 }
 
 IMPLEMENT_MODULE(FKawaiiPhysicsSequencerModule, KawaiiPhysicsSequencer)

@@ -204,7 +204,7 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 	SubstepAccumulator = 0.0f;
 	bSubstepPoseInitialized = false;
 
-	// ノード再初期化時は実行時専用の一時外力と物理設定オーバーライドを破棄する
+	// ノード再初期化時は実行時専用の一時外力と物理設定倍率を破棄する
 	ResetTransientRuntimeState();
 
 	for (int i = 0; i < ExternalForces.Num(); ++i)
@@ -323,31 +323,33 @@ void FAnimNode_KawaiiPhysics::RequestStopTransientExternalForce(const int64 Hand
 	TransientForceStore.Queue->PendingStops.Emplace(Request);
 }
 
-int64 FAnimNode_KawaiiPhysics::RequestPhysicsSettingsOverride(const FKawaiiPhysicsSettingsScale& InScale,
+int64 FAnimNode_KawaiiPhysics::RequestStartPhysicsSettingsMultiplier(const FKawaiiPhysicsSettingsMultiplier& InScale,
                                                               const float RiseTime, const float HoldTime,
-                                                              const float DecayTime, const int64 InHandleId)
+                                                              const float DecayTime, const int64 InHandleId,
+                                                              const bool bInfiniteHold)
 {
 	const int64 HandleId = InHandleId != 0 ? InHandleId : GenerateTransientForceHandleId();
 
-	FKawaiiPhysicsSettingsOverrideRequest Request;
+	FKawaiiPhysicsSettingsMultiplierRequest Request;
 	Request.Scale = InScale;
 	Request.RiseTime = RiseTime;
 	Request.HoldTime = HoldTime;
 	Request.DecayTime = DecayTime;
 	Request.HandleId = HandleId;
+	Request.bInfiniteHold = bInfiniteHold;
 
 	FScopeLock Lock(&TransientForceStore.Queue->Mutex);
-	if (TransientForceStore.Queue->PendingSettingsOverrides.Num() >= MaxPhysicsSettingsOverrides)
+	if (TransientForceStore.Queue->PendingSettingsMultipliers.Num() >= MaxPhysicsSettingsMultipliers)
 	{
-		// 評価が走らないノードへの連打でも pending が MaxPhysicsSettingsOverrides を超えないよう最古から破棄する。
-		TransientForceStore.Queue->PendingSettingsOverrides.RemoveAt(0);
+		// 評価が走らないノードへの連打でも pending が MaxPhysicsSettingsMultipliers を超えないよう最古から破棄する。
+		TransientForceStore.Queue->PendingSettingsMultipliers.RemoveAt(0);
 	}
 
-	TransientForceStore.Queue->PendingSettingsOverrides.Emplace(Request);
+	TransientForceStore.Queue->PendingSettingsMultipliers.Emplace(Request);
 	return HandleId;
 }
 
-bool FAnimNode_KawaiiPhysics::RequestSetPhysicsSettingsOverride(const FKawaiiPhysicsSettingsScale& InScale,
+bool FAnimNode_KawaiiPhysics::RequestPushPhysicsSettingsMultiplier(const FKawaiiPhysicsSettingsMultiplier& InScale,
                                                                 const float InAlpha, const int64 InHandleId,
                                                                 const int32 LeaseEvaluations,
                                                                 const float LeaseExpireBlendOutTime)
@@ -357,7 +359,7 @@ bool FAnimNode_KawaiiPhysics::RequestSetPhysicsSettingsOverride(const FKawaiiPhy
 		return false;
 	}
 
-	FKawaiiPhysicsSettingsOverrideSetRequest Request;
+	FKawaiiPhysicsSettingsMultiplierPushRequest Request;
 	Request.Scale = InScale;
 	Request.Alpha = FMath::Clamp(InAlpha, 0.0f, 1.0f);
 	Request.HandleId = InHandleId;
@@ -365,18 +367,18 @@ bool FAnimNode_KawaiiPhysics::RequestSetPhysicsSettingsOverride(const FKawaiiPhy
 	Request.LeaseExpireBlendOutTime = FMath::Max(0.0f, LeaseExpireBlendOutTime);
 
 	FScopeLock Lock(&TransientForceStore.Queue->Mutex);
-	TransientForceStore.Queue->PendingSettingsOverrideStops.RemoveAll(
+	TransientForceStore.Queue->PendingSettingsMultiplierStops.RemoveAll(
 		[InHandleId](const FKawaiiPhysicsTransientForceStopRequest& PendingStop)
 		{
 			return PendingStop.HandleId == InHandleId;
 		});
-	TransientForceStore.Queue->PendingSettingsOverrides.RemoveAll(
-		[InHandleId](const FKawaiiPhysicsSettingsOverrideRequest& PendingOverride)
+	TransientForceStore.Queue->PendingSettingsMultipliers.RemoveAll(
+		[InHandleId](const FKawaiiPhysicsSettingsMultiplierRequest& PendingOverride)
 		{
 			return PendingOverride.HandleId == InHandleId;
 		});
 
-	for (FKawaiiPhysicsSettingsOverrideSetRequest& PendingSet : TransientForceStore.Queue->PendingSettingsOverrideSets)
+	for (FKawaiiPhysicsSettingsMultiplierPushRequest& PendingSet : TransientForceStore.Queue->PendingSettingsMultiplierPushes)
 	{
 		if (PendingSet.HandleId == InHandleId)
 		{
@@ -385,17 +387,17 @@ bool FAnimNode_KawaiiPhysics::RequestSetPhysicsSettingsOverride(const FKawaiiPhy
 		}
 	}
 
-	if (TransientForceStore.Queue->PendingSettingsOverrideSets.Num() >= MaxPhysicsSettingsOverrides)
+	if (TransientForceStore.Queue->PendingSettingsMultiplierPushes.Num() >= MaxPhysicsSettingsMultipliers)
 	{
-		// 評価が走らないノードへの連打でも Set 要求が MaxPhysicsSettingsOverrides を超えないよう最古から破棄する。
-		TransientForceStore.Queue->PendingSettingsOverrideSets.RemoveAt(0);
+		// 評価が走らないノードへの連打でも Push 要求が MaxPhysicsSettingsMultipliers を超えないよう最古から破棄する。
+		TransientForceStore.Queue->PendingSettingsMultiplierPushes.RemoveAt(0);
 	}
 
-	TransientForceStore.Queue->PendingSettingsOverrideSets.Emplace(Request);
+	TransientForceStore.Queue->PendingSettingsMultiplierPushes.Emplace(Request);
 	return true;
 }
 
-void FAnimNode_KawaiiPhysics::RequestStopPhysicsSettingsOverride(const int64 HandleId, const float BlendOutTime)
+void FAnimNode_KawaiiPhysics::RequestStopPhysicsSettingsMultiplier(const int64 HandleId, const float BlendOutTime)
 {
 	if (HandleId == 0 || !TransientForceStore.Queue.IsValid())
 	{
@@ -403,7 +405,7 @@ void FAnimNode_KawaiiPhysics::RequestStopPhysicsSettingsOverride(const int64 Han
 	}
 
 	FScopeLock Lock(&TransientForceStore.Queue->Mutex);
-	for (FKawaiiPhysicsTransientForceStopRequest& PendingStop : TransientForceStore.Queue->PendingSettingsOverrideStops)
+	for (FKawaiiPhysicsTransientForceStopRequest& PendingStop : TransientForceStore.Queue->PendingSettingsMultiplierStops)
 	{
 		if (PendingStop.HandleId == HandleId)
 		{
@@ -412,32 +414,35 @@ void FAnimNode_KawaiiPhysics::RequestStopPhysicsSettingsOverride(const int64 Han
 		}
 	}
 
-	if (TransientForceStore.Queue->PendingSettingsOverrideStops.Num() >= MaxPhysicsSettingsOverrides)
+	if (TransientForceStore.Queue->PendingSettingsMultiplierStops.Num() >= MaxPhysicsSettingsMultipliers)
 	{
-		// 評価が走らないノードへの連打でも停止要求が MaxPhysicsSettingsOverrides を超えないよう最古から破棄する。
-		TransientForceStore.Queue->PendingSettingsOverrideStops.RemoveAt(0);
+		// 評価が走らないノードへの連打でも停止要求が MaxPhysicsSettingsMultipliers を超えないよう最古から破棄する。
+		TransientForceStore.Queue->PendingSettingsMultiplierStops.RemoveAt(0);
 	}
 
 	FKawaiiPhysicsTransientForceStopRequest Request;
 	Request.HandleId = HandleId;
 	Request.BlendOutTime = BlendOutTime;
-	TransientForceStore.Queue->PendingSettingsOverrideStops.Emplace(Request);
+	TransientForceStore.Queue->PendingSettingsMultiplierStops.Emplace(Request);
 }
 
 void FAnimNode_KawaiiPhysics::ResetTransientRuntimeState()
 {
 	TransientForceStore.Items.Reset();
-	TransientForceStore.SettingsOverrideItems.Reset();
-	bPhysicsSettingsOverrideAppliedLastUpdate = false;
+	TransientForceStore.SettingsMultiplierItems.Reset();
+#if !UE_BUILD_SHIPPING
+	WarnedInfiniteHoldSettingsMultiplierEvictionHandleIds.Reset();
+#endif
+	bPhysicsSettingsMultiplierAppliedLastUpdate = false;
 	if (TransientForceStore.Queue.IsValid())
 	{
 		FScopeLock Lock(&TransientForceStore.Queue->Mutex);
 		TransientForceStore.Queue->PendingForces.Reset();
 		TransientForceStore.Queue->PendingGusts.Reset();
 		TransientForceStore.Queue->PendingStops.Reset();
-		TransientForceStore.Queue->PendingSettingsOverrides.Reset();
-		TransientForceStore.Queue->PendingSettingsOverrideSets.Reset();
-		TransientForceStore.Queue->PendingSettingsOverrideStops.Reset();
+		TransientForceStore.Queue->PendingSettingsMultipliers.Reset();
+		TransientForceStore.Queue->PendingSettingsMultiplierPushes.Reset();
+		TransientForceStore.Queue->PendingSettingsMultiplierStops.Reset();
 	}
 }
 
@@ -665,14 +670,14 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 
 	}
 
-	// 倍率オーバーライドは UpdatePhysicsSettingsOfModifyBones より前に取り込み、このフレームの倍率を確定させる
-	const bool bHasActiveSettingsOverride = ConsumeAndAdvancePhysicsSettingsOverrides(DeltaTime);
+	// 倍率は UpdatePhysicsSettingsOfModifyBones より前に取り込み、このフレームの倍率を確定させる
+	const bool bHasActiveSettingsMultiplier = ConsumeAndAdvancePhysicsSettingsMultipliers(DeltaTime);
 
 	// 各パラメータとコリジョンを更新する
-	if (ShouldUpdatePhysicsSettings(bHasActiveSettingsOverride))
+	if (ShouldUpdatePhysicsSettings(bHasActiveSettingsMultiplier))
 	{
 		UpdatePhysicsSettingsOfModifyBones();
-		bPhysicsSettingsOverrideAppliedLastUpdate = bHasActiveSettingsOverride;
+		bPhysicsSettingsMultiplierAppliedLastUpdate = bHasActiveSettingsMultiplier;
 
 #if WITH_EDITORONLY_DATA
 		if (!bEditing)

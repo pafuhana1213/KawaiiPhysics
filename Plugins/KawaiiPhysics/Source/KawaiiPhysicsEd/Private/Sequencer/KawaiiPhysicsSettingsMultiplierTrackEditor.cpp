@@ -1,6 +1,6 @@
 // Copyright 2019-2026 pafuhana1213. All Rights Reserved.
 
-#include "Sequencer/KawaiiPhysicsSettingsOverrideTrackEditor.h"
+#include "Sequencer/KawaiiPhysicsSettingsMultiplierTrackEditor.h"
 
 #include "Components/SkeletalMeshComponent.h"
 #include "Framework/Commands/UIAction.h"
@@ -8,34 +8,34 @@
 #include "GameFramework/Actor.h"
 #include "ISequencer.h"
 #include "KawaiiPhysicsEdStyle.h"
-#include "KawaiiPhysicsSequencerOverrideRegistry.h"
+#include "KawaiiPhysicsSequencerMultiplierRegistry.h"
 #include "MovieScene.h"
-#include "MovieSceneKawaiiPhysicsSettingsOverrideSection.h"
-#include "MovieSceneKawaiiPhysicsSettingsOverrideTrack.h"
+#include "MovieSceneKawaiiPhysicsSettingsMultiplierSection.h"
+#include "MovieSceneKawaiiPhysicsSettingsMultiplierTrack.h"
 #include "MovieScenePossessable.h"
 #include "MovieSceneSequence.h"
 #include "Rendering/DrawElements.h"
 #include "ScopedTransaction.h"
-#include "Sequencer/KawaiiPhysicsSettingsOverrideSectionPresets.h"
-#include "Sequencer/KawaiiPhysicsSettingsOverrideSectionSummary.h"
+#include "Sequencer/KawaiiPhysicsSettingsMultiplierSectionPresets.h"
+#include "Sequencer/KawaiiPhysicsSettingsMultiplierSectionSummary.h"
 #include "SequencerSectionPainter.h"
 #include "Styling/ISlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "TimeToPixel.h"
 
-#define LOCTEXT_NAMESPACE "FKawaiiPhysicsSettingsOverrideTrackEditor"
+#define LOCTEXT_NAMESPACE "FKawaiiPhysicsSettingsMultiplierTrackEditor"
 
 namespace
 {
 struct FScalePreset
 {
 	FText Label;
-	FKawaiiPhysicsSettingsScale Scale;
+	FKawaiiPhysicsSettingsMultiplier Scale;
 };
 
-FKawaiiPhysicsSettingsScale MakeScalePreset(const float Stiffness, const float Damping)
+FKawaiiPhysicsSettingsMultiplier MakeScalePreset(const float Stiffness, const float Damping)
 {
-	FKawaiiPhysicsSettingsScale Scale;
+	FKawaiiPhysicsSettingsMultiplier Scale;
 	Scale.Damping = Damping;
 	Scale.Stiffness = Stiffness;
 	return Scale;
@@ -91,18 +91,18 @@ FText KawaiiPhysicsMakeFilterTagsText(const FGameplayTagContainer& FilterTags)
 	return FText::Format(LOCTEXT("SectionTagsFormat", "[{0}]"), TagListText);
 }
 
-bool KawaiiPhysicsBindingHasSettingsOverrideTrack(UMovieScene* MovieScene, const FGuid& ObjectBinding)
+bool KawaiiPhysicsBindingHasSettingsMultiplierTrack(UMovieScene* MovieScene, const FGuid& ObjectBinding)
 {
 	if (!MovieScene || !ObjectBinding.IsValid())
 	{
 		return false;
 	}
 
-	return MovieScene->FindTrack(UMovieSceneKawaiiPhysicsSettingsOverrideTrack::StaticClass(), ObjectBinding) !=
+	return MovieScene->FindTrack(UMovieSceneKawaiiPhysicsSettingsMultiplierTrack::StaticClass(), ObjectBinding) !=
 		nullptr;
 }
 
-bool KawaiiPhysicsAnyParentBindingHasSettingsOverrideTrack(
+bool KawaiiPhysicsAnyParentBindingHasSettingsMultiplierTrack(
 	UMovieScene* MovieScene,
 	const TArray<FGuid>& ObjectBindings)
 {
@@ -115,7 +115,7 @@ bool KawaiiPhysicsAnyParentBindingHasSettingsOverrideTrack(
 	{
 		const FMovieScenePossessable* Possessable = MovieScene->FindPossessable(ObjectBinding);
 		if (Possessable &&
-			KawaiiPhysicsBindingHasSettingsOverrideTrack(MovieScene, Possessable->GetParent()))
+			KawaiiPhysicsBindingHasSettingsMultiplierTrack(MovieScene, Possessable->GetParent()))
 		{
 			return true;
 		}
@@ -124,7 +124,7 @@ bool KawaiiPhysicsAnyParentBindingHasSettingsOverrideTrack(
 	return false;
 }
 
-bool KawaiiPhysicsAnyChildComponentBindingHasSettingsOverrideTrack(
+bool KawaiiPhysicsAnyChildComponentBindingHasSettingsMultiplierTrack(
 	UMovieScene* MovieScene,
 	const TArray<FGuid>& ObjectBindings)
 {
@@ -146,7 +146,7 @@ bool KawaiiPhysicsAnyChildComponentBindingHasSettingsOverrideTrack(
 		if (ParentBindings.Contains(Possessable.GetParent()) &&
 			PossessedObjectClass &&
 			PossessedObjectClass->IsChildOf(USkeletalMeshComponent::StaticClass()) &&
-			KawaiiPhysicsBindingHasSettingsOverrideTrack(MovieScene, Possessable.GetGuid()))
+			KawaiiPhysicsBindingHasSettingsMultiplierTrack(MovieScene, Possessable.GetGuid()))
 		{
 			return true;
 		}
@@ -157,18 +157,18 @@ bool KawaiiPhysicsAnyChildComponentBindingHasSettingsOverrideTrack(
 
 FText KawaiiPhysicsAppendTrackWarning(const FText& ToolTip, const FText& Warning)
 {
-	return FText::Format(LOCTEXT("AddKawaiiPhysicsSettingsOverrideTrackTooltipWithWarning", "{0}{1}"),
+	return FText::Format(LOCTEXT("AddKawaiiPhysicsSettingsMultiplierTrackTooltipWithWarning", "{0}{1}"),
 	                     ToolTip, Warning);
 }
 
 // FSequencerSection はセクション UI の再構築で破棄されうるため、メニューアクションは this を捕捉せず弱参照だけを持つ
 void KawaiiPhysicsApplyScaleToSectionWithTransaction(
-	TWeakObjectPtr<UMovieSceneKawaiiPhysicsSettingsOverrideSection> WeakSection,
+	TWeakObjectPtr<UMovieSceneKawaiiPhysicsSettingsMultiplierSection> WeakSection,
 	TWeakPtr<ISequencer> WeakSequencer,
 	const FText& TransactionText,
-	const FKawaiiPhysicsSettingsScale& Scale)
+	const FKawaiiPhysicsSettingsMultiplier& Scale)
 {
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section = WeakSection.Get();
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* Section = WeakSection.Get();
 	if (!Section)
 	{
 		return;
@@ -185,44 +185,44 @@ void KawaiiPhysicsApplyScaleToSectionWithTransaction(
 }
 }
 
-TSharedRef<ISequencerTrackEditor> FKawaiiPhysicsSettingsOverrideTrackEditor::CreateTrackEditor(
+TSharedRef<ISequencerTrackEditor> FKawaiiPhysicsSettingsMultiplierTrackEditor::CreateTrackEditor(
 	TSharedRef<ISequencer> InSequencer)
 {
-	return MakeShared<FKawaiiPhysicsSettingsOverrideTrackEditor>(InSequencer);
+	return MakeShared<FKawaiiPhysicsSettingsMultiplierTrackEditor>(InSequencer);
 }
 
-FKawaiiPhysicsSettingsOverrideTrackEditor::FKawaiiPhysicsSettingsOverrideTrackEditor(
+FKawaiiPhysicsSettingsMultiplierTrackEditor::FKawaiiPhysicsSettingsMultiplierTrackEditor(
 	TSharedRef<ISequencer> InSequencer)
 	: FMovieSceneTrackEditor(InSequencer)
 {
 }
 
-bool FKawaiiPhysicsSettingsOverrideTrackEditor::SupportsType(const TSubclassOf<UMovieSceneTrack> Type) const
+bool FKawaiiPhysicsSettingsMultiplierTrackEditor::SupportsType(const TSubclassOf<UMovieSceneTrack> Type) const
 {
-	return Type == UMovieSceneKawaiiPhysicsSettingsOverrideTrack::StaticClass();
+	return Type == UMovieSceneKawaiiPhysicsSettingsMultiplierTrack::StaticClass();
 }
 
-bool FKawaiiPhysicsSettingsOverrideTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
+bool FKawaiiPhysicsSettingsMultiplierTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
 {
 	return InSequence &&
-		InSequence->IsTrackSupported(UMovieSceneKawaiiPhysicsSettingsOverrideTrack::StaticClass()) !=
+		InSequence->IsTrackSupported(UMovieSceneKawaiiPhysicsSettingsMultiplierTrack::StaticClass()) !=
 		ETrackSupport::NotSupported;
 }
 
-void FKawaiiPhysicsSettingsOverrideTrackEditor::BuildAddTrackMenu(FMenuBuilder& MenuBuilder)
+void FKawaiiPhysicsSettingsMultiplierTrackEditor::BuildAddTrackMenu(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("AddKawaiiPhysicsSettingsOverrideRootTrack", "Kawaii Physics Settings Override (All)"),
+		LOCTEXT("AddKawaiiPhysicsSettingsMultiplierRootTrack", "Kawaii Physics Settings Multiplier (All)"),
 		LOCTEXT(
-			"AddKawaiiPhysicsSettingsOverrideRootTrackTooltip",
+			"AddKawaiiPhysicsSettingsMultiplierRootTrackTooltip",
 			"Adds a root track that drives Kawaii Physics settings multiplier overrides on every skeletal mesh component in the playback world. Filter Tags are required; an empty filter does nothing."),
 		FSlateIcon(FKawaiiPhysicsEdStyle::GetStyleSetName(), TEXT("KawaiiPhysics.TabIcon")),
 		FUIAction(FExecuteAction::CreateSP(
 			this,
-			&FKawaiiPhysicsSettingsOverrideTrackEditor::HandleAddRootTrack)));
+			&FKawaiiPhysicsSettingsMultiplierTrackEditor::HandleAddRootTrack)));
 }
 
-void FKawaiiPhysicsSettingsOverrideTrackEditor::BuildObjectBindingTrackMenu(
+void FKawaiiPhysicsSettingsMultiplierTrackEditor::BuildObjectBindingTrackMenu(
 	FMenuBuilder& MenuBuilder,
 	const TArray<FGuid>& ObjectBindings,
 	const UClass* ObjectClass)
@@ -235,50 +235,50 @@ void FKawaiiPhysicsSettingsOverrideTrackEditor::BuildObjectBindingTrackMenu(
 	}
 
 	FText ToolTip = LOCTEXT(
-		"AddKawaiiPhysicsSettingsOverrideTrackTooltip",
+		"AddKawaiiPhysicsSettingsMultiplierTrackTooltip",
 		"Adds a track that drives Kawaii Physics settings multiplier overrides on the bound skeletal mesh components.");
 
 	UMovieScene* MovieScene = GetSequencer().IsValid() ? GetFocusedMovieScene() : nullptr;
 	if (ObjectClass->IsChildOf(USkeletalMeshComponent::StaticClass()) &&
-		KawaiiPhysicsAnyParentBindingHasSettingsOverrideTrack(MovieScene, ObjectBindings))
+		KawaiiPhysicsAnyParentBindingHasSettingsMultiplierTrack(MovieScene, ObjectBindings))
 	{
 		ToolTip = KawaiiPhysicsAppendTrackWarning(
 			ToolTip,
 			LOCTEXT(
-				"AddKawaiiPhysicsSettingsOverrideTrackParentWarning",
+				"AddKawaiiPhysicsSettingsMultiplierTrackParentWarning",
 				"\nNote: the parent actor binding already has this track. Overlapping sections on the actor and this component multiply together."));
 	}
 	else if (ObjectClass->IsChildOf(AActor::StaticClass()) &&
-	         KawaiiPhysicsAnyChildComponentBindingHasSettingsOverrideTrack(MovieScene, ObjectBindings))
+	         KawaiiPhysicsAnyChildComponentBindingHasSettingsMultiplierTrack(MovieScene, ObjectBindings))
 	{
 		ToolTip = KawaiiPhysicsAppendTrackWarning(
 			ToolTip,
 			LOCTEXT(
-				"AddKawaiiPhysicsSettingsOverrideTrackChildWarning",
+				"AddKawaiiPhysicsSettingsMultiplierTrackChildWarning",
 				"\nNote: a child component binding already has this track. Overlapping sections on the actor and this component multiply together."));
 	}
 
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("AddKawaiiPhysicsSettingsOverrideTrack", "Kawaii Physics Settings Override"),
+		LOCTEXT("AddKawaiiPhysicsSettingsMultiplierTrack", "Kawaii Physics Settings Multiplier"),
 		ToolTip,
 		FSlateIcon(FKawaiiPhysicsEdStyle::GetStyleSetName(), TEXT("KawaiiPhysics.TabIcon")),
 		FUIAction(FExecuteAction::CreateSP(
 			this,
-			&FKawaiiPhysicsSettingsOverrideTrackEditor::HandleAddTrack,
+			&FKawaiiPhysicsSettingsMultiplierTrackEditor::HandleAddTrack,
 			ObjectBindings)));
 }
 
-TSharedRef<ISequencerSection> FKawaiiPhysicsSettingsOverrideTrackEditor::MakeSectionInterface(
+TSharedRef<ISequencerSection> FKawaiiPhysicsSettingsMultiplierTrackEditor::MakeSectionInterface(
 	UMovieSceneSection& SectionObject,
 	UMovieSceneTrack& Track,
 	FGuid ObjectBinding)
 {
 	(void)ObjectBinding;
 	check(SupportsType(Track.GetClass()));
-	return MakeShared<FKawaiiPhysicsSettingsOverrideSectionInterface>(SectionObject, GetSequencer());
+	return MakeShared<FKawaiiPhysicsSettingsMultiplierSectionInterface>(SectionObject, GetSequencer());
 }
 
-const FSlateBrush* FKawaiiPhysicsSettingsOverrideTrackEditor::GetIconBrush() const
+const FSlateBrush* FKawaiiPhysicsSettingsMultiplierTrackEditor::GetIconBrush() const
 {
 	if (const ISlateStyle* Style = FSlateStyleRegistry::FindSlateStyle(FKawaiiPhysicsEdStyle::GetStyleSetName()))
 	{
@@ -288,10 +288,10 @@ const FSlateBrush* FKawaiiPhysicsSettingsOverrideTrackEditor::GetIconBrush() con
 	return nullptr;
 }
 
-void FKawaiiPhysicsSettingsOverrideTrackEditor::HandleAddTrack(TArray<FGuid> ObjectBindings)
+void FKawaiiPhysicsSettingsMultiplierTrackEditor::HandleAddTrack(TArray<FGuid> ObjectBindings)
 {
 	const FScopedTransaction Transaction(
-		LOCTEXT("AddKawaiiPhysicsSettingsOverrideTrackTransaction", "Add Kawaii Physics Settings Override Track"));
+		LOCTEXT("AddKawaiiPhysicsSettingsMultiplierTrackTransaction", "Add Kawaii Physics Settings Multiplier Track"));
 
 	const TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
 	if (!SequencerPtr.IsValid())
@@ -306,13 +306,13 @@ void FKawaiiPhysicsSettingsOverrideTrackEditor::HandleAddTrack(TArray<FGuid> Obj
 		{
 			AnimatablePropertyChanged(FOnKeyProperty::CreateRaw(
 				this,
-				&FKawaiiPhysicsSettingsOverrideTrackEditor::AddTrackInternal,
+				&FKawaiiPhysicsSettingsMultiplierTrackEditor::AddTrackInternal,
 				Object));
 		}
 	}
 }
 
-void FKawaiiPhysicsSettingsOverrideTrackEditor::HandleAddRootTrack()
+void FKawaiiPhysicsSettingsMultiplierTrackEditor::HandleAddRootTrack()
 {
 	const TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
 	if (!SequencerPtr.IsValid())
@@ -327,17 +327,17 @@ void FKawaiiPhysicsSettingsOverrideTrackEditor::HandleAddRootTrack()
 	}
 
 	const FScopedTransaction Transaction(
-		LOCTEXT("AddKawaiiPhysicsSettingsOverrideRootTrackTransaction",
-		        "Add Kawaii Physics Settings Override Root Track"));
+		LOCTEXT("AddKawaiiPhysicsSettingsMultiplierRootTrackTransaction",
+		        "Add Kawaii Physics Settings Multiplier Root Track"));
 
 	// FindOrCreateRootTrack はクラス一致のみで既存トラックを拾ってしまい、バインディング付きで同クラスの
 	// トラックが root Tracks 配列に紛れ込んでいる場合に誤って早期 return してしまう。
 	// bIsRootTrack フラグが立っている本物の root track だけを探す。
-	UMovieSceneKawaiiPhysicsSettingsOverrideTrack* Track = nullptr;
+	UMovieSceneKawaiiPhysicsSettingsMultiplierTrack* Track = nullptr;
 	for (UMovieSceneTrack* ExistingTrack : MovieScene->GetTracks())
 	{
-		UMovieSceneKawaiiPhysicsSettingsOverrideTrack* ExistingRootTrack =
-			Cast<UMovieSceneKawaiiPhysicsSettingsOverrideTrack>(ExistingTrack);
+		UMovieSceneKawaiiPhysicsSettingsMultiplierTrack* ExistingRootTrack =
+			Cast<UMovieSceneKawaiiPhysicsSettingsMultiplierTrack>(ExistingTrack);
 		if (ExistingRootTrack && ExistingRootTrack->bIsRootTrack)
 		{
 			Track = ExistingRootTrack;
@@ -348,7 +348,7 @@ void FKawaiiPhysicsSettingsOverrideTrackEditor::HandleAddRootTrack()
 	if (!Track)
 	{
 		MovieScene->Modify();
-		Track = MovieScene->AddTrack<UMovieSceneKawaiiPhysicsSettingsOverrideTrack>();
+		Track = MovieScene->AddTrack<UMovieSceneKawaiiPhysicsSettingsMultiplierTrack>();
 		if (!Track)
 		{
 			return;
@@ -377,7 +377,7 @@ void FKawaiiPhysicsSettingsOverrideTrackEditor::HandleAddRootTrack()
 	SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 }
 
-FKeyPropertyResult FKawaiiPhysicsSettingsOverrideTrackEditor::AddTrackInternal(
+FKeyPropertyResult FKawaiiPhysicsSettingsMultiplierTrackEditor::AddTrackInternal(
 	const FFrameNumber KeyTime,
 	UObject* Object)
 {
@@ -404,7 +404,7 @@ FKeyPropertyResult FKawaiiPhysicsSettingsOverrideTrackEditor::AddTrackInternal(
 
 	FFindOrCreateTrackResult TrackResult = FindOrCreateTrackForObject(
 		HandleResult.Handle,
-		UMovieSceneKawaiiPhysicsSettingsOverrideTrack::StaticClass());
+		UMovieSceneKawaiiPhysicsSettingsMultiplierTrack::StaticClass());
 	KeyPropertyResult.bTrackCreated |= TrackResult.bWasCreated;
 
 	// 既存トラックへ 2 回目以降に追加した場合もセクションを作る（無反応にしない）
@@ -431,7 +431,7 @@ FKeyPropertyResult FKawaiiPhysicsSettingsOverrideTrackEditor::AddTrackInternal(
 	return KeyPropertyResult;
 }
 
-FKawaiiPhysicsSettingsOverrideSectionInterface::FKawaiiPhysicsSettingsOverrideSectionInterface(
+FKawaiiPhysicsSettingsMultiplierSectionInterface::FKawaiiPhysicsSettingsMultiplierSectionInterface(
 	UMovieSceneSection& InSection,
 	TWeakPtr<ISequencer> InSequencer)
 	: FSequencerSection(InSection)
@@ -439,17 +439,17 @@ FKawaiiPhysicsSettingsOverrideSectionInterface::FKawaiiPhysicsSettingsOverrideSe
 {
 }
 
-FText FKawaiiPhysicsSettingsOverrideSectionInterface::GetSectionTitle() const
+FText FKawaiiPhysicsSettingsMultiplierSectionInterface::GetSectionTitle() const
 {
-	if (const UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section =
-		Cast<UMovieSceneKawaiiPhysicsSettingsOverrideSection>(WeakSection.Get()))
+	if (const UMovieSceneKawaiiPhysicsSettingsMultiplierSection* Section =
+		Cast<UMovieSceneKawaiiPhysicsSettingsMultiplierSection>(WeakSection.Get()))
 	{
 		const FFrameTime StartTime = Section->HasStartFrame()
 			                             ? FFrameTime(Section->GetInclusiveStartFrame())
 			                             : FFrameTime(0);
 		const FText Summary = MakeKawaiiPhysicsScaleSummaryText(Section->EvaluateScaleAtTime(StartTime));
-		const UMovieSceneKawaiiPhysicsSettingsOverrideTrack* Track =
-			Section->GetTypedOuter<UMovieSceneKawaiiPhysicsSettingsOverrideTrack>();
+		const UMovieSceneKawaiiPhysicsSettingsMultiplierTrack* Track =
+			Section->GetTypedOuter<UMovieSceneKawaiiPhysicsSettingsMultiplierTrack>();
 		const bool bNeedsRootFilterWarning = Track && Track->bIsRootTrack && Section->FilterTags.IsEmpty();
 		const auto AddRootFilterWarning = [bNeedsRootFilterWarning](const FText& Title)
 		{
@@ -465,7 +465,7 @@ FText FKawaiiPhysicsSettingsOverrideSectionInterface::GetSectionTitle() const
 		};
 
 		bool bHasLiveEntry = false;
-		const int32 QueuedNodeCount = FKawaiiPhysicsSequencerOverrideRegistry::Get().GetQueuedNodeCount(
+		const int32 QueuedNodeCount = FKawaiiPhysicsSequencerMultiplierRegistry::Get().GetQueuedNodeCount(
 			Section, Section->FilterTags, Section->bFilterExactMatch, bHasLiveEntry);
 		FText Suffix = FText::GetEmpty();
 		// 生存 Entry があって 0 件なら、フィルタ無し（全ノード対象）でも「一致なし」＝対象 Component に KawaiiPhysics ノードが無い
@@ -508,12 +508,12 @@ FText FKawaiiPhysicsSettingsOverrideSectionInterface::GetSectionTitle() const
 	return FText::GetEmpty();
 }
 
-int32 FKawaiiPhysicsSettingsOverrideSectionInterface::OnPaintSection(FSequencerSectionPainter& Painter) const
+int32 FKawaiiPhysicsSettingsMultiplierSectionInterface::OnPaintSection(FSequencerSectionPainter& Painter) const
 {
 	const int32 LayerId = Painter.PaintSectionBackground();
 
-	const UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section =
-		Cast<UMovieSceneKawaiiPhysicsSettingsOverrideSection>(WeakSection.Get());
+	const UMovieSceneKawaiiPhysicsSettingsMultiplierSection* Section =
+		Cast<UMovieSceneKawaiiPhysicsSettingsMultiplierSection>(WeakSection.Get());
 	if (!Section || !Section->HasStartFrame() || !Section->HasEndFrame())
 	{
 		return LayerId + 1;
@@ -563,19 +563,19 @@ int32 FKawaiiPhysicsSettingsOverrideSectionInterface::OnPaintSection(FSequencerS
 	return LayerId + 1;
 }
 
-void FKawaiiPhysicsSettingsOverrideSectionInterface::BuildSectionContextMenu(
+void FKawaiiPhysicsSettingsMultiplierSectionInterface::BuildSectionContextMenu(
 	FMenuBuilder& MenuBuilder,
 	const FGuid& ObjectBinding)
 {
 	(void)ObjectBinding;
 
 	// FSequencerSection はセクション UI の再構築で破棄されうるため、メニューアクションは this を捕捉せず弱参照だけを持つ
-	const TWeakObjectPtr<UMovieSceneKawaiiPhysicsSettingsOverrideSection> WeakSectionObj =
-		Cast<UMovieSceneKawaiiPhysicsSettingsOverrideSection>(WeakSection.Get());
+	const TWeakObjectPtr<UMovieSceneKawaiiPhysicsSettingsMultiplierSection> WeakSectionObj =
+		Cast<UMovieSceneKawaiiPhysicsSettingsMultiplierSection>(WeakSection.Get());
 	const TWeakPtr<ISequencer> WeakSequencerCopy = WeakSequencer;
 
 	MenuBuilder.BeginSection(
-		FName(TEXT("KawaiiPhysicsSettingsOverride")),
+		FName(TEXT("KawaiiPhysicsSettingsMultiplier")),
 		LOCTEXT("SectionMenuHeader", "Kawaii Physics"));
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("ResetScale", "Reset Scale to 1.0"),
@@ -589,7 +589,7 @@ void FKawaiiPhysicsSettingsOverrideSectionInterface::BuildSectionContextMenu(
 				WeakSectionObj,
 				WeakSequencerCopy,
 				LOCTEXT("ResetScaleTransaction", "Reset Kawaii Physics Scale"),
-				FKawaiiPhysicsSettingsScale());
+				FKawaiiPhysicsSettingsMultiplier());
 		})));
 
 	MenuBuilder.AddSubMenu(

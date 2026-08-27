@@ -358,6 +358,38 @@ bool KawaiiPhysics::StructInstanceHasLiveObjectReference(const UScriptStruct* St
 	return StructMemoryHasLiveObjectReference(Struct, StructMemory);
 }
 
+bool UKawaiiPhysicsLibrary::BuildSettingsMultiplierStartRequest(const FKawaiiPhysicsSettingsMultiplier& Scale,
+                                                                const float Duration,
+                                                                const float BlendInTime,
+                                                                const float BlendOutTime,
+                                                                FKawaiiPhysicsSettingsMultiplierRequest& OutRequest)
+{
+	if (Duration == 0.0f)
+	{
+		return false;
+	}
+
+	OutRequest = FKawaiiPhysicsSettingsMultiplierRequest();
+	OutRequest.Scale = Scale;
+	if (Duration < 0.0f)
+	{
+		OutRequest.bInfiniteHold = true;
+		OutRequest.RiseTime = FMath::Max(BlendInTime, 0.0f);
+		OutRequest.HoldTime = 0.0f;
+		// 無限 Hold の解放時間は Stop 側の BlendOutTime で決まるため Start 側の値は保持しない
+		OutRequest.DecayTime = 0.0f;
+		return true;
+	}
+
+	const ::KawaiiPhysics::FWindBlowEnvelope Envelope =
+		::KawaiiPhysics::ResolveWindBlowEnvelope(Duration, BlendInTime, BlendOutTime);
+	OutRequest.bInfiniteHold = false;
+	OutRequest.RiseTime = Envelope.RiseTime;
+	OutRequest.HoldTime = Envelope.HoldTime;
+	OutRequest.DecayTime = Envelope.DecayTime;
+	return true;
+}
+
 // transientストアはGC追跡外のため、UObject参照を保持する外力はここで拒否する
 bool KawaiiPhysics::CanQueueTransientExternalForce(const FInstancedStruct& ExternalForce, const TCHAR* ContextName)
 {
@@ -1132,12 +1164,12 @@ int32 UKawaiiPhysicsLibrary::StopTransientExternalForcesOnComponent(
 	return AppliedNodeCount;
 }
 
-// 停止ハンドル付きの物理設定倍率オーバーライドをノードへキューイングする
-FKawaiiPhysicsReference UKawaiiPhysicsLibrary::StartPhysicsSettingsOverride(
+// 停止ハンドル付きの物理設定倍率をノードへキューイングする
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::StartPhysicsSettingsMultiplier(
 	EKawaiiPhysicsAccessResult& ExecResult,
 	FKawaiiPhysicsTransientForceHandle& OutHandle,
 	const FKawaiiPhysicsReference& KawaiiPhysics,
-	const FKawaiiPhysicsSettingsScale SettingsScale,
+	const FKawaiiPhysicsSettingsMultiplier SettingsScale,
 	const float Duration,
 	const float BlendInTime,
 	const float BlendOutTime)
@@ -1145,36 +1177,34 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::StartPhysicsSettingsOverride(
 	ExecResult = EKawaiiPhysicsAccessResult::NotValid;
 	OutHandle.Id = 0;
 
-	// Duration<=0 は完全な no-op（キューへ積まず pending スロットも消費しない）
-	if (Duration <= 0.0f)
+	FKawaiiPhysicsSettingsMultiplierRequest Request;
+	if (!BuildSettingsMultiplierStartRequest(SettingsScale, Duration, BlendInTime, BlendOutTime, Request))
 	{
 		return KawaiiPhysics;
 	}
 
-	// BlendIn/BlendOut を Rise/Decay として扱い、Duration 合計秒から台形エンベロープへ分解する
-	const ::KawaiiPhysics::FWindBlowEnvelope Envelope =
-		::KawaiiPhysics::ResolveWindBlowEnvelope(Duration, BlendInTime, BlendOutTime);
 	const int64 HandleId = FAnimNode_KawaiiPhysics::GenerateTransientForceHandleId();
+	Request.HandleId = HandleId;
 
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-		TEXT("StartPhysicsSettingsOverride"),
-		[&ExecResult, SettingsScale, Envelope, HandleId](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+		TEXT("StartPhysicsSettingsMultiplier"),
+		[&ExecResult, Request](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 		{
-			InKawaiiPhysics.RequestPhysicsSettingsOverride(SettingsScale, Envelope.RiseTime, Envelope.HoldTime,
-			                                              Envelope.DecayTime, HandleId);
+			InKawaiiPhysics.RequestStartPhysicsSettingsMultiplier(Request.Scale, Request.RiseTime, Request.HoldTime,
+			                                              Request.DecayTime, Request.HandleId, Request.bInfiniteHold);
 			ExecResult = EKawaiiPhysicsAccessResult::Valid;
 		});
 
 	if (ExecResult == EKawaiiPhysicsAccessResult::Valid)
 	{
-		OutHandle.Id = HandleId;
+		OutHandle.Id = Request.HandleId;
 	}
 
 	return KawaiiPhysics;
 }
 
-// ハンドルに一致する物理設定オーバーライドの停止をノードへキューイングする
-FKawaiiPhysicsReference UKawaiiPhysicsLibrary::StopPhysicsSettingsOverride(
+// ハンドルに一致する物理設定倍率の停止をノードへキューイングする
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::StopPhysicsSettingsMultiplier(
 	EKawaiiPhysicsAccessResult& ExecResult,
 	const FKawaiiPhysicsReference& KawaiiPhysics,
 	const FKawaiiPhysicsTransientForceHandle Handle,
@@ -1183,21 +1213,21 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::StopPhysicsSettingsOverride(
 	ExecResult = EKawaiiPhysicsAccessResult::NotValid;
 
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-		TEXT("StopPhysicsSettingsOverride"),
+		TEXT("StopPhysicsSettingsMultiplier"),
 		[&ExecResult, Handle, BlendOutTime](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 		{
-			InKawaiiPhysics.RequestStopPhysicsSettingsOverride(Handle.Id, BlendOutTime);
+			InKawaiiPhysics.RequestStopPhysicsSettingsMultiplier(Handle.Id, BlendOutTime);
 			ExecResult = EKawaiiPhysicsAccessResult::Valid;
 		});
 
 	return KawaiiPhysics;
 }
 
-// Component内の対象ノード（Tagフィルタ適用）へ、共通ハンドルの物理設定倍率オーバーライドをキューイングする
-int32 UKawaiiPhysicsLibrary::StartPhysicsSettingsOverrideOnComponent(
+// Component内の対象ノード（Tagフィルタ適用）へ、共通ハンドルの物理設定倍率をキューイングする
+int32 UKawaiiPhysicsLibrary::StartPhysicsSettingsMultiplierOnComponent(
 	USkeletalMeshComponent* MeshComp,
 	FKawaiiPhysicsTransientForceHandle& OutHandle,
-	const FKawaiiPhysicsSettingsScale SettingsScale,
+	const FKawaiiPhysicsSettingsMultiplier SettingsScale,
 	const float Duration,
 	const float BlendInTime,
 	const float BlendOutTime,
@@ -1207,41 +1237,39 @@ int32 UKawaiiPhysicsLibrary::StartPhysicsSettingsOverrideOnComponent(
 	OutHandle.Id = 0;
 	int32 AppliedNodeCount = 0;
 
-	// Duration<=0 は完全な no-op（キューへ積まず pending スロットも消費しない）
-	if (Duration <= 0.0f)
+	FKawaiiPhysicsSettingsMultiplierRequest Request;
+	if (!BuildSettingsMultiplierStartRequest(SettingsScale, Duration, BlendInTime, BlendOutTime, Request))
 	{
 		return 0;
 	}
 
-	// BlendIn/BlendOut を Rise/Decay として扱い、Duration 合計秒から台形エンベロープへ分解する
-	const ::KawaiiPhysics::FWindBlowEnvelope Envelope =
-		::KawaiiPhysics::ResolveWindBlowEnvelope(Duration, BlendInTime, BlendOutTime);
 	const int64 HandleId = FAnimNode_KawaiiPhysics::GenerateTransientForceHandleId();
+	Request.HandleId = HandleId;
 
 	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
 	CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, MeshComp, FilterTags, bFilterExactMatch);
 	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
 	{
 		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-			TEXT("StartPhysicsSettingsOverrideOnComponent"),
-			[&AppliedNodeCount, SettingsScale, Envelope, HandleId](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			TEXT("StartPhysicsSettingsMultiplierOnComponent"),
+			[&AppliedNodeCount, Request](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 			{
-				InKawaiiPhysics.RequestPhysicsSettingsOverride(SettingsScale, Envelope.RiseTime, Envelope.HoldTime,
-				                                              Envelope.DecayTime, HandleId);
+				InKawaiiPhysics.RequestStartPhysicsSettingsMultiplier(Request.Scale, Request.RiseTime, Request.HoldTime,
+				                                              Request.DecayTime, Request.HandleId, Request.bInfiniteHold);
 				++AppliedNodeCount;
 			});
 	}
 
 	if (AppliedNodeCount > 0)
 	{
-		OutHandle.Id = HandleId;
+		OutHandle.Id = Request.HandleId;
 	}
 
 	return AppliedNodeCount;
 }
 
-// Component内の対象ノードへ物理設定オーバーライドの停止をキューイングする
-int32 UKawaiiPhysicsLibrary::StopPhysicsSettingsOverridesOnComponent(
+// Component内の対象ノードへ物理設定倍率の停止をキューイングする
+int32 UKawaiiPhysicsLibrary::StopPhysicsSettingsMultipliersOnComponent(
 	USkeletalMeshComponent* MeshComp,
 	const FKawaiiPhysicsTransientForceHandle Handle,
 	const FGameplayTagContainer& FilterTags,
@@ -1260,10 +1288,10 @@ int32 UKawaiiPhysicsLibrary::StopPhysicsSettingsOverridesOnComponent(
 	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
 	{
 		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-			TEXT("StopPhysicsSettingsOverridesOnComponent"),
+			TEXT("StopPhysicsSettingsMultipliersOnComponent"),
 			[&AppliedNodeCount, Handle, BlendOutTime](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 			{
-				InKawaiiPhysics.RequestStopPhysicsSettingsOverride(Handle.Id, BlendOutTime);
+				InKawaiiPhysics.RequestStopPhysicsSettingsMultiplier(Handle.Id, BlendOutTime);
 				++AppliedNodeCount;
 			});
 	}
@@ -1278,12 +1306,12 @@ FKawaiiPhysicsTransientForceHandle UKawaiiPhysicsLibrary::GenerateTransientForce
 	return Handle;
 }
 
-// 外部駆動の物理設定倍率オーバーライドをノードへキューイングする
-FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetPhysicsSettingsOverride(
+// 外部駆動の物理設定倍率をノードへキューイングする
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::PushPhysicsSettingsMultiplier(
 	EKawaiiPhysicsAccessResult& ExecResult,
 	const FKawaiiPhysicsReference& KawaiiPhysics,
 	const FKawaiiPhysicsTransientForceHandle Handle,
-	const FKawaiiPhysicsSettingsScale SettingsScale,
+	const FKawaiiPhysicsSettingsMultiplier SettingsScale,
 	const float Alpha)
 {
 	ExecResult = EKawaiiPhysicsAccessResult::NotValid;
@@ -1295,10 +1323,10 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetPhysicsSettingsOverride(
 
 	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-		TEXT("SetPhysicsSettingsOverride"),
+		TEXT("PushPhysicsSettingsMultiplier"),
 		[&ExecResult, Handle, SettingsScale, ClampedAlpha](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 		{
-			if (InKawaiiPhysics.RequestSetPhysicsSettingsOverride(SettingsScale, ClampedAlpha, Handle.Id))
+			if (InKawaiiPhysics.RequestPushPhysicsSettingsMultiplier(SettingsScale, ClampedAlpha, Handle.Id))
 			{
 				ExecResult = EKawaiiPhysicsAccessResult::Valid;
 			}
@@ -1307,23 +1335,23 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetPhysicsSettingsOverride(
 	return KawaiiPhysics;
 }
 
-int32 UKawaiiPhysicsLibrary::SetPhysicsSettingsOverrideOnComponent(
+int32 UKawaiiPhysicsLibrary::PushPhysicsSettingsMultiplierOnComponent(
 	USkeletalMeshComponent* MeshComp,
 	const FKawaiiPhysicsTransientForceHandle Handle,
-	const FKawaiiPhysicsSettingsScale SettingsScale,
+	const FKawaiiPhysicsSettingsMultiplier SettingsScale,
 	const float Alpha,
 	const FGameplayTagContainer& FilterTags,
 	const bool bFilterExactMatch)
 {
-	return SetPhysicsSettingsOverrideOnComponent(MeshComp, Handle, SettingsScale, Alpha, FilterTags, bFilterExactMatch,
+	return PushPhysicsSettingsMultiplierOnComponent(MeshComp, Handle, SettingsScale, Alpha, FilterTags, bFilterExactMatch,
 	                                             0, 0.2f);
 }
 
-// Component内の対象ノードへ外部駆動の物理設定倍率オーバーライドをキューイングする
-int32 UKawaiiPhysicsLibrary::SetPhysicsSettingsOverrideOnComponent(
+// Component内の対象ノードへ外部駆動の物理設定倍率をキューイングする
+int32 UKawaiiPhysicsLibrary::PushPhysicsSettingsMultiplierOnComponent(
 	USkeletalMeshComponent* MeshComp,
 	const FKawaiiPhysicsTransientForceHandle Handle,
-	const FKawaiiPhysicsSettingsScale& SettingsScale,
+	const FKawaiiPhysicsSettingsMultiplier& SettingsScale,
 	const float Alpha,
 	const FGameplayTagContainer& FilterTags,
 	const bool bFilterExactMatch,
@@ -1343,11 +1371,11 @@ int32 UKawaiiPhysicsLibrary::SetPhysicsSettingsOverrideOnComponent(
 	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
 	{
 		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-			TEXT("SetPhysicsSettingsOverrideOnComponent"),
+			TEXT("PushPhysicsSettingsMultiplierOnComponent"),
 			[&AppliedNodeCount, Handle, &SettingsScale, ClampedAlpha, LeaseEvaluations, LeaseExpireBlendOutTime](
 				FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 			{
-				if (InKawaiiPhysics.RequestSetPhysicsSettingsOverride(SettingsScale, ClampedAlpha, Handle.Id,
+				if (InKawaiiPhysics.RequestPushPhysicsSettingsMultiplier(SettingsScale, ClampedAlpha, Handle.Id,
 				                                                      LeaseEvaluations, LeaseExpireBlendOutTime))
 				{
 					++AppliedNodeCount;

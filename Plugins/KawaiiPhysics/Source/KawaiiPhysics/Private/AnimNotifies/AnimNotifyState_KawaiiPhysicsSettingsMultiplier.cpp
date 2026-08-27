@@ -1,15 +1,15 @@
 // Copyright 2019-2026 pafuhana1213. All Rights Reserved.
 
-#include "AnimNotifies/AnimNotifyState_KawaiiPhysicsSettingsOverride.h"
+#include "AnimNotifies/AnimNotifyState_KawaiiPhysicsSettingsMultiplier.h"
 
 #include "KawaiiPhysicsLibrary.h"
 #include "Misc/UObjectToken.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotifyState_KawaiiPhysicsSettingsOverride)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotifyState_KawaiiPhysicsSettingsMultiplier)
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysics_AnimNotifyState"
 
-UAnimNotifyState_KawaiiPhysicsSettingsOverride::UAnimNotifyState_KawaiiPhysicsSettingsOverride(
+UAnimNotifyState_KawaiiPhysicsSettingsMultiplier::UAnimNotifyState_KawaiiPhysicsSettingsMultiplier(
 	const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -18,12 +18,12 @@ UAnimNotifyState_KawaiiPhysicsSettingsOverride::UAnimNotifyState_KawaiiPhysicsSe
 #endif
 }
 
-FString UAnimNotifyState_KawaiiPhysicsSettingsOverride::GetNotifyName_Implementation() const
+FString UAnimNotifyState_KawaiiPhysicsSettingsMultiplier::GetNotifyName_Implementation() const
 {
-	return FString(TEXT("KP: Settings Override"));
+	return FString(TEXT("KP: Settings Multiplier"));
 }
 
-void UAnimNotifyState_KawaiiPhysicsSettingsOverride::NotifyBegin(USkeletalMeshComponent* MeshComp,
+void UAnimNotifyState_KawaiiPhysicsSettingsMultiplier::NotifyBegin(USkeletalMeshComponent* MeshComp,
                                                                  UAnimSequenceBase* Animation,
                                                                  float TotalDuration,
                                                                  const FAnimNotifyEventReference& EventReference)
@@ -54,7 +54,7 @@ void UAnimNotifyState_KawaiiPhysicsSettingsOverride::NotifyBegin(USkeletalMeshCo
 	State.LastTouchedFrame = GFrameCounter;
 
 	const float Weight = ResolveWeight(MeshComp, State);
-	UKawaiiPhysicsLibrary::SetPhysicsSettingsOverrideOnComponent(MeshComp, State.Handle, SettingsScale, Weight,
+	UKawaiiPhysicsLibrary::PushPhysicsSettingsMultiplierOnComponent(MeshComp, State.Handle, SettingsScale, Weight,
 	                                                             FilterTags, bFilterExactMatch, LeaseEvaluations,
 	                                                             BlendOutTime);
 
@@ -63,7 +63,7 @@ void UAnimNotifyState_KawaiiPhysicsSettingsOverride::NotifyBegin(USkeletalMeshCo
 	Super::NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
 }
 
-void UAnimNotifyState_KawaiiPhysicsSettingsOverride::NotifyTick(USkeletalMeshComponent* MeshComp,
+void UAnimNotifyState_KawaiiPhysicsSettingsMultiplier::NotifyTick(USkeletalMeshComponent* MeshComp,
                                                                 UAnimSequenceBase* Animation,
                                                                 float FrameDeltaTime,
                                                                 const FAnimNotifyEventReference& EventReference)
@@ -86,14 +86,14 @@ void UAnimNotifyState_KawaiiPhysicsSettingsOverride::NotifyTick(USkeletalMeshCom
 	State->LastTouchedFrame = GFrameCounter;
 
 	const float Weight = ResolveWeight(MeshComp, *State);
-	UKawaiiPhysicsLibrary::SetPhysicsSettingsOverrideOnComponent(MeshComp, State->Handle, SettingsScale, Weight,
+	UKawaiiPhysicsLibrary::PushPhysicsSettingsMultiplierOnComponent(MeshComp, State->Handle, SettingsScale, Weight,
 	                                                             FilterTags, bFilterExactMatch, LeaseEvaluations,
 	                                                             BlendOutTime);
 
 	Super::NotifyTick(MeshComp, Animation, FrameDeltaTime, EventReference);
 }
 
-void UAnimNotifyState_KawaiiPhysicsSettingsOverride::NotifyEnd(USkeletalMeshComponent* MeshComp,
+void UAnimNotifyState_KawaiiPhysicsSettingsMultiplier::NotifyEnd(USkeletalMeshComponent* MeshComp,
                                                                UAnimSequenceBase* Animation,
                                                                const FAnimNotifyEventReference& EventReference)
 {
@@ -109,7 +109,7 @@ void UAnimNotifyState_KawaiiPhysicsSettingsOverride::NotifyEnd(USkeletalMeshComp
 		--State->ActiveCount;
 		if (State->ActiveCount <= 0)
 		{
-			UKawaiiPhysicsLibrary::StopPhysicsSettingsOverridesOnComponent(MeshComp, State->Handle, FilterTags,
+			UKawaiiPhysicsLibrary::StopPhysicsSettingsMultipliersOnComponent(MeshComp, State->Handle, FilterTags,
 			                                                               bFilterExactMatch, BlendOutTime);
 			ActiveStates.Remove(Key);
 		}
@@ -124,7 +124,7 @@ void UAnimNotifyState_KawaiiPhysicsSettingsOverride::NotifyEnd(USkeletalMeshComp
 	Super::NotifyEnd(MeshComp, Animation, EventReference);
 }
 
-bool UAnimNotifyState_KawaiiPhysicsSettingsOverride::FActiveStateKey::operator==(
+bool UAnimNotifyState_KawaiiPhysicsSettingsMultiplier::FActiveStateKey::operator==(
 	const FActiveStateKey& Other) const
 {
 #if !UE_VERSION_OLDER_THAN(5, 8, 0)
@@ -134,8 +134,8 @@ bool UAnimNotifyState_KawaiiPhysicsSettingsOverride::FActiveStateKey::operator==
 #endif
 }
 
-UAnimNotifyState_KawaiiPhysicsSettingsOverride::FActiveStateKey
-UAnimNotifyState_KawaiiPhysicsSettingsOverride::MakeStateKey(
+UAnimNotifyState_KawaiiPhysicsSettingsMultiplier::FActiveStateKey
+UAnimNotifyState_KawaiiPhysicsSettingsMultiplier::MakeStateKey(
 	USkeletalMeshComponent* MeshComp,
 	const FAnimNotifyEventReference& EventReference)
 {
@@ -149,7 +149,7 @@ UAnimNotifyState_KawaiiPhysicsSettingsOverride::MakeStateKey(
 	return Key;
 }
 
-void UAnimNotifyState_KawaiiPhysicsSettingsOverride::SweepStaleStates()
+void UAnimNotifyState_KawaiiPhysicsSettingsMultiplier::SweepStaleStates()
 {
 	for (auto It = ActiveStates.CreateIterator(); It; ++It)
 	{
@@ -161,7 +161,7 @@ void UAnimNotifyState_KawaiiPhysicsSettingsOverride::SweepStaleStates()
 
 		if (bStaleByFrame && !bComponentInvalid)
 		{
-			UKawaiiPhysicsLibrary::StopPhysicsSettingsOverridesOnComponent(Component, It.Value().Handle, FilterTags,
+			UKawaiiPhysicsLibrary::StopPhysicsSettingsMultipliersOnComponent(Component, It.Value().Handle, FilterTags,
 			                                                               bFilterExactMatch, BlendOutTime);
 		}
 
@@ -172,7 +172,7 @@ void UAnimNotifyState_KawaiiPhysicsSettingsOverride::SweepStaleStates()
 	}
 }
 
-float UAnimNotifyState_KawaiiPhysicsSettingsOverride::ResolveWeight(USkeletalMeshComponent* MeshComp,
+float UAnimNotifyState_KawaiiPhysicsSettingsMultiplier::ResolveWeight(USkeletalMeshComponent* MeshComp,
                                                                     const FActiveState& State) const
 {
 	float Weight = 1.0f;
@@ -180,7 +180,7 @@ float UAnimNotifyState_KawaiiPhysicsSettingsOverride::ResolveWeight(USkeletalMes
 	switch (WeightSource)
 	{
 	default:
-	case EKawaiiPhysicsSettingsOverrideWeightSource::Envelope:
+	case EKawaiiPhysicsSettingsMultiplierWeightSource::Envelope:
 		{
 			if (State.Envelope.RiseTime <= 0.0f && State.Envelope.HoldTime <= 0.0f &&
 				State.Envelope.DecayTime <= 0.0f)
@@ -194,7 +194,7 @@ float UAnimNotifyState_KawaiiPhysicsSettingsOverride::ResolveWeight(USkeletalMes
 			}
 			break;
 		}
-	case EKawaiiPhysicsSettingsOverrideWeightSource::Curve:
+	case EKawaiiPhysicsSettingsMultiplierWeightSource::Curve:
 		{
 			Weight = DefaultWeightIfNoCurve;
 			if (MeshComp && CurveName != NAME_None)
@@ -216,19 +216,19 @@ float UAnimNotifyState_KawaiiPhysicsSettingsOverride::ResolveWeight(USkeletalMes
 }
 
 #if WITH_EDITOR
-void UAnimNotifyState_KawaiiPhysicsSettingsOverride::ValidateAssociatedAssets()
+void UAnimNotifyState_KawaiiPhysicsSettingsMultiplier::ValidateAssociatedAssets()
 {
 	static const FName NAME_AssetCheck("AssetCheck");
 
 	if (const UAnimSequenceBase* ContainingAsset = Cast<UAnimSequenceBase>(GetContainingAsset()))
 	{
-		if (WeightSource == EKawaiiPhysicsSettingsOverrideWeightSource::Curve && CurveName == NAME_None)
+		if (WeightSource == EKawaiiPhysicsSettingsMultiplierWeightSource::Curve && CurveName == NAME_None)
 		{
 			FMessageLog AssetCheckLog(NAME_AssetCheck);
 
 			const FText Message = FText::Format(
-				NSLOCTEXT("AnimNotify", "KawaiiPhysicsSettingsOverride_CurveNameEmpty",
-				          " AnimNotifyState(KawaiiPhysics_SettingsOverride) CurveName is empty in {0}"),
+				NSLOCTEXT("AnimNotify", "KawaiiPhysicsSettingsMultiplier_CurveNameEmpty",
+				          " AnimNotifyState(KawaiiPhysics_SettingsMultiplier) CurveName is empty in {0}"),
 				FText::AsCultureInvariant(ContainingAsset->GetPathName()));
 
 			AssetCheckLog.Warning()

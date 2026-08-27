@@ -8,15 +8,15 @@
 #include "KawaiiPhysicsTypes.h"
 #include "MovieSceneSection.h"
 
-#include "MovieSceneKawaiiPhysicsSettingsOverrideSection.generated.h"
+#include "MovieSceneKawaiiPhysicsSettingsMultiplierSection.generated.h"
 
 UCLASS(MinimalAPI)
-class UMovieSceneKawaiiPhysicsSettingsOverrideSection : public UMovieSceneSection
+class UMovieSceneKawaiiPhysicsSettingsMultiplierSection : public UMovieSceneSection
 {
 	GENERATED_BODY()
 
 public:
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection(const FObjectInitializer& ObjectInitializer);
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection(const FObjectInitializer& ObjectInitializer);
 
 	/** Dampingへの倍率。1未満で減衰が弱まり、揺れが大きくなる / Multiplier for Damping. Below 1 the damping weakens and the sway grows. */
 	UPROPERTY()
@@ -73,7 +73,7 @@ public:
 	KAWAIIPHYSICSSEQUENCER_API float EvaluateWeightAtTime(FFrameTime InTime) const;
 
 	/** 指定時刻の物理設定倍率（負値は0にクランプ） / Physics settings multipliers at the time (negative values are clamped to 0) */
-	KAWAIIPHYSICSSEQUENCER_API FKawaiiPhysicsSettingsScale EvaluateScaleAtTime(FFrameTime InTime) const;
+	KAWAIIPHYSICSSEQUENCER_API FKawaiiPhysicsSettingsMultiplier EvaluateScaleAtTime(FFrameTime InTime) const;
 
 	/** 破棄時に、このセクション由来の外部駆動を停止する / Stops externally driven overrides created by this section on destruction */
 	virtual void BeginDestroy() override;

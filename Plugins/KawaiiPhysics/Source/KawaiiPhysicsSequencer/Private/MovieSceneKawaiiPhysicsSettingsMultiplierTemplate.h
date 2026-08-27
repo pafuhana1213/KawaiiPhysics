@@ -9,18 +9,18 @@
 #include "GameplayTagContainer.h"
 #include "KawaiiPhysicsTypes.h"
 
-#include "MovieSceneKawaiiPhysicsSettingsOverrideTemplate.generated.h"
+#include "MovieSceneKawaiiPhysicsSettingsMultiplierTemplate.generated.h"
 
-class UMovieSceneKawaiiPhysicsSettingsOverrideSection;
+class UMovieSceneKawaiiPhysicsSettingsMultiplierSection;
 
 USTRUCT()
-struct FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate : public FMovieSceneEvalTemplate
+struct FMovieSceneKawaiiPhysicsSettingsMultiplierSectionTemplate : public FMovieSceneEvalTemplate
 {
 	GENERATED_BODY()
 
-	FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate() = default;
-	explicit FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate(
-		const UMovieSceneKawaiiPhysicsSettingsOverrideSection& Section);
+	FMovieSceneKawaiiPhysicsSettingsMultiplierSectionTemplate() = default;
+	explicit FMovieSceneKawaiiPhysicsSettingsMultiplierSectionTemplate(
+		const UMovieSceneKawaiiPhysicsSettingsMultiplierSection& Section);
 
 	UPROPERTY()
 	FMovieSceneFloatChannel Damping;

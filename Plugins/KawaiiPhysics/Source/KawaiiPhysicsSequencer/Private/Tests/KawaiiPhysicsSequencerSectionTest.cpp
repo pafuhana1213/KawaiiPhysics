@@ -6,11 +6,11 @@
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Generators/MovieSceneEasingCurves.h"
-#include "KawaiiPhysicsSequencerOverrideRegistry.h"
+#include "KawaiiPhysicsSequencerMultiplierRegistry.h"
 #include "KawaiiPhysicsWindPresetTags.h"
-#include "MovieSceneKawaiiPhysicsSettingsOverrideSection.h"
-#include "MovieSceneKawaiiPhysicsSettingsOverrideTemplate.h"
-#include "MovieSceneKawaiiPhysicsSettingsOverrideTrack.h"
+#include "MovieSceneKawaiiPhysicsSettingsMultiplierSection.h"
+#include "MovieSceneKawaiiPhysicsSettingsMultiplierTemplate.h"
+#include "MovieSceneKawaiiPhysicsSettingsMultiplierTrack.h"
 
 namespace
 {
@@ -22,12 +22,12 @@ bool TestFloatNear(FAutomationTestBase& Test, const TCHAR* Name, const float Act
 	                     FMath::IsNearlyEqual(Actual, Expected, GSequencerSectionTol));
 }
 
-UMovieSceneKawaiiPhysicsSettingsOverrideSection* NewSection()
+UMovieSceneKawaiiPhysicsSettingsMultiplierSection* NewSection()
 {
-	return NewObject<UMovieSceneKawaiiPhysicsSettingsOverrideSection>(GetTransientPackage());
+	return NewObject<UMovieSceneKawaiiPhysicsSettingsMultiplierSection>(GetTransientPackage());
 }
 
-void SetupLinearEaseIn(UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section)
+void SetupLinearEaseIn(UMovieSceneKawaiiPhysicsSettingsMultiplierSection* Section)
 {
 	Section->SetRange(TRange<FFrameNumber>(FFrameNumber(0), FFrameNumber(1000)));
 	Section->Easing.bManualEaseIn = true;
@@ -39,9 +39,9 @@ void SetupLinearEaseIn(UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section)
 	Section->Easing.EaseIn.SetInterface(static_cast<IMovieSceneEasingFunction*>(LinearEase));
 }
 
-FKawaiiPhysicsSettingsScale MakeScale()
+FKawaiiPhysicsSettingsMultiplier MakeScale()
 {
-	FKawaiiPhysicsSettingsScale Scale;
+	FKawaiiPhysicsSettingsMultiplier Scale;
 	Scale.Damping = 0.5f;
 	Scale.Stiffness = 0.25f;
 	Scale.WorldDampingLocation = 0.75f;
@@ -51,8 +51,8 @@ FKawaiiPhysicsSettingsScale MakeScale()
 	return Scale;
 }
 
-void ApplyScaleToSection(UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section,
-                         const FKawaiiPhysicsSettingsScale& Scale)
+void ApplyScaleToSection(UMovieSceneKawaiiPhysicsSettingsMultiplierSection* Section,
+                         const FKawaiiPhysicsSettingsMultiplier& Scale)
 {
 	Section->Damping.SetDefault(Scale.Damping);
 	Section->Stiffness.SetDefault(Scale.Stiffness);
@@ -62,8 +62,8 @@ void ApplyScaleToSection(UMovieSceneKawaiiPhysicsSettingsOverrideSection* Sectio
 	Section->LimitAngle.SetDefault(Scale.LimitAngle);
 }
 
-bool TestScaleEqual(FAutomationTestBase& Test, const FKawaiiPhysicsSettingsScale& Actual,
-                    const FKawaiiPhysicsSettingsScale& Expected)
+bool TestScaleEqual(FAutomationTestBase& Test, const FKawaiiPhysicsSettingsMultiplier& Actual,
+                    const FKawaiiPhysicsSettingsMultiplier& Expected)
 {
 	bool bOk = true;
 	bOk &= TestFloatNear(Test, TEXT("Scale.Damping"), Actual.Damping, Expected.Damping);
@@ -96,7 +96,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerEvaluateWeightEasingTest
 
 bool FKawaiiPhysicsSequencerEvaluateWeightEasingTest::RunTest(const FString& Parameters)
 {
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section = NewSection();
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* Section = NewSection();
 	SetupLinearEaseIn(Section);
 
 	bool bOk = TestFloatNear(*this, TEXT("Ease start"), Section->EvaluateWeightAtTime(FFrameTime(0)), 0.0f);
@@ -111,7 +111,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerEvaluateWeightChannelDef
 
 bool FKawaiiPhysicsSequencerEvaluateWeightChannelDefaultTest::RunTest(const FString& Parameters)
 {
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section = NewSection();
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* Section = NewSection();
 	SetupLinearEaseIn(Section);
 	Section->Weight.SetDefault(0.5f);
 
@@ -127,7 +127,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerEvaluateWeightClampTest,
 
 bool FKawaiiPhysicsSequencerEvaluateWeightClampTest::RunTest(const FString& Parameters)
 {
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section = NewSection();
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* Section = NewSection();
 	Section->SetRange(TRange<FFrameNumber>(FFrameNumber(0), FFrameNumber(1000)));
 
 	Section->Weight.SetDefault(2.0f);
@@ -144,12 +144,12 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerTemplateFromTrackTest,
 
 bool FKawaiiPhysicsSequencerTemplateFromTrackTest::RunTest(const FString& Parameters)
 {
-	UMovieSceneKawaiiPhysicsSettingsOverrideTrack* Track =
-		NewObject<UMovieSceneKawaiiPhysicsSettingsOverrideTrack>(GetTransientPackage());
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section =
-		CastChecked<UMovieSceneKawaiiPhysicsSettingsOverrideSection>(Track->CreateNewSection());
+	UMovieSceneKawaiiPhysicsSettingsMultiplierTrack* Track =
+		NewObject<UMovieSceneKawaiiPhysicsSettingsMultiplierTrack>(GetTransientPackage());
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* Section =
+		CastChecked<UMovieSceneKawaiiPhysicsSettingsMultiplierSection>(Track->CreateNewSection());
 
-	const FKawaiiPhysicsSettingsScale ExpectedScale = MakeScale();
+	const FKawaiiPhysicsSettingsMultiplier ExpectedScale = MakeScale();
 	ApplyScaleToSection(Section, ExpectedScale);
 	Section->bFilterExactMatch = true;
 	Section->BlendOutTimeOnEnd = 0.75f;
@@ -171,10 +171,10 @@ bool FKawaiiPhysicsSequencerTemplateFromTrackTest::RunTest(const FString& Parame
 
 	bOk &= TestTrue(TEXT("Template script struct"),
 	                &TemplatePtr->GetScriptStruct() ==
-	                FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate::StaticStruct());
+	                FMovieSceneKawaiiPhysicsSettingsMultiplierSectionTemplate::StaticStruct());
 
-	const FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate* Template =
-		static_cast<const FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate*>(TemplatePtr.GetPtr());
+	const FMovieSceneKawaiiPhysicsSettingsMultiplierSectionTemplate* Template =
+		static_cast<const FMovieSceneKawaiiPhysicsSettingsMultiplierSectionTemplate*>(TemplatePtr.GetPtr());
 	bOk &= TestChannelDefaultNear(*this, TEXT("Template.Damping"), Template->Damping, ExpectedScale.Damping);
 	bOk &= TestChannelDefaultNear(*this, TEXT("Template.Stiffness"), Template->Stiffness, ExpectedScale.Stiffness);
 	bOk &= TestChannelDefaultNear(*this, TEXT("Template.WorldDampingLocation"), Template->WorldDampingLocation,
@@ -197,17 +197,17 @@ bool FKawaiiPhysicsSequencerTrackRootFlagPropagatesToTemplateTest::RunTest(const
 {
 	(void)Parameters;
 
-	UMovieSceneKawaiiPhysicsSettingsOverrideTrack* DefaultTrack =
-		NewObject<UMovieSceneKawaiiPhysicsSettingsOverrideTrack>(GetTransientPackage());
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* DefaultSection =
-		CastChecked<UMovieSceneKawaiiPhysicsSettingsOverrideSection>(DefaultTrack->CreateNewSection());
+	UMovieSceneKawaiiPhysicsSettingsMultiplierTrack* DefaultTrack =
+		NewObject<UMovieSceneKawaiiPhysicsSettingsMultiplierTrack>(GetTransientPackage());
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* DefaultSection =
+		CastChecked<UMovieSceneKawaiiPhysicsSettingsMultiplierSection>(DefaultTrack->CreateNewSection());
 	FMovieSceneEvalTemplatePtr DefaultTemplatePtr = DefaultTrack->CreateTemplateForSection(*DefaultSection);
 
-	UMovieSceneKawaiiPhysicsSettingsOverrideTrack* RootTrack =
-		NewObject<UMovieSceneKawaiiPhysicsSettingsOverrideTrack>(GetTransientPackage());
+	UMovieSceneKawaiiPhysicsSettingsMultiplierTrack* RootTrack =
+		NewObject<UMovieSceneKawaiiPhysicsSettingsMultiplierTrack>(GetTransientPackage());
 	RootTrack->bIsRootTrack = true;
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* RootSection =
-		CastChecked<UMovieSceneKawaiiPhysicsSettingsOverrideSection>(RootTrack->CreateNewSection());
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* RootSection =
+		CastChecked<UMovieSceneKawaiiPhysicsSettingsMultiplierSection>(RootTrack->CreateNewSection());
 	FMovieSceneEvalTemplatePtr RootTemplatePtr = RootTrack->CreateTemplateForSection(*RootSection);
 
 	bool bOk = TestTrue(TEXT("Default template valid"), DefaultTemplatePtr.IsValid());
@@ -217,10 +217,10 @@ bool FKawaiiPhysicsSequencerTrackRootFlagPropagatesToTemplateTest::RunTest(const
 		return false;
 	}
 
-	const FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate* DefaultTemplate =
-		static_cast<const FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate*>(DefaultTemplatePtr.GetPtr());
-	const FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate* RootTemplate =
-		static_cast<const FMovieSceneKawaiiPhysicsSettingsOverrideSectionTemplate*>(RootTemplatePtr.GetPtr());
+	const FMovieSceneKawaiiPhysicsSettingsMultiplierSectionTemplate* DefaultTemplate =
+		static_cast<const FMovieSceneKawaiiPhysicsSettingsMultiplierSectionTemplate*>(DefaultTemplatePtr.GetPtr());
+	const FMovieSceneKawaiiPhysicsSettingsMultiplierSectionTemplate* RootTemplate =
+		static_cast<const FMovieSceneKawaiiPhysicsSettingsMultiplierSectionTemplate*>(RootTemplatePtr.GetPtr());
 	bOk &= TestFalse(TEXT("Default track root flag"), DefaultTemplate->bIsRootTrack);
 	bOk &= TestTrue(TEXT("Root track root flag"), RootTemplate->bIsRootTrack);
 	return bOk;
@@ -232,12 +232,12 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerChannelProxyAfterNewAndD
 
 bool FKawaiiPhysicsSequencerChannelProxyAfterNewAndDuplicateTest::RunTest(const FString& Parameters)
 {
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section = NewSection();
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* Section = NewSection();
 	bool bOk = TestEqual(TEXT("New channel count"),
 	                     Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>().Num(), 7);
 
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* Duplicate =
-		DuplicateObject<UMovieSceneKawaiiPhysicsSettingsOverrideSection>(Section, GetTransientPackage());
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* Duplicate =
+		DuplicateObject<UMovieSceneKawaiiPhysicsSettingsMultiplierSection>(Section, GetTransientPackage());
 	bOk &= TestEqual(TEXT("Duplicate channel count"),
 	                 Duplicate->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>().Num(), 7);
 	return bOk;
@@ -249,12 +249,12 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerEvaluateScaleChannelKeys
 
 bool FKawaiiPhysicsSequencerEvaluateScaleChannelKeysTest::RunTest(const FString& Parameters)
 {
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section = NewSection();
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* Section = NewSection();
 	Section->Damping.AddLinearKey(FFrameNumber(0), 0.5f);
 	Section->Damping.AddLinearKey(FFrameNumber(1000), 1.5f);
 
-	FKawaiiPhysicsSettingsScale Expected;
-	FKawaiiPhysicsSettingsScale Actual = Section->EvaluateScaleAtTime(FFrameTime(500));
+	FKawaiiPhysicsSettingsMultiplier Expected;
+	FKawaiiPhysicsSettingsMultiplier Actual = Section->EvaluateScaleAtTime(FFrameTime(500));
 	Expected.Damping = 1.0f;
 	bool bOk = TestScaleEqual(*this, Actual, Expected);
 
@@ -275,28 +275,28 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerRegistryStopForSectionTe
 
 bool FKawaiiPhysicsSequencerRegistryStopForSectionTest::RunTest(const FString& Parameters)
 {
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* SectionA = NewSection();
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* SectionB = NewSection();
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* SectionA = NewSection();
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* SectionB = NewSection();
 
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> EntryA = MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> EntryB = MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> EntryOther = MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
+	TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> EntryA = MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
+	TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> EntryB = MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
+	TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> EntryOther = MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
 
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(SectionA, EntryA);
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(SectionA, EntryB);
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(SectionB, EntryOther);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().Register(SectionA, EntryA);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().Register(SectionA, EntryB);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().Register(SectionB, EntryOther);
 
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(SectionA);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().StopForSection(SectionA);
 
 	bool bOk = TestTrue(TEXT("EntryA stopped"), EntryA->bStopped);
 	bOk &= TestTrue(TEXT("EntryB stopped"), EntryB->bStopped);
 	bOk &= TestFalse(TEXT("Other section untouched"), EntryOther->bStopped);
 
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(SectionA);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().StopForSection(SectionA);
 	bOk &= TestTrue(TEXT("EntryA still stopped"), EntryA->bStopped);
 	bOk &= TestFalse(TEXT("Other section still untouched"), EntryOther->bStopped);
 
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(SectionB);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().StopForSection(SectionB);
 	return bOk;
 }
 
@@ -306,17 +306,17 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerRegistryRegisterIdempote
 
 bool FKawaiiPhysicsSequencerRegistryRegisterIdempotentTest::RunTest(const FString& Parameters)
 {
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section = NewSection();
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> Entry = MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* Section = NewSection();
+	TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> Entry = MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
 
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(Section, Entry);
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(Section, Entry);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().Register(Section, Entry);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().Register(Section, Entry);
 
 	bool bOk = TestEqual(TEXT("Single registered entry"),
-	                     FKawaiiPhysicsSequencerOverrideRegistry::Get().CountEntriesForSectionForTesting(Section), 1);
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(Section);
+	                     FKawaiiPhysicsSequencerMultiplierRegistry::Get().CountEntriesForSectionForTesting(Section), 1);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().StopForSection(Section);
 	bOk &= TestTrue(TEXT("Entry stopped"), Entry->bStopped);
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(Section);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().StopForSection(Section);
 	bOk &= TestTrue(TEXT("Entry still stopped"), Entry->bStopped);
 	return bOk;
 }
@@ -327,58 +327,58 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerRegistryGetQueuedNodeCou
 
 bool FKawaiiPhysicsSequencerRegistryGetQueuedNodeCountTest::RunTest(const FString& Parameters)
 {
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section = NewSection();
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* Section = NewSection();
 	USkeletalMeshComponent* ComponentA = NewObject<USkeletalMeshComponent>(GetTransientPackage());
 	USkeletalMeshComponent* ComponentB = NewObject<USkeletalMeshComponent>(GetTransientPackage());
 	USkeletalMeshComponent* ComponentC = NewObject<USkeletalMeshComponent>(GetTransientPackage());
 
 	// (a) Entry が一つも登録されていないセクションは bOutHasLiveEntry=false（未評価と 0 件を区別）
 	bool bHasLiveEntry = true;
-	int32 Count = FKawaiiPhysicsSequencerOverrideRegistry::Get().GetQueuedNodeCount(
+	int32 Count = FKawaiiPhysicsSequencerMultiplierRegistry::Get().GetQueuedNodeCount(
 		Section, Section->FilterTags, Section->bFilterExactMatch, bHasLiveEntry);
 	bool bOk = TestFalse(TEXT("No entries: bOutHasLiveEntry"), bHasLiveEntry);
 	bOk &= TestEqual(TEXT("No entries: count"), Count, 0);
 
 	// FilterTags がセクションと異なる Entry（フィルタ変更前の残留想定）
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> MismatchedFilterEntry =
-		MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
+	TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> MismatchedFilterEntry =
+		MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
 	MismatchedFilterEntry->Component = ComponentC;
 	MismatchedFilterEntry->LastQueuedNodeCount = 11;
 	MismatchedFilterEntry->FilterTags.AddTag(TAG_KawaiiPhysics_WindPreset_Breeze);
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(Section, MismatchedFilterEntry);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().Register(Section, MismatchedFilterEntry);
 
 	// (b) フィルタが一致しない Entry しか無い場合は合算対象外→ bOutHasLiveEntry=false
 	bHasLiveEntry = true;
-	Count = FKawaiiPhysicsSequencerOverrideRegistry::Get().GetQueuedNodeCount(
+	Count = FKawaiiPhysicsSequencerMultiplierRegistry::Get().GetQueuedNodeCount(
 		Section, Section->FilterTags, Section->bFilterExactMatch, bHasLiveEntry);
 	bOk &= TestFalse(TEXT("Filter mismatch only: bOutHasLiveEntry"), bHasLiveEntry);
 	bOk &= TestEqual(TEXT("Filter mismatch only: count"), Count, 0);
 
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> EntryA = MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> EntryB = MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> InvalidComponentEntry =
-		MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
+	TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> EntryA = MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
+	TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> EntryB = MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
+	TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> InvalidComponentEntry =
+		MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
 	EntryA->Component = ComponentA;
 	EntryA->LastQueuedNodeCount = 3;
 	EntryB->Component = ComponentB;
 	EntryB->LastQueuedNodeCount = 2;
 	InvalidComponentEntry->LastQueuedNodeCount = 7;
 
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(Section, EntryA);
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(Section, EntryB);
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(Section, InvalidComponentEntry);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().Register(Section, EntryA);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().Register(Section, EntryB);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().Register(Section, InvalidComponentEntry);
 
 	// (c) フィルタが一致し生存している Entry があれば合算されて bOutHasLiveEntry=true
 	//     （FilterTags 不一致の MismatchedFilterEntry と Component 無効な InvalidComponentEntry は除外される）
 	bHasLiveEntry = false;
-	Count = FKawaiiPhysicsSequencerOverrideRegistry::Get().GetQueuedNodeCount(
+	Count = FKawaiiPhysicsSequencerMultiplierRegistry::Get().GetQueuedNodeCount(
 		Section, Section->FilterTags, Section->bFilterExactMatch, bHasLiveEntry);
 	bOk &= TestTrue(TEXT("Matching entries: bOutHasLiveEntry"), bHasLiveEntry);
 	bOk &= TestEqual(TEXT("Matching entries: count"), Count, 5);
 
 	EntryA->Component = nullptr;
 	EntryB->Component = nullptr;
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(Section);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().StopForSection(Section);
 	return bOk;
 }
 
@@ -388,25 +388,25 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerRegistryRemoveSectionAtS
 
 bool FKawaiiPhysicsSequencerRegistryRemoveSectionAtStopsOnlyRemovedTest::RunTest(const FString& Parameters)
 {
-	UMovieSceneKawaiiPhysicsSettingsOverrideTrack* Track =
-		NewObject<UMovieSceneKawaiiPhysicsSettingsOverrideTrack>(GetTransientPackage());
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* SectionA =
-		CastChecked<UMovieSceneKawaiiPhysicsSettingsOverrideSection>(Track->CreateNewSection());
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* SectionB =
-		CastChecked<UMovieSceneKawaiiPhysicsSettingsOverrideSection>(Track->CreateNewSection());
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> EntryA = MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> EntryB = MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
+	UMovieSceneKawaiiPhysicsSettingsMultiplierTrack* Track =
+		NewObject<UMovieSceneKawaiiPhysicsSettingsMultiplierTrack>(GetTransientPackage());
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* SectionA =
+		CastChecked<UMovieSceneKawaiiPhysicsSettingsMultiplierSection>(Track->CreateNewSection());
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* SectionB =
+		CastChecked<UMovieSceneKawaiiPhysicsSettingsMultiplierSection>(Track->CreateNewSection());
+	TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> EntryA = MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
+	TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> EntryB = MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
 
 	Track->AddSection(*SectionA);
 	Track->AddSection(*SectionB);
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(SectionA, EntryA);
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(SectionB, EntryB);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().Register(SectionA, EntryA);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().Register(SectionB, EntryB);
 
 	Track->RemoveSectionAt(1);
 
 	bool bOk = TestFalse(TEXT("EntryA not stopped"), EntryA->bStopped);
 	bOk &= TestTrue(TEXT("EntryB stopped"), EntryB->bStopped);
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(SectionA);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().StopForSection(SectionA);
 	return bOk;
 }
 
@@ -416,7 +416,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerEntryStopIdempotentTest,
 
 bool FKawaiiPhysicsSequencerEntryStopIdempotentTest::RunTest(const FString& Parameters)
 {
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> Entry = MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
+	TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> Entry = MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
 
 	Entry->Stop();
 	bool bOk = TestTrue(TEXT("Entry stopped"), Entry->bStopped);
@@ -431,7 +431,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerEntryStopImmediateOverri
 
 bool FKawaiiPhysicsSequencerEntryStopImmediateOverrideTest::RunTest(const FString& Parameters)
 {
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> Entry = MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
+	TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> Entry = MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
 
 	Entry->Stop(0.0f);
 	bool bOk = TestTrue(TEXT("Entry stopped immediately"), Entry->bStopped);
@@ -446,26 +446,26 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerRegistryStopForSectionsN
 
 bool FKawaiiPhysicsSequencerRegistryStopForSectionsNotInTest::RunTest(const FString& Parameters)
 {
-	UMovieSceneKawaiiPhysicsSettingsOverrideTrack* Track =
-		NewObject<UMovieSceneKawaiiPhysicsSettingsOverrideTrack>(GetTransientPackage());
+	UMovieSceneKawaiiPhysicsSettingsMultiplierTrack* Track =
+		NewObject<UMovieSceneKawaiiPhysicsSettingsMultiplierTrack>(GetTransientPackage());
 	UMovieSceneSection* SectionA = Track->CreateNewSection();
 	UMovieSceneSection* SectionB = Track->CreateNewSection();
 	Track->AddSection(*SectionA);
 	Track->AddSection(*SectionB);
 
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> EntryA = MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> EntryB = MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(SectionA, EntryA);
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(SectionB, EntryB);
+	TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> EntryA = MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
+	TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> EntryB = MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().Register(SectionA, EntryA);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().Register(SectionB, EntryB);
 
 	TArray<UMovieSceneSection*> LiveSections;
 	LiveSections.Add(SectionA);
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSectionsNotIn(Track, LiveSections);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().StopForSectionsNotIn(Track, LiveSections);
 
 	bool bOk = TestFalse(TEXT("EntryA still active"), EntryA->bStopped);
 	bOk &= TestTrue(TEXT("EntryB stopped"), EntryB->bStopped);
 
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(SectionA);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().StopForSection(SectionA);
 	return bOk;
 }
 
@@ -475,17 +475,17 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerRegistryPruneInvalidEntr
 
 bool FKawaiiPhysicsSequencerRegistryPruneInvalidEntriesTest::RunTest(const FString& Parameters)
 {
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section = NewSection();
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* Section = NewSection();
 	{
-		TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> Entry = MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
-		FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(Section, Entry);
+		TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> Entry = MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
+		FKawaiiPhysicsSequencerMultiplierRegistry::Get().Register(Section, Entry);
 		TestEqual(TEXT("Entry registered"),
-		          FKawaiiPhysicsSequencerOverrideRegistry::Get().CountEntriesForSectionForTesting(Section), 1);
+		          FKawaiiPhysicsSequencerMultiplierRegistry::Get().CountEntriesForSectionForTesting(Section), 1);
 	}
 
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().PruneInvalidEntries();
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().PruneInvalidEntries();
 	return TestEqual(TEXT("Invalid entry pruned"),
-	                 FKawaiiPhysicsSequencerOverrideRegistry::Get().CountEntriesForSectionForTesting(Section), 0);
+	                 FKawaiiPhysicsSequencerMultiplierRegistry::Get().CountEntriesForSectionForTesting(Section), 0);
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerRegistryStopAllTest,
@@ -494,22 +494,22 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerRegistryStopAllTest,
 
 bool FKawaiiPhysicsSequencerRegistryStopAllTest::RunTest(const FString& Parameters)
 {
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* SectionA = NewSection();
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* SectionB = NewSection();
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> EntryA = MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> EntryB = MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* SectionA = NewSection();
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* SectionB = NewSection();
+	TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> EntryA = MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
+	TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> EntryB = MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
 
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(SectionA, EntryA);
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(SectionB, EntryB);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().Register(SectionA, EntryA);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().Register(SectionB, EntryB);
 
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().StopAll();
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().StopAll();
 
 	bool bOk = TestTrue(TEXT("EntryA stopped"), EntryA->bStopped);
 	bOk &= TestTrue(TEXT("EntryB stopped"), EntryB->bStopped);
 	bOk &= TestEqual(TEXT("SectionA entries removed"),
-	                 FKawaiiPhysicsSequencerOverrideRegistry::Get().CountEntriesForSectionForTesting(SectionA), 0);
+	                 FKawaiiPhysicsSequencerMultiplierRegistry::Get().CountEntriesForSectionForTesting(SectionA), 0);
 	bOk &= TestEqual(TEXT("SectionB entries removed"),
-	                 FKawaiiPhysicsSequencerOverrideRegistry::Get().CountEntriesForSectionForTesting(SectionB), 0);
+	                 FKawaiiPhysicsSequencerMultiplierRegistry::Get().CountEntriesForSectionForTesting(SectionB), 0);
 	return bOk;
 }
 
@@ -519,16 +519,16 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerPreAnimatedRestoreStopsR
 
 bool FKawaiiPhysicsSequencerPreAnimatedRestoreStopsRecreatedEntryTest::RunTest(const FString& Parameters)
 {
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section = NewSection();
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* Section = NewSection();
 	TSharedRef<uint8> Owner = MakeShared<uint8>(0);
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> Entry1 = MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> Entry2 = MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
+	TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> Entry1 = MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
+	TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> Entry2 = MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
 	Entry1->Owner = Owner;
 	Entry2->Owner = Owner;
 
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(Section, Entry1);
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(Section, Entry2);
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(Section, Owner);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().Register(Section, Entry1);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().Register(Section, Entry2);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().StopForSection(Section, Owner);
 
 	bool bOk = TestTrue(TEXT("Entry1 stopped"), Entry1->bStopped);
 	bOk &= TestTrue(TEXT("Entry2 stopped"), Entry2->bStopped);
@@ -541,23 +541,23 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerPreAnimatedRestoreDoesNo
 
 bool FKawaiiPhysicsSequencerPreAnimatedRestoreDoesNotStopOtherOwnerTest::RunTest(const FString& Parameters)
 {
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section = NewSection();
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* Section = NewSection();
 	TSharedRef<uint8> OwnerA = MakeShared<uint8>(0);
 	TSharedRef<uint8> OwnerB = MakeShared<uint8>(0);
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> EntryA = MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> EntryB = MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
+	TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> EntryA = MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
+	TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> EntryB = MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
 	EntryA->Owner = OwnerA;
 	EntryB->Owner = OwnerB;
 
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(Section, EntryA);
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(Section, EntryB);
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(Section, OwnerA);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().Register(Section, EntryA);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().Register(Section, EntryB);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().StopForSection(Section, OwnerA);
 
 	bool bOk = TestTrue(TEXT("EntryA stopped"), EntryA->bStopped);
 	bOk &= TestFalse(TEXT("EntryB still active"), EntryB->bStopped);
 	bOk &= TestEqual(TEXT("Other owner remains"),
-	                 FKawaiiPhysicsSequencerOverrideRegistry::Get().CountEntriesForSectionForTesting(Section), 1);
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(Section);
+	                 FKawaiiPhysicsSequencerMultiplierRegistry::Get().CountEntriesForSectionForTesting(Section), 1);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().StopForSection(Section);
 	return bOk;
 }
 
@@ -567,26 +567,26 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerPreAnimatedRestoreStopsO
 
 bool FKawaiiPhysicsSequencerPreAnimatedRestoreStopsOnlyRestoredComponentTest::RunTest(const FString& Parameters)
 {
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section = NewSection();
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* Section = NewSection();
 	TSharedRef<uint8> Owner = MakeShared<uint8>(0);
 	USkeletalMeshComponent* ComponentA = NewObject<USkeletalMeshComponent>(GetTransientPackage());
 	USkeletalMeshComponent* ComponentB = NewObject<USkeletalMeshComponent>(GetTransientPackage());
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> EntryA = MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> EntryB = MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
+	TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> EntryA = MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
+	TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> EntryB = MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
 	EntryA->Owner = Owner;
 	EntryA->Component = ComponentA;
 	EntryB->Owner = Owner;
 	EntryB->Component = ComponentB;
 
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(Section, EntryA);
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(Section, EntryB);
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(Section, Owner, ComponentA);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().Register(Section, EntryA);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().Register(Section, EntryB);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().StopForSection(Section, Owner, ComponentA);
 
 	bool bOk = TestTrue(TEXT("EntryA stopped"), EntryA->bStopped);
 	bOk &= TestFalse(TEXT("EntryB still active"), EntryB->bStopped);
 	bOk &= TestEqual(TEXT("Other component remains"),
-	                 FKawaiiPhysicsSequencerOverrideRegistry::Get().CountEntriesForSectionForTesting(Section), 1);
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(Section);
+	                 FKawaiiPhysicsSequencerMultiplierRegistry::Get().CountEntriesForSectionForTesting(Section), 1);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().StopForSection(Section);
 	return bOk;
 }
 
@@ -596,22 +596,22 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerPreAnimatedRestoreExpire
 
 bool FKawaiiPhysicsSequencerPreAnimatedRestoreExpiredOwnerIsNoopTest::RunTest(const FString& Parameters)
 {
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section = NewSection();
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* Section = NewSection();
 	TWeakPtr<uint8> ExpiredOwner;
-	TSharedRef<FKawaiiPhysicsSequencerOverrideEntry> Entry = MakeShared<FKawaiiPhysicsSequencerOverrideEntry>();
+	TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry> Entry = MakeShared<FKawaiiPhysicsSequencerMultiplierEntry>();
 	{
 		TSharedRef<uint8> Owner = MakeShared<uint8>(0);
 		ExpiredOwner = Owner;
 		Entry->Owner = Owner;
 	}
 
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().Register(Section, Entry);
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(Section, ExpiredOwner);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().Register(Section, Entry);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().StopForSection(Section, ExpiredOwner);
 
 	bool bOk = TestFalse(TEXT("Entry still active"), Entry->bStopped);
 	bOk &= TestEqual(TEXT("Entry remains"),
-	                 FKawaiiPhysicsSequencerOverrideRegistry::Get().CountEntriesForSectionForTesting(Section), 1);
-	FKawaiiPhysicsSequencerOverrideRegistry::Get().StopForSection(Section);
+	                 FKawaiiPhysicsSequencerMultiplierRegistry::Get().CountEntriesForSectionForTesting(Section), 1);
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().StopForSection(Section);
 	return bOk;
 }
 
@@ -621,9 +621,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerSectionDefaultsTest,
 
 bool FKawaiiPhysicsSequencerSectionDefaultsTest::RunTest(const FString& Parameters)
 {
-	UMovieSceneKawaiiPhysicsSettingsOverrideSection* Section = NewSection();
-	UMovieSceneKawaiiPhysicsSettingsOverrideTrack* Track =
-		NewObject<UMovieSceneKawaiiPhysicsSettingsOverrideTrack>(GetTransientPackage());
+	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* Section = NewSection();
+	UMovieSceneKawaiiPhysicsSettingsMultiplierTrack* Track =
+		NewObject<UMovieSceneKawaiiPhysicsSettingsMultiplierTrack>(GetTransientPackage());
 
 	const FOptionalMovieSceneBlendType BlendType = Section->GetBlendType();
 	bool bOk = TestTrue(TEXT("Section blend valid"), BlendType.IsValid());
