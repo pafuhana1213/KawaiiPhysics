@@ -210,7 +210,7 @@ void FKawaiiPhysicsSequencerMultiplierRegistry::StopForSectionsNotIn(
 	}
 }
 
-void FKawaiiPhysicsSequencerMultiplierRegistry::PruneInvalidEntries()
+void FKawaiiPhysicsSequencerMultiplierRegistry::RemoveInvalidEntries()
 {
 	for (auto It = Entries.CreateIterator(); It; ++It)
 	{
@@ -331,7 +331,7 @@ void FKawaiiPhysicsSequencerMultiplierRegistry::HandleWorldCleanup(
 void FKawaiiPhysicsSequencerMultiplierRegistry::HandlePostGarbageCollect()
 {
 	// GC 後デリゲートは GameThread 前提で呼ばれるため、Registry 側も既存方針どおり GameThread 限定で扱う
-	PruneInvalidEntries();
+	RemoveInvalidEntries();
 }
 
 #if WITH_DEV_AUTOMATION_TESTS
