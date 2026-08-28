@@ -116,10 +116,10 @@ private:
 
 	struct FActiveState
 	{
-		FKawaiiPhysicsTransientForceHandle Handle;
+		FKawaiiPhysicsTransientHandle Handle;
 		float ElapsedTime = 0.0f;
 		float TotalDuration = 0.0f;
-		KawaiiPhysics::FWindBlowEnvelope Envelope;
+		KawaiiPhysics::FWindGustEnvelope Envelope;
 		uint64 LastTouchedFrame = 0;
 		// 同一キーで重なった Begin の数。5.7 以前は同一 Notify イベントの同時再生がエンジン側で区別されないため、End が全て来るまで override を保持する / Number of overlapping Begins for the same key. On 5.7 and earlier, concurrent plays of the same notify event are not distinguished by the engine, so the override is retained until all Ends arrive.
 		int32 ActiveCount = 1;

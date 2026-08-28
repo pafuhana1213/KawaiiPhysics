@@ -250,7 +250,7 @@ void FAnimNode_KawaiiPhysics::ResetDynamics(ETeleportType InTeleportType)
 	bSubstepPoseInitialized = false;
 }
 
-int64 FAnimNode_KawaiiPhysics::GenerateTransientForceHandleId()
+int64 FAnimNode_KawaiiPhysics::GenerateTransientHandleId()
 {
 	static std::atomic<int64> NextHandleId{1};
 	return NextHandleId.fetch_add(1, std::memory_order_relaxed);
@@ -259,7 +259,7 @@ int64 FAnimNode_KawaiiPhysics::GenerateTransientForceHandleId()
 int64 FAnimNode_KawaiiPhysics::RequestTransientExternalForce(FInstancedStruct&& InForce, const float InLifetimeSeconds,
                                                              const int64 InHandleId)
 {
-	const int64 HandleId = InHandleId != 0 ? InHandleId : GenerateTransientForceHandleId();
+	const int64 HandleId = InHandleId != 0 ? InHandleId : GenerateTransientHandleId();
 
 	FScopeLock Lock(&TransientForceStore.Queue->Mutex);
 	DropOldestPendingTransientForceIfFull(*TransientForceStore.Queue, false);
@@ -328,7 +328,7 @@ int64 FAnimNode_KawaiiPhysics::RequestStartPhysicsSettingsMultiplier(const FKawa
                                                               const float DecayTime, const int64 InHandleId,
                                                               const bool bInfiniteHold)
 {
-	const int64 HandleId = InHandleId != 0 ? InHandleId : GenerateTransientForceHandleId();
+	const int64 HandleId = InHandleId != 0 ? InHandleId : GenerateTransientHandleId();
 
 	FKawaiiPhysicsSettingsMultiplierRequest Request;
 	Request.Scale = InScale;

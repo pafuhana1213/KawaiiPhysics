@@ -26,7 +26,7 @@ FVector SafeDirectionOrForward(const FVector& InVector)
 }
 
 // アクティブな gust envelope を経過時間から評価する（線形 rise → hold → 線形 decay の台形エンベロープ）。
-// Strength/RiseTime/DecayTime/HoldTime は StartProceduralWindBlow API 経由で ActiveGust にセットされる
+// Strength/RiseTime/DecayTime/HoldTime は StartProceduralWindGust API 経由で ActiveGust にセットされる
 float EvaluateActiveGust(const FKawaiiProceduralWindActiveGust& ActiveGust, const float InTime)
 {
 	if (!ActiveGust.bIsActive)

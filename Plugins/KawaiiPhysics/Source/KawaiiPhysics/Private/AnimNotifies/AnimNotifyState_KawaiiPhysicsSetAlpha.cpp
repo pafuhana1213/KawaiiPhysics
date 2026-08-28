@@ -28,10 +28,10 @@ void UAnimNotifyState_KawaiiPhysicsSetAlpha::NotifyBegin(USkeletalMeshComponent*
                                                          const FAnimNotifyEventReference& EventReference)
 {
 	// 終了時に復元するため、現在のAlphaを保存する
-	bHasSavedAlpha = UKawaiiPhysicsLibrary::GetAlphaFromComponent(MeshComp, SavedAlpha, FilterTags, bFilterExactMatch);
+	bHasSavedAlpha = UKawaiiPhysicsLibrary::GetAlphaOnComponent(MeshComp, SavedAlpha, FilterTags, bFilterExactMatch);
 
 	const float Alpha = ResolveAlpha(MeshComp, Animation);
-	UKawaiiPhysicsLibrary::SetAlphaToComponent(MeshComp, Alpha, FilterTags, bFilterExactMatch);
+	UKawaiiPhysicsLibrary::SetAlphaOnComponent(MeshComp, Alpha, FilterTags, bFilterExactMatch);
 
 	Super::NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
 }
@@ -46,7 +46,7 @@ void UAnimNotifyState_KawaiiPhysicsSetAlpha::NotifyTick(USkeletalMeshComponent* 
 	}
 
 	const float Alpha = ResolveAlpha(MeshComp, Animation);
-	UKawaiiPhysicsLibrary::SetAlphaToComponent(MeshComp, Alpha, FilterTags, bFilterExactMatch);
+	UKawaiiPhysicsLibrary::SetAlphaOnComponent(MeshComp, Alpha, FilterTags, bFilterExactMatch);
 
 	Super::NotifyTick(MeshComp, Animation, FrameDeltaTime, EventReference);
 }
@@ -62,7 +62,7 @@ void UAnimNotifyState_KawaiiPhysicsSetAlpha::NotifyEnd(USkeletalMeshComponent* M
 
 	if (bHasSavedAlpha)
 	{
-		UKawaiiPhysicsLibrary::SetAlphaToComponent(MeshComp, SavedAlpha, FilterTags, bFilterExactMatch);
+		UKawaiiPhysicsLibrary::SetAlphaOnComponent(MeshComp, SavedAlpha, FilterTags, bFilterExactMatch);
 	}
 
 	Super::NotifyEnd(MeshComp, Animation, EventReference);

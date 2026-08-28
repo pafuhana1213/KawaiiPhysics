@@ -336,7 +336,7 @@ bool FKawaiiPhysicsTransientForceAddTransientOnComponentSharesHandleTest::RunTes
 	FGameplayTagContainer FilterTags;
 	FilterTags.AddTag(TAG_KawaiiPhysicsTransientForceMatch);
 
-	FKawaiiPhysicsTransientForceHandle Handle;
+	FKawaiiPhysicsTransientHandle Handle;
 	TArray<FAnimNode_KawaiiPhysics*> FilteredNodes;
 	for (FAnimNode_KawaiiPhysics* Node : Nodes)
 	{
@@ -391,7 +391,7 @@ bool FKawaiiPhysicsTransientForceAddTransientOnComponentRejectsLiveObjectRefTest
 		ExternalForce->ExternalOwner = NewObject<UCurveFloat>(GetTransientPackage());
 	}
 
-	FKawaiiPhysicsTransientForceHandle Handle;
+	FKawaiiPhysicsTransientHandle Handle;
 	Handle.Id = 12345;
 	const int32 AppliedCount = KawaiiPhysics::QueueTransientExternalForceToNodes(
 		MakeArrayView(Nodes), Force, 5.0f, Handle);
@@ -419,7 +419,7 @@ bool FKawaiiPhysicsTransientForceAddTransientOnComponentNoMatchLeavesHandleUnset
 	FGameplayTagContainer FilterTags;
 	FilterTags.AddTag(TAG_KawaiiPhysicsTransientForceMatch);
 
-	FKawaiiPhysicsTransientForceHandle Handle;
+	FKawaiiPhysicsTransientHandle Handle;
 	Handle.Id = 12345;
 	TArray<FAnimNode_KawaiiPhysics*> FilteredNodes;
 	for (FAnimNode_KawaiiPhysics* CandidateNode : Nodes)
@@ -867,11 +867,11 @@ bool FKawaiiPhysicsTransientForceRealTimeEnvelopeTest::RunTest(const FString& Pa
 	return bOk;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientForceBlowRealTimeEnvelopeFlagTest,
-                                 "KawaiiPhysics.TransientForce.BlowRealTimeEnvelopeFlag",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientForceGustRealTimeEnvelopeFlagTest,
+                                 "KawaiiPhysics.TransientForce.GustRealTimeEnvelopeFlag",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FKawaiiPhysicsTransientForceBlowRealTimeEnvelopeFlagTest::RunTest(const FString& Parameters)
+bool FKawaiiPhysicsTransientForceGustRealTimeEnvelopeFlagTest::RunTest(const FString& Parameters)
 {
 	constexpr float RiseTime = 0.2f;
 	constexpr float HoldTime = 0.5f;
@@ -910,23 +910,23 @@ bool FKawaiiPhysicsTransientForceBlowRealTimeEnvelopeFlagTest::RunTest(const FSt
 		}
 	}
 
-	const ::KawaiiPhysics::FWindBlowEnvelope Envelope =
-		::KawaiiPhysics::ResolveWindBlowEnvelope(Duration, RiseTime, DecayTime);
+	const ::KawaiiPhysics::FWindGustEnvelope Envelope =
+		::KawaiiPhysics::ResolveWindGustEnvelope(Duration, RiseTime, DecayTime);
 	bOk &= TestTransientForceFloatNear(*this, TEXT("Resolved HoldTime"), Envelope.HoldTime, HoldTime);
 
 	return bOk;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientForceHandleIdTest,
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientHandleIdTest,
                                  "KawaiiPhysics.TransientForce.HandleId",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FKawaiiPhysicsTransientForceHandleIdTest::RunTest(const FString& Parameters)
+bool FKawaiiPhysicsTransientHandleIdTest::RunTest(const FString& Parameters)
 {
 	bool bOk = true;
 
-	const int64 HandleA = FAnimNode_KawaiiPhysics::GenerateTransientForceHandleId();
-	const int64 HandleB = FAnimNode_KawaiiPhysics::GenerateTransientForceHandleId();
+	const int64 HandleA = FAnimNode_KawaiiPhysics::GenerateTransientHandleId();
+	const int64 HandleB = FAnimNode_KawaiiPhysics::GenerateTransientHandleId();
 	bOk &= TestTrue(TEXT("Generated handles are unique"), HandleA != HandleB);
 	bOk &= TestTrue(TEXT("Generated handles are monotonic"), HandleA < HandleB);
 
@@ -946,7 +946,7 @@ bool FKawaiiPhysicsTransientForceHandleIdTest::RunTest(const FString& Parameters
 		AddAuthoredProceduralWind(Node, true, FVector(0.0f, 1.0f, 0.0f),
 		                          EExternalForceSpace::WorldSpace, 1.0f, false);
 
-		const int64 SpreadHandle = FAnimNode_KawaiiPhysics::GenerateTransientForceHandleId();
+		const int64 SpreadHandle = FAnimNode_KawaiiPhysics::GenerateTransientHandleId();
 		const int64 ReturnedHandle = Node.RequestTransientGust(
 			3.0f, 0.1f, 0.3f, FVector::ZeroVector, FAnimNode_KawaiiPhysics::TransientGustInheritAllWinds,
 			0.0f, SpreadHandle);
@@ -1167,25 +1167,25 @@ bool FKawaiiPhysicsTransientForceSurviveReflectionCopyTest::RunTest(const FStrin
 	return bOk;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientForceResolveWindBlowEnvelopeTest,
-                                 "KawaiiPhysics.TransientForce.ResolveWindBlowEnvelope",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientForceResolveWindGustEnvelopeTest,
+                                 "KawaiiPhysics.TransientForce.ResolveWindGustEnvelope",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FKawaiiPhysicsTransientForceResolveWindBlowEnvelopeTest::RunTest(const FString& Parameters)
+bool FKawaiiPhysicsTransientForceResolveWindGustEnvelopeTest::RunTest(const FString& Parameters)
 {
 	bool bOk = true;
 
 	{
-		const KawaiiPhysics::FWindBlowEnvelope Envelope =
-			KawaiiPhysics::ResolveWindBlowEnvelope(3.0f, 0.5f, 1.0f);
+		const KawaiiPhysics::FWindGustEnvelope Envelope =
+			KawaiiPhysics::ResolveWindGustEnvelope(3.0f, 0.5f, 1.0f);
 		bOk &= TestTransientForceFloatNear(*this, TEXT("Normal RiseTime"), Envelope.RiseTime, 0.5f);
 		bOk &= TestTransientForceFloatNear(*this, TEXT("Normal HoldTime"), Envelope.HoldTime, 1.5f);
 		bOk &= TestTransientForceFloatNear(*this, TEXT("Normal DecayTime"), Envelope.DecayTime, 1.0f);
 	}
 
 	{
-		const KawaiiPhysics::FWindBlowEnvelope Envelope =
-			KawaiiPhysics::ResolveWindBlowEnvelope(1.0f, 1.0f, 1.0f);
+		const KawaiiPhysics::FWindGustEnvelope Envelope =
+			KawaiiPhysics::ResolveWindGustEnvelope(1.0f, 1.0f, 1.0f);
 		bOk &= TestTransientForceFloatNear(*this, TEXT("Compressed RiseTime"), Envelope.RiseTime, 0.5f);
 		bOk &= TestTransientForceFloatNear(*this, TEXT("Compressed HoldTime"), Envelope.HoldTime, 0.0f);
 		bOk &= TestTransientForceFloatNear(*this, TEXT("Compressed DecayTime"), Envelope.DecayTime, 0.5f);
@@ -1194,24 +1194,24 @@ bool FKawaiiPhysicsTransientForceResolveWindBlowEnvelopeTest::RunTest(const FStr
 	}
 
 	{
-		const KawaiiPhysics::FWindBlowEnvelope Envelope =
-			KawaiiPhysics::ResolveWindBlowEnvelope(0.0f, 1.0f, 1.0f);
+		const KawaiiPhysics::FWindGustEnvelope Envelope =
+			KawaiiPhysics::ResolveWindGustEnvelope(0.0f, 1.0f, 1.0f);
 		bOk &= TestTransientForceFloatNear(*this, TEXT("Zero Duration RiseTime"), Envelope.RiseTime, 0.0f);
 		bOk &= TestTransientForceFloatNear(*this, TEXT("Zero Duration HoldTime"), Envelope.HoldTime, 0.0f);
 		bOk &= TestTransientForceFloatNear(*this, TEXT("Zero Duration DecayTime"), Envelope.DecayTime, 0.0f);
 	}
 
 	{
-		const KawaiiPhysics::FWindBlowEnvelope Envelope =
-			KawaiiPhysics::ResolveWindBlowEnvelope(2.0f, -1.0f, -1.0f);
+		const KawaiiPhysics::FWindGustEnvelope Envelope =
+			KawaiiPhysics::ResolveWindGustEnvelope(2.0f, -1.0f, -1.0f);
 		bOk &= TestTransientForceFloatNear(*this, TEXT("Negative RiseTime"), Envelope.RiseTime, 0.0f);
 		bOk &= TestTransientForceFloatNear(*this, TEXT("Negative HoldTime"), Envelope.HoldTime, 2.0f);
 		bOk &= TestTransientForceFloatNear(*this, TEXT("Negative DecayTime"), Envelope.DecayTime, 0.0f);
 	}
 
 	{
-		const KawaiiPhysics::FWindBlowEnvelope Envelope =
-			KawaiiPhysics::ResolveWindBlowEnvelope(1.0f, 0.25f, 0.75f);
+		const KawaiiPhysics::FWindGustEnvelope Envelope =
+			KawaiiPhysics::ResolveWindGustEnvelope(1.0f, 0.25f, 0.75f);
 		bOk &= TestTransientForceFloatNear(*this, TEXT("Exact RiseTime"), Envelope.RiseTime, 0.25f);
 		bOk &= TestTransientForceFloatNear(*this, TEXT("Exact HoldTime"), Envelope.HoldTime, 0.0f);
 		bOk &= TestTransientForceFloatNear(*this, TEXT("Exact DecayTime"), Envelope.DecayTime, 0.75f);

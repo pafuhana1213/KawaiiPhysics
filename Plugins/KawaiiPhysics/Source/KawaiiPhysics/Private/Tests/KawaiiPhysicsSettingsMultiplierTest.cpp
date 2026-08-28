@@ -1337,7 +1337,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierStartRequestBui
 bool FKawaiiPhysicsSettingsMultiplierStartRequestBuilderPositiveDurationTrapezoidTest::RunTest(const FString& Parameters)
 {
 	FKawaiiPhysicsSettingsMultiplierRequest Request;
-	const KawaiiPhysics::FWindBlowEnvelope Expected = KawaiiPhysics::ResolveWindBlowEnvelope(2.0f, 0.2f, 0.5f);
+	const KawaiiPhysics::FWindGustEnvelope Expected = KawaiiPhysics::ResolveWindGustEnvelope(2.0f, 0.2f, 0.5f);
 
 	bool bOk = TestTrue(TEXT("Built"),
 	                    UKawaiiPhysicsLibrary::BuildSettingsMultiplierStartRequest(FKawaiiPhysicsSettingsMultiplier(),
@@ -1523,7 +1523,7 @@ bool FKawaiiPhysicsSettingsMultiplierInfiniteHoldReplacedByFiniteStartTest::RunT
 	Node.RequestStartPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 0.0f, 0.0f, 0.5f, 7, true);
 	Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
 
-	const KawaiiPhysics::FWindBlowEnvelope Envelope = KawaiiPhysics::ResolveWindBlowEnvelope(1.0f, 0.2f, 0.3f);
+	const KawaiiPhysics::FWindGustEnvelope Envelope = KawaiiPhysics::ResolveWindGustEnvelope(1.0f, 0.2f, 0.3f);
 	Node.RequestStartPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), Envelope.RiseTime, Envelope.HoldTime,
 	                                           Envelope.DecayTime, 7);
 	Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);

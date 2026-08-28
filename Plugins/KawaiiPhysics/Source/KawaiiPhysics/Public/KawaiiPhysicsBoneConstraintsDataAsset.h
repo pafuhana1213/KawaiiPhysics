@@ -122,7 +122,7 @@ public:
 #if WITH_EDITOR
 
 	/** Applies regex patterns to the bone constraints */
-	UFUNCTION(BlueprintCallable, CallInEditor, Category="Helper")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category="Kawaii Physics|Helper")
 	void ApplyRegex();
 
 	/** Updates the preview bone list */

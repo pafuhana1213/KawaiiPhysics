@@ -250,7 +250,7 @@ struct FExecutionToken : IMovieSceneExecutionToken
 			{
 				Entry->Component = Component;
 				Entry->Owner = Data.InstanceOwner;
-				Entry->Handle.Id = FAnimNode_KawaiiPhysics::GenerateTransientForceHandleId();
+				Entry->Handle.Id = FAnimNode_KawaiiPhysics::GenerateTransientHandleId();
 				Entry->FilterTags = FilterTags;
 				Entry->bFilterExactMatch = bFilterExactMatch;
 				Entry->BlendOutTime = BlendOutTime;

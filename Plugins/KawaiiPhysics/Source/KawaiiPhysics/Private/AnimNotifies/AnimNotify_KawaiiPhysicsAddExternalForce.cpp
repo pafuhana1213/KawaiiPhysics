@@ -30,7 +30,7 @@ void UAnimNotify_KawaiiPhysicsAddExternalForce::Notify(USkeletalMeshComponent* M
 		return;
 	}
 
-	UKawaiiPhysicsLibrary::AddExternalForcesToComponent(MeshComp, AdditionalExternalForces, this,
+	UKawaiiPhysicsLibrary::AddExternalForcesOnComponent(MeshComp, AdditionalExternalForces, this,
 	                                                    FilterTags, bFilterExactMatch, true);
 
 	Super::Notify(MeshComp, Animation, EventReference);

@@ -16,7 +16,7 @@ struct KAWAIIPHYSICSSEQUENCER_API FKawaiiPhysicsSequencerMultiplierEntry
 {
 	TWeakObjectPtr<USkeletalMeshComponent> Component;
 	TWeakPtr<uint8> Owner;
-	FKawaiiPhysicsTransientForceHandle Handle;
+	FKawaiiPhysicsTransientHandle Handle;
 	FGameplayTagContainer FilterTags;
 	bool bFilterExactMatch = false;
 	float BlendOutTime = 0.2f;

@@ -39,7 +39,7 @@ void UAnimNotify_KawaiiPhysicsSettingsMultiplier::Notify(USkeletalMeshComponent*
 	}
 
 	// コンポーネント内の対象ノードへ時間型の物理設定倍率を開始する
-	FKawaiiPhysicsTransientForceHandle UnusedHandle;
+	FKawaiiPhysicsTransientHandle UnusedHandle;
 	UKawaiiPhysicsLibrary::StartPhysicsSettingsMultiplierOnComponent(MeshComp, UnusedHandle, SettingsScale, Duration,
 	                                                               BlendInTime, BlendOutTime, FilterTags,
 	                                                               bFilterExactMatch);

@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: KawaiiPhysics\n"
-"POT-Creation-Date: 2026-08-27 05:45\n"
-"PO-Revision-Date: 2026-08-27 05:45\n"
+"POT-Creation-Date: 2026-08-28 07:31\n"
+"PO-Revision-Date: 2026-08-28 07:31\n"
 "Language-Team: \n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
@@ -1963,8 +1963,8 @@ msgstr ""
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind [ScriptStruct ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind [ScriptStruct ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_ProceduralWind"
-msgid "パラメトリック合成風。UE の WindDirectionalSource に依存しない。\n合成式: Total = (Constant + Sway + Ripple) × StrengthCycle + Random + Gust（Gust は StartProceduralWindBlow API から発生）\nParametric synthesized wind. This does not depend on UE WindDirectionalSource.\nComposition: Total = (Constant + Sway + Ripple) x StrengthCycle + Random + Gust (Gust is triggered via the StartProceduralWindBlow API)."
-msgstr "パラメトリック合成風。UE の WindDirectionalSource に依存しない。\n合成式: Total = (Constant + Sway + Ripple) × StrengthCycle + Random + Gust（Gust は StartProceduralWindBlow API から発生）"
+msgid "パラメトリック合成風。UE の WindDirectionalSource に依存しない。\n合成式: Total = (Constant + Sway + Ripple) × StrengthCycle + Random + Gust（Gust は StartProceduralWindGust API から発生）\nParametric synthesized wind. This does not depend on UE WindDirectionalSource.\nComposition: Total = (Constant + Sway + Ripple) x StrengthCycle + Random + Gust (Gust is triggered via the StartProceduralWindGust API)."
+msgstr "パラメトリック合成風。UE の WindDirectionalSource に依存しない。\n合成式: Total = (Constant + Sway + Ripple) × StrengthCycle + Random + Gust（Gust は StartProceduralWindGust API から発生）"
 
 #. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:ConstantForce
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:ConstantForce [FloatProperty DisplayName meta-data]
@@ -2358,13 +2358,6 @@ msgctxt "UObjectToolTips,KawaiiPhysicsBoneConstraintsDataAsset:PreviewBoneListSt
 msgid "String representation of the preview bone list"
 msgstr ""
 
-#. Key:	Skeleton
-#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:PreviewSkeleton [SoftObjectProperty Category meta-data]
-#: /Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:PreviewSkeleton [SoftObjectProperty Category meta-data]
-msgctxt "UObjectCategory,Skeleton"
-msgid "Skeleton"
-msgstr "スケルトン"
-
 #. Key:	KawaiiPhysicsBoneConstraintsDataAsset:PreviewSkeleton
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:PreviewSkeleton [SoftObjectProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:PreviewSkeleton [SoftObjectProperty DisplayName meta-data]
@@ -2490,6 +2483,13 @@ msgstr "コリジョン（平面）"
 msgctxt "UObjectDisplayNames,KawaiiPhysicsLimitsDataAsset:PlanarLimitsData"
 msgid "Planar Limits Data"
 msgstr ""
+
+#. Key:	Skeleton
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:Skeleton [ObjectProperty Category meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:Skeleton [ObjectProperty Category meta-data]
+msgctxt "UObjectCategory,Skeleton"
+msgid "Skeleton"
+msgstr "スケルトン"
 
 #. Key:	KawaiiPhysicsLimitsDataAsset:Skeleton
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:Skeleton [ObjectProperty DisplayName meta-data]
@@ -3520,24 +3520,24 @@ msgctxt "UObjectToolTips,KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate"
 msgid "TargetRootからの長さ割合に応じてSyncBoneの影響度にスケールを適用（X: LengthRate、Y: Scale）\nCurve that scales SyncBone's influence based on length rate from TargetRoot (X: Length, Y: Scale)"
 msgstr "TargetRootからの長さ割合に応じてSyncBoneの影響度にスケールを適用（X: LengthRate、Y: Scale）"
 
-#. Key:	KawaiiPhysicsTransientForceHandle
-#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsTransientForceHandle [ScriptStruct DisplayName meta-data]
-#: /Script/KawaiiPhysics.KawaiiPhysicsTransientForceHandle [ScriptStruct DisplayName meta-data]
-msgctxt "UObjectDisplayNames,KawaiiPhysicsTransientForceHandle"
-msgid "Kawaii Physics Transient Force Handle"
+#. Key:	KawaiiPhysicsTransientHandle
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsTransientHandle [ScriptStruct DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsTransientHandle [ScriptStruct DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsTransientHandle"
+msgid "Kawaii Physics Transient Handle"
 msgstr ""
 
-#. Key:	KawaiiPhysicsTransientForceHandle
-#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsTransientForceHandle [ScriptStruct ToolTip meta-data]
-#: /Script/KawaiiPhysics.KawaiiPhysicsTransientForceHandle [ScriptStruct ToolTip meta-data]
-msgctxt "UObjectToolTips,KawaiiPhysicsTransientForceHandle"
-msgid "一時外力（Blow など）の停止用ハンドル。Id=0 は未設定。ノード再初期化や上限超過破棄で対象が消えた後も値は残り、その場合の停止要求は何もしない\nHandle used to stop transient external forces (blows). Id=0 means unset. The value survives after the target is lost (node re-init or cap eviction); stop requests then do nothing."
-msgstr "一時外力（Blow など）の停止用ハンドル。Id=0 は未設定。ノード再初期化や上限超過破棄で対象が消えた後も値は残り、その場合の停止要求は何もしない"
+#. Key:	KawaiiPhysicsTransientHandle
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsTransientHandle [ScriptStruct ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsTransientHandle [ScriptStruct ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsTransientHandle"
+msgid "一時効果（一時外力・突風・物理設定倍率）の停止用ハンドル。Id=0 は未設定。ノード再初期化や上限超過破棄で対象が消えた後も値は残り、その場合の停止要求は何もしない\nHandle used to stop transient effects (transient external forces, gusts, physics settings multipliers). Id=0 means unset. The value survives after the target is lost (node re-init or cap eviction); stop requests then do nothing."
+msgstr "一時効果（一時外力・突風・物理設定倍率）の停止用ハンドル。Id=0 は未設定。ノード再初期化や上限超過破棄で対象が消えた後も値は残り、その場合の停止要求は何もしない"
 
-#. Key:	KawaiiPhysicsTransientForceHandle:Id
-#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsTransientForceHandle:Id [Int64Property DisplayName meta-data]
-#: /Script/KawaiiPhysics.KawaiiPhysicsTransientForceHandle:Id [Int64Property DisplayName meta-data]
-msgctxt "UObjectDisplayNames,KawaiiPhysicsTransientForceHandle:Id"
+#. Key:	KawaiiPhysicsTransientHandle:Id
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsTransientHandle:Id [Int64Property DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsTransientHandle:Id [Int64Property DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsTransientHandle:Id"
 msgid "Id"
 msgstr ""
 
@@ -5411,57 +5411,57 @@ msgid "Delete KawaiiPhysics Collision"
 msgstr ""
 
 #. Key:	AddKawaiiPhysicsNodes
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(1700)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(1700)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(1710)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(1710)
 msgctxt "KawaiiPhysicsEditorLibrary,AddKawaiiPhysicsNodes"
 msgid "Add Kawaii Physics Nodes"
 msgstr ""
 
 #. Key:	SetGraphNodePropertyByString
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(1992)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(1992)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2002)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2002)
 msgctxt "KawaiiPhysicsEditorLibrary,SetGraphNodePropertyByString"
 msgid "Set Kawaii Physics Graph Node Property"
 msgstr ""
 
 #. Key:	SetGraphNodeTag
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2106)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2106)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2116)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2116)
 msgctxt "KawaiiPhysicsEditorLibrary,SetGraphNodeTag"
 msgid "Set Kawaii Physics Graph Node Tag"
 msgstr ""
 
 #. Key:	SetGraphNodeRootBoneName
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2135)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2135)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2145)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2145)
 msgctxt "KawaiiPhysicsEditorLibrary,SetGraphNodeRootBoneName"
 msgid "Set Kawaii Physics Graph Node Root Bone"
 msgstr ""
 
 #. Key:	ApplyPresetToGraphNode
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2170)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2170)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2180)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2180)
 msgctxt "KawaiiPhysicsEditorLibrary,ApplyPresetToGraphNode"
 msgid "Apply Kawaii Physics Preset"
 msgstr ""
 
 #. Key:	ExportGraphNodeToPreset
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2257)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2257)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2267)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2267)
 msgctxt "KawaiiPhysicsEditorLibrary,ExportGraphNodeToPreset"
 msgid "Export Kawaii Physics Graph Node To Preset"
 msgstr ""
 
 #. Key:	ReapplyPresetToProjectProgress
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2298)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2298)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2308)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2308)
 msgctxt "KawaiiPhysicsEditorLibrary,ReapplyPresetToProjectProgress"
 msgid "Applying Kawaii Physics preset to AnimBlueprints..."
 msgstr ""
 
 #. Key:	SetGraphNodeWildcardProperty
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2462)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2462)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2472)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2472)
 msgctxt "KawaiiPhysicsEditorLibrary,SetGraphNodeWildcardProperty"
 msgid "Set Kawaii Physics Graph Node Wildcard Property"
 msgstr ""
@@ -7355,5 +7355,4 @@ msgstr "Kawaii Physics 設定倍率（全体）"
 msgctxt "MovieSceneKawaiiPhysicsSettingsMultiplierTrack,TrackName"
 msgid "Kawaii Physics Settings Multiplier"
 msgstr "Kawaii Physics 設定倍率"
-
 
