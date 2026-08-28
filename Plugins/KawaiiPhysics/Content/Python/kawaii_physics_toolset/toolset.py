@@ -109,11 +109,11 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
     def add_kawaii_physics_nodes(
             anim_blueprint: unreal.AnimBlueprint,
             requests: list[unreal.KawaiiPhysicsNodePlacementRequest],
-            upsert_key: unreal.KawaiiPhysicsPlacementUpsertKey,
+            match_key: unreal.KawaiiPhysicsPlacementMatchKey,
             graph_name: str,
             comment: str = '',
             prompt: str = '') -> list[unreal.KawaiiPhysicsGraphNodeHandle]:
-        """Adds or upserts KawaiiPhysics nodes; auto_connect wires before Result.
+        """Adds or updates KawaiiPhysics nodes; auto_connect wires before Result.
 
         A non-empty comment creates an MCP comment frame with the configured
         prefix. The prompt is stored in that frame's Details. Requests may set
@@ -125,7 +125,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         return unreal.KawaiiPhysicsEditorLibrary.add_kawaii_physics_nodes(
             anim_blueprint,
             requests,
-            upsert_key,
+            match_key,
             graph_name,
             comment,
             prompt,
@@ -181,7 +181,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         if value is None:
             raise ValueError('value must not be None.')
 
-        ok = unreal.KawaiiPhysicsEditorLibrary.set_graph_node_property_by_string(
+        ok = unreal.KawaiiPhysicsEditorLibrary.set_graph_node_property_from_string(
             handle,
             unreal.Name(property_name),
             value,
@@ -222,7 +222,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         if value is None:
             raise ValueError('value must not be None.')
 
-        ok = unreal.KawaiiPhysicsEditorLibrary.set_preset_node_property_by_string(
+        ok = unreal.KawaiiPhysicsEditorLibrary.set_preset_node_property_from_string(
             preset,
             unreal.Name(property_name),
             value,
@@ -496,21 +496,21 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
 
     @toolset_registry.tool_call
     @staticmethod
-    def reapply_preset_to_project(
+    def apply_preset_to_project(
             preset: unreal.KawaiiPhysicsPresetDataAsset,
             dry_run: bool,
             check_out_files: bool) -> list[unreal.KawaiiPhysicsNodeAuditEntry]:
-        """Reapplies a preset and returns the audit report, not the update count."""
+        """Applies a preset and returns the audit report, not the update count."""
         _raise_for_invalid_object(preset, 'preset')
 
-        result = unreal.KawaiiPhysicsEditorLibrary.reapply_preset_to_project(
+        result = unreal.KawaiiPhysicsEditorLibrary.apply_preset_to_project(
             preset,
             dry_run,
             check_out_files,
         )
         if not isinstance(result, tuple) or len(result) != 2:
             raise RuntimeError(
-                'Unexpected return value from reapply_preset_to_project.')
+                'Unexpected return value from apply_preset_to_project.')
         _updated_count, report = result
         return report
 
@@ -534,12 +534,12 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
 
     @toolset_registry.tool_call
     @staticmethod
-    def resolve_bones_by_pattern(
+    def find_bones_by_pattern(
             skeleton: unreal.Skeleton,
             pattern: str) -> list[str]:
-        """Resolves reference bone names by regex; empty input returns no names."""
+        """Finds reference bone names by regex; empty input returns no names."""
         _raise_for_invalid_object(skeleton, 'skeleton')
-        names = unreal.KawaiiPhysicsEditorLibrary.resolve_bones_by_pattern(
+        names = unreal.KawaiiPhysicsEditorLibrary.find_bones_by_pattern(
             skeleton,
             pattern,
         )

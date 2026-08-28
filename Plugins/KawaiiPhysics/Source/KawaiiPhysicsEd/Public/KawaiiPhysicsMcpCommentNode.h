@@ -22,7 +22,7 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Kawaii Physics|MCP")
 	FDateTime CreatedAt;
 
-	/** 最終更新日時（Upsert再実行で更新） / Last updated (refreshed on upsert re-run) */
+	/** 最終更新日時（FindOrAdd再実行で更新） / Last updated (refreshed on find-or-add re-run) */
 	UPROPERTY(VisibleAnywhere, Category = "Kawaii Physics|MCP")
 	FDateTime UpdatedAt;
 };

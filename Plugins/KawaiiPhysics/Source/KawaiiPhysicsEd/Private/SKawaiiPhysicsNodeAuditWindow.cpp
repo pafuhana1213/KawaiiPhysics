@@ -742,7 +742,7 @@ FReply SKawaiiPhysicsNodeAuditWindow::OnRefreshClicked()
 	}
 
 	TArray<FKawaiiPhysicsNodeAuditEntry> Report;
-	UKawaiiPhysicsEditorLibrary::ReapplyPresetToProject(Preset, true, false, Report);
+	UKawaiiPhysicsEditorLibrary::ApplyPresetToProject(Preset, true, false, Report);
 	ReplaceEntriesFromReport(Report);
 	return FReply::Handled();
 }
@@ -786,7 +786,7 @@ FReply SKawaiiPhysicsNodeAuditWindow::OnApplyToProjectClicked()
 
 	TArray<FKawaiiPhysicsNodeAuditEntry> Report;
 	const int32 AppliedCount =
-		UKawaiiPhysicsEditorLibrary::ReapplyPresetToProject(Preset, false, bCheckOutFiles, Report);
+		UKawaiiPhysicsEditorLibrary::ApplyPresetToProject(Preset, false, bCheckOutFiles, Report);
 	ReplaceEntriesFromReport(Report);
 
 	KawaiiPhysicsEdWindowUtils::ShowNotification(

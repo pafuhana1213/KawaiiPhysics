@@ -587,7 +587,7 @@ bool FKawaiiPhysicsEditorScriptingPropertyAccessTest::RunTest(const FString& Par
 
 	bool bOk = true;
 	bOk &= TestTrue(TEXT("Set WindScale by string"),
-	                UKawaiiPhysicsEditorLibrary::SetGraphNodePropertyByString(
+	                UKawaiiPhysicsEditorLibrary::SetGraphNodePropertyFromString(
 		                Handle, GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, WindScale), TEXT("3.25")));
 	FString OutValue;
 	bOk &= TestTrue(TEXT("Get WindScale as string"),
@@ -596,7 +596,7 @@ bool FKawaiiPhysicsEditorScriptingPropertyAccessTest::RunTest(const FString& Par
 	bOk &= TestTrue(TEXT("WindScale round-trips"),
 	                FMath::IsNearlyEqual(Fixture.Nodes[0]->Node.WindScale, 3.25f));
 	bOk &= TestFalse(TEXT("Denied ExternalForces property is rejected"),
-	                 UKawaiiPhysicsEditorLibrary::SetGraphNodePropertyByString(
+	                 UKawaiiPhysicsEditorLibrary::SetGraphNodePropertyFromString(
 		                 Handle, GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, ExternalForces), TEXT("()")));
 	bOk &= TestEqual(TEXT("Blueprint is marked as modified"), Fixture.AnimBlueprint->Status, BS_Dirty);
 
@@ -637,14 +637,14 @@ bool FKawaiiPhysicsEditorScriptingPresetStringAccessTest::RunTest(const FString&
 
 	bool bOk = true;
 	bOk &= TestTrue(TEXT("Set preset PhysicsSettings by string"),
-	                UKawaiiPhysicsEditorLibrary::SetPresetNodePropertyByString(
+	                UKawaiiPhysicsEditorLibrary::SetPresetNodePropertyFromString(
 		                Preset, GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, PhysicsSettings), PhysicsSettingsValue));
 	bOk &= TestTrue(TEXT("Preset Damping is updated"),
 	                FMath::IsNearlyEqual(Preset->Node.PhysicsSettings.Damping, 0.33f));
 	bOk &= TestTrue(TEXT("Preset Radius is updated"),
 	                FMath::IsNearlyEqual(Preset->Node.PhysicsSettings.Radius, 7.0f));
 	bOk &= TestTrue(TEXT("Set preset KawaiiPhysicsTag by string"),
-	                UKawaiiPhysicsEditorLibrary::SetPresetNodePropertyByString(
+	                UKawaiiPhysicsEditorLibrary::SetPresetNodePropertyFromString(
 		                Preset, GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, KawaiiPhysicsTag), TagValue));
 	bOk &= TestTrue(TEXT("Preset KawaiiPhysicsTag is updated"),
 	                Preset->Node.KawaiiPhysicsTag == GetKawaiiPhysicsEditorScriptingTagB());
@@ -654,7 +654,7 @@ bool FKawaiiPhysicsEditorScriptingPresetStringAccessTest::RunTest(const FString&
 	                UKawaiiPhysicsEditorLibrary::GetPresetNodePropertyAsString(
 		                Preset, GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, PhysicsSettings), OutPhysicsSettingsValue));
 	bOk &= TestTrue(TEXT("Round-trip preset PhysicsSettings string"),
-	                UKawaiiPhysicsEditorLibrary::SetPresetNodePropertyByString(
+	                UKawaiiPhysicsEditorLibrary::SetPresetNodePropertyFromString(
 		                RoundTripPreset, GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, PhysicsSettings),
 		                OutPhysicsSettingsValue));
 	bOk &= TestTrue(TEXT("Round-tripped PhysicsSettings Damping matches"),
@@ -671,14 +671,14 @@ bool FKawaiiPhysicsEditorScriptingPresetStringAccessTest::RunTest(const FString&
 	                UKawaiiPhysicsEditorLibrary::GetPresetNodePropertyAsString(
 		                Preset, GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, KawaiiPhysicsTag), OutTagValue));
 	bOk &= TestTrue(TEXT("Round-trip preset KawaiiPhysicsTag string"),
-	                UKawaiiPhysicsEditorLibrary::SetPresetNodePropertyByString(
+	                UKawaiiPhysicsEditorLibrary::SetPresetNodePropertyFromString(
 		                RoundTripPreset, GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, KawaiiPhysicsTag),
 		                OutTagValue));
 	bOk &= TestTrue(TEXT("Round-tripped KawaiiPhysicsTag matches"),
 	                RoundTripPreset->Node.KawaiiPhysicsTag == Preset->Node.KawaiiPhysicsTag);
 
 	bOk &= TestFalse(TEXT("Denied ExternalForces preset property is rejected"),
-	                 UKawaiiPhysicsEditorLibrary::SetPresetNodePropertyByString(
+	                 UKawaiiPhysicsEditorLibrary::SetPresetNodePropertyFromString(
 		                 Preset, GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, ExternalForces), TEXT("()")));
 
 	return bOk;
@@ -894,7 +894,7 @@ bool FKawaiiPhysicsEditorScriptingPlacementTest::RunTest(const FString& Paramete
 
 	TArray<FKawaiiPhysicsGraphNodeHandle> MismatchHandles =
 		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(
-			Fixture.AnimBlueprint, Requests, EKawaiiPhysicsPlacementUpsertKey::None, TEXT("NoSuchGraph"));
+			Fixture.AnimBlueprint, Requests, EKawaiiPhysicsPlacementMatchKey::None, TEXT("NoSuchGraph"));
 	bOk &= TestTrue(TEXT("GraphName mismatch returns empty handles"), MismatchHandles.IsEmpty());
 
 	return bOk;
@@ -1159,7 +1159,7 @@ bool FKawaiiPhysicsEditorScriptingPlacementAutoConnectCommentFrameTest::RunTest(
 		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(
 			Fixture.AnimBlueprint,
 			Requests,
-			EKawaiiPhysicsPlacementUpsertKey::TagAndRootBone,
+			EKawaiiPhysicsPlacementMatchKey::TagAndRootBone,
 			NAME_None,
 			CommentText);
 
@@ -1669,7 +1669,7 @@ bool FKawaiiPhysicsEditorScriptingPlacementCommentTest::RunTest(const FString& P
 		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(
 			Fixture.AnimBlueprint,
 			Requests,
-			EKawaiiPhysicsPlacementUpsertKey::TagAndRootBone,
+			EKawaiiPhysicsPlacementMatchKey::TagAndRootBone,
 			NAME_None,
 			CommentText,
 			InitialPrompt);
@@ -1753,48 +1753,48 @@ bool FKawaiiPhysicsEditorScriptingPlacementCommentTest::RunTest(const FString& P
 		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(
 			Fixture.AnimBlueprint,
 			Requests,
-			EKawaiiPhysicsPlacementUpsertKey::TagAndRootBone,
+			EKawaiiPhysicsPlacementMatchKey::TagAndRootBone,
 			NAME_None,
 			CommentText,
 			UpdatedPrompt);
 	McpCommentNode = FindMcpCommentNode(Fixture.AnimGraph, ExpectedTitle);
-	bOk &= TestEqual(TEXT("Comment upsert returns two handles"), SecondHandles.Num(), 2);
-	bOk &= TestTrue(TEXT("First comment upsert handle is valid"),
+	bOk &= TestEqual(TEXT("Comment match returns two handles"), SecondHandles.Num(), 2);
+	bOk &= TestTrue(TEXT("First comment match handle is valid"),
 	                SecondHandles.IsValidIndex(0) && SecondHandles[0].IsValid());
-	bOk &= TestTrue(TEXT("Second comment upsert handle is valid"),
+	bOk &= TestTrue(TEXT("Second comment match handle is valid"),
 	                SecondHandles.IsValidIndex(1) && SecondHandles[1].IsValid());
 #if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
-	bOk &= TestEqual(TEXT("Comment upsert keeps one MCP comment"),
+	bOk &= TestEqual(TEXT("Comment match keeps one MCP comment"),
 	                 CountExactNodesOfClass(Fixture.AnimGraph, UKawaiiPhysicsMcpCommentNode::StaticClass()), 1);
 #else
-	bOk &= TestEqual(TEXT("Comment upsert keeps one MCP comment"),
+	bOk &= TestEqual(TEXT("Comment match keeps one MCP comment"),
 	                 CountExactNodesOfClass(Fixture.AnimGraph, UEdGraphNode_Comment::StaticClass()), 1);
 #endif
-	bOk &= TestEqual(TEXT("Comment upsert keeps expected comment frame count"),
+	bOk &= TestEqual(TEXT("Comment match keeps expected comment frame count"),
 	                 CountNodesOfClass(Fixture.AnimGraph, UEdGraphNode_Comment::StaticClass()), ExpectedCommentNodeCount);
-	bOk &= TestEqual(TEXT("Comment upsert keeps KawaiiPhysics node count unchanged"),
+	bOk &= TestEqual(TEXT("Comment match keeps KawaiiPhysics node count unchanged"),
 	                 CountNodesOfClass(Fixture.AnimGraph, UAnimGraphNode_KawaiiPhysics::StaticClass()), 2);
 	if (McpCommentNode)
 	{
 		const FCommentNodeSet& NodesUnderComment = McpCommentNode->GetNodesUnderComment();
 #if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
-		bOk &= TestEqual(TEXT("Comment upsert updates prompt"),
+		bOk &= TestEqual(TEXT("Comment match updates prompt"),
 		                  McpCommentNode->Prompt, UpdatedPrompt);
-		bOk &= TestTrue(TEXT("Comment upsert keeps CreatedAt valid"),
+		bOk &= TestTrue(TEXT("Comment match keeps CreatedAt valid"),
 		                McpCommentNode->CreatedAt.GetTicks() > 0);
-		bOk &= TestTrue(TEXT("Comment upsert keeps UpdatedAt valid"),
+		bOk &= TestTrue(TEXT("Comment match keeps UpdatedAt valid"),
 		                McpCommentNode->UpdatedAt.GetTicks() > 0);
-		bOk &= TestEqual(TEXT("Comment upsert keeps CreatedAt unchanged"),
+		bOk &= TestEqual(TEXT("Comment match keeps CreatedAt unchanged"),
 		                  McpCommentNode->CreatedAt, InitialCommentCreatedAt);
-		bOk &= TestTrue(TEXT("Comment upsert does not regress UpdatedAt"),
+		bOk &= TestTrue(TEXT("Comment match does not regress UpdatedAt"),
 		                McpCommentNode->UpdatedAt >= InitialCommentUpdatedAt);
 #endif
-		bOk &= TestEqual(TEXT("Comment upsert keeps two nodes under comment"), NodesUnderComment.Num(), 2);
+		bOk &= TestEqual(TEXT("Comment match keeps two nodes under comment"), NodesUnderComment.Num(), 2);
 		if (SecondHandles.Num() == 2 && SecondHandles[0].IsValid() && SecondHandles[1].IsValid())
 		{
-			bOk &= TestTrue(TEXT("Comment upsert tracks first upserted node"),
+			bOk &= TestTrue(TEXT("Comment match tracks first matched node"),
 			                NodesUnderComment.Contains(SecondHandles[0].Node.Get()));
-			bOk &= TestTrue(TEXT("Comment upsert tracks second upserted node"),
+			bOk &= TestTrue(TEXT("Comment match tracks second matched node"),
 			                NodesUnderComment.Contains(SecondHandles[1].Node.Get()));
 		}
 	}
@@ -1873,7 +1873,7 @@ bool FKawaiiPhysicsEditorScriptingPlacementCommentEmptyTest::RunTest(const FStri
 		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(
 			WhitespaceCommentFixture.AnimBlueprint,
 			WhitespaceCommentRequests,
-			EKawaiiPhysicsPlacementUpsertKey::None,
+			EKawaiiPhysicsPlacementMatchKey::None,
 			NAME_None,
 			TEXT("   \t  "),
 			TEXT("Prompt should not be stored without a comment."));
@@ -1892,11 +1892,11 @@ bool FKawaiiPhysicsEditorScriptingPlacementCommentEmptyTest::RunTest(const FStri
 	return bOk;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementUpsertTest,
-                                 "KawaiiPhysics.EditorScripting.Placement.Upsert",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementMatchTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.Match",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FKawaiiPhysicsEditorScriptingPlacementUpsertTest::RunTest(const FString& Parameters)
+bool FKawaiiPhysicsEditorScriptingPlacementMatchTest::RunTest(const FString& Parameters)
 {
 	FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
 	if (!Fixture.AnimBlueprint)
@@ -1912,34 +1912,34 @@ bool FKawaiiPhysicsEditorScriptingPlacementUpsertTest::RunTest(const FString& Pa
 
 	TArray<FKawaiiPhysicsGraphNodeHandle> FirstHandles =
 		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(
-			Fixture.AnimBlueprint, Requests, EKawaiiPhysicsPlacementUpsertKey::Tag);
+			Fixture.AnimBlueprint, Requests, EKawaiiPhysicsPlacementMatchKey::Tag);
 
 	Requests[0].RootBoneName = TEXT("tail_01");
 	TArray<FKawaiiPhysicsGraphNodeHandle> SecondHandles =
 		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(
-			Fixture.AnimBlueprint, Requests, EKawaiiPhysicsPlacementUpsertKey::Tag);
+			Fixture.AnimBlueprint, Requests, EKawaiiPhysicsPlacementMatchKey::Tag);
 
 	TArray<FKawaiiPhysicsGraphNodeHandle> CollectedHandles =
 		UKawaiiPhysicsEditorLibrary::CollectKawaiiPhysicsGraphNodes(
 			Fixture.AnimBlueprint, FGameplayTagContainer(), false);
 
 	bool bOk = true;
-	bOk &= TestEqual(TEXT("First upsert creates one node"), FirstHandles.Num(), 1);
-	bOk &= TestEqual(TEXT("Second upsert returns one node"), SecondHandles.Num(), 1);
-	bOk &= TestEqual(TEXT("Upsert keeps node count unchanged"), CollectedHandles.Num(), 1);
+	bOk &= TestEqual(TEXT("First match creates one node"), FirstHandles.Num(), 1);
+	bOk &= TestEqual(TEXT("Second match returns one node"), SecondHandles.Num(), 1);
+	bOk &= TestEqual(TEXT("Match keeps node count unchanged"), CollectedHandles.Num(), 1);
 	if (!SecondHandles.IsEmpty() && SecondHandles[0].IsValid())
 	{
-		bOk &= TestEqual(TEXT("Upsert updates RootBone"),
+		bOk &= TestEqual(TEXT("Match updates RootBone"),
 		                  SecondHandles[0].Node->Node.RootBone.BoneName, FName(TEXT("tail_01")));
 	}
 	return bOk;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementUpsertKeepsPositionTest,
-                                 "KawaiiPhysics.EditorScripting.Placement.UpsertKeepsPosition",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementMatchKeepsPositionTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.MatchKeepsPosition",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FKawaiiPhysicsEditorScriptingPlacementUpsertKeepsPositionTest::RunTest(const FString& Parameters)
+bool FKawaiiPhysicsEditorScriptingPlacementMatchKeepsPositionTest::RunTest(const FString& Parameters)
 {
 	FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
 	if (!Fixture.AnimBlueprint)
@@ -1955,7 +1955,7 @@ bool FKawaiiPhysicsEditorScriptingPlacementUpsertKeepsPositionTest::RunTest(cons
 
 	TArray<FKawaiiPhysicsGraphNodeHandle> FirstHandles =
 		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(
-			Fixture.AnimBlueprint, Requests, EKawaiiPhysicsPlacementUpsertKey::Tag);
+			Fixture.AnimBlueprint, Requests, EKawaiiPhysicsPlacementMatchKey::Tag);
 	if (FirstHandles.IsValidIndex(0) && FirstHandles[0].IsValid())
 	{
 		FirstHandles[0].Node->NodePosX = -1234;
@@ -1965,16 +1965,16 @@ bool FKawaiiPhysicsEditorScriptingPlacementUpsertKeepsPositionTest::RunTest(cons
 	Requests[0].RootBoneName = TEXT("tail_01");
 	TArray<FKawaiiPhysicsGraphNodeHandle> SecondHandles =
 		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(
-			Fixture.AnimBlueprint, Requests, EKawaiiPhysicsPlacementUpsertKey::Tag);
+			Fixture.AnimBlueprint, Requests, EKawaiiPhysicsPlacementMatchKey::Tag);
 
 	bool bOk = true;
-	bOk &= TestEqual(TEXT("First upsert placement creates one node"), FirstHandles.Num(), 1);
-	bOk &= TestEqual(TEXT("Second upsert placement returns one node"), SecondHandles.Num(), 1);
+	bOk &= TestEqual(TEXT("First match placement creates one node"), FirstHandles.Num(), 1);
+	bOk &= TestEqual(TEXT("Second match placement returns one node"), SecondHandles.Num(), 1);
 	if (SecondHandles.IsValidIndex(0) && SecondHandles[0].IsValid())
 	{
-		bOk &= TestEqual(TEXT("Auto-position upsert keeps NodePosX"), SecondHandles[0].Node->NodePosX, -1234);
-		bOk &= TestEqual(TEXT("Auto-position upsert keeps NodePosY"), SecondHandles[0].Node->NodePosY, 567);
-		bOk &= TestEqual(TEXT("Auto-position upsert still updates RootBone"),
+		bOk &= TestEqual(TEXT("Auto-position match keeps NodePosX"), SecondHandles[0].Node->NodePosX, -1234);
+		bOk &= TestEqual(TEXT("Auto-position match keeps NodePosY"), SecondHandles[0].Node->NodePosY, 567);
+		bOk &= TestEqual(TEXT("Auto-position match still updates RootBone"),
 		                  SecondHandles[0].Node->Node.RootBone.BoneName, FName(TEXT("tail_01")));
 	}
 
@@ -2190,11 +2190,11 @@ bool FKawaiiPhysicsEditorScriptingPlacementAutoConnectSpaceConversionTest::RunTe
 	return bOk;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementAutoConnectUpsertKeepsWiringTest,
-                                 "KawaiiPhysics.EditorScripting.Placement.AutoConnect.UpsertKeepsWiring",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingPlacementAutoConnectMatchKeepsWiringTest,
+                                 "KawaiiPhysics.EditorScripting.Placement.AutoConnect.MatchKeepsWiring",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FKawaiiPhysicsEditorScriptingPlacementAutoConnectUpsertKeepsWiringTest::RunTest(const FString& Parameters)
+bool FKawaiiPhysicsEditorScriptingPlacementAutoConnectMatchKeepsWiringTest::RunTest(const FString& Parameters)
 {
 	FKawaiiPhysicsEditorScriptingFixture Fixture = MakeEmptyFixture(*this);
 	if (!Fixture.AnimBlueprint || !Fixture.AnimGraph)
@@ -2206,7 +2206,7 @@ bool FKawaiiPhysicsEditorScriptingPlacementAutoConnectUpsertKeepsWiringTest::Run
 	Requests.Add(MakeAutoConnectRequest(TEXT("hair_01"), GetKawaiiPhysicsEditorScriptingTagA()));
 	TArray<FKawaiiPhysicsGraphNodeHandle> FirstHandles =
 		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(
-			Fixture.AnimBlueprint, Requests, EKawaiiPhysicsPlacementUpsertKey::Tag);
+			Fixture.AnimBlueprint, Requests, EKawaiiPhysicsPlacementMatchKey::Tag);
 	UAnimGraphNode_KawaiiPhysics* FirstNode =
 		FirstHandles.IsValidIndex(0) && FirstHandles[0].IsValid() ? FirstHandles[0].Node.Get() : nullptr;
 	UEdGraphPin* ComponentPosePinBefore = GetKawaiiComponentPosePin(FirstNode);
@@ -2225,7 +2225,7 @@ bool FKawaiiPhysicsEditorScriptingPlacementAutoConnectUpsertKeepsWiringTest::Run
 	Requests[0].RootBoneName = TEXT("tail_01");
 	TArray<FKawaiiPhysicsGraphNodeHandle> SecondHandles =
 		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(
-			Fixture.AnimBlueprint, Requests, EKawaiiPhysicsPlacementUpsertKey::Tag);
+			Fixture.AnimBlueprint, Requests, EKawaiiPhysicsPlacementMatchKey::Tag);
 	UAnimGraphNode_KawaiiPhysics* SecondNode =
 		SecondHandles.IsValidIndex(0) && SecondHandles[0].IsValid() ? SecondHandles[0].Node.Get() : nullptr;
 	UEdGraphPin* ComponentPosePinAfter = GetKawaiiComponentPosePin(SecondNode);
@@ -2240,7 +2240,7 @@ bool FKawaiiPhysicsEditorScriptingPlacementAutoConnectUpsertKeepsWiringTest::Run
 			: nullptr;
 
 	bool bOk = true;
-	bOk &= TestEqual(TEXT("AutoConnect upsert returns the same node"), SecondNode, FirstNode);
+	bOk &= TestEqual(TEXT("AutoConnect match returns the same node"), SecondNode, FirstNode);
 	bOk &= TestEqual(TEXT("ComponentPose link count is unchanged"), ComponentPosePinAfter ? ComponentPosePinAfter->LinkedTo.Num() : INDEX_NONE, ComponentPoseLinkCountBefore);
 	bOk &= TestEqual(TEXT("Pose link count is unchanged"), PosePinAfter ? PosePinAfter->LinkedTo.Num() : INDEX_NONE, PoseLinkCountBefore);
 	bOk &= TestEqual(TEXT("ComponentPose peer identity is unchanged"), ComponentPosePeerNodeAfter, ComponentPosePeerNodeBefore);
@@ -2469,7 +2469,7 @@ bool FKawaiiPhysicsEditorScriptingPlacementPatternTest::RunTest(const FString& P
 	}
 
 	TArray<FName> ResolvedBones =
-		UKawaiiPhysicsEditorLibrary::ResolveBonesByPattern(Fixture.Skeleton, TEXT("hair_[0-9]+"));
+		UKawaiiPhysicsEditorLibrary::FindBonesByPattern(Fixture.Skeleton, TEXT("hair_[0-9]+"));
 
 	FKawaiiPhysicsNodePlacementRequest Request;
 	Request.RootBonePattern = TEXT("hair_[0-9]+");
@@ -2525,7 +2525,7 @@ bool FKawaiiPhysicsEditorScriptingPlacementGreedyPatternLongMatchTest::RunTest(c
 	}
 
 	TArray<FName> ResolvedBones =
-		UKawaiiPhysicsEditorLibrary::ResolveBonesByPattern(Skeleton, TEXT(".*"));
+		UKawaiiPhysicsEditorLibrary::FindBonesByPattern(Skeleton, TEXT(".*"));
 
 	bool bOk = true;
 	bOk &= TestTrue(TEXT("Greedy pattern test skeleton exceeds FName limit"),
@@ -2603,7 +2603,7 @@ bool FKawaiiPhysicsEditorScriptingTagPrefilterDirtyBypassTest::RunTest(const FSt
 	TArray<FString> ContentPaths;
 	ContentPaths.Add(TEXT("/Game/Test/MCPSetup2"));
 	TArray<FAssetData> CandidateAssets;
-	UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssets(ContentPaths, CandidateAssets);
+	UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssetData(ContentPaths, CandidateAssets);
 
 	const FAssetData* FoundAssetData = CandidateAssets.FindByPredicate(
 		[](const FAssetData& AssetData)
@@ -2633,7 +2633,7 @@ bool FKawaiiPhysicsEditorScriptingTagPrefilterDirtyBypassTest::RunTest(const FSt
 	}
 
 	TArray<FAssetData> ControlResults;
-	UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssetsReferencingTags(
+	UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssetDataReferencingTags(
 		NonMatchingTags, false, ContentPaths, ControlResults);
 	bool bOk = TestFalse(TEXT("Non-matching tag filter excludes ABP_MCP_Retest while not dirty"),
 	                     ControlResults.ContainsByPredicate([TargetPackageName](const FAssetData& Candidate)
@@ -2654,7 +2654,7 @@ bool FKawaiiPhysicsEditorScriptingTagPrefilterDirtyBypassTest::RunTest(const FSt
 		Package->SetDirtyFlag(true);
 
 		TArray<FAssetData> DirtyBypassResults;
-		UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssetsReferencingTags(
+		UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssetDataReferencingTags(
 			NonMatchingTags, false, ContentPaths, DirtyBypassResults);
 		bDirtyBypassIncludesTarget =
 			DirtyBypassResults.ContainsByPredicate([TargetPackageName](const FAssetData& Candidate)
@@ -2680,7 +2680,7 @@ bool FKawaiiPhysicsEditorScriptingTagPrefilterSavedAssetsTest::RunTest(const FSt
 	TArray<FString> ContentPaths;
 	ContentPaths.Add(TEXT("/Game/Test/MCPSetup2"));
 	TArray<FAssetData> CandidateAssets;
-	UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssets(ContentPaths, CandidateAssets);
+	UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssetData(ContentPaths, CandidateAssets);
 
 	const FAssetData* TargetAssetData = CandidateAssets.FindByPredicate(
 		[](const FAssetData& AssetData)
@@ -2717,7 +2717,7 @@ bool FKawaiiPhysicsEditorScriptingTagPrefilterSavedAssetsTest::RunTest(const FSt
 	FGameplayTagContainer HairFilter;
 	HairFilter.AddTag(HairTag);
 	TArray<FAssetData> HairResults;
-	UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssetsReferencingTags(HairFilter, false, ContentPaths, HairResults);
+	UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssetDataReferencingTags(HairFilter, false, ContentPaths, HairResults);
 	bOk &= TestTrue(TEXT("KawaiiPhysics.Hair non-exact filter includes ABP_MCP_Retest"),
 	                HairResults.ContainsByPredicate([TargetPackageName](const FAssetData& AssetData)
 	                {
@@ -2728,7 +2728,7 @@ bool FKawaiiPhysicsEditorScriptingTagPrefilterSavedAssetsTest::RunTest(const FSt
 	FGameplayTagContainer RootFilter;
 	RootFilter.AddTag(RootTag);
 	TArray<FAssetData> RootNonExactResults;
-	UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssetsReferencingTags(
+	UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssetDataReferencingTags(
 		RootFilter, false, ContentPaths, RootNonExactResults);
 	bOk &= TestTrue(TEXT("KawaiiPhysics parent tag non-exact filter includes ABP_MCP_Retest via child tag"),
 	                RootNonExactResults.ContainsByPredicate([TargetPackageName](const FAssetData& AssetData)
@@ -2738,7 +2738,7 @@ bool FKawaiiPhysicsEditorScriptingTagPrefilterSavedAssetsTest::RunTest(const FSt
 
 	// (c) 親タグKawaiiPhysicsをExactで指定すると、ノード側はKawaiiPhysics.Hair等の子タグしか持たないため含まれない。
 	TArray<FAssetData> RootExactResults;
-	UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssetsReferencingTags(
+	UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssetDataReferencingTags(
 		RootFilter, true, ContentPaths, RootExactResults);
 	bOk &= TestFalse(TEXT("KawaiiPhysics parent tag exact filter excludes ABP_MCP_Retest"),
 	                 RootExactResults.ContainsByPredicate([TargetPackageName](const FAssetData& AssetData)
@@ -2758,7 +2758,7 @@ bool FKawaiiPhysicsEditorScriptingTagPrefilterRedirectChainTest::RunTest(const F
 	TArray<FString> ContentPaths;
 	ContentPaths.Add(TEXT("/Game/Test/MCPSetup2"));
 	TArray<FAssetData> CandidateAssets;
-	UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssets(ContentPaths, CandidateAssets);
+	UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssetData(ContentPaths, CandidateAssets);
 
 	const FAssetData* TargetAssetData = CandidateAssets.FindByPredicate(
 		[](const FAssetData& AssetData)
@@ -2791,7 +2791,7 @@ bool FKawaiiPhysicsEditorScriptingTagPrefilterRedirectChainTest::RunTest(const F
 	TargetFilter.AddTag(GetKawaiiPhysicsEditorScriptingTagB());
 
 	TArray<FAssetData> ControlResults;
-	UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssetsReferencingTags(
+	UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssetDataReferencingTags(
 		TargetFilter, false, ContentPaths, ControlResults);
 	bool bOk = TestFalse(TEXT("Target tag filter excludes ABP_MCP_Retest before temporary redirects"),
 	                     ControlResults.ContainsByPredicate([TargetPackageName](const FAssetData& AssetData)
@@ -2813,7 +2813,7 @@ bool FKawaiiPhysicsEditorScriptingTagPrefilterRedirectChainTest::RunTest(const F
 		GameplayTagsSettings->GameplayTagRedirects.Add(MiddleToTargetRedirect);
 
 		TArray<FAssetData> RedirectResults;
-		UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssetsReferencingTags(
+		UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssetDataReferencingTags(
 			TargetFilter, false, ContentPaths, RedirectResults);
 		bOk &= TestTrue(TEXT("Multi-step redirected parent tag non-exact filter includes ABP_MCP_Retest via old child tag"),
 		                RedirectResults.ContainsByPredicate([TargetPackageName](const FAssetData& AssetData)
@@ -2844,7 +2844,7 @@ bool FKawaiiPhysicsEditorScriptingTagPrefilterSupersetTest::RunTest(const FStrin
 	ContentPaths.Add(TEXT("/Game/Test/MCPSetup2"));
 
 	TArray<FAssetData> AllAnimBlueprintAssets;
-	UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssets(ContentPaths, AllAnimBlueprintAssets);
+	UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssetData(ContentPaths, AllAnimBlueprintAssets);
 	if (AllAnimBlueprintAssets.IsEmpty())
 	{
 		AddInfo(TEXT("No AnimBlueprint assets under /Game/Test/MCPSetup2. Skipping tag prefilter superset test."));
@@ -2854,7 +2854,7 @@ bool FKawaiiPhysicsEditorScriptingTagPrefilterSupersetTest::RunTest(const FStrin
 	FGameplayTagContainer RootFilter;
 	RootFilter.AddTag(RootTag);
 	TArray<FAssetData> PrefilteredAssets;
-	UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssetsReferencingTags(
+	UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssetDataReferencingTags(
 		RootFilter, false, ContentPaths, PrefilteredAssets);
 
 	TSet<FName> AllPackageNames;

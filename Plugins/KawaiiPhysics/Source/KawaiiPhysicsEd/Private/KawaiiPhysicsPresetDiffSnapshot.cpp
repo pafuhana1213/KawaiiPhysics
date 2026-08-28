@@ -105,7 +105,7 @@ namespace KawaiiPhysicsPresetDiff
 		const FKawaiiPhysicsPresetApplyOptions& Options)
 	{
 		TArray<TStrongObjectPtr<UKawaiiPhysicsPresetDataAsset>> Presets;
-		UKawaiiPhysicsEditorLibrary::GetAllPresetAssets(Presets);
+		UKawaiiPhysicsEditorLibrary::FindAllPresetAssetData(Presets);
 
 		TArray<TSharedRef<FKawaiiPhysicsPresetDiffSnapshot>> Snapshots;
 		for (const TStrongObjectPtr<UKawaiiPhysicsPresetDataAsset>& PresetPtr : Presets)

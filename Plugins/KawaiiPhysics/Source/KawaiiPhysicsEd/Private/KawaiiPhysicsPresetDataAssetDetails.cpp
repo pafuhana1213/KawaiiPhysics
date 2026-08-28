@@ -66,7 +66,7 @@ namespace
 		}
 
 		TArray<FAssetData> AnimBlueprintAssets;
-		UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssetsReferencingTags(
+		UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssetDataReferencingTags(
 			Preset->TargetTags,
 			Preset->bTargetTagsExactMatch,
 			TArray<FString>(),
@@ -163,7 +163,7 @@ namespace
 		}
 
 		TArray<FKawaiiPhysicsNodeAuditEntry> Report;
-		UKawaiiPhysicsEditorLibrary::ReapplyPresetToProject(
+		UKawaiiPhysicsEditorLibrary::ApplyPresetToProject(
 			Preset, true, false, Report);
 
 		int32 DiffNodeCount = 0;
