@@ -287,10 +287,10 @@ namespace
 #endif
 }
 
-KawaiiPhysics::FWindBlowEnvelope KawaiiPhysics::ResolveWindBlowEnvelope(const float Duration, const float RiseTime,
+KawaiiPhysics::FWindGustEnvelope KawaiiPhysics::ResolveWindGustEnvelope(const float Duration, const float RiseTime,
                                                                         const float DecayTime)
 {
-	FWindBlowEnvelope Envelope;
+	FWindGustEnvelope Envelope;
 	if (Duration <= 0.0f)
 	{
 		return Envelope;
@@ -381,8 +381,8 @@ bool UKawaiiPhysicsLibrary::BuildSettingsMultiplierStartRequest(const FKawaiiPhy
 		return true;
 	}
 
-	const ::KawaiiPhysics::FWindBlowEnvelope Envelope =
-		::KawaiiPhysics::ResolveWindBlowEnvelope(Duration, BlendInTime, BlendOutTime);
+	const ::KawaiiPhysics::FWindGustEnvelope Envelope =
+		::KawaiiPhysics::ResolveWindGustEnvelope(Duration, BlendInTime, BlendOutTime);
 	OutRequest.bInfiniteHold = false;
 	OutRequest.RiseTime = Envelope.RiseTime;
 	OutRequest.HoldTime = Envelope.HoldTime;
@@ -419,7 +419,7 @@ bool KawaiiPhysics::CanQueueTransientExternalForce(const FInstancedStruct& Exter
 int32 KawaiiPhysics::QueueTransientExternalForceToNodes(TArrayView<FAnimNode_KawaiiPhysics* const> Nodes,
                                                         const FInstancedStruct& ExternalForce,
                                                         const float LifetimeSeconds,
-                                                        FKawaiiPhysicsTransientForceHandle& OutHandle)
+                                                        FKawaiiPhysicsTransientHandle& OutHandle)
 {
 	OutHandle.Id = 0;
 	if (!CanQueueTransientExternalForce(ExternalForce, TEXT("QueueTransientExternalForceToNodes")))
@@ -427,7 +427,7 @@ int32 KawaiiPhysics::QueueTransientExternalForceToNodes(TArrayView<FAnimNode_Kaw
 		return 0;
 	}
 
-	const int64 HandleId = FAnimNode_KawaiiPhysics::GenerateTransientForceHandleId();
+	const int64 HandleId = FAnimNode_KawaiiPhysics::GenerateTransientHandleId();
 	int32 AppliedNodeCount = 0;
 	for (FAnimNode_KawaiiPhysics* Node : Nodes)
 	{
@@ -833,7 +833,7 @@ bool UKawaiiPhysicsLibrary::AddExternalForce(const FKawaiiPhysicsReference& Kawa
 	return bResult;
 }
 
-bool UKawaiiPhysicsLibrary::AddExternalForcesToComponent(USkeletalMeshComponent* MeshComp,
+bool UKawaiiPhysicsLibrary::AddExternalForcesOnComponent(USkeletalMeshComponent* MeshComp,
                                                          TArray<FInstancedStruct>& ExternalForces,
                                                          UObject* Owner,
                                                          FGameplayTagContainer& FilterTags,
@@ -860,7 +860,17 @@ bool UKawaiiPhysicsLibrary::AddExternalForcesToComponent(USkeletalMeshComponent*
 	return bResult;
 }
 
-bool UKawaiiPhysicsLibrary::RemoveExternalForcesFromComponent(USkeletalMeshComponent* MeshComp, UObject* Owner,
+// 非推奨（v1.22.0）: AddExternalForcesOnComponent を使う
+bool UKawaiiPhysicsLibrary::AddExternalForcesToComponent(USkeletalMeshComponent* MeshComp,
+                                                         TArray<FInstancedStruct>& ExternalForces,
+                                                         UObject* Owner,
+                                                         FGameplayTagContainer& FilterTags,
+                                                         bool bFilterExactMatch, bool bIsOneShot)
+{
+	return AddExternalForcesOnComponent(MeshComp, ExternalForces, Owner, FilterTags, bFilterExactMatch, bIsOneShot);
+}
+
+bool UKawaiiPhysicsLibrary::RemoveExternalForcesOnComponent(USkeletalMeshComponent* MeshComp, UObject* Owner,
                                                               FGameplayTagContainer& FilterTags, bool bFilterExactMatch)
 {
 	bool bResult = false;
@@ -889,10 +899,17 @@ bool UKawaiiPhysicsLibrary::RemoveExternalForcesFromComponent(USkeletalMeshCompo
 	return bResult;
 }
 
+// 非推奨（v1.22.0）: RemoveExternalForcesOnComponent を使う
+bool UKawaiiPhysicsLibrary::RemoveExternalForcesFromComponent(USkeletalMeshComponent* MeshComp, UObject* Owner,
+                                                              FGameplayTagContainer& FilterTags, bool bFilterExactMatch)
+{
+	return RemoveExternalForcesOnComponent(MeshComp, Owner, FilterTags, bFilterExactMatch);
+}
+
 // ランタイム専用の一時外力をノードへキューイングする
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::AddTransientExternalForce(
 	EKawaiiPhysicsAccessExternalForceResult& ExecResult,
-	FKawaiiPhysicsTransientForceHandle& OutHandle,
+	FKawaiiPhysicsTransientHandle& OutHandle,
 	const FKawaiiPhysicsReference& KawaiiPhysics,
 	FInstancedStruct ExternalForce,
 	const float LifetimeSeconds)
@@ -905,7 +922,7 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::AddTransientExternalForce(
 		return KawaiiPhysics;
 	}
 
-	const int64 HandleId = FAnimNode_KawaiiPhysics::GenerateTransientForceHandleId();
+	const int64 HandleId = FAnimNode_KawaiiPhysics::GenerateTransientHandleId();
 
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 		TEXT("AddTransientExternalForce"),
@@ -930,7 +947,7 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::AddTransientExternalForce(
 // Component内の対象ノードへ停止ハンドル付きの一時外力をキューイングする
 int32 UKawaiiPhysicsLibrary::AddTransientExternalForceOnComponent(
 	USkeletalMeshComponent* MeshComp,
-	FKawaiiPhysicsTransientForceHandle& OutHandle,
+	FKawaiiPhysicsTransientHandle& OutHandle,
 	FInstancedStruct ExternalForce,
 	const float LifetimeSeconds,
 	const FGameplayTagContainer& FilterTags,
@@ -942,7 +959,7 @@ int32 UKawaiiPhysicsLibrary::AddTransientExternalForceOnComponent(
 		return 0;
 	}
 
-	const int64 HandleId = FAnimNode_KawaiiPhysics::GenerateTransientForceHandleId();
+	const int64 HandleId = FAnimNode_KawaiiPhysics::GenerateTransientHandleId();
 	int32 AppliedNodeCount = 0;
 
 	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
@@ -970,10 +987,10 @@ int32 UKawaiiPhysicsLibrary::AddTransientExternalForceOnComponent(
 	return AppliedNodeCount;
 }
 
-// 停止ハンドル付きのBlowをノードへキューイングする
-FKawaiiPhysicsReference UKawaiiPhysicsLibrary::StartProceduralWindBlow(
+// 停止ハンドル付きのGustをノードへキューイングする
+FKawaiiPhysicsReference UKawaiiPhysicsLibrary::StartProceduralWindGust(
 	EKawaiiPhysicsAccessExternalForceResult& ExecResult,
-	FKawaiiPhysicsTransientForceHandle& OutHandle,
+	FKawaiiPhysicsTransientHandle& OutHandle,
 	const FKawaiiPhysicsReference& KawaiiPhysics,
 	const float Strength,
 	const float Duration,
@@ -986,12 +1003,12 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::StartProceduralWindBlow(
 	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
 	OutHandle.Id = 0;
 
-	const ::KawaiiPhysics::FWindBlowEnvelope Envelope =
-		::KawaiiPhysics::ResolveWindBlowEnvelope(Duration, RiseTime, DecayTime);
-	const int64 HandleId = FAnimNode_KawaiiPhysics::GenerateTransientForceHandleId();
+	const ::KawaiiPhysics::FWindGustEnvelope Envelope =
+		::KawaiiPhysics::ResolveWindGustEnvelope(Duration, RiseTime, DecayTime);
+	const int64 HandleId = FAnimNode_KawaiiPhysics::GenerateTransientHandleId();
 
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-		TEXT("StartProceduralWindBlow"),
+		TEXT("StartProceduralWindGust"),
 		[&ExecResult, Strength, Envelope, GustDirection, ExternalForceIndex, HandleId, bRealTimeEnvelope](
 			FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 		{
@@ -1069,10 +1086,10 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::GetProceduralWindParameters(
 	return KawaiiPhysics;
 }
 
-// Component内の対象ノードへ停止ハンドル付きのBlowをキューイングする
-int32 UKawaiiPhysicsLibrary::StartProceduralWindBlowOnComponent(
+// Component内の対象ノードへ停止ハンドル付きのGustをキューイングする
+int32 UKawaiiPhysicsLibrary::StartProceduralWindGustOnComponent(
 	USkeletalMeshComponent* MeshComp,
-	FKawaiiPhysicsTransientForceHandle& OutHandle,
+	FKawaiiPhysicsTransientHandle& OutHandle,
 	const float Strength,
 	const float Duration,
 	const float RiseTime,
@@ -1085,16 +1102,16 @@ int32 UKawaiiPhysicsLibrary::StartProceduralWindBlowOnComponent(
 	OutHandle.Id = 0;
 	int32 AppliedNodeCount = 0;
 
-	const ::KawaiiPhysics::FWindBlowEnvelope Envelope =
-		::KawaiiPhysics::ResolveWindBlowEnvelope(Duration, RiseTime, DecayTime);
-	const int64 HandleId = FAnimNode_KawaiiPhysics::GenerateTransientForceHandleId();
+	const ::KawaiiPhysics::FWindGustEnvelope Envelope =
+		::KawaiiPhysics::ResolveWindGustEnvelope(Duration, RiseTime, DecayTime);
+	const int64 HandleId = FAnimNode_KawaiiPhysics::GenerateTransientHandleId();
 
 	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
 	CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, MeshComp, FilterTags, bFilterExactMatch);
 	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
 	{
 		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-			TEXT("StartProceduralWindBlowOnComponent"),
+			TEXT("StartProceduralWindGustOnComponent"),
 			[&AppliedNodeCount, Strength, Envelope, GustDirection, HandleId, bRealTimeEnvelope](
 				FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 			{
@@ -1117,7 +1134,7 @@ int32 UKawaiiPhysicsLibrary::StartProceduralWindBlowOnComponent(
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::StopTransientExternalForce(
 	EKawaiiPhysicsAccessExternalForceResult& ExecResult,
 	const FKawaiiPhysicsReference& KawaiiPhysics,
-	const FKawaiiPhysicsTransientForceHandle Handle,
+	const FKawaiiPhysicsTransientHandle Handle,
 	const float BlendOutTime)
 {
 	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
@@ -1134,9 +1151,9 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::StopTransientExternalForce(
 }
 
 // Component内の対象ノードへ一時外力停止をキューイングする
-int32 UKawaiiPhysicsLibrary::StopTransientExternalForcesOnComponent(
+int32 UKawaiiPhysicsLibrary::StopTransientExternalForceOnComponent(
 	USkeletalMeshComponent* MeshComp,
-	const FKawaiiPhysicsTransientForceHandle Handle,
+	const FKawaiiPhysicsTransientHandle Handle,
 	const FGameplayTagContainer& FilterTags,
 	const bool bFilterExactMatch,
 	const float BlendOutTime)
@@ -1153,7 +1170,7 @@ int32 UKawaiiPhysicsLibrary::StopTransientExternalForcesOnComponent(
 	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
 	{
 		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-			TEXT("StopTransientExternalForcesOnComponent"),
+			TEXT("StopTransientExternalForceOnComponent"),
 			[&AppliedNodeCount, Handle, BlendOutTime](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 			{
 				InKawaiiPhysics.RequestStopTransientExternalForce(Handle.Id, BlendOutTime);
@@ -1167,7 +1184,7 @@ int32 UKawaiiPhysicsLibrary::StopTransientExternalForcesOnComponent(
 // 停止ハンドル付きの物理設定倍率をノードへキューイングする
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::StartPhysicsSettingsMultiplier(
 	EKawaiiPhysicsAccessResult& ExecResult,
-	FKawaiiPhysicsTransientForceHandle& OutHandle,
+	FKawaiiPhysicsTransientHandle& OutHandle,
 	const FKawaiiPhysicsReference& KawaiiPhysics,
 	const FKawaiiPhysicsSettingsMultiplier SettingsScale,
 	const float Duration,
@@ -1183,7 +1200,7 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::StartPhysicsSettingsMultiplier(
 		return KawaiiPhysics;
 	}
 
-	const int64 HandleId = FAnimNode_KawaiiPhysics::GenerateTransientForceHandleId();
+	const int64 HandleId = FAnimNode_KawaiiPhysics::GenerateTransientHandleId();
 	Request.HandleId = HandleId;
 
 	KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
@@ -1207,7 +1224,7 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::StartPhysicsSettingsMultiplier(
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::StopPhysicsSettingsMultiplier(
 	EKawaiiPhysicsAccessResult& ExecResult,
 	const FKawaiiPhysicsReference& KawaiiPhysics,
-	const FKawaiiPhysicsTransientForceHandle Handle,
+	const FKawaiiPhysicsTransientHandle Handle,
 	const float BlendOutTime)
 {
 	ExecResult = EKawaiiPhysicsAccessResult::NotValid;
@@ -1226,7 +1243,7 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::StopPhysicsSettingsMultiplier(
 // Component内の対象ノード（Tagフィルタ適用）へ、共通ハンドルの物理設定倍率をキューイングする
 int32 UKawaiiPhysicsLibrary::StartPhysicsSettingsMultiplierOnComponent(
 	USkeletalMeshComponent* MeshComp,
-	FKawaiiPhysicsTransientForceHandle& OutHandle,
+	FKawaiiPhysicsTransientHandle& OutHandle,
 	const FKawaiiPhysicsSettingsMultiplier SettingsScale,
 	const float Duration,
 	const float BlendInTime,
@@ -1243,7 +1260,7 @@ int32 UKawaiiPhysicsLibrary::StartPhysicsSettingsMultiplierOnComponent(
 		return 0;
 	}
 
-	const int64 HandleId = FAnimNode_KawaiiPhysics::GenerateTransientForceHandleId();
+	const int64 HandleId = FAnimNode_KawaiiPhysics::GenerateTransientHandleId();
 	Request.HandleId = HandleId;
 
 	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
@@ -1269,9 +1286,9 @@ int32 UKawaiiPhysicsLibrary::StartPhysicsSettingsMultiplierOnComponent(
 }
 
 // Component内の対象ノードへ物理設定倍率の停止をキューイングする
-int32 UKawaiiPhysicsLibrary::StopPhysicsSettingsMultipliersOnComponent(
+int32 UKawaiiPhysicsLibrary::StopPhysicsSettingsMultiplierOnComponent(
 	USkeletalMeshComponent* MeshComp,
-	const FKawaiiPhysicsTransientForceHandle Handle,
+	const FKawaiiPhysicsTransientHandle Handle,
 	const FGameplayTagContainer& FilterTags,
 	const bool bFilterExactMatch,
 	const float BlendOutTime)
@@ -1288,7 +1305,7 @@ int32 UKawaiiPhysicsLibrary::StopPhysicsSettingsMultipliersOnComponent(
 	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
 	{
 		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-			TEXT("StopPhysicsSettingsMultipliersOnComponent"),
+			TEXT("StopPhysicsSettingsMultiplierOnComponent"),
 			[&AppliedNodeCount, Handle, BlendOutTime](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 			{
 				InKawaiiPhysics.RequestStopPhysicsSettingsMultiplier(Handle.Id, BlendOutTime);
@@ -1299,10 +1316,10 @@ int32 UKawaiiPhysicsLibrary::StopPhysicsSettingsMultipliersOnComponent(
 	return AppliedNodeCount;
 }
 
-FKawaiiPhysicsTransientForceHandle UKawaiiPhysicsLibrary::GenerateTransientForceHandle()
+FKawaiiPhysicsTransientHandle UKawaiiPhysicsLibrary::GenerateTransientHandle()
 {
-	FKawaiiPhysicsTransientForceHandle Handle;
-	Handle.Id = FAnimNode_KawaiiPhysics::GenerateTransientForceHandleId();
+	FKawaiiPhysicsTransientHandle Handle;
+	Handle.Id = FAnimNode_KawaiiPhysics::GenerateTransientHandleId();
 	return Handle;
 }
 
@@ -1310,7 +1327,7 @@ FKawaiiPhysicsTransientForceHandle UKawaiiPhysicsLibrary::GenerateTransientForce
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::PushPhysicsSettingsMultiplier(
 	EKawaiiPhysicsAccessResult& ExecResult,
 	const FKawaiiPhysicsReference& KawaiiPhysics,
-	const FKawaiiPhysicsTransientForceHandle Handle,
+	const FKawaiiPhysicsTransientHandle Handle,
 	const FKawaiiPhysicsSettingsMultiplier SettingsScale,
 	const float Alpha)
 {
@@ -1337,7 +1354,7 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::PushPhysicsSettingsMultiplier(
 
 int32 UKawaiiPhysicsLibrary::PushPhysicsSettingsMultiplierOnComponent(
 	USkeletalMeshComponent* MeshComp,
-	const FKawaiiPhysicsTransientForceHandle Handle,
+	const FKawaiiPhysicsTransientHandle Handle,
 	const FKawaiiPhysicsSettingsMultiplier SettingsScale,
 	const float Alpha,
 	const FGameplayTagContainer& FilterTags,
@@ -1350,7 +1367,7 @@ int32 UKawaiiPhysicsLibrary::PushPhysicsSettingsMultiplierOnComponent(
 // Component内の対象ノードへ外部駆動の物理設定倍率をキューイングする
 int32 UKawaiiPhysicsLibrary::PushPhysicsSettingsMultiplierOnComponent(
 	USkeletalMeshComponent* MeshComp,
-	const FKawaiiPhysicsTransientForceHandle Handle,
+	const FKawaiiPhysicsTransientHandle Handle,
 	const FKawaiiPhysicsSettingsMultiplier& SettingsScale,
 	const float Alpha,
 	const FGameplayTagContainer& FilterTags,
@@ -1386,7 +1403,7 @@ int32 UKawaiiPhysicsLibrary::PushPhysicsSettingsMultiplierOnComponent(
 	return AppliedNodeCount;
 }
 
-bool UKawaiiPhysicsLibrary::IsTransientForceHandleSet(const FKawaiiPhysicsTransientForceHandle& Handle)
+bool UKawaiiPhysicsLibrary::IsTransientHandleSet(const FKawaiiPhysicsTransientHandle& Handle)
 {
 	return Handle.IsSet();
 }
@@ -1551,7 +1568,7 @@ int32 UKawaiiPhysicsLibrary::ApplyProceduralWindPresetOnComponent(
 	return AppliedForceCount;
 }
 
-bool UKawaiiPhysicsLibrary::SetAlphaToComponent(USkeletalMeshComponent* MeshComp, float Alpha,
+bool UKawaiiPhysicsLibrary::SetAlphaOnComponent(USkeletalMeshComponent* MeshComp, float Alpha,
                                                 FGameplayTagContainer& FilterTags, bool bFilterExactMatch)
 {
 	bool bResult = false;
@@ -1572,7 +1589,14 @@ bool UKawaiiPhysicsLibrary::SetAlphaToComponent(USkeletalMeshComponent* MeshComp
 	return bResult;
 }
 
-bool UKawaiiPhysicsLibrary::GetAlphaFromComponent(USkeletalMeshComponent* MeshComp, float& OutAlpha,
+// 非推奨（v1.22.0）: SetAlphaOnComponent を使う
+bool UKawaiiPhysicsLibrary::SetAlphaToComponent(USkeletalMeshComponent* MeshComp, float Alpha,
+                                                FGameplayTagContainer& FilterTags, bool bFilterExactMatch)
+{
+	return SetAlphaOnComponent(MeshComp, Alpha, FilterTags, bFilterExactMatch);
+}
+
+bool UKawaiiPhysicsLibrary::GetAlphaOnComponent(USkeletalMeshComponent* MeshComp, float& OutAlpha,
                                                   FGameplayTagContainer& FilterTags, bool bFilterExactMatch)
 {
 	bool bResult = false;
@@ -1596,6 +1620,13 @@ bool UKawaiiPhysicsLibrary::GetAlphaFromComponent(USkeletalMeshComponent* MeshCo
 	}
 
 	return bResult;
+}
+
+// 非推奨（v1.22.0）: GetAlphaOnComponent を使う
+bool UKawaiiPhysicsLibrary::GetAlphaFromComponent(USkeletalMeshComponent* MeshComp, float& OutAlpha,
+                                                  FGameplayTagContainer& FilterTags, bool bFilterExactMatch)
+{
+	return GetAlphaOnComponent(MeshComp, OutAlpha, FilterTags, bFilterExactMatch);
 }
 
 DEFINE_FUNCTION(UKawaiiPhysicsLibrary::execSetNodeWildcardProperty)

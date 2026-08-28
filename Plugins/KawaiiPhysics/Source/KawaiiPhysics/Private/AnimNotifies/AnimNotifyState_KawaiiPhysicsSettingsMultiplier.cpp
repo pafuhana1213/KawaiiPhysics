@@ -47,10 +47,10 @@ void UAnimNotifyState_KawaiiPhysicsSettingsMultiplier::NotifyBegin(USkeletalMesh
 	}
 
 	FActiveState State;
-	State.Handle = UKawaiiPhysicsLibrary::GenerateTransientForceHandle();
+	State.Handle = UKawaiiPhysicsLibrary::GenerateTransientHandle();
 	State.ElapsedTime = 0.0f;
 	State.TotalDuration = FMath::Max(TotalDuration, 0.0f);
-	State.Envelope = KawaiiPhysics::ResolveWindBlowEnvelope(State.TotalDuration, BlendInTime, BlendOutTime);
+	State.Envelope = KawaiiPhysics::ResolveWindGustEnvelope(State.TotalDuration, BlendInTime, BlendOutTime);
 	State.LastTouchedFrame = GFrameCounter;
 
 	const float Weight = ResolveWeight(MeshComp, State);
@@ -109,7 +109,7 @@ void UAnimNotifyState_KawaiiPhysicsSettingsMultiplier::NotifyEnd(USkeletalMeshCo
 		--State->ActiveCount;
 		if (State->ActiveCount <= 0)
 		{
-			UKawaiiPhysicsLibrary::StopPhysicsSettingsMultipliersOnComponent(MeshComp, State->Handle, FilterTags,
+			UKawaiiPhysicsLibrary::StopPhysicsSettingsMultiplierOnComponent(MeshComp, State->Handle, FilterTags,
 			                                                               bFilterExactMatch, BlendOutTime);
 			ActiveStates.Remove(Key);
 		}
@@ -161,7 +161,7 @@ void UAnimNotifyState_KawaiiPhysicsSettingsMultiplier::PruneStaleStates()
 
 		if (bStaleByFrame && !bComponentInvalid)
 		{
-			UKawaiiPhysicsLibrary::StopPhysicsSettingsMultipliersOnComponent(Component, It.Value().Handle, FilterTags,
+			UKawaiiPhysicsLibrary::StopPhysicsSettingsMultiplierOnComponent(Component, It.Value().Handle, FilterTags,
 			                                                               bFilterExactMatch, BlendOutTime);
 		}
 

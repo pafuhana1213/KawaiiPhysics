@@ -34,11 +34,11 @@ enum class EPlanarConstraint : uint8
 };
 
 /**
- * 一時外力（Blow など）の停止用ハンドル。Id=0 は未設定。ノード再初期化や上限超過破棄で対象が消えた後も値は残り、その場合の停止要求は何もしない
- * Handle used to stop transient external forces (blows). Id=0 means unset. The value survives after the target is lost (node re-init or cap eviction); stop requests then do nothing.
+ * 一時効果（一時外力・突風・物理設定倍率）の停止用ハンドル。Id=0 は未設定。ノード再初期化や上限超過破棄で対象が消えた後も値は残り、その場合の停止要求は何もしない
+ * Handle used to stop transient effects (transient external forces, gusts, physics settings multipliers). Id=0 means unset. The value survives after the target is lost (node re-init or cap eviction); stop requests then do nothing.
  */
 USTRUCT(BlueprintType)
-struct KAWAIIPHYSICS_API FKawaiiPhysicsTransientForceHandle
+struct KAWAIIPHYSICS_API FKawaiiPhysicsTransientHandle
 {
 	GENERATED_BODY()
 
@@ -112,7 +112,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSettingsMultiplier
 
 namespace KawaiiPhysics
 {
-	struct FWindBlowEnvelope
+	struct FWindGustEnvelope
 	{
 		float RiseTime = 0.f;
 		float HoldTime = 0.f;
@@ -121,7 +121,7 @@ namespace KawaiiPhysics
 
 	// Duration 合計実秒から台形エンベロープを解決する。Hold = max(0, Duration - Rise - Decay)。
 	// Rise+Decay > Duration の場合は Rise/Decay を Duration/(Rise+Decay) で比例圧縮し合計を Duration に一致させる。Duration <= 0 は全て 0
-	KAWAIIPHYSICS_API FWindBlowEnvelope ResolveWindBlowEnvelope(float Duration, float RiseTime, float DecayTime);
+	KAWAIIPHYSICS_API FWindGustEnvelope ResolveWindGustEnvelope(float Duration, float RiseTime, float DecayTime);
 
 	// 台形エンベロープ（線形 rise → hold → 線形 decay）を 0..1 で評価する。総時間を超えた ElapsedTime は 0
 	KAWAIIPHYSICS_API float EvaluateEnvelopeAlpha01(float RiseTime, float HoldTime, float DecayTime, float ElapsedTime);

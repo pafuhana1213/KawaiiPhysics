@@ -33,7 +33,7 @@ void UAnimNotifyState_KawaiiPhysicsAddExternalForce::NotifyBegin(USkeletalMeshCo
 		return;
 	}
 
-	UKawaiiPhysicsLibrary::AddExternalForcesToComponent(MeshComp, AdditionalExternalForces, this,
+	UKawaiiPhysicsLibrary::AddExternalForcesOnComponent(MeshComp, AdditionalExternalForces, this,
 	                                                    FilterTags, bFilterExactMatch);
 	Super::NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
 }
@@ -47,7 +47,7 @@ void UAnimNotifyState_KawaiiPhysicsAddExternalForce::NotifyEnd(USkeletalMeshComp
 		return;
 	}
 
-	UKawaiiPhysicsLibrary::RemoveExternalForcesFromComponent(MeshComp, this, FilterTags, bFilterExactMatch);
+	UKawaiiPhysicsLibrary::RemoveExternalForcesOnComponent(MeshComp, this, FilterTags, bFilterExactMatch);
 
 	Super::NotifyEnd(MeshComp, Animation, EventReference);
 }

@@ -659,7 +659,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	static constexpr int32 TransientGustInheritAllWinds = -2;
 
 	// 一時外力ハンドルIDを生成する。ID は同期データを運ばず payload はキュー Mutex 保護のため relaxed で十分。
-	static int64 GenerateTransientForceHandleId();
+	static int64 GenerateTransientHandleId();
 
 	/**
 	 * 実行時専用の一時外力をリクエストする。任意スレッド可で、Mutex 保護されたキューへ積む。
