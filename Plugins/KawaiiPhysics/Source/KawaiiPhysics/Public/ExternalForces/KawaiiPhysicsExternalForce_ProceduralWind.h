@@ -439,8 +439,8 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	void ConsumePendingRequests();
 
 	FKawaiiPhysicsProceduralWindSample ComputeWindSample(float InTime, float InLengthRate = 0.0f) const;
-	static uint32 StableHash(int32 Seed, int32 GridIndex, int32 Channel);
-	static float NoiseValueAt(int32 GridIndex, int32 Seed, int32 Channel);
+	static uint32 ComputeStableHash(int32 Seed, int32 GridIndex, int32 Channel);
+	static float SampleNoiseAt(int32 GridIndex, int32 Seed, int32 Channel);
 	static float SampleSmoothNoise(float U, int32 Seed, int32 Channel = 0);
 
 	virtual void Initialize(const FAnimationInitializeContext& Context) override;

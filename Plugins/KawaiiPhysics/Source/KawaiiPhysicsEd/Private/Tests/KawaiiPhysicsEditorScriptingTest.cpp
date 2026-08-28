@@ -33,12 +33,6 @@
 
 namespace
 {
-#if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
-	using FKawaiiMcpCommentNode = UKawaiiPhysicsMcpCommentNode;
-#else
-	using FKawaiiMcpCommentNode = UEdGraphNode_Comment;
-#endif
-
 	const FGameplayTag& GetKawaiiPhysicsEditorScriptingTagA()
 	{
 		static const FGameplayTag Tag =
@@ -412,7 +406,11 @@ namespace
 		return Count;
 	}
 
-	FKawaiiMcpCommentNode* FindMcpCommentNode(UEdGraph* Graph, const FString& CommentText)
+#if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
+	UKawaiiPhysicsMcpCommentNode* FindMcpCommentNode(UEdGraph* Graph, const FString& CommentText)
+#else
+	UEdGraphNode_Comment* FindMcpCommentNode(UEdGraph* Graph, const FString& CommentText)
+#endif
 	{
 		if (!Graph)
 		{
@@ -421,10 +419,17 @@ namespace
 
 		for (UEdGraphNode* Node : Graph->Nodes)
 		{
-			FKawaiiMcpCommentNode* CommentNode = Cast<FKawaiiMcpCommentNode>(Node);
+#if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
+			UKawaiiPhysicsMcpCommentNode* CommentNode = Cast<UKawaiiPhysicsMcpCommentNode>(Node);
 			if (CommentNode &&
-				CommentNode->GetClass() == FKawaiiMcpCommentNode::StaticClass() &&
+				CommentNode->GetClass() == UKawaiiPhysicsMcpCommentNode::StaticClass() &&
 				CommentNode->NodeComment == CommentText)
+#else
+			UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node);
+			if (CommentNode &&
+				CommentNode->GetClass() == UEdGraphNode_Comment::StaticClass() &&
+				CommentNode->NodeComment == CommentText)
+#endif
 			{
 				return CommentNode;
 			}
@@ -1174,7 +1179,11 @@ bool FKawaiiPhysicsEditorScriptingPlacementAutoConnectCommentFrameTest::RunTest(
 	}
 	bOk &= TestNotNull(TEXT("AutoConnectCommentFrame finds a spawned ComponentToLocalSpace node"), ConversionNode);
 
-	FKawaiiMcpCommentNode* McpCommentNode = FindMcpCommentNode(Fixture.AnimGraph, ExpectedTitle);
+#if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
+	UKawaiiPhysicsMcpCommentNode* McpCommentNode = FindMcpCommentNode(Fixture.AnimGraph, ExpectedTitle);
+#else
+	UEdGraphNode_Comment* McpCommentNode = FindMcpCommentNode(Fixture.AnimGraph, ExpectedTitle);
+#endif
 	bOk &= TestNotNull(TEXT("AutoConnectCommentFrame finds the MCP comment node"), McpCommentNode);
 
 	if (ConversionNode && RootNode)
@@ -1664,12 +1673,13 @@ bool FKawaiiPhysicsEditorScriptingPlacementCommentTest::RunTest(const FString& P
 			NAME_None,
 			CommentText,
 			InitialPrompt);
-	FKawaiiMcpCommentNode* McpCommentNode = FindMcpCommentNode(Fixture.AnimGraph, ExpectedTitle);
 #if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
+	UKawaiiPhysicsMcpCommentNode* McpCommentNode = FindMcpCommentNode(Fixture.AnimGraph, ExpectedTitle);
 	FDateTime InitialCommentCreatedAt;
 	FDateTime InitialCommentUpdatedAt;
 	const int32 ExpectedCommentNodeCount = 2;
 #else
+	UEdGraphNode_Comment* McpCommentNode = FindMcpCommentNode(Fixture.AnimGraph, ExpectedTitle);
 	const int32 ExpectedCommentNodeCount = 1;
 #endif
 
@@ -1683,8 +1693,13 @@ bool FKawaiiPhysicsEditorScriptingPlacementCommentTest::RunTest(const FString& P
 	                FirstHandles.IsValidIndex(0) && FirstHandles[0].IsValid());
 	bOk &= TestTrue(TEXT("Second comment handle is valid"),
 	                FirstHandles.IsValidIndex(1) && FirstHandles[1].IsValid());
+#if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
 	bOk &= TestEqual(TEXT("Exactly one MCP comment node is created"),
-	                 CountExactNodesOfClass(Fixture.AnimGraph, FKawaiiMcpCommentNode::StaticClass()), 1);
+	                 CountExactNodesOfClass(Fixture.AnimGraph, UKawaiiPhysicsMcpCommentNode::StaticClass()), 1);
+#else
+	bOk &= TestEqual(TEXT("Exactly one MCP comment node is created"),
+	                 CountExactNodesOfClass(Fixture.AnimGraph, UEdGraphNode_Comment::StaticClass()), 1);
+#endif
 	bOk &= TestEqual(TEXT("Comment frame count matches supported node mode"),
 	                 CountNodesOfClass(Fixture.AnimGraph, UEdGraphNode_Comment::StaticClass()), ExpectedCommentNodeCount);
 	bOk &= TestNotNull(TEXT("MCP comment node is found by title"), McpCommentNode);
@@ -1748,8 +1763,13 @@ bool FKawaiiPhysicsEditorScriptingPlacementCommentTest::RunTest(const FString& P
 	                SecondHandles.IsValidIndex(0) && SecondHandles[0].IsValid());
 	bOk &= TestTrue(TEXT("Second comment upsert handle is valid"),
 	                SecondHandles.IsValidIndex(1) && SecondHandles[1].IsValid());
+#if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
 	bOk &= TestEqual(TEXT("Comment upsert keeps one MCP comment"),
-	                 CountExactNodesOfClass(Fixture.AnimGraph, FKawaiiMcpCommentNode::StaticClass()), 1);
+	                 CountExactNodesOfClass(Fixture.AnimGraph, UKawaiiPhysicsMcpCommentNode::StaticClass()), 1);
+#else
+	bOk &= TestEqual(TEXT("Comment upsert keeps one MCP comment"),
+	                 CountExactNodesOfClass(Fixture.AnimGraph, UEdGraphNode_Comment::StaticClass()), 1);
+#endif
 	bOk &= TestEqual(TEXT("Comment upsert keeps expected comment frame count"),
 	                 CountNodesOfClass(Fixture.AnimGraph, UEdGraphNode_Comment::StaticClass()), ExpectedCommentNodeCount);
 	bOk &= TestEqual(TEXT("Comment upsert keeps KawaiiPhysics node count unchanged"),

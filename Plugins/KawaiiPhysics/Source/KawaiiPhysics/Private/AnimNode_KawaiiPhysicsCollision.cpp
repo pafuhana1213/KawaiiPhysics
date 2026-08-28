@@ -227,7 +227,7 @@ void FAnimNode_KawaiiPhysics::ApplyMirrorLimits(const FBoneContainer& RequiredBo
 
 	const FReferenceSkeleton& MeshRefSkeleton = RequiredBones.GetReferenceSkeleton();
 	TArray<FQuat> CSRefRotations;
-	KawaiiPhysicsMirror::BuildComponentSpaceRefRotations(MeshRefSkeleton, CSRefRotations);
+	KawaiiPhysicsMirrorUtils::BuildComponentSpaceRefRotations(MeshRefSkeleton, CSRefRotations);
 
 	const auto FindBoneIndex = [&MeshRefSkeleton](FName BoneName) -> int32
 	{
@@ -240,11 +240,11 @@ void FAnimNode_KawaiiPhysics::ApplyMirrorLimits(const FBoneContainer& RequiredBo
 		using TLimit = typename TRemoveReference<decltype(MergedLimits)>::Type::ElementType;
 
 		TArray<TLimit> NewLimits;
-		KawaiiPhysicsMirror::AppendMirroredLimits(NodeLimits, NodeLimits, MergedLimits,
+		KawaiiPhysicsMirrorUtils::AppendMirroredLimits(NodeLimits, NodeLimits, MergedLimits,
 		                                          bSkipMirroredBoneWithExistingCollision,
 		                                          ResolveMirrorBoneName, FindBoneIndex,
 		                                          CSRefRotations, MirrorAxis, NewLimits);
-		KawaiiPhysicsMirror::AppendMirroredLimits(MergedLimits, NodeLimits, MergedLimits,
+		KawaiiPhysicsMirrorUtils::AppendMirroredLimits(MergedLimits, NodeLimits, MergedLimits,
 		                                          bSkipMirroredBoneWithExistingCollision,
 		                                          ResolveMirrorBoneName, FindBoneIndex,
 		                                          CSRefRotations, MirrorAxis, NewLimits);
@@ -422,13 +422,13 @@ void FAnimNode_KawaiiPhysics::UpdateBoxLimits(TArray<FBoxLimit>& Limits, FCompon
 	}
 }
 
-void FAnimNode_KawaiiPhysics::UpdatePlanerLimits(TArray<FPlanarLimit>& Limits, FComponentSpacePoseContext& Output,
+void FAnimNode_KawaiiPhysics::UpdatePlanarLimits(TArray<FPlanarLimit>& Limits, FComponentSpacePoseContext& Output,
                                                  const FBoneContainer& BoneContainer,
                                                  const FTransform& ComponentTransform) const
 {
 	for (auto& Planar : Limits)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdatePlanerLimit);
+		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdatePlanarLimit);
 
 		if (Planar.DrivingBone.IsValidToEvaluate(BoneContainer))
 		{
@@ -833,7 +833,7 @@ void FAnimNode_KawaiiPhysics::AdjustByBoxCollision(FKawaiiPhysicsModifyBone& Bon
 	}
 }
 
-void FAnimNode_KawaiiPhysics::AdjustByPlanerCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FPlanarLimit>& Limits)
+void FAnimNode_KawaiiPhysics::AdjustByPlanarCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FPlanarLimit>& Limits)
 {
 	for (auto& Planar : Limits)
 	{

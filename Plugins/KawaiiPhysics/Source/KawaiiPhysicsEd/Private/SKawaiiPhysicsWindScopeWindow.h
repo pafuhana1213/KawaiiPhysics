@@ -61,7 +61,7 @@ struct FKawaiiPhysicsWindScopeSeriesVisibility
 };
 
 // 編集パネルが表示する現在値キャッシュ
-struct FKawaiiWindScopeEditValues
+struct FKawaiiPhysicsWindScopeEditValues
 {
 	bool bValid = false;
 	bool bIsEnabled = true;
@@ -74,7 +74,7 @@ struct FKawaiiWindScopeEditValues
 };
 
 // 編集操作のフェーズ
-enum class EKawaiiWindEditPhase : uint8
+enum class EKawaiiPhysicsWindEditPhase : uint8
 {
 	Begin,
 	Interactive,
@@ -97,7 +97,7 @@ public:
 	void SetSeriesVisibility(const FKawaiiPhysicsWindScopeSeriesVisibility& InVisibility);
 	void SetHighlightSeries(TOptional<EKawaiiPhysicsWindScopeComponent> InHighlightSeries);
 	void SetActiveEditGuide(TOptional<FName> PropertyName);
-	void SetEditValues(const FKawaiiWindScopeEditValues* InEditValues);
+	void SetEditValues(const FKawaiiPhysicsWindScopeEditValues* InEditValues);
 	void SetGhostSamples(TArray<FVector2D> InGhostSamples);
 	void SetPaused(bool bInPaused);
 
@@ -122,7 +122,7 @@ private:
 	TOptional<EKawaiiPhysicsWindScopeComponent> HighlightSeries;
 	TOptional<FName> ActiveEditGuide;
 	TOptional<FVector2D> HoverMousePosition;
-	const FKawaiiWindScopeEditValues* EditValues = nullptr;
+	const FKawaiiPhysicsWindScopeEditValues* EditValues = nullptr;
 	float DisplaySeconds = 8.0f;
 	bool bPaused = false;
 };
@@ -185,8 +185,8 @@ private:
 	FSlateColor GetModeBadgeColor() const;
 	EVisibility GetTargetNodeEmptyStateVisibility() const;
 	bool IsWindEditable() const;
-	const FKawaiiWindScopeEditValues* GetEditValues() const;
-	const FKawaiiWindScopeEditValues* GetLiveEditValues() const;
+	const FKawaiiPhysicsWindScopeEditValues* GetEditValues() const;
+	const FKawaiiPhysicsWindScopeEditValues* GetLiveEditValues() const;
 
 	void RebuildPresetButtons();
 	TSharedRef<SWidget> GeneratePresetMenu();
@@ -209,7 +209,7 @@ private:
 		bool bShowNotification = true);
 	bool PushParamsToLiveRuntime(const FKawaiiProceduralWindDynamicParams& Params);
 	bool PushGustToLiveRuntime(float Strength, float RiseTime, float DecayTime);
-	bool ApplyWindParamEdit(FName PropertyName, double NewValue, int32 VectorComponentIndex, EKawaiiWindEditPhase Phase);
+	bool ApplyWindParamEdit(FName PropertyName, double NewValue, int32 VectorComponentIndex, EKawaiiPhysicsWindEditPhase Phase);
 	// 放棄されたドラッグ編集をトランザクションとして確定する / Finalizes an abandoned drag edit as a transaction.
 	void FinalizeAbandonedWindDrag();
 	bool ResetWindParamToDefault(FName PropertyName);
@@ -252,8 +252,8 @@ private:
 	TArray<FKawaiiProceduralWindScopeSample> DisplaySamples;
 	FText CurrentModeText;
 	float DisplaySeconds = 8.0f;
-	FKawaiiWindScopeEditValues CachedEditValues;
-	FKawaiiWindScopeEditValues CachedLiveEditValues;
+	FKawaiiPhysicsWindScopeEditValues CachedEditValues;
+	FKawaiiPhysicsWindScopeEditValues CachedLiveEditValues;
 	FKawaiiPhysics_ExternalForce_ProceduralWind DragStartWind;
 	FName DragStartPropertyName;
 	float GustStrength;

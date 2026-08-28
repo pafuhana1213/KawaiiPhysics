@@ -122,7 +122,7 @@ public:
 
 	/** Enables or disables debug drawing for planar limits. */
 	UPROPERTY()
-	bool bEnableDebugDrawPlanerLimit = true;
+	bool bEnableDebugDrawPlanarLimit = true;
 
 	/** Enables or disables debug drawing for bone constraints. */
 	UPROPERTY()

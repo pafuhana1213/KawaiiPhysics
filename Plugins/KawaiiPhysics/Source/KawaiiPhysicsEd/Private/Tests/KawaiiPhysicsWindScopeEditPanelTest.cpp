@@ -38,7 +38,7 @@ bool FKawaiiPhysicsWindScopeEditPanelDefinitionsTest::RunTest(const FString& Par
 	TSet<FName> GroupIds;
 	const FKawaiiPhysics_ExternalForce_ProceduralWind DefaultWind;
 
-	for (const FKawaiiWindScopeParamGroup& Group : GetWindScopeParamGroups())
+	for (const FKawaiiPhysicsWindScopeParamGroup& Group : GetWindScopeParamGroups())
 	{
 		bOk &= TestFalse(
 			FString::Printf(TEXT("Wind Scope edit group ID is set: %s"), *Group.GroupLabel.ToString()),
@@ -56,10 +56,10 @@ bool FKawaiiPhysicsWindScopeEditPanelDefinitionsTest::RunTest(const FString& Par
 				Group.SummaryItems.Num() > 0);
 		}
 
-		for (const FKawaiiWindScopeSummaryItem& SummaryItem : Group.SummaryItems)
+		for (const FKawaiiPhysicsWindScopeSummaryItem& SummaryItem : Group.SummaryItems)
 		{
 			bool bSummaryItemPropertyExistsInGroup = false;
-			for (const FKawaiiWindScopeParamDef& Param : Group.Params)
+			for (const FKawaiiPhysicsWindScopeParamDef& Param : Group.Params)
 			{
 				if (Param.PropertyName == SummaryItem.PropertyName)
 				{
@@ -91,8 +91,8 @@ bool FKawaiiPhysicsWindScopeEditPanelDefinitionsTest::RunTest(const FString& Par
 					CastField<FFloatProperty>(SummaryItemProperty));
 			}
 
-			if (SummaryItem.Unit == EKawaiiWindScopeSummaryUnit::Seconds ||
-				SummaryItem.Unit == EKawaiiWindScopeSummaryUnit::Degrees)
+			if (SummaryItem.Unit == EKawaiiPhysicsWindScopeSummaryUnit::Seconds ||
+				SummaryItem.Unit == EKawaiiPhysicsWindScopeSummaryUnit::Degrees)
 			{
 				const bool bSupportedSummaryUnitType =
 					CastField<FFloatProperty>(SummaryItemProperty) ||
@@ -104,7 +104,7 @@ bool FKawaiiPhysicsWindScopeEditPanelDefinitionsTest::RunTest(const FString& Par
 			}
 		}
 
-		for (const FKawaiiWindScopeParamDef& Param : Group.Params)
+		for (const FKawaiiPhysicsWindScopeParamDef& Param : Group.Params)
 		{
 			FProperty* Property = FindWindScopeTestProperty(Param.PropertyName);
 			bOk &= TestNotNull(

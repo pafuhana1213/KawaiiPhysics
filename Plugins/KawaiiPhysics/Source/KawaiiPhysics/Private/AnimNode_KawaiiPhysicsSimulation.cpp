@@ -292,7 +292,7 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 	}
 }
 
-void FAnimNode_KawaiiPhysics::ConsumeAndSweepTransientExternalForces(const float InFrameDeltaTime)
+void FAnimNode_KawaiiPhysics::ConsumeAndPruneTransientExternalForces(const float InFrameDeltaTime)
 {
 	for (int32 i = TransientForceStore.Items.Num() - 1; i >= 0; --i)
 	{
@@ -940,8 +940,8 @@ void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
 		AdjustByTaperedCapsuleCollision(Bone, TaperedCapsuleLimitsData);
 		AdjustByBoxCollision(Bone, BoxLimits);
 		AdjustByBoxCollision(Bone, BoxLimitsData);
-		AdjustByPlanerCollision(Bone, PlanarLimits);
-		AdjustByPlanerCollision(Bone, PlanarLimitsData);
+		AdjustByPlanarCollision(Bone, PlanarLimits);
+		AdjustByPlanarCollision(Bone, PlanarLimitsData);
 
 		// 共有コリジョン（他の KawaiiPhysics ノードから）
 		if (bUseSharedCollision && !bSharedCollisionSource)
@@ -950,7 +950,7 @@ void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
 			AdjustByCapsuleCollision(Bone, SharedCapsuleLimits);
 			AdjustByTaperedCapsuleCollision(Bone, SharedTaperedCapsuleLimits);
 			AdjustByBoxCollision(Bone, SharedBoxLimits);
-			AdjustByPlanerCollision(Bone, SharedPlanarLimits);
+			AdjustByPlanarCollision(Bone, SharedPlanarLimits);
 		}
 
 		if (bAllowWorldCollision)

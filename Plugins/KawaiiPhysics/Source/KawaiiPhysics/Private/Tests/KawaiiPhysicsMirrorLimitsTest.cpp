@@ -83,12 +83,12 @@ bool FKawaiiPhysicsMirrorIdentityOffsetTest::RunTest(const FString& Parameters)
 
 	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Axes); ++Index)
 	{
-		const FVector MirroredLocation = KawaiiPhysicsMirror::MirrorOffsetLocation(
+		const FVector MirroredLocation = KawaiiPhysicsMirrorUtils::MirrorOffsetLocation(
 			FVector::ZeroVector, SourceRotations[Index], TargetRotations[Index], Axes[Index]);
 		TestTrue(TEXT("Zero offset location remains zero"),
 		         MirroredLocation.Equals(FVector::ZeroVector, KINDA_SMALL_NUMBER));
 
-		const FQuat MirroredRotation = KawaiiPhysicsMirror::MirrorOffsetRotation(
+		const FQuat MirroredRotation = KawaiiPhysicsMirrorUtils::MirrorOffsetRotation(
 			FQuat::Identity, SourceRotations[Index], TargetRotations[Index], Axes[Index]);
 		TestTrue(TEXT("Identity offset rotation remains identity"),
 		         IsSameRotation(MirroredRotation, FQuat::Identity, KINDA_SMALL_NUMBER));
@@ -112,14 +112,14 @@ bool FKawaiiPhysicsMirrorSymmetricSkeletonTest::RunTest(const FString& Parameter
 	{
 		const FQuat TargetBoneRefCS = FAnimationRuntime::MirrorQuat(SourceBoneRefCS, MirrorAxis);
 
-		const FVector MirroredLocation = KawaiiPhysicsMirror::MirrorOffsetLocation(
+		const FVector MirroredLocation = KawaiiPhysicsMirrorUtils::MirrorOffsetLocation(
 			SourceLocation, SourceBoneRefCS, TargetBoneRefCS, MirrorAxis);
 		const FVector ExpectedLocation = ExpectedMirroredVector(SourceLocation, MirrorAxis);
 		TestTrue(FString::Printf(TEXT("Symmetric location: got %s expected %s"),
 		                         *MirroredLocation.ToString(), *ExpectedLocation.ToString()),
 		         MirroredLocation.Equals(ExpectedLocation, GMirrorVectorTol));
 
-		const FQuat MirroredRotation = KawaiiPhysicsMirror::MirrorOffsetRotation(
+		const FQuat MirroredRotation = KawaiiPhysicsMirrorUtils::MirrorOffsetRotation(
 			SourceRotation, SourceBoneRefCS, TargetBoneRefCS, MirrorAxis);
 		const FQuat ExpectedRotation = ExpectedMirroredZRotation(30.0f, MirrorAxis);
 		TestTrue(TEXT("Symmetric rotation matches the hand-derived mirrored Z rotation"),
@@ -143,17 +143,17 @@ bool FKawaiiPhysicsMirrorRoundTripTest::RunTest(const FString& Parameters)
 
 	for (EAxis::Type MirrorAxis : Axes)
 	{
-		const FVector MirroredLocation = KawaiiPhysicsMirror::MirrorOffsetLocation(
+		const FVector MirroredLocation = KawaiiPhysicsMirrorUtils::MirrorOffsetLocation(
 			SourceLocation, SourceBoneRefCS, TargetBoneRefCS, MirrorAxis);
-		const FVector RoundTripLocation = KawaiiPhysicsMirror::MirrorOffsetLocation(
+		const FVector RoundTripLocation = KawaiiPhysicsMirrorUtils::MirrorOffsetLocation(
 			MirroredLocation, TargetBoneRefCS, SourceBoneRefCS, MirrorAxis);
 		TestTrue(FString::Printf(TEXT("Round-trip location: got %s expected %s"),
 		                         *RoundTripLocation.ToString(), *SourceLocation.ToString()),
 		         RoundTripLocation.Equals(SourceLocation, 0.01f));
 
-		const FQuat MirroredRotation = KawaiiPhysicsMirror::MirrorOffsetRotation(
+		const FQuat MirroredRotation = KawaiiPhysicsMirrorUtils::MirrorOffsetRotation(
 			SourceRotation, SourceBoneRefCS, TargetBoneRefCS, MirrorAxis);
-		const FQuat RoundTripRotation = KawaiiPhysicsMirror::MirrorOffsetRotation(
+		const FQuat RoundTripRotation = KawaiiPhysicsMirrorUtils::MirrorOffsetRotation(
 			MirroredRotation, TargetBoneRefCS, SourceBoneRefCS, MirrorAxis);
 		TestTrue(TEXT("Round-trip rotation returns to source"),
 		         IsSameRotation(RoundTripRotation, SourceRotation, 0.01f));
@@ -184,7 +184,7 @@ bool FKawaiiPhysicsMirrorBuildComponentRefRotationsTest::RunTest(const FString& 
 	}
 
 	TArray<FQuat> CSRefRotations;
-	KawaiiPhysicsMirror::BuildComponentSpaceRefRotations(RefSkeleton, CSRefRotations);
+	KawaiiPhysicsMirrorUtils::BuildComponentSpaceRefRotations(RefSkeleton, CSRefRotations);
 
 	TestTrue(TEXT("Component-space ref rotations count matches bone count"), CSRefRotations.Num() == 4);
 	TestTrue(TEXT("Root CS rotation matches local"), IsSameRotation(CSRefRotations[0], RootRotation));
@@ -242,19 +242,19 @@ bool FKawaiiPhysicsAppendMirroredLimitsTest::RunTest(const FString& Parameters)
 	CenterSourceLimits.Add(MakeSphere(CenterBoneName));
 
 	TArray<FSphericalLimit> OutNewLimits;
-	KawaiiPhysicsMirror::AppendMirroredLimits(
+	KawaiiPhysicsMirrorUtils::AppendMirroredLimits(
 		CenterSourceLimits, TArray<FSphericalLimit>(), TArray<FSphericalLimit>(), true,
 		ResolveMirrorBoneName, FindBoneIndex, CSRefRotations, EAxis::X, OutNewLimits);
 	TestTrue(TEXT("Center or unresolved mirror bones are skipped"), OutNewLimits.Num() == 0);
 
 	TArray<FSphericalLimit> ExistingNonMirror;
 	ExistingNonMirror.Add(MakeSphere(TargetBoneName, ECollisionSourceType::AnimNode));
-	KawaiiPhysicsMirror::AppendMirroredLimits(
+	KawaiiPhysicsMirrorUtils::AppendMirroredLimits(
 		SourceLimits, ExistingNonMirror, TArray<FSphericalLimit>(), true,
 		ResolveMirrorBoneName, FindBoneIndex, CSRefRotations, EAxis::X, OutNewLimits);
 	TestTrue(TEXT("Existing non-Mirror target collision skips generation"), OutNewLimits.Num() == 0);
 
-	KawaiiPhysicsMirror::AppendMirroredLimits(
+	KawaiiPhysicsMirrorUtils::AppendMirroredLimits(
 		SourceLimits, ExistingNonMirror, TArray<FSphericalLimit>(), false,
 		ResolveMirrorBoneName, FindBoneIndex, CSRefRotations, EAxis::X, OutNewLimits);
 	TestTrue(TEXT("bSkipExisting=false allows generation"), OutNewLimits.Num() == 1);
@@ -262,7 +262,7 @@ bool FKawaiiPhysicsAppendMirroredLimitsTest::RunTest(const FString& Parameters)
 
 	TArray<FSphericalLimit> ExistingMirror;
 	ExistingMirror.Add(MakeSphere(TargetBoneName, ECollisionSourceType::Mirror));
-	KawaiiPhysicsMirror::AppendMirroredLimits(
+	KawaiiPhysicsMirrorUtils::AppendMirroredLimits(
 		SourceLimits, ExistingMirror, TArray<FSphericalLimit>(), true,
 		ResolveMirrorBoneName, FindBoneIndex, CSRefRotations, EAxis::X, OutNewLimits);
 

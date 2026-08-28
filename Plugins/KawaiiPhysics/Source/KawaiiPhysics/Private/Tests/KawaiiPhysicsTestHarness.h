@@ -331,7 +331,7 @@ struct FKawaiiPhysicsTestAccessor
 		{
 			Limit.UpdateRuntimeCache();
 		}
-		Node.AdjustByPlanerCollision(Bone, Limits);
+		Node.AdjustByPlanarCollision(Bone, Limits);
 	}
 	void CallAngleLimit(FKawaiiPhysicsModifyBone& Bone, const FKawaiiPhysicsModifyBone& ParentBone)
 	{
@@ -576,8 +576,8 @@ private:
 			Node.AdjustByTaperedCapsuleCollision(Bone, Node.TaperedCapsuleLimitsData);
 			Node.AdjustByBoxCollision(Bone, Node.BoxLimits);
 			Node.AdjustByBoxCollision(Bone, Node.BoxLimitsData);
-			Node.AdjustByPlanerCollision(Bone, Node.PlanarLimits);
-			Node.AdjustByPlanerCollision(Bone, Node.PlanarLimitsData);
+			Node.AdjustByPlanarCollision(Bone, Node.PlanarLimits);
+			Node.AdjustByPlanarCollision(Bone, Node.PlanarLimitsData);
 		}
 
 		// BoneConstraint after collision（SimulateOnce 516-522）

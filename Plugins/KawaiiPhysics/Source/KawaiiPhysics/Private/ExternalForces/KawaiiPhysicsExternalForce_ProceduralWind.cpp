@@ -706,8 +706,8 @@ FKawaiiPhysicsProceduralWindSample FKawaiiPhysics_ExternalForce_ProceduralWind::
 // (Seed, GridIndex, Channel) から決定論的なハッシュ値を作る（FNV-1aベースのミックス + fmix32相当の追加撹拌）。
 // RandomStream の内部状態を跨いで持ち回さず、都度この値から種を作ることで実行順序やスレッドに依存しない
 // 再現性を持たせている
-uint32 FKawaiiPhysics_ExternalForce_ProceduralWind::StableHash(const int32 Seed, const int32 GridIndex,
-                                                               const int32 Channel)
+uint32 FKawaiiPhysics_ExternalForce_ProceduralWind::ComputeStableHash(const int32 Seed, const int32 GridIndex,
+                                                                      const int32 Channel)
 {
 	// FNV-1a
 	uint32 Hash = 0x811C9DC5u;
@@ -727,12 +727,12 @@ uint32 FKawaiiPhysics_ExternalForce_ProceduralWind::StableHash(const int32 Seed,
 	return Hash;
 }
 
-// グリッド点 GridIndex における疑似ランダム値 [-1, 1] を返す。StableHash を種にすることで、
+// グリッド点 GridIndex における疑似ランダム値 [-1, 1] を返す。ComputeStableHash を種にすることで、
 // 呼び出し順序に関係なく同じ GridIndex なら常に同じ値になる
-float FKawaiiPhysics_ExternalForce_ProceduralWind::NoiseValueAt(const int32 GridIndex, const int32 Seed,
-                                                                const int32 Channel)
+float FKawaiiPhysics_ExternalForce_ProceduralWind::SampleNoiseAt(const int32 GridIndex, const int32 Seed,
+                                                                 const int32 Channel)
 {
-	FRandomStream RandomStream(StableHash(Seed, GridIndex, Channel));
+	FRandomStream RandomStream(ComputeStableHash(Seed, GridIndex, Channel));
 	return RandomStream.FRandRange(-1.0f, 1.0f);
 }
 
@@ -748,8 +748,8 @@ float FKawaiiPhysics_ExternalForce_ProceduralWind::SampleSmoothNoise(const float
 	const float SmoothAlpha = Alpha * Alpha * (3.0f - 2.0f * Alpha);
 
 	// 隣接グリッド点のランダム値を補間して返す
-	return FMath::Lerp(NoiseValueAt(GridIndex, Seed, Channel),
-	                   NoiseValueAt(GridIndex + 1, Seed, Channel), SmoothAlpha);
+	return FMath::Lerp(SampleNoiseAt(GridIndex, Seed, Channel),
+	                   SampleNoiseAt(GridIndex + 1, Seed, Channel), SmoothAlpha);
 }
 
 void FKawaiiPhysics_ExternalForce_ProceduralWind::Initialize(const FAnimationInitializeContext& Context)

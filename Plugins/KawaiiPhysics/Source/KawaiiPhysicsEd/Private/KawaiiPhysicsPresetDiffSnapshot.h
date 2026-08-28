@@ -101,7 +101,7 @@ namespace KawaiiPhysicsPresetDiff
 	 * 差分行だけをタブ区切りのクリップボード文字列に変換する。
 	 * Convert only differing rows to tab-separated clipboard text.
 	 */
-	FString SnapshotToClipboardText(const FKawaiiPhysicsPresetDiffSnapshot& Snapshot, const FText& ContextLabel);
+	FString MakeClipboardTextFromSnapshot(const FKawaiiPhysicsPresetDiffSnapshot& Snapshot, const FText& ContextLabel);
 
 	/**
 	 * 差分プロパティの値ペア配列を生成する。

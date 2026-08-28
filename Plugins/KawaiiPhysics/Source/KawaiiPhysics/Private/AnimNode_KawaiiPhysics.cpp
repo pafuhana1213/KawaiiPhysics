@@ -120,7 +120,7 @@ DEFINE_STAT(STAT_KawaiiPhysics_ApplySyncBone);
 DEFINE_STAT(STAT_KawaiiPhysics_AdjustByCollision);
 DEFINE_STAT(STAT_KawaiiPhysics_AdjustByBoneConstraint);
 DEFINE_STAT(STAT_KawaiiPhysics_UpdateSphericalLimit);
-DEFINE_STAT(STAT_KawaiiPhysics_UpdatePlanerLimit);
+DEFINE_STAT(STAT_KawaiiPhysics_UpdatePlanarLimit);
 DEFINE_STAT(STAT_KawaiiPhysics_WarmUp);
 DEFINE_STAT(STAT_KawaiiPhysics_UpdatePhysicsSetting);
 DEFINE_STAT(STAT_KawaiiPhysics_UpdateCapsuleLimit);
@@ -696,8 +696,8 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	UpdateTaperedCapsuleLimits(TaperedCapsuleLimitsData, Output, BoneContainer, ComponentTransform);
 	UpdateBoxLimits(BoxLimits, Output, BoneContainer, ComponentTransform);
 	UpdateBoxLimits(BoxLimitsData, Output, BoneContainer, ComponentTransform);
-	UpdatePlanerLimits(PlanarLimits, Output, BoneContainer, ComponentTransform);
-	UpdatePlanerLimits(PlanarLimitsData, Output, BoneContainer, ComponentTransform);
+	UpdatePlanarLimits(PlanarLimits, Output, BoneContainer, ComponentTransform);
+	UpdatePlanarLimits(PlanarLimitsData, Output, BoneContainer, ComponentTransform);
 
 	// 共有コリジョンの初期化と更新（有効時のみ）。reinit処理は関数冒頭で実行済み。
 	// subsystemはロックでスレッドセーフ化済みのためWorker(AnyThread)で実行でき、PreUpdate(GameThread)を介さない。
@@ -769,7 +769,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	UpdateSkelCompMove(Output, ComponentTransform);
 
 	// 一時外力は評価ごとに1回だけ取り込み、WarmUpの反復やTeleport時のSimulateスキップに左右されないようにする
-	ConsumeAndSweepTransientExternalForces(DeltaTime);
+	ConsumeAndPruneTransientExternalForces(DeltaTime);
 
 	// 物理の荒ぶりを回避するための空回し処理
 	if (bNeedWarmUp && WarmUpFrames > 0)
