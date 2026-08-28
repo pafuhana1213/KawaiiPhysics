@@ -103,7 +103,7 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
             self,
             anim_blueprint: unreal.AnimBlueprint | None = None,
             request: unreal.KawaiiPhysicsNodePlacementRequest | None = None,
-            upsert_key: unreal.KawaiiPhysicsPlacementUpsertKey = unreal.KawaiiPhysicsPlacementUpsertKey.NONE
+            match_key: unreal.KawaiiPhysicsPlacementMatchKey = unreal.KawaiiPhysicsPlacementMatchKey.NONE
     ) -> unreal.KawaiiPhysicsGraphNodeHandle:
         if anim_blueprint is None:
             anim_blueprint = self._create_anim_blueprint()
@@ -112,7 +112,7 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         handles = KawaiiPhysicsToolset.add_kawaii_physics_nodes(
             anim_blueprint,
             [request],
-            upsert_key,
+            match_key,
             '',
         )
         self.assertEqual(len(handles), 1)
@@ -133,7 +133,7 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
             handle: unreal.KawaiiPhysicsGraphNodeHandle,
             property_name: str,
             value: str) -> None:
-        self.assertTrue(unreal.KawaiiPhysicsEditorLibrary.set_graph_node_property_by_string(
+        self.assertTrue(unreal.KawaiiPhysicsEditorLibrary.set_graph_node_property_from_string(
             handle,
             unreal.Name(property_name),
             value,
@@ -182,7 +182,7 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         handles = KawaiiPhysicsToolset.add_kawaii_physics_nodes(
             anim_blueprint,
             [request],
-            unreal.KawaiiPhysicsPlacementUpsertKey.NONE,
+            unreal.KawaiiPhysicsPlacementMatchKey.NONE,
             '',
         )
         self.assertEqual(len(handles), 1)
@@ -364,7 +364,7 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         handles = KawaiiPhysicsToolset.add_kawaii_physics_nodes(
             anim_blueprint,
             [request],
-            unreal.KawaiiPhysicsPlacementUpsertKey.NONE,
+            unreal.KawaiiPhysicsPlacementMatchKey.NONE,
             '',
         )
         unreal.BlueprintEditorLibrary.compile_blueprint(anim_blueprint)
@@ -389,7 +389,7 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         handles = KawaiiPhysicsToolset.add_kawaii_physics_nodes(
             anim_blueprint,
             [request],
-            unreal.KawaiiPhysicsPlacementUpsertKey.NONE,
+            unreal.KawaiiPhysicsPlacementMatchKey.NONE,
             '',
             comment,
             prompt,
@@ -411,7 +411,7 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         empty_comment_handles = KawaiiPhysicsToolset.add_kawaii_physics_nodes(
             empty_comment_anim_blueprint,
             [_make_request('TwintailB_L')],
-            unreal.KawaiiPhysicsPlacementUpsertKey.NONE,
+            unreal.KawaiiPhysicsPlacementMatchKey.NONE,
             '',
             '',
             'This prompt should not create a comment frame.',
@@ -534,7 +534,7 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         target_tags = preset.get_editor_property('target_tags')
         self.assertTrue(_target_tags_contain(target_tags, REAPPLY_TAG))
 
-    def test_reapply_preset_dry_run_reports_without_applying(self):
+    def test_apply_preset_dry_run_reports_without_applying(self):
         anim_blueprint = self._create_anim_blueprint()
         handle = self._place_test_node(
             anim_blueprint,
@@ -550,7 +550,7 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
             False,
             False,
         )
-        report = KawaiiPhysicsToolset.reapply_preset_to_project(preset, True, False)
+        report = KawaiiPhysicsToolset.apply_preset_to_project(preset, True, False)
         diff_after = KawaiiPhysicsToolset.does_graph_node_match_preset(
             handle,
             preset,
@@ -563,7 +563,7 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         self.assertNotEqual(diff_before, [])
         self.assertEqual(diff_after, diff_before)
 
-    def test_reapply_preset_applies_to_matching_nodes(self):
+    def test_apply_preset_applies_to_matching_nodes(self):
         anim_blueprint = self._create_anim_blueprint()
         handle = self._place_test_node(
             anim_blueprint,
@@ -573,7 +573,7 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         self._set_graph_node_property(handle, 'WindScale', '3.25')
         self._save_asset(anim_blueprint)
 
-        report = KawaiiPhysicsToolset.reapply_preset_to_project(preset, False, False)
+        report = KawaiiPhysicsToolset.apply_preset_to_project(preset, False, False)
         diff_after = KawaiiPhysicsToolset.does_graph_node_match_preset(
             handle,
             preset,
@@ -585,11 +585,11 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         self.assertIn('WindScale', self._entry_diff_names(report[0]))
         self.assertEqual(diff_after, [])
 
-    def test_reapply_preset_empty_target_tags_returns_empty_report(self):
+    def test_apply_preset_empty_target_tags_returns_empty_report(self):
         handle = self._place_test_node()
         preset = self._export_test_preset(handle, 'KPP_EmptyTargetTags')
 
-        report = KawaiiPhysicsToolset.reapply_preset_to_project(preset, True, False)
+        report = KawaiiPhysicsToolset.apply_preset_to_project(preset, True, False)
 
         self.assertEqual(report, [])
 
@@ -609,29 +609,29 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
             for entry in entries
         ))
 
-    def test_resolve_bones_by_pattern_returns_matches(self):
-        bone_names = KawaiiPhysicsToolset.resolve_bones_by_pattern(
+    def test_find_bones_by_pattern_returns_matches(self):
+        bone_names = KawaiiPhysicsToolset.find_bones_by_pattern(
             self.skeleton,
             'TwintailA_L',
         )
 
         self.assertEqual(bone_names, ['TwintailA_L'])
 
-    def test_resolve_bones_by_pattern_empty_pattern_returns_empty(self):
-        bone_names = KawaiiPhysicsToolset.resolve_bones_by_pattern(
+    def test_find_bones_by_pattern_empty_pattern_returns_empty(self):
+        bone_names = KawaiiPhysicsToolset.find_bones_by_pattern(
             self.skeleton,
             '',
         )
 
         self.assertEqual(bone_names, [])
 
-    def test_resolve_bones_greedy_pattern_returns_safely(self):
-        all_bone_names = set(KawaiiPhysicsToolset.resolve_bones_by_pattern(
+    def test_find_bones_greedy_pattern_returns_safely(self):
+        all_bone_names = set(KawaiiPhysicsToolset.find_bones_by_pattern(
             self.skeleton,
             '[^, ]+',
         ))
 
-        bone_names = KawaiiPhysicsToolset.resolve_bones_by_pattern(
+        bone_names = KawaiiPhysicsToolset.find_bones_by_pattern(
             self.skeleton,
             '.*',
         )
@@ -639,7 +639,7 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         bone_names = list(bone_names)
         self.assertTrue(set(bone_names).issubset(all_bone_names))
 
-    def test_upsert_by_tag_updates_existing_node(self):
+    def test_match_by_tag_updates_existing_node(self):
         anim_blueprint = self._create_anim_blueprint()
         first_request = _make_request('TwintailA_L', REAPPLY_TAG)
         second_request = _make_request('TwintailB_L', REAPPLY_TAG)
@@ -647,12 +647,12 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         self._place_test_node(
             anim_blueprint,
             first_request,
-            unreal.KawaiiPhysicsPlacementUpsertKey.TAG,
+            unreal.KawaiiPhysicsPlacementMatchKey.TAG,
         )
         second_handle = self._place_test_node(
             anim_blueprint,
             second_request,
-            unreal.KawaiiPhysicsPlacementUpsertKey.TAG,
+            unreal.KawaiiPhysicsPlacementMatchKey.TAG,
         )
         collected = KawaiiPhysicsToolset.collect_kawaii_physics_graph_nodes(
             anim_blueprint,
@@ -667,7 +667,7 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         self.assertIsNotNone(root_bone_name)
         self.assertEqual(str(root_bone_name), 'TwintailB_L')
 
-    def test_upsert_by_root_bone_updates_existing_node(self):
+    def test_match_by_root_bone_updates_existing_node(self):
         anim_blueprint = self._create_anim_blueprint()
         first_request = _make_request('TwintailA_L', HAIR_TAG)
         second_request = _make_request('TwintailA_L', REAPPLY_TAG)
@@ -675,12 +675,12 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         self._place_test_node(
             anim_blueprint,
             first_request,
-            unreal.KawaiiPhysicsPlacementUpsertKey.ROOT_BONE,
+            unreal.KawaiiPhysicsPlacementMatchKey.ROOT_BONE,
         )
         second_handle = self._place_test_node(
             anim_blueprint,
             second_request,
-            unreal.KawaiiPhysicsPlacementUpsertKey.ROOT_BONE,
+            unreal.KawaiiPhysicsPlacementMatchKey.ROOT_BONE,
         )
         collected = KawaiiPhysicsToolset.collect_kawaii_physics_graph_nodes(
             anim_blueprint,
@@ -732,7 +732,7 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         handles = KawaiiPhysicsToolset.add_kawaii_physics_nodes(
             anim_blueprint,
             [request],
-            unreal.KawaiiPhysicsPlacementUpsertKey.NONE,
+            unreal.KawaiiPhysicsPlacementMatchKey.NONE,
             '',
         )
 

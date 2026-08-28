@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: KawaiiPhysics\n"
-"POT-Creation-Date: 2026-08-28 07:31\n"
-"PO-Revision-Date: 2026-08-28 07:31\n"
+"POT-Creation-Date: 2026-08-28 12:23\n"
+"PO-Revision-Date: 2026-08-28 12:23\n"
 "Language-Team: \n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
@@ -2358,6 +2358,13 @@ msgctxt "UObjectToolTips,KawaiiPhysicsBoneConstraintsDataAsset:PreviewBoneListSt
 msgid "String representation of the preview bone list"
 msgstr ""
 
+#. Key:	Skeleton
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:PreviewSkeleton [SoftObjectProperty Category meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:PreviewSkeleton [SoftObjectProperty Category meta-data]
+msgctxt "UObjectCategory,Skeleton"
+msgid "Skeleton"
+msgstr "スケルトン"
+
 #. Key:	KawaiiPhysicsBoneConstraintsDataAsset:PreviewSkeleton
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:PreviewSkeleton [SoftObjectProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset:PreviewSkeleton [SoftObjectProperty DisplayName meta-data]
@@ -2483,13 +2490,6 @@ msgstr "コリジョン（平面）"
 msgctxt "UObjectDisplayNames,KawaiiPhysicsLimitsDataAsset:PlanarLimitsData"
 msgid "Planar Limits Data"
 msgstr ""
-
-#. Key:	Skeleton
-#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:Skeleton [ObjectProperty Category meta-data]
-#: /Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:Skeleton [ObjectProperty Category meta-data]
-msgctxt "UObjectCategory,Skeleton"
-msgid "Skeleton"
-msgstr "スケルトン"
 
 #. Key:	KawaiiPhysicsLimitsDataAsset:Skeleton
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsLimitsDataAsset:Skeleton [ObjectProperty DisplayName meta-data]
@@ -3240,6 +3240,13 @@ msgctxt "UObjectToolTips,KawaiiPhysicsSyncBone:bEnableDistanceAttenuation"
 msgid "SyncBoneとの距離に応じてTargetへの適用量(Alpha)を減衰させる設定\nAttenuation of application amount(Alpha) based on distance from SyncBone to each Target"
 msgstr "SyncBoneとの距離に応じてTargetへの適用量(Alpha)を減衰させる設定"
 
+#. Key:	Sync Bone
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty Category meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty Category meta-data]
+msgctxt "UObjectCategory,Sync Bone"
+msgid "Sync Bone"
+msgstr "同期ボーン"
+
 #. Key:	KawaiiPhysicsSyncBone:Bone
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty DisplayName meta-data]
@@ -3498,13 +3505,6 @@ msgstr "子Target（プレビュー）"
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncTargetRoot:ChildTargets"
 msgid "適用対象である子ボーン\nChild bones that are targets for application"
 msgstr "適用対象である子ボーン"
-
-#. Key:	Sync Bone
-#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty Category meta-data]
-#: /Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty Category meta-data]
-msgctxt "UObjectCategory,Sync Bone"
-msgid "Sync Bone"
-msgstr "同期ボーン"
 
 #. Key:	KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty DisplayName meta-data]
@@ -5417,10 +5417,10 @@ msgctxt "KawaiiPhysicsEditorLibrary,AddKawaiiPhysicsNodes"
 msgid "Add Kawaii Physics Nodes"
 msgstr ""
 
-#. Key:	SetGraphNodePropertyByString
+#. Key:	SetGraphNodePropertyFromString
 #. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2002)
 #: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2002)
-msgctxt "KawaiiPhysicsEditorLibrary,SetGraphNodePropertyByString"
+msgctxt "KawaiiPhysicsEditorLibrary,SetGraphNodePropertyFromString"
 msgid "Set Kawaii Physics Graph Node Property"
 msgstr ""
 
@@ -5452,10 +5452,10 @@ msgctxt "KawaiiPhysicsEditorLibrary,ExportGraphNodeToPreset"
 msgid "Export Kawaii Physics Graph Node To Preset"
 msgstr ""
 
-#. Key:	ReapplyPresetToProjectProgress
+#. Key:	ApplyPresetToProjectProgress
 #. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2308)
 #: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2308)
-msgctxt "KawaiiPhysicsEditorLibrary,ReapplyPresetToProjectProgress"
+msgctxt "KawaiiPhysicsEditorLibrary,ApplyPresetToProjectProgress"
 msgid "Applying Kawaii Physics preset to AnimBlueprints..."
 msgstr ""
 

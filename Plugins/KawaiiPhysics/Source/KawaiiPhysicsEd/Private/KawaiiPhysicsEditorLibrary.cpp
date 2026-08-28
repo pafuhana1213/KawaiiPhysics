@@ -103,7 +103,7 @@ namespace
 		return true;
 	}
 
-	bool MutateGraphNodeProperty(const FKawaiiPhysicsGraphNodeHandle& Handle,
+	bool ModifyGraphNodeProperty(const FKawaiiPhysicsGraphNodeHandle& Handle,
 	                             FName PropertyName,
 	                             const FText& TransactionText,
 	                             TFunctionRef<bool(UAnimGraphNode_KawaiiPhysics&)> Mutator)
@@ -451,7 +451,7 @@ namespace
 
 		// RootBonePatternの先頭一致をRootBoneへ、残りをAdditionalRootBonesへ解決する。
 		const TArray<FName> RootBonePatternMatches =
-			UKawaiiPhysicsEditorLibrary::ResolveBonesByPattern(Skeleton, Request.RootBonePattern);
+			UKawaiiPhysicsEditorLibrary::FindBonesByPattern(Skeleton, Request.RootBonePattern);
 		if (!RootBonePatternMatches.IsEmpty())
 		{
 			if (ResolvedRequest.RootBoneName.IsNone())
@@ -473,7 +473,7 @@ namespace
 		}
 
 		const TArray<FName> ExcludeBonePatternMatches =
-			UKawaiiPhysicsEditorLibrary::ResolveBonesByPattern(Skeleton, Request.ExcludeBonePattern);
+			UKawaiiPhysicsEditorLibrary::FindBonesByPattern(Skeleton, Request.ExcludeBonePattern);
 		// ExcludeBonePatternの一致は既存指定へ追記する。
 		for (const FName ExcludeBoneName : ExcludeBonePatternMatches)
 		{
@@ -867,7 +867,7 @@ namespace
 		}
 	}
 
-	bool UpsertMcpCommentNode(UEdGraph* Graph,
+	bool FindOrAddMcpCommentNode(UEdGraph* Graph,
 	                          const TArray<FKawaiiPhysicsGraphNodeHandle>& Handles,
 	                          const FString& CommentText,
 	                          const FString& Prompt)
@@ -1177,9 +1177,9 @@ namespace
 		GraphNode->ReconstructNode();
 	}
 
-	bool DoesGraphNodeMatchUpsertKey(const UAnimGraphNode_KawaiiPhysics* GraphNode,
+	bool DoesGraphNodeMatchKey(const UAnimGraphNode_KawaiiPhysics* GraphNode,
 	                                 const FResolvedKawaiiPhysicsNodePlacementRequest& Request,
-	                                 EKawaiiPhysicsPlacementUpsertKey UpsertKey)
+	                                 EKawaiiPhysicsPlacementMatchKey MatchKey)
 	{
 		if (!GraphNode)
 		{
@@ -1191,26 +1191,26 @@ namespace
 			GraphNode->Node.KawaiiPhysicsTag == Request.KawaiiPhysicsTag;
 		const bool bRootBoneMatches = GraphNode->Node.RootBone.BoneName == Request.RootBoneName;
 
-		switch (UpsertKey)
+		switch (MatchKey)
 		{
-		case EKawaiiPhysicsPlacementUpsertKey::Tag:
+		case EKawaiiPhysicsPlacementMatchKey::Tag:
 			return bTagMatches;
-		case EKawaiiPhysicsPlacementUpsertKey::RootBone:
+		case EKawaiiPhysicsPlacementMatchKey::RootBone:
 			return bRootBoneMatches;
-		case EKawaiiPhysicsPlacementUpsertKey::TagAndRootBone:
+		case EKawaiiPhysicsPlacementMatchKey::TagAndRootBone:
 			return bTagMatches && bRootBoneMatches;
-		case EKawaiiPhysicsPlacementUpsertKey::None:
+		case EKawaiiPhysicsPlacementMatchKey::None:
 		default:
 			return false;
 		}
 	}
 
-	UAnimGraphNode_KawaiiPhysics* FindUpsertGraphNode(
+	UAnimGraphNode_KawaiiPhysics* FindMatchingGraphNode(
 		UEdGraph* Graph,
 		const FResolvedKawaiiPhysicsNodePlacementRequest& Request,
-		EKawaiiPhysicsPlacementUpsertKey UpsertKey)
+		EKawaiiPhysicsPlacementMatchKey MatchKey)
 	{
-		if (!Graph || UpsertKey == EKawaiiPhysicsPlacementUpsertKey::None)
+		if (!Graph || MatchKey == EKawaiiPhysicsPlacementMatchKey::None)
 		{
 			return nullptr;
 		}
@@ -1218,7 +1218,7 @@ namespace
 		for (UEdGraphNode* Node : Graph->Nodes)
 		{
 			UAnimGraphNode_KawaiiPhysics* GraphNode = Cast<UAnimGraphNode_KawaiiPhysics>(Node);
-			if (DoesGraphNodeMatchUpsertKey(GraphNode, Request, UpsertKey))
+			if (DoesGraphNodeMatchKey(GraphNode, Request, MatchKey))
 			{
 				return GraphNode;
 			}
@@ -1456,7 +1456,7 @@ namespace
 	}
 }
 
-void UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssets(const TArray<FString>& ContentPaths, TArray<FAssetData>& OutAssets)
+void UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssetData(const TArray<FString>& ContentPaths, TArray<FAssetData>& OutAssets)
 {
 	OutAssets.Reset();
 
@@ -1472,7 +1472,7 @@ void UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssets(const TArray<FString>& 
 	AssetRegistry.GetAssets(Filter, OutAssets);
 }
 
-void UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssetsReferencingTags(
+void UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssetDataReferencingTags(
 	const FGameplayTagContainer& FilterTags,
 	bool bFilterExactMatch,
 	const TArray<FString>& ContentPaths,
@@ -1481,7 +1481,7 @@ void UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssetsReferencingTags(
 	OutAssets.Reset();
 
 	TArray<FAssetData> CandidateAssets;
-	GetAnimBlueprintAssets(ContentPaths, CandidateAssets);
+	FindAnimBlueprintAssetData(ContentPaths, CandidateAssets);
 	if (FilterTags.IsEmpty())
 	{
 		OutAssets = MoveTemp(CandidateAssets);
@@ -1522,7 +1522,7 @@ void UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssetsReferencingTags(
 	}
 }
 
-void UKawaiiPhysicsEditorLibrary::GetAllPresetAssets(TArray<TStrongObjectPtr<UKawaiiPhysicsPresetDataAsset>>& OutPresets)
+void UKawaiiPhysicsEditorLibrary::FindAllPresetAssetData(TArray<TStrongObjectPtr<UKawaiiPhysicsPresetDataAsset>>& OutPresets)
 {
 	OutPresets.Reset();
 
@@ -1558,7 +1558,7 @@ void UKawaiiPhysicsEditorLibrary::GetAllPresetAssets(TArray<TStrongObjectPtr<UKa
 		else
 		{
 			UE_LOG(LogKawaiiPhysics, Warning,
-			       TEXT("GetAllPresetAssets: Failed to load KawaiiPhysics preset asset '%s'."),
+			       TEXT("FindAllPresetAssetData: Failed to load KawaiiPhysics preset asset '%s'."),
 			       *AssetData.GetSoftObjectPath().ToString());
 		}
 	}
@@ -1567,7 +1567,7 @@ void UKawaiiPhysicsEditorLibrary::GetAllPresetAssets(TArray<TStrongObjectPtr<UKa
 TArray<UKawaiiPhysicsPresetDataAsset*> UKawaiiPhysicsEditorLibrary::FindAllPresetAssets()
 {
 	TArray<TStrongObjectPtr<UKawaiiPhysicsPresetDataAsset>> StrongPresets;
-	GetAllPresetAssets(StrongPresets);
+	FindAllPresetAssetData(StrongPresets);
 
 	// 強参照版の結果をスクリプト向けの生ポインタ配列へ詰め替える。
 	TArray<UKawaiiPhysicsPresetDataAsset*> Presets;
@@ -1582,7 +1582,7 @@ TArray<UKawaiiPhysicsPresetDataAsset*> UKawaiiPhysicsEditorLibrary::FindAllPrese
 TArray<FSoftObjectPath> UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssets(const TArray<FString>& ContentPaths)
 {
 	TArray<FAssetData> AssetDataList;
-	GetAnimBlueprintAssets(ContentPaths, AssetDataList);
+	FindAnimBlueprintAssetData(ContentPaths, AssetDataList);
 
 	// アセット情報をスクリプトから扱いやすいソフトオブジェクトパスへ変換する。
 	TArray<FSoftObjectPath> AssetPaths;
@@ -1598,7 +1598,7 @@ TArray<FSoftObjectPath> UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssetsRefe
 	const FGameplayTagContainer& FilterTags, bool bFilterExactMatch, const TArray<FString>& ContentPaths)
 {
 	TArray<FAssetData> AssetDataList;
-	GetAnimBlueprintAssetsReferencingTags(FilterTags, bFilterExactMatch, ContentPaths, AssetDataList);
+	FindAnimBlueprintAssetDataReferencingTags(FilterTags, bFilterExactMatch, ContentPaths, AssetDataList);
 
 	// アセット情報をスクリプトから扱いやすいソフトオブジェクトパスへ変換する。
 	TArray<FSoftObjectPath> AssetPaths;
@@ -1684,7 +1684,7 @@ UAnimGraphNode_KawaiiPhysics* UKawaiiPhysicsEditorLibrary::FindGraphNodeByGuid(
 TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(
 	UAnimBlueprint* AnimBlueprint,
 	const TArray<FKawaiiPhysicsNodePlacementRequest>& Requests,
-	EKawaiiPhysicsPlacementUpsertKey UpsertKey,
+	EKawaiiPhysicsPlacementMatchKey MatchKey,
 	FName GraphName,
 	const FString& Comment,
 	const FString& Prompt)
@@ -1780,9 +1780,9 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 		}
 
 		if (UAnimGraphNode_KawaiiPhysics* ExistingGraphNode =
-			FindUpsertGraphNode(Graph, ResolvedRequest, UpsertKey))
+			FindMatchingGraphNode(Graph, ResolvedRequest, MatchKey))
 		{
-			// upsert対象が既にある場合は既存ノードを更新する。
+			// Match対象が既にある場合は既存ノードを更新する。
 			ExistingGraphNode->Modify();
 			ApplyResolvedPlacementToGraphNode(ExistingGraphNode, ResolvedRequest);
 			if (!ResolvedRequest.bAutoPosition)
@@ -1816,7 +1816,7 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 			continue;
 		}
 
-		// upsert対象がなければ新規ノードを作成する。
+		// Match対象がなければ新規ノードを作成する。
 		Graph->Modify();
 		FGraphNodeCreator<UAnimGraphNode_KawaiiPhysics> NodeCreator(*Graph);
 		UAnimGraphNode_KawaiiPhysics* NewGraphNode = NodeCreator.CreateNode(false);
@@ -1851,10 +1851,10 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 	const FString TrimmedComment = Comment.TrimStartAndEnd();
 	if (!Result.IsEmpty() && !TrimmedComment.IsEmpty())
 	{
-		// 生成・更新したノード群を囲むMCPコメント枠をupsertする。
+		// 生成・更新したノード群を囲むMCPコメント枠を検索または追加する。
 		const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
 		const FString CommentPrefix = Settings ? Settings->McpCommentPrefix : TEXT("[MCP] ");
-		bAddedCommentNode = UpsertMcpCommentNode(Graph, Result, CommentPrefix + TrimmedComment, Prompt);
+		bAddedCommentNode = FindOrAddMcpCommentNode(Graph, Result, CommentPrefix + TrimmedComment, Prompt);
 	}
 
 	// 構造変更、軽微な変更、変更なしを分けてBlueprintの変更状態とTransactionを確定する。
@@ -1939,7 +1939,7 @@ TArray<FString> UKawaiiPhysicsEditorLibrary::ValidatePlacementRequests(
 	return Errors;
 }
 
-TArray<FName> UKawaiiPhysicsEditorLibrary::ResolveBonesByPattern(USkeleton* Skeleton, const FString& Pattern)
+TArray<FName> UKawaiiPhysicsEditorLibrary::FindBonesByPattern(USkeleton* Skeleton, const FString& Pattern)
 {
 	TArray<FName> Result;
 	if (!Skeleton || Pattern.IsEmpty())
@@ -1969,7 +1969,7 @@ TArray<FName> UKawaiiPhysicsEditorLibrary::ResolveBonesByPattern(USkeleton* Skel
 			if (!bLongMatchWarningLogged)
 			{
 				UE_LOG(LogKawaiiPhysics, Warning,
-				       TEXT("ResolveBonesByPattern: Regex match is too long to convert to FName. Pattern=\"%s\", MatchLength=%d, MaxLength=%d"),
+				       TEXT("FindBonesByPattern: Regex match is too long to convert to FName. Pattern=\"%s\", MatchLength=%d, MaxLength=%d"),
 				       *Pattern, MatchedBoneName.Len(), NAME_SIZE - 1);
 				bLongMatchWarningLogged = true;
 			}
@@ -1991,15 +1991,15 @@ bool UKawaiiPhysicsEditorLibrary::IsGraphNodeHandleValid(const FKawaiiPhysicsGra
 	return Handle.IsValid();
 }
 
-bool UKawaiiPhysicsEditorLibrary::SetGraphNodePropertyByString(
+bool UKawaiiPhysicsEditorLibrary::SetGraphNodePropertyFromString(
 	const FKawaiiPhysicsGraphNodeHandle& Handle,
 	FName PropertyName,
 	const FString& Value)
 {
-	return MutateGraphNodeProperty(
+	return ModifyGraphNodeProperty(
 		Handle,
 		PropertyName,
-		NSLOCTEXT("KawaiiPhysicsEditorLibrary", "SetGraphNodePropertyByString", "Set Kawaii Physics Graph Node Property"),
+		NSLOCTEXT("KawaiiPhysicsEditorLibrary", "SetGraphNodePropertyFromString", "Set Kawaii Physics Graph Node Property"),
 		[PropertyName, &Value](UAnimGraphNode_KawaiiPhysics& GraphNode)
 		{
 			return UKawaiiPhysicsLibrary::SetNodePropertyValueFromString(GraphNode.Node, PropertyName, Value);
@@ -2016,7 +2016,7 @@ bool UKawaiiPhysicsEditorLibrary::GetGraphNodePropertyAsString(
 		UKawaiiPhysicsLibrary::GetNodePropertyValueAsString(GraphNode->Node, PropertyName, OutValue);
 }
 
-bool UKawaiiPhysicsEditorLibrary::SetPresetNodePropertyByString(
+bool UKawaiiPhysicsEditorLibrary::SetPresetNodePropertyFromString(
 	UKawaiiPhysicsPresetDataAsset* Preset,
 	FName PropertyName,
 	const FString& Value)
@@ -2110,7 +2110,7 @@ bool UKawaiiPhysicsEditorLibrary::SetGraphNodeTag(
 	const FKawaiiPhysicsGraphNodeHandle& Handle,
 	FGameplayTag Tag)
 {
-	return MutateGraphNodeProperty(
+	return ModifyGraphNodeProperty(
 		Handle,
 		GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, KawaiiPhysicsTag),
 		NSLOCTEXT("KawaiiPhysicsEditorLibrary", "SetGraphNodeTag", "Set Kawaii Physics Graph Node Tag"),
@@ -2139,7 +2139,7 @@ bool UKawaiiPhysicsEditorLibrary::SetGraphNodeRootBoneName(
 	const FKawaiiPhysicsGraphNodeHandle& Handle,
 	FName RootBoneName)
 {
-	return MutateGraphNodeProperty(
+	return ModifyGraphNodeProperty(
 		Handle,
 		GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, RootBone),
 		NSLOCTEXT("KawaiiPhysicsEditorLibrary", "SetGraphNodeRootBoneName", "Set Kawaii Physics Graph Node Root Bone"),
@@ -2271,7 +2271,7 @@ bool UKawaiiPhysicsEditorLibrary::ExportGraphNodeToPreset(
 	return true;
 }
 
-int32 UKawaiiPhysicsEditorLibrary::ReapplyPresetToProject(
+int32 UKawaiiPhysicsEditorLibrary::ApplyPresetToProject(
 	UKawaiiPhysicsPresetDataAsset* Preset,
 	bool bDryRun,
 	bool bCheckOutFiles,
@@ -2287,7 +2287,7 @@ int32 UKawaiiPhysicsEditorLibrary::ReapplyPresetToProject(
 	{
 		// TargetTagsが空なら対象ノードが存在しないため、何もせず戻る。
 		UE_LOG(LogKawaiiPhysics, Warning,
-		       TEXT("ReapplyPresetToProject: Preset '%s' has empty TargetTags. No nodes will be targeted."),
+		       TEXT("ApplyPresetToProject: Preset '%s' has empty TargetTags. No nodes will be targeted."),
 		       *Preset->GetPathName());
 		return 0;
 	}
@@ -2297,7 +2297,7 @@ int32 UKawaiiPhysicsEditorLibrary::ReapplyPresetToProject(
 	const FKawaiiPhysicsPresetApplyOptions Options;
 
 	TArray<FAssetData> AnimBlueprintAssets;
-	GetAnimBlueprintAssetsReferencingTags(
+	FindAnimBlueprintAssetDataReferencingTags(
 		Preset->TargetTags,
 		Preset->bTargetTagsExactMatch,
 		TArray<FString>(),
@@ -2305,7 +2305,7 @@ int32 UKawaiiPhysicsEditorLibrary::ReapplyPresetToProject(
 
 	// アセット数が多いとロード＋適用に時間がかかるため、進捗ダイアログを表示する（キャンセル非対応）。
 	FScopedSlowTask SlowTask(static_cast<float>(AnimBlueprintAssets.Num()),
-	                          NSLOCTEXT("KawaiiPhysicsEditorLibrary", "ReapplyPresetToProjectProgress",
+	                          NSLOCTEXT("KawaiiPhysicsEditorLibrary", "ApplyPresetToProjectProgress",
 	                                    "Applying Kawaii Physics preset to AnimBlueprints..."));
 	if (!IsRunningCommandlet() && !FApp::IsUnattended() && FSlateApplication::IsInitialized())
 	{
@@ -2357,7 +2357,7 @@ int32 UKawaiiPhysicsEditorLibrary::ReapplyPresetToProject(
 				if (!bPackageCheckedOut)
 				{
 					UE_LOG(LogKawaiiPhysics, Warning,
-					       TEXT("ReapplyPresetToProject: Failed to check out package '%s'. Skipping matched nodes in this asset."),
+					       TEXT("ApplyPresetToProject: Failed to check out package '%s'. Skipping matched nodes in this asset."),
 					       Package ? *Package->GetName() : TEXT("<None>"));
 				}
 			}
@@ -2390,7 +2390,7 @@ int32 UKawaiiPhysicsEditorLibrary::ReapplyPresetToProject(
 	}
 
 	UE_LOG(LogKawaiiPhysics, Display,
-	       TEXT("ReapplyPresetToProject: Preset=%s MatchedNodes=%d AppliedNodes=%d SkippedNodes=%d"),
+	       TEXT("ApplyPresetToProject: Preset=%s MatchedNodes=%d AppliedNodes=%d SkippedNodes=%d"),
 	       *Preset->GetPathName(),
 	       MatchedNodeCount,
 	       AppliedNodeCount,
@@ -2408,10 +2408,10 @@ bool UKawaiiPhysicsEditorLibrary::AuditKawaiiPhysicsNodes(
 	OutEntries.Reset();
 
 	TArray<FAssetData> AnimBlueprintAssets;
-	GetAnimBlueprintAssetsReferencingTags(FilterTags, bFilterExactMatch, ContentPaths, AnimBlueprintAssets);
+	FindAnimBlueprintAssetDataReferencingTags(FilterTags, bFilterExactMatch, ContentPaths, AnimBlueprintAssets);
 
 	TArray<TStrongObjectPtr<UKawaiiPhysicsPresetDataAsset>> Presets;
-	UKawaiiPhysicsEditorLibrary::GetAllPresetAssets(Presets);
+	UKawaiiPhysicsEditorLibrary::FindAllPresetAssetData(Presets);
 
 	const FKawaiiPhysicsPresetApplyOptions Options;
 	bool bResult = true;
@@ -2466,7 +2466,7 @@ DEFINE_FUNCTION(UKawaiiPhysicsEditorLibrary::execSetGraphNodeWildcardProperty)
 	const FProperty* ValueProp = CastField<FProperty>(Stack.MostRecentProperty);
 	const void* ValuePtr = Stack.MostRecentPropertyAddress;
 
-	if (MutateGraphNodeProperty(
+	if (ModifyGraphNodeProperty(
 		Handle,
 		PropertyName,
 		NSLOCTEXT("KawaiiPhysicsEditorLibrary", "SetGraphNodeWildcardProperty", "Set Kawaii Physics Graph Node Wildcard Property"),
