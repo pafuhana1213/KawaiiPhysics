@@ -469,11 +469,11 @@ bool FKawaiiPhysicsSequencerRegistryStopForSectionsNotInTest::RunTest(const FStr
 	return bOk;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerRegistryPruneInvalidEntriesTest,
-                                 "KawaiiPhysics.Sequencer.Section.Registry_PruneInvalidEntries",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerRegistryRemoveInvalidEntriesTest,
+                                 "KawaiiPhysics.Sequencer.Section.Registry_RemoveInvalidEntries",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FKawaiiPhysicsSequencerRegistryPruneInvalidEntriesTest::RunTest(const FString& Parameters)
+bool FKawaiiPhysicsSequencerRegistryRemoveInvalidEntriesTest::RunTest(const FString& Parameters)
 {
 	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* Section = NewSection();
 	{
@@ -483,8 +483,8 @@ bool FKawaiiPhysicsSequencerRegistryPruneInvalidEntriesTest::RunTest(const FStri
 		          FKawaiiPhysicsSequencerMultiplierRegistry::Get().CountEntriesForSectionForTesting(Section), 1);
 	}
 
-	FKawaiiPhysicsSequencerMultiplierRegistry::Get().PruneInvalidEntries();
-	return TestEqual(TEXT("Invalid entry pruned"),
+	FKawaiiPhysicsSequencerMultiplierRegistry::Get().RemoveInvalidEntries();
+	return TestEqual(TEXT("Invalid entry removed"),
 	                 FKawaiiPhysicsSequencerMultiplierRegistry::Get().CountEntriesForSectionForTesting(Section), 0);
 }
 

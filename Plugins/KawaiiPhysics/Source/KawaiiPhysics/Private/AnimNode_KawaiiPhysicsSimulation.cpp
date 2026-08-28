@@ -292,7 +292,7 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 	}
 }
 
-void FAnimNode_KawaiiPhysics::ConsumeAndPruneTransientExternalForces(const float InFrameDeltaTime)
+void FAnimNode_KawaiiPhysics::ConsumeAndRemoveExpiredTransientExternalForces(const float InFrameDeltaTime)
 {
 	for (int32 i = TransientForceStore.Items.Num() - 1; i >= 0; --i)
 	{

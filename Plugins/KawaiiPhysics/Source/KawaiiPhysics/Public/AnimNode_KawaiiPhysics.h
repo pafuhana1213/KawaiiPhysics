@@ -691,11 +691,11 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	 * キュー済み一時外力を worker で取り込み、寿命切れを掃除する。worker 専用で 1 evaluate 1 回だけ呼ぶ。
 	 * BP再コンパイルやノード再初期化で失われる。Initialize(Context) は呼ばれないため汎用外力では制限あり
 	 * （ProceduralWind は PreApply で RuntimeState を遅延生成するため安全）。
-	 * Consume queued transient forces on the worker and prune expired entries. Worker-only; call once per evaluate.
+	 * Consume queued transient forces on the worker and remove expired entries. Worker-only; call once per evaluate.
 	 * Lost on BP recompile or node re-init. Initialize(Context) is not called, which limits generic use
 	 * (ProceduralWind is safe because it lazily creates RuntimeState in PreApply).
 	 */
-	void ConsumeAndPruneTransientExternalForces(float InFrameDeltaTime);
+	void ConsumeAndRemoveExpiredTransientExternalForces(float InFrameDeltaTime);
 
 	/**
 	 * 物理設定への一時倍率をリクエストする。任意スレッド可で、Mutex 保護されたキューへ積む。
