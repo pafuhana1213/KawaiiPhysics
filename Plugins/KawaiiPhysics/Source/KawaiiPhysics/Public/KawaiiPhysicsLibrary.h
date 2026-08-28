@@ -236,7 +236,7 @@ public:
 	                                                               bool bBoneSubdivisionCollisionOnly)
 	{
 		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-			TEXT("SetbBoneSubdivisionCollisionOnly"),
+			TEXT("SetBoneSubdivisionCollisionOnly"),
 			[bBoneSubdivisionCollisionOnly](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
 				InKawaiiPhysics.bBoneSubdivisionCollisionOnly = bBoneSubdivisionCollisionOnly;
 				InKawaiiPhysics.RequestModifyBonesReinit();
@@ -436,7 +436,7 @@ public:
 		const FKawaiiPhysicsReference& KawaiiPhysics, bool bSkipMirroredBoneWithExistingCollision)
 	{
 		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-			TEXT("SetbSkipMirroredBoneWithExistingCollision"),
+			TEXT("SetSkipMirroredBoneWithExistingCollision"),
 			[bSkipMirroredBoneWithExistingCollision](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
 				InKawaiiPhysics.bSkipMirroredBoneWithExistingCollision = bSkipMirroredBoneWithExistingCollision;
 				InKawaiiPhysics.RequestModifyBonesReinit();
@@ -992,7 +992,7 @@ public:
 	                                                        bool bSharedCollisionSource)
 	{
 		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-			TEXT("SetbSharedCollisionSource"),
+			TEXT("SetSharedCollisionSource"),
 			[bSharedCollisionSource](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
 				InKawaiiPhysics.bSharedCollisionSource = bSharedCollisionSource;
 				InKawaiiPhysics.RequestSharedCollisionReinit();
@@ -1015,7 +1015,7 @@ public:
 	                                                     bool bUseSharedCollision)
 	{
 		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-			TEXT("SetbUseSharedCollision"),
+			TEXT("SetUseSharedCollision"),
 			[bUseSharedCollision](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
 				InKawaiiPhysics.bUseSharedCollision = bUseSharedCollision;
 				InKawaiiPhysics.RequestSharedCollisionReinit();

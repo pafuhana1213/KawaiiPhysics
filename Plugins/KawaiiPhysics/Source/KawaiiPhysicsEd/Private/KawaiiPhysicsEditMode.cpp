@@ -132,7 +132,7 @@ void FKawaiiPhysicsEditMode::Render(const FSceneView* View, FViewport* Viewport,
 		RenderCapsuleLimit(PDI);
 		RenderTaperedCapsuleLimit(PDI);
 		RenderBoxLimit(PDI);
-		RenderPlanerLimit(PDI);
+		RenderPlanarLimit(PDI);
 		RenderBoneConstraint(PDI);
 		RenderExternalForces(PDI);
 
@@ -578,9 +578,9 @@ void FKawaiiPhysicsEditMode::RenderBoxLimit(FPrimitiveDrawInterface* PDI) const
 	}
 }
 
-void FKawaiiPhysicsEditMode::RenderPlanerLimit(FPrimitiveDrawInterface* PDI)
+void FKawaiiPhysicsEditMode::RenderPlanarLimit(FPrimitiveDrawInterface* PDI) const
 {
-	if (GraphNode->bEnableDebugDrawPlanerLimit)
+	if (GraphNode->bEnableDebugDrawPlanarLimit)
 	{
 		auto DrawPlanarLimit = [&](const auto& Plane, int32 Index, const FMaterialRenderProxy* MaterialProxy,
 		                           bool bUseHit = true)

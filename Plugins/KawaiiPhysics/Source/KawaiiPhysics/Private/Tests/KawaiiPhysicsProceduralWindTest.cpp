@@ -413,12 +413,12 @@ bool FKawaiiPhysicsProceduralWindNoisePropertiesTest::RunTest(const FString& Par
 	// ノイズ範囲、格子点一致、連続性、ハッシュのスナップショット値を確認する。
 	using FWind = FKawaiiPhysics_ExternalForce_ProceduralWind;
 
-	// StableHashの実装は仕様式を持たないFNV-1a派生のビット演算のため、期待値は現行実装から採取したスナップショット値（回帰検出用）
-	TestEqual(TEXT("StableHash(0, 0, 0)"), FWind::StableHash(0, 0, 0), 672839204u);
-	TestEqual(TEXT("StableHash(123, 0, 0)"), FWind::StableHash(123, 0, 0), 961409981u);
-	TestEqual(TEXT("StableHash(123, 1, 0)"), FWind::StableHash(123, 1, 0), 688218621u);
-	TestEqual(TEXT("StableHash(123, -1, 0)"), FWind::StableHash(123, -1, 0), 2476066305u);
-	TestEqual(TEXT("StableHash(-17, 42, 3)"), FWind::StableHash(-17, 42, 3), 1090092324u);
+	// ComputeStableHashの実装は仕様式を持たないFNV-1a派生のビット演算のため、期待値は現行実装から採取したスナップショット値（回帰検出用）
+	TestEqual(TEXT("ComputeStableHash(0, 0, 0)"), FWind::ComputeStableHash(0, 0, 0), 672839204u);
+	TestEqual(TEXT("ComputeStableHash(123, 0, 0)"), FWind::ComputeStableHash(123, 0, 0), 961409981u);
+	TestEqual(TEXT("ComputeStableHash(123, 1, 0)"), FWind::ComputeStableHash(123, 1, 0), 688218621u);
+	TestEqual(TEXT("ComputeStableHash(123, -1, 0)"), FWind::ComputeStableHash(123, -1, 0), 2476066305u);
+	TestEqual(TEXT("ComputeStableHash(-17, 42, 3)"), FWind::ComputeStableHash(-17, 42, 3), 1090092324u);
 
 	// Uを-8〜12の範囲で0.01刻みに走査し、値域[-1,1]と隣接差分が閾値以下に収まる連続性（滑らかな補間）を確認
 	float Previous = FWind::SampleSmoothNoise(-8.0f, 2468, 0);
@@ -436,11 +436,11 @@ bool FKawaiiPhysicsProceduralWindNoisePropertiesTest::RunTest(const FString& Par
 		Previous = Value;
 	}
 
-	// 整数座標では滑らか補間の結果が格子点の生値（NoiseValueAt）と一致する（補間の境界条件）ことを確認
+	// 整数座標では滑らか補間の結果が格子点の生値（SampleNoiseAt）と一致する（補間の境界条件）ことを確認
 	for (int32 GridIndex = -8; GridIndex <= 8; ++GridIndex)
 	{
 		const float Smooth = FWind::SampleSmoothNoise(static_cast<float>(GridIndex), 2468, 1);
-		const float Grid = FWind::NoiseValueAt(GridIndex, 2468, 1);
+		const float Grid = FWind::SampleNoiseAt(GridIndex, 2468, 1);
 		TestTrue(FString::Printf(TEXT("Grid match %d: smooth=%.9f grid=%.9f"), GridIndex, Smooth, Grid),
 		         Smooth == Grid);
 	}

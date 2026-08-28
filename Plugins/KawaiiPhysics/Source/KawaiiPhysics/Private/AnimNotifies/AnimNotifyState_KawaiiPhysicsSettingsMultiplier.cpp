@@ -34,7 +34,7 @@ void UAnimNotifyState_KawaiiPhysicsSettingsMultiplier::NotifyBegin(USkeletalMesh
 		return;
 	}
 
-	SweepStaleStates();
+	CleanupStaleStates();
 
 	const FActiveStateKey Key = MakeStateKey(MeshComp, EventReference);
 	if (FActiveState* ExistingState = ActiveStates.Find(Key))
@@ -119,7 +119,7 @@ void UAnimNotifyState_KawaiiPhysicsSettingsMultiplier::NotifyEnd(USkeletalMeshCo
 		}
 	}
 
-	SweepStaleStates();
+	CleanupStaleStates();
 
 	Super::NotifyEnd(MeshComp, Animation, EventReference);
 }
@@ -149,7 +149,7 @@ UAnimNotifyState_KawaiiPhysicsSettingsMultiplier::MakeStateKey(
 	return Key;
 }
 
-void UAnimNotifyState_KawaiiPhysicsSettingsMultiplier::SweepStaleStates()
+void UAnimNotifyState_KawaiiPhysicsSettingsMultiplier::CleanupStaleStates()
 {
 	for (auto It = ActiveStates.CreateIterator(); It; ++It)
 	{

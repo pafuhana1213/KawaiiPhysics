@@ -779,7 +779,7 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailDebugVisualizations(IDetailLay
 			]
 			+ SUniformGridPanel::Slot(0, 1)
 			[
-				CreateDebugButton(TEXT("Plane"),  bEnableDebugDrawPlanerLimit)
+				CreateDebugButton(TEXT("Plane"),  bEnableDebugDrawPlanarLimit)
 			]
 			+ SUniformGridPanel::Slot(1, 1)
 			[

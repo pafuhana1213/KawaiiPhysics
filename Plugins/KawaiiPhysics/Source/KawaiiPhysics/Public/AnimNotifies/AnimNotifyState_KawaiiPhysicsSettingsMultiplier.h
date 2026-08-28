@@ -137,12 +137,12 @@ private:
 	 * 有効な NotifyState はアニメーション更新ごとに毎フレーム Tick されるため、このフレーム数だけ触られていないエントリは NotifyEnd を失って（例: エディタ再インスタンス化）Notify 側の帳簿だけが残っている。ノード側の倍率は Lease で既にフェード済み。
 	 * 既知の制限: 掃除はこの Notify の次の NotifyBegin/NotifyEnd（どの Component 上でも可）で走るため、それまでは弱参照キーと数値だけの小さなエントリが残る。アセット共有オブジェクトに Ticker を持たせる寿命リスクの方が大きいため意図的にこの設計にしている。
 	 * A live NotifyState ticks every frame the animation updates, so an entry untouched for this many frames has lost NotifyEnd (for example, editor reinstancing) and only notify-side bookkeeping remains; the node-side multiplier has already faded via the lease.
-	 * Known limitation: the sweep runs on the next NotifyBegin/NotifyEnd of this notify (on any component), so a small weak-keyed, numeric-only entry can linger until then. This is intentional: a ticker on an asset-shared object would carry a bigger lifetime risk.
+	 * Known limitation: the cleanup runs on the next NotifyBegin/NotifyEnd of this notify (on any component), so a small weak-keyed, numeric-only entry can linger until then. This is intentional: a ticker on an asset-shared object would carry a bigger lifetime risk.
 	 */
 	static constexpr uint64 StaleStateFrameThreshold = 300;
 
 	static FActiveStateKey MakeStateKey(USkeletalMeshComponent* MeshComp,
 	                                    const FAnimNotifyEventReference& EventReference);
-	void SweepStaleStates();
+	void CleanupStaleStates();
 	float ResolveWeight(USkeletalMeshComponent* MeshComp, const FActiveState& State) const;
 };

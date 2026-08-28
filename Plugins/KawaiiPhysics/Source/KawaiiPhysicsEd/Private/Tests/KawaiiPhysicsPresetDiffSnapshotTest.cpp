@@ -283,7 +283,7 @@ bool FKawaiiPhysicsPresetDiffSnapshotClipboardTest::RunTest(const FString& Param
 	}
 
 	const FText ContextLabel = FText::FromString(TEXT("PresetDiffSnapshotClipboardContext"));
-	const FString ClipboardText = KawaiiPhysicsPresetDiff::SnapshotToClipboardText(*Snapshot, ContextLabel);
+	const FString ClipboardText = KawaiiPhysicsPresetDiff::MakeClipboardTextFromSnapshot(*Snapshot, ContextLabel);
 
 	bool bOk = true;
 	bOk &= TestTrue(TEXT("Clipboard text contains header"),

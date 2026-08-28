@@ -119,7 +119,7 @@ namespace KawaiiPhysicsPresetDiff
 		return Snapshots;
 	}
 
-	FString SnapshotToClipboardText(const FKawaiiPhysicsPresetDiffSnapshot& Snapshot, const FText& ContextLabel)
+	FString MakeClipboardTextFromSnapshot(const FKawaiiPhysicsPresetDiffSnapshot& Snapshot, const FText& ContextLabel)
 	{
 		TArray<FString> Lines;
 		Lines.Add(TEXT("Context\tPreset\tPresetPath\tPropertyName\tDisplayName\tCategory\tNodeValue\tPresetValue"));

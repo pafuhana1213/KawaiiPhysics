@@ -6,7 +6,7 @@
 
 #include "SKawaiiPhysicsWindScopeWindow.h"
 
-struct FKawaiiWindScopeComponentStyle
+struct FKawaiiPhysicsWindScopeComponentStyle
 {
 	EKawaiiPhysicsWindScopeComponent Component;
 	FText Label;
@@ -16,9 +16,9 @@ struct FKawaiiWindScopeComponentStyle
 };
 
 // 各波形成分の表示スタイル（色・凡例ラベル・線種）を定義する
-inline const TArray<FKawaiiWindScopeComponentStyle>& GetWindScopeComponentStyles()
+inline const TArray<FKawaiiPhysicsWindScopeComponentStyle>& GetWindScopeComponentStyles()
 {
-	static const TArray<FKawaiiWindScopeComponentStyle> Styles =
+	static const TArray<FKawaiiPhysicsWindScopeComponentStyle> Styles =
 	{
 		{EKawaiiPhysicsWindScopeComponent::Total, NSLOCTEXT("KawaiiPhysicsWindScopeWindow", "TotalLabel", "Total"), FLinearColor::White, 2.0f, false},
 		{EKawaiiPhysicsWindScopeComponent::Constant, NSLOCTEXT("KawaiiPhysicsWindScopeWindow", "ConstantLabel", "Constant"), FLinearColor(1.0f, 0.48f, 0.08f), 1.0f, false},

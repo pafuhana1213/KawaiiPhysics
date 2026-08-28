@@ -64,13 +64,6 @@ namespace
 	constexpr int32 KawaiiPhysicsPlacementEstimatedOtherNodeWidth = 250;
 	constexpr int32 KawaiiPhysicsPlacementEstimatedOtherNodeHeight = 120;
 
-	// UE5.5未満ではUEdGraphNode_Comment継承クラスがリンクできないため、素のコメント枠を使う
-#if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
-	using FKawaiiMcpCommentNode = UKawaiiPhysicsMcpCommentNode;
-#else
-	using FKawaiiMcpCommentNode = UEdGraphNode_Comment;
-#endif
-
 	UAnimGraphNode_KawaiiPhysics* GetGraphNode(const FKawaiiPhysicsGraphNodeHandle& Handle)
 	{
 		return Handle.Node.Get();
@@ -191,7 +184,7 @@ namespace
 		}
 	}
 
-	struct FKawaiiTagNameFilter
+	struct FKawaiiPhysicsTagNameFilter
 	{
 		TSet<FName> ExactNames;
 		TArray<FString> ChildPrefixes;
@@ -220,9 +213,9 @@ namespace
 		}
 	};
 
-	FKawaiiTagNameFilter MakeTagNameFilter(const FGameplayTagContainer& FilterTags, const bool bFilterExactMatch)
+	FKawaiiPhysicsTagNameFilter MakeTagNameFilter(const FGameplayTagContainer& FilterTags, const bool bFilterExactMatch)
 	{
-		FKawaiiTagNameFilter Result;
+		FKawaiiPhysicsTagNameFilter Result;
 		for (const FGameplayTag& FilterTag : FilterTags)
 		{
 			const FName TagName = FilterTag.GetTagName();
@@ -769,11 +762,11 @@ namespace
 		return nullptr;
 	}
 
-	bool CalculateMcpCommentBounds(const TArray<FKawaiiPhysicsGraphNodeHandle>& Handles,
-	                               int32& OutNodePosX,
-	                               int32& OutNodePosY,
-	                               int32& OutNodeWidth,
-	                               int32& OutNodeHeight)
+	bool ComputeMcpCommentBounds(const TArray<FKawaiiPhysicsGraphNodeHandle>& Handles,
+	                             int32& OutNodePosX,
+	                             int32& OutNodePosY,
+	                             int32& OutNodeWidth,
+	                             int32& OutNodeHeight)
 	{
 		int32 MinX = TNumericLimits<int32>::Max();
 		int32 MinY = TNumericLimits<int32>::Max();
@@ -811,7 +804,12 @@ namespace
 		return true;
 	}
 
-	void ApplyMcpCommentNodeState(FKawaiiMcpCommentNode* CommentNode,
+	// UE5.5未満ではUEdGraphNode_Comment継承クラスがリンクできないため、素のコメント枠を使う
+#if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
+	void ApplyMcpCommentNodeState(UKawaiiPhysicsMcpCommentNode* CommentNode,
+#else
+	void ApplyMcpCommentNodeState(UEdGraphNode_Comment* CommentNode,
+#endif
 	                              const TArray<FKawaiiPhysicsGraphNodeHandle>& Handles,
 	                              const FString& CommentText,
 	                              const FString& Prompt,
@@ -826,7 +824,7 @@ namespace
 		int32 NodePosY = 0;
 		int32 NodeWidth = 0;
 		int32 NodeHeight = 0;
-		if (!CalculateMcpCommentBounds(Handles, NodePosX, NodePosY, NodeWidth, NodeHeight))
+		if (!ComputeMcpCommentBounds(Handles, NodePosX, NodePosY, NodeWidth, NodeHeight))
 		{
 			return;
 		}
@@ -882,10 +880,17 @@ namespace
 		// 同じコメント本文の枠があれば更新し、なければ新規作成する。戻り値は新規作成の有無を表す。
 		for (UEdGraphNode* Node : Graph->Nodes)
 		{
-			FKawaiiMcpCommentNode* CommentNode = Cast<FKawaiiMcpCommentNode>(Node);
+#if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
+			UKawaiiPhysicsMcpCommentNode* CommentNode = Cast<UKawaiiPhysicsMcpCommentNode>(Node);
 			if (!CommentNode ||
-				CommentNode->GetClass() != FKawaiiMcpCommentNode::StaticClass() ||
+				CommentNode->GetClass() != UKawaiiPhysicsMcpCommentNode::StaticClass() ||
 				CommentNode->NodeComment != CommentText)
+#else
+			UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node);
+			if (!CommentNode ||
+				CommentNode->GetClass() != UEdGraphNode_Comment::StaticClass() ||
+				CommentNode->NodeComment != CommentText)
+#endif
 			{
 				continue;
 			}
@@ -897,8 +902,13 @@ namespace
 		}
 
 		Graph->Modify();
-		FGraphNodeCreator<FKawaiiMcpCommentNode> NodeCreator(*Graph);
-		FKawaiiMcpCommentNode* CommentNode = NodeCreator.CreateNode(false);
+#if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
+		FGraphNodeCreator<UKawaiiPhysicsMcpCommentNode> NodeCreator(*Graph);
+		UKawaiiPhysicsMcpCommentNode* CommentNode = NodeCreator.CreateNode(false);
+#else
+		FGraphNodeCreator<UEdGraphNode_Comment> NodeCreator(*Graph);
+		UEdGraphNode_Comment* CommentNode = NodeCreator.CreateNode(false);
+#endif
 		NodeCreator.Finalize();
 		ApplyMcpCommentNodeState(CommentNode, Handles, CommentText, Prompt, true);
 		Graph->NotifyNodeChanged(CommentNode);
@@ -981,7 +991,7 @@ namespace
 			}
 
 #if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
-			if (const FKawaiiMcpCommentNode* CommentNode = Cast<FKawaiiMcpCommentNode>(Node))
+			if (const UKawaiiPhysicsMcpCommentNode* CommentNode = Cast<UKawaiiPhysicsMcpCommentNode>(Node))
 			{
 				if (DoPlacementRectsOverlap(
 					CandidateRect,
@@ -1481,7 +1491,7 @@ void UKawaiiPhysicsEditorLibrary::GetAnimBlueprintAssetsReferencingTags(
 	FAssetRegistryModule& AssetRegistryModule =
 		FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
-	const FKawaiiTagNameFilter TagNameFilter = MakeTagNameFilter(FilterTags, bFilterExactMatch);
+	const FKawaiiPhysicsTagNameFilter TagNameFilter = MakeTagNameFilter(FilterTags, bFilterExactMatch);
 	const FName GameplayTagPackageName = FGameplayTag::StaticStruct()->GetOutermost()->GetFName();
 	const FName GameplayTagStructName = FGameplayTag::StaticStruct()->GetFName();
 

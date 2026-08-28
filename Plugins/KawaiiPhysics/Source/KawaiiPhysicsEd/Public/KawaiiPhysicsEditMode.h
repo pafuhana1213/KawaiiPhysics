@@ -60,7 +60,7 @@ private:
 	void RenderCapsuleLimit(FPrimitiveDrawInterface* PDI) const;
 	void RenderTaperedCapsuleLimit(FPrimitiveDrawInterface* PDI) const;
 	void RenderBoxLimit(FPrimitiveDrawInterface* PDI) const;
-	void RenderPlanerLimit(FPrimitiveDrawInterface* PDI);
+	void RenderPlanarLimit(FPrimitiveDrawInterface* PDI) const;
 
 	void RenderBoneConstraint(FPrimitiveDrawInterface* PDI) const;
 	void RenderExternalForces(FPrimitiveDrawInterface* PDI) const;

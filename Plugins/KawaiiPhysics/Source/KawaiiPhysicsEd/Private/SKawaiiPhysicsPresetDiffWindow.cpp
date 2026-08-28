@@ -725,7 +725,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnCopyClicked()
 		return FReply::Handled();
 	}
 
-	const FString ClipboardText = KawaiiPhysicsPresetDiff::SnapshotToClipboardText(*SelectedSnapshot, ContextLabel);
+	const FString ClipboardText = KawaiiPhysicsPresetDiff::MakeClipboardTextFromSnapshot(*SelectedSnapshot, ContextLabel);
 	FPlatformApplicationMisc::ClipboardCopy(*ClipboardText);
 	KawaiiPhysicsEdWindowUtils::ShowNotification(
 		LOCTEXT("CopySucceeded", "Copied preset diff to clipboard."),

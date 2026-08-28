@@ -18,7 +18,7 @@
  * 単発の AnimNotify で KawaiiPhysics に外力を追加する（タグでフィルタ可能）。
  * AnimNotify that adds external forces to KawaiiPhysics nodes when triggered (filterable by tag).
  */
-UCLASS(Blueprintable, meta = (DisplayName = "KawaiiPhysics: Add ExternalForce"))
+UCLASS(Blueprintable, meta = (DisplayName = "KawaiiPhysics: Add ExternalForce (Pulse)"))
 class KAWAIIPHYSICS_API UAnimNotify_KawaiiPhysicsAddExternalForce : public UAnimNotify
 {
 	GENERATED_BODY()
