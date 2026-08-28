@@ -769,7 +769,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	UpdateSkelCompMove(Output, ComponentTransform);
 
 	// 一時外力は評価ごとに1回だけ取り込み、WarmUpの反復やTeleport時のSimulateスキップに左右されないようにする
-	ConsumeAndPruneTransientExternalForces(DeltaTime);
+	ConsumeAndRemoveExpiredTransientExternalForces(DeltaTime);
 
 	// 物理の荒ぶりを回避するための空回し処理
 	if (bNeedWarmUp && WarmUpFrames > 0)
