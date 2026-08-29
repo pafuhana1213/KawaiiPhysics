@@ -6,6 +6,7 @@
 
 #include "Camera/PlayerCameraManager.h"
 #include "CollisionQueryParams.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "DrawDebugHelpers.h"
@@ -35,6 +36,38 @@ namespace
 		FTransform ComponentTM = Component.GetComponentTransform();
 		ComponentTM.SetScale3D(FVector::OneVector);
 		return ComponentTM;
+	}
+
+	FTransform GetScaleStrippedKawaiiPhysicsSimpleWorldInstanceTransform(const FTransform& InstanceTM)
+	{
+		FTransform ScaleStrippedInstanceTM = InstanceTM;
+		ScaleStrippedInstanceTM.SetScale3D(FVector::OneVector);
+		return ScaleStrippedInstanceTM;
+	}
+
+	struct FKawaiiPhysicsSimpleWorldGatherKey
+	{
+		const UPrimitiveComponent* Component = nullptr;
+		int32 InstanceIndex = INDEX_NONE;
+
+		FKawaiiPhysicsSimpleWorldGatherKey(const UPrimitiveComponent* InComponent, int32 InInstanceIndex)
+			: Component(InComponent)
+			, InstanceIndex(InInstanceIndex)
+		{
+		}
+
+		friend bool operator==(
+			const FKawaiiPhysicsSimpleWorldGatherKey& Lhs,
+			const FKawaiiPhysicsSimpleWorldGatherKey& Rhs)
+		{
+			return Lhs.Component == Rhs.Component && Lhs.InstanceIndex == Rhs.InstanceIndex;
+		}
+	};
+
+	uint32 GetTypeHash(const FKawaiiPhysicsSimpleWorldGatherKey& Key)
+	{
+		// 無名namespace内の同名GetTypeHashに隠されないよう、int32版はグローバルを明示する
+		return HashCombine(PointerHash(Key.Component), ::GetTypeHash(Key.InstanceIndex));
 	}
 
 	bool IsSimpleWorldAggGeomEmpty(const FKAggregateGeom& AggGeom)
@@ -71,6 +104,7 @@ namespace
 	bool BuildLocalLimitsForSimpleWorldComponent(
 		UPrimitiveComponent& Component,
 		const FTransform& ComponentTM,
+		const FVector& Scale3D,
 		const FKawaiiPhysicsSimpleWorldCollisionDesc& Desc,
 		FKawaiiPhysicsSharedCollisionData& OutLocalLimits)
 	{
@@ -97,7 +131,7 @@ namespace
 		{
 			KawaiiPhysicsSimpleWorldCollision::ConvertAggGeomToLocalLimits(
 				BodySetup->AggGeom,
-				Component.GetComponentScale(),
+				Scale3D,
 				Desc.ComplexShapeApproximation,
 				OutLocalLimits);
 		}
@@ -739,9 +773,10 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 				FCollisionShape::MakeSphere(Radius),
 				QueryParams);
 
-			TSet<const UPrimitiveComponent*> UniqueComponents;
+			TSet<FKawaiiPhysicsSimpleWorldGatherKey> UniqueGatherKeys;
 			TArray<FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent> NewGatheredComponents;
-			NewGatheredComponents.Reserve(FMath::Max(0, FMath::Min(Entry->OverlapScratch.Num(), EffectiveMaxGatheredComponents)));
+			NewGatheredComponents.Reserve(
+				FMath::Max(0, FMath::Min(Entry->OverlapScratch.Num(), EffectiveMaxGatheredComponents)));
 
 			for (const FOverlapResult& Overlap : Entry->OverlapScratch)
 			{
@@ -751,7 +786,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 				}
 
 				UPrimitiveComponent* Component = Overlap.GetComponent();
-				if (!Component || UniqueComponents.Contains(Component))
+				if (!Component)
 				{
 					continue;
 				}
@@ -762,25 +797,55 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 					continue;
 				}
 
-				UniqueComponents.Add(Component);
+				int32 InstanceIndex = INDEX_NONE;
+				FTransform ComponentTM = GetScaleStrippedComponentTransform(*Component);
+				FVector Scale3D = Component->GetComponentScale();
+				if (const UInstancedStaticMeshComponent* ISMComponent = Cast<UInstancedStaticMeshComponent>(Component))
+				{
+					const int32 OverlapItemIndex = Overlap.GetItemIndex();
+					if (OverlapItemIndex < 0 || OverlapItemIndex >= ISMComponent->GetInstanceCount())
+					{
+						continue;
+					}
+
+					FTransform InstanceTM;
+					if (!ISMComponent->GetInstanceTransform(OverlapItemIndex, InstanceTM, true))
+					{
+						continue;
+					}
+
+					InstanceIndex = OverlapItemIndex;
+					ComponentTM = GetScaleStrippedKawaiiPhysicsSimpleWorldInstanceTransform(InstanceTM);
+					Scale3D = InstanceTM.GetScale3D();
+				}
+
+				const FKawaiiPhysicsSimpleWorldGatherKey GatherKey(Component, InstanceIndex);
+				if (UniqueGatherKeys.Contains(GatherKey))
+				{
+					continue;
+				}
+				UniqueGatherKeys.Add(GatherKey);
 
 				FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent NewComponent;
 				NewComponent.Component = Component;
+				NewComponent.InstanceIndex = InstanceIndex;
 				NewComponent.bStatic = (Component->GetMobility() == EComponentMobility::Static);
 				NewComponent.FadeAlpha = Entry->bHasGatheredOnce ? 0.0f : 1.0f;
 
 				if (const FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent* ExistingComponent =
 					Entry->GatheredComponents.FindByPredicate(
-						[Component](const FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent& Candidate)
+						[Component, InstanceIndex](
+							const FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent& Candidate)
 						{
-							return Candidate.Component.Get() == Component;
+							return Candidate.Component.Get() == Component && Candidate.InstanceIndex == InstanceIndex;
 						}))
 				{
 					NewComponent.FadeAlpha = ExistingComponent->FadeAlpha;
 				}
 
-				NewComponent.LastComponentTM = GetScaleStrippedComponentTransform(*Component);
-				if (!BuildLocalLimitsForSimpleWorldComponent(*Component, NewComponent.LastComponentTM, Desc, NewComponent.LocalLimits))
+				NewComponent.LastComponentTM = ComponentTM;
+				if (!BuildLocalLimitsForSimpleWorldComponent(
+						*Component, NewComponent.LastComponentTM, Scale3D, Desc, NewComponent.LocalLimits))
 				{
 					continue;
 				}
@@ -839,11 +904,39 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 				bDirty = true;
 			}
 
-			const FTransform CurrentComponentTM = GetScaleStrippedComponentTransform(*Component);
-			if (!ComponentIt->bStatic && !ComponentIt->LastComponentTM.Equals(CurrentComponentTM, KINDA_SMALL_NUMBER))
+			if (!ComponentIt->bStatic)
 			{
-				ComponentIt->LastComponentTM = CurrentComponentTM;
-				bDirty = true;
+				FTransform CurrentComponentTM = GetScaleStrippedComponentTransform(*Component);
+				if (ComponentIt->InstanceIndex != INDEX_NONE)
+				{
+					const UInstancedStaticMeshComponent* ISMComponent =
+						Cast<const UInstancedStaticMeshComponent>(Component);
+					if (!ISMComponent
+						|| ComponentIt->InstanceIndex < 0
+						|| ComponentIt->InstanceIndex >= ISMComponent->GetInstanceCount())
+					{
+						ComponentIt.RemoveCurrent();
+						Entry->TimeSinceLastGather = FLT_MAX;
+						bDirty = true;
+						continue;
+					}
+
+					FTransform InstanceTM;
+					if (!ISMComponent->GetInstanceTransform(ComponentIt->InstanceIndex, InstanceTM, true))
+					{
+						ComponentIt.RemoveCurrent();
+						Entry->TimeSinceLastGather = FLT_MAX;
+						bDirty = true;
+						continue;
+					}
+					CurrentComponentTM = GetScaleStrippedKawaiiPhysicsSimpleWorldInstanceTransform(InstanceTM);
+				}
+
+				if (!ComponentIt->LastComponentTM.Equals(CurrentComponentTM, KINDA_SMALL_NUMBER))
+				{
+					ComponentIt->LastComponentTM = CurrentComponentTM;
+					bDirty = true;
+				}
 			}
 		}
 

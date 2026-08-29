@@ -136,6 +136,8 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionDesc
  * スレッド境界 / Thread boundary:
  * - Worker: SetDesc / RemoveDesc / MarkRead / RequestRegather / Slot.AppendTo
  * - GameThread Tick: RemoveExpiredDescs / BuildMergedDesc / world query, GatheredComponents更新, Slot.Publish
+ * ISM / HISM はインスタンス単位で収集し、MaxGatheredComponents はインスタンス数に対して効きます。
+ * ISM / HISM are gathered per instance, and MaxGatheredComponents applies to instance count.
  */
 struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionEntry
 {
@@ -158,6 +160,11 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionEntry
 	struct FGatheredComponent
 	{
 		TWeakObjectPtr<const UPrimitiveComponent> Component;
+		/**
+		 * ISM/HISM のインスタンス index。非 ISM は INDEX_NONE
+		 * ISM/HISM instance index. INDEX_NONE for non-ISM.
+		 */
+		int32 InstanceIndex = INDEX_NONE;
 		bool bStatic = false;
 		float FadeAlpha = 1.0f;
 		FTransform LastComponentTM;
