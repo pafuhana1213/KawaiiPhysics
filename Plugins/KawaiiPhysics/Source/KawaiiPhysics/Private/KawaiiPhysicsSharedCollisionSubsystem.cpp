@@ -27,6 +27,14 @@ namespace
 	constexpr float GSimpleWorldGroundBoxHalfThickness = 10.0f;
 	const FName GSimpleWorldIgnoreTagName(TEXT("KawaiiPhysics.IgnoreSimpleWorldCollision"));
 
+	// SkeletalMeshComponentのPhysicsAsset収集結果。BoundsBoxフォールバック可否を区別する。
+	enum class EKawaiiPhysicsSimpleWorldSkeletalBuildResult : uint8
+	{
+		Built,
+		NoPhysicsAssetData,
+		NoAcceptedBodies,
+	};
+
 	void InitializeGatheredSimpleWorldLimit(FCollisionLimitBase& Limit)
 	{
 		Limit.bEnable = true;
@@ -112,7 +120,7 @@ namespace
 		FKawaiiPhysicsSharedCollisionData& OutLocalLimits,
 		TArray<KawaiiPhysicsSimpleWorldCollision::FKawaiiPhysicsSimpleWorldBodyBinding>& OutBodyBindings);
 
-	bool BuildSkeletalLocalLimitsForSimpleWorldComponent(
+	EKawaiiPhysicsSimpleWorldSkeletalBuildResult BuildSkeletalLocalLimitsForSimpleWorldComponent(
 		const USkeletalMeshComponent& SkelComp,
 		const FVector& Scale3D,
 		const FKawaiiPhysicsSimpleWorldCollisionDesc& Desc,
@@ -127,7 +135,7 @@ namespace
 		const USkinnedAsset* SkinnedAsset = SkelComp.GetSkinnedAsset();
 		if (!PhysicsAsset || !SkinnedAsset || SkelComp.GetNumComponentSpaceTransforms() == 0)
 		{
-			return false;
+			return EKawaiiPhysicsSimpleWorldSkeletalBuildResult::NoPhysicsAssetData;
 		}
 
 		const int32 NumBodies = KawaiiPhysicsSimpleWorldCollision::AppendPhysicsAssetLocalLimits(
@@ -139,7 +147,9 @@ namespace
 			OutLocalLimits,
 			OutBodyBindings);
 
-		return NumBodies > 0;
+		return NumBodies > 0
+			? EKawaiiPhysicsSimpleWorldSkeletalBuildResult::Built
+			: EKawaiiPhysicsSimpleWorldSkeletalBuildResult::NoAcceptedBodies;
 	}
 
 	bool BuildLocalLimitsForSimpleWorldComponent(
@@ -168,14 +178,23 @@ namespace
 				return false;
 			}
 
-			if (Desc.SkeletalMeshMode == EKawaiiPhysicsSimpleWorldSkeletalMeshMode::PhysicsAsset
-				&& BuildSkeletalLocalLimitsForSimpleWorldComponent(
-					*SkelComp, Scale3D, Desc, MaxPhysicsAssetBodies, OutLocalLimits, OutBodyBindings))
+			if (Desc.SkeletalMeshMode == EKawaiiPhysicsSimpleWorldSkeletalMeshMode::PhysicsAsset)
 			{
-				return true;
+				const EKawaiiPhysicsSimpleWorldSkeletalBuildResult BuildResult =
+					BuildSkeletalLocalLimitsForSimpleWorldComponent(
+						*SkelComp, Scale3D, Desc, MaxPhysicsAssetBodies, OutLocalLimits, OutBodyBindings);
+				if (BuildResult == EKawaiiPhysicsSimpleWorldSkeletalBuildResult::Built)
+				{
+					return true;
+				}
+				if (BuildResult == EKawaiiPhysicsSimpleWorldSkeletalBuildResult::NoAcceptedBodies)
+				{
+					// PhysicsAsset があるのに採用 body が 0 なのは作者が意図的にコリジョンを切っている状態なので Box 化しない。
+					return false;
+				}
 			}
 
-			// PhysicsAsset未設定、SkinnedAsset未設定、ComponentSpaceTransforms未生成、または採用bodyなしの場合はBoundsBoxへフォールバックする。
+			// PhysicsAsset未設定、SkinnedAsset未設定、ComponentSpaceTransforms未生成の場合はBoundsBoxへフォールバックする。
 			KawaiiPhysicsSimpleWorldCollision::AppendBoundsLocalLimits(
 				Component.Bounds,
 				ComponentTM,

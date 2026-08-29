@@ -38,8 +38,8 @@ enum class EKawaiiPhysicsSimpleWorldSkeletalMeshMode : uint8
 	Ignore UMETA(ToolTip = "無視します（既定） / Skip skeletal meshes (default)."),
 	/** Bounds から単一の Box として安価に近似します / Cheaply approximate Bounds as a single Box. */
 	BoundsBox UMETA(ToolTip = "Bounds から単一の Box として安価に近似します / Cheaply approximate Bounds as a single Box."),
-	/** PhysicsAsset の Body をボーン追従で変換します。上限は Max PhysicsAsset Bodies で、PhysicsAsset 無しは BoundsBox 相当になります。ポーズは 1 フレーム遅れ得ます。アニメ由来のボーンスケールは形状サイズへ反映しません。 / Transform PhysicsAsset bodies by following bones. Limited by Max PhysicsAsset Bodies; falls back to BoundsBox when no PhysicsAsset is available. Pose data may be one frame late. Bone scale from animation is not applied to shape sizes. */
-	PhysicsAsset UMETA(ToolTip = "PhysicsAsset の Body をボーン追従で変換します。上限は Max PhysicsAsset Bodies で、PhysicsAsset 無しは BoundsBox 相当になります。ポーズは 1 フレーム遅れ得ます。アニメ由来のボーンスケールは形状サイズへ反映しません。 / Transform PhysicsAsset bodies by following bones. Limited by Max PhysicsAsset Bodies; falls back to BoundsBox when no PhysicsAsset is available. Pose data may be one frame late. Bone scale from animation is not applied to shape sizes."),
+	/** PhysicsAsset の Body をボーン追従で変換します。上限は Max PhysicsAsset Bodies で、PhysicsAsset 無しは BoundsBox 相当、PhysicsAsset があって有効な body が無い場合は収集しません。ポーズは 1 フレーム遅れ得ます。アニメ由来のボーンスケールは形状サイズへ反映しません。 / Transform PhysicsAsset bodies by following bones. Limited by Max PhysicsAsset Bodies; no PhysicsAsset behaves like BoundsBox, and when a PhysicsAsset exists but has no valid body, it is not gathered. Pose data may be one frame late. Bone scale from animation is not applied to shape sizes. */
+	PhysicsAsset UMETA(ToolTip = "PhysicsAsset の Body をボーン追従で変換します。上限は Max PhysicsAsset Bodies で、PhysicsAsset 無しは BoundsBox 相当、PhysicsAsset があって有効な body が無い場合は収集しません。ポーズは 1 フレーム遅れ得ます。アニメ由来のボーンスケールは形状サイズへ反映しません。 / Transform PhysicsAsset bodies by following bones. Limited by Max PhysicsAsset Bodies; no PhysicsAsset behaves like BoundsBox, and when a PhysicsAsset exists but has no valid body, it is not gathered. Pose data may be one frame late. Bone scale from animation is not applied to shape sizes."),
 };
 
 namespace KawaiiPhysicsSimpleWorldCollision
