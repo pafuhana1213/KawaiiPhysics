@@ -677,6 +677,19 @@ bool FKawaiiPhysicsSimpleWorldEntryLifecycleTest::RunTest(const FString& Paramet
 		TestTrue(TEXT("MarkRead returns false after expiration cleanup"), !Entry.MarkRead(SourceID1));
 	}
 
+	// SetDesc直後のDescはLastReadFrameが刻印済みのため、作成直後のcleanupでは空Entryにならない。
+	{
+		constexpr uint64 SourceID = 100;
+		FKawaiiPhysicsSimpleWorldCollisionEntry Entry;
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
+		Desc.GatherIntervalSec = 0.25f;
+		Entry.SetDesc(SourceID, Desc);
+
+		Entry.RemoveExpiredDescs(GFrameCounter, 60);
+		TestTrue(TEXT("HasAnyDesc true after immediate cleanup following SetDesc"), Entry.HasAnyDesc());
+	}
+
 	// RequestRegather / ConsumeRegatherRequested: 1回だけ true を返す
 	{
 		FKawaiiPhysicsSimpleWorldCollisionEntry Entry;
