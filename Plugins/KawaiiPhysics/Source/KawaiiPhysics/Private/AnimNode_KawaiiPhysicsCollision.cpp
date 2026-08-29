@@ -1387,6 +1387,19 @@ void FAnimNode_KawaiiPhysics::UpdateSharedCollisionLimits(
 		&SharedPlanarLimits);
 }
 
+FKawaiiPhysicsSimpleWorldCollisionDesc FAnimNode_KawaiiPhysics::BuildSimpleWorldCollisionDesc() const
+{
+	FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
+	Desc.GatherIntervalSec = SimpleWorldCollisionGatherInterval;
+	Desc.GatherRadiusOverride =
+		bOverrideSimpleWorldCollisionGatherRadius ? SimpleWorldCollisionGatherRadius : 0.0f;
+	Desc.ObjectTypes = SimpleWorldCollisionObjectTypes;
+	Desc.ComplexShapeApproximation = SimpleWorldCollisionComplexShapeApproximation;
+	Desc.SkeletalMeshMode = SimpleWorldCollisionSkeletalMeshMode;
+	Desc.bApproximateGround = bSimpleWorldCollisionApproximateGround;
+	return Desc;
+}
+
 void FAnimNode_KawaiiPhysics::InitializeSimpleWorldCollision()
 {
 	if (bSimpleWorldCollisionInitialized)
@@ -1400,9 +1413,13 @@ void FAnimNode_KawaiiPhysics::InitializeSimpleWorldCollision()
 		return;
 	}
 
-	CachedSimpleWorldEntry = Subsystem->FindOrCreateSimpleWorldEntry(CachedSimpleWorldCollisionSkelComp);
+	const uint64 SourceID = reinterpret_cast<uint64>(this);
+	const FKawaiiPhysicsSimpleWorldCollisionDesc Desc = BuildSimpleWorldCollisionDesc();
+	CachedSimpleWorldEntry = Subsystem->FindOrCreateSimpleWorldEntry(CachedSimpleWorldCollisionSkelComp, SourceID, Desc);
 	if (CachedSimpleWorldEntry.IsValid())
 	{
+		LastSentSimpleWorldDesc = Desc;
+		bSimpleWorldDescSent = true;
 		bSimpleWorldCollisionInitialized = true;
 	}
 }
@@ -1422,14 +1439,7 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 
 	const uint64 SourceID = reinterpret_cast<uint64>(this);
 
-	FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
-	Desc.GatherIntervalSec = SimpleWorldCollisionGatherInterval;
-	Desc.GatherRadiusOverride =
-		bOverrideSimpleWorldCollisionGatherRadius ? SimpleWorldCollisionGatherRadius : 0.0f;
-	Desc.ObjectTypes = SimpleWorldCollisionObjectTypes;
-	Desc.ComplexShapeApproximation = SimpleWorldCollisionComplexShapeApproximation;
-	Desc.SkeletalMeshMode = SimpleWorldCollisionSkeletalMeshMode;
-	Desc.bApproximateGround = bSimpleWorldCollisionApproximateGround;
+	const FKawaiiPhysicsSimpleWorldCollisionDesc Desc = BuildSimpleWorldCollisionDesc();
 
 	if (!bSimpleWorldDescSent || !(Desc == LastSentSimpleWorldDesc))
 	{

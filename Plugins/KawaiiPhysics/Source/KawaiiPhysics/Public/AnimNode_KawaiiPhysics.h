@@ -1458,6 +1458,12 @@ protected:
 	void InitializeSimpleWorldCollision();
 
 	/**
+	 * 現在の設定から簡易ワールドコリジョンのDescを構築する（AnyThread、UObjectをdereferenceしない）
+	 * Build the Simple World Collision Desc from current settings (any thread; does not dereference UObject)
+	 */
+	FKawaiiPhysicsSimpleWorldCollisionDesc BuildSimpleWorldCollisionDesc() const;
+
+	/**
 	 * 簡易ワールドコリジョンを読み取り、シミュレーション空間に変換する（AnyThread）
 	 * Read Simple World Collision and convert to simulation space (any thread)
 	 */

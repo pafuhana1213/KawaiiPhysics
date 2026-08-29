@@ -573,28 +573,24 @@ TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> UKawaiiPhysicsSharedCollisionSubs
 }
 
 TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> UKawaiiPhysicsSharedCollisionSubsystem::FindOrCreateSimpleWorldEntry(
-	TWeakObjectPtr<const USkeletalMeshComponent> SkelComp)
+	TWeakObjectPtr<const USkeletalMeshComponent> SkelComp, uint64 SourceID,
+	const FKawaiiPhysicsSimpleWorldCollisionDesc& InitialDesc)
 {
 	if (!SkelComp.IsValid(false, true))
 	{
 		return nullptr;
 	}
 
-	{
-		FReadScopeLock ReadLock(SimpleWorldRegistryLock);
-		if (TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>* Existing = SimpleWorldRegistry.Find(SkelComp))
-		{
-			return *Existing;
-		}
-	}
-
+	// Entry 作成と初回 Desc 登録は同一ロック内。cleanup は同ロックで HasAnyDesc を見るため、空 Entry が観測される瞬間が無い。
 	FWriteScopeLock WriteLock(SimpleWorldRegistryLock);
 	if (TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>* Existing = SimpleWorldRegistry.Find(SkelComp))
 	{
+		(*Existing)->SetDesc(SourceID, InitialDesc);
 		return *Existing;
 	}
 	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> NewEntry = MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
 	SimpleWorldRegistry.Add(SkelComp, NewEntry);
+	NewEntry->SetDesc(SourceID, InitialDesc);
 	return NewEntry;
 }
 

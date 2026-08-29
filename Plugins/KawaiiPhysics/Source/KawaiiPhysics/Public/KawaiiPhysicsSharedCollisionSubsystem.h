@@ -210,11 +210,15 @@ public:
 	TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> FindOrCreateEntry(AActor* Actor, const FGameplayTag& Tag);
 
 	/**
-	 * SimpleWorld Source用: SkelComp単位のEntryを検索、なければ作成（任意スレッドから呼べる。SkelCompをdereferenceしない）
-	 * For SimpleWorld sources: Find or create a SkelComp-level entry (callable from any thread; does not dereference SkelComp)
+	 * SimpleWorld Source用: SkelComp単位のEntryを検索、なければ作成し、作成と初回Desc登録を同一SimpleWorldRegistryLock write lock内で行う。
+	 * cleanupのHasAnyDesc()==false除去と割り込まない（任意スレッドから呼べる。SkelCompをdereferenceしない）。
+	 * For SimpleWorld sources: Find or create a SkelComp-level entry and register the initial Desc under the same
+	 * SimpleWorldRegistryLock write lock, preventing cleanup's HasAnyDesc()==false removal from interleaving
+	 * (callable from any thread; does not dereference SkelComp).
 	 */
 	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> FindOrCreateSimpleWorldEntry(
-		TWeakObjectPtr<const USkeletalMeshComponent> SkelComp);
+		TWeakObjectPtr<const USkeletalMeshComponent> SkelComp, uint64 SourceID,
+		const FKawaiiPhysicsSimpleWorldCollisionDesc& InitialDesc);
 
 	/**
 	 * Target用: Actorのファミリーrootのエントリを検索（RegistryLockでスレッドセーフ。任意スレッドから呼べる）
