@@ -6,8 +6,8 @@
 #include "KawaiiPhysicsTestHarness.h"
 #include "KawaiiPhysicsSimpleWorldCollision.h"
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
+#include "Misc/EngineVersionComparison.h"
 #include "PhysicsEngine/PhysicsAsset.h"
-#include "Runtime/Launch/Resources/Version.h"
 
 #if !UE_VERSION_OLDER_THAN(5, 5, 0)
 #include "PhysicsEngine/SkeletalBodySetup.h"
@@ -246,6 +246,40 @@ bool FKawaiiPhysicsSimpleWorldConvertAggGeomTest::RunTest(const FString& Paramet
 
 			TestTrue(TEXT("Convex Ignore: produces no limits"), OutLimits.IsEmpty());
 		}
+	}
+
+	// --- Shape単位のQuery無効設定はSimpleWorldのOverlap対象から除外する ---
+	{
+		FKAggregateGeom AggGeom;
+
+		FKSphereElem NoCollisionSphere;
+		NoCollisionSphere.Radius = 5.0f;
+		NoCollisionSphere.SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		AggGeom.SphereElems.Add(NoCollisionSphere);
+
+		FKSphereElem QueryOnlySphere;
+		QueryOnlySphere.Center = FVector(10.0f, 0.0f, 0.0f);
+		QueryOnlySphere.Radius = 7.0f;
+		QueryOnlySphere.SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		AggGeom.SphereElems.Add(QueryOnlySphere);
+
+		FKBoxElem PhysicsOnlyBox;
+		PhysicsOnlyBox.X = 4.0f;
+		PhysicsOnlyBox.Y = 6.0f;
+		PhysicsOnlyBox.Z = 8.0f;
+		PhysicsOnlyBox.SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
+		AggGeom.BoxElems.Add(PhysicsOnlyBox);
+
+		FKawaiiPhysicsSharedCollisionData OutLimits;
+		KawaiiPhysicsSimpleWorldCollision::ConvertAggGeomToLocalLimits(
+			AggGeom, FVector::OneVector, EKawaiiPhysicsComplexShapeApproximation::BoxBounds, OutLimits);
+
+		TestTrue(TEXT("NoCollision sphere and PhysicsOnly box do not produce limits"),
+		         OutLimits.SphericalLimits.Num() == 1 && OutLimits.BoxLimits.Num() == 0);
+		TestTrue(TEXT("QueryOnly sphere produces a spherical limit"),
+		         OutLimits.SphericalLimits.Num() == 1 &&
+		         OutLimits.SphericalLimits[0].Location.Equals(FVector(10.0f, 0.0f, 0.0f), GSimpleWorldTol) &&
+		         FMath::IsNearlyEqual(OutLimits.SphericalLimits[0].Radius, 7.0f, GSimpleWorldTol));
 	}
 
 	return true;
@@ -934,6 +968,28 @@ bool FKawaiiPhysicsSimpleWorldUpdateSkeletalBodyWorldTransformsTest::RunTest(con
 		         OutBodyWorldTMs[2].Equals(FTransform::Identity, GSimpleWorldTol));
 	}
 
+	{
+		const FTransform ScaledComponentTM(
+			FQuat(FVector::ZAxisVector, PI / 2.0f),
+			FVector(100.0f, 0.0f, 0.0f),
+			FVector(2.0f, 2.0f, 2.0f));
+
+		TArray<FTransform> ScaledOutBodyWorldTMs;
+		const int32 NumMissingBonesWithScale = KawaiiPhysicsSimpleWorldCollision::UpdateSkeletalBodyWorldTransforms(
+			MakeArrayView(Bindings),
+			MakeArrayView(ComponentSpaceTransforms),
+			ScaledComponentTM,
+			ScaledOutBodyWorldTMs);
+
+		TestTrue(TEXT("Scaled component reports the same missing bone count"), NumMissingBonesWithScale == 1);
+		TestTrue(TEXT("Scaled component applies scale to bone translation"),
+		         ScaledOutBodyWorldTMs.Num() == 3 &&
+		         ScaledOutBodyWorldTMs[1].GetLocation().Equals(FVector(100.0f, 0.0f, 100.0f), GSimpleWorldTol));
+		TestTrue(TEXT("Scaled component strips final body scale"),
+		         ScaledOutBodyWorldTMs.Num() == 3 &&
+		         ScaledOutBodyWorldTMs[1].GetScale3D().Equals(FVector::OneVector, GSimpleWorldTol));
+	}
+
 	return true;
 }
 
@@ -950,10 +1006,20 @@ bool FKawaiiPhysicsSimpleWorldAppendFadedSkeletalLocalLimitsTest::RunTest(const 
 
 	FKawaiiPhysicsSharedCollisionData LocalLimits;
 
-	FSphericalLimit Sphere;
-	Sphere.Location = FVector(10.0f, 0.0f, 0.0f);
-	Sphere.Radius = 4.0f;
-	LocalLimits.SphericalLimits.Add(Sphere);
+	FSphericalLimit BodyASphere0;
+	BodyASphere0.Location = FVector(10.0f, 0.0f, 0.0f);
+	BodyASphere0.Radius = 4.0f;
+	LocalLimits.SphericalLimits.Add(BodyASphere0);
+
+	FSphericalLimit BodyASphere1;
+	BodyASphere1.Location = FVector(20.0f, 0.0f, 0.0f);
+	BodyASphere1.Radius = 6.0f;
+	LocalLimits.SphericalLimits.Add(BodyASphere1);
+
+	FSphericalLimit BodyBSphere;
+	BodyBSphere.Location = FVector::ZeroVector;
+	BodyBSphere.Radius = 8.0f;
+	LocalLimits.SphericalLimits.Add(BodyBSphere);
 
 	FCapsuleLimit Capsule;
 	Capsule.Location = FVector::ZeroVector;
@@ -971,17 +1037,18 @@ bool FKawaiiPhysicsSimpleWorldAppendFadedSkeletalLocalLimitsTest::RunTest(const 
 	TArray<FKawaiiPhysicsSimpleWorldBodyBinding> Bindings;
 	FKawaiiPhysicsSimpleWorldBodyBinding BodyA;
 	BodyA.BoneIndex = 0;
-	BodyA.NumSphericalLimits = 1;
+	BodyA.NumSphericalLimits = 2;
 	BodyA.NumBoxLimits = 1;
 	Bindings.Add(BodyA);
 	FKawaiiPhysicsSimpleWorldBodyBinding BodyB;
 	BodyB.BoneIndex = 1;
+	BodyB.NumSphericalLimits = 1;
 	BodyB.NumCapsuleLimits = 1;
 	Bindings.Add(BodyB);
 
 	TArray<FTransform> BodyWorldTMs;
 	BodyWorldTMs.Add(FTransform(FQuat::Identity, FVector(0.0f, 0.0f, 100.0f)));
-	BodyWorldTMs.Add(FTransform(FQuat(FVector::ZAxisVector, PI / 2.0f), FVector::ZeroVector));
+	BodyWorldTMs.Add(FTransform(FQuat(FVector::ZAxisVector, PI / 2.0f), FVector(5.0f, 0.0f, 0.0f)));
 
 	{
 		FKawaiiPhysicsSharedCollisionData OutWorldLimits;
@@ -993,11 +1060,17 @@ bool FKawaiiPhysicsSimpleWorldAppendFadedSkeletalLocalLimitsTest::RunTest(const 
 			OutWorldLimits,
 			0.5f);
 
-		TestTrue(TEXT("FadeAlpha=0.5: sphere location follows body A"),
-		         OutWorldLimits.SphericalLimits.Num() == 1 &&
+		TestTrue(TEXT("FadeAlpha=0.5: first body A sphere location follows body A"),
+		         OutWorldLimits.SphericalLimits.Num() == 3 &&
 		         OutWorldLimits.SphericalLimits[0].Location.Equals(FVector(10.0f, 0.0f, 100.0f), GSimpleWorldTol));
+		TestTrue(TEXT("FadeAlpha=0.5: second body A sphere location follows body A"),
+		         OutWorldLimits.SphericalLimits.Num() == 3 &&
+		         OutWorldLimits.SphericalLimits[1].Location.Equals(FVector(20.0f, 0.0f, 100.0f), GSimpleWorldTol));
+		TestTrue(TEXT("FadeAlpha=0.5: body B sphere uses accumulated offset and follows body B"),
+		         OutWorldLimits.SphericalLimits.Num() == 3 &&
+		         OutWorldLimits.SphericalLimits[2].Location.Equals(FVector(5.0f, 0.0f, 0.0f), GSimpleWorldTol));
 		TestTrue(TEXT("FadeAlpha=0.5: sphere radius is halved"),
-		         OutWorldLimits.SphericalLimits.Num() == 1 &&
+		         OutWorldLimits.SphericalLimits.Num() == 3 &&
 		         FMath::IsNearlyEqual(OutWorldLimits.SphericalLimits[0].Radius, 2.0f, GSimpleWorldTol));
 		TestTrue(TEXT("FadeAlpha=0.5: box is kept at full extent"),
 		         OutWorldLimits.BoxLimits.Num() == 1 &&
@@ -1158,6 +1231,10 @@ bool FKawaiiPhysicsSimpleWorldAppendPhysicsAssetLocalLimitsTest::RunTest(const F
 	HandCapsule.Radius = 3.0f;
 	HandCapsule.Length = 12.0f;
 	HandBody->AggGeom.SphylElems.Add(HandCapsule);
+	FKSphereElem HandNoCollisionSphere;
+	HandNoCollisionSphere.Radius = 6.0f;
+	HandNoCollisionSphere.SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	HandBody->AggGeom.SphereElems.Add(HandNoCollisionSphere);
 	PhysicsAsset->SkeletalBodySetups.Add(HandBody);
 
 	USkeletalBodySetup* UnknownBody = NewObject<USkeletalBodySetup>(PhysicsAsset);
@@ -1207,6 +1284,8 @@ bool FKawaiiPhysicsSimpleWorldAppendPhysicsAssetLocalLimitsTest::RunTest(const F
 			         Bindings[0].NumSphericalLimits == 1 && Bindings[0].NumCapsuleLimits == 0);
 			TestTrue(TEXT("Hand contributes one capsule"),
 			         Bindings[1].NumCapsuleLimits == 1 && Bindings[1].NumSphericalLimits == 0);
+			TestTrue(TEXT("Hand NoCollision sphere is ignored"),
+			         Bindings[1].NumSphericalLimits == 0 && OutLimits.SphericalLimits.Num() == 1);
 		}
 	}
 
