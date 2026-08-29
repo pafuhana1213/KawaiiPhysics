@@ -46,39 +46,6 @@ namespace
 			&& AggGeom.ConvexElems.IsEmpty();
 	}
 
-	void AppendBoundsApproximationToLocalLimits(
-		const FBoxSphereBounds& Bounds,
-		const FTransform& ComponentTM,
-		EKawaiiPhysicsComplexShapeApproximation ApproxMode,
-		FKawaiiPhysicsSharedCollisionData& OutLocalLimits)
-	{
-		if (ApproxMode == EKawaiiPhysicsComplexShapeApproximation::Ignore)
-		{
-			return;
-		}
-
-		const FVector LocalCenter = ComponentTM.InverseTransformPosition(Bounds.Origin);
-		if (ApproxMode == EKawaiiPhysicsComplexShapeApproximation::BoxBounds)
-		{
-			FBoxLimit NewLimit;
-			InitializeGatheredSimpleWorldLimit(NewLimit);
-			NewLimit.Location = LocalCenter;
-			NewLimit.Rotation = FQuat::Identity;
-			NewLimit.Extent = Bounds.BoxExtent;
-			OutLocalLimits.BoxLimits.Add(NewLimit);
-		}
-		else if (ApproxMode == EKawaiiPhysicsComplexShapeApproximation::SphereBounds)
-		{
-			FSphericalLimit NewLimit;
-			InitializeGatheredSimpleWorldLimit(NewLimit);
-			NewLimit.Location = LocalCenter;
-			NewLimit.Rotation = FQuat::Identity;
-			NewLimit.Radius = Bounds.SphereRadius;
-			NewLimit.LimitType = ESphericalLimitType::Outer;
-			OutLocalLimits.SphericalLimits.Add(NewLimit);
-		}
-	}
-
 	FCollisionObjectQueryParams BuildSimpleWorldObjectQueryParams(
 		const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes)
 	{
@@ -117,7 +84,7 @@ namespace
 			}
 
 			// PhysicsAsset は Phase 2a では BoundsBox と同じ扱い。Phase 3以降でbone transform込み変換を実装する。
-			AppendBoundsApproximationToLocalLimits(
+			KawaiiPhysicsSimpleWorldCollision::AppendBoundsLocalLimits(
 				Component.Bounds,
 				ComponentTM,
 				EKawaiiPhysicsComplexShapeApproximation::BoxBounds,
@@ -133,10 +100,6 @@ namespace
 				Component.GetComponentScale(),
 				Desc.ComplexShapeApproximation,
 				OutLocalLimits);
-		}
-		else
-		{
-			AppendBoundsApproximationToLocalLimits(Component.Bounds, ComponentTM, Desc.ComplexShapeApproximation, OutLocalLimits);
 		}
 
 		return !OutLocalLimits.IsEmpty();

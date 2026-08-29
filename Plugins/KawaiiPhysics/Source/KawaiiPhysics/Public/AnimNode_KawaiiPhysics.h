@@ -819,7 +819,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* Object types used by Simple World Collision. Empty means WorldStatic + WorldDynamic.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
-		meta = (EditCondition = "bUseSimpleWorldCollision", DisplayName = "Object Types"))
+		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision", DisplayName = "Object Types"))
 	TArray<TEnumAsByte<EObjectTypeQuery>> SimpleWorldCollisionObjectTypes;
 
 	/**

@@ -48,7 +48,7 @@ namespace
 		TArray<LimitType>& OutLimits,
 		PostConvertType PostConvert)
 	{
-		OutLimits.Reserve(InLimits.Num());
+		OutLimits.Reserve(OutLimits.Num() + InLimits.Num());
 		for (const LimitType& Limit : InLimits)
 		{
 			LimitType Converted = Limit;
@@ -1440,7 +1440,14 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 
 	if (!CachedSimpleWorldEntry->MarkRead(SourceID))
 	{
-		bSimpleWorldDescSent = false;
+		// SetDescはDescLock内でLastReadFrameも現在フレームへ刻印するため、再登録直後のMarkReadはtrueになり、
+		// 期限切れ検知によるReleaseを繰り返さない。
+		ReleaseSimpleWorldCollision();
+		SimpleWorldSphericalLimits.Reset();
+		SimpleWorldCapsuleLimits.Reset();
+		SimpleWorldTaperedCapsuleLimits.Reset();
+		SimpleWorldBoxLimits.Reset();
+		return;
 	}
 
 	SimpleWorldMergedScratch.Reset();

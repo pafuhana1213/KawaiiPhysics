@@ -9,7 +9,9 @@
 
 /**
  * シンプルワールドコリジョンで未対応の複雑形状を近似する方法（Phase 1 では Convex に適用）
+ * simple collision を持たないコンポーネント（Landscape / Complex のみのメッシュ）は収集対象外です。
  * How unsupported complex shapes are approximated for simple world collision (applied to Convex in Phase 1)
+ * Components without simple collision (Landscape / complex-only meshes) are not gathered.
  */
 UENUM(BlueprintType)
 enum class EKawaiiPhysicsComplexShapeApproximation : uint8
@@ -39,6 +41,16 @@ enum class EKawaiiPhysicsSimpleWorldSkeletalMeshMode : uint8
 
 namespace KawaiiPhysicsSimpleWorldCollision
 {
+	/**
+	 * ワールドAABBをコンポーネントローカル空間の Limit 配列へ変換して追記します。Box はワールドで軸平行になるよう ComponentTM の逆回転を持ちます。
+	 * Converts world AABB into component-local-space limits and appends them. Boxes keep ComponentTM inverse rotation so they remain axis-aligned in world space.
+	 */
+	KAWAIIPHYSICS_API void AppendBoundsLocalLimits(
+		const FBoxSphereBounds& Bounds,
+		const FTransform& ComponentTM,
+		EKawaiiPhysicsComplexShapeApproximation ApproxMode,
+		FKawaiiPhysicsSharedCollisionData& OutLocalLimits);
+
 	/**
 	 * AggGeom をコンポーネントローカル空間の Limit 配列へ変換します。Scale3D は適用済みで、OutLocalLimits へ追記します。
 	 * Converts AggGeom into component-local-space limits with Scale3D applied, appending to OutLocalLimits.

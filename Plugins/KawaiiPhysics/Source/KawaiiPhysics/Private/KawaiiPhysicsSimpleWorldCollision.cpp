@@ -77,6 +77,39 @@ namespace
 
 namespace KawaiiPhysicsSimpleWorldCollision
 {
+	void AppendBoundsLocalLimits(
+		const FBoxSphereBounds& Bounds,
+		const FTransform& ComponentTM,
+		EKawaiiPhysicsComplexShapeApproximation ApproxMode,
+		FKawaiiPhysicsSharedCollisionData& OutLocalLimits)
+	{
+		if (ApproxMode == EKawaiiPhysicsComplexShapeApproximation::Ignore)
+		{
+			return;
+		}
+
+		const FVector LocalCenter = ComponentTM.InverseTransformPosition(Bounds.Origin);
+		if (ApproxMode == EKawaiiPhysicsComplexShapeApproximation::BoxBounds)
+		{
+			FBoxLimit NewLimit;
+			InitializeSimpleWorldLimit(NewLimit);
+			NewLimit.Location = LocalCenter;
+			NewLimit.Rotation = ComponentTM.GetRotation().Inverse();
+			NewLimit.Extent = Bounds.BoxExtent;
+			OutLocalLimits.BoxLimits.Add(NewLimit);
+		}
+		else if (ApproxMode == EKawaiiPhysicsComplexShapeApproximation::SphereBounds)
+		{
+			FSphericalLimit NewLimit;
+			InitializeSimpleWorldLimit(NewLimit);
+			NewLimit.Location = LocalCenter;
+			NewLimit.Rotation = FQuat::Identity;
+			NewLimit.Radius = Bounds.SphereRadius;
+			NewLimit.LimitType = ESphericalLimitType::Outer;
+			OutLocalLimits.SphericalLimits.Add(NewLimit);
+		}
+	}
+
 	void ConvertAggGeomToLocalLimits(
 		const FKAggregateGeom& AggGeom,
 		const FVector& Scale3D,
