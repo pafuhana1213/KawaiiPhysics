@@ -1306,6 +1306,78 @@ bool FKawaiiPhysicsSimpleWorldAppendPhysicsAssetLocalLimitsTest::RunTest(const F
 		         Bindings.Num() == 1 && Bindings[0].BoneIndex == 1);
 	}
 
+	{
+		UPhysicsAsset* DisabledBodyPhysicsAsset = NewObject<UPhysicsAsset>(GetTransientPackage());
+
+		USkeletalBodySetup* DisabledSpineBody = NewObject<USkeletalBodySetup>(DisabledBodyPhysicsAsset);
+		DisabledSpineBody->BoneName = TEXT("spine");
+		DisabledSpineBody->CollisionReponse = EBodyCollisionResponse::BodyCollision_Disabled;
+		FKSphereElem DisabledSpineSphere;
+		DisabledSpineSphere.Radius = 8.0f;
+		DisabledSpineBody->AggGeom.SphereElems.Add(DisabledSpineSphere);
+		DisabledBodyPhysicsAsset->SkeletalBodySetups.Add(DisabledSpineBody);
+
+		USkeletalBodySetup* DisabledHandBody = NewObject<USkeletalBodySetup>(DisabledBodyPhysicsAsset);
+		DisabledHandBody->BoneName = TEXT("hand_l");
+		DisabledHandBody->CollisionReponse = EBodyCollisionResponse::BodyCollision_Disabled;
+		FKSphylElem DisabledHandCapsule;
+		DisabledHandCapsule.Radius = 3.0f;
+		DisabledHandCapsule.Length = 12.0f;
+		DisabledHandBody->AggGeom.SphylElems.Add(DisabledHandCapsule);
+		DisabledBodyPhysicsAsset->SkeletalBodySetups.Add(DisabledHandBody);
+
+		FKawaiiPhysicsSharedCollisionData OutLimits;
+		TArray<FKawaiiPhysicsSimpleWorldBodyBinding> Bindings;
+		const int32 NumBodies = KawaiiPhysicsSimpleWorldCollision::AppendPhysicsAssetLocalLimits(
+			*DisabledBodyPhysicsAsset,
+			RefSkeleton,
+			FVector::OneVector,
+			EKawaiiPhysicsComplexShapeApproximation::BoxBounds,
+			32,
+			OutLimits,
+			Bindings);
+
+		TestTrue(TEXT("All disabled bodies accept no bodies"), NumBodies == 0);
+		TestTrue(TEXT("All disabled bodies leave bindings empty"), Bindings.IsEmpty());
+		TestTrue(TEXT("All disabled bodies leave limits empty"), OutLimits.IsEmpty());
+	}
+
+	{
+		UPhysicsAsset* NoCollisionShapePhysicsAsset = NewObject<UPhysicsAsset>(GetTransientPackage());
+
+		USkeletalBodySetup* NoCollisionSpineBody = NewObject<USkeletalBodySetup>(NoCollisionShapePhysicsAsset);
+		NoCollisionSpineBody->BoneName = TEXT("spine");
+		FKSphereElem NoCollisionSpineSphere;
+		NoCollisionSpineSphere.Radius = 8.0f;
+		NoCollisionSpineSphere.SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		NoCollisionSpineBody->AggGeom.SphereElems.Add(NoCollisionSpineSphere);
+		NoCollisionShapePhysicsAsset->SkeletalBodySetups.Add(NoCollisionSpineBody);
+
+		USkeletalBodySetup* NoCollisionHandBody = NewObject<USkeletalBodySetup>(NoCollisionShapePhysicsAsset);
+		NoCollisionHandBody->BoneName = TEXT("hand_l");
+		FKSphylElem NoCollisionHandCapsule;
+		NoCollisionHandCapsule.Radius = 3.0f;
+		NoCollisionHandCapsule.Length = 12.0f;
+		NoCollisionHandCapsule.SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		NoCollisionHandBody->AggGeom.SphylElems.Add(NoCollisionHandCapsule);
+		NoCollisionShapePhysicsAsset->SkeletalBodySetups.Add(NoCollisionHandBody);
+
+		FKawaiiPhysicsSharedCollisionData OutLimits;
+		TArray<FKawaiiPhysicsSimpleWorldBodyBinding> Bindings;
+		const int32 NumBodies = KawaiiPhysicsSimpleWorldCollision::AppendPhysicsAssetLocalLimits(
+			*NoCollisionShapePhysicsAsset,
+			RefSkeleton,
+			FVector::OneVector,
+			EKawaiiPhysicsComplexShapeApproximation::BoxBounds,
+			32,
+			OutLimits,
+			Bindings);
+
+		TestTrue(TEXT("All NoCollision shapes accept no bodies"), NumBodies == 0);
+		TestTrue(TEXT("All NoCollision shapes leave bindings empty"), Bindings.IsEmpty());
+		TestTrue(TEXT("All NoCollision shapes leave limits empty"), OutLimits.IsEmpty());
+	}
+
 	return true;
 }
 
