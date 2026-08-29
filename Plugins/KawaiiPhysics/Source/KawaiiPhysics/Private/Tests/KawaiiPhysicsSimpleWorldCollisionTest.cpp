@@ -705,6 +705,7 @@ bool FKawaiiPhysicsSimpleWorldCollisionPushOutTest::RunTest(const FString& Param
 	Sphere.LimitType = ESphericalLimitType::Outer;
 	Sphere.bEnable = true;
 	TArray<FSphericalLimit> SphereLimits = {Sphere};
+	TArray<FSphericalLimit> EmptySpheres;
 	TArray<FCapsuleLimit> EmptyCapsules;
 	TArray<FTaperedCapsuleLimit> EmptyTaperedCapsules;
 	TArray<FBoxLimit> EmptyBoxes;
@@ -734,6 +735,45 @@ bool FKawaiiPhysicsSimpleWorldCollisionPushOutTest::RunTest(const FString& Param
 		TestTrue(FString::Printf(TEXT("Gated off: SimpleWorld collision does not push the bone: got %s expected %s"),
 		                         *A.Bone(1).Location.ToString(), *ExpectedNoPushOut.ToString()),
 		         A.Bone(1).Location.Equals(ExpectedNoPushOut, GSimpleWorldPushOutTol));
+	}
+
+	// bUseSimpleWorldCollision = true、Capsule注入: SimpleWorldCapsuleLimitsがStepOnce内のPrepareCollisionShapeCaches()で
+	// 再計算されないと、CachedStartPoint/CachedEndPointがゼロ初期化のまま(=原点に潰れたカプセル)扱いになり
+	// このケースは赤化する（形状キャッシュ登録漏れの回帰チェック）。
+	// カプセル軸をY軸に向けているため、Bone(Y=0)からの垂線はちょうどLocation(=SphereCenter)に落ち、
+	// Sphereケースと全く同じ押し出し方向・到達点(ExpectedPushedOut)になる。
+	{
+		FKawaiiPhysicsTestAccessor A;
+		BuildChain(A);
+
+		FCapsuleLimit Capsule;
+		Capsule.Location = SphereCenter;
+		Capsule.Rotation = FQuat(FVector::XAxisVector, FMath::DegreesToRadians(-90.0f));
+		Capsule.Radius = SphereRadius;
+		Capsule.Length = 10.0f;
+		Capsule.bEnable = true;
+		Capsule.SourceType = ECollisionSourceType::SimpleWorld;
+		TArray<FCapsuleLimit> CapsuleLimits = {Capsule};
+
+		A.SetSimpleWorldLimits(EmptySpheres, CapsuleLimits, EmptyTaperedCapsules, EmptyBoxes);
+
+		A.StepFrame(1.0f / 60.0f);
+
+		// Nodeが内部で持つCachedStartPoint/CachedEndPointは使わず、Location/Rotation/Lengthから
+		// 独立に軸を再計算して判定する（形状キャッシュが更新されていない場合にのみ失敗させたいため）。
+		const FVector CapsuleAxis = Capsule.Rotation.GetAxisZ();
+		const FVector CapsuleStart = Capsule.Location + CapsuleAxis * Capsule.Length * 0.5f;
+		const FVector CapsuleEnd = Capsule.Location - CapsuleAxis * Capsule.Length * 0.5f;
+		const float DistToAxis = FMath::Sqrt(
+			FMath::PointDistToSegmentSquared(A.Bone(1).Location, CapsuleStart, CapsuleEnd));
+
+		TestTrue(FString::Printf(TEXT("SimpleWorld capsule push-out: dist-to-axis %.4f expected >= %.4f"),
+		                         DistToAxis, Capsule.Radius - GSimpleWorldPushOutTol),
+		         DistToAxis >= Capsule.Radius - GSimpleWorldPushOutTol);
+
+		TestTrue(FString::Printf(TEXT("SimpleWorld capsule push-out position: got %s expected %s"),
+		                         *A.Bone(1).Location.ToString(), *ExpectedPushedOut.ToString()),
+		         A.Bone(1).Location.Equals(ExpectedPushedOut, GSimpleWorldPushOutTol));
 	}
 
 	return true;
