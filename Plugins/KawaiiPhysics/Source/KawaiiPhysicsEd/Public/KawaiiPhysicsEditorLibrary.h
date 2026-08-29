@@ -179,10 +179,10 @@ struct KAWAIIPHYSICSED_API FKawaiiPhysicsNodeAuditEntry
 	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
 	bool bUseSimpleWorldCollision = false;
 
-	/** シンプルワールドコリジョンで収集した SkeletalMeshComponent の扱い / How collected SkeletalMeshComponents are handled by Simple World Collision. */
+	/** シンプルワールドコリジョンで収集した SkeletalMeshComponent との当たり方 / How Simple World Collision collides with gathered SkeletalMeshComponents. */
 	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
-	EKawaiiPhysicsSimpleWorldSkeletalMeshMode SimpleWorldCollisionSkeletalMeshMode =
-		EKawaiiPhysicsSimpleWorldSkeletalMeshMode::Ignore;
+	EKawaiiPhysicsSimpleWorldSkeletalMeshCollision SimpleWorldCollisionSkeletalMeshCollision =
+		EKawaiiPhysicsSimpleWorldSkeletalMeshCollision::None;
 
 	/** Wind が有効か / Whether wind is enabled. */
 	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")

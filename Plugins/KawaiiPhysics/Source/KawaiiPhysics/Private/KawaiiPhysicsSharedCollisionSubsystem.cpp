@@ -27,7 +27,7 @@ namespace
 	constexpr float GSimpleWorldGroundBoxHalfThickness = 10.0f;
 	const FName GSimpleWorldIgnoreTagName(TEXT("KawaiiPhysics.IgnoreSimpleWorldCollision"));
 
-	// SkeletalMeshComponentのPhysicsAsset収集結果。BoundsBoxフォールバック可否を区別する。
+	// SkeletalMeshComponentのPhysicsAsset収集結果。Bounding Boxフォールバック可否を区別する。
 	enum class EKawaiiPhysicsSimpleWorldSkeletalBuildResult : uint8
 	{
 		Built,
@@ -142,7 +142,7 @@ namespace
 			*PhysicsAsset,
 			SkinnedAsset->GetRefSkeleton(),
 			Scale3D,
-			Desc.ComplexShapeApproximation,
+			Desc.ConvexFallbackShape,
 			MaxPhysicsAssetBodies,
 			OutLocalLimits,
 			OutBodyBindings);
@@ -166,19 +166,19 @@ namespace
 
 		if (const USkeletalMeshComponent* SkelComp = Cast<const USkeletalMeshComponent>(&Component))
 		{
-			if (Desc.SkeletalMeshMode == EKawaiiPhysicsSimpleWorldSkeletalMeshMode::Ignore)
+			if (Desc.SkeletalMeshCollision == EKawaiiPhysicsSimpleWorldSkeletalMeshCollision::None)
 			{
 				return false;
 			}
 
-			if (Desc.SkeletalMeshMode == EKawaiiPhysicsSimpleWorldSkeletalMeshMode::PhysicsAsset
+			if (Desc.SkeletalMeshCollision == EKawaiiPhysicsSimpleWorldSkeletalMeshCollision::PhysicsAsset
 				&& MaxPhysicsAssetBodies <= 0)
 			{
 				// CVarの0指定はPhysicsAssetモードのSkeletalMesh収集を丸ごと止める安全弁として扱う。
 				return false;
 			}
 
-			if (Desc.SkeletalMeshMode == EKawaiiPhysicsSimpleWorldSkeletalMeshMode::PhysicsAsset)
+			if (Desc.SkeletalMeshCollision == EKawaiiPhysicsSimpleWorldSkeletalMeshCollision::PhysicsAsset)
 			{
 				const EKawaiiPhysicsSimpleWorldSkeletalBuildResult BuildResult =
 					BuildSkeletalLocalLimitsForSimpleWorldComponent(
@@ -194,11 +194,11 @@ namespace
 				}
 			}
 
-			// PhysicsAsset未設定、SkinnedAsset未設定、ComponentSpaceTransforms未生成の場合はBoundsBoxへフォールバックする。
+			// PhysicsAsset未設定、SkinnedAsset未設定、ComponentSpaceTransforms未生成の場合はBounding Boxへフォールバックする。
 			KawaiiPhysicsSimpleWorldCollision::AppendBoundsLocalLimits(
 				Component.Bounds,
 				ComponentTM,
-				EKawaiiPhysicsComplexShapeApproximation::BoxBounds,
+				EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox,
 				OutLocalLimits);
 			return !OutLocalLimits.IsEmpty();
 		}
@@ -209,7 +209,7 @@ namespace
 			KawaiiPhysicsSimpleWorldCollision::ConvertAggGeomToLocalLimits(
 				BodySetup->AggGeom,
 				Scale3D,
-				Desc.ComplexShapeApproximation,
+				Desc.ConvexFallbackShape,
 				OutLocalLimits);
 		}
 
@@ -519,9 +519,9 @@ bool FKawaiiPhysicsSimpleWorldCollisionDesc::operator==(const FKawaiiPhysicsSimp
 	return GatherIntervalSec == Other.GatherIntervalSec
 		&& GatherRadiusOverride == Other.GatherRadiusOverride
 		&& ObjectTypes == Other.ObjectTypes
-		&& ComplexShapeApproximation == Other.ComplexShapeApproximation
-		&& SkeletalMeshMode == Other.SkeletalMeshMode
-		&& bApproximateGround == Other.bApproximateGround;
+		&& ConvexFallbackShape == Other.ConvexFallbackShape
+		&& SkeletalMeshCollision == Other.SkeletalMeshCollision
+		&& bGroundCollision == Other.bGroundCollision;
 }
 
 FKawaiiPhysicsSimpleWorldCollisionDesc FKawaiiPhysicsSimpleWorldCollisionDesc::Merge(
@@ -565,17 +565,17 @@ FKawaiiPhysicsSimpleWorldCollisionDesc FKawaiiPhysicsSimpleWorldCollisionDesc::M
 			}
 		}
 
-		if (static_cast<uint8>(Desc.ComplexShapeApproximation) < static_cast<uint8>(Merged.ComplexShapeApproximation))
+		if (static_cast<uint8>(Desc.ConvexFallbackShape) < static_cast<uint8>(Merged.ConvexFallbackShape))
 		{
-			Merged.ComplexShapeApproximation = Desc.ComplexShapeApproximation;
+			Merged.ConvexFallbackShape = Desc.ConvexFallbackShape;
 		}
 
-		if (static_cast<uint8>(Desc.SkeletalMeshMode) > static_cast<uint8>(Merged.SkeletalMeshMode))
+		if (static_cast<uint8>(Desc.SkeletalMeshCollision) > static_cast<uint8>(Merged.SkeletalMeshCollision))
 		{
-			Merged.SkeletalMeshMode = Desc.SkeletalMeshMode;
+			Merged.SkeletalMeshCollision = Desc.SkeletalMeshCollision;
 		}
 
-		Merged.bApproximateGround = Merged.bApproximateGround || Desc.bApproximateGround;
+		Merged.bGroundCollision = Merged.bGroundCollision || Desc.bGroundCollision;
 	}
 
 	if (bHasEmptyObjectTypes)
@@ -1029,7 +1029,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 
 			Entry->GatheredComponents = MoveTemp(NewGatheredComponents);
 
-			if (Desc.bApproximateGround)
+			if (Desc.bGroundCollision)
 			{
 				FHitResult Hit;
 				const bool bHitGround = World->LineTraceSingleByObjectType(

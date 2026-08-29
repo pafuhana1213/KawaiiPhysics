@@ -1394,9 +1394,9 @@ FKawaiiPhysicsSimpleWorldCollisionDesc FAnimNode_KawaiiPhysics::BuildSimpleWorld
 	Desc.GatherRadiusOverride =
 		bOverrideSimpleWorldCollisionGatherRadius ? SimpleWorldCollisionGatherRadius : 0.0f;
 	Desc.ObjectTypes = SimpleWorldCollisionObjectTypes;
-	Desc.ComplexShapeApproximation = SimpleWorldCollisionComplexShapeApproximation;
-	Desc.SkeletalMeshMode = SimpleWorldCollisionSkeletalMeshMode;
-	Desc.bApproximateGround = bSimpleWorldCollisionApproximateGround;
+	Desc.ConvexFallbackShape = SimpleWorldCollisionConvexFallbackShape;
+	Desc.SkeletalMeshCollision = SimpleWorldCollisionSkeletalMeshCollision;
+	Desc.bGroundCollision = bSimpleWorldCollisionGroundCollision;
 	return Desc;
 }
 

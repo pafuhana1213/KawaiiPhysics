@@ -11,35 +11,33 @@ class UPhysicsAsset;
 struct FReferenceSkeleton;
 
 /**
- * シンプルワールドコリジョンで未対応の複雑形状を近似する方法（Phase 1 では Convex に適用）
- * simple collision を持たないコンポーネント（Landscape / Complex のみのメッシュ）は収集対象外です。
- * How unsupported complex shapes are approximated for simple world collision (applied to Convex in Phase 1)
- * Components without simple collision (Landscape / complex-only meshes) are not gathered.
+ * Simple World Collision で Convex コリジョンの代わりに使う形状。Convex は Sphere / Capsule / Box の Limit へ直接変換できないため、境界形状で代用するか無視するかを選びます。Landscape や Complex コリジョンのみのメッシュはもともと収集対象外です。
+ * Shape used in place of convex collision in Simple World Collision. Convex collision cannot be converted directly into Sphere / Capsule / Box limits, so choose a bounding shape as a substitute or skip it. Landscapes and complex-collision-only meshes are never gathered.
  */
 UENUM(BlueprintType)
-enum class EKawaiiPhysicsComplexShapeApproximation : uint8
+enum class EKawaiiPhysicsSimpleWorldConvexFallbackShape : uint8
 {
-	/** ボックス境界で近似します（既定） / Approximate with bounding box (default). */
-	BoxBounds UMETA(ToolTip = "ボックス境界で近似します（既定） / Approximate with bounding box (default)."),
-	/** 球境界で近似します / Approximate with bounding sphere. */
-	SphereBounds UMETA(ToolTip = "球境界で近似します / Approximate with bounding sphere."),
-	/** 形状を無視します / Skip the shape. */
-	Ignore UMETA(ToolTip = "形状を無視します / Skip the shape."),
+	/** Convex の境界ボックスで代用します（既定） / Use the bounding box of the convex (default). */
+	BoundingBox UMETA(DisplayName = "Bounding Box", ToolTip = "Convex の境界ボックスで代用します（既定） / Use the bounding box of the convex (default)."),
+	/** Convex の境界球で代用します / Use the bounding sphere of the convex. */
+	BoundingSphere UMETA(DisplayName = "Bounding Sphere", ToolTip = "Convex の境界球で代用します / Use the bounding sphere of the convex."),
+	/** Convex を無視します / Skip convex collision. */
+	None UMETA(DisplayName = "None", ToolTip = "Convex を無視します / Skip convex collision."),
 };
 
 /**
- * シンプルワールドコリジョンで収集した SkeletalMeshComponent の扱い
- * How collected SkeletalMeshComponents are handled for simple world collision
+ * Simple World Collision で収集した周囲の SkeletalMeshComponent との当たり方
+ * How Simple World Collision collides with gathered SkeletalMeshComponents
  */
 UENUM(BlueprintType)
-enum class EKawaiiPhysicsSimpleWorldSkeletalMeshMode : uint8
+enum class EKawaiiPhysicsSimpleWorldSkeletalMeshCollision : uint8
 {
-	/** 無視します（既定） / Skip skeletal meshes (default). */
-	Ignore UMETA(ToolTip = "無視します（既定） / Skip skeletal meshes (default)."),
+	/** 当たりを作りません（既定） / No collision (default). */
+	None UMETA(DisplayName = "None", ToolTip = "当たりを作りません（既定） / No collision (default)."),
 	/** Bounds から単一の Box として安価に近似します / Cheaply approximate Bounds as a single Box. */
-	BoundsBox UMETA(ToolTip = "Bounds から単一の Box として安価に近似します / Cheaply approximate Bounds as a single Box."),
-	/** PhysicsAsset の Body をボーン追従で変換します。上限は Max PhysicsAsset Bodies で、PhysicsAsset 無しは BoundsBox 相当、PhysicsAsset があって有効な body が無い場合は収集しません。ポーズは 1 フレーム遅れ得ます。アニメ由来のボーンスケールは形状サイズへ反映しません。 / Transform PhysicsAsset bodies by following bones. Limited by Max PhysicsAsset Bodies; no PhysicsAsset behaves like BoundsBox, and when a PhysicsAsset exists but has no valid body, it is not gathered. Pose data may be one frame late. Bone scale from animation is not applied to shape sizes. */
-	PhysicsAsset UMETA(ToolTip = "PhysicsAsset の Body をボーン追従で変換します。上限は Max PhysicsAsset Bodies で、PhysicsAsset 無しは BoundsBox 相当、PhysicsAsset があって有効な body が無い場合は収集しません。ポーズは 1 フレーム遅れ得ます。アニメ由来のボーンスケールは形状サイズへ反映しません。 / Transform PhysicsAsset bodies by following bones. Limited by Max PhysicsAsset Bodies; no PhysicsAsset behaves like BoundsBox, and when a PhysicsAsset exists but has no valid body, it is not gathered. Pose data may be one frame late. Bone scale from animation is not applied to shape sizes."),
+	BoundingBox UMETA(DisplayName = "Bounding Box", ToolTip = "Bounds から単一の Box として安価に近似します / Cheaply approximate Bounds as a single Box."),
+	/** PhysicsAsset の Body をボーン追従で変換します。上限は Max PhysicsAsset Bodies で、PhysicsAsset 無しは Bounding Box 相当、PhysicsAsset があって有効な body が無い場合は収集しません。ポーズは 1 フレーム遅れ得ます。アニメ由来のボーンスケールは形状サイズへ反映しません。 / Transform PhysicsAsset bodies by following bones. Limited by Max PhysicsAsset Bodies; no PhysicsAsset behaves like Bounding Box, and when a PhysicsAsset exists but has no valid body, it is not gathered. Pose data may be one frame late. Bone scale from animation is not applied to shape sizes. */
+	PhysicsAsset UMETA(DisplayName = "Physics Asset", ToolTip = "PhysicsAsset の Body をボーン追従で変換します。上限は Max PhysicsAsset Bodies で、PhysicsAsset 無しは Bounding Box 相当、PhysicsAsset があって有効な body が無い場合は収集しません。ポーズは 1 フレーム遅れ得ます。アニメ由来のボーンスケールは形状サイズへ反映しません。 / Transform PhysicsAsset bodies by following bones. Limited by Max PhysicsAsset Bodies; no PhysicsAsset behaves like Bounding Box, and when a PhysicsAsset exists but has no valid body, it is not gathered. Pose data may be one frame late. Bone scale from animation is not applied to shape sizes."),
 };
 
 namespace KawaiiPhysicsSimpleWorldCollision
@@ -60,7 +58,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 	KAWAIIPHYSICS_API void AppendBoundsLocalLimits(
 		const FBoxSphereBounds& Bounds,
 		const FTransform& ComponentTM,
-		EKawaiiPhysicsComplexShapeApproximation ApproxMode,
+		EKawaiiPhysicsSimpleWorldConvexFallbackShape BoundsShape,
 		FKawaiiPhysicsSharedCollisionData& OutLocalLimits);
 
 	/**
@@ -70,7 +68,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 	KAWAIIPHYSICS_API void ConvertAggGeomToLocalLimits(
 		const FKAggregateGeom& AggGeom,
 		const FVector& Scale3D,
-		EKawaiiPhysicsComplexShapeApproximation ApproxMode,
+		EKawaiiPhysicsSimpleWorldConvexFallbackShape ConvexFallbackShape,
 		FKawaiiPhysicsSharedCollisionData& OutLocalLimits);
 
 	/**
@@ -83,7 +81,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		const FKAggregateGeom& AggGeom,
 		int32 BoneIndex,
 		const FVector& Scale3D,
-		EKawaiiPhysicsComplexShapeApproximation ApproxMode,
+		EKawaiiPhysicsSimpleWorldConvexFallbackShape ConvexFallbackShape,
 		int32 MaxBodies,
 		FKawaiiPhysicsSharedCollisionData& OutLocalLimits,
 		TArray<FKawaiiPhysicsSimpleWorldBodyBinding>& OutBindings);
@@ -98,7 +96,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		const UPhysicsAsset& PhysicsAsset,
 		const FReferenceSkeleton& RefSkeleton,
 		const FVector& Scale3D,
-		EKawaiiPhysicsComplexShapeApproximation ApproxMode,
+		EKawaiiPhysicsSimpleWorldConvexFallbackShape ConvexFallbackShape,
 		int32 MaxBodies,
 		FKawaiiPhysicsSharedCollisionData& OutLocalLimits,
 		TArray<FKawaiiPhysicsSimpleWorldBodyBinding>& OutBindings);

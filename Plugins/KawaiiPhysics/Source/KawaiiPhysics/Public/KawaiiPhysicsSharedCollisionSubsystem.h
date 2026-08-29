@@ -104,9 +104,9 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionDesc
 	float GatherIntervalSec = 0.2f;
 	float GatherRadiusOverride = 0.0f;
 	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
-	EKawaiiPhysicsComplexShapeApproximation ComplexShapeApproximation = EKawaiiPhysicsComplexShapeApproximation::BoxBounds;
-	EKawaiiPhysicsSimpleWorldSkeletalMeshMode SkeletalMeshMode = EKawaiiPhysicsSimpleWorldSkeletalMeshMode::Ignore;
-	bool bApproximateGround = true;
+	EKawaiiPhysicsSimpleWorldConvexFallbackShape ConvexFallbackShape = EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox;
+	EKawaiiPhysicsSimpleWorldSkeletalMeshCollision SkeletalMeshCollision = EKawaiiPhysicsSimpleWorldSkeletalMeshCollision::None;
+	bool bGroundCollision = true;
 
 	/**
 	 * 複数ノードの収集設定を SkelComp 単位の1設定へマージする。
@@ -119,12 +119,12 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionDesc
 	 * - GatherRadiusOverride is the max only when every Desc specifies an override. If any Desc is automatic, it stays 0 and Tick uses the automatic radius.
 	 * - ObjectTypes は union。空配列は WorldStatic + WorldDynamic の意味なので、空 Desc がある場合はそれらを明示的に union へ含める。
 	 * - ObjectTypes are unioned. Empty means WorldStatic + WorldDynamic, so those are explicitly included when any Desc is empty.
-	 * - ComplexShapeApproximation は BoxBounds > SphereBounds > Ignore の優先。
-	 * - ComplexShapeApproximation priority is BoxBounds > SphereBounds > Ignore.
-	 * - SkeletalMeshMode は PhysicsAsset > BoundsBox > Ignore の優先。
-	 * - SkeletalMeshMode priority is PhysicsAsset > BoundsBox > Ignore.
-	 * - bApproximateGround は OR。
-	 * - bApproximateGround is OR.
+	 * - ConvexFallbackShape は BoundingBox > BoundingSphere > None の優先。
+	 * - ConvexFallbackShape priority is BoundingBox > BoundingSphere > None.
+	 * - SkeletalMeshCollision は PhysicsAsset > BoundingBox > None の優先。
+	 * - SkeletalMeshCollision priority is PhysicsAsset > BoundingBox > None.
+	 * - bGroundCollision は OR。
+	 * - bGroundCollision is OR.
 	 */
 	static FKawaiiPhysicsSimpleWorldCollisionDesc Merge(const TArray<FKawaiiPhysicsSimpleWorldCollisionDesc>& Descs);
 

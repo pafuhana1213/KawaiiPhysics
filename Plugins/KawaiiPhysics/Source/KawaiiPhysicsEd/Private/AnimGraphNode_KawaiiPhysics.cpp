@@ -471,11 +471,11 @@ void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* Ani
 	KawaiiPhysics->bUseSimpleWorldCollision = Node.bUseSimpleWorldCollision;
 	KawaiiPhysics->SimpleWorldCollisionGatherInterval = Node.SimpleWorldCollisionGatherInterval;
 	KawaiiPhysics->SimpleWorldCollisionObjectTypes = Node.SimpleWorldCollisionObjectTypes;
-	KawaiiPhysics->SimpleWorldCollisionComplexShapeApproximation = Node.SimpleWorldCollisionComplexShapeApproximation;
+	KawaiiPhysics->SimpleWorldCollisionConvexFallbackShape = Node.SimpleWorldCollisionConvexFallbackShape;
 	KawaiiPhysics->bOverrideSimpleWorldCollisionGatherRadius = Node.bOverrideSimpleWorldCollisionGatherRadius;
 	KawaiiPhysics->SimpleWorldCollisionGatherRadius = Node.SimpleWorldCollisionGatherRadius;
-	KawaiiPhysics->bSimpleWorldCollisionApproximateGround = Node.bSimpleWorldCollisionApproximateGround;
-	KawaiiPhysics->SimpleWorldCollisionSkeletalMeshMode = Node.SimpleWorldCollisionSkeletalMeshMode;
+	KawaiiPhysics->bSimpleWorldCollisionGroundCollision = Node.bSimpleWorldCollisionGroundCollision;
+	KawaiiPhysics->SimpleWorldCollisionSkeletalMeshCollision = Node.SimpleWorldCollisionSkeletalMeshCollision;
 
 	// ExternalForce
 	KawaiiPhysics->Gravity = Node.Gravity;
