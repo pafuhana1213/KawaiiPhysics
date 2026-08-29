@@ -24,7 +24,7 @@ namespace
 	constexpr float GSimpleWorldGroundBoxHalfThickness = 10.0f;
 	const FName GSimpleWorldIgnoreTagName(TEXT("KawaiiPhysics.IgnoreSimpleWorldCollision"));
 
-	void InitializeSimpleWorldLimit(FCollisionLimitBase& Limit)
+	void InitializeGatheredSimpleWorldLimit(FCollisionLimitBase& Limit)
 	{
 		Limit.bEnable = true;
 		Limit.SourceType = ECollisionSourceType::SimpleWorld;
@@ -61,7 +61,7 @@ namespace
 		if (ApproxMode == EKawaiiPhysicsComplexShapeApproximation::BoxBounds)
 		{
 			FBoxLimit NewLimit;
-			InitializeSimpleWorldLimit(NewLimit);
+			InitializeGatheredSimpleWorldLimit(NewLimit);
 			NewLimit.Location = LocalCenter;
 			NewLimit.Rotation = FQuat::Identity;
 			NewLimit.Extent = Bounds.BoxExtent;
@@ -70,7 +70,7 @@ namespace
 		else if (ApproxMode == EKawaiiPhysicsComplexShapeApproximation::SphereBounds)
 		{
 			FSphericalLimit NewLimit;
-			InitializeSimpleWorldLimit(NewLimit);
+			InitializeGatheredSimpleWorldLimit(NewLimit);
 			NewLimit.Location = LocalCenter;
 			NewLimit.Rotation = FQuat::Identity;
 			NewLimit.Radius = Bounds.SphereRadius;
@@ -844,7 +844,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 				Entry->bHasGroundBox = bHitGround;
 				if (bHitGround)
 				{
-					InitializeSimpleWorldLimit(Entry->GroundBox);
+					InitializeGatheredSimpleWorldLimit(Entry->GroundBox);
 					Entry->GroundBox.Location = Hit.ImpactPoint - Hit.ImpactNormal * GSimpleWorldGroundBoxHalfThickness;
 					Entry->GroundBox.Rotation = FRotationMatrix::MakeFromZ(Hit.ImpactNormal).ToQuat();
 					Entry->GroundBox.Extent = FVector(Radius, Radius, GSimpleWorldGroundBoxHalfThickness);

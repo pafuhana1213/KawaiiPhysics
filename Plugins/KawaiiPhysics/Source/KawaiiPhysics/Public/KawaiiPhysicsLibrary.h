@@ -1107,7 +1107,7 @@ public:
 	                                                          bool bUseSimpleWorldCollision)
 	{
 		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
-			TEXT("SetbUseSimpleWorldCollision"),
+			TEXT("SetUseSimpleWorldCollision"),
 			[bUseSimpleWorldCollision](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
 				InKawaiiPhysics.bUseSimpleWorldCollision = bUseSimpleWorldCollision;
 				InKawaiiPhysics.RequestSimpleWorldCollisionReinit();
@@ -1142,6 +1142,7 @@ public:
 	static bool IsNodePropertyAccessible(FName PropertyName);
 	static bool DoesNodePropertyRequireModifyBonesReinit(FName PropertyName);
 	static bool DoesNodePropertyRequireSharedCollisionReinit(FName PropertyName);
+	static bool DoesNodePropertyRequireSimpleWorldCollisionReinit(FName PropertyName);
 	static bool SetNodeWildcardPropertyValue(FAnimNode_KawaiiPhysics& Node, FName PropertyName,
 	                                         const FProperty* ValueProperty, const void* ValuePtr);
 	static bool GetNodeWildcardPropertyValue(const FAnimNode_KawaiiPhysics& Node, FName PropertyName,
@@ -1734,6 +1735,10 @@ bool UKawaiiPhysicsLibrary::SetNodePropertyValue(FAnimNode_KawaiiPhysics& Node, 
 		{
 			Node.RequestSharedCollisionReinit();
 		}
+		if (DoesNodePropertyRequireSimpleWorldCollisionReinit(PropertyName))
+		{
+			Node.RequestSimpleWorldCollisionReinit();
+		}
 		return true;
 	}
 
@@ -1798,6 +1803,10 @@ bool UKawaiiPhysicsLibrary::SetNodeStructPropertyValue(FAnimNode_KawaiiPhysics& 
 		if (DoesNodePropertyRequireSharedCollisionReinit(PropertyName))
 		{
 			Node.RequestSharedCollisionReinit();
+		}
+		if (DoesNodePropertyRequireSimpleWorldCollisionReinit(PropertyName))
+		{
+			Node.RequestSimpleWorldCollisionReinit();
 		}
 		return true;
 	}

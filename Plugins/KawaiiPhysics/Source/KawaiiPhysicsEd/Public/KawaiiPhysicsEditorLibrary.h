@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "AssetRegistry/AssetData.h"
 #include "KawaiiPhysicsPresetDataAsset.h"
+#include "KawaiiPhysicsSimpleWorldCollision.h"
 #include "GameplayTagContainer.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "UObject/SoftObjectPath.h"
@@ -173,6 +174,15 @@ struct KAWAIIPHYSICSED_API FKawaiiPhysicsNodeAuditEntry
 	/** 共有コリジョンのSourceか / Whether this node is a shared collision source. */
 	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
 	bool bSharedCollisionSource = false;
+
+	/** 簡易ワールドコリジョンが有効か / Whether Simple World Collision is enabled. */
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
+	bool bUseSimpleWorldCollision = false;
+
+	/** 簡易ワールドコリジョンで収集した SkeletalMeshComponent の扱い / How collected SkeletalMeshComponents are handled by Simple World Collision. */
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
+	EKawaiiPhysicsSimpleWorldSkeletalMeshMode SimpleWorldCollisionSkeletalMeshMode =
+		EKawaiiPhysicsSimpleWorldSkeletalMeshMode::Ignore;
 
 	/** Wind が有効か / Whether wind is enabled. */
 	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")

@@ -188,9 +188,9 @@ bool FKawaiiPhysicsSimpleWorldConvertAggGeomTest::RunTest(const FString& Paramet
 		ConvexElem.SetTransform(FTransform(FQuat::Identity, FVector(1.0f, 2.0f, 3.0f)));
 		ConvexElem.ElemBox = FBox(FVector(-4.0f, -2.0f, -1.0f), FVector(4.0f, 2.0f, 1.0f));
 
-		// Location = ElemTM.TransformPosition(BoxCenter) * Scale3D = TransformPosition(0,0,0) * Scale = (1,2,3)*(2,1,0.5)
+		// Location = ElemTM.TransformPosition(BoxCenter) * Scale3D = TransformPosition(0,0,0) * Scale = (1,2,3)*(2,1,0.5) で算出される
 		const FVector ExpectedLocation(2.0f, 2.0f, 1.5f);
-		// Extent = BoxHalfSize(4,2,1) * ScaleAbs(2,1,0.5)
+		// Extent = BoxHalfSize(4,2,1) * ScaleAbs(2,1,0.5) で算出される
 		const FVector ExpectedExtent(8.0f, 2.0f, 0.5f);
 
 		// BoxBounds近似: FBoxLimitを生成
@@ -686,7 +686,7 @@ bool FKawaiiPhysicsSimpleWorldCollisionPushOutTest::RunTest(const FString& Param
 
 	auto BuildChain = [&](FKawaiiPhysicsTestAccessor& A)
 	{
-		A.BuildVerticalChain(2, 10.0f); // root(0,0,0) + child pose(0,0,-10), BoneLength=10
+		A.BuildVerticalChain(2, 10.0f); // root(0,0,0) と child pose(0,0,-10) の2ボーンチェーン、BoneLength=10
 		FKawaiiPhysicsSettings S;
 		S.Damping = 0.0f;
 		S.Stiffness = 0.0f; // Pull to Pose を完全無効化

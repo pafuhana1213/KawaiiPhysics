@@ -801,36 +801,38 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* GameThreadで定期収集したレベル上のsimple collisionをトレースなしで適用します。World Collisionより大幅に低負荷ですが、薄い壁・高速移動では World Collision(sweep) の併用を推奨します。
 	* Applies level simple collision gathered periodically on the GameThread without traces. Much cheaper than World Collision, but using it with World Collision (sweep) is recommended for thin walls or fast movement.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|Simple World Collision", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
+		meta = (PinHiddenByDefault, DisplayName = "Use Simple World Collision"))
 	bool bUseSimpleWorldCollision = false;
 
 	/**
 	* 簡易ワールドコリジョンの収集間隔（秒）。0の場合は毎フレーム収集します。収集済みコンポーネントの位置更新は毎フレーム行われます。
 	* Gather interval for Simple World Collision in seconds. 0 gathers every frame. Already gathered component transforms are updated every frame.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|Simple World Collision",
-		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision", ClampMin = "0.0", ClampMax = "10.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
+		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision", ClampMin = "0.0", ClampMax = "10.0",
+		DisplayName = "Gather Interval"))
 	float SimpleWorldCollisionGatherInterval = 0.2f;
 
 	/**
 	* 簡易ワールドコリジョンが反応するオブジェクトタイプ。空の場合は WorldStatic + WorldDynamic を使用します。
 	* Object types used by Simple World Collision. Empty means WorldStatic + WorldDynamic.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|Simple World Collision",
-		meta = (EditCondition = "bUseSimpleWorldCollision"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
+		meta = (EditCondition = "bUseSimpleWorldCollision", DisplayName = "Object Types"))
 	TArray<TEnumAsByte<EObjectTypeQuery>> SimpleWorldCollisionObjectTypes;
 
 	/**
 	* 簡易ワールドコリジョンで複雑形状を近似する方法
 	* How Simple World Collision approximates complex shapes
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|Simple World Collision",
-		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
+		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision", DisplayName = "Complex Shape Approximation"))
 	EKawaiiPhysicsComplexShapeApproximation SimpleWorldCollisionComplexShapeApproximation =
 		EKawaiiPhysicsComplexShapeApproximation::BoxBounds;
 
 	/** 簡易ワールドコリジョンの収集半径を上書きする / Override the Simple World Collision gather radius */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|Simple World Collision",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
 		meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	bool bOverrideSimpleWorldCollisionGatherRadius = false;
 
@@ -838,24 +840,25 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* 簡易ワールドコリジョンの収集半径のオーバーライド。無効時は SkeletalMesh の Bounds から自動算出します。
 	* Override for the Simple World Collision gather radius. When disabled, it is calculated automatically from SkeletalMesh bounds.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|Simple World Collision",
-		meta = (PinHiddenByDefault, EditCondition = "bOverrideSimpleWorldCollisionGatherRadius", ClampMin = "0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
+		meta = (PinHiddenByDefault, EditCondition = "bOverrideSimpleWorldCollisionGatherRadius", ClampMin = "0",
+		DisplayName = "Gather Radius"))
 	float SimpleWorldCollisionGatherRadius = 200.0f;
 
 	/**
 	* 下方向トレース1本で地面を有界の薄いBoxとして近似します。Landscape/Complex 形状の床に対応します。
 	* Approximate the ground as a bounded thin box using one downward trace. Supports Landscape and complex-shape floors.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|Simple World Collision",
-		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
+		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision", DisplayName = "Approximate Ground"))
 	bool bSimpleWorldCollisionApproximateGround = true;
 
 	/**
 	* 簡易ワールドコリジョンで収集した SkeletalMeshComponent の扱い
 	* How collected SkeletalMeshComponents are handled by Simple World Collision
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits|Simple World Collision",
-		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
+		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision", DisplayName = "Skeletal Mesh Mode"))
 	EKawaiiPhysicsSimpleWorldSkeletalMeshMode SimpleWorldCollisionSkeletalMeshMode =
 		EKawaiiPhysicsSimpleWorldSkeletalMeshMode::Ignore;
 

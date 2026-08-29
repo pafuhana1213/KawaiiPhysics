@@ -60,6 +60,17 @@ namespace
 		return Names;
 	}
 
+	// 簡易ワールドコリジョンの収集設定（Gather Interval / Object Types / Complex Shape Approximation /
+	// Skeletal Mesh Mode / Approximate Ground / Gather Radius系）はUpdateSimpleWorldCollisionLimits内の
+	// Desc差分検知で毎フレーム自動追従するため対象外。有効/無効の切り替えのみEntryの取得・解放が必要なため対象に含める。
+	const TSet<FName>& GetNodeSimpleWorldCollisionReinitPropertyNames()
+	{
+		static const TSet<FName> Names = {
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, bUseSimpleWorldCollision),
+		};
+		return Names;
+	}
+
 	bool IsDeniedRuntimeNodePropertyName(FName PropertyName)
 	{
 		return PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, ExternalForces) ||
@@ -592,6 +603,11 @@ bool UKawaiiPhysicsLibrary::DoesNodePropertyRequireSharedCollisionReinit(FName P
 	return GetNodeSharedCollisionReinitPropertyNames().Contains(PropertyName);
 }
 
+bool UKawaiiPhysicsLibrary::DoesNodePropertyRequireSimpleWorldCollisionReinit(FName PropertyName)
+{
+	return GetNodeSimpleWorldCollisionReinitPropertyNames().Contains(PropertyName);
+}
+
 bool UKawaiiPhysicsLibrary::SetNodeWildcardPropertyValue(FAnimNode_KawaiiPhysics& Node, FName PropertyName,
                                                          const FProperty* ValueProperty, const void* ValuePtr)
 {
@@ -611,6 +627,10 @@ bool UKawaiiPhysicsLibrary::SetNodeWildcardPropertyValue(FAnimNode_KawaiiPhysics
 		if (DoesNodePropertyRequireSharedCollisionReinit(PropertyName))
 		{
 			Node.RequestSharedCollisionReinit();
+		}
+		if (DoesNodePropertyRequireSimpleWorldCollisionReinit(PropertyName))
+		{
+			Node.RequestSimpleWorldCollisionReinit();
 		}
 		return true;
 	}
@@ -660,6 +680,10 @@ bool UKawaiiPhysicsLibrary::SetNodePropertyValueFromString(FAnimNode_KawaiiPhysi
 			if (DoesNodePropertyRequireSharedCollisionReinit(PropertyName))
 			{
 				Node.RequestSharedCollisionReinit();
+			}
+			if (DoesNodePropertyRequireSimpleWorldCollisionReinit(PropertyName))
+			{
+				Node.RequestSimpleWorldCollisionReinit();
 			}
 			return true;
 		}

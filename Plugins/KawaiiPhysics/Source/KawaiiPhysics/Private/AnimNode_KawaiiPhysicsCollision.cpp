@@ -766,6 +766,9 @@ void FAnimNode_KawaiiPhysics::PrepareCollisionShapeCaches()
 	UpdateEnabledCaches(PlanarLimits);
 	UpdateEnabledCaches(PlanarLimitsData);
 	UpdateEnabledCaches(SharedPlanarLimits);
+	UpdateEnabledCaches(SimpleWorldCapsuleLimits);
+	UpdateEnabledCaches(SimpleWorldTaperedCapsuleLimits);
+	UpdateEnabledCaches(SimpleWorldBoxLimits);
 }
 
 void FAnimNode_KawaiiPhysics::AdjustByCapsuleCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FCapsuleLimit>& Limits)
