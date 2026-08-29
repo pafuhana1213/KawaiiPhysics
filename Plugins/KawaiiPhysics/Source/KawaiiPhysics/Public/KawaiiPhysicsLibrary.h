@@ -1096,10 +1096,53 @@ public:
 		KAWAIIPHYSICS_VALUE_GETTER(FGameplayTag, SharedCollisionGroupTag);
 	}
 
+	// --- Simple World Collision ---
+
+	/**
+	 * シンプルワールドコリジョン（Subsystemが収集したレベル上のsimple collision）を使用するかを設定
+	 * Set whether to use Simple World Collision (level simple collision gathered by the subsystem)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Simple World Collision", meta=(BlueprintThreadSafe))
+	static FKawaiiPhysicsReference SetUseSimpleWorldCollision(const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                          bool bUseSimpleWorldCollision)
+	{
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("SetUseSimpleWorldCollision"),
+			[bUseSimpleWorldCollision](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
+				InKawaiiPhysics.bUseSimpleWorldCollision = bUseSimpleWorldCollision;
+				InKawaiiPhysics.RequestSimpleWorldCollisionReinit();
+			});
+		return KawaiiPhysics;
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Kawaii Physics|Simple World Collision", meta=(BlueprintThreadSafe))
+	static bool GetUseSimpleWorldCollision(const FKawaiiPhysicsReference& KawaiiPhysics)
+	{
+		KAWAIIPHYSICS_VALUE_GETTER(bool, bUseSimpleWorldCollision);
+	}
+
+	/**
+	 * シンプルワールドコリジョンの収集間隔（秒）を設定。Desc差分検知で自動追従するため再初期化は不要
+	 * Set the Simple World Collision gather interval (seconds). No reinitialization is needed; the Desc diff check picks it up automatically
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Simple World Collision", meta=(BlueprintThreadSafe))
+	static FKawaiiPhysicsReference SetSimpleWorldCollisionGatherInterval(const FKawaiiPhysicsReference& KawaiiPhysics,
+	                                                                    float SimpleWorldCollisionGatherInterval)
+	{
+		KAWAIIPHYSICS_VALUE_SETTER(float, SimpleWorldCollisionGatherInterval);
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Kawaii Physics|Simple World Collision", meta=(BlueprintThreadSafe))
+	static float GetSimpleWorldCollisionGatherInterval(const FKawaiiPhysicsReference& KawaiiPhysics)
+	{
+		KAWAIIPHYSICS_VALUE_GETTER(float, SimpleWorldCollisionGatherInterval);
+	}
+
 	static bool IsNodePropertyAccessible(const FProperty* Property);
 	static bool IsNodePropertyAccessible(FName PropertyName);
 	static bool DoesNodePropertyRequireModifyBonesReinit(FName PropertyName);
 	static bool DoesNodePropertyRequireSharedCollisionReinit(FName PropertyName);
+	static bool DoesNodePropertyRequireSimpleWorldCollisionReinit(FName PropertyName);
 	static bool SetNodeWildcardPropertyValue(FAnimNode_KawaiiPhysics& Node, FName PropertyName,
 	                                         const FProperty* ValueProperty, const void* ValuePtr);
 	static bool GetNodeWildcardPropertyValue(const FAnimNode_KawaiiPhysics& Node, FName PropertyName,
@@ -1692,6 +1735,10 @@ bool UKawaiiPhysicsLibrary::SetNodePropertyValue(FAnimNode_KawaiiPhysics& Node, 
 		{
 			Node.RequestSharedCollisionReinit();
 		}
+		if (DoesNodePropertyRequireSimpleWorldCollisionReinit(PropertyName))
+		{
+			Node.RequestSimpleWorldCollisionReinit();
+		}
 		return true;
 	}
 
@@ -1756,6 +1803,10 @@ bool UKawaiiPhysicsLibrary::SetNodeStructPropertyValue(FAnimNode_KawaiiPhysics& 
 		if (DoesNodePropertyRequireSharedCollisionReinit(PropertyName))
 		{
 			Node.RequestSharedCollisionReinit();
+		}
+		if (DoesNodePropertyRequireSimpleWorldCollisionReinit(PropertyName))
+		{
+			Node.RequestSimpleWorldCollisionReinit();
 		}
 		return true;
 	}

@@ -152,7 +152,7 @@ namespace
 			}
 
 			UE_LOG(LogKawaiiPhysics, Display,
-			       TEXT("KawaiiPhysicsAudit: ABP=%s Graph=%s RootBone=%s Tag=%s MatchedPreset=%s MatchesPreset=%s MatchedCount=%d DiffProperties=%s BoneSubdivision=%d BoneConstraintSubdivision=%d WorldCollision=%s UseSharedCollision=%s SharedCollisionSource=%s Wind=%s ExternalForces=%d WarmUpFrames=%d"),
+			       TEXT("KawaiiPhysicsAudit: ABP=%s Graph=%s RootBone=%s Tag=%s MatchedPreset=%s MatchesPreset=%s MatchedCount=%d DiffProperties=%s BoneSubdivision=%d BoneConstraintSubdivision=%d WorldCollision=%s UseSharedCollision=%s SharedCollisionSource=%s SimpleWorldCollision=%s SimpleWorldSkeletalMeshMode=%s Wind=%s ExternalForces=%d WarmUpFrames=%d"),
 			       *Entry.AnimBlueprintPath.ToString(),
 			       *Entry.GraphName.ToString(),
 			       *Entry.RootBoneName.ToString(),
@@ -166,6 +166,8 @@ namespace
 			       Entry.bAllowWorldCollision ? TEXT("true") : TEXT("false"),
 			       Entry.bUseSharedCollision ? TEXT("true") : TEXT("false"),
 			       Entry.bSharedCollisionSource ? TEXT("true") : TEXT("false"),
+			       Entry.bUseSimpleWorldCollision ? TEXT("true") : TEXT("false"),
+			       *UEnum::GetValueAsString(Entry.SimpleWorldCollisionSkeletalMeshMode),
 			       Entry.bEnableWind ? TEXT("true") : TEXT("false"),
 			       Entry.ExternalForceCount,
 			       Entry.WarmUpFrames);

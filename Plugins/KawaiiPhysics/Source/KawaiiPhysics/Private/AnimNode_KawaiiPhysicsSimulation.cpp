@@ -34,6 +34,9 @@
 #include "KawaiiPhysics.h"
 #include "AnimNode_KawaiiPhysicsInternal.h"
 
+// SimpleWorldCollision CVar（AnimNode_KawaiiPhysics.cpp で定義）
+extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionEnable;
+
 namespace
 {
 	constexpr float TransientGustLifetimeMargin = 0.2f;
@@ -598,6 +601,12 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 
 	const USkeletalMeshComponent* SkelComp = Output.AnimInstanceProxy->GetSkelMeshComponent();
 
+	// World Collision のクエリ設定はフレーム内で不変のため、サブステップ×ボーンのループ前に一度だけ構築する
+	if (bAllowWorldCollision && SkelComp)
+	{
+		PrepareWorldCollisionQueryCaches(SkelComp);
+	}
+
 	// Prev/Pose 情報を保存し、SkipSimulate を判定
 	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 	{
@@ -923,6 +932,8 @@ void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
 	// （ボーン数が多いケースで負荷増）、従来どおりボーン外側の1パスで全形状を処理する。
 	// World判定の時間は関数内の既存STAT（STAT_KawaiiPhysics_WorldCollision）で計測する。
 	int32 NumWorldChecks = 0;
+	// CVarでの全体無効化を毎ボーンで再判定しないようループ外でキャッシュ（Updateブロックと同じ条件）
+	const bool bApplySimpleWorldCollision = bUseSimpleWorldCollision && CVarSimpleWorldCollisionEnable.GetValueOnAnyThread();
 	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 	{
 		if (Bone.bSkipSimulate)
@@ -951,6 +962,15 @@ void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
 			AdjustByTaperedCapsuleCollision(Bone, SharedTaperedCapsuleLimits);
 			AdjustByBoxCollision(Bone, SharedBoxLimits);
 			AdjustByPlanarCollision(Bone, SharedPlanarLimits);
+		}
+
+		// シンプルワールドコリジョン（Subsystemが収集したレベル上のsimple collision）
+		if (bApplySimpleWorldCollision)
+		{
+			AdjustBySphereCollision(Bone, SimpleWorldSphericalLimits);
+			AdjustByCapsuleCollision(Bone, SimpleWorldCapsuleLimits);
+			AdjustByTaperedCapsuleCollision(Bone, SimpleWorldTaperedCapsuleLimits);
+			AdjustByBoxCollision(Bone, SimpleWorldBoxLimits);
 		}
 
 		if (bAllowWorldCollision)

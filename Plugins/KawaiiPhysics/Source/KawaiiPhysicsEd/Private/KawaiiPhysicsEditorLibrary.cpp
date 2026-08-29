@@ -352,6 +352,8 @@ namespace
 		Entry.bAllowWorldCollision = GraphNode->Node.bAllowWorldCollision;
 		Entry.bUseSharedCollision = GraphNode->Node.bUseSharedCollision;
 		Entry.bSharedCollisionSource = GraphNode->Node.bSharedCollisionSource;
+		Entry.bUseSimpleWorldCollision = GraphNode->Node.bUseSimpleWorldCollision;
+		Entry.SimpleWorldCollisionSkeletalMeshMode = GraphNode->Node.SimpleWorldCollisionSkeletalMeshMode;
 		Entry.bEnableWind = GraphNode->Node.bEnableWind;
 		Entry.ExternalForceCount = GraphNode->Node.ExternalForces.Num() + GraphNode->Node.CustomExternalForces.Num();
 		Entry.WarmUpFrames = GraphNode->Node.WarmUpFrames;

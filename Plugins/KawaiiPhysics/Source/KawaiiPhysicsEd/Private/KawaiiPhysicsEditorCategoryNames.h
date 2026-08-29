@@ -25,6 +25,7 @@ namespace KawaiiPhysicsEditorCategoryNames
 	inline const FName CollisionBoneConstraint(TEXT("Collision|Bone Constraint"));
 	inline const FName CollisionSharedCollision(TEXT("Collision|Shared Collision"));
 	inline const FName CollisionWorldCollision(TEXT("Collision|World Collision"));
+	inline const FName CollisionSimpleWorldCollision(TEXT("Collision|Simple World Collision"));
 	inline const FName Force(TEXT("Force"));
 	inline const FName ForceExternalForce(TEXT("Force|External Force"));
 	inline const FName ForceSyncBone(TEXT("Force|Sync Bone"));
@@ -40,7 +41,7 @@ namespace KawaiiPhysicsEditorCategoryNames
 		{
 			{Bones, {Bones, BonesBoneSubdivision}},
 			{Physics, {PhysicsSettings, PhysicsSettingsCurves}},
-			{Collision, {Collision, CollisionBoneConstraint, CollisionSharedCollision, CollisionWorldCollision}},
+			{Collision, {Collision, CollisionBoneConstraint, CollisionSharedCollision, CollisionWorldCollision, CollisionSimpleWorldCollision}},
 			{Force, {Force, ForceExternalForce, ForceSyncBone}},
 		};
 
@@ -63,6 +64,7 @@ namespace KawaiiPhysicsEditorCategoryNames
 			CollisionBoneConstraint,
 			CollisionSharedCollision,
 			CollisionWorldCollision,
+			CollisionSimpleWorldCollision,
 			Force,
 			ForceExternalForce,
 			ForceSyncBone,

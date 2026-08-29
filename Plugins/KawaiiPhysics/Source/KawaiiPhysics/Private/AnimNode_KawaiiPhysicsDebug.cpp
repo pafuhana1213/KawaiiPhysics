@@ -211,6 +211,50 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 					}
 #endif
 				}
+
+				// シンプルワールドコリジョン（水色）
+				if (bUseSimpleWorldCollision)
+				{
+					for (const auto& SphericalLimit : SimpleWorldSphericalLimits)
+					{
+						const FVector LocationWS =
+							ConvertSimulationSpaceLocation(Output, SimulationSpace,
+							                               EKawaiiPhysicsSimulationSpace::WorldSpace,
+							                               SphericalLimit.Location);
+						AnimInstanceProxy->AnimDrawDebugSphere(LocationWS, SphericalLimit.Radius, 8, FColor::Cyan,
+						                                       false, -1, LineThickness, SDPG_Foreground);
+					}
+
+					for (const auto& BoxLimit : SimpleWorldBoxLimits)
+					{
+						this->AnimDrawDebugBox(Output, BoxLimit.Location, BoxLimit.Rotation, BoxLimit.Extent,
+						                       FColor::Cyan, LineThickness);
+					}
+
+					for (const auto& TaperedCapsuleLimit : SimpleWorldTaperedCapsuleLimits)
+					{
+						this->AnimDrawDebugTaperedCapsule(Output, TaperedCapsuleLimit.Location,
+						                                  TaperedCapsuleLimit.Rotation, TaperedCapsuleLimit.Radius0,
+						                                  TaperedCapsuleLimit.Radius1, TaperedCapsuleLimit.Length,
+						                                  FColor::Cyan, LineThickness);
+					}
+
+#if !UE_VERSION_OLDER_THAN(5, 6, 0)
+					for (const auto& CapsuleLimit : SimpleWorldCapsuleLimits)
+					{
+						FTransform CapsuleTransformWS =
+							ConvertSimulationSpaceTransform(Output, SimulationSpace,
+							                                EKawaiiPhysicsSimulationSpace::WorldSpace,
+							                                FTransform(CapsuleLimit.Rotation, CapsuleLimit.Location));
+						AnimInstanceProxy->AnimDrawDebugCapsule(CapsuleTransformWS.GetTranslation(),
+						                                        CapsuleLimit.Length * 0.5f,
+						                                        CapsuleLimit.Radius,
+						                                        CapsuleTransformWS.GetRotation().Rotator(),
+						                                        FColor::Cyan, false, -1, LineThickness,
+						                                        SDPG_Foreground);
+					}
+#endif
+				}
 			}
 		}
 	}

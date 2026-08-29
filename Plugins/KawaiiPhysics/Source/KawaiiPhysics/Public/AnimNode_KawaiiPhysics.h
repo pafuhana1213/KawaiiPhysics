@@ -9,6 +9,7 @@
 #include "GameplayTagContainer.h"
 #include "BoneControllers/AnimNode_AnimDynamics.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
+#include "CollisionQueryParams.h"
 #include "Engine/HitResult.h"
 #include "HAL/CriticalSection.h"
 #include "Templates/SharedPointer.h"
@@ -26,6 +27,7 @@
 
 #include "KawaiiPhysicsSyncBone.h"
 #include "KawaiiPhysicsCollisionLimits.h"
+#include "KawaiiPhysicsSimpleWorldCollision.h"
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
 #include "KawaiiPhysicsTypes.h"
 #include "KawaiiPhysicsBoneConstraintTypes.h"
@@ -508,6 +510,8 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 
 	/** 共有コリジョンの再初期化を要求 / Request shared collision reinitialization */
 	void RequestSharedCollisionReinit() { bSharedCollisionNeedsReinit = true; }
+	/** シンプルワールドコリジョンの再初期化を要求 / Request simple world collision reinitialization */
+	void RequestSimpleWorldCollisionReinit();
 	/** ボーン構造に依存する設定変更後の再初期化を要求 / Request modify-bone rebuild after topology-affecting settings change */
 	void RequestModifyBonesReinit() { bModifyBonesNeedsReinit = true; }
 
@@ -794,6 +798,71 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	TArray<FName> IgnoreBoneNamePrefix;
 
 	/**
+	* GameThreadで定期収集したレベル上のsimple collisionをトレースなしで適用します。World Collisionより大幅に低負荷ですが、薄い壁・高速移動では World Collision(sweep) の併用を推奨します。
+	* Applies level simple collision gathered periodically on the GameThread without traces. Much cheaper than World Collision, but using it with World Collision (sweep) is recommended for thin walls or fast movement.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
+		meta = (PinHiddenByDefault, DisplayName = "Use Simple World Collision"))
+	bool bUseSimpleWorldCollision = false;
+
+	/**
+	* シンプルワールドコリジョンの収集間隔（秒）。0の場合は毎フレーム収集します。収集済みコンポーネントの位置更新は毎フレーム行われます。
+	* Gather interval for Simple World Collision in seconds. 0 gathers every frame. Already gathered component transforms are updated every frame.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
+		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision", ClampMin = "0.0", ClampMax = "10.0",
+		DisplayName = "Gather Interval"))
+	float SimpleWorldCollisionGatherInterval = 0.2f;
+
+	/**
+	* シンプルワールドコリジョンが反応するオブジェクトタイプ。空の場合は WorldStatic + WorldDynamic を使用します。
+	* Object types used by Simple World Collision. Empty means WorldStatic + WorldDynamic.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
+		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision", DisplayName = "Object Types"))
+	TArray<TEnumAsByte<EObjectTypeQuery>> SimpleWorldCollisionObjectTypes;
+
+	/**
+	* シンプルワールドコリジョンで複雑形状を近似する方法
+	* How Simple World Collision approximates complex shapes
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
+		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision", DisplayName = "Complex Shape Approximation"))
+	EKawaiiPhysicsComplexShapeApproximation SimpleWorldCollisionComplexShapeApproximation =
+		EKawaiiPhysicsComplexShapeApproximation::BoxBounds;
+
+	/** シンプルワールドコリジョンの収集半径を上書きする / Override the Simple World Collision gather radius */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
+		meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	bool bOverrideSimpleWorldCollisionGatherRadius = false;
+
+	/**
+	* シンプルワールドコリジョンの収集半径のオーバーライド。無効時は SkeletalMesh の Bounds から自動算出します。
+	* Override for the Simple World Collision gather radius. When disabled, it is calculated automatically from SkeletalMesh bounds.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
+		meta = (PinHiddenByDefault, EditCondition = "bOverrideSimpleWorldCollisionGatherRadius", ClampMin = "0",
+		DisplayName = "Gather Radius"))
+	float SimpleWorldCollisionGatherRadius = 200.0f;
+
+	/**
+	* 下方向トレース1本で地面を有界の薄いBoxとして近似します。Landscape/Complex 形状の床に対応します。
+	* Approximate the ground as a bounded thin box using one downward trace. Supports Landscape and complex-shape floors.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
+		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision", DisplayName = "Approximate Ground"))
+	bool bSimpleWorldCollisionApproximateGround = true;
+
+	/**
+	* シンプルワールドコリジョンで収集した SkeletalMeshComponent の扱い
+	* How collected SkeletalMeshComponents are handled by Simple World Collision
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
+		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision", DisplayName = "Skeletal Mesh Mode"))
+	EKawaiiPhysicsSimpleWorldSkeletalMeshMode SimpleWorldCollisionSkeletalMeshMode =
+		EKawaiiPhysicsSimpleWorldSkeletalMeshMode::Ignore;
+
+	/**
 	* ExternalForceなどで使用するフィルタリング用タグ
 	* Tag for filtering of ExternalForce etc
 	*/
@@ -953,6 +1022,24 @@ private:
 	// Scratch for Publish (swap-based, reuses capacity across frames to avoid per-frame allocation on the source)
 	FKawaiiPhysicsSharedCollisionData SharedCollisionPublishScratch;
 
+	// --- Simple World Collision ---
+	// GameThread(OnInitializeAnimInstance)で解決したSkelCompキー。WorkerではdereferenceせずSubsystemキーとしてのみ使う
+	// SkelComp key resolved on the GameThread; worker uses it only as a subsystem key and does not dereference it
+	TWeakObjectPtr<const USkeletalMeshComponent> CachedSimpleWorldCollisionSkelComp;
+	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> CachedSimpleWorldEntry;
+	FKawaiiPhysicsSimpleWorldCollisionDesc LastSentSimpleWorldDesc;
+	bool bSimpleWorldDescSent = false;
+	bool bSimpleWorldCollisionInitialized = false;
+	bool bSimpleWorldRadiusWarningLogged = false;
+	FKawaiiPhysicsSharedCollisionData SimpleWorldMergedScratch;
+
+	// シンプルワールドコリジョンワーク配列（シミュレーション空間に変換済み）
+	// Simple world collision working arrays (converted to simulation space)
+	TArray<FSphericalLimit> SimpleWorldSphericalLimits;
+	TArray<FCapsuleLimit> SimpleWorldCapsuleLimits;
+	TArray<FTaperedCapsuleLimit> SimpleWorldTaperedCapsuleLimits;
+	TArray<FBoxLimit> SimpleWorldBoxLimits;
+
 	// 風の乱数(gust/cone)をフレーム単位でキャッシュしサブステップ間で同一値を使う（NumStep非依存＝フレームレート非依存）
 	// Cache wind randomness (gust/cone) per frame, shared across substeps (frame-rate independent)
 	mutable uint64 CachedWindNoiseFrame = 0;
@@ -966,6 +1053,10 @@ private:
 	TArray<FName> IgnoreBoneNamePrefixCache;
 	// sweep結果を受け取る使い回しバッファ（フレーム間で確保済みメモリを再利用） / Sweep-result scratch (reuses capacity across frames)
 	TArray<FHitResult> WorldCollisionHitsScratch;
+	// World Collision クエリ設定のホイスト済みキャッシュ（SimulateModifyBones冒頭で構築、サブステップ×ボーン間で再利用） / Hoisted world-collision query setup (built at the start of SimulateModifyBones, reused across substeps and bones)
+	FCollisionQueryParams WorldCollisionQueryParamsCache;
+	ECollisionChannel WorldCollisionTraceChannelCache = ECC_WorldStatic;
+	FCollisionResponseParams WorldCollisionResponseParamsCache;
 
 	// bridge dummy feedback の集計用使い回しバッファ（端点index→押し出し/重み）。SimulateOnce毎のTMap確保を避け、
 	// フレーム間で確保済みメモリを再利用する。 / Bridge-dummy feedback accumulation scratch (endpoint index -> push/weight);
@@ -1361,6 +1452,30 @@ protected:
 	void UpdateSharedCollisionLimits(FComponentSpacePoseContext& Output);
 
 	/**
+	 * シンプルワールドコリジョンのEntryを初期化する（AnyThread）
+	 * Initialize the Simple World Collision entry (any thread)
+	 */
+	void InitializeSimpleWorldCollision();
+
+	/**
+	 * 現在の設定からシンプルワールドコリジョンのDescを構築する（AnyThread、UObjectをdereferenceしない）
+	 * Build the Simple World Collision Desc from current settings (any thread; does not dereference UObject)
+	 */
+	FKawaiiPhysicsSimpleWorldCollisionDesc BuildSimpleWorldCollisionDesc() const;
+
+	/**
+	 * シンプルワールドコリジョンを読み取り、シミュレーション空間に変換する（AnyThread）
+	 * Read Simple World Collision and convert to simulation space (any thread)
+	 */
+	void UpdateSimpleWorldCollisionLimits(FComponentSpacePoseContext& Output);
+
+	/**
+	 * シンプルワールドコリジョンのDesc登録を解除する（AnyThread）
+	 * Remove this node's Simple World Collision desc (any thread)
+	 */
+	void ReleaseSimpleWorldCollision();
+
+	/**
 	 * Updates the pose transform for all modified bones.
 	 *
 	 * @param Output The pose context.
@@ -1442,6 +1557,9 @@ protected:
 #if WITH_DEV_AUTOMATION_TESTS
 	friend struct FKawaiiPhysicsTestAccessor;
 #endif
+
+	// World Collision クエリ設定のキャッシュを構築（SimulateModifyBones冒頭で毎フレーム1回） / Build hoisted world-collision query caches (once per frame at the start of SimulateModifyBones)
+	void PrepareWorldCollisionQueryCaches(const USkeletalMeshComponent* OwningComp);
 
 	/**
 	 * Adjusts the bone position based on world collision.

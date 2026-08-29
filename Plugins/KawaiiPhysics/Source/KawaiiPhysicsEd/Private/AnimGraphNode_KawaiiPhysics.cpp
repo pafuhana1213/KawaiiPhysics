@@ -461,6 +461,22 @@ void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* Ani
 	KawaiiPhysics->bUseSharedCollision = Node.bUseSharedCollision;
 	KawaiiPhysics->SharedCollisionGroupTag = Node.SharedCollisionGroupTag;
 
+	// シンプルワールドコリジョン
+	// 有効/無効フラグのみ切り替え時に明示リセットする。他の7項目はUpdateSimpleWorldCollisionLimits内のDesc差分検知が
+	// 毎フレーム自動で拾って再送するため不要（Reinitは警告済みフラグ等の即時クリアが目的）
+	if (KawaiiPhysics->bUseSimpleWorldCollision != Node.bUseSimpleWorldCollision)
+	{
+		KawaiiPhysics->RequestSimpleWorldCollisionReinit();
+	}
+	KawaiiPhysics->bUseSimpleWorldCollision = Node.bUseSimpleWorldCollision;
+	KawaiiPhysics->SimpleWorldCollisionGatherInterval = Node.SimpleWorldCollisionGatherInterval;
+	KawaiiPhysics->SimpleWorldCollisionObjectTypes = Node.SimpleWorldCollisionObjectTypes;
+	KawaiiPhysics->SimpleWorldCollisionComplexShapeApproximation = Node.SimpleWorldCollisionComplexShapeApproximation;
+	KawaiiPhysics->bOverrideSimpleWorldCollisionGatherRadius = Node.bOverrideSimpleWorldCollisionGatherRadius;
+	KawaiiPhysics->SimpleWorldCollisionGatherRadius = Node.SimpleWorldCollisionGatherRadius;
+	KawaiiPhysics->bSimpleWorldCollisionApproximateGround = Node.bSimpleWorldCollisionApproximateGround;
+	KawaiiPhysics->SimpleWorldCollisionSkeletalMeshMode = Node.SimpleWorldCollisionSkeletalMeshMode;
+
 	// ExternalForce
 	KawaiiPhysics->Gravity = Node.Gravity;
 	KawaiiPhysics->bUseLegacyGravity = Node.bUseLegacyGravity;
@@ -890,6 +906,8 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 			  LOCTEXT("Category_Collision_SharedCollision", "Collision > Shared Collision") },
 			{ KawaiiPhysicsEditorCategoryNames::CollisionWorldCollision,
 			  LOCTEXT("Category_Collision_WorldCollision", "Collision > World Collision") },
+			{ KawaiiPhysicsEditorCategoryNames::CollisionSimpleWorldCollision,
+			  LOCTEXT("Category_Collision_SimpleWorldCollision", "Collision > Simple World Collision") },
 			{ KawaiiPhysicsEditorCategoryNames::ForceExternalForce,
 			  LOCTEXT("Category_Force_ExternalForce", "Force > External Force") },
 			{ KawaiiPhysicsEditorCategoryNames::ForceSyncBone,
