@@ -122,8 +122,8 @@ TAutoConsoleVariable<int32> CVarSimpleWorldCollisionMaxComponents(
 		"-1 uses the DeveloperSettings value; >=0 overrides the max gathered components per SkelComp."));
 TAutoConsoleVariable<int32> CVarSimpleWorldCollisionMaxPhysicsAssetBodies(
 	TEXT("a.AnimNode.KawaiiPhysics.SimpleWorldCollision.MaxPhysicsAssetBodies"), -1,
-	TEXT("-1でDeveloperSettingsの値を使用。0以上でPhysicsAssetモードのSkelComp単位最大body数を上書き / "
-		"-1 uses the DeveloperSettings value; >=0 overrides the max PhysicsAsset bodies per SkelComp."));
+	TEXT("-1でDeveloperSettingsの値を使用。0でPhysicsAssetモードのSkeletalMeshを収集しない。1以上でSkelComp単位最大body数を上書き / "
+		"-1 uses the DeveloperSettings value; 0 does not gather SkeletalMeshes in PhysicsAsset mode; >=1 overrides the max PhysicsAsset bodies per SkelComp."));
 TAutoConsoleVariable<int32> CVarSimpleWorldCollisionCleanupMaxAge(
 	TEXT("a.AnimNode.KawaiiPhysics.SimpleWorldCollision.CleanupMaxAge"), 60,
 	TEXT("SimpleWorld Entry/Descのエイジアウト閾値（フレーム数） / Age-out threshold (in frames) for SimpleWorld entries/descs."));

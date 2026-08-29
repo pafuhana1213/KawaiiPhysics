@@ -2,8 +2,14 @@
 
 #include "KawaiiPhysicsSimpleWorldCollision.h"
 
+#include "Engine/EngineTypes.h"
+#include "Misc/EngineVersionComparison.h"
 #include "PhysicsEngine/PhysicsAsset.h"
+
+#if !UE_VERSION_OLDER_THAN(5, 5, 0)
 #include "PhysicsEngine/SkeletalBodySetup.h"
+#endif
+
 #include "ReferenceSkeleton.h"
 
 namespace
@@ -66,6 +72,7 @@ namespace
 		int32 Offset,
 		int32 Num)
 	{
+		check(Offset >= 0 && Num >= 0 && Offset + Num <= Limits.Num());
 		return Num > 0
 			? TArrayView<const LimitType>(Limits.GetData() + Offset, Num)
 			: TArrayView<const LimitType>();
@@ -148,8 +155,14 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		FKawaiiPhysicsSharedCollisionData& OutLocalLimits)
 	{
 		OutLocalLimits.SphericalLimits.Reserve(OutLocalLimits.SphericalLimits.Num() + AggGeom.SphereElems.Num());
+		// Shape単位のQuery無効設定は静的コンポーネント経路でもここで除外する。
 		for (const auto& SphereElem : AggGeom.SphereElems)
 		{
+			if (!CollisionEnabledHasQuery(SphereElem.GetCollisionEnabled()))
+			{
+				continue;
+			}
+
 			const FKSphereElem ScaledElem = SphereElem.GetFinalScaled(Scale3D, FTransform::Identity);
 
 			FSphericalLimit NewLimit;
@@ -164,6 +177,11 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		OutLocalLimits.CapsuleLimits.Reserve(OutLocalLimits.CapsuleLimits.Num() + AggGeom.SphylElems.Num());
 		for (const auto& CapsuleElem : AggGeom.SphylElems)
 		{
+			if (!CollisionEnabledHasQuery(CapsuleElem.GetCollisionEnabled()))
+			{
+				continue;
+			}
+
 			const FKSphylElem ScaledElem = CapsuleElem.GetFinalScaled(Scale3D, FTransform::Identity);
 
 			FCapsuleLimit NewLimit;
@@ -178,6 +196,11 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		OutLocalLimits.TaperedCapsuleLimits.Reserve(OutLocalLimits.TaperedCapsuleLimits.Num() + AggGeom.TaperedCapsuleElems.Num());
 		for (const auto& TaperedCapsuleElem : AggGeom.TaperedCapsuleElems)
 		{
+			if (!CollisionEnabledHasQuery(TaperedCapsuleElem.GetCollisionEnabled()))
+			{
+				continue;
+			}
+
 			const FKTaperedCapsuleElem ScaledElem = TaperedCapsuleElem.GetFinalScaled(Scale3D, FTransform::Identity);
 
 			FTaperedCapsuleLimit NewLimit;
@@ -194,6 +217,11 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		OutLocalLimits.BoxLimits.Reserve(OutLocalLimits.BoxLimits.Num() + AggGeom.BoxElems.Num() + AggGeom.ConvexElems.Num());
 		for (const auto& BoxElem : AggGeom.BoxElems)
 		{
+			if (!CollisionEnabledHasQuery(BoxElem.GetCollisionEnabled()))
+			{
+				continue;
+			}
+
 			const FKBoxElem ScaledElem = BoxElem.GetFinalScaled(Scale3D, FTransform::Identity);
 
 			FBoxLimit NewLimit;
@@ -206,6 +234,11 @@ namespace KawaiiPhysicsSimpleWorldCollision
 
 		for (const auto& ConvexElem : AggGeom.ConvexElems)
 		{
+			if (!CollisionEnabledHasQuery(ConvexElem.GetCollisionEnabled()))
+			{
+				continue;
+			}
+
 			if (!ConvexElem.ElemBox.IsValid)
 			{
 				continue;

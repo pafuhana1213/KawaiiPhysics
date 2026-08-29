@@ -114,6 +114,7 @@ namespace
 
 	bool BuildSkeletalLocalLimitsForSimpleWorldComponent(
 		const USkeletalMeshComponent& SkelComp,
+		const FVector& Scale3D,
 		const FKawaiiPhysicsSimpleWorldCollisionDesc& Desc,
 		int32 MaxPhysicsAssetBodies,
 		FKawaiiPhysicsSharedCollisionData& OutLocalLimits,
@@ -132,7 +133,7 @@ namespace
 		const int32 NumBodies = KawaiiPhysicsSimpleWorldCollision::AppendPhysicsAssetLocalLimits(
 			*PhysicsAsset,
 			SkinnedAsset->GetRefSkeleton(),
-			SkelComp.GetComponentScale(),
+			Scale3D,
 			Desc.ComplexShapeApproximation,
 			MaxPhysicsAssetBodies,
 			OutLocalLimits,
@@ -161,8 +162,15 @@ namespace
 			}
 
 			if (Desc.SkeletalMeshMode == EKawaiiPhysicsSimpleWorldSkeletalMeshMode::PhysicsAsset
+				&& MaxPhysicsAssetBodies <= 0)
+			{
+				// CVarの0指定はPhysicsAssetモードのSkeletalMesh収集を丸ごと止める安全弁として扱う。
+				return false;
+			}
+
+			if (Desc.SkeletalMeshMode == EKawaiiPhysicsSimpleWorldSkeletalMeshMode::PhysicsAsset
 				&& BuildSkeletalLocalLimitsForSimpleWorldComponent(
-					*SkelComp, Desc, MaxPhysicsAssetBodies, OutLocalLimits, OutBodyBindings))
+					*SkelComp, Scale3D, Desc, MaxPhysicsAssetBodies, OutLocalLimits, OutBodyBindings))
 			{
 				return true;
 			}
@@ -818,6 +826,8 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 	const bool bDebugDraw = CVarSimpleWorldCollisionDebugDraw.GetValueOnGameThread() != 0;
 #endif
 
+	int32 TotalGatheredComponents = 0;
+	int32 TotalSkeletalBodies = 0;
 	for (const FSimpleWorldTickEntry& TickEntry : Entries)
 	{
 		const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>& Entry = TickEntry.Entry;
@@ -1179,7 +1189,18 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 			DrawSimpleWorldCollisionDebug(*World, Center, Radius, *Entry);
 		}
 #endif
+
+		TotalGatheredComponents += Entry->GatheredComponents.Num();
+		for (const FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent& GatheredComponent :
+			Entry->GatheredComponents)
+		{
+			TotalSkeletalBodies += GatheredComponent.BodyBindings.Num();
+		}
 	}
+
+	// DWORDカウンタは毎フレームリセットされるため、CleanupゲートではなくSimpleWorldのTickごとに更新する。
+	SET_DWORD_STAT(STAT_KawaiiPhysics_SimpleWorldCollision_NumGatheredComponents, TotalGatheredComponents);
+	SET_DWORD_STAT(STAT_KawaiiPhysics_SimpleWorldCollision_NumSkeletalBodies, TotalSkeletalBodies);
 }
 
 void UKawaiiPhysicsSharedCollisionSubsystem::Deinitialize()
@@ -1248,8 +1269,6 @@ void UKawaiiPhysicsSharedCollisionSubsystem::Tick(float DeltaTime)
 		FWriteScopeLock SimpleWorldWriteLock(SimpleWorldRegistryLock);
 		const int32 SimpleWorldCleanupMaxAge = CVarSimpleWorldCollisionCleanupMaxAge.GetValueOnGameThread();
 
-		int32 TotalGatheredComponents = 0;
-		int32 TotalSkeletalBodies = 0;
 		for (auto It = SimpleWorldRegistry.CreateIterator(); It; ++It)
 		{
 			if (!It->Key.IsValid() || !It->Value.IsValid())
@@ -1264,16 +1283,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::Tick(float DeltaTime)
 				It.RemoveCurrent();
 				continue;
 			}
-
-			TotalGatheredComponents += It->Value->GatheredComponents.Num();
-			for (const FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent& GatheredComponent :
-				It->Value->GatheredComponents)
-			{
-				TotalSkeletalBodies += GatheredComponent.BodyBindings.Num();
-			}
 		}
-		SET_DWORD_STAT(STAT_KawaiiPhysics_SimpleWorldCollision_NumGatheredComponents, TotalGatheredComponents);
-		SET_DWORD_STAT(STAT_KawaiiPhysics_SimpleWorldCollision_NumSkeletalBodies, TotalSkeletalBodies);
 	}
 }
 

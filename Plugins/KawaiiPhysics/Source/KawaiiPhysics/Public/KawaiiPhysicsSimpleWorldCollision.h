@@ -75,7 +75,9 @@ namespace KawaiiPhysicsSimpleWorldCollision
 
 	/**
 	 * 1 body 分の AggGeom をボーンローカル Limit として追記し、各配列内の連続要素数を Binding に記録します。
+	 * Binding は開始 offset を持たず先頭からの累積で解決するため、OutLocalLimits と OutBindings は同時に空の状態から使い始めてください。
 	 * Appends one body's AggGeom as bone-local limits and records contiguous element counts in the binding.
+	 * Bindings do not store start offsets and are resolved by accumulation from the beginning, so start using OutLocalLimits and OutBindings when both are empty.
 	 */
 	KAWAIIPHYSICS_API bool AppendBodyLocalLimits(
 		const FKAggregateGeom& AggGeom,
@@ -88,7 +90,9 @@ namespace KawaiiPhysicsSimpleWorldCollision
 
 	/**
 	 * PhysicsAsset の Body を RefSkeleton で解決し、ボーン index 昇順で上限までボーンローカル Limit として追記します。
+	 * Binding は開始 offset を持たず先頭からの累積で解決するため、OutLocalLimits と OutBindings は同時に空の状態から使い始めてください。
 	 * Resolves PhysicsAsset bodies against the RefSkeleton and appends them as bone-local limits, sorted by bone index and capped by MaxBodies.
+	 * Bindings do not store start offsets and are resolved by accumulation from the beginning, so start using OutLocalLimits and OutBindings when both are empty.
 	 */
 	KAWAIIPHYSICS_API int32 AppendPhysicsAssetLocalLimits(
 		const UPhysicsAsset& PhysicsAsset,
