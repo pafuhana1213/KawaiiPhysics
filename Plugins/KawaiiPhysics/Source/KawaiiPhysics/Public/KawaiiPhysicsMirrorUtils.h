@@ -8,7 +8,7 @@
 #include "ReferenceSkeleton.h"
 #include "Templates/Function.h"
 
-namespace KawaiiPhysicsMirror
+namespace KawaiiPhysicsMirrorUtils
 {
 	/**
 	 * ボーンローカル空間のコリジョンオフセット位置をミラー先ボーンのローカル空間へ変換

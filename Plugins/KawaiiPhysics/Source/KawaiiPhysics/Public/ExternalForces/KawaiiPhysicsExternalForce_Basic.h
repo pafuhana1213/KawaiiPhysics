@@ -14,8 +14,8 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Basic : public FKawaiiPhys
 {
 	GENERATED_BODY()
 
-	/** Direction of the force */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
+	/** 外力の方向 / Direction of the force */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce")
 	FVector ForceDir = FVector::Zero();
 
 	/**
@@ -24,11 +24,11 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Basic : public FKawaiiPhys
 	* Corrects the Force Rate applied to each bone.
 	* Multiplies the ForceRate by the curve value for "Length from RootBone to specific bone / Length from RootBone to end bone" (0.0~1.0)
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce")
 	FRuntimeFloatCurve ForceRateByBoneLengthRate;
 
-	/** Interval for applying the force */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
+	/** 外力を適用する間隔 / Interval for applying the force */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce")
 	float Interval = 0.0f;
 
 	virtual void PreApply(FAnimNode_KawaiiPhysics& Node, FComponentSpacePoseContext& PoseContext) override;

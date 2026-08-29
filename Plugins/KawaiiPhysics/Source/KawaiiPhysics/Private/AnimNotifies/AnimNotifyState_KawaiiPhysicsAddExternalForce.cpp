@@ -33,7 +33,7 @@ void UAnimNotifyState_KawaiiPhysicsAddExternalForce::NotifyBegin(USkeletalMeshCo
 		return;
 	}
 
-	UKawaiiPhysicsLibrary::AddExternalForcesToComponent(MeshComp, AdditionalExternalForces, this,
+	UKawaiiPhysicsLibrary::AddExternalForcesOnComponent(MeshComp, AdditionalExternalForces, this,
 	                                                    FilterTags, bFilterExactMatch);
 	Super::NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
 }
@@ -47,7 +47,7 @@ void UAnimNotifyState_KawaiiPhysicsAddExternalForce::NotifyEnd(USkeletalMeshComp
 		return;
 	}
 
-	UKawaiiPhysicsLibrary::RemoveExternalForcesFromComponent(MeshComp, this, FilterTags, bFilterExactMatch);
+	UKawaiiPhysicsLibrary::RemoveExternalForcesOnComponent(MeshComp, this, FilterTags, bFilterExactMatch);
 
 	Super::NotifyEnd(MeshComp, Animation, EventReference);
 }
@@ -66,7 +66,7 @@ void UAnimNotifyState_KawaiiPhysicsAddExternalForce::ValidateAssociatedAssets()
 				FMessageLog AssetCheckLog(NAME_AssetCheck);
 
 				const FText MessageLooping = FText::Format(
-					NSLOCTEXT("AnimNotify", "ExternalForce_ShouldSet",
+					NSLOCTEXT("AnimNotify", "ExternalForceState_ShouldSet",
 					          " AnimNotifyState(KawaiiPhysics_AddExternalForce) doesn't have a valid ExternalForce in {0}"),
 					FText::AsCultureInvariant(ContainingAsset->GetPathName()));
 

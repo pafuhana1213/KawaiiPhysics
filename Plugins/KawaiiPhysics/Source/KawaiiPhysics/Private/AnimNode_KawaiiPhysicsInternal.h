@@ -19,7 +19,7 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_ApplySyncBone"), STAT_KawaiiPhysic
 DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_AdjustByCollision"), STAT_KawaiiPhysics_AdjustByCollision, STATGROUP_Anim, KAWAIIPHYSICS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_AdjustByBoneConstraint"), STAT_KawaiiPhysics_AdjustByBoneConstraint, STATGROUP_Anim, KAWAIIPHYSICS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_UpdateSphericalLimit"), STAT_KawaiiPhysics_UpdateSphericalLimit, STATGROUP_Anim, KAWAIIPHYSICS_API);
-DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_UpdatePlanerLimit"), STAT_KawaiiPhysics_UpdatePlanerLimit, STATGROUP_Anim, KAWAIIPHYSICS_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_UpdatePlanarLimit"), STAT_KawaiiPhysics_UpdatePlanarLimit, STATGROUP_Anim, KAWAIIPHYSICS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_WarmUp"), STAT_KawaiiPhysics_WarmUp, STATGROUP_Anim, KAWAIIPHYSICS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_UpdatePhysicsSetting"), STAT_KawaiiPhysics_UpdatePhysicsSetting, STATGROUP_Anim, KAWAIIPHYSICS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_UpdateCapsuleLimit"), STAT_KawaiiPhysics_UpdateCapsuleLimit, STATGROUP_Anim, KAWAIIPHYSICS_API);

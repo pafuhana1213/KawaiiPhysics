@@ -26,14 +26,14 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Wind : public FKawaiiPhysi
 	* Corrects the Force Rate applied to each bone.
 	* Multiplies the ForceRate by the curve value for "Length from RootBone to specific bone / Length from RootBone to end bone" (0.0~1.0)
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce")
 	FRuntimeFloatCurve ForceRateByBoneLengthRate;
 	
 	/** 
 * WindDirectionalSourceによる風方向に与えるノイズ（角度）
 * Noise(Degree) of wind by WindDirectionalSource. For use with Cloth and SpeedTree
 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "KawaiiPhysics|ExternalForce",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kawaii Physics|ExternalForce",
 		meta = (Units = "Degrees", ClampMin=0, PinHiddenByDefault))
 	float WindDirectionNoiseAngle = 0.0f;
 

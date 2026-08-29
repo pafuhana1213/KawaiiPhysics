@@ -318,19 +318,35 @@ struct FKawaiiPhysicsTestAccessor
 	}
 	void CallCapsuleCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FCapsuleLimit>& Limits)
 	{
+		for (FCapsuleLimit& Limit : Limits)
+		{
+			Limit.UpdateRuntimeCache();
+		}
 		Node.AdjustByCapsuleCollision(Bone, Limits);
 	}
 	void CallTaperedCapsuleCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FTaperedCapsuleLimit>& Limits)
 	{
+		for (FTaperedCapsuleLimit& Limit : Limits)
+		{
+			Limit.UpdateRuntimeCache();
+		}
 		Node.AdjustByTaperedCapsuleCollision(Bone, Limits);
 	}
 	void CallBoxCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FBoxLimit>& Limits)
 	{
+		for (FBoxLimit& Limit : Limits)
+		{
+			Limit.UpdateRuntimeCache();
+		}
 		Node.AdjustByBoxCollision(Bone, Limits);
 	}
 	void CallPlanarCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FPlanarLimit>& Limits)
 	{
-		Node.AdjustByPlanerCollision(Bone, Limits);
+		for (FPlanarLimit& Limit : Limits)
+		{
+			Limit.UpdateRuntimeCache();
+		}
+		Node.AdjustByPlanarCollision(Bone, Limits);
 	}
 	void CallAngleLimit(FKawaiiPhysicsModifyBone& Bone, const FKawaiiPhysicsModifyBone& ParentBone)
 	{
@@ -365,6 +381,39 @@ struct FKawaiiPhysicsTestAccessor
 	void CallUpdatePhysicsSettings()
 	{
 		Node.UpdatePhysicsSettingsOfModifyBones();
+	}
+
+	void CallResetTransientRuntimeState()
+	{
+		Node.ResetTransientRuntimeState();
+	}
+
+	FKawaiiPhysicsSettingsMultiplier CallComputeEffectiveSettingsMultiplierScale() const
+	{
+		return Node.ComputeEffectivePhysicsSettingsMultiplierScale();
+	}
+
+	void SetInitPhysicsSettings(bool bInit) { Node.bInitPhysicsSettings = bInit; }
+	bool IsPhysicsSettingsMultiplierAppliedLastUpdate() const { return Node.bPhysicsSettingsMultiplierAppliedLastUpdate; }
+	void SetPhysicsSettingsMultiplierAppliedLastUpdate(const bool bValue) { Node.bPhysicsSettingsMultiplierAppliedLastUpdate = bValue; }
+
+	/**
+	 * EvaluateSkeletalControl_AnyThread の物理設定更新 gating（判定は ShouldUpdatePhysicsSettings を共有）を Output 無しで実行する
+	 * （bEditing は WITH_EDITORONLY_DATA 既定の false 相当として扱う）。
+	 * @return このフレームで UpdatePhysicsSettingsOfModifyBones が走ったか
+	 */
+	bool RunPhysicsSettingsUpdateGate(float FrameDt)
+	{
+		const bool bHasActiveSettingsMultiplier = Node.ConsumeAndAdvancePhysicsSettingsMultipliers(FrameDt);
+		if (Node.ShouldUpdatePhysicsSettings(bHasActiveSettingsMultiplier))
+		{
+			Node.UpdatePhysicsSettingsOfModifyBones();
+			Node.bPhysicsSettingsMultiplierAppliedLastUpdate = bHasActiveSettingsMultiplier;
+			Node.bInitPhysicsSettings = true;
+			return true;
+		}
+
+		return false;
 	}
 
 	FKawaiiPhysicsSyncTargetRoot CollectSyncChildTargetsForRoot(int32 RootIndex)
@@ -524,6 +573,9 @@ private:
 			}
 		}
 
+		// 本番 SimulateOnce と同様、形状キャッシュはステップ毎に再計算
+		Node.PrepareCollisionShapeCaches();
+
 		// コリジョン（SimulateOnce 413-445、AnimNode 側 limits のみ）
 		for (FKawaiiPhysicsModifyBone& Bone : Node.ModifyBones)
 		{
@@ -539,8 +591,8 @@ private:
 			Node.AdjustByTaperedCapsuleCollision(Bone, Node.TaperedCapsuleLimitsData);
 			Node.AdjustByBoxCollision(Bone, Node.BoxLimits);
 			Node.AdjustByBoxCollision(Bone, Node.BoxLimitsData);
-			Node.AdjustByPlanerCollision(Bone, Node.PlanarLimits);
-			Node.AdjustByPlanerCollision(Bone, Node.PlanarLimitsData);
+			Node.AdjustByPlanarCollision(Bone, Node.PlanarLimits);
+			Node.AdjustByPlanarCollision(Bone, Node.PlanarLimitsData);
 
 			// 簡易ワールドコリジョン（本体 Simulation.cpp と同じ条件・同じ位置＝Sharedの後・WorldCollisionの前に相当）
 			if (Node.bUseSimpleWorldCollision)

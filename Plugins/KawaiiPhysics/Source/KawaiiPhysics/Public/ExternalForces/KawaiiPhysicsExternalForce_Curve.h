@@ -19,7 +19,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Curve : public FKawaiiPhys
 	* Set the external force that changes over time using a curve. X-axis: Time Y-axis: Force
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (XAxisName="Time", YAxisName="Force"),
-		Category="KawaiiPhysics|ExternalForce")
+		Category="Kawaii Physics|ExternalForce")
 	FRuntimeVectorCurve ForceCurve;
 
 	/**
@@ -30,7 +30,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Curve : public FKawaiiPhys
 	* If set to anything other than Single: The time elapsed from the previous frame is divided by SubstepCount,
 	* and the Average, Maximum, or Minimum values of the curve at each time point after division are used as external forces.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce")
 	EExternalForceCurveEvaluateType CurveEvaluateType = EExternalForceCurveEvaluateType::Single;
 
 	/**
@@ -39,14 +39,16 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Curve : public FKawaiiPhys
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,
 		meta=(EditCondition="CurveEvaluateType != EExternalForceCurveEvaluateType::Single", ClampMin="1", UIMin="1"),
-		Category="KawaiiPhysics|ExternalForce")
+		Category="Kawaii Physics|ExternalForce")
 	int SubstepCount = 10;
 
 	/**
+	 * 時間のスケール係数。
+	 * 外力のカーブ評価に使う時間経過をこの値でスケールする。
 	 * Scale factor for the time.
 	 * This value is used to scale the time for the external force.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category ="KawaiiPhysics|ExternalForce")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kawaii Physics|ExternalForce")
 	float TimeScale = 1.0f;
 
 	/**
@@ -55,7 +57,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Curve : public FKawaiiPhys
 	* Corrects the Force Rate applied to each bone.
 	* Multiplies the ForceRate by the curve value for "Length from RootBone to specific bone / Length from RootBone to end bone" (0.0~1.0)
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce")
 	FRuntimeFloatCurve ForceRateByBoneLengthRate;
 
 private:

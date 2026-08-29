@@ -19,6 +19,7 @@ enum class EXPBDComplianceType : uint8
 };
 
 /**
+ * 2本のボーン間のConstraintを表す構造体。
  * Structure representing a constraint between two bones for the KawaiiPhysics system.
  */
 USTRUCT()
@@ -30,27 +31,27 @@ struct FModifyBoneConstraint
 	{
 	}
 
-	/** The first bone reference in the constraint */
-	UPROPERTY(EditAnywhere, category = "KawaiiPhysics")
+	/** Constraintの1本目のボーン参照 / The first bone reference in the constraint */
+	UPROPERTY(EditAnywhere, Category = "Kawaii Physics")
 	FBoneReference Bone1;
 
-	/** The second bone reference in the constraint */
-	UPROPERTY(EditAnywhere, category = "KawaiiPhysics")
+	/** Constraintの2本目のボーン参照 / The second bone reference in the constraint */
+	UPROPERTY(EditAnywhere, Category = "Kawaii Physics")
 	FBoneReference Bone2;
 
-	/** Flag to override the compliance type */
-	UPROPERTY(EditAnywhere, category = "KawaiiPhysics", meta=(InlineEditConditionToggle))
+	/** ComplianceTypeを個別に上書きするフラグ / Flag to override the compliance type */
+	UPROPERTY(EditAnywhere, Category = "Kawaii Physics", meta=(InlineEditConditionToggle))
 	bool bOverrideCompliance = false;
 
-	/** The compliance type to use if overridden */
-	UPROPERTY(EditAnywhere, category = "KawaiiPhysics", meta=(EditCondition="bOverrideCompliance"))
+	/** 上書きする場合に使用するComplianceType / The compliance type to use if overridden */
+	UPROPERTY(EditAnywhere, Category = "Kawaii Physics", meta=(EditCondition="bOverrideCompliance"))
 	EXPBDComplianceType ComplianceType = EXPBDComplianceType::Leather;
 
 	/**
 	 * このConstraintをBoneConstraintSubdivisionの対象から除外する（構造/対角Constraint用のオプトアウト）
 	 * Exclude this constraint from BoneConstraintSubdivision (opt-out for structural/diagonal constraints).
 	 */
-	UPROPERTY(EditAnywhere, category = "KawaiiPhysics")
+	UPROPERTY(EditAnywhere, Category = "Kawaii Physics")
 	bool bExcludeFromSubdivision = false;
 
 	/** Index of the first modify bone */

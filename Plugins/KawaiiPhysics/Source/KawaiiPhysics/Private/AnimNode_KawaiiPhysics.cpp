@@ -38,7 +38,44 @@
 #include "AnimNode_KawaiiPhysicsInternal.h"
 #include "KawaiiPhysicsNodeWarning.h"
 
+#include <atomic>
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_KawaiiPhysics)
+
+namespace
+{
+	void DropOldestPendingTransientForceIfFull(FKawaiiPhysicsTransientForceQueue& Queue, const bool bAppendingGust)
+	{
+		if (Queue.PendingForces.Num() + Queue.PendingGusts.Num() < FAnimNode_KawaiiPhysics::MaxTransientExternalForces)
+		{
+			return;
+		}
+
+		// 評価が走らないノードへの連打でも pending 合計が MaxTransientExternalForces を超えないよう最古から破棄する。
+		if (bAppendingGust)
+		{
+			if (Queue.PendingGusts.Num() > 0)
+			{
+				Queue.PendingGusts.RemoveAt(0);
+			}
+			else
+			{
+				Queue.PendingForces.RemoveAt(0);
+			}
+		}
+		else
+		{
+			if (Queue.PendingForces.Num() > 0)
+			{
+				Queue.PendingForces.RemoveAt(0);
+			}
+			else
+			{
+				Queue.PendingGusts.RemoveAt(0);
+			}
+		}
+	}
+}
 
 #if ENABLE_ANIM_DEBUG
 TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsEnable(
@@ -106,7 +143,7 @@ DEFINE_STAT(STAT_KawaiiPhysics_ApplySyncBone);
 DEFINE_STAT(STAT_KawaiiPhysics_AdjustByCollision);
 DEFINE_STAT(STAT_KawaiiPhysics_AdjustByBoneConstraint);
 DEFINE_STAT(STAT_KawaiiPhysics_UpdateSphericalLimit);
-DEFINE_STAT(STAT_KawaiiPhysics_UpdatePlanerLimit);
+DEFINE_STAT(STAT_KawaiiPhysics_UpdatePlanarLimit);
 DEFINE_STAT(STAT_KawaiiPhysics_WarmUp);
 DEFINE_STAT(STAT_KawaiiPhysics_UpdatePhysicsSetting);
 DEFINE_STAT(STAT_KawaiiPhysics_UpdateCapsuleLimit);
@@ -201,6 +238,9 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 	SubstepAccumulator = 0.0f;
 	bSubstepPoseInitialized = false;
 
+	// ノード再初期化時は実行時専用の一時外力と物理設定倍率を破棄する
+	ResetTransientRuntimeState();
+
 	for (int i = 0; i < ExternalForces.Num(); ++i)
 	{
 		if (ExternalForces[i].IsValid())
@@ -242,6 +282,202 @@ void FAnimNode_KawaiiPhysics::ResetDynamics(ETeleportType InTeleportType)
 	// サブステップ：未消費時間を破棄し、ポーズ補間の前フレーム値を次フレームで再初期化させる
 	SubstepAccumulator = 0.0f;
 	bSubstepPoseInitialized = false;
+}
+
+int64 FAnimNode_KawaiiPhysics::GenerateTransientHandleId()
+{
+	static std::atomic<int64> NextHandleId{1};
+	return NextHandleId.fetch_add(1, std::memory_order_relaxed);
+}
+
+int64 FAnimNode_KawaiiPhysics::RequestTransientExternalForce(FInstancedStruct&& InForce, const float InLifetimeSeconds,
+                                                             const int64 InHandleId)
+{
+	const int64 HandleId = InHandleId != 0 ? InHandleId : GenerateTransientHandleId();
+
+	FScopeLock Lock(&TransientForceStore.Queue->Mutex);
+	DropOldestPendingTransientForceIfFull(*TransientForceStore.Queue, false);
+
+	FKawaiiPhysicsTransientExternalForce Entry;
+	Entry.Force = MoveTemp(InForce);
+	Entry.RemainingLifetime = InLifetimeSeconds;
+	Entry.HandleId = HandleId;
+
+	TransientForceStore.Queue->PendingForces.Emplace(MoveTemp(Entry));
+	return HandleId;
+}
+
+int64 FAnimNode_KawaiiPhysics::RequestTransientGust(const float Strength, const float RiseTime, const float DecayTime,
+                                                    const FVector& GustDirection, const int32 InheritForceIndex,
+                                                    const float HoldTime, const int64 InHandleId,
+                                                    const bool bRealTimeEnvelope)
+{
+	FKawaiiPhysicsTransientGustRequest Request;
+	Request.Strength = Strength;
+	Request.RiseTime = RiseTime;
+	Request.DecayTime = DecayTime;
+	Request.HoldTime = HoldTime;
+	Request.Direction = GustDirection;
+	Request.InheritForceIndex = InheritForceIndex;
+	Request.HandleId = InHandleId;
+	Request.bRealTimeEnvelope = bRealTimeEnvelope;
+
+	FScopeLock Lock(&TransientForceStore.Queue->Mutex);
+	DropOldestPendingTransientForceIfFull(*TransientForceStore.Queue, true);
+	TransientForceStore.Queue->PendingGusts.Emplace(Request);
+	return InHandleId;
+}
+
+void FAnimNode_KawaiiPhysics::RequestStopTransientExternalForce(const int64 HandleId, const float BlendOutTime)
+{
+	if (HandleId == 0 || !TransientForceStore.Queue.IsValid())
+	{
+		return;
+	}
+
+	FScopeLock Lock(&TransientForceStore.Queue->Mutex);
+	for (FKawaiiPhysicsTransientForceStopRequest& PendingStop : TransientForceStore.Queue->PendingStops)
+	{
+		if (PendingStop.HandleId == HandleId)
+		{
+			PendingStop.BlendOutTime = BlendOutTime;
+			return;
+		}
+	}
+
+	if (TransientForceStore.Queue->PendingStops.Num() >= MaxTransientExternalForces)
+	{
+		// 評価が走らないノードへの連打でも停止要求が MaxTransientExternalForces を超えないよう最古から破棄する。
+		TransientForceStore.Queue->PendingStops.RemoveAt(0);
+	}
+
+	FKawaiiPhysicsTransientForceStopRequest Request;
+	Request.HandleId = HandleId;
+	Request.BlendOutTime = BlendOutTime;
+	TransientForceStore.Queue->PendingStops.Emplace(Request);
+}
+
+int64 FAnimNode_KawaiiPhysics::RequestStartPhysicsSettingsMultiplier(const FKawaiiPhysicsSettingsMultiplier& InScale,
+                                                              const float RiseTime, const float HoldTime,
+                                                              const float DecayTime, const int64 InHandleId,
+                                                              const bool bInfiniteHold)
+{
+	const int64 HandleId = InHandleId != 0 ? InHandleId : GenerateTransientHandleId();
+
+	FKawaiiPhysicsSettingsMultiplierRequest Request;
+	Request.Scale = InScale;
+	Request.RiseTime = RiseTime;
+	Request.HoldTime = HoldTime;
+	Request.DecayTime = DecayTime;
+	Request.HandleId = HandleId;
+	Request.bInfiniteHold = bInfiniteHold;
+
+	FScopeLock Lock(&TransientForceStore.Queue->Mutex);
+	if (TransientForceStore.Queue->PendingSettingsMultipliers.Num() >= MaxPhysicsSettingsMultipliers)
+	{
+		// 評価が走らないノードへの連打でも pending が MaxPhysicsSettingsMultipliers を超えないよう最古から破棄する。
+		TransientForceStore.Queue->PendingSettingsMultipliers.RemoveAt(0);
+	}
+
+	TransientForceStore.Queue->PendingSettingsMultipliers.Emplace(Request);
+	return HandleId;
+}
+
+bool FAnimNode_KawaiiPhysics::RequestPushPhysicsSettingsMultiplier(const FKawaiiPhysicsSettingsMultiplier& InScale,
+                                                                const float InAlpha, const int64 InHandleId,
+                                                                const int32 LeaseEvaluations,
+                                                                const float LeaseExpireBlendOutTime)
+{
+	if (InHandleId == 0 || !TransientForceStore.Queue.IsValid())
+	{
+		return false;
+	}
+
+	FKawaiiPhysicsSettingsMultiplierPushRequest Request;
+	Request.Scale = InScale;
+	Request.Alpha = FMath::Clamp(InAlpha, 0.0f, 1.0f);
+	Request.HandleId = InHandleId;
+	Request.LeaseEvaluations = FMath::Max(0, LeaseEvaluations);
+	Request.LeaseExpireBlendOutTime = FMath::Max(0.0f, LeaseExpireBlendOutTime);
+
+	FScopeLock Lock(&TransientForceStore.Queue->Mutex);
+	TransientForceStore.Queue->PendingSettingsMultiplierStops.RemoveAll(
+		[InHandleId](const FKawaiiPhysicsTransientForceStopRequest& PendingStop)
+		{
+			return PendingStop.HandleId == InHandleId;
+		});
+	TransientForceStore.Queue->PendingSettingsMultipliers.RemoveAll(
+		[InHandleId](const FKawaiiPhysicsSettingsMultiplierRequest& PendingOverride)
+		{
+			return PendingOverride.HandleId == InHandleId;
+		});
+
+	for (FKawaiiPhysicsSettingsMultiplierPushRequest& PendingSet : TransientForceStore.Queue->PendingSettingsMultiplierPushes)
+	{
+		if (PendingSet.HandleId == InHandleId)
+		{
+			PendingSet = Request;
+			return true;
+		}
+	}
+
+	if (TransientForceStore.Queue->PendingSettingsMultiplierPushes.Num() >= MaxPhysicsSettingsMultipliers)
+	{
+		// 評価が走らないノードへの連打でも Push 要求が MaxPhysicsSettingsMultipliers を超えないよう最古から破棄する。
+		TransientForceStore.Queue->PendingSettingsMultiplierPushes.RemoveAt(0);
+	}
+
+	TransientForceStore.Queue->PendingSettingsMultiplierPushes.Emplace(Request);
+	return true;
+}
+
+void FAnimNode_KawaiiPhysics::RequestStopPhysicsSettingsMultiplier(const int64 HandleId, const float BlendOutTime)
+{
+	if (HandleId == 0 || !TransientForceStore.Queue.IsValid())
+	{
+		return;
+	}
+
+	FScopeLock Lock(&TransientForceStore.Queue->Mutex);
+	for (FKawaiiPhysicsTransientForceStopRequest& PendingStop : TransientForceStore.Queue->PendingSettingsMultiplierStops)
+	{
+		if (PendingStop.HandleId == HandleId)
+		{
+			PendingStop.BlendOutTime = BlendOutTime;
+			return;
+		}
+	}
+
+	if (TransientForceStore.Queue->PendingSettingsMultiplierStops.Num() >= MaxPhysicsSettingsMultipliers)
+	{
+		// 評価が走らないノードへの連打でも停止要求が MaxPhysicsSettingsMultipliers を超えないよう最古から破棄する。
+		TransientForceStore.Queue->PendingSettingsMultiplierStops.RemoveAt(0);
+	}
+
+	FKawaiiPhysicsTransientForceStopRequest Request;
+	Request.HandleId = HandleId;
+	Request.BlendOutTime = BlendOutTime;
+	TransientForceStore.Queue->PendingSettingsMultiplierStops.Emplace(Request);
+}
+
+void FAnimNode_KawaiiPhysics::ResetTransientRuntimeState()
+{
+	TransientForceStore.Items.Reset();
+	TransientForceStore.SettingsMultiplierItems.Reset();
+#if !UE_BUILD_SHIPPING
+	WarnedInfiniteHoldSettingsMultiplierEvictionHandleIds.Reset();
+#endif
+	bPhysicsSettingsMultiplierAppliedLastUpdate = false;
+	if (TransientForceStore.Queue.IsValid())
+	{
+		FScopeLock Lock(&TransientForceStore.Queue->Mutex);
+		TransientForceStore.Queue->PendingForces.Reset();
+		TransientForceStore.Queue->PendingGusts.Reset();
+		TransientForceStore.Queue->PendingStops.Reset();
+		TransientForceStore.Queue->PendingSettingsMultipliers.Reset();
+		TransientForceStore.Queue->PendingSettingsMultiplierPushes.Reset();
+		TransientForceStore.Queue->PendingSettingsMultiplierStops.Reset();
+	}
 }
 
 void FAnimNode_KawaiiPhysics::UpdateInternal(const FAnimationUpdateContext& Context)
@@ -468,10 +704,14 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 
 	}
 
+	// 倍率は UpdatePhysicsSettingsOfModifyBones より前に取り込み、このフレームの倍率を確定させる
+	const bool bHasActiveSettingsMultiplier = ConsumeAndAdvancePhysicsSettingsMultipliers(DeltaTime);
+
 	// 各パラメータとコリジョンを更新する
-	if (!bInitPhysicsSettings || bUpdatePhysicsSettingsInGame)
+	if (ShouldUpdatePhysicsSettings(bHasActiveSettingsMultiplier))
 	{
 		UpdatePhysicsSettingsOfModifyBones();
+		bPhysicsSettingsMultiplierAppliedLastUpdate = bHasActiveSettingsMultiplier;
 
 #if WITH_EDITORONLY_DATA
 		if (!bEditing)
@@ -490,8 +730,8 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	UpdateTaperedCapsuleLimits(TaperedCapsuleLimitsData, Output, BoneContainer, ComponentTransform);
 	UpdateBoxLimits(BoxLimits, Output, BoneContainer, ComponentTransform);
 	UpdateBoxLimits(BoxLimitsData, Output, BoneContainer, ComponentTransform);
-	UpdatePlanerLimits(PlanarLimits, Output, BoneContainer, ComponentTransform);
-	UpdatePlanerLimits(PlanarLimitsData, Output, BoneContainer, ComponentTransform);
+	UpdatePlanarLimits(PlanarLimits, Output, BoneContainer, ComponentTransform);
+	UpdatePlanarLimits(PlanarLimitsData, Output, BoneContainer, ComponentTransform);
 
 	// 共有コリジョンの初期化と更新（有効時のみ）。reinit処理は関数冒頭で実行済み。
 	// subsystemはロックでスレッドセーフ化済みのためWorker(AnyThread)で実行でき、PreUpdate(GameThread)を介さない。
@@ -592,6 +832,9 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 
 	// World SpaceでのSkeletalMeshComponentの移動を更新する
 	UpdateSkelCompMove(Output, ComponentTransform);
+
+	// 一時外力は評価ごとに1回だけ取り込み、WarmUpの反復やTeleport時のSimulateスキップに左右されないようにする
+	ConsumeAndRemoveExpiredTransientExternalForces(DeltaTime);
 
 	// 物理の荒ぶりを回避するための空回し処理
 	if (bNeedWarmUp && WarmUpFrames > 0)

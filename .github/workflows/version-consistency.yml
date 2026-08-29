@@ -1,0 +1,36 @@
+name: Version Consistency
+
+on:
+  push:
+    paths:
+      - README.md
+      - README_en.md
+      - Fab_StoreDescription.md
+      - Fab_StoreDescription.txt
+      - Fab_Changelog.txt
+      - Plugins/KawaiiPhysics/KawaiiPhysics.uplugin
+      - Tools/check_version_consistency.py
+      - .github/workflows/version-consistency.yml
+  pull_request:
+    paths:
+      - README.md
+      - README_en.md
+      - Fab_StoreDescription.md
+      - Fab_StoreDescription.txt
+      - Fab_Changelog.txt
+      - Plugins/KawaiiPhysics/KawaiiPhysics.uplugin
+      - Tools/check_version_consistency.py
+      - .github/workflows/version-consistency.yml
+
+permissions:
+  contents: read
+
+jobs:
+  version-consistency:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+      - run: python Tools/check_version_consistency.py

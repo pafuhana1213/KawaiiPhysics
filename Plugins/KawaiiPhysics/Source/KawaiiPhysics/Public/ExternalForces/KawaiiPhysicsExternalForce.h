@@ -52,11 +52,11 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce
 	GENERATED_BODY()
 
 	/** Whether the external force is enabled */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1), Category="KawaiiPhysics|ExternalForce")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1), Category="Kawaii Physics|ExternalForce")
 	bool bIsEnabled = true;
 
 	/** Whether to draw debug information for the external force */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1), Category="KawaiiPhysics|ExternalForce")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1), Category="Kawaii Physics|ExternalForce")
 	bool bDrawDebug = false;
 
 	/** 
@@ -65,23 +65,24 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce
 	* Specify the bones to which the external force will be applied (= the force will not be applied to bones that are not specified)
 	* If empty, it will be applied to all physical target bones
 	*/
-	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1), Category="KawaiiPhysics|ExternalForce")
+	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1), Category="Kawaii Physics|ExternalForce")
 	TArray<FBoneReference> ApplyBoneFilter;
 
 	/** 
 	* 外力を適用しないボーンを指定
 	* Specify the bones to which the external force will NOT be applied
 	*/
-	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1), Category="KawaiiPhysics|ExternalForce")
+	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1), Category="Kawaii Physics|ExternalForce")
 	TArray<FBoneReference> IgnoreBoneFilter;
 
 	/** The space in which the external force is simulated */
 	UPROPERTY(EditAnywhere, meta=(DisplayPriority=1, EditCondition=bCanSelectForceSpace, EditConditionHides),
-		Category="KawaiiPhysics|ExternalForce")
+		Category="Kawaii Physics|ExternalForce")
 	EExternalForceSpace ExternalForceSpace = EExternalForceSpace::WorldSpace;
 
 	/** Range for randomizing the force scale */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1), Category="KawaiiPhysics|ExternalForce")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=1, EditCondition=bSupportsRandomForceScaleRange,
+		EditConditionHides), Category="Kawaii Physics|ExternalForce")
 	FFloatInterval RandomForceScaleRange = FFloatInterval(1.0f, 1.0f);
 
 	/** Owner of the external force */
@@ -120,8 +121,12 @@ protected:
 	FTransform ComponentTransform;
 
 	/** Whether the force space can be selected */
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="KawaiiPhysics|ExternalForce")
+	UPROPERTY(BlueprintReadWrite, Category="Kawaii Physics|ExternalForce")
 	bool bCanSelectForceSpace = true;
+
+	/** Whether RandomForceScaleRange is supported (controls both edit visibility and the runtime randomization; when false, RandomizedForceScale stays 1) */
+	UPROPERTY(BlueprintReadWrite, Category="Kawaii Physics|ExternalForce")
+	bool bSupportsRandomForceScaleRange = true;
 
 public:
 	virtual ~FKawaiiPhysics_ExternalForce() = default;
@@ -159,6 +164,14 @@ public:
 #endif
 
 protected:
+	/**
+	 * 外力ベクトルを現在のシミュレーション空間へ変換
+	 * Converts an external force vector to the current simulation space
+	 */
+	FVector ConvertExternalForceToSimulationSpace(FAnimNode_KawaiiPhysics& Node,
+	                                              FComponentSpacePoseContext& PoseContext,
+	                                              const FVector& InForce) const;
+
 	/** Checks if the external force can be applied to a bone */
 	bool CanApply(const FKawaiiPhysicsModifyBone& Bone) const;
 };

@@ -21,7 +21,10 @@ void FKawaiiPhysics_ExternalForce::PreApply(FAnimNode_KawaiiPhysics& Node,
                                             FComponentSpacePoseContext& PoseContext)
 {
 	ComponentTransform = PoseContext.AnimInstanceProxy->GetComponentTransform();
-	RandomizedForceScale = FMath::RandRange(RandomForceScaleRange.Min, RandomForceScaleRange.Max);
+	// 非対応の外力（ProceduralWind等）ではグローバル乱数を消費せず1固定にする（乱数列への副作用も残さない）
+	RandomizedForceScale = bSupportsRandomForceScaleRange
+		                       ? FMath::RandRange(RandomForceScaleRange.Min, RandomForceScaleRange.Max)
+		                       : 1.0f;
 }
 
 void FKawaiiPhysics_ExternalForce::ApplyToVelocity(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
@@ -62,6 +65,26 @@ bool FKawaiiPhysics_ExternalForce::IsDebugEnabled(bool bInPersona)
 #endif
 
 	return false;
+}
+
+FVector FKawaiiPhysics_ExternalForce::ConvertExternalForceToSimulationSpace(FAnimNode_KawaiiPhysics& Node,
+                                                                            FComponentSpacePoseContext& PoseContext,
+                                                                            const FVector& InForce) const
+{
+	// ExternalForceSpaceに対応する変換元のSimulationSpaceを決定
+	EKawaiiPhysicsSimulationSpace From = EKawaiiPhysicsSimulationSpace::ComponentSpace;
+	if (ExternalForceSpace == EExternalForceSpace::WorldSpace)
+	{
+		From = EKawaiiPhysicsSimulationSpace::WorldSpace;
+	}
+	else if (ExternalForceSpace == EExternalForceSpace::BoneSpace)
+	{
+		From = EKawaiiPhysicsSimulationSpace::BaseBoneSpace;
+	}
+
+	// 変換元からNode.SimulationSpaceへ変換して返す
+	return Node.ConvertSimulationSpaceVector(PoseContext, From,
+	                                         Node.SimulationSpace, InForce);
 }
 
 #if ENABLE_ANIM_DEBUG

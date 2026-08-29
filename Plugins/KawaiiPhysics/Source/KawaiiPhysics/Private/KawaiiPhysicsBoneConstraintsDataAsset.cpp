@@ -6,6 +6,7 @@
 #include "KawaiiPhysics.h"
 #include "Animation/Skeleton.h"
 #include "Internationalization/Regex.h"
+#include "UObject/NameTypes.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -124,9 +125,19 @@ void UKawaiiPhysicsBoneConstraintsDataAsset::ApplyRegex()
 
 		while (Matcher1.FindNext() && Matcher2.FindNext())
 		{
+			const FString MatchedBoneName1 = Matcher1.GetCaptureGroup(0);
+			const FString MatchedBoneName2 = Matcher2.GetCaptureGroup(0);
+			if (MatchedBoneName1.Len() >= NAME_SIZE || MatchedBoneName2.Len() >= NAME_SIZE)
+			{
+				UE_LOG(LogKawaiiPhysics, Warning,
+				       TEXT("ApplyRegex: Regex match is too long to convert to FName. Asset=\"%s\", Bone1Length=%d, Bone2Length=%d, MaxLength=%d"),
+				       *GetName(), MatchedBoneName1.Len(), MatchedBoneName2.Len(), NAME_SIZE - 1);
+				continue;
+			}
+
 			FModifyBoneConstraintData BoneConstraintData;
-			BoneConstraintData.BoneReference1 = FBoneReference(FName(*Matcher1.GetCaptureGroup(0)));
-			BoneConstraintData.BoneReference2 = FBoneReference(FName(*Matcher2.GetCaptureGroup(0)));
+			BoneConstraintData.BoneReference1 = FBoneReference(FName(*MatchedBoneName1));
+			BoneConstraintData.BoneReference2 = FBoneReference(FName(*MatchedBoneName2));
 			BoneConstraintsData.Add(BoneConstraintData);
 		}
 	}

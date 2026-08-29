@@ -2,7 +2,7 @@
 
 #include "KawaiiPhysicsMirrorUtils.h"
 
-namespace KawaiiPhysicsMirror
+namespace KawaiiPhysicsMirrorUtils
 {
 	FVector MirrorOffsetLocation(const FVector& OffsetLocation, const FQuat& SourceBoneRefCS,
 	                             const FQuat& TargetBoneRefCS, EAxis::Type MirrorAxis)

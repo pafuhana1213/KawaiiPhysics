@@ -10,18 +10,24 @@
 #include "AnimGraphNode_KawaiiPhysics.generated.h"
 
 class FCompilerResultsLog;
+class UToolMenu;
+class UGraphNodeContextMenuContext;
 
 UCLASS()
 class UAnimGraphNode_KawaiiPhysics : public UAnimGraphNode_SkeletalControlBase
 {
 	GENERATED_UCLASS_BODY()
-	UPROPERTY(EditAnywhere, Category = Settings)
+	UPROPERTY(EditAnywhere, Category = "Settings")
 	FAnimNode_KawaiiPhysics Node;
 
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 
+	/** ノード右クリックメニューにKawaii Physics専用項目（Apply Preset / Check Preset Diff）を追加します / Adds Kawaii Physics specific entries (Apply Preset / Check Preset Diff) to the node's right-click context menu. */
+	virtual void GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const override;
+
 	// UObject interface
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 	virtual void PostLoad() override;
 
 protected:
@@ -50,11 +56,14 @@ private:
 	/** コリジョン配列のGuidを一意化する（複製/貼り付け/旧データの重複Guidを再発番） */
 	void EnsureUniqueCollisionGuids();
 
+	/** ProceduralWind の Details 編集を実行中ノードへ DynamicParams として送る */
+	void PushProceduralWindEditToLiveInstance(const struct FPropertyChangedChainEvent& PropertyChangedEvent);
+
 	/** Creates the export data asset path. */
 	void CreateExportDataAssetPath(FString& PackageName, const FString& DefaultSuffix) const;
 
 	/** Creates the data asset package. */
-	UPackage* CreateDataAssetPackage(const FString& DialogTitle, const FString& DefaultSuffix,
+	UPackage* CreateDataAssetPackage(const FText& DialogTitle, const FString& DefaultSuffix,
 	                                 FString& AssetName) const;
 
 	/** Shows the export asset notification. */
@@ -65,6 +74,18 @@ private:
 
 	/** Exports the bone constraints data asset. */
 	void ExportBoneConstraintsDataAsset();
+
+	/** プリセットDataAssetを書き出します / Exports the preset data asset. */
+	void ExportPresetDataAsset();
+
+	/** プリセットDataAssetをこのノードへ適用します / Applies a preset data asset to this node. */
+	void ApplyPresetDataAsset();
+
+	/** このノードと対象プリセットとの差分を確認します / Checks the diff between this node and its target preset. */
+	void CheckPresetDiff();
+
+	/** 指定したProcedural Windの波形プレビューウィンドウを開きます / Opens the waveform preview window for the specified Procedural Wind. */
+	void OpenWindScopeWindow(int32 ExternalForceIndex = INDEX_NONE);
 
 public:
 	/** Enables or disables debug drawing for bones. */
@@ -101,7 +122,7 @@ public:
 
 	/** Enables or disables debug drawing for planar limits. */
 	UPROPERTY()
-	bool bEnableDebugDrawPlanerLimit = true;
+	bool bEnableDebugDrawPlanarLimit = true;
 
 	/** Enables or disables debug drawing for bone constraints. */
 	UPROPERTY()

@@ -41,6 +41,7 @@ enum class ECollisionSourceType : uint8
 };
 
 /**
+ * コリジョンLimitの基底構造体。
  * Base structure for defining collision limits in KawaiiPhysics.
  */
 USTRUCT()
@@ -48,16 +49,16 @@ struct FCollisionLimitBase
 {
 	GENERATED_BODY()
 
-	/** Bone to attach the sphere to */
-	UPROPERTY(EditAnywhere, Category = CollisionLimitBase)
+	/** コリジョンをアタッチするボーン / Bone to attach the sphere to */
+	UPROPERTY(EditAnywhere, Category = "Collision Limit Base")
 	FBoneReference DrivingBone;
 
-	/** Offset location from the driving bone */
-	UPROPERTY(EditAnywhere, Category = CollisionLimitBase)
+	/** DrivingBoneからの位置オフセット / Offset location from the driving bone */
+	UPROPERTY(EditAnywhere, Category = "Collision Limit Base")
 	FVector OffsetLocation = FVector::ZeroVector;
 
-	/** Offset rotation from the driving bone */
-	UPROPERTY(EditAnywhere, Category = CollisionLimitBase, meta = (ClampMin = "-360", ClampMax = "360"))
+	/** DrivingBoneからの回転オフセット / Offset rotation from the driving bone */
+	UPROPERTY(EditAnywhere, Category = "Collision Limit Base", meta = (ClampMin = "-360", ClampMax = "360"))
 	FRotator OffsetRotation = FRotator::ZeroRotator;
 
 	/** Location of the collision limit */
@@ -72,14 +73,14 @@ struct FCollisionLimitBase
 	UPROPERTY()
 	bool bEnable = true;
 
-	/** Source type of the collision limit */
-	UPROPERTY(VisibleAnywhere, Category = CollisionLimitBase)
+	/** このコリジョンの定義元 / Source type of the collision limit */
+	UPROPERTY(VisibleAnywhere, Category = "Collision Limit Base")
 	ECollisionSourceType SourceType = ECollisionSourceType::AnimNode;
 
 #if WITH_EDITORONLY_DATA
 
-	/** Unique identifier for the collision limit (editor only) */
-	UPROPERTY(VisibleAnywhere, Category = Debug, meta = (IgnoreForMemberInitializationTest))
+	/** コリジョンの一意な識別子（エディタ専用） / Unique identifier for the collision limit (editor only) */
+	UPROPERTY(VisibleAnywhere, Category = "Debug", meta = (IgnoreForMemberInitializationTest))
 	FGuid Guid = FGuid::NewGuid();
 
 	/** Type of the collision limit (editor only) */
@@ -107,6 +108,7 @@ struct FCollisionLimitBase
 };
 
 /**
+ * 球のコリジョンLimitを表す構造体。
  * Structure representing a spherical limit for collision in KawaiiPhysics.
  */
 USTRUCT(BlueprintType)
@@ -123,12 +125,12 @@ struct FSphericalLimit : public FCollisionLimitBase
 #endif
 	}
 
-	/** Radius of the sphere */
-	UPROPERTY(EditAnywhere, Category = SphericalLimit, meta = (ClampMin = "0"))
+	/** 球の半径 / Radius of the sphere */
+	UPROPERTY(EditAnywhere, Category = "Spherical Limit", meta = (ClampMin = "0"))
 	float Radius = 5.0f;
 
-	/** Whether to lock bodies inside or outside of the sphere */
-	UPROPERTY(EditAnywhere, Category = SphericalLimit)
+	/** 球の外側と内側のどちらに拘束するか / Whether to lock bodies inside or outside of the sphere */
+	UPROPERTY(EditAnywhere, Category = "Spherical Limit")
 	ESphericalLimitType LimitType = ESphericalLimitType::Outer;
 
 	/** Assignment operator */
@@ -142,6 +144,7 @@ struct FSphericalLimit : public FCollisionLimitBase
 };
 
 /**
+ * カプセルのコリジョンLimitを表す構造体。
  * Structure representing a capsule limit for collision in KawaiiPhysics.
  */
 USTRUCT(BlueprintType)
@@ -158,13 +161,25 @@ struct FCapsuleLimit : public FCollisionLimitBase
 #endif
 	}
 
-	/** Radius of the capsule */
-	UPROPERTY(EditAnywhere, Category = CapsuleLimit, meta = (ClampMin = "0"))
+	/** カプセルの半径 / Radius of the capsule */
+	UPROPERTY(EditAnywhere, Category = "Capsule Limit", meta = (ClampMin = "0"))
 	float Radius = 5.0f;
 
-	/** Length of the capsule */
-	UPROPERTY(EditAnywhere, Category = CapsuleLimit, meta = (ClampMin = "0"))
+	/** カプセルの長さ / Length of the capsule */
+	UPROPERTY(EditAnywhere, Category = "Capsule Limit", meta = (ClampMin = "0"))
 	float Length = 10.0f;
+
+	// 実行時キャッシュ（毎ステップ再計算、シリアライズ対象外） / Runtime cache (recomputed every step, not serialized)
+	FVector CachedStartPoint = FVector::ZeroVector;
+	FVector CachedEndPoint = FVector::ZeroVector;
+	FVector CachedFallbackPushDir = FVector::ZeroVector;
+
+	void UpdateRuntimeCache()
+	{
+		CachedStartPoint = Location + Rotation.GetAxisZ() * Length * 0.5f;
+		CachedEndPoint = Location + Rotation.GetAxisZ() * Length * -0.5f;
+		CachedFallbackPushDir = Rotation.GetAxisX();
+	}
 
 	/** Assignment operator */
 	FCapsuleLimit& operator=(const FCapsuleLimit& Other)
@@ -177,6 +192,7 @@ struct FCapsuleLimit : public FCollisionLimitBase
 };
 
 /**
+ * テーパードカプセルのコリジョンLimitを表す構造体。
  * Structure representing a tapered capsule limit for collision in KawaiiPhysics.
  */
 USTRUCT(BlueprintType)
@@ -194,16 +210,33 @@ struct FTaperedCapsuleLimit : public FCollisionLimitBase
 	}
 
 	/** +Z端の半径 / Radius at the +Z end */
-	UPROPERTY(EditAnywhere, Category = TaperedCapsuleLimit, meta = (ClampMin = "0"))
+	UPROPERTY(EditAnywhere, Category = "Tapered Capsule Limit", meta = (ClampMin = "0"))
 	float Radius0 = 5.0f;
 
 	/** -Z端の半径 / Radius at the -Z end */
-	UPROPERTY(EditAnywhere, Category = TaperedCapsuleLimit, meta = (ClampMin = "0"))
+	UPROPERTY(EditAnywhere, Category = "Tapered Capsule Limit", meta = (ClampMin = "0"))
 	float Radius1 = 5.0f;
 
 	/** カプセルの長さ / Length of the capsule */
-	UPROPERTY(EditAnywhere, Category = TaperedCapsuleLimit, meta = (ClampMin = "0"))
+	UPROPERTY(EditAnywhere, Category = "Tapered Capsule Limit", meta = (ClampMin = "0"))
 	float Length = 10.0f;
+
+	// 実行時キャッシュ（毎ステップ再計算、シリアライズ対象外） / Runtime cache (recomputed every step, not serialized)
+	FVector CachedStartPoint = FVector::ZeroVector;
+	FVector CachedEndPoint = FVector::ZeroVector;
+	FVector CachedSegment = FVector::ZeroVector;
+	FVector::FReal CachedSegmentSizeSq = 0.0;
+	FVector CachedFallbackPushDir = FVector::ZeroVector;
+
+	void UpdateRuntimeCache()
+	{
+		const FVector AxisZ = Rotation.GetAxisZ();
+		CachedStartPoint = Location + AxisZ * Length * 0.5f;
+		CachedEndPoint = Location - AxisZ * Length * 0.5f;
+		CachedSegment = CachedEndPoint - CachedStartPoint;
+		CachedSegmentSizeSq = CachedSegment.SizeSquared();
+		CachedFallbackPushDir = Rotation.GetAxisX();
+	}
 
 	/** Assignment operator */
 	FTaperedCapsuleLimit& operator=(const FTaperedCapsuleLimit& Other)
@@ -217,6 +250,7 @@ struct FTaperedCapsuleLimit : public FCollisionLimitBase
 };
 
 /**
+ * ボックスのコリジョンLimitを表す構造体。
  * Structure representing a box limit for collision in KawaiiPhysics.
  */
 USTRUCT(BlueprintType)
@@ -233,9 +267,20 @@ struct FBoxLimit : public FCollisionLimitBase
 #endif
 	}
 
-	/** The extent of the box defining the box limit */
-	UPROPERTY(EditAnywhere, Category = BoxLimit)
+	/** ボックスの各軸方向のサイズ（半分の大きさ） / The extent of the box defining the box limit */
+	UPROPERTY(EditAnywhere, Category = "Box Limit")
 	FVector Extent = FVector(5.0f, 5.0f, 5.0f);
+
+	// 実行時キャッシュ（毎ステップ再計算、シリアライズ対象外） / Runtime cache (recomputed every step, not serialized)
+	FTransform CachedBoxTransform = FTransform::Identity;
+	// FBox は既定構築で Min/Max が未初期化のため ForceInit で明示ゼロ化 / FBox default construction leaves Min/Max uninitialized, so ForceInit explicitly zeroes it
+	FBox CachedLocalBox = FBox(ForceInit);
+
+	void UpdateRuntimeCache()
+	{
+		CachedBoxTransform = FTransform(Rotation, Location);
+		CachedLocalBox = FBox(-Extent, Extent);
+	}
 
 	/** Assignment operator */
 	FBoxLimit& operator=(const FBoxLimit& Other)
@@ -247,6 +292,7 @@ struct FBoxLimit : public FCollisionLimitBase
 };
 
 /**
+ * 平面のコリジョンLimitを表す構造体。
  * Structure representing a planar limit for collision in KawaiiPhysics.
  */
 USTRUCT(BlueprintType)
@@ -266,6 +312,14 @@ struct FPlanarLimit : public FCollisionLimitBase
 	/** The plane defining the planar limit */
 	UPROPERTY()
 	FPlane Plane = FPlane(0, 0, 0, 0);
+
+	// 実行時キャッシュ（毎ステップ再計算、シリアライズ対象外） / Runtime cache (recomputed every step, not serialized)
+	FVector CachedNormal = FVector::ZeroVector;
+
+	void UpdateRuntimeCache()
+	{
+		CachedNormal = Rotation.GetUpVector();
+	}
 
 	/** Assignment operator */
 	FPlanarLimit& operator=(const FPlanarLimit& Other)
