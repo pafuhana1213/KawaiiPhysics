@@ -510,7 +510,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 
 	/** 共有コリジョンの再初期化を要求 / Request shared collision reinitialization */
 	void RequestSharedCollisionReinit() { bSharedCollisionNeedsReinit = true; }
-	/** 簡易ワールドコリジョンの再初期化を要求 / Request simple world collision reinitialization */
+	/** シンプルワールドコリジョンの再初期化を要求 / Request simple world collision reinitialization */
 	void RequestSimpleWorldCollisionReinit();
 	/** ボーン構造に依存する設定変更後の再初期化を要求 / Request modify-bone rebuild after topology-affecting settings change */
 	void RequestModifyBonesReinit() { bModifyBonesNeedsReinit = true; }
@@ -806,7 +806,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	bool bUseSimpleWorldCollision = false;
 
 	/**
-	* 簡易ワールドコリジョンの収集間隔（秒）。0の場合は毎フレーム収集します。収集済みコンポーネントの位置更新は毎フレーム行われます。
+	* シンプルワールドコリジョンの収集間隔（秒）。0の場合は毎フレーム収集します。収集済みコンポーネントの位置更新は毎フレーム行われます。
 	* Gather interval for Simple World Collision in seconds. 0 gathers every frame. Already gathered component transforms are updated every frame.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
@@ -815,7 +815,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	float SimpleWorldCollisionGatherInterval = 0.2f;
 
 	/**
-	* 簡易ワールドコリジョンが反応するオブジェクトタイプ。空の場合は WorldStatic + WorldDynamic を使用します。
+	* シンプルワールドコリジョンが反応するオブジェクトタイプ。空の場合は WorldStatic + WorldDynamic を使用します。
 	* Object types used by Simple World Collision. Empty means WorldStatic + WorldDynamic.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
@@ -823,7 +823,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	TArray<TEnumAsByte<EObjectTypeQuery>> SimpleWorldCollisionObjectTypes;
 
 	/**
-	* 簡易ワールドコリジョンで複雑形状を近似する方法
+	* シンプルワールドコリジョンで複雑形状を近似する方法
 	* How Simple World Collision approximates complex shapes
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
@@ -831,13 +831,13 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	EKawaiiPhysicsComplexShapeApproximation SimpleWorldCollisionComplexShapeApproximation =
 		EKawaiiPhysicsComplexShapeApproximation::BoxBounds;
 
-	/** 簡易ワールドコリジョンの収集半径を上書きする / Override the Simple World Collision gather radius */
+	/** シンプルワールドコリジョンの収集半径を上書きする / Override the Simple World Collision gather radius */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
 		meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	bool bOverrideSimpleWorldCollisionGatherRadius = false;
 
 	/**
-	* 簡易ワールドコリジョンの収集半径のオーバーライド。無効時は SkeletalMesh の Bounds から自動算出します。
+	* シンプルワールドコリジョンの収集半径のオーバーライド。無効時は SkeletalMesh の Bounds から自動算出します。
 	* Override for the Simple World Collision gather radius. When disabled, it is calculated automatically from SkeletalMesh bounds.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
@@ -854,7 +854,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	bool bSimpleWorldCollisionApproximateGround = true;
 
 	/**
-	* 簡易ワールドコリジョンで収集した SkeletalMeshComponent の扱い
+	* シンプルワールドコリジョンで収集した SkeletalMeshComponent の扱い
 	* How collected SkeletalMeshComponents are handled by Simple World Collision
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
@@ -1033,7 +1033,7 @@ private:
 	bool bSimpleWorldRadiusWarningLogged = false;
 	FKawaiiPhysicsSharedCollisionData SimpleWorldMergedScratch;
 
-	// 簡易ワールドコリジョンワーク配列（シミュレーション空間に変換済み）
+	// シンプルワールドコリジョンワーク配列（シミュレーション空間に変換済み）
 	// Simple world collision working arrays (converted to simulation space)
 	TArray<FSphericalLimit> SimpleWorldSphericalLimits;
 	TArray<FCapsuleLimit> SimpleWorldCapsuleLimits;
@@ -1452,25 +1452,25 @@ protected:
 	void UpdateSharedCollisionLimits(FComponentSpacePoseContext& Output);
 
 	/**
-	 * 簡易ワールドコリジョンのEntryを初期化する（AnyThread）
+	 * シンプルワールドコリジョンのEntryを初期化する（AnyThread）
 	 * Initialize the Simple World Collision entry (any thread)
 	 */
 	void InitializeSimpleWorldCollision();
 
 	/**
-	 * 現在の設定から簡易ワールドコリジョンのDescを構築する（AnyThread、UObjectをdereferenceしない）
+	 * 現在の設定からシンプルワールドコリジョンのDescを構築する（AnyThread、UObjectをdereferenceしない）
 	 * Build the Simple World Collision Desc from current settings (any thread; does not dereference UObject)
 	 */
 	FKawaiiPhysicsSimpleWorldCollisionDesc BuildSimpleWorldCollisionDesc() const;
 
 	/**
-	 * 簡易ワールドコリジョンを読み取り、シミュレーション空間に変換する（AnyThread）
+	 * シンプルワールドコリジョンを読み取り、シミュレーション空間に変換する（AnyThread）
 	 * Read Simple World Collision and convert to simulation space (any thread)
 	 */
 	void UpdateSimpleWorldCollisionLimits(FComponentSpacePoseContext& Output);
 
 	/**
-	 * 簡易ワールドコリジョンのDesc登録を解除する（AnyThread）
+	 * シンプルワールドコリジョンのDesc登録を解除する（AnyThread）
 	 * Remove this node's Simple World Collision desc (any thread)
 	 */
 	void ReleaseSimpleWorldCollision();

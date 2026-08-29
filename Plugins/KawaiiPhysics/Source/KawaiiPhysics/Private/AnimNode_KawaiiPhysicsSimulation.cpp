@@ -964,7 +964,7 @@ void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
 			AdjustByPlanarCollision(Bone, SharedPlanarLimits);
 		}
 
-		// 簡易ワールドコリジョン（Subsystemが収集したレベル上のsimple collision）
+		// シンプルワールドコリジョン（Subsystemが収集したレベル上のsimple collision）
 		if (bApplySimpleWorldCollision)
 		{
 			AdjustBySphereCollision(Bone, SimpleWorldSphericalLimits);

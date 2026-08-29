@@ -594,7 +594,7 @@ private:
 			Node.AdjustByPlanarCollision(Bone, Node.PlanarLimits);
 			Node.AdjustByPlanarCollision(Bone, Node.PlanarLimitsData);
 
-			// 簡易ワールドコリジョン（本体 Simulation.cpp と同じ条件・同じ位置＝Sharedの後・WorldCollisionの前に相当）
+			// シンプルワールドコリジョン（本体 Simulation.cpp と同じ条件・同じ位置＝Sharedの後・WorldCollisionの前に相当）
 			if (Node.bUseSimpleWorldCollision)
 			{
 				Node.AdjustBySphereCollision(Bone, Node.SimpleWorldSphericalLimits);

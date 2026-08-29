@@ -35,7 +35,7 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_ConvertSimulationSpace"), STAT_Kaw
 DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_InitializeSharedCollision"), STAT_KawaiiPhysics_InitializeSharedCollision, STATGROUP_Anim, KAWAIIPHYSICS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_WriteSharedCollisionToSubsystem"), STAT_KawaiiPhysics_WriteSharedCollisionToSubsystem, STATGROUP_Anim, KAWAIIPHYSICS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_UpdateSharedCollisionLimits"), STAT_KawaiiPhysics_UpdateSharedCollisionLimits, STATGROUP_Anim, KAWAIIPHYSICS_API);
-// ノード側の簡易ワールドコリジョン読み取り（UpdateSimpleWorldCollisionLimits）専用 / Node-side Simple World Collision read (UpdateSimpleWorldCollisionLimits)
+// ノード側のシンプルワールドコリジョン読み取り（UpdateSimpleWorldCollisionLimits）専用 / Node-side Simple World Collision read (UpdateSimpleWorldCollisionLimits)
 DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_UpdateSimpleWorldCollisionLimits"), STAT_KawaiiPhysics_UpdateSimpleWorldCollisionLimits, STATGROUP_Anim, KAWAIIPHYSICS_API);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumModifyBones"), STAT_KawaiiPhysics_NumModifyBones, STATGROUP_Anim, KAWAIIPHYSICS_API);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumInterBoneDummyBones"), STAT_KawaiiPhysics_NumInterBoneDummyBones, STATGROUP_Anim, KAWAIIPHYSICS_API);

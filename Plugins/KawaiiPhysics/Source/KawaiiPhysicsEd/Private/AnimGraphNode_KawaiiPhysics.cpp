@@ -461,7 +461,7 @@ void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* Ani
 	KawaiiPhysics->bUseSharedCollision = Node.bUseSharedCollision;
 	KawaiiPhysics->SharedCollisionGroupTag = Node.SharedCollisionGroupTag;
 
-	// 簡易ワールドコリジョン
+	// シンプルワールドコリジョン
 	// 有効/無効フラグのみ切り替え時に明示リセットする。他の7項目はUpdateSimpleWorldCollisionLimits内のDesc差分検知が
 	// 毎フレーム自動で拾って再送するため不要（Reinitは警告済みフラグ等の即時クリアが目的）
 	if (KawaiiPhysics->bUseSimpleWorldCollision != Node.bUseSimpleWorldCollision)

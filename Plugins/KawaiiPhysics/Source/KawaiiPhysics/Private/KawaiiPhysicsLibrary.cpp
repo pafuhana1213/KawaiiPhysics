@@ -60,7 +60,7 @@ namespace
 		return Names;
 	}
 
-	// 簡易ワールドコリジョンの収集設定（Gather Interval / Object Types / Complex Shape Approximation /
+	// シンプルワールドコリジョンの収集設定（Gather Interval / Object Types / Complex Shape Approximation /
 	// Skeletal Mesh Mode / Approximate Ground / Gather Radius系）はUpdateSimpleWorldCollisionLimits内の
 	// Desc差分検知で毎フレーム自動追従するため対象外。有効/無効の切り替えのみEntryの取得・解放が必要なため対象に含める。
 	const TSet<FName>& GetNodeSimpleWorldCollisionReinitPropertyNames()

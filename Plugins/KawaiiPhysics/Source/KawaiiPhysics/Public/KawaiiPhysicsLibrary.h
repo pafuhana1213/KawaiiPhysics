@@ -1099,7 +1099,7 @@ public:
 	// --- Simple World Collision ---
 
 	/**
-	 * 簡易ワールドコリジョン（Subsystemが収集したレベル上のsimple collision）を使用するかを設定
+	 * シンプルワールドコリジョン（Subsystemが収集したレベル上のsimple collision）を使用するかを設定
 	 * Set whether to use Simple World Collision (level simple collision gathered by the subsystem)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Simple World Collision", meta=(BlueprintThreadSafe))
@@ -1122,7 +1122,7 @@ public:
 	}
 
 	/**
-	 * 簡易ワールドコリジョンの収集間隔（秒）を設定。Desc差分検知で自動追従するため再初期化は不要
+	 * シンプルワールドコリジョンの収集間隔（秒）を設定。Desc差分検知で自動追従するため再初期化は不要
 	 * Set the Simple World Collision gather interval (seconds). No reinitialization is needed; the Desc diff check picks it up automatically
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Simple World Collision", meta=(BlueprintThreadSafe))

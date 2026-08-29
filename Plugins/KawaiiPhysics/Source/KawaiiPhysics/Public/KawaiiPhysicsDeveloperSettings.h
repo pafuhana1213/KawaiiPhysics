@@ -52,7 +52,7 @@ public:
 	int32 MaxSubsteps = 4;
 
 	/**
-	* 簡易ワールドコリジョンの自動収集半径に使う係数。SkeletalMeshComponent の Bounds.SphereRadius に乗算する。
+	* シンプルワールドコリジョンの自動収集半径に使う係数。SkeletalMeshComponent の Bounds.SphereRadius に乗算する。
 	* Multiplier used for the Simple World Collision auto gather radius, applied to the SkeletalMeshComponent's Bounds.SphereRadius.
 	*/
 	UPROPERTY(EditAnywhere, config, Category = "Simple World Collision",
@@ -84,7 +84,7 @@ public:
 	float SimpleWorldCollisionDistanceThrottleStop = 10000.f;
 
 	/**
-	* 簡易ワールドコリジョンが SkeletalMeshComponent 1つあたりに保持する最大収集コンポーネント数。
+	* シンプルワールドコリジョンが SkeletalMeshComponent 1つあたりに保持する最大収集コンポーネント数。
 	* a.AnimNode.KawaiiPhysics.SimpleWorldCollision.MaxComponents CVar が 0 以上の場合はそちらが優先される。
 	* Maximum number of gathered components Simple World Collision keeps per SkeletalMeshComponent.
 	* Overridden by the a.AnimNode.KawaiiPhysics.SimpleWorldCollision.MaxComponents CVar when it is >= 0.

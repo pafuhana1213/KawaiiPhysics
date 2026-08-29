@@ -140,7 +140,7 @@ namespace
 	}
 
 #if ENABLE_DRAW_DEBUG
-	// 簡易ワールドコリジョンのデバッグ描画（GameThread専用）。収集済み形状はComponentローカル形状+ComponentTMから
+	// シンプルワールドコリジョンのデバッグ描画（GameThread専用）。収集済み形状はComponentローカル形状+ComponentTMから
 	// 描画時に都度ワールド変換する。フェード中はFadeAlphaに応じて薄い色にする（PublishScratchは半径縮小済みで
 	// アルファ情報が失われるため使わない）。地面Boxのみ別途Green表示する。
 	void DrawSimpleWorldCollisionDebug(

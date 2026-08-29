@@ -212,7 +212,7 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 #endif
 				}
 
-				// 簡易ワールドコリジョン（水色）
+				// シンプルワールドコリジョン（水色）
 				if (bUseSimpleWorldCollision)
 				{
 					for (const auto& SphericalLimit : SimpleWorldSphericalLimits)

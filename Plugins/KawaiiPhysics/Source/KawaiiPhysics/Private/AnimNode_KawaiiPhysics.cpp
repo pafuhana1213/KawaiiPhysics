@@ -112,7 +112,7 @@ TAutoConsoleVariable<float> CVarSharedCollisionCleanupInterval(
 // SimpleWorldCollision CVars
 TAutoConsoleVariable<int32> CVarSimpleWorldCollisionEnable(
 	TEXT("a.AnimNode.KawaiiPhysics.SimpleWorldCollision.Enable"), 1,
-	TEXT("0で簡易ワールドコリジョンを全体無効化（収集・適用の両方を停止） / 0 disables Simple World Collision entirely (both gathering and application)."));
+	TEXT("0でシンプルワールドコリジョンを全体無効化（収集・適用の両方を停止） / 0 disables Simple World Collision entirely (both gathering and application)."));
 TAutoConsoleVariable<float> CVarSimpleWorldCollisionGatherIntervalScale(
 	TEXT("a.AnimNode.KawaiiPhysics.SimpleWorldCollision.GatherIntervalScale"), 1.0f,
 	TEXT("実効収集間隔に乗算するスケール値 / Scale multiplied into the effective gather interval."));
@@ -215,7 +215,7 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 	SharedBoxLimits.Reset();
 	SharedPlanarLimits.Reset();
 
-	// 簡易ワールドコリジョンのキャッシュをリセット
+	// シンプルワールドコリジョンのキャッシュをリセット
 	ReleaseSimpleWorldCollision();
 	SimpleWorldMergedScratch.Reset();
 	SimpleWorldSphericalLimits.Reset();
@@ -782,7 +782,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		}
 	}
 
-	// 簡易ワールドコリジョン（Subsystemが収集したレベル上のsimple collisionをWorkerから読むだけ）
+	// シンプルワールドコリジョン（Subsystemが収集したレベル上のsimple collisionをWorkerから読むだけ）
 	// CVarで全体無効化されている間はUpdateを行わず、else側でSimpleWorldXxxLimitsをResetして適用もスキップする
 	if (bUseSimpleWorldCollision && CVarSimpleWorldCollisionEnable.GetValueOnAnyThread())
 	{
