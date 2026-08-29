@@ -224,11 +224,14 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionEntry
 	bool bHasGatheredOnce = false;
 	bool bHasGroundBox = false;
 	FBoxLimit GroundBox;
+	// 収集フレームごとにアタッチ連鎖から解決した、利用可能な最上位ソース（Provider > CharacterMovement > Trace）
+	// Highest-priority source available, resolved by walking the attach chain every gather frame (Provider > CharacterMovement > Trace)
 	EKawaiiPhysicsSimpleWorldGroundSource GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
-	// 現在の GroundBox を作ったソース（DebugDraw の色分け用。GroundSource は選択中のソース） / Source that produced the current GroundBox (for debug draw colors; GroundSource is the selected source)
+	// 現在の GroundBox を作ったソース（DebugDraw の色分け用。GroundSource は選択可能な最上位ソース） / Source that produced the current GroundBox (for debug draw colors; GroundSource is the highest-priority source available)
 	EKawaiiPhysicsSimpleWorldGroundSource GroundBoxSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
-	TWeakObjectPtr<const AActor> GroundSourceActor;
+	// 収集フレームでアタッチ連鎖から見つかった Provider。GroundCharacterMovement とは独立にキャッシュする / Provider found while walking the attach chain during the gather frame; cached independently of GroundCharacterMovement
 	TWeakObjectPtr<UObject> GroundProvider;
+	// 収集フレームでアタッチ連鎖から見つかった CharacterMovementComponent。Provider が bHit=false を返した場合のフォールバック先 / CharacterMovementComponent found while walking the attach chain during the gather frame; used as the fallback when Provider returns bHit=false
 	TWeakObjectPtr<UCharacterMovementComponent> GroundCharacterMovement;
 	TWeakObjectPtr<const UPrimitiveComponent> GroundComponent;
 	FKawaiiPhysicsSharedCollisionData PublishScratch;

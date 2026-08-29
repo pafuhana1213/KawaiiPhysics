@@ -226,14 +226,6 @@ namespace
 			&& Lhs.Extent.Equals(Rhs.Extent, KINDA_SMALL_NUMBER);
 	}
 
-	void SetSimpleWorldGroundSourceToTrace(FKawaiiPhysicsSimpleWorldCollisionEntry& Entry, const AActor* SourceActor)
-	{
-		Entry.GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::Trace;
-		Entry.GroundSourceActor = SourceActor;
-		Entry.GroundProvider.Reset();
-		Entry.GroundCharacterMovement.Reset();
-	}
-
 	void ResolveSimpleWorldGroundSource(
 		FKawaiiPhysicsSimpleWorldCollisionEntry& Entry,
 		const USkeletalMeshComponent& SkelComp,
@@ -243,56 +235,64 @@ namespace
 		{
 			Entry.GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::Trace;
 			Entry.GroundBoxSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
-			Entry.GroundSourceActor.Reset();
 			Entry.GroundProvider.Reset();
 			Entry.GroundCharacterMovement.Reset();
 			Entry.GroundComponent.Reset();
 			return;
 		}
 
-		AActor* const Owner = SkelComp.GetOwner();
-		const bool bNeedsResolve =
-			Entry.GroundSourceActor.Get() != Owner
-			|| Entry.GroundSource == EKawaiiPhysicsSimpleWorldGroundSource::None
-			|| Entry.GroundSource == EKawaiiPhysicsSimpleWorldGroundSource::Trace
-			|| (Entry.GroundSource == EKawaiiPhysicsSimpleWorldGroundSource::Provider
-				&& !Entry.GroundProvider.IsValid())
-			|| (Entry.GroundSource == EKawaiiPhysicsSimpleWorldGroundSource::CharacterMovement
-				&& !Entry.GroundCharacterMovement.IsValid());
-		if (!bNeedsResolve)
-		{
-			return;
-		}
+		// 収集フレームでは毎回アタッチ連鎖を歩き直す（付け替え先の Owner を掴み続けないため、前回の解決結果によるショートカットはしない）。
+		// FindComponentByInterface / FindComponentByClass は割り当て無しで安価なので、収集頻度（既定 5Hz 程度）なら許容できる。
+		// Provider と CharacterMovement は独立にキャッシュし、両方見つかるか連鎖が尽きるまで歩く。
+		Entry.GroundProvider.Reset();
+		Entry.GroundCharacterMovement.Reset();
 
-		SetSimpleWorldGroundSourceToTrace(Entry, Owner);
-
-		AActor* Actor = Owner;
+		AActor* Actor = SkelComp.GetOwner();
 		for (int32 Depth = 0; Actor && Depth < 8; ++Depth)
 		{
-			if (Actor->GetClass()->ImplementsInterface(UKawaiiPhysicsGroundProvider::StaticClass()))
+			if (!Entry.GroundProvider.IsValid())
 			{
-				Entry.GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::Provider;
-				Entry.GroundProvider = Actor;
-				return;
+				if (Actor->GetClass()->ImplementsInterface(UKawaiiPhysicsGroundProvider::StaticClass()))
+				{
+					Entry.GroundProvider = Actor;
+				}
+				else if (UActorComponent* ProviderComponent =
+					Actor->FindComponentByInterface(UKawaiiPhysicsGroundProvider::StaticClass()))
+				{
+					Entry.GroundProvider = ProviderComponent;
+				}
 			}
 
-			if (UActorComponent* ProviderComponent =
-				Actor->FindComponentByInterface(UKawaiiPhysicsGroundProvider::StaticClass()))
+			if (!Entry.GroundCharacterMovement.IsValid())
 			{
-				Entry.GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::Provider;
-				Entry.GroundProvider = ProviderComponent;
-				return;
+				if (UCharacterMovementComponent* CharacterMovement =
+					Actor->FindComponentByClass<UCharacterMovementComponent>())
+				{
+					Entry.GroundCharacterMovement = CharacterMovement;
+				}
 			}
 
-			if (UCharacterMovementComponent* CharacterMovement =
-				Actor->FindComponentByClass<UCharacterMovementComponent>())
+			if (Entry.GroundProvider.IsValid() && Entry.GroundCharacterMovement.IsValid())
 			{
-				Entry.GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::CharacterMovement;
-				Entry.GroundCharacterMovement = CharacterMovement;
-				return;
+				break;
 			}
 
 			Actor = Actor->GetAttachParentActor();
+		}
+
+		// GroundSource は利用可能な最上位ソース（Provider > CharacterMovement > Trace）。
+		// 実際の毎 Tick 更新は TryUpdateSimpleWorldGroundBoxFromSource が Provider → CharacterMovement の順に両方試す。
+		if (Entry.GroundProvider.IsValid())
+		{
+			Entry.GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::Provider;
+		}
+		else if (Entry.GroundCharacterMovement.IsValid())
+		{
+			Entry.GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::CharacterMovement;
+		}
+		else
+		{
+			Entry.GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::Trace;
 		}
 	}
 
@@ -327,64 +327,52 @@ namespace
 	{
 		bOutChanged = false;
 
-		if (Entry.GroundSource == EKawaiiPhysicsSimpleWorldGroundSource::Provider)
+		// Provider → CharacterMovement の順に毎 Tick 両方試す。Provider が有効でも bHit=false ならその場で
+		// CharacterMovement へフォールバックする（ドキュメント上の優先順位 Provider > CharacterMovement > Trace を維持）。
+		if (UObject* Provider = Entry.GroundProvider.Get())
 		{
-			UObject* Provider = Entry.GroundProvider.Get();
-			if (!Provider)
-			{
-				return false;
-			}
-
 			const FKawaiiPhysicsGroundHit Hit =
 				IKawaiiPhysicsGroundProvider::Execute_GetKawaiiPhysicsGround(Provider, &SkelComp);
-			if (!Hit.bHit)
+			if (Hit.bHit)
 			{
-				return false;
+				FBoxLimit NewBox;
+				if (KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldGroundBox(
+					Hit.Location, Hit.Normal, Radius, NewBox))
+				{
+					return ApplySimpleWorldGroundBox(
+						Entry, NewBox, Hit.Component.Get(), EKawaiiPhysicsSimpleWorldGroundSource::Provider, bOutChanged);
+				}
 			}
-
-			FBoxLimit NewBox;
-			if (!KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldGroundBox(
-				Hit.Location, Hit.Normal, Radius, NewBox))
-			{
-				return false;
-			}
-
-			return ApplySimpleWorldGroundBox(
-				Entry, NewBox, Hit.Component.Get(), EKawaiiPhysicsSimpleWorldGroundSource::Provider, bOutChanged);
 		}
 
-		if (Entry.GroundSource == EKawaiiPhysicsSimpleWorldGroundSource::CharacterMovement)
+		if (const UCharacterMovementComponent* CharacterMovement = Entry.GroundCharacterMovement.Get())
 		{
-			const UCharacterMovementComponent* CharacterMovement = Entry.GroundCharacterMovement.Get();
-			if (!CharacterMovement || !CharacterMovement->CurrentFloor.IsWalkableFloor())
+			if (CharacterMovement->CurrentFloor.IsWalkableFloor())
 			{
-				return false;
-			}
+				FVector Location = CharacterMovement->CurrentFloor.HitResult.ImpactPoint;
+				if (const UCapsuleComponent* Capsule = Cast<UCapsuleComponent>(CharacterMovement->UpdatedComponent))
+				{
+					// GetActorFeetLocation と同じ考え方で、カプセルの上方向ではなく重力方向へ投影する（カスタム重力を尊重するため）。
+					const FVector GravityDir = CharacterMovement->GetGravityDirection();
+					Location = Capsule->GetComponentLocation()
+						+ GravityDir * (Capsule->GetScaledCapsuleHalfHeight() + CharacterMovement->CurrentFloor.GetDistanceToFloor());
+				}
 
-			FVector Location = CharacterMovement->CurrentFloor.HitResult.ImpactPoint;
-			if (const UCapsuleComponent* Capsule = Cast<UCapsuleComponent>(CharacterMovement->UpdatedComponent))
-			{
-				Location = Capsule->GetComponentLocation()
-					- Capsule->GetComponentQuat().GetUpVector()
-					* (Capsule->GetScaledCapsuleHalfHeight() + CharacterMovement->CurrentFloor.GetDistanceToFloor());
+				FBoxLimit NewBox;
+				if (KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldGroundBox(
+					Location,
+					CharacterMovement->CurrentFloor.HitResult.ImpactNormal,
+					Radius,
+					NewBox))
+				{
+					return ApplySimpleWorldGroundBox(
+						Entry,
+						NewBox,
+						CharacterMovement->CurrentFloor.HitResult.GetComponent(),
+						EKawaiiPhysicsSimpleWorldGroundSource::CharacterMovement,
+						bOutChanged);
+				}
 			}
-
-			FBoxLimit NewBox;
-			if (!KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldGroundBox(
-				Location,
-				CharacterMovement->CurrentFloor.HitResult.ImpactNormal,
-				Radius,
-				NewBox))
-			{
-				return false;
-			}
-
-			return ApplySimpleWorldGroundBox(
-				Entry,
-				NewBox,
-				CharacterMovement->CurrentFloor.HitResult.GetComponent(),
-				EKawaiiPhysicsSimpleWorldGroundSource::CharacterMovement,
-				bOutChanged);
 		}
 
 		return false;
@@ -1070,7 +1058,6 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 			Entry->bHasGroundBox = false;
 			Entry->GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
 			Entry->GroundBoxSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
-			Entry->GroundSourceActor.Reset();
 			Entry->GroundProvider.Reset();
 			Entry->GroundCharacterMovement.Reset();
 			Entry->GroundComponent.Reset();
