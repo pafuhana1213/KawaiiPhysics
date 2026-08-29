@@ -245,6 +245,71 @@ bool FKawaiiPhysicsSimpleWorldConvertAggGeomTest::RunTest(const FString& Paramet
 }
 
 // ---------------------------------------------------------------------------
+//  AppendBoundsLocalLimits
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldAppendBoundsLocalLimitsTest,
+                                 "KawaiiPhysics.SimpleWorld.AppendBoundsLocalLimits",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldAppendBoundsLocalLimitsTest::RunTest(const FString& Parameters)
+{
+	// ComponentTM: Z軸周り90度回転 + 平行移動(100,0,0)
+	const FQuat ComponentRotation = FQuat(FVector::ZAxisVector, PI / 2.0f);
+	const FTransform ComponentTM(ComponentRotation, FVector(100.0f, 0.0f, 0.0f));
+	const FBoxSphereBounds Bounds(FVector(100.0f, 0.0f, 50.0f), FVector(10.0f, 1.0f, 1.0f), 10.05f);
+
+	{
+		FKawaiiPhysicsSharedCollisionData LocalLimits;
+		KawaiiPhysicsSimpleWorldCollision::AppendBoundsLocalLimits(
+			Bounds, ComponentTM, EKawaiiPhysicsComplexShapeApproximation::BoxBounds, LocalLimits);
+
+		FKawaiiPhysicsSharedCollisionData WorldLimits;
+		KawaiiPhysicsSimpleWorldCollision::AppendLocalLimitsTransformed(LocalLimits, ComponentTM, WorldLimits);
+
+		TestTrue(TEXT("BoxBounds appends exactly one box"), WorldLimits.BoxLimits.Num() == 1);
+		if (WorldLimits.BoxLimits.Num() == 1)
+		{
+			const FBoxLimit& Box = WorldLimits.BoxLimits[0];
+			TestTrue(TEXT("BoxBounds world location stays at Bounds origin"),
+			         Box.Location.Equals(FVector(100.0f, 0.0f, 50.0f), GSimpleWorldTol));
+			TestTrue(TEXT("BoxBounds world rotation stays identity"),
+			         Box.Rotation.Equals(FQuat::Identity, GSimpleWorldTol));
+			TestTrue(TEXT("BoxBounds world extent stays unchanged"),
+			         Box.Extent.Equals(FVector(10.0f, 1.0f, 1.0f), GSimpleWorldTol));
+		}
+	}
+
+	{
+		FKawaiiPhysicsSharedCollisionData LocalLimits;
+		KawaiiPhysicsSimpleWorldCollision::AppendBoundsLocalLimits(
+			Bounds, ComponentTM, EKawaiiPhysicsComplexShapeApproximation::SphereBounds, LocalLimits);
+
+		FKawaiiPhysicsSharedCollisionData WorldLimits;
+		KawaiiPhysicsSimpleWorldCollision::AppendLocalLimitsTransformed(LocalLimits, ComponentTM, WorldLimits);
+
+		TestTrue(TEXT("SphereBounds appends exactly one sphere"), WorldLimits.SphericalLimits.Num() == 1);
+		if (WorldLimits.SphericalLimits.Num() == 1)
+		{
+			const FSphericalLimit& Sphere = WorldLimits.SphericalLimits[0];
+			TestTrue(TEXT("SphereBounds world location stays at Bounds origin"),
+			         Sphere.Location.Equals(FVector(100.0f, 0.0f, 50.0f), GSimpleWorldTol));
+			TestTrue(TEXT("SphereBounds radius stays unchanged"),
+			         FMath::IsNearlyEqual(Sphere.Radius, 10.05f, GSimpleWorldTol));
+		}
+	}
+
+	{
+		FKawaiiPhysicsSharedCollisionData LocalLimits;
+		KawaiiPhysicsSimpleWorldCollision::AppendBoundsLocalLimits(
+			Bounds, ComponentTM, EKawaiiPhysicsComplexShapeApproximation::Ignore, LocalLimits);
+
+		TestTrue(TEXT("Ignore appends no limits"), LocalLimits.IsEmpty());
+	}
+
+	return true;
+}
+
+// ---------------------------------------------------------------------------
 //  AppendLocalLimitsTransformed
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldAppendLocalLimitsTransformedTest,
@@ -595,6 +660,21 @@ bool FKawaiiPhysicsSimpleWorldEntryLifecycleTest::RunTest(const FString& Paramet
 		TestTrue(TEXT("MarkRead returns false for a removed desc"), !Entry.MarkRead(SourceID1));
 		FKawaiiPhysicsSimpleWorldCollisionDesc MergedEmpty;
 		TestTrue(TEXT("BuildMergedDesc fails when no desc remains"), !Entry.BuildMergedDesc(MergedEmpty));
+	}
+
+	// RemoveExpiredDescs で期限切れになったDescは MarkRead できない。
+	{
+		FKawaiiPhysicsSimpleWorldCollisionEntry Entry;
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
+		Desc.GatherIntervalSec = 0.2f;
+		Entry.SetDesc(SourceID1, Desc);
+
+		const uint64 ExpiredFrame = GFrameCounter + 1;
+		Entry.RemoveExpiredDescs(ExpiredFrame, 0);
+
+		TestTrue(TEXT("HasAnyDesc false after expiration cleanup"), !Entry.HasAnyDesc());
+		TestTrue(TEXT("MarkRead returns false after expiration cleanup"), !Entry.MarkRead(SourceID1));
 	}
 
 	// RequestRegather / ConsumeRegatherRequested: 1回だけ true を返す
