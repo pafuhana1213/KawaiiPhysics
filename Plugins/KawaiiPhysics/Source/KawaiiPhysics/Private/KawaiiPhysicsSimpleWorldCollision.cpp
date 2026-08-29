@@ -148,6 +148,30 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		}
 	}
 
+	bool BuildSimpleWorldGroundBox(
+		const FVector& ImpactPoint,
+		const FVector& ImpactNormal,
+		float Radius,
+		FBoxLimit& OutBox)
+	{
+		if (ImpactPoint.ContainsNaN() || ImpactNormal.ContainsNaN() || !FMath::IsFinite(Radius))
+		{
+			return false;
+		}
+
+		const FVector Normal = ImpactNormal.GetSafeNormal(KINDA_SMALL_NUMBER, FVector::UpVector);
+		const float ClampedRadius = FMath::Max(0.0f, Radius);
+
+		FBoxLimit NewBox;
+		InitializeSimpleWorldLimit(NewBox);
+		NewBox.Location = ImpactPoint - Normal * GroundBoxHalfThickness;
+		NewBox.Rotation = FQuat::FindBetweenNormals(FVector::UpVector, Normal);
+		NewBox.Extent = FVector(ClampedRadius, ClampedRadius, GroundBoxHalfThickness);
+
+		OutBox = NewBox;
+		return true;
+	}
+
 	void ConvertAggGeomToLocalLimits(
 		const FKAggregateGeom& AggGeom,
 		const FVector& Scale3D,

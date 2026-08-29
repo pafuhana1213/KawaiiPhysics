@@ -846,8 +846,8 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	float SimpleWorldCollisionGatherRadius = 200.0f;
 
 	/**
-	* 下方向トレース 1 本で地面を求め、薄い Box コリジョンとして扱います。Landscape や Complex コリジョンのみの床でも有効です。
-	* Fires one downward trace to find the ground and treats it as a thin box collision. Works on Landscape and complex-collision-only floors.
+	* 所有 Actor の地面情報（IKawaiiPhysicsGroundProvider → CharacterMovementComponent の CurrentFloor）があればそれを使い、無ければ下方向トレース 1 本で地面を求め、薄い Box コリジョンとして扱います。Landscape や Complex コリジョンのみの床でも有効です。
+	* Uses the owner's ground info when available (IKawaiiPhysicsGroundProvider, then CharacterMovementComponent CurrentFloor); otherwise fires one downward trace. The ground is treated as a thin box collision. Works on Landscape and complex-collision-only floors.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
 		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision", DisplayName = "Ground Collision"))

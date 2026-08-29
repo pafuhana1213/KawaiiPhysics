@@ -16,10 +16,21 @@
 
 #include "KawaiiPhysicsSharedCollisionSubsystem.generated.h"
 
+class AActor;
 class UPrimitiveComponent;
 class UPhysicsAsset;
 class USkeletalMeshComponent;
 class USkinnedAsset;
+class UCharacterMovementComponent;
+
+// 地面ソースの種類（DebugDraw の色分けにも使う） / Ground source kind (also used for debug draw colors)
+enum class EKawaiiPhysicsSimpleWorldGroundSource : uint8
+{
+	None,
+	Provider,
+	CharacterMovement,
+	Trace,
+};
 
 /**
  * Source1つ分の共有コリジョンスロット
@@ -213,6 +224,13 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionEntry
 	bool bHasGatheredOnce = false;
 	bool bHasGroundBox = false;
 	FBoxLimit GroundBox;
+	EKawaiiPhysicsSimpleWorldGroundSource GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
+	// 現在の GroundBox を作ったソース（DebugDraw の色分け用。GroundSource は選択中のソース） / Source that produced the current GroundBox (for debug draw colors; GroundSource is the selected source)
+	EKawaiiPhysicsSimpleWorldGroundSource GroundBoxSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
+	TWeakObjectPtr<const AActor> GroundSourceActor;
+	TWeakObjectPtr<UObject> GroundProvider;
+	TWeakObjectPtr<UCharacterMovementComponent> GroundCharacterMovement;
+	TWeakObjectPtr<const UPrimitiveComponent> GroundComponent;
 	FKawaiiPhysicsSharedCollisionData PublishScratch;
 	TArray<FOverlapResult> OverlapScratch;
 	bool bWorldLimitsDirty = true;

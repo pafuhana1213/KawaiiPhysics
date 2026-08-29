@@ -42,6 +42,12 @@ enum class EKawaiiPhysicsSimpleWorldSkeletalMeshCollision : uint8
 
 namespace KawaiiPhysicsSimpleWorldCollision
 {
+	/**
+	 * 地面 Box の厚み半分（cm）。調整の必要性が薄いため定数
+	 * Half thickness of the ground box in cm; intentionally a constant
+	 */
+	inline constexpr float GroundBoxHalfThickness = 10.0f;
+
 	struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldBodyBinding
 	{
 		int32 BoneIndex = INDEX_NONE;
@@ -85,6 +91,18 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		int32 MaxBodies,
 		FKawaiiPhysicsSharedCollisionData& OutLocalLimits,
 		TArray<FKawaiiPhysicsSimpleWorldBodyBinding>& OutBindings);
+
+	/**
+	 * 接地点と法線から有界の薄い地面 Box を作る。入力が不正（NaN / 非有限半径）なら false を返し OutBox を変更しない。
+	 * ゼロ法線は上向き、負の半径は 0 として扱う。
+	 * Builds a bounded thin ground box from an impact point and normal. Returns false and leaves OutBox untouched on invalid input (NaN / non-finite radius).
+	 * A zero normal is treated as up, and a negative radius as 0.
+	 */
+	KAWAIIPHYSICS_API bool BuildSimpleWorldGroundBox(
+		const FVector& ImpactPoint,
+		const FVector& ImpactNormal,
+		float Radius,
+		FBoxLimit& OutBox);
 
 	/**
 	 * PhysicsAsset の Body を RefSkeleton で解決し、ボーン index 昇順で上限までボーンローカル Limit として追記します。
