@@ -14,6 +14,8 @@
 #endif
 #include "ReferenceSkeleton.h"
 
+#include <limits>
+
 // シンプルワールドコリジョン（KawaiiPhysicsSimpleWorldCollision namespace / SharedCollisionSubsystem の関連構造体）の単体テスト。
 // AggGeom→Limit変換、ローカル→ワールド変換、フェード、Desc Merge、Entryのライフサイクル、ハーネス経由のpush-out統合を検証する。
 
@@ -21,6 +23,105 @@ namespace
 {
 	constexpr float GSimpleWorldTol = 0.001f;
 	constexpr float GSimpleWorldPushOutTol = 0.01f; // 0.1mm スケール（他コリジョンテストと同じ粒度）
+}
+
+// ---------------------------------------------------------------------------
+//  BuildGroundBox
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldBuildGroundBoxTest,
+                                 "KawaiiPhysics.SimpleWorld.BuildGroundBox",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldBuildGroundBoxTest::RunTest(const FString& Parameters)
+{
+	using KawaiiPhysicsSimpleWorldCollision::GroundBoxHalfThickness;
+
+	const FVector ImpactPoint(100.0f, 200.0f, 50.0f);
+
+	{
+		FBoxLimit OutBox;
+		const bool bBuilt = KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldGroundBox(
+			ImpactPoint, FVector::UpVector, 300.0f, OutBox);
+
+		TestTrue(TEXT("Up normal builds a ground box"), bBuilt);
+		TestTrue(TEXT("Up normal location offsets by half thickness"),
+		         OutBox.Location.Equals(FVector(100.0f, 200.0f, 40.0f), GSimpleWorldTol));
+		TestTrue(TEXT("Up normal extent uses radius and half thickness"),
+		         OutBox.Extent.Equals(FVector(300.0f, 300.0f, 10.0f), GSimpleWorldTol));
+		TestTrue(TEXT("Up normal rotation is identity"), OutBox.Rotation.Equals(FQuat::Identity, GSimpleWorldTol));
+		TestTrue(TEXT("Ground box is enabled and sourced from SimpleWorld"),
+		         OutBox.bEnable && OutBox.SourceType == ECollisionSourceType::SimpleWorld);
+	}
+
+	{
+		const FVector TiltedNormal(
+			FMath::Sin(FMath::DegreesToRadians(30.0f)),
+			0.0f,
+			FMath::Cos(FMath::DegreesToRadians(30.0f)));
+		FBoxLimit OutBox;
+		const bool bBuilt = KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldGroundBox(
+			ImpactPoint, TiltedNormal, 300.0f, OutBox);
+
+		TestTrue(TEXT("Tilted normal builds a ground box"), bBuilt);
+		TestTrue(TEXT("Tilted normal rotation up vector matches normal"),
+		         OutBox.Rotation.GetUpVector().Equals(TiltedNormal, 0.0001f));
+		TestTrue(TEXT("Tilted normal location offsets along normal"),
+		         OutBox.Location.Equals(ImpactPoint - TiltedNormal * GroundBoxHalfThickness, GSimpleWorldTol));
+	}
+
+	{
+		FBoxLimit OutBox;
+		const bool bBuilt = KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldGroundBox(
+			ImpactPoint, FVector::UpVector, 0.0f, OutBox);
+
+		TestTrue(TEXT("Zero radius builds a ground box"), bBuilt);
+		TestTrue(TEXT("Zero radius clamps XY extent to zero"),
+		         OutBox.Extent.Equals(FVector(0.0f, 0.0f, 10.0f), GSimpleWorldTol));
+		TestFalse(TEXT("Zero radius output has no NaN"), OutBox.Location.ContainsNaN() || OutBox.Extent.ContainsNaN());
+	}
+
+	{
+		FBoxLimit OutBox;
+		const bool bBuilt = KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldGroundBox(
+			ImpactPoint, FVector::ZeroVector, 300.0f, OutBox);
+
+		TestTrue(TEXT("Zero normal builds a ground box"), bBuilt);
+		TestTrue(TEXT("Zero normal falls back to up"),
+		         OutBox.Rotation.GetUpVector().Equals(FVector::UpVector, GSimpleWorldTol));
+	}
+
+	{
+		FBoxLimit SentinelBox;
+		SentinelBox.Location = FVector(1.0f, 2.0f, 3.0f);
+		SentinelBox.Rotation = FRotator(10.0f, 20.0f, 30.0f).Quaternion();
+		SentinelBox.Extent = FVector(4.0f, 5.0f, 6.0f);
+		SentinelBox.bEnable = false;
+		SentinelBox.SourceType = ECollisionSourceType::DataAsset;
+
+		FBoxLimit OutBox = SentinelBox;
+		const FVector NaNPoint(std::numeric_limits<float>::quiet_NaN(), 200.0f, 50.0f);
+		const bool bBuilt = KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldGroundBox(
+			NaNPoint, FVector::UpVector, 300.0f, OutBox);
+
+		TestFalse(TEXT("NaN impact point is rejected"), bBuilt);
+		TestTrue(TEXT("Rejected input leaves location unchanged"), OutBox.Location.Equals(SentinelBox.Location));
+		TestTrue(TEXT("Rejected input leaves rotation unchanged"), OutBox.Rotation.Equals(SentinelBox.Rotation));
+		TestTrue(TEXT("Rejected input leaves extent unchanged"), OutBox.Extent.Equals(SentinelBox.Extent));
+		TestTrue(TEXT("Rejected input leaves flags unchanged"),
+		         OutBox.bEnable == SentinelBox.bEnable && OutBox.SourceType == SentinelBox.SourceType);
+	}
+
+	{
+		FBoxLimit OutBox;
+		const bool bBuilt = KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldGroundBox(
+			ImpactPoint, FVector::UpVector, -50.0f, OutBox);
+
+		TestTrue(TEXT("Negative radius builds a ground box"), bBuilt);
+		TestTrue(TEXT("Negative radius clamps XY extent to zero"),
+		         OutBox.Extent.Equals(FVector(0.0f, 0.0f, 10.0f), GSimpleWorldTol));
+	}
+
+	return true;
 }
 
 // ---------------------------------------------------------------------------
