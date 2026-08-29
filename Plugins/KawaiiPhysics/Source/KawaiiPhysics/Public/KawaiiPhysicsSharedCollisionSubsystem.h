@@ -17,7 +17,9 @@
 #include "KawaiiPhysicsSharedCollisionSubsystem.generated.h"
 
 class UPrimitiveComponent;
+class UPhysicsAsset;
 class USkeletalMeshComponent;
+class USkinnedAsset;
 
 /**
  * Source1つ分の共有コリジョンスロット
@@ -161,6 +163,21 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionEntry
 	{
 		TWeakObjectPtr<const UPrimitiveComponent> Component;
 		/**
+		 * PhysicsAsset 厳密モード用の SkeletalMeshComponent キャッシュ。未設定なら通常/Bounds 収集。
+		 * Cached SkeletalMeshComponent for exact PhysicsAsset mode. Unset for regular/bounds gathering.
+		 */
+		TWeakObjectPtr<const USkeletalMeshComponent> SkeletalComponent;
+		/**
+		 * 収集時の SkinnedAsset。差し替え検知に使う。
+		 * SkinnedAsset at gather time, used for replacement detection.
+		 */
+		TWeakObjectPtr<const USkinnedAsset> GatheredSkinnedAsset;
+		/**
+		 * 収集時の PhysicsAsset。Override を含む差し替え検知に使う。
+		 * PhysicsAsset at gather time, including overrides, used for replacement detection.
+		 */
+		TWeakObjectPtr<const UPhysicsAsset> GatheredPhysicsAsset;
+		/**
 		 * ISM/HISM のインスタンス index。非 ISM は INDEX_NONE
 		 * ISM/HISM instance index. INDEX_NONE for non-ISM.
 		 */
@@ -169,6 +186,21 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionEntry
 		float FadeAlpha = 1.0f;
 		FTransform LastComponentTM;
 		FKawaiiPhysicsSharedCollisionData LocalLimits;
+		/**
+		 * PhysicsAsset 厳密モードの body binding。空なら通常コンポーネント扱い。
+		 * Body bindings for exact PhysicsAsset mode. Empty means regular component handling.
+		 */
+		TArray<KawaiiPhysicsSimpleWorldCollision::FKawaiiPhysicsSimpleWorldBodyBinding> BodyBindings;
+		/**
+		 * 前回 publish 対象にした body world transform。デバッグ描画にも使う。
+		 * Last body world transforms used for publish. Also used for debug drawing.
+		 */
+		TArray<FTransform> LastBodyWorldTMs;
+		/**
+		 * 毎フレーム body world transform 更新用の一時配列。
+		 * Scratch array for per-frame body world transform updates.
+		 */
+		TArray<FTransform> BodyWorldTMScratch;
 	};
 
 	// Tick スレッド専有・ロック不要 / Tick-thread only; no lock required.

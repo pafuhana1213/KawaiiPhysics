@@ -7,6 +7,9 @@
 
 #include "KawaiiPhysicsSimpleWorldCollision.generated.h"
 
+class UPhysicsAsset;
+struct FReferenceSkeleton;
+
 /**
  * シンプルワールドコリジョンで未対応の複雑形状を近似する方法（Phase 1 では Convex に適用）
  * simple collision を持たないコンポーネント（Landscape / Complex のみのメッシュ）は収集対象外です。
@@ -35,12 +38,21 @@ enum class EKawaiiPhysicsSimpleWorldSkeletalMeshMode : uint8
 	Ignore UMETA(ToolTip = "無視します（既定） / Skip skeletal meshes (default)."),
 	/** Bounds から単一の Box として安価に近似します / Cheaply approximate Bounds as a single Box. */
 	BoundsBox UMETA(ToolTip = "Bounds から単一の Box として安価に近似します / Cheaply approximate Bounds as a single Box."),
-	/** PhysicsAsset の Body をボーン変換込みで正確に変換します（毎フレーム高コスト） / Convert PhysicsAsset bodies exactly, including per-bone transforms (expensive per frame). */
-	PhysicsAsset UMETA(ToolTip = "PhysicsAsset の Body をボーン変換込みで正確に変換します（毎フレーム高コスト） / Convert PhysicsAsset bodies exactly, including per-bone transforms (expensive per frame)."),
+	/** PhysicsAsset の Body をボーン追従で変換します。上限は Max PhysicsAsset Bodies で、PhysicsAsset 無しは BoundsBox 相当になります。ポーズは 1 フレーム遅れ得ます。アニメ由来のボーンスケールは形状サイズへ反映しません。 / Transform PhysicsAsset bodies by following bones. Limited by Max PhysicsAsset Bodies; falls back to BoundsBox when no PhysicsAsset is available. Pose data may be one frame late. Bone scale from animation is not applied to shape sizes. */
+	PhysicsAsset UMETA(ToolTip = "PhysicsAsset の Body をボーン追従で変換します。上限は Max PhysicsAsset Bodies で、PhysicsAsset 無しは BoundsBox 相当になります。ポーズは 1 フレーム遅れ得ます。アニメ由来のボーンスケールは形状サイズへ反映しません。 / Transform PhysicsAsset bodies by following bones. Limited by Max PhysicsAsset Bodies; falls back to BoundsBox when no PhysicsAsset is available. Pose data may be one frame late. Bone scale from animation is not applied to shape sizes."),
 };
 
 namespace KawaiiPhysicsSimpleWorldCollision
 {
+	struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldBodyBinding
+	{
+		int32 BoneIndex = INDEX_NONE;
+		int32 NumSphericalLimits = 0;
+		int32 NumCapsuleLimits = 0;
+		int32 NumTaperedCapsuleLimits = 0;
+		int32 NumBoxLimits = 0;
+	};
+
 	/**
 	 * ワールドAABBをコンポーネントローカル空間の Limit 配列へ変換して追記します。Box はワールドで軸平行になるよう ComponentTM の逆回転を持ちます。
 	 * Converts world AABB into component-local-space limits and appends them. Boxes keep ComponentTM inverse rotation so they remain axis-aligned in world space.
@@ -60,6 +72,54 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		const FVector& Scale3D,
 		EKawaiiPhysicsComplexShapeApproximation ApproxMode,
 		FKawaiiPhysicsSharedCollisionData& OutLocalLimits);
+
+	/**
+	 * 1 body 分の AggGeom をボーンローカル Limit として追記し、各配列内の連続要素数を Binding に記録します。
+	 * Appends one body's AggGeom as bone-local limits and records contiguous element counts in the binding.
+	 */
+	KAWAIIPHYSICS_API bool AppendBodyLocalLimits(
+		const FKAggregateGeom& AggGeom,
+		int32 BoneIndex,
+		const FVector& Scale3D,
+		EKawaiiPhysicsComplexShapeApproximation ApproxMode,
+		int32 MaxBodies,
+		FKawaiiPhysicsSharedCollisionData& OutLocalLimits,
+		TArray<FKawaiiPhysicsSimpleWorldBodyBinding>& OutBindings);
+
+	/**
+	 * PhysicsAsset の Body を RefSkeleton で解決し、ボーン index 昇順で上限までボーンローカル Limit として追記します。
+	 * Resolves PhysicsAsset bodies against the RefSkeleton and appends them as bone-local limits, sorted by bone index and capped by MaxBodies.
+	 */
+	KAWAIIPHYSICS_API int32 AppendPhysicsAssetLocalLimits(
+		const UPhysicsAsset& PhysicsAsset,
+		const FReferenceSkeleton& RefSkeleton,
+		const FVector& Scale3D,
+		EKawaiiPhysicsComplexShapeApproximation ApproxMode,
+		int32 MaxBodies,
+		FKawaiiPhysicsSharedCollisionData& OutLocalLimits,
+		TArray<FKawaiiPhysicsSimpleWorldBodyBinding>& OutBindings);
+
+	/**
+	 * BodyBinding ごとの bone component-space transform と ComponentTM を合成し、スケールを除去した World Transform を更新します。
+	 * Updates scale-stripped world transforms by composing each binding's bone component-space transform with ComponentTM.
+	 */
+	KAWAIIPHYSICS_API int32 UpdateSkeletalBodyWorldTransforms(
+		TArrayView<const FKawaiiPhysicsSimpleWorldBodyBinding> Bindings,
+		TArrayView<const FTransform> ComponentSpaceTransforms,
+		const FTransform& ComponentTM,
+		TArray<FTransform>& OutBodyWorldTMs);
+
+	/**
+	 * Binding ごとの LocalLimits スライスを BodyWorldTMs でワールド空間へ変換し、FadeAlpha を適用して追記します。
+	 * Transforms each binding's LocalLimits slice by BodyWorldTMs, applies FadeAlpha, and appends into OutWorldLimits.
+	 */
+	KAWAIIPHYSICS_API void AppendFadedSkeletalLocalLimits(
+		const FKawaiiPhysicsSharedCollisionData& LocalLimits,
+		TArrayView<const FKawaiiPhysicsSimpleWorldBodyBinding> Bindings,
+		TArrayView<const FTransform> BodyWorldTMs,
+		float FadeAlpha,
+		FKawaiiPhysicsSharedCollisionData& OutWorldLimits,
+		float BoxEnableThreshold = 0.5f);
 
 	/**
 	 * ローカル空間の Limit 配列を ComponentTM でワールド空間へ変換し、OutWorldLimits へ追記します。ComponentTM はスケール除去済みとして扱います。

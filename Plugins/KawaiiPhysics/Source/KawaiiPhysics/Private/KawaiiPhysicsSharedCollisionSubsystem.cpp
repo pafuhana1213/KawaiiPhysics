@@ -11,10 +11,12 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/OverlapResult.h"
+#include "Engine/SkinnedAsset.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/PlayerController.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "PhysicsEngine/PhysicsAsset.h"
 
 namespace
 {
@@ -106,18 +108,66 @@ namespace
 		const FTransform& ComponentTM,
 		const FVector& Scale3D,
 		const FKawaiiPhysicsSimpleWorldCollisionDesc& Desc,
-		FKawaiiPhysicsSharedCollisionData& OutLocalLimits)
+		int32 MaxPhysicsAssetBodies,
+		FKawaiiPhysicsSharedCollisionData& OutLocalLimits,
+		TArray<KawaiiPhysicsSimpleWorldCollision::FKawaiiPhysicsSimpleWorldBodyBinding>& OutBodyBindings);
+
+	bool BuildSkeletalLocalLimitsForSimpleWorldComponent(
+		const USkeletalMeshComponent& SkelComp,
+		const FKawaiiPhysicsSimpleWorldCollisionDesc& Desc,
+		int32 MaxPhysicsAssetBodies,
+		FKawaiiPhysicsSharedCollisionData& OutLocalLimits,
+		TArray<KawaiiPhysicsSimpleWorldCollision::FKawaiiPhysicsSimpleWorldBodyBinding>& OutBodyBindings)
 	{
 		OutLocalLimits.Reset();
+		OutBodyBindings.Reset();
 
-		if (Cast<const USkeletalMeshComponent>(&Component))
+		const UPhysicsAsset* PhysicsAsset = SkelComp.GetPhysicsAsset();
+		const USkinnedAsset* SkinnedAsset = SkelComp.GetSkinnedAsset();
+		if (!PhysicsAsset || !SkinnedAsset || SkelComp.GetNumComponentSpaceTransforms() == 0)
+		{
+			return false;
+		}
+
+		const int32 NumBodies = KawaiiPhysicsSimpleWorldCollision::AppendPhysicsAssetLocalLimits(
+			*PhysicsAsset,
+			SkinnedAsset->GetRefSkeleton(),
+			SkelComp.GetComponentScale(),
+			Desc.ComplexShapeApproximation,
+			MaxPhysicsAssetBodies,
+			OutLocalLimits,
+			OutBodyBindings);
+
+		return NumBodies > 0;
+	}
+
+	bool BuildLocalLimitsForSimpleWorldComponent(
+		UPrimitiveComponent& Component,
+		const FTransform& ComponentTM,
+		const FVector& Scale3D,
+		const FKawaiiPhysicsSimpleWorldCollisionDesc& Desc,
+		int32 MaxPhysicsAssetBodies,
+		FKawaiiPhysicsSharedCollisionData& OutLocalLimits,
+		TArray<KawaiiPhysicsSimpleWorldCollision::FKawaiiPhysicsSimpleWorldBodyBinding>& OutBodyBindings)
+	{
+		OutLocalLimits.Reset();
+		OutBodyBindings.Reset();
+
+		if (const USkeletalMeshComponent* SkelComp = Cast<const USkeletalMeshComponent>(&Component))
 		{
 			if (Desc.SkeletalMeshMode == EKawaiiPhysicsSimpleWorldSkeletalMeshMode::Ignore)
 			{
 				return false;
 			}
 
-			// PhysicsAsset は Phase 2a では BoundsBox と同じ扱い。Phase 3以降でbone transform込み変換を実装する。
+			if (Desc.SkeletalMeshMode == EKawaiiPhysicsSimpleWorldSkeletalMeshMode::PhysicsAsset
+				&& BuildSkeletalLocalLimitsForSimpleWorldComponent(
+					*SkelComp, Desc, MaxPhysicsAssetBodies, OutLocalLimits, OutBodyBindings))
+			{
+				return true;
+			}
+
+			// PhysicsAsset未設定、SkinnedAsset未設定、ComponentSpaceTransforms未生成、または採用bodyなしの場合はBoundsBoxへフォールバックする。
 			KawaiiPhysicsSimpleWorldCollision::AppendBoundsLocalLimits(
 				Component.Bounds,
 				ComponentTM,
@@ -140,6 +190,57 @@ namespace
 	}
 
 #if ENABLE_DRAW_DEBUG
+	void DrawKawaiiPhysicsSimpleWorldLimitRange(
+		const UWorld& World,
+		const FKawaiiPhysicsSharedCollisionData& LocalLimits,
+		int32 SphereOffset,
+		int32 NumSpheres,
+		int32 CapsuleOffset,
+		int32 NumCapsules,
+		int32 TaperedCapsuleOffset,
+		int32 NumTaperedCapsules,
+		int32 BoxOffset,
+		int32 NumBoxes,
+		const FTransform& Transform,
+		const FColor& ShapeColor)
+	{
+		constexpr float ShapeThickness = 1.5f;
+		constexpr uint8 DepthPriority = 0;
+
+		for (int32 LimitIndex = 0; LimitIndex < NumSpheres; ++LimitIndex)
+		{
+			const FSphericalLimit& Limit = LocalLimits.SphericalLimits[SphereOffset + LimitIndex];
+			const FVector LocationWS = Transform.TransformPosition(Limit.Location);
+			DrawDebugSphere(&World, LocationWS, Limit.Radius, 12, ShapeColor, false, -1.0f, DepthPriority,
+				ShapeThickness);
+		}
+		for (int32 LimitIndex = 0; LimitIndex < NumCapsules; ++LimitIndex)
+		{
+			const FCapsuleLimit& Limit = LocalLimits.CapsuleLimits[CapsuleOffset + LimitIndex];
+			const FVector LocationWS = Transform.TransformPosition(Limit.Location);
+			const FQuat RotationWS = Transform.TransformRotation(Limit.Rotation);
+			DrawDebugCapsule(&World, LocationWS, Limit.Length * 0.5f, Limit.Radius, RotationWS, ShapeColor, false,
+				-1.0f, DepthPriority, ShapeThickness);
+		}
+		for (int32 LimitIndex = 0; LimitIndex < NumTaperedCapsules; ++LimitIndex)
+		{
+			const FTaperedCapsuleLimit& Limit = LocalLimits.TaperedCapsuleLimits[TaperedCapsuleOffset + LimitIndex];
+			const FVector LocationWS = Transform.TransformPosition(Limit.Location);
+			const FQuat RotationWS = Transform.TransformRotation(Limit.Rotation);
+			const float AverageRadius = (Limit.Radius0 + Limit.Radius1) * 0.5f;
+			DrawDebugCapsule(&World, LocationWS, Limit.Length * 0.5f, AverageRadius, RotationWS, ShapeColor, false,
+				-1.0f, DepthPriority, ShapeThickness);
+		}
+		for (int32 LimitIndex = 0; LimitIndex < NumBoxes; ++LimitIndex)
+		{
+			const FBoxLimit& Limit = LocalLimits.BoxLimits[BoxOffset + LimitIndex];
+			const FVector LocationWS = Transform.TransformPosition(Limit.Location);
+			const FQuat RotationWS = Transform.TransformRotation(Limit.Rotation);
+			DrawDebugBox(&World, LocationWS, Limit.Extent, RotationWS, ShapeColor, false, -1.0f, DepthPriority,
+				ShapeThickness);
+		}
+	}
+
 	// シンプルワールドコリジョンのデバッグ描画（GameThread専用）。収集済み形状はComponentローカル形状+ComponentTMから
 	// 描画時に都度ワールド変換する。フェード中はFadeAlphaに応じて薄い色にする（PublishScratchは半径縮小済みで
 	// アルファ情報が失われるため使わない）。地面Boxのみ別途Green表示する。
@@ -164,34 +265,51 @@ namespace
 			const FColor ShapeColor = FMath::Lerp(FLinearColor(0.0f, 0.35f, 0.35f), FLinearColor(0.0f, 1.0f, 1.0f), Alpha).
 				ToFColor(false);
 
-			for (const FSphericalLimit& Limit : Component.LocalLimits.SphericalLimits)
+			if (Component.BodyBindings.IsEmpty())
 			{
-				const FVector LocationWS = Component.LastComponentTM.TransformPosition(Limit.Location);
-				DrawDebugSphere(&World, LocationWS, Limit.Radius, 12, ShapeColor, false, -1.0f, DepthPriority,
-					ShapeThickness);
+				DrawKawaiiPhysicsSimpleWorldLimitRange(
+					World,
+					Component.LocalLimits,
+					0,
+					Component.LocalLimits.SphericalLimits.Num(),
+					0,
+					Component.LocalLimits.CapsuleLimits.Num(),
+					0,
+					Component.LocalLimits.TaperedCapsuleLimits.Num(),
+					0,
+					Component.LocalLimits.BoxLimits.Num(),
+					Component.LastComponentTM,
+					ShapeColor);
+				continue;
 			}
-			for (const FCapsuleLimit& Limit : Component.LocalLimits.CapsuleLimits)
+
+			int32 SphereOffset = 0;
+			int32 CapsuleOffset = 0;
+			int32 TaperedCapsuleOffset = 0;
+			int32 BoxOffset = 0;
+			const int32 NumBodies = FMath::Min(Component.BodyBindings.Num(), Component.LastBodyWorldTMs.Num());
+			for (int32 BodyIndex = 0; BodyIndex < NumBodies; ++BodyIndex)
 			{
-				const FVector LocationWS = Component.LastComponentTM.TransformPosition(Limit.Location);
-				const FQuat RotationWS = Component.LastComponentTM.TransformRotation(Limit.Rotation);
-				DrawDebugCapsule(&World, LocationWS, Limit.Length * 0.5f, Limit.Radius, RotationWS, ShapeColor, false,
-					-1.0f, DepthPriority, ShapeThickness);
-			}
-			for (const FTaperedCapsuleLimit& Limit : Component.LocalLimits.TaperedCapsuleLimits)
-			{
-				// DrawDebugCapsuleで近似（半径は両端の平均）
-				const FVector LocationWS = Component.LastComponentTM.TransformPosition(Limit.Location);
-				const FQuat RotationWS = Component.LastComponentTM.TransformRotation(Limit.Rotation);
-				const float AverageRadius = (Limit.Radius0 + Limit.Radius1) * 0.5f;
-				DrawDebugCapsule(&World, LocationWS, Limit.Length * 0.5f, AverageRadius, RotationWS, ShapeColor, false,
-					-1.0f, DepthPriority, ShapeThickness);
-			}
-			for (const FBoxLimit& Limit : Component.LocalLimits.BoxLimits)
-			{
-				const FVector LocationWS = Component.LastComponentTM.TransformPosition(Limit.Location);
-				const FQuat RotationWS = Component.LastComponentTM.TransformRotation(Limit.Rotation);
-				DrawDebugBox(&World, LocationWS, Limit.Extent, RotationWS, ShapeColor, false, -1.0f, DepthPriority,
-					ShapeThickness);
+				const KawaiiPhysicsSimpleWorldCollision::FKawaiiPhysicsSimpleWorldBodyBinding& Binding =
+					Component.BodyBindings[BodyIndex];
+				DrawKawaiiPhysicsSimpleWorldLimitRange(
+					World,
+					Component.LocalLimits,
+					SphereOffset,
+					Binding.NumSphericalLimits,
+					CapsuleOffset,
+					Binding.NumCapsuleLimits,
+					TaperedCapsuleOffset,
+					Binding.NumTaperedCapsuleLimits,
+					BoxOffset,
+					Binding.NumBoxLimits,
+					Component.LastBodyWorldTMs[BodyIndex],
+					ShapeColor);
+
+				SphereOffset += Binding.NumSphericalLimits;
+				CapsuleOffset += Binding.NumCapsuleLimits;
+				TaperedCapsuleOffset += Binding.NumTaperedCapsuleLimits;
+				BoxOffset += Binding.NumBoxLimits;
 			}
 		}
 
@@ -214,6 +332,7 @@ extern TAutoConsoleVariable<float> CVarSharedCollisionCleanupInterval;
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionEnable;
 extern TAutoConsoleVariable<float> CVarSimpleWorldCollisionGatherIntervalScale;
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionMaxComponents;
+extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionMaxPhysicsAssetBodies;
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionCleanupMaxAge;
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionDebugDraw;
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionForceEnableOnServer;
@@ -230,6 +349,7 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_SharedCollision_NumSlots"), STAT_
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimpleWorldCollision_Gather"), STAT_KawaiiPhysics_SimpleWorldCollision_Gather, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimpleWorldCollision_UpdateTransforms"), STAT_KawaiiPhysics_SimpleWorldCollision_UpdateTransforms, STATGROUP_Anim);
 DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_SimpleWorldCollision_NumGatheredComponents"), STAT_KawaiiPhysics_SimpleWorldCollision_NumGatheredComponents, STATGROUP_Anim);
+DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_SimpleWorldCollision_NumSkeletalBodies"), STAT_KawaiiPhysics_SimpleWorldCollision_NumSkeletalBodies, STATGROUP_Anim);
 
 AActor* UKawaiiPhysicsSharedCollisionSubsystem::GetFamilyRoot(AActor* Actor)
 {
@@ -690,6 +810,10 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 	const int32 EffectiveMaxGatheredComponents = MaxComponentsCVarValue >= 0
 		? MaxComponentsCVarValue
 		: KawaiiSettings->SimpleWorldCollisionMaxGatheredComponents;
+	const int32 MaxPhysicsAssetBodiesCVarValue = CVarSimpleWorldCollisionMaxPhysicsAssetBodies.GetValueOnGameThread();
+	const int32 EffectiveMaxPhysicsAssetBodies = MaxPhysicsAssetBodiesCVarValue >= 0
+		? MaxPhysicsAssetBodiesCVarValue
+		: KawaiiSettings->SimpleWorldCollisionMaxPhysicsAssetBodies;
 #if ENABLE_DRAW_DEBUG
 	const bool bDebugDraw = CVarSimpleWorldCollisionDebugDraw.GetValueOnGameThread() != 0;
 #endif
@@ -845,9 +969,24 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 
 				NewComponent.LastComponentTM = ComponentTM;
 				if (!BuildLocalLimitsForSimpleWorldComponent(
-						*Component, NewComponent.LastComponentTM, Scale3D, Desc, NewComponent.LocalLimits))
+						*Component,
+						NewComponent.LastComponentTM,
+						Scale3D,
+						Desc,
+						EffectiveMaxPhysicsAssetBodies,
+						NewComponent.LocalLimits,
+						NewComponent.BodyBindings))
 				{
 					continue;
+				}
+
+				if (!NewComponent.BodyBindings.IsEmpty())
+				{
+					const USkeletalMeshComponent* GatheredSkelComp = Cast<const USkeletalMeshComponent>(Component);
+					NewComponent.SkeletalComponent = GatheredSkelComp;
+					NewComponent.GatheredSkinnedAsset = GatheredSkelComp ? GatheredSkelComp->GetSkinnedAsset() : nullptr;
+					NewComponent.GatheredPhysicsAsset = GatheredSkelComp ? GatheredSkelComp->GetPhysicsAsset() : nullptr;
+					NewComponent.bStatic = false;
 				}
 
 				NewGatheredComponents.Add(MoveTemp(NewComponent));
@@ -904,6 +1043,63 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 				bDirty = true;
 			}
 
+			if (!ComponentIt->BodyBindings.IsEmpty())
+			{
+				const USkeletalMeshComponent* SkeletalComponent = ComponentIt->SkeletalComponent.Get();
+				if (!SkeletalComponent)
+				{
+					ComponentIt.RemoveCurrent();
+					bDirty = true;
+					continue;
+				}
+
+				if (SkeletalComponent->GetSkinnedAsset() != ComponentIt->GatheredSkinnedAsset.Get()
+					|| SkeletalComponent->GetPhysicsAsset() != ComponentIt->GatheredPhysicsAsset.Get())
+				{
+					ComponentIt.RemoveCurrent();
+					Entry->TimeSinceLastGather = FLT_MAX;
+					bDirty = true;
+					continue;
+				}
+
+				// 相手SkelCompのPostAnimEvaluationとSubsystem Tickの順序次第で、ここで読むポーズは1フレーム前の可能性がある。
+				// Targetノード側ではPublish/Readの位相差も含めて最大2フレーム遅延し得る。
+				const TArray<FTransform>& ComponentSpaceTransforms = SkeletalComponent->GetComponentSpaceTransforms();
+				const int32 NumMissingBones = KawaiiPhysicsSimpleWorldCollision::UpdateSkeletalBodyWorldTransforms(
+					MakeArrayView(ComponentIt->BodyBindings),
+					MakeArrayView(ComponentSpaceTransforms),
+					SkeletalComponent->GetComponentTransform(),
+					ComponentIt->BodyWorldTMScratch);
+				if (NumMissingBones > 0)
+				{
+					ComponentIt.RemoveCurrent();
+					Entry->TimeSinceLastGather = FLT_MAX;
+					bDirty = true;
+					continue;
+				}
+
+				bool bBodyTransformsDirty = ComponentIt->LastBodyWorldTMs.Num() != ComponentIt->BodyWorldTMScratch.Num();
+				if (!bBodyTransformsDirty)
+				{
+					for (int32 BodyIndex = 0; BodyIndex < ComponentIt->LastBodyWorldTMs.Num(); ++BodyIndex)
+					{
+						if (!ComponentIt->LastBodyWorldTMs[BodyIndex].Equals(
+							ComponentIt->BodyWorldTMScratch[BodyIndex], KINDA_SMALL_NUMBER))
+						{
+							bBodyTransformsDirty = true;
+							break;
+						}
+					}
+				}
+
+				if (bBodyTransformsDirty)
+				{
+					Swap(ComponentIt->LastBodyWorldTMs, ComponentIt->BodyWorldTMScratch);
+					bDirty = true;
+				}
+				continue;
+			}
+
 			if (!ComponentIt->bStatic)
 			{
 				FTransform CurrentComponentTM = GetScaleStrippedComponentTransform(*Component);
@@ -947,12 +1143,25 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 			{
 				// フェード計算本体は KawaiiPhysicsSimpleWorldCollision 名前空間へ移設済み（単体テスト可能化のため）。
 				// しきい値定数はここ（Subsystem側）で保持したまま引数として渡す。
-				KawaiiPhysicsSimpleWorldCollision::AppendFadedLocalLimits(
-					Component.LocalLimits,
-					Component.FadeAlpha,
-					Component.LastComponentTM,
-					Entry->PublishScratch,
-					GSimpleWorldFadeBoxEnableThreshold);
+				if (!Component.BodyBindings.IsEmpty())
+				{
+					KawaiiPhysicsSimpleWorldCollision::AppendFadedSkeletalLocalLimits(
+						Component.LocalLimits,
+						MakeArrayView(Component.BodyBindings),
+						MakeArrayView(Component.LastBodyWorldTMs),
+						Component.FadeAlpha,
+						Entry->PublishScratch,
+						GSimpleWorldFadeBoxEnableThreshold);
+				}
+				else
+				{
+					KawaiiPhysicsSimpleWorldCollision::AppendFadedLocalLimits(
+						Component.LocalLimits,
+						Component.FadeAlpha,
+						Component.LastComponentTM,
+						Entry->PublishScratch,
+						GSimpleWorldFadeBoxEnableThreshold);
+				}
 			}
 
 			if (Entry->bHasGroundBox)
@@ -1040,6 +1249,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::Tick(float DeltaTime)
 		const int32 SimpleWorldCleanupMaxAge = CVarSimpleWorldCollisionCleanupMaxAge.GetValueOnGameThread();
 
 		int32 TotalGatheredComponents = 0;
+		int32 TotalSkeletalBodies = 0;
 		for (auto It = SimpleWorldRegistry.CreateIterator(); It; ++It)
 		{
 			if (!It->Key.IsValid() || !It->Value.IsValid())
@@ -1056,8 +1266,14 @@ void UKawaiiPhysicsSharedCollisionSubsystem::Tick(float DeltaTime)
 			}
 
 			TotalGatheredComponents += It->Value->GatheredComponents.Num();
+			for (const FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent& GatheredComponent :
+				It->Value->GatheredComponents)
+			{
+				TotalSkeletalBodies += GatheredComponent.BodyBindings.Num();
+			}
 		}
 		SET_DWORD_STAT(STAT_KawaiiPhysics_SimpleWorldCollision_NumGatheredComponents, TotalGatheredComponents);
+		SET_DWORD_STAT(STAT_KawaiiPhysics_SimpleWorldCollision_NumSkeletalBodies, TotalSkeletalBodies);
 	}
 }
 

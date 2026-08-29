@@ -93,6 +93,16 @@ public:
 		meta = (DisplayName = "Max Gathered Components", ClampMin = "1", UIMin = "1"))
 	int32 SimpleWorldCollisionMaxGatheredComponents = 64;
 
+	/**
+	* PhysicsAsset モードで SkeletalMeshComponent 1つから採用する最大 body 数。bone index 昇順でこの数まで採用される。
+	* a.AnimNode.KawaiiPhysics.SimpleWorldCollision.MaxPhysicsAssetBodies CVar が 0 以上の場合はそちらが優先される。
+	* Maximum number of bodies gathered from one SkeletalMeshComponent in PhysicsAsset mode. Bodies are taken in bone-index order up to this count.
+	* Overridden by the a.AnimNode.KawaiiPhysics.SimpleWorldCollision.MaxPhysicsAssetBodies CVar when it is >= 0.
+	*/
+	UPROPERTY(EditAnywhere, config, Category = "Simple World Collision",
+		meta = (DisplayName = "Max PhysicsAsset Bodies", ClampMin = "1", UIMin = "1"))
+	int32 SimpleWorldCollisionMaxPhysicsAssetBodies = 32;
+
 #if WITH_EDITORONLY_DATA
 	/**
 	* MCPコメント枠のタイトルに付与するプレフィックス。
