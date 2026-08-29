@@ -103,6 +103,15 @@ public:
 		meta = (DisplayName = "Max PhysicsAsset Bodies", ClampMin = "1", UIMin = "1"))
 	int32 SimpleWorldCollisionMaxPhysicsAssetBodies = 32;
 
+	/**
+	* 収集済みコンポーネントのスケールが変化したら次 Tick で再収集する（既定 OFF。ISM はインスタンススケール、PhysicsAsset モードは bone-local に焼き込んだスケールを対象）。
+	* Re-gather a gathered component on the next tick when its scale changes (default OFF; instance scale for ISM,
+	* the baked bone-local scale for PhysicsAsset mode).
+	*/
+	UPROPERTY(EditAnywhere, config, Category = "Simple World Collision",
+		meta = (DisplayName = "Regather On Scale Change"))
+	bool bSimpleWorldCollisionRegatherOnScaleChange = false;
+
 #if WITH_EDITORONLY_DATA
 	/**
 	* MCPコメント枠のタイトルに付与するプレフィックス。

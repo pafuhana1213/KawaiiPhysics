@@ -178,6 +178,11 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionEntry
 		 */
 		TWeakObjectPtr<const UPhysicsAsset> GatheredPhysicsAsset;
 		/**
+		 * 収集時に Limit へ焼き込んだスケール。ISM はインスタンススケール、PhysicsAsset モードは bone-local に焼き込んだスケール。
+		 * Scale baked into limits at gather time. Instance scale for ISM; the baked bone-local scale for PhysicsAsset mode.
+		 */
+		FVector GatheredScale3D = FVector::OneVector;
+		/**
 		 * ISM/HISM のインスタンス index。非 ISM は INDEX_NONE
 		 * ISM/HISM instance index. INDEX_NONE for non-ISM.
 		 */

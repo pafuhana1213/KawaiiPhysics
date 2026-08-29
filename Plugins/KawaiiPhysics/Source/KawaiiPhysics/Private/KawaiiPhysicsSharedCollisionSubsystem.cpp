@@ -360,6 +360,7 @@ extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionEnable;
 extern TAutoConsoleVariable<float> CVarSimpleWorldCollisionGatherIntervalScale;
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionMaxComponents;
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionMaxPhysicsAssetBodies;
+extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionRegatherOnScaleChange;
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionCleanupMaxAge;
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionDebugDraw;
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionForceEnableOnServer;
@@ -841,6 +842,10 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 	const int32 EffectiveMaxPhysicsAssetBodies = MaxPhysicsAssetBodiesCVarValue >= 0
 		? MaxPhysicsAssetBodiesCVarValue
 		: KawaiiSettings->SimpleWorldCollisionMaxPhysicsAssetBodies;
+	const int32 RegatherOnScaleChangeCVarValue = CVarSimpleWorldCollisionRegatherOnScaleChange.GetValueOnGameThread();
+	const bool bRegatherOnScaleChange = RegatherOnScaleChangeCVarValue >= 0
+		? RegatherOnScaleChangeCVarValue != 0
+		: KawaiiSettings->bSimpleWorldCollisionRegatherOnScaleChange;
 #if ENABLE_DRAW_DEBUG
 	const bool bDebugDraw = CVarSimpleWorldCollisionDebugDraw.GetValueOnGameThread() != 0;
 #endif
@@ -984,6 +989,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 				NewComponent.InstanceIndex = InstanceIndex;
 				NewComponent.bStatic = (Component->GetMobility() == EComponentMobility::Static);
 				NewComponent.FadeAlpha = Entry->bHasGatheredOnce ? 0.0f : 1.0f;
+				NewComponent.GatheredScale3D = Scale3D;
 
 				if (const FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent* ExistingComponent =
 					Entry->GatheredComponents.FindByPredicate(
@@ -1082,8 +1088,12 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 					continue;
 				}
 
+				// SkinnedAsset / PhysicsAsset の差し替え、および（opt-in 時の）コンポーネントスケール変化は
+				// 焼き込み済み Limit と食い違うため次 Tick で再収集する
 				if (SkeletalComponent->GetSkinnedAsset() != ComponentIt->GatheredSkinnedAsset.Get()
-					|| SkeletalComponent->GetPhysicsAsset() != ComponentIt->GatheredPhysicsAsset.Get())
+					|| SkeletalComponent->GetPhysicsAsset() != ComponentIt->GatheredPhysicsAsset.Get()
+					|| (bRegatherOnScaleChange
+						&& !SkeletalComponent->GetComponentScale().Equals(ComponentIt->GatheredScale3D, KINDA_SMALL_NUMBER)))
 				{
 					ComponentIt.RemoveCurrent();
 					Entry->TimeSinceLastGather = FLT_MAX;
@@ -1132,6 +1142,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 			if (!ComponentIt->bStatic)
 			{
 				FTransform CurrentComponentTM = GetScaleStrippedComponentTransform(*Component);
+				FVector CurrentScale3D = Component->GetComponentScale();
 				if (ComponentIt->InstanceIndex != INDEX_NONE)
 				{
 					const UInstancedStaticMeshComponent* ISMComponent =
@@ -1155,6 +1166,16 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 						continue;
 					}
 					CurrentComponentTM = GetScaleStrippedKawaiiPhysicsSimpleWorldInstanceTransform(InstanceTM);
+					CurrentScale3D = InstanceTM.GetScale3D();
+				}
+
+				// opt-in 時、スケール変化は焼き込み済み Limit と食い違うため次 Tick で再収集する
+				if (bRegatherOnScaleChange && !CurrentScale3D.Equals(ComponentIt->GatheredScale3D, KINDA_SMALL_NUMBER))
+				{
+					ComponentIt.RemoveCurrent();
+					Entry->TimeSinceLastGather = FLT_MAX;
+					bDirty = true;
+					continue;
 				}
 
 				if (!ComponentIt->LastComponentTM.Equals(CurrentComponentTM, KINDA_SMALL_NUMBER))
