@@ -66,7 +66,7 @@ public:
 	bool bFilterExactMatch = false;
 
 	/** セクションの評価終了時（範囲外へのスクラブ・停止・削除）に、現在の適用率から 0 へフェードする秒数 / Blend-out seconds from the current applied ratio to 0 when the section stops evaluating (scrubbed out, stopped, or removed) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kawaii Physics", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kawaii Physics", meta = (ClampMin = "0.0", Units = "s"))
 	float BlendOutTimeOnEnd = 0.2f;
 
 	/** 指定時刻の実効重み = Clamp(Weight,0,1) x EvaluateEasing / Effective weight at the time = Clamp(Weight,0,1) x EvaluateEasing (exposed for tests) */

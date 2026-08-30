@@ -34,15 +34,15 @@ public:
 	FKawaiiPhysicsSettingsMultiplier SettingsScale;
 
 	/** BlendIn/BlendOut 込みの合計秒。0 以下は何もしない / Total seconds including BlendIn and BlendOut. 0 or less does nothing. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings Multiplier", meta=(ClampMin="0.0", UIMin="0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings Multiplier", meta=(ClampMin="0.0", UIMin="0.0", Units="s"))
 	float Duration = 1.0f;
 
 	/** 立ち上がり時間（秒） / Blend-in time, in seconds. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings Multiplier", meta=(ClampMin="0.0", UIMin="0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings Multiplier", meta=(ClampMin="0.0", UIMin="0.0", Units="s"))
 	float BlendInTime = 0.2f;
 
 	/** 減衰時間（秒） / Blend-out time, in seconds. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings Multiplier", meta=(ClampMin="0.0", UIMin="0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings Multiplier", meta=(ClampMin="0.0", UIMin="0.0", Units="s"))
 	float BlendOutTime = 0.5f;
 
 	/** 適用するノードを Tag でフィルタ（空なら全ノード対象） / Tags used to filter target nodes; empty targets all nodes. */

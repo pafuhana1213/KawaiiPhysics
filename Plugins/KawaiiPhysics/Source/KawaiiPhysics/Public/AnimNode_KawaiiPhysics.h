@@ -171,7 +171,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* 0より大きい場合は、制御ボーンの末端にダミーボーンを追加。ダミーボーンを追加することで、末端のボーンの物理制御を改善
 	* Add a dummy bone to the end bone if it's above 0. It affects end bone rotation. 
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bones", meta = (PinHiddenByDefault, ClampMin = "0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bones", meta = (PinHiddenByDefault, ClampMin = "0", Units = "cm"))
 	float DummyBoneLength = 0.0f;
 
 	/**
@@ -286,14 +286,14 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* 1フレームにおけるSkeletalMeshComponentの移動量が設定値を超えた場合、その移動量を物理制御に反映しない
 	* If the amount of movement of a SkeletalMeshComponent in one frame exceeds the set value, that amount of movement will not be reflected in the physics control.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault, Units = "cm"))
 	float TeleportDistanceThreshold = 300.0f;
 
 	/** 
 	* 1フレームにおけるSkeletalMeshComponentの回転量が設定値を超えた場合、その回転量を物理制御に反映しない
 	* If the rotation amount of SkeletalMeshComponent in one frame exceeds the set value, the rotation amount will not be reflected in the physics control.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault, Units = "Degrees"))
 	float TeleportRotationThreshold = 10.0f;
 
 	/** 
@@ -811,7 +811,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
 		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision", ClampMin = "0.0", ClampMax = "10.0",
-		DisplayName = "Gather Interval"))
+		DisplayName = "Gather Interval", Units = "s"))
 	float SimpleWorldCollisionGatherInterval = 0.2f;
 
 	/**
@@ -842,7 +842,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
 		meta = (PinHiddenByDefault, EditCondition = "bOverrideSimpleWorldCollisionGatherRadius", ClampMin = "0",
-		DisplayName = "Gather Radius"))
+		DisplayName = "Gather Radius", Units = "cm"))
 	float SimpleWorldCollisionGatherRadius = 200.0f;
 
 	/**

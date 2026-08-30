@@ -126,7 +126,7 @@ struct FSphericalLimit : public FCollisionLimitBase
 	}
 
 	/** 球の半径 / Radius of the sphere */
-	UPROPERTY(EditAnywhere, Category = "Spherical Limit", meta = (ClampMin = "0"))
+	UPROPERTY(EditAnywhere, Category = "Spherical Limit", meta = (ClampMin = "0", Units = "cm"))
 	float Radius = 5.0f;
 
 	/** 球の外側と内側のどちらに拘束するか / Whether to lock bodies inside or outside of the sphere */
@@ -162,11 +162,11 @@ struct FCapsuleLimit : public FCollisionLimitBase
 	}
 
 	/** カプセルの半径 / Radius of the capsule */
-	UPROPERTY(EditAnywhere, Category = "Capsule Limit", meta = (ClampMin = "0"))
+	UPROPERTY(EditAnywhere, Category = "Capsule Limit", meta = (ClampMin = "0", Units = "cm"))
 	float Radius = 5.0f;
 
 	/** カプセルの長さ / Length of the capsule */
-	UPROPERTY(EditAnywhere, Category = "Capsule Limit", meta = (ClampMin = "0"))
+	UPROPERTY(EditAnywhere, Category = "Capsule Limit", meta = (ClampMin = "0", Units = "cm"))
 	float Length = 10.0f;
 
 	// 実行時キャッシュ（毎ステップ再計算、シリアライズ対象外） / Runtime cache (recomputed every step, not serialized)
@@ -210,15 +210,15 @@ struct FTaperedCapsuleLimit : public FCollisionLimitBase
 	}
 
 	/** +Z端の半径 / Radius at the +Z end */
-	UPROPERTY(EditAnywhere, Category = "Tapered Capsule Limit", meta = (ClampMin = "0"))
+	UPROPERTY(EditAnywhere, Category = "Tapered Capsule Limit", meta = (ClampMin = "0", Units = "cm"))
 	float Radius0 = 5.0f;
 
 	/** -Z端の半径 / Radius at the -Z end */
-	UPROPERTY(EditAnywhere, Category = "Tapered Capsule Limit", meta = (ClampMin = "0"))
+	UPROPERTY(EditAnywhere, Category = "Tapered Capsule Limit", meta = (ClampMin = "0", Units = "cm"))
 	float Radius1 = 5.0f;
 
 	/** カプセルの長さ / Length of the capsule */
-	UPROPERTY(EditAnywhere, Category = "Tapered Capsule Limit", meta = (ClampMin = "0"))
+	UPROPERTY(EditAnywhere, Category = "Tapered Capsule Limit", meta = (ClampMin = "0", Units = "cm"))
 	float Length = 10.0f;
 
 	// 実行時キャッシュ（毎ステップ再計算、シリアライズ対象外） / Runtime cache (recomputed every step, not serialized)

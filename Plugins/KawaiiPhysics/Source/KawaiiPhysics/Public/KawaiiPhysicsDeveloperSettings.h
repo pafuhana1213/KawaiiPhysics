@@ -64,7 +64,7 @@ public:
 	* Blend-in time (seconds) before a newly gathered collider starts pushing out at full strength. 0 disables the fade (immediate full strength).
 	*/
 	UPROPERTY(EditAnywhere, config, Category = "Simple World Collision",
-		meta = (DisplayName = "Fade-In Time", ClampMin = "0"))
+		meta = (DisplayName = "Fade-In Time", ClampMin = "0", Units = "s"))
 	float SimpleWorldCollisionFadeInTime = 0.2f;
 
 	/**
@@ -72,7 +72,7 @@ public:
 	* Beyond this camera distance (cm), the gather interval is throttled (doubled).
 	*/
 	UPROPERTY(EditAnywhere, config, Category = "Simple World Collision",
-		meta = (DisplayName = "Distance Throttle Start", ClampMin = "0"))
+		meta = (DisplayName = "Distance Throttle Start", ClampMin = "0", Units = "cm"))
 	float SimpleWorldCollisionDistanceThrottleStart = 3000.f;
 
 	/**
@@ -80,7 +80,7 @@ public:
 	* Beyond this camera distance (cm), gathering is stopped entirely.
 	*/
 	UPROPERTY(EditAnywhere, config, Category = "Simple World Collision",
-		meta = (DisplayName = "Distance Throttle Stop", ClampMin = "0"))
+		meta = (DisplayName = "Distance Throttle Stop", ClampMin = "0", Units = "cm"))
 	float SimpleWorldCollisionDistanceThrottleStop = 10000.f;
 
 	/**

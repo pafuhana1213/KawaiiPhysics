@@ -28,7 +28,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Basic : public FKawaiiPhys
 	FRuntimeFloatCurve ForceRateByBoneLengthRate;
 
 	/** 外力を適用する間隔 / Interval for applying the force */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce", meta=(Units="s"))
 	float Interval = 0.0f;
 
 	virtual void PreApply(FAnimNode_KawaiiPhysics& Node, FComponentSpacePoseContext& PoseContext) override;

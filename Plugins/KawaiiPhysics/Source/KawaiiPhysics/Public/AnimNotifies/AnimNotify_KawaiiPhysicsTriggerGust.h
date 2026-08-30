@@ -32,15 +32,15 @@ public:
 	float Strength = 0.0f;
 
 	/** 立ち上がり時間（秒） / Rise time, in seconds. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Procedural Wind", meta=(ClampMin="0.0", UIMin="0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Procedural Wind", meta=(ClampMin="0.0", UIMin="0.0", Units="s"))
 	float RiseTime = 0.0f;
 
 	/** ピーク強度を保持する時間（秒）。0で従来の三角形エンベロープ / Hold time at peak strength, in seconds. 0 keeps the legacy triangular envelope. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Procedural Wind", meta=(ClampMin="0.0", UIMin="0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Procedural Wind", meta=(ClampMin="0.0", UIMin="0.0", Units="s"))
 	float HoldTime = 0.0f;
 
 	/** 減衰時間（秒） / Decay time, in seconds. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Procedural Wind", meta=(ClampMin="0.0", UIMin="0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Procedural Wind", meta=(ClampMin="0.0", UIMin="0.0", Units="s"))
 	float DecayTime = 0.0f;
 
 	/** 突風の方向（ワールド空間・非正規化可）。ゼロなら既存 ProceduralWind の風向き等を継承 / Gust direction (world space; may be non-normalized). Zero inherits from an authored ProceduralWind. */
