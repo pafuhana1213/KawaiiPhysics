@@ -11,6 +11,7 @@
 #include "MovieSceneKawaiiPhysicsSettingsMultiplierSection.h"
 #include "MovieSceneKawaiiPhysicsSettingsMultiplierTemplate.h"
 #include "MovieSceneKawaiiPhysicsSettingsMultiplierTrack.h"
+#include "UObject/Package.h"
 
 namespace
 {

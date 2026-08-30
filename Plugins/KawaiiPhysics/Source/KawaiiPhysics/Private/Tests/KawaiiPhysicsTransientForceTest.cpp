@@ -18,6 +18,7 @@
 #include "AnimNodes/AnimNode_CurveSource.h"
 #include "Curves/CurveFloat.h"
 #include "NativeGameplayTags.h"
+#include "UObject/Package.h"
 #include "UObject/UnrealType.h"
 
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsTransientForceMatch, "KawaiiPhysics.Test.TransientForce.Match");

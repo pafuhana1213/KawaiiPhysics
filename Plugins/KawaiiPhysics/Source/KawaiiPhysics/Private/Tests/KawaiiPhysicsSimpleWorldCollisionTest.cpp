@@ -14,6 +14,7 @@
 #include "PhysicsEngine/SkeletalBodySetup.h"
 #endif
 #include "ReferenceSkeleton.h"
+#include "UObject/Package.h"
 
 #include <limits>
 
