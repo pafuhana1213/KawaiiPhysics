@@ -1138,6 +1138,44 @@ public:
 		KAWAIIPHYSICS_VALUE_GETTER(float, SimpleWorldCollisionGatherInterval);
 	}
 
+	/**
+	 * シンプルワールドコリジョンの診断情報（収集件数・地面ソース等）を取得。GameThread 専用（BlueprintThreadSafe ではない）。
+	 * Entry が無い（ノード未初期化・機能 OFF・Shipping ビルド）場合は false。
+	 * Get Simple World Collision diagnostics (gathered counts, ground source, etc.). GameThread only (not BlueprintThreadSafe).
+	 * Returns false when no entry exists (node not initialized, feature off, or Shipping build).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Simple World Collision", meta = (DevelopmentOnly))
+	static bool GetSimpleWorldCollisionDebugInfo(const USkeletalMeshComponent* SkelComp,
+	                                             FKawaiiPhysicsSimpleWorldCollisionDebugInfo& OutInfo);
+
+	/**
+	 * ノードが現在読み込んでいるシンプルワールドコリジョン形状の総数（Sphere+Capsule+TaperedCapsule+Box）
+	 * Total number of Simple World Collision shapes currently read by the node (Sphere+Capsule+TaperedCapsule+Box)
+	 */
+	UFUNCTION(BlueprintPure, Category = "Kawaii Physics|Simple World Collision", meta=(BlueprintThreadSafe))
+	static int32 GetSimpleWorldColliderCount(const FKawaiiPhysicsReference& KawaiiPhysics)
+	{
+		int32 Count = 0;
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("GetSimpleWorldColliderCount"),
+			[&Count](FAnimNode_KawaiiPhysics& Node)
+			{
+				Count = Node.GetNumSimpleWorldColliders();
+			});
+		return Count;
+	}
+
+	/**
+	 * コンポーネント内の（タグ一致する）全 KawaiiPhysics ノードが現在読み込んでいるシンプルワールドコリジョン形状数の合計。
+	 * ノードが無い／一致しない場合は 0。GameThread 専用。
+	 * Total number of Simple World Collision shapes currently read by all (tag-matched) KawaiiPhysics nodes in the component.
+	 * Returns 0 when no node matches. GameThread only.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Simple World Collision", meta = (AutoCreateRefTerm = "FilterTags"))
+	static int32 GetSimpleWorldColliderCountOnComponent(USkeletalMeshComponent* MeshComp,
+	                                                    const FGameplayTagContainer& FilterTags,
+	                                                    bool bFilterExactMatch = false);
+
 	static bool IsNodePropertyAccessible(const FProperty* Property);
 	static bool IsNodePropertyAccessible(FName PropertyName);
 	static bool DoesNodePropertyRequireModifyBonesReinit(FName PropertyName);

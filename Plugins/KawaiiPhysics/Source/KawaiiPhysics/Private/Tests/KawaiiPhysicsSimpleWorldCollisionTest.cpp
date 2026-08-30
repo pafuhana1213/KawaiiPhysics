@@ -6,6 +6,7 @@
 #include "KawaiiPhysicsTestHarness.h"
 #include "KawaiiPhysicsSimpleWorldCollision.h"
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
+#include "Components/StaticMeshComponent.h"
 #include "Misc/EngineVersionComparison.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 
@@ -863,6 +864,110 @@ bool FKawaiiPhysicsSimpleWorldEntryLifecycleTest::RunTest(const FString& Paramet
 }
 
 // ---------------------------------------------------------------------------
+//  DebugInfo
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldDebugInfoTest,
+                                 "KawaiiPhysics.SimpleWorld.DebugInfo",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldDebugInfoTest::RunTest(const FString& Parameters)
+{
+	{
+		FKawaiiPhysicsSimpleWorldCollisionEntry Entry;
+		FKawaiiPhysicsSimpleWorldCollisionDebugInfo Info;
+		UKawaiiPhysicsSharedCollisionSubsystem::FillSimpleWorldCollisionDebugInfo(Entry, Info);
+
+		TestTrue(TEXT("Empty entry sets bHasEntry"), Info.bHasEntry);
+		TestEqual(TEXT("Empty entry NumDescs"), Info.NumDescs, 0);
+		TestEqual(TEXT("Empty entry NumGatheredComponents"), Info.NumGatheredComponents, 0);
+		TestEqual(TEXT("Empty entry NumStaticComponents"), Info.NumStaticComponents, 0);
+		TestEqual(TEXT("Empty entry NumMovableComponents"), Info.NumMovableComponents, 0);
+		TestEqual(TEXT("Empty entry NumSkeletalBodies"), Info.NumSkeletalBodies, 0);
+		TestEqual(TEXT("Empty entry gathered names"), Info.GatheredComponentNames.Num(), 0);
+		TestTrue(TEXT("Empty entry MinFadeAlpha"),
+		         FMath::IsNearlyEqual(Info.MinFadeAlpha, 1.0f, GSimpleWorldTol));
+		TestFalse(TEXT("Empty entry has no ground box"), Info.bHasGroundBox);
+		TestTrue(TEXT("Empty entry GroundSource is None"),
+		         Info.GroundSource == EKawaiiPhysicsSimpleWorldGroundSource::None);
+		TestTrue(TEXT("Empty entry GroundBoxSource is None"),
+		         Info.GroundBoxSource == EKawaiiPhysicsSimpleWorldGroundSource::None);
+		TestTrue(TEXT("Empty entry TimeSinceLastGather is sentinel"),
+		         FMath::IsNearlyEqual(Info.TimeSinceLastGather, -1.0f, GSimpleWorldTol));
+	}
+
+	{
+		FKawaiiPhysicsSimpleWorldCollisionEntry Entry;
+
+		FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent& StaticComponent =
+			Entry.GatheredComponents.AddDefaulted_GetRef();
+		StaticComponent.Component = NewObject<UStaticMeshComponent>(GetTransientPackage());
+		StaticComponent.bStatic = true;
+		StaticComponent.FadeAlpha = 1.0f;
+
+		FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent& InvalidInstanceComponent =
+			Entry.GatheredComponents.AddDefaulted_GetRef();
+		InvalidInstanceComponent.bStatic = false;
+		InvalidInstanceComponent.FadeAlpha = 0.25f;
+		InvalidInstanceComponent.InstanceIndex = 2;
+
+		FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent& SkeletalBodyComponent =
+			Entry.GatheredComponents.AddDefaulted_GetRef();
+		SkeletalBodyComponent.bStatic = false;
+		SkeletalBodyComponent.BodyBindings.SetNum(2);
+
+		Entry.bHasGroundBox = true;
+		Entry.GroundBox.Location = FVector(1.0f, 2.0f, 3.0f);
+		Entry.GroundBox.Extent = FVector(10.0f, 20.0f, 30.0f);
+		Entry.GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::Provider;
+		Entry.GroundBoxSource = EKawaiiPhysicsSimpleWorldGroundSource::CharacterMovement;
+		Entry.LastGatherRadius = 123.0f;
+		Entry.TimeSinceLastGather = 0.05f;
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
+		Entry.SetDesc(1, Desc);
+		Entry.SetDesc(2, Desc);
+
+		FKawaiiPhysicsSimpleWorldCollisionDebugInfo Info;
+		UKawaiiPhysicsSharedCollisionSubsystem::FillSimpleWorldCollisionDebugInfo(Entry, Info);
+
+		TestTrue(TEXT("Filled entry sets bHasEntry"), Info.bHasEntry);
+		TestEqual(TEXT("Filled entry NumGatheredComponents"), Info.NumGatheredComponents, 3);
+		TestEqual(TEXT("Filled entry NumStaticComponents"), Info.NumStaticComponents, 1);
+		TestEqual(TEXT("Filled entry NumMovableComponents"), Info.NumMovableComponents, 2);
+		TestEqual(TEXT("Filled entry NumSkeletalBodies"), Info.NumSkeletalBodies, 2);
+		TestEqual(TEXT("Filled entry GatheredComponentNames"), Info.GatheredComponentNames.Num(), 3);
+		if (Info.GatheredComponentNames.Num() == 3)
+		{
+			TestTrue(TEXT("Valid component name uses no-owner prefix"),
+			         Info.GatheredComponentNames[0].StartsWith(TEXT("<no owner>:")));
+			TestTrue(TEXT("Valid component name includes component name"),
+			         Info.GatheredComponentNames[0].Contains(TEXT(":StaticMeshComponent")));
+			TestEqual(TEXT("Invalid ISM name keeps instance index"),
+			          Info.GatheredComponentNames[1], FString(TEXT("<invalid>[2]")));
+			TestEqual(TEXT("Invalid component name"), Info.GatheredComponentNames[2], FString(TEXT("<invalid>")));
+		}
+		TestTrue(TEXT("Filled entry MinFadeAlpha"),
+		         FMath::IsNearlyEqual(Info.MinFadeAlpha, 0.25f, GSimpleWorldTol));
+		TestEqual(TEXT("Filled entry NumDescs"), Info.NumDescs, 2);
+		TestTrue(TEXT("Filled entry GatherRadius"),
+		         FMath::IsNearlyEqual(Info.GatherRadius, 123.0f, GSimpleWorldTol));
+		TestTrue(TEXT("Filled entry TimeSinceLastGather"),
+		         FMath::IsNearlyEqual(Info.TimeSinceLastGather, 0.05f, GSimpleWorldTol));
+		TestTrue(TEXT("Filled entry GroundBoxLocation"),
+		         Info.GroundBoxLocation.Equals(FVector(1.0f, 2.0f, 3.0f), GSimpleWorldTol));
+		TestTrue(TEXT("Filled entry GroundBoxExtent"),
+		         Info.GroundBoxExtent.Equals(FVector(10.0f, 20.0f, 30.0f), GSimpleWorldTol));
+		TestTrue(TEXT("Filled entry has ground box"), Info.bHasGroundBox);
+		TestTrue(TEXT("Filled entry GroundSource"),
+		         Info.GroundSource == EKawaiiPhysicsSimpleWorldGroundSource::Provider);
+		TestTrue(TEXT("Filled entry GroundBoxSource"),
+		         Info.GroundBoxSource == EKawaiiPhysicsSimpleWorldGroundSource::CharacterMovement);
+	}
+
+	return true;
+}
+
+// ---------------------------------------------------------------------------
 //  FKawaiiPhysicsSimpleWorldCollisionEntry の即時cleanup回帰
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldEntrySetDescSurvivesImmediateCleanupTest,
@@ -950,6 +1055,10 @@ bool FKawaiiPhysicsSimpleWorldCollisionPushOutTest::RunTest(const FString& Param
 		FKawaiiPhysicsTestAccessor A;
 		BuildChain(A);
 		A.SetSimpleWorldLimits(SphereLimits, EmptyCapsules, EmptyTaperedCapsules, EmptyBoxes);
+
+		TestEqual(TEXT("Injected SimpleWorld collider count"),
+		          A.Node.GetNumSimpleWorldColliders(),
+		          SphereLimits.Num() + EmptyCapsules.Num() + EmptyTaperedCapsules.Num() + EmptyBoxes.Num());
 
 		A.StepFrame(1.0f / 60.0f);
 

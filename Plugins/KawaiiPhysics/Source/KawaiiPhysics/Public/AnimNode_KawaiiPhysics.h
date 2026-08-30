@@ -1163,6 +1163,18 @@ public:
 	}
 
 	/**
+	 * 現在読み込んでいるシンプルワールドコリジョン形状数を返す。
+	 * Returns the number of Simple World Collision shapes currently read by this node.
+	 */
+	int32 GetNumSimpleWorldColliders() const
+	{
+		return SimpleWorldSphericalLimits.Num()
+			+ SimpleWorldCapsuleLimits.Num()
+			+ SimpleWorldTaperedCapsuleLimits.Num()
+			+ SimpleWorldBoxLimits.Num();
+	}
+
+	/**
 	 * Get Transform from BaseBoneSpace to ComponentSpace.
 	 */
 	FTransform GetBaseBoneSpace2ComponentSpace() const
