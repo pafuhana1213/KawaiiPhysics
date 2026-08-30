@@ -19,6 +19,7 @@
 #include "GameFramework/Actor.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "Misc/EngineVersionComparison.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 
@@ -1237,7 +1238,12 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 				FVector Scale3D = Component->GetComponentScale();
 				if (const UInstancedStaticMeshComponent* ISMComponent = Cast<UInstancedStaticMeshComponent>(Component))
 				{
+					// FOverlapResult::GetItemIndexは5.7で追加されたため、それ以前は公開メンバのItemIndexを直接読む。
+#if UE_VERSION_OLDER_THAN(5, 7, 0)
+					const int32 OverlapItemIndex = Overlap.ItemIndex;
+#else
 					const int32 OverlapItemIndex = Overlap.GetItemIndex();
+#endif
 					if (OverlapItemIndex < 0 || OverlapItemIndex >= ISMComponent->GetInstanceCount())
 					{
 						continue;
@@ -1264,7 +1270,12 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 				FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent NewComponent;
 				NewComponent.Component = Component;
 				NewComponent.InstanceIndex = InstanceIndex;
+				// USceneComponent::GetMobilityは5.6で追加されたため、それ以前は公開UPROPERTYのMobilityを直接読む。
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
+				NewComponent.bStatic = (Component->Mobility == EComponentMobility::Static);
+#else
 				NewComponent.bStatic = (Component->GetMobility() == EComponentMobility::Static);
+#endif
 				NewComponent.FadeAlpha = Entry->bHasGatheredOnce ? 0.0f : 1.0f;
 				NewComponent.GatheredScale3D = Scale3D;
 

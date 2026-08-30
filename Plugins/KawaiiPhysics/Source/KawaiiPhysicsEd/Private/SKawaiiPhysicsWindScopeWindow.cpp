@@ -2922,7 +2922,8 @@ FReply SKawaiiPhysicsWindScopeWindow::OnPasteWindParametersClicked()
 	const FString ImportText = ClipboardText.RightChop(FCString::Strlen(KawaiiPhysicsWindScopeWindowPrivate::WindScopeClipboardMarker)).TrimStartAndEnd();
 
 	FKawaiiPhysics_ExternalForce_ProceduralWind PastedWind;
-	const UScriptStruct* WindStruct = FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct();
+	// UScriptStruct::ImportTextは5.3では非constメンバ関数のため、constを付けずに受け取る。
+	UScriptStruct* WindStruct = FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct();
 	const TCHAR* ImportResult = WindStruct->ImportText(
 		*ImportText,
 		&PastedWind,
