@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: KawaiiPhysics\n"
-"POT-Creation-Date: 2026-08-29 05:17\n"
-"PO-Revision-Date: 2026-08-29 05:17\n"
+"POT-Creation-Date: 2026-08-29 16:52\n"
+"PO-Revision-Date: 2026-08-29 16:52\n"
 "Language-Team: \n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
@@ -370,19 +370,19 @@ msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:bSharedCollisionSource"
 msgid "コリジョンを同じActor/ChildActorファミリー内のKawaiiPhysicsに共有する\nProvide this node's collision limits to KawaiiPhysics nodes in the same attached actor family"
 msgstr "コリジョンを同じActor/ChildActorファミリー内のKawaiiPhysicsに共有する"
 
-#. Key:	AnimNode_KawaiiPhysics:bSimpleWorldCollisionApproximateGround
-#. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bSimpleWorldCollisionApproximateGround [BoolProperty DisplayName meta-data]
-#: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bSimpleWorldCollisionApproximateGround [BoolProperty DisplayName meta-data]
-msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:bSimpleWorldCollisionApproximateGround"
-msgid "Approximate Ground"
-msgstr "地面を近似"
+#. Key:	AnimNode_KawaiiPhysics:bSimpleWorldCollisionGroundCollision
+#. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bSimpleWorldCollisionGroundCollision [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bSimpleWorldCollisionGroundCollision [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:bSimpleWorldCollisionGroundCollision"
+msgid "Ground Collision"
+msgstr "地面のコリジョン"
 
-#. Key:	AnimNode_KawaiiPhysics:bSimpleWorldCollisionApproximateGround
-#. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bSimpleWorldCollisionApproximateGround [BoolProperty ToolTip meta-data]
-#: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bSimpleWorldCollisionApproximateGround [BoolProperty ToolTip meta-data]
-msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:bSimpleWorldCollisionApproximateGround"
-msgid "下方向トレース1本で地面を有界の薄いBoxとして近似します。Landscape/Complex 形状の床に対応します。\nApproximate the ground as a bounded thin box using one downward trace. Supports Landscape and complex-shape floors."
-msgstr "下方向トレース1本で地面を有界の薄いBoxとして近似します。Landscape/Complex 形状の床に対応します。"
+#. Key:	AnimNode_KawaiiPhysics:bSimpleWorldCollisionGroundCollision
+#. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bSimpleWorldCollisionGroundCollision [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bSimpleWorldCollisionGroundCollision [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:bSimpleWorldCollisionGroundCollision"
+msgid "所有 Actor の地面情報（IKawaiiPhysicsGroundProvider → CharacterMovementComponent の CurrentFloor）があればそれを使い、無ければ下方向トレース 1 本で地面を求め、薄い Box コリジョンとして扱います。Landscape や Complex コリジョンのみの床でも有効です。\nUses the owner's ground info when available (IKawaiiPhysicsGroundProvider, then CharacterMovementComponent CurrentFloor); otherwise fires one downward trace. The ground is treated as a thin box collision. Works on Landscape and complex-collision-only floors."
+msgstr "所有 Actor の地面情報（IKawaiiPhysicsGroundProvider → CharacterMovementComponent の CurrentFloor）があればそれを使い、無ければ下方向トレース 1 本で地面を求め、薄い Box コリジョンとして扱います。Landscape や Complex コリジョンのみの床でも有効です。"
 
 #. Key:	AnimNode_KawaiiPhysics:bSkipMirroredBoneWithExistingCollision
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bSkipMirroredBoneWithExistingCollision [BoolProperty DisplayName meta-data]
@@ -937,19 +937,19 @@ msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:SimpleExternalForce"
 msgid "単純な外力ベクトル\nSimple external force vector"
 msgstr "単純な外力ベクトル"
 
-#. Key:	AnimNode_KawaiiPhysics:SimpleWorldCollisionComplexShapeApproximation
-#. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionComplexShapeApproximation [EnumProperty DisplayName meta-data]
-#: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionComplexShapeApproximation [EnumProperty DisplayName meta-data]
-msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:SimpleWorldCollisionComplexShapeApproximation"
-msgid "Complex Shape Approximation"
-msgstr "複雑形状の近似"
+#. Key:	AnimNode_KawaiiPhysics:SimpleWorldCollisionConvexFallbackShape
+#. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionConvexFallbackShape [EnumProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionConvexFallbackShape [EnumProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:SimpleWorldCollisionConvexFallbackShape"
+msgid "Convex Fallback Shape"
+msgstr "凸型コリジョンの代替形状"
 
-#. Key:	AnimNode_KawaiiPhysics:SimpleWorldCollisionComplexShapeApproximation
-#. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionComplexShapeApproximation [EnumProperty ToolTip meta-data]
-#: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionComplexShapeApproximation [EnumProperty ToolTip meta-data]
-msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:SimpleWorldCollisionComplexShapeApproximation"
-msgid "シンプルワールドコリジョンで複雑形状を近似する方法\nHow Simple World Collision approximates complex shapes"
-msgstr "シンプルワールドコリジョンで複雑形状を近似する方法"
+#. Key:	AnimNode_KawaiiPhysics:SimpleWorldCollisionConvexFallbackShape
+#. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionConvexFallbackShape [EnumProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionConvexFallbackShape [EnumProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:SimpleWorldCollisionConvexFallbackShape"
+msgid "Simple World Collision で Convex コリジョンの代わりに使う形状。Convex は直接扱えないため、境界ボックス / 境界球で代用するか None で無視します。\nShape used in place of convex collision in Simple World Collision. Convex collision is not supported directly, so substitute its bounding box / bounding sphere, or skip it with None."
+msgstr "Simple World Collision で Convex コリジョンの代わりに使う形状。Convex は直接扱えないため、境界ボックス / 境界球で代用するか None で無視します。"
 
 #. Key:	AnimNode_KawaiiPhysics:SimpleWorldCollisionGatherInterval
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionGatherInterval [FloatProperty DisplayName meta-data]
@@ -993,19 +993,19 @@ msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:SimpleWorldCollisionObjectTypes"
 msgid "シンプルワールドコリジョンが反応するオブジェクトタイプ。空の場合は WorldStatic + WorldDynamic を使用します。\nObject types used by Simple World Collision. Empty means WorldStatic + WorldDynamic."
 msgstr "シンプルワールドコリジョンが反応するオブジェクトタイプ。空の場合は WorldStatic + WorldDynamic を使用します。"
 
-#. Key:	AnimNode_KawaiiPhysics:SimpleWorldCollisionSkeletalMeshMode
-#. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionSkeletalMeshMode [EnumProperty DisplayName meta-data]
-#: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionSkeletalMeshMode [EnumProperty DisplayName meta-data]
-msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:SimpleWorldCollisionSkeletalMeshMode"
-msgid "Skeletal Mesh Mode"
-msgstr "スケルタルメッシュの扱い"
+#. Key:	AnimNode_KawaiiPhysics:SimpleWorldCollisionSkeletalMeshCollision
+#. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionSkeletalMeshCollision [EnumProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionSkeletalMeshCollision [EnumProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:SimpleWorldCollisionSkeletalMeshCollision"
+msgid "Skeletal Mesh Collision"
+msgstr "スケルタルメッシュのコリジョン"
 
-#. Key:	AnimNode_KawaiiPhysics:SimpleWorldCollisionSkeletalMeshMode
-#. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionSkeletalMeshMode [EnumProperty ToolTip meta-data]
-#: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionSkeletalMeshMode [EnumProperty ToolTip meta-data]
-msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:SimpleWorldCollisionSkeletalMeshMode"
-msgid "シンプルワールドコリジョンで収集した SkeletalMeshComponent の扱い\nHow collected SkeletalMeshComponents are handled by Simple World Collision"
-msgstr "シンプルワールドコリジョンで収集した SkeletalMeshComponent の扱い"
+#. Key:	AnimNode_KawaiiPhysics:SimpleWorldCollisionSkeletalMeshCollision
+#. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionSkeletalMeshCollision [EnumProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionSkeletalMeshCollision [EnumProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:SimpleWorldCollisionSkeletalMeshCollision"
+msgid "Simple World Collision で収集した周囲の SkeletalMeshComponent との当たり方。None / Bounding Box / Physics Asset から選びます。\nHow Simple World Collision collides with gathered SkeletalMeshComponents: None, Bounding Box, or Physics Asset."
+msgstr "Simple World Collision で収集した周囲の SkeletalMeshComponent との当たり方。None / Bounding Box / Physics Asset から選びます。"
 
 #. Key:	AnimNode_KawaiiPhysics:SimulationBaseBone
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimulationBaseBone [StructProperty DisplayName meta-data]

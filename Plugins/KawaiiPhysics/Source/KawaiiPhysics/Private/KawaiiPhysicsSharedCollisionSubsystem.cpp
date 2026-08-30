@@ -3,10 +3,13 @@
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
 #include "AnimNode_KawaiiPhysics.h"
 #include "KawaiiPhysicsDeveloperSettings.h"
+#include "KawaiiPhysicsGroundProvider.h"
 
 #include "Camera/PlayerCameraManager.h"
 #include "CollisionQueryParams.h"
+#include "Components/ActorComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "DrawDebugHelpers.h"
@@ -14,20 +17,20 @@
 #include "Engine/SkinnedAsset.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 
 namespace
 {
-	// FadeBoxEnableThreshold/GroundBoxHalfThicknessは調整の必要性が薄いため意図的に定数のまま維持する。
+	// FadeBoxEnableThresholdは調整の必要性が薄いため意図的に定数のまま維持する。
 	// 他のチューニング値は a.AnimNode.KawaiiPhysics.SimpleWorldCollision.* CVar（AnimNode_KawaiiPhysics.cppで定義）
 	// および UKawaiiPhysicsDeveloperSettings（Simple World Collisionカテゴリ）へ移行済み。
 	constexpr float GSimpleWorldFadeBoxEnableThreshold = 0.5f;
-	constexpr float GSimpleWorldGroundBoxHalfThickness = 10.0f;
 	const FName GSimpleWorldIgnoreTagName(TEXT("KawaiiPhysics.IgnoreSimpleWorldCollision"));
 
-	// SkeletalMeshComponentのPhysicsAsset収集結果。BoundsBoxフォールバック可否を区別する。
+	// SkeletalMeshComponentのPhysicsAsset収集結果。Bounding Boxフォールバック可否を区別する。
 	enum class EKawaiiPhysicsSimpleWorldSkeletalBuildResult : uint8
 	{
 		Built,
@@ -142,7 +145,7 @@ namespace
 			*PhysicsAsset,
 			SkinnedAsset->GetRefSkeleton(),
 			Scale3D,
-			Desc.ComplexShapeApproximation,
+			Desc.ConvexFallbackShape,
 			MaxPhysicsAssetBodies,
 			OutLocalLimits,
 			OutBodyBindings);
@@ -166,19 +169,19 @@ namespace
 
 		if (const USkeletalMeshComponent* SkelComp = Cast<const USkeletalMeshComponent>(&Component))
 		{
-			if (Desc.SkeletalMeshMode == EKawaiiPhysicsSimpleWorldSkeletalMeshMode::Ignore)
+			if (Desc.SkeletalMeshCollision == EKawaiiPhysicsSimpleWorldSkeletalMeshCollision::None)
 			{
 				return false;
 			}
 
-			if (Desc.SkeletalMeshMode == EKawaiiPhysicsSimpleWorldSkeletalMeshMode::PhysicsAsset
+			if (Desc.SkeletalMeshCollision == EKawaiiPhysicsSimpleWorldSkeletalMeshCollision::PhysicsAsset
 				&& MaxPhysicsAssetBodies <= 0)
 			{
 				// CVarの0指定はPhysicsAssetモードのSkeletalMesh収集を丸ごと止める安全弁として扱う。
 				return false;
 			}
 
-			if (Desc.SkeletalMeshMode == EKawaiiPhysicsSimpleWorldSkeletalMeshMode::PhysicsAsset)
+			if (Desc.SkeletalMeshCollision == EKawaiiPhysicsSimpleWorldSkeletalMeshCollision::PhysicsAsset)
 			{
 				const EKawaiiPhysicsSimpleWorldSkeletalBuildResult BuildResult =
 					BuildSkeletalLocalLimitsForSimpleWorldComponent(
@@ -194,11 +197,11 @@ namespace
 				}
 			}
 
-			// PhysicsAsset未設定、SkinnedAsset未設定、ComponentSpaceTransforms未生成の場合はBoundsBoxへフォールバックする。
+			// PhysicsAsset未設定、SkinnedAsset未設定、ComponentSpaceTransforms未生成の場合はBounding Boxへフォールバックする。
 			KawaiiPhysicsSimpleWorldCollision::AppendBoundsLocalLimits(
 				Component.Bounds,
 				ComponentTM,
-				EKawaiiPhysicsComplexShapeApproximation::BoxBounds,
+				EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox,
 				OutLocalLimits);
 			return !OutLocalLimits.IsEmpty();
 		}
@@ -209,14 +212,186 @@ namespace
 			KawaiiPhysicsSimpleWorldCollision::ConvertAggGeomToLocalLimits(
 				BodySetup->AggGeom,
 				Scale3D,
-				Desc.ComplexShapeApproximation,
+				Desc.ConvexFallbackShape,
 				OutLocalLimits);
 		}
 
 		return !OutLocalLimits.IsEmpty();
 	}
 
+	bool IsSimpleWorldGroundBoxNearlyEqual(const FBoxLimit& Lhs, const FBoxLimit& Rhs)
+	{
+		return Lhs.Location.Equals(Rhs.Location, KINDA_SMALL_NUMBER)
+			&& Lhs.Rotation.Equals(Rhs.Rotation, KINDA_SMALL_NUMBER)
+			&& Lhs.Extent.Equals(Rhs.Extent, KINDA_SMALL_NUMBER);
+	}
+
+	void ResolveSimpleWorldGroundSource(
+		FKawaiiPhysicsSimpleWorldCollisionEntry& Entry,
+		const USkeletalMeshComponent& SkelComp,
+		bool bUseMovementGround)
+	{
+		if (!bUseMovementGround)
+		{
+			Entry.GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::Trace;
+			Entry.GroundBoxSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
+			Entry.GroundProvider.Reset();
+			Entry.GroundCharacterMovement.Reset();
+			Entry.GroundComponent.Reset();
+			return;
+		}
+
+		// 収集フレームでは毎回アタッチ連鎖を歩き直す（付け替え先の Owner を掴み続けないため、前回の解決結果によるショートカットはしない）。
+		// FindComponentByInterface / FindComponentByClass は割り当て無しで安価なので、収集頻度（既定 5Hz 程度）なら許容できる。
+		// Provider と CharacterMovement は独立にキャッシュし、両方見つかるか連鎖が尽きるまで歩く。
+		Entry.GroundProvider.Reset();
+		Entry.GroundCharacterMovement.Reset();
+
+		AActor* Actor = SkelComp.GetOwner();
+		for (int32 Depth = 0; Actor && Depth < 8; ++Depth)
+		{
+			if (!Entry.GroundProvider.IsValid())
+			{
+				if (Actor->GetClass()->ImplementsInterface(UKawaiiPhysicsGroundProvider::StaticClass()))
+				{
+					Entry.GroundProvider = Actor;
+				}
+				else if (UActorComponent* ProviderComponent =
+					Actor->FindComponentByInterface(UKawaiiPhysicsGroundProvider::StaticClass()))
+				{
+					Entry.GroundProvider = ProviderComponent;
+				}
+			}
+
+			if (!Entry.GroundCharacterMovement.IsValid())
+			{
+				if (UCharacterMovementComponent* CharacterMovement =
+					Actor->FindComponentByClass<UCharacterMovementComponent>())
+				{
+					Entry.GroundCharacterMovement = CharacterMovement;
+				}
+			}
+
+			if (Entry.GroundProvider.IsValid() && Entry.GroundCharacterMovement.IsValid())
+			{
+				break;
+			}
+
+			Actor = Actor->GetAttachParentActor();
+		}
+
+		// GroundSource は利用可能な最上位ソース（Provider > CharacterMovement > Trace）。
+		// 実際の毎 Tick 更新は TryUpdateSimpleWorldGroundBoxFromSource が Provider → CharacterMovement の順に両方試す。
+		if (Entry.GroundProvider.IsValid())
+		{
+			Entry.GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::Provider;
+		}
+		else if (Entry.GroundCharacterMovement.IsValid())
+		{
+			Entry.GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::CharacterMovement;
+		}
+		else
+		{
+			Entry.GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::Trace;
+		}
+	}
+
+	bool ApplySimpleWorldGroundBox(
+		FKawaiiPhysicsSimpleWorldCollisionEntry& Entry,
+		const FBoxLimit& NewBox,
+		const UPrimitiveComponent* NewGroundComponent,
+		EKawaiiPhysicsSimpleWorldGroundSource BoxSource,
+		bool& bOutChanged)
+	{
+		const bool bHadGroundBox = Entry.bHasGroundBox;
+		const FBoxLimit PreviousBox = Entry.GroundBox;
+		const UPrimitiveComponent* PreviousGroundComponent = Entry.GroundComponent.Get();
+
+		Entry.GroundBox = NewBox;
+		Entry.bHasGroundBox = true;
+		Entry.GroundComponent = NewGroundComponent;
+		// GroundBoxSource は DebugDraw の色分けにしか使わないため変更判定には含めない
+		Entry.GroundBoxSource = BoxSource;
+
+		bOutChanged = !bHadGroundBox
+			|| !IsSimpleWorldGroundBoxNearlyEqual(PreviousBox, Entry.GroundBox)
+			|| PreviousGroundComponent != NewGroundComponent;
+		return true;
+	}
+
+	bool TryUpdateSimpleWorldGroundBoxFromSource(
+		FKawaiiPhysicsSimpleWorldCollisionEntry& Entry,
+		const USkeletalMeshComponent& SkelComp,
+		float Radius,
+		bool& bOutChanged)
+	{
+		bOutChanged = false;
+
+		// Provider → CharacterMovement の順に毎 Tick 両方試す。Provider が有効でも bHit=false ならその場で
+		// CharacterMovement へフォールバックする（ドキュメント上の優先順位 Provider > CharacterMovement > Trace を維持）。
+		if (UObject* Provider = Entry.GroundProvider.Get())
+		{
+			const FKawaiiPhysicsGroundHit Hit =
+				IKawaiiPhysicsGroundProvider::Execute_GetKawaiiPhysicsGround(Provider, &SkelComp);
+			if (Hit.bHit)
+			{
+				FBoxLimit NewBox;
+				if (KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldGroundBox(
+					Hit.Location, Hit.Normal, Radius, NewBox))
+				{
+					return ApplySimpleWorldGroundBox(
+						Entry, NewBox, Hit.Component.Get(), EKawaiiPhysicsSimpleWorldGroundSource::Provider, bOutChanged);
+				}
+			}
+		}
+
+		if (const UCharacterMovementComponent* CharacterMovement = Entry.GroundCharacterMovement.Get())
+		{
+			if (CharacterMovement->CurrentFloor.IsWalkableFloor())
+			{
+				FVector Location = CharacterMovement->CurrentFloor.HitResult.ImpactPoint;
+				if (const UCapsuleComponent* Capsule = Cast<UCapsuleComponent>(CharacterMovement->UpdatedComponent))
+				{
+					// GetActorFeetLocation と同じ考え方で、カプセルの上方向ではなく重力方向へ投影する（カスタム重力を尊重するため）。
+					const FVector GravityDir = CharacterMovement->GetGravityDirection();
+					Location = Capsule->GetComponentLocation()
+						+ GravityDir * (Capsule->GetScaledCapsuleHalfHeight() + CharacterMovement->CurrentFloor.GetDistanceToFloor());
+				}
+
+				FBoxLimit NewBox;
+				if (KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldGroundBox(
+					Location,
+					CharacterMovement->CurrentFloor.HitResult.ImpactNormal,
+					Radius,
+					NewBox))
+				{
+					return ApplySimpleWorldGroundBox(
+						Entry,
+						NewBox,
+						CharacterMovement->CurrentFloor.HitResult.GetComponent(),
+						EKawaiiPhysicsSimpleWorldGroundSource::CharacterMovement,
+						bOutChanged);
+				}
+			}
+		}
+
+		return false;
+	}
+
 #if ENABLE_DRAW_DEBUG
+	FColor GetSimpleWorldGroundDebugColor(EKawaiiPhysicsSimpleWorldGroundSource GroundSource)
+	{
+		if (GroundSource == EKawaiiPhysicsSimpleWorldGroundSource::Provider)
+		{
+			return FColor::Magenta;
+		}
+		if (GroundSource == EKawaiiPhysicsSimpleWorldGroundSource::CharacterMovement)
+		{
+			return FColor::Cyan;
+		}
+		return FColor::Green;
+	}
+
 	void DrawKawaiiPhysicsSimpleWorldLimitRange(
 		const UWorld& World,
 		const FKawaiiPhysicsSharedCollisionData& LocalLimits,
@@ -344,7 +519,7 @@ namespace
 		if (Entry.bHasGroundBox)
 		{
 			DrawDebugBox(&World, Entry.GroundBox.Location, Entry.GroundBox.Extent, Entry.GroundBox.Rotation,
-				FColor::Green, false, -1.0f, DepthPriority, ShapeThickness);
+				GetSimpleWorldGroundDebugColor(Entry.GroundBoxSource), false, -1.0f, DepthPriority, ShapeThickness);
 		}
 	}
 #endif
@@ -364,6 +539,7 @@ extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionRegatherOnScaleChange
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionCleanupMaxAge;
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionDebugDraw;
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionForceEnableOnServer;
+extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionUseMovementGround;
 
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SharedCollision_Publish"), STAT_KawaiiPhysics_SharedCollision_Publish, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SharedCollision_GetOrCreateSlot"), STAT_KawaiiPhysics_SharedCollision_GetOrCreateSlot, STATGROUP_Anim);
@@ -376,6 +552,7 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_SharedCollision_NumSlots"), STAT_
 
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimpleWorldCollision_Gather"), STAT_KawaiiPhysics_SimpleWorldCollision_Gather, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimpleWorldCollision_UpdateTransforms"), STAT_KawaiiPhysics_SimpleWorldCollision_UpdateTransforms, STATGROUP_Anim);
+DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimpleWorldCollision_Ground"), STAT_KawaiiPhysics_SimpleWorldCollision_Ground, STATGROUP_Anim);
 DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_SimpleWorldCollision_NumGatheredComponents"), STAT_KawaiiPhysics_SimpleWorldCollision_NumGatheredComponents, STATGROUP_Anim);
 DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_SimpleWorldCollision_NumSkeletalBodies"), STAT_KawaiiPhysics_SimpleWorldCollision_NumSkeletalBodies, STATGROUP_Anim);
 
@@ -519,9 +696,9 @@ bool FKawaiiPhysicsSimpleWorldCollisionDesc::operator==(const FKawaiiPhysicsSimp
 	return GatherIntervalSec == Other.GatherIntervalSec
 		&& GatherRadiusOverride == Other.GatherRadiusOverride
 		&& ObjectTypes == Other.ObjectTypes
-		&& ComplexShapeApproximation == Other.ComplexShapeApproximation
-		&& SkeletalMeshMode == Other.SkeletalMeshMode
-		&& bApproximateGround == Other.bApproximateGround;
+		&& ConvexFallbackShape == Other.ConvexFallbackShape
+		&& SkeletalMeshCollision == Other.SkeletalMeshCollision
+		&& bGroundCollision == Other.bGroundCollision;
 }
 
 FKawaiiPhysicsSimpleWorldCollisionDesc FKawaiiPhysicsSimpleWorldCollisionDesc::Merge(
@@ -565,17 +742,17 @@ FKawaiiPhysicsSimpleWorldCollisionDesc FKawaiiPhysicsSimpleWorldCollisionDesc::M
 			}
 		}
 
-		if (static_cast<uint8>(Desc.ComplexShapeApproximation) < static_cast<uint8>(Merged.ComplexShapeApproximation))
+		if (static_cast<uint8>(Desc.ConvexFallbackShape) < static_cast<uint8>(Merged.ConvexFallbackShape))
 		{
-			Merged.ComplexShapeApproximation = Desc.ComplexShapeApproximation;
+			Merged.ConvexFallbackShape = Desc.ConvexFallbackShape;
 		}
 
-		if (static_cast<uint8>(Desc.SkeletalMeshMode) > static_cast<uint8>(Merged.SkeletalMeshMode))
+		if (static_cast<uint8>(Desc.SkeletalMeshCollision) > static_cast<uint8>(Merged.SkeletalMeshCollision))
 		{
-			Merged.SkeletalMeshMode = Desc.SkeletalMeshMode;
+			Merged.SkeletalMeshCollision = Desc.SkeletalMeshCollision;
 		}
 
-		Merged.bApproximateGround = Merged.bApproximateGround || Desc.bApproximateGround;
+		Merged.bGroundCollision = Merged.bGroundCollision || Desc.bGroundCollision;
 	}
 
 	if (bHasEmptyObjectTypes)
@@ -846,6 +1023,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 	const bool bRegatherOnScaleChange = RegatherOnScaleChangeCVarValue >= 0
 		? RegatherOnScaleChangeCVarValue != 0
 		: KawaiiSettings->bSimpleWorldCollisionRegatherOnScaleChange;
+	const bool bUseMovementGround = CVarSimpleWorldCollisionUseMovementGround.GetValueOnGameThread() != 0;
 #if ENABLE_DRAW_DEBUG
 	const bool bDebugDraw = CVarSimpleWorldCollisionDebugDraw.GetValueOnGameThread() != 0;
 #endif
@@ -878,6 +1056,11 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 		{
 			Entry->GatheredComponents.Reset();
 			Entry->bHasGroundBox = false;
+			Entry->GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
+			Entry->GroundBoxSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
+			Entry->GroundProvider.Reset();
+			Entry->GroundCharacterMovement.Reset();
+			Entry->GroundComponent.Reset();
 			Entry->bHasGatheredOnce = false;
 			Entry->TimeSinceLastGather = FLT_MAX;
 			Entry->bWorldLimitsDirty = true;
@@ -1028,34 +1211,62 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 			}
 
 			Entry->GatheredComponents = MoveTemp(NewGatheredComponents);
+			ResolveSimpleWorldGroundSource(*Entry, *SkelComp, bUseMovementGround);
 
-			if (Desc.bApproximateGround)
+			if (Desc.bGroundCollision)
 			{
-				FHitResult Hit;
-				const bool bHitGround = World->LineTraceSingleByObjectType(
-					Hit,
-					Center,
-					Center - FVector(0.0f, 0.0f, Radius),
-					ObjectQueryParams,
-					QueryParams);
-
-				Entry->bHasGroundBox = bHitGround;
-				if (bHitGround)
+				SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SimpleWorldCollision_Ground);
+				bool bGroundChanged = false;
+				if (!TryUpdateSimpleWorldGroundBoxFromSource(*Entry, *SkelComp, Radius, bGroundChanged))
 				{
-					InitializeGatheredSimpleWorldLimit(Entry->GroundBox);
-					Entry->GroundBox.Location = Hit.ImpactPoint - Hit.ImpactNormal * GSimpleWorldGroundBoxHalfThickness;
-					Entry->GroundBox.Rotation = FRotationMatrix::MakeFromZ(Hit.ImpactNormal).ToQuat();
-					Entry->GroundBox.Extent = FVector(Radius, Radius, GSimpleWorldGroundBoxHalfThickness);
+					FHitResult Hit;
+					const bool bHitGround = World->LineTraceSingleByObjectType(
+						Hit,
+						Center,
+						Center - FVector(0.0f, 0.0f, Radius),
+						ObjectQueryParams,
+						QueryParams);
+
+					FBoxLimit NewGroundBox;
+					if (bHitGround
+						&& KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldGroundBox(
+							Hit.ImpactPoint, Hit.ImpactNormal, Radius, NewGroundBox))
+					{
+						Entry->GroundBox = NewGroundBox;
+						Entry->bHasGroundBox = true;
+						Entry->GroundComponent = Hit.GetComponent();
+						Entry->GroundBoxSource = EKawaiiPhysicsSimpleWorldGroundSource::Trace;
+					}
+					else
+					{
+						Entry->bHasGroundBox = false;
+						Entry->GroundComponent.Reset();
+						Entry->GroundBoxSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
+					}
 				}
 			}
 			else
 			{
 				Entry->bHasGroundBox = false;
+				Entry->GroundComponent.Reset();
+				Entry->GroundBoxSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
 			}
 
 			Entry->bHasGatheredOnce = true;
 			Entry->bWorldLimitsDirty = true;
 			Entry->TimeSinceLastGather = 0.0f;
+		}
+		else if (bAllowGather
+			&& Desc.bGroundCollision
+			&& (Entry->GroundSource == EKawaiiPhysicsSimpleWorldGroundSource::Provider
+				|| Entry->GroundSource == EKawaiiPhysicsSimpleWorldGroundSource::CharacterMovement))
+		{
+			SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SimpleWorldCollision_Ground);
+			bool bGroundChanged = false;
+			if (TryUpdateSimpleWorldGroundBoxFromSource(*Entry, *SkelComp, Radius, bGroundChanged) && bGroundChanged)
+			{
+				Entry->bWorldLimitsDirty = true;
+			}
 		}
 
 		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SimpleWorldCollision_UpdateTransforms);

@@ -139,6 +139,10 @@ TAutoConsoleVariable<int32> CVarSimpleWorldCollisionForceEnableOnServer(
 	TEXT("a.AnimNode.KawaiiPhysics.SimpleWorldCollision.ForceEnableOnServer"), 0,
 	TEXT("1でDedicated Serverでも収集を行う（既定は見た目専用機能のため収集しない） / "
 		"1 gathers even on a Dedicated Server (by default it is skipped since this is a visual-only feature)."));
+TAutoConsoleVariable<int32> CVarSimpleWorldCollisionUseMovementGround(
+	TEXT("a.AnimNode.KawaiiPhysics.SimpleWorldCollision.UseMovementGround"), 1,
+	TEXT("1で所有Actorの地面情報（IKawaiiPhysicsGroundProvider / CharacterMovementComponent）を地面Boxに使う。0で従来の下方向トレースのみ / "
+		"1 uses the owner's ground info (IKawaiiPhysicsGroundProvider / CharacterMovementComponent) for the ground box; 0 uses only the legacy downward trace."));
 
 DEFINE_STAT(STAT_KawaiiPhysics_InitModifyBones);
 DEFINE_STAT(STAT_KawaiiPhysics_Eval);

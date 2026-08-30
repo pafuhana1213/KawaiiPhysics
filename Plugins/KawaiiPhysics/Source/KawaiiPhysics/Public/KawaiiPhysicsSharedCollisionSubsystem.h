@@ -16,10 +16,21 @@
 
 #include "KawaiiPhysicsSharedCollisionSubsystem.generated.h"
 
+class AActor;
 class UPrimitiveComponent;
 class UPhysicsAsset;
 class USkeletalMeshComponent;
 class USkinnedAsset;
+class UCharacterMovementComponent;
+
+// 地面ソースの種類（DebugDraw の色分けにも使う） / Ground source kind (also used for debug draw colors)
+enum class EKawaiiPhysicsSimpleWorldGroundSource : uint8
+{
+	None,
+	Provider,
+	CharacterMovement,
+	Trace,
+};
 
 /**
  * Source1つ分の共有コリジョンスロット
@@ -104,9 +115,9 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionDesc
 	float GatherIntervalSec = 0.2f;
 	float GatherRadiusOverride = 0.0f;
 	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
-	EKawaiiPhysicsComplexShapeApproximation ComplexShapeApproximation = EKawaiiPhysicsComplexShapeApproximation::BoxBounds;
-	EKawaiiPhysicsSimpleWorldSkeletalMeshMode SkeletalMeshMode = EKawaiiPhysicsSimpleWorldSkeletalMeshMode::Ignore;
-	bool bApproximateGround = true;
+	EKawaiiPhysicsSimpleWorldConvexFallbackShape ConvexFallbackShape = EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox;
+	EKawaiiPhysicsSimpleWorldSkeletalMeshCollision SkeletalMeshCollision = EKawaiiPhysicsSimpleWorldSkeletalMeshCollision::None;
+	bool bGroundCollision = true;
 
 	/**
 	 * 複数ノードの収集設定を SkelComp 単位の1設定へマージする。
@@ -119,12 +130,12 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionDesc
 	 * - GatherRadiusOverride is the max only when every Desc specifies an override. If any Desc is automatic, it stays 0 and Tick uses the automatic radius.
 	 * - ObjectTypes は union。空配列は WorldStatic + WorldDynamic の意味なので、空 Desc がある場合はそれらを明示的に union へ含める。
 	 * - ObjectTypes are unioned. Empty means WorldStatic + WorldDynamic, so those are explicitly included when any Desc is empty.
-	 * - ComplexShapeApproximation は BoxBounds > SphereBounds > Ignore の優先。
-	 * - ComplexShapeApproximation priority is BoxBounds > SphereBounds > Ignore.
-	 * - SkeletalMeshMode は PhysicsAsset > BoundsBox > Ignore の優先。
-	 * - SkeletalMeshMode priority is PhysicsAsset > BoundsBox > Ignore.
-	 * - bApproximateGround は OR。
-	 * - bApproximateGround is OR.
+	 * - ConvexFallbackShape は BoundingBox > BoundingSphere > None の優先。
+	 * - ConvexFallbackShape priority is BoundingBox > BoundingSphere > None.
+	 * - SkeletalMeshCollision は PhysicsAsset > BoundingBox > None の優先。
+	 * - SkeletalMeshCollision priority is PhysicsAsset > BoundingBox > None.
+	 * - bGroundCollision は OR。
+	 * - bGroundCollision is OR.
 	 */
 	static FKawaiiPhysicsSimpleWorldCollisionDesc Merge(const TArray<FKawaiiPhysicsSimpleWorldCollisionDesc>& Descs);
 
@@ -213,6 +224,16 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionEntry
 	bool bHasGatheredOnce = false;
 	bool bHasGroundBox = false;
 	FBoxLimit GroundBox;
+	// 収集フレームごとにアタッチ連鎖から解決した、利用可能な最上位ソース（Provider > CharacterMovement > Trace）
+	// Highest-priority source available, resolved by walking the attach chain every gather frame (Provider > CharacterMovement > Trace)
+	EKawaiiPhysicsSimpleWorldGroundSource GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
+	// 現在の GroundBox を作ったソース（DebugDraw の色分け用。GroundSource は選択可能な最上位ソース） / Source that produced the current GroundBox (for debug draw colors; GroundSource is the highest-priority source available)
+	EKawaiiPhysicsSimpleWorldGroundSource GroundBoxSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
+	// 収集フレームでアタッチ連鎖から見つかった Provider。GroundCharacterMovement とは独立にキャッシュする / Provider found while walking the attach chain during the gather frame; cached independently of GroundCharacterMovement
+	TWeakObjectPtr<UObject> GroundProvider;
+	// 収集フレームでアタッチ連鎖から見つかった CharacterMovementComponent。Provider が bHit=false を返した場合のフォールバック先 / CharacterMovementComponent found while walking the attach chain during the gather frame; used as the fallback when Provider returns bHit=false
+	TWeakObjectPtr<UCharacterMovementComponent> GroundCharacterMovement;
+	TWeakObjectPtr<const UPrimitiveComponent> GroundComponent;
 	FKawaiiPhysicsSharedCollisionData PublishScratch;
 	TArray<FOverlapResult> OverlapScratch;
 	bool bWorldLimitsDirty = true;

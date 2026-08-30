@@ -118,16 +118,16 @@ namespace KawaiiPhysicsSimpleWorldCollision
 	void AppendBoundsLocalLimits(
 		const FBoxSphereBounds& Bounds,
 		const FTransform& ComponentTM,
-		EKawaiiPhysicsComplexShapeApproximation ApproxMode,
+		EKawaiiPhysicsSimpleWorldConvexFallbackShape BoundsShape,
 		FKawaiiPhysicsSharedCollisionData& OutLocalLimits)
 	{
-		if (ApproxMode == EKawaiiPhysicsComplexShapeApproximation::Ignore)
+		if (BoundsShape == EKawaiiPhysicsSimpleWorldConvexFallbackShape::None)
 		{
 			return;
 		}
 
 		const FVector LocalCenter = ComponentTM.InverseTransformPosition(Bounds.Origin);
-		if (ApproxMode == EKawaiiPhysicsComplexShapeApproximation::BoxBounds)
+		if (BoundsShape == EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox)
 		{
 			FBoxLimit NewLimit;
 			InitializeSimpleWorldLimit(NewLimit);
@@ -136,7 +136,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 			NewLimit.Extent = Bounds.BoxExtent;
 			OutLocalLimits.BoxLimits.Add(NewLimit);
 		}
-		else if (ApproxMode == EKawaiiPhysicsComplexShapeApproximation::SphereBounds)
+		else if (BoundsShape == EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingSphere)
 		{
 			FSphericalLimit NewLimit;
 			InitializeSimpleWorldLimit(NewLimit);
@@ -148,10 +148,34 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		}
 	}
 
+	bool BuildSimpleWorldGroundBox(
+		const FVector& ImpactPoint,
+		const FVector& ImpactNormal,
+		float Radius,
+		FBoxLimit& OutBox)
+	{
+		if (ImpactPoint.ContainsNaN() || ImpactNormal.ContainsNaN() || !FMath::IsFinite(Radius))
+		{
+			return false;
+		}
+
+		const FVector Normal = ImpactNormal.GetSafeNormal(KINDA_SMALL_NUMBER, FVector::UpVector);
+		const float ClampedRadius = FMath::Max(0.0f, Radius);
+
+		FBoxLimit NewBox;
+		InitializeSimpleWorldLimit(NewBox);
+		NewBox.Location = ImpactPoint - Normal * GroundBoxHalfThickness;
+		NewBox.Rotation = FQuat::FindBetweenNormals(FVector::UpVector, Normal);
+		NewBox.Extent = FVector(ClampedRadius, ClampedRadius, GroundBoxHalfThickness);
+
+		OutBox = NewBox;
+		return true;
+	}
+
 	void ConvertAggGeomToLocalLimits(
 		const FKAggregateGeom& AggGeom,
 		const FVector& Scale3D,
-		EKawaiiPhysicsComplexShapeApproximation ApproxMode,
+		EKawaiiPhysicsSimpleWorldConvexFallbackShape ConvexFallbackShape,
 		FKawaiiPhysicsSharedCollisionData& OutLocalLimits)
 	{
 		OutLocalLimits.SphericalLimits.Reserve(OutLocalLimits.SphericalLimits.Num() + AggGeom.SphereElems.Num());
@@ -256,7 +280,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 				continue;
 			}
 
-			if (ApproxMode == EKawaiiPhysicsComplexShapeApproximation::BoxBounds)
+			if (ConvexFallbackShape == EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox)
 			{
 				FBoxLimit NewLimit;
 				InitializeSimpleWorldLimit(NewLimit);
@@ -265,7 +289,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 				NewLimit.Extent = Extent;
 				OutLocalLimits.BoxLimits.Add(NewLimit);
 			}
-			else if (ApproxMode == EKawaiiPhysicsComplexShapeApproximation::SphereBounds)
+			else if (ConvexFallbackShape == EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingSphere)
 			{
 				FSphericalLimit NewLimit;
 				InitializeSimpleWorldLimit(NewLimit);
@@ -306,7 +330,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		const FKAggregateGeom& AggGeom,
 		int32 BoneIndex,
 		const FVector& Scale3D,
-		EKawaiiPhysicsComplexShapeApproximation ApproxMode,
+		EKawaiiPhysicsSimpleWorldConvexFallbackShape ConvexFallbackShape,
 		int32 MaxBodies,
 		FKawaiiPhysicsSharedCollisionData& OutLocalLimits,
 		TArray<FKawaiiPhysicsSimpleWorldBodyBinding>& OutBindings)
@@ -322,7 +346,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		const int32 TaperedCapsuleOffset = OutLocalLimits.TaperedCapsuleLimits.Num();
 		const int32 BoxOffset = OutLocalLimits.BoxLimits.Num();
 
-		ConvertAggGeomToLocalLimits(AggGeom, Scale3D, ApproxMode, OutLocalLimits);
+		ConvertAggGeomToLocalLimits(AggGeom, Scale3D, ConvexFallbackShape, OutLocalLimits);
 
 		FKawaiiPhysicsSimpleWorldBodyBinding NewBinding;
 		NewBinding.BoneIndex = BoneIndex;
@@ -348,7 +372,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		const UPhysicsAsset& PhysicsAsset,
 		const FReferenceSkeleton& RefSkeleton,
 		const FVector& Scale3D,
-		EKawaiiPhysicsComplexShapeApproximation ApproxMode,
+		EKawaiiPhysicsSimpleWorldConvexFallbackShape ConvexFallbackShape,
 		int32 MaxBodies,
 		FKawaiiPhysicsSharedCollisionData& OutLocalLimits,
 		TArray<FKawaiiPhysicsSimpleWorldBodyBinding>& OutBindings)
@@ -407,7 +431,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 				Candidate.BodySetup->AggGeom,
 				Candidate.BoneIndex,
 				Scale3D,
-				ApproxMode,
+				ConvexFallbackShape,
 				MaxBodies,
 				OutLocalLimits,
 				OutBindings);
