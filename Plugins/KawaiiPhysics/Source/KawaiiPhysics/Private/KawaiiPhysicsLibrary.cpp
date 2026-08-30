@@ -758,10 +758,11 @@ bool UKawaiiPhysicsLibrary::GetNodePropertyValueAsString(const FAnimNode_KawaiiP
 	if (const void* NodeValuePtr = Property->ContainerPtrToValuePtr<void>(&Node))
 	{
 		OutValueText.Reset();
+		constexpr int32 ExportPortFlags = PPF_ExternalEditor;
 #if UE_VERSION_OLDER_THAN(5, 1, 0)
-		Property->ExportTextItem(OutValueText, NodeValuePtr, nullptr, nullptr, PPF_None);
+		Property->ExportTextItem(OutValueText, NodeValuePtr, NodeValuePtr, nullptr, ExportPortFlags);
 #else
-		Property->ExportText_Direct(OutValueText, NodeValuePtr, nullptr, nullptr, PPF_None);
+		Property->ExportTextItem_Direct(OutValueText, NodeValuePtr, NodeValuePtr, nullptr, ExportPortFlags);
 #endif
 		return true;
 	}
