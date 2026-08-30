@@ -217,7 +217,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSettings
 	* 各ボーンのコリジョン半径
 	* Radius of bone's collision
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", DisplayName="Collision Radius"),
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", DisplayName="Collision Radius", Units = "cm"),
 		Category = "Kawaii Physics")
 	float Radius = 3.0f;
 
@@ -225,7 +225,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSettings
 	* 物理挙動による回転制限。適切に設定することで荒ぶりを抑制
 	* Rotational limitations in physical behavior. Setting the value properly can suppress excessive shaking
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), Category = "Kawaii Physics")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", Units = "Degrees"), Category = "Kawaii Physics")
 	float LimitAngle = 0.0f;
 };
 

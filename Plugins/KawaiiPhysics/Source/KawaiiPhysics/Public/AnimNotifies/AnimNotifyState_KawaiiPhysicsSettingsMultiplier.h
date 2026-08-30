@@ -60,11 +60,11 @@ public:
 	/** 区間先頭からの立ち上がり秒 / Rise time from the start of the section, in seconds. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weight",
 		meta=(ClampMin="0.0", UIMin="0.0",
-			EditCondition="WeightSource == EKawaiiPhysicsSettingsMultiplierWeightSource::Envelope", EditConditionHides))
+			EditCondition="WeightSource == EKawaiiPhysicsSettingsMultiplierWeightSource::Envelope", EditConditionHides, Units="s"))
 	float BlendInTime = 0.2f;
 
 	/** Envelope では区間末尾の減衰秒。区間が途中で終了した場合（Montage 中断など）と Curve モードでは、NotifyEnd 時にこの秒数で現在の重みから 0 へフェードする / In Envelope mode, decay seconds at the end of the section. If the section ends early (for example, Montage interruption) and in Curve mode, NotifyEnd fades from the current weight to 0 over this duration. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weight", meta=(ClampMin="0.0", UIMin="0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weight", meta=(ClampMin="0.0", UIMin="0.0", Units="s"))
 	float BlendOutTime = 0.2f;
 
 	/** WeightSource=Curve の時に参照するカーブ名 / Curve name used when WeightSource is Curve. */

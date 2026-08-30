@@ -108,7 +108,7 @@ struct KAWAIIPHYSICS_API FKawaiiProceduralWindDynamicParams
 	bool bOverrideSwayPhaseOffset = false;
 
 	/** 一斉揺れ(Sway)の開始位相 / Sway start phase offset. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(Units="Degrees"), Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float SwayPhaseOffset = 0.0f;
 
 	/** RippleForce を上書きする / Override RippleForce. */
@@ -132,7 +132,7 @@ struct KAWAIIPHYSICS_API FKawaiiProceduralWindDynamicParams
 	bool bOverrideRipplePhaseOffset = false;
 
 	/** 波揺れ(Ripple)の位相 / Spatial wave phase. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(Units="Degrees"), Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float RipplePhaseOffset = 0.0f;
 
 	/** RippleTipPhaseDelay を上書きする / Override RippleTipPhaseDelay. */
@@ -140,7 +140,7 @@ struct KAWAIIPHYSICS_API FKawaiiProceduralWindDynamicParams
 	bool bOverrideRippleTipPhaseDelay = false;
 
 	/** 毛先 r=1 での位相遅れ量 / Phase delay at tip r=1. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(Units="Degrees"), Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float RippleTipPhaseDelay = 180.0f;
 
 	/** StrengthCycleRange を上書きする / Override StrengthCycleRange. */
@@ -164,7 +164,7 @@ struct KAWAIIPHYSICS_API FKawaiiProceduralWindDynamicParams
 	bool bOverrideStrengthCyclePhaseOffset = false;
 
 	/** 強弱サイクル(StrengthCycle)位相 / StrengthCycle phase. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(Units="Degrees"), Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float StrengthCyclePhaseOffset = 0.0f;
 
 	/** RandomForce を上書きする / Override RandomForce. */
@@ -188,7 +188,7 @@ struct KAWAIIPHYSICS_API FKawaiiProceduralWindDynamicParams
 	bool bOverrideWindDirectionNoiseAngle = false;
 
 	/** 方向揺らぎの円錐半角 / Cone half-angle for directional noise. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(Units="Degrees"), Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	float WindDirectionNoiseAngle = 0.0f;
 
 	/** WindDirectionNoisePeriod を上書きする / Override WindDirectionNoisePeriod. */
