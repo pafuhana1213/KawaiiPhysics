@@ -833,6 +833,12 @@ bool FKawaiiPhysicsSimpleWorldCollisionEntry::HasAnyDesc() const
 	return !DescSlots.IsEmpty();
 }
 
+int32 FKawaiiPhysicsSimpleWorldCollisionEntry::GetNumDescs() const
+{
+	FReadScopeLock ReadLock(DescLock);
+	return DescSlots.Num();
+}
+
 bool FKawaiiPhysicsSimpleWorldCollisionEntry::BuildMergedDesc(
 	FKawaiiPhysicsSimpleWorldCollisionDesc& OutMerged) const
 {
@@ -964,6 +970,93 @@ TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> UKawaiiPhysicsSharedCollisionSubs
 		return nullptr;
 	}
 	return FindEntryByKey(Key);
+}
+
+void UKawaiiPhysicsSharedCollisionSubsystem::FillSimpleWorldCollisionDebugInfo(
+	const FKawaiiPhysicsSimpleWorldCollisionEntry& Entry,
+	FKawaiiPhysicsSimpleWorldCollisionDebugInfo& OutInfo)
+{
+	OutInfo = FKawaiiPhysicsSimpleWorldCollisionDebugInfo();
+	OutInfo.bHasEntry = true;
+	OutInfo.NumDescs = Entry.GetNumDescs();
+	OutInfo.NumGatheredComponents = Entry.GatheredComponents.Num();
+	OutInfo.bHasGroundBox = Entry.bHasGroundBox;
+	OutInfo.GroundSource = Entry.GroundSource;
+	OutInfo.GroundBoxSource = Entry.GroundBoxSource;
+	OutInfo.GroundBoxLocation = Entry.GroundBox.Location;
+	OutInfo.GroundBoxRotation = Entry.GroundBox.Rotation.Rotator();
+	OutInfo.GroundBoxExtent = Entry.GroundBox.Extent;
+	OutInfo.GatherRadius = Entry.LastGatherRadius;
+	OutInfo.TimeSinceLastGather = Entry.TimeSinceLastGather == FLT_MAX ? -1.0f : Entry.TimeSinceLastGather;
+	OutInfo.bHasGatheredOnce = Entry.bHasGatheredOnce;
+
+	OutInfo.GatheredComponentNames.Reserve(Entry.GatheredComponents.Num());
+	for (const FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent& GatheredComponent : Entry.GatheredComponents)
+	{
+		if (GatheredComponent.bStatic)
+		{
+			++OutInfo.NumStaticComponents;
+		}
+		else
+		{
+			++OutInfo.NumMovableComponents;
+		}
+
+		OutInfo.NumSkeletalBodies += GatheredComponent.BodyBindings.Num();
+		OutInfo.MinFadeAlpha = FMath::Min(OutInfo.MinFadeAlpha, GatheredComponent.FadeAlpha);
+
+		FString ComponentName;
+		if (const UPrimitiveComponent* Component = GatheredComponent.Component.Get())
+		{
+			const AActor* OwnerActor = Component->GetOwner();
+			const FString OwnerName = OwnerActor ? OwnerActor->GetActorNameOrLabel() : FString(TEXT("<no owner>"));
+			ComponentName = FString::Printf(TEXT("%s:%s"), *OwnerName, *Component->GetName());
+		}
+		else
+		{
+			ComponentName = TEXT("<invalid>");
+		}
+
+		if (GatheredComponent.InstanceIndex != INDEX_NONE)
+		{
+			ComponentName += FString::Printf(TEXT("[%d]"), GatheredComponent.InstanceIndex);
+		}
+		OutInfo.GatheredComponentNames.Add(MoveTemp(ComponentName));
+	}
+}
+
+bool UKawaiiPhysicsSharedCollisionSubsystem::BuildSimpleWorldCollisionDebugInfo(
+	const USkeletalMeshComponent* SkelComp,
+	FKawaiiPhysicsSimpleWorldCollisionDebugInfo& OutInfo) const
+{
+	OutInfo = FKawaiiPhysicsSimpleWorldCollisionDebugInfo();
+
+#if !UE_BUILD_SHIPPING
+	if (!ensure(IsInGameThread()) || !SkelComp)
+	{
+		return false;
+	}
+
+	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> Entry;
+	{
+		FReadScopeLock ReadLock(SimpleWorldRegistryLock);
+		if (const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>* Found =
+			SimpleWorldRegistry.Find(TWeakObjectPtr<const USkeletalMeshComponent>(SkelComp)))
+		{
+			Entry = *Found;
+		}
+	}
+
+	if (!Entry.IsValid())
+	{
+		return false;
+	}
+
+	FillSimpleWorldCollisionDebugInfo(*Entry, OutInfo);
+	return true;
+#else
+	return false;
+#endif
 }
 
 void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float DeltaTime)
@@ -1100,6 +1193,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 		if (bShouldGather)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SimpleWorldCollision_Gather);
+			Entry->LastGatherRadius = Radius;
 
 			const FCollisionObjectQueryParams ObjectQueryParams = BuildSimpleWorldObjectQueryParams(Desc.ObjectTypes);
 			FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(KawaiiPhysicsSimpleWorldCollision), false);

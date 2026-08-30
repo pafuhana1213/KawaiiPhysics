@@ -24,12 +24,13 @@ class USkinnedAsset;
 class UCharacterMovementComponent;
 
 // 地面ソースの種類（DebugDraw の色分けにも使う） / Ground source kind (also used for debug draw colors)
+UENUM(BlueprintType)
 enum class EKawaiiPhysicsSimpleWorldGroundSource : uint8
 {
-	None,
-	Provider,
-	CharacterMovement,
-	Trace,
+	None UMETA(DisplayName = "None"),
+	Provider UMETA(DisplayName = "Provider"),
+	CharacterMovement UMETA(DisplayName = "Character Movement"),
+	Trace UMETA(DisplayName = "Trace"),
 };
 
 /**
@@ -161,6 +162,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionEntry
 	void RemoveExpiredDescs(uint64 CurrentFrame, uint64 MaxAge);
 	bool HasAnyDesc() const;
 	bool BuildMergedDesc(FKawaiiPhysicsSimpleWorldCollisionDesc& OutMerged) const;
+	int32 GetNumDescs() const;
 
 	void RequestRegather();
 	bool ConsumeRegatherRequested();
@@ -169,6 +171,8 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionEntry
 
 	// Tick スレッド専有・ロック不要 / Tick-thread only; no lock required.
 	float TimeSinceLastGather = FLT_MAX;
+	// 直近の収集で使った実効半径 / Effective radius used by the latest gather
+	float LastGatherRadius = 0.0f;
 
 	struct FGatheredComponent
 	{
@@ -250,6 +254,80 @@ private:
 	std::atomic<bool> bRegatherRequested{false};
 };
 
+USTRUCT(BlueprintType)
+struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionDebugInfo
+{
+	GENERATED_BODY()
+
+	// SkelComp に対応する SimpleWorld Entry が存在したか / Whether a SimpleWorld entry exists for SkelComp
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	bool bHasEntry = false;
+
+	// Entry に登録されている Desc 数（ノード数） / Number of descs registered to the entry (node count)
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	int32 NumDescs = 0;
+
+	// GatheredComponents.Num() / GatheredComponents.Num()
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	int32 NumGatheredComponents = 0;
+
+	// bStatic == true の件数 / Number of entries with bStatic == true
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	int32 NumStaticComponents = 0;
+
+	// bStatic == false の件数 / Number of entries with bStatic == false
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	int32 NumMovableComponents = 0;
+
+	// 全 GatheredComponents の BodyBindings.Num() 合計 / Sum of BodyBindings.Num() across all GatheredComponents
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	int32 NumSkeletalBodies = 0;
+
+	// 収集順のコンポーネント名 / Component names in gathered order
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	TArray<FString> GatheredComponentNames;
+
+	// 収集コンポーネントの FadeAlpha の最小値（0 件なら 1.0） / Minimum FadeAlpha of gathered components (1.0 when empty)
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	float MinFadeAlpha = 1.0f;
+
+	// Entry.bHasGroundBox / Entry.bHasGroundBox
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	bool bHasGroundBox = false;
+
+	// Entry.GroundSource / Entry.GroundSource
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	EKawaiiPhysicsSimpleWorldGroundSource GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
+
+	// Entry.GroundBoxSource / Entry.GroundBoxSource
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	EKawaiiPhysicsSimpleWorldGroundSource GroundBoxSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
+
+	// Entry.GroundBox.Location（bHasGroundBox 時のみ意味あり） / Entry.GroundBox.Location (meaningful only when bHasGroundBox)
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	FVector GroundBoxLocation = FVector::ZeroVector;
+
+	// Entry.GroundBox.Rotation.Rotator() / Entry.GroundBox.Rotation.Rotator()
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	FRotator GroundBoxRotation = FRotator::ZeroRotator;
+
+	// Entry.GroundBox.Extent / Entry.GroundBox.Extent
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	FVector GroundBoxExtent = FVector::ZeroVector;
+
+	// 直近の収集で使った実効半径 / Effective radius used by the latest gather
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	float GatherRadius = 0.0f;
+
+	// Entry.TimeSinceLastGather（FLT_MAX のときは -1.0） / Entry.TimeSinceLastGather (-1.0 when FLT_MAX)
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	float TimeSinceLastGather = 0.0f;
+
+	// Entry.bHasGatheredOnce / Entry.bHasGatheredOnce
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	bool bHasGatheredOnce = false;
+};
+
 /**
  * KawaiiPhysics AnimNode間でコリジョンデータを共有するためのWorldSubsystem
  * WorldSubsystem for sharing collision data between KawaiiPhysics AnimNodes in an attached actor family
@@ -290,6 +368,22 @@ public:
 	 * For targets: Find an entry for the actor family root. Thread-safe via RegistryLock; callable from any thread.
 	 */
 	TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> FindEntry(AActor* Actor, const FGameplayTag& Tag) const;
+
+	/**
+	 * Entry の Tick 専有データから診断情報を詰める（GameThread 専用。テストから直接呼べるよう static）
+	 * Fill diagnostics from an entry's tick-owned data (GameThread only; static so tests can call it directly)
+	 */
+	static void FillSimpleWorldCollisionDebugInfo(const FKawaiiPhysicsSimpleWorldCollisionEntry& Entry,
+	                                              FKawaiiPhysicsSimpleWorldCollisionDebugInfo& OutInfo);
+
+	/**
+	 * SkelComp の SimpleWorld Entry を検索し診断情報を返す。Entry が無ければ false（OutInfo は既定値＋bHasEntry=false）。
+	 * GameThread 専用。Shipping では常に false。
+	 * Look up the SimpleWorld entry for SkelComp and return diagnostics. Returns false when no entry exists
+	 * (OutInfo is reset with bHasEntry=false). GameThread only. Always false in Shipping builds.
+	 */
+	bool BuildSimpleWorldCollisionDebugInfo(const USkeletalMeshComponent* SkelComp,
+	                                        FKawaiiPhysicsSimpleWorldCollisionDebugInfo& OutInfo) const;
 
 	// USubsystem interface
 	virtual void Deinitialize() override;

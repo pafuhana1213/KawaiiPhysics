@@ -17,6 +17,7 @@
 #include "GameFramework/Actor.h"
 #include "HAL/IConsoleManager.h"
 #include "KawaiiPhysics.h"
+#include "KawaiiPhysicsSharedCollisionSubsystem.h"
 #include "KawaiiPhysicsWindPresetDataAsset.h"
 #include "UObject/ScriptInterface.h"
 #include "UObject/UObjectIterator.h"
@@ -558,6 +559,59 @@ bool UKawaiiPhysicsLibrary::CollectKawaiiPhysicsNodesFromComponent(TArray<FKawai
                                                                    bool bFilterExactMatch)
 {
 	return CollectKawaiiPhysicsNodes(Nodes, MeshComp, FilterTags, bFilterExactMatch);
+}
+
+bool UKawaiiPhysicsLibrary::GetSimpleWorldCollisionDebugInfo(
+	const USkeletalMeshComponent* SkelComp,
+	FKawaiiPhysicsSimpleWorldCollisionDebugInfo& OutInfo)
+{
+	OutInfo = FKawaiiPhysicsSimpleWorldCollisionDebugInfo();
+	if (!SkelComp)
+	{
+		return false;
+	}
+
+	UWorld* World = SkelComp->GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	UKawaiiPhysicsSharedCollisionSubsystem* Subsystem =
+		World->GetSubsystem<UKawaiiPhysicsSharedCollisionSubsystem>();
+	if (!Subsystem)
+	{
+		return false;
+	}
+
+	return Subsystem->BuildSimpleWorldCollisionDebugInfo(SkelComp, OutInfo);
+}
+
+int32 UKawaiiPhysicsLibrary::GetSimpleWorldColliderCountOnComponent(
+	USkeletalMeshComponent* MeshComp,
+	const FGameplayTagContainer& FilterTags,
+	const bool bFilterExactMatch)
+{
+	if (!MeshComp)
+	{
+		return 0;
+	}
+
+	int32 Count = 0;
+
+	TArray<FKawaiiPhysicsReference> KawaiiPhysicsReferences;
+	CollectKawaiiPhysicsNodes(KawaiiPhysicsReferences, MeshComp, FilterTags, bFilterExactMatch);
+	for (auto& KawaiiPhysicsReference : KawaiiPhysicsReferences)
+	{
+		KawaiiPhysicsReference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("GetSimpleWorldColliderCountOnComponent"),
+			[&Count](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
+			{
+				Count += InKawaiiPhysics.GetNumSimpleWorldColliders();
+			});
+	}
+
+	return Count;
 }
 
 bool UKawaiiPhysicsLibrary::IsNodePropertyAccessible(const FProperty* Property)
