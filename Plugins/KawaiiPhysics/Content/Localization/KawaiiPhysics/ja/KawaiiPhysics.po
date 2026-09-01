@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: KawaiiPhysics\n"
-"POT-Creation-Date: 2026-08-29 16:52\n"
-"PO-Revision-Date: 2026-08-29 16:52\n"
+"POT-Creation-Date: 2026-09-01 19:30\n"
+"PO-Revision-Date: 2026-09-01 19:30\n"
 "Language-Team: \n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
@@ -941,15 +941,15 @@ msgstr "単純な外力ベクトル"
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionConvexFallbackShape [EnumProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionConvexFallbackShape [EnumProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:SimpleWorldCollisionConvexFallbackShape"
-msgid "Convex Fallback Shape"
-msgstr "凸型コリジョンの代替形状"
+msgid "Convex Shape"
+msgstr "凸型コリジョンの形状"
 
 #. Key:	AnimNode_KawaiiPhysics:SimpleWorldCollisionConvexFallbackShape
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionConvexFallbackShape [EnumProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionConvexFallbackShape [EnumProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:SimpleWorldCollisionConvexFallbackShape"
-msgid "Simple World Collision で Convex コリジョンの代わりに使う形状。Convex は直接扱えないため、境界ボックス / 境界球で代用するか None で無視します。\nShape used in place of convex collision in Simple World Collision. Convex collision is not supported directly, so substitute its bounding box / bounding sphere, or skip it with None."
-msgstr "Simple World Collision で Convex コリジョンの代わりに使う形状。Convex は直接扱えないため、境界ボックス / 境界球で代用するか None で無視します。"
+msgid "Simple World Collision で Convex コリジョンに使う形状。既定の Convex Hull は実形状の平面セットをそのまま使い、ハル情報を取得できない場合や平面数が Max Convex Planes を超える場合は Bounding Box で代用します。\nShape used for convex collision in Simple World Collision. The default Convex Hull uses the actual plane set, falling back to the bounding box when hull data is unavailable or the plane count exceeds Max Convex Planes."
+msgstr "Simple World Collision で Convex コリジョンに使う形状。既定の Convex Hull は実形状の平面セットをそのまま使い、ハル情報を取得できない場合や平面数が Max Convex Planes を超える場合は Bounding Box で代用します。"
 
 #. Key:	AnimNode_KawaiiPhysics:SimpleWorldCollisionGatherInterval
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionGatherInterval [FloatProperty DisplayName meta-data]
@@ -7280,85 +7280,85 @@ msgid "Clipboard does not contain ProceduralWind parameters."
 msgstr "クリップボードに ProceduralWind パラメータがありません"
 
 #. Key:	PasteWindParametersTransaction
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2949)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2949)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2950)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2950)
 msgctxt "KawaiiPhysicsWindScopeWindow,PasteWindParametersTransaction"
 msgid "Paste Kawaii Physics Wind Parameters"
 msgstr "Kawaii Physics 風パラメータの貼り付け"
 
 #. Key:	PasteWindParametersSucceededLive
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2959)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2959)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2960)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2960)
 msgctxt "KawaiiPhysicsWindScopeWindow,PasteWindParametersSucceededLive"
 msgid "Pasted ProceduralWind parameters. (live)"
 msgstr "ProceduralWind パラメータを貼り付けました。(ライブ)"
 
 #. Key:	PasteWindParametersSucceededNodeOnly
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2960)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2960)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2961)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2961)
 msgctxt "KawaiiPhysicsWindScopeWindow,PasteWindParametersSucceededNodeOnly"
 msgid "Pasted ProceduralWind parameters. (node only — no live target)"
 msgstr "ProceduralWind パラメータを貼り付けました。(ノードのみ — ライブ対象なし)"
 
 #. Key:	ApplyPresetNoNode
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2980)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2980)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2981)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2981)
 msgctxt "KawaiiPhysicsWindScopeWindow,ApplyPresetNoNode"
 msgid "Failed to resolve the KawaiiPhysics graph node."
 msgstr "KawaiiPhysics グラフノードを特定できませんでした"
 
 #. Key:	ApplyPresetNoWind
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2993)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2993)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2994)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2994)
 msgctxt "KawaiiPhysicsWindScopeWindow,ApplyPresetNoWind"
 msgid "No ProceduralWind external force was found."
 msgstr "ProceduralWind の外力が見つかりませんでした"
 
 #. Key:	ApplyPresetInvalidWind
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3006)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3006)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3007)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3007)
 msgctxt "KawaiiPhysicsWindScopeWindow,ApplyPresetInvalidWind"
 msgid "The selected external force is not ProceduralWind."
 msgstr "選択中の外力は ProceduralWind ではありません"
 
 #. Key:	EditWindParamPropertyMissing
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3101)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3101)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3102)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3102)
 msgctxt "KawaiiPhysicsWindScopeWindow,EditWindParamPropertyMissing"
 msgid "Failed to resolve the wind parameter property."
 msgstr "風パラメータのプロパティを特定できませんでした"
 
 #. Key:	EditWindParameterTransaction
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3154)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3154)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3155)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3155)
 msgctxt "KawaiiPhysicsWindScopeWindow,EditWindParameterTransaction"
 msgid "Edit Kawaii Physics Wind Parameter"
 msgstr "Kawaii Physics 風パラメータの編集"
 
 #. Key:	EditWindParamSetFailed
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3160)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3160)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3161)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3161)
 msgctxt "KawaiiPhysicsWindScopeWindow,EditWindParamSetFailed"
 msgid "Failed to update the wind parameter."
 msgstr "風パラメータの更新に失敗しました"
 
 #. Key:	ResetWindParamPropertyMissing
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3264)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3264)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3265)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3265)
 msgctxt "KawaiiPhysicsWindScopeWindow,ResetWindParamPropertyMissing"
 msgid "Failed to resolve the wind parameter property."
 msgstr "風パラメータのプロパティを特定できませんでした"
 
 #. Key:	LiveModeTick
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3344)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3344)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3345)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3345)
 msgctxt "KawaiiPhysicsWindScopeWindow,LiveModeTick"
 msgid "Live"
 msgstr "ライブ"
 
 #. Key:	PreviewModeTick
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3361)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3361)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3362)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3362)
 msgctxt "KawaiiPhysicsWindScopeWindow,PreviewModeTick"
 msgid "Preview"
 msgstr "プレビュー"

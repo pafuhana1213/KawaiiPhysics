@@ -823,13 +823,13 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	TArray<TEnumAsByte<EObjectTypeQuery>> SimpleWorldCollisionObjectTypes;
 
 	/**
-	* Simple World Collision で Convex コリジョンの代わりに使う形状。Convex は直接扱えないため、境界ボックス / 境界球で代用するか None で無視します。
-	* Shape used in place of convex collision in Simple World Collision. Convex collision is not supported directly, so substitute its bounding box / bounding sphere, or skip it with None.
+	* Simple World Collision で Convex コリジョンに使う形状。既定の Convex Hull は実形状の平面セットをそのまま使い、ハル情報を取得できない場合や平面数が Max Convex Planes を超える場合は Bounding Box で代用します。
+	* Shape used for convex collision in Simple World Collision. The default Convex Hull uses the actual plane set, falling back to the bounding box when hull data is unavailable or the plane count exceeds Max Convex Planes.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
-		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision", DisplayName = "Convex Fallback Shape"))
+		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision", DisplayName = "Convex Shape"))
 	EKawaiiPhysicsSimpleWorldConvexFallbackShape SimpleWorldCollisionConvexFallbackShape =
-		EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox;
+		EKawaiiPhysicsSimpleWorldConvexFallbackShape::ConvexHull;
 
 	/** シンプルワールドコリジョンの収集半径を上書きする / Override the Simple World Collision gather radius */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
@@ -1039,6 +1039,7 @@ private:
 	TArray<FCapsuleLimit> SimpleWorldCapsuleLimits;
 	TArray<FTaperedCapsuleLimit> SimpleWorldTaperedCapsuleLimits;
 	TArray<FBoxLimit> SimpleWorldBoxLimits;
+	TArray<FKawaiiPhysicsConvexLimit> SimpleWorldConvexLimits;
 
 	// 風の乱数(gust/cone)をフレーム単位でキャッシュしサブステップ間で同一値を使う（NumStep非依存＝フレームレート非依存）
 	// Cache wind randomness (gust/cone) per frame, shared across substeps (frame-rate independent)
@@ -1171,7 +1172,8 @@ public:
 		return SimpleWorldSphericalLimits.Num()
 			+ SimpleWorldCapsuleLimits.Num()
 			+ SimpleWorldTaperedCapsuleLimits.Num()
-			+ SimpleWorldBoxLimits.Num();
+			+ SimpleWorldBoxLimits.Num()
+			+ SimpleWorldConvexLimits.Num();
 	}
 
 	/**
@@ -1622,6 +1624,14 @@ protected:
 	 * @param Limits An array of box limits.
 	 */
 	void AdjustByBoxCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FBoxLimit>& Limits);
+
+	/**
+	 * Adjusts the bone position based on convex collision limits.
+	 *
+	 * @param Bone The bone to adjust.
+	 * @param Limits An array of convex limits.
+	 */
+	void AdjustByConvexCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FKawaiiPhysicsConvexLimit>& Limits);
 
 	/**
 	 * Adjusts the bone position based on planar collision limits.

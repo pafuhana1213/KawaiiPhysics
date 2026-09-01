@@ -72,12 +72,17 @@ namespace
 		TArray<FCapsuleLimit>& OutCapsuleLimits,
 		TArray<FTaperedCapsuleLimit>& OutTaperedCapsuleLimits,
 		TArray<FBoxLimit>& OutBoxLimits,
-		TArray<FPlanarLimit>* OutPlanarLimits)
+		TArray<FPlanarLimit>* OutPlanarLimits,
+		TArray<FKawaiiPhysicsConvexLimit>* OutConvexLimits)
 	{
 		auto NoOp = [](auto&, const FTransform&) {};
 		auto RecomputePlane = [](FPlanarLimit& Limit, const FTransform& Transform)
 		{
 			Limit.Plane = FPlane(Limit.Location, Transform.GetRotation().GetUpVector());
+		};
+		auto RecomputeConvexCache = [](FKawaiiPhysicsConvexLimit& Limit, const FTransform&)
+		{
+			Limit.UpdateRuntimeCache();
 		};
 
 		AppendWorldLimitsToSimulationSpace(Node, Output, TargetSpace, InData.SphericalLimits,
@@ -93,6 +98,12 @@ namespace
 		{
 			AppendWorldLimitsToSimulationSpace(Node, Output, TargetSpace, InData.PlanarLimits,
 				*OutPlanarLimits, RecomputePlane);
+		}
+
+		if (OutConvexLimits)
+		{
+			AppendWorldLimitsToSimulationSpace(Node, Output, TargetSpace, InData.ConvexLimits,
+				*OutConvexLimits, RecomputeConvexCache);
 		}
 	}
 }
@@ -769,6 +780,7 @@ void FAnimNode_KawaiiPhysics::PrepareCollisionShapeCaches()
 	UpdateEnabledCaches(SimpleWorldCapsuleLimits);
 	UpdateEnabledCaches(SimpleWorldTaperedCapsuleLimits);
 	UpdateEnabledCaches(SimpleWorldBoxLimits);
+	UpdateEnabledCaches(SimpleWorldConvexLimits);
 }
 
 void FAnimNode_KawaiiPhysics::AdjustByCapsuleCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FCapsuleLimit>& Limits)
@@ -896,6 +908,46 @@ void FAnimNode_KawaiiPhysics::AdjustByBoxCollision(FKawaiiPhysicsModifyBone& Bon
 				FVector NewLocalSphereCenter = ClosestPoint + PushOutDirection * SphereRadius;
 				Bone.Location = BoxTransform.TransformPosition(NewLocalSphereCenter);
 			}
+		}
+	}
+}
+
+void FAnimNode_KawaiiPhysics::AdjustByConvexCollision(FKawaiiPhysicsModifyBone& Bone,
+                                                      TArray<FKawaiiPhysicsConvexLimit>& Limits)
+{
+	for (auto& Limit : Limits)
+	{
+		if (!Limit.bEnable || Limit.LocalPlanes.IsEmpty())
+		{
+			continue;
+		}
+
+		const float SphereRadius = Bone.PhysicsSettings.Radius;
+		const FTransform ConvexTransform = Limit.CachedConvexTransform;
+		const FVector LocalSphereCenter = ConvexTransform.InverseTransformPosition(Bone.Location);
+		if (!FMath::SphereAABBIntersection(FSphere(LocalSphereCenter, SphereRadius), Limit.LocalBounds))
+		{
+			continue;
+		}
+
+		float MaxDist = TNumericLimits<float>::Lowest();
+		FVector BestNormal = FVector::ZeroVector;
+		for (const FPlane& Plane : Limit.LocalPlanes)
+		{
+			const float Dist = Plane.PlaneDot(LocalSphereCenter);
+			if (Dist > MaxDist)
+			{
+				MaxDist = Dist;
+				BestNormal = FVector(Plane.X, Plane.Y, Plane.Z);
+			}
+		}
+
+		if (MaxDist < SphereRadius)
+		{
+			// エッジ/コーナー近傍では max 符号付き距離が真の球-凸距離の下界になり、僅かに過剰押し出しになる。
+			// TaperedCapsule と同格の意図的な近似で、トンネリング対策は Box/Capsule と同様に持たない。
+			Bone.Location = ConvexTransform.TransformPosition(
+				LocalSphereCenter + BestNormal * (SphereRadius - MaxDist));
 		}
 	}
 }
@@ -1382,9 +1434,10 @@ void FAnimNode_KawaiiPhysics::UpdateSharedCollisionLimits(
 		return;
 	}
 
+	// source ノードは Convex を publish しない。SimpleWorld 経路が Planar を捨てるのと対称の扱い。
 	AppendSharedCollisionDataToSimulationSpace(*this, Output, SimulationSpace, SharedCollisionMergedData,
 		SharedSphericalLimits, SharedCapsuleLimits, SharedTaperedCapsuleLimits, SharedBoxLimits,
-		&SharedPlanarLimits);
+		&SharedPlanarLimits, nullptr);
 }
 
 FKawaiiPhysicsSimpleWorldCollisionDesc FAnimNode_KawaiiPhysics::BuildSimpleWorldCollisionDesc() const
@@ -1431,6 +1484,7 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 	SimpleWorldCapsuleLimits.Reset();
 	SimpleWorldTaperedCapsuleLimits.Reset();
 	SimpleWorldBoxLimits.Reset();
+	SimpleWorldConvexLimits.Reset();
 
 	if (!CachedSimpleWorldEntry.IsValid())
 	{
@@ -1457,6 +1511,7 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 		SimpleWorldCapsuleLimits.Reset();
 		SimpleWorldTaperedCapsuleLimits.Reset();
 		SimpleWorldBoxLimits.Reset();
+		SimpleWorldConvexLimits.Reset();
 		return;
 	}
 
@@ -1493,7 +1548,7 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 
 	AppendSharedCollisionDataToSimulationSpace(*this, Output, SimulationSpace, SimpleWorldMergedScratch,
 		SimpleWorldSphericalLimits, SimpleWorldCapsuleLimits, SimpleWorldTaperedCapsuleLimits,
-		SimpleWorldBoxLimits, nullptr);
+		SimpleWorldBoxLimits, nullptr, &SimpleWorldConvexLimits);
 }
 
 void FAnimNode_KawaiiPhysics::ReleaseSimpleWorldCollision()

@@ -20,6 +20,7 @@ enum class ECollisionLimitType : uint8
 	Box,
 	Planar,
 	TaperedCapsule,
+	Convex,
 };
 
 /**
@@ -327,5 +328,43 @@ struct FPlanarLimit : public FCollisionLimitBase
 		FCollisionLimitBase::operator=(Other);
 		Plane = Other.Plane;
 		return *this;
+	}
+};
+
+/**
+ * ConvexのコリジョンLimitを表す構造体。
+ * Structure representing a convex limit for collision in KawaiiPhysics.
+ */
+struct FKawaiiPhysicsConvexLimit : public FCollisionLimitBase
+{
+	/** Default constructor */
+	FKawaiiPhysicsConvexLimit()
+	{
+#if WITH_EDITORONLY_DATA
+		// Set the collision limit type to convex
+		Type = ECollisionLimitType::Convex;
+#endif
+	}
+
+	/** Location/Rotation フレーム相対の平面 / Planes relative to the Location/Rotation frame */
+	TArray<FPlane> LocalPlanes;
+
+	/** クイックリジェクト用のローカル境界 / Local bounds for quick rejection */
+	FBox LocalBounds = FBox(ForceInit);
+
+#if !UE_BUILD_SHIPPING
+	/** デバッグ描画用の頂点 / Vertices for debug draw */
+	TArray<FVector> LocalVertices;
+
+	/** デバッグ描画用のエッジ index ペア / Edge index pairs for debug draw */
+	TArray<int32> LocalEdges;
+#endif
+
+	// 実行時キャッシュ（毎ステップ再計算、シリアライズ対象外） / Runtime cache (recomputed every step, not serialized)
+	FTransform CachedConvexTransform = FTransform::Identity;
+
+	void UpdateRuntimeCache()
+	{
+		CachedConvexTransform = FTransform(Rotation, Location);
 	}
 };

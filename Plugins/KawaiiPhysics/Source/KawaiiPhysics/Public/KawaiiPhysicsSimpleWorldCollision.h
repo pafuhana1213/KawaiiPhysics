@@ -11,14 +11,16 @@ class UPhysicsAsset;
 struct FReferenceSkeleton;
 
 /**
- * Simple World Collision で Convex コリジョンの代わりに使う形状。Convex は Sphere / Capsule / Box の Limit へ直接変換できないため、境界形状で代用するか無視するかを選びます。Landscape や Complex コリジョンのみのメッシュはもともと収集対象外です。
- * Shape used in place of convex collision in Simple World Collision. Convex collision cannot be converted directly into Sphere / Capsule / Box limits, so choose a bounding shape as a substitute or skip it. Landscapes and complex-collision-only meshes are never gathered.
+ * Simple World Collision で Convex コリジョンに使う形状。既定の Convex Hull は実形状の平面セットで当たります。宣言順は Merge 優先度（高精度が先）です。Landscape や Complex コリジョンのみのメッシュはもともと収集対象外です。
+ * Shape used for convex collision in Simple World Collision. The default Convex Hull collides against the actual plane set. Declaration order is the Merge priority (more accurate first). Landscapes and complex-collision-only meshes are never gathered.
  */
 UENUM(BlueprintType)
 enum class EKawaiiPhysicsSimpleWorldConvexFallbackShape : uint8
 {
-	/** Convex の境界ボックスで代用します（既定） / Use the bounding box of the convex (default). */
-	BoundingBox UMETA(DisplayName = "Bounding Box", ToolTip = "Convex の境界ボックスで代用します（既定） / Use the bounding box of the convex (default)."),
+	/** Convex Hull の平面セットを使います（既定） / Use the convex hull plane set (default). */
+	ConvexHull UMETA(DisplayName = "Convex Hull", ToolTip = "Convex Hull の平面セットを使います（既定） / Use the convex hull plane set (default)."),
+	/** Convex の境界ボックスで代用します / Use the bounding box of the convex. */
+	BoundingBox UMETA(DisplayName = "Bounding Box", ToolTip = "Convex の境界ボックスで代用します / Use the bounding box of the convex."),
 	/** Convex の境界球で代用します / Use the bounding sphere of the convex. */
 	BoundingSphere UMETA(DisplayName = "Bounding Sphere", ToolTip = "Convex の境界球で代用します / Use the bounding sphere of the convex."),
 	/** Convex を無視します / Skip convex collision. */
@@ -55,6 +57,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		int32 NumCapsuleLimits = 0;
 		int32 NumTaperedCapsuleLimits = 0;
 		int32 NumBoxLimits = 0;
+		int32 NumConvexLimits = 0;
 	};
 
 	/**
@@ -68,6 +71,20 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		FKawaiiPhysicsSharedCollisionData& OutLocalLimits);
 
 	/**
+	 * Convex Elem の平面セットと頂点をコンポーネントローカル空間の Convex Limit へ変換して追記します。
+	 * Converts a convex elem plane set and vertices into a component-local-space convex limit and appends it.
+	 */
+	KAWAIIPHYSICS_API bool AppendConvexElemLocalLimit(
+		TArrayView<const FPlane> BodySpacePlanes,
+		TArrayView<const FVector> ElemLocalVertices,
+		TArrayView<const int32> Indices,
+		const FTransform& ElemTM,
+		const FVector& Scale3D,
+		int32 MaxConvexPlanes,
+		bool bBuildDebugGeometry,
+		FKawaiiPhysicsSharedCollisionData& OutLocalLimits);
+
+	/**
 	 * AggGeom をコンポーネントローカル空間の Limit 配列へ変換します。Scale3D は適用済みで、OutLocalLimits へ追記します。
 	 * Converts AggGeom into component-local-space limits with Scale3D applied, appending to OutLocalLimits.
 	 */
@@ -75,6 +92,8 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		const FKAggregateGeom& AggGeom,
 		const FVector& Scale3D,
 		EKawaiiPhysicsSimpleWorldConvexFallbackShape ConvexFallbackShape,
+		int32 MaxConvexPlanes,
+		bool bBuildConvexDebugGeometry,
 		FKawaiiPhysicsSharedCollisionData& OutLocalLimits);
 
 	/**
@@ -88,6 +107,8 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		int32 BoneIndex,
 		const FVector& Scale3D,
 		EKawaiiPhysicsSimpleWorldConvexFallbackShape ConvexFallbackShape,
+		int32 MaxConvexPlanes,
+		bool bBuildConvexDebugGeometry,
 		int32 MaxBodies,
 		FKawaiiPhysicsSharedCollisionData& OutLocalLimits,
 		TArray<FKawaiiPhysicsSimpleWorldBodyBinding>& OutBindings);
@@ -115,6 +136,8 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		const FReferenceSkeleton& RefSkeleton,
 		const FVector& Scale3D,
 		EKawaiiPhysicsSimpleWorldConvexFallbackShape ConvexFallbackShape,
+		int32 MaxConvexPlanes,
+		bool bBuildConvexDebugGeometry,
 		int32 MaxBodies,
 		FKawaiiPhysicsSharedCollisionData& OutLocalLimits,
 		TArray<FKawaiiPhysicsSimpleWorldBodyBinding>& OutBindings);

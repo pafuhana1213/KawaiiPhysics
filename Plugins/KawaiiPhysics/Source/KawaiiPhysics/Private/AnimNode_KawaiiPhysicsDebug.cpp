@@ -231,6 +231,42 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 						                       FColor::Cyan, LineThickness);
 					}
 
+					for (const auto& ConvexLimit : SimpleWorldConvexLimits)
+					{
+#if !UE_BUILD_SHIPPING
+						if (!ConvexLimit.LocalVertices.IsEmpty() && !ConvexLimit.LocalEdges.IsEmpty())
+						{
+							const FTransform ConvexTransformWS =
+								ConvertSimulationSpaceTransform(Output, SimulationSpace,
+								                                EKawaiiPhysicsSimulationSpace::WorldSpace,
+								                                FTransform(ConvexLimit.Rotation,
+								                                           ConvexLimit.Location));
+							for (int32 EdgeIndex = 0; EdgeIndex + 1 < ConvexLimit.LocalEdges.Num(); EdgeIndex += 2)
+							{
+								const int32 IndexA = ConvexLimit.LocalEdges[EdgeIndex];
+								const int32 IndexB = ConvexLimit.LocalEdges[EdgeIndex + 1];
+								if (!ConvexLimit.LocalVertices.IsValidIndex(IndexA) ||
+									!ConvexLimit.LocalVertices.IsValidIndex(IndexB))
+								{
+									continue;
+								}
+
+								const FVector LocationAWS =
+									ConvexTransformWS.TransformPosition(ConvexLimit.LocalVertices[IndexA]);
+								const FVector LocationBWS =
+									ConvexTransformWS.TransformPosition(ConvexLimit.LocalVertices[IndexB]);
+								AnimInstanceProxy->AnimDrawDebugLine(LocationAWS, LocationBWS, FColor::Cyan,
+								                                     false, -1.0f, LineThickness, SDPG_Foreground);
+							}
+							continue;
+						}
+#endif
+
+						// DebugDraw CVar を後から有効にした場合、次回収集まで頂点/エッジが空のため LocalBounds で近似表示する。
+						this->AnimDrawDebugBox(Output, ConvexLimit.Location, ConvexLimit.Rotation,
+						                       ConvexLimit.LocalBounds.GetExtent(), FColor::Cyan, LineThickness);
+					}
+
 					for (const auto& TaperedCapsuleLimit : SimpleWorldTaperedCapsuleLimits)
 					{
 						this->AnimDrawDebugTaperedCapsule(Output, TaperedCapsuleLimit.Location,

@@ -164,16 +164,18 @@ struct FKawaiiPhysicsTestAccessor
 	}
 
 	/**
-	 * SimpleWorld コリジョン配列（Subsystem が本来収集する4形状）を直接注入し、bUseSimpleWorldCollision も true にする。
-	 * Injects the SimpleWorld collision arrays (the four shapes the Subsystem normally gathers) directly and enables bUseSimpleWorldCollision.
+	 * SimpleWorld コリジョン配列（Subsystem が本来収集する5形状）を直接注入し、bUseSimpleWorldCollision も true にする。
+	 * Injects the SimpleWorld collision arrays (the five shapes the Subsystem normally gathers) directly and enables bUseSimpleWorldCollision.
 	 */
 	void SetSimpleWorldLimits(const TArray<FSphericalLimit>& Spherical, const TArray<FCapsuleLimit>& Capsule,
-	                          const TArray<FTaperedCapsuleLimit>& TaperedCapsule, const TArray<FBoxLimit>& Box)
+	                          const TArray<FTaperedCapsuleLimit>& TaperedCapsule, const TArray<FBoxLimit>& Box,
+	                          const TArray<FKawaiiPhysicsConvexLimit>& Convex)
 	{
 		Node.SimpleWorldSphericalLimits = Spherical;
 		Node.SimpleWorldCapsuleLimits = Capsule;
 		Node.SimpleWorldTaperedCapsuleLimits = TaperedCapsule;
 		Node.SimpleWorldBoxLimits = Box;
+		Node.SimpleWorldConvexLimits = Convex;
 		Node.bUseSimpleWorldCollision = true;
 	}
 
@@ -339,6 +341,14 @@ struct FKawaiiPhysicsTestAccessor
 			Limit.UpdateRuntimeCache();
 		}
 		Node.AdjustByBoxCollision(Bone, Limits);
+	}
+	void CallConvexCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FKawaiiPhysicsConvexLimit>& Limits)
+	{
+		for (FKawaiiPhysicsConvexLimit& Limit : Limits)
+		{
+			Limit.UpdateRuntimeCache();
+		}
+		Node.AdjustByConvexCollision(Bone, Limits);
 	}
 	void CallPlanarCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FPlanarLimit>& Limits)
 	{
@@ -601,6 +611,7 @@ private:
 				Node.AdjustByCapsuleCollision(Bone, Node.SimpleWorldCapsuleLimits);
 				Node.AdjustByTaperedCapsuleCollision(Bone, Node.SimpleWorldTaperedCapsuleLimits);
 				Node.AdjustByBoxCollision(Bone, Node.SimpleWorldBoxLimits);
+				Node.AdjustByConvexCollision(Bone, Node.SimpleWorldConvexLimits);
 			}
 		}
 

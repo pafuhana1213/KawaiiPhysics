@@ -121,6 +121,8 @@ namespace
 		const FVector& Scale3D,
 		const FKawaiiPhysicsSimpleWorldCollisionDesc& Desc,
 		int32 MaxPhysicsAssetBodies,
+		int32 MaxConvexPlanes,
+		bool bBuildConvexDebugGeometry,
 		FKawaiiPhysicsSharedCollisionData& OutLocalLimits,
 		TArray<KawaiiPhysicsSimpleWorldCollision::FKawaiiPhysicsSimpleWorldBodyBinding>& OutBodyBindings);
 
@@ -129,6 +131,8 @@ namespace
 		const FVector& Scale3D,
 		const FKawaiiPhysicsSimpleWorldCollisionDesc& Desc,
 		int32 MaxPhysicsAssetBodies,
+		int32 MaxConvexPlanes,
+		bool bBuildConvexDebugGeometry,
 		FKawaiiPhysicsSharedCollisionData& OutLocalLimits,
 		TArray<KawaiiPhysicsSimpleWorldCollision::FKawaiiPhysicsSimpleWorldBodyBinding>& OutBodyBindings)
 	{
@@ -147,6 +151,8 @@ namespace
 			SkinnedAsset->GetRefSkeleton(),
 			Scale3D,
 			Desc.ConvexFallbackShape,
+			MaxConvexPlanes,
+			bBuildConvexDebugGeometry,
 			MaxPhysicsAssetBodies,
 			OutLocalLimits,
 			OutBodyBindings);
@@ -162,6 +168,8 @@ namespace
 		const FVector& Scale3D,
 		const FKawaiiPhysicsSimpleWorldCollisionDesc& Desc,
 		int32 MaxPhysicsAssetBodies,
+		int32 MaxConvexPlanes,
+		bool bBuildConvexDebugGeometry,
 		FKawaiiPhysicsSharedCollisionData& OutLocalLimits,
 		TArray<KawaiiPhysicsSimpleWorldCollision::FKawaiiPhysicsSimpleWorldBodyBinding>& OutBodyBindings)
 	{
@@ -186,7 +194,14 @@ namespace
 			{
 				const EKawaiiPhysicsSimpleWorldSkeletalBuildResult BuildResult =
 					BuildSkeletalLocalLimitsForSimpleWorldComponent(
-						*SkelComp, Scale3D, Desc, MaxPhysicsAssetBodies, OutLocalLimits, OutBodyBindings);
+						*SkelComp,
+						Scale3D,
+						Desc,
+						MaxPhysicsAssetBodies,
+						MaxConvexPlanes,
+						bBuildConvexDebugGeometry,
+						OutLocalLimits,
+						OutBodyBindings);
 				if (BuildResult == EKawaiiPhysicsSimpleWorldSkeletalBuildResult::Built)
 				{
 					return true;
@@ -214,6 +229,8 @@ namespace
 				BodySetup->AggGeom,
 				Scale3D,
 				Desc.ConvexFallbackShape,
+				MaxConvexPlanes,
+				bBuildConvexDebugGeometry,
 				OutLocalLimits);
 		}
 
@@ -404,6 +421,8 @@ namespace
 		int32 NumTaperedCapsules,
 		int32 BoxOffset,
 		int32 NumBoxes,
+		int32 ConvexOffset,
+		int32 NumConvexes,
 		const FTransform& Transform,
 		const FColor& ShapeColor)
 	{
@@ -441,6 +460,39 @@ namespace
 			const FQuat RotationWS = Transform.TransformRotation(Limit.Rotation);
 			DrawDebugBox(&World, LocationWS, Limit.Extent, RotationWS, ShapeColor, false, -1.0f, DepthPriority,
 				ShapeThickness);
+		}
+		for (int32 LimitIndex = 0; LimitIndex < NumConvexes; ++LimitIndex)
+		{
+			const FKawaiiPhysicsConvexLimit& Limit = LocalLimits.ConvexLimits[ConvexOffset + LimitIndex];
+#if !UE_BUILD_SHIPPING
+			if (!Limit.LocalVertices.IsEmpty() && !Limit.LocalEdges.IsEmpty())
+			{
+				const FTransform LimitTransform(Limit.Rotation, Limit.Location);
+				for (int32 EdgeIndex = 0; EdgeIndex + 1 < Limit.LocalEdges.Num(); EdgeIndex += 2)
+				{
+					const int32 IndexA = Limit.LocalEdges[EdgeIndex];
+					const int32 IndexB = Limit.LocalEdges[EdgeIndex + 1];
+					if (!Limit.LocalVertices.IsValidIndex(IndexA) || !Limit.LocalVertices.IsValidIndex(IndexB))
+					{
+						continue;
+					}
+
+					const FVector LocationAWS =
+						Transform.TransformPosition(LimitTransform.TransformPosition(Limit.LocalVertices[IndexA]));
+					const FVector LocationBWS =
+						Transform.TransformPosition(LimitTransform.TransformPosition(Limit.LocalVertices[IndexB]));
+					DrawDebugLine(&World, LocationAWS, LocationBWS, ShapeColor, false, -1.0f, DepthPriority,
+						ShapeThickness);
+				}
+				continue;
+			}
+#endif
+
+			// DebugDraw CVar を後から有効にした場合、次回収集まで頂点/エッジが空のため LocalBounds で近似表示する。
+			const FVector LocationWS = Transform.TransformPosition(Limit.Location);
+			const FQuat RotationWS = Transform.TransformRotation(Limit.Rotation);
+			DrawDebugBox(&World, LocationWS, Limit.LocalBounds.GetExtent(), RotationWS, ShapeColor, false, -1.0f,
+				DepthPriority, ShapeThickness);
 		}
 	}
 
@@ -481,6 +533,8 @@ namespace
 					Component.LocalLimits.TaperedCapsuleLimits.Num(),
 					0,
 					Component.LocalLimits.BoxLimits.Num(),
+					0,
+					Component.LocalLimits.ConvexLimits.Num(),
 					Component.LastComponentTM,
 					ShapeColor);
 				continue;
@@ -490,6 +544,7 @@ namespace
 			int32 CapsuleOffset = 0;
 			int32 TaperedCapsuleOffset = 0;
 			int32 BoxOffset = 0;
+			int32 ConvexOffset = 0;
 			const int32 NumBodies = FMath::Min(Component.BodyBindings.Num(), Component.LastBodyWorldTMs.Num());
 			for (int32 BodyIndex = 0; BodyIndex < NumBodies; ++BodyIndex)
 			{
@@ -506,6 +561,8 @@ namespace
 					Binding.NumTaperedCapsuleLimits,
 					BoxOffset,
 					Binding.NumBoxLimits,
+					ConvexOffset,
+					Binding.NumConvexLimits,
 					Component.LastBodyWorldTMs[BodyIndex],
 					ShapeColor);
 
@@ -513,6 +570,7 @@ namespace
 				CapsuleOffset += Binding.NumCapsuleLimits;
 				TaperedCapsuleOffset += Binding.NumTaperedCapsuleLimits;
 				BoxOffset += Binding.NumBoxLimits;
+				ConvexOffset += Binding.NumConvexLimits;
 			}
 		}
 
@@ -536,6 +594,7 @@ extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionEnable;
 extern TAutoConsoleVariable<float> CVarSimpleWorldCollisionGatherIntervalScale;
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionMaxComponents;
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionMaxPhysicsAssetBodies;
+extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionMaxConvexPlanes;
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionRegatherOnScaleChange;
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionCleanupMaxAge;
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionDebugDraw;
@@ -614,6 +673,7 @@ void FKawaiiPhysicsSharedCollisionSourceSlot::AppendTo(FKawaiiPhysicsSharedColli
 	OutData.TaperedCapsuleLimits.Append(Buffer.TaperedCapsuleLimits);
 	OutData.BoxLimits.Append(Buffer.BoxLimits);
 	OutData.PlanarLimits.Append(Buffer.PlanarLimits);
+	OutData.ConvexLimits.Append(Buffer.ConvexLimits);
 }
 
 // -------------------------------------------------------------------
@@ -1113,14 +1173,21 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 	const int32 EffectiveMaxPhysicsAssetBodies = MaxPhysicsAssetBodiesCVarValue >= 0
 		? MaxPhysicsAssetBodiesCVarValue
 		: KawaiiSettings->SimpleWorldCollisionMaxPhysicsAssetBodies;
+	const int32 MaxConvexPlanesCVarValue = CVarSimpleWorldCollisionMaxConvexPlanes.GetValueOnGameThread();
+	const int32 EffectiveMaxConvexPlanes = MaxConvexPlanesCVarValue >= 0
+		? MaxConvexPlanesCVarValue
+		: KawaiiSettings->SimpleWorldCollisionMaxConvexPlanes;
 	const int32 RegatherOnScaleChangeCVarValue = CVarSimpleWorldCollisionRegatherOnScaleChange.GetValueOnGameThread();
 	const bool bRegatherOnScaleChange = RegatherOnScaleChangeCVarValue >= 0
 		? RegatherOnScaleChangeCVarValue != 0
 		: KawaiiSettings->bSimpleWorldCollisionRegatherOnScaleChange;
 	const bool bUseMovementGround = CVarSimpleWorldCollisionUseMovementGround.GetValueOnGameThread() != 0;
-#if ENABLE_DRAW_DEBUG
 	const bool bDebugDraw = CVarSimpleWorldCollisionDebugDraw.GetValueOnGameThread() != 0;
+#if ENABLE_DRAW_DEBUG
+	const bool bDrawSimpleWorldDebug = bDebugDraw;
 #endif
+	// Convex のデバッグ頂点/エッジは DebugDraw 有効時だけ構築し、通常時の転送用コピーを避ける。
+	const bool bBuildConvexDebugGeometry = bDebugDraw;
 
 	int32 TotalGatheredComponents = 0;
 	int32 TotalSkeletalBodies = 0;
@@ -1297,6 +1364,8 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 						Scale3D,
 						Desc,
 						EffectiveMaxPhysicsAssetBodies,
+						EffectiveMaxConvexPlanes,
+						bBuildConvexDebugGeometry,
 						NewComponent.LocalLimits,
 						NewComponent.BodyBindings))
 				{
@@ -1540,7 +1609,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 		}
 
 #if ENABLE_DRAW_DEBUG
-		if (bDebugDraw)
+		if (bDrawSimpleWorldDebug)
 		{
 			DrawSimpleWorldCollisionDebug(*World, Center, Radius, *Entry);
 		}

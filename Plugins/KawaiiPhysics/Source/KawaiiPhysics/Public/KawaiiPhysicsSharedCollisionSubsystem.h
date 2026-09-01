@@ -116,7 +116,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionDesc
 	float GatherIntervalSec = 0.2f;
 	float GatherRadiusOverride = 0.0f;
 	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
-	EKawaiiPhysicsSimpleWorldConvexFallbackShape ConvexFallbackShape = EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox;
+	EKawaiiPhysicsSimpleWorldConvexFallbackShape ConvexFallbackShape = EKawaiiPhysicsSimpleWorldConvexFallbackShape::ConvexHull;
 	EKawaiiPhysicsSimpleWorldSkeletalMeshCollision SkeletalMeshCollision = EKawaiiPhysicsSimpleWorldSkeletalMeshCollision::None;
 	bool bGroundCollision = true;
 
@@ -131,8 +131,8 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionDesc
 	 * - GatherRadiusOverride is the max only when every Desc specifies an override. If any Desc is automatic, it stays 0 and Tick uses the automatic radius.
 	 * - ObjectTypes は union。空配列は WorldStatic + WorldDynamic の意味なので、空 Desc がある場合はそれらを明示的に union へ含める。
 	 * - ObjectTypes are unioned. Empty means WorldStatic + WorldDynamic, so those are explicitly included when any Desc is empty.
-	 * - ConvexFallbackShape は BoundingBox > BoundingSphere > None の優先。
-	 * - ConvexFallbackShape priority is BoundingBox > BoundingSphere > None.
+	 * - ConvexFallbackShape は宣言順（高精度が先）の優先。
+	 * - ConvexFallbackShape priority follows declaration order (more accurate first).
 	 * - SkeletalMeshCollision は PhysicsAsset > BoundingBox > None の優先。
 	 * - SkeletalMeshCollision priority is PhysicsAsset > BoundingBox > None.
 	 * - bGroundCollision は OR。
