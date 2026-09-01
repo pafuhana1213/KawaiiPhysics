@@ -124,6 +124,10 @@ TAutoConsoleVariable<int32> CVarSimpleWorldCollisionMaxPhysicsAssetBodies(
 	TEXT("a.AnimNode.KawaiiPhysics.SimpleWorldCollision.MaxPhysicsAssetBodies"), -1,
 	TEXT("-1でDeveloperSettingsの値を使用。0でPhysicsAssetモードのSkeletalMeshを収集しない。1以上でSkelComp単位最大body数を上書き / "
 		"-1 uses the DeveloperSettings value; 0 does not gather SkeletalMeshes in PhysicsAsset mode; >=1 overrides the max PhysicsAsset bodies per SkelComp."));
+TAutoConsoleVariable<int32> CVarSimpleWorldCollisionMaxConvexPlanes(
+	TEXT("a.AnimNode.KawaiiPhysics.SimpleWorldCollision.MaxConvexPlanes"), -1,
+	TEXT("-1でDeveloperSettingsの値を使用。0以上でConvex Hull 1つあたりの最大平面数を上書き / "
+		"-1 uses the DeveloperSettings value; >=0 overrides the max planes per convex hull."));
 TAutoConsoleVariable<int32> CVarSimpleWorldCollisionRegatherOnScaleChange(
 	TEXT("a.AnimNode.KawaiiPhysics.SimpleWorldCollision.RegatherOnScaleChange"), -1,
 	TEXT("-1でDeveloperSettingsの値を使用。0で無効、1でスケール変化時に再収集 / "
@@ -234,6 +238,7 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 	SimpleWorldCapsuleLimits.Reset();
 	SimpleWorldTaperedCapsuleLimits.Reset();
 	SimpleWorldBoxLimits.Reset();
+	SimpleWorldConvexLimits.Reset();
 	bSimpleWorldRadiusWarningLogged = false;
 
 	ApplyLimitsDataAsset(RequiredBones);
@@ -820,6 +825,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		SimpleWorldCapsuleLimits.Reset();
 		SimpleWorldTaperedCapsuleLimits.Reset();
 		SimpleWorldBoxLimits.Reset();
+		SimpleWorldConvexLimits.Reset();
 	}
 
 	// 入力規模カウンタ & メモリの更新（毎フレーム。負荷=N×L等の相関とダミー膨張の可視化用）
@@ -834,7 +840,8 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	               SharedBoxLimits.Num() + SharedPlanarLimits.Num());
 	SET_DWORD_STAT(STAT_KawaiiPhysics_NumSimpleWorldColliders,
 	               SimpleWorldSphericalLimits.Num() + SimpleWorldCapsuleLimits.Num() +
-	               SimpleWorldTaperedCapsuleLimits.Num() + SimpleWorldBoxLimits.Num());
+	               SimpleWorldTaperedCapsuleLimits.Num() + SimpleWorldBoxLimits.Num() +
+	               SimpleWorldConvexLimits.Num());
 	SET_DWORD_STAT(STAT_KawaiiPhysics_NumMergedBoneConstraints, MergedBoneConstraints.Num());
 	SET_MEMORY_STAT(STAT_KawaiiPhysics_ModifyBonesMemory,
 	                ModifyBones.GetAllocatedSize() + MergedBoneConstraints.GetAllocatedSize());

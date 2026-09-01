@@ -971,6 +971,7 @@ void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
 			AdjustByCapsuleCollision(Bone, SimpleWorldCapsuleLimits);
 			AdjustByTaperedCapsuleCollision(Bone, SimpleWorldTaperedCapsuleLimits);
 			AdjustByBoxCollision(Bone, SimpleWorldBoxLimits);
+			AdjustByConvexCollision(Bone, SimpleWorldConvexLimits);
 		}
 
 		if (bAllowWorldCollision)

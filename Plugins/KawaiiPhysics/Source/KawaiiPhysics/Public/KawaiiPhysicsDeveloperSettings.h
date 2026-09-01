@@ -104,6 +104,14 @@ public:
 	int32 SimpleWorldCollisionMaxPhysicsAssetBodies = 32;
 
 	/**
+	* Simple World Collision の Convex Hull 1つから採用する最大平面数。超過した Hull は Bounding Box へフォールバックする。
+	* Maximum number of planes accepted from one Simple World Collision convex hull. Hulls over this limit fall back to Bounding Box.
+	*/
+	UPROPERTY(EditAnywhere, config, Category = "Simple World Collision",
+		meta = (DisplayName = "Max Convex Planes", ClampMin = "4", UIMin = "4"))
+	int32 SimpleWorldCollisionMaxConvexPlanes = 64;
+
+	/**
 	* 収集済みコンポーネントのスケールが変化したら次 Tick で再収集する（既定 OFF。ISM はインスタンススケール、PhysicsAsset モードは bone-local に焼き込んだスケールを対象）。
 	* Re-gather a gathered component on the next tick when its scale changes (default OFF; instance scale for ISM,
 	* the baked bone-local scale for PhysicsAsset mode).

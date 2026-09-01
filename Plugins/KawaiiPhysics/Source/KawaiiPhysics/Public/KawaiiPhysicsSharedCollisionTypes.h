@@ -21,6 +21,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedCollisionData
 	TArray<FTaperedCapsuleLimit> TaperedCapsuleLimits;
 	TArray<FBoxLimit> BoxLimits;
 	TArray<FPlanarLimit> PlanarLimits;
+	TArray<FKawaiiPhysicsConvexLimit> ConvexLimits;
 
 	void Reset()
 	{
@@ -29,6 +30,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedCollisionData
 		TaperedCapsuleLimits.Reset();
 		BoxLimits.Reset();
 		PlanarLimits.Reset();
+		ConvexLimits.Reset();
 	}
 
 	bool IsEmpty() const
@@ -37,6 +39,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedCollisionData
 			&& CapsuleLimits.Num() == 0
 			&& TaperedCapsuleLimits.Num() == 0
 			&& BoxLimits.Num() == 0
-			&& PlanarLimits.Num() == 0;
+			&& PlanarLimits.Num() == 0
+			&& ConvexLimits.Num() == 0;
 	}
 };
