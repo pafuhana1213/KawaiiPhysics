@@ -25,6 +25,69 @@ namespace
 {
 	constexpr float GSimpleWorldTol = 0.001f;
 	constexpr float GSimpleWorldPushOutTol = 0.01f; // 0.1mm スケール（他コリジョンテストと同じ粒度）
+
+	TArray<FPlane> MakeUnitCubePlanes()
+	{
+		TArray<FPlane> Planes;
+		Planes.Reserve(6);
+		Planes.Add(FPlane(1.0f, 0.0f, 0.0f, 1.0f));
+		Planes.Add(FPlane(-1.0f, 0.0f, 0.0f, 1.0f));
+		Planes.Add(FPlane(0.0f, 1.0f, 0.0f, 1.0f));
+		Planes.Add(FPlane(0.0f, -1.0f, 0.0f, 1.0f));
+		Planes.Add(FPlane(0.0f, 0.0f, 1.0f, 1.0f));
+		Planes.Add(FPlane(0.0f, 0.0f, -1.0f, 1.0f));
+		return Planes;
+	}
+
+	TArray<FVector> MakeUnitCubeVertices()
+	{
+		TArray<FVector> Vertices;
+		Vertices.Reserve(8);
+		Vertices.Add(FVector(-1.0f, -1.0f, -1.0f));
+		Vertices.Add(FVector(1.0f, -1.0f, -1.0f));
+		Vertices.Add(FVector(1.0f, 1.0f, -1.0f));
+		Vertices.Add(FVector(-1.0f, 1.0f, -1.0f));
+		Vertices.Add(FVector(-1.0f, -1.0f, 1.0f));
+		Vertices.Add(FVector(1.0f, -1.0f, 1.0f));
+		Vertices.Add(FVector(1.0f, 1.0f, 1.0f));
+		Vertices.Add(FVector(-1.0f, 1.0f, 1.0f));
+		return Vertices;
+	}
+
+	void AddQuadTriangles(TArray<int32>& Indices, int32 Index0, int32 Index1, int32 Index2, int32 Index3)
+	{
+		Indices.Add(Index0);
+		Indices.Add(Index1);
+		Indices.Add(Index2);
+		Indices.Add(Index0);
+		Indices.Add(Index2);
+		Indices.Add(Index3);
+	}
+
+	TArray<int32> MakeUnitCubeTriangleIndices()
+	{
+		TArray<int32> Indices;
+		Indices.Reserve(36);
+		AddQuadTriangles(Indices, 0, 3, 2, 1);
+		AddQuadTriangles(Indices, 4, 5, 6, 7);
+		AddQuadTriangles(Indices, 0, 4, 7, 3);
+		AddQuadTriangles(Indices, 1, 2, 6, 5);
+		AddQuadTriangles(Indices, 0, 1, 5, 4);
+		AddQuadTriangles(Indices, 3, 7, 6, 2);
+		return Indices;
+	}
+
+	const FPlane* FindPlaneWithNormal(TArrayView<const FPlane> Planes, const FVector& ExpectedNormal)
+	{
+		for (const FPlane& Plane : Planes)
+		{
+			if (FVector(Plane.X, Plane.Y, Plane.Z).Equals(ExpectedNormal, GSimpleWorldTol))
+			{
+				return &Plane;
+			}
+		}
+		return nullptr;
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -169,7 +232,7 @@ bool FKawaiiPhysicsSimpleWorldConvertAggGeomTest::RunTest(const FString& Paramet
 
 		FKawaiiPhysicsSharedCollisionData OutLimits;
 		KawaiiPhysicsSimpleWorldCollision::ConvertAggGeomToLocalLimits(
-			AggGeom, FVector::OneVector, EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox, OutLimits);
+			AggGeom, FVector::OneVector, EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox, 64, false, OutLimits);
 
 		TestTrue(TEXT("Sphere elem maps to exactly one spherical limit"), OutLimits.SphericalLimits.Num() == 1);
 		TestTrue(TEXT("Sphyl elem maps to exactly one capsule limit"), OutLimits.CapsuleLimits.Num() == 1);
@@ -254,7 +317,7 @@ bool FKawaiiPhysicsSimpleWorldConvertAggGeomTest::RunTest(const FString& Paramet
 
 		FKawaiiPhysicsSharedCollisionData OutLimits;
 		KawaiiPhysicsSimpleWorldCollision::ConvertAggGeomToLocalLimits(
-			AggGeom, Scale, EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox, OutLimits);
+			AggGeom, Scale, EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox, 64, false, OutLimits);
 
 		const FSphericalLimit& SphereLimit = OutLimits.SphericalLimits[0];
 		TestTrue(TEXT("Non-uniform scale: sphere location matches GetFinalScaled"),
@@ -309,7 +372,7 @@ bool FKawaiiPhysicsSimpleWorldConvertAggGeomTest::RunTest(const FString& Paramet
 			AggGeom.ConvexElems.Add(ConvexElem);
 			FKawaiiPhysicsSharedCollisionData OutLimits;
 			KawaiiPhysicsSimpleWorldCollision::ConvertAggGeomToLocalLimits(
-				AggGeom, Scale, EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox, OutLimits);
+				AggGeom, Scale, EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox, 64, false, OutLimits);
 
 			TestTrue(TEXT("Convex BoundingBox: produces exactly one box limit and no sphere limit"),
 			         OutLimits.BoxLimits.Num() == 1 && OutLimits.SphericalLimits.Num() == 0);
@@ -327,7 +390,7 @@ bool FKawaiiPhysicsSimpleWorldConvertAggGeomTest::RunTest(const FString& Paramet
 			AggGeom.ConvexElems.Add(ConvexElem);
 			FKawaiiPhysicsSharedCollisionData OutLimits;
 			KawaiiPhysicsSimpleWorldCollision::ConvertAggGeomToLocalLimits(
-				AggGeom, Scale, EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingSphere, OutLimits);
+				AggGeom, Scale, EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingSphere, 64, false, OutLimits);
 
 			TestTrue(TEXT("Convex BoundingSphere: produces exactly one sphere limit and no box limit"),
 			         OutLimits.SphericalLimits.Num() == 1 && OutLimits.BoxLimits.Num() == 0);
@@ -345,10 +408,68 @@ bool FKawaiiPhysicsSimpleWorldConvertAggGeomTest::RunTest(const FString& Paramet
 			AggGeom.ConvexElems.Add(ConvexElem);
 			FKawaiiPhysicsSharedCollisionData OutLimits;
 			KawaiiPhysicsSimpleWorldCollision::ConvertAggGeomToLocalLimits(
-				AggGeom, Scale, EKawaiiPhysicsSimpleWorldConvexFallbackShape::None, OutLimits);
+				AggGeom, Scale, EKawaiiPhysicsSimpleWorldConvexFallbackShape::None, 64, false, OutLimits);
 
 			TestTrue(TEXT("Convex Ignore: produces no limits"), OutLimits.IsEmpty());
 		}
+	}
+
+	// --- ConvexHull 指定でも未クックで GetPlanes が空なら BoundingBox へフォールバックする ---
+	{
+		const FVector Scale(2.0f, 1.0f, 0.5f);
+
+		FKConvexElem ConvexElem;
+		ConvexElem.SetTransform(FTransform(FQuat::Identity, FVector(1.0f, 2.0f, 3.0f)));
+		ConvexElem.ElemBox = FBox(FVector(-4.0f, -2.0f, -1.0f), FVector(4.0f, 2.0f, 1.0f));
+
+		FKAggregateGeom HullAggGeom;
+		HullAggGeom.ConvexElems.Add(ConvexElem);
+		FKawaiiPhysicsSharedCollisionData HullLimits;
+		KawaiiPhysicsSimpleWorldCollision::ConvertAggGeomToLocalLimits(
+			HullAggGeom, Scale, EKawaiiPhysicsSimpleWorldConvexFallbackShape::ConvexHull, 64, false, HullLimits);
+
+		FKAggregateGeom BoxAggGeom;
+		BoxAggGeom.ConvexElems.Add(ConvexElem);
+		FKawaiiPhysicsSharedCollisionData BoxLimits;
+		KawaiiPhysicsSimpleWorldCollision::ConvertAggGeomToLocalLimits(
+			BoxAggGeom, Scale, EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox, 64, false, BoxLimits);
+
+		TestTrue(TEXT("Uncooked ConvexHull falls back to exactly one box"),
+		         HullLimits.ConvexLimits.Num() == 0 && HullLimits.BoxLimits.Num() == 1);
+		TestTrue(TEXT("Uncooked ConvexHull fallback matches BoundingBox output"),
+		         HullLimits.BoxLimits.Num() == 1 &&
+		         BoxLimits.BoxLimits.Num() == 1 &&
+		         HullLimits.BoxLimits[0].Location.Equals(BoxLimits.BoxLimits[0].Location, GSimpleWorldTol) &&
+		         HullLimits.BoxLimits[0].Rotation.Equals(BoxLimits.BoxLimits[0].Rotation, GSimpleWorldTol) &&
+		         HullLimits.BoxLimits[0].Extent.Equals(BoxLimits.BoxLimits[0].Extent, GSimpleWorldTol));
+	}
+
+	// --- ConvexHull混在: 平面ありElem相当はConvex、未クックElemはBoundingBoxへフォールバックする ---
+	{
+		FKawaiiPhysicsSharedCollisionData OutLimits;
+		const TArray<FPlane> UnitPlanes = MakeUnitCubePlanes();
+		const TArray<FVector> UnitVertices = MakeUnitCubeVertices();
+		const TArray<int32> UnitIndices = MakeUnitCubeTriangleIndices();
+		TestTrue(TEXT("Mixed ConvexHull: cooked-equivalent convex is appended"),
+		         KawaiiPhysicsSimpleWorldCollision::AppendConvexElemLocalLimit(
+			         MakeArrayView(UnitPlanes),
+			         MakeArrayView(UnitVertices),
+			         MakeArrayView(UnitIndices),
+			         FTransform::Identity,
+			         FVector::OneVector,
+			         64,
+			         false,
+			         OutLimits));
+
+		FKConvexElem UncookedConvexElem;
+		UncookedConvexElem.ElemBox = FBox(FVector(-2.0f, -3.0f, -4.0f), FVector(2.0f, 3.0f, 4.0f));
+		FKAggregateGeom AggGeom;
+		AggGeom.ConvexElems.Add(UncookedConvexElem);
+		KawaiiPhysicsSimpleWorldCollision::ConvertAggGeomToLocalLimits(
+			AggGeom, FVector::OneVector, EKawaiiPhysicsSimpleWorldConvexFallbackShape::ConvexHull, 64, false, OutLimits);
+
+		TestTrue(TEXT("Mixed ConvexHull produces one convex and one fallback box"),
+		         OutLimits.ConvexLimits.Num() == 1 && OutLimits.BoxLimits.Num() == 1);
 	}
 
 	// --- Shape単位のQuery無効設定はSimpleWorldのOverlap対象から除外する ---
@@ -375,7 +496,7 @@ bool FKawaiiPhysicsSimpleWorldConvertAggGeomTest::RunTest(const FString& Paramet
 
 		FKawaiiPhysicsSharedCollisionData OutLimits;
 		KawaiiPhysicsSimpleWorldCollision::ConvertAggGeomToLocalLimits(
-			AggGeom, FVector::OneVector, EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox, OutLimits);
+			AggGeom, FVector::OneVector, EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox, 64, false, OutLimits);
 
 		TestTrue(TEXT("NoCollision sphere and PhysicsOnly box do not produce limits"),
 		         OutLimits.SphericalLimits.Num() == 1 && OutLimits.BoxLimits.Num() == 0);
@@ -383,6 +504,211 @@ bool FKawaiiPhysicsSimpleWorldConvertAggGeomTest::RunTest(const FString& Paramet
 		         OutLimits.SphericalLimits.Num() == 1 &&
 		         OutLimits.SphericalLimits[0].Location.Equals(FVector(10.0f, 0.0f, 0.0f), GSimpleWorldTol) &&
 		         FMath::IsNearlyEqual(OutLimits.SphericalLimits[0].Radius, 7.0f, GSimpleWorldTol));
+	}
+
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+//  AppendConvexElemLocalLimit
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldAppendConvexElemLocalLimitTest,
+                                 "KawaiiPhysics.SimpleWorld.AppendConvexElemLocalLimit",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldAppendConvexElemLocalLimitTest::RunTest(const FString& Parameters)
+{
+	const TArray<FPlane> UnitPlanes = MakeUnitCubePlanes();
+	const TArray<FVector> UnitVertices = MakeUnitCubeVertices();
+	const TArray<int32> UnitIndices = MakeUnitCubeTriangleIndices();
+
+	{
+		FKawaiiPhysicsSharedCollisionData OutLimits;
+		const bool bAdded = KawaiiPhysicsSimpleWorldCollision::AppendConvexElemLocalLimit(
+			MakeArrayView(UnitPlanes),
+			MakeArrayView(UnitVertices),
+			MakeArrayView(UnitIndices),
+			FTransform::Identity,
+			FVector::OneVector,
+			64,
+			true,
+			OutLimits);
+
+		TestTrue(TEXT("Unit cube convex is accepted"), bAdded);
+		TestTrue(TEXT("Unit cube produces one convex limit"), OutLimits.ConvexLimits.Num() == 1);
+		if (OutLimits.ConvexLimits.Num() == 1)
+		{
+			const FKawaiiPhysicsConvexLimit& Convex = OutLimits.ConvexLimits[0];
+			TestTrue(TEXT("Unit cube has six planes"), Convex.LocalPlanes.Num() == 6);
+			TestTrue(TEXT("Unit cube location is AABB center"), Convex.Location.Equals(FVector::ZeroVector, GSimpleWorldTol));
+			TestTrue(TEXT("Unit cube rotation is identity"), Convex.Rotation.Equals(FQuat::Identity, GSimpleWorldTol));
+			TestTrue(TEXT("Unit cube limit is enabled and sourced from SimpleWorld"),
+			         Convex.bEnable && Convex.SourceType == ECollisionSourceType::SimpleWorld);
+			TestTrue(TEXT("Unit cube local bounds are centered"),
+			         Convex.LocalBounds.Min.Equals(FVector(-1.0f, -1.0f, -1.0f), GSimpleWorldTol) &&
+			         Convex.LocalBounds.Max.Equals(FVector(1.0f, 1.0f, 1.0f), GSimpleWorldTol));
+#if !UE_BUILD_SHIPPING
+			TestTrue(TEXT("Unit cube debug vertices are stored"), Convex.LocalVertices.Num() == 8);
+			TestTrue(TEXT("Unit cube debug edges are the 12 hull edges"), Convex.LocalEdges.Num() == 24);
+#endif
+		}
+	}
+
+	{
+		FKawaiiPhysicsSharedCollisionData OutLimits;
+		const FVector Scale(2.0f, 1.0f, 0.5f);
+		const bool bAdded = KawaiiPhysicsSimpleWorldCollision::AppendConvexElemLocalLimit(
+			MakeArrayView(UnitPlanes),
+			MakeArrayView(UnitVertices),
+			MakeArrayView(UnitIndices),
+			FTransform::Identity,
+			Scale,
+			64,
+			false,
+			OutLimits);
+
+		TestTrue(TEXT("Non-uniform scaled cube is accepted"), bAdded);
+		if (OutLimits.ConvexLimits.Num() == 1)
+		{
+			const FKawaiiPhysicsConvexLimit& Convex = OutLimits.ConvexLimits[0];
+			const FPlane* PlaneX = FindPlaneWithNormal(MakeArrayView(Convex.LocalPlanes), FVector(1.0f, 0.0f, 0.0f));
+			const FPlane* PlaneY = FindPlaneWithNormal(MakeArrayView(Convex.LocalPlanes), FVector(0.0f, 1.0f, 0.0f));
+			const FPlane* PlaneZ = FindPlaneWithNormal(MakeArrayView(Convex.LocalPlanes), FVector(0.0f, 0.0f, 1.0f));
+			TestTrue(TEXT("Non-uniform scale: +X plane distance"), PlaneX && FMath::IsNearlyEqual(PlaneX->W, 2.0f, GSimpleWorldTol));
+			TestTrue(TEXT("Non-uniform scale: +Y plane distance"), PlaneY && FMath::IsNearlyEqual(PlaneY->W, 1.0f, GSimpleWorldTol));
+			TestTrue(TEXT("Non-uniform scale: +Z plane distance"), PlaneZ && FMath::IsNearlyEqual(PlaneZ->W, 0.5f, GSimpleWorldTol));
+		}
+	}
+
+	{
+		FKawaiiPhysicsSharedCollisionData OutLimits;
+		const FVector Scale(2.0f, 1.0f, 0.5f);
+		const FVector BodyNormal = FVector(1.0f, 0.0f, 1.0f).GetSafeNormal();
+		const FVector BodyPoint(1.0f, 0.0f, 1.0f);
+		TArray<FPlane> ObliquePlanes;
+		ObliquePlanes.Add(FPlane(
+			BodyNormal.X,
+			BodyNormal.Y,
+			BodyNormal.Z,
+			FVector::DotProduct(BodyNormal, BodyPoint)));
+
+		const bool bAdded = KawaiiPhysicsSimpleWorldCollision::AppendConvexElemLocalLimit(
+			MakeArrayView(ObliquePlanes),
+			MakeArrayView(UnitVertices),
+			MakeArrayView(UnitIndices),
+			FTransform::Identity,
+			Scale,
+			64,
+			false,
+			OutLimits);
+
+		TestTrue(TEXT("Non-uniform oblique plane is accepted"), bAdded);
+		if (OutLimits.ConvexLimits.Num() == 1 && OutLimits.ConvexLimits[0].LocalPlanes.Num() == 1)
+		{
+			const FPlane& Plane = OutLimits.ConvexLimits[0].LocalPlanes[0];
+			const FVector ExpectedNormal = FVector(
+				BodyNormal.X / Scale.X,
+				BodyNormal.Y / Scale.Y,
+				BodyNormal.Z / Scale.Z).GetSafeNormal();
+			const FVector ExpectedScaledPoint = BodyPoint * Scale;
+			const float ExpectedW = FVector::DotProduct(ExpectedNormal, ExpectedScaledPoint);
+			TestTrue(TEXT("Non-uniform oblique plane normal uses inverse transpose"),
+			         FVector(Plane.X, Plane.Y, Plane.Z).Equals(ExpectedNormal, GSimpleWorldTol));
+			TestTrue(TEXT("Non-uniform oblique plane W uses transformed point"),
+			         FMath::IsNearlyEqual(Plane.W, ExpectedW, GSimpleWorldTol));
+		}
+	}
+
+	{
+		FKawaiiPhysicsSharedCollisionData OutLimits;
+		const bool bAdded = KawaiiPhysicsSimpleWorldCollision::AppendConvexElemLocalLimit(
+			MakeArrayView(UnitPlanes),
+			MakeArrayView(UnitVertices),
+			MakeArrayView(UnitIndices),
+			FTransform::Identity,
+			FVector(-1.0f, 1.0f, 1.0f),
+			64,
+			false,
+			OutLimits);
+
+		TestTrue(TEXT("Negative scaled cube is accepted"), bAdded);
+		if (OutLimits.ConvexLimits.Num() == 1)
+		{
+			for (const FPlane& Plane : OutLimits.ConvexLimits[0].LocalPlanes)
+			{
+				const FVector Normal(Plane.X, Plane.Y, Plane.Z);
+				const float CenterSide = FVector::DotProduct(Normal, FVector::ZeroVector) - Plane.W;
+				const float OutsideSide = FVector::DotProduct(Normal, Normal * (Plane.W + 0.1f)) - Plane.W;
+				TestTrue(TEXT("Negative scale keeps outward positive side"), CenterSide < 0.0f && OutsideSide > 0.0f);
+			}
+		}
+	}
+
+	{
+		FKawaiiPhysicsSharedCollisionData OutLimits;
+		const FTransform ElemTM(FRotator(0.0f, 90.0f, 0.0f).Quaternion(), FVector(10.0f, 0.0f, 0.0f));
+		const bool bAdded = KawaiiPhysicsSimpleWorldCollision::AppendConvexElemLocalLimit(
+			MakeArrayView(UnitPlanes),
+			MakeArrayView(UnitVertices),
+			MakeArrayView(UnitIndices),
+			ElemTM,
+			FVector::OneVector,
+			64,
+			true,
+			OutLimits);
+
+		TestTrue(TEXT("Rotated elem cube is accepted"), bAdded);
+		if (OutLimits.ConvexLimits.Num() == 1)
+		{
+			const FKawaiiPhysicsConvexLimit& Convex = OutLimits.ConvexLimits[0];
+			const FVector ExpectedCenter = ElemTM.TransformPosition(FVector::ZeroVector);
+			TestTrue(TEXT("Rotated elem AABB center uses transformed vertices"),
+			         Convex.Location.Equals(ExpectedCenter, GSimpleWorldTol));
+#if !UE_BUILD_SHIPPING
+			const FVector ExpectedLocalVertex0 = ElemTM.TransformPosition(UnitVertices[0]) - ExpectedCenter;
+			TestTrue(TEXT("Rotated elem debug vertices are ElemTM-baked"),
+			         Convex.LocalVertices.Num() == UnitVertices.Num() &&
+			         Convex.LocalVertices[0].Equals(ExpectedLocalVertex0, GSimpleWorldTol));
+#endif
+		}
+	}
+
+	{
+		FKawaiiPhysicsSharedCollisionData OutLimits;
+		TestFalse(TEXT("Plane count over max is rejected"),
+		          KawaiiPhysicsSimpleWorldCollision::AppendConvexElemLocalLimit(
+			          MakeArrayView(UnitPlanes),
+			          MakeArrayView(UnitVertices),
+			          MakeArrayView(UnitIndices),
+			          FTransform::Identity,
+			          FVector::OneVector,
+			          5,
+			          false,
+			          OutLimits));
+		TestTrue(TEXT("Plane count rejection adds no limit"), OutLimits.ConvexLimits.Num() == 0);
+		TestFalse(TEXT("Zero scale component is rejected"),
+		          KawaiiPhysicsSimpleWorldCollision::AppendConvexElemLocalLimit(
+			          MakeArrayView(UnitPlanes),
+			          MakeArrayView(UnitVertices),
+			          MakeArrayView(UnitIndices),
+			          FTransform::Identity,
+			          FVector(1.0f, 0.0f, 1.0f),
+			          64,
+			          false,
+			          OutLimits));
+
+		TArray<FPlane> BadPlanes = UnitPlanes;
+		BadPlanes[0] = FPlane(0.0f, 0.0f, 0.0f, 0.0f);
+		TestFalse(TEXT("Degenerate plane is rejected"),
+		          KawaiiPhysicsSimpleWorldCollision::AppendConvexElemLocalLimit(
+			          MakeArrayView(BadPlanes),
+			          MakeArrayView(UnitVertices),
+			          MakeArrayView(UnitIndices),
+			          FTransform::Identity,
+			          FVector::OneVector,
+			          64,
+			          false,
+			          OutLimits));
 	}
 
 	return true;
@@ -421,6 +747,18 @@ bool FKawaiiPhysicsSimpleWorldAppendBoundsLocalLimitsTest::RunTest(const FString
 			TestTrue(TEXT("BoundingBox world extent stays unchanged"),
 			         Box.Extent.Equals(FVector(10.0f, 1.0f, 1.0f), GSimpleWorldTol));
 		}
+	}
+
+	{
+		FKawaiiPhysicsSharedCollisionData LocalLimits;
+		KawaiiPhysicsSimpleWorldCollision::AppendBoundsLocalLimits(
+			Bounds, ComponentTM, EKawaiiPhysicsSimpleWorldConvexFallbackShape::ConvexHull, LocalLimits);
+
+		FKawaiiPhysicsSharedCollisionData WorldLimits;
+		KawaiiPhysicsSimpleWorldCollision::AppendLocalLimitsTransformed(LocalLimits, ComponentTM, WorldLimits);
+
+		TestTrue(TEXT("ConvexHull bounds appends BoundingBox because Bounds has no hull data"),
+		         WorldLimits.BoxLimits.Num() == 1 && WorldLimits.ConvexLimits.Num() == 0);
 	}
 
 	{
@@ -485,6 +823,13 @@ bool FKawaiiPhysicsSimpleWorldAppendLocalLimitsTransformedTest::RunTest(const FS
 	Planar.Rotation = FQuat::Identity; // ローカル UpVector = +Z
 	LocalLimits.PlanarLimits.Add(Planar);
 
+	FKawaiiPhysicsConvexLimit Convex;
+	Convex.Location = FVector(3.0f, 0.0f, 0.0f);
+	Convex.Rotation = FQuat::Identity;
+	Convex.LocalPlanes = MakeUnitCubePlanes();
+	Convex.LocalBounds = FBox(FVector(-1.0f, -1.0f, -1.0f), FVector(1.0f, 1.0f, 1.0f));
+	LocalLimits.ConvexLimits.Add(Convex);
+
 	// Append前の既存要素（番兵）が保持されることを確認する
 	FKawaiiPhysicsSharedCollisionData OutWorldLimits;
 	FSphericalLimit Sentinel;
@@ -518,6 +863,19 @@ bool FKawaiiPhysicsSimpleWorldAppendLocalLimitsTransformedTest::RunTest(const FS
 	const FPlane ExpectedPlane(WorldPlanar.Location, WorldPlanar.Rotation.GetUpVector());
 	TestTrue(TEXT("Planar plane is recomputed from the transformed location/rotation"),
 	         WorldPlanar.Plane.Equals(ExpectedPlane, GSimpleWorldTol));
+
+	TestTrue(TEXT("Convex count"), OutWorldLimits.ConvexLimits.Num() == 1);
+	const FVector ExpectedConvexLocation = ComponentTM.TransformPosition(FVector(3.0f, 0.0f, 0.0f));
+	TestTrue(TEXT("Convex location is transformed by ComponentTM"),
+	         OutWorldLimits.ConvexLimits.Num() == 1 &&
+	         OutWorldLimits.ConvexLimits[0].Location.Equals(ExpectedConvexLocation, GSimpleWorldTol));
+	TestTrue(TEXT("Convex rotation is composed with ComponentTM rotation"),
+	         OutWorldLimits.ConvexLimits.Num() == 1 &&
+	         OutWorldLimits.ConvexLimits[0].Rotation.Equals(ComponentRotation, GSimpleWorldTol));
+	TestTrue(TEXT("Convex plane array is copied unchanged"),
+	         OutWorldLimits.ConvexLimits.Num() == 1 &&
+	         OutWorldLimits.ConvexLimits[0].LocalPlanes.Num() == Convex.LocalPlanes.Num() &&
+	         OutWorldLimits.ConvexLimits[0].LocalPlanes[0].Equals(Convex.LocalPlanes[0], GSimpleWorldTol));
 
 	return true;
 }
@@ -561,6 +919,13 @@ bool FKawaiiPhysicsSimpleWorldAppendFadedLocalLimitsTest::RunTest(const FString&
 		Box.Extent = FVector(5.0f, 5.0f, 5.0f);
 		LocalLimits.BoxLimits.Add(Box);
 
+		FKawaiiPhysicsConvexLimit Convex;
+		Convex.Location = FVector::ZeroVector;
+		Convex.Rotation = FQuat::Identity;
+		Convex.LocalPlanes = MakeUnitCubePlanes();
+		Convex.LocalBounds = FBox(FVector(-1.0f, -1.0f, -1.0f), FVector(1.0f, 1.0f, 1.0f));
+		LocalLimits.ConvexLimits.Add(Convex);
+
 		return LocalLimits;
 	};
 
@@ -584,6 +949,8 @@ bool FKawaiiPhysicsSimpleWorldAppendFadedLocalLimitsTest::RunTest(const FString&
 		TestTrue(TEXT("FadeAlpha=0.5 (== threshold): box is kept at full extent"),
 		         OutWorldLimits.BoxLimits.Num() == 1 &&
 		         OutWorldLimits.BoxLimits[0].Extent.Equals(FVector(5.0f, 5.0f, 5.0f), GSimpleWorldTol));
+		TestTrue(TEXT("FadeAlpha=0.5 (== threshold): convex is kept"),
+		         OutWorldLimits.ConvexLimits.Num() == 1);
 
 		// BoxEnableThreshold はデフォルト引数(0.5f)としても公開されている。明示指定と同じ結果になることを確認する。
 		FKawaiiPhysicsSharedCollisionData OutWorldLimitsDefaultArg;
@@ -600,6 +967,7 @@ bool FKawaiiPhysicsSimpleWorldAppendFadedLocalLimitsTest::RunTest(const FString&
 			LocalLimits, 0.4f, Identity, OutWorldLimits, BoxEnableThreshold);
 
 		TestTrue(TEXT("FadeAlpha=0.4 (< threshold): box is withheld"), OutWorldLimits.BoxLimits.Num() == 0);
+		TestTrue(TEXT("FadeAlpha=0.4 (< threshold): convex is withheld"), OutWorldLimits.ConvexLimits.Num() == 0);
 		TestTrue(TEXT("FadeAlpha=0.4: sphere radius is scaled by 0.4"),
 		         FMath::IsNearlyEqual(OutWorldLimits.SphericalLimits[0].Radius, 4.0f, GSimpleWorldTol));
 	}
@@ -621,6 +989,7 @@ bool FKawaiiPhysicsSimpleWorldAppendFadedLocalLimitsTest::RunTest(const FString&
 		TestTrue(TEXT("FadeAlpha=1: box is kept at full extent"),
 		         OutWorldLimits.BoxLimits.Num() == 1 &&
 		         OutWorldLimits.BoxLimits[0].Extent.Equals(FVector(5.0f, 5.0f, 5.0f), GSimpleWorldTol));
+		TestTrue(TEXT("FadeAlpha=1: convex is kept"), OutWorldLimits.ConvexLimits.Num() == 1);
 	}
 
 	return true;
@@ -728,7 +1097,7 @@ bool FKawaiiPhysicsSimpleWorldDescMergeTest::RunTest(const FString& Parameters)
 		         Merged.SkeletalMeshCollision == EKawaiiPhysicsSimpleWorldSkeletalMeshCollision::PhysicsAsset);
 	}
 
-	// enum優先: ConvexFallbackShape は BoundingBox > BoundingSphere > None
+	// enum優先: ConvexFallbackShape は宣言順（高精度が先）
 	{
 		FKawaiiPhysicsSimpleWorldCollisionDesc SphereDesc, BoxDesc;
 		SphereDesc.ConvexFallbackShape = EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingSphere;
@@ -737,6 +1106,16 @@ bool FKawaiiPhysicsSimpleWorldDescMergeTest::RunTest(const FString& Parameters)
 			FKawaiiPhysicsSimpleWorldCollisionDesc::Merge({SphereDesc, BoxDesc});
 		TestTrue(TEXT("ConvexFallbackShape {BoundingSphere,BoundingBox} -> BoundingBox"),
 		         Merged.ConvexFallbackShape == EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox);
+	}
+
+	{
+		FKawaiiPhysicsSimpleWorldCollisionDesc SphereDesc, HullDesc;
+		SphereDesc.ConvexFallbackShape = EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingSphere;
+		HullDesc.ConvexFallbackShape = EKawaiiPhysicsSimpleWorldConvexFallbackShape::ConvexHull;
+		const FKawaiiPhysicsSimpleWorldCollisionDesc Merged =
+			FKawaiiPhysicsSimpleWorldCollisionDesc::Merge({SphereDesc, HullDesc});
+		TestTrue(TEXT("ConvexFallbackShape {BoundingSphere,ConvexHull} -> ConvexHull"),
+		         Merged.ConvexFallbackShape == EKawaiiPhysicsSimpleWorldConvexFallbackShape::ConvexHull);
 	}
 
 	// ground: OR
@@ -852,13 +1231,19 @@ bool FKawaiiPhysicsSimpleWorldEntryLifecycleTest::RunTest(const FString& Paramet
 		FSphericalLimit Sphere;
 		Sphere.Radius = 12.0f;
 		PublishData.SphericalLimits.Add(Sphere);
+		FKawaiiPhysicsConvexLimit Convex;
+		Convex.LocalPlanes = MakeUnitCubePlanes();
+		Convex.LocalBounds = FBox(FVector(-1.0f, -1.0f, -1.0f), FVector(1.0f, 1.0f, 1.0f));
+		PublishData.ConvexLimits.Add(Convex);
 		Entry.Slot.Publish(PublishData);
 
 		FKawaiiPhysicsSharedCollisionData OutData;
 		Entry.Slot.AppendTo(OutData);
 		TestTrue(TEXT("Entry.Slot round-trips published data"),
 		         OutData.SphericalLimits.Num() == 1 &&
-		         FMath::IsNearlyEqual(OutData.SphericalLimits[0].Radius, 12.0f, GSimpleWorldTol));
+		         FMath::IsNearlyEqual(OutData.SphericalLimits[0].Radius, 12.0f, GSimpleWorldTol) &&
+		         OutData.ConvexLimits.Num() == 1 &&
+		         OutData.ConvexLimits[0].LocalPlanes.Num() == Convex.LocalPlanes.Num());
 	}
 
 	return true;
@@ -1050,16 +1435,18 @@ bool FKawaiiPhysicsSimpleWorldCollisionPushOutTest::RunTest(const FString& Param
 	TArray<FCapsuleLimit> EmptyCapsules;
 	TArray<FTaperedCapsuleLimit> EmptyTaperedCapsules;
 	TArray<FBoxLimit> EmptyBoxes;
+	TArray<FKawaiiPhysicsConvexLimit> EmptyConvexes;
 
 	// bUseSimpleWorldCollision = true: SimpleWorld配列のSphereに押し出される
 	{
 		FKawaiiPhysicsTestAccessor A;
 		BuildChain(A);
-		A.SetSimpleWorldLimits(SphereLimits, EmptyCapsules, EmptyTaperedCapsules, EmptyBoxes);
+		A.SetSimpleWorldLimits(SphereLimits, EmptyCapsules, EmptyTaperedCapsules, EmptyBoxes, EmptyConvexes);
 
 		TestEqual(TEXT("Injected SimpleWorld collider count"),
 		          A.Node.GetNumSimpleWorldColliders(),
-		          SphereLimits.Num() + EmptyCapsules.Num() + EmptyTaperedCapsules.Num() + EmptyBoxes.Num());
+		          SphereLimits.Num() + EmptyCapsules.Num() + EmptyTaperedCapsules.Num() + EmptyBoxes.Num() +
+		          EmptyConvexes.Num());
 
 		A.StepFrame(1.0f / 60.0f);
 
@@ -1072,7 +1459,7 @@ bool FKawaiiPhysicsSimpleWorldCollisionPushOutTest::RunTest(const FString& Param
 	{
 		FKawaiiPhysicsTestAccessor A;
 		BuildChain(A);
-		A.SetSimpleWorldLimits(SphereLimits, EmptyCapsules, EmptyTaperedCapsules, EmptyBoxes);
+		A.SetSimpleWorldLimits(SphereLimits, EmptyCapsules, EmptyTaperedCapsules, EmptyBoxes, EmptyConvexes);
 		A.Node.bUseSimpleWorldCollision = false; // SetSimpleWorldLimitsが立てたフラグを明示的に無効化
 
 		A.StepFrame(1.0f / 60.0f);
@@ -1100,7 +1487,7 @@ bool FKawaiiPhysicsSimpleWorldCollisionPushOutTest::RunTest(const FString& Param
 		Capsule.SourceType = ECollisionSourceType::SimpleWorld;
 		TArray<FCapsuleLimit> CapsuleLimits = {Capsule};
 
-		A.SetSimpleWorldLimits(EmptySpheres, CapsuleLimits, EmptyTaperedCapsules, EmptyBoxes);
+		A.SetSimpleWorldLimits(EmptySpheres, CapsuleLimits, EmptyTaperedCapsules, EmptyBoxes, EmptyConvexes);
 
 		A.StepFrame(1.0f / 60.0f);
 
@@ -1119,6 +1506,63 @@ bool FKawaiiPhysicsSimpleWorldCollisionPushOutTest::RunTest(const FString& Param
 		TestTrue(FString::Printf(TEXT("SimpleWorld capsule push-out position: got %s expected %s"),
 		                         *A.Bone(1).Location.ToString(), *ExpectedPushedOut.ToString()),
 		         A.Bone(1).Location.Equals(ExpectedPushedOut, GSimpleWorldPushOutTol));
+	}
+
+	// bUseSimpleWorldCollision = true、Convex注入: CachedConvexTransform を意図的に古くして注入し、
+	// StepOnce内のPrepareCollisionShapeCaches()で再計算されない場合だけ押し出されない配置にする。
+	{
+		const FVector ConvexStart(5.8f, 0.0f, -8.0f);
+		const FVector ConvexExpected(6.0f, 0.0f, -8.0f);
+		FKawaiiPhysicsTestAccessor A;
+		BuildChain(A);
+		A.Bone(1).Location = ConvexStart;
+		A.Bone(1).PrevLocation = ConvexStart;
+
+		FKawaiiPhysicsConvexLimit Convex;
+		Convex.Location = FVector(5.0f, 0.0f, -8.0f);
+		Convex.Rotation = FQuat::Identity;
+		Convex.LocalPlanes = MakeUnitCubePlanes();
+		Convex.LocalBounds = FBox(FVector(-1.0f, -1.0f, -1.0f), FVector(1.0f, 1.0f, 1.0f));
+		Convex.bEnable = true;
+		Convex.SourceType = ECollisionSourceType::SimpleWorld;
+		Convex.CachedConvexTransform = FTransform::Identity;
+		TArray<FKawaiiPhysicsConvexLimit> ConvexLimits = {Convex};
+
+		A.SetSimpleWorldLimits(EmptySpheres, EmptyCapsules, EmptyTaperedCapsules, EmptyBoxes, ConvexLimits);
+
+		A.StepFrame(1.0f / 60.0f);
+
+		TestTrue(FString::Printf(TEXT("SimpleWorld convex push-out: got %s expected %s"),
+		                         *A.Bone(1).Location.ToString(), *ConvexExpected.ToString()),
+		         A.Bone(1).Location.Equals(ConvexExpected, GSimpleWorldPushOutTol));
+	}
+
+	// bUseSimpleWorldCollision = false、Convex注入: 適用条件のゲート確認。
+	{
+		const FVector ConvexStart(5.8f, 0.0f, -8.0f);
+		const FVector ExpectedNoConvexPushOut =
+			ConvexStart.GetSafeNormal() * 10.0f;
+		FKawaiiPhysicsTestAccessor A;
+		BuildChain(A);
+		A.Bone(1).Location = ConvexStart;
+		A.Bone(1).PrevLocation = ConvexStart;
+
+		FKawaiiPhysicsConvexLimit Convex;
+		Convex.Location = FVector(5.0f, 0.0f, -8.0f);
+		Convex.Rotation = FQuat::Identity;
+		Convex.LocalPlanes = MakeUnitCubePlanes();
+		Convex.LocalBounds = FBox(FVector(-1.0f, -1.0f, -1.0f), FVector(1.0f, 1.0f, 1.0f));
+		Convex.bEnable = true;
+		TArray<FKawaiiPhysicsConvexLimit> ConvexLimits = {Convex};
+
+		A.SetSimpleWorldLimits(EmptySpheres, EmptyCapsules, EmptyTaperedCapsules, EmptyBoxes, ConvexLimits);
+		A.Node.bUseSimpleWorldCollision = false;
+
+		A.StepFrame(1.0f / 60.0f);
+
+		TestTrue(FString::Printf(TEXT("Gated off: SimpleWorld convex does not push the bone: got %s expected %s"),
+		                         *A.Bone(1).Location.ToString(), *ExpectedNoConvexPushOut.ToString()),
+		         A.Bone(1).Location.Equals(ExpectedNoConvexPushOut, GSimpleWorldPushOutTol));
 	}
 
 	return true;
@@ -1245,11 +1689,19 @@ bool FKawaiiPhysicsSimpleWorldAppendFadedSkeletalLocalLimitsTest::RunTest(const 
 	Box.Extent = FVector(2.0f, 3.0f, 4.0f);
 	LocalLimits.BoxLimits.Add(Box);
 
+	FKawaiiPhysicsConvexLimit Convex;
+	Convex.Location = FVector(30.0f, 0.0f, 0.0f);
+	Convex.Rotation = FQuat::Identity;
+	Convex.LocalPlanes = MakeUnitCubePlanes();
+	Convex.LocalBounds = FBox(FVector(-1.0f, -1.0f, -1.0f), FVector(1.0f, 1.0f, 1.0f));
+	LocalLimits.ConvexLimits.Add(Convex);
+
 	TArray<FKawaiiPhysicsSimpleWorldBodyBinding> Bindings;
 	FKawaiiPhysicsSimpleWorldBodyBinding BodyA;
 	BodyA.BoneIndex = 0;
 	BodyA.NumSphericalLimits = 2;
 	BodyA.NumBoxLimits = 1;
+	BodyA.NumConvexLimits = 1;
 	Bindings.Add(BodyA);
 	FKawaiiPhysicsSimpleWorldBodyBinding BodyB;
 	BodyB.BoneIndex = 1;
@@ -1286,6 +1738,9 @@ bool FKawaiiPhysicsSimpleWorldAppendFadedSkeletalLocalLimitsTest::RunTest(const 
 		TestTrue(TEXT("FadeAlpha=0.5: box is kept at full extent"),
 		         OutWorldLimits.BoxLimits.Num() == 1 &&
 		         OutWorldLimits.BoxLimits[0].Extent.Equals(FVector(2.0f, 3.0f, 4.0f), GSimpleWorldTol));
+		TestTrue(TEXT("FadeAlpha=0.5: convex follows body A"),
+		         OutWorldLimits.ConvexLimits.Num() == 1 &&
+		         OutWorldLimits.ConvexLimits[0].Location.Equals(FVector(30.0f, 0.0f, 100.0f), GSimpleWorldTol));
 		TestTrue(TEXT("FadeAlpha=0.5: capsule rotation follows body B"),
 		         OutWorldLimits.CapsuleLimits.Num() == 1 &&
 		         OutWorldLimits.CapsuleLimits[0].Rotation.Equals(
@@ -1303,6 +1758,7 @@ bool FKawaiiPhysicsSimpleWorldAppendFadedSkeletalLocalLimitsTest::RunTest(const 
 			0.5f);
 
 		TestTrue(TEXT("FadeAlpha=0.4: box is withheld"), OutWorldLimits.BoxLimits.Num() == 0);
+		TestTrue(TEXT("FadeAlpha=0.4: convex is withheld"), OutWorldLimits.ConvexLimits.Num() == 0);
 	}
 
 	return true;
@@ -1332,6 +1788,8 @@ bool FKawaiiPhysicsSimpleWorldAppendBodyLocalLimitsGuardTest::RunTest(const FStr
 		         0,
 		         FVector::OneVector,
 		         EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox,
+		         64,
+		         false,
 		         2,
 		         OutLimits,
 		         Bindings));
@@ -1341,6 +1799,8 @@ bool FKawaiiPhysicsSimpleWorldAppendBodyLocalLimitsGuardTest::RunTest(const FStr
 		         1,
 		         FVector::OneVector,
 		         EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox,
+		         64,
+		         false,
 		         2,
 		         OutLimits,
 		         Bindings));
@@ -1353,6 +1813,8 @@ bool FKawaiiPhysicsSimpleWorldAppendBodyLocalLimitsGuardTest::RunTest(const FStr
 		         2,
 		         FVector::OneVector,
 		         EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox,
+		         64,
+		         false,
 		         2,
 		         OutLimits,
 		         Bindings));
@@ -1367,6 +1829,8 @@ bool FKawaiiPhysicsSimpleWorldAppendBodyLocalLimitsGuardTest::RunTest(const FStr
 		         3,
 		         FVector::OneVector,
 		         EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox,
+		         64,
+		         false,
 		         10,
 		         OutLimits,
 		         Bindings));
@@ -1386,6 +1850,8 @@ bool FKawaiiPhysicsSimpleWorldAppendBodyLocalLimitsGuardTest::RunTest(const FStr
 			         0,
 			         FVector::OneVector,
 			         EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox,
+			         64,
+			         false,
 			         10,
 			         ConvexLimits,
 			         ConvexBindings));
@@ -1404,6 +1870,8 @@ bool FKawaiiPhysicsSimpleWorldAppendBodyLocalLimitsGuardTest::RunTest(const FStr
 			         0,
 			         FVector::OneVector,
 			         EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingSphere,
+			         64,
+			         false,
 			         10,
 			         ConvexLimits,
 			         ConvexBindings));
@@ -1482,6 +1950,8 @@ bool FKawaiiPhysicsSimpleWorldAppendPhysicsAssetLocalLimitsTest::RunTest(const F
 			RefSkeleton,
 			FVector::OneVector,
 			EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox,
+			64,
+			false,
 			32,
 			OutLimits,
 			Bindings);
@@ -1508,6 +1978,8 @@ bool FKawaiiPhysicsSimpleWorldAppendPhysicsAssetLocalLimitsTest::RunTest(const F
 			RefSkeleton,
 			FVector::OneVector,
 			EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox,
+			64,
+			false,
 			1,
 			OutLimits,
 			Bindings);
@@ -1544,6 +2016,8 @@ bool FKawaiiPhysicsSimpleWorldAppendPhysicsAssetLocalLimitsTest::RunTest(const F
 			RefSkeleton,
 			FVector::OneVector,
 			EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox,
+			64,
+			false,
 			32,
 			OutLimits,
 			Bindings);
@@ -1580,6 +2054,8 @@ bool FKawaiiPhysicsSimpleWorldAppendPhysicsAssetLocalLimitsTest::RunTest(const F
 			RefSkeleton,
 			FVector::OneVector,
 			EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox,
+			64,
+			false,
 			32,
 			OutLimits,
 			Bindings);

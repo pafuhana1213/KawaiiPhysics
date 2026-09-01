@@ -22,6 +22,32 @@ namespace
 		return Bone;
 	}
 
+	TArray<FPlane> MakeUnitCubeConvexPlanes()
+	{
+		TArray<FPlane> Planes;
+		Planes.Reserve(6);
+		Planes.Add(FPlane(1.0f, 0.0f, 0.0f, 1.0f));
+		Planes.Add(FPlane(-1.0f, 0.0f, 0.0f, 1.0f));
+		Planes.Add(FPlane(0.0f, 1.0f, 0.0f, 1.0f));
+		Planes.Add(FPlane(0.0f, -1.0f, 0.0f, 1.0f));
+		Planes.Add(FPlane(0.0f, 0.0f, 1.0f, 1.0f));
+		Planes.Add(FPlane(0.0f, 0.0f, -1.0f, 1.0f));
+		return Planes;
+	}
+
+	FKawaiiPhysicsConvexLimit MakeUnitCubeConvex(
+		const FVector& Location = FVector::ZeroVector,
+		const FQuat& Rotation = FQuat::Identity)
+	{
+		FKawaiiPhysicsConvexLimit Convex;
+		Convex.Location = Location;
+		Convex.Rotation = Rotation;
+		Convex.LocalPlanes = MakeUnitCubeConvexPlanes();
+		Convex.LocalBounds = FBox(FVector(-1.0f, -1.0f, -1.0f), FVector(1.0f, 1.0f, 1.0f));
+		Convex.bEnable = true;
+		return Convex;
+	}
+
 	constexpr float GCollisionTol = 0.01f; // 0.1mm スケール
 }
 
@@ -231,6 +257,102 @@ bool FKawaiiPhysicsBoxTest::RunTest(const FString& Parameters)
 	TestTrue(FString::Printf(TEXT("Box center-coincident push-out: got %s expected (3,0,0)"),
 	                         *Center.Location.ToString()),
 	         Center.Location.Equals(FVector(3, 0, 0), GCollisionTol));
+
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+//  Convex
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsConvexTest,
+                                 "KawaiiPhysics.Collision.ConvexPushOut",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsConvexTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor A;
+
+	{
+		TArray<FKawaiiPhysicsConvexLimit> Limits;
+		Limits.Add(MakeUnitCubeConvex());
+
+		FKawaiiPhysicsModifyBone NearFace = MakeBone(FVector(1.2f, 0.0f, 0.0f), 0.5f, FVector(1.2f, 0.0f, 0.0f));
+		A.CallConvexCollision(NearFace, Limits);
+		TestTrue(FString::Printf(TEXT("Convex face push-out: got %s expected (1.5,0,0)"),
+		                         *NearFace.Location.ToString()),
+		         NearFace.Location.Equals(FVector(1.5f, 0.0f, 0.0f), GCollisionTol));
+
+		FKawaiiPhysicsModifyBone Inside = MakeBone(FVector(0.2f, 0.0f, 0.0f), 0.5f, FVector(0.2f, 0.0f, 0.0f));
+		A.CallConvexCollision(Inside, Limits);
+		TestTrue(FString::Printf(TEXT("Convex buried push-out: got %s expected (1.5,0,0)"),
+		                         *Inside.Location.ToString()),
+		         Inside.Location.Equals(FVector(1.5f, 0.0f, 0.0f), GCollisionTol));
+
+		FKawaiiPhysicsModifyBone OutsideBounds = MakeBone(FVector(2.0f, 0.0f, 0.0f), 0.25f, FVector(2.0f, 0.0f, 0.0f));
+		A.CallConvexCollision(OutsideBounds, Limits);
+		TestTrue(TEXT("Convex local bounds reject leaves the bone untouched"),
+		         OutsideBounds.Location.Equals(FVector(2.0f, 0.0f, 0.0f), GCollisionTol));
+	}
+
+	{
+		TArray<FKawaiiPhysicsConvexLimit> DisabledLimits;
+		FKawaiiPhysicsConvexLimit Disabled = MakeUnitCubeConvex();
+		Disabled.bEnable = false;
+		DisabledLimits.Add(Disabled);
+		FKawaiiPhysicsModifyBone DisabledBone = MakeBone(FVector(0.2f, 0.0f, 0.0f), 0.5f, FVector(0.2f, 0.0f, 0.0f));
+		A.CallConvexCollision(DisabledBone, DisabledLimits);
+		TestTrue(TEXT("Convex disabled leaves the bone untouched"),
+		         DisabledBone.Location.Equals(FVector(0.2f, 0.0f, 0.0f), GCollisionTol));
+
+		TArray<FKawaiiPhysicsConvexLimit> EmptyPlaneLimits;
+		FKawaiiPhysicsConvexLimit EmptyPlanes = MakeUnitCubeConvex();
+		EmptyPlanes.LocalPlanes.Reset();
+		EmptyPlaneLimits.Add(EmptyPlanes);
+		FKawaiiPhysicsModifyBone EmptyPlaneBone = MakeBone(FVector(0.2f, 0.0f, 0.0f), 0.5f, FVector(0.2f, 0.0f, 0.0f));
+		A.CallConvexCollision(EmptyPlaneBone, EmptyPlaneLimits);
+		TestTrue(TEXT("Convex empty planes leave the bone untouched"),
+		         EmptyPlaneBone.Location.Equals(FVector(0.2f, 0.0f, 0.0f), GCollisionTol));
+	}
+
+	{
+		const FQuat Rotation(FVector::ZAxisVector, PI / 2.0f);
+		const FTransform ConvexTransform(Rotation, FVector(10.0f, 0.0f, 0.0f));
+		TArray<FKawaiiPhysicsConvexLimit> Limits;
+		Limits.Add(MakeUnitCubeConvex(ConvexTransform.GetLocation(), ConvexTransform.GetRotation()));
+
+		const FVector Initial = ConvexTransform.TransformPosition(FVector(0.8f, 0.0f, 0.0f));
+		const FVector Expected = ConvexTransform.TransformPosition(FVector(1.5f, 0.0f, 0.0f));
+		FKawaiiPhysicsModifyBone Rotated = MakeBone(Initial, 0.5f, Initial);
+		A.CallConvexCollision(Rotated, Limits);
+		TestTrue(FString::Printf(TEXT("Convex rotated push-out: got %s expected %s"),
+		                         *Rotated.Location.ToString(), *Expected.ToString()),
+		         Rotated.Location.Equals(Expected, GCollisionTol));
+	}
+
+	{
+		TArray<FKawaiiPhysicsConvexLimit> Limits;
+		Limits.Add(MakeUnitCubeConvex());
+
+		FKawaiiPhysicsModifyBone Edge = MakeBone(FVector(1.2f, 1.2f, 0.0f), 0.5f, FVector(1.2f, 1.2f, 0.0f));
+		A.CallConvexCollision(Edge, Limits);
+		const FVector Once = Edge.Location;
+		for (int32 Iteration = 0; Iteration < 10; ++Iteration)
+		{
+			A.CallConvexCollision(Edge, Limits);
+		}
+		TestTrue(FString::Printf(TEXT("Convex edge repeated push-out is stable: got %s once %s"),
+		                         *Edge.Location.ToString(), *Once.ToString()),
+		         Edge.Location.Equals(Once, GCollisionTol));
+
+		FKawaiiPhysicsModifyBone TieA = MakeBone(FVector(0.8f, 0.8f, 0.0f), 0.5f, FVector(0.8f, 0.8f, 0.0f));
+		FKawaiiPhysicsModifyBone TieB = MakeBone(FVector(0.8f, 0.8f, 0.0f), 0.5f, FVector(0.8f, 0.8f, 0.0f));
+		A.CallConvexCollision(TieA, Limits);
+		A.CallConvexCollision(TieB, Limits);
+		TestTrue(TEXT("Convex equal plane distance picks deterministically"),
+		         TieA.Location.Equals(TieB.Location, GCollisionTol));
+		TestTrue(TEXT("Convex equal plane distance keeps the first plane"),
+		         TieA.Location.Equals(FVector(1.5f, 0.8f, 0.0f), GCollisionTol));
+	}
 
 	return true;
 }
