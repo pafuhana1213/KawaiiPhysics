@@ -16,9 +16,13 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsGroundHit
 {
 	GENERATED_BODY()
 
-	/** 地面あり。false なら次のソース（CharacterMovement → トレース）へ落ちる / Ground found; false falls through to the next source (CharacterMovement, then trace) */
+	/** 地面あり。false なら次のソース（CharacterMovement → トレース）へ落ちる。bNoGround が true の場合は無視される / Ground found; false falls through to the next source (CharacterMovement, then trace). Ignored when bNoGround is true */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kawaii Physics")
 	bool bHit = false;
+
+	/** 地面なしを明示する。true なら bHit に関わらず地面 Box を即座に外し、CharacterMovement / トレースへフォールバックしない / Explicitly reports no ground. When true, the ground box is removed immediately regardless of bHit and there is no fallback to CharacterMovement / trace */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kawaii Physics")
+	bool bNoGround = false;
 
 	/** 接地点（ワールド） / Impact point (world) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kawaii Physics")

@@ -1446,6 +1446,7 @@ FKawaiiPhysicsSimpleWorldCollisionDesc FAnimNode_KawaiiPhysics::BuildSimpleWorld
 	Desc.GatherIntervalSec = SimpleWorldCollisionGatherInterval;
 	Desc.GatherRadiusOverride =
 		bOverrideSimpleWorldCollisionGatherRadius ? SimpleWorldCollisionGatherRadius : 0.0f;
+	Desc.CollisionChannel = bOverrideCollisionParams ? CollisionChannelSettings.GetObjectType() : ECC_MAX;
 	Desc.ObjectTypes = SimpleWorldCollisionObjectTypes;
 	Desc.ConvexFallbackShape = SimpleWorldCollisionConvexFallbackShape;
 	Desc.SkeletalMeshCollision = SimpleWorldCollisionSkeletalMeshCollision;

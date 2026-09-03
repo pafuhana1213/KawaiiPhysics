@@ -93,28 +93,6 @@ namespace
 			&& AggGeom.ConvexElems.IsEmpty();
 	}
 
-	FCollisionObjectQueryParams BuildSimpleWorldObjectQueryParams(
-		const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes)
-	{
-		FCollisionObjectQueryParams ObjectQueryParams;
-		if (ObjectTypes.IsEmpty())
-		{
-			ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldStatic);
-			ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldDynamic);
-			return ObjectQueryParams;
-		}
-
-		for (const TEnumAsByte<EObjectTypeQuery>& ObjectType : ObjectTypes)
-		{
-			const ECollisionChannel CollisionChannel = UEngineTypes::ConvertToCollisionChannel(ObjectType.GetValue());
-			if (CollisionChannel != ECC_MAX)
-			{
-				ObjectQueryParams.AddObjectTypesToQuery(CollisionChannel);
-			}
-		}
-		return ObjectQueryParams;
-	}
-
 	bool BuildLocalLimitsForSimpleWorldComponent(
 		UPrimitiveComponent& Component,
 		const FTransform& ComponentTM,
@@ -223,8 +201,11 @@ namespace
 		}
 
 		const UBodySetup* BodySetup = Component.GetBodySetup();
-		if (BodySetup && !IsSimpleWorldAggGeomEmpty(BodySetup->AggGeom))
+		if (BodySetup
+			&& BodySetup->GetCollisionTraceFlag() != CTF_UseComplexAsSimple
+			&& !IsSimpleWorldAggGeomEmpty(BodySetup->AggGeom))
 		{
+			// Complex-as-Simple はエンジンが simple 形状を使わないため収集しない。床はトレース経路が担当。
 			KawaiiPhysicsSimpleWorldCollision::ConvertAggGeomToLocalLimits(
 				BodySetup->AggGeom,
 				Scale3D,
@@ -244,6 +225,82 @@ namespace
 			&& Lhs.Extent.Equals(Rhs.Extent, KINDA_SMALL_NUMBER);
 	}
 
+	bool IsSimpleWorldComponentStatic(const UPrimitiveComponent& Component)
+	{
+		// USceneComponent::GetMobilityは5.6で追加されたため、それ以前は公開UPROPERTYのMobilityを直接読む。
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
+		return Component.Mobility == EComponentMobility::Static;
+#else
+		return Component.GetMobility() == EComponentMobility::Static;
+#endif
+	}
+
+	bool TryGetSimpleWorldGroundFloorTransform(
+		const UPrimitiveComponent& FloorComponent,
+		int32 InstanceIndex,
+		FTransform& OutFloorTM)
+	{
+		OutFloorTM = GetScaleStrippedComponentTransform(FloorComponent);
+		if (InstanceIndex == INDEX_NONE)
+		{
+			return true;
+		}
+
+		const UInstancedStaticMeshComponent* ISMComponent = Cast<const UInstancedStaticMeshComponent>(&FloorComponent);
+		if (!ISMComponent
+			|| InstanceIndex < 0
+			|| InstanceIndex >= ISMComponent->GetInstanceCount())
+		{
+			return false;
+		}
+
+		FTransform InstanceTM;
+		if (!ISMComponent->GetInstanceTransform(InstanceIndex, InstanceTM, true))
+		{
+			return false;
+		}
+
+		OutFloorTM = GetScaleStrippedKawaiiPhysicsSimpleWorldInstanceTransform(InstanceTM);
+		return true;
+	}
+
+	void InitializeSimpleWorldTraceGroundFloor(
+		const UPrimitiveComponent& FloorComponent,
+		int32 HitItem,
+		FTransform& OutFloorTM,
+		int32& OutInstanceIndex,
+		bool& bOutStatic)
+	{
+		OutFloorTM = GetScaleStrippedComponentTransform(FloorComponent);
+		OutInstanceIndex = INDEX_NONE;
+		bOutStatic = IsSimpleWorldComponentStatic(FloorComponent);
+
+		if (const UInstancedStaticMeshComponent* ISMComponent = Cast<const UInstancedStaticMeshComponent>(&FloorComponent))
+		{
+			if (HitItem >= 0 && HitItem < ISMComponent->GetInstanceCount())
+			{
+				FTransform InstanceTM;
+				if (ISMComponent->GetInstanceTransform(HitItem, InstanceTM, true))
+				{
+					OutFloorTM = GetScaleStrippedKawaiiPhysicsSimpleWorldInstanceTransform(InstanceTM);
+					OutInstanceIndex = HitItem;
+				}
+			}
+		}
+	}
+
+	void ClearSimpleWorldGroundBox(FKawaiiPhysicsSimpleWorldCollisionEntry& Entry, bool& bOutChanged)
+	{
+		bOutChanged = Entry.bHasGroundBox;
+		Entry.bHasGroundBox = false;
+		Entry.GroundComponent.Reset();
+		Entry.GroundBoxSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
+		Entry.GroundBoxLocal = FBoxLimit();
+		Entry.GroundComponentTM = FTransform::Identity;
+		Entry.GroundInstanceIndex = INDEX_NONE;
+		Entry.bGroundComponentStatic = true;
+	}
+
 	void ResolveSimpleWorldGroundSource(
 		FKawaiiPhysicsSimpleWorldCollisionEntry& Entry,
 		const USkeletalMeshComponent& SkelComp,
@@ -256,6 +313,10 @@ namespace
 			Entry.GroundProvider.Reset();
 			Entry.GroundCharacterMovement.Reset();
 			Entry.GroundComponent.Reset();
+			Entry.GroundBoxLocal = FBoxLimit();
+			Entry.GroundComponentTM = FTransform::Identity;
+			Entry.GroundInstanceIndex = INDEX_NONE;
+			Entry.bGroundComponentStatic = true;
 			return;
 		}
 
@@ -330,6 +391,10 @@ namespace
 		Entry.GroundComponent = NewGroundComponent;
 		// GroundBoxSource は DebugDraw の色分けにしか使わないため変更判定には含めない
 		Entry.GroundBoxSource = BoxSource;
+		Entry.GroundBoxLocal = FBoxLimit();
+		Entry.GroundComponentTM = FTransform::Identity;
+		Entry.GroundInstanceIndex = INDEX_NONE;
+		Entry.bGroundComponentStatic = true;
 
 		bOutChanged = !bHadGroundBox
 			|| !IsSimpleWorldGroundBoxNearlyEqual(PreviousBox, Entry.GroundBox)
@@ -351,7 +416,12 @@ namespace
 		{
 			const FKawaiiPhysicsGroundHit Hit =
 				IKawaiiPhysicsGroundProvider::Execute_GetKawaiiPhysicsGround(Provider, &SkelComp);
-			if (Hit.bHit)
+			if (Hit.bNoGround)
+			{
+				ClearSimpleWorldGroundBox(Entry, bOutChanged);
+				return true;
+			}
+			else if (Hit.bHit)
 			{
 				FBoxLimit NewBox;
 				if (KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldGroundBox(
@@ -365,7 +435,18 @@ namespace
 
 		if (const UCharacterMovementComponent* CharacterMovement = Entry.GroundCharacterMovement.Get())
 		{
-			if (CharacterMovement->CurrentFloor.IsWalkableFloor())
+			if (CharacterMovement->IsFalling())
+			{
+				// 落下中は CharacterMovement/Provider 由来の旧床 Box を即座に外す（崖から落ちた時に旧床高さで髪が跳ねるのを防ぐ）。
+				// 収集フレームのトレースが作った Trace 由来の Box は着地先の床なので次の収集まで残す。
+				// false を返すので収集フレームでは従来どおり下方向トレースへフォールバックする。
+				if (Entry.GroundBoxSource != EKawaiiPhysicsSimpleWorldGroundSource::Trace)
+				{
+					ClearSimpleWorldGroundBox(Entry, bOutChanged);
+				}
+				return false;
+			}
+			else if (CharacterMovement->CurrentFloor.IsWalkableFloor())
 			{
 				FVector Location = CharacterMovement->CurrentFloor.HitResult.ImpactPoint;
 				if (const UCapsuleComponent* Capsule = Cast<UCapsuleComponent>(CharacterMovement->UpdatedComponent))
@@ -391,6 +472,51 @@ namespace
 						bOutChanged);
 				}
 			}
+		}
+
+		return false;
+	}
+
+	// Trace 由来の地面 Box を Movable な床コンポーネントの Transform に追従させる。床が消えた／インスタンスが無効なら Box を外して次 Tick で再収集する。
+	// 戻り値は Publish の更新が必要か（Box の再変換またはクリアが起きたか）。
+	bool UpdateSimpleWorldTraceGroundBoxFromFloor(FKawaiiPhysicsSimpleWorldCollisionEntry& Entry)
+	{
+		// Trace ソースの地面 Box は床が Static なら次の収集まで使い回し、Movable なら床コンポーネントの Transform に追従する（エレベーター・動く足場）。
+		// Provider / CharacterMovement ソースの Box は毎 Tick 値を作り直しているので対象外。
+		if (Entry.GroundBoxSource != EKawaiiPhysicsSimpleWorldGroundSource::Trace
+			|| !Entry.bHasGroundBox
+			|| Entry.bGroundComponentStatic)
+		{
+			return false;
+		}
+
+		const UPrimitiveComponent* FloorComponent = Entry.GroundComponent.Get();
+		bool bFloorValid = FloorComponent != nullptr;
+		FTransform CurrentFloorTM = FTransform::Identity;
+		if (bFloorValid)
+		{
+			bFloorValid = TryGetSimpleWorldGroundFloorTransform(
+				*FloorComponent,
+				Entry.GroundInstanceIndex,
+				CurrentFloorTM);
+		}
+
+		if (!bFloorValid)
+		{
+			// 床が消えた/インスタンスが無効なら Box を外し、次 Tick で再収集する。
+			bool bGroundChanged = false;
+			ClearSimpleWorldGroundBox(Entry, bGroundChanged);
+			Entry.TimeSinceLastGather = FLT_MAX;
+			return bGroundChanged;
+		}
+
+		if (!CurrentFloorTM.Equals(Entry.GroundComponentTM, KINDA_SMALL_NUMBER))
+		{
+			Entry.GroundBox = KawaiiPhysicsSimpleWorldCollision::TransformSimpleWorldGroundBox(
+				Entry.GroundBoxLocal,
+				CurrentFloorTM);
+			Entry.GroundComponentTM = CurrentFloorTM;
+			return true;
 		}
 
 		return false;
@@ -756,10 +882,25 @@ bool FKawaiiPhysicsSimpleWorldCollisionDesc::operator==(const FKawaiiPhysicsSimp
 {
 	return GatherIntervalSec == Other.GatherIntervalSec
 		&& GatherRadiusOverride == Other.GatherRadiusOverride
+		&& bGatherRadiusAllOverridden == Other.bGatherRadiusAllOverridden
+		&& CollisionChannel == Other.CollisionChannel
 		&& ObjectTypes == Other.ObjectTypes
 		&& ConvexFallbackShape == Other.ConvexFallbackShape
 		&& SkeletalMeshCollision == Other.SkeletalMeshCollision
 		&& bGroundCollision == Other.bGroundCollision;
+}
+
+bool FKawaiiPhysicsSimpleWorldCollisionDesc::DoesChangeRequireRegather(
+	const FKawaiiPhysicsSimpleWorldCollisionDesc& Old,
+	const FKawaiiPhysicsSimpleWorldCollisionDesc& New)
+{
+	return Old.ObjectTypes != New.ObjectTypes
+		|| Old.ConvexFallbackShape != New.ConvexFallbackShape
+		|| Old.SkeletalMeshCollision != New.SkeletalMeshCollision
+		|| Old.bGroundCollision != New.bGroundCollision
+		|| Old.GatherRadiusOverride != New.GatherRadiusOverride
+		|| Old.bGatherRadiusAllOverridden != New.bGatherRadiusAllOverridden
+		|| Old.CollisionChannel != New.CollisionChannel;
 }
 
 FKawaiiPhysicsSimpleWorldCollisionDesc FKawaiiPhysicsSimpleWorldCollisionDesc::Merge(
@@ -789,6 +930,11 @@ FKawaiiPhysicsSimpleWorldCollisionDesc FKawaiiPhysicsSimpleWorldCollisionDesc::M
 		else
 		{
 			bAllGatherRadiusOverridden = false;
+		}
+
+		if (Merged.CollisionChannel == ECC_MAX && Desc.CollisionChannel != ECC_MAX)
+		{
+			Merged.CollisionChannel = Desc.CollisionChannel;
 		}
 
 		if (Desc.ObjectTypes.IsEmpty())
@@ -822,9 +968,10 @@ FKawaiiPhysicsSimpleWorldCollisionDesc FKawaiiPhysicsSimpleWorldCollisionDesc::M
 		Merged.ObjectTypes.AddUnique(UEngineTypes::ConvertToObjectType(ECC_WorldDynamic));
 	}
 
-	// 自動半径はSkelComp Bounds依存でここでは解決できないため、1つでも自動指定があれば 0 を残す。
-	// Tick側で max(自動半径, マージ済みOverride) の二段解決を行う。
-	Merged.GatherRadiusOverride = bAllGatherRadiusOverridden ? MaxGatherRadiusOverride : 0.0f;
+	// 自動半径はSkelComp Bounds依存でここでは解決できない。
+	// 全DescがOverrideならTickはOverrideをそのまま使い、1つでも自動ならmax(自動半径, MaxOverride)の二段解決を行う。
+	Merged.GatherRadiusOverride = MaxGatherRadiusOverride;
+	Merged.bGatherRadiusAllOverridden = bAllGatherRadiusOverridden;
 
 	return Merged;
 }
@@ -838,12 +985,37 @@ void FKawaiiPhysicsSimpleWorldCollisionEntry::SetDesc(
 	}
 
 	FWriteScopeLock WriteLock(DescLock);
+	const bool bIsNewSource = !DescSlots.Contains(SourceID);
+
+	// 新規登録時のみ、同一設定のスロットが既にあるかをFindOrAddの前に調べる。
+	bool bHasEquivalentDesc = false;
+	if (bIsNewSource)
+	{
+		for (const auto& Pair : DescSlots)
+		{
+			if (Pair.Value.Desc == InDesc)
+			{
+				bHasEquivalentDesc = true;
+				break;
+			}
+		}
+	}
+
 	FDescSlot& DescSlotRef = DescSlots.FindOrAdd(SourceID);
 	DescSlotRef.LastReadFrame = GFrameCounter;
-	if (!(DescSlotRef.Desc == InDesc))
+	if (bIsNewSource || !(DescSlotRef.Desc == InDesc))
 	{
+		// 新規登録と収集内容に影響する変更だけ再収集する。
+		// GatherIntervalだけの変更（ピン駆動で毎フレーム変わり得る）では収集済み形状とフェード状態を維持する。
+		// 新規登録でも同一設定のノードが既に登録済みならMerge結果が変わらないため再収集しない。
+		const bool bRequiresRegather = (bIsNewSource && !bHasEquivalentDesc)
+			|| (!bIsNewSource
+				&& FKawaiiPhysicsSimpleWorldCollisionDesc::DoesChangeRequireRegather(DescSlotRef.Desc, InDesc));
 		DescSlotRef.Desc = InDesc;
-		bRegatherRequested.store(true, std::memory_order_release);
+		if (bRequiresRegather)
+		{
+			bRegatherRequested.store(true, std::memory_order_release);
+		}
 	}
 }
 
@@ -1042,6 +1214,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::FillSimpleWorldCollisionDebugInfo(
 	OutInfo.NumDescs = Entry.GetNumDescs();
 	OutInfo.NumGatheredComponents = Entry.GatheredComponents.Num();
 	OutInfo.bHasGroundBox = Entry.bHasGroundBox;
+	OutInfo.bGroundComponentStatic = Entry.bGroundComponentStatic;
 	OutInfo.GroundSource = Entry.GroundSource;
 	OutInfo.GroundBoxSource = Entry.GroundBoxSource;
 	OutInfo.GroundBoxLocation = Entry.GroundBox.Location;
@@ -1216,12 +1389,11 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 		if (Entry->ConsumeRegatherRequested())
 		{
 			Entry->GatheredComponents.Reset();
-			Entry->bHasGroundBox = false;
+			bool bGroundChanged = false;
+			ClearSimpleWorldGroundBox(*Entry, bGroundChanged);
 			Entry->GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
-			Entry->GroundBoxSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
 			Entry->GroundProvider.Reset();
 			Entry->GroundCharacterMovement.Reset();
-			Entry->GroundComponent.Reset();
 			Entry->bHasGatheredOnce = false;
 			Entry->TimeSinceLastGather = FLT_MAX;
 			Entry->bWorldLimitsDirty = true;
@@ -1231,9 +1403,14 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 
 		// 収集半径はゲート/デバッグ描画の両方で使うため、bShouldGather判定より前に確定させる
 		const float AutoRadius = SkelComp->Bounds.SphereRadius * KawaiiSettings->SimpleWorldCollisionAutoGatherRadiusScale;
-		const float Radius = Desc.GatherRadiusOverride > KINDA_SMALL_NUMBER
-			? FMath::Max(AutoRadius, Desc.GatherRadiusOverride)
-			: AutoRadius;
+		// 全ノードがOverride指定ならOverrideをそのまま使う（自動半径より小さくできる）。1つでも自動指定があれば自動半径を下限にする。
+		const float Radius = Desc.bGatherRadiusAllOverridden && Desc.GatherRadiusOverride > KINDA_SMALL_NUMBER
+			? Desc.GatherRadiusOverride
+			: (Desc.GatherRadiusOverride > KINDA_SMALL_NUMBER ? FMath::Max(AutoRadius, Desc.GatherRadiusOverride) : AutoRadius);
+		// 地面トレースの長さは収集半径の縮小に連動させない（Bounds原点から床までの距離は半径Overrideと無関係なため）。
+		// 地面BoxのXY半径はOverrideどおり。
+		const float GroundTraceLength = FMath::Max(Radius, AutoRadius);
+		const bool bGatherInputValid = KawaiiPhysicsSimpleWorldCollision::IsSimpleWorldGatherInputValid(Center, Radius);
 
 		bool bAllowGather = true;
 		float EffectiveGatherInterval = Desc.GatherIntervalSec * GatherIntervalScale;
@@ -1255,7 +1432,8 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 
 		Entry->TimeSinceLastGather += DeltaTime;
 		const bool bGatherEveryFrame = Desc.GatherIntervalSec <= KINDA_SMALL_NUMBER;
-		const bool bShouldGather = bAllowGather
+		const bool bShouldGather = bGatherInputValid
+			&& bAllowGather
 			&& (bGatherEveryFrame || Entry->TimeSinceLastGather >= EffectiveGatherInterval);
 
 		if (bShouldGather)
@@ -1263,18 +1441,25 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 			SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SimpleWorldCollision_Gather);
 			Entry->LastGatherRadius = Radius;
 
-			const FCollisionObjectQueryParams ObjectQueryParams = BuildSimpleWorldObjectQueryParams(Desc.ObjectTypes);
+			const ECollisionChannel CollisionChannel = Desc.CollisionChannel != ECC_MAX
+				? Desc.CollisionChannel.GetValue()
+				: SkelComp->GetCollisionObjectType();
+			const FCollisionResponseParams ResponseParams =
+				KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldResponseParams(Desc.ObjectTypes);
 			FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(KawaiiPhysicsSimpleWorldCollision), false);
+			// Overlap応答（トリガー等）は物理クエリのPreFilterで除外し、結果配列に返さない（ループ側のbBlockingHit判定は防御として残す）。
+			QueryParams.bIgnoreTouches = true;
 			QueryParams.AddIgnoredActor(SkelComp->GetOwner());
 
 			Entry->OverlapScratch.Reset();
-			World->OverlapMultiByObjectType(
+			World->OverlapMultiByChannel(
 				Entry->OverlapScratch,
 				Center,
 				FQuat::Identity,
-				ObjectQueryParams,
+				CollisionChannel,
 				FCollisionShape::MakeSphere(Radius),
-				QueryParams);
+				QueryParams,
+				ResponseParams);
 
 			TSet<FKawaiiPhysicsSimpleWorldGatherKey> UniqueGatherKeys;
 			TArray<FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent> NewGatheredComponents;
@@ -1288,6 +1473,12 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 					break;
 				}
 
+				if (!Overlap.bBlockingHit)
+				{
+					// レスポンスが Overlap/Ignore のコンポーネント（トリガー等）は収集対象外。
+					continue;
+				}
+
 				UPrimitiveComponent* Component = Overlap.GetComponent();
 				if (!Component)
 				{
@@ -1295,7 +1486,8 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 				}
 
 				const AActor* ComponentOwner = Component->GetOwner();
-				if (ComponentOwner && ComponentOwner->ActorHasTag(GSimpleWorldIgnoreTagName))
+				if ((ComponentOwner && ComponentOwner->ActorHasTag(GSimpleWorldIgnoreTagName))
+					|| Component->ComponentHasTag(GSimpleWorldIgnoreTagName))
 				{
 					continue;
 				}
@@ -1337,12 +1529,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 				FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent NewComponent;
 				NewComponent.Component = Component;
 				NewComponent.InstanceIndex = InstanceIndex;
-				// USceneComponent::GetMobilityは5.6で追加されたため、それ以前は公開UPROPERTYのMobilityを直接読む。
-#if UE_VERSION_OLDER_THAN(5, 6, 0)
-				NewComponent.bStatic = (Component->Mobility == EComponentMobility::Static);
-#else
-				NewComponent.bStatic = (Component->GetMobility() == EComponentMobility::Static);
-#endif
+				NewComponent.bStatic = IsSimpleWorldComponentStatic(*Component);
 				NewComponent.FadeAlpha = Entry->bHasGatheredOnce ? 0.0f : 1.0f;
 				NewComponent.GatheredScale3D = Scale3D;
 
@@ -1394,12 +1581,13 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 				if (!TryUpdateSimpleWorldGroundBoxFromSource(*Entry, *SkelComp, Radius, bGroundChanged))
 				{
 					FHitResult Hit;
-					const bool bHitGround = World->LineTraceSingleByObjectType(
+					const bool bHitGround = World->LineTraceSingleByChannel(
 						Hit,
 						Center,
-						Center - FVector(0.0f, 0.0f, Radius),
-						ObjectQueryParams,
-						QueryParams);
+						Center - FVector(0.0f, 0.0f, GroundTraceLength),
+						CollisionChannel,
+						QueryParams,
+						ResponseParams);
 
 					FBoxLimit NewGroundBox;
 					if (bHitGround
@@ -1410,34 +1598,67 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 						Entry->bHasGroundBox = true;
 						Entry->GroundComponent = Hit.GetComponent();
 						Entry->GroundBoxSource = EKawaiiPhysicsSimpleWorldGroundSource::Trace;
+						Entry->GroundComponentTM = FTransform::Identity;
+						Entry->GroundInstanceIndex = INDEX_NONE;
+						Entry->bGroundComponentStatic = true;
+
+						if (const UPrimitiveComponent* GroundHitComponent = Hit.GetComponent())
+						{
+							InitializeSimpleWorldTraceGroundFloor(
+								*GroundHitComponent,
+								Hit.Item,
+								Entry->GroundComponentTM,
+								Entry->GroundInstanceIndex,
+								Entry->bGroundComponentStatic);
+							Entry->GroundBoxLocal =
+								KawaiiPhysicsSimpleWorldCollision::MakeSimpleWorldGroundBoxLocal(
+									Entry->GroundBox,
+									Entry->GroundComponentTM);
+						}
 					}
 					else
 					{
-						Entry->bHasGroundBox = false;
-						Entry->GroundComponent.Reset();
-						Entry->GroundBoxSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
+						ClearSimpleWorldGroundBox(*Entry, bGroundChanged);
 					}
 				}
 			}
 			else
 			{
-				Entry->bHasGroundBox = false;
-				Entry->GroundComponent.Reset();
-				Entry->GroundBoxSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
+				bool bGroundChanged = false;
+				ClearSimpleWorldGroundBox(*Entry, bGroundChanged);
 			}
 
 			Entry->bHasGatheredOnce = true;
 			Entry->bWorldLimitsDirty = true;
 			Entry->TimeSinceLastGather = 0.0f;
 		}
-		else if (bAllowGather
+		else if (bGatherInputValid
+			&& bAllowGather
 			&& Desc.bGroundCollision
 			&& (Entry->GroundSource == EKawaiiPhysicsSimpleWorldGroundSource::Provider
 				|| Entry->GroundSource == EKawaiiPhysicsSimpleWorldGroundSource::CharacterMovement))
 		{
 			SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SimpleWorldCollision_Ground);
 			bool bGroundChanged = false;
-			if (TryUpdateSimpleWorldGroundBoxFromSource(*Entry, *SkelComp, Radius, bGroundChanged) && bGroundChanged)
+			const bool bGroundBoxUpdated =
+				TryUpdateSimpleWorldGroundBoxFromSource(*Entry, *SkelComp, Radius, bGroundChanged);
+			if (bGroundChanged)
+			{
+				Entry->bWorldLimitsDirty = true;
+			}
+			else if (!bGroundBoxUpdated)
+			{
+				// Provider / CharacterMovement が床を返さない間（落下中など）は、収集フレームのトレースが作った Trace 由来の Box を動く床に追従させる。
+				if (UpdateSimpleWorldTraceGroundBoxFromFloor(*Entry))
+				{
+					Entry->bWorldLimitsDirty = true;
+				}
+			}
+		}
+		else if (bAllowGather && Desc.bGroundCollision)
+		{
+			SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SimpleWorldCollision_Ground);
+			if (UpdateSimpleWorldTraceGroundBoxFromFloor(*Entry))
 			{
 				Entry->bWorldLimitsDirty = true;
 			}

@@ -115,6 +115,10 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionDesc
 {
 	float GatherIntervalSec = 0.2f;
 	float GatherRadiusOverride = 0.0f;
+	// Merge の出力: 全 Desc が GatherRadiusOverride を指定していれば true。ノード側は false のまま / Merge output: true when every Desc specifies GatherRadiusOverride. Node-built Descs leave it false
+	bool bGatherRadiusAllOverridden = false;
+	// ECC_MAX は所有 SkeletalMeshComponent の ObjectType を使う指定 / ECC_MAX means using the owning SkeletalMeshComponent's ObjectType.
+	TEnumAsByte<ECollisionChannel> CollisionChannel = ECC_MAX;
 	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
 	EKawaiiPhysicsSimpleWorldConvexFallbackShape ConvexFallbackShape = EKawaiiPhysicsSimpleWorldConvexFallbackShape::ConvexHull;
 	EKawaiiPhysicsSimpleWorldSkeletalMeshCollision SkeletalMeshCollision = EKawaiiPhysicsSimpleWorldSkeletalMeshCollision::None;
@@ -127,8 +131,10 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionDesc
 	 * 規則 / Rules:
 	 * - GatherIntervalSec は最小値。0以下は毎フレーム収集で最優先。
 	 * - GatherIntervalSec uses the minimum value. <= 0 means gather every frame and has highest priority.
-	 * - GatherRadiusOverride は「全 Desc が Override 指定」の場合だけ最大値。1つでも未指定なら 0 のままにし、Tick 側で自動半径を使う。
-	 * - GatherRadiusOverride is the max only when every Desc specifies an override. If any Desc is automatic, it stays 0 and Tick uses the automatic radius.
+	 * - GatherRadiusOverride は Override 指定の最大値（指定なしは 0）。bGatherRadiusAllOverridden は全 Desc が Override 指定の時だけ true。
+	 * - GatherRadiusOverride is the max of the specified overrides (0 when none). bGatherRadiusAllOverridden is true only when every Desc specifies an override.
+	 * - CollisionChannel は ECC_MAX 以外（World Collision の Override 指定）を持つ最初の Desc の値を採用。全て ECC_MAX なら ECC_MAX。
+	 * - CollisionChannel uses the first Desc value that is not ECC_MAX (World Collision override). If all values are ECC_MAX, it stays ECC_MAX.
 	 * - ObjectTypes は union。空配列は WorldStatic + WorldDynamic の意味なので、空 Desc がある場合はそれらを明示的に union へ含める。
 	 * - ObjectTypes are unioned. Empty means WorldStatic + WorldDynamic, so those are explicitly included when any Desc is empty.
 	 * - ConvexFallbackShape は宣言順（高精度が先）の優先。
@@ -139,6 +145,12 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionDesc
 	 * - bGroundCollision is OR.
 	 */
 	static FKawaiiPhysicsSimpleWorldCollisionDesc Merge(const TArray<FKawaiiPhysicsSimpleWorldCollisionDesc>& Descs);
+
+	/**
+	 * Desc の変更が収集結果（Overlap 対象・形状変換・地面・半径）に影響するか。GatherIntervalSec だけの変化は false。
+	 * Whether a Desc change affects the gather result (overlap set, shape conversion, ground, radius). Interval-only changes return false.
+	 */
+	static bool DoesChangeRequireRegather(const FKawaiiPhysicsSimpleWorldCollisionDesc& Old, const FKawaiiPhysicsSimpleWorldCollisionDesc& New);
 
 	bool operator==(const FKawaiiPhysicsSimpleWorldCollisionDesc& Other) const;
 };
@@ -238,6 +250,17 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionEntry
 	// 収集フレームでアタッチ連鎖から見つかった CharacterMovementComponent。Provider が bHit=false を返した場合のフォールバック先 / CharacterMovementComponent found while walking the attach chain during the gather frame; used as the fallback when Provider returns bHit=false
 	TWeakObjectPtr<UCharacterMovementComponent> GroundCharacterMovement;
 	TWeakObjectPtr<const UPrimitiveComponent> GroundComponent;
+	// Trace ソースの地面 Box を床コンポーネントのローカル空間（スケール除去済み）で保持。Movable な床への追従に使う
+	// Trace-source ground box in the floor component's scale-stripped local space; used to follow Movable floors
+	FBoxLimit GroundBoxLocal;
+	// 直近に GroundBox を作った床コンポーネント（ISM はインスタンス）のスケール除去済み Transform
+	// Scale-stripped transform of the floor component (instance for ISM) that produced the current GroundBox
+	FTransform GroundComponentTM = FTransform::Identity;
+	// ISM/HISM 床のインスタンス index。非 ISM は INDEX_NONE / ISM/HISM floor instance index; INDEX_NONE otherwise
+	int32 GroundInstanceIndex = INDEX_NONE;
+	// 床コンポーネントが Static なら true（Box を使い回す）。Movable なら毎 Tick Transform を追従する
+	// True when the floor component is Static (box is reused); Movable floors are followed every tick
+	bool bGroundComponentStatic = true;
 	FKawaiiPhysicsSharedCollisionData PublishScratch;
 	TArray<FOverlapResult> OverlapScratch;
 	bool bWorldLimitsDirty = true;
@@ -294,6 +317,10 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionDebugInfo
 	// Entry.bHasGroundBox / Entry.bHasGroundBox
 	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
 	bool bHasGroundBox = false;
+
+	// Entry.bGroundComponentStatic（Trace ソースの床が Static なら true） / Entry.bGroundComponentStatic (true when the trace-source floor is Static)
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	bool bGroundComponentStatic = true;
 
 	// Entry.GroundSource / Entry.GroundSource
 	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")

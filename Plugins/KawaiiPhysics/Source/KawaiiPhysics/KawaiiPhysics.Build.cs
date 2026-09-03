@@ -31,6 +31,7 @@ public class KawaiiPhysics : ModuleRules
 			{
 				"Slate",
 				"SlateCore",
+				"PhysicsCore",
 			}
 		);
 
