@@ -762,13 +762,13 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	bool bAllowWorldCollision = false;
 
 
-	/** WorldCollisionで独自のコリジョン設定を使用するフラグ / Flag to use custom collision settings in WorldCollision */
+	/** WorldCollision と Simple World Collision で独自のコリジョン設定を使用するフラグ / Flag to use custom collision settings in WorldCollision and Simple World Collision */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|World Collision",
 		meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	bool bOverrideCollisionParams = false;
 	/** 
-	* SkeletalMeshComponentが持つコリジョン設定ではなく、独自のコリジョン設定をWorldCollisionで使用する際に設定
-	* Use custom collision settings in WorldCollision instead of the collision settings set in SkeletalMeshComponent.
+	* SkeletalMeshComponentが持つコリジョン設定ではなく、独自のコリジョン設定をWorldCollisionで使用する際に設定。Simple World Collision はこの ObjectType をコリジョンチャンネルとして使います
+	* Use custom collision settings in WorldCollision instead of the collision settings set in SkeletalMeshComponent. Simple World Collision uses this ObjectType as its collision channel.
 	*/
 	UPROPERTY(EditAnywhere, Category = "Collision|World Collision",
 		meta = (PinHiddenByDefault, EditCondition = "bOverrideCollisionParams", DisplayName=
@@ -815,8 +815,8 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	float SimpleWorldCollisionGatherInterval = 0.2f;
 
 	/**
-	* シンプルワールドコリジョンが反応するオブジェクトタイプ。空の場合は WorldStatic + WorldDynamic を使用します。
-	* Object types used by Simple World Collision. Empty means WorldStatic + WorldDynamic.
+	* シンプルワールドコリジョンが反応するオブジェクトタイプ。空の場合は WorldStatic + WorldDynamic を使用します。収集されるのは、これらのタイプに属し、かつ所有 SkeletalMeshComponent の ObjectType（Override SkelComp Collision Params 有効時はその ObjectType）を Block するコンポーネントだけです。Overlap / Ignore 応答（トリガー等）は収集しません。
+	* Object types used by Simple World Collision. Empty means WorldStatic + WorldDynamic. Only components of these types that Block the owning SkeletalMeshComponent's ObjectType (or the ObjectType from Override SkelComp Collision Params when enabled) are gathered. Overlap / Ignore responses (triggers, etc.) are never gathered.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
 		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision", DisplayName = "Object Types"))

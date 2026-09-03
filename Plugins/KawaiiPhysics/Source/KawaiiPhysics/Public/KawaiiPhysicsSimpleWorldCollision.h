@@ -3,6 +3,8 @@
 #pragma once
 
 #include "KawaiiPhysicsSharedCollisionTypes.h"
+#include "CollisionQueryParams.h"
+#include "Engine/EngineTypes.h"
 #include "PhysicsEngine/AggregateGeom.h"
 
 #include "KawaiiPhysicsSimpleWorldCollision.generated.h"
@@ -49,6 +51,19 @@ namespace KawaiiPhysicsSimpleWorldCollision
 	 * Half thickness of the ground box in cm; intentionally a constant
 	 */
 	inline constexpr float GroundBoxHalfThickness = 10.0f;
+
+	/**
+	 * ObjectTypes を Block、それ以外を Ignore にした問い合わせ側レスポンスを作ります。空配列は WorldStatic + WorldDynamic を Block します。
+	 * Builds querier response params that Block ObjectTypes and Ignore everything else. An empty array blocks WorldStatic + WorldDynamic.
+	 */
+	KAWAIIPHYSICS_API FCollisionResponseParams BuildSimpleWorldResponseParams(
+		const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes);
+
+	/**
+	 * 収集中心と半径が物理クエリに渡せる値か判定します。NaN / 非有限 / KINDA_SMALL_NUMBER 以下の半径は false です。
+	 * Returns whether the gather center and radius are safe for physics queries. NaN / non-finite values and radii at or below KINDA_SMALL_NUMBER return false.
+	 */
+	KAWAIIPHYSICS_API bool IsSimpleWorldGatherInputValid(const FVector& Center, float Radius);
 
 	struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldBodyBinding
 	{
@@ -124,6 +139,18 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		const FVector& ImpactNormal,
 		float Radius,
 		FBoxLimit& OutBox);
+
+	/**
+	 * ワールド空間の地面 Box をコンポーネントローカル空間へ変換します。ComponentTM はスケール除去済みとして扱い、Extent は変えません。
+	 * Converts a world-space ground box into component-local space. ComponentTM is treated as scale-stripped; Extent is unchanged.
+	 */
+	KAWAIIPHYSICS_API FBoxLimit MakeSimpleWorldGroundBoxLocal(const FBoxLimit& WorldBox, const FTransform& ComponentTM);
+
+	/**
+	 * コンポーネントローカル空間の地面 Box を ComponentTM でワールド空間へ戻します。Extent は変えません。
+	 * Transforms a component-local ground box back into world space by ComponentTM. Extent is unchanged.
+	 */
+	KAWAIIPHYSICS_API FBoxLimit TransformSimpleWorldGroundBox(const FBoxLimit& LocalBox, const FTransform& ComponentTM);
 
 	/**
 	 * PhysicsAsset の Body を RefSkeleton で解決し、ボーン index 昇順で上限までボーンローカル Limit として追記します。

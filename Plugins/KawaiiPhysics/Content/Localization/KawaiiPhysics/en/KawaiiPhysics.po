@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: KawaiiPhysics\n"
-"POT-Creation-Date: 2026-09-01 19:30\n"
-"PO-Revision-Date: 2026-09-01 19:30\n"
+"POT-Creation-Date: 2026-09-03 00:59\n"
+"PO-Revision-Date: 2026-09-03 00:59\n"
 "Language-Team: \n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
@@ -304,8 +304,8 @@ msgstr "Override Collision Params"
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bOverrideCollisionParams [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bOverrideCollisionParams [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:bOverrideCollisionParams"
-msgid "WorldCollisionで独自のコリジョン設定を使用するフラグ / Flag to use custom collision settings in WorldCollision"
-msgstr "WorldCollisionで独自のコリジョン設定を使用するフラグ / Flag to use custom collision settings in WorldCollision"
+msgid "WorldCollision と Simple World Collision で独自のコリジョン設定を使用するフラグ / Flag to use custom collision settings in WorldCollision and Simple World Collision"
+msgstr "WorldCollision と Simple World Collision で独自のコリジョン設定を使用するフラグ / Flag to use custom collision settings in WorldCollision and Simple World Collision"
 
 #. Key:	AnimNode_KawaiiPhysics:bOverrideSimpleWorldCollisionGatherRadius
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:bOverrideSimpleWorldCollisionGatherRadius [BoolProperty DisplayName meta-data]
@@ -556,8 +556,8 @@ msgstr "Override SkelComp Collision Params"
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:CollisionChannelSettings [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:CollisionChannelSettings [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:CollisionChannelSettings"
-msgid "SkeletalMeshComponentが持つコリジョン設定ではなく、独自のコリジョン設定をWorldCollisionで使用する際に設定\nUse custom collision settings in WorldCollision instead of the collision settings set in SkeletalMeshComponent."
-msgstr "SkeletalMeshComponentが持つコリジョン設定ではなく、独自のコリジョン設定をWorldCollisionで使用する際に設定\nUse custom collision settings in WorldCollision instead of the collision settings set in SkeletalMeshComponent."
+msgid "SkeletalMeshComponentが持つコリジョン設定ではなく、独自のコリジョン設定をWorldCollisionで使用する際に設定。Simple World Collision はこの ObjectType をコリジョンチャンネルとして使います\nUse custom collision settings in WorldCollision instead of the collision settings set in SkeletalMeshComponent. Simple World Collision uses this ObjectType as its collision channel."
+msgstr "SkeletalMeshComponentが持つコリジョン設定ではなく、独自のコリジョン設定をWorldCollisionで使用する際に設定。Simple World Collision はこの ObjectType をコリジョンチャンネルとして使います\nUse custom collision settings in WorldCollision instead of the collision settings set in SkeletalMeshComponent. Simple World Collision uses this ObjectType as its collision channel."
 
 #. Key:	AnimNode_KawaiiPhysics:CustomExternalForces
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:CustomExternalForces [ArrayProperty DisplayName meta-data]
@@ -990,8 +990,8 @@ msgstr "Object Types"
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionObjectTypes [ArrayProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionObjectTypes [ArrayProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:SimpleWorldCollisionObjectTypes"
-msgid "シンプルワールドコリジョンが反応するオブジェクトタイプ。空の場合は WorldStatic + WorldDynamic を使用します。\nObject types used by Simple World Collision. Empty means WorldStatic + WorldDynamic."
-msgstr "シンプルワールドコリジョンが反応するオブジェクトタイプ。空の場合は WorldStatic + WorldDynamic を使用します。\nObject types used by Simple World Collision. Empty means WorldStatic + WorldDynamic."
+msgid "シンプルワールドコリジョンが反応するオブジェクトタイプ。空の場合は WorldStatic + WorldDynamic を使用します。収集されるのは、これらのタイプに属し、かつ所有 SkeletalMeshComponent の ObjectType（Override SkelComp Collision Params 有効時はその ObjectType）を Block するコンポーネントだけです。Overlap / Ignore 応答（トリガー等）は収集しません。\nObject types used by Simple World Collision. Empty means WorldStatic + WorldDynamic. Only components of these types that Block the owning SkeletalMeshComponent's ObjectType (or the ObjectType from Override SkelComp Collision Params when enabled) are gathered. Overlap / Ignore responses (triggers, etc.) are never gathered."
+msgstr "シンプルワールドコリジョンが反応するオブジェクトタイプ。空の場合は WorldStatic + WorldDynamic を使用します。収集されるのは、これらのタイプに属し、かつ所有 SkeletalMeshComponent の ObjectType（Override SkelComp Collision Params 有効時はその ObjectType）を Block するコンポーネントだけです。Overlap / Ignore 応答（トリガー等）は収集しません。\nObject types used by Simple World Collision. Empty means WorldStatic + WorldDynamic. Only components of these types that Block the owning SkeletalMeshComponent's ObjectType (or the ObjectType from Override SkelComp Collision Params when enabled) are gathered. Overlap / Ignore responses (triggers, etc.) are never gathered."
 
 #. Key:	AnimNode_KawaiiPhysics:SimpleWorldCollisionSkeletalMeshCollision
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:SimpleWorldCollisionSkeletalMeshCollision [EnumProperty DisplayName meta-data]

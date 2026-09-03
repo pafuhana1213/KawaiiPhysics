@@ -124,6 +124,35 @@ namespace
 
 namespace KawaiiPhysicsSimpleWorldCollision
 {
+	FCollisionResponseParams BuildSimpleWorldResponseParams(
+		const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes)
+	{
+		FCollisionResponseParams Params(ECR_Ignore);
+		if (ObjectTypes.IsEmpty())
+		{
+			Params.CollisionResponse.SetResponse(ECC_WorldStatic, ECR_Block);
+			Params.CollisionResponse.SetResponse(ECC_WorldDynamic, ECR_Block);
+			return Params;
+		}
+
+		for (const TEnumAsByte<EObjectTypeQuery>& ObjectType : ObjectTypes)
+		{
+			const ECollisionChannel CollisionChannel = UEngineTypes::ConvertToCollisionChannel(ObjectType.GetValue());
+			if (CollisionChannel != ECC_MAX)
+			{
+				Params.CollisionResponse.SetResponse(CollisionChannel, ECR_Block);
+			}
+		}
+		return Params;
+	}
+
+	bool IsSimpleWorldGatherInputValid(const FVector& Center, float Radius)
+	{
+		return !Center.ContainsNaN()
+			&& FMath::IsFinite(Radius)
+			&& Radius > KINDA_SMALL_NUMBER;
+	}
+
 	void AppendBoundsLocalLimits(
 		const FBoxSphereBounds& Bounds,
 		const FTransform& ComponentTM,
@@ -376,6 +405,23 @@ namespace KawaiiPhysicsSimpleWorldCollision
 
 		OutBox = NewBox;
 		return true;
+	}
+
+	FBoxLimit MakeSimpleWorldGroundBoxLocal(const FBoxLimit& WorldBox, const FTransform& ComponentTM)
+	{
+		FBoxLimit Result = WorldBox;
+		const FQuat InverseComponentRotation = ComponentTM.GetRotation().Inverse();
+		Result.Location = ComponentTM.InverseTransformPosition(WorldBox.Location);
+		Result.Rotation = (InverseComponentRotation * WorldBox.Rotation).GetNormalized();
+		return Result;
+	}
+
+	FBoxLimit TransformSimpleWorldGroundBox(const FBoxLimit& LocalBox, const FTransform& ComponentTM)
+	{
+		FBoxLimit Result = LocalBox;
+		Result.Location = ComponentTM.TransformPosition(LocalBox.Location);
+		Result.Rotation = (ComponentTM.GetRotation() * LocalBox.Rotation).GetNormalized();
+		return Result;
 	}
 
 	void ConvertAggGeomToLocalLimits(

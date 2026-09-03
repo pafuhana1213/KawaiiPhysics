@@ -189,6 +189,73 @@ bool FKawaiiPhysicsSimpleWorldBuildGroundBoxTest::RunTest(const FString& Paramet
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldGroundBoxFollowsComponentTest,
+                                 "KawaiiPhysics.SimpleWorld.GroundBoxFollowsComponent",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldGroundBoxFollowsComponentTest::RunTest(const FString& Parameters)
+{
+	FBoxLimit WorldBox;
+	const bool bBuilt = KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldGroundBox(
+		FVector(10.0f, 20.0f, 30.0f),
+		FVector::UpVector,
+		100.0f,
+		WorldBox);
+	TestTrue(TEXT("Builds source ground box"), bBuilt);
+
+	const FTransform ComponentTM(
+		FRotator(0.0f, 90.0f, 0.0f).Quaternion(),
+		FVector(100.0f, 50.0f, 10.0f));
+	const FBoxLimit LocalBox =
+		KawaiiPhysicsSimpleWorldCollision::MakeSimpleWorldGroundBoxLocal(WorldBox, ComponentTM);
+	const FBoxLimit RoundTripBox =
+		KawaiiPhysicsSimpleWorldCollision::TransformSimpleWorldGroundBox(LocalBox, ComponentTM);
+
+	TestTrue(TEXT("Round-trip location matches"),
+	         RoundTripBox.Location.Equals(WorldBox.Location, GSimpleWorldTol));
+	TestTrue(TEXT("Round-trip rotation matches"),
+	         RoundTripBox.Rotation.Equals(WorldBox.Rotation, GSimpleWorldTol));
+	TestTrue(TEXT("Round-trip extent matches"),
+	         RoundTripBox.Extent.Equals(WorldBox.Extent, GSimpleWorldTol));
+
+	const FTransform RaisedComponentTM(
+		FRotator(0.0f, 90.0f, 0.0f).Quaternion(),
+		FVector(100.0f, 50.0f, 60.0f));
+	const FBoxLimit RaisedBox =
+		KawaiiPhysicsSimpleWorldCollision::TransformSimpleWorldGroundBox(LocalBox, RaisedComponentTM);
+
+	TestTrue(TEXT("Raised component moves ground box up"),
+	         RaisedBox.Location.Equals(WorldBox.Location + FVector(0.0f, 0.0f, 50.0f), GSimpleWorldTol));
+	TestTrue(TEXT("Raised component keeps extent"),
+	         RaisedBox.Extent.Equals(WorldBox.Extent, GSimpleWorldTol));
+	TestEqual(TEXT("Raised component keeps bEnable"), RaisedBox.bEnable, WorldBox.bEnable);
+	TestTrue(TEXT("Raised component keeps SourceType"), RaisedBox.SourceType == WorldBox.SourceType);
+
+	const FBoxLimit IdentityLocalBox =
+		KawaiiPhysicsSimpleWorldCollision::MakeSimpleWorldGroundBoxLocal(WorldBox, FTransform::Identity);
+	TestTrue(TEXT("Identity local location matches"),
+	         IdentityLocalBox.Location.Equals(WorldBox.Location, GSimpleWorldTol));
+	TestTrue(TEXT("Identity local rotation matches"),
+	         IdentityLocalBox.Rotation.Equals(WorldBox.Rotation, GSimpleWorldTol));
+	TestTrue(TEXT("Identity local extent matches"),
+	         IdentityLocalBox.Extent.Equals(WorldBox.Extent, GSimpleWorldTol));
+
+	const FTransform ScaledComponentTM(
+		FQuat::Identity,
+		FVector(100.0f, 50.0f, 10.0f),
+		FVector(2.0f, 2.0f, 2.0f));
+	const FBoxLimit ScaledLocalBox =
+		KawaiiPhysicsSimpleWorldCollision::MakeSimpleWorldGroundBoxLocal(WorldBox, ScaledComponentTM);
+	const FBoxLimit ScaledRoundTripBox =
+		KawaiiPhysicsSimpleWorldCollision::TransformSimpleWorldGroundBox(ScaledLocalBox, ScaledComponentTM);
+	TestTrue(TEXT("Scaled transform keeps local extent"),
+	         ScaledLocalBox.Extent.Equals(WorldBox.Extent, GSimpleWorldTol));
+	TestTrue(TEXT("Scaled transform keeps world extent"),
+	         ScaledRoundTripBox.Extent.Equals(WorldBox.Extent, GSimpleWorldTol));
+
+	return true;
+}
+
 // ---------------------------------------------------------------------------
 //  ConvertAggGeomToLocalLimits
 // ---------------------------------------------------------------------------
@@ -996,6 +1063,87 @@ bool FKawaiiPhysicsSimpleWorldAppendFadedLocalLimitsTest::RunTest(const FString&
 }
 
 // ---------------------------------------------------------------------------
+//  レスポンスパラメータ構築
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldResponseParamsTest,
+                                 "KawaiiPhysics.SimpleWorld.ResponseParams",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldResponseParamsTest::RunTest(const FString& Parameters)
+{
+	{
+		const TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
+		const FCollisionResponseParams ResponseParams =
+			KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldResponseParams(ObjectTypes);
+
+		TestTrue(TEXT("Empty ObjectTypes blocks WorldStatic"),
+		         ResponseParams.CollisionResponse.GetResponse(ECC_WorldStatic) == ECR_Block);
+		TestTrue(TEXT("Empty ObjectTypes blocks WorldDynamic"),
+		         ResponseParams.CollisionResponse.GetResponse(ECC_WorldDynamic) == ECR_Block);
+		TestTrue(TEXT("Empty ObjectTypes ignores Pawn"),
+		         ResponseParams.CollisionResponse.GetResponse(ECC_Pawn) == ECR_Ignore);
+		TestTrue(TEXT("Empty ObjectTypes ignores PhysicsBody"),
+		         ResponseParams.CollisionResponse.GetResponse(ECC_PhysicsBody) == ECR_Ignore);
+		TestTrue(TEXT("Empty ObjectTypes ignores Visibility"),
+		         ResponseParams.CollisionResponse.GetResponse(ECC_Visibility) == ECR_Ignore);
+	}
+
+	{
+		const TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes =
+		{
+			UEngineTypes::ConvertToObjectType(ECC_Pawn),
+			UEngineTypes::ConvertToObjectType(ECC_PhysicsBody),
+		};
+		const FCollisionResponseParams ResponseParams =
+			KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldResponseParams(ObjectTypes);
+
+		TestTrue(TEXT("Explicit ObjectTypes blocks Pawn"),
+		         ResponseParams.CollisionResponse.GetResponse(ECC_Pawn) == ECR_Block);
+		TestTrue(TEXT("Explicit ObjectTypes blocks PhysicsBody"),
+		         ResponseParams.CollisionResponse.GetResponse(ECC_PhysicsBody) == ECR_Block);
+		TestTrue(TEXT("Explicit ObjectTypes ignores WorldStatic"),
+		         ResponseParams.CollisionResponse.GetResponse(ECC_WorldStatic) == ECR_Ignore);
+		TestTrue(TEXT("Explicit ObjectTypes ignores WorldDynamic"),
+		         ResponseParams.CollisionResponse.GetResponse(ECC_WorldDynamic) == ECR_Ignore);
+	}
+
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+//  収集入力ガード
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldGatherInputValidTest,
+                                 "KawaiiPhysics.SimpleWorld.GatherInputValid",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldGatherInputValidTest::RunTest(const FString& Parameters)
+{
+	TestTrue(TEXT("Finite center and positive radius are valid"),
+	         KawaiiPhysicsSimpleWorldCollision::IsSimpleWorldGatherInputValid(FVector(1.0f, 2.0f, 3.0f), 100.0f));
+
+	TestFalse(TEXT("NaN center is invalid"),
+	          KawaiiPhysicsSimpleWorldCollision::IsSimpleWorldGatherInputValid(
+		          FVector(std::numeric_limits<float>::quiet_NaN(), 2.0f, 3.0f), 100.0f));
+
+	TestFalse(TEXT("Infinite radius is invalid"),
+	          KawaiiPhysicsSimpleWorldCollision::IsSimpleWorldGatherInputValid(
+		          FVector(1.0f, 2.0f, 3.0f), std::numeric_limits<float>::infinity()));
+
+	TestFalse(TEXT("NaN radius is invalid"),
+	          KawaiiPhysicsSimpleWorldCollision::IsSimpleWorldGatherInputValid(
+		          FVector(1.0f, 2.0f, 3.0f), std::numeric_limits<float>::quiet_NaN()));
+
+	TestFalse(TEXT("Zero radius is invalid"),
+	          KawaiiPhysicsSimpleWorldCollision::IsSimpleWorldGatherInputValid(FVector(1.0f, 2.0f, 3.0f), 0.0f));
+
+	TestFalse(TEXT("Negative radius is invalid"),
+	          KawaiiPhysicsSimpleWorldCollision::IsSimpleWorldGatherInputValid(FVector(1.0f, 2.0f, 3.0f), -1.0f));
+
+	return true;
+}
+
+// ---------------------------------------------------------------------------
 //  FKawaiiPhysicsSimpleWorldCollisionDesc::Merge
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldDescMergeTest,
@@ -1010,6 +1158,7 @@ bool FKawaiiPhysicsSimpleWorldDescMergeTest::RunTest(const FString& Parameters)
 		FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
 		Desc.GatherIntervalSec = 0.1f;
 		Desc.GatherRadiusOverride = 0.0f; // 自動
+		Desc.CollisionChannel = ECC_Pawn;
 		Desc.ObjectTypes = {UEngineTypes::ConvertToObjectType(ECC_WorldStatic)};
 		Desc.ConvexFallbackShape = EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingSphere;
 		Desc.SkeletalMeshCollision = EKawaiiPhysicsSimpleWorldSkeletalMeshCollision::BoundingBox;
@@ -1022,6 +1171,7 @@ bool FKawaiiPhysicsSimpleWorldDescMergeTest::RunTest(const FString& Parameters)
 		         FMath::IsNearlyEqual(Merged.GatherIntervalSec, 0.1f, GSimpleWorldTol));
 		TestTrue(TEXT("Single desc: GatherRadiusOverride stays automatic (0)"),
 		         FMath::IsNearlyEqual(Merged.GatherRadiusOverride, 0.0f, GSimpleWorldTol));
+		TestTrue(TEXT("Single desc: CollisionChannel unchanged"), Merged.CollisionChannel == ECC_Pawn);
 		TestTrue(TEXT("Single desc: ObjectTypes unchanged"), Merged.ObjectTypes.Num() == 1);
 		TestTrue(TEXT("Single desc: ConvexFallbackShape unchanged"),
 		         Merged.ConvexFallbackShape == EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingSphere);
@@ -1047,23 +1197,37 @@ bool FKawaiiPhysicsSimpleWorldDescMergeTest::RunTest(const FString& Parameters)
 		         FMath::IsNearlyEqual(Merged2.GatherIntervalSec, 0.0f, GSimpleWorldTol));
 	}
 
-	// GatherRadiusOverride: 全DescがOverride指定の場合だけ最大値。1つでも自動(0)なら自動側(0)を維持する（二段解決前提）
+	// GatherRadiusOverride: Override指定の最大値を保持し、全DescがOverride指定かを別フラグで持つ。
 	{
-		FKawaiiPhysicsSimpleWorldCollisionDesc Auto, Override;
-		Auto.GatherRadiusOverride = 0.0f;
-		Override.GatherRadiusOverride = 300.0f;
-		const FKawaiiPhysicsSimpleWorldCollisionDesc Merged =
-			FKawaiiPhysicsSimpleWorldCollisionDesc::Merge({Auto, Override});
-		TestTrue(TEXT("Override {0,300}: mixed auto+override falls back to automatic (0)"),
-		         FMath::IsNearlyEqual(Merged.GatherRadiusOverride, 0.0f, GSimpleWorldTol));
-
 		FKawaiiPhysicsSimpleWorldCollisionDesc OverrideA, OverrideB;
-		OverrideA.GatherRadiusOverride = 200.0f;
+		OverrideA.GatherRadiusOverride = 150.0f;
 		OverrideB.GatherRadiusOverride = 300.0f;
 		const FKawaiiPhysicsSimpleWorldCollisionDesc MergedAllOverridden =
 			FKawaiiPhysicsSimpleWorldCollisionDesc::Merge({OverrideA, OverrideB});
-		TestTrue(TEXT("Override {200,300}: all-overridden picks the max"),
+		TestTrue(TEXT("Override {150,300}: all-overridden picks the max"),
 		         FMath::IsNearlyEqual(MergedAllOverridden.GatherRadiusOverride, 300.0f, GSimpleWorldTol));
+		TestTrue(TEXT("Override {150,300}: all-overridden flag is true"),
+		         MergedAllOverridden.bGatherRadiusAllOverridden);
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc Auto, Override;
+		Auto.GatherRadiusOverride = 0.0f;
+		Override.GatherRadiusOverride = 300.0f;
+		const FKawaiiPhysicsSimpleWorldCollisionDesc MergedMixed =
+			FKawaiiPhysicsSimpleWorldCollisionDesc::Merge({Override, Auto});
+		TestTrue(TEXT("Override {300,0}: mixed keeps max override"),
+		         FMath::IsNearlyEqual(MergedMixed.GatherRadiusOverride, 300.0f, GSimpleWorldTol));
+		TestFalse(TEXT("Override {300,0}: mixed all-overridden flag is false"),
+		          MergedMixed.bGatherRadiusAllOverridden);
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc AutoA, AutoB;
+		AutoA.GatherRadiusOverride = 0.0f;
+		AutoB.GatherRadiusOverride = 0.0f;
+		const FKawaiiPhysicsSimpleWorldCollisionDesc MergedAuto =
+			FKawaiiPhysicsSimpleWorldCollisionDesc::Merge({AutoA, AutoB});
+		TestTrue(TEXT("Override {0,0}: automatic radius stays 0"),
+		         FMath::IsNearlyEqual(MergedAuto.GatherRadiusOverride, 0.0f, GSimpleWorldTol));
+		TestFalse(TEXT("Override {0,0}: all-overridden flag is false"),
+		          MergedAuto.bGatherRadiusAllOverridden);
 	}
 
 	// ObjectTypes: 空+非空 → WorldStatic/WorldDynamic を含むunion
@@ -1084,6 +1248,96 @@ bool FKawaiiPhysicsSimpleWorldDescMergeTest::RunTest(const FString& Parameters)
 		         Merged.ObjectTypes.Contains(WorldStaticType) &&
 		         Merged.ObjectTypes.Contains(WorldDynamicType) &&
 		         Merged.ObjectTypes.Contains(PawnType));
+	}
+
+	// CollisionChannel: ECC_MAX以外の先頭を採用。全てECC_MAXならECC_MAXのまま。
+	{
+		FKawaiiPhysicsSimpleWorldCollisionDesc AutoA, AutoB;
+		AutoA.CollisionChannel = ECC_MAX;
+		AutoB.CollisionChannel = ECC_MAX;
+		const FKawaiiPhysicsSimpleWorldCollisionDesc MergedAuto =
+			FKawaiiPhysicsSimpleWorldCollisionDesc::Merge({AutoA, AutoB});
+		TestTrue(TEXT("CollisionChannel {ECC_MAX,ECC_MAX} -> ECC_MAX"),
+		         MergedAuto.CollisionChannel == ECC_MAX);
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc Auto, Pawn;
+		Auto.CollisionChannel = ECC_MAX;
+		Pawn.CollisionChannel = ECC_Pawn;
+		const FKawaiiPhysicsSimpleWorldCollisionDesc MergedPawn =
+			FKawaiiPhysicsSimpleWorldCollisionDesc::Merge({Auto, Pawn});
+		TestTrue(TEXT("CollisionChannel {ECC_MAX,Pawn} -> Pawn"),
+		         MergedPawn.CollisionChannel == ECC_Pawn);
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc Visibility, PawnSecond;
+		Visibility.CollisionChannel = ECC_Visibility;
+		PawnSecond.CollisionChannel = ECC_Pawn;
+		const FKawaiiPhysicsSimpleWorldCollisionDesc MergedFirst =
+			FKawaiiPhysicsSimpleWorldCollisionDesc::Merge({Visibility, PawnSecond});
+		TestTrue(TEXT("CollisionChannel {Visibility,Pawn} -> Visibility"),
+		         MergedFirst.CollisionChannel == ECC_Visibility);
+	}
+
+	// operator==: CollisionChannelの差を比較に含める。
+	{
+		FKawaiiPhysicsSimpleWorldCollisionDesc A, B;
+		A.CollisionChannel = ECC_Visibility;
+		B.CollisionChannel = ECC_Pawn;
+		TestFalse(TEXT("operator== detects different CollisionChannel"), A == B);
+	}
+
+	// DoesChangeRequireRegather: 収集内容へ影響するフィールドだけtrue。
+	{
+		FKawaiiPhysicsSimpleWorldCollisionDesc Base;
+		Base.ObjectTypes = {UEngineTypes::ConvertToObjectType(ECC_WorldStatic)};
+		Base.ConvexFallbackShape = EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingSphere;
+		Base.SkeletalMeshCollision = EKawaiiPhysicsSimpleWorldSkeletalMeshCollision::BoundingBox;
+		Base.bGroundCollision = true;
+		Base.GatherRadiusOverride = 200.0f;
+		Base.CollisionChannel = ECC_Visibility;
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc Same = Base;
+		TestFalse(TEXT("DoesChangeRequireRegather returns false for identical descs"),
+		          FKawaiiPhysicsSimpleWorldCollisionDesc::DoesChangeRequireRegather(Base, Same));
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc IntervalOnly = Base;
+		IntervalOnly.GatherIntervalSec = Base.GatherIntervalSec + 0.25f;
+		TestFalse(TEXT("DoesChangeRequireRegather ignores GatherIntervalSec-only changes"),
+		          FKawaiiPhysicsSimpleWorldCollisionDesc::DoesChangeRequireRegather(Base, IntervalOnly));
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc ObjectTypesChanged = Base;
+		ObjectTypesChanged.ObjectTypes = {UEngineTypes::ConvertToObjectType(ECC_WorldDynamic)};
+		TestTrue(TEXT("DoesChangeRequireRegather detects ObjectTypes changes"),
+		         FKawaiiPhysicsSimpleWorldCollisionDesc::DoesChangeRequireRegather(Base, ObjectTypesChanged));
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc ShapeChanged = Base;
+		ShapeChanged.ConvexFallbackShape = EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox;
+		TestTrue(TEXT("DoesChangeRequireRegather detects ConvexFallbackShape changes"),
+		         FKawaiiPhysicsSimpleWorldCollisionDesc::DoesChangeRequireRegather(Base, ShapeChanged));
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc SkeletalMeshChanged = Base;
+		SkeletalMeshChanged.SkeletalMeshCollision = EKawaiiPhysicsSimpleWorldSkeletalMeshCollision::PhysicsAsset;
+		TestTrue(TEXT("DoesChangeRequireRegather detects SkeletalMeshCollision changes"),
+		         FKawaiiPhysicsSimpleWorldCollisionDesc::DoesChangeRequireRegather(Base, SkeletalMeshChanged));
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc GroundChanged = Base;
+		GroundChanged.bGroundCollision = false;
+		TestTrue(TEXT("DoesChangeRequireRegather detects bGroundCollision changes"),
+		         FKawaiiPhysicsSimpleWorldCollisionDesc::DoesChangeRequireRegather(Base, GroundChanged));
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc RadiusChanged = Base;
+		RadiusChanged.GatherRadiusOverride = 300.0f;
+		TestTrue(TEXT("DoesChangeRequireRegather detects GatherRadiusOverride changes"),
+		         FKawaiiPhysicsSimpleWorldCollisionDesc::DoesChangeRequireRegather(Base, RadiusChanged));
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc RadiusFlagChanged = Base;
+		RadiusFlagChanged.bGatherRadiusAllOverridden = true;
+		TestTrue(TEXT("DoesChangeRequireRegather detects bGatherRadiusAllOverridden changes"),
+		         FKawaiiPhysicsSimpleWorldCollisionDesc::DoesChangeRequireRegather(Base, RadiusFlagChanged));
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc ChannelChanged = Base;
+		ChannelChanged.CollisionChannel = ECC_Pawn;
+		TestTrue(TEXT("DoesChangeRequireRegather detects CollisionChannel changes"),
+		         FKawaiiPhysicsSimpleWorldCollisionDesc::DoesChangeRequireRegather(Base, ChannelChanged));
 	}
 
 	// enum優先: SkeletalMeshCollision は PhysicsAsset > BoundingBox > None
@@ -1223,6 +1477,86 @@ bool FKawaiiPhysicsSimpleWorldEntryLifecycleTest::RunTest(const FString& Paramet
 		TestTrue(TEXT("Second consume returns false (already consumed)"), !Entry.ConsumeRegatherRequested());
 	}
 
+	// SetDesc: 初回登録と収集内容に影響する変更だけ再収集を要求する。
+	{
+		constexpr uint64 SourceID = 200;
+		FKawaiiPhysicsSimpleWorldCollisionEntry Entry;
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
+		Desc.GatherIntervalSec = 0.2f;
+		Entry.SetDesc(SourceID, Desc);
+		TestTrue(TEXT("Initial SetDesc requests regather"), Entry.ConsumeRegatherRequested());
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc IntervalChanged = Desc;
+		IntervalChanged.GatherIntervalSec = 0.05f;
+		Entry.SetDesc(SourceID, IntervalChanged);
+		TestFalse(TEXT("Interval-only SetDesc does not request regather"), Entry.ConsumeRegatherRequested());
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc ObjectTypesChanged = IntervalChanged;
+		ObjectTypesChanged.ObjectTypes = {UEngineTypes::ConvertToObjectType(ECC_Pawn)};
+		Entry.SetDesc(SourceID, ObjectTypesChanged);
+		TestTrue(TEXT("ObjectTypes SetDesc requests regather"), Entry.ConsumeRegatherRequested());
+	}
+
+	// SetDesc: 同一設定のノードが追加で登録されてもMerge結果は変わらないため再収集しない。
+	{
+		constexpr uint64 SourceA = 210;
+		constexpr uint64 SourceB = 211;
+		constexpr uint64 SourceC = 212;
+		FKawaiiPhysicsSimpleWorldCollisionEntry Entry;
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
+		Desc.GatherIntervalSec = 0.2f;
+		Entry.SetDesc(SourceA, Desc);
+		TestTrue(TEXT("First source SetDesc requests regather"), Entry.ConsumeRegatherRequested());
+
+		Entry.SetDesc(SourceB, Desc);
+		TestFalse(TEXT("Second source with an identical desc does not request regather"),
+		          Entry.ConsumeRegatherRequested());
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc DifferentDesc = Desc;
+		DifferentDesc.ObjectTypes = {UEngineTypes::ConvertToObjectType(ECC_Pawn)};
+		Entry.SetDesc(SourceC, DifferentDesc);
+		TestTrue(TEXT("Third source with a different desc requests regather"), Entry.ConsumeRegatherRequested());
+	}
+
+	// BuildMergedDesc: CollisionChannel の「最初の非 ECC_MAX を採用」は TMap の反復順ではなく登録順で決まる。
+	// SourceID を小さい整数にして、TMap の並び（ハッシュ順）と登録順が食い違う状況を作る。
+	{
+		FKawaiiPhysicsSimpleWorldCollisionDesc VisibilityDesc;
+		VisibilityDesc.CollisionChannel = ECC_Visibility;
+		FKawaiiPhysicsSimpleWorldCollisionDesc PawnDesc;
+		PawnDesc.CollisionChannel = ECC_Pawn;
+
+		FKawaiiPhysicsSimpleWorldCollisionEntry VisibilityFirstEntry;
+		VisibilityFirstEntry.SetDesc(SourceID2, VisibilityDesc);
+		VisibilityFirstEntry.SetDesc(SourceID1, PawnDesc);
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc VisibilityFirstMerged;
+		TestTrue(TEXT("BuildMergedDesc succeeds when two sources override the channel"),
+		         VisibilityFirstEntry.BuildMergedDesc(VisibilityFirstMerged));
+		TestTrue(TEXT("Channel comes from the earliest registered desc (Visibility registered first)"),
+		         VisibilityFirstMerged.CollisionChannel == ECC_Visibility);
+
+		FKawaiiPhysicsSimpleWorldCollisionEntry PawnFirstEntry;
+		PawnFirstEntry.SetDesc(SourceID1, PawnDesc);
+		PawnFirstEntry.SetDesc(SourceID2, VisibilityDesc);
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc PawnFirstMerged;
+		TestTrue(TEXT("BuildMergedDesc succeeds with the reversed registration order"),
+		         PawnFirstEntry.BuildMergedDesc(PawnFirstMerged));
+		TestTrue(TEXT("Channel comes from the earliest registered desc (Pawn registered first)"),
+		         PawnFirstMerged.CollisionChannel == ECC_Pawn);
+
+		// 先に登録したノードが外れたら、残ったノードのチャンネルへ切り替わる。
+		PawnFirstEntry.RemoveDesc(SourceID1);
+		FKawaiiPhysicsSimpleWorldCollisionDesc MergedAfterRemove;
+		TestTrue(TEXT("BuildMergedDesc succeeds after removing the earliest registered desc"),
+		         PawnFirstEntry.BuildMergedDesc(MergedAfterRemove));
+		TestTrue(TEXT("Channel falls back to the remaining desc after the earliest one is removed"),
+		         MergedAfterRemove.CollisionChannel == ECC_Visibility);
+	}
+
 	// Slot: Publish→AppendTo のラウンドトリップ最小限（詳細な契約は KawaiiPhysicsSharedCollisionSlotTest でカバー済み）
 	{
 		FKawaiiPhysicsSimpleWorldCollisionEntry Entry;
@@ -1273,6 +1607,7 @@ bool FKawaiiPhysicsSimpleWorldDebugInfoTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Empty entry MinFadeAlpha"),
 		         FMath::IsNearlyEqual(Info.MinFadeAlpha, 1.0f, GSimpleWorldTol));
 		TestFalse(TEXT("Empty entry has no ground box"), Info.bHasGroundBox);
+		TestTrue(TEXT("Empty entry ground component is static by default"), Info.bGroundComponentStatic);
 		TestTrue(TEXT("Empty entry GroundSource is None"),
 		         Info.GroundSource == EKawaiiPhysicsSimpleWorldGroundSource::None);
 		TestTrue(TEXT("Empty entry GroundBoxSource is None"),
@@ -1302,6 +1637,7 @@ bool FKawaiiPhysicsSimpleWorldDebugInfoTest::RunTest(const FString& Parameters)
 		SkeletalBodyComponent.BodyBindings.SetNum(2);
 
 		Entry.bHasGroundBox = true;
+		Entry.bGroundComponentStatic = false;
 		Entry.GroundBox.Location = FVector(1.0f, 2.0f, 3.0f);
 		Entry.GroundBox.Extent = FVector(10.0f, 20.0f, 30.0f);
 		Entry.GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::Provider;
@@ -1344,6 +1680,7 @@ bool FKawaiiPhysicsSimpleWorldDebugInfoTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Filled entry GroundBoxExtent"),
 		         Info.GroundBoxExtent.Equals(FVector(10.0f, 20.0f, 30.0f), GSimpleWorldTol));
 		TestTrue(TEXT("Filled entry has ground box"), Info.bHasGroundBox);
+		TestFalse(TEXT("Filled entry ground component static"), Info.bGroundComponentStatic);
 		TestTrue(TEXT("Filled entry GroundSource"),
 		         Info.GroundSource == EKawaiiPhysicsSimpleWorldGroundSource::Provider);
 		TestTrue(TEXT("Filled entry GroundBoxSource"),
