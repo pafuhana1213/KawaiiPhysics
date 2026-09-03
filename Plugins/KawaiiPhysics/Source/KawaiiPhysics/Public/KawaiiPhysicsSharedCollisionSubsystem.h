@@ -133,8 +133,8 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionDesc
 	 * - GatherIntervalSec uses the minimum value. <= 0 means gather every frame and has highest priority.
 	 * - GatherRadiusOverride は Override 指定の最大値（指定なしは 0）。bGatherRadiusAllOverridden は全 Desc が Override 指定の時だけ true。
 	 * - GatherRadiusOverride is the max of the specified overrides (0 when none). bGatherRadiusAllOverridden is true only when every Desc specifies an override.
-	 * - CollisionChannel は ECC_MAX 以外（World Collision の Override 指定）を持つ最初の Desc の値を採用。全て ECC_MAX なら ECC_MAX。
-	 * - CollisionChannel uses the first Desc value that is not ECC_MAX (World Collision override). If all values are ECC_MAX, it stays ECC_MAX.
+	 * - CollisionChannel は ECC_MAX 以外（World Collision の Override 指定）を持つ Desc のうち、最も早く登録されたノードの値を採用。全て ECC_MAX なら ECC_MAX。
+	 * - CollisionChannel uses the value of the earliest-registered Desc whose value is not ECC_MAX (World Collision override). If all values are ECC_MAX, it stays ECC_MAX.
 	 * - ObjectTypes は union。空配列は WorldStatic + WorldDynamic の意味なので、空 Desc がある場合はそれらを明示的に union へ含める。
 	 * - ObjectTypes are unioned. Empty means WorldStatic + WorldDynamic, so those are explicitly included when any Desc is empty.
 	 * - ConvexFallbackShape は宣言順（高精度が先）の優先。
@@ -270,10 +270,14 @@ private:
 	{
 		FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
 		uint64 LastReadFrame = 0;
+		// 登録順（Merge の順序依存規則を決定的にする） / Registration order that makes order-dependent merge rules deterministic
+		uint64 RegistrationOrdinal = 0;
 	};
 
 	TMap<uint64, FDescSlot> DescSlots;
 	mutable FRWLock DescLock;
+	// 次に登録する Desc へ割り当てる登録順。DescLock 内でのみ触る / Registration order for the next Desc. Touched only under DescLock
+	uint64 NextDescRegistrationOrdinal = 1;
 	std::atomic<bool> bRegatherRequested{false};
 };
 

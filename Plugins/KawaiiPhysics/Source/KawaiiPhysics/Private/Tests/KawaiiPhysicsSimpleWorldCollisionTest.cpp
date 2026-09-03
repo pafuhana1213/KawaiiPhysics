@@ -1520,6 +1520,43 @@ bool FKawaiiPhysicsSimpleWorldEntryLifecycleTest::RunTest(const FString& Paramet
 		TestTrue(TEXT("Third source with a different desc requests regather"), Entry.ConsumeRegatherRequested());
 	}
 
+	// BuildMergedDesc: CollisionChannel の「最初の非 ECC_MAX を採用」は TMap の反復順ではなく登録順で決まる。
+	// SourceID を小さい整数にして、TMap の並び（ハッシュ順）と登録順が食い違う状況を作る。
+	{
+		FKawaiiPhysicsSimpleWorldCollisionDesc VisibilityDesc;
+		VisibilityDesc.CollisionChannel = ECC_Visibility;
+		FKawaiiPhysicsSimpleWorldCollisionDesc PawnDesc;
+		PawnDesc.CollisionChannel = ECC_Pawn;
+
+		FKawaiiPhysicsSimpleWorldCollisionEntry VisibilityFirstEntry;
+		VisibilityFirstEntry.SetDesc(SourceID2, VisibilityDesc);
+		VisibilityFirstEntry.SetDesc(SourceID1, PawnDesc);
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc VisibilityFirstMerged;
+		TestTrue(TEXT("BuildMergedDesc succeeds when two sources override the channel"),
+		         VisibilityFirstEntry.BuildMergedDesc(VisibilityFirstMerged));
+		TestTrue(TEXT("Channel comes from the earliest registered desc (Visibility registered first)"),
+		         VisibilityFirstMerged.CollisionChannel == ECC_Visibility);
+
+		FKawaiiPhysicsSimpleWorldCollisionEntry PawnFirstEntry;
+		PawnFirstEntry.SetDesc(SourceID1, PawnDesc);
+		PawnFirstEntry.SetDesc(SourceID2, VisibilityDesc);
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc PawnFirstMerged;
+		TestTrue(TEXT("BuildMergedDesc succeeds with the reversed registration order"),
+		         PawnFirstEntry.BuildMergedDesc(PawnFirstMerged));
+		TestTrue(TEXT("Channel comes from the earliest registered desc (Pawn registered first)"),
+		         PawnFirstMerged.CollisionChannel == ECC_Pawn);
+
+		// 先に登録したノードが外れたら、残ったノードのチャンネルへ切り替わる。
+		PawnFirstEntry.RemoveDesc(SourceID1);
+		FKawaiiPhysicsSimpleWorldCollisionDesc MergedAfterRemove;
+		TestTrue(TEXT("BuildMergedDesc succeeds after removing the earliest registered desc"),
+		         PawnFirstEntry.BuildMergedDesc(MergedAfterRemove));
+		TestTrue(TEXT("Channel falls back to the remaining desc after the earliest one is removed"),
+		         MergedAfterRemove.CollisionChannel == ECC_Visibility);
+	}
+
 	// Slot: Publish→AppendTo のラウンドトリップ最小限（詳細な契約は KawaiiPhysicsSharedCollisionSlotTest でカバー済み）
 	{
 		FKawaiiPhysicsSimpleWorldCollisionEntry Entry;

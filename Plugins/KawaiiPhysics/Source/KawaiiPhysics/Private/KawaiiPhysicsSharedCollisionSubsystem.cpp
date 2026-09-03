@@ -1002,6 +1002,11 @@ void FKawaiiPhysicsSimpleWorldCollisionEntry::SetDesc(
 	}
 
 	FDescSlot& DescSlotRef = DescSlots.FindOrAdd(SourceID);
+	if (bIsNewSource)
+	{
+		// 登録順は新規登録時にだけ確定する（同じノードが設定を変えても順位は維持する）。
+		DescSlotRef.RegistrationOrdinal = NextDescRegistrationOrdinal++;
+	}
 	DescSlotRef.LastReadFrame = GFrameCounter;
 	if (bIsNewSource || !(DescSlotRef.Desc == InDesc))
 	{
@@ -1075,7 +1080,9 @@ int32 FKawaiiPhysicsSimpleWorldCollisionEntry::GetNumDescs() const
 bool FKawaiiPhysicsSimpleWorldCollisionEntry::BuildMergedDesc(
 	FKawaiiPhysicsSimpleWorldCollisionDesc& OutMerged) const
 {
-	TArray<FKawaiiPhysicsSimpleWorldCollisionDesc> Descs;
+	// TMap の反復順は SourceID（ノードアドレス）のハッシュ順で非決定的なため、登録順に並べてから Merge する
+	// （CollisionChannel の「最初の非 ECC_MAX を採用」を決定的にする）。
+	TArray<TPair<uint64, FKawaiiPhysicsSimpleWorldCollisionDesc>> OrderedDescs;
 	{
 		FReadScopeLock ReadLock(DescLock);
 		if (DescSlots.IsEmpty())
@@ -1083,11 +1090,25 @@ bool FKawaiiPhysicsSimpleWorldCollisionEntry::BuildMergedDesc(
 			return false;
 		}
 
-		Descs.Reserve(DescSlots.Num());
+		OrderedDescs.Reserve(DescSlots.Num());
 		for (const auto& Pair : DescSlots)
 		{
-			Descs.Add(Pair.Value.Desc);
+			OrderedDescs.Emplace(Pair.Value.RegistrationOrdinal, Pair.Value.Desc);
 		}
+	}
+
+	// RegistrationOrdinal は一意なので安定ソートは不要。
+	OrderedDescs.Sort([](const TPair<uint64, FKawaiiPhysicsSimpleWorldCollisionDesc>& Lhs,
+	                     const TPair<uint64, FKawaiiPhysicsSimpleWorldCollisionDesc>& Rhs)
+	{
+		return Lhs.Key < Rhs.Key;
+	});
+
+	TArray<FKawaiiPhysicsSimpleWorldCollisionDesc> Descs;
+	Descs.Reserve(OrderedDescs.Num());
+	for (const TPair<uint64, FKawaiiPhysicsSimpleWorldCollisionDesc>& OrderedDesc : OrderedDescs)
+	{
+		Descs.Add(OrderedDesc.Value);
 	}
 
 	OutMerged = FKawaiiPhysicsSimpleWorldCollisionDesc::Merge(Descs);
@@ -1374,18 +1395,8 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 
 		Entry->RemoveExpiredDescs(CurrentFrame, ReadMaxAge);
 
-		FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
-		if (!Entry->BuildMergedDesc(Desc))
-		{
-			continue;
-		}
-
-		const USkeletalMeshComponent* SkelComp = TickEntry.SkelComp.Get();
-		if (!SkelComp)
-		{
-			continue;
-		}
-
+		// 再収集要求は Desc スナップショットを取る前に消費する。消費後に届いた SetDesc は次 Tick で再収集され、
+		// 消費前の変更はこの Tick のスナップショットに含まれるため、変更が取りこぼされる窓が無い。
 		if (Entry->ConsumeRegatherRequested())
 		{
 			Entry->GatheredComponents.Reset();
@@ -1397,6 +1408,18 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 			Entry->bHasGatheredOnce = false;
 			Entry->TimeSinceLastGather = FLT_MAX;
 			Entry->bWorldLimitsDirty = true;
+		}
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
+		if (!Entry->BuildMergedDesc(Desc))
+		{
+			continue;
+		}
+
+		const USkeletalMeshComponent* SkelComp = TickEntry.SkelComp.Get();
+		if (!SkelComp)
+		{
+			continue;
 		}
 
 		const FVector Center = SkelComp->Bounds.Origin;
