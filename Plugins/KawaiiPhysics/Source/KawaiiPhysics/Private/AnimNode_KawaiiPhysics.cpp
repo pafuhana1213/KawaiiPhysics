@@ -108,6 +108,9 @@ TAutoConsoleVariable<int32> CVarSharedCollisionInitRetryThrottleInterval(
 TAutoConsoleVariable<float> CVarSharedCollisionCleanupInterval(
 	TEXT("a.AnimNode.KawaiiPhysics.SharedCollision.CleanupInterval"), 1.0f,
 	TEXT("クリーンアップ間隔（秒） / Cleanup interval in seconds."));
+TAutoConsoleVariable<int32> CVarSharedCollisionEnableInPreviewWorld(
+	TEXT("a.AnimNode.KawaiiPhysics.SharedCollision.EnableInPreviewWorld"), 1,
+	TEXT("1でPersona等のプレビューワールド（EditorPreview）でもSharedCollision Subsystemを生成する。0で従来どおり生成しない / 1 creates the SharedCollision subsystem in preview worlds (EditorPreview, e.g. Persona) too; 0 keeps the legacy behavior (not created)."));
 
 // SimpleWorldCollision CVars
 TAutoConsoleVariable<int32> CVarSimpleWorldCollisionEnable(
