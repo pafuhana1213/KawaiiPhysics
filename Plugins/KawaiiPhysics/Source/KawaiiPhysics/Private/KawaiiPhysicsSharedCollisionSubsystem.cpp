@@ -722,6 +722,7 @@ namespace
 extern TAutoConsoleVariable<int32> CVarSharedCollisionReadMaxAge;
 extern TAutoConsoleVariable<int32> CVarSharedCollisionCleanupMaxAge;
 extern TAutoConsoleVariable<float> CVarSharedCollisionCleanupInterval;
+extern TAutoConsoleVariable<int32> CVarSharedCollisionEnableInPreviewWorld;
 
 // SimpleWorldCollision CVars（AnimNode_KawaiiPhysics.cpp で定義）
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionEnable;
@@ -1999,6 +2000,17 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 	// DWORDカウンタは毎フレームリセットされるため、CleanupゲートではなくSimpleWorldのTickごとに更新する。
 	SET_DWORD_STAT(STAT_KawaiiPhysics_SimpleWorldCollision_NumGatheredComponents, TotalGatheredComponents);
 	SET_DWORD_STAT(STAT_KawaiiPhysics_SimpleWorldCollision_NumSkeletalBodies, TotalSkeletalBodies);
+}
+
+bool UKawaiiPhysicsSharedCollisionSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
+{
+	// Persona等のプレビューワールドでもSubsystemを生成し、ABP上でSharedCollision/SimpleWorldCollisionをプレビューできるようにする。
+	// GamePreview（ゲーム側FPreviewScene）とInactiveは従来どおり対象外。
+	if (WorldType == EWorldType::EditorPreview)
+	{
+		return CVarSharedCollisionEnableInPreviewWorld.GetValueOnGameThread() != 0;
+	}
+	return Super::DoesSupportWorldType(WorldType);
 }
 
 void UKawaiiPhysicsSharedCollisionSubsystem::Deinitialize()

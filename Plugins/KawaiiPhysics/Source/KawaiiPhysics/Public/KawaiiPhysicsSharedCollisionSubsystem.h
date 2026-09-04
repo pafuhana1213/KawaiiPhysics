@@ -451,6 +451,15 @@ public:
 	// USubsystem interface
 	virtual void Deinitialize() override;
 
+	// UWorldSubsystem interface
+	/**
+	 * Game / Editor / PIE に加えて EditorPreview（Persona プレビュー）でも生成する。CVar a.AnimNode.KawaiiPhysics.SharedCollision.EnableInPreviewWorld=0 で従来挙動。
+	 * GamePreview / Inactive は対象外。
+	 * Also created for EditorPreview worlds (Persona preview) in addition to Game / Editor / PIE. CVar ...EnableInPreviewWorld=0 restores the legacy behavior.
+	 * GamePreview / Inactive stay unsupported.
+	 */
+	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
+
 	// FTickableGameObject interface (via UTickableWorldSubsystem)
 	virtual void Tick(float DeltaTime) override;
 	virtual TStatId GetStatId() const override;
