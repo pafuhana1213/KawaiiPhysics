@@ -4,8 +4,10 @@
 
 #include "Misc/AutomationTest.h"
 #include "KawaiiPhysicsTestHarness.h"
+#include "AnimNode_KawaiiPhysicsInternal.h"
 #include "KawaiiPhysicsSimpleWorldCollision.h"
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
+#include "Animation/AnimInstanceProxy.h"
 #include "Components/StaticMeshComponent.h"
 #include "Misc/EngineVersionComparison.h"
 #include "PhysicsEngine/PhysicsAsset.h"
@@ -87,6 +89,72 @@ namespace
 			}
 		}
 		return nullptr;
+	}
+
+	FKawaiiPhysicsSharedCollisionData MakeReadPathWorldData(const FVector& Offset)
+	{
+		FKawaiiPhysicsSharedCollisionData Data;
+
+		FSphericalLimit SphereA;
+		SphereA.Location = Offset + FVector(10.0f, 0.0f, 20.0f);
+		SphereA.Rotation = FQuat(FVector::ZAxisVector, FMath::DegreesToRadians(15.0f));
+		SphereA.Radius = 12.0f;
+		SphereA.LimitType = ESphericalLimitType::Outer;
+		SphereA.bEnable = true;
+		SphereA.SourceType = ECollisionSourceType::SimpleWorld;
+		Data.SphericalLimits.Add(SphereA);
+
+		FSphericalLimit SphereB;
+		SphereB.Location = Offset + FVector(-20.0f, 5.0f, 40.0f);
+		SphereB.Rotation = FQuat(FVector::YAxisVector, FMath::DegreesToRadians(-20.0f));
+		SphereB.Radius = 6.0f;
+		SphereB.LimitType = ESphericalLimitType::Inner;
+		SphereB.bEnable = true;
+		SphereB.SourceType = ECollisionSourceType::SimpleWorld;
+		Data.SphericalLimits.Add(SphereB);
+
+		FCapsuleLimit Capsule;
+		Capsule.Location = Offset + FVector(30.0f, -10.0f, 25.0f);
+		Capsule.Rotation = FQuat(FVector::XAxisVector, FMath::DegreesToRadians(45.0f));
+		Capsule.Radius = 4.0f;
+		Capsule.Length = 18.0f;
+		Capsule.bEnable = true;
+		Capsule.SourceType = ECollisionSourceType::SimpleWorld;
+		Data.CapsuleLimits.Add(Capsule);
+
+		FBoxLimit Box;
+		Box.Location = Offset + FVector(0.0f, 40.0f, 10.0f);
+		Box.Rotation = FQuat(FVector::ZAxisVector, FMath::DegreesToRadians(30.0f));
+		Box.Extent = FVector(5.0f, 7.0f, 9.0f);
+		Box.bEnable = true;
+		Box.SourceType = ECollisionSourceType::SimpleWorld;
+		Data.BoxLimits.Add(Box);
+
+		FKawaiiPhysicsConvexLimit Convex;
+		Convex.Location = Offset + FVector(-15.0f, -25.0f, 12.0f);
+		Convex.Rotation = FQuat(FVector::YAxisVector, FMath::DegreesToRadians(60.0f));
+		Convex.LocalPlanes = MakeUnitCubePlanes();
+		Convex.LocalBounds = FBox(FVector(-1.0f, -1.0f, -1.0f), FVector(1.0f, 1.0f, 1.0f));
+		Convex.bEnable = true;
+		Convex.SourceType = ECollisionSourceType::SimpleWorld;
+		Data.ConvexLimits.Add(Convex);
+
+		return Data;
+	}
+
+	FKawaiiPhysicsSharedCollisionData MakeReadPathGroundWorldData(const FVector& Offset)
+	{
+		FKawaiiPhysicsSharedCollisionData Data;
+
+		FBoxLimit GroundBox;
+		GroundBox.Location = Offset + FVector(0.0f, 0.0f, -12.0f);
+		GroundBox.Rotation = FQuat(FVector::XAxisVector, FMath::DegreesToRadians(5.0f));
+		GroundBox.Extent = FVector(80.0f, 80.0f, 10.0f);
+		GroundBox.bEnable = true;
+		GroundBox.SourceType = ECollisionSourceType::SimpleWorld;
+		Data.BoxLimits.Add(GroundBox);
+
+		return Data;
 	}
 }
 
@@ -1583,6 +1651,115 @@ bool FKawaiiPhysicsSimpleWorldEntryLifecycleTest::RunTest(const FString& Paramet
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldGroundSlotIndependentPublishTest,
+                                 "KawaiiPhysics.SimpleWorld.GroundSlotIndependentPublish",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldGroundSlotIndependentPublishTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsSimpleWorldCollisionEntry Entry;
+
+	FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent& GatheredComponent =
+		Entry.GatheredComponents.AddDefaulted_GetRef();
+	GatheredComponent.FadeAlpha = 1.0f;
+	GatheredComponent.LastComponentTM = FTransform::Identity;
+
+	FSphericalLimit Sphere;
+	Sphere.Location = FVector(10.0f, 20.0f, 30.0f);
+	Sphere.Radius = 40.0f;
+	Sphere.bEnable = true;
+	Sphere.SourceType = ECollisionSourceType::SimpleWorld;
+	GatheredComponent.LocalLimits.SphericalLimits.Add(Sphere);
+
+	UKawaiiPhysicsSharedCollisionSubsystem::PublishSimpleWorldShapeLimits(Entry, 0.5f);
+	TestEqual(TEXT("Shape slot serial after shape publish"), Entry.Slot.GetPublishSerial(), static_cast<uint64>(1));
+
+	FKawaiiPhysicsSharedCollisionData ShapeOutData;
+	Entry.Slot.AppendTo(ShapeOutData);
+	TestEqual(TEXT("Shape slot publishes one sphere"), ShapeOutData.SphericalLimits.Num(), 1);
+	TestEqual(TEXT("Shape slot publishes no boxes"), ShapeOutData.BoxLimits.Num(), 0);
+
+	Entry.bHasGroundBox = true;
+	Entry.GroundBox.Location = FVector(0.0f, 0.0f, -10.0f);
+	Entry.GroundBox.Extent = FVector(100.0f, 100.0f, 10.0f);
+	Entry.GroundBox.Rotation = FQuat::Identity;
+	Entry.GroundBox.bEnable = true;
+	Entry.GroundBox.SourceType = ECollisionSourceType::SimpleWorld;
+	UKawaiiPhysicsSharedCollisionSubsystem::PublishSimpleWorldGroundBox(Entry);
+
+	TestEqual(TEXT("Ground slot serial after ground publish"),
+	          Entry.GroundSlot.GetPublishSerial(),
+	          static_cast<uint64>(1));
+	TestEqual(TEXT("Shape slot serial is unchanged after ground publish"),
+	          Entry.Slot.GetPublishSerial(),
+	          static_cast<uint64>(1));
+
+	FKawaiiPhysicsSharedCollisionData GroundOutData;
+	Entry.GroundSlot.AppendTo(GroundOutData);
+	TestEqual(TEXT("Ground slot publishes one box"), GroundOutData.BoxLimits.Num(), 1);
+
+	Entry.bHasGroundBox = false;
+	Entry.bGroundBoxDirty = true;
+	UKawaiiPhysicsSharedCollisionSubsystem::PublishSimpleWorldGroundBox(Entry);
+
+	FKawaiiPhysicsSharedCollisionData ClearedGroundOutData;
+	Entry.GroundSlot.AppendTo(ClearedGroundOutData);
+	TestEqual(TEXT("Ground slot publishes zero boxes after clear"), ClearedGroundOutData.BoxLimits.Num(), 0);
+	TestEqual(TEXT("Ground slot serial after clear publish"),
+	          Entry.GroundSlot.GetPublishSerial(),
+	          static_cast<uint64>(2));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldSortGatherOrderByDistanceTest,
+                                 "KawaiiPhysics.SimpleWorld.SortGatherOrderByDistance",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldSortGatherOrderByDistanceTest::RunTest(const FString& Parameters)
+{
+	TArray<float> DistanceSquared = {9.0f, 1.0f, 4.0f, 1.0f, 0.0f};
+	TArray<int32> OutOrder;
+	KawaiiPhysicsSimpleWorldCollision::SortSimpleWorldGatherOrderByDistance(
+		MakeArrayView(DistanceSquared),
+		OutOrder);
+
+	const TArray<int32> ExpectedOrder = {4, 1, 3, 2, 0};
+	TestTrue(TEXT("Distance order keeps equal-distance inputs stable"), OutOrder == ExpectedOrder);
+
+	DistanceSquared.Reset();
+	KawaiiPhysicsSimpleWorldCollision::SortSimpleWorldGatherOrderByDistance(
+		MakeArrayView(DistanceSquared),
+		OutOrder);
+	TestTrue(TEXT("Empty distance list produces empty order"), OutOrder.IsEmpty());
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldGatherOrderSkippedForZeroCapTest,
+                                 "KawaiiPhysics.SimpleWorld.GatherOrderSkippedForZeroCap",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldGatherOrderSkippedForZeroCapTest::RunTest(const FString& Parameters)
+{
+	TestFalse(TEXT("Zero cap skips gather order with several overlaps"),
+	          KawaiiPhysicsSimpleWorldCollision::ShouldUseSimpleWorldGatherOrder(5, 0));
+	TestFalse(TEXT("Zero cap skips gather order with a single overlap"),
+	          KawaiiPhysicsSimpleWorldCollision::ShouldUseSimpleWorldGatherOrder(1, 0));
+	TestFalse(TEXT("Zero cap skips gather order with no overlaps"),
+	          KawaiiPhysicsSimpleWorldCollision::ShouldUseSimpleWorldGatherOrder(0, 0));
+	TestTrue(TEXT("Gather order is used when overlaps exceed the cap"),
+	         KawaiiPhysicsSimpleWorldCollision::ShouldUseSimpleWorldGatherOrder(5, 3));
+	TestFalse(TEXT("Gather order is skipped when overlaps equal the cap"),
+	          KawaiiPhysicsSimpleWorldCollision::ShouldUseSimpleWorldGatherOrder(3, 3));
+	TestFalse(TEXT("Gather order is skipped when overlaps are under the cap"),
+	          KawaiiPhysicsSimpleWorldCollision::ShouldUseSimpleWorldGatherOrder(2, 3));
+	TestFalse(TEXT("Negative cap is defensively treated as skip"),
+	          KawaiiPhysicsSimpleWorldCollision::ShouldUseSimpleWorldGatherOrder(5, -1));
+
+	return true;
+}
+
 // ---------------------------------------------------------------------------
 //  DebugInfo
 // ---------------------------------------------------------------------------
@@ -1718,6 +1895,206 @@ bool FKawaiiPhysicsSimpleWorldEntrySetDescSurvivesImmediateCleanupTest::RunTest(
 
 	Entry.RemoveDesc(SourceID);
 	TestTrue(TEXT("MarkRead returns false after the slot disappears"), !Entry.MarkRead(SourceID));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldInPlaceRefreshMatchesRebuildTest,
+                                 "KawaiiPhysics.SimpleWorld.InPlaceRefreshMatchesRebuild",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldInPlaceRefreshMatchesRebuildTest::RunTest(const FString& Parameters)
+{
+	auto RunCase = [this](EKawaiiPhysicsSimulationSpace TargetSpace, const TCHAR* CaseName)
+	{
+		FKawaiiPhysicsTestAccessor Accessor;
+		Accessor.SetSimulationSpace(TargetSpace);
+
+		FAnimInstanceProxy AnimInstanceProxy;
+		FComponentSpacePoseContext PoseContext(&AnimInstanceProxy);
+
+		const FKawaiiPhysicsSharedCollisionData WorldData = MakeReadPathWorldData(FVector::ZeroVector);
+		const FKawaiiPhysicsSharedCollisionData GroundWorldData = MakeReadPathGroundWorldData(FVector::ZeroVector);
+		const FKawaiiPhysicsSharedCollisionData InitialWorldData = MakeReadPathWorldData(FVector(100.0f, 50.0f, -25.0f));
+		const FKawaiiPhysicsSharedCollisionData InitialGroundWorldData =
+			MakeReadPathGroundWorldData(FVector(-40.0f, 20.0f, 15.0f));
+
+		TArray<FSphericalLimit> RebuiltSpheres;
+		TArray<FCapsuleLimit> RebuiltCapsules;
+		TArray<FTaperedCapsuleLimit> RebuiltTaperedCapsules;
+		TArray<FBoxLimit> RebuiltBoxes;
+		TArray<FKawaiiPhysicsConvexLimit> RebuiltConvexes;
+		KawaiiPhysicsSimpleWorldReadPath::AppendSharedCollisionDataToSimulationSpace(
+			Accessor.Node, PoseContext, TargetSpace, WorldData,
+			RebuiltSpheres, RebuiltCapsules, RebuiltTaperedCapsules, RebuiltBoxes, nullptr, &RebuiltConvexes);
+
+		TArray<FSphericalLimit> GroundDummySpheres;
+		TArray<FCapsuleLimit> GroundDummyCapsules;
+		TArray<FTaperedCapsuleLimit> GroundDummyTaperedCapsules;
+		TArray<FBoxLimit> RebuiltGroundBoxes;
+		TArray<FKawaiiPhysicsConvexLimit> GroundDummyConvexes;
+		KawaiiPhysicsSimpleWorldReadPath::AppendSharedCollisionDataToSimulationSpace(
+			Accessor.Node, PoseContext, TargetSpace, GroundWorldData,
+			GroundDummySpheres, GroundDummyCapsules, GroundDummyTaperedCapsules,
+			RebuiltGroundBoxes, nullptr, &GroundDummyConvexes);
+
+		TArray<FSphericalLimit> RefreshedSpheres;
+		TArray<FCapsuleLimit> RefreshedCapsules;
+		TArray<FTaperedCapsuleLimit> RefreshedTaperedCapsules;
+		TArray<FBoxLimit> RefreshedBoxes;
+		TArray<FKawaiiPhysicsConvexLimit> RefreshedConvexes;
+		KawaiiPhysicsSimpleWorldReadPath::AppendSharedCollisionDataToSimulationSpace(
+			Accessor.Node, PoseContext, TargetSpace, InitialWorldData,
+			RefreshedSpheres, RefreshedCapsules, RefreshedTaperedCapsules, RefreshedBoxes, nullptr,
+			&RefreshedConvexes);
+
+		TArray<FBoxLimit> RefreshedGroundBoxes;
+		KawaiiPhysicsSimpleWorldReadPath::AppendSharedCollisionDataToSimulationSpace(
+			Accessor.Node, PoseContext, TargetSpace, InitialGroundWorldData,
+			GroundDummySpheres, GroundDummyCapsules, GroundDummyTaperedCapsules,
+			RefreshedGroundBoxes, nullptr, &GroundDummyConvexes);
+
+		TestTrue(FString::Printf(TEXT("%s shape refresh succeeds"), CaseName),
+		         KawaiiPhysicsSimpleWorldReadPath::RefreshSimulationSpaceLimitsInPlace(
+			         Accessor.Node, PoseContext, TargetSpace, WorldData,
+			         RefreshedSpheres, RefreshedCapsules, RefreshedTaperedCapsules,
+			         RefreshedBoxes, RefreshedConvexes));
+		TestTrue(FString::Printf(TEXT("%s ground refresh succeeds"), CaseName),
+		         KawaiiPhysicsSimpleWorldReadPath::RefreshSimulationSpaceLimitsInPlace(
+			         Accessor.Node, PoseContext, TargetSpace, GroundWorldData.BoxLimits, RefreshedGroundBoxes));
+
+		TestEqual(FString::Printf(TEXT("%s sphere count"), CaseName), RefreshedSpheres.Num(), RebuiltSpheres.Num());
+		for (int32 Index = 0; Index < RebuiltSpheres.Num() && Index < RefreshedSpheres.Num(); ++Index)
+		{
+			TestTrue(FString::Printf(TEXT("%s sphere %d location"), CaseName, Index),
+			         RefreshedSpheres[Index].Location.Equals(RebuiltSpheres[Index].Location, 0.0001f));
+			TestTrue(FString::Printf(TEXT("%s sphere %d rotation"), CaseName, Index),
+			         RefreshedSpheres[Index].Rotation.Equals(RebuiltSpheres[Index].Rotation, 0.0001f));
+			TestTrue(FString::Printf(TEXT("%s sphere %d radius"), CaseName, Index),
+			         FMath::IsNearlyEqual(RefreshedSpheres[Index].Radius, RebuiltSpheres[Index].Radius, 0.0001f));
+		}
+
+		TestEqual(FString::Printf(TEXT("%s capsule count"), CaseName), RefreshedCapsules.Num(), RebuiltCapsules.Num());
+		for (int32 Index = 0; Index < RebuiltCapsules.Num() && Index < RefreshedCapsules.Num(); ++Index)
+		{
+			TestTrue(FString::Printf(TEXT("%s capsule %d location"), CaseName, Index),
+			         RefreshedCapsules[Index].Location.Equals(RebuiltCapsules[Index].Location, 0.0001f));
+			TestTrue(FString::Printf(TEXT("%s capsule %d rotation"), CaseName, Index),
+			         RefreshedCapsules[Index].Rotation.Equals(RebuiltCapsules[Index].Rotation, 0.0001f));
+			TestTrue(FString::Printf(TEXT("%s capsule %d radius"), CaseName, Index),
+			         FMath::IsNearlyEqual(RefreshedCapsules[Index].Radius, RebuiltCapsules[Index].Radius, 0.0001f));
+		}
+
+		TestEqual(FString::Printf(TEXT("%s tapered count"), CaseName),
+		          RefreshedTaperedCapsules.Num(), RebuiltTaperedCapsules.Num());
+
+		TestEqual(FString::Printf(TEXT("%s box count"), CaseName), RefreshedBoxes.Num(), RebuiltBoxes.Num());
+		for (int32 Index = 0; Index < RebuiltBoxes.Num() && Index < RefreshedBoxes.Num(); ++Index)
+		{
+			TestTrue(FString::Printf(TEXT("%s box %d location"), CaseName, Index),
+			         RefreshedBoxes[Index].Location.Equals(RebuiltBoxes[Index].Location, 0.0001f));
+			TestTrue(FString::Printf(TEXT("%s box %d rotation"), CaseName, Index),
+			         RefreshedBoxes[Index].Rotation.Equals(RebuiltBoxes[Index].Rotation, 0.0001f));
+			TestTrue(FString::Printf(TEXT("%s box %d extent"), CaseName, Index),
+			         RefreshedBoxes[Index].Extent.Equals(RebuiltBoxes[Index].Extent, 0.0001f));
+		}
+
+		TestEqual(FString::Printf(TEXT("%s convex count"), CaseName), RefreshedConvexes.Num(), RebuiltConvexes.Num());
+		for (int32 Index = 0; Index < RebuiltConvexes.Num() && Index < RefreshedConvexes.Num(); ++Index)
+		{
+			TestTrue(FString::Printf(TEXT("%s convex %d location"), CaseName, Index),
+			         RefreshedConvexes[Index].Location.Equals(RebuiltConvexes[Index].Location, 0.0001f));
+			TestTrue(FString::Printf(TEXT("%s convex %d rotation"), CaseName, Index),
+			         RefreshedConvexes[Index].Rotation.Equals(RebuiltConvexes[Index].Rotation, 0.0001f));
+			TestEqual(FString::Printf(TEXT("%s convex %d plane count"), CaseName, Index),
+			          RefreshedConvexes[Index].LocalPlanes.Num(), RebuiltConvexes[Index].LocalPlanes.Num());
+		}
+
+		TestEqual(FString::Printf(TEXT("%s ground box count"), CaseName),
+		          RefreshedGroundBoxes.Num(), RebuiltGroundBoxes.Num());
+		for (int32 Index = 0; Index < RebuiltGroundBoxes.Num() && Index < RefreshedGroundBoxes.Num(); ++Index)
+		{
+			TestTrue(FString::Printf(TEXT("%s ground box %d location"), CaseName, Index),
+			         RefreshedGroundBoxes[Index].Location.Equals(RebuiltGroundBoxes[Index].Location, 0.0001f));
+			TestTrue(FString::Printf(TEXT("%s ground box %d rotation"), CaseName, Index),
+			         RefreshedGroundBoxes[Index].Rotation.Equals(RebuiltGroundBoxes[Index].Rotation, 0.0001f));
+			TestTrue(FString::Printf(TEXT("%s ground box %d extent"), CaseName, Index),
+			         RefreshedGroundBoxes[Index].Extent.Equals(RebuiltGroundBoxes[Index].Extent, 0.0001f));
+		}
+	};
+
+	RunCase(EKawaiiPhysicsSimulationSpace::ComponentSpace, TEXT("ComponentSpace"));
+	RunCase(EKawaiiPhysicsSimulationSpace::WorldSpace, TEXT("WorldSpace"));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldRadiusWarningOnceTest,
+                                 "KawaiiPhysics.SimpleWorld.RadiusWarningOnce",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldRadiusWarningOnceTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor Accessor;
+	Accessor.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+	Accessor.SetSimpleWorldGatherRadiusOverride(1.0f);
+
+	FAnimInstanceProxy AnimInstanceProxy;
+	FComponentSpacePoseContext PoseContext(&AnimInstanceProxy);
+
+	Accessor.BuildVerticalChain(1, 10.0f);
+	Accessor.CheckSimpleWorldGatherRadius(PoseContext);
+	TestFalse(TEXT("Zero pose frame does not mark radius check done"), Accessor.IsSimpleWorldRadiusChecked());
+
+	Accessor.BuildVerticalChain(2, 10.0f);
+	Accessor.SetSimpleWorldGatherRadiusOverride(1.0f);
+	AddExpectedError(TEXT("SimpleWorldCollision: GatherRadius"), EAutomationExpectedErrorFlags::Contains, 1);
+
+	Accessor.CheckSimpleWorldGatherRadius(PoseContext);
+	TestTrue(TEXT("First non-zero pose frame marks radius check done"), Accessor.IsSimpleWorldRadiusChecked());
+
+	Accessor.CheckSimpleWorldGatherRadius(PoseContext);
+	TestTrue(TEXT("Second radius check call remains done"), Accessor.IsSimpleWorldRadiusChecked());
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldRadiusCheckDeferralBoundedTest,
+                                 "KawaiiPhysics.SimpleWorld.RadiusCheckDeferralBounded",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldRadiusCheckDeferralBoundedTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor Accessor;
+	Accessor.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+	Accessor.BuildVerticalChain(1, 10.0f);
+	Accessor.SetSimpleWorldGatherRadiusOverride(1.0f);
+
+	FAnimInstanceProxy AnimInstanceProxy;
+	FComponentSpacePoseContext PoseContext(&AnimInstanceProxy);
+
+	// 全ボーンがゼロ姿勢のまま呼び続けても、上限回数で完了扱いになり走査が止まる（警告は出ない）。
+	for (uint8 Attempt = 1; Attempt < FAnimNode_KawaiiPhysics::MaxSimpleWorldRadiusCheckDeferrals; ++Attempt)
+	{
+		Accessor.CheckSimpleWorldGatherRadius(PoseContext);
+		TestFalse(FString::Printf(TEXT("Deferral %d keeps the check pending"), Attempt), Accessor.IsSimpleWorldRadiusChecked());
+		TestEqual(FString::Printf(TEXT("Deferral counter after attempt %d"), Attempt),
+		          static_cast<int32>(Accessor.GetSimpleWorldRadiusCheckDeferrals()), static_cast<int32>(Attempt));
+	}
+
+	Accessor.CheckSimpleWorldGatherRadius(PoseContext);
+	TestTrue(TEXT("Reaching the deferral cap marks the check done"), Accessor.IsSimpleWorldRadiusChecked());
+
+	Accessor.CheckSimpleWorldGatherRadius(PoseContext);
+	TestEqual(TEXT("Counter stops growing once the check is done"),
+	          static_cast<int32>(Accessor.GetSimpleWorldRadiusCheckDeferrals()),
+	          static_cast<int32>(FAnimNode_KawaiiPhysics::MaxSimpleWorldRadiusCheckDeferrals));
+
+	// 半径 Override を変えると持ち越しカウンタもリセットされる。
+	Accessor.SetSimpleWorldGatherRadiusOverride(2.0f);
+	TestFalse(TEXT("Radius override change re-arms the check"), Accessor.IsSimpleWorldRadiusChecked());
+	TestEqual(TEXT("Radius override change resets the deferral counter"),
+	          static_cast<int32>(Accessor.GetSimpleWorldRadiusCheckDeferrals()), 0);
 
 	return true;
 }
@@ -1900,6 +2277,48 @@ bool FKawaiiPhysicsSimpleWorldCollisionPushOutTest::RunTest(const FString& Param
 		TestTrue(FString::Printf(TEXT("Gated off: SimpleWorld convex does not push the bone: got %s expected %s"),
 		                         *A.Bone(1).Location.ToString(), *ExpectedNoConvexPushOut.ToString()),
 		         A.Bone(1).Location.Equals(ExpectedNoConvexPushOut, GSimpleWorldPushOutTol));
+	}
+
+	// 地面 Box を通常 Box の末尾に入れた旧相当経路と、専用配列に分けた経路の押し出し順序を一致させる。
+	{
+		const float GroundTopZ = -10.0f;
+		const FVector GroundStart(1.0f, 0.0f, -11.0f);
+
+		FBoxLimit GroundBox;
+		GroundBox.Location = FVector(0.0f, 0.0f, -12.0f);
+		GroundBox.Rotation = FQuat::Identity;
+		GroundBox.Extent = FVector(100.0f, 100.0f, 2.0f);
+		GroundBox.bEnable = true;
+		GroundBox.SourceType = ECollisionSourceType::SimpleWorld;
+		TArray<FBoxLimit> GroundBoxes = {GroundBox};
+
+		auto BuildGroundChain = [&](FKawaiiPhysicsTestAccessor& A)
+		{
+			BuildChain(A);
+			A.Bone(1).PhysicsSettings.Radius = 1.0f;
+			A.Bone(1).Location = GroundStart;
+			A.Bone(1).PrevLocation = GroundStart;
+		};
+
+		FKawaiiPhysicsTestAccessor LegacyBoxPath;
+		BuildGroundChain(LegacyBoxPath);
+		LegacyBoxPath.SetSimpleWorldLimits(
+			EmptySpheres, EmptyCapsules, EmptyTaperedCapsules, GroundBoxes, EmptyConvexes);
+		LegacyBoxPath.StepFrame(1.0f / 60.0f);
+
+		FKawaiiPhysicsTestAccessor GroundBoxPath;
+		BuildGroundChain(GroundBoxPath);
+		GroundBoxPath.SetSimpleWorldLimits(
+			EmptySpheres, EmptyCapsules, EmptyTaperedCapsules, EmptyBoxes, EmptyConvexes, GroundBoxes);
+		GroundBoxPath.StepFrame(1.0f / 60.0f);
+
+		TestTrue(FString::Printf(TEXT("Ground box pushes bone upward: got %s top %.2f"),
+		                         *GroundBoxPath.Bone(1).Location.ToString(), GroundTopZ),
+		         GroundBoxPath.Bone(1).Location.Z >= GroundTopZ - GSimpleWorldPushOutTol);
+		TestTrue(FString::Printf(TEXT("Dedicated ground box path matches legacy box tail path: got %s expected %s"),
+		                         *GroundBoxPath.Bone(1).Location.ToString(),
+		                         *LegacyBoxPath.Bone(1).Location.ToString()),
+		         GroundBoxPath.Bone(1).Location.Equals(LegacyBoxPath.Bone(1).Location, GSimpleWorldPushOutTol));
 	}
 
 	return true;

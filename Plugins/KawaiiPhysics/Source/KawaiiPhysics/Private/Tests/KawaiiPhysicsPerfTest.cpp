@@ -3,6 +3,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
+#include "Animation/AnimInstanceProxy.h"
 #include "HAL/PlatformTime.h"
 #include "Runtime/Launch/Resources/Version.h"
 #include "Templates/Function.h"
@@ -500,6 +501,221 @@ namespace
 
 		return bCountOk;
 	}
+
+	// ---------------------------------------------------------------
+	// SimpleWorld 読み取りベンチ
+	// ---------------------------------------------------------------
+	// SimpleWorld のワーカー側読み取り経路（Slot serial 判定、必要時 AppendTo、simulation 空間配列更新）を計測する。
+	// 形状 Slot は Convex64+Box64、GroundSlot は Box1。Publish 間隔 1 と 12 で全再構築寄り/インプレース更新寄りを分ける。
+
+	constexpr int32 GSimpleWorldReadConvexCount = 64;
+	constexpr int32 GSimpleWorldReadBoxCount = 64;
+	constexpr int32 GSimpleWorldReadGroundBoxCount = 1;
+	constexpr int32 GSimpleWorldReadLimitsPerFrame =
+		GSimpleWorldReadConvexCount + GSimpleWorldReadBoxCount + GSimpleWorldReadGroundBoxCount;
+
+	TArray<FPlane> MakeSimpleWorldReadUnitCubePlanes()
+	{
+		TArray<FPlane> Planes;
+		Planes.Reserve(6);
+		Planes.Add(FPlane(1.0f, 0.0f, 0.0f, 1.0f));
+		Planes.Add(FPlane(-1.0f, 0.0f, 0.0f, 1.0f));
+		Planes.Add(FPlane(0.0f, 1.0f, 0.0f, 1.0f));
+		Planes.Add(FPlane(0.0f, -1.0f, 0.0f, 1.0f));
+		Planes.Add(FPlane(0.0f, 0.0f, 1.0f, 1.0f));
+		Planes.Add(FPlane(0.0f, 0.0f, -1.0f, 1.0f));
+		return Planes;
+	}
+
+	FKawaiiPhysicsSharedCollisionData MakeSimpleWorldReadSourceTemplate()
+	{
+		FKawaiiPhysicsSharedCollisionData Data;
+		Data.ConvexLimits.Reserve(GSimpleWorldReadConvexCount);
+		Data.BoxLimits.Reserve(GSimpleWorldReadBoxCount);
+
+		const TArray<FPlane> UnitCubePlanes = MakeSimpleWorldReadUnitCubePlanes();
+		for (int32 Index = 0; Index < GSimpleWorldReadConvexCount; ++Index)
+		{
+			const int32 GridX = Index % 8;
+			const int32 GridY = Index / 8;
+
+			FKawaiiPhysicsConvexLimit Convex;
+			Convex.Location = FVector(GridX * 25.0f, GridY * 25.0f, 30.0f + (Index % 4) * 6.0f);
+			Convex.Rotation = FQuat(FVector::ZAxisVector, FMath::DegreesToRadians(Index * 3.0f));
+			Convex.LocalPlanes = UnitCubePlanes;
+			Convex.LocalBounds = FBox(FVector(-1.0f, -1.0f, -1.0f), FVector(1.0f, 1.0f, 1.0f));
+			Convex.bEnable = true;
+			Convex.SourceType = ECollisionSourceType::SimpleWorld;
+			Data.ConvexLimits.Add(Convex);
+		}
+
+		for (int32 Index = 0; Index < GSimpleWorldReadBoxCount; ++Index)
+		{
+			const int32 GridX = Index % 8;
+			const int32 GridY = Index / 8;
+
+			FBoxLimit Box;
+			Box.Location = FVector(220.0f + GridX * 28.0f, GridY * 28.0f, 40.0f + (Index % 5) * 5.0f);
+			Box.Rotation = FQuat(FVector::YAxisVector, FMath::DegreesToRadians(Index * 2.0f));
+			Box.Extent = FVector(10.0f, 10.0f, 10.0f);
+			Box.bEnable = true;
+			Box.SourceType = ECollisionSourceType::SimpleWorld;
+			Data.BoxLimits.Add(Box);
+		}
+
+		return Data;
+	}
+
+	FKawaiiPhysicsSharedCollisionData MakeSimpleWorldReadGroundTemplate()
+	{
+		FKawaiiPhysicsSharedCollisionData Data;
+		Data.BoxLimits.Reserve(GSimpleWorldReadGroundBoxCount);
+
+		FBoxLimit GroundBox;
+		GroundBox.Location = FVector(120.0f, 120.0f, -20.0f);
+		GroundBox.Rotation = FQuat(FVector::XAxisVector, FMath::DegreesToRadians(2.0f));
+		GroundBox.Extent = FVector(180.0f, 180.0f, 10.0f);
+		GroundBox.bEnable = true;
+		GroundBox.SourceType = ECollisionSourceType::SimpleWorld;
+		Data.BoxLimits.Add(GroundBox);
+
+		return Data;
+	}
+
+	void EnsureSimpleWorldReadScratch(const FKawaiiPhysicsSharedCollisionData& Template,
+	                                  FKawaiiPhysicsSharedCollisionData& Scratch)
+	{
+		if (Scratch.SphericalLimits.Num() == Template.SphericalLimits.Num() &&
+			Scratch.CapsuleLimits.Num() == Template.CapsuleLimits.Num() &&
+			Scratch.TaperedCapsuleLimits.Num() == Template.TaperedCapsuleLimits.Num() &&
+			Scratch.BoxLimits.Num() == Template.BoxLimits.Num() &&
+			Scratch.PlanarLimits.Num() == Template.PlanarLimits.Num() &&
+			Scratch.ConvexLimits.Num() == Template.ConvexLimits.Num())
+		{
+			return;
+		}
+
+		Scratch.Reset();
+		CopyLimitsElementwise(Template.SphericalLimits, Scratch.SphericalLimits);
+		CopyLimitsElementwise(Template.CapsuleLimits, Scratch.CapsuleLimits);
+		CopyLimitsElementwise(Template.TaperedCapsuleLimits, Scratch.TaperedCapsuleLimits);
+		CopyLimitsElementwise(Template.BoxLimits, Scratch.BoxLimits);
+		CopyLimitsElementwise(Template.PlanarLimits, Scratch.PlanarLimits);
+		CopyLimitsElementwise(Template.ConvexLimits, Scratch.ConvexLimits);
+	}
+
+	template <typename TLimitArray>
+	void OffsetSimpleWorldReadLimitLocations(const TLimitArray& TemplateLimits, TLimitArray& ScratchLimits,
+	                                         const FVector& Offset)
+	{
+		for (int32 Index = 0; Index < ScratchLimits.Num(); ++Index)
+		{
+			ScratchLimits[Index].Location = TemplateLimits[Index].Location + Offset;
+		}
+	}
+
+	void PublishSimpleWorldReadSource(const FKawaiiPhysicsSharedCollisionData& Template,
+	                                  FKawaiiPhysicsSharedCollisionData& Scratch,
+	                                  FKawaiiPhysicsSharedCollisionSourceSlot& Slot,
+	                                  uint64 PublishIndex)
+	{
+		EnsureSimpleWorldReadScratch(Template, Scratch);
+
+		const FVector Offset(0.01f * static_cast<float>(PublishIndex), 0.0f, 0.0f);
+		OffsetSimpleWorldReadLimitLocations(Template.SphericalLimits, Scratch.SphericalLimits, Offset);
+		OffsetSimpleWorldReadLimitLocations(Template.CapsuleLimits, Scratch.CapsuleLimits, Offset);
+		OffsetSimpleWorldReadLimitLocations(Template.TaperedCapsuleLimits, Scratch.TaperedCapsuleLimits, Offset);
+		OffsetSimpleWorldReadLimitLocations(Template.BoxLimits, Scratch.BoxLimits, Offset);
+		OffsetSimpleWorldReadLimitLocations(Template.PlanarLimits, Scratch.PlanarLimits, Offset);
+		OffsetSimpleWorldReadLimitLocations(Template.ConvexLimits, Scratch.ConvexLimits, Offset);
+
+		Slot.Publish(Scratch);
+	}
+
+	bool RunSimpleWorldReadPerf(FAutomationTestBase& Test, const TCHAR* TestLabel, int32 PublishInterval)
+	{
+		constexpr int32 MeasureFrames = 100000;
+		const int32 SafePublishInterval = FMath::Max(1, PublishInterval);
+		const FKawaiiPhysicsSharedCollisionData SourceTemplate = MakeSimpleWorldReadSourceTemplate();
+		const FKawaiiPhysicsSharedCollisionData GroundTemplate = MakeSimpleWorldReadGroundTemplate();
+
+		TArray<double> MsPerFrameValues;
+		MsPerFrameValues.Reserve(GTrials);
+		bool bOk = true;
+
+		for (int32 Trial = 0; Trial < GTrials; ++Trial)
+		{
+			TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> Entry =
+				MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
+			FKawaiiPhysicsTestAccessor Accessor;
+			Accessor.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::WorldSpace);
+			Accessor.BuildVerticalChain(4, 10.0f);
+			Accessor.SetSimpleWorldEntry(Entry);
+
+			FAnimInstanceProxy AnimInstanceProxy;
+			FComponentSpacePoseContext PoseContext(&AnimInstanceProxy);
+
+			FKawaiiPhysicsSharedCollisionData ShapeScratch;
+			FKawaiiPhysicsSharedCollisionData GroundScratch;
+			uint64 ShapePublishCount = 0;
+			uint64 GroundPublishCount = 0;
+
+			const double CalibrationStartSeconds = FPlatformTime::Seconds();
+			RunKawaiiPhysicsPerfCalibrationLoop();
+			const double CalibMs = (FPlatformTime::Seconds() - CalibrationStartSeconds) * 1000.0;
+
+			for (int32 Frame = 0; Frame < GWarmupFrames; ++Frame)
+			{
+				if (Frame % SafePublishInterval == 0)
+				{
+					PublishSimpleWorldReadSource(SourceTemplate, ShapeScratch, Entry->Slot, ShapePublishCount);
+					++ShapePublishCount;
+				}
+				PublishSimpleWorldReadSource(GroundTemplate, GroundScratch, Entry->GroundSlot, GroundPublishCount);
+				++GroundPublishCount;
+				Accessor.UpdateSimpleWorldCollisionLimits(PoseContext);
+			}
+
+			const double StartSeconds = FPlatformTime::Seconds();
+			for (int32 Frame = 0; Frame < MeasureFrames; ++Frame)
+			{
+				if (Frame % SafePublishInterval == 0)
+				{
+					PublishSimpleWorldReadSource(SourceTemplate, ShapeScratch, Entry->Slot, ShapePublishCount);
+					++ShapePublishCount;
+				}
+				PublishSimpleWorldReadSource(GroundTemplate, GroundScratch, Entry->GroundSlot, GroundPublishCount);
+				++GroundPublishCount;
+				Accessor.UpdateSimpleWorldCollisionLimits(PoseContext);
+			}
+			const double ElapsedSeconds = FPlatformTime::Seconds() - StartSeconds;
+			const double MsPerFrame = ElapsedSeconds * 1000.0 / static_cast<double>(MeasureFrames);
+
+			Test.AddInfo(FString::Printf(
+				TEXT("PERF_RAW KawaiiPhysics.Perf.SimpleWorldRead.%s trial=%d ms=%.6f calib_ms=%.6f"),
+				TestLabel, Trial, MsPerFrame, CalibMs));
+			MsPerFrameValues.Add(MsPerFrame);
+
+			bOk &= Test.TestEqual(
+				*FString::Printf(TEXT("SimpleWorld collider count matches final frame template for trial %d"), Trial),
+				Accessor.GetNumSimpleWorldColliders(), GSimpleWorldReadLimitsPerFrame);
+			if (SafePublishInterval == 12)
+			{
+				bOk &= Test.TestEqual(
+					*FString::Printf(TEXT("SimpleWorld shape serial matches publish count for trial %d"), Trial),
+					Accessor.GetLastReadSimpleWorldShapeSerial(), ShapePublishCount);
+			}
+		}
+
+		MsPerFrameValues.Sort();
+		const double MinMsPerFrame = MsPerFrameValues[0];
+		const double MedianMsPerFrame = MsPerFrameValues[GTrials / 2];
+		Test.AddInfo(FString::Printf(
+			TEXT("PERF KawaiiPhysics.Perf.SimpleWorldRead.%s median_ms_per_frame=%.6f min_ms_per_frame=%.6f limits_per_frame=%d"),
+			TestLabel, MedianMsPerFrame, MinMsPerFrame, GSimpleWorldReadLimitsPerFrame));
+
+		return bOk;
+	}
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerfChainTest,
@@ -628,6 +844,26 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerfSharedCollisionCopyTest,
 bool FKawaiiPhysicsPerfSharedCollisionCopyTest::RunTest(const FString& Parameters)
 {
 	return RunSharedCollisionCopyPerf(*this);
+}
+
+// SimpleWorld 読み取り経路の全再構築寄りベンチ。形状 Slot も GroundSlot も毎フレーム Publish する。
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerfSimpleWorldReadPublishEveryFrameTest,
+                                 "KawaiiPhysics.Perf.SimpleWorldRead.PublishEveryFrame",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsPerfSimpleWorldReadPublishEveryFrameTest::RunTest(const FString& Parameters)
+{
+	return RunSimpleWorldReadPerf(*this, TEXT("PublishEveryFrame"), 1);
+}
+
+// SimpleWorld 読み取り経路の serial 判定ベンチ。形状 Slot は 12 フレーム間隔、GroundSlot は毎フレーム Publish する。
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerfSimpleWorldReadPublishEvery12Test,
+                                 "KawaiiPhysics.Perf.SimpleWorldRead.PublishEvery12",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsPerfSimpleWorldReadPublishEvery12Test::RunTest(const FString& Parameters)
+{
+	return RunSimpleWorldReadPerf(*this, TEXT("PublishEvery12"), 12);
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerfSizeofTest,

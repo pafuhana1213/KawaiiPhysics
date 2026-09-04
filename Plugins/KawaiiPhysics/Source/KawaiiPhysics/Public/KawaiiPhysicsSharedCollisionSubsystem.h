@@ -22,6 +22,7 @@ class UPhysicsAsset;
 class USkeletalMeshComponent;
 class USkinnedAsset;
 class UCharacterMovementComponent;
+class UWorld;
 
 // 地面ソースの種類（DebugDraw の色分けにも使う） / Ground source kind (also used for debug draw colors)
 UENUM(BlueprintType)
@@ -59,8 +60,17 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedCollisionSourceSlot
 	/** スロットを即座に期限切れ化 / Mark this slot as immediately expired */
 	void MarkExpired();
 
+	/**
+	 * Publish ごとに 1 増える単調カウンタ。読み手は AppendTo の**前**に読んで前回値と比較し、一致ならコピーを省略できる（後に読むと Publish が割り込んだとき新しい serial を古いデータに紐付けて更新を取りこぼす）
+	 * Monotonic counter incremented per Publish. Readers read it **before** AppendTo and skip the copy when unchanged (reading after could pair a newer serial with older data).
+	 */
+	uint64 GetPublishSerial() const { return PublishSerial.load(std::memory_order_acquire); }
+
 private:
 	FKawaiiPhysicsSharedCollisionData Buffer;
+
+	/** Publish ごとに増える単調カウンタ / Monotonic counter incremented per Publish */
+	std::atomic<uint64> PublishSerial{0};
 
 	/** 最終Publishフレーム番号（鮮度チェック用） / Last published frame number for expiration detection */
 	std::atomic<uint64> LastPublishFrame{0};
@@ -160,8 +170,8 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionDesc
  * Simple-world collision gather entry (per SkelComp. Merges multiple source Descs and gathers once)
  *
  * スレッド境界 / Thread boundary:
- * - Worker: SetDesc / RemoveDesc / MarkRead / RequestRegather / Slot.AppendTo
- * - GameThread Tick: RemoveExpiredDescs / BuildMergedDesc / world query, GatheredComponents更新, Slot.Publish
+ * - Worker: SetDesc / RemoveDesc / MarkRead / RequestRegather / Slot.AppendTo / GroundSlot.AppendTo
+ * - GameThread Tick: RemoveExpiredDescs / BuildMergedDesc / world query, GatheredComponents更新, Slot.Publish / GroundSlot.Publish
  * ISM / HISM はインスタンス単位で収集し、MaxGatheredComponents はインスタンス数に対して効きます。
  * ISM / HISM are gathered per instance, and MaxGatheredComponents applies to instance count.
  */
@@ -180,6 +190,8 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionEntry
 	bool ConsumeRegatherRequested();
 
 	FKawaiiPhysicsSharedCollisionSourceSlot Slot;
+	// 地面 Box 専用 Slot。0 または 1 個の FBoxLimit を BoxLimits に入れて Publish する / Dedicated ground-box slot. Publishes zero or one FBoxLimit in BoxLimits.
+	FKawaiiPhysicsSharedCollisionSourceSlot GroundSlot;
 
 	// Tick スレッド専有・ロック不要 / Tick-thread only; no lock required.
 	float TimeSinceLastGather = FLT_MAX;
@@ -261,8 +273,16 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionEntry
 	// 床コンポーネントが Static なら true（Box を使い回す）。Movable なら毎 Tick Transform を追従する
 	// True when the floor component is Static (box is reused); Movable floors are followed every tick
 	bool bGroundComponentStatic = true;
+	// Tick スレッド専有。地面 Slot の Publish が必要か / Tick-thread only. Whether the ground slot needs publishing
+	bool bGroundBoxDirty = true;
 	FKawaiiPhysicsSharedCollisionData PublishScratch;
+	// Tick スレッド専有。地面 Slot の Publish 用スクラッチ / Tick-thread only. Scratch buffer for publishing the ground slot
+	FKawaiiPhysicsSharedCollisionData GroundPublishScratch;
 	TArray<FOverlapResult> OverlapScratch;
+	// Tick スレッド専有。収集上限超過時の距離順インデックス / Tick-thread only. Distance-sorted indices used only when gather results exceed the cap
+	TArray<int32> GatherOrderScratch;
+	// Tick スレッド専有。収集上限超過時の距離二乗スクラッチ / Tick-thread only. Squared-distance scratch used only when gather results exceed the cap
+	TArray<float> GatherDistanceScratch;
 	bool bWorldLimitsDirty = true;
 
 private:
@@ -408,6 +428,18 @@ public:
 	                                              FKawaiiPhysicsSimpleWorldCollisionDebugInfo& OutInfo);
 
 	/**
+	 * Entry の収集済み形状を Shape Slot へ Publish する（GameThread 専用。テストから直接呼べるよう static）
+	 * Publish gathered shapes from Entry to the shape slot (GameThread only; static so tests can call it directly)
+	 */
+	static void PublishSimpleWorldShapeLimits(FKawaiiPhysicsSimpleWorldCollisionEntry& Entry, float BoxEnableThreshold);
+
+	/**
+	 * Entry の地面 Box を Ground Slot へ Publish する（GameThread 専用。テストから直接呼べるよう static）
+	 * Publish the ground box from Entry to the ground slot (GameThread only; static so tests can call it directly)
+	 */
+	static void PublishSimpleWorldGroundBox(FKawaiiPhysicsSimpleWorldCollisionEntry& Entry);
+
+	/**
 	 * SkelComp の SimpleWorld Entry を検索し診断情報を返す。Entry が無ければ false（OutInfo は既定値＋bHasEntry=false）。
 	 * GameThread 専用。Shipping では常に false。
 	 * Look up the SimpleWorld entry for SkelComp and return diagnostics. Returns false when no entry exists
@@ -447,6 +479,31 @@ private:
 	static bool TryResolveRegistryKey(AActor* Actor, const FGameplayTag& Tag, FRegistryKey& OutKey);
 
 	void TickSimpleWorldCollision(float DeltaTime);
+	void GatherSimpleWorldEntry(
+		UWorld& World,
+		FKawaiiPhysicsSimpleWorldCollisionEntry& Entry,
+		const USkeletalMeshComponent& SkelComp,
+		const FKawaiiPhysicsSimpleWorldCollisionDesc& Desc,
+		const FVector& Center,
+		float Radius,
+		float GroundTraceLength,
+		ECollisionChannel CollisionChannel,
+		int32 EffectiveMaxGatheredComponents,
+		int32 EffectiveMaxPhysicsAssetBodies,
+		int32 EffectiveMaxConvexPlanes,
+		bool bUseMovementGround,
+		bool bBuildConvexDebugGeometry);
+	void UpdateSimpleWorldGround(
+		FKawaiiPhysicsSimpleWorldCollisionEntry& Entry,
+		const USkeletalMeshComponent& SkelComp,
+		const FKawaiiPhysicsSimpleWorldCollisionDesc& Desc,
+		float Radius,
+		bool bGatherInputValid);
+	bool UpdateSimpleWorldTransforms(
+		FKawaiiPhysicsSimpleWorldCollisionEntry& Entry,
+		float DeltaTime,
+		bool bRegatherOnScaleChange,
+		float FadeInTime);
 
 	/**
 	 * 構築済みキーで Entry を読み取りロック検索する（死んだActorのEntryはスキップ）。

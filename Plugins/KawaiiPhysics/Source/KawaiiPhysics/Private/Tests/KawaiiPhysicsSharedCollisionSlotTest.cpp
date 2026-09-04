@@ -205,4 +205,39 @@ bool FKawaiiPhysicsSharedCollisionSourceSlotTest::RunTest(const FString& Paramet
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSharedCollisionSlotPublishSerialTest,
+                                 "KawaiiPhysics.SharedCollision.SlotPublishSerial",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSharedCollisionSlotPublishSerialTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsSharedCollisionSourceSlot Slot;
+
+	TestEqual(TEXT("Initial publish serial is zero"), Slot.GetPublishSerial(), static_cast<uint64>(0));
+
+	FKawaiiPhysicsSharedCollisionData FirstData = MakeSphericalData(10.0f);
+	Slot.Publish(FirstData);
+	TestEqual(TEXT("First Publish increments serial"), Slot.GetPublishSerial(), static_cast<uint64>(1));
+
+	FKawaiiPhysicsSharedCollisionData OutData;
+	Slot.AppendTo(OutData);
+	TestEqual(TEXT("AppendTo keeps serial unchanged"), Slot.GetPublishSerial(), static_cast<uint64>(1));
+
+	Slot.IsExpired(GFrameCounter, 1);
+	TestEqual(TEXT("IsExpired keeps serial unchanged"), Slot.GetPublishSerial(), static_cast<uint64>(1));
+
+	Slot.MarkExpired();
+	TestEqual(TEXT("MarkExpired keeps serial unchanged"), Slot.GetPublishSerial(), static_cast<uint64>(1));
+
+	FKawaiiPhysicsSharedCollisionData SecondData = MakeSphericalData(20.0f);
+	Slot.Publish(SecondData);
+	TestEqual(TEXT("Second Publish increments serial"), Slot.GetPublishSerial(), static_cast<uint64>(2));
+
+	FKawaiiPhysicsSharedCollisionData ThirdData = MakeSphericalData(30.0f);
+	Slot.Publish(ThirdData);
+	TestEqual(TEXT("Third Publish increments serial"), Slot.GetPublishSerial(), static_cast<uint64>(3));
+
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

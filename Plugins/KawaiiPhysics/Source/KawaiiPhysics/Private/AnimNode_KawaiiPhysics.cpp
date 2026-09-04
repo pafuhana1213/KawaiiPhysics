@@ -237,12 +237,17 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 	// シンプルワールドコリジョンのキャッシュをリセット
 	ReleaseSimpleWorldCollision();
 	SimpleWorldMergedScratch.Reset();
+	SimpleWorldGroundScratch.Reset();
 	SimpleWorldSphericalLimits.Reset();
 	SimpleWorldCapsuleLimits.Reset();
 	SimpleWorldTaperedCapsuleLimits.Reset();
 	SimpleWorldBoxLimits.Reset();
+	SimpleWorldGroundBoxLimits.Reset();
 	SimpleWorldConvexLimits.Reset();
-	bSimpleWorldRadiusWarningLogged = false;
+	LastReadSimpleWorldShapeSerial = 0;
+	LastReadSimpleWorldGroundSerial = 0;
+	bSimpleWorldRadiusChecked = false;
+	SimpleWorldRadiusCheckDeferrals = 0;
 
 	ApplyLimitsDataAsset(RequiredBones);
 	ApplyPhysicsAsset(RequiredBones);
@@ -824,11 +829,15 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		// ランタイム無効化時は自Descを即時解除し、古い押し出しを残さない
 		ReleaseSimpleWorldCollision();
 		SimpleWorldMergedScratch.Reset();
+		SimpleWorldGroundScratch.Reset();
 		SimpleWorldSphericalLimits.Reset();
 		SimpleWorldCapsuleLimits.Reset();
 		SimpleWorldTaperedCapsuleLimits.Reset();
 		SimpleWorldBoxLimits.Reset();
+		SimpleWorldGroundBoxLimits.Reset();
 		SimpleWorldConvexLimits.Reset();
+		LastReadSimpleWorldShapeSerial = 0;
+		LastReadSimpleWorldGroundSerial = 0;
 	}
 
 	// 入力規模カウンタ & メモリの更新（毎フレーム。負荷=N×L等の相関とダミー膨張の可視化用）
@@ -844,7 +853,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	SET_DWORD_STAT(STAT_KawaiiPhysics_NumSimpleWorldColliders,
 	               SimpleWorldSphericalLimits.Num() + SimpleWorldCapsuleLimits.Num() +
 	               SimpleWorldTaperedCapsuleLimits.Num() + SimpleWorldBoxLimits.Num() +
-	               SimpleWorldConvexLimits.Num());
+	               SimpleWorldGroundBoxLimits.Num() + SimpleWorldConvexLimits.Num());
 	SET_DWORD_STAT(STAT_KawaiiPhysics_NumMergedBoneConstraints, MergedBoneConstraints.Num());
 	SET_MEMORY_STAT(STAT_KawaiiPhysics_ModifyBonesMemory,
 	                ModifyBones.GetAllocatedSize() + MergedBoneConstraints.GetAllocatedSize());

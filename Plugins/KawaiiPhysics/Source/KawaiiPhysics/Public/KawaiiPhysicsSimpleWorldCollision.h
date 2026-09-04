@@ -65,6 +65,20 @@ namespace KawaiiPhysicsSimpleWorldCollision
 	 */
 	KAWAIIPHYSICS_API bool IsSimpleWorldGatherInputValid(const FVector& Center, float Radius);
 
+	/**
+	 * 上限が正で、かつ Overlap 数が上限を超えるときだけ距離順を使うかどうかを判定します。上限 0 は形状を収集しない設定なので並べ替えも省きます。
+	 * Returns whether to use distance-order sorting: only when the cap is positive and the overlap count exceeds it. A cap of 0 means gathering no shapes, so sorting is skipped too.
+	 */
+	KAWAIIPHYSICS_API bool ShouldUseSimpleWorldGatherOrder(int32 NumOverlaps, int32 MaxGatheredComponents);
+
+	/**
+	 * 距離二乗の昇順で収集順インデックスを作ります。同距離は元の順序を保ちます。
+	 * Builds gather-order indices sorted by ascending squared distance. Equal distances keep their original order.
+	 */
+	KAWAIIPHYSICS_API void SortSimpleWorldGatherOrderByDistance(
+		TArrayView<const float> DistanceSquared,
+		TArray<int32>& OutOrder);
+
 	struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldBodyBinding
 	{
 		int32 BoneIndex = INDEX_NONE;
