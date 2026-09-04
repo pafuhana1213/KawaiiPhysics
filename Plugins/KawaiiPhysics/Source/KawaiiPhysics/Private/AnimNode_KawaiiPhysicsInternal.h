@@ -61,3 +61,39 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumWorldCollisionChecks"),
 
 // ModifyBones / MergedBoneConstraints のアロケーション量（subdivision/bridge dummyによる膨張の可視化） / Allocated size of ModifyBones / MergedBoneConstraints (visualize growth from subdivision/bridge dummies)
 DECLARE_MEMORY_STAT_EXTERN(TEXT("KawaiiPhysics_ModifyBonesMemory"), STAT_KawaiiPhysics_ModifyBonesMemory, STATGROUP_Anim, KAWAIIPHYSICS_API);
+
+namespace KawaiiPhysicsSimpleWorldReadPath
+{
+	// 共有コリジョンデータをシミュレーション空間配列へ追加する / Appends shared collision data to simulation-space arrays
+	KAWAIIPHYSICS_API void AppendSharedCollisionDataToSimulationSpace(
+		const FAnimNode_KawaiiPhysics& Node,
+		FComponentSpacePoseContext& Output,
+		EKawaiiPhysicsSimulationSpace TargetSpace,
+		const FKawaiiPhysicsSharedCollisionData& InData,
+		TArray<FSphericalLimit>& OutSphericalLimits,
+		TArray<FCapsuleLimit>& OutCapsuleLimits,
+		TArray<FTaperedCapsuleLimit>& OutTaperedCapsuleLimits,
+		TArray<FBoxLimit>& OutBoxLimits,
+		TArray<FPlanarLimit>* OutPlanarLimits,
+		TArray<FKawaiiPhysicsConvexLimit>* OutConvexLimits);
+
+	// 既存配列の要素数が一致する場合だけ in-place でシミュレーション空間へ再変換する / Refreshes simulation-space arrays in place only when element counts match
+	KAWAIIPHYSICS_API bool RefreshSimulationSpaceLimitsInPlace(
+		const FAnimNode_KawaiiPhysics& Node,
+		FComponentSpacePoseContext& Output,
+		EKawaiiPhysicsSimulationSpace TargetSpace,
+		const FKawaiiPhysicsSharedCollisionData& InData,
+		TArray<FSphericalLimit>& OutSphericalLimits,
+		TArray<FCapsuleLimit>& OutCapsuleLimits,
+		TArray<FTaperedCapsuleLimit>& OutTaperedCapsuleLimits,
+		TArray<FBoxLimit>& OutBoxLimits,
+		TArray<FKawaiiPhysicsConvexLimit>& OutConvexLimits);
+
+	// Box 配列だけを in-place でシミュレーション空間へ再変換する / Refreshes only box limits in simulation space in place
+	KAWAIIPHYSICS_API bool RefreshSimulationSpaceLimitsInPlace(
+		const FAnimNode_KawaiiPhysics& Node,
+		FComponentSpacePoseContext& Output,
+		EKawaiiPhysicsSimulationSpace TargetSpace,
+		const TArray<FBoxLimit>& InBoxLimits,
+		TArray<FBoxLimit>& OutBoxLimits);
+}

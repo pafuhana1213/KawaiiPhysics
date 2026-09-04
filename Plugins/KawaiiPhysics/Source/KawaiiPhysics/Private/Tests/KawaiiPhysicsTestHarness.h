@@ -164,20 +164,81 @@ struct FKawaiiPhysicsTestAccessor
 	}
 
 	/**
-	 * SimpleWorld コリジョン配列（Subsystem が本来収集する5形状）を直接注入し、bUseSimpleWorldCollision も true にする。
-	 * Injects the SimpleWorld collision arrays (the five shapes the Subsystem normally gathers) directly and enables bUseSimpleWorldCollision.
+	 * SimpleWorld コリジョン配列（Subsystem が本来収集する形状と地面 Box）を直接注入し、bUseSimpleWorldCollision も true にする。
+	 * Injects the SimpleWorld collision arrays (the shapes and ground box the Subsystem normally gathers) directly and enables bUseSimpleWorldCollision.
 	 */
 	void SetSimpleWorldLimits(const TArray<FSphericalLimit>& Spherical, const TArray<FCapsuleLimit>& Capsule,
 	                          const TArray<FTaperedCapsuleLimit>& TaperedCapsule, const TArray<FBoxLimit>& Box,
-	                          const TArray<FKawaiiPhysicsConvexLimit>& Convex)
+	                          const TArray<FKawaiiPhysicsConvexLimit>& Convex,
+	                          const TArray<FBoxLimit>& GroundBox = TArray<FBoxLimit>())
 	{
 		Node.SimpleWorldSphericalLimits = Spherical;
 		Node.SimpleWorldCapsuleLimits = Capsule;
 		Node.SimpleWorldTaperedCapsuleLimits = TaperedCapsule;
 		Node.SimpleWorldBoxLimits = Box;
+		Node.SimpleWorldGroundBoxLimits = GroundBox;
 		Node.SimpleWorldConvexLimits = Convex;
 		Node.bUseSimpleWorldCollision = true;
 	}
+
+	/**
+	 * SimpleWorld コリジョン Entry を Subsystem 経由なしで直接注入し、読み取り経路を有効化する。
+	 * Injects a SimpleWorld collision Entry directly without the Subsystem and enables the read path.
+	 */
+	void SetSimpleWorldEntry(const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>& Entry)
+	{
+		Node.CachedSimpleWorldEntry = Entry;
+		Node.bUseSimpleWorldCollision = true;
+		Node.bSimpleWorldCollisionInitialized = true;
+		Node.bSimpleWorldDescSent = false;
+	}
+
+	/**
+	 * SimpleWorld コリジョンのワーカー側読み取り更新を呼び出す。
+	 * Calls the worker-side SimpleWorld collision read update.
+	 */
+	void UpdateSimpleWorldCollisionLimits(FComponentSpacePoseContext& Output)
+	{
+		Node.UpdateSimpleWorldCollisionLimits(Output);
+	}
+
+	/**
+	 * 現在読み込んでいる SimpleWorld コリジョン形状数を返す。
+	 * Returns the number of SimpleWorld collision shapes currently read.
+	 */
+	int32 GetNumSimpleWorldColliders() const
+	{
+		return Node.GetNumSimpleWorldColliders();
+	}
+
+	/**
+	 * 最後に読み取った SimpleWorld 形状 Slot の Publish serial を返す。
+	 * Returns the last read publish serial of the SimpleWorld shape Slot.
+	 */
+	uint64 GetLastReadSimpleWorldShapeSerial() const
+	{
+		return Node.LastReadSimpleWorldShapeSerial;
+	}
+
+	void SetSimpleWorldGatherRadiusOverride(float Radius)
+	{
+		Node.bOverrideSimpleWorldCollisionGatherRadius = true;
+		Node.SimpleWorldCollisionGatherRadius = Radius;
+		Node.bSimpleWorldRadiusChecked = false;
+		Node.SimpleWorldRadiusCheckDeferrals = 0;
+	}
+
+	void CheckSimpleWorldGatherRadius(FComponentSpacePoseContext& Output)
+	{
+		Node.CheckSimpleWorldGatherRadius(Output);
+	}
+
+	bool IsSimpleWorldRadiusChecked() const
+	{
+		return Node.bSimpleWorldRadiusChecked;
+	}
+
+	uint8 GetSimpleWorldRadiusCheckDeferrals() const { return Node.SimpleWorldRadiusCheckDeferrals; }
 
 	/** 固定サブステッピング設定（DeveloperSettings の代わりに直接指定） */
 	void SetFixedSubstepping(bool bEnable, int32 TargetFps, int32 MaxSubsteps = 8)
@@ -611,6 +672,7 @@ private:
 				Node.AdjustByCapsuleCollision(Bone, Node.SimpleWorldCapsuleLimits);
 				Node.AdjustByTaperedCapsuleCollision(Bone, Node.SimpleWorldTaperedCapsuleLimits);
 				Node.AdjustByBoxCollision(Bone, Node.SimpleWorldBoxLimits);
+				Node.AdjustByBoxCollision(Bone, Node.SimpleWorldGroundBoxLimits);
 				Node.AdjustByConvexCollision(Bone, Node.SimpleWorldConvexLimits);
 			}
 		}

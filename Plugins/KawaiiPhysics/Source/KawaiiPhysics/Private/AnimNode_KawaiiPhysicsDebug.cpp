@@ -231,6 +231,12 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 						                       FColor::Cyan, LineThickness);
 					}
 
+					for (const auto& BoxLimit : SimpleWorldGroundBoxLimits)
+					{
+						this->AnimDrawDebugBox(Output, BoxLimit.Location, BoxLimit.Rotation, BoxLimit.Extent,
+						                       FColor::Cyan, LineThickness);
+					}
+
 					for (const auto& ConvexLimit : SimpleWorldConvexLimits)
 					{
 #if !UE_BUILD_SHIPPING

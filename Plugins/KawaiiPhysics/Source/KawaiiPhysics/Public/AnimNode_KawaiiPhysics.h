@@ -658,6 +658,8 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 #endif
 	static constexpr int32 MaxTransientExternalForces = 8;
 	static constexpr int32 MaxPhysicsSettingsMultipliers = 8;
+	// 半径チェックの持ち越し上限 / Cap on radius-check deferrals
+	static constexpr uint8 MaxSimpleWorldRadiusCheckDeferrals = 3;
 	// InheritForceIndex 用センチネル: 有効な authored ProceduralWind すべてに 1 つずつ transient 突風を展開する（展開はノードの一時外力上限 MaxTransientExternalForces の範囲内）
 	// Sentinel for InheritForceIndex: spawn one transient gust per enabled authored ProceduralWind (expansion is bounded by MaxTransientExternalForces).
 	static constexpr int32 TransientGustInheritAllWinds = -2;
@@ -1030,8 +1032,18 @@ private:
 	FKawaiiPhysicsSimpleWorldCollisionDesc LastSentSimpleWorldDesc;
 	bool bSimpleWorldDescSent = false;
 	bool bSimpleWorldCollisionInitialized = false;
-	bool bSimpleWorldRadiusWarningLogged = false;
+	// SimpleWorld 半径警告チェックが完了済みか / Whether the SimpleWorld radius warning check has completed
+	bool bSimpleWorldRadiusChecked = false;
+	// 半径チェックを全ゼロ姿勢で持ち越した回数。上限に達したら退化チェーンとみなして完了扱いにする / Number of radius-check deferrals due to all-zero pose. Reaching the cap marks the check done (degenerate chain)
+	uint8 SimpleWorldRadiusCheckDeferrals = 0;
+	// 前回読み取った形状 Slot の Publish serial（0 は未読） / Last read shape Slot publish serial (0 means unread)
+	uint64 LastReadSimpleWorldShapeSerial = 0;
+	// 前回読み取った GroundSlot の Publish serial（0 は未読） / Last read GroundSlot publish serial (0 means unread)
+	uint64 LastReadSimpleWorldGroundSerial = 0;
+	// 形状 Slot 用のワールド空間スクラッチ / World-space scratch for the shape Slot
 	FKawaiiPhysicsSharedCollisionData SimpleWorldMergedScratch;
+	// GroundSlot 用のワールド空間スクラッチ / World-space scratch for the GroundSlot
+	FKawaiiPhysicsSharedCollisionData SimpleWorldGroundScratch;
 
 	// シンプルワールドコリジョンワーク配列（シミュレーション空間に変換済み）
 	// Simple world collision working arrays (converted to simulation space)
@@ -1039,6 +1051,8 @@ private:
 	TArray<FCapsuleLimit> SimpleWorldCapsuleLimits;
 	TArray<FTaperedCapsuleLimit> SimpleWorldTaperedCapsuleLimits;
 	TArray<FBoxLimit> SimpleWorldBoxLimits;
+	// 地面専用のシンプルワールド Box 配列（0 または 1 要素） / Dedicated SimpleWorld ground box array (zero or one element)
+	TArray<FBoxLimit> SimpleWorldGroundBoxLimits;
 	TArray<FKawaiiPhysicsConvexLimit> SimpleWorldConvexLimits;
 
 	// 風の乱数(gust/cone)をフレーム単位でキャッシュしサブステップ間で同一値を使う（NumStep非依存＝フレームレート非依存）
@@ -1173,6 +1187,7 @@ public:
 			+ SimpleWorldCapsuleLimits.Num()
 			+ SimpleWorldTaperedCapsuleLimits.Num()
 			+ SimpleWorldBoxLimits.Num()
+			+ SimpleWorldGroundBoxLimits.Num()
 			+ SimpleWorldConvexLimits.Num();
 	}
 
@@ -1482,6 +1497,12 @@ protected:
 	 * Read Simple World Collision and convert to simulation space (any thread)
 	 */
 	void UpdateSimpleWorldCollisionLimits(FComponentSpacePoseContext& Output);
+
+	/**
+	 * SimpleWorld の収集半径がチェーン到達距離を覆うか 1 回だけ確認する（AnyThread）
+	 * Checks once whether the SimpleWorld gather radius covers the chain reach (any thread)
+	 */
+	void CheckSimpleWorldGatherRadius(FComponentSpacePoseContext& Output);
 
 	/**
 	 * シンプルワールドコリジョンのDesc登録を解除する（AnyThread）

@@ -2,6 +2,7 @@
 
 #include "KawaiiPhysicsSimpleWorldCollision.h"
 
+#include "Algo/StableSort.h"
 #include "Engine/EngineTypes.h"
 #include "Misc/EngineVersionComparison.h"
 #include "PhysicsEngine/PhysicsAsset.h"
@@ -151,6 +152,26 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		return !Center.ContainsNaN()
 			&& FMath::IsFinite(Radius)
 			&& Radius > KINDA_SMALL_NUMBER;
+	}
+
+	bool ShouldUseSimpleWorldGatherOrder(int32 NumOverlaps, int32 MaxGatheredComponents)
+	{
+		// 上限 0（CVar で指定可）では visit ループが即座に打ち切られるため、距離計算と StableSort を払わない（master と同じ O(1)）。
+		return MaxGatheredComponents > 0 && NumOverlaps > MaxGatheredComponents;
+	}
+
+	void SortSimpleWorldGatherOrderByDistance(TArrayView<const float> DistanceSquared, TArray<int32>& OutOrder)
+	{
+		OutOrder.Reset(DistanceSquared.Num());
+		for (int32 Index = 0; Index < DistanceSquared.Num(); ++Index)
+		{
+			OutOrder.Add(Index);
+		}
+
+		Algo::StableSort(OutOrder, [&DistanceSquared](int32 Lhs, int32 Rhs)
+		{
+			return DistanceSquared[Lhs] < DistanceSquared[Rhs];
+		});
 	}
 
 	void AppendBoundsLocalLimits(
