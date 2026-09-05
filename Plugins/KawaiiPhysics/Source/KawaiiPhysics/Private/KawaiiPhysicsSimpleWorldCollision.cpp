@@ -2,6 +2,7 @@
 
 #include "KawaiiPhysicsSimpleWorldCollision.h"
 
+#include "KawaiiPhysicsSharedCollisionSubsystem.h"
 #include "KawaiiPhysicsSharedPublisherTypes.h"
 
 #include "Algo/StableSort.h"
@@ -174,6 +175,20 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		{
 			return DistanceSquared[Lhs] < DistanceSquared[Rhs];
 		});
+	}
+
+	bool IsSimpleWorldProviderAlive(
+		const FKawaiiPhysicsSimpleWorldCollisionEntry& Entry,
+		uint64 CurrentFrame,
+		uint64 ProviderMaxAgeFrames)
+	{
+		if (!Entry.HasProviderDesc())
+		{
+			return false;
+		}
+
+		const uint64 LastProviderFrame = Entry.GetLastProviderFrame();
+		return CurrentFrame <= LastProviderFrame || CurrentFrame - LastProviderFrame <= ProviderMaxAgeFrames;
 	}
 
 	void AppendBoundsLocalLimits(

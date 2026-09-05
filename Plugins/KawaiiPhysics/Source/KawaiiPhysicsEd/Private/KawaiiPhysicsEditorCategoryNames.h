@@ -34,6 +34,9 @@ namespace KawaiiPhysicsEditorCategoryNames
 	inline const FName Performance(TEXT("Performance"));
 	inline const FName Bindings(TEXT("Bindings"));
 	inline const FName PinOptions(TEXT("PinOptions"));
+	inline const FName SharedPublisher(TEXT("Shared Publisher"));
+	inline const FName SharedPublisherSimpleWorldCollision(TEXT("Shared Publisher|Simple World Collision"));
+	inline const FName SharedPublisherWind(TEXT("Shared Publisher|Wind"));
 
 	inline const TArray<FCategoryFilterGroup>& GetFilterGroups()
 	{
@@ -70,6 +73,18 @@ namespace KawaiiPhysicsEditorCategoryNames
 			ForceSyncBone,
 			Tag,
 			Alpha,
+		};
+
+		return CategoryNames;
+	}
+
+	inline const TArray<FName>& GetSharedPublisherCategorySortOrderNames()
+	{
+		static const TArray<FName> CategoryNames =
+		{
+			SharedPublisher,
+			SharedPublisherSimpleWorldCollision,
+			SharedPublisherWind,
 		};
 
 		return CategoryNames;

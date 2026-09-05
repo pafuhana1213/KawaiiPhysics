@@ -163,6 +163,12 @@ bool FKawaiiPhysicsPropertyAccessReinitTest::RunTest(const FString& Parameters)
 	bOk &= TestTrue(TEXT("bUseSimpleWorldCollision is in the simple world collision reinit set"),
 	                UKawaiiPhysicsLibrary::DoesNodePropertyRequireSimpleWorldCollisionReinit(
 		                GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, bUseSimpleWorldCollision)));
+	bOk &= TestTrue(TEXT("SimpleWorldCollisionSource is in the simple world collision reinit set"),
+	                UKawaiiPhysicsLibrary::DoesNodePropertyRequireSimpleWorldCollisionReinit(
+		                GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, SimpleWorldCollisionSource)));
+	bOk &= TestTrue(TEXT("SimpleWorldCollisionSharedTag is in the simple world collision reinit set"),
+	                UKawaiiPhysicsLibrary::DoesNodePropertyRequireSimpleWorldCollisionReinit(
+		                GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, SimpleWorldCollisionSharedTag)));
 	bOk &= TestFalse(TEXT("SimpleWorldCollisionGatherInterval is not in the simple world collision reinit set"),
 	                 UKawaiiPhysicsLibrary::DoesNodePropertyRequireSimpleWorldCollisionReinit(
 		                 GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, SimpleWorldCollisionGatherInterval)));

@@ -5,12 +5,14 @@
 #include "AnimationGraphSchema.h"
 #include "AnimGraphNode_ComponentToLocalSpace.h"
 #include "AnimGraphNode_KawaiiPhysics.h"
+#include "AnimGraphNode_KawaiiPhysicsSharedPublisher.h"
 #include "AnimGraphNode_Root.h"
 #include "AnimationGraph.h"
 #include "Animation/AnimNode_Root.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "EdGraphSchema_K2.h"
 #include "KawaiiPhysics.h"
+#include "KawaiiPhysicsEdUtils.h"
 #include "KawaiiPhysicsLibrary.h"
 #include "Animation/AnimBlueprint.h"
 #include "Animation/Skeleton.h"
@@ -67,6 +69,24 @@ namespace
 	UAnimGraphNode_KawaiiPhysics* GetGraphNode(const FKawaiiPhysicsGraphNodeHandle& Handle)
 	{
 		return Handle.Node.Get();
+	}
+
+	UAnimGraphNode_KawaiiPhysicsSharedPublisher* GetGraphNode(
+		const FKawaiiPhysicsSharedPublisherGraphNodeHandle& Handle)
+	{
+		return Handle.Node.Get();
+	}
+
+	FKawaiiPhysicsSharedPublisherGraphNodeHandle MakeSharedPublisherHandle(
+		UAnimGraphNode_KawaiiPhysicsSharedPublisher* GraphNode)
+	{
+		FKawaiiPhysicsSharedPublisherGraphNodeHandle Handle;
+		Handle.Node = GraphNode;
+		Handle.AnimBlueprint = GraphNode ? GraphNode->GetAnimBlueprint() : nullptr;
+		Handle.NodeGuid = GraphNode ? GraphNode->NodeGuid : FGuid();
+		Handle.SharedGroupTag = GraphNode ? GraphNode->Node.SharedGroupTag : FGameplayTag();
+		Handle.GraphName = GraphNode && GraphNode->GetGraph() ? GraphNode->GetGraph()->GetFName() : NAME_None;
+		return Handle;
 	}
 
 	bool DoesNodeMatchTags(const FAnimNode_KawaiiPhysics& Node,
@@ -126,6 +146,138 @@ namespace
 		}
 
 		return NotifyGraphNodePropertyChanged(GraphNode, ChangedProperty);
+	}
+
+	const FProperty* FindAnimNodePropertyByPath(
+		const UScriptStruct* Struct,
+		FName PropertyName,
+		void* StructValuePtr,
+		void*& OutValuePtr)
+	{
+		OutValuePtr = nullptr;
+		if (!Struct || PropertyName.IsNone() || !StructValuePtr)
+		{
+			return nullptr;
+		}
+
+		FString PropertyPath = PropertyName.ToString();
+		FString OuterPropertyName;
+		FString InnerPropertyName;
+		if (!PropertyPath.Split(TEXT("."), &OuterPropertyName, &InnerPropertyName))
+		{
+			const FProperty* Property = FindFProperty<FProperty>(Struct, PropertyName);
+			OutValuePtr = Property ? Property->ContainerPtrToValuePtr<void>(StructValuePtr) : nullptr;
+			return OutValuePtr ? Property : nullptr;
+		}
+
+		if (InnerPropertyName.Contains(TEXT(".")))
+		{
+			return nullptr;
+		}
+
+		const FStructProperty* OuterProperty = FindFProperty<FStructProperty>(Struct, FName(*OuterPropertyName));
+		if (!OuterProperty || !OuterProperty->Struct)
+		{
+			return nullptr;
+		}
+
+		void* OuterValuePtr = OuterProperty->ContainerPtrToValuePtr<void>(StructValuePtr);
+		const FProperty* InnerProperty = FindFProperty<FProperty>(OuterProperty->Struct, FName(*InnerPropertyName));
+		OutValuePtr = InnerProperty && OuterValuePtr ? InnerProperty->ContainerPtrToValuePtr<void>(OuterValuePtr) : nullptr;
+		return OutValuePtr ? InnerProperty : nullptr;
+	}
+
+	const FProperty* FindAnimNodePropertyByPath(
+		const UScriptStruct* Struct,
+		FName PropertyName,
+		const void* StructValuePtr,
+		const void*& OutValuePtr)
+	{
+		void* MutableValuePtr = nullptr;
+		const FProperty* Property = FindAnimNodePropertyByPath(
+			Struct,
+			PropertyName,
+			const_cast<void*>(StructValuePtr),
+			MutableValuePtr);
+		OutValuePtr = MutableValuePtr;
+		return Property;
+	}
+
+	bool SetAnimNodePropertyValueFromString(
+		const UScriptStruct* Struct,
+		void* StructValuePtr,
+		FName PropertyName,
+		const FString& ValueText)
+	{
+		void* ValuePtr = nullptr;
+		const FProperty* Property = FindAnimNodePropertyByPath(Struct, PropertyName, StructValuePtr, ValuePtr);
+		if (!Property || !ValuePtr)
+		{
+			return false;
+		}
+
+#if UE_VERSION_OLDER_THAN(5, 1, 0)
+		return Property->ImportText(*ValueText, ValuePtr, PPF_None, nullptr) != nullptr;
+#else
+		return Property->ImportText_Direct(*ValueText, ValuePtr, nullptr, PPF_None) != nullptr;
+#endif
+	}
+
+	bool GetAnimNodePropertyValueAsString(
+		const UScriptStruct* Struct,
+		const void* StructValuePtr,
+		FName PropertyName,
+		FString& OutValueText)
+	{
+		const void* ValuePtr = nullptr;
+		const FProperty* Property = FindAnimNodePropertyByPath(Struct, PropertyName, StructValuePtr, ValuePtr);
+		if (!Property || !ValuePtr)
+		{
+			return false;
+		}
+
+		OutValueText.Reset();
+		constexpr int32 ExportPortFlags = PPF_ExternalEditor;
+#if UE_VERSION_OLDER_THAN(5, 1, 0)
+		Property->ExportTextItem(OutValueText, ValuePtr, ValuePtr, nullptr, ExportPortFlags);
+#else
+		Property->ExportTextItem_Direct(OutValueText, ValuePtr, ValuePtr, nullptr, ExportPortFlags);
+#endif
+		return true;
+	}
+
+	bool NotifySharedPublisherPropertyChanged(
+		UAnimGraphNode_KawaiiPhysicsSharedPublisher* GraphNode,
+		FName PropertyName)
+	{
+		if (!GraphNode)
+		{
+			return false;
+		}
+
+		FString PropertyPath = PropertyName.ToString();
+		FString OuterPropertyName;
+		FString InnerPropertyName;
+		const FName ChangedPropertyName =
+			PropertyPath.Split(TEXT("."), &OuterPropertyName, &InnerPropertyName)
+				? FName(*OuterPropertyName)
+				: PropertyName;
+		const FProperty* ChangedProperty = FindFProperty<FProperty>(
+			FAnimNode_KawaiiPhysicsSharedPublisher::StaticStruct(),
+			ChangedPropertyName);
+		if (!ChangedProperty)
+		{
+			return false;
+		}
+
+		FPropertyChangedEvent PropertyChangedEvent(const_cast<FProperty*>(ChangedProperty),
+		                                           EPropertyChangeType::ValueSet);
+		GraphNode->PostEditChangeProperty(PropertyChangedEvent);
+		if (UAnimBlueprint* AnimBlueprint = GraphNode->GetAnimBlueprint())
+		{
+			FBlueprintEditorUtils::MarkBlueprintAsModified(AnimBlueprint);
+		}
+		return true;
 	}
 
 	void ConfigureAnimBlueprintFilter(FARFilter& Filter)
@@ -1456,6 +1608,68 @@ namespace
 		}
 		return true;
 	}
+
+	bool ConnectSharedPublisherNodeBeforeResult(
+		UEdGraph* Graph,
+		UAnimGraphNode_KawaiiPhysicsSharedPublisher* GraphNode)
+	{
+		if (!Graph || !GraphNode)
+		{
+			return false;
+		}
+
+		UAnimGraphNode_Root* RootNode = FindResultRootNodeForEditorLibrary(Graph);
+		if (!RootNode)
+		{
+			UE_LOG(LogKawaiiPhysics, Warning,
+			       TEXT("AddKawaiiPhysicsSharedPublisherNode: Result node was not found in AnimGraph '%s'."),
+			       *Graph->GetName());
+			return false;
+		}
+
+		UEdGraphPin* ResultPin = RootNode->FindPin(GET_MEMBER_NAME_CHECKED(FAnimNode_Root, Result), EGPD_Input);
+		UEdGraphPin* SourcePin =
+			GraphNode->FindPin(GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysicsSharedPublisher, Source), EGPD_Input);
+		UEdGraphPin* PosePin = GraphNode->FindPin(TEXT("Pose"), EGPD_Output);
+		if (!ResultPin || !SourcePin || !PosePin)
+		{
+			return false;
+		}
+
+		UEdGraphPin* PreviousSourcePin = !ResultPin->LinkedTo.IsEmpty() ? ResultPin->LinkedTo[0] : nullptr;
+		Graph->Modify();
+		GraphNode->Modify();
+		RootNode->Modify();
+
+		const UAnimationGraphSchema* Schema = CastChecked<UAnimationGraphSchema>(Graph->GetSchema());
+		if (PreviousSourcePin)
+		{
+			UEdGraphNode* PreviousNode = PreviousSourcePin->GetOwningNode();
+			if (PreviousNode)
+			{
+				PreviousNode->Modify();
+			}
+
+			Schema->BreakPinLinks(*ResultPin, true);
+			if (!Schema->TryCreateConnection(PreviousSourcePin, SourcePin))
+			{
+				Schema->TryCreateConnection(PreviousSourcePin, ResultPin);
+				return false;
+			}
+		}
+
+		if (!Schema->TryCreateConnection(PosePin, ResultPin))
+		{
+			Schema->BreakPinLinks(*SourcePin, true);
+			if (PreviousSourcePin)
+			{
+				Schema->TryCreateConnection(PreviousSourcePin, ResultPin);
+			}
+			return false;
+		}
+
+		return true;
+	}
 }
 
 void UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssetData(const TArray<FString>& ContentPaths, TArray<FAssetData>& OutAssets)
@@ -1623,30 +1837,39 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::CollectKawaii
 		return Result;
 	}
 
-	TArray<UEdGraph*> Graphs;
-	AnimBlueprint->GetAllGraphs(Graphs);
-	for (UEdGraph* Graph : Graphs)
+	TArray<UAnimGraphNode_KawaiiPhysics*> GraphNodes;
+	KawaiiPhysicsEdUtils::CollectAnimGraphNodes(AnimBlueprint, GraphNodes);
+	for (UAnimGraphNode_KawaiiPhysics* KawaiiPhysicsGraphNode : GraphNodes)
 	{
-		if (!Graph)
+		if (!KawaiiPhysicsGraphNode ||
+			!DoesNodeMatchTags(KawaiiPhysicsGraphNode->Node, FilterTags, bFilterExactMatch))
 		{
 			continue;
 		}
 
-		for (UEdGraphNode* Node : Graph->Nodes)
-		{
-			UAnimGraphNode_KawaiiPhysics* KawaiiPhysicsGraphNode = Cast<UAnimGraphNode_KawaiiPhysics>(Node);
-			if (!KawaiiPhysicsGraphNode ||
-				!DoesNodeMatchTags(KawaiiPhysicsGraphNode->Node, FilterTags, bFilterExactMatch))
-			{
-				continue;
-			}
-
-			FKawaiiPhysicsGraphNodeHandle Handle;
-			Handle.Node = KawaiiPhysicsGraphNode;
-			Result.Add(Handle);
-		}
+		FKawaiiPhysicsGraphNodeHandle Handle;
+		Handle.Node = KawaiiPhysicsGraphNode;
+		Result.Add(Handle);
 	}
 
+	return Result;
+}
+
+TArray<FKawaiiPhysicsSharedPublisherGraphNodeHandle> UKawaiiPhysicsEditorLibrary::
+CollectKawaiiPhysicsSharedPublisherGraphNodes(UAnimBlueprint* AnimBlueprint)
+{
+	TArray<FKawaiiPhysicsSharedPublisherGraphNodeHandle> Result;
+	if (!AnimBlueprint)
+	{
+		return Result;
+	}
+
+	TArray<UAnimGraphNode_KawaiiPhysicsSharedPublisher*> PublisherNodes;
+	KawaiiPhysicsEdUtils::CollectAnimGraphNodes(AnimBlueprint, PublisherNodes);
+	for (UAnimGraphNode_KawaiiPhysicsSharedPublisher* PublisherNode : PublisherNodes)
+	{
+		Result.Add(MakeSharedPublisherHandle(PublisherNode));
+	}
 	return Result;
 }
 
@@ -1661,22 +1884,13 @@ UAnimGraphNode_KawaiiPhysics* UKawaiiPhysicsEditorLibrary::FindGraphNodeByGuid(
 		return nullptr;
 	}
 
-	TArray<UEdGraph*> Graphs;
-	AnimBlueprint->GetAllGraphs(Graphs);
-	for (UEdGraph* Graph : Graphs)
+	TArray<UAnimGraphNode_KawaiiPhysics*> GraphNodes;
+	KawaiiPhysicsEdUtils::CollectAnimGraphNodes(AnimBlueprint, GraphNodes);
+	for (UAnimGraphNode_KawaiiPhysics* KawaiiPhysicsGraphNode : GraphNodes)
 	{
-		if (!Graph)
+		if (KawaiiPhysicsGraphNode && KawaiiPhysicsGraphNode->NodeGuid == NodeGuid)
 		{
-			continue;
-		}
-
-		for (UEdGraphNode* Node : Graph->Nodes)
-		{
-			UAnimGraphNode_KawaiiPhysics* KawaiiPhysicsGraphNode = Cast<UAnimGraphNode_KawaiiPhysics>(Node);
-			if (KawaiiPhysicsGraphNode && KawaiiPhysicsGraphNode->NodeGuid == NodeGuid)
-			{
-				return KawaiiPhysicsGraphNode;
-			}
+			return KawaiiPhysicsGraphNode;
 		}
 	}
 
@@ -1876,6 +2090,68 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 	return Result;
 }
 
+FKawaiiPhysicsSharedPublisherGraphNodeHandle UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsSharedPublisherNode(
+	UAnimBlueprint* AnimBlueprint,
+	FGameplayTag SharedGroupTag,
+	bool bReuseExisting,
+	bool bAutoConnect)
+{
+	if (!AnimBlueprint)
+	{
+		return FKawaiiPhysicsSharedPublisherGraphNodeHandle();
+	}
+
+	if (bReuseExisting)
+	{
+		if (UAnimGraphNode_KawaiiPhysicsSharedPublisher* ExistingNode =
+			KawaiiPhysicsEdUtils::FindSharedPublisherGraphNodeByTag(AnimBlueprint, SharedGroupTag))
+		{
+			return MakeSharedPublisherHandle(ExistingNode);
+		}
+	}
+
+	UEdGraph* Graph = FindPlacementAnimGraph(AnimBlueprint, NAME_None);
+	if (!Graph)
+	{
+		UE_LOG(LogKawaiiPhysics, Warning,
+		       TEXT("AddKawaiiPhysicsSharedPublisherNode: AnimGraph was not found in AnimBlueprint '%s'."),
+		       *AnimBlueprint->GetName());
+		return FKawaiiPhysicsSharedPublisherGraphNodeHandle();
+	}
+
+	UAnimGraphNode_Root* RootNode = FindResultRootNodeForEditorLibrary(Graph);
+	const FVector2D NodePosition = RootNode
+		                               ? FVector2D(
+			                               static_cast<double>(RootNode->NodePosX - 300),
+			                               static_cast<double>(RootNode->NodePosY))
+		                               : FVector2D::ZeroVector;
+
+	FScopedTransaction Transaction(
+		NSLOCTEXT("KawaiiPhysicsEditorLibrary", "AddKawaiiPhysicsSharedPublisherNode",
+		          "Add Kawaii Physics Shared Publisher Node"));
+	Graph->Modify();
+	FGraphNodeCreator<UAnimGraphNode_KawaiiPhysicsSharedPublisher> NodeCreator(*Graph);
+	UAnimGraphNode_KawaiiPhysicsSharedPublisher* NewGraphNode = NodeCreator.CreateNode(false);
+	NewGraphNode->Node.SharedGroupTag = SharedGroupTag;
+	NewGraphNode->NodePosX = static_cast<int32>(NodePosition.X);
+	NewGraphNode->NodePosY = static_cast<int32>(NodePosition.Y);
+	NodeCreator.Finalize();
+
+	if (bAutoConnect)
+	{
+		if (!ConnectSharedPublisherNodeBeforeResult(Graph, NewGraphNode))
+		{
+			UE_LOG(LogKawaiiPhysics, Warning,
+			       TEXT("AddKawaiiPhysicsSharedPublisherNode: auto-connect failed. Node was left unconnected."));
+		}
+	}
+
+	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(AnimBlueprint);
+	AnimBlueprint->MarkPackageDirty();
+
+	return MakeSharedPublisherHandle(NewGraphNode);
+}
+
 TArray<FKawaiiPhysicsAnimGraphCommentInfo> UKawaiiPhysicsEditorLibrary::GetAnimGraphComments(
 	UAnimBlueprint* AnimBlueprint,
 	FName GraphName)
@@ -1993,6 +2269,12 @@ bool UKawaiiPhysicsEditorLibrary::IsGraphNodeHandleValid(const FKawaiiPhysicsGra
 	return Handle.IsValid();
 }
 
+bool UKawaiiPhysicsEditorLibrary::IsSharedPublisherGraphNodeHandleValid(
+	const FKawaiiPhysicsSharedPublisherGraphNodeHandle& Handle)
+{
+	return Handle.IsValid();
+}
+
 bool UKawaiiPhysicsEditorLibrary::SetGraphNodePropertyFromString(
 	const FKawaiiPhysicsGraphNodeHandle& Handle,
 	FName PropertyName,
@@ -2016,6 +2298,62 @@ bool UKawaiiPhysicsEditorLibrary::GetGraphNodePropertyAsString(
 	UAnimGraphNode_KawaiiPhysics* GraphNode = GetGraphNode(Handle);
 	return GraphNode &&
 		UKawaiiPhysicsLibrary::GetNodePropertyValueAsString(GraphNode->Node, PropertyName, OutValue);
+}
+
+bool UKawaiiPhysicsEditorLibrary::SetSharedPublisherNodePropertyFromString(
+	const FKawaiiPhysicsSharedPublisherGraphNodeHandle& Handle,
+	FName PropertyName,
+	const FString& Value)
+{
+	UAnimGraphNode_KawaiiPhysicsSharedPublisher* GraphNode = GetGraphNode(Handle);
+	if (!GraphNode)
+	{
+		return false;
+	}
+
+	FAnimNode_KawaiiPhysicsSharedPublisher TestNode = GraphNode->Node;
+	if (!SetAnimNodePropertyValueFromString(
+		FAnimNode_KawaiiPhysicsSharedPublisher::StaticStruct(),
+		&TestNode,
+		PropertyName,
+		Value))
+	{
+		return false;
+	}
+
+	FScopedTransaction Transaction(
+		NSLOCTEXT("KawaiiPhysicsEditorLibrary", "SetSharedPublisherNodePropertyFromString",
+		          "Set Kawaii Physics Shared Publisher Node Property"));
+	GraphNode->Modify();
+	if (!SetAnimNodePropertyValueFromString(
+		FAnimNode_KawaiiPhysicsSharedPublisher::StaticStruct(),
+		&GraphNode->Node,
+		PropertyName,
+		Value))
+	{
+		Transaction.Cancel();
+		return false;
+	}
+
+	return NotifySharedPublisherPropertyChanged(GraphNode, PropertyName);
+}
+
+FString UKawaiiPhysicsEditorLibrary::GetSharedPublisherNodePropertyAsString(
+	const FKawaiiPhysicsSharedPublisherGraphNodeHandle& Handle,
+	FName PropertyName)
+{
+	FString Value;
+	UAnimGraphNode_KawaiiPhysicsSharedPublisher* GraphNode = GetGraphNode(Handle);
+	if (!GraphNode ||
+		!GetAnimNodePropertyValueAsString(
+			FAnimNode_KawaiiPhysicsSharedPublisher::StaticStruct(),
+			&GraphNode->Node,
+			PropertyName,
+			Value))
+	{
+		return FString();
+	}
+	return Value;
 }
 
 bool UKawaiiPhysicsEditorLibrary::SetPresetNodePropertyFromString(

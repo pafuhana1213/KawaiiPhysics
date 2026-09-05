@@ -3,8 +3,12 @@
 #pragma once
 
 #include "AnimGraphNode_KawaiiPhysics.h"
+#include "AnimGraphNode_KawaiiPhysicsSharedPublisher.h"
+#include "AnimationGraph.h"
 #include "Animation/AnimBlueprint.h"
 #include "Animation/AnimInstance.h"
+#include "AnimNode_KawaiiPhysicsSharedPublisher.h"
+#include "EdGraph/EdGraph.h"
 
 namespace KawaiiPhysicsEdUtils
 {
@@ -32,8 +36,62 @@ namespace KawaiiPhysicsEdUtils
 		return true;
 	}
 
-	// デバッグ対象がある場合だけ実行中の KawaiiPhysics ノードを返す
-	inline FAnimNode_KawaiiPhysics* ResolveLiveKawaiiPhysicsNode(UAnimGraphNode_KawaiiPhysics* GraphNode)
+	// AnimBlueprint 内の AnimGraph を列挙する
+	inline void CollectAnimGraphs(const UAnimBlueprint* AnimBlueprint, TArray<UAnimationGraph*>& OutGraphs)
+	{
+		OutGraphs.Reset();
+		if (!AnimBlueprint)
+		{
+			return;
+		}
+
+		auto AddGraph = [&OutGraphs](UEdGraph* Graph)
+		{
+			if (UAnimationGraph* AnimGraph = Cast<UAnimationGraph>(Graph))
+			{
+				OutGraphs.AddUnique(AnimGraph);
+			}
+		};
+
+		for (UEdGraph* Graph : AnimBlueprint->FunctionGraphs)
+		{
+			AddGraph(Graph);
+		}
+		for (UEdGraph* Graph : AnimBlueprint->UbergraphPages)
+		{
+			AddGraph(Graph);
+		}
+
+		TArray<UEdGraph*> AllGraphs;
+		AnimBlueprint->GetAllGraphs(AllGraphs);
+		for (UEdGraph* Graph : AllGraphs)
+		{
+			AddGraph(Graph);
+		}
+	}
+
+	template<typename TGraphNode>
+	inline void CollectAnimGraphNodes(const UAnimBlueprint* AnimBlueprint, TArray<TGraphNode*>& OutNodes)
+	{
+		OutNodes.Reset();
+
+		TArray<UAnimationGraph*> Graphs;
+		CollectAnimGraphs(AnimBlueprint, Graphs);
+		for (UAnimationGraph* Graph : Graphs)
+		{
+			for (UEdGraphNode* Node : Graph->Nodes)
+			{
+				if (TGraphNode* GraphNode = Cast<TGraphNode>(Node))
+				{
+					OutNodes.Add(GraphNode);
+				}
+			}
+		}
+	}
+
+	// デバッグ対象がある場合だけ実行中の AnimNode を返す
+	template<typename TGraphNode, typename TAnimNode>
+	inline TAnimNode* ResolveLiveAnimNode(const TGraphNode* GraphNode)
 	{
 		if (!GraphNode)
 		{
@@ -47,6 +105,65 @@ namespace KawaiiPhysicsEdUtils
 			return nullptr;
 		}
 
-		return GraphNode->GetDebuggedAnimNode<FAnimNode_KawaiiPhysics>();
+		return GraphNode->template GetDebuggedAnimNode<TAnimNode>();
+	}
+
+	// デバッグ対象がある場合だけ実行中の KawaiiPhysics ノードを返す
+	inline FAnimNode_KawaiiPhysics* ResolveLiveKawaiiPhysicsNode(UAnimGraphNode_KawaiiPhysics* GraphNode)
+	{
+		return ResolveLiveAnimNode<UAnimGraphNode_KawaiiPhysics, FAnimNode_KawaiiPhysics>(GraphNode);
+	}
+
+	inline FAnimNode_KawaiiPhysicsSharedPublisher* ResolveLiveSharedPublisherNode(
+		const UAnimGraphNode_KawaiiPhysicsSharedPublisher* GraphNode)
+	{
+		return ResolveLiveAnimNode<UAnimGraphNode_KawaiiPhysicsSharedPublisher, FAnimNode_KawaiiPhysicsSharedPublisher>(
+			GraphNode);
+	}
+
+	inline UAnimGraphNode_KawaiiPhysicsSharedPublisher* FindSharedPublisherGraphNodeByTag(
+		const UAnimBlueprint* AnimBlueprint,
+		const FGameplayTag& Tag)
+	{
+		if (!Tag.IsValid())
+		{
+			return nullptr;
+		}
+
+		TArray<UAnimGraphNode_KawaiiPhysicsSharedPublisher*> PublisherNodes;
+		CollectAnimGraphNodes(AnimBlueprint, PublisherNodes);
+		for (UAnimGraphNode_KawaiiPhysicsSharedPublisher* PublisherNode : PublisherNodes)
+		{
+			if (PublisherNode && PublisherNode->Node.SharedGroupTag == Tag)
+			{
+				return PublisherNode;
+			}
+		}
+		return nullptr;
+	}
+
+	inline void FindKawaiiPhysicsConsumerGraphNodes(
+		const UAnimBlueprint* AnimBlueprint,
+		const FGameplayTag& Tag,
+		TArray<UAnimGraphNode_KawaiiPhysics*>& OutConsumers)
+	{
+		OutConsumers.Reset();
+		if (!Tag.IsValid())
+		{
+			return;
+		}
+
+		TArray<UAnimGraphNode_KawaiiPhysics*> KawaiiPhysicsNodes;
+		CollectAnimGraphNodes(AnimBlueprint, KawaiiPhysicsNodes);
+		for (UAnimGraphNode_KawaiiPhysics* KawaiiPhysicsNode : KawaiiPhysicsNodes)
+		{
+			if (KawaiiPhysicsNode &&
+				KawaiiPhysicsNode->Node.bUseSimpleWorldCollision &&
+				KawaiiPhysicsNode->Node.SimpleWorldCollisionSource != EKawaiiPhysicsSimpleWorldCollisionSource::Local &&
+				KawaiiPhysicsNode->Node.SimpleWorldCollisionSharedTag == Tag)
+			{
+				OutConsumers.Add(KawaiiPhysicsNode);
+			}
+		}
 	}
 }

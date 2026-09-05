@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "AnimNode_KawaiiPhysics.h"
+#include "AnimNode_KawaiiPhysicsSharedPublisher.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
 #include "KawaiiPhysicsTypes.h"
@@ -63,6 +64,14 @@ struct FKawaiiPhysicsReference : public FAnimNodeReference
 	using FInternalNodeType = FAnimNode_KawaiiPhysics;
 };
 
+USTRUCT(BlueprintType)
+struct FKawaiiPhysicsSharedPublisherReference : public FAnimNodeReference
+{
+	GENERATED_BODY()
+
+	using FInternalNodeType = FAnimNode_KawaiiPhysicsSharedPublisher;
+};
+
 namespace KawaiiPhysics
 {
 	// 一時外力 struct がキュー可能か検証する（IsValid / FKawaiiPhysics_ExternalForce 派生 / live UObject 参照なし）。拒否理由を Warning ログに出す。
@@ -93,6 +102,13 @@ public:
 	static FKawaiiPhysicsReference ConvertToKawaiiPhysics(const FAnimNodeReference& Node,
 	                                                      EAnimNodeReferenceConversionResult& Result);
 
+	/** Kawaii Physics Shared Publisher を AnimNode 参照から取得する / Get a Kawaii Physics Shared Publisher from an anim node */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Shared Publisher",
+		meta = (BlueprintThreadSafe, ExpandEnumAsExecs = "Result", DisplayName = "Convert to Kawaii Physics Shared Publisher"))
+	static FKawaiiPhysicsSharedPublisherReference ConvertToKawaiiPhysicsSharedPublisher(
+		const FAnimNodeReference& Node,
+		EAnimNodeReferenceConversionResult& Result);
+
 	/** Get a KawaiiPhysics from an anim node (pure). */
 	UFUNCTION(BlueprintPure, Category = "Kawaii Physics",
 		meta = (BlueprintThreadSafe, DisplayName = "Convert to Kawaii Physics (Pure)"))
@@ -113,6 +129,28 @@ public:
 	static bool CollectKawaiiPhysicsNodes(TArray<FKawaiiPhysicsReference>& Nodes,
 	                                      USkeletalMeshComponent* MeshComp, const FGameplayTagContainer& FilterTags,
 	                                      bool bFilterExactMatch);
+
+	/**
+	 * AnimInstance から Kawaii Physics Shared Publisher ノード参照を収集する（FilterTags が空なら全件）。
+	 * Collect Kawaii Physics Shared Publisher node references from an AnimInstance (empty FilterTags collects all nodes).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Shared Publisher",
+		meta = (AutoCreateRefTerm = "FilterTags"))
+	static TArray<FKawaiiPhysicsSharedPublisherReference> CollectKawaiiPhysicsSharedPublisherNodes(
+		UAnimInstance* AnimInstance,
+		const FGameplayTagContainer& FilterTags,
+		bool bFilterExactMatch = false);
+
+	/**
+	 * Component / Linked AnimInstance / PostProcess から Kawaii Physics Shared Publisher ノード参照を収集する（FilterTags が空なら全件）。
+	 * Collect Kawaii Physics Shared Publisher node references from a component, linked instances, and post-process instance (empty FilterTags collects all nodes).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Shared Publisher",
+		meta = (AutoCreateRefTerm = "FilterTags"))
+	static TArray<FKawaiiPhysicsSharedPublisherReference> CollectKawaiiPhysicsSharedPublisherNodesOnComponent(
+		USkeletalMeshComponent* MeshComp,
+		const FGameplayTagContainer& FilterTags,
+		bool bFilterExactMatch = false);
 
 	/**
 	 * AnimInstance から KawaiiPhysics ノード参照を収集する（FilterTags が空なら全件）。
@@ -1122,6 +1160,55 @@ public:
 	}
 
 	/**
+	 * シンプルワールドコリジョンの収集元を設定
+	 * Set the source for Simple World Collision
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Simple World Collision", meta=(BlueprintThreadSafe))
+	static FKawaiiPhysicsReference SetSimpleWorldCollisionSource(
+		const FKawaiiPhysicsReference& KawaiiPhysics,
+		EKawaiiPhysicsSimpleWorldCollisionSource Source)
+	{
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("SetSimpleWorldCollisionSource"),
+			[Source](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
+				InKawaiiPhysics.SimpleWorldCollisionSource = Source;
+				InKawaiiPhysics.RequestSimpleWorldCollisionReinit();
+			});
+		return KawaiiPhysics;
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Kawaii Physics|Simple World Collision", meta=(BlueprintThreadSafe))
+	static EKawaiiPhysicsSimpleWorldCollisionSource GetSimpleWorldCollisionSource(
+		const FKawaiiPhysicsReference& KawaiiPhysics)
+	{
+		KAWAIIPHYSICS_VALUE_GETTER(EKawaiiPhysicsSimpleWorldCollisionSource, SimpleWorldCollisionSource);
+	}
+
+	/**
+	 * Shared / Auto のシンプルワールドコリジョン共有タグを設定
+	 * Set the shared tag for Shared / Auto Simple World Collision
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Simple World Collision", meta=(BlueprintThreadSafe))
+	static FKawaiiPhysicsReference SetSimpleWorldCollisionSharedTag(
+		const FKawaiiPhysicsReference& KawaiiPhysics,
+		FGameplayTag SharedTag)
+	{
+		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+			TEXT("SetSimpleWorldCollisionSharedTag"),
+			[SharedTag](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
+				InKawaiiPhysics.SimpleWorldCollisionSharedTag = SharedTag;
+				InKawaiiPhysics.RequestSimpleWorldCollisionReinit();
+			});
+		return KawaiiPhysics;
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Kawaii Physics|Simple World Collision", meta=(BlueprintThreadSafe))
+	static FGameplayTag GetSimpleWorldCollisionSharedTag(const FKawaiiPhysicsReference& KawaiiPhysics)
+	{
+		KAWAIIPHYSICS_VALUE_GETTER(FGameplayTag, SimpleWorldCollisionSharedTag);
+	}
+
+	/**
 	 * シンプルワールドコリジョンの収集間隔（秒）を設定。Desc差分検知で自動追従するため再初期化は不要
 	 * Set the Simple World Collision gather interval (seconds). No reinitialization is needed; the Desc diff check picks it up automatically
 	 */
@@ -1147,6 +1234,43 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Simple World Collision", meta = (DevelopmentOnly))
 	static bool GetSimpleWorldCollisionDebugInfo(const USkeletalMeshComponent* SkelComp,
 	                                             FKawaiiPhysicsSimpleWorldCollisionDebugInfo& OutInfo);
+
+	/**
+	 * Shared Publisher の有効状態を次の Publisher Update で一時上書きする。Initialize / reinit でノードの UPROPERTY 値へ戻ります。
+	 * Temporarily override the Shared Publisher enabled state on the next Publisher Update. Initialize / reinit restores the node UPROPERTY value.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Shared Publisher")
+	static bool SetSharedPublisherEnabled(AActor* Actor, FGameplayTag SharedGroupTag, bool bEnabled);
+
+	/**
+	 * Shared Publisher の Simple World Collision 設定を次の Publisher Update で一時上書きする。Initialize / reinit でノードの UPROPERTY 値へ戻ります。
+	 * Temporarily override the Shared Publisher Simple World Collision settings on the next Publisher Update. Initialize / reinit restores the node UPROPERTY value.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Shared Publisher")
+	static bool SetSimpleWorldCollisionSettingsOnSharedPublisher(
+		AActor* Actor,
+		FGameplayTag SharedGroupTag,
+		const FKawaiiPhysicsSimpleWorldCollisionSettings& Settings);
+
+	/**
+	 * Shared Publisher が最後に publish した実効 Simple World Collision 設定を取得する。
+	 * Get the effective Simple World Collision settings last published by the Shared Publisher.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Shared Publisher")
+	static bool GetSimpleWorldCollisionSettingsOnSharedPublisher(
+		AActor* Actor,
+		FGameplayTag SharedGroupTag,
+		FKawaiiPhysicsSimpleWorldCollisionSettings& OutSettings);
+
+	/**
+	 * Shared Publisher の診断情報を取得する。Entry が無い（ノード未初期化・Shipping ビルド）場合は false。
+	 * Get Shared Publisher diagnostics. Returns false when no entry exists (node not initialized or Shipping build).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Shared Publisher", meta = (DevelopmentOnly))
+	static bool GetSharedPublisherDebugInfo(
+		AActor* Actor,
+		FGameplayTag SharedGroupTag,
+		FKawaiiPhysicsSharedPublisherDebugInfo& OutInfo);
 
 	/**
 	 * ノードが現在読み込んでいるシンプルワールドコリジョン形状の総数（Sphere+Capsule+TaperedCapsule+Box）

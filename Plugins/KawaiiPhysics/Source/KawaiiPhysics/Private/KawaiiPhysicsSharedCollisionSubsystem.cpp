@@ -3,6 +3,7 @@
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
 #include "KawaiiPhysicsSharedPublisherTypes.h"
 #include "AnimNode_KawaiiPhysics.h"
+#include "AnimNode_KawaiiPhysicsInternal.h"
 #include "KawaiiPhysicsDeveloperSettings.h"
 #include "KawaiiPhysicsGroundProvider.h"
 
@@ -741,7 +742,7 @@ extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionCleanupMaxAge;
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionDebugDraw;
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionForceEnableOnServer;
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionUseMovementGround;
-extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionReaderReleaseMaxAge;
+extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionSharedPublisherDebugDraw;
 
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SharedCollision_Publish"), STAT_KawaiiPhysics_SharedCollision_Publish, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SharedCollision_GetOrCreateSlot"), STAT_KawaiiPhysics_SharedCollision_GetOrCreateSlot, STATGROUP_Anim);
@@ -758,6 +759,9 @@ DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimpleWorldCollision_Ground"), STAT_Kawai
 DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_SimpleWorldCollision_NumGatheredComponents"), STAT_KawaiiPhysics_SimpleWorldCollision_NumGatheredComponents, STATGROUP_Anim);
 DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_SimpleWorldCollision_NumSkeletalBodies"), STAT_KawaiiPhysics_SimpleWorldCollision_NumSkeletalBodies, STATGROUP_Anim);
 DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_SimpleWorldCollision_NumMemberSlots"), STAT_KawaiiPhysics_SimpleWorldCollision_NumMemberSlots, STATGROUP_Anim);
+DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_SharedPublisher_NumEntries"), STAT_KawaiiPhysics_SharedPublisher_NumEntries, STATGROUP_Anim);
+DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_SharedPublisher_NumReaders"), STAT_KawaiiPhysics_SharedPublisher_NumReaders, STATGROUP_Anim);
+DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_SharedPublisher_PublishesPerFrame"), STAT_KawaiiPhysics_SharedPublisher_PublishesPerFrame, STATGROUP_Anim);
 
 AActor* UKawaiiPhysicsSharedCollisionSubsystem::GetFamilyRoot(AActor* Actor)
 {
@@ -1168,6 +1172,11 @@ void FKawaiiPhysicsSimpleWorldCollisionEntry::RemoveDesc(uint64 SourceID)
 
 bool FKawaiiPhysicsSimpleWorldCollisionEntry::MarkRead(uint64 SourceID)
 {
+	return MarkRead(SourceID, GFrameCounter);
+}
+
+bool FKawaiiPhysicsSimpleWorldCollisionEntry::MarkRead(uint64 SourceID, uint64 CurrentFrame)
+{
 	// FDescSlotのLastReadFrameはatomicにせず、DescSlotsの構造変更と同じDescLock(write)で保護する。
 	// TMap要素を値型で保持でき、期限切れ除去と読み取りマークの整合も同じロック順序で扱える。
 	FWriteScopeLock WriteLock(DescLock);
@@ -1177,8 +1186,8 @@ bool FKawaiiPhysicsSimpleWorldCollisionEntry::MarkRead(uint64 SourceID)
 		{
 			return false;
 		}
-		DescSlotPtr->LastReadFrame = GFrameCounter;
-		LastProviderFrame = GFrameCounter;
+		DescSlotPtr->LastReadFrame = CurrentFrame;
+		LastProviderFrame = CurrentFrame;
 		return true;
 	}
 	return false;
@@ -1637,6 +1646,12 @@ bool FKawaiiPhysicsSharedPublisherEntry::IsExpired(uint64 CurrentFrame, uint64 M
 			MaxAgeFrames);
 }
 
+bool FKawaiiPhysicsSharedPublisherEntry::IsMarkedExpired() const
+{
+	FReadScopeLock ReadLock(StateLock);
+	return bExpired;
+}
+
 void FKawaiiPhysicsSharedPublisherEntry::MarkExpired()
 {
 	FWriteScopeLock WriteLock(StateLock);
@@ -1877,13 +1892,32 @@ TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> UKawaiiPhysicsSharedCollisionSubs
 
 	if (TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Existing = FindSharedPublisherEntryByKey(Key))
 	{
-		return Existing;
+		if (!Existing->IsMarkedExpired())
+		{
+			return Existing;
+		}
 	}
 
 	FWriteScopeLock WriteLock(SharedPublisherRegistryLock);
 	if (TSharedPtr<FKawaiiPhysicsSharedPublisherEntry>* Existing = SharedPublisherRegistry.Find(Key))
 	{
-		return *Existing;
+		if (!(*Existing)->IsMarkedExpired())
+		{
+			return *Existing;
+		}
+
+		// MarkExpired 済みの Entry は Cleanup を待たずに置き換える（provider 交代を Cleanup 間隔まで止めないため）。
+		// 旧 Entry を掴んでいる側は IsExpired / PublishState の拒否で取り直すので、ここでは何もしない。
+		TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> ReplacementEntry =
+			MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+		*Existing = ReplacementEntry;
+
+		// PublishSerial が振り直しになるので、STAT の増分が負にならないよう前回値もリセットする
+		if (uint64* PreviousPublishSerial = SharedPublisherPreviousPublishSerials.Find(Key))
+		{
+			*PreviousPublishSerial = 0;
+		}
+		return ReplacementEntry;
 	}
 
 	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> NewEntry = MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
@@ -2044,6 +2078,67 @@ bool UKawaiiPhysicsSharedCollisionSubsystem::BuildSimpleWorldCollisionDebugInfo(
 	}
 
 	FillSimpleWorldCollisionDebugInfo(*Entry, OutInfo, &Key);
+	return true;
+#else
+	return false;
+#endif
+}
+
+bool UKawaiiPhysicsSharedCollisionSubsystem::BuildSharedPublisherDebugInfo(
+	AActor* Actor,
+	const FGameplayTag& Tag,
+	FKawaiiPhysicsSharedPublisherDebugInfo& OutInfo) const
+{
+	OutInfo = FKawaiiPhysicsSharedPublisherDebugInfo();
+
+#if !UE_BUILD_SHIPPING
+	if (!ensure(IsInGameThread()) || !Actor || !Tag.IsValid())
+	{
+		return false;
+	}
+
+	AActor* FamilyRoot = GetFamilyRoot(Actor);
+	if (!FamilyRoot)
+	{
+		return false;
+	}
+
+	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> PublisherEntry = FindSharedPublisherEntry(Actor, Tag);
+	if (!PublisherEntry.IsValid())
+	{
+		return false;
+	}
+
+	FKawaiiPhysicsSharedPublisherState State;
+	const uint64 Serial = PublisherEntry->ReadState(State);
+	const uint64 LastPublishFrame = PublisherEntry->GetLastPublishFrame();
+	const uint64 MaxAgeFrames = static_cast<uint64>(
+		FMath::Max(0, GetKawaiiPhysicsSharedPublisherReaderReleaseMaxAge()));
+
+	OutInfo.bFound = true;
+	OutInfo.bProviderAlive = !PublisherEntry->IsExpired(GFrameCounter, MaxAgeFrames);
+	OutInfo.GroupTag = Tag;
+	OutInfo.FamilyRootName = FamilyRoot->GetActorNameOrLabel();
+	OutInfo.PublishSerial = static_cast<int64>(Serial);
+	OutInfo.LastPublishFrame = static_cast<int64>(LastPublishFrame);
+	OutInfo.bEnabled = State.bPublisherEnabled;
+	OutInfo.bSimpleWorldEnabled = State.bSimpleWorldEnabled;
+	OutInfo.GatherScope = State.GatherScope;
+	OutInfo.bGatherFamilyMembers = State.SimpleWorldDesc.bGatherFamilyMembers;
+	OutInfo.bWindEnabled = State.Wind.bPublisherWindEnabled;
+	OutInfo.WindTime = State.Wind.Time;
+	OutInfo.WindTimeScale = State.Wind.PublisherTimeScale;
+
+	const FKawaiiPhysicsSimpleWorldRegistryKey SimpleWorldKey =
+		FKawaiiPhysicsSimpleWorldRegistryKey::MakeSharedKey(FamilyRoot, Tag);
+	FKawaiiPhysicsSimpleWorldCollisionDebugInfo SimpleWorldInfo;
+	if (BuildSimpleWorldCollisionDebugInfo(SimpleWorldKey, SimpleWorldInfo))
+	{
+		OutInfo.NumReaders = SimpleWorldInfo.NumReaders;
+		OutInfo.NumGatheredComponents = SimpleWorldInfo.NumGatheredComponents;
+		OutInfo.NumMemberSlots = SimpleWorldInfo.NumMemberSlots;
+	}
+
 	return true;
 #else
 	return false;
@@ -2676,7 +2771,15 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 	struct FSimpleWorldTickEntry
 	{
 		TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> Entry;
+#if ENABLE_DRAW_DEBUG
+		FKawaiiPhysicsSimpleWorldRegistryKey Key;
+#endif
 	};
+
+#if ENABLE_DRAW_DEBUG
+	const bool bDrawSharedPublisherDebug =
+		CVarSimpleWorldCollisionSharedPublisherDebugDraw.GetValueOnGameThread() != 0;
+#endif
 
 	TArray<FSimpleWorldTickEntry> Entries;
 	{
@@ -2686,6 +2789,12 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 		{
 			FSimpleWorldTickEntry TickEntry;
 			TickEntry.Entry = Pair.Value;
+#if ENABLE_DRAW_DEBUG
+			if (bDrawSharedPublisherDebug)
+			{
+				TickEntry.Key = Pair.Key;
+			}
+#endif
 			Entries.Add(MoveTemp(TickEntry));
 		}
 	}
@@ -2719,6 +2828,30 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 #endif
 	// Convex のデバッグ頂点/エッジは DebugDraw 有効時だけ構築し、通常時の転送用コピーを避ける。
 	const bool bBuildConvexDebugGeometry = bDebugDraw;
+
+#if ENABLE_DRAW_DEBUG
+	auto DrawSharedPublisherDebugLabel = [World](
+		const FSimpleWorldTickEntry& TickEntry,
+		const FKawaiiPhysicsSimpleWorldCollisionEntry& Entry)
+	{
+		if (!TickEntry.Key.Tag.IsValid() || !Entry.HasProviderDesc())
+		{
+			return;
+		}
+
+		if (const USkeletalMeshComponent* PrimarySkelComp = Entry.GetPrimarySkelComp())
+		{
+			const FVector LabelLocation = PrimarySkelComp->GetComponentLocation() + FVector(0.0f, 0.0f, 120.0f);
+			const FString Label = FString::Printf(
+				TEXT("Shared Publisher %s / readers %d / gather %d"),
+				*TickEntry.Key.Tag.ToString(),
+				Entry.GetNumReaders(),
+				Entry.GatheredComponents.Num());
+			// Wind ベクトルの可視化は PR-5 で追加する。
+			DrawDebugString(World, LabelLocation, Label, nullptr, FColor::Yellow, 0.0f, true);
+		}
+	};
+#endif
 
 	int32 TotalGatheredComponents = 0;
 	int32 TotalSkeletalBodies = 0;
@@ -2819,6 +2952,12 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 		{
 			PublishSimpleWorldEmptyLimits(*Entry, GSimpleWorldFadeBoxEnableThreshold);
 			TotalMemberSlots += Entry->GetNumMemberSlots();
+#if ENABLE_DRAW_DEBUG
+			if (bDrawSharedPublisherDebug)
+			{
+				DrawSharedPublisherDebugLabel(TickEntry, *Entry);
+			}
+#endif
 			continue;
 		}
 
@@ -2908,6 +3047,10 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 		{
 			DrawSimpleWorldCollisionDebug(*World, Center, Radius, *Entry);
 		}
+		if (bDrawSharedPublisherDebug)
+		{
+			DrawSharedPublisherDebugLabel(TickEntry, *Entry);
+		}
 #endif
 
 		TotalGatheredComponents += Entry->GatheredComponents.Num();
@@ -2956,6 +3099,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::Deinitialize()
 			}
 		}
 		SharedPublisherRegistry.Empty();
+		SharedPublisherPreviousPublishSerials.Empty();
 	}
 	Super::Deinitialize();
 }
@@ -3028,11 +3172,23 @@ void UKawaiiPhysicsSharedCollisionSubsystem::Tick(float DeltaTime)
 				continue;
 			}
 		}
+
+		int32 SharedPublisherNumReaders = 0;
+		for (const TPair<FKawaiiPhysicsSimpleWorldRegistryKey, TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>>& Pair :
+			SimpleWorldRegistry)
+		{
+			if (Pair.Key.Tag.IsValid() && Pair.Value.IsValid())
+			{
+				SharedPublisherNumReaders += Pair.Value->GetNumReaders();
+			}
+		}
+		SET_DWORD_STAT(STAT_KawaiiPhysics_SharedPublisher_NumReaders, SharedPublisherNumReaders);
 	}
 
 	{
 		FWriteScopeLock SharedPublisherWriteLock(SharedPublisherRegistryLock);
 		const int32 SharedPublisherCleanupMaxAge = CVarSharedCollisionCleanupMaxAge.GetValueOnGameThread();
+		uint64 SharedPublisherPublishesPerFrame = 0;
 
 		for (auto It = SharedPublisherRegistry.CreateIterator(); It; ++It)
 		{
@@ -3047,7 +3203,28 @@ void UKawaiiPhysicsSharedCollisionSubsystem::Tick(float DeltaTime)
 				It.RemoveCurrent();
 				continue;
 			}
+
+			const uint64 PublishSerial = It->Value->GetPublishSerial();
+			uint64& PreviousPublishSerial = SharedPublisherPreviousPublishSerials.FindOrAdd(It->Key);
+			if (PublishSerial >= PreviousPublishSerial)
+			{
+				SharedPublisherPublishesPerFrame += PublishSerial - PreviousPublishSerial;
+			}
+			PreviousPublishSerial = PublishSerial;
 		}
+
+		for (auto It = SharedPublisherPreviousPublishSerials.CreateIterator(); It; ++It)
+		{
+			if (!SharedPublisherRegistry.Contains(It->Key))
+			{
+				It.RemoveCurrent();
+			}
+		}
+
+		SET_DWORD_STAT(STAT_KawaiiPhysics_SharedPublisher_NumEntries, SharedPublisherRegistry.Num());
+		SET_DWORD_STAT(
+			STAT_KawaiiPhysics_SharedPublisher_PublishesPerFrame,
+			static_cast<int32>(FMath::Min<uint64>(SharedPublisherPublishesPerFrame, MAX_int32)));
 	}
 }
 

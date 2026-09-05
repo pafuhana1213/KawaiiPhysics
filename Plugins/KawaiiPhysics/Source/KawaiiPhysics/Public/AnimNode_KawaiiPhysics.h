@@ -141,6 +141,20 @@ struct FKawaiiPhysicsTransientForceStore
 	FKawaiiPhysicsTransientForceStore& operator=(const FKawaiiPhysicsTransientForceStore&) { return *this; }
 };
 
+/**
+ * Simple World Collision の収集元 / Source for Simple World Collision
+ */
+UENUM(BlueprintType)
+enum class EKawaiiPhysicsSimpleWorldCollisionSource : uint8
+{
+	/** このノード自身が収集する（従来どおり） / This node gathers on its own (legacy behavior). */
+	Local UMETA(DisplayName = "Local"),
+	/** 同じ Actor ファミリーの Kawaii Physics Shared Publisher（同じ Shared Tag）が収集した結果を読む。Publisher が無い間は押し出し無し / Reads what the Shared Publisher with the same Shared Tag in this actor family gathered. No push-out while no publisher exists. */
+	Shared UMETA(DisplayName = "Shared"),
+	/** Publisher があれば Shared、無ければ Local として動く。Publisher の出現・消失に追従する / Shared while a publisher exists, otherwise Local. Follows the publisher appearing or disappearing. */
+	Auto UMETA(DisplayName = "Auto"),
+};
+
 USTRUCT(BlueprintType)
 struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalControlBase
 {
@@ -812,7 +826,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* Gather interval for Simple World Collision in seconds. 0 gathers every frame. Already gathered component transforms are updated every frame.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
-		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision", ClampMin = "0.0", ClampMax = "10.0",
+		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision && SimpleWorldCollisionSource != EKawaiiPhysicsSimpleWorldCollisionSource::Shared", ClampMin = "0.0", ClampMax = "10.0",
 		DisplayName = "Gather Interval", Units = "s"))
 	float SimpleWorldCollisionGatherInterval = 0.2f;
 
@@ -821,7 +835,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* Object types used by Simple World Collision. Empty means WorldStatic + WorldDynamic. Only components of these types that Block the owning SkeletalMeshComponent's ObjectType (or the ObjectType from Override SkelComp Collision Params when enabled) are gathered. Overlap / Ignore responses (triggers, etc.) are never gathered.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
-		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision", DisplayName = "Object Types"))
+		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision && SimpleWorldCollisionSource != EKawaiiPhysicsSimpleWorldCollisionSource::Shared", DisplayName = "Object Types"))
 	TArray<TEnumAsByte<EObjectTypeQuery>> SimpleWorldCollisionObjectTypes;
 
 	/**
@@ -829,13 +843,13 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* Shape used for convex collision in Simple World Collision. The default Convex Hull uses the actual plane set, falling back to the bounding box when hull data is unavailable or the plane count exceeds Max Convex Planes.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
-		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision", DisplayName = "Convex Shape"))
+		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision && SimpleWorldCollisionSource != EKawaiiPhysicsSimpleWorldCollisionSource::Shared", DisplayName = "Convex Shape"))
 	EKawaiiPhysicsSimpleWorldConvexFallbackShape SimpleWorldCollisionConvexFallbackShape =
 		EKawaiiPhysicsSimpleWorldConvexFallbackShape::ConvexHull;
 
 	/** シンプルワールドコリジョンの収集半径を上書きする / Override the Simple World Collision gather radius */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
-		meta = (PinHiddenByDefault, InlineEditConditionToggle))
+		meta = (PinHiddenByDefault, InlineEditConditionToggle, EditCondition = "bUseSimpleWorldCollision && SimpleWorldCollisionSource != EKawaiiPhysicsSimpleWorldCollisionSource::Shared"))
 	bool bOverrideSimpleWorldCollisionGatherRadius = false;
 
 	/**
@@ -852,7 +866,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* Uses the owner's ground info when available (IKawaiiPhysicsGroundProvider, then CharacterMovementComponent CurrentFloor); otherwise fires one downward trace. The ground is treated as a thin box collision. Works on Landscape and complex-collision-only floors.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
-		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision", DisplayName = "Ground Collision"))
+		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision && SimpleWorldCollisionSource != EKawaiiPhysicsSimpleWorldCollisionSource::Shared", DisplayName = "Ground Collision"))
 	bool bSimpleWorldCollisionGroundCollision = true;
 
 	/**
@@ -860,9 +874,26 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	* How Simple World Collision collides with gathered SkeletalMeshComponents: None, Bounding Box, or Physics Asset.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
-		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision", DisplayName = "Skeletal Mesh Collision"))
+		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision && SimpleWorldCollisionSource != EKawaiiPhysicsSimpleWorldCollisionSource::Shared", DisplayName = "Skeletal Mesh Collision"))
 	EKawaiiPhysicsSimpleWorldSkeletalMeshCollision SimpleWorldCollisionSkeletalMeshCollision =
 		EKawaiiPhysicsSimpleWorldSkeletalMeshCollision::None;
+
+	/**
+	* シンプルワールドコリジョンの収集元。Shared のとき、既存の収集設定 7 項目（Gather Interval 〜 Skeletal Mesh Collision）は Publisher 側の設定が使われ、このノードの値は無視されます。Auto のときは Local フォールバック時にだけ使われます。
+	* Source for Simple World Collision. In Shared mode, the seven gather settings (Gather Interval through Skeletal Mesh Collision) use the Publisher settings and this node's values are ignored. In Auto mode, they are used only for Local fallback.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
+		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision", DisplayName = "Source"))
+	EKawaiiPhysicsSimpleWorldCollisionSource SimpleWorldCollisionSource =
+		EKawaiiPhysicsSimpleWorldCollisionSource::Local;
+
+	/**
+	* Shared / Auto で読む Kawaii Physics Shared Publisher の共有タグ。Shared のとき、既存の収集設定 7 項目（Gather Interval 〜 Skeletal Mesh Collision）は Publisher 側の設定が使われ、このノードの値は無視されます。Auto のときは Local フォールバック時にだけ使われます。
+	* Shared tag for the Kawaii Physics Shared Publisher read by Shared / Auto. In Shared mode, the seven gather settings (Gather Interval through Skeletal Mesh Collision) use the Publisher settings and this node's values are ignored. In Auto mode, they are used only for Local fallback.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision|Simple World Collision",
+		meta = (PinHiddenByDefault, EditCondition = "bUseSimpleWorldCollision && SimpleWorldCollisionSource != EKawaiiPhysicsSimpleWorldCollisionSource::Local", DisplayName = "Shared Tag"))
+	FGameplayTag SimpleWorldCollisionSharedTag;
 
 	/**
 	* ExternalForceなどで使用するフィルタリング用タグ
@@ -1031,9 +1062,13 @@ private:
 	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> CachedSimpleWorldEntry;
 	FKawaiiPhysicsSimpleWorldCollisionDesc LastSentSimpleWorldDesc;
 	FKawaiiPhysicsSimpleWorldRegistryKey SimpleWorldReaderKey;
+	FKawaiiPhysicsSimpleWorldRegistryKey SimpleWorldSharedKey;
 	// reader 警告用にキー設定時へキャッシュした KeyObject 名（Worker で UObject を触らない）
 	// KeyObject name cached when the reader key is set, so worker-side warnings never dereference the UObject
 	FName SimpleWorldReaderKeyObjectName;
+	EKawaiiPhysicsSimpleWorldCollisionSource SimpleWorldResolvedSource =
+		EKawaiiPhysicsSimpleWorldCollisionSource::Local;
+	int32 SimpleWorldAutoResolveCountdown = 0;
 	bool bSimpleWorldDescSent = false;
 	bool bSimpleWorldCollisionInitialized = false;
 	bool bSimpleWorldReaderMode = false;
@@ -1049,6 +1084,13 @@ private:
 	uint64 LastReadSimpleWorldMemberSerialSum = 0;
 	int32 SimpleWorldReaderRetryCount = 0;
 	bool bSimpleWorldReaderWarningLogged = false;
+#if !UE_BUILD_SHIPPING
+	bool bSimpleWorldInvalidSharedTagWarningLogged = false;
+#endif
+#if WITH_DEV_AUTOMATION_TESTS
+	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> SimpleWorldAutomationLocalEntry;
+	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> SimpleWorldAutomationSharedEntry;
+#endif
 	// 形状 Slot 用のワールド空間スクラッチ / World-space scratch for the shape Slot
 	FKawaiiPhysicsSharedCollisionData SimpleWorldMergedScratch;
 	// GroundSlot 用のワールド空間スクラッチ / World-space scratch for the GroundSlot
@@ -1198,6 +1240,11 @@ public:
 			+ SimpleWorldBoxLimits.Num()
 			+ SimpleWorldGroundBoxLimits.Num()
 			+ SimpleWorldConvexLimits.Num();
+	}
+
+	EKawaiiPhysicsSimpleWorldCollisionSource GetSimpleWorldResolvedSource() const
+	{
+		return SimpleWorldResolvedSource;
 	}
 
 	/**
@@ -1512,6 +1559,9 @@ protected:
 	 * Initialize the Simple World Collision entry (any thread)
 	 */
 	void InitializeSimpleWorldCollision();
+
+	void ResolveSimpleWorldCollisionSource(uint64 CurrentFrame);
+	bool IsSharedProviderAlive(const FKawaiiPhysicsSimpleWorldRegistryKey& Key, uint64 CurrentFrame) const;
 
 	/**
 	 * 現在の設定からシンプルワールドコリジョンのDescを構築する（AnyThread、UObjectをdereferenceしない）
