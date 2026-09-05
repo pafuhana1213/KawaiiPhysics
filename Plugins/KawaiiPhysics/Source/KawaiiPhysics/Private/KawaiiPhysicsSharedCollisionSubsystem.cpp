@@ -1,6 +1,7 @@
 // Copyright 2019-2026 pafuhana1213. All Rights Reserved.
 
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
+#include "KawaiiPhysicsSharedPublisherTypes.h"
 #include "AnimNode_KawaiiPhysics.h"
 #include "KawaiiPhysicsDeveloperSettings.h"
 #include "KawaiiPhysicsGroundProvider.h"
@@ -91,6 +92,11 @@ namespace
 			&& AggGeom.TaperedCapsuleElems.IsEmpty()
 			&& AggGeom.BoxElems.IsEmpty()
 			&& AggGeom.ConvexElems.IsEmpty();
+	}
+
+	bool IsKawaiiPhysicsFrameAgeExceeded(uint64 CurrentFrame, uint64 LastFrame, uint64 MaxAgeFrames)
+	{
+		return CurrentFrame >= LastFrame && CurrentFrame - LastFrame > MaxAgeFrames;
 	}
 
 	bool BuildLocalLimitsForSimpleWorldComponent(
@@ -735,6 +741,7 @@ extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionCleanupMaxAge;
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionDebugDraw;
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionForceEnableOnServer;
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionUseMovementGround;
+extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionReaderReleaseMaxAge;
 
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SharedCollision_Publish"), STAT_KawaiiPhysics_SharedCollision_Publish, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SharedCollision_GetOrCreateSlot"), STAT_KawaiiPhysics_SharedCollision_GetOrCreateSlot, STATGROUP_Anim);
@@ -750,6 +757,7 @@ DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimpleWorldCollision_UpdateTransforms"), 
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_SimpleWorldCollision_Ground"), STAT_KawaiiPhysics_SimpleWorldCollision_Ground, STATGROUP_Anim);
 DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_SimpleWorldCollision_NumGatheredComponents"), STAT_KawaiiPhysics_SimpleWorldCollision_NumGatheredComponents, STATGROUP_Anim);
 DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_SimpleWorldCollision_NumSkeletalBodies"), STAT_KawaiiPhysics_SimpleWorldCollision_NumSkeletalBodies, STATGROUP_Anim);
+DECLARE_DWORD_COUNTER_STAT(TEXT("KawaiiPhysics_SimpleWorldCollision_NumMemberSlots"), STAT_KawaiiPhysics_SimpleWorldCollision_NumMemberSlots, STATGROUP_Anim);
 
 AActor* UKawaiiPhysicsSharedCollisionSubsystem::GetFamilyRoot(AActor* Actor)
 {
@@ -888,6 +896,33 @@ bool FKawaiiPhysicsSharedCollisionEntry::IsEmpty() const
 // FKawaiiPhysicsSimpleWorldCollisionDesc / Entry
 // -------------------------------------------------------------------
 
+FKawaiiPhysicsSimpleWorldRegistryKey FKawaiiPhysicsSimpleWorldRegistryKey::MakeLocalKey(
+	const USkeletalMeshComponent* SkelComp)
+{
+	FKawaiiPhysicsSimpleWorldRegistryKey Key;
+	Key.KeyObject = SkelComp;
+	return Key;
+}
+
+FKawaiiPhysicsSimpleWorldRegistryKey FKawaiiPhysicsSimpleWorldRegistryKey::MakeLocalKey(
+	const TWeakObjectPtr<const USkeletalMeshComponent>& SkelComp)
+{
+	// 弱参照をそのまま格納する（Worker から呼ばれるため UObject をデリファレンスしない）。
+	FKawaiiPhysicsSimpleWorldRegistryKey Key;
+	Key.KeyObject = SkelComp;
+	return Key;
+}
+
+FKawaiiPhysicsSimpleWorldRegistryKey FKawaiiPhysicsSimpleWorldRegistryKey::MakeSharedKey(
+	const AActor* FamilyRoot,
+	const FGameplayTag& Tag)
+{
+	FKawaiiPhysicsSimpleWorldRegistryKey Key;
+	Key.KeyObject = FamilyRoot;
+	Key.Tag = Tag;
+	return Key;
+}
+
 bool FKawaiiPhysicsSimpleWorldCollisionDesc::operator==(const FKawaiiPhysicsSimpleWorldCollisionDesc& Other) const
 {
 	return GatherIntervalSec == Other.GatherIntervalSec
@@ -897,7 +932,10 @@ bool FKawaiiPhysicsSimpleWorldCollisionDesc::operator==(const FKawaiiPhysicsSimp
 		&& ObjectTypes == Other.ObjectTypes
 		&& ConvexFallbackShape == Other.ConvexFallbackShape
 		&& SkeletalMeshCollision == Other.SkeletalMeshCollision
-		&& bGroundCollision == Other.bGroundCollision;
+		&& bGroundCollision == Other.bGroundCollision
+		&& GatherScope == Other.GatherScope
+		&& bGatherFamilyMembers == Other.bGatherFamilyMembers
+		&& bProviderDisabled == Other.bProviderDisabled;
 }
 
 bool FKawaiiPhysicsSimpleWorldCollisionDesc::DoesChangeRequireRegather(
@@ -910,7 +948,10 @@ bool FKawaiiPhysicsSimpleWorldCollisionDesc::DoesChangeRequireRegather(
 		|| Old.bGroundCollision != New.bGroundCollision
 		|| Old.GatherRadiusOverride != New.GatherRadiusOverride
 		|| Old.bGatherRadiusAllOverridden != New.bGatherRadiusAllOverridden
-		|| Old.CollisionChannel != New.CollisionChannel;
+		|| Old.CollisionChannel != New.CollisionChannel
+		|| Old.GatherScope != New.GatherScope
+		|| Old.bGatherFamilyMembers != New.bGatherFamilyMembers
+		|| Old.bProviderDisabled != New.bProviderDisabled;
 }
 
 FKawaiiPhysicsSimpleWorldCollisionDesc FKawaiiPhysicsSimpleWorldCollisionDesc::Merge(
@@ -970,6 +1011,12 @@ FKawaiiPhysicsSimpleWorldCollisionDesc FKawaiiPhysicsSimpleWorldCollisionDesc::M
 		}
 
 		Merged.bGroundCollision = Merged.bGroundCollision || Desc.bGroundCollision;
+		if (Desc.GatherScope == EKawaiiPhysicsSimpleWorldGatherScope::ActorFamily)
+		{
+			Merged.GatherScope = EKawaiiPhysicsSimpleWorldGatherScope::ActorFamily;
+		}
+		Merged.bGatherFamilyMembers = Merged.bGatherFamilyMembers || Desc.bGatherFamilyMembers;
+		Merged.bProviderDisabled = Merged.bProviderDisabled && Desc.bProviderDisabled;
 	}
 
 	if (bHasEmptyObjectTypes)
@@ -987,7 +1034,8 @@ FKawaiiPhysicsSimpleWorldCollisionDesc FKawaiiPhysicsSimpleWorldCollisionDesc::M
 }
 
 void FKawaiiPhysicsSimpleWorldCollisionEntry::SetDesc(
-	uint64 SourceID, const FKawaiiPhysicsSimpleWorldCollisionDesc& InDesc)
+	uint64 SourceID, const FKawaiiPhysicsSimpleWorldCollisionDesc& InDesc, uint64 CurrentFrame,
+	const TWeakObjectPtr<const USkeletalMeshComponent>& SkelComp, bool bProvider)
 {
 	if (SourceID == 0)
 	{
@@ -997,13 +1045,13 @@ void FKawaiiPhysicsSimpleWorldCollisionEntry::SetDesc(
 	FWriteScopeLock WriteLock(DescLock);
 	const bool bIsNewSource = !DescSlots.Contains(SourceID);
 
-	// 新規登録時のみ、同一設定のスロットが既にあるかをFindOrAddの前に調べる。
+	// 新規 provider 登録時のみ、同一設定の provider スロットが既にあるかをFindOrAddの前に調べる。
 	bool bHasEquivalentDesc = false;
-	if (bIsNewSource)
+	if (bProvider && bIsNewSource)
 	{
 		for (const auto& Pair : DescSlots)
 		{
-			if (Pair.Value.Desc == InDesc)
+			if (Pair.Value.bProvider && Pair.Value.Desc == InDesc)
 			{
 				bHasEquivalentDesc = true;
 				break;
@@ -1012,26 +1060,68 @@ void FKawaiiPhysicsSimpleWorldCollisionEntry::SetDesc(
 	}
 
 	FDescSlot& DescSlotRef = DescSlots.FindOrAdd(SourceID);
+	const bool bProviderChanged = !bIsNewSource && (DescSlotRef.bProvider != bProvider);
 	if (bIsNewSource)
 	{
 		// 登録順は新規登録時にだけ確定する（同じノードが設定を変えても順位は維持する）。
 		DescSlotRef.RegistrationOrdinal = NextDescRegistrationOrdinal++;
 	}
-	DescSlotRef.LastReadFrame = GFrameCounter;
-	if (bIsNewSource || !(DescSlotRef.Desc == InDesc))
+	DescSlotRef.LastReadFrame = CurrentFrame;
+	// Worker から呼ばれるため、弱参照はデリファレンスせずスレッドセーフ判定だけで有効性を見る。
+	if (SkelComp.IsValid(false, true))
+	{
+		DescSlotRef.SkelComp = SkelComp;
+	}
+	DescSlotRef.bProvider = bProvider;
+
+	if (bProvider)
+	{
+		LastProviderFrame = CurrentFrame;
+	}
+
+	if (bIsNewSource || bProviderChanged || !(DescSlotRef.Desc == InDesc))
 	{
 		// 新規登録と収集内容に影響する変更だけ再収集する。
 		// GatherIntervalだけの変更（ピン駆動で毎フレーム変わり得る）では収集済み形状とフェード状態を維持する。
-		// 新規登録でも同一設定のノードが既に登録済みならMerge結果が変わらないため再収集しない。
-		const bool bRequiresRegather = (bIsNewSource && !bHasEquivalentDesc)
+		// 新規登録でも同一設定のproviderが既に登録済みならMerge結果が変わらないため再収集しない。
+		const bool bRequiresRegather = (bProvider && bIsNewSource && !bHasEquivalentDesc)
 			|| (!bIsNewSource
-				&& FKawaiiPhysicsSimpleWorldCollisionDesc::DoesChangeRequireRegather(DescSlotRef.Desc, InDesc));
+				&& (bProviderChanged
+					|| (bProvider
+						&& FKawaiiPhysicsSimpleWorldCollisionDesc::DoesChangeRequireRegather(DescSlotRef.Desc, InDesc))));
 		DescSlotRef.Desc = InDesc;
 		if (bRequiresRegather)
 		{
 			bRegatherRequested.store(true, std::memory_order_release);
 		}
 	}
+
+	if (bProvider)
+	{
+		TArray<FKawaiiPhysicsSimpleWorldCollisionDesc> ProviderDescs;
+		ProviderDescs.Reserve(DescSlots.Num());
+		for (const auto& Pair : DescSlots)
+		{
+			if (Pair.Value.bProvider)
+			{
+				ProviderDescs.Add(Pair.Value.Desc);
+			}
+		}
+
+		const bool bKeepMemberSlots = !ProviderDescs.IsEmpty()
+			&& FKawaiiPhysicsSimpleWorldCollisionDesc::Merge(ProviderDescs).bGatherFamilyMembers;
+		if (!bKeepMemberSlots)
+		{
+			TArray<TWeakObjectPtr<const USkeletalMeshComponent>> EmptyMembers;
+			RemoveMemberSlotsNotInLocked(EmptyMembers);
+		}
+	}
+}
+
+void FKawaiiPhysicsSimpleWorldCollisionEntry::SetDesc(
+	uint64 SourceID, const FKawaiiPhysicsSimpleWorldCollisionDesc& InDesc)
+{
+	SetDesc(SourceID, InDesc, GFrameCounter, TWeakObjectPtr<const USkeletalMeshComponent>(), true);
 }
 
 void FKawaiiPhysicsSimpleWorldCollisionEntry::RemoveDesc(uint64 SourceID)
@@ -1044,6 +1134,34 @@ void FKawaiiPhysicsSimpleWorldCollisionEntry::RemoveDesc(uint64 SourceID)
 	FWriteScopeLock WriteLock(DescLock);
 	if (DescSlots.Remove(SourceID) > 0)
 	{
+		TArray<FKawaiiPhysicsSimpleWorldCollisionDesc> ProviderDescs;
+		TArray<TWeakObjectPtr<const USkeletalMeshComponent>> MembersToKeep;
+		ProviderDescs.Reserve(DescSlots.Num());
+		MembersToKeep.Reserve(DescSlots.Num());
+		for (const auto& Pair : DescSlots)
+		{
+			if (Pair.Value.bProvider)
+			{
+				ProviderDescs.Add(Pair.Value.Desc);
+			}
+			// Worker から呼ばれるため、弱参照のままスレッドセーフ判定だけで残す/捨てるを決める。
+			if (Pair.Value.SkelComp.IsValid(false, true))
+			{
+				MembersToKeep.AddUnique(Pair.Value.SkelComp);
+			}
+		}
+
+		const bool bKeepMemberSlots = !ProviderDescs.IsEmpty()
+			&& FKawaiiPhysicsSimpleWorldCollisionDesc::Merge(ProviderDescs).bGatherFamilyMembers;
+		if (bKeepMemberSlots)
+		{
+			RemoveMemberSlotsNotInLocked(MembersToKeep);
+		}
+		else
+		{
+			TArray<TWeakObjectPtr<const USkeletalMeshComponent>> EmptyMembers;
+			RemoveMemberSlotsNotInLocked(EmptyMembers);
+		}
 		bRegatherRequested.store(true, std::memory_order_release);
 	}
 }
@@ -1055,36 +1173,332 @@ bool FKawaiiPhysicsSimpleWorldCollisionEntry::MarkRead(uint64 SourceID)
 	FWriteScopeLock WriteLock(DescLock);
 	if (FDescSlot* DescSlotPtr = DescSlots.Find(SourceID))
 	{
+		if (!DescSlotPtr->bProvider)
+		{
+			return false;
+		}
 		DescSlotPtr->LastReadFrame = GFrameCounter;
+		LastProviderFrame = GFrameCounter;
 		return true;
 	}
 	return false;
 }
 
+void FKawaiiPhysicsSimpleWorldCollisionEntry::AddReaderMember(
+	uint64 SourceID,
+	const TWeakObjectPtr<const USkeletalMeshComponent>& SkelComp,
+	uint64 CurrentFrame)
+{
+	if (SourceID == 0)
+	{
+		return;
+	}
+
+	FWriteScopeLock WriteLock(DescLock);
+	FDescSlot& DescSlotRef = DescSlots.FindOrAdd(SourceID);
+	// Worker から呼ばれるため、差し替え検知は弱参照同士の比較で行う（Get() でデリファレンスしない）。
+	const bool bSkelCompChanged = DescSlotRef.SkelComp != SkelComp;
+	if (DescSlotRef.RegistrationOrdinal == 0)
+	{
+		DescSlotRef.RegistrationOrdinal = NextDescRegistrationOrdinal++;
+	}
+	DescSlotRef.LastReadFrame = CurrentFrame;
+	const bool bHasSkelComp = SkelComp.IsValid(false, true);
+	if (bHasSkelComp)
+	{
+		DescSlotRef.SkelComp = SkelComp;
+	}
+	if (DescSlotRef.bProvider)
+	{
+		DescSlotRef.bProvider = false;
+		bRegatherRequested.store(true, std::memory_order_release);
+	}
+	if (bHasSkelComp && bSkelCompChanged)
+	{
+		TArray<FKawaiiPhysicsSimpleWorldCollisionDesc> ProviderDescs;
+		TArray<TWeakObjectPtr<const USkeletalMeshComponent>> MembersToKeep;
+		ProviderDescs.Reserve(DescSlots.Num());
+		MembersToKeep.Reserve(DescSlots.Num());
+		for (const auto& Pair : DescSlots)
+		{
+			if (Pair.Value.bProvider)
+			{
+				ProviderDescs.Add(Pair.Value.Desc);
+			}
+			if (Pair.Value.SkelComp.IsValid(false, true))
+			{
+				MembersToKeep.AddUnique(Pair.Value.SkelComp);
+			}
+		}
+
+		const bool bKeepMemberSlots = !ProviderDescs.IsEmpty()
+			&& FKawaiiPhysicsSimpleWorldCollisionDesc::Merge(ProviderDescs).bGatherFamilyMembers;
+		if (bKeepMemberSlots)
+		{
+			RemoveMemberSlotsNotInLocked(MembersToKeep);
+		}
+		else
+		{
+			TArray<TWeakObjectPtr<const USkeletalMeshComponent>> EmptyMembers;
+			RemoveMemberSlotsNotInLocked(EmptyMembers);
+		}
+		bRegatherRequested.store(true, std::memory_order_release);
+	}
+}
+
+void FKawaiiPhysicsSimpleWorldCollisionEntry::RemoveReaderMember(uint64 SourceID)
+{
+	RemoveDesc(SourceID);
+}
+
+bool FKawaiiPhysicsSimpleWorldCollisionEntry::MarkReaderRead(
+	uint64 SourceID,
+	uint64 CurrentFrame,
+	uint64 ProviderMaxAgeFrames)
+{
+	FWriteScopeLock WriteLock(DescLock);
+	FDescSlot* ReaderSlotPtr = DescSlots.Find(SourceID);
+	if (!ReaderSlotPtr || ReaderSlotPtr->bProvider)
+	{
+		return false;
+	}
+
+	ReaderSlotPtr->LastReadFrame = CurrentFrame;
+
+	bool bHasProvider = false;
+	for (const auto& Pair : DescSlots)
+	{
+		if (Pair.Value.bProvider)
+		{
+			bHasProvider = true;
+			break;
+		}
+	}
+	if (!bHasProvider)
+	{
+		return false;
+	}
+
+	return CurrentFrame <= LastProviderFrame || CurrentFrame - LastProviderFrame <= ProviderMaxAgeFrames;
+}
+
 void FKawaiiPhysicsSimpleWorldCollisionEntry::RemoveExpiredDescs(uint64 CurrentFrame, uint64 MaxAge)
 {
 	FWriteScopeLock WriteLock(DescLock);
+	bool bRemoved = false;
 	for (auto DescIt = DescSlots.CreateIterator(); DescIt; ++DescIt)
 	{
 		const uint64 LastFrame = DescIt->Value.LastReadFrame;
 		if ((LastFrame == 0) || (CurrentFrame - LastFrame > MaxAge))
 		{
 			DescIt.RemoveCurrent();
-			bRegatherRequested.store(true, std::memory_order_release);
+			bRemoved = true;
 		}
+	}
+
+	if (bRemoved)
+	{
+		TArray<FKawaiiPhysicsSimpleWorldCollisionDesc> ProviderDescs;
+		TArray<TWeakObjectPtr<const USkeletalMeshComponent>> MembersToKeep;
+		ProviderDescs.Reserve(DescSlots.Num());
+		MembersToKeep.Reserve(DescSlots.Num());
+		for (const auto& Pair : DescSlots)
+		{
+			if (Pair.Value.bProvider)
+			{
+				ProviderDescs.Add(Pair.Value.Desc);
+			}
+			if (Pair.Value.SkelComp.IsValid(false, true))
+			{
+				MembersToKeep.AddUnique(Pair.Value.SkelComp);
+			}
+		}
+
+		const bool bKeepMemberSlots = !ProviderDescs.IsEmpty()
+			&& FKawaiiPhysicsSimpleWorldCollisionDesc::Merge(ProviderDescs).bGatherFamilyMembers;
+		if (bKeepMemberSlots)
+		{
+			RemoveMemberSlotsNotInLocked(MembersToKeep);
+		}
+		else
+		{
+			TArray<TWeakObjectPtr<const USkeletalMeshComponent>> EmptyMembers;
+			RemoveMemberSlotsNotInLocked(EmptyMembers);
+		}
+		bRegatherRequested.store(true, std::memory_order_release);
 	}
 }
 
 bool FKawaiiPhysicsSimpleWorldCollisionEntry::HasAnyDesc() const
 {
 	FReadScopeLock ReadLock(DescLock);
-	return !DescSlots.IsEmpty();
+	for (const auto& Pair : DescSlots)
+	{
+		if (Pair.Value.bProvider)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool FKawaiiPhysicsSimpleWorldCollisionEntry::HasProviderDesc() const
+{
+	return HasAnyDesc();
+}
+
+bool FKawaiiPhysicsSimpleWorldCollisionEntry::HasAnyReader() const
+{
+	FReadScopeLock ReadLock(DescLock);
+	for (const auto& Pair : DescSlots)
+	{
+		if (!Pair.Value.bProvider)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool FKawaiiPhysicsSimpleWorldCollisionEntry::IsProviderDisabled() const
+{
+	bool bHasProvider = false;
+	bool bAllProvidersDisabled = true;
+	FReadScopeLock ReadLock(DescLock);
+	for (const auto& Pair : DescSlots)
+	{
+		if (Pair.Value.bProvider)
+		{
+			bHasProvider = true;
+			bAllProvidersDisabled = bAllProvidersDisabled && Pair.Value.Desc.bProviderDisabled;
+		}
+	}
+
+	return bHasProvider && bAllProvidersDisabled;
 }
 
 int32 FKawaiiPhysicsSimpleWorldCollisionEntry::GetNumDescs() const
 {
 	FReadScopeLock ReadLock(DescLock);
-	return DescSlots.Num();
+	int32 NumProviders = 0;
+	for (const auto& Pair : DescSlots)
+	{
+		if (Pair.Value.bProvider)
+		{
+			++NumProviders;
+		}
+	}
+	return NumProviders;
+}
+
+int32 FKawaiiPhysicsSimpleWorldCollisionEntry::GetNumReaders() const
+{
+	FReadScopeLock ReadLock(DescLock);
+	int32 NumReaders = 0;
+	for (const auto& Pair : DescSlots)
+	{
+		if (!Pair.Value.bProvider)
+		{
+			++NumReaders;
+		}
+	}
+	return NumReaders;
+}
+
+void FKawaiiPhysicsSimpleWorldCollisionEntry::CollectMemberSkelComps(
+	TArray<TWeakObjectPtr<const USkeletalMeshComponent>>& Out) const
+{
+	FReadScopeLock ReadLock(DescLock);
+	for (const auto& Pair : DescSlots)
+	{
+		if (const USkeletalMeshComponent* SkelComp = Pair.Value.SkelComp.Get())
+		{
+			Out.AddUnique(TWeakObjectPtr<const USkeletalMeshComponent>(SkelComp));
+		}
+	}
+}
+
+const USkeletalMeshComponent* FKawaiiPhysicsSimpleWorldCollisionEntry::GetPrimarySkelComp() const
+{
+	FReadScopeLock ReadLock(DescLock);
+	const FDescSlot* PrimarySlot = nullptr;
+	for (const auto& Pair : DescSlots)
+	{
+		if (Pair.Value.bProvider
+			&& (!PrimarySlot || Pair.Value.RegistrationOrdinal < PrimarySlot->RegistrationOrdinal))
+		{
+			PrimarySlot = &Pair.Value;
+		}
+	}
+	return PrimarySlot ? PrimarySlot->SkelComp.Get() : nullptr;
+}
+
+uint64 FKawaiiPhysicsSimpleWorldCollisionEntry::GetLastProviderFrame() const
+{
+	FReadScopeLock ReadLock(DescLock);
+	return LastProviderFrame;
+}
+
+void FKawaiiPhysicsSimpleWorldCollisionEntry::AppendFamilyMemberLimits(
+	const TWeakObjectPtr<const USkeletalMeshComponent>& OwnSkelComp,
+	FKawaiiPhysicsSharedCollisionData& OutData) const
+{
+	FReadScopeLock ReadLock(DescLock);
+	for (const auto& Pair : MemberSlots)
+	{
+		// Worker から呼ばれるため、有効判定はスレッドセーフ版、自己除外は弱参照同士の比較で行う。
+		if (!Pair.Key.IsValid(false, true) || Pair.Key == OwnSkelComp || !Pair.Value.IsValid())
+		{
+			continue;
+		}
+		Pair.Value->AppendTo(OutData);
+	}
+}
+
+uint64 FKawaiiPhysicsSimpleWorldCollisionEntry::GetMemberSlotsPublishSerialSum() const
+{
+	uint64 SerialSum = 0;
+	FReadScopeLock ReadLock(DescLock);
+	for (const auto& Pair : MemberSlots)
+	{
+		if (Pair.Value.IsValid())
+		{
+			SerialSum += Pair.Value->GetPublishSerial();
+		}
+	}
+	return SerialSum;
+}
+
+int32 FKawaiiPhysicsSimpleWorldCollisionEntry::GetNumMemberSlots() const
+{
+	FReadScopeLock ReadLock(DescLock);
+	return MemberSlots.Num();
+}
+
+void FKawaiiPhysicsSimpleWorldCollisionEntry::RemoveMemberSlotsNotIn(
+	const TArray<TWeakObjectPtr<const USkeletalMeshComponent>>& MembersToKeep)
+{
+	FWriteScopeLock WriteLock(DescLock);
+	RemoveMemberSlotsNotInLocked(MembersToKeep);
+}
+
+void FKawaiiPhysicsSimpleWorldCollisionEntry::RemoveMemberSlotsNotInLocked(
+	const TArray<TWeakObjectPtr<const USkeletalMeshComponent>>& MembersToKeep)
+{
+	if (MembersToKeep.IsEmpty())
+	{
+		MemberSlots.Empty();
+		return;
+	}
+
+	for (auto SlotIt = MemberSlots.CreateIterator(); SlotIt; ++SlotIt)
+	{
+		// Worker 経路（SetDesc / RemoveDesc / AddReaderMember）からも到達するためスレッドセーフ判定を使う。
+		if (!SlotIt->Key.IsValid(false, true) || !MembersToKeep.Contains(SlotIt->Key))
+		{
+			SlotIt.RemoveCurrent();
+		}
+	}
 }
 
 bool FKawaiiPhysicsSimpleWorldCollisionEntry::BuildMergedDesc(
@@ -1103,8 +1517,15 @@ bool FKawaiiPhysicsSimpleWorldCollisionEntry::BuildMergedDesc(
 		OrderedDescs.Reserve(DescSlots.Num());
 		for (const auto& Pair : DescSlots)
 		{
-			OrderedDescs.Emplace(Pair.Value.RegistrationOrdinal, Pair.Value.Desc);
+			if (Pair.Value.bProvider)
+			{
+				OrderedDescs.Emplace(Pair.Value.RegistrationOrdinal, Pair.Value.Desc);
+			}
 		}
+	}
+	if (OrderedDescs.IsEmpty())
+	{
+		return false;
 	}
 
 	// RegistrationOrdinal は一意なので安定ソートは不要。
@@ -1133,6 +1554,149 @@ void FKawaiiPhysicsSimpleWorldCollisionEntry::RequestRegather()
 bool FKawaiiPhysicsSimpleWorldCollisionEntry::ConsumeRegatherRequested()
 {
 	return bRegatherRequested.exchange(false, std::memory_order_acq_rel);
+}
+
+// -------------------------------------------------------------------
+// 共有 Publisher Entry
+// -------------------------------------------------------------------
+
+bool FKawaiiPhysicsSharedPublisherEntry::PublishState(
+	const FKawaiiPhysicsSharedPublisherState& InState,
+	uint64 InProviderID,
+	uint64 CurrentFrame,
+	uint64 ProviderMaxAgeFrames)
+{
+	FWriteScopeLock WriteLock(StateLock);
+
+	// Cleanup で Registry から外れた Entry は復活させない。呼び出し側は FindOrCreateSharedPublisherEntry で取り直す。
+	if (bExpired)
+	{
+		return false;
+	}
+
+	// ProviderID == 0 は「未所有」の番兵なので、ID 0 での publish は所有権を曖昧にする。拒否する。
+	if (InProviderID == 0)
+	{
+		return false;
+	}
+
+	const uint64 LastFrame = LastPublishFrame.load(std::memory_order_acquire);
+	const bool bCanPublish = ProviderID == 0
+		|| ProviderID == InProviderID
+		|| IsKawaiiPhysicsFrameAgeExceeded(CurrentFrame, LastFrame, ProviderMaxAgeFrames);
+	if (!bCanPublish)
+	{
+		return false;
+	}
+
+	State = InState;
+	ProviderID = InProviderID;
+	bExpired = false;
+	LastPublishFrame.store(CurrentFrame, std::memory_order_release);
+	PublishSerial.fetch_add(1, std::memory_order_acq_rel);
+	return true;
+}
+
+uint64 FKawaiiPhysicsSharedPublisherEntry::ReadState(FKawaiiPhysicsSharedPublisherState& Out) const
+{
+	FReadScopeLock ReadLock(StateLock);
+	Out = State;
+	return PublishSerial.load(std::memory_order_acquire);
+}
+
+uint64 FKawaiiPhysicsSharedPublisherEntry::ReadWindState(FKawaiiPhysicsSharedWindState& Out) const
+{
+	FReadScopeLock ReadLock(StateLock);
+	Out = State.Wind;
+	return PublishSerial.load(std::memory_order_acquire);
+}
+
+uint64 FKawaiiPhysicsSharedPublisherEntry::GetPublishSerial() const
+{
+	return PublishSerial.load(std::memory_order_acquire);
+}
+
+uint64 FKawaiiPhysicsSharedPublisherEntry::GetProviderID() const
+{
+	FReadScopeLock ReadLock(StateLock);
+	return ProviderID;
+}
+
+uint64 FKawaiiPhysicsSharedPublisherEntry::GetLastPublishFrame() const
+{
+	return LastPublishFrame.load(std::memory_order_acquire);
+}
+
+bool FKawaiiPhysicsSharedPublisherEntry::IsExpired(uint64 CurrentFrame, uint64 MaxAgeFrames) const
+{
+	FReadScopeLock ReadLock(StateLock);
+	return bExpired
+		|| IsKawaiiPhysicsFrameAgeExceeded(
+			CurrentFrame,
+			LastPublishFrame.load(std::memory_order_acquire),
+			MaxAgeFrames);
+}
+
+void FKawaiiPhysicsSharedPublisherEntry::MarkExpired()
+{
+	FWriteScopeLock WriteLock(StateLock);
+	bExpired = true;
+}
+
+void FKawaiiPhysicsSharedPublisherEntry::RequestGust(float Strength, float RiseTime, float DecayTime, float HoldTime)
+{
+	FScopeLock Lock(&GustMutex);
+
+	FKawaiiPhysicsSharedPublisherGustRequest Request;
+	Request.Strength = Strength;
+	Request.RiseTime = RiseTime;
+	Request.DecayTime = DecayTime;
+	Request.HoldTime = HoldTime;
+	PendingGusts.Add(Request);
+}
+
+void FKawaiiPhysicsSharedPublisherEntry::RequestGustStop(float BlendOutTime)
+{
+	FScopeLock Lock(&GustMutex);
+
+	FKawaiiPhysicsSharedPublisherGustRequest Request;
+	Request.bStop = true;
+	Request.BlendOutTime = BlendOutTime;
+	PendingGusts.Add(Request);
+}
+
+void FKawaiiPhysicsSharedPublisherEntry::ConsumePendingGustRequests(
+	TArray<FKawaiiPhysicsSharedPublisherGustRequest>& Out)
+{
+	FScopeLock Lock(&GustMutex);
+	Out = MoveTemp(PendingGusts);
+	PendingGusts.Reset();
+}
+
+void FKawaiiPhysicsSharedPublisherEntry::RequestPublisherEnabled(bool bEnabled)
+{
+	FScopeLock Lock(&GustMutex);
+	PendingPublisherEnabled = bEnabled;
+}
+
+void FKawaiiPhysicsSharedPublisherEntry::RequestSimpleWorldSettings(
+	const FKawaiiPhysicsSimpleWorldCollisionSettings& Settings)
+{
+	FScopeLock Lock(&GustMutex);
+	PendingSimpleWorldSettings = Settings;
+}
+
+bool FKawaiiPhysicsSharedPublisherEntry::ConsumePendingPublisherRequests(
+	FPendingPublisherRequests& Out)
+{
+	FScopeLock Lock(&GustMutex);
+
+	const bool bHasRequests = PendingPublisherEnabled.IsSet() || PendingSimpleWorldSettings.IsSet();
+	Out.Enabled = PendingPublisherEnabled;
+	Out.SimpleWorldSettings = PendingSimpleWorldSettings;
+	PendingPublisherEnabled.Reset();
+	PendingSimpleWorldSettings.Reset();
+	return bHasRequests;
 }
 
 // -------------------------------------------------------------------
@@ -1165,6 +1729,20 @@ TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> UKawaiiPhysicsSharedCollisionSubs
 	if (const TSharedPtr<FKawaiiPhysicsSharedCollisionEntry>* Found = Registry.Find(Key))
 	{
 		// Actorが無効ならスキップ（Tick()で定期的にクリーンアップ）
+		if (Key.Key.IsValid())
+		{
+			return *Found;
+		}
+	}
+	return nullptr;
+}
+
+TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> UKawaiiPhysicsSharedCollisionSubsystem::FindSharedPublisherEntryByKey(
+	const FRegistryKey& Key) const
+{
+	FReadScopeLock ReadLock(SharedPublisherRegistryLock);
+	if (const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry>* Found = SharedPublisherRegistry.Find(Key))
+	{
 		if (Key.Key.IsValid())
 		{
 			return *Found;
@@ -1210,17 +1788,68 @@ TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> UKawaiiPhysicsSharedCollisio
 		return nullptr;
 	}
 
+	// Worker から呼ばれるため、弱参照のままキー化して渡す（SkelComp をデリファレンスしない）。
+	return FindOrCreateSimpleWorldEntry(
+		FKawaiiPhysicsSimpleWorldRegistryKey::MakeLocalKey(SkelComp),
+		SourceID,
+		InitialDesc,
+		SkelComp,
+		true);
+}
+
+TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> UKawaiiPhysicsSharedCollisionSubsystem::FindOrCreateSimpleWorldEntry(
+	const FKawaiiPhysicsSimpleWorldRegistryKey& Key,
+	uint64 SourceID,
+	const FKawaiiPhysicsSimpleWorldCollisionDesc& InitialDesc,
+	const TWeakObjectPtr<const USkeletalMeshComponent>& SkelComp,
+	bool bProvider)
+{
+	if (!Key.IsValid())
+	{
+		return nullptr;
+	}
+
 	// Entry 作成と初回 Desc 登録は同一ロック内。cleanup は同ロックで HasAnyDesc を見るため、空 Entry が観測される瞬間が無い。
 	FWriteScopeLock WriteLock(SimpleWorldRegistryLock);
-	if (TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>* Existing = SimpleWorldRegistry.Find(SkelComp))
+	if (TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>* Existing = SimpleWorldRegistry.Find(Key))
 	{
-		(*Existing)->SetDesc(SourceID, InitialDesc);
+		if (bProvider)
+		{
+			(*Existing)->SetDesc(SourceID, InitialDesc, GFrameCounter, SkelComp, true);
+		}
+		else
+		{
+			(*Existing)->AddReaderMember(SourceID, SkelComp, GFrameCounter);
+		}
 		return *Existing;
 	}
 	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> NewEntry = MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
-	SimpleWorldRegistry.Add(SkelComp, NewEntry);
-	NewEntry->SetDesc(SourceID, InitialDesc);
+	SimpleWorldRegistry.Add(Key, NewEntry);
+	if (bProvider)
+	{
+		NewEntry->SetDesc(SourceID, InitialDesc, GFrameCounter, SkelComp, true);
+	}
+	else
+	{
+		NewEntry->AddReaderMember(SourceID, SkelComp, GFrameCounter);
+	}
 	return NewEntry;
+}
+
+TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> UKawaiiPhysicsSharedCollisionSubsystem::FindSimpleWorldEntry(
+	const FKawaiiPhysicsSimpleWorldRegistryKey& Key) const
+{
+	if (!Key.IsValid())
+	{
+		return nullptr;
+	}
+
+	FReadScopeLock ReadLock(SimpleWorldRegistryLock);
+	if (const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>* Found = SimpleWorldRegistry.Find(Key))
+	{
+		return *Found;
+	}
+	return nullptr;
 }
 
 TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> UKawaiiPhysicsSharedCollisionSubsystem::FindEntry(
@@ -1236,13 +1865,53 @@ TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> UKawaiiPhysicsSharedCollisionSubs
 	return FindEntryByKey(Key);
 }
 
+TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> UKawaiiPhysicsSharedCollisionSubsystem::FindOrCreateSharedPublisherEntry(
+	AActor* Actor,
+	const FGameplayTag& Tag)
+{
+	FRegistryKey Key;
+	if (!TryResolveRegistryKey(Actor, Tag, Key))
+	{
+		return nullptr;
+	}
+
+	if (TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Existing = FindSharedPublisherEntryByKey(Key))
+	{
+		return Existing;
+	}
+
+	FWriteScopeLock WriteLock(SharedPublisherRegistryLock);
+	if (TSharedPtr<FKawaiiPhysicsSharedPublisherEntry>* Existing = SharedPublisherRegistry.Find(Key))
+	{
+		return *Existing;
+	}
+
+	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> NewEntry = MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+	SharedPublisherRegistry.Add(Key, NewEntry);
+	return NewEntry;
+}
+
+TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> UKawaiiPhysicsSharedCollisionSubsystem::FindSharedPublisherEntry(
+	AActor* Actor,
+	const FGameplayTag& Tag) const
+{
+	FRegistryKey Key;
+	if (!TryResolveRegistryKey(Actor, Tag, Key))
+	{
+		return nullptr;
+	}
+	return FindSharedPublisherEntryByKey(Key);
+}
+
 void UKawaiiPhysicsSharedCollisionSubsystem::FillSimpleWorldCollisionDebugInfo(
 	const FKawaiiPhysicsSimpleWorldCollisionEntry& Entry,
-	FKawaiiPhysicsSimpleWorldCollisionDebugInfo& OutInfo)
+	FKawaiiPhysicsSimpleWorldCollisionDebugInfo& OutInfo,
+	const FKawaiiPhysicsSimpleWorldRegistryKey* Key)
 {
 	OutInfo = FKawaiiPhysicsSimpleWorldCollisionDebugInfo();
 	OutInfo.bHasEntry = true;
 	OutInfo.NumDescs = Entry.GetNumDescs();
+	OutInfo.NumReaders = Entry.GetNumReaders();
 	OutInfo.NumGatheredComponents = Entry.GatheredComponents.Num();
 	OutInfo.bHasGroundBox = Entry.bHasGroundBox;
 	OutInfo.bGroundComponentStatic = Entry.bGroundComponentStatic;
@@ -1254,6 +1923,29 @@ void UKawaiiPhysicsSharedCollisionSubsystem::FillSimpleWorldCollisionDebugInfo(
 	OutInfo.GatherRadius = Entry.LastGatherRadius;
 	OutInfo.TimeSinceLastGather = Entry.TimeSinceLastGather == FLT_MAX ? -1.0f : Entry.TimeSinceLastGather;
 	OutInfo.bHasGatheredOnce = Entry.bHasGatheredOnce;
+	OutInfo.bProviderDisabled = Entry.IsProviderDisabled();
+	OutInfo.NumMemberSlots = Entry.GetNumMemberSlots();
+
+	FKawaiiPhysicsSimpleWorldCollisionDesc MergedDesc;
+	if (Entry.BuildMergedDesc(MergedDesc))
+	{
+		OutInfo.GatherScope = MergedDesc.GatherScope;
+		OutInfo.bGatherFamilyMembers = MergedDesc.bGatherFamilyMembers;
+		OutInfo.bProviderDisabled = MergedDesc.bProviderDisabled;
+	}
+
+	if (Key)
+	{
+		OutInfo.GroupTag = Key->Tag;
+		if (const UObject* KeyObject = Key->KeyObject.Get())
+		{
+			OutInfo.KeyObjectName = KeyObject->GetName();
+		}
+	}
+	else if (const USkeletalMeshComponent* PrimarySkelComp = Entry.GetPrimarySkelComp())
+	{
+		OutInfo.KeyObjectName = PrimarySkelComp->GetName();
+	}
 
 	OutInfo.GatheredComponentNames.Reserve(Entry.GatheredComponents.Num());
 	for (const FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent& GatheredComponent : Entry.GatheredComponents)
@@ -1302,11 +1994,12 @@ bool UKawaiiPhysicsSharedCollisionSubsystem::BuildSimpleWorldCollisionDebugInfo(
 		return false;
 	}
 
+	const FKawaiiPhysicsSimpleWorldRegistryKey Key = FKawaiiPhysicsSimpleWorldRegistryKey::MakeLocalKey(SkelComp);
 	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> Entry;
 	{
 		FReadScopeLock ReadLock(SimpleWorldRegistryLock);
 		if (const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>* Found =
-			SimpleWorldRegistry.Find(TWeakObjectPtr<const USkeletalMeshComponent>(SkelComp)))
+			SimpleWorldRegistry.Find(Key))
 		{
 			Entry = *Found;
 		}
@@ -1317,7 +2010,40 @@ bool UKawaiiPhysicsSharedCollisionSubsystem::BuildSimpleWorldCollisionDebugInfo(
 		return false;
 	}
 
-	FillSimpleWorldCollisionDebugInfo(*Entry, OutInfo);
+	FillSimpleWorldCollisionDebugInfo(*Entry, OutInfo, &Key);
+	return true;
+#else
+	return false;
+#endif
+}
+
+bool UKawaiiPhysicsSharedCollisionSubsystem::BuildSimpleWorldCollisionDebugInfo(
+	const FKawaiiPhysicsSimpleWorldRegistryKey& Key,
+	FKawaiiPhysicsSimpleWorldCollisionDebugInfo& OutInfo) const
+{
+	OutInfo = FKawaiiPhysicsSimpleWorldCollisionDebugInfo();
+
+#if !UE_BUILD_SHIPPING
+	if (!ensure(IsInGameThread()) || !Key.IsValid())
+	{
+		return false;
+	}
+
+	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> Entry;
+	{
+		FReadScopeLock ReadLock(SimpleWorldRegistryLock);
+		if (const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>* Found = SimpleWorldRegistry.Find(Key))
+		{
+			Entry = *Found;
+		}
+	}
+
+	if (!Entry.IsValid())
+	{
+		return false;
+	}
+
+	FillSimpleWorldCollisionDebugInfo(*Entry, OutInfo, &Key);
 	return true;
 #else
 	return false;
@@ -1329,8 +2055,15 @@ void UKawaiiPhysicsSharedCollisionSubsystem::PublishSimpleWorldShapeLimits(
 	float BoxEnableThreshold)
 {
 	Entry.PublishScratch.Reset();
+	Entry.MemberPublishScratch.Reset();
 	for (const FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent& Component : Entry.GatheredComponents)
 	{
+		FKawaiiPhysicsSharedCollisionData* PublishTarget = &Entry.PublishScratch;
+		if (Component.MemberSkelComp.IsValid())
+		{
+			PublishTarget = &Entry.MemberPublishScratch.FindOrAdd(Component.MemberSkelComp);
+		}
+
 		// フェード計算本体は KawaiiPhysicsSimpleWorldCollision 名前空間へ移設済み（単体テスト可能化のため）。
 		// しきい値定数はここ（Subsystem側）で保持したまま引数として渡す。
 		if (!Component.BodyBindings.IsEmpty())
@@ -1340,7 +2073,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::PublishSimpleWorldShapeLimits(
 				MakeArrayView(Component.BodyBindings),
 				MakeArrayView(Component.LastBodyWorldTMs),
 				Component.FadeAlpha,
-				Entry.PublishScratch,
+				*PublishTarget,
 				BoxEnableThreshold);
 		}
 		else
@@ -1349,13 +2082,77 @@ void UKawaiiPhysicsSharedCollisionSubsystem::PublishSimpleWorldShapeLimits(
 				Component.LocalLimits,
 				Component.FadeAlpha,
 				Component.LastComponentTM,
-				Entry.PublishScratch,
+				*PublishTarget,
 				BoxEnableThreshold);
 		}
 	}
 
 	Entry.Slot.Publish(Entry.PublishScratch);
+	{
+		FWriteScopeLock WriteLock(Entry.DescLock);
+		for (auto& Pair : Entry.MemberPublishScratch)
+		{
+			if (!Pair.Key.IsValid())
+			{
+				continue;
+			}
+			TSharedPtr<FKawaiiPhysicsSharedCollisionSourceSlot>& MemberSlot =
+				Entry.MemberSlots.FindOrAdd(Pair.Key);
+			if (!MemberSlot.IsValid())
+			{
+				MemberSlot = MakeShared<FKawaiiPhysicsSharedCollisionSourceSlot>();
+			}
+			MemberSlot->Publish(Pair.Value);
+		}
+
+		for (auto& Pair : Entry.MemberSlots)
+		{
+			if (!Pair.Value.IsValid() || Entry.MemberPublishScratch.Contains(Pair.Key))
+			{
+				continue;
+			}
+			Entry.EmptyMemberPublishScratch.Reset();
+			Pair.Value->Publish(Entry.EmptyMemberPublishScratch);
+		}
+	}
 	Entry.bWorldLimitsDirty = false;
+}
+
+void UKawaiiPhysicsSharedCollisionSubsystem::PublishSimpleWorldEmptyLimits(
+	FKawaiiPhysicsSimpleWorldCollisionEntry& Entry,
+	float BoxEnableThreshold)
+{
+	bool bShouldPublishShapes = !Entry.GatheredComponents.IsEmpty()
+		|| (Entry.bWorldLimitsDirty
+			&& (Entry.Slot.GetPublishSerial() > 0 || Entry.GetMemberSlotsPublishSerialSum() > 0));
+
+	Entry.GatheredComponents.Reset();
+	if (bShouldPublishShapes)
+	{
+		PublishSimpleWorldShapeLimits(Entry, BoxEnableThreshold);
+	}
+	else
+	{
+		Entry.bWorldLimitsDirty = false;
+	}
+
+	const bool bShouldPublishGround = Entry.bHasGroundBox
+		|| (Entry.bGroundBoxDirty && Entry.GroundSlot.GetPublishSerial() > 0);
+	bool bGroundChanged = false;
+	ClearSimpleWorldGroundBox(Entry, bGroundChanged);
+	Entry.GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
+	Entry.GroundProvider.Reset();
+	Entry.GroundCharacterMovement.Reset();
+	if (bShouldPublishGround)
+	{
+		PublishSimpleWorldGroundBox(Entry);
+	}
+	else
+	{
+		Entry.bGroundBoxDirty = false;
+	}
+	Entry.bHasGatheredOnce = false;
+	Entry.TimeSinceLastGather = FLT_MAX;
 }
 
 void UKawaiiPhysicsSharedCollisionSubsystem::PublishSimpleWorldGroundBox(
@@ -1384,19 +2181,43 @@ void UKawaiiPhysicsSharedCollisionSubsystem::GatherSimpleWorldEntry(
 	int32 EffectiveMaxPhysicsAssetBodies,
 	int32 EffectiveMaxConvexPlanes,
 	bool bUseMovementGround,
-	bool bBuildConvexDebugGeometry)
+	bool bBuildConvexDebugGeometry,
+	const TArray<TWeakObjectPtr<const USkeletalMeshComponent>>& MemberSkelComps,
+	const TSet<TWeakObjectPtr<const USkeletalMeshComponent>>& MemberSkelCompSet,
+	const TSet<TWeakObjectPtr<const AActor>>& MemberOwners)
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SimpleWorldCollision_Gather);
 	Entry.LastGatherRadius = Radius;
+	const bool bFilterFamilyMembers = Desc.bGatherFamilyMembers && !MemberSkelComps.IsEmpty();
 
 	const FCollisionResponseParams ResponseParams =
 		KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldResponseParams(Desc.ObjectTypes);
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(KawaiiPhysicsSimpleWorldCollision), false);
 	// Overlap応答（トリガー等）は物理クエリのPreFilterで除外し、結果配列に返さない（ループ側のbBlockingHit判定は防御として残す）。
 	QueryParams.bIgnoreTouches = true;
-	QueryParams.AddIgnoredActor(SkelComp.GetOwner());
+	if (!bFilterFamilyMembers)
+	{
+		if (Desc.GatherScope == EKawaiiPhysicsSimpleWorldGatherScope::ActorFamily)
+		{
+			for (const TWeakObjectPtr<const AActor>& MemberOwner : MemberOwners)
+			{
+				if (const AActor* Owner = MemberOwner.Get())
+				{
+					QueryParams.AddIgnoredActor(Owner);
+				}
+			}
+		}
+		else
+		{
+			QueryParams.AddIgnoredActor(SkelComp.GetOwner());
+		}
+	}
 	// Owner が無いプレビューコンポーネントでも自分自身を収集しない。
-	QueryParams.AddIgnoredComponent(&SkelComp);
+	// ファミリーメンバー収集中は primary もメンバー Slot として publish するため無視しない（reader 側が自分の Slot だけ除外する）。
+	if (!bFilterFamilyMembers)
+	{
+		QueryParams.AddIgnoredComponent(&SkelComp);
+	}
 
 	Entry.OverlapScratch.Reset();
 	World.OverlapMultiByChannel(
@@ -1479,6 +2300,25 @@ void UKawaiiPhysicsSharedCollisionSubsystem::GatherSimpleWorldEntry(
 			continue;
 		}
 
+		const USkeletalMeshComponent* MemberSkelComp = nullptr;
+		if (bFilterFamilyMembers)
+		{
+			if (const USkeletalMeshComponent* HitSkelComp = Cast<const USkeletalMeshComponent>(Component))
+			{
+				if (MemberSkelCompSet.Contains(TWeakObjectPtr<const USkeletalMeshComponent>(HitSkelComp)))
+				{
+					MemberSkelComp = HitSkelComp;
+				}
+			}
+
+			if (!MemberSkelComp
+				&& ComponentOwner
+				&& MemberOwners.Contains(TWeakObjectPtr<const AActor>(ComponentOwner)))
+			{
+				continue;
+			}
+		}
+
 		int32 InstanceIndex = INDEX_NONE;
 		FTransform ComponentTM = GetScaleStrippedComponentTransform(*Component);
 		FVector Scale3D = Component->GetComponentScale();
@@ -1515,6 +2355,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::GatherSimpleWorldEntry(
 
 		FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent NewComponent;
 		NewComponent.Component = Component;
+		NewComponent.MemberSkelComp = MemberSkelComp;
 		NewComponent.InstanceIndex = InstanceIndex;
 		NewComponent.bStatic = IsSimpleWorldComponentStatic(*Component);
 		NewComponent.FadeAlpha = Entry.bHasGatheredOnce ? 0.0f : 1.0f;
@@ -1567,13 +2408,29 @@ void UKawaiiPhysicsSharedCollisionSubsystem::GatherSimpleWorldEntry(
 		bool bGroundChanged = false;
 		if (!TryUpdateSimpleWorldGroundBoxFromSource(Entry, SkelComp, Radius, bGroundChanged))
 		{
+			// 地面トレースはファミリー収集中でも自分と家族のメッシュに当たらないよう、Overlap とは別の無視設定を使う。
+			FCollisionQueryParams GroundQueryParams(SCENE_QUERY_STAT(KawaiiPhysicsSimpleWorldGround), false);
+			GroundQueryParams.bIgnoreTouches = true;
+			GroundQueryParams.AddIgnoredComponent(&SkelComp);
+			if (const AActor* SkelCompOwner = SkelComp.GetOwner())
+			{
+				GroundQueryParams.AddIgnoredActor(SkelCompOwner);
+			}
+			for (const TWeakObjectPtr<const AActor>& MemberOwner : MemberOwners)
+			{
+				if (const AActor* Owner = MemberOwner.Get())
+				{
+					GroundQueryParams.AddIgnoredActor(Owner);
+				}
+			}
+
 			FHitResult Hit;
 			const bool bHitGround = World.LineTraceSingleByChannel(
 				Hit,
 				Center,
 				Center - FVector(0.0f, 0.0f, GroundTraceLength),
 				CollisionChannel,
-				QueryParams,
+				GroundQueryParams,
 				ResponseParams);
 
 			FBoxLimit NewGroundBox;
@@ -1818,7 +2675,6 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 
 	struct FSimpleWorldTickEntry
 	{
-		TWeakObjectPtr<const USkeletalMeshComponent> SkelComp;
 		TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> Entry;
 	};
 
@@ -1829,7 +2685,6 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 		for (const auto& Pair : SimpleWorldRegistry)
 		{
 			FSimpleWorldTickEntry TickEntry;
-			TickEntry.SkelComp = Pair.Key;
 			TickEntry.Entry = Pair.Value;
 			Entries.Add(MoveTemp(TickEntry));
 		}
@@ -1867,6 +2722,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 
 	int32 TotalGatheredComponents = 0;
 	int32 TotalSkeletalBodies = 0;
+	int32 TotalMemberSlots = 0;
 	for (const FSimpleWorldTickEntry& TickEntry : Entries)
 	{
 		const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>& Entry = TickEntry.Entry;
@@ -1879,7 +2735,94 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 
 		// 再収集要求は Desc スナップショットを取る前に消費する。消費後に届いた SetDesc は次 Tick で再収集され、
 		// 消費前の変更はこの Tick のスナップショットに含まれるため、変更が取りこぼされる窓が無い。
-		if (Entry->ConsumeRegatherRequested())
+		const bool bRegatherRequested = Entry->ConsumeRegatherRequested();
+
+		FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
+		if (!Entry->BuildMergedDesc(Desc))
+		{
+			if (bRegatherRequested)
+			{
+				Entry->GatheredComponents.Reset();
+				bool bGroundChanged = false;
+				ClearSimpleWorldGroundBox(*Entry, bGroundChanged);
+				Entry->GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
+				Entry->GroundProvider.Reset();
+				Entry->GroundCharacterMovement.Reset();
+				Entry->bHasGatheredOnce = false;
+				Entry->TimeSinceLastGather = FLT_MAX;
+				Entry->bWorldLimitsDirty = true;
+				Entry->bGroundBoxDirty = true;
+			}
+			continue;
+		}
+
+		const USkeletalMeshComponent* SkelComp = Entry->GetPrimarySkelComp();
+		if (!SkelComp)
+		{
+			continue;
+		}
+
+		Entry->MemberSkelCompScratch.Reset();
+		Entry->MemberSkelCompSetScratch.Reset();
+		Entry->MemberOwnerScratch.Reset();
+		Entry->MemberBoundsScratch.Reset();
+		if (Desc.GatherScope == EKawaiiPhysicsSimpleWorldGatherScope::ActorFamily || Desc.bGatherFamilyMembers)
+		{
+			Entry->CollectMemberSkelComps(Entry->MemberSkelCompScratch);
+			Entry->MemberSkelCompScratch.AddUnique(TWeakObjectPtr<const USkeletalMeshComponent>(SkelComp));
+			for (const TWeakObjectPtr<const USkeletalMeshComponent>& MemberSkelComp : Entry->MemberSkelCompScratch)
+			{
+				if (const USkeletalMeshComponent* Member = MemberSkelComp.Get())
+				{
+					Entry->MemberSkelCompSetScratch.Add(MemberSkelComp);
+					Entry->MemberBoundsScratch.Add(Member->Bounds);
+					if (const AActor* MemberOwner = Member->GetOwner())
+					{
+						Entry->MemberOwnerScratch.Add(TWeakObjectPtr<const AActor>(MemberOwner));
+					}
+				}
+			}
+		}
+
+		if (Desc.bGatherFamilyMembers)
+		{
+			Entry->RemoveMemberSlotsNotIn(Entry->MemberSkelCompScratch);
+		}
+		else
+		{
+			TArray<TWeakObjectPtr<const USkeletalMeshComponent>> EmptyMembers;
+			Entry->RemoveMemberSlotsNotIn(EmptyMembers);
+		}
+
+		FBoxSphereBounds GatherBounds = SkelComp->Bounds;
+		if (Desc.GatherScope == EKawaiiPhysicsSimpleWorldGatherScope::ActorFamily)
+		{
+			KawaiiPhysicsSimpleWorldCollision::ComputeSimpleWorldGatherBounds(
+				MakeArrayView(Entry->MemberBoundsScratch),
+				GatherBounds);
+		}
+
+		const FVector Center = GatherBounds.Origin;
+
+		// 収集半径はゲート/デバッグ描画の両方で使うため、bShouldGather判定より前に確定させる
+		const float AutoRadius = GatherBounds.SphereRadius * KawaiiSettings->SimpleWorldCollisionAutoGatherRadiusScale;
+		// 全ノードがOverride指定ならOverrideをそのまま使う（自動半径より小さくできる）。1つでも自動指定があれば自動半径を下限にする。
+		const float Radius = Desc.bGatherRadiusAllOverridden && Desc.GatherRadiusOverride > KINDA_SMALL_NUMBER
+			? Desc.GatherRadiusOverride
+			: (Desc.GatherRadiusOverride > KINDA_SMALL_NUMBER ? FMath::Max(AutoRadius, Desc.GatherRadiusOverride) : AutoRadius);
+		// 地面トレースの長さは収集半径の縮小に連動させない（Bounds原点から床までの距離は半径Overrideと無関係なため）。
+		// 地面BoxのXY半径はOverrideどおり。
+		const float GroundTraceLength = FMath::Max(Radius, AutoRadius);
+		const bool bGatherInputValid = KawaiiPhysicsSimpleWorldCollision::IsSimpleWorldGatherInputValid(Center, Radius);
+
+		if (Desc.bProviderDisabled)
+		{
+			PublishSimpleWorldEmptyLimits(*Entry, GSimpleWorldFadeBoxEnableThreshold);
+			TotalMemberSlots += Entry->GetNumMemberSlots();
+			continue;
+		}
+
+		if (bRegatherRequested)
 		{
 			Entry->GatheredComponents.Reset();
 			bool bGroundChanged = false;
@@ -1892,31 +2835,6 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 			Entry->bWorldLimitsDirty = true;
 			Entry->bGroundBoxDirty = true;
 		}
-
-		FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
-		if (!Entry->BuildMergedDesc(Desc))
-		{
-			continue;
-		}
-
-		const USkeletalMeshComponent* SkelComp = TickEntry.SkelComp.Get();
-		if (!SkelComp)
-		{
-			continue;
-		}
-
-		const FVector Center = SkelComp->Bounds.Origin;
-
-		// 収集半径はゲート/デバッグ描画の両方で使うため、bShouldGather判定より前に確定させる
-		const float AutoRadius = SkelComp->Bounds.SphereRadius * KawaiiSettings->SimpleWorldCollisionAutoGatherRadiusScale;
-		// 全ノードがOverride指定ならOverrideをそのまま使う（自動半径より小さくできる）。1つでも自動指定があれば自動半径を下限にする。
-		const float Radius = Desc.bGatherRadiusAllOverridden && Desc.GatherRadiusOverride > KINDA_SMALL_NUMBER
-			? Desc.GatherRadiusOverride
-			: (Desc.GatherRadiusOverride > KINDA_SMALL_NUMBER ? FMath::Max(AutoRadius, Desc.GatherRadiusOverride) : AutoRadius);
-		// 地面トレースの長さは収集半径の縮小に連動させない（Bounds原点から床までの距離は半径Overrideと無関係なため）。
-		// 地面BoxのXY半径はOverrideどおり。
-		const float GroundTraceLength = FMath::Max(Radius, AutoRadius);
-		const bool bGatherInputValid = KawaiiPhysicsSimpleWorldCollision::IsSimpleWorldGatherInputValid(Center, Radius);
 
 		bool bAllowGather = true;
 		float EffectiveGatherInterval = Desc.GatherIntervalSec * GatherIntervalScale;
@@ -1960,7 +2878,10 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 				EffectiveMaxPhysicsAssetBodies,
 				EffectiveMaxConvexPlanes,
 				bUseMovementGround,
-				bBuildConvexDebugGeometry);
+				bBuildConvexDebugGeometry,
+				Entry->MemberSkelCompScratch,
+				Entry->MemberSkelCompSetScratch,
+				Entry->MemberOwnerScratch);
 		}
 		else if (bAllowGather)
 		{
@@ -1990,6 +2911,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 #endif
 
 		TotalGatheredComponents += Entry->GatheredComponents.Num();
+		TotalMemberSlots += Entry->GetNumMemberSlots();
 		for (const FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent& GatheredComponent :
 			Entry->GatheredComponents)
 		{
@@ -2000,6 +2922,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 	// DWORDカウンタは毎フレームリセットされるため、CleanupゲートではなくSimpleWorldのTickごとに更新する。
 	SET_DWORD_STAT(STAT_KawaiiPhysics_SimpleWorldCollision_NumGatheredComponents, TotalGatheredComponents);
 	SET_DWORD_STAT(STAT_KawaiiPhysics_SimpleWorldCollision_NumSkeletalBodies, TotalSkeletalBodies);
+	SET_DWORD_STAT(STAT_KawaiiPhysics_SimpleWorldCollision_NumMemberSlots, TotalMemberSlots);
 }
 
 bool UKawaiiPhysicsSharedCollisionSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
@@ -2022,6 +2945,17 @@ void UKawaiiPhysicsSharedCollisionSubsystem::Deinitialize()
 	{
 		FWriteScopeLock WriteLock(SimpleWorldRegistryLock);
 		SimpleWorldRegistry.Empty();
+	}
+	{
+		FWriteScopeLock WriteLock(SharedPublisherRegistryLock);
+		for (const TPair<FRegistryKey, TSharedPtr<FKawaiiPhysicsSharedPublisherEntry>>& Pair : SharedPublisherRegistry)
+		{
+			if (Pair.Value.IsValid())
+			{
+				Pair.Value->MarkExpired();
+			}
+		}
+		SharedPublisherRegistry.Empty();
 	}
 	Super::Deinitialize();
 }
@@ -2088,8 +3022,28 @@ void UKawaiiPhysicsSharedCollisionSubsystem::Tick(float DeltaTime)
 			}
 
 			It->Value->RemoveExpiredDescs(CurrentFrame, SimpleWorldCleanupMaxAge);
-			if (!It->Value->HasAnyDesc())
+			if (!It->Value->HasAnyDesc() && !It->Value->HasAnyReader())
 			{
+				It.RemoveCurrent();
+				continue;
+			}
+		}
+	}
+
+	{
+		FWriteScopeLock SharedPublisherWriteLock(SharedPublisherRegistryLock);
+		const int32 SharedPublisherCleanupMaxAge = CVarSharedCollisionCleanupMaxAge.GetValueOnGameThread();
+
+		for (auto It = SharedPublisherRegistry.CreateIterator(); It; ++It)
+		{
+			if (!It->Key.Key.IsValid()
+				|| !It->Value.IsValid()
+				|| It->Value->IsExpired(CurrentFrame, SharedPublisherCleanupMaxAge))
+			{
+				if (It->Value.IsValid())
+				{
+					It->Value->MarkExpired();
+				}
 				It.RemoveCurrent();
 				continue;
 			}
@@ -2109,7 +3063,14 @@ bool UKawaiiPhysicsSharedCollisionSubsystem::IsTickable() const
 	}
 	{
 		FReadScopeLock ReadLock(SimpleWorldRegistryLock);
-		return !SimpleWorldRegistry.IsEmpty();
+		if (!SimpleWorldRegistry.IsEmpty())
+		{
+			return true;
+		}
+	}
+	{
+		FReadScopeLock ReadLock(SharedPublisherRegistryLock);
+		return !SharedPublisherRegistry.IsEmpty();
 	}
 }
 

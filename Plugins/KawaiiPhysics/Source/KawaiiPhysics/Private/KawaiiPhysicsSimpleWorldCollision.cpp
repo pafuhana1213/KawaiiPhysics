@@ -2,6 +2,8 @@
 
 #include "KawaiiPhysicsSimpleWorldCollision.h"
 
+#include "KawaiiPhysicsSharedPublisherTypes.h"
+
 #include "Algo/StableSort.h"
 #include "Engine/EngineTypes.h"
 #include "Misc/EngineVersionComparison.h"
@@ -878,5 +880,39 @@ namespace KawaiiPhysicsSimpleWorldCollision
 				ComponentTM, OutWorldLimits.ConvexLimits);
 		}
 		AppendTransformedPlanarLimits(LocalLimits.PlanarLimits, ComponentTM, OutWorldLimits.PlanarLimits);
+	}
+
+	bool ComputeSimpleWorldGatherBounds(
+		TArrayView<const FBoxSphereBounds> MemberBounds,
+		FBoxSphereBounds& OutBounds)
+	{
+		if (MemberBounds.IsEmpty())
+		{
+			return false;
+		}
+
+		OutBounds = MemberBounds[0];
+		for (int32 Index = 1; Index < MemberBounds.Num(); ++Index)
+		{
+			OutBounds = OutBounds + MemberBounds[Index];
+		}
+		return true;
+	}
+
+	FKawaiiPhysicsSimpleWorldCollisionDesc BuildSimpleWorldCollisionDesc(
+		const FKawaiiPhysicsSimpleWorldCollisionSettings& Settings)
+	{
+		FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
+		Desc.GatherIntervalSec = Settings.GatherInterval;
+		Desc.GatherRadiusOverride = Settings.bOverrideGatherRadius ? Settings.GatherRadius : 0.0f;
+		Desc.CollisionChannel = Settings.bOverrideCollisionChannel ? Settings.CollisionChannel.GetValue() : ECC_MAX;
+		Desc.ObjectTypes = Settings.ObjectTypes;
+		Desc.ConvexFallbackShape = Settings.ConvexFallbackShape;
+		Desc.SkeletalMeshCollision = Settings.SkeletalMeshCollision;
+		Desc.bGroundCollision = Settings.bGroundCollision;
+		Desc.GatherScope = Settings.GatherScope;
+		Desc.bGatherFamilyMembers = Settings.bGatherFamilyMembers;
+		Desc.bProviderDisabled = !Settings.bEnabled;
+		return Desc;
 	}
 }

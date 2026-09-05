@@ -37,6 +37,10 @@
 #include "AnimNode_KawaiiPhysicsInternal.h"
 #include "KawaiiPhysicsNodeWarning.h"
 
+extern TAutoConsoleVariable<int32> CVarSharedCollisionInitRetryThreshold;
+extern TAutoConsoleVariable<int32> CVarSharedCollisionInitRetryThrottleInterval;
+extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionReaderReleaseMaxAge;
+
 namespace
 {
 	template <typename LimitType, typename PostConvertType>
@@ -1553,6 +1557,21 @@ void FAnimNode_KawaiiPhysics::InitializeSimpleWorldCollision()
 	}
 
 	const uint64 SourceID = reinterpret_cast<uint64>(this);
+	if (bSimpleWorldReaderMode)
+	{
+		CachedSimpleWorldEntry = Subsystem->FindOrCreateSimpleWorldEntry(
+			SimpleWorldReaderKey,
+			SourceID,
+			FKawaiiPhysicsSimpleWorldCollisionDesc(),
+			CachedSimpleWorldCollisionSkelComp,
+			false);
+		if (CachedSimpleWorldEntry.IsValid())
+		{
+			bSimpleWorldCollisionInitialized = true;
+		}
+		return;
+	}
+
 	const FKawaiiPhysicsSimpleWorldCollisionDesc Desc = BuildSimpleWorldCollisionDesc();
 	CachedSimpleWorldEntry = Subsystem->FindOrCreateSimpleWorldEntry(CachedSimpleWorldCollisionSkelComp, SourceID, Desc);
 	if (CachedSimpleWorldEntry.IsValid())
@@ -1567,7 +1586,7 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdateSimpleWorldCollisionLimits);
 
-	if (!CachedSimpleWorldEntry.IsValid())
+	auto ResetSimpleWorldSimulationSpaceLimits = [this]()
 	{
 		SimpleWorldSphericalLimits.Reset();
 		SimpleWorldCapsuleLimits.Reset();
@@ -1575,6 +1594,151 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 		SimpleWorldBoxLimits.Reset();
 		SimpleWorldGroundBoxLimits.Reset();
 		SimpleWorldConvexLimits.Reset();
+	};
+
+	if (!CachedSimpleWorldEntry.IsValid())
+	{
+		ResetSimpleWorldSimulationSpaceLimits();
+		if (bSimpleWorldReaderMode)
+		{
+			const int32 RetryThreshold = FMath::Max(1, CVarSharedCollisionInitRetryThreshold.GetValueOnAnyThread());
+			const int32 ThrottleInterval =
+				FMath::Max(1, CVarSharedCollisionInitRetryThrottleInterval.GetValueOnAnyThread());
+			const bool bShouldRetryInitialize =
+				!bSimpleWorldReaderWarningLogged || (SimpleWorldReaderRetryCount % ThrottleInterval) == 0;
+
+			if (bShouldRetryInitialize)
+			{
+				InitializeSimpleWorldCollision();
+			}
+
+			if (CachedSimpleWorldEntry.IsValid())
+			{
+				bSimpleWorldCollisionInitialized = true;
+			}
+			else
+			{
+				++SimpleWorldReaderRetryCount;
+				if (!bSimpleWorldReaderWarningLogged && SimpleWorldReaderRetryCount >= RetryThreshold)
+				{
+					const FString TagName = SimpleWorldReaderKey.Tag.ToString();
+					const FString KeyObjectName = SimpleWorldReaderKeyObjectName.IsNone() ? FString(TEXT("None")) : SimpleWorldReaderKeyObjectName.ToString();
+					UE_LOG(LogKawaiiPhysics, Warning,
+					       TEXT("Shared Simple World Collision entry has no provider (Tag=%s, KeyObject=%s). Waiting for a Shared Publisher."),
+					       *TagName, *KeyObjectName);
+					bSimpleWorldReaderWarningLogged = true;
+				}
+				return;
+			}
+		}
+		else
+		{
+			return;
+		}
+	}
+
+	if (bSimpleWorldReaderMode)
+	{
+		const uint64 SourceID = reinterpret_cast<uint64>(this);
+		const uint64 ProviderMaxAge =
+			static_cast<uint64>(FMath::Max(0, CVarSimpleWorldCollisionReaderReleaseMaxAge.GetValueOnAnyThread()));
+		if (!CachedSimpleWorldEntry->MarkReaderRead(SourceID, GFrameCounter, ProviderMaxAge))
+		{
+			ReleaseSimpleWorldCollision();
+			++SimpleWorldReaderRetryCount;
+			const int32 RetryThreshold = FMath::Max(1, CVarSharedCollisionInitRetryThreshold.GetValueOnAnyThread());
+			if (!bSimpleWorldReaderWarningLogged && SimpleWorldReaderRetryCount >= RetryThreshold)
+			{
+				const FString TagName = SimpleWorldReaderKey.Tag.ToString();
+				const FString KeyObjectName = SimpleWorldReaderKeyObjectName.IsNone() ? FString(TEXT("None")) : SimpleWorldReaderKeyObjectName.ToString();
+				UE_LOG(LogKawaiiPhysics, Warning,
+				       TEXT("Shared Simple World Collision entry has no provider (Tag=%s, KeyObject=%s). Waiting for a Shared Publisher."),
+				       *TagName, *KeyObjectName);
+				bSimpleWorldReaderWarningLogged = true;
+			}
+			ResetSimpleWorldSimulationSpaceLimits();
+			SimpleWorldMergedScratch.Reset();
+			SimpleWorldGroundScratch.Reset();
+			LastReadSimpleWorldShapeSerial = 0;
+			LastReadSimpleWorldGroundSerial = 0;
+			LastReadSimpleWorldMemberSerialSum = 0;
+			return;
+		}
+		SimpleWorldReaderRetryCount = 0;
+
+		if (CachedSimpleWorldEntry->IsProviderDisabled())
+		{
+			ResetSimpleWorldSimulationSpaceLimits();
+			SimpleWorldMergedScratch.Reset();
+			SimpleWorldGroundScratch.Reset();
+			LastReadSimpleWorldShapeSerial = 0;
+			LastReadSimpleWorldGroundSerial = 0;
+			LastReadSimpleWorldMemberSerialSum = 0;
+			return;
+		}
+
+		const uint64 ShapeSerial = CachedSimpleWorldEntry->Slot.GetPublishSerial();
+		const uint64 MemberSerialSum = CachedSimpleWorldEntry->GetMemberSlotsPublishSerialSum();
+		if (LastReadSimpleWorldShapeSerial == 0
+			|| ShapeSerial != LastReadSimpleWorldShapeSerial
+			|| MemberSerialSum != LastReadSimpleWorldMemberSerialSum)
+		{
+			SimpleWorldMergedScratch.Reset();
+			CachedSimpleWorldEntry->Slot.AppendTo(SimpleWorldMergedScratch);
+			CachedSimpleWorldEntry->AppendFamilyMemberLimits(
+				CachedSimpleWorldCollisionSkelComp, SimpleWorldMergedScratch);
+			LastReadSimpleWorldShapeSerial = ShapeSerial;
+			LastReadSimpleWorldMemberSerialSum = MemberSerialSum;
+
+			SimpleWorldSphericalLimits.Reset();
+			SimpleWorldCapsuleLimits.Reset();
+			SimpleWorldTaperedCapsuleLimits.Reset();
+			SimpleWorldBoxLimits.Reset();
+			SimpleWorldConvexLimits.Reset();
+			KawaiiPhysicsSimpleWorldReadPath::AppendSharedCollisionDataToSimulationSpace(
+				*this, Output, SimulationSpace, SimpleWorldMergedScratch,
+				SimpleWorldSphericalLimits, SimpleWorldCapsuleLimits, SimpleWorldTaperedCapsuleLimits,
+				SimpleWorldBoxLimits, nullptr, &SimpleWorldConvexLimits);
+		}
+		else if (!KawaiiPhysicsSimpleWorldReadPath::RefreshSimulationSpaceLimitsInPlace(
+			*this, Output, SimulationSpace, SimpleWorldMergedScratch,
+			SimpleWorldSphericalLimits, SimpleWorldCapsuleLimits, SimpleWorldTaperedCapsuleLimits,
+			SimpleWorldBoxLimits, SimpleWorldConvexLimits))
+		{
+			// 配列数がずれた場合は、前回配列が外部テスト注入や将来の形状追加で変わった可能性があるため全再構築へ戻す。
+			SimpleWorldSphericalLimits.Reset();
+			SimpleWorldCapsuleLimits.Reset();
+			SimpleWorldTaperedCapsuleLimits.Reset();
+			SimpleWorldBoxLimits.Reset();
+			SimpleWorldConvexLimits.Reset();
+			KawaiiPhysicsSimpleWorldReadPath::AppendSharedCollisionDataToSimulationSpace(
+				*this, Output, SimulationSpace, SimpleWorldMergedScratch,
+				SimpleWorldSphericalLimits, SimpleWorldCapsuleLimits, SimpleWorldTaperedCapsuleLimits,
+				SimpleWorldBoxLimits, nullptr, &SimpleWorldConvexLimits);
+		}
+
+		const uint64 GroundSerial = CachedSimpleWorldEntry->GroundSlot.GetPublishSerial();
+		if (LastReadSimpleWorldGroundSerial == 0 || GroundSerial != LastReadSimpleWorldGroundSerial)
+		{
+			SimpleWorldGroundScratch.Reset();
+			CachedSimpleWorldEntry->GroundSlot.AppendTo(SimpleWorldGroundScratch);
+			LastReadSimpleWorldGroundSerial = GroundSerial;
+
+			SimpleWorldGroundBoxLimits.Reset();
+			auto NoOp = [](FBoxLimit&, const FTransform&) {};
+			AppendWorldLimitsToSimulationSpace(*this, Output, SimulationSpace, SimpleWorldGroundScratch.BoxLimits,
+				SimpleWorldGroundBoxLimits, NoOp);
+		}
+		else if (!KawaiiPhysicsSimpleWorldReadPath::RefreshSimulationSpaceLimitsInPlace(
+			*this, Output, SimulationSpace, SimpleWorldGroundScratch.BoxLimits, SimpleWorldGroundBoxLimits))
+		{
+			// 配列数がずれた場合は、地面 Box の有無が外部から変わった可能性があるため全再構築へ戻す。
+			SimpleWorldGroundBoxLimits.Reset();
+			auto NoOp = [](FBoxLimit&, const FTransform&) {};
+			AppendWorldLimitsToSimulationSpace(*this, Output, SimulationSpace, SimpleWorldGroundScratch.BoxLimits,
+				SimpleWorldGroundBoxLimits, NoOp);
+		}
+
 		return;
 	}
 
@@ -1591,7 +1755,8 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 			bSimpleWorldRadiusChecked = false;
 			SimpleWorldRadiusCheckDeferrals = 0;
 		}
-		CachedSimpleWorldEntry->SetDesc(SourceID, Desc);
+		// 期限切れで provider slot が消えた後の再送でも SkelComp を失わないよう、必ず自分の SkelComp を渡す。
+		CachedSimpleWorldEntry->SetDesc(SourceID, Desc, GFrameCounter, CachedSimpleWorldCollisionSkelComp, true);
 		LastSentSimpleWorldDesc = Desc;
 		bSimpleWorldDescSent = true;
 	}
@@ -1611,6 +1776,7 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 		SimpleWorldGroundScratch.Reset();
 		LastReadSimpleWorldShapeSerial = 0;
 		LastReadSimpleWorldGroundSerial = 0;
+		LastReadSimpleWorldMemberSerialSum = 0;
 		return;
 	}
 
@@ -1725,7 +1891,14 @@ void FAnimNode_KawaiiPhysics::ReleaseSimpleWorldCollision()
 {
 	if (CachedSimpleWorldEntry.IsValid())
 	{
-		CachedSimpleWorldEntry->RemoveDesc(reinterpret_cast<uint64>(this));
+		if (bSimpleWorldReaderMode)
+		{
+			CachedSimpleWorldEntry->RemoveReaderMember(reinterpret_cast<uint64>(this));
+		}
+		else
+		{
+			CachedSimpleWorldEntry->RemoveDesc(reinterpret_cast<uint64>(this));
+		}
 	}
 
 	CachedSimpleWorldEntry.Reset();
@@ -1735,6 +1908,7 @@ void FAnimNode_KawaiiPhysics::ReleaseSimpleWorldCollision()
 	SimpleWorldGroundScratch.Reset();
 	LastReadSimpleWorldShapeSerial = 0;
 	LastReadSimpleWorldGroundSerial = 0;
+	LastReadSimpleWorldMemberSerialSum = 0;
 }
 
 void FAnimNode_KawaiiPhysics::RequestSimpleWorldCollisionReinit()
@@ -1745,11 +1919,21 @@ void FAnimNode_KawaiiPhysics::RequestSimpleWorldCollisionReinit()
 	SimpleWorldRadiusCheckDeferrals = 0;
 	LastReadSimpleWorldShapeSerial = 0;
 	LastReadSimpleWorldGroundSerial = 0;
+	LastReadSimpleWorldMemberSerialSum = 0;
+	SimpleWorldReaderRetryCount = 0;
+	bSimpleWorldReaderWarningLogged = false;
 	SimpleWorldMergedScratch.Reset();
 	SimpleWorldGroundScratch.Reset();
 	if (CachedSimpleWorldEntry.IsValid())
 	{
-		CachedSimpleWorldEntry->RemoveDesc(reinterpret_cast<uint64>(this));
+		if (bSimpleWorldReaderMode)
+		{
+			CachedSimpleWorldEntry->RemoveReaderMember(reinterpret_cast<uint64>(this));
+		}
+		else
+		{
+			CachedSimpleWorldEntry->RemoveDesc(reinterpret_cast<uint64>(this));
+		}
 		CachedSimpleWorldEntry.Reset();
 	}
 }

@@ -1030,8 +1030,13 @@ private:
 	TWeakObjectPtr<const USkeletalMeshComponent> CachedSimpleWorldCollisionSkelComp;
 	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> CachedSimpleWorldEntry;
 	FKawaiiPhysicsSimpleWorldCollisionDesc LastSentSimpleWorldDesc;
+	FKawaiiPhysicsSimpleWorldRegistryKey SimpleWorldReaderKey;
+	// reader 警告用にキー設定時へキャッシュした KeyObject 名（Worker で UObject を触らない）
+	// KeyObject name cached when the reader key is set, so worker-side warnings never dereference the UObject
+	FName SimpleWorldReaderKeyObjectName;
 	bool bSimpleWorldDescSent = false;
 	bool bSimpleWorldCollisionInitialized = false;
+	bool bSimpleWorldReaderMode = false;
 	// SimpleWorld 半径警告チェックが完了済みか / Whether the SimpleWorld radius warning check has completed
 	bool bSimpleWorldRadiusChecked = false;
 	// 半径チェックを全ゼロ姿勢で持ち越した回数。上限に達したら退化チェーンとみなして完了扱いにする / Number of radius-check deferrals due to all-zero pose. Reaching the cap marks the check done (degenerate chain)
@@ -1040,6 +1045,10 @@ private:
 	uint64 LastReadSimpleWorldShapeSerial = 0;
 	// 前回読み取った GroundSlot の Publish serial（0 は未読） / Last read GroundSlot publish serial (0 means unread)
 	uint64 LastReadSimpleWorldGroundSerial = 0;
+	// 前回読み取ったファミリーメンバー Slot の Publish serial 合計（0 は未読） / Last read family-member Slot publish serial sum (0 means unread)
+	uint64 LastReadSimpleWorldMemberSerialSum = 0;
+	int32 SimpleWorldReaderRetryCount = 0;
+	bool bSimpleWorldReaderWarningLogged = false;
 	// 形状 Slot 用のワールド空間スクラッチ / World-space scratch for the shape Slot
 	FKawaiiPhysicsSharedCollisionData SimpleWorldMergedScratch;
 	// GroundSlot 用のワールド空間スクラッチ / World-space scratch for the GroundSlot
@@ -1189,6 +1198,24 @@ public:
 			+ SimpleWorldBoxLimits.Num()
 			+ SimpleWorldGroundBoxLimits.Num()
 			+ SimpleWorldConvexLimits.Num();
+	}
+
+	/**
+	 * GameThreadでキャッシュした Shared Collision Subsystem を返す。Workerから新規解決しないための診断/API用。
+	 * Returns the Shared Collision Subsystem cached on the GameThread. Intended for diagnostics/API without resolving it on workers.
+	 */
+	UKawaiiPhysicsSharedCollisionSubsystem* GetSharedCollisionSubsystem() const
+	{
+		return CachedSharedCollisionSubsystem.Get();
+	}
+
+	/**
+	 * GameThreadでキャッシュした Shared Collision owner Actor を返す。WorkerからGetOwnerを呼ばないための診断/API用。
+	 * Returns the Shared Collision owner Actor cached on the GameThread. Intended for diagnostics/API without calling GetOwner on workers.
+	 */
+	AActor* GetSharedCollisionOwnerActor() const
+	{
+		return CachedSharedCollisionOwnerActor.Get();
 	}
 
 	/**
@@ -1731,6 +1758,15 @@ protected:
 
 
 private:
+	void SetSimpleWorldReaderKey(const FKawaiiPhysicsSimpleWorldRegistryKey& Key)
+	{
+		SimpleWorldReaderKey = Key;
+		// GameThread（ハーネス／将来の OnInitializeAnimInstance）からのみ呼ばれる前提なので、ここでの KeyObject デリファレンスは安全
+		SimpleWorldReaderKeyObjectName = Key.KeyObject.IsValid() ? Key.KeyObject->GetFName() : NAME_None;
+		bSimpleWorldReaderMode = Key.IsValid();
+		RequestSimpleWorldCollisionReinit();
+	}
+
 	bool bModifyBonesNeedsReinit = false;
 	int32 LastInitializedBoneSubdivisionCount = 0;
 	int32 LastInitializedBoneConstraintSubdivisionCount = 0;
