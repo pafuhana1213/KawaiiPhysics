@@ -190,9 +190,39 @@ struct FKawaiiPhysicsTestAccessor
 	void SetSimpleWorldEntry(const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>& Entry)
 	{
 		Node.CachedSimpleWorldEntry = Entry;
+		Node.SimpleWorldAutomationLocalEntry = Entry;
 		Node.bUseSimpleWorldCollision = true;
 		Node.bSimpleWorldCollisionInitialized = true;
 		Node.bSimpleWorldDescSent = false;
+	}
+
+	void SetSimpleWorldCollisionSource(EKawaiiPhysicsSimpleWorldCollisionSource Source)
+	{
+		Node.SimpleWorldCollisionSource = Source;
+		Node.RequestSimpleWorldCollisionReinit();
+	}
+
+	void SetSimpleWorldCollisionSharedTag(const FGameplayTag& SharedTag)
+	{
+		Node.SimpleWorldCollisionSharedTag = SharedTag;
+		Node.RequestSimpleWorldCollisionReinit();
+	}
+
+	void SetSimpleWorldSharedEntryForAuto(const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>& Entry)
+	{
+		Node.SimpleWorldAutomationSharedEntry = Entry;
+		Node.SimpleWorldSharedKey.KeyObject = GetTransientPackage();
+		Node.SimpleWorldSharedKey.Tag = Node.SimpleWorldCollisionSharedTag;
+	}
+
+	void SetSimpleWorldLocalEntryForAuto(const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>& Entry)
+	{
+		Node.SimpleWorldAutomationLocalEntry = Entry;
+	}
+
+	void InitializeSimpleWorldCollision()
+	{
+		Node.InitializeSimpleWorldCollision();
 	}
 
 	void InjectSharedPublisherState(const FKawaiiPhysicsSharedPublisherState& State,
@@ -231,6 +261,16 @@ struct FKawaiiPhysicsTestAccessor
 	bool IsSimpleWorldReaderMode() const
 	{
 		return Node.bSimpleWorldReaderMode;
+	}
+
+	EKawaiiPhysicsSimpleWorldCollisionSource GetSimpleWorldResolvedSource() const
+	{
+		return Node.GetSimpleWorldResolvedSource();
+	}
+
+	const FKawaiiPhysicsSimpleWorldRegistryKey& GetSimpleWorldReaderKey() const
+	{
+		return Node.SimpleWorldReaderKey;
 	}
 
 	int32 GetSimpleWorldReaderRetryCount() const

@@ -66,6 +66,9 @@ namespace
 		Node.WindScale = 2.5f;
 		Node.SimpleExternalForce = FVector(11.0f, 12.0f, 13.0f);
 		Node.bAllowWorldCollision = true;
+		Node.SimpleWorldCollisionSource = EKawaiiPhysicsSimpleWorldCollisionSource::Shared;
+		Node.SimpleWorldCollisionSharedTag = UGameplayTagsManager::Get().RequestGameplayTag(
+			FName(TEXT("KawaiiPhysics.Shared.Default")), false);
 		Node.bOverrideCollisionParams = true;
 		Node.bIgnoreSelfComponent = false;
 		Node.IgnoreBones.Add(FBoneReference(TEXT("pelvis")));

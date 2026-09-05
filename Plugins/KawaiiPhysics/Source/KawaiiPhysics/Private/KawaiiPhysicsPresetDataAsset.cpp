@@ -124,6 +124,8 @@ namespace
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, SimpleWorldCollisionGatherRadius),
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, bSimpleWorldCollisionGroundCollision),
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, SimpleWorldCollisionSkeletalMeshCollision),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, SimpleWorldCollisionSource),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, SimpleWorldCollisionSharedTag),
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, bOverrideCollisionParams),
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, CollisionChannelSettings),
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, bIgnoreSelfComponent),

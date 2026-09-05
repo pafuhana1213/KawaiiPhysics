@@ -11,6 +11,7 @@
 #endif
 #include "KawaiiPhysicsLimitsDataAsset.h"
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
+#include "KawaiiPhysicsSharedTags.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Curves/CurveFloat.h"
 #include "Runtime/Launch/Resources/Version.h"
@@ -154,6 +155,12 @@ TAutoConsoleVariable<int32> CVarSimpleWorldCollisionReaderReleaseMaxAge(
 	TEXT("a.AnimNode.KawaiiPhysics.SharedPublisher.ReaderReleaseMaxAge"), 60,
 	TEXT("共有 Entry の provider が更新を止めてから reader が Entry を解放するまでの猶予フレーム数 / "
 		"Frames a reader keeps a shared entry after its provider stopped updating before releasing it."));
+TAutoConsoleVariable<int32> CVarSimpleWorldCollisionAutoResolveInterval(
+	TEXT("a.AnimNode.KawaiiPhysics.SharedPublisher.AutoResolveInterval"), 30,
+	TEXT("Frames between Auto Simple World Collision checks while running as a local provider."));
+TAutoConsoleVariable<int32> CVarSimpleWorldCollisionSharedPublisherDebugDraw(
+	TEXT("a.AnimNode.KawaiiPhysics.SharedPublisher.DebugDraw"), 0,
+	TEXT("Draw Shared Publisher Simple World Collision labels from the subsystem tick."));
 
 DEFINE_STAT(STAT_KawaiiPhysics_InitModifyBones);
 DEFINE_STAT(STAT_KawaiiPhysics_Eval);
@@ -200,8 +207,19 @@ DEFINE_STAT(STAT_KawaiiPhysics_NumMergedBoneConstraints);
 DEFINE_STAT(STAT_KawaiiPhysics_NumWorldCollisionChecks);
 DEFINE_STAT(STAT_KawaiiPhysics_ModifyBonesMemory);
 
+int32 GetKawaiiPhysicsSharedPublisherReaderReleaseMaxAge()
+{
+	return CVarSimpleWorldCollisionReaderReleaseMaxAge.GetValueOnAnyThread();
+}
+
+int32 GetKawaiiPhysicsSharedPublisherAutoResolveInterval()
+{
+	return CVarSimpleWorldCollisionAutoResolveInterval.GetValueOnAnyThread();
+}
+
 FAnimNode_KawaiiPhysics::FAnimNode_KawaiiPhysics()
 {
+	SimpleWorldCollisionSharedTag = TAG_KawaiiPhysics_Shared_Default;
 }
 
 void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeContext& Context)
@@ -253,6 +271,11 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 	LastReadSimpleWorldMemberSerialSum = 0;
 	SimpleWorldReaderRetryCount = 0;
 	bSimpleWorldReaderWarningLogged = false;
+	SimpleWorldResolvedSource = EKawaiiPhysicsSimpleWorldCollisionSource::Local;
+	SimpleWorldAutoResolveCountdown = 0;
+#if !UE_BUILD_SHIPPING
+	bSimpleWorldInvalidSharedTagWarningLogged = false;
+#endif
 	bSimpleWorldRadiusChecked = false;
 	SimpleWorldRadiusCheckDeferrals = 0;
 
@@ -818,7 +841,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	// CVarで全体無効化されている間はUpdateを行わず、else側でSimpleWorldXxxLimitsをResetして適用もスキップする
 	if (bUseSimpleWorldCollision && CVarSimpleWorldCollisionEnable.GetValueOnAnyThread())
 	{
-		if (!bSimpleWorldCollisionInitialized && !bSimpleWorldReaderMode)
+		if (!bSimpleWorldCollisionInitialized)
 		{
 			InitializeSimpleWorldCollision();
 		}

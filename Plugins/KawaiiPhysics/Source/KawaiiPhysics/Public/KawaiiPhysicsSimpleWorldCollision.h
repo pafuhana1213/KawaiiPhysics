@@ -10,6 +10,7 @@
 #include "KawaiiPhysicsSimpleWorldCollision.generated.h"
 
 class UPhysicsAsset;
+struct FKawaiiPhysicsSimpleWorldCollisionEntry;
 struct FReferenceSkeleton;
 
 /**
@@ -146,6 +147,15 @@ namespace KawaiiPhysicsSimpleWorldCollision
 	KAWAIIPHYSICS_API void SortSimpleWorldGatherOrderByDistance(
 		TArrayView<const float> DistanceSquared,
 		TArray<int32>& OutOrder);
+
+	/**
+	 * SimpleWorld Entry の provider が有効期間内に更新されているか判定します。
+	 * Returns whether the SimpleWorld Entry provider has updated within the allowed age.
+	 */
+	KAWAIIPHYSICS_API bool IsSimpleWorldProviderAlive(
+		const FKawaiiPhysicsSimpleWorldCollisionEntry& Entry,
+		uint64 CurrentFrame,
+		uint64 ProviderMaxAgeFrames);
 
 	struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldBodyBinding
 	{

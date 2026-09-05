@@ -15,6 +15,7 @@
 
 class UAnimBlueprint;
 class UAnimGraphNode_KawaiiPhysics;
+class UAnimGraphNode_KawaiiPhysicsSharedPublisher;
 class USkeleton;
 
 UENUM(BlueprintType)
@@ -47,6 +48,40 @@ struct KAWAIIPHYSICSED_API FKawaiiPhysicsGraphNodeHandle
 
 	UPROPERTY()
 	TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics> Node;
+
+	bool IsValid() const
+	{
+		return Node.IsValid();
+	}
+};
+
+/**
+ * KawaiiPhysics Shared Publisher エディタグラフノードへのハンドル。
+ * Handle to a KawaiiPhysics Shared Publisher editor graph node.
+ */
+USTRUCT(BlueprintType)
+struct KAWAIIPHYSICSED_API FKawaiiPhysicsSharedPublisherGraphNodeHandle
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TWeakObjectPtr<UAnimGraphNode_KawaiiPhysicsSharedPublisher> Node;
+
+	/** ノードを含む AnimBlueprint / AnimBlueprint that owns the node. */
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
+	TObjectPtr<UAnimBlueprint> AnimBlueprint = nullptr;
+
+	/** エディタグラフノードの GUID / GUID of the editor graph node. */
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
+	FGuid NodeGuid;
+
+	/** Shared Group Tag / Shared Group Tag. */
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
+	FGameplayTag SharedGroupTag;
+
+	/** ノードを含むグラフ名 / Name of the graph that owns the node. */
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
+	FName GraphName;
 
 	bool IsValid() const
 	{
@@ -289,6 +324,14 @@ public:
 		const FGameplayTagContainer& FilterTags,
 		bool bFilterExactMatch = false);
 
+	/**
+	 * AnimBlueprint 内の KawaiiPhysics Shared Publisher グラフノードを収集する。
+	 * Collect KawaiiPhysics Shared Publisher graph nodes in an AnimBlueprint.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static TArray<FKawaiiPhysicsSharedPublisherGraphNodeHandle> CollectKawaiiPhysicsSharedPublisherGraphNodes(
+		UAnimBlueprint* AnimBlueprint);
+
 	/** AnimBlueprint 内の KawaiiPhysics グラフノードを NodeGuid で検索する（タグフィルタなしで全グラフを走査） / Finds a KawaiiPhysics graph node inside an AnimBlueprint by NodeGuid, scanning all graphs with no tag filter. */
 	static UAnimGraphNode_KawaiiPhysics* FindGraphNodeByGuid(
 		const FSoftObjectPath& AnimBlueprintPath,
@@ -356,6 +399,17 @@ public:
 		const FString& Prompt = TEXT(""));
 
 	/**
+	 * AnimGraph に KawaiiPhysics Shared Publisher ノードを追加する。bReuseExisting 指定時は同 Tag の既存ノードを返す。
+	 * Add a KawaiiPhysics Shared Publisher node to the AnimGraph. With bReuseExisting, returns an existing node with the same tag.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static FKawaiiPhysicsSharedPublisherGraphNodeHandle AddKawaiiPhysicsSharedPublisherNode(
+		UAnimBlueprint* AnimBlueprint,
+		FGameplayTag SharedGroupTag,
+		bool bReuseExisting = true,
+		bool bAutoConnect = true);
+
+	/**
 	 * AnimGraph 上のコメントノード一覧を返す。
 	 * Returns comment nodes in the AnimGraph.
 	 */
@@ -384,6 +438,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Kawaii Physics|Editor")
 	static bool IsGraphNodeHandleValid(const FKawaiiPhysicsGraphNodeHandle& Handle);
 
+	/** Shared Publisher グラフノードハンドルが有効か / Check whether a Shared Publisher graph node handle is valid. */
+	UFUNCTION(BlueprintPure, Category = "Kawaii Physics|Editor")
+	static bool IsSharedPublisherGraphNodeHandleValid(const FKawaiiPhysicsSharedPublisherGraphNodeHandle& Handle);
+
 	/** ノードプロパティを文字列で設定 / Set a node property from string. */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
 	static bool SetGraphNodePropertyFromString(
@@ -397,6 +455,19 @@ public:
 		const FKawaiiPhysicsGraphNodeHandle& Handle,
 		FName PropertyName,
 		FString& OutValue);
+
+	/** Shared Publisher ノードプロパティを文字列で設定 / Set a Shared Publisher node property from string. */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static bool SetSharedPublisherNodePropertyFromString(
+		const FKawaiiPhysicsSharedPublisherGraphNodeHandle& Handle,
+		FName PropertyName,
+		const FString& Value);
+
+	/** Shared Publisher ノードプロパティを文字列で取得 / Get a Shared Publisher node property as string. */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static FString GetSharedPublisherNodePropertyAsString(
+		const FKawaiiPhysicsSharedPublisherGraphNodeHandle& Handle,
+		FName PropertyName);
 
 	/** プリセット内ノードプロパティを文字列で設定 / Set a preset node property from string. */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")

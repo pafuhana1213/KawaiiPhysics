@@ -39,7 +39,6 @@
 
 extern TAutoConsoleVariable<int32> CVarSharedCollisionInitRetryThreshold;
 extern TAutoConsoleVariable<int32> CVarSharedCollisionInitRetryThrottleInterval;
-extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionReaderReleaseMaxAge;
 
 namespace
 {
@@ -1543,6 +1542,134 @@ FKawaiiPhysicsSimpleWorldCollisionDesc FAnimNode_KawaiiPhysics::BuildSimpleWorld
 	return Desc;
 }
 
+void FAnimNode_KawaiiPhysics::ResolveSimpleWorldCollisionSource(uint64 CurrentFrame)
+{
+	const bool bInjectedReaderKey =
+		bSimpleWorldReaderMode
+		&& SimpleWorldReaderKey.IsValid()
+		&& SimpleWorldCollisionSource == EKawaiiPhysicsSimpleWorldCollisionSource::Local
+		&& !(SimpleWorldReaderKey == SimpleWorldSharedKey);
+	if (bInjectedReaderKey)
+	{
+		SimpleWorldResolvedSource = EKawaiiPhysicsSimpleWorldCollisionSource::Shared;
+		return;
+	}
+
+	auto SetLocalSource = [this]()
+	{
+		SimpleWorldResolvedSource = EKawaiiPhysicsSimpleWorldCollisionSource::Local;
+		bSimpleWorldReaderMode = false;
+		SimpleWorldReaderKey = FKawaiiPhysicsSimpleWorldRegistryKey();
+		SimpleWorldReaderKeyObjectName = NAME_None;
+	};
+
+	auto SetSharedSource = [this](const FKawaiiPhysicsSimpleWorldRegistryKey& Key, FName KeyObjectName)
+	{
+		SimpleWorldResolvedSource = EKawaiiPhysicsSimpleWorldCollisionSource::Shared;
+		SimpleWorldSharedKey = Key;
+		SimpleWorldReaderKey = Key;
+		SimpleWorldReaderKeyObjectName = KeyObjectName;
+		bSimpleWorldReaderMode = true;
+	};
+
+	if (SimpleWorldCollisionSource == EKawaiiPhysicsSimpleWorldCollisionSource::Local)
+	{
+		SetLocalSource();
+		return;
+	}
+
+	if (!SimpleWorldCollisionSharedTag.IsValid())
+	{
+#if !UE_BUILD_SHIPPING
+		if (!bSimpleWorldInvalidSharedTagWarningLogged)
+		{
+			KAWAII_LOG_NODE_WARNING(LogKawaiiPhysics,
+				TEXT("SimpleWorldCollision: Shared Tag is None (Source: %s). Falling back to Local source."),
+				*UEnum::GetValueAsString(SimpleWorldCollisionSource));
+			bSimpleWorldInvalidSharedTagWarningLogged = true;
+		}
+#endif
+		SimpleWorldSharedKey = FKawaiiPhysicsSimpleWorldRegistryKey();
+		SetLocalSource();
+		SimpleWorldAutoResolveCountdown = FMath::Max(1, GetKawaiiPhysicsSharedPublisherAutoResolveInterval());
+		return;
+	}
+
+	AActor* OwnerActor = CachedSharedCollisionOwnerActor.Get();
+	AActor* FamilyRoot = OwnerActor ? UKawaiiPhysicsSharedCollisionSubsystem::GetFamilyRoot(OwnerActor) : nullptr;
+	if (FamilyRoot)
+	{
+		SimpleWorldSharedKey = FKawaiiPhysicsSimpleWorldRegistryKey::MakeSharedKey(FamilyRoot, SimpleWorldCollisionSharedTag);
+	}
+#if WITH_DEV_AUTOMATION_TESTS
+	else if (!(SimpleWorldSharedKey.IsValid() && SimpleWorldSharedKey.Tag == SimpleWorldCollisionSharedTag))
+	{
+		SimpleWorldSharedKey = FKawaiiPhysicsSimpleWorldRegistryKey();
+	}
+#else
+	else
+	{
+		SimpleWorldSharedKey = FKawaiiPhysicsSimpleWorldRegistryKey();
+	}
+#endif
+	if (!SimpleWorldSharedKey.IsValid())
+	{
+		if (SimpleWorldCollisionSource == EKawaiiPhysicsSimpleWorldCollisionSource::Shared)
+		{
+			SetSharedSource(SimpleWorldSharedKey, NAME_None);
+			return;
+		}
+		SetLocalSource();
+		return;
+	}
+
+	if (SimpleWorldCollisionSource == EKawaiiPhysicsSimpleWorldCollisionSource::Shared)
+	{
+		SetSharedSource(SimpleWorldSharedKey, FamilyRoot ? FamilyRoot->GetFName() : NAME_None);
+		return;
+	}
+
+	if (IsSharedProviderAlive(SimpleWorldSharedKey, CurrentFrame))
+	{
+		SetSharedSource(SimpleWorldSharedKey, FamilyRoot ? FamilyRoot->GetFName() : NAME_None);
+	}
+	else
+	{
+		SetLocalSource();
+		SimpleWorldAutoResolveCountdown = FMath::Max(1, GetKawaiiPhysicsSharedPublisherAutoResolveInterval());
+	}
+}
+
+bool FAnimNode_KawaiiPhysics::IsSharedProviderAlive(
+	const FKawaiiPhysicsSimpleWorldRegistryKey& Key,
+	uint64 CurrentFrame) const
+{
+	if (!Key.IsValid())
+	{
+		return false;
+	}
+
+	const uint64 ProviderMaxAge =
+		static_cast<uint64>(FMath::Max(0, GetKawaiiPhysicsSharedPublisherReaderReleaseMaxAge()));
+#if WITH_DEV_AUTOMATION_TESTS
+	if (SimpleWorldAutomationSharedEntry.IsValid())
+	{
+		return KawaiiPhysicsSimpleWorldCollision::IsSimpleWorldProviderAlive(
+			*SimpleWorldAutomationSharedEntry, CurrentFrame, ProviderMaxAge);
+	}
+#endif
+
+	const UKawaiiPhysicsSharedCollisionSubsystem* Subsystem = CachedSharedCollisionSubsystem.Get();
+	if (!Subsystem)
+	{
+		return false;
+	}
+
+	const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> Entry = Subsystem->FindSimpleWorldEntry(Key);
+	return Entry.IsValid()
+		&& KawaiiPhysicsSimpleWorldCollision::IsSimpleWorldProviderAlive(*Entry, CurrentFrame, ProviderMaxAge);
+}
+
 void FAnimNode_KawaiiPhysics::InitializeSimpleWorldCollision()
 {
 	if (bSimpleWorldCollisionInitialized)
@@ -1550,13 +1677,35 @@ void FAnimNode_KawaiiPhysics::InitializeSimpleWorldCollision()
 		return;
 	}
 
+	ResolveSimpleWorldCollisionSource(GFrameCounter);
+
+	const uint64 SourceID = reinterpret_cast<uint64>(this);
+#if WITH_DEV_AUTOMATION_TESTS
+	if (bSimpleWorldReaderMode && SimpleWorldAutomationSharedEntry.IsValid())
+	{
+		CachedSimpleWorldEntry = SimpleWorldAutomationSharedEntry;
+		CachedSimpleWorldEntry->AddReaderMember(SourceID, CachedSimpleWorldCollisionSkelComp, GFrameCounter);
+		bSimpleWorldCollisionInitialized = true;
+		return;
+	}
+	if (!bSimpleWorldReaderMode && SimpleWorldAutomationLocalEntry.IsValid())
+	{
+		const FKawaiiPhysicsSimpleWorldCollisionDesc Desc = BuildSimpleWorldCollisionDesc();
+		CachedSimpleWorldEntry = SimpleWorldAutomationLocalEntry;
+		CachedSimpleWorldEntry->SetDesc(SourceID, Desc, GFrameCounter, CachedSimpleWorldCollisionSkelComp, true);
+		LastSentSimpleWorldDesc = Desc;
+		bSimpleWorldDescSent = true;
+		bSimpleWorldCollisionInitialized = true;
+		return;
+	}
+#endif
+
 	UKawaiiPhysicsSharedCollisionSubsystem* Subsystem = CachedSharedCollisionSubsystem.Get();
 	if (!Subsystem)
 	{
 		return;
 	}
 
-	const uint64 SourceID = reinterpret_cast<uint64>(this);
 	if (bSimpleWorldReaderMode)
 	{
 		CachedSimpleWorldEntry = Subsystem->FindOrCreateSimpleWorldEntry(
@@ -1641,9 +1790,22 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 	{
 		const uint64 SourceID = reinterpret_cast<uint64>(this);
 		const uint64 ProviderMaxAge =
-			static_cast<uint64>(FMath::Max(0, CVarSimpleWorldCollisionReaderReleaseMaxAge.GetValueOnAnyThread()));
+			static_cast<uint64>(FMath::Max(0, GetKawaiiPhysicsSharedPublisherReaderReleaseMaxAge()));
 		if (!CachedSimpleWorldEntry->MarkReaderRead(SourceID, GFrameCounter, ProviderMaxAge))
 		{
+			if (SimpleWorldCollisionSource == EKawaiiPhysicsSimpleWorldCollisionSource::Auto)
+			{
+				ReleaseSimpleWorldCollision();
+				RequestSimpleWorldCollisionReinit();
+				ResetSimpleWorldSimulationSpaceLimits();
+				SimpleWorldMergedScratch.Reset();
+				SimpleWorldGroundScratch.Reset();
+				LastReadSimpleWorldShapeSerial = 0;
+				LastReadSimpleWorldGroundSerial = 0;
+				LastReadSimpleWorldMemberSerialSum = 0;
+				return;
+			}
+
 			ReleaseSimpleWorldCollision();
 			++SimpleWorldReaderRetryCount;
 			const int32 RetryThreshold = FMath::Max(1, CVarSharedCollisionInitRetryThreshold.GetValueOnAnyThread());
@@ -1743,6 +1905,21 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 	}
 
 	const uint64 SourceID = reinterpret_cast<uint64>(this);
+
+	if (SimpleWorldCollisionSource == EKawaiiPhysicsSimpleWorldCollisionSource::Auto
+		&& SimpleWorldResolvedSource == EKawaiiPhysicsSimpleWorldCollisionSource::Local)
+	{
+		if (--SimpleWorldAutoResolveCountdown <= 0)
+		{
+			if (IsSharedProviderAlive(SimpleWorldSharedKey, GFrameCounter))
+			{
+				RequestSimpleWorldCollisionReinit();
+				ResetSimpleWorldSimulationSpaceLimits();
+				return;
+			}
+			SimpleWorldAutoResolveCountdown = FMath::Max(1, GetKawaiiPhysicsSharedPublisherAutoResolveInterval());
+		}
+	}
 
 	const FKawaiiPhysicsSimpleWorldCollisionDesc Desc = BuildSimpleWorldCollisionDesc();
 

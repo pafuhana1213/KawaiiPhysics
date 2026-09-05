@@ -2812,6 +2812,140 @@ bool FKawaiiPhysicsSimpleWorldSharedReaderConsumesInjectedStateTest::RunTest(con
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldProviderAliveByLastFrameTest,
+                                 "KawaiiPhysics.SimpleWorld.ProviderAliveByLastFrame",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldProviderAliveByLastFrameTest::RunTest(const FString& Parameters)
+{
+	constexpr uint64 ProviderID = 0xFFFF1001;
+	constexpr uint64 CurrentFrame = 100;
+	constexpr uint64 MaxAge = 10;
+
+	FKawaiiPhysicsSimpleWorldCollisionEntry Entry;
+	TestFalse(TEXT("Provider-less entry is not alive"),
+	          KawaiiPhysicsSimpleWorldCollision::IsSimpleWorldProviderAlive(Entry, CurrentFrame, MaxAge));
+
+	FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
+	Entry.SetDesc(ProviderID, Desc, CurrentFrame, TWeakObjectPtr<const USkeletalMeshComponent>(), true);
+	TestTrue(TEXT("SetDesc marks provider alive"),
+	         KawaiiPhysicsSimpleWorldCollision::IsSimpleWorldProviderAlive(Entry, CurrentFrame, MaxAge));
+	TestTrue(TEXT("Provider is alive at the max-age boundary"),
+	         KawaiiPhysicsSimpleWorldCollision::IsSimpleWorldProviderAlive(Entry, CurrentFrame + MaxAge, MaxAge));
+	TestFalse(TEXT("Provider expires after the max-age boundary"),
+	          KawaiiPhysicsSimpleWorldCollision::IsSimpleWorldProviderAlive(Entry, CurrentFrame + MaxAge + 1, MaxAge));
+
+	Entry.RemoveDesc(ProviderID);
+	TestFalse(TEXT("Removed provider is not alive"),
+	          KawaiiPhysicsSimpleWorldCollision::IsSimpleWorldProviderAlive(Entry, CurrentFrame, MaxAge));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldAutoSourceFollowsProviderTest,
+                                 "KawaiiPhysics.SimpleWorld.AutoSourceFollowsProvider",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldAutoSourceFollowsProviderTest::RunTest(const FString& Parameters)
+{
+	constexpr uint64 ProviderID = 0xFFFF1002;
+	USkeletalMeshComponent* SkelComp =
+		NewObject<USkeletalMeshComponent>(GetTransientPackage(), NAME_None, RF_Transient);
+	const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> LocalEntry =
+		MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
+	const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> SharedEntry =
+		MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
+
+	FKawaiiPhysicsTestAccessor Accessor;
+	Accessor.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+	Accessor.SetSimpleWorldOwnSkelComp(SkelComp);
+	Accessor.SetSimpleWorldCollisionSharedTag(TAG_KawaiiPhysicsSimpleWorldRegistryX);
+	Accessor.SetSimpleWorldLocalEntryForAuto(LocalEntry);
+	Accessor.SetSimpleWorldSharedEntryForAuto(SharedEntry);
+	Accessor.SetSimpleWorldCollisionSource(EKawaiiPhysicsSimpleWorldCollisionSource::Auto);
+
+	FAnimInstanceProxy AnimInstanceProxy;
+	FComponentSpacePoseContext PoseContext(&AnimInstanceProxy);
+
+	Accessor.InitializeSimpleWorldCollision();
+	Accessor.UpdateSimpleWorldCollisionLimits(PoseContext);
+	TestEqual(TEXT("Auto resolves to Local without a provider"),
+	          Accessor.GetSimpleWorldResolvedSource(), EKawaiiPhysicsSimpleWorldCollisionSource::Local);
+	TestFalse(TEXT("Auto Local is not reader mode"), Accessor.IsSimpleWorldReaderMode());
+
+	FKawaiiPhysicsSharedPublisherState State = MakeSimpleWorldReaderState(false);
+	SharedEntry->SetDesc(ProviderID, State.SimpleWorldDesc, GFrameCounter,
+	                     TWeakObjectPtr<const USkeletalMeshComponent>(), true);
+
+	const int32 AutoResolveInterval = FMath::Max(1, GetKawaiiPhysicsSharedPublisherAutoResolveInterval());
+	for (int32 FrameIndex = 0; FrameIndex < AutoResolveInterval + 1; ++FrameIndex)
+	{
+		Accessor.InitializeSimpleWorldCollision();
+		Accessor.UpdateSimpleWorldCollisionLimits(PoseContext);
+	}
+
+	TestEqual(TEXT("Auto switches to Shared when provider appears"),
+	          Accessor.GetSimpleWorldResolvedSource(), EKawaiiPhysicsSimpleWorldCollisionSource::Shared);
+	TestTrue(TEXT("Auto Shared uses reader mode"), Accessor.IsSimpleWorldReaderMode());
+
+	SharedEntry->RemoveDesc(ProviderID);
+	Accessor.InitializeSimpleWorldCollision();
+	Accessor.UpdateSimpleWorldCollisionLimits(PoseContext);
+	Accessor.InitializeSimpleWorldCollision();
+	Accessor.UpdateSimpleWorldCollisionLimits(PoseContext);
+
+	TestEqual(TEXT("Auto falls back to Local when provider disappears"),
+	          Accessor.GetSimpleWorldResolvedSource(), EKawaiiPhysicsSimpleWorldCollisionSource::Local);
+	TestFalse(TEXT("Auto fallback leaves reader mode"), Accessor.IsSimpleWorldReaderMode());
+	TestFalse(TEXT("Auto fallback does not log a reader warning"), Accessor.IsSimpleWorldReaderWarningLogged());
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldSharedSourceUsesReaderKeyTest,
+                                 "KawaiiPhysics.SimpleWorld.SharedSourceUsesReaderKey",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldSharedSourceUsesReaderKeyTest::RunTest(const FString& Parameters)
+{
+	constexpr uint64 ProviderID = 0xFFFF1003;
+	USkeletalMeshComponent* SkelComp =
+		NewObject<USkeletalMeshComponent>(GetTransientPackage(), NAME_None, RF_Transient);
+	const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> LocalEntry =
+		MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
+	const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> SharedEntry =
+		MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
+
+	FKawaiiPhysicsSharedPublisherState State = MakeSimpleWorldReaderState(false);
+	SharedEntry->SetDesc(ProviderID, State.SimpleWorldDesc, GFrameCounter,
+	                     TWeakObjectPtr<const USkeletalMeshComponent>(), true);
+
+	FKawaiiPhysicsTestAccessor Accessor;
+	Accessor.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+	Accessor.SetSimpleWorldOwnSkelComp(SkelComp);
+	Accessor.SetSimpleWorldCollisionSharedTag(TAG_KawaiiPhysicsSimpleWorldRegistryY);
+	Accessor.SetSimpleWorldLocalEntryForAuto(LocalEntry);
+	Accessor.SetSimpleWorldSharedEntryForAuto(SharedEntry);
+	Accessor.SetSimpleWorldCollisionSource(EKawaiiPhysicsSimpleWorldCollisionSource::Shared);
+
+	FAnimInstanceProxy AnimInstanceProxy;
+	FComponentSpacePoseContext PoseContext(&AnimInstanceProxy);
+
+	Accessor.InitializeSimpleWorldCollision();
+	Accessor.UpdateSimpleWorldCollisionLimits(PoseContext);
+	TestTrue(TEXT("Shared source uses reader mode"), Accessor.IsSimpleWorldReaderMode());
+	TestTrue(TEXT("Shared reader key is a shared key"), Accessor.GetSimpleWorldReaderKey().Tag.IsValid());
+	TestTrue(TEXT("Shared reader key keeps the configured tag"),
+	         Accessor.GetSimpleWorldReaderKey().Tag == TAG_KawaiiPhysicsSimpleWorldRegistryY);
+
+	Accessor.SetSimpleWorldCollisionSource(EKawaiiPhysicsSimpleWorldCollisionSource::Local);
+	Accessor.InitializeSimpleWorldCollision();
+	Accessor.UpdateSimpleWorldCollisionLimits(PoseContext);
+	TestFalse(TEXT("Local source returns to provider mode"), Accessor.IsSimpleWorldReaderMode());
+	TestEqual(TEXT("Resolved source returns to Local"),
+	          Accessor.GetSimpleWorldResolvedSource(), EKawaiiPhysicsSimpleWorldCollisionSource::Local);
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldLocalProviderKeepsSkelCompAfterExpiryTest,
                                  "KawaiiPhysics.SimpleWorld.LocalProviderKeepsSkelCompAfterExpiry",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

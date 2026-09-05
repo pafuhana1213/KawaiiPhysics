@@ -182,6 +182,8 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionEntry
 	void RemoveDesc(uint64 SourceID);
 
 	bool MarkRead(uint64 SourceID);
+	// provider の heartbeat。CurrentFrame を明示する版（Publisher など呼び出し側がフレームを持つ場合）/ Provider heartbeat with an explicit frame (for callers such as the Publisher that already hold the frame)
+	bool MarkRead(uint64 SourceID, uint64 CurrentFrame);
 	void AddReaderMember(uint64 SourceID, const TWeakObjectPtr<const USkeletalMeshComponent>& SkelComp,
 	                     uint64 CurrentFrame);
 	void RemoveReaderMember(uint64 SourceID);
@@ -457,6 +459,76 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionDebugInfo
 	int32 NumMemberSlots = 0;
 };
 
+USTRUCT(BlueprintType)
+struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedPublisherDebugInfo
+{
+	GENERATED_BODY()
+
+	// Shared Publisher Entry が存在したか / Whether a Shared Publisher entry exists
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Shared Publisher")
+	bool bFound = false;
+
+	// Provider Entry が存在し期限切れではないか / Whether the provider entry exists and has not expired
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Shared Publisher")
+	bool bProviderAlive = false;
+
+	// Shared Publisher の Group Tag / Shared Publisher group tag
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Shared Publisher")
+	FGameplayTag GroupTag;
+
+	// Actor ファミリー root の名前 / Actor family root name
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Shared Publisher")
+	FString FamilyRootName;
+
+	// Publish ごとの単調カウンタ / Monotonic counter incremented on every publish
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Shared Publisher")
+	int64 PublishSerial = 0;
+
+	// 最後に publish されたフレーム / Last published frame
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Shared Publisher")
+	int64 LastPublishFrame = 0;
+
+	// Provider の実効 Enabled / Provider effective Enabled
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Shared Publisher")
+	bool bEnabled = false;
+
+	// Simple World Collision が有効か / Whether Simple World Collision is enabled
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Shared Publisher")
+	bool bSimpleWorldEnabled = false;
+
+	// Simple World Collision の収集スコープ / Simple World Collision gather scope
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Shared Publisher")
+	EKawaiiPhysicsSimpleWorldGatherScope GatherScope = EKawaiiPhysicsSimpleWorldGatherScope::ActorFamily;
+
+	// ファミリーメンバー形状を収集するか / Whether family-member shapes are gathered
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Shared Publisher")
+	bool bGatherFamilyMembers = false;
+
+	// SimpleWorld Entry の reader 数 / Number of readers in the SimpleWorld entry
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Shared Publisher")
+	int32 NumReaders = 0;
+
+	// SimpleWorld Entry の収集済みコンポーネント数 / Number of gathered components in the SimpleWorld entry
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Shared Publisher")
+	int32 NumGatheredComponents = 0;
+
+	// ファミリーメンバー Slot 数 / Number of family-member slots
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Shared Publisher")
+	int32 NumMemberSlots = 0;
+
+	// 共有 Wind が有効か / Whether shared Wind is enabled
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Shared Publisher")
+	bool bWindEnabled = false;
+
+	// 共有 Wind の Time / Shared Wind time
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Shared Publisher")
+	float WindTime = 0.0f;
+
+	// 共有 Wind の TimeScale / Shared Wind time scale
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Shared Publisher")
+	float WindTimeScale = 1.0f;
+};
+
 /**
  * KawaiiPhysics AnimNode間でコリジョンデータを共有するためのWorldSubsystem
  * WorldSubsystem for sharing collision data between KawaiiPhysics AnimNodes in an attached actor family
@@ -519,7 +591,10 @@ public:
 
 	/**
 	 * Shared Publisher用: Actorのファミリーrootの Entry を検索、なければ作成する。
+	 * 既存 Entry が MarkExpired 済みの場合は Tick の Cleanup を待たずに新しい Entry へ置き換えるため、返る Entry は常に publish 可能。
 	 * For Shared Publisher: Find or create an entry for the actor family root.
+	 * An existing entry that has been marked expired is replaced with a fresh one without waiting for the Tick cleanup,
+	 * so the returned entry can always accept a publish.
 	 */
 	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> FindOrCreateSharedPublisherEntry(
 		AActor* Actor,
@@ -527,7 +602,10 @@ public:
 
 	/**
 	 * Shared Publisher用: Actorのファミリーrootの Entry を検索する。Entry が無ければ null。
+	 * 検索のみなので MarkExpired 済みの Entry も返る。呼び出し側で IsExpired / IsMarkedExpired を確認すること。
 	 * For Shared Publisher: Find an entry for the actor family root. Returns null when no entry exists.
+	 * This is a pure lookup, so an entry that has been marked expired is returned as-is; callers must check
+	 * IsExpired / IsMarkedExpired.
 	 */
 	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> FindSharedPublisherEntry(
 		AActor* Actor,
@@ -569,6 +647,15 @@ public:
 	                                        FKawaiiPhysicsSimpleWorldCollisionDebugInfo& OutInfo) const;
 	bool BuildSimpleWorldCollisionDebugInfo(const FKawaiiPhysicsSimpleWorldRegistryKey& Key,
 	                                        FKawaiiPhysicsSimpleWorldCollisionDebugInfo& OutInfo) const;
+
+	/**
+	 * Shared Publisher の診断情報を取得する。Entry が無ければ false（OutInfo は既定値＋bFound=false）。
+	 * GameThread 専用。Shipping では常に false。
+	 * Get Shared Publisher diagnostics. Returns false when no entry exists (OutInfo is reset with bFound=false).
+	 * GameThread only. Always false in Shipping builds.
+	 */
+	bool BuildSharedPublisherDebugInfo(AActor* Actor, const FGameplayTag& Tag,
+	                                   FKawaiiPhysicsSharedPublisherDebugInfo& OutInfo) const;
 
 	// USubsystem interface
 	virtual void Deinitialize() override;
@@ -660,6 +747,7 @@ private:
 	 *  Do not hold it with RegistryLock/SlotsLock/SimpleWorldRegistryLock. */
 	TMap<FRegistryKey, TSharedPtr<FKawaiiPhysicsSharedPublisherEntry>> SharedPublisherRegistry;
 	mutable FRWLock SharedPublisherRegistryLock;
+	TMap<FRegistryKey, uint64> SharedPublisherPreviousPublishSerials;
 
 	/** クリーンアップ間隔制御 / Cleanup interval control */
 	float CleanupAccumulator = 0.0f;

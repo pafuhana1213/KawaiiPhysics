@@ -21,6 +21,7 @@
 #include "KawaiiPhysicsWindPresetDataAsset.h"
 #include "UObject/ScriptInterface.h"
 #include "UObject/UObjectIterator.h"
+#include "AnimNode_KawaiiPhysicsInternal.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(KawaiiPhysicsLibrary)
 
@@ -66,11 +67,14 @@ namespace
 	// Desc差分検知で毎フレーム自動追従するため対象外。
 	// World CollisionのbOverrideCollisionParams / CollisionChannelSettings（のObjectType）も
 	// 同じDesc差分検知でコリジョンチャンネルへ追従するため対象外。
+	// Source / SharedTag はキー種別が変わるため Desc 差分では追従できず、Entry の取り直しが必要。
 	// 有効/無効の切り替えのみEntryの取得・解放が必要なため対象に含める。
 	const TSet<FName>& GetNodeSimpleWorldCollisionReinitPropertyNames()
 	{
 		static const TSet<FName> Names = {
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, bUseSimpleWorldCollision),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, SimpleWorldCollisionSource),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, SimpleWorldCollisionSharedTag),
 		};
 		return Names;
 	}
@@ -471,6 +475,13 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::ConvertToKawaiiPhysics(const FAni
 	return FAnimNodeReference::ConvertToType<FKawaiiPhysicsReference>(Node, Result);
 }
 
+FKawaiiPhysicsSharedPublisherReference UKawaiiPhysicsLibrary::ConvertToKawaiiPhysicsSharedPublisher(
+	const FAnimNodeReference& Node,
+	EAnimNodeReferenceConversionResult& Result)
+{
+	return FAnimNodeReference::ConvertToType<FKawaiiPhysicsSharedPublisherReference>(Node, Result);
+}
+
 bool UKawaiiPhysicsLibrary::CollectKawaiiPhysicsNodes(TArray<FKawaiiPhysicsReference>& Nodes,
                                                       UAnimInstance* AnimInstance,
                                                       const FGameplayTagContainer& FilterTags, bool bFilterExactMatch)
@@ -548,6 +559,89 @@ bool UKawaiiPhysicsLibrary::CollectKawaiiPhysicsNodes(TArray<FKawaiiPhysicsRefer
 	return NodeNum != Nodes.Num();
 }
 
+TArray<FKawaiiPhysicsSharedPublisherReference>
+UKawaiiPhysicsLibrary::CollectKawaiiPhysicsSharedPublisherNodes(
+	UAnimInstance* AnimInstance,
+	const FGameplayTagContainer& FilterTags,
+	bool bFilterExactMatch)
+{
+	TArray<FKawaiiPhysicsSharedPublisherReference> Nodes;
+	if (!ensure(AnimInstance && AnimInstance->GetClass()))
+	{
+		return Nodes;
+	}
+
+	if (const IAnimClassInterface* AnimClassInterface =
+		IAnimClassInterface::GetFromClass(AnimInstance->GetClass()))
+	{
+		const TArray<FStructProperty*>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
+		for (int32 Index = 0; Index < AnimNodeProperties.Num(); ++Index)
+		{
+			const FStructProperty* AnimNodeProperty = AnimNodeProperties[Index];
+			if (!AnimNodeProperty || !AnimNodeProperty->Struct
+				|| !AnimNodeProperty->Struct->IsChildOf(
+					FKawaiiPhysicsSharedPublisherReference::FInternalNodeType::StaticStruct()))
+			{
+				continue;
+			}
+
+			EAnimNodeReferenceConversionResult Result;
+			FKawaiiPhysicsSharedPublisherReference PublisherReference =
+				ConvertToKawaiiPhysicsSharedPublisher(FAnimNodeReference(AnimInstance, Index), Result);
+			if (Result != EAnimNodeReferenceConversionResult::Succeeded)
+			{
+				continue;
+			}
+
+			const FGameplayTag Tag =
+				PublisherReference.GetAnimNode<FAnimNode_KawaiiPhysicsSharedPublisher>().SharedGroupTag;
+			const bool bMatches = FilterTags.IsEmpty()
+				|| (bFilterExactMatch ? FilterTags.HasTagExact(Tag) : FilterTags.HasTag(Tag));
+			if (bMatches)
+			{
+				Nodes.Add(PublisherReference);
+			}
+		}
+	}
+
+	return Nodes;
+}
+
+TArray<FKawaiiPhysicsSharedPublisherReference>
+UKawaiiPhysicsLibrary::CollectKawaiiPhysicsSharedPublisherNodesOnComponent(
+	USkeletalMeshComponent* MeshComp,
+	const FGameplayTagContainer& FilterTags,
+	bool bFilterExactMatch)
+{
+	TArray<FKawaiiPhysicsSharedPublisherReference> Nodes;
+	if (!ensure(MeshComp))
+	{
+		return Nodes;
+	}
+
+	if (UAnimInstance* AnimInstance = MeshComp->GetAnimInstance())
+	{
+		Nodes.Append(CollectKawaiiPhysicsSharedPublisherNodes(AnimInstance, FilterTags, bFilterExactMatch));
+	}
+
+	const TArray<UAnimInstance*>& LinkedInstances =
+		const_cast<const USkeletalMeshComponent*>(MeshComp)->GetLinkedAnimInstances();
+	for (UAnimInstance* LinkedInstance : LinkedInstances)
+	{
+		if (LinkedInstance)
+		{
+			Nodes.Append(CollectKawaiiPhysicsSharedPublisherNodes(LinkedInstance, FilterTags, bFilterExactMatch));
+		}
+	}
+
+	if (UAnimInstance* PostProcessAnimInstance = MeshComp->GetPostProcessInstance())
+	{
+		Nodes.Append(CollectKawaiiPhysicsSharedPublisherNodes(PostProcessAnimInstance, FilterTags, bFilterExactMatch));
+	}
+
+	return Nodes;
+}
+
 bool UKawaiiPhysicsLibrary::CollectKawaiiPhysicsNodesFromAnimInstance(TArray<FKawaiiPhysicsReference>& Nodes,
                                                                       UAnimInstance* AnimInstance,
                                                                       const FGameplayTagContainer& FilterTags,
@@ -588,6 +682,124 @@ bool UKawaiiPhysicsLibrary::GetSimpleWorldCollisionDebugInfo(
 	}
 
 	return Subsystem->BuildSimpleWorldCollisionDebugInfo(SkelComp, OutInfo);
+}
+
+bool UKawaiiPhysicsLibrary::SetSharedPublisherEnabled(
+	AActor* Actor,
+	FGameplayTag SharedGroupTag,
+	bool bEnabled)
+{
+	if (!IsInGameThread() || !Actor || !SharedGroupTag.IsValid())
+	{
+		return false;
+	}
+
+	UWorld* World = Actor->GetWorld();
+	UKawaiiPhysicsSharedCollisionSubsystem* Subsystem =
+		World ? World->GetSubsystem<UKawaiiPhysicsSharedCollisionSubsystem>() : nullptr;
+	if (!Subsystem)
+	{
+		return false;
+	}
+
+	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry =
+		Subsystem->FindSharedPublisherEntry(Actor, SharedGroupTag);
+	const uint64 MaxAgeFrames = static_cast<uint64>(
+		FMath::Max(0, GetKawaiiPhysicsSharedPublisherReaderReleaseMaxAge()));
+	if (!Entry.IsValid() || Entry->IsExpired(GFrameCounter, MaxAgeFrames))
+	{
+		return false;
+	}
+
+	Entry->RequestPublisherEnabled(bEnabled);
+	return true;
+}
+
+bool UKawaiiPhysicsLibrary::SetSimpleWorldCollisionSettingsOnSharedPublisher(
+	AActor* Actor,
+	FGameplayTag SharedGroupTag,
+	const FKawaiiPhysicsSimpleWorldCollisionSettings& Settings)
+{
+	if (!IsInGameThread() || !Actor || !SharedGroupTag.IsValid())
+	{
+		return false;
+	}
+
+	UWorld* World = Actor->GetWorld();
+	UKawaiiPhysicsSharedCollisionSubsystem* Subsystem =
+		World ? World->GetSubsystem<UKawaiiPhysicsSharedCollisionSubsystem>() : nullptr;
+	if (!Subsystem)
+	{
+		return false;
+	}
+
+	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry =
+		Subsystem->FindSharedPublisherEntry(Actor, SharedGroupTag);
+	const uint64 MaxAgeFrames = static_cast<uint64>(
+		FMath::Max(0, GetKawaiiPhysicsSharedPublisherReaderReleaseMaxAge()));
+	if (!Entry.IsValid() || Entry->IsExpired(GFrameCounter, MaxAgeFrames))
+	{
+		return false;
+	}
+
+	Entry->RequestSimpleWorldSettings(Settings);
+	return true;
+}
+
+bool UKawaiiPhysicsLibrary::GetSimpleWorldCollisionSettingsOnSharedPublisher(
+	AActor* Actor,
+	FGameplayTag SharedGroupTag,
+	FKawaiiPhysicsSimpleWorldCollisionSettings& OutSettings)
+{
+	OutSettings = FKawaiiPhysicsSimpleWorldCollisionSettings();
+	if (!IsInGameThread() || !Actor || !SharedGroupTag.IsValid())
+	{
+		return false;
+	}
+
+	UWorld* World = Actor->GetWorld();
+	UKawaiiPhysicsSharedCollisionSubsystem* Subsystem =
+		World ? World->GetSubsystem<UKawaiiPhysicsSharedCollisionSubsystem>() : nullptr;
+	if (!Subsystem)
+	{
+		return false;
+	}
+
+	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry =
+		Subsystem->FindSharedPublisherEntry(Actor, SharedGroupTag);
+	const uint64 MaxAgeFrames = static_cast<uint64>(
+		FMath::Max(0, GetKawaiiPhysicsSharedPublisherReaderReleaseMaxAge()));
+	if (!Entry.IsValid() || Entry->IsExpired(GFrameCounter, MaxAgeFrames))
+	{
+		return false;
+	}
+
+	FKawaiiPhysicsSharedPublisherState State;
+	Entry->ReadState(State);
+	OutSettings = State.SimpleWorldSettings;
+	return true;
+}
+
+bool UKawaiiPhysicsLibrary::GetSharedPublisherDebugInfo(
+	AActor* Actor,
+	FGameplayTag SharedGroupTag,
+	FKawaiiPhysicsSharedPublisherDebugInfo& OutInfo)
+{
+	OutInfo = FKawaiiPhysicsSharedPublisherDebugInfo();
+	if (!IsInGameThread() || !Actor || !SharedGroupTag.IsValid())
+	{
+		return false;
+	}
+
+	UWorld* World = Actor->GetWorld();
+	UKawaiiPhysicsSharedCollisionSubsystem* Subsystem =
+		World ? World->GetSubsystem<UKawaiiPhysicsSharedCollisionSubsystem>() : nullptr;
+	if (!Subsystem)
+	{
+		return false;
+	}
+
+	return Subsystem->BuildSharedPublisherDebugInfo(Actor, SharedGroupTag, OutInfo);
 }
 
 int32 UKawaiiPhysicsLibrary::GetSimpleWorldColliderCountOnComponent(

@@ -62,6 +62,9 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("KawaiiPhysics_NumWorldCollisionChecks"),
 // ModifyBones / MergedBoneConstraints のアロケーション量（subdivision/bridge dummyによる膨張の可視化） / Allocated size of ModifyBones / MergedBoneConstraints (visualize growth from subdivision/bridge dummies)
 DECLARE_MEMORY_STAT_EXTERN(TEXT("KawaiiPhysics_ModifyBonesMemory"), STAT_KawaiiPhysics_ModifyBonesMemory, STATGROUP_Anim, KAWAIIPHYSICS_API);
 
+KAWAIIPHYSICS_API int32 GetKawaiiPhysicsSharedPublisherReaderReleaseMaxAge();
+KAWAIIPHYSICS_API int32 GetKawaiiPhysicsSharedPublisherAutoResolveInterval();
+
 namespace KawaiiPhysicsSimpleWorldReadPath
 {
 	// 共有コリジョンデータをシミュレーション空間配列へ追加する / Appends shared collision data to simulation-space arrays

@@ -2,6 +2,8 @@
 
 #include "AnimGraphNode_KawaiiPhysics.h"
 
+#include "AnimGraphNode_KawaiiPhysicsSharedPublisher.h"
+#include "KawaiiPhysicsLibrary.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "AssetToolsModule.h"
 #include "Animation/AnimBlueprint.h"
@@ -35,7 +37,9 @@
 #include "Dialogs/DlgPickAssetPath.h"
 #include "EdGraph/EdGraphNode.h"
 #include "Kismet2/CompilerResultsLog.h"
+#include "Kismet2/KismetEditorUtilities.h"
 #include "Misc/ConfigCacheIni.h"
+#include "PropertyHandle.h"
 #include "ToolMenu.h"
 #include "ToolMenuSection.h"
 #include "Widgets/Input/SSegmentedControl.h"
@@ -150,6 +154,36 @@ namespace
 		{
 			NotificationItem->SetCompletionState(CompletionState);
 		}
+	}
+
+	bool IsAnimNodePropertyDifferent(const FAnimNode_KawaiiPhysics& Left,
+	                                 const FAnimNode_KawaiiPhysics& Right,
+	                                 const FName PropertyName)
+	{
+		const FProperty* Property = FindFProperty<FProperty>(FAnimNode_KawaiiPhysics::StaticStruct(), PropertyName);
+		return Property && !Property->Identical_InContainer(&Left, &Right);
+	}
+
+	void FocusKawaiiPhysicsGraphNode(UEdGraphNode* GraphNode)
+	{
+		if (!GraphNode)
+		{
+			return;
+		}
+
+		FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(GraphNode);
+		if (UEdGraph* Graph = GraphNode->GetGraph())
+		{
+			TSet<const UEdGraphNode*> NodesToSelect;
+			NodesToSelect.Add(GraphNode);
+			Graph->SelectNodeSet(NodesToSelect, true);
+		}
+	}
+
+	bool IsUsingSharedSimpleWorldCollisionPublisher(const FAnimNode_KawaiiPhysics& Node)
+	{
+		return Node.bUseSimpleWorldCollision &&
+			Node.SimpleWorldCollisionSource != EKawaiiPhysicsSimpleWorldCollisionSource::Local;
 	}
 
 	FString JoinPropertyNames(const TArray<FName>& PropertyNames)
@@ -462,11 +496,20 @@ void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* Ani
 	KawaiiPhysics->SharedCollisionGroupTag = Node.SharedCollisionGroupTag;
 
 	// シンプルワールドコリジョン
-	// 有効/無効フラグのみ切り替え時に明示リセットする。他の7項目はUpdateSimpleWorldCollisionLimits内のDesc差分検知が
-	// 毎フレーム自動で拾って再送するため不要（Reinitは警告済みフラグ等の即時クリアが目的）
-	if (KawaiiPhysics->bUseSimpleWorldCollision != Node.bUseSimpleWorldCollision)
+	const FName SimpleWorldCollisionPreviewProperties[] =
 	{
-		KawaiiPhysics->RequestSimpleWorldCollisionReinit();
+		GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, bUseSimpleWorldCollision),
+		GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, SimpleWorldCollisionSource),
+		GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, SimpleWorldCollisionSharedTag),
+	};
+	for (const FName PropertyName : SimpleWorldCollisionPreviewProperties)
+	{
+		if (UKawaiiPhysicsLibrary::DoesNodePropertyRequireSimpleWorldCollisionReinit(PropertyName) &&
+			IsAnimNodePropertyDifferent(*KawaiiPhysics, Node, PropertyName))
+		{
+			KawaiiPhysics->RequestSimpleWorldCollisionReinit();
+			break;
+		}
 	}
 	KawaiiPhysics->bUseSimpleWorldCollision = Node.bUseSimpleWorldCollision;
 	KawaiiPhysics->SimpleWorldCollisionGatherInterval = Node.SimpleWorldCollisionGatherInterval;
@@ -476,6 +519,8 @@ void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* Ani
 	KawaiiPhysics->SimpleWorldCollisionGatherRadius = Node.SimpleWorldCollisionGatherRadius;
 	KawaiiPhysics->bSimpleWorldCollisionGroundCollision = Node.bSimpleWorldCollisionGroundCollision;
 	KawaiiPhysics->SimpleWorldCollisionSkeletalMeshCollision = Node.SimpleWorldCollisionSkeletalMeshCollision;
+	KawaiiPhysics->SimpleWorldCollisionSource = Node.SimpleWorldCollisionSource;
+	KawaiiPhysics->SimpleWorldCollisionSharedTag = Node.SimpleWorldCollisionSharedTag;
 
 	// ExternalForce
 	KawaiiPhysics->Gravity = Node.Gravity;
@@ -839,6 +884,88 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 
 	CustomizeDetailTools(DetailBuilder);
 	CustomizeDetailDebugVisualizations(DetailBuilder);
+
+	IDetailLayoutBuilder* LayoutBuilder = &DetailBuilder;
+	TSharedRef<IPropertyHandle> NodeHandle = DetailBuilder.GetProperty(
+		GET_MEMBER_NAME_CHECKED(UAnimGraphNode_KawaiiPhysics, Node),
+		UAnimGraphNode_KawaiiPhysics::StaticClass());
+	const FSimpleDelegate RefreshDetailsDelegate = FSimpleDelegate::CreateLambda([LayoutBuilder]()
+	{
+		if (LayoutBuilder)
+		{
+			LayoutBuilder->ForceRefreshDetails();
+		}
+	});
+	if (TSharedPtr<IPropertyHandle> UseSimpleWorldHandle =
+		NodeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, bUseSimpleWorldCollision)))
+	{
+		UseSimpleWorldHandle->SetOnPropertyValueChanged(RefreshDetailsDelegate);
+	}
+	if (TSharedPtr<IPropertyHandle> SimpleWorldSourceHandle =
+		NodeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, SimpleWorldCollisionSource)))
+	{
+		SimpleWorldSourceHandle->SetOnPropertyValueChanged(RefreshDetailsDelegate);
+	}
+
+	if (IsUsingSharedSimpleWorldCollisionPublisher(Node))
+	{
+		IDetailCategoryBuilder& SimpleWorldCategory = DetailBuilder.EditCategory(
+			KawaiiPhysicsEditorCategoryNames::CollisionSimpleWorldCollision);
+		const FText SharedPublisherInfoText =
+			Node.SimpleWorldCollisionSource == EKawaiiPhysicsSimpleWorldCollisionSource::Auto
+				? FText::Format(
+					LOCTEXT("SimpleWorldCollisionAutoSharedPublisherInfo",
+					        "Gather settings are provided by Shared Publisher ({0}) when a Shared Publisher exists; otherwise this node gathers locally"),
+					FText::FromString(Node.SimpleWorldCollisionSharedTag.ToString()))
+				: FText::Format(
+					LOCTEXT("SimpleWorldCollisionSharedPublisherInfo",
+					        "Gather settings are provided by Shared Publisher ({0})"),
+					FText::FromString(Node.SimpleWorldCollisionSharedTag.ToString()));
+
+		SimpleWorldCategory.AddCustomRow(LOCTEXT("GoToSharedPublisher", "Go to Publisher"))
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Text(SharedPublisherInfoText)
+			.Font(DetailBuilder.GetDetailFont())
+		]
+		.ValueContent()
+		[
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.ToolTipText(LOCTEXT("GoToSharedPublisherTooltip",
+			                     "Opens the Shared Publisher with the same Shared Tag in this Animation Blueprint."))
+			.OnClicked_Lambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics>(this)]()
+			{
+				if (UAnimGraphNode_KawaiiPhysics* GraphNode = WeakThis.Get())
+				{
+					UAnimGraphNode_KawaiiPhysicsSharedPublisher* Publisher =
+						KawaiiPhysicsEdUtils::FindSharedPublisherGraphNodeByTag(
+							GraphNode->GetAnimBlueprint(),
+							GraphNode->Node.SimpleWorldCollisionSharedTag);
+					if (Publisher)
+					{
+						FocusKawaiiPhysicsGraphNode(Publisher);
+					}
+					else
+					{
+						ShowKawaiiPhysicsNotification(
+							LOCTEXT("SharedPublisherNotFoundNotification",
+							        "Not found in this Animation Blueprint (it may live in another Animation Blueprint)"),
+							SNotificationItem::CS_Fail);
+					}
+				}
+				return FReply::Handled();
+			})
+			.Content()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("GoToSharedPublisher", "Go to Publisher"))
+				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+			]
+		];
+	}
 
 	// External Forceカテゴリに Wind Scope ボタン（波形プレビュータブを開く）を追加
 	IDetailCategoryBuilder& ExternalForceCategory = DetailBuilder.EditCategory(
@@ -1360,6 +1487,37 @@ void UAnimGraphNode_KawaiiPhysics::GetNodeContextMenuActions(UToolMenu* Menu, UG
 		        "Applies a preset data asset to this node."),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateUObject(MutableThis, &UAnimGraphNode_KawaiiPhysics::ApplyPresetDataAsset)));
+
+	if (IsUsingSharedSimpleWorldCollisionPublisher(Node))
+	{
+		Section.AddMenuEntry(
+			"KawaiiPhysicsGoToSharedPublisher",
+			LOCTEXT("GoToSharedPublisherMenuLabel", "Go to Shared Publisher"),
+			LOCTEXT("GoToSharedPublisherMenuToolTip",
+			        "Opens the Shared Publisher with the same Shared Tag in this Animation Blueprint."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateLambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics>(MutableThis)]()
+			{
+				if (UAnimGraphNode_KawaiiPhysics* GraphNode = WeakThis.Get())
+				{
+					UAnimGraphNode_KawaiiPhysicsSharedPublisher* Publisher =
+						KawaiiPhysicsEdUtils::FindSharedPublisherGraphNodeByTag(
+							GraphNode->GetAnimBlueprint(),
+							GraphNode->Node.SimpleWorldCollisionSharedTag);
+					if (Publisher)
+					{
+						FocusKawaiiPhysicsGraphNode(Publisher);
+					}
+					else
+					{
+						ShowKawaiiPhysicsNotification(
+							LOCTEXT("SharedPublisherNotFoundContextNotification",
+							        "Not found in this Animation Blueprint (it may live in another Animation Blueprint)"),
+							SNotificationItem::CS_Fail);
+					}
+				}
+			})));
+	}
 
 	TArray<int32> ProceduralWindExternalForceIndices;
 	for (int32 Index = 0; Index < Node.ExternalForces.Num(); ++Index)
