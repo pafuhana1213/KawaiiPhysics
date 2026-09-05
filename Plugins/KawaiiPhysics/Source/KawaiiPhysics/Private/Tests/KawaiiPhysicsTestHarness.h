@@ -8,6 +8,8 @@
 #include "AnimNode_KawaiiPhysics.h"
 #include "KawaiiPhysicsTypes.h"
 #include "KawaiiPhysicsCollisionLimits.h"
+#include "KawaiiPhysicsSharedPublisherTypes.h"
+#include "UObject/Package.h"
 
 /**
  * 自動テスト用アクセサ
@@ -193,6 +195,94 @@ struct FKawaiiPhysicsTestAccessor
 		Node.bSimpleWorldDescSent = false;
 	}
 
+	void InjectSharedPublisherState(const FKawaiiPhysicsSharedPublisherState& State,
+	                                const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>& Entry,
+	                                uint64 ProviderID = 0xFFFF0001)
+	{
+		if (Entry.IsValid())
+		{
+			Entry->SetDesc(ProviderID, State.SimpleWorldDesc, GFrameCounter,
+			               TWeakObjectPtr<const USkeletalMeshComponent>(), true);
+		}
+
+		FKawaiiPhysicsSimpleWorldRegistryKey Key;
+		Key.KeyObject = GetTransientPackage();
+		Node.CachedSimpleWorldEntry.Reset();
+		Node.SetSimpleWorldReaderKey(Key);
+		Node.CachedSimpleWorldEntry = Entry;
+		Node.bUseSimpleWorldCollision = true;
+		Node.bSimpleWorldCollisionInitialized = Entry.IsValid();
+		Node.bSimpleWorldDescSent = false;
+
+		if (Entry.IsValid())
+		{
+			Entry->AddReaderMember(
+				reinterpret_cast<uint64>(&Node),
+				Node.CachedSimpleWorldCollisionSkelComp,
+				GFrameCounter);
+		}
+	}
+
+	void SetSimpleWorldOwnSkelComp(const USkeletalMeshComponent* SkelComp)
+	{
+		Node.CachedSimpleWorldCollisionSkelComp = SkelComp;
+	}
+
+	bool IsSimpleWorldReaderMode() const
+	{
+		return Node.bSimpleWorldReaderMode;
+	}
+
+	int32 GetSimpleWorldReaderRetryCount() const
+	{
+		return Node.SimpleWorldReaderRetryCount;
+	}
+
+	bool IsSimpleWorldReaderWarningLogged() const
+	{
+		return Node.bSimpleWorldReaderWarningLogged;
+	}
+
+	uint64 GetLastReadSimpleWorldMemberSerialSum() const
+	{
+		return Node.LastReadSimpleWorldMemberSerialSum;
+	}
+
+	const TArray<FSphericalLimit>& GetSimpleWorldSphericalLimits() const
+	{
+		return Node.SimpleWorldSphericalLimits;
+	}
+
+	const TArray<FCapsuleLimit>& GetSimpleWorldCapsuleLimits() const
+	{
+		return Node.SimpleWorldCapsuleLimits;
+	}
+
+	const TArray<FTaperedCapsuleLimit>& GetSimpleWorldTaperedCapsuleLimits() const
+	{
+		return Node.SimpleWorldTaperedCapsuleLimits;
+	}
+
+	const TArray<FBoxLimit>& GetSimpleWorldBoxLimits() const
+	{
+		return Node.SimpleWorldBoxLimits;
+	}
+
+	const TArray<FBoxLimit>& GetSimpleWorldGroundBoxLimits() const
+	{
+		return Node.SimpleWorldGroundBoxLimits;
+	}
+
+	const TArray<FKawaiiPhysicsConvexLimit>& GetSimpleWorldConvexLimits() const
+	{
+		return Node.SimpleWorldConvexLimits;
+	}
+
+	bool HasSimpleWorldEntry() const
+	{
+		return Node.CachedSimpleWorldEntry.IsValid();
+	}
+
 	/**
 	 * SimpleWorld コリジョンのワーカー側読み取り更新を呼び出す。
 	 * Calls the worker-side SimpleWorld collision read update.
@@ -218,6 +308,17 @@ struct FKawaiiPhysicsTestAccessor
 	uint64 GetLastReadSimpleWorldShapeSerial() const
 	{
 		return Node.LastReadSimpleWorldShapeSerial;
+	}
+
+	/** SimpleWorld Desc の地面コリジョン有無を切り替える（Desc 変化を起こすため） */
+	void SetSimpleWorldGroundCollision(bool bEnable)
+	{
+		Node.bSimpleWorldCollisionGroundCollision = bEnable;
+	}
+
+	bool GetSimpleWorldGroundCollision() const
+	{
+		return Node.bSimpleWorldCollisionGroundCollision;
 	}
 
 	void SetSimpleWorldGatherRadiusOverride(float Radius)

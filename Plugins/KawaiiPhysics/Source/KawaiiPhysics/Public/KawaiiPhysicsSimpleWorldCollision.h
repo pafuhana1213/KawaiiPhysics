@@ -44,6 +44,74 @@ enum class EKawaiiPhysicsSimpleWorldSkeletalMeshCollision : uint8
 	PhysicsAsset UMETA(DisplayName = "Physics Asset", ToolTip = "PhysicsAsset の Body をボーン追従で変換します。上限は Max PhysicsAsset Bodies で、PhysicsAsset 無しは Bounding Box 相当、PhysicsAsset があって有効な body が無い場合は収集しません。ポーズは 1 フレーム遅れ得ます。アニメ由来のボーンスケールは形状サイズへ反映しません。 / Transform PhysicsAsset bodies by following bones. Limited by Max PhysicsAsset Bodies; no PhysicsAsset behaves like Bounding Box, and when a PhysicsAsset exists but has no valid body, it is not gathered. Pose data may be one frame late. Bone scale from animation is not applied to shape sizes."),
 };
 
+/**
+ * Simple World Collision の収集中心と半径を決める範囲。SkeletalMeshComponent はそのメッシュの Bounds、ActorFamily は同じ Entry に参加する全メッシュの Bounds の合成を使います。
+ * Scope used to choose the Simple World Collision gather center and radius. SkeletalMeshComponent uses that mesh's Bounds; ActorFamily uses the combined Bounds of all meshes participating in the same Entry.
+ */
+UENUM(BlueprintType)
+enum class EKawaiiPhysicsSimpleWorldGatherScope : uint8
+{
+	/** その SkeletalMeshComponent の Bounds を使います / Use the owning SkeletalMeshComponent Bounds. */
+	SkeletalMeshComponent = 0 UMETA(DisplayName = "Skeletal Mesh Component"),
+	/** 同じ Entry に参加する全メッシュの Bounds 合成を使います / Use the combined Bounds of all meshes participating in the same Entry. */
+	ActorFamily = 1 UMETA(DisplayName = "Actor Family"),
+};
+
+struct FKawaiiPhysicsSimpleWorldCollisionSettings;
+
+/**
+ * シンプルワールドコリジョン収集設定
+ * Simple-world collision gather settings
+ */
+struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionDesc
+{
+	float GatherIntervalSec = 0.2f;
+	float GatherRadiusOverride = 0.0f;
+	// Merge の出力: 全 Desc が GatherRadiusOverride を指定していれば true。ノード側は false のまま / Merge output: true when every Desc specifies GatherRadiusOverride. Node-built Descs leave it false
+	bool bGatherRadiusAllOverridden = false;
+	// ECC_MAX は所有 SkeletalMeshComponent の ObjectType を使う指定 / ECC_MAX means using the owning SkeletalMeshComponent's ObjectType.
+	TEnumAsByte<ECollisionChannel> CollisionChannel = ECC_MAX;
+	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
+	EKawaiiPhysicsSimpleWorldConvexFallbackShape ConvexFallbackShape = EKawaiiPhysicsSimpleWorldConvexFallbackShape::ConvexHull;
+	EKawaiiPhysicsSimpleWorldSkeletalMeshCollision SkeletalMeshCollision = EKawaiiPhysicsSimpleWorldSkeletalMeshCollision::None;
+	bool bGroundCollision = true;
+	EKawaiiPhysicsSimpleWorldGatherScope GatherScope = EKawaiiPhysicsSimpleWorldGatherScope::SkeletalMeshComponent;
+	bool bGatherFamilyMembers = false;
+	bool bProviderDisabled = false;
+
+	/**
+	 * 複数ノードの収集設定を SkelComp 単位の1設定へマージする。
+	 * Merge multiple node gather settings into one SkelComp-level setting.
+	 *
+	 * 規則 / Rules:
+	 * - GatherIntervalSec は最小値。0以下は毎フレーム収集で最優先。
+	 * - GatherIntervalSec uses the minimum value. <= 0 means gather every frame and has highest priority.
+	 * - GatherRadiusOverride は Override 指定の最大値（指定なしは 0）。bGatherRadiusAllOverridden は全 Desc が Override 指定の時だけ true。
+	 * - GatherRadiusOverride is the max of the specified overrides (0 when none). bGatherRadiusAllOverridden is true only when every Desc specifies an override.
+	 * - CollisionChannel は ECC_MAX 以外（World Collision の Override 指定）を持つ Desc のうち、最も早く登録されたノードの値を採用。全て ECC_MAX なら ECC_MAX。
+	 * - CollisionChannel uses the value of the earliest-registered Desc whose value is not ECC_MAX (World Collision override). If all values are ECC_MAX, it stays ECC_MAX.
+	 * - ObjectTypes は union。空配列は WorldStatic + WorldDynamic の意味なので、空 Desc がある場合はそれらを明示的に union へ含める。
+	 * - ObjectTypes are unioned. Empty means WorldStatic + WorldDynamic, so those are explicitly included when any Desc is empty.
+	 * - ConvexFallbackShape は宣言順（高精度が先）の優先。
+	 * - ConvexFallbackShape priority follows declaration order (more accurate first).
+	 * - SkeletalMeshCollision は PhysicsAsset > BoundingBox > None の優先。
+	 * - SkeletalMeshCollision priority is PhysicsAsset > BoundingBox > None.
+	 * - bGroundCollision は OR。
+	 * - bGroundCollision is OR.
+	 * - GatherScope は ActorFamily 優先、bGatherFamilyMembers は OR、bProviderDisabled は AND。
+	 * - GatherScope prefers ActorFamily, bGatherFamilyMembers uses OR, and bProviderDisabled uses AND.
+	 */
+	static FKawaiiPhysicsSimpleWorldCollisionDesc Merge(const TArray<FKawaiiPhysicsSimpleWorldCollisionDesc>& Descs);
+
+	/**
+	 * Desc の変更が収集結果（Overlap 対象・形状変換・地面・半径）に影響するか。GatherIntervalSec だけの変化は false。
+	 * Whether a Desc change affects the gather result (overlap set, shape conversion, ground, radius). Interval-only changes return false.
+	 */
+	static bool DoesChangeRequireRegather(const FKawaiiPhysicsSimpleWorldCollisionDesc& Old, const FKawaiiPhysicsSimpleWorldCollisionDesc& New);
+
+	bool operator==(const FKawaiiPhysicsSimpleWorldCollisionDesc& Other) const;
+};
+
 namespace KawaiiPhysicsSimpleWorldCollision
 {
 	/**
@@ -229,4 +297,19 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		const FTransform& ComponentTM,
 		FKawaiiPhysicsSharedCollisionData& OutWorldLimits,
 		float BoxEnableThreshold = 0.5f);
+
+	/**
+	 * メンバー Bounds 配列を SimpleWorld 収集用 Bounds に合成します。空なら false を返します。
+	 * Combines member Bounds into gather Bounds for SimpleWorld. Returns false for an empty input.
+	 */
+	KAWAIIPHYSICS_API bool ComputeSimpleWorldGatherBounds(
+		TArrayView<const FBoxSphereBounds> MemberBounds,
+		FBoxSphereBounds& OutBounds);
+
+	/**
+	 * Shared Publisher の設定から Simple World Collision Desc を作ります。
+	 * Builds a Simple World Collision Desc from Shared Publisher settings.
+	 */
+	KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionDesc BuildSimpleWorldCollisionDesc(
+		const FKawaiiPhysicsSimpleWorldCollisionSettings& Settings);
 }

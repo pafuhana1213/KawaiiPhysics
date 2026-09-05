@@ -84,9 +84,9 @@ public:
 	float SimpleWorldCollisionDistanceThrottleStop = 10000.f;
 
 	/**
-	* シンプルワールドコリジョンが SkeletalMeshComponent 1つあたりに保持する最大収集コンポーネント数。
+	* シンプルワールドコリジョンが収集グループ（Entry）あたりに保持する最大収集コンポーネント数。Shared Publisher で共有する場合はファミリー全体で 1 グループとして数える。
 	* a.AnimNode.KawaiiPhysics.SimpleWorldCollision.MaxComponents CVar が 0 以上の場合はそちらが優先される。
-	* Maximum number of gathered components Simple World Collision keeps per SkeletalMeshComponent.
+	* Maximum number of gathered components Simple World Collision keeps per gather group (Entry). When shared by a Shared Publisher, the whole family counts as one group.
 	* Overridden by the a.AnimNode.KawaiiPhysics.SimpleWorldCollision.MaxComponents CVar when it is >= 0.
 	*/
 	UPROPERTY(EditAnywhere, config, Category = "Simple World Collision",

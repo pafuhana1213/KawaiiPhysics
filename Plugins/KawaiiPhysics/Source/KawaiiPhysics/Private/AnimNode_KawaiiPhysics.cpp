@@ -150,6 +150,10 @@ TAutoConsoleVariable<int32> CVarSimpleWorldCollisionUseMovementGround(
 	TEXT("a.AnimNode.KawaiiPhysics.SimpleWorldCollision.UseMovementGround"), 1,
 	TEXT("1で所有Actorの地面情報（IKawaiiPhysicsGroundProvider / CharacterMovementComponent）を地面Boxに使う。0で従来の下方向トレースのみ / "
 		"1 uses the owner's ground info (IKawaiiPhysicsGroundProvider / CharacterMovementComponent) for the ground box; 0 uses only the legacy downward trace."));
+TAutoConsoleVariable<int32> CVarSimpleWorldCollisionReaderReleaseMaxAge(
+	TEXT("a.AnimNode.KawaiiPhysics.SharedPublisher.ReaderReleaseMaxAge"), 60,
+	TEXT("共有 Entry の provider が更新を止めてから reader が Entry を解放するまでの猶予フレーム数 / "
+		"Frames a reader keeps a shared entry after its provider stopped updating before releasing it."));
 
 DEFINE_STAT(STAT_KawaiiPhysics_InitModifyBones);
 DEFINE_STAT(STAT_KawaiiPhysics_Eval);
@@ -246,6 +250,9 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 	SimpleWorldConvexLimits.Reset();
 	LastReadSimpleWorldShapeSerial = 0;
 	LastReadSimpleWorldGroundSerial = 0;
+	LastReadSimpleWorldMemberSerialSum = 0;
+	SimpleWorldReaderRetryCount = 0;
+	bSimpleWorldReaderWarningLogged = false;
 	bSimpleWorldRadiusChecked = false;
 	SimpleWorldRadiusCheckDeferrals = 0;
 
@@ -811,14 +818,14 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	// CVarで全体無効化されている間はUpdateを行わず、else側でSimpleWorldXxxLimitsをResetして適用もスキップする
 	if (bUseSimpleWorldCollision && CVarSimpleWorldCollisionEnable.GetValueOnAnyThread())
 	{
-		if (!bSimpleWorldCollisionInitialized)
+		if (!bSimpleWorldCollisionInitialized && !bSimpleWorldReaderMode)
 		{
 			InitializeSimpleWorldCollision();
 		}
-		if (CachedSimpleWorldEntry.IsValid())
+		if (CachedSimpleWorldEntry.IsValid() || bSimpleWorldReaderMode)
 		{
 			UpdateSimpleWorldCollisionLimits(Output);
-			if (TeleportType == ETeleportType::TeleportPhysics)
+			if (TeleportType == ETeleportType::TeleportPhysics && CachedSimpleWorldEntry.IsValid())
 			{
 				CachedSimpleWorldEntry->RequestRegather();
 			}
@@ -838,6 +845,9 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		SimpleWorldConvexLimits.Reset();
 		LastReadSimpleWorldShapeSerial = 0;
 		LastReadSimpleWorldGroundSerial = 0;
+		LastReadSimpleWorldMemberSerialSum = 0;
+		SimpleWorldReaderRetryCount = 0;
+		bSimpleWorldReaderWarningLogged = false;
 	}
 
 	// 入力規模カウンタ & メモリの更新（毎フレーム。負荷=N×L等の相関とダミー膨張の可視化用）

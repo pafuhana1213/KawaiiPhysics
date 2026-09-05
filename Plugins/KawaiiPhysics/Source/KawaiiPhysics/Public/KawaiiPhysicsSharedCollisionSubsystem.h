@@ -23,6 +23,7 @@ class USkeletalMeshComponent;
 class USkinnedAsset;
 class UCharacterMovementComponent;
 class UWorld;
+struct FKawaiiPhysicsSharedPublisherEntry;
 
 // 地面ソースの種類（DebugDraw の色分けにも使う） / Ground source kind (also used for debug draw colors)
 UENUM(BlueprintType)
@@ -118,73 +119,103 @@ private:
 };
 
 /**
- * シンプルワールドコリジョン収集設定
- * Simple-world collision gather settings
+ * SimpleWorld Registry のキー。Local は SkelComp + 無効 Tag、Shared はファミリー root Actor + Tag を使う。
+ * Key for the SimpleWorld registry. Local uses SkelComp + invalid Tag; Shared uses family-root Actor + Tag.
  */
-struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionDesc
+struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldRegistryKey
 {
-	float GatherIntervalSec = 0.2f;
-	float GatherRadiusOverride = 0.0f;
-	// Merge の出力: 全 Desc が GatherRadiusOverride を指定していれば true。ノード側は false のまま / Merge output: true when every Desc specifies GatherRadiusOverride. Node-built Descs leave it false
-	bool bGatherRadiusAllOverridden = false;
-	// ECC_MAX は所有 SkeletalMeshComponent の ObjectType を使う指定 / ECC_MAX means using the owning SkeletalMeshComponent's ObjectType.
-	TEnumAsByte<ECollisionChannel> CollisionChannel = ECC_MAX;
-	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
-	EKawaiiPhysicsSimpleWorldConvexFallbackShape ConvexFallbackShape = EKawaiiPhysicsSimpleWorldConvexFallbackShape::ConvexHull;
-	EKawaiiPhysicsSimpleWorldSkeletalMeshCollision SkeletalMeshCollision = EKawaiiPhysicsSimpleWorldSkeletalMeshCollision::None;
-	bool bGroundCollision = true;
+	TWeakObjectPtr<const UObject> KeyObject;
+	FGameplayTag Tag;
 
 	/**
-	 * 複数ノードの収集設定を SkelComp 単位の1設定へマージする。
-	 * Merge multiple node gather settings into one SkelComp-level setting.
-	 *
-	 * 規則 / Rules:
-	 * - GatherIntervalSec は最小値。0以下は毎フレーム収集で最優先。
-	 * - GatherIntervalSec uses the minimum value. <= 0 means gather every frame and has highest priority.
-	 * - GatherRadiusOverride は Override 指定の最大値（指定なしは 0）。bGatherRadiusAllOverridden は全 Desc が Override 指定の時だけ true。
-	 * - GatherRadiusOverride is the max of the specified overrides (0 when none). bGatherRadiusAllOverridden is true only when every Desc specifies an override.
-	 * - CollisionChannel は ECC_MAX 以外（World Collision の Override 指定）を持つ Desc のうち、最も早く登録されたノードの値を採用。全て ECC_MAX なら ECC_MAX。
-	 * - CollisionChannel uses the value of the earliest-registered Desc whose value is not ECC_MAX (World Collision override). If all values are ECC_MAX, it stays ECC_MAX.
-	 * - ObjectTypes は union。空配列は WorldStatic + WorldDynamic の意味なので、空 Desc がある場合はそれらを明示的に union へ含める。
-	 * - ObjectTypes are unioned. Empty means WorldStatic + WorldDynamic, so those are explicitly included when any Desc is empty.
-	 * - ConvexFallbackShape は宣言順（高精度が先）の優先。
-	 * - ConvexFallbackShape priority follows declaration order (more accurate first).
-	 * - SkeletalMeshCollision は PhysicsAsset > BoundingBox > None の優先。
-	 * - SkeletalMeshCollision priority is PhysicsAsset > BoundingBox > None.
-	 * - bGroundCollision は OR。
-	 * - bGroundCollision is OR.
+	 * Worker から呼ばれる FindOrCreateSimpleWorldEntry / FindSimpleWorldEntry の前段判定に使うため、
+	 * UObject をデリファレンスしないスレッドセーフ判定（bThreadsafeTest=true）で有効性を見る。
+	 * Uses the thread-safe test (bThreadsafeTest=true) so worker-thread callers of
+	 * FindOrCreateSimpleWorldEntry / FindSimpleWorldEntry never dereference the UObject.
 	 */
-	static FKawaiiPhysicsSimpleWorldCollisionDesc Merge(const TArray<FKawaiiPhysicsSimpleWorldCollisionDesc>& Descs);
+	bool IsValid() const { return KeyObject.IsValid(false, true); }
+
+	bool operator==(const FKawaiiPhysicsSimpleWorldRegistryKey& Other) const
+	{
+		return KeyObject == Other.KeyObject && Tag == Other.Tag;
+	}
+
+	friend uint32 GetTypeHash(const FKawaiiPhysicsSimpleWorldRegistryKey& Key)
+	{
+		return HashCombine(GetTypeHash(Key.KeyObject), GetTypeHash(Key.Tag));
+	}
 
 	/**
-	 * Desc の変更が収集結果（Overlap 対象・形状変換・地面・半径）に影響するか。GatherIntervalSec だけの変化は false。
-	 * Whether a Desc change affects the gather result (overlap set, shape conversion, ground, radius). Interval-only changes return false.
+	 * GameThread 用（DebugInfo / テスト）。生ポインタをそのままキーへ格納する。
+	 * For GameThread use (debug info / tests). Stores the raw pointer into the key.
 	 */
-	static bool DoesChangeRequireRegather(const FKawaiiPhysicsSimpleWorldCollisionDesc& Old, const FKawaiiPhysicsSimpleWorldCollisionDesc& New);
-
-	bool operator==(const FKawaiiPhysicsSimpleWorldCollisionDesc& Other) const;
+	static FKawaiiPhysicsSimpleWorldRegistryKey MakeLocalKey(const USkeletalMeshComponent* SkelComp);
+	/**
+	 * Worker から呼べる弱参照版。弱参照をデリファレンスせずそのままキーへ格納する。
+	 * Weak-pointer variant callable from worker threads. Stores the weak pointer without dereferencing it.
+	 */
+	static FKawaiiPhysicsSimpleWorldRegistryKey MakeLocalKey(const TWeakObjectPtr<const USkeletalMeshComponent>& SkelComp);
+	static FKawaiiPhysicsSimpleWorldRegistryKey MakeSharedKey(const AActor* FamilyRoot, const FGameplayTag& Tag);
 };
 
 /**
- * シンプルワールドコリジョン収集Entry（SkelComp単位。複数SourceのDescをマージして1回収集）
- * Simple-world collision gather entry (per SkelComp. Merges multiple source Descs and gathers once)
+ * シンプルワールドコリジョン収集Entry。provider Desc をマージして1回収集し、reader は同じ Entry を読む。
+ * Simple-world collision gather entry. Merges provider Descs and gathers once; readers consume the same Entry.
  *
  * スレッド境界 / Thread boundary:
- * - Worker: SetDesc / RemoveDesc / MarkRead / RequestRegather / Slot.AppendTo / GroundSlot.AppendTo
+ * - Worker: SetDesc / RemoveDesc / MarkRead / AddReaderMember / RemoveReaderMember / MarkReaderRead / RequestRegather / AppendFamilyMemberLimits / Slot.AppendTo / GroundSlot.AppendTo
  * - GameThread Tick: RemoveExpiredDescs / BuildMergedDesc / world query, GatheredComponents更新, Slot.Publish / GroundSlot.Publish
+ * Worker から呼ぶ API は SkelComp 弱参照をデリファレンスしない（IsValid(false, true) と弱参照同士の比較だけを使う）。
+ * GetPrimarySkelComp / CollectMemberSkelComps は生ポインタを取り出すため GameThread（Tick）専用。
+ * Worker-callable APIs never dereference the SkelComp weak pointers (they only use IsValid(false, true) and weak-pointer comparison).
+ * GetPrimarySkelComp / CollectMemberSkelComps resolve raw pointers and are therefore GameThread (Tick) only.
  * ISM / HISM はインスタンス単位で収集し、MaxGatheredComponents はインスタンス数に対して効きます。
  * ISM / HISM are gathered per instance, and MaxGatheredComponents applies to instance count.
  */
 struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionEntry
 {
+	friend class UKawaiiPhysicsSharedCollisionSubsystem;
+
+	void SetDesc(uint64 SourceID, const FKawaiiPhysicsSimpleWorldCollisionDesc& InDesc, uint64 CurrentFrame,
+	             const TWeakObjectPtr<const USkeletalMeshComponent>& SkelComp, bool bProvider = true);
 	void SetDesc(uint64 SourceID, const FKawaiiPhysicsSimpleWorldCollisionDesc& InDesc);
 	void RemoveDesc(uint64 SourceID);
 
 	bool MarkRead(uint64 SourceID);
+	void AddReaderMember(uint64 SourceID, const TWeakObjectPtr<const USkeletalMeshComponent>& SkelComp,
+	                     uint64 CurrentFrame);
+	void RemoveReaderMember(uint64 SourceID);
+	bool MarkReaderRead(uint64 SourceID, uint64 CurrentFrame, uint64 ProviderMaxAgeFrames);
 	void RemoveExpiredDescs(uint64 CurrentFrame, uint64 MaxAge);
 	bool HasAnyDesc() const;
+	bool HasProviderDesc() const;
+	bool HasAnyReader() const;
+	bool IsProviderDisabled() const;
 	bool BuildMergedDesc(FKawaiiPhysicsSimpleWorldCollisionDesc& OutMerged) const;
 	int32 GetNumDescs() const;
+	int32 GetNumReaders() const;
+	/** GameThread（Tick）専用。弱参照から生ポインタを解決する / GameThread (Tick) only. Resolves raw pointers from weak pointers. */
+	void CollectMemberSkelComps(TArray<TWeakObjectPtr<const USkeletalMeshComponent>>& Out) const;
+	/** GameThread（Tick）専用。弱参照から生ポインタを解決する / GameThread (Tick) only. Resolves a raw pointer from a weak pointer. */
+	const USkeletalMeshComponent* GetPrimarySkelComp() const;
+	uint64 GetLastProviderFrame() const;
+	/**
+	 * OwnSkelComp 以外のファミリーメンバー Slot を OutData へ追記する。GameThread API は呼ばない。
+	 * 自己除外は弱参照同士の比較で行い、OwnSkelComp をデリファレンスしない。
+	 * Appends family-member slots other than OwnSkelComp into OutData. Does not call GameThread-only APIs.
+	 * Self-exclusion compares weak pointers, so OwnSkelComp is never dereferenced.
+	 */
+	void AppendFamilyMemberLimits(const TWeakObjectPtr<const USkeletalMeshComponent>& OwnSkelComp,
+	                              FKawaiiPhysicsSharedCollisionData& OutData) const;
+	/** 全ファミリーメンバー Slot の PublishSerial 合計を返す / Returns the sum of PublishSerial for all family-member slots */
+	uint64 GetMemberSlotsPublishSerialSum() const;
+	/** ファミリーメンバー Slot 数を返す / Returns the number of family-member slots */
+	int32 GetNumMemberSlots() const;
+	/**
+	 * 指定されたメンバー以外のファミリーメンバー Slot を削除する。空配列なら全削除。
+	 * Removes family-member slots except the specified members. An empty array removes all slots.
+	 */
+	void RemoveMemberSlotsNotIn(const TArray<TWeakObjectPtr<const USkeletalMeshComponent>>& MembersToKeep);
 
 	void RequestRegather();
 	bool ConsumeRegatherRequested();
@@ -192,6 +223,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionEntry
 	FKawaiiPhysicsSharedCollisionSourceSlot Slot;
 	// 地面 Box 専用 Slot。0 または 1 個の FBoxLimit を BoxLimits に入れて Publish する / Dedicated ground-box slot. Publishes zero or one FBoxLimit in BoxLimits.
 	FKawaiiPhysicsSharedCollisionSourceSlot GroundSlot;
+	TMap<TWeakObjectPtr<const USkeletalMeshComponent>, TSharedPtr<FKawaiiPhysicsSharedCollisionSourceSlot>> MemberSlots;
 
 	// Tick スレッド専有・ロック不要 / Tick-thread only; no lock required.
 	float TimeSinceLastGather = FLT_MAX;
@@ -206,6 +238,11 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionEntry
 		 * Cached SkeletalMeshComponent for exact PhysicsAsset mode. Unset for regular/bounds gathering.
 		 */
 		TWeakObjectPtr<const USkeletalMeshComponent> SkeletalComponent;
+		/**
+		 * ファミリーメンバー SkelComp の形状なら設定する。通常コンポーネントは未設定。
+		 * Set for shapes that belong to a family-member SkelComp. Unset for regular components.
+		 */
+		TWeakObjectPtr<const USkeletalMeshComponent> MemberSkelComp;
 		/**
 		 * 収集時の SkinnedAsset。差し替え検知に使う。
 		 * SkinnedAsset at gather time, used for replacement detection.
@@ -278,18 +315,28 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionEntry
 	FKawaiiPhysicsSharedCollisionData PublishScratch;
 	// Tick スレッド専有。地面 Slot の Publish 用スクラッチ / Tick-thread only. Scratch buffer for publishing the ground slot
 	FKawaiiPhysicsSharedCollisionData GroundPublishScratch;
+	// Tick スレッド専有。ファミリーメンバー Slot の Publish 用スクラッチ / Tick-thread only. Scratch buffers for publishing family-member slots
+	TMap<TWeakObjectPtr<const USkeletalMeshComponent>, FKawaiiPhysicsSharedCollisionData> MemberPublishScratch;
+	FKawaiiPhysicsSharedCollisionData EmptyMemberPublishScratch;
 	TArray<FOverlapResult> OverlapScratch;
 	// Tick スレッド専有。収集上限超過時の距離順インデックス / Tick-thread only. Distance-sorted indices used only when gather results exceed the cap
 	TArray<int32> GatherOrderScratch;
 	// Tick スレッド専有。収集上限超過時の距離二乗スクラッチ / Tick-thread only. Squared-distance scratch used only when gather results exceed the cap
 	TArray<float> GatherDistanceScratch;
+	// Tick スレッド専有。ActorFamily 収集用メンバー scratch / Tick-thread only. Member scratch for ActorFamily gathering
+	TArray<TWeakObjectPtr<const USkeletalMeshComponent>> MemberSkelCompScratch;
+	TSet<TWeakObjectPtr<const USkeletalMeshComponent>> MemberSkelCompSetScratch;
+	TSet<TWeakObjectPtr<const AActor>> MemberOwnerScratch;
+	TArray<FBoxSphereBounds> MemberBoundsScratch;
 	bool bWorldLimitsDirty = true;
 
 private:
 	struct FDescSlot
 	{
 		FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
+		TWeakObjectPtr<const USkeletalMeshComponent> SkelComp;
 		uint64 LastReadFrame = 0;
+		bool bProvider = true;
 		// 登録順（Merge の順序依存規則を決定的にする） / Registration order that makes order-dependent merge rules deterministic
 		uint64 RegistrationOrdinal = 0;
 	};
@@ -298,7 +345,10 @@ private:
 	mutable FRWLock DescLock;
 	// 次に登録する Desc へ割り当てる登録順。DescLock 内でのみ触る / Registration order for the next Desc. Touched only under DescLock
 	uint64 NextDescRegistrationOrdinal = 1;
+	uint64 LastProviderFrame = 0;
 	std::atomic<bool> bRegatherRequested{false};
+
+	void RemoveMemberSlotsNotInLocked(const TArray<TWeakObjectPtr<const USkeletalMeshComponent>>& MembersToKeep);
 };
 
 USTRUCT(BlueprintType)
@@ -377,6 +427,34 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionDebugInfo
 	// Entry.bHasGatheredOnce / Entry.bHasGatheredOnce
 	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
 	bool bHasGatheredOnce = false;
+
+	// 収集スコープ / Gather scope
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	EKawaiiPhysicsSimpleWorldGatherScope GatherScope = EKawaiiPhysicsSimpleWorldGatherScope::SkeletalMeshComponent;
+
+	// Registry キーの Tag。Local は空 / Registry key Tag. Empty for local entries
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	FGameplayTag GroupTag;
+
+	// Registry キーの KeyObject 名。Local は SkelComp 名 / Registry key KeyObject name. Local entries use the SkelComp name
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	FString KeyObjectName;
+
+	// Entry に登録されている reader 数 / Number of readers registered to the entry
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	int32 NumReaders = 0;
+
+	// マージ済み provider disabled 状態 / Merged provider disabled state
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	bool bProviderDisabled = false;
+
+	// ファミリーメンバー形状を収集するか / Whether family-member shapes are gathered
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	bool bGatherFamilyMembers = false;
+
+	// ファミリーメンバー Slot 数 / Number of family-member slots
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Simple World Collision")
+	int32 NumMemberSlots = 0;
 };
 
 /**
@@ -415,23 +493,65 @@ public:
 		const FKawaiiPhysicsSimpleWorldCollisionDesc& InitialDesc);
 
 	/**
+	 * SimpleWorld用: 構築済みキーの Entry を検索、なければ作成する。provider は Desc を登録し、reader は member として登録する。
+	 * 任意スレッドから呼べる（Key / SkelComp をdereferenceしない）。
+	 * For SimpleWorld: Find or create an entry by an already-built key. Providers register a Desc; readers register membership.
+	 * Callable from any thread (does not dereference Key / SkelComp).
+	 */
+	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> FindOrCreateSimpleWorldEntry(
+		const FKawaiiPhysicsSimpleWorldRegistryKey& Key, uint64 SourceID,
+		const FKawaiiPhysicsSimpleWorldCollisionDesc& InitialDesc,
+		const TWeakObjectPtr<const USkeletalMeshComponent>& SkelComp,
+		bool bProvider);
+
+	/**
+	 * SimpleWorld用: 構築済みキーの Entry を検索する。Entry が無ければ null。
+	 * For SimpleWorld: Find an entry by an already-built key. Returns null when no entry exists.
+	 */
+	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> FindSimpleWorldEntry(
+		const FKawaiiPhysicsSimpleWorldRegistryKey& Key) const;
+
+	/**
 	 * Target用: Actorのファミリーrootのエントリを検索（RegistryLockでスレッドセーフ。任意スレッドから呼べる）
 	 * For targets: Find an entry for the actor family root. Thread-safe via RegistryLock; callable from any thread.
 	 */
 	TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> FindEntry(AActor* Actor, const FGameplayTag& Tag) const;
 
 	/**
+	 * Shared Publisher用: Actorのファミリーrootの Entry を検索、なければ作成する。
+	 * For Shared Publisher: Find or create an entry for the actor family root.
+	 */
+	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> FindOrCreateSharedPublisherEntry(
+		AActor* Actor,
+		const FGameplayTag& Tag);
+
+	/**
+	 * Shared Publisher用: Actorのファミリーrootの Entry を検索する。Entry が無ければ null。
+	 * For Shared Publisher: Find an entry for the actor family root. Returns null when no entry exists.
+	 */
+	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> FindSharedPublisherEntry(
+		AActor* Actor,
+		const FGameplayTag& Tag) const;
+
+	/**
 	 * Entry の Tick 専有データから診断情報を詰める（GameThread 専用。テストから直接呼べるよう static）
 	 * Fill diagnostics from an entry's tick-owned data (GameThread only; static so tests can call it directly)
 	 */
 	static void FillSimpleWorldCollisionDebugInfo(const FKawaiiPhysicsSimpleWorldCollisionEntry& Entry,
-	                                              FKawaiiPhysicsSimpleWorldCollisionDebugInfo& OutInfo);
+	                                              FKawaiiPhysicsSimpleWorldCollisionDebugInfo& OutInfo,
+	                                              const FKawaiiPhysicsSimpleWorldRegistryKey* Key = nullptr);
 
 	/**
 	 * Entry の収集済み形状を Shape Slot へ Publish する（GameThread 専用。テストから直接呼べるよう static）
 	 * Publish gathered shapes from Entry to the shape slot (GameThread only; static so tests can call it directly)
 	 */
 	static void PublishSimpleWorldShapeLimits(FKawaiiPhysicsSimpleWorldCollisionEntry& Entry, float BoxEnableThreshold);
+
+	/**
+	 * Provider disabled 中に形状 Slot と Ground Slot を必要な場合だけ空 Publish する（GameThread 専用）。
+	 * Publishes empty shape and ground slots only when needed while the provider is disabled (GameThread only).
+	 */
+	static void PublishSimpleWorldEmptyLimits(FKawaiiPhysicsSimpleWorldCollisionEntry& Entry, float BoxEnableThreshold);
 
 	/**
 	 * Entry の地面 Box を Ground Slot へ Publish する（GameThread 専用。テストから直接呼べるよう static）
@@ -446,6 +566,8 @@ public:
 	 * (OutInfo is reset with bHasEntry=false). GameThread only. Always false in Shipping builds.
 	 */
 	bool BuildSimpleWorldCollisionDebugInfo(const USkeletalMeshComponent* SkelComp,
+	                                        FKawaiiPhysicsSimpleWorldCollisionDebugInfo& OutInfo) const;
+	bool BuildSimpleWorldCollisionDebugInfo(const FKawaiiPhysicsSimpleWorldRegistryKey& Key,
 	                                        FKawaiiPhysicsSimpleWorldCollisionDebugInfo& OutInfo) const;
 
 	// USubsystem interface
@@ -492,7 +614,10 @@ private:
 		int32 EffectiveMaxPhysicsAssetBodies,
 		int32 EffectiveMaxConvexPlanes,
 		bool bUseMovementGround,
-		bool bBuildConvexDebugGeometry);
+		bool bBuildConvexDebugGeometry,
+		const TArray<TWeakObjectPtr<const USkeletalMeshComponent>>& MemberSkelComps,
+		const TSet<TWeakObjectPtr<const USkeletalMeshComponent>>& MemberSkelCompSet,
+		const TSet<TWeakObjectPtr<const AActor>>& MemberOwners);
 	void UpdateSimpleWorldGround(
 		FKawaiiPhysicsSimpleWorldCollisionEntry& Entry,
 		const USkeletalMeshComponent& SkelComp,
@@ -511,6 +636,8 @@ private:
 	 */
 	TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> FindEntryByKey(const FRegistryKey& Key) const;
 
+	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> FindSharedPublisherEntryByKey(const FRegistryKey& Key) const;
+
 	/** レジストリ: (ActorFamilyRoot, Tag) → Entry / Registry: (ActorFamilyRoot, Tag) -> Entry */
 	TMap<FRegistryKey, TSharedPtr<FKawaiiPhysicsSharedCollisionEntry>> Registry;
 
@@ -520,11 +647,19 @@ private:
 	 *  Lock order is always Registry -> Slots (Tick holds this while taking an Entry's SlotsLock); never the reverse. */
 	mutable FRWLock RegistryLock;
 
-	/** SimpleWorldレジストリ: SkelComp → Entry / SimpleWorld registry: SkelComp -> Entry
+	/** SimpleWorldレジストリ: (KeyObject, Tag) → Entry / SimpleWorld registry: (KeyObject, Tag) -> Entry
 	 *  ロック順序は SimpleWorldRegistryLock → Entry内ロック。既存RegistryLock/SlotsLockとは同時取得しない。
 	 *  Lock order is SimpleWorldRegistryLock -> entry-internal locks. Do not hold it with RegistryLock/SlotsLock. */
-	TMap<TWeakObjectPtr<const USkeletalMeshComponent>, TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>> SimpleWorldRegistry;
+	TMap<FKawaiiPhysicsSimpleWorldRegistryKey, TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>> SimpleWorldRegistry;
 	mutable FRWLock SimpleWorldRegistryLock;
+
+	/** SharedPublisherレジストリ: (ActorFamilyRoot, Tag) → Entry / SharedPublisher registry: (ActorFamilyRoot, Tag) -> Entry
+	 *  ロック順序は SharedPublisherRegistryLock → StateLock / GustMutex。StateLock と GustMutex は同時取得しない。
+	 *  既存RegistryLock/SlotsLock/SimpleWorldRegistryLockとは同時取得しない。
+	 *  Lock order is SharedPublisherRegistryLock -> StateLock / GustMutex. Do not hold StateLock and GustMutex together.
+	 *  Do not hold it with RegistryLock/SlotsLock/SimpleWorldRegistryLock. */
+	TMap<FRegistryKey, TSharedPtr<FKawaiiPhysicsSharedPublisherEntry>> SharedPublisherRegistry;
+	mutable FRWLock SharedPublisherRegistryLock;
 
 	/** クリーンアップ間隔制御 / Cleanup interval control */
 	float CleanupAccumulator = 0.0f;
