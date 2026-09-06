@@ -11,6 +11,8 @@
 #include "ExternalForces/KawaiiPhysicsExternalForce_Wind.h"
 #include "KawaiiPhysicsLibrary.h"
 #include "KawaiiPhysicsPresetDataAsset.h"
+#include "KawaiiPhysicsSharedPublisherTypes.h"
+#include "KawaiiPhysicsTestHarness.h"
 #include "KawaiiPhysicsTypes.h"
 
 #include "Animation/AnimInstanceProxy.h"
@@ -475,6 +477,72 @@ bool FKawaiiPhysicsTransientForceGustConsumeCreatesActiveGustTest::RunTest(const
 	TestTransientForceFloatNear(*this, TEXT("RemainingLifetime"),
 	              Node.TransientForceStore.Items[0].RemainingLifetime, 1.0f);
 
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientForceGustCopyForcesLocalWindSourceTest,
+                                 "KawaiiPhysics.TransientForce.GustCopyForcesLocalWindSource",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsTransientForceGustCopyForcesLocalWindSourceTest::RunTest(const FString& Parameters)
+{
+	FAnimNode_KawaiiPhysics Node;
+	AddAuthoredProceduralWind(Node, true, FVector(0.0f, 1.0f, 0.0f),
+	                          EExternalForceSpace::ComponentSpace, 1.0f, false);
+	FKawaiiPhysics_ExternalForce_ProceduralWind* AuthoredWind =
+		Node.ExternalForces[0].GetMutablePtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+	if (!TestTrue(TEXT("Authored wind valid"), AuthoredWind != nullptr))
+	{
+		return false;
+	}
+
+	const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry = MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+	AuthoredWind->WindSource = EKawaiiPhysicsProceduralWindSource::Shared;
+	FKawaiiPhysicsTestAccessor::BindSharedWindEntry(*AuthoredWind, Entry);
+
+	// コピー元に共有値（authored とは別の方向・強さ）を採用させておく。
+	// transient の突風は「その時点の実効値」に乗せる契約なので、コピー時にローカル値へ復元してはいけない
+	FKawaiiPhysicsSharedPublisherState SharedState;
+	SharedState.bPublisherEnabled = true;
+	SharedState.Wind.bPublisherWindEnabled = true;
+	SharedState.Wind.PublisherTimeScale = 1.0f;
+	SharedState.Wind.Params.bOverrideConstantForce = true;
+	SharedState.Wind.Params.ConstantForce = 42.0f;
+	SharedState.Wind.Params.bOverrideWindDirection = true;
+	SharedState.Wind.Params.WindDirection = FVector(1.0f, 0.0f, 0.0f);
+	FKawaiiPhysicsTestAccessor::PublishSharedPublisherState(Entry, SharedState);
+	RunPreApply(Node, *AuthoredWind);
+	TestTransientForceFloatNear(*this, TEXT("Authored wind adopted shared constant force"),
+	                            AuthoredWind->ConstantForce, 42.0f);
+
+	Node.RequestTransientGust(5.0f, 0.1f, 0.2f, FVector::ZeroVector, 0);
+	Node.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind* TransientWind = GetTransientWind(Node);
+	bool bOk = TestTrue(TEXT("Transient wind valid"), TransientWind != nullptr);
+	if (!TransientWind)
+	{
+		return false;
+	}
+
+	bOk &= TestTrue(TEXT("Transient source forced Local"),
+	                TransientWind->WindSource == EKawaiiPhysicsProceduralWindSource::Local);
+	bOk &= TestFalse(TEXT("Transient shared entry reset"), TransientWind->RuntimeState->SharedPublisherEntry.IsValid());
+	bOk &= TestTrue(TEXT("Transient pending gust set"), TransientWind->RuntimeState->PendingGust.IsSet());
+	// 継承する共有 13 項目（ここでは風向き）は復元されず、コピー時点の実効値＝共有値のまま
+	bOk &= TestTrue(TEXT("Transient inherits the effective shared direction"),
+	                TransientWind->WindDirection.Equals(FVector(1.0f, 0.0f, 0.0f)));
+	bOk &= TestTrue(TEXT("Gust copy keeps the source on shared values"),
+	                FMath::IsNearlyEqual(AuthoredWind->ConstantForce, 42.0f, GTransientForceTol));
+
+	TArray<FKawaiiPhysicsSharedPublisherGustRequest> Requests;
+	Entry->ConsumePendingGustRequests(Requests);
+	bOk &= TestEqual(TEXT("No gust forwarded to shared entry"), Requests.Num(), 0);
+
+	RunPreApply(Node, *TransientWind);
+	bOk &= TestTrue(TEXT("Transient active gust"), TransientWind->RuntimeState->ActiveGust.bIsActive);
+	bOk &= TestTransientForceFloatNear(*this, TEXT("Transient gust strength"),
+	                                   TransientWind->RuntimeState->ActiveGust.Strength, 5.0f);
 	return bOk;
 }
 

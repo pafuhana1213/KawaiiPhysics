@@ -180,10 +180,93 @@ namespace
 		}
 	}
 
+	void FocusSharedPublisherGraphNodeByTag(UAnimGraphNode_KawaiiPhysics* GraphNode, const FGameplayTag& SharedTag)
+	{
+		if (!GraphNode)
+		{
+			return;
+		}
+
+		UAnimGraphNode_KawaiiPhysicsSharedPublisher* Publisher =
+			KawaiiPhysicsEdUtils::FindSharedPublisherGraphNodeByTag(
+				GraphNode->GetAnimBlueprint(),
+				SharedTag);
+		if (Publisher)
+		{
+			FocusKawaiiPhysicsGraphNode(Publisher);
+		}
+		else
+		{
+			ShowKawaiiPhysicsNotification(
+				LOCTEXT("SharedPublisherNotFoundNotification",
+				        "Not found in this Animation Blueprint (it may live in another Animation Blueprint)"),
+				SNotificationItem::CS_Fail);
+		}
+	}
+
+	void AddGoToSharedPublisherRow(
+		IDetailCategoryBuilder& CategoryBuilder,
+		IDetailLayoutBuilder& DetailBuilder,
+		UAnimGraphNode_KawaiiPhysics* GraphNode,
+		const FGameplayTag& SharedTag,
+		const FText& InfoText,
+		const FText& SearchText)
+	{
+		CategoryBuilder.AddCustomRow(SearchText)
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Text(InfoText)
+			.Font(DetailBuilder.GetDetailFont())
+		]
+		.ValueContent()
+		[
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.ToolTipText(LOCTEXT("GoToSharedPublisherTooltip",
+			                     "Opens the Shared Publisher with the same Shared Tag in this Animation Blueprint."))
+			.OnClicked_Lambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics>(GraphNode), SharedTag]()
+			{
+				if (UAnimGraphNode_KawaiiPhysics* PinnedGraphNode = WeakThis.Get())
+				{
+					FocusSharedPublisherGraphNodeByTag(PinnedGraphNode, SharedTag);
+				}
+				return FReply::Handled();
+			})
+			.Content()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("GoToSharedPublisher", "Go to Publisher"))
+				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+			]
+		];
+	}
+
 	bool IsUsingSharedSimpleWorldCollisionPublisher(const FAnimNode_KawaiiPhysics& Node)
 	{
 		return Node.bUseSimpleWorldCollision &&
 			Node.SimpleWorldCollisionSource != EKawaiiPhysicsSimpleWorldCollisionSource::Local;
+	}
+
+	void CollectSharedWindPublisherTags(const FAnimNode_KawaiiPhysics& Node, TArray<FGameplayTag>& OutTags)
+	{
+		OutTags.Reset();
+		for (const FInstancedStruct& ExternalForce : Node.ExternalForces)
+		{
+			if (KawaiiPhysicsEdUtils::GetExternalForceScriptStruct(ExternalForce) !=
+				FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct())
+			{
+				continue;
+			}
+
+			const FKawaiiPhysics_ExternalForce_ProceduralWind* Wind =
+				ExternalForce.GetPtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+			if (Wind && Wind->WindSource != EKawaiiPhysicsProceduralWindSource::Local)
+			{
+				OutTags.AddUnique(Wind->SharedWindTag);
+			}
+		}
 	}
 
 	FString JoinPropertyNames(const TArray<FName>& PropertyNames)
@@ -217,12 +300,6 @@ namespace
 		return OwnerStruct &&
 			(OwnerStruct == FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct() ||
 				OwnerStruct->IsChildOf(FKawaiiPhysics_ExternalForce::StaticStruct()));
-	}
-
-	bool IsProceduralWindStructProperty(const FName PropertyName)
-	{
-		return PropertyName != NAME_None &&
-			FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct()->FindPropertyByName(PropertyName) != nullptr;
 	}
 
 	bool IsProceduralWindExternalForce(const FInstancedStruct& ExternalForce)
@@ -368,9 +445,9 @@ void UAnimGraphNode_KawaiiPhysics::PushProceduralWindEditToLiveInstance(
 		}
 
 		FKawaiiProceduralWindDynamicParams Params;
-		if (!GraphWind->BuildDynamicParamsForProperty(EditedPropertyName, Params))
+		if (!KawaiiPhysicsEdUtils::BuildProceduralWindDynamicParamsForProperty(*GraphWind, EditedPropertyName, Params))
 		{
-			if (IsProceduralWindStructProperty(EditedPropertyName))
+			if (KawaiiPhysicsEdUtils::IsProceduralWindStructProperty(EditedPropertyName))
 			{
 				// 未対応の ProceduralWind メンバは編集値を DynamicParams に載せられないためここでは送らない。
 				// スナップショット送信はその編集値を含まないまま PIE 側の対応済み項目を上書きしてしまう。
@@ -906,6 +983,27 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 	{
 		SimpleWorldSourceHandle->SetOnPropertyValueChanged(RefreshDetailsDelegate);
 	}
+	if (TSharedPtr<IPropertyHandle> ExternalForcesHandle =
+		NodeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, ExternalForces)))
+	{
+		// 風のソース / Tag の確定変更と配列の増減だけで再構築する（スライダードラッグ中の Interactive 変更では再構築しない）
+		ExternalForcesHandle->SetOnChildPropertyValueChangedWithData(
+			TDelegate<void(const FPropertyChangedEvent&)>::CreateLambda(
+				[LayoutBuilder](const FPropertyChangedEvent& PropertyChangedEvent)
+				{
+					if (!LayoutBuilder || PropertyChangedEvent.ChangeType == EPropertyChangeType::Interactive)
+					{
+						return;
+					}
+					const FName ChangedName = PropertyChangedEvent.GetPropertyName();
+					if (ChangedName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindSource) ||
+						ChangedName == GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, SharedWindTag) ||
+						ChangedName == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, ExternalForces))
+					{
+						LayoutBuilder->ForceRefreshDetails();
+					}
+				}));
+	}
 
 	if (IsUsingSharedSimpleWorldCollisionPublisher(Node))
 	{
@@ -922,54 +1020,51 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 					        "Gather settings are provided by Shared Publisher ({0})"),
 					FText::FromString(Node.SimpleWorldCollisionSharedTag.ToString()));
 
-		SimpleWorldCategory.AddCustomRow(LOCTEXT("GoToSharedPublisher", "Go to Publisher"))
-		.NameContent()
-		[
-			SNew(STextBlock)
-			.Text(SharedPublisherInfoText)
-			.Font(DetailBuilder.GetDetailFont())
-		]
-		.ValueContent()
-		[
-			SNew(SButton)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.ToolTipText(LOCTEXT("GoToSharedPublisherTooltip",
-			                     "Opens the Shared Publisher with the same Shared Tag in this Animation Blueprint."))
-			.OnClicked_Lambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics>(this)]()
-			{
-				if (UAnimGraphNode_KawaiiPhysics* GraphNode = WeakThis.Get())
-				{
-					UAnimGraphNode_KawaiiPhysicsSharedPublisher* Publisher =
-						KawaiiPhysicsEdUtils::FindSharedPublisherGraphNodeByTag(
-							GraphNode->GetAnimBlueprint(),
-							GraphNode->Node.SimpleWorldCollisionSharedTag);
-					if (Publisher)
-					{
-						FocusKawaiiPhysicsGraphNode(Publisher);
-					}
-					else
-					{
-						ShowKawaiiPhysicsNotification(
-							LOCTEXT("SharedPublisherNotFoundNotification",
-							        "Not found in this Animation Blueprint (it may live in another Animation Blueprint)"),
-							SNotificationItem::CS_Fail);
-					}
-				}
-				return FReply::Handled();
-			})
-			.Content()
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("GoToSharedPublisher", "Go to Publisher"))
-				.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
-			]
-		];
+		AddGoToSharedPublisherRow(
+			SimpleWorldCategory,
+			DetailBuilder,
+			this,
+			Node.SimpleWorldCollisionSharedTag,
+			SharedPublisherInfoText,
+			LOCTEXT("GoToSharedPublisher", "Go to Publisher"));
 	}
 
 	// External Forceカテゴリに Wind Scope ボタン（波形プレビュータブを開く）を追加
 	IDetailCategoryBuilder& ExternalForceCategory = DetailBuilder.EditCategory(
 		KawaiiPhysicsEditorCategoryNames::ForceExternalForce);
+	FGameplayTag SharedWindTag;
+	bool bSharedWindAuto = false;
+	if (KawaiiPhysicsEdUtils::IsUsingSharedWindPublisher(Node, SharedWindTag, bSharedWindAuto))
+	{
+		TArray<FGameplayTag> SharedWindTags;
+		CollectSharedWindPublisherTags(Node, SharedWindTags);
+		const FText MixedTagSuffix = SharedWindTags.Num() >= 2
+			                             ? FText::Format(
+				                             LOCTEXT("SharedWindFirstOfSuffix", " (first of {0})"),
+				                             FText::AsNumber(SharedWindTags.Num()))
+			                             : FText::GetEmpty();
+		const FText SharedWindPublisherInfoText =
+			bSharedWindAuto
+				? FText::Format(
+					LOCTEXT("WindAutoSharedPublisherInfo",
+					        "Wind parameters are provided by the Shared Publisher ({0}) while it exists; otherwise this node computes wind locally{1}"),
+					FText::FromString(SharedWindTag.ToString()),
+					MixedTagSuffix)
+				: FText::Format(
+					LOCTEXT("WindSharedPublisherInfo",
+					        "Wind parameters are provided by Shared Publisher ({0}){1}"),
+					FText::FromString(SharedWindTag.ToString()),
+					MixedTagSuffix);
+
+		AddGoToSharedPublisherRow(
+			ExternalForceCategory,
+			DetailBuilder,
+			this,
+			SharedWindTag,
+			SharedWindPublisherInfoText,
+			LOCTEXT("GoToWindSharedPublisher", "Go to Publisher"));
+	}
+
 	FDetailWidgetRow& WindScopeWidgetRow = ExternalForceCategory.AddCustomRow(LOCTEXT("OpenWindScope", "Wind Scope"));
 	WindScopeWidgetRow
 	[
@@ -1449,12 +1544,18 @@ void UAnimGraphNode_KawaiiPhysics::OpenWindScopeWindow(int32 ExternalForceIndex)
 	}
 
 	// タブへ渡す引数を組み立てて開く
-	const UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
+	const FKawaiiPhysicsWindScopeTarget InitialTarget =
+		FKawaiiPhysicsWindScopeTarget::MakeKawaiiPhysicsNode(this, ExternalForceIndex);
+	TOptional<FKawaiiPhysicsWindScopeTarget> RedirectOrigin;
+	const FKawaiiPhysicsWindScopeTarget OpenTarget =
+		ResolveWindScopeOpenTarget(InitialTarget, RedirectOrigin);
+	UAnimGraphNode_Base* TargetGraphNode = OpenTarget.ResolveGraphNode();
+	const UAnimBlueprint* AnimBlueprint = TargetGraphNode ? TargetGraphNode->GetAnimBlueprint() : GetAnimBlueprint();
 	FKawaiiPhysicsWindScopeWindowArgs Args;
-	Args.GraphNode = this;
+	Args.Target = OpenTarget;
+	Args.RedirectOrigin = RedirectOrigin;
 	Args.AnimBlueprintPath = AnimBlueprint ? FSoftObjectPath(AnimBlueprint) : FSoftObjectPath();
-	Args.NodeGuid = NodeGuid;
-	Args.ExternalForceIndex = ExternalForceIndex;
+	Args.NodeGuid = TargetGraphNode ? TargetGraphNode->NodeGuid : NodeGuid;
 
 	SKawaiiPhysicsWindScopeWindow::OpenWindow(MoveTemp(Args));
 }
@@ -1500,23 +1601,30 @@ void UAnimGraphNode_KawaiiPhysics::GetNodeContextMenuActions(UToolMenu* Menu, UG
 			{
 				if (UAnimGraphNode_KawaiiPhysics* GraphNode = WeakThis.Get())
 				{
-					UAnimGraphNode_KawaiiPhysicsSharedPublisher* Publisher =
-						KawaiiPhysicsEdUtils::FindSharedPublisherGraphNodeByTag(
-							GraphNode->GetAnimBlueprint(),
-							GraphNode->Node.SimpleWorldCollisionSharedTag);
-					if (Publisher)
-					{
-						FocusKawaiiPhysicsGraphNode(Publisher);
-					}
-					else
-					{
-						ShowKawaiiPhysicsNotification(
-							LOCTEXT("SharedPublisherNotFoundContextNotification",
-							        "Not found in this Animation Blueprint (it may live in another Animation Blueprint)"),
-							SNotificationItem::CS_Fail);
-					}
+					FocusSharedPublisherGraphNodeByTag(GraphNode, GraphNode->Node.SimpleWorldCollisionSharedTag);
 				}
 			})));
+	}
+
+	FGameplayTag SharedWindTag;
+	bool bSharedWindAuto = false;
+	if (KawaiiPhysicsEdUtils::IsUsingSharedWindPublisher(Node, SharedWindTag, bSharedWindAuto))
+	{
+		(void)bSharedWindAuto;
+		Section.AddMenuEntry(
+			"KawaiiPhysicsGoToSharedPublisherWind",
+			LOCTEXT("GoToSharedPublisherWindMenuLabel", "Go to Shared Publisher (Wind)"),
+			LOCTEXT("GoToSharedPublisherWindMenuToolTip",
+			        "Opens the Shared Publisher that provides shared wind parameters in this Animation Blueprint."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateLambda(
+				[WeakThis = TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics>(MutableThis), SharedWindTag]()
+				{
+					if (UAnimGraphNode_KawaiiPhysics* GraphNode = WeakThis.Get())
+					{
+						FocusSharedPublisherGraphNodeByTag(GraphNode, SharedWindTag);
+					}
+				})));
 	}
 
 	TArray<int32> ProceduralWindExternalForceIndices;

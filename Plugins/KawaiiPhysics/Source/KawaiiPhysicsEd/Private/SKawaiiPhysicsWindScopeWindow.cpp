@@ -4,7 +4,6 @@
 
 #include "AnimGraphNode_KawaiiPhysics.h"
 #include "Animation/AnimBlueprint.h"
-#include "Animation/AnimInstance.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
 #include "Engine/AssetManager.h"
@@ -70,6 +69,7 @@ namespace KawaiiPhysicsWindScopeWindowPrivate
 	const TCHAR* WindScopeConfigSectionName = TEXT("KawaiiPhysicsEd");
 	const TCHAR* WindScopeLastAnimBlueprintKey = TEXT("WindScopeLastAnimBlueprint");
 	const TCHAR* WindScopeLastNodeGuidKey = TEXT("WindScopeLastNodeGuid");
+	const TCHAR* WindScopeLastTargetKindKey = TEXT("WindScopeLastTargetKind");
 	const TCHAR* WindScopeLastForceIndexKey = TEXT("WindScopeLastForceIndex");
 	const TCHAR* WindScopeEditPanelExpandedKey = TEXT("WindScopeEditPanelExpanded");
 	const TCHAR* WindScopeEditPanelSplitterFractionKey = TEXT("WindScopeEditPanelSplitterFraction");
@@ -99,10 +99,14 @@ namespace KawaiiPhysicsWindScopeWindowPrivate
 	{
 		return Lhs.AnimBlueprintPath == Rhs.AnimBlueprintPath &&
 			Lhs.NodeGuid == Rhs.NodeGuid &&
-			Lhs.ExternalForceIndex == Rhs.ExternalForceIndex;
+			Lhs.Target.Kind == Rhs.Target.Kind &&
+			Lhs.Target.ExternalForceIndex == Rhs.Target.ExternalForceIndex;
 	}
 
-	UAnimGraphNode_KawaiiPhysics* FindLoadedGraphNodeByGuid(UObject* AnimBlueprintObject, const FGuid& NodeGuid)
+	UAnimGraphNode_Base* FindLoadedGraphNodeByGuid(
+		UObject* AnimBlueprintObject,
+		const FGuid& NodeGuid,
+		EKawaiiPhysicsWindScopeTargetKind TargetKind)
 	{
 		UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(AnimBlueprintObject);
 		if (!AnimBlueprint || !NodeGuid.IsValid())
@@ -121,10 +125,28 @@ namespace KawaiiPhysicsWindScopeWindowPrivate
 
 			for (UEdGraphNode* Node : Graph->Nodes)
 			{
-				UAnimGraphNode_KawaiiPhysics* KawaiiPhysicsGraphNode = Cast<UAnimGraphNode_KawaiiPhysics>(Node);
-				if (KawaiiPhysicsGraphNode && KawaiiPhysicsGraphNode->NodeGuid == NodeGuid)
+				if (!Node || Node->NodeGuid != NodeGuid)
 				{
-					return KawaiiPhysicsGraphNode;
+					continue;
+				}
+
+				switch (TargetKind)
+				{
+				case EKawaiiPhysicsWindScopeTargetKind::KawaiiPhysicsNode:
+					if (UAnimGraphNode_KawaiiPhysics* KawaiiPhysicsGraphNode = Cast<UAnimGraphNode_KawaiiPhysics>(Node))
+					{
+						return KawaiiPhysicsGraphNode;
+					}
+					break;
+				case EKawaiiPhysicsWindScopeTargetKind::SharedPublisherNode:
+					if (UAnimGraphNode_KawaiiPhysicsSharedPublisher* PublisherGraphNode =
+						Cast<UAnimGraphNode_KawaiiPhysicsSharedPublisher>(Node))
+					{
+						return PublisherGraphNode;
+					}
+					break;
+				default:
+					break;
 				}
 			}
 		}
@@ -181,6 +203,23 @@ namespace KawaiiPhysicsWindScopeWindowPrivate
 			}
 		}
 		return nullptr;
+	}
+
+	FGameplayTag ResolveTargetSharedWindTag(const FKawaiiPhysicsWindScopeTarget& Target)
+	{
+		// SharedPublisherNode を先に判定しないと、Node.SharedWind.SharedWindTag（Publisher では未使用の既定 Tag）が誤って返ってしまうため、判定順を持つ Target 側の実装に委譲する
+		return Target.ResolveSharedWindTag();
+	}
+
+	void ResolveTargetNodePath(
+		const FKawaiiPhysicsWindScopeTarget& Target,
+		FSoftObjectPath& OutAnimBlueprintPath,
+		FGuid& OutNodeGuid)
+	{
+		UAnimGraphNode_Base* GraphNode = Target.ResolveGraphNode();
+		const UAnimBlueprint* AnimBlueprint = GraphNode ? GraphNode->GetAnimBlueprint() : nullptr;
+		OutAnimBlueprintPath = AnimBlueprint ? FSoftObjectPath(AnimBlueprint) : FSoftObjectPath();
+		OutNodeGuid = GraphNode ? GraphNode->NodeGuid : FGuid();
 	}
 
 	bool IsFVectorProperty(const FProperty* Property)
@@ -376,28 +415,6 @@ namespace KawaiiPhysicsWindScopeWindowPrivate
 			return RequestedIndex;
 		}
 		return FindFirstProceduralWindIndex(Node);
-	}
-
-	FKawaiiPhysics_ExternalForce_ProceduralWind* ResolveLiveProceduralWind(
-		UAnimGraphNode_KawaiiPhysics* GraphNode,
-		FAnimNode_KawaiiPhysics* RuntimeNode,
-		const int32 RequestedIndex)
-	{
-		if (!GraphNode || !RuntimeNode ||
-			!KawaiiPhysicsEdUtils::IsExternalForceShapeMatched(GraphNode->Node.ExternalForces, RuntimeNode->ExternalForces))
-		{
-			return nullptr;
-		}
-
-		if (!GraphNode->Node.ExternalForces.IsValidIndex(RequestedIndex) ||
-			!IsProceduralWindStruct(GraphNode->Node.ExternalForces[RequestedIndex]) ||
-			!RuntimeNode->ExternalForces.IsValidIndex(RequestedIndex) ||
-			!IsProceduralWindStruct(RuntimeNode->ExternalForces[RequestedIndex]))
-		{
-			return nullptr;
-		}
-
-		return RuntimeNode->ExternalForces[RequestedIndex].GetMutablePtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
 	}
 
 	TArray<FKawaiiProceduralWindPreset> ResolveWindScopePresets()
@@ -932,7 +949,7 @@ namespace KawaiiPhysicsWindScopeWindowPrivate
 	}
 
 	// 所属 AnimBlueprint を変更済みとしてマークする（プリセット適用の Undo/Redo・保存ダーティ化用）
-	void MarkWindScopeGraphNodeModified(UAnimGraphNode_KawaiiPhysics* GraphNode)
+	void MarkWindScopeGraphNodeModified(UAnimGraphNode_Base* GraphNode)
 	{
 		if (!GraphNode)
 		{
@@ -1717,7 +1734,7 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 						.ButtonStyle(&SlimToolBarStyle.ButtonStyle)
 						.ContentPadding(FMargin(6.0f, 2.0f))
 						.Text(LOCTEXT("GustButton", "Test Gust"))
-						.ToolTipText(LOCTEXT("GustButtonTooltip", "Sends a one-shot test gust to the live target. Does not change any parameters."))
+						.ToolTipText(this, &SKawaiiPhysicsWindScopeWindow::GetGustButtonToolTipText)
 						.OnClicked_Lambda([this]()
 						{
 							const bool bAppliedLive = PushGustToLiveRuntime(
@@ -1794,7 +1811,8 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 						SNew(SButton)
 						.ButtonStyle(&SlimToolBarStyle.ButtonStyle)
 						.ContentPadding(FMargin(6.0f, 2.0f))
-						.ToolTipText(LOCTEXT("PasteWindParametersTooltip", "Paste ProceduralWind parameters from the clipboard."))
+						.IsEnabled(this, &SKawaiiPhysicsWindScopeWindow::CanPasteWindParameters)
+						.ToolTipText(this, &SKawaiiPhysicsWindScopeWindow::GetPasteWindParametersToolTipText)
 						.OnClicked(this, &SKawaiiPhysicsWindScopeWindow::OnPasteWindParametersClicked)
 						[
 							SNew(SHorizontalBox)
@@ -1837,6 +1855,7 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 						SAssignNew(ExternalForceComboBox, SComboBox<FExternalForceIndexPtr>)
 						.OptionsSource(&ExternalForceItems)
 						.InitiallySelectedItem(SelectedExternalForceItem)
+						.IsEnabled(this, &SKawaiiPhysicsWindScopeWindow::IsExternalForceComboEnabled)
 						.ToolTipText(this, &SKawaiiPhysicsWindScopeWindow::GetTargetNodeText)
 						.OnGenerateWidget(this, &SKawaiiPhysicsWindScopeWindow::GenerateExternalForceComboWidget)
 						.OnSelectionChanged(this, &SKawaiiPhysicsWindScopeWindow::OnExternalForceSelectionChanged)
@@ -1901,6 +1920,53 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 				[
 					SNew(SBox)
 					.HeightOverride(2.0f)
+				]
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(8.0f, 4.0f, 8.0f, 0.0f)
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(STextBlock)
+					.Text(this, &SKawaiiPhysicsWindScopeWindow::GetTargetNodeText)
+					.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+					.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.0f, 3.0f, 0.0f, 0.0f)
+				[
+					SNew(SBorder)
+					.BorderImage(FAppStyle::Get().GetBrush(TEXT("Brushes.Header")))
+					.BorderBackgroundColor(FSlateColor(FLinearColor(0.16f, 0.17f, 0.19f, 1.0f)))
+					.Padding(FMargin(8.0f, 4.0f))
+					.Visibility(this, &SKawaiiPhysicsWindScopeWindow::GetRedirectBannerVisibility)
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.FillWidth(1.0f)
+						.VAlign(VAlign_Center)
+						[
+							SNew(STextBlock)
+							.Text(this, &SKawaiiPhysicsWindScopeWindow::GetRedirectBannerText)
+							.AutoWrapText(true)
+							.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+						]
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(8.0f, 0.0f, 0.0f, 0.0f)
+						[
+							SNew(SButton)
+							.Text(this, &SKawaiiPhysicsWindScopeWindow::GetRedirectBannerButtonText)
+							.ToolTipText(this, &SKawaiiPhysicsWindScopeWindow::GetRedirectBannerButtonToolTipText)
+							.Visibility(this, &SKawaiiPhysicsWindScopeWindow::GetRedirectBannerButtonVisibility)
+							.OnClicked(this, &SKawaiiPhysicsWindScopeWindow::OnRedirectBannerButtonClicked)
+						]
+					]
 				]
 			]
 		]
@@ -2008,6 +2074,9 @@ void SKawaiiPhysicsWindScopeWindow::Construct(
 					SNew(SKawaiiPhysicsWindScopeEditPanel)
 					.EditValues(this, &SKawaiiPhysicsWindScopeWindow::GetEditValues)
 					.LiveEditValues(this, &SKawaiiPhysicsWindScopeWindow::GetLiveEditValues)
+					.SharedPublisherTarget(this, &SKawaiiPhysicsWindScopeWindow::IsSharedPublisherTarget)
+					.SharedConsumerRedirected(this, &SKawaiiPhysicsWindScopeWindow::IsSharedRedirectEditingRestricted)
+					.SharedConsumerRedirectToolTip(this, &SKawaiiPhysicsWindScopeWindow::GetSharedRedirectEditToolTipText)
 					.OnParamEdit(this, &SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit)
 					.OnParamReset(this, &SKawaiiPhysicsWindScopeWindow::ResetWindParamToDefault)
 					.OnHighlightSeries(this, &SKawaiiPhysicsWindScopeWindow::SetHighlightSeries)
@@ -2039,6 +2108,22 @@ SKawaiiPhysicsWindScopeWindow::~SKawaiiPhysicsWindScopeWindow()
 
 void SKawaiiPhysicsWindScopeWindow::OpenWindow(FKawaiiPhysicsWindScopeWindowArgs Args)
 {
+	if (Args.Target.IsValid())
+	{
+		TOptional<FKawaiiPhysicsWindScopeTarget> RedirectOrigin;
+		const FKawaiiPhysicsWindScopeTarget OpenTarget =
+			ResolveWindScopeOpenTarget(Args.Target, RedirectOrigin);
+		if (!(OpenTarget == Args.Target))
+		{
+			Args.Target = OpenTarget;
+			Args.RedirectOrigin = RedirectOrigin;
+			KawaiiPhysicsWindScopeWindowPrivate::ResolveTargetNodePath(
+				Args.Target,
+				Args.AnimBlueprintPath,
+				Args.NodeGuid);
+		}
+	}
+
 	if (HasTargetArgs(Args))
 	{
 		SaveLastTargetArgs(Args);
@@ -2131,10 +2216,27 @@ void SKawaiiPhysicsWindScopeWindow::SetArgs(FKawaiiPhysicsWindScopeWindowArgs In
 	}
 }
 
+void SKawaiiPhysicsWindScopeWindow::SetTarget(FKawaiiPhysicsWindScopeTarget Target)
+{
+	FKawaiiPhysicsWindScopeWindowArgs NewArgs = Args;
+	NewArgs.Target = Target;
+	KawaiiPhysicsWindScopeWindowPrivate::ResolveTargetNodePath(
+		Target,
+		NewArgs.AnimBlueprintPath,
+		NewArgs.NodeGuid);
+	SetArgs(MoveTemp(NewArgs));
+	if (HasTargetArgs())
+	{
+		SaveLastTargetArgs(Args);
+	}
+}
+
 TSharedRef<SWidget> SKawaiiPhysicsWindScopeWindow::GenerateExternalForceComboWidget(FExternalForceIndexPtr Item) const
 {
 	return SNew(STextBlock)
-		.Text(Item.IsValid()
+		.Text(IsSharedPublisherTarget()
+			      ? LOCTEXT("SharedWindExternalForceItem", "Shared Wind")
+			      : Item.IsValid()
 			      ? FText::Format(LOCTEXT("ExternalForceItemFormat", "#{0} ProceduralWind"), FText::AsNumber(*Item))
 			      : LOCTEXT("NoExternalForceItem", "None"));
 }
@@ -2144,8 +2246,13 @@ void SKawaiiPhysicsWindScopeWindow::OnExternalForceSelectionChanged(
 	ESelectInfo::Type SelectInfo)
 {
 	(void)SelectInfo;
+	if (IsSharedPublisherTarget())
+	{
+		return;
+	}
+
 	SelectedExternalForceItem = Item;
-	Args.ExternalForceIndex = Item.IsValid() ? *Item : INDEX_NONE;
+	Args.Target.ExternalForceIndex = Item.IsValid() ? *Item : INDEX_NONE;
 	// 選択切替時は別の外力の波形を混在させないよう表示状態を丸ごとリセットする
 	DisplaySamples.Reset();
 	// Pause 中でも旧波形を残さないため即時反映
@@ -2166,6 +2273,11 @@ void SKawaiiPhysicsWindScopeWindow::OnExternalForceSelectionChanged(
 
 FText SKawaiiPhysicsWindScopeWindow::GetSelectedExternalForceText() const
 {
+	if (IsSharedPublisherTarget())
+	{
+		return LOCTEXT("SelectedSharedWind", "Shared Wind");
+	}
+
 	return SelectedExternalForceItem.IsValid()
 		       ? FText::Format(LOCTEXT("SelectedExternalForceFormat", "#{0} ProceduralWind"), FText::AsNumber(*SelectedExternalForceItem))
 		       : LOCTEXT("NoExternalForceSelected", "No ProceduralWind");
@@ -2178,11 +2290,97 @@ FText SKawaiiPhysicsWindScopeWindow::GetTargetNodeText() const
 		return LOCTEXT("NoTargetNodeGuidance", "No node selected: open from [Wind Scope] on a KawaiiPhysics node.");
 	}
 
-	if (const UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode())
+	return ResolveTarget().GetTitle();
+}
+
+FText SKawaiiPhysicsWindScopeWindow::GetRedirectBannerText() const
+{
+	const FKawaiiPhysicsWindScopeTarget Target = ResolveTarget();
+	if (Target.Kind == EKawaiiPhysicsWindScopeTargetKind::SharedPublisherNode && Args.RedirectOrigin.IsSet())
 	{
-		return GraphNode->GetNodeTitle(ENodeTitleType::ListView);
+		const FKawaiiPhysicsWindScopeTarget& Origin = Args.RedirectOrigin.GetValue();
+		const UAnimGraphNode_KawaiiPhysics* OriginNode = Origin.ResolveKawaiiPhysicsGraphNode();
+		const FGameplayTag SharedTag = KawaiiPhysicsWindScopeWindowPrivate::ResolveTargetSharedWindTag(Target);
+		return FText::Format(
+			LOCTEXT("RedirectedPublisherBanner",
+			        "Opened from {0} [External Force {1}]: wind parameters are shared from this publisher ({2})."),
+			OriginNode
+				? OriginNode->GetNodeTitle(ENodeTitleType::ListView)
+				: LOCTEXT("RedirectedPublisherUnknownOrigin", "Kawaii Physics Node"),
+			FText::AsNumber(Origin.ExternalForceIndex),
+			FText::FromString(SharedTag.ToString()));
 	}
-	return LOCTEXT("UnknownTargetNode", "KawaiiPhysics Node");
+
+	if (Target.Kind == EKawaiiPhysicsWindScopeTargetKind::KawaiiPhysicsNode && Target.IsRedirectedToShared())
+	{
+		const FGameplayTag SharedTag = KawaiiPhysicsWindScopeWindowPrivate::ResolveTargetSharedWindTag(Target);
+		if (Target.ResolveSharedRedirect().IsValid())
+		{
+			return FText::Format(
+				LOCTEXT("RedirectedConsumerPublisherFoundBanner",
+				        "Shared ({0}) -> Kawaii Physics Shared Publisher. The 13 shared parameters are overwritten by the publisher every frame."),
+				FText::FromString(SharedTag.ToString()));
+		}
+
+		return FText::Format(
+			LOCTEXT("RedirectedConsumerPublisherMissingBanner",
+			        "Shared ({0}) -> publisher not found in this Animation Blueprint. Edits here are overwritten while a publisher is active."),
+			FText::FromString(SharedTag.ToString()));
+	}
+
+	return FText::GetEmpty();
+}
+
+FText SKawaiiPhysicsWindScopeWindow::GetRedirectBannerButtonText() const
+{
+	const FKawaiiPhysicsWindScopeTarget Target = ResolveTarget();
+	if (Target.Kind == EKawaiiPhysicsWindScopeTargetKind::SharedPublisherNode && Args.RedirectOrigin.IsSet())
+	{
+		return LOCTEXT("ShowLocalWindButton", "Show local wind");
+	}
+	if (Target.Kind == EKawaiiPhysicsWindScopeTargetKind::KawaiiPhysicsNode &&
+		Target.IsRedirectedToShared() &&
+		Target.ResolveSharedRedirect().IsValid())
+	{
+		return LOCTEXT("OpenPublisherButton", "Open publisher");
+	}
+	return FText::GetEmpty();
+}
+
+FText SKawaiiPhysicsWindScopeWindow::GetRedirectBannerButtonToolTipText() const
+{
+	const FKawaiiPhysicsWindScopeTarget Target = ResolveTarget();
+	if (Target.Kind == EKawaiiPhysicsWindScopeTargetKind::SharedPublisherNode && Args.RedirectOrigin.IsSet())
+	{
+		return LOCTEXT("ShowLocalWindTooltip", "Show this Kawaii Physics node's local ProceduralWind values.");
+	}
+	return LOCTEXT("OpenPublisherTooltip", "Open the Shared Publisher that provides these wind parameters.");
+}
+
+FText SKawaiiPhysicsWindScopeWindow::GetSharedRedirectEditToolTipText() const
+{
+	const FGameplayTag SharedTag = KawaiiPhysicsWindScopeWindowPrivate::ResolveTargetSharedWindTag(ResolveTarget());
+	return FText::Format(
+		LOCTEXT("SharedRedirectEditTooltip", "Provided by Shared Publisher ({0}). Edit it on the publisher."),
+		FText::FromString(SharedTag.ToString()));
+}
+
+FText SKawaiiPhysicsWindScopeWindow::GetPasteWindParametersToolTipText() const
+{
+	return IsSharedRedirectEditingRestricted()
+		       ? LOCTEXT("PasteSharedConsumerRedirectTooltip", "Apply on the publisher")
+		       : LOCTEXT("PasteWindParametersTooltip", "Paste ProceduralWind parameters from the clipboard.");
+}
+
+FText SKawaiiPhysicsWindScopeWindow::GetGustButtonToolTipText() const
+{
+	if (ResolveTarget().IsRedirectedToShared() ||
+		(ResolveTarget().Kind == EKawaiiPhysicsWindScopeTargetKind::SharedPublisherNode && Args.RedirectOrigin.IsSet()))
+	{
+		return LOCTEXT("GustButtonSharedTooltip",
+		               "Sends a one-shot test gust to the live target. Does not change any parameters. Delivered through the Shared Publisher.");
+	}
+	return LOCTEXT("GustButtonTooltip", "Sends a one-shot test gust to the live target. Does not change any parameters.");
 }
 
 FText SKawaiiPhysicsWindScopeWindow::GetModeText() const
@@ -2245,6 +2443,27 @@ EVisibility SKawaiiPhysicsWindScopeWindow::GetEditPanelVisibility() const
 	return IsEditPanelExpanded() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
+EVisibility SKawaiiPhysicsWindScopeWindow::GetRedirectBannerVisibility() const
+{
+	return GetRedirectBannerText().IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible;
+}
+
+EVisibility SKawaiiPhysicsWindScopeWindow::GetRedirectBannerButtonVisibility() const
+{
+	const FKawaiiPhysicsWindScopeTarget Target = ResolveTarget();
+	if (Target.Kind == EKawaiiPhysicsWindScopeTargetKind::SharedPublisherNode && Args.RedirectOrigin.IsSet())
+	{
+		return EVisibility::Visible;
+	}
+	if (Target.Kind == EKawaiiPhysicsWindScopeTargetKind::KawaiiPhysicsNode &&
+		Target.IsRedirectedToShared() &&
+		Target.ResolveSharedRedirect().IsValid())
+	{
+		return EVisibility::Visible;
+	}
+	return EVisibility::Collapsed;
+}
+
 const FSlateBrush* SKawaiiPhysicsWindScopeWindow::GetEditPanelToggleIcon() const
 {
 	return FAppStyle::Get().GetBrush(IsEditPanelExpanded() ? TEXT("Icons.ChevronRight") : TEXT("Icons.ChevronLeft"));
@@ -2254,6 +2473,24 @@ FReply SKawaiiPhysicsWindScopeWindow::OnToggleEditPanelClicked()
 {
 	bEditPanelExpanded = !bEditPanelExpanded;
 	SaveEditPanelConfig();
+	return FReply::Handled();
+}
+
+FReply SKawaiiPhysicsWindScopeWindow::OnRedirectBannerButtonClicked()
+{
+	const FKawaiiPhysicsWindScopeTarget Target = ResolveTarget();
+	if (Target.Kind == EKawaiiPhysicsWindScopeTargetKind::SharedPublisherNode && Args.RedirectOrigin.IsSet())
+	{
+		SetTarget(Args.RedirectOrigin.GetValue());
+	}
+	else if (Target.Kind == EKawaiiPhysicsWindScopeTargetKind::KawaiiPhysicsNode && Target.IsRedirectedToShared())
+	{
+		FKawaiiPhysicsWindScopeTarget Redirect = Target.ResolveSharedRedirect();
+		if (Redirect.IsValid())
+		{
+			SetTarget(Redirect);
+		}
+	}
 	return FReply::Handled();
 }
 
@@ -2280,6 +2517,28 @@ EVisibility SKawaiiPhysicsWindScopeWindow::GetTargetNodeEmptyStateVisibility() c
 bool SKawaiiPhysicsWindScopeWindow::IsWindEditable() const
 {
 	return ResolveGraphNode() != nullptr;
+}
+
+bool SKawaiiPhysicsWindScopeWindow::IsSharedRedirectEditingRestricted() const
+{
+	return ResolveTarget().IsRedirectedToShared();
+}
+
+bool SKawaiiPhysicsWindScopeWindow::CanApplyWindPreset() const
+{
+	return IsWindEditable() && !IsSharedRedirectEditingRestricted();
+}
+
+bool SKawaiiPhysicsWindScopeWindow::CanPasteWindParameters() const
+{
+	return IsWindEditable() && !IsSharedRedirectEditingRestricted();
+}
+
+bool SKawaiiPhysicsWindScopeWindow::CanEditWindProperty(FName PropertyName) const
+{
+	return IsWindEditable() &&
+		(!IsSharedRedirectEditingRestricted() ||
+			!KawaiiPhysicsEdUtils::IsSharedWindPublisherParameter(PropertyName));
 }
 
 const FKawaiiPhysicsWindScopeEditValues* SKawaiiPhysicsWindScopeWindow::GetEditValues() const
@@ -2343,9 +2602,17 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeWindow::GeneratePresetMenu()
 			SNew(SButton)
 			.Text(PresetDisplayName)
 			.HAlign(HAlign_Left)
-			.ToolTipText(FText::Format(
-				LOCTEXT("PresetButtonTooltipFormat", "Apply the \"{0}\" wind preset to the current parameters.\nHover to preview it on the graph."),
-				PresetDisplayName))
+			.IsEnabled(this, &SKawaiiPhysicsWindScopeWindow::CanApplyWindPreset)
+			.ToolTipText_Lambda([this, PresetDisplayName]()
+			{
+				if (IsSharedRedirectEditingRestricted())
+				{
+					return LOCTEXT("ApplyPresetSharedConsumerRedirectTooltip", "Apply on the publisher");
+				}
+				return FText::Format(
+					LOCTEXT("PresetButtonTooltipFormat", "Apply the \"{0}\" wind preset to the current parameters.\nHover to preview it on the graph."),
+					PresetDisplayName);
+			})
 			.OnClicked(this, &SKawaiiPhysicsWindScopeWindow::OnPresetButtonClicked, PresetIndex)
 			.OnHovered_Lambda([WeakSelf, PresetIndex]()
 			{
@@ -2589,6 +2856,11 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeWindow::GenerateGustMenu()
 
 FReply SKawaiiPhysicsWindScopeWindow::OnPresetButtonClicked(int32 PresetIndex)
 {
+	if (!CanApplyWindPreset())
+	{
+		return FReply::Handled();
+	}
+
 	if (!CachedPresets.IsValidIndex(PresetIndex))
 	{
 		return FReply::Handled();
@@ -2659,7 +2931,12 @@ void SKawaiiPhysicsWindScopeWindow::OnPresetMenuOpenChanged(bool bIsOpen)
 
 FReply SKawaiiPhysicsWindScopeWindow::ApplyPreset(const FKawaiiProceduralWindPreset& Preset)
 {
-	UAnimGraphNode_KawaiiPhysics* GraphNode = nullptr;
+	if (!CanApplyWindPreset())
+	{
+		return FReply::Handled();
+	}
+
+	UAnimGraphNode_Base* GraphNode = nullptr;
 	int32 ResolvedIndex = INDEX_NONE;
 	FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = ResolveEditableWind(GraphNode, ResolvedIndex);
 	if (!Wind)
@@ -2677,7 +2954,7 @@ FReply SKawaiiPhysicsWindScopeWindow::ApplyPreset(const FKawaiiProceduralWindPre
 	Params.TimeScale = 1.0f;
 	Wind->ApplyDynamicParams(Params);
 	KawaiiPhysicsWindScopeWindowPrivate::MarkWindScopeGraphNodeModified(GraphNode);
-	Args.ExternalForceIndex = ResolvedIndex;
+	Args.Target.ExternalForceIndex = ResolvedIndex;
 	// シミュレーションリセット回避のため PostEditChangeProperty / NotifyGraphNodePropertyChanged は呼ばず、
 	// ライブ側には PendingParams 経由で同じ値を送る
 	const bool bAppliedLive = PushParamsToLiveRuntime(Params);
@@ -2816,7 +3093,7 @@ bool SKawaiiPhysicsWindScopeWindow::SaveCurrentWindAsPreset(int32 PresetIndex)
 		return false;
 	}
 
-	UAnimGraphNode_KawaiiPhysics* GraphNode = nullptr;
+	UAnimGraphNode_Base* GraphNode = nullptr;
 	int32 ResolvedIndex = INDEX_NONE;
 	FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = ResolveEditableWind(GraphNode, ResolvedIndex);
 	if (!Wind)
@@ -2868,7 +3145,7 @@ bool SKawaiiPhysicsWindScopeWindow::SaveCurrentWindAsPreset(int32 PresetIndex)
 	}
 
 	PresetDataAsset->MarkPackageDirty();
-	Args.ExternalForceIndex = ResolvedIndex;
+	Args.Target.ExternalForceIndex = ResolvedIndex;
 	RebuildPresetButtons();
 	KawaiiPhysicsEdWindowUtils::ShowNotification(
 		FText::Format(
@@ -2882,7 +3159,7 @@ bool SKawaiiPhysicsWindScopeWindow::SaveCurrentWindAsPreset(int32 PresetIndex)
 
 FReply SKawaiiPhysicsWindScopeWindow::OnCopyWindParametersClicked()
 {
-	UAnimGraphNode_KawaiiPhysics* GraphNode = nullptr;
+	UAnimGraphNode_Base* GraphNode = nullptr;
 	int32 ResolvedIndex = INDEX_NONE;
 	FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = ResolveEditableWind(GraphNode, ResolvedIndex);
 	if (!Wind)
@@ -2900,7 +3177,7 @@ FReply SKawaiiPhysicsWindScopeWindow::OnCopyWindParametersClicked()
 		nullptr);
 	const FString ClipboardText = FString::Printf(TEXT("%s%s%s"), KawaiiPhysicsWindScopeWindowPrivate::WindScopeClipboardMarker, LINE_TERMINATOR, *ExportedText);
 	FPlatformApplicationMisc::ClipboardCopy(*ClipboardText);
-	Args.ExternalForceIndex = ResolvedIndex;
+	Args.Target.ExternalForceIndex = ResolvedIndex;
 	KawaiiPhysicsEdWindowUtils::ShowNotification(
 		LOCTEXT("CopyWindParametersSucceeded", "Copied ProceduralWind parameters to clipboard."),
 		SNotificationItem::CS_Success);
@@ -2909,6 +3186,11 @@ FReply SKawaiiPhysicsWindScopeWindow::OnCopyWindParametersClicked()
 
 FReply SKawaiiPhysicsWindScopeWindow::OnPasteWindParametersClicked()
 {
+	if (!CanPasteWindParameters())
+	{
+		return FReply::Handled();
+	}
+
 	FString ClipboardText;
 	FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
 	if (!ClipboardText.StartsWith(KawaiiPhysicsWindScopeWindowPrivate::WindScopeClipboardMarker))
@@ -2939,7 +3221,7 @@ FReply SKawaiiPhysicsWindScopeWindow::OnPasteWindParametersClicked()
 		return FReply::Handled();
 	}
 
-	UAnimGraphNode_KawaiiPhysics* GraphNode = nullptr;
+	UAnimGraphNode_Base* GraphNode = nullptr;
 	int32 ResolvedIndex = INDEX_NONE;
 	FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = ResolveEditableWind(GraphNode, ResolvedIndex);
 	if (!Wind)
@@ -2951,7 +3233,7 @@ FReply SKawaiiPhysicsWindScopeWindow::OnPasteWindParametersClicked()
 	GraphNode->Modify();
 	*Wind = PastedWind;
 	KawaiiPhysicsWindScopeWindowPrivate::MarkWindScopeGraphNodeModified(GraphNode);
-	Args.ExternalForceIndex = ResolvedIndex;
+	Args.Target.ExternalForceIndex = ResolvedIndex;
 	const bool bAppliedLive = PushParamsToLiveRuntime(Wind->BuildDynamicParamsSnapshot());
 	SyncEditValuesAfterWrite(Wind);
 	RefreshExternalForceItems();
@@ -2964,7 +3246,7 @@ FReply SKawaiiPhysicsWindScopeWindow::OnPasteWindParametersClicked()
 }
 
 FKawaiiPhysics_ExternalForce_ProceduralWind* SKawaiiPhysicsWindScopeWindow::ResolveEditableWind(
-	UAnimGraphNode_KawaiiPhysics*& OutGraphNode,
+	UAnimGraphNode_Base*& OutGraphNode,
 	int32& OutResolvedIndex,
 	bool bShowNotification)
 {
@@ -2972,33 +3254,28 @@ FKawaiiPhysics_ExternalForce_ProceduralWind* SKawaiiPhysicsWindScopeWindow::Reso
 	OutResolvedIndex = INDEX_NONE;
 
 	// 対象グラフノードを解決（失敗時は通知して終了）
-	UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
+	UAnimGraphNode_Base* GraphNode = ResolveGraphNode();
 	if (!GraphNode)
 	{
 		if (bShowNotification)
 		{
 			KawaiiPhysicsEdWindowUtils::ShowNotification(
-				LOCTEXT("ApplyPresetNoNode", "Failed to resolve the KawaiiPhysics graph node."),
+				LOCTEXT("ApplyPresetNoNode", "Failed to resolve the Wind Scope target node."),
 				SNotificationItem::CS_Fail);
 		}
 		return nullptr;
 	}
 
-	// ProceduralWind 外力を解決・型チェック
-	const int32 ResolvedIndex = KawaiiPhysicsWindScopeWindowPrivate::ResolveProceduralWindIndex(GraphNode->Node, Args.ExternalForceIndex);
-	if (!GraphNode->Node.ExternalForces.IsValidIndex(ResolvedIndex))
+	FKawaiiPhysicsWindScopeTarget Target = ResolveTarget();
+	if (UAnimGraphNode_KawaiiPhysics* KawaiiPhysicsNode = Target.ResolveKawaiiPhysicsGraphNode())
 	{
-		if (bShowNotification)
-		{
-			KawaiiPhysicsEdWindowUtils::ShowNotification(
-				LOCTEXT("ApplyPresetNoWind", "No ProceduralWind external force was found."),
-				SNotificationItem::CS_Fail);
-		}
-		return nullptr;
+		const int32 ResolvedIndex = KawaiiPhysicsWindScopeWindowPrivate::ResolveProceduralWindIndex(
+			KawaiiPhysicsNode->Node,
+			Target.ExternalForceIndex);
+		Target.ExternalForceIndex = ResolvedIndex;
+		Args.Target.ExternalForceIndex = ResolvedIndex;
 	}
-
-	FKawaiiPhysics_ExternalForce_ProceduralWind* Wind =
-		GraphNode->Node.ExternalForces[ResolvedIndex].GetMutablePtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+	FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = Target.ResolveGraphWind();
 	if (!Wind)
 	{
 		if (bShowNotification)
@@ -3011,19 +3288,14 @@ FKawaiiPhysics_ExternalForce_ProceduralWind* SKawaiiPhysicsWindScopeWindow::Reso
 	}
 
 	OutGraphNode = GraphNode;
-	OutResolvedIndex = ResolvedIndex;
+	OutResolvedIndex = Target.ExternalForceIndex;
 	return Wind;
 }
 
 bool SKawaiiPhysicsWindScopeWindow::PushParamsToLiveRuntime(
 	const FKawaiiProceduralWindDynamicParams& Params)
 {
-	UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
-	FAnimNode_KawaiiPhysics* RuntimeNode = KawaiiPhysicsEdUtils::ResolveLiveKawaiiPhysicsNode(GraphNode);
-	FKawaiiPhysics_ExternalForce_ProceduralWind* RuntimeWind = KawaiiPhysicsWindScopeWindowPrivate::ResolveLiveProceduralWind(
-		GraphNode,
-		RuntimeNode,
-		Args.ExternalForceIndex);
+	FKawaiiPhysics_ExternalForce_ProceduralWind* RuntimeWind = ResolveTarget().ResolveLiveWind();
 	if (!RuntimeWind)
 	{
 		return false;
@@ -3036,12 +3308,7 @@ bool SKawaiiPhysicsWindScopeWindow::PushParamsToLiveRuntime(
 bool SKawaiiPhysicsWindScopeWindow::PushGustToLiveRuntime(
 	const float Strength, const float RiseTime, const float DecayTime)
 {
-	UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
-	FAnimNode_KawaiiPhysics* RuntimeNode = KawaiiPhysicsEdUtils::ResolveLiveKawaiiPhysicsNode(GraphNode);
-	FKawaiiPhysics_ExternalForce_ProceduralWind* RuntimeWind = KawaiiPhysicsWindScopeWindowPrivate::ResolveLiveProceduralWind(
-		GraphNode,
-		RuntimeNode,
-		Args.ExternalForceIndex);
+	FKawaiiPhysics_ExternalForce_ProceduralWind* RuntimeWind = ResolveTarget().ResolveLiveWind();
 	if (!RuntimeWind)
 	{
 		return false;
@@ -3081,7 +3348,7 @@ bool SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit(
 				: TOptional<FName>(PropertyName));
 	}
 
-	UAnimGraphNode_KawaiiPhysics* GraphNode = nullptr;
+	UAnimGraphNode_Base* GraphNode = nullptr;
 	int32 ResolvedIndex = INDEX_NONE;
 	FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = ResolveEditableWind(
 		GraphNode,
@@ -3091,7 +3358,7 @@ bool SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit(
 	{
 		return FailEdit();
 	}
-	Args.ExternalForceIndex = ResolvedIndex;
+	Args.Target.ExternalForceIndex = ResolvedIndex;
 
 	FProperty* Property = KawaiiPhysicsWindScopeWindowPrivate::FindProceduralWindProperty(PropertyName);
 	if (!Property)
@@ -3107,6 +3374,10 @@ bool SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit(
 
 	if (Phase == EKawaiiPhysicsWindEditPhase::Begin)
 	{
+		if (!CanEditWindProperty(PropertyName))
+		{
+			return FailEdit();
+		}
 		DragStartWind = *Wind;
 		DragStartPropertyName = PropertyName;
 		bHasDragStartWind = true;
@@ -3115,13 +3386,17 @@ bool SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit(
 
 	if (Phase == EKawaiiPhysicsWindEditPhase::Interactive && bHasMatchingDragStart)
 	{
+		if (!CanEditWindProperty(PropertyName))
+		{
+			return FailEdit();
+		}
 		if (!KawaiiPhysicsWindScopeWindowPrivate::SetProceduralWindPropertyValue(*Wind, Property, NewValue, VectorComponentIndex))
 		{
 			return FailEdit();
 		}
 
 		FKawaiiProceduralWindDynamicParams Params;
-		if (Wind->BuildDynamicParamsForProperty(PropertyName, Params))
+		if (KawaiiPhysicsEdUtils::BuildProceduralWindDynamicParamsForProperty(*Wind, PropertyName, Params))
 		{
 			PushParamsToLiveRuntime(Params);
 		}
@@ -3137,7 +3412,7 @@ bool SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit(
 		{
 			KawaiiPhysicsWindScopeWindowPrivate::CopyProceduralWindPropertyValue(*Wind, DragStartWind, Property);
 			FKawaiiProceduralWindDynamicParams Params;
-			if (Wind->BuildDynamicParamsForProperty(PropertyName, Params))
+			if (KawaiiPhysicsEdUtils::BuildProceduralWindDynamicParamsForProperty(*Wind, PropertyName, Params))
 			{
 				PushParamsToLiveRuntime(Params);
 			}
@@ -3150,6 +3425,11 @@ bool SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit(
 	if (bUseDragStartValue)
 	{
 		KawaiiPhysicsWindScopeWindowPrivate::CopyProceduralWindPropertyValue(*Wind, DragStartWind, Property);
+	}
+
+	if (!CanEditWindProperty(PropertyName))
+	{
+		return FailEdit();
 	}
 
 	const FScopedTransaction Transaction(LOCTEXT("EditWindParameterTransaction", "Edit Kawaii Physics Wind Parameter"));
@@ -3165,11 +3445,11 @@ bool SKawaiiPhysicsWindScopeWindow::ApplyWindParamEdit(
 	}
 
 	KawaiiPhysicsWindScopeWindowPrivate::MarkWindScopeGraphNodeModified(GraphNode);
-	Args.ExternalForceIndex = ResolvedIndex;
+	Args.Target.ExternalForceIndex = ResolvedIndex;
 	bHasDragStartWind = false;
 
 	FKawaiiProceduralWindDynamicParams Params;
-	if (Wind->BuildDynamicParamsForProperty(PropertyName, Params))
+	if (KawaiiPhysicsEdUtils::BuildProceduralWindDynamicParamsForProperty(*Wind, PropertyName, Params))
 	{
 		PushParamsToLiveRuntime(Params);
 	}
@@ -3192,7 +3472,7 @@ void SKawaiiPhysicsWindScopeWindow::FinalizeAbandonedWindDrag()
 		return;
 	}
 
-	UAnimGraphNode_KawaiiPhysics* GraphNode = nullptr;
+	UAnimGraphNode_Base* GraphNode = nullptr;
 	int32 ResolvedIndex = INDEX_NONE;
 	FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = ResolveEditableWind(GraphNode, ResolvedIndex, false);
 	if (!Wind)
@@ -3203,7 +3483,7 @@ void SKawaiiPhysicsWindScopeWindow::FinalizeAbandonedWindDrag()
 	}
 
 	FProperty* Property = KawaiiPhysicsWindScopeWindowPrivate::FindProceduralWindProperty(DragStartPropertyName);
-	if (!Property)
+	if (!Property || !CanEditWindProperty(DragStartPropertyName))
 	{
 		bHasDragStartWind = false;
 		ClearActiveEditGuide();
@@ -3231,12 +3511,12 @@ void SKawaiiPhysicsWindScopeWindow::FinalizeAbandonedWindDrag()
 	GraphNode->Modify();
 	KawaiiPhysicsWindScopeWindowPrivate::CopyProceduralWindPropertyValue(*Wind, DraggedWind, Property);
 	KawaiiPhysicsWindScopeWindowPrivate::MarkWindScopeGraphNodeModified(GraphNode);
-	Args.ExternalForceIndex = ResolvedIndex;
+	Args.Target.ExternalForceIndex = ResolvedIndex;
 	bHasDragStartWind = false;
 	ClearActiveEditGuide();
 
 	FKawaiiProceduralWindDynamicParams Params;
-	if (Wind->BuildDynamicParamsForProperty(DragStartPropertyName, Params))
+	if (KawaiiPhysicsEdUtils::BuildProceduralWindDynamicParamsForProperty(*Wind, DragStartPropertyName, Params))
 	{
 		PushParamsToLiveRuntime(Params);
 	}
@@ -3245,12 +3525,17 @@ void SKawaiiPhysicsWindScopeWindow::FinalizeAbandonedWindDrag()
 
 bool SKawaiiPhysicsWindScopeWindow::ResetWindParamToDefault(FName PropertyName)
 {
+	if (!CanEditWindProperty(PropertyName))
+	{
+		return false;
+	}
+
 	if (GraphWidget.IsValid())
 	{
 		GraphWidget->SetActiveEditGuide(TOptional<FName>());
 	}
 
-	UAnimGraphNode_KawaiiPhysics* GraphNode = nullptr;
+	UAnimGraphNode_Base* GraphNode = nullptr;
 	int32 ResolvedIndex = INDEX_NONE;
 	FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = ResolveEditableWind(GraphNode, ResolvedIndex);
 	if (!Wind)
@@ -3272,11 +3557,11 @@ bool SKawaiiPhysicsWindScopeWindow::ResetWindParamToDefault(FName PropertyName)
 	GraphNode->Modify();
 	KawaiiPhysicsWindScopeWindowPrivate::CopyProceduralWindPropertyValue(*Wind, DefaultWind, Property);
 	KawaiiPhysicsWindScopeWindowPrivate::MarkWindScopeGraphNodeModified(GraphNode);
-	Args.ExternalForceIndex = ResolvedIndex;
+	Args.Target.ExternalForceIndex = ResolvedIndex;
 	bHasDragStartWind = false;
 
 	FKawaiiProceduralWindDynamicParams Params;
-	if (Wind->BuildDynamicParamsForProperty(PropertyName, Params))
+	if (KawaiiPhysicsEdUtils::BuildProceduralWindDynamicParamsForProperty(*Wind, PropertyName, Params))
 	{
 		PushParamsToLiveRuntime(Params);
 	}
@@ -3286,24 +3571,8 @@ bool SKawaiiPhysicsWindScopeWindow::ResetWindParamToDefault(FName PropertyName)
 
 bool SKawaiiPhysicsWindScopeWindow::IsLiveTargetResolved() const
 {
-	// Editor側ノードからLive実行中のランタイムノードを解決し、対象ProceduralWindの
-	// RuntimeStateが有効かどうかだけを判定する（サンプル取得は行わない）
-	UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
-	FAnimNode_KawaiiPhysics* RuntimeNode = KawaiiPhysicsEdUtils::ResolveLiveKawaiiPhysicsNode(GraphNode);
-	if (!RuntimeNode)
-	{
-		return false;
-	}
-
-	const int32 ResolvedIndex =
-		KawaiiPhysicsWindScopeWindowPrivate::ResolveProceduralWindIndex(*RuntimeNode, Args.ExternalForceIndex);
-	if (!RuntimeNode->ExternalForces.IsValidIndex(ResolvedIndex))
-	{
-		return false;
-	}
-
-	const FKawaiiPhysics_ExternalForce_ProceduralWind* Wind =
-		RuntimeNode->ExternalForces[ResolvedIndex].GetPtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+	// Live実行中のランタイムノードから対象ProceduralWindの RuntimeState が有効かだけを判定する（サンプル取得は行わない）
+	const FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = ResolveTarget().ResolveLiveWind();
 	return Wind && Wind->RuntimeState.IsValid();
 }
 
@@ -3386,8 +3655,13 @@ void SKawaiiPhysicsWindScopeWindow::RefreshExternalForceItems()
 {
 	// ノードが持つ ProceduralWind 外力のインデックス一覧を再収集
 	ExternalForceItems.Reset();
-	UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
-	if (GraphNode)
+	if (IsSharedPublisherTarget())
+	{
+		ExternalForceItems.Add(MakeShared<int32>(INDEX_NONE));
+		SelectedExternalForceItem = ExternalForceItems[0];
+		Args.Target.ExternalForceIndex = INDEX_NONE;
+	}
+	else if (UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveTarget().ResolveKawaiiPhysicsGraphNode())
 	{
 		for (int32 Index = 0; Index < GraphNode->Node.ExternalForces.Num(); ++Index)
 		{
@@ -3398,20 +3672,23 @@ void SKawaiiPhysicsWindScopeWindow::RefreshExternalForceItems()
 		}
 	}
 
-	// 直前の選択Indexを維持できなければ先頭を選択
-	SelectedExternalForceItem.Reset();
-	for (const FExternalForceIndexPtr& Item : ExternalForceItems)
+	if (!IsSharedPublisherTarget())
 	{
-		if (Item.IsValid() && *Item == Args.ExternalForceIndex)
+		// 直前の選択Indexを維持できなければ先頭を選択
+		SelectedExternalForceItem.Reset();
+		for (const FExternalForceIndexPtr& Item : ExternalForceItems)
 		{
-			SelectedExternalForceItem = Item;
-			break;
+			if (Item.IsValid() && *Item == Args.Target.ExternalForceIndex)
+			{
+				SelectedExternalForceItem = Item;
+				break;
+			}
 		}
-	}
-	if (!SelectedExternalForceItem.IsValid() && ExternalForceItems.Num() > 0)
-	{
-		SelectedExternalForceItem = ExternalForceItems[0];
-		Args.ExternalForceIndex = *SelectedExternalForceItem;
+		if (!SelectedExternalForceItem.IsValid() && ExternalForceItems.Num() > 0)
+		{
+			SelectedExternalForceItem = ExternalForceItems[0];
+			Args.Target.ExternalForceIndex = *SelectedExternalForceItem;
+		}
 	}
 
 	// コンボボックスへ反映
@@ -3479,12 +3756,7 @@ void SKawaiiPhysicsWindScopeWindow::UpdateLiveEditValuesFromRuntime()
 {
 	CachedLiveEditValues = FKawaiiPhysicsWindScopeEditValues();
 
-	UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
-	FAnimNode_KawaiiPhysics* RuntimeNode = KawaiiPhysicsEdUtils::ResolveLiveKawaiiPhysicsNode(GraphNode);
-	FKawaiiPhysics_ExternalForce_ProceduralWind* RuntimeWind = KawaiiPhysicsWindScopeWindowPrivate::ResolveLiveProceduralWind(
-		GraphNode,
-		RuntimeNode,
-		Args.ExternalForceIndex);
+	FKawaiiPhysics_ExternalForce_ProceduralWind* RuntimeWind = ResolveTarget().ResolveLiveWind();
 	if (!RuntimeWind)
 	{
 		return;
@@ -3498,27 +3770,7 @@ bool SKawaiiPhysicsWindScopeWindow::TryUpdateFromLiveRuntime(bool& bOutLiveTarge
 {
 	bOutLiveTargetResolved = false;
 
-	UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
-	if (!GraphNode)
-	{
-		return false;
-	}
-
-	// 実行中の FAnimNode_KawaiiPhysics から対象 ProceduralWind の RuntimeState を解決
-	FAnimNode_KawaiiPhysics* RuntimeNode = KawaiiPhysicsEdUtils::ResolveLiveKawaiiPhysicsNode(GraphNode);
-	if (!RuntimeNode)
-	{
-		return false;
-	}
-
-	const int32 ResolvedIndex = KawaiiPhysicsWindScopeWindowPrivate::ResolveProceduralWindIndex(*RuntimeNode, Args.ExternalForceIndex);
-	if (!RuntimeNode->ExternalForces.IsValidIndex(ResolvedIndex))
-	{
-		return false;
-	}
-
-	const FKawaiiPhysics_ExternalForce_ProceduralWind* Wind =
-		RuntimeNode->ExternalForces[ResolvedIndex].GetPtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+	const FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = ResolveTarget().ResolveLiveWind();
 	if (!Wind || !Wind->RuntimeState.IsValid())
 	{
 		return false;
@@ -3552,7 +3804,6 @@ bool SKawaiiPhysicsWindScopeWindow::TryUpdateFromLiveRuntime(bool& bOutLiveTarge
 
 	// 新規サンプル分だけ取り込めたので Display 側へ反映
 	LastLiveSampleCount = ScopeSampleCount;
-	Args.ExternalForceIndex = ResolvedIndex;
 	DisplaySamples = MoveTemp(Snapshot);
 	return DisplaySamples.Num() > 0;
 }
@@ -3560,20 +3811,7 @@ bool SKawaiiPhysicsWindScopeWindow::TryUpdateFromLiveRuntime(bool& bOutLiveTarge
 bool SKawaiiPhysicsWindScopeWindow::TryGetPreviewForceCopy(
 	FKawaiiPhysics_ExternalForce_ProceduralWind& OutForce) const
 {
-	const UAnimGraphNode_KawaiiPhysics* GraphNode = ResolveGraphNode();
-	if (!GraphNode)
-	{
-		return false;
-	}
-
-	const int32 ResolvedIndex = KawaiiPhysicsWindScopeWindowPrivate::ResolveProceduralWindIndex(GraphNode->Node, Args.ExternalForceIndex);
-	if (!GraphNode->Node.ExternalForces.IsValidIndex(ResolvedIndex))
-	{
-		return false;
-	}
-
-	const FKawaiiPhysics_ExternalForce_ProceduralWind* Wind =
-		GraphNode->Node.ExternalForces[ResolvedIndex].GetPtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+	const FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = ResolveTarget().ResolveGraphWind();
 	if (!Wind)
 	{
 		return false;
@@ -3584,32 +3822,64 @@ bool SKawaiiPhysicsWindScopeWindow::TryGetPreviewForceCopy(
 	return true;
 }
 
-UAnimGraphNode_KawaiiPhysics* SKawaiiPhysicsWindScopeWindow::ResolveGraphNode() const
+UAnimGraphNode_Base* SKawaiiPhysicsWindScopeWindow::ResolveGraphNode() const
 {
+	return ResolveTarget().ResolveGraphNode();
+}
+
+FKawaiiPhysicsWindScopeTarget SKawaiiPhysicsWindScopeWindow::ResolveTarget() const
+{
+	// KawaiiPhysics ノード対象は Index が無効なら先頭の ProceduralWind へフォールバックする（旧実装と同じ挙動）
+	const auto ApplyIndexFallback = [](FKawaiiPhysicsWindScopeTarget Target)
+	{
+		if (UAnimGraphNode_KawaiiPhysics* KawaiiPhysicsNode = Target.ResolveKawaiiPhysicsGraphNode())
+		{
+			Target.ExternalForceIndex = KawaiiPhysicsWindScopeWindowPrivate::ResolveProceduralWindIndex(
+				KawaiiPhysicsNode->Node,
+				Target.ExternalForceIndex);
+		}
+		return Target;
+	};
+
 	// まず弱参照を優先し、失効していれば AnimBlueprintPath+NodeGuid から再解決する
 	// （BP再コンパイル等でノードインスタンスが差し替わっても追従できる）
-	if (Args.GraphNode.IsValid())
+	if (Args.Target.GraphNode.IsValid())
 	{
-		return Args.GraphNode.Get();
+		return ApplyIndexFallback(Args.Target);
 	}
 
 	if (ResolvedGraphNodeCache.IsValid())
 	{
-		return ResolvedGraphNodeCache.Get();
+		FKawaiiPhysicsWindScopeTarget Target = Args.Target;
+		Target.GraphNode = ResolvedGraphNodeCache;
+		return ApplyIndexFallback(Target);
 	}
 
 	if (Args.AnimBlueprintPath.IsValid() && Args.NodeGuid.IsValid())
 	{
-		if (UAnimGraphNode_KawaiiPhysics* ResolvedGraphNode = KawaiiPhysicsWindScopeWindowPrivate::FindLoadedGraphNodeByGuid(
+		if (UAnimGraphNode_Base* ResolvedGraphNode = KawaiiPhysicsWindScopeWindowPrivate::FindLoadedGraphNodeByGuid(
 			Args.AnimBlueprintPath.ResolveObject(),
-			Args.NodeGuid))
+			Args.NodeGuid,
+			Args.Target.Kind))
 		{
 			ResolvedGraphNodeCache = ResolvedGraphNode;
-			return ResolvedGraphNode;
+			FKawaiiPhysicsWindScopeTarget Target = Args.Target;
+			Target.GraphNode = ResolvedGraphNode;
+			return ApplyIndexFallback(Target);
 		}
 	}
 
-	return nullptr;
+	return ApplyIndexFallback(Args.Target);
+}
+
+bool SKawaiiPhysicsWindScopeWindow::IsSharedPublisherTarget() const
+{
+	return ResolveTarget().Kind == EKawaiiPhysicsWindScopeTargetKind::SharedPublisherNode;
+}
+
+bool SKawaiiPhysicsWindScopeWindow::IsExternalForceComboEnabled() const
+{
+	return !IsSharedPublisherTarget();
 }
 
 bool SKawaiiPhysicsWindScopeWindow::HasTargetArgs() const
@@ -3619,7 +3889,7 @@ bool SKawaiiPhysicsWindScopeWindow::HasTargetArgs() const
 
 bool SKawaiiPhysicsWindScopeWindow::HasTargetArgs(const FKawaiiPhysicsWindScopeWindowArgs& InArgs)
 {
-	return InArgs.GraphNode.IsValid() || (InArgs.AnimBlueprintPath.IsValid() && InArgs.NodeGuid.IsValid());
+	return InArgs.Target.IsValid() || (InArgs.AnimBlueprintPath.IsValid() && InArgs.NodeGuid.IsValid());
 }
 
 void SKawaiiPhysicsWindScopeWindow::SaveLastTargetArgs(const FKawaiiPhysicsWindScopeWindowArgs& InArgs)
@@ -3641,8 +3911,13 @@ void SKawaiiPhysicsWindScopeWindow::SaveLastTargetArgs(const FKawaiiPhysicsWindS
 		GEditorPerProjectIni);
 	GConfig->SetInt(
 		KawaiiPhysicsWindScopeWindowPrivate::WindScopeConfigSectionName,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeLastTargetKindKey,
+		static_cast<int32>(InArgs.Target.Kind),
+		GEditorPerProjectIni);
+	GConfig->SetInt(
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeConfigSectionName,
 		KawaiiPhysicsWindScopeWindowPrivate::WindScopeLastForceIndexKey,
-		InArgs.ExternalForceIndex,
+		InArgs.Target.ExternalForceIndex,
 		GEditorPerProjectIni);
 	GConfig->Flush(false, GEditorPerProjectIni);
 }
@@ -3754,11 +4029,20 @@ void SKawaiiPhysicsWindScopeWindow::LoadPendingReconnectFromConfig()
 
 	PendingReconnectArgs.AnimBlueprintPath = ParsedAnimBlueprintPath;
 	PendingReconnectArgs.NodeGuid = ParsedNodeGuid;
-	PendingReconnectArgs.ExternalForceIndex = INDEX_NONE;
+	PendingReconnectArgs.Target.ExternalForceIndex = INDEX_NONE;
+	int32 TargetKindValue = static_cast<int32>(EKawaiiPhysicsWindScopeTargetKind::KawaiiPhysicsNode);
+	GConfig->GetInt(
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeConfigSectionName,
+		KawaiiPhysicsWindScopeWindowPrivate::WindScopeLastTargetKindKey,
+		TargetKindValue,
+		GEditorPerProjectIni);
+	PendingReconnectArgs.Target.Kind = TargetKindValue == static_cast<int32>(EKawaiiPhysicsWindScopeTargetKind::SharedPublisherNode)
+		                                   ? EKawaiiPhysicsWindScopeTargetKind::SharedPublisherNode
+		                                   : EKawaiiPhysicsWindScopeTargetKind::KawaiiPhysicsNode;
 	GConfig->GetInt(
 		KawaiiPhysicsWindScopeWindowPrivate::WindScopeConfigSectionName,
 		KawaiiPhysicsWindScopeWindowPrivate::WindScopeLastForceIndexKey,
-		PendingReconnectArgs.ExternalForceIndex,
+		PendingReconnectArgs.Target.ExternalForceIndex,
 		GEditorPerProjectIni);
 	bHasPendingReconnect = true;
 	bPendingReconnectAsyncLoadStarted = false;

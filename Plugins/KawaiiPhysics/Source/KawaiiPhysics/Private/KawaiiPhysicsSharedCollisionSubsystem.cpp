@@ -1646,6 +1646,22 @@ bool FKawaiiPhysicsSharedPublisherEntry::IsExpired(uint64 CurrentFrame, uint64 M
 			MaxAgeFrames);
 }
 
+// ProviderID と期限切れを同じロック区間で読む。GetProviderID / IsExpired を別々に呼ぶと、
+// 読み取りの間に別 Publisher が claim してしまい、期限切れの旧 provider が自分を生存 provider と誤認しうる。
+FKawaiiPhysicsSharedPublisherEntry::FProviderSnapshot FKawaiiPhysicsSharedPublisherEntry::ReadProviderSnapshot(
+	uint64 CurrentFrame, uint64 ProviderMaxAgeFrames) const
+{
+	FReadScopeLock ReadLock(StateLock);
+	FProviderSnapshot Snapshot;
+	Snapshot.ProviderID = ProviderID;
+	Snapshot.bExpired = bExpired
+		|| IsKawaiiPhysicsFrameAgeExceeded(
+			CurrentFrame,
+			LastPublishFrame.load(std::memory_order_acquire),
+			ProviderMaxAgeFrames);
+	return Snapshot;
+}
+
 bool FKawaiiPhysicsSharedPublisherEntry::IsMarkedExpired() const
 {
 	FReadScopeLock ReadLock(StateLock);
@@ -1656,6 +1672,20 @@ void FKawaiiPhysicsSharedPublisherEntry::MarkExpired()
 {
 	FWriteScopeLock WriteLock(StateLock);
 	bExpired = true;
+}
+
+// 所有権確認（ProviderID の比較）と期限切れマークを同じロック区間で行う。
+// 別々に行うと、期限切れの旧 provider が ProviderID を読んだ直後に別 Publisher が claim してしまい、
+// 旧 provider が新 provider の生存 Entry を誤って MarkExpired してしまう。
+bool FKawaiiPhysicsSharedPublisherEntry::MarkExpiredIfProvider(uint64 ExpectedProviderID)
+{
+	FWriteScopeLock WriteLock(StateLock);
+	if (ProviderID != ExpectedProviderID)
+	{
+		return false;
+	}
+	bExpired = true;
+	return true;
 }
 
 void FKawaiiPhysicsSharedPublisherEntry::RequestGust(float Strength, float RiseTime, float DecayTime, float HoldTime)
@@ -1701,16 +1731,34 @@ void FKawaiiPhysicsSharedPublisherEntry::RequestSimpleWorldSettings(
 	PendingSimpleWorldSettings = Settings;
 }
 
+void FKawaiiPhysicsSharedPublisherEntry::RequestWindParams(
+	const FKawaiiProceduralWindDynamicParams& Params)
+{
+	FScopeLock Lock(&GustMutex);
+	// 単純代入だと同フレーム内の2回目以降の要求で先の要求（別項目）が消えるため、項目単位でマージする
+	if (PendingWindParams.IsSet())
+	{
+		MergeProceduralWindDynamicParams(PendingWindParams.GetValue(), Params);
+	}
+	else
+	{
+		PendingWindParams = Params;
+	}
+}
+
 bool FKawaiiPhysicsSharedPublisherEntry::ConsumePendingPublisherRequests(
 	FPendingPublisherRequests& Out)
 {
 	FScopeLock Lock(&GustMutex);
 
-	const bool bHasRequests = PendingPublisherEnabled.IsSet() || PendingSimpleWorldSettings.IsSet();
+	const bool bHasRequests = PendingPublisherEnabled.IsSet() || PendingSimpleWorldSettings.IsSet() ||
+		PendingWindParams.IsSet();
 	Out.Enabled = PendingPublisherEnabled;
 	Out.SimpleWorldSettings = PendingSimpleWorldSettings;
+	Out.WindParams = PendingWindParams;
 	PendingPublisherEnabled.Reset();
 	PendingSimpleWorldSettings.Reset();
+	PendingWindParams.Reset();
 	return bHasRequests;
 }
 

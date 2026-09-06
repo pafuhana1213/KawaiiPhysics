@@ -15,6 +15,7 @@
 #include "AnimNode_KawaiiPhysicsSharedPublisher.generated.h"
 
 class UKawaiiPhysicsSharedCollisionSubsystem;
+class UKawaiiPhysicsWindPresetDataAsset;
 struct FKawaiiPhysicsSharedPublisherEntry;
 struct FKawaiiPhysicsSimpleWorldCollisionEntry;
 struct FKawaiiPhysicsSharedPublishHelper;
@@ -73,6 +74,19 @@ public:
 		meta = (PinHiddenByDefault, DisplayName = "Shared Wind"))
 	FKawaiiPhysics_ExternalForce_ProceduralWind SharedWind;
 
+	/**
+	 * 設定すると、初期化・reinit のたびに Wind Preset Tag のプリセットを Shared Wind に適用する（Shared Wind の 12 項目が上書きされ、Enabled=true / Time Scale=1 になる）。null なら Shared Wind の値をそのまま使う。
+	 * When set, the preset selected by Wind Preset Tag is applied to Shared Wind on every initialize / reinit (12 fields overwritten, Enabled=true, Time Scale=1). Leave null to use the Shared Wind values as authored.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shared Publisher|Wind",
+		meta = (PinHiddenByDefault, DisplayName = "Wind Preset Data Asset"))
+	TObjectPtr<UKawaiiPhysicsWindPresetDataAsset> WindPresetDataAsset = nullptr;
+
+	/** Shared Wind へ適用する Wind Preset の Tag / Wind Preset tag applied to Shared Wind. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shared Publisher|Wind",
+		meta = (PinHiddenByDefault, DisplayName = "Wind Preset Tag", EditCondition = "WindPresetDataAsset != nullptr"))
+	FGameplayTag WindPresetTag;
+
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
 	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
 	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
@@ -90,6 +104,35 @@ public:
 	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> GetSharedPublisherEntry() const;
 	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> GetSimpleWorldEntry() const;
 	FGameplayTag GetResolvedTag() const { return ResolvedTag; }
+	/** Wind Preset Data Asset が設定されていれば Wind Preset Tag のプリセットを Shared Wind へ適用する。GameThread 専用。/ Applies the Wind Preset Tag preset to Shared Wind when Wind Preset Data Asset is set. GameThread only. */
+	void ApplySharedWindPreset();
+	/**
+	 * 外部から SharedWind を authored 値で置き換えたときに呼ぶ。適用前の退避（SharedWindBeforePreset）を捨て、次の ApplySharedWindPreset が新しい authored 値を退避してプリセットを適用し直せるようにする。GameThread 専用。
+	 * Call after SharedWind was replaced with authored values from outside. Drops the pre-preset snapshot (SharedWindBeforePreset) so the next ApplySharedWindPreset snapshots the new authored values and applies the preset again. GameThread only.
+	 */
+	void ResetSharedWindPresetSnapshot();
+
+	// Shipping/Test（WITH_DEV_AUTOMATION_TESTS==0）では宣言ごと除外し、出荷ビルドにテスト表面を残さない。
+	// Stripped in Shipping/Test (WITH_DEV_AUTOMATION_TESTS==0); leaves no test surface in shipping builds.
+#if WITH_DEV_AUTOMATION_TESTS
+	/**
+	 * プリセット適用前の Shared Wind の退避値を保持しているか（プリセット適用中なら true）。
+	 * Whether the pre-preset Shared Wind snapshot is currently held (true while a preset is applied).
+	 */
+	bool HasSharedWindBeforePreset() const { return SharedWindBeforePreset.IsSet(); }
+
+	/**
+	 * 次の PreUpdate で reinit を走らせる要求が立っているか。
+	 * Whether a reinit request is pending for the next PreUpdate.
+	 */
+	bool IsReinitRequestedForTest() const { return bReinitRequested.load(std::memory_order_acquire); }
+
+	/**
+	 * reinit 要求を降ろす（「この操作が新たに要求したか」をテストが見分けるための前準備）。
+	 * Clears the pending reinit request so a test can tell whether a specific operation raises it again.
+	 */
+	void ClearReinitRequestForTest() { bReinitRequested.store(false, std::memory_order_release); }
+#endif
 
 #if WITH_EDITORONLY_DATA
 	bool IsRecentlyUpdated() const
@@ -106,13 +149,21 @@ private:
 	TWeakObjectPtr<UKawaiiPhysicsSharedCollisionSubsystem> CachedSubsystem;
 	TWeakObjectPtr<const USkeletalMeshComponent> CachedSkelComp;
 	TWeakObjectPtr<AActor> CachedFamilyRoot;
+	TWeakObjectPtr<UKawaiiPhysicsWindPresetDataAsset> CachedWindPresetDataAsset;
 	FGameplayTag ResolvedTag;
+	FGameplayTag CachedWindPresetTag;
+	/**
+	 * Wind Preset を最初に適用する直前の SharedWind の値（18 項目の snapshot）。プリセットが None / 無効になったときに書き戻す。GameThread 専用（PreUpdate から呼ばれる ApplySharedWindPreset だけが読み書きする）／保存されない transient 値。
+	 * Snapshot of SharedWind (all 18 fields) taken just before the first Wind Preset application, written back when the preset becomes None or unresolvable. GameThread only (touched solely by ApplySharedWindPreset, called from PreUpdate) and never serialized.
+	 */
+	TOptional<FKawaiiProceduralWindDynamicParams> SharedWindBeforePreset;
 	std::atomic<bool> bReinitRequested{true};
 	uint64 PreUpdateFrame = 0;
 	uint64 ProviderMaxAgeFrames = 60;
 
 #if !UE_BUILD_SHIPPING
 	bool bInvalidTagWarningLogged = false;
+	bool bInvalidWindPresetWarningLogged = false;
 #endif
 
 #if WITH_EDITORONLY_DATA

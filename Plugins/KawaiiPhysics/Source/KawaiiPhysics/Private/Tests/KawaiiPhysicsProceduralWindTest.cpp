@@ -4,7 +4,9 @@
 
 #include "Misc/AutomationTest.h"
 #include "KawaiiPhysicsTestHarness.h"
+#include "AnimNode_KawaiiPhysicsSharedPublisherInternal.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
+#include "KawaiiPhysicsSharedTags.h"
 
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNodeBase.h"
@@ -156,6 +158,62 @@ FVector ApplyProceduralWindDisplacement(const int32 NumSubsteps, const float InR
 	}
 
 	return Accessor.Bone(1).Location - InitialLocation;
+}
+
+FKawaiiProceduralWindDynamicParams MakeSharedWindParamsForTest()
+{
+	FKawaiiProceduralWindDynamicParams Params;
+	Params.bOverrideWindDirection = true;
+	Params.WindDirection = FVector(0.0f, 1.0f, 0.0f);
+	Params.bOverrideWindDirectionNoiseAngle = true;
+	Params.WindDirectionNoiseAngle = 7.0f;
+	Params.bOverrideWindDirectionNoisePeriod = true;
+	Params.WindDirectionNoisePeriod = 0.7f;
+	Params.bOverrideConstantForce = true;
+	Params.ConstantForce = 12.0f;
+	Params.bOverrideSwayForce = true;
+	Params.SwayForce = 3.0f;
+	Params.bOverrideSwayPeriod = true;
+	Params.SwayPeriod = 0.8f;
+	Params.bOverrideRippleForce = true;
+	Params.RippleForce = 4.0f;
+	Params.bOverrideRipplePeriod = true;
+	Params.RipplePeriod = 0.9f;
+	Params.bOverrideRippleTipPhaseDelay = true;
+	Params.RippleTipPhaseDelay = 135.0f;
+	Params.bOverrideStrengthCycleRange = true;
+	Params.StrengthCycleRange = FFloatInterval(0.5f, 1.25f);
+	Params.bOverrideStrengthCyclePeriod = true;
+	Params.StrengthCyclePeriod = 2.5f;
+	Params.bOverrideRandomForce = true;
+	Params.RandomForce = 1.5f;
+	Params.bOverrideRandomForcePeriod = true;
+	Params.RandomForcePeriod = 0.45f;
+	return Params;
+}
+
+FKawaiiPhysicsSharedPublisherState MakeSharedWindStateForTest(
+	const float Time,
+	const float PublisherTimeScale,
+	const bool bPublisherWindEnabled = true)
+{
+	FKawaiiPhysicsSharedPublisherState State;
+	State.bPublisherEnabled = true;
+	State.Wind.bPublisherWindEnabled = bPublisherWindEnabled;
+	State.Wind.Time = Time;
+	State.Wind.PublisherTimeScale = PublisherTimeScale;
+	State.Wind.Params = MakeSharedWindParamsForTest();
+	return State;
+}
+
+void RunProceduralWindPreApply(FKawaiiPhysicsTestAccessor& Accessor,
+                               FKawaiiPhysics_ExternalForce_ProceduralWind& Wind,
+                               const float Dt = 1.0f / 60.0f)
+{
+	Accessor.SetTimeState(Dt, Dt);
+	FAnimInstanceProxy AnimInstanceProxy;
+	FComponentSpacePoseContext PoseContext(&AnimInstanceProxy);
+	Wind.PreApply(Accessor.Node, PoseContext);
 }
 }
 
@@ -1153,6 +1211,512 @@ bool FKawaiiPhysicsProceduralWindCopyRuntimeStateIndependenceTest::RunTest(const
 	TestSampleNear(*this, TEXT("Source Time independent after assign"), Source.RuntimeState->Time, 4.0f);
 	TestSampleNear(*this, TEXT("Assigned Time independent"), Assigned.RuntimeState->Time, 5.0f);
 	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindSharedParamsKeepLocalPhaseTest,
+                                 "KawaiiPhysics.ProceduralWind.SharedParamsKeepLocalPhase",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindSharedParamsKeepLocalPhaseTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor Accessor;
+	Accessor.BuildVerticalChain(2, 10.0f);
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
+	Wind.WindSource = EKawaiiPhysicsProceduralWindSource::Shared;
+	Wind.SwayPhaseOffset = 30.0f;
+	Wind.RipplePhaseOffset = 45.0f;
+	Wind.StrengthCyclePhaseOffset = 60.0f;
+	Wind.Seed = 7;
+	Wind.TimeScale = 2.0f;
+	Wind.bIsEnabled = true;
+
+	const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry = MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+	const FKawaiiPhysicsSharedPublisherState State = MakeSharedWindStateForTest(5.0f, 1.0f);
+	FKawaiiPhysicsTestAccessor::PublishSharedPublisherState(Entry, State);
+	FKawaiiPhysicsTestAccessor::BindSharedWindEntry(Wind, Entry);
+
+	RunProceduralWindPreApply(Accessor, Wind);
+
+	bool bOk = true;
+	bOk &= TestTrue(TEXT("WindDirection shared"), Wind.WindDirection.Equals(State.Wind.Params.WindDirection));
+	bOk &= TestEqual(TEXT("WindDirectionNoiseAngle shared"), Wind.WindDirectionNoiseAngle, 7.0f);
+	bOk &= TestEqual(TEXT("WindDirectionNoisePeriod shared"), Wind.WindDirectionNoisePeriod, 0.7f);
+	bOk &= TestEqual(TEXT("ConstantForce shared"), Wind.ConstantForce, 12.0f);
+	bOk &= TestEqual(TEXT("SwayForce shared"), Wind.SwayForce, 3.0f);
+	bOk &= TestEqual(TEXT("SwayPeriod shared"), Wind.SwayPeriod, 0.8f);
+	bOk &= TestEqual(TEXT("RippleForce shared"), Wind.RippleForce, 4.0f);
+	bOk &= TestEqual(TEXT("RipplePeriod shared"), Wind.RipplePeriod, 0.9f);
+	bOk &= TestEqual(TEXT("RippleTipPhaseDelay shared"), Wind.RippleTipPhaseDelay, 135.0f);
+	bOk &= TestEqual(TEXT("StrengthCycleRange shared Min"), Wind.StrengthCycleRange.Min, 0.5f);
+	bOk &= TestEqual(TEXT("StrengthCycleRange shared Max"), Wind.StrengthCycleRange.Max, 1.25f);
+	bOk &= TestEqual(TEXT("StrengthCyclePeriod shared"), Wind.StrengthCyclePeriod, 2.5f);
+	bOk &= TestEqual(TEXT("RandomForce shared"), Wind.RandomForce, 1.5f);
+	bOk &= TestEqual(TEXT("RandomForcePeriod shared"), Wind.RandomForcePeriod, 0.45f);
+	bOk &= TestEqual(TEXT("SwayPhaseOffset local"), Wind.SwayPhaseOffset, 30.0f);
+	bOk &= TestEqual(TEXT("RipplePhaseOffset local"), Wind.RipplePhaseOffset, 45.0f);
+	bOk &= TestEqual(TEXT("StrengthCyclePhaseOffset local"), Wind.StrengthCyclePhaseOffset, 60.0f);
+	bOk &= TestEqual(TEXT("Seed local"), Wind.Seed, 7);
+	bOk &= TestEqual(TEXT("TimeScale local"), Wind.TimeScale, 2.0f);
+	bOk &= TestTrue(TEXT("bIsEnabled local"), Wind.bIsEnabled);
+	bOk &= TestEqual(TEXT("Time adopted"), Wind.RuntimeState->Time, 5.0f);
+	bOk &= TestEqual(TEXT("Serial adopted"), Wind.RuntimeState->LastAppliedSharedSerial, Entry->GetPublishSerial());
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindSharedTimeAdoptAndExtrapolateTest,
+                                 "KawaiiPhysics.ProceduralWind.SharedTimeAdoptAndExtrapolate",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindSharedTimeAdoptAndExtrapolateTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor Accessor;
+	Accessor.BuildVerticalChain(2, 10.0f);
+	constexpr float Dt = 1.0f / 30.0f;
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
+	Wind.WindSource = EKawaiiPhysicsProceduralWindSource::Shared;
+	const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry = MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+	FKawaiiPhysicsSharedPublisherState State = MakeSharedWindStateForTest(1.0f, 0.5f);
+	FKawaiiPhysicsTestAccessor::PublishSharedPublisherState(Entry, State);
+	FKawaiiPhysicsTestAccessor::BindSharedWindEntry(Wind, Entry);
+
+	RunProceduralWindPreApply(Accessor, Wind, Dt);
+	TestEqual(TEXT("Initial Time adopted"), Wind.RuntimeState->Time, 1.0f);
+	TestEqual(TEXT("Applied serial matches entry serial"), Wind.RuntimeState->LastAppliedSharedSerial, Entry->GetPublishSerial());
+
+	RunProceduralWindPreApply(Accessor, Wind, Dt);
+	RunProceduralWindPreApply(Accessor, Wind, Dt);
+	TestTrue(TEXT("Same serial extrapolates"),
+	         FMath::IsNearlyEqual(Wind.RuntimeState->Time, 1.0f + 2.0f * Dt * 0.5f, KINDA_SMALL_NUMBER));
+
+	State.Wind.Time = 3.0f;
+	FKawaiiPhysicsTestAccessor::PublishSharedPublisherState(Entry, State);
+	RunProceduralWindPreApply(Accessor, Wind, Dt);
+	return TestEqual(TEXT("New serial adopts Time"), Wind.RuntimeState->Time, 3.0f);
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindSharedWarmUpHoldsClockTest,
+                                 "KawaiiPhysics.ProceduralWind.SharedWarmUpHoldsClock",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindSharedWarmUpHoldsClockTest::RunTest(const FString& Parameters)
+{
+	// warm-up は 1 回の評価で PreApply を WarmUpFrames 回呼ぶが Publisher は 1 フレーム分しか進まない。
+	// 共有クロックが warm-up 中に前進すると次の serial 採用で巻き戻り、突風エンベロープも早送りされる
+	FKawaiiPhysicsTestAccessor Accessor;
+	Accessor.BuildVerticalChain(2, 10.0f);
+	constexpr float Dt = 1.0f / 60.0f;
+	constexpr int32 NumWarmUpFrames = 8;
+	constexpr float TimeTolerance = 1.0e-6f;
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
+	Wind.WindSource = EKawaiiPhysicsProceduralWindSource::Shared;
+	const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry = MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+	FKawaiiPhysicsSharedPublisherState State = MakeSharedWindStateForTest(1.0f, 1.0f);
+	// 採用時点で hold フェーズにいる突風を載せ、warm-up 中にエンベロープが流れ切らないことも見る
+	State.Wind.ActiveGust.bIsActive = true;
+	State.Wind.ActiveGust.StartTime = 0.94f;
+	State.Wind.ActiveGust.Strength = 40.0f;
+	State.Wind.ActiveGust.RiseTime = 0.05f;
+	State.Wind.ActiveGust.HoldTime = 0.05f;
+	State.Wind.ActiveGust.DecayTime = 0.05f;
+	FKawaiiPhysicsTestAccessor::PublishSharedPublisherState(Entry, State);
+	FKawaiiPhysicsTestAccessor::BindSharedWindEntry(Wind, Entry);
+
+	// 1) 通常の 1 回で Publisher の Time / 突風を採用する
+	RunProceduralWindPreApply(Accessor, Wind, Dt);
+	const float AdoptedTime = Wind.RuntimeState->Time;
+	bool bOk = TestEqual(TEXT("Initial Time adopted"), AdoptedTime, 1.0f);
+	bOk &= TestFalse(TEXT("Publisher wind is enabled"), Wind.RuntimeState->bPublisherWindDisabled);
+	bOk &= TestTrue(TEXT("Gust adopted"), Wind.RuntimeState->ActiveGust.bIsActive);
+	const float AdoptedGustStartTime = Wind.RuntimeState->ActiveGust.StartTime;
+	const float AdoptedGust = Wind.RuntimeState->CachedGust;
+	bOk &= TestTrue(TEXT("Adopted gust is in the hold phase"), AdoptedGust > 0.0f);
+
+	// 2) warm-up 中は serial が変わらないので共有クロックは止まったまま
+	Accessor.SetWarmingUpForTest(true);
+	for (int32 Index = 0; Index < NumWarmUpFrames; ++Index)
+	{
+		RunProceduralWindPreApply(Accessor, Wind, Dt);
+		bOk &= TestTrue(FString::Printf(TEXT("Warm-up holds the shared clock %d"), Index),
+		                FMath::IsNearlyEqual(Wind.RuntimeState->Time, AdoptedTime, TimeTolerance));
+		bOk &= TestFalse(FString::Printf(TEXT("Publisher wind stays enabled %d"), Index),
+		                 Wind.RuntimeState->bPublisherWindDisabled);
+	}
+	bOk &= TestTrue(TEXT("Warm-up keeps the gust active"), Wind.RuntimeState->ActiveGust.bIsActive);
+	bOk &= TestTrue(TEXT("Warm-up keeps the gust StartTime"),
+	                FMath::IsNearlyEqual(Wind.RuntimeState->ActiveGust.StartTime, AdoptedGustStartTime,
+	                                     TimeTolerance));
+	bOk &= TestTrue(TEXT("Warm-up keeps the gust envelope"),
+	                FMath::IsNearlyEqual(Wind.RuntimeState->CachedGust, AdoptedGust, 0.0001f));
+
+	// 3) warm-up 後の通常の 1 回は通常どおり外挿する
+	Accessor.SetWarmingUpForTest(false);
+	RunProceduralWindPreApply(Accessor, Wind, Dt);
+	bOk &= TestTrue(TEXT("Normal step extrapolates once"),
+	                FMath::IsNearlyEqual(Wind.RuntimeState->Time, AdoptedTime + Dt, TimeTolerance));
+
+	// 4) Publisher が 1 フレーム進めた State を採用しても巻き戻らない
+	const float TimeBeforeAdopt = Wind.RuntimeState->Time;
+	State.Wind.Time = AdoptedTime + Dt;
+	FKawaiiPhysicsTestAccessor::PublishSharedPublisherState(Entry, State);
+	RunProceduralWindPreApply(Accessor, Wind, Dt);
+	bOk &= TestTrue(TEXT("Adopting the publisher Time does not rewind"),
+	                Wind.RuntimeState->Time >= TimeBeforeAdopt - TimeTolerance);
+
+	// 5) 対照: Local は warm-up 中も従来どおり進む（Golden bit 一致を維持する経路）
+	FKawaiiPhysics_ExternalForce_ProceduralWind LocalWind;
+	LocalWind.WindSource = EKawaiiPhysicsProceduralWindSource::Local;
+	Accessor.SetWarmingUpForTest(true);
+	RunProceduralWindPreApply(Accessor, LocalWind, Dt);
+	const float LocalTimeAfterFirst = LocalWind.RuntimeState->Time;
+	bOk &= TestTrue(TEXT("Local advances during warm-up"),
+	                FMath::IsNearlyEqual(LocalTimeAfterFirst, Dt * LocalWind.TimeScale, TimeTolerance));
+	RunProceduralWindPreApply(Accessor, LocalWind, Dt);
+	bOk &= TestTrue(TEXT("Local keeps advancing during warm-up"),
+	                LocalWind.RuntimeState->Time > LocalTimeAfterFirst);
+	Accessor.SetWarmingUpForTest(false);
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindSharedExtrapolatesWhilePublisherStalledTest,
+                                 "KawaiiPhysics.ProceduralWind.SharedExtrapolatesWhilePublisherStalled",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindSharedExtrapolatesWhilePublisherStalledTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor Accessor;
+	Accessor.BuildVerticalChain(2, 10.0f);
+	constexpr float Dt = 1.0f / 60.0f;
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
+	Wind.WindSource = EKawaiiPhysicsProceduralWindSource::Shared;
+	Wind.Seed = 123;
+	const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry = MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+	const FKawaiiPhysicsSharedPublisherState State = MakeSharedWindStateForTest(0.25f, 0.75f);
+	FKawaiiPhysicsTestAccessor::PublishSharedPublisherState(Entry, State);
+	FKawaiiPhysicsTestAccessor::BindSharedWindEntry(Wind, Entry);
+
+	RunProceduralWindPreApply(Accessor, Wind, Dt);
+	float PreviousTime = Wind.RuntimeState->Time;
+	for (int32 Index = 0; Index < 100; ++Index)
+	{
+		RunProceduralWindPreApply(Accessor, Wind, Dt);
+		TestTrue(FString::Printf(TEXT("Time increases %d"), Index), Wind.RuntimeState->Time > PreviousTime);
+		PreviousTime = Wind.RuntimeState->Time;
+	}
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind LocalWind;
+	LocalWind.ApplyDynamicParams(State.Wind.Params);
+	LocalWind.Seed = Wind.Seed;
+	const FKawaiiPhysicsProceduralWindSample SharedSample = Wind.ComputeWindSample(Wind.RuntimeState->Time, 0.0f);
+	const FKawaiiPhysicsProceduralWindSample LocalSample = LocalWind.ComputeWindSample(Wind.RuntimeState->Time, 0.0f);
+	return TestTrue(TEXT("Stalled shared uses last params"),
+	                FMath::IsNearlyEqual(SharedSample.Total, LocalSample.Total, 0.0001f));
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindSharedGustForwardedTest,
+                                 "KawaiiPhysics.ProceduralWind.SharedGustForwarded",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindSharedGustForwardedTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor Accessor;
+	Accessor.BuildVerticalChain(2, 10.0f);
+	FKawaiiPhysics_ExternalForce_ProceduralWind ConsumerWind;
+	ConsumerWind.WindSource = EKawaiiPhysicsProceduralWindSource::Shared;
+	const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry = MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+	FKawaiiPhysicsTestAccessor::PublishSharedPublisherState(Entry, MakeSharedWindStateForTest(0.0f, 1.0f));
+	FKawaiiPhysicsTestAccessor::BindSharedWindEntry(ConsumerWind, Entry);
+
+	// 消費側の突風要求は呼び出しスレッドでは積むだけで、Entry への転送は Worker の PreApply が行う
+	ConsumerWind.RequestGust(50.0f, 0.1f, 0.2f, 0.3f);
+	bool bOk = TestTrue(TEXT("Consumer queues the gust locally"), ConsumerWind.RuntimeState->PendingGust.IsSet());
+	TArray<FKawaiiPhysicsSharedPublisherGustRequest> Requests;
+	Entry->ConsumePendingGustRequests(Requests);
+	bOk &= TestEqual(TEXT("Nothing forwarded before PreApply"), Requests.Num(), 0);
+
+	RunProceduralWindPreApply(Accessor, ConsumerWind);
+	bOk &= TestFalse(TEXT("PreApply clears the local pending gust"), ConsumerWind.RuntimeState->PendingGust.IsSet());
+	bOk &= TestFalse(TEXT("Consumer does not start the gust locally"),
+	                 ConsumerWind.RuntimeState->ActiveGust.bIsActive);
+	Requests.Reset();
+	Entry->ConsumePendingGustRequests(Requests);
+	bOk &= TestEqual(TEXT("Forwarded gust count"), Requests.Num(), 1);
+	if (Requests.Num() == 1)
+	{
+		bOk &= TestEqual(TEXT("Forwarded gust strength"), Requests[0].Strength, 50.0f);
+		Entry->RequestGust(Requests[0].Strength, Requests[0].RiseTime, Requests[0].DecayTime, Requests[0].HoldTime);
+	}
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind SharedWind;
+	FKawaiiPhysicsSharedPublishInputs Inputs;
+	Inputs.SharedWind = &SharedWind;
+	FKawaiiPhysicsSharedPublishHelper Helper;
+	// ハーネスの既定 ProviderID と揃え、この Entry の provider として publish できるようにする
+	Helper.SetSourceID(0xFFFF0001);
+	Helper.SetEntries(Entry, MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>(),
+	                  TWeakObjectPtr<const USkeletalMeshComponent>());
+	Helper.ResetEffectiveValues(Inputs);
+	bOk &= TestTrue(TEXT("Publisher update publishes gust"),
+	                Helper.Update(Inputs, SharedWind.RuntimeState, 0.1f, GFrameCounter, 60));
+	bOk &= TestTrue(TEXT("Publisher SharedWind active gust"), SharedWind.RuntimeState->ActiveGust.bIsActive);
+	FKawaiiPhysicsSharedWindState ReadWind;
+	Entry->ReadWindState(ReadWind);
+	bOk &= TestEqual(TEXT("Published gust strength"), ReadWind.ActiveGust.Strength, 50.0f);
+
+	RunProceduralWindPreApply(Accessor, ConsumerWind);
+	bOk &= TestEqual(TEXT("Consumer adopted gust strength"), ConsumerWind.RuntimeState->ActiveGust.Strength, 50.0f);
+
+	ConsumerWind.RequestGustStop(0.25f);
+	RunProceduralWindPreApply(Accessor, ConsumerWind);
+	bOk &= TestFalse(TEXT("PreApply clears the local pending stop"), ConsumerWind.RuntimeState->PendingGustStop.IsSet());
+	Requests.Reset();
+	Entry->ConsumePendingGustRequests(Requests);
+	bOk &= TestEqual(TEXT("Forwarded stop count"), Requests.Num(), 1);
+	if (Requests.Num() == 1)
+	{
+		bOk &= TestTrue(TEXT("Forwarded stop flag"), Requests[0].bStop);
+		bOk &= TestEqual(TEXT("Forwarded stop blend"), Requests[0].BlendOutTime, 0.25f);
+	}
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindAutoSourceFollowsProviderTest,
+                                 "KawaiiPhysics.ProceduralWind.AutoSourceFollowsProvider",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindAutoSourceFollowsProviderTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor Accessor;
+	Accessor.BuildVerticalChain(2, 10.0f);
+	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
+	Wind.WindSource = EKawaiiPhysicsProceduralWindSource::Auto;
+	Wind.TimeScale = 2.0f;
+	constexpr float Dt = 1.0f / 60.0f;
+
+	RunProceduralWindPreApply(Accessor, Wind, Dt);
+	bool bOk = TestTrue(TEXT("Auto falls back to Local"),
+	                    Wind.RuntimeState->ResolvedSource == EKawaiiPhysicsProceduralWindSource::Local);
+	bOk &= TestEqual(TEXT("Local fallback time scale"), Wind.RuntimeState->Time, Dt * 2.0f);
+
+	const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry = MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+	FKawaiiPhysicsTestAccessor::PublishSharedPublisherState(Entry, MakeSharedWindStateForTest(4.0f, 1.0f));
+	FKawaiiPhysicsTestAccessor::BindSharedWindEntry(Wind, Entry);
+	RunProceduralWindPreApply(Accessor, Wind, Dt);
+	bOk &= TestTrue(TEXT("Auto uses injected Shared"),
+	                Wind.RuntimeState->ResolvedSource == EKawaiiPhysicsProceduralWindSource::Shared);
+	bOk &= TestEqual(TEXT("Auto adopts shared time"), Wind.RuntimeState->Time, 4.0f);
+
+	Entry->MarkExpired();
+	RunProceduralWindPreApply(Accessor, Wind, Dt);
+	bOk &= TestTrue(TEXT("Expired entry falls back to Local"),
+	                Wind.RuntimeState->ResolvedSource == EKawaiiPhysicsProceduralWindSource::Local);
+	bOk &= TestFalse(TEXT("Expired entry reset"), Wind.RuntimeState->SharedPublisherEntry.IsValid());
+#if !UE_BUILD_SHIPPING
+	bOk &= TestFalse(TEXT("Auto logs no warning"), Wind.RuntimeState->bSharedResolveWarningLogged);
+#endif
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindAutoIgnoresUnownedEntryTest,
+                                 "KawaiiPhysics.ProceduralWind.AutoIgnoresUnownedEntry",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindAutoIgnoresUnownedEntryTest::RunTest(const FString& Parameters)
+{
+	// 作られただけの Entry は ProviderID 0 / LastPublishFrame 0 なので、起動直後の MaxAge フレームの間は
+	// 期限切れに見えない。ここに bind すると Auto の消費側が無主 Entry へ突風要求を転送して捨ててしまう
+	constexpr uint64 ResolveFrame = 5;
+	constexpr uint64 ResolveMaxAge = 60;
+	const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry = MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+
+	bool bOk = TestFalse(TEXT("Unclaimed entry does not look expired yet"),
+	                     Entry->IsExpired(ResolveFrame, ResolveMaxAge));
+	bOk &= TestFalse(TEXT("Unclaimed entry is not live"),
+	                 KawaiiPhysicsProceduralWindInternal::IsSharedPublisherEntryLive(
+		                 *Entry, ResolveFrame, ResolveMaxAge));
+
+	const FKawaiiPhysicsSharedPublisherState State = MakeSharedWindStateForTest(0.0f, 1.0f);
+	bOk &= TestTrue(TEXT("Provider claims the entry"),
+	                Entry->PublishState(State, 0xFFFF0001, ResolveFrame, ResolveMaxAge));
+	bOk &= TestTrue(TEXT("Claimed entry is live"),
+	                KawaiiPhysicsProceduralWindInternal::IsSharedPublisherEntryLive(
+		                *Entry, ResolveFrame, ResolveMaxAge));
+
+	Entry->MarkExpired();
+	bOk &= TestFalse(TEXT("Expired entry is not live"),
+	                 KawaiiPhysicsProceduralWindInternal::IsSharedPublisherEntryLive(
+		                 *Entry, ResolveFrame, ResolveMaxAge));
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindAutoFallbackRestoresLocalParamsTest,
+                                 "KawaiiPhysics.ProceduralWind.AutoFallbackRestoresLocalParams",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindAutoFallbackRestoresLocalParamsTest::RunTest(const FString& Parameters)
+{
+	// Shared を採用すると共有 13 項目はノードの値を上書きするため、Shared を離れたら採用前のローカル値へ戻る契約。
+	// 戻らないと Auto の Local フォールバックが「最後に受け取った共有値」で吹き続けてしまう
+	FKawaiiPhysicsTestAccessor Accessor;
+	Accessor.BuildVerticalChain(2, 10.0f);
+	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
+	Wind.WindSource = EKawaiiPhysicsProceduralWindSource::Auto;
+	Wind.ConstantForce = 1.0f;
+	Wind.WindDirection = FVector(1.0f, 0.0f, 0.0f);
+	// 共有されないローカル項目。Shared 中もフォールバック後も不変であることの対照用
+	Wind.SwayPhaseOffset = 30.0f;
+	constexpr float Dt = 1.0f / 60.0f;
+
+	FKawaiiPhysicsSharedPublisherState State = MakeSharedWindStateForTest(4.0f, 1.0f);
+	State.Wind.Params.ConstantForce = 100.0f;
+	State.Wind.Params.WindDirection = FVector(0.0f, 1.0f, 0.0f);
+
+	const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry = MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+	FKawaiiPhysicsTestAccessor::PublishSharedPublisherState(Entry, State);
+	FKawaiiPhysicsTestAccessor::BindSharedWindEntry(Wind, Entry);
+	RunProceduralWindPreApply(Accessor, Wind, Dt);
+	bool bOk = TestEqual(TEXT("Shared adopts publisher constant force"), Wind.ConstantForce, 100.0f);
+	bOk &= TestTrue(TEXT("Shared adopts publisher direction"), Wind.WindDirection.Equals(FVector(0.0f, 1.0f, 0.0f)));
+	bOk &= TestEqual(TEXT("Shared keeps local phase offset"), Wind.SwayPhaseOffset, 30.0f);
+	bOk &= TestTrue(TEXT("Adopt backs up local shared params"), Wind.RuntimeState->LocalSharedParamsBackup.IsSet());
+
+	const float TimeBeforeFallback = Wind.RuntimeState->Time;
+	Entry->MarkExpired();
+	RunProceduralWindPreApply(Accessor, Wind, Dt);
+	bOk &= TestTrue(TEXT("Expired entry falls back to Local"),
+	                Wind.RuntimeState->ResolvedSource == EKawaiiPhysicsProceduralWindSource::Local);
+	bOk &= TestEqual(TEXT("Fallback restores local constant force"), Wind.ConstantForce, 1.0f);
+	bOk &= TestTrue(TEXT("Fallback restores local direction"), Wind.WindDirection.Equals(FVector(1.0f, 0.0f, 0.0f)));
+	bOk &= TestEqual(TEXT("Fallback keeps local phase offset"), Wind.SwayPhaseOffset, 30.0f);
+	bOk &= TestFalse(TEXT("Fallback consumes the backup"), Wind.RuntimeState->LocalSharedParamsBackup.IsSet());
+	bOk &= TestTrue(TEXT("Fallback keeps advancing time"), Wind.RuntimeState->Time > TimeBeforeFallback);
+
+	// MarkExpired 済みの Entry は publish を受け付けないため、Publisher の復帰は新しい Entry で再現する
+	const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> RevivedEntry =
+		MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+	FKawaiiPhysicsTestAccessor::PublishSharedPublisherState(RevivedEntry, State);
+	FKawaiiPhysicsTestAccessor::BindSharedWindEntry(Wind, RevivedEntry);
+	RunProceduralWindPreApply(Accessor, Wind, Dt);
+	bOk &= TestEqual(TEXT("Re-adopt applies publisher constant force"), Wind.ConstantForce, 100.0f);
+	bOk &= TestTrue(TEXT("Re-adopt backs up local shared params again"),
+	                Wind.RuntimeState->LocalSharedParamsBackup.IsSet());
+
+	Wind.WindSource = EKawaiiPhysicsProceduralWindSource::Local;
+	RunProceduralWindPreApply(Accessor, Wind, Dt);
+	bOk &= TestEqual(TEXT("Switching to Local restores local constant force"), Wind.ConstantForce, 1.0f);
+	bOk &= TestTrue(TEXT("Switching to Local restores local direction"),
+	                Wind.WindDirection.Equals(FVector(1.0f, 0.0f, 0.0f)));
+	bOk &= TestFalse(TEXT("Switching to Local consumes the backup"),
+	                 Wind.RuntimeState->LocalSharedParamsBackup.IsSet());
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindSharedConsumerInjectedStateTest,
+                                 "KawaiiPhysics.ProceduralWind.SharedConsumerInjectedState",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindSharedConsumerInjectedStateTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor Accessor;
+	Accessor.BuildVerticalChain(2, 10.0f);
+	Accessor.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+	Accessor.Bone(1).LengthRateFromRoot = 1.0f;
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
+	Wind.WindSource = EKawaiiPhysicsProceduralWindSource::Shared;
+	Wind.ExternalForceSpace = EExternalForceSpace::ComponentSpace;
+	Accessor.Node.ExternalForces.Add(FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_ProceduralWind>());
+	*Accessor.Node.ExternalForces[0].GetMutablePtr<FKawaiiPhysics_ExternalForce_ProceduralWind>() = Wind;
+
+	const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> SimpleWorldEntry =
+		MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
+	const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> PublisherEntry =
+		MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+	FKawaiiPhysicsSharedPublisherState State = MakeSharedWindStateForTest(2.0f, 1.0f);
+	State.Wind.Params.ConstantForce = 20.0f;
+	State.Wind.Params.WindDirection = FVector(0.0f, 1.0f, 0.0f);
+	Accessor.InjectSharedPublisherState(State, SimpleWorldEntry, 0xA101, PublisherEntry);
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind* InjectedWind = Accessor.GetMutableProceduralWind(0);
+	if (!TestTrue(TEXT("Injected wind valid"), InjectedWind != nullptr))
+	{
+		return false;
+	}
+
+	RunProceduralWindPreApply(Accessor, *InjectedWind);
+	const FVector BeforeApply = Accessor.Bone(1).Location;
+	FAnimInstanceProxy AnimInstanceProxy;
+	FComponentSpacePoseContext PoseContext(&AnimInstanceProxy);
+	InjectedWind->Apply(Accessor.Bone(1), Accessor.Node, PoseContext);
+	const FVector AfterApply = Accessor.Bone(1).Location;
+
+	bool bOk = TestEqual(TEXT("Injected serial adopted"),
+	                     InjectedWind->RuntimeState->LastAppliedSharedSerial,
+	                     PublisherEntry->GetPublishSerial());
+	bOk &= TestTrue(TEXT("Wind moves bone toward shared direction"), AfterApply.Y > BeforeApply.Y);
+
+	const float TimeAfterAdopt = InjectedWind->RuntimeState->Time;
+	RunProceduralWindPreApply(Accessor, *InjectedWind);
+	bOk &= TestTrue(TEXT("Same serial extrapolates"), InjectedWind->RuntimeState->Time > TimeAfterAdopt);
+
+	State.Wind.bPublisherWindEnabled = false;
+	FKawaiiPhysicsTestAccessor::PublishSharedPublisherState(PublisherEntry, State, 0xA101);
+	RunProceduralWindPreApply(Accessor, *InjectedWind);
+	const FVector DisabledBeforeApply = Accessor.Bone(1).Location;
+	InjectedWind->Apply(Accessor.Bone(1), Accessor.Node, PoseContext);
+	bOk &= TestTrue(TEXT("Disabled publisher contributes zero"),
+	                Accessor.Bone(1).Location.Equals(DisabledBeforeApply, KINDA_SMALL_NUMBER));
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindAssignmentCopiesWindSourceTest,
+                                 "KawaiiPhysics.ProceduralWind.AssignmentCopiesWindSource",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindAssignmentCopiesWindSourceTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysics_ExternalForce_ProceduralWind A;
+	A.WindSource = EKawaiiPhysicsProceduralWindSource::Shared;
+	A.SharedWindTag = TAG_KawaiiPhysics_Shared_Default;
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind B;
+	B = A;
+	bool bOk = TestTrue(TEXT("Assignment copies source"), B.WindSource == EKawaiiPhysicsProceduralWindSource::Shared);
+	bOk &= TestTrue(TEXT("Assignment copies tag"), B.SharedWindTag == A.SharedWindTag);
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind C(A);
+	bOk &= TestTrue(TEXT("Copy constructor copies source"), C.WindSource == EKawaiiPhysicsProceduralWindSource::Shared);
+	bOk &= TestTrue(TEXT("Copy constructor copies tag"), C.SharedWindTag == A.SharedWindTag);
+
+	const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry = MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+	FKawaiiPhysicsTestAccessor::BindSharedWindEntry(B, Entry);
+	B.RuntimeState->LastAppliedSharedSerial = 3;
+	B.RuntimeState->Time = 8.0f;
+	B.RuntimeState->ActiveGust.bIsActive = true;
+	B.RuntimeState->ActiveGust.Strength = 9.0f;
+	// Shared 採用済み（退避あり）の状態を作る
+	B.RuntimeState->LocalSharedParamsBackup = B.BuildSharedWindParams();
+	B = A;
+	bOk &= TestTrue(TEXT("Same source/tag keeps entry"), B.RuntimeState->SharedPublisherEntry == Entry);
+	// 同じ Source / Tag の代入は Persona のプレビュー同期＝Shared 継続なので退避を維持する
+	bOk &= TestTrue(TEXT("Same source/tag keeps local params backup"),
+	                B.RuntimeState->LocalSharedParamsBackup.IsSet());
+
+	A.SharedWindTag = FGameplayTag::RequestGameplayTag(TEXT("KawaiiPhysics.Shared.MissingForTest"), false);
+	B = A;
+	bOk &= TestFalse(TEXT("Changed tag resets entry"), B.RuntimeState->SharedPublisherEntry.IsValid());
+	bOk &= TestFalse(TEXT("Changed tag clears resolved tag"), B.RuntimeState->ResolvedSharedTag.IsValid());
+	bOk &= TestEqual(TEXT("Changed tag resets serial"), B.RuntimeState->LastAppliedSharedSerial, static_cast<uint64>(0));
+	bOk &= TestEqual(TEXT("Changed tag preserves time"), B.RuntimeState->Time, 8.0f);
+	bOk &= TestTrue(TEXT("Changed tag preserves gust"), B.RuntimeState->ActiveGust.bIsActive);
+	bOk &= TestEqual(TEXT("Changed tag preserves gust strength"), B.RuntimeState->ActiveGust.Strength, 9.0f);
+	// 代入で共有 13 項目は A の値に置き換わるため、退避値は復元せず捨てる
+	bOk &= TestFalse(TEXT("Changed tag drops local params backup"),
+	                 B.RuntimeState->LocalSharedParamsBackup.IsSet());
+	return bOk;
 }
 
 #endif

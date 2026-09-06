@@ -9,7 +9,9 @@
 #include "Templates/Function.h"
 #include "Curves/CurveFloat.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
+#include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
+#include "KawaiiPhysicsSharedPublisherTypes.h"
 #include "KawaiiPhysicsTestHarness.h"
 
 namespace
@@ -139,7 +141,9 @@ namespace
 	bool RunSimulationPerf(FAutomationTestBase& Test, const TCHAR* TestName,
 	                       const TFunction<void(FKawaiiPhysicsTestAccessor&)>& Setup,
 	                       const int32 MeasureFrames = GMeasureFrames,
-	                       const double StepsPerFrame = GAverageSubsteps)
+	                       const double StepsPerFrame = GAverageSubsteps,
+	                       const TFunction<void(FKawaiiPhysicsTestAccessor&, int32)>& BeforeMeasureFrame =
+		                       TFunction<void(FKawaiiPhysicsTestAccessor&, int32)>())
 	{
 		TArray<double> MsPerFrameValues;
 		MsPerFrameValues.Reserve(GTrials);
@@ -166,6 +170,10 @@ namespace
 			double TrialChecksum = 0.0;
 			for (int32 Frame = 0; Frame < MeasureFrames; ++Frame)
 			{
+				if (BeforeMeasureFrame)
+				{
+					BeforeMeasureFrame(A, Frame);
+				}
 				A.StepFrame(GFrameDt);
 				const FVector Tip = A.TipLocation();
 				TrialChecksum += Tip.X + Tip.Y + Tip.Z;
@@ -864,6 +872,79 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerfSimpleWorldReadPublishEvery12
 bool FKawaiiPhysicsPerfSimpleWorldReadPublishEvery12Test::RunTest(const FString& Parameters)
 {
 	return RunSimpleWorldReadPerf(*this, TEXT("PublishEvery12"), 12);
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerfSharedWindReadTest,
+                                 "KawaiiPhysics.Perf.SharedWindRead",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsPerfSharedWindReadTest::RunTest(const FString& Parameters)
+{
+	const auto SetupLocalWind = [](FKawaiiPhysicsTestAccessor& A)
+	{
+		A.BuildVerticalChain(16, 10.0f);
+		A.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+		A.SetAllPhysicsSettings(MakePerfSettings());
+		A.Node.ExternalForces.Add(FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_ProceduralWind>());
+		FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = A.GetMutableProceduralWind(0);
+		check(Wind);
+		Wind->ExternalForceSpace = EExternalForceSpace::ComponentSpace;
+		Wind->WindDirection = FVector(0.0f, 1.0f, 0.0f);
+		Wind->ConstantForce = 10.0f;
+		Wind->SwayForce = 2.0f;
+		Wind->SwayPeriod = 0.5f;
+		Wind->RandomForce = 1.0f;
+		Wind->RandomForcePeriod = 0.4f;
+	};
+
+	const auto SetupSharedWind = [&SetupLocalWind](FKawaiiPhysicsTestAccessor& A)
+	{
+		SetupLocalWind(A);
+		FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = A.GetMutableProceduralWind(0);
+		check(Wind);
+		Wind->WindSource = EKawaiiPhysicsProceduralWindSource::Shared;
+		const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry = MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+		FKawaiiPhysicsSharedPublisherState State;
+		State.bPublisherEnabled = true;
+		State.Wind.bPublisherWindEnabled = true;
+		State.Wind.PublisherTimeScale = 1.0f;
+		State.Wind.Params = Wind->BuildSharedWindParams();
+		FKawaiiPhysicsTestAccessor::PublishSharedPublisherState(Entry, State, 0xC001);
+		FKawaiiPhysicsTestAccessor::BindSharedWindEntry(*Wind, Entry);
+	};
+
+	const auto PrimeLocalWind = [](FKawaiiPhysicsTestAccessor& A, int32 Frame)
+	{
+		FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = A.GetMutableProceduralWind(0);
+		check(Wind);
+		FAnimInstanceProxy AnimInstanceProxy;
+		FComponentSpacePoseContext PoseContext(&AnimInstanceProxy);
+		Wind->PreApply(A.Node, PoseContext);
+	};
+
+	const auto PublishAndPrimeSharedWind = [](FKawaiiPhysicsTestAccessor& A, int32 Frame)
+	{
+		FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = A.GetMutableProceduralWind(0);
+		check(Wind);
+		FKawaiiPhysicsSharedPublisherState State;
+		State.bPublisherEnabled = true;
+		State.Wind.bPublisherWindEnabled = true;
+		State.Wind.Time = static_cast<float>(Frame) * GFrameDt;
+		State.Wind.PublisherTimeScale = 1.0f;
+		State.Wind.Params = Wind->BuildSharedWindParams();
+		FKawaiiPhysicsTestAccessor::PublishSharedPublisherState(Wind->RuntimeState->SharedPublisherEntry, State, 0xC001);
+
+		FAnimInstanceProxy AnimInstanceProxy;
+		FComponentSpacePoseContext PoseContext(&AnimInstanceProxy);
+		Wind->PreApply(A.Node, PoseContext);
+	};
+
+	AddInfo(TEXT("SharedWindRead reports a Local ProceduralWind PreApply baseline followed by publish/read worst case."));
+	bool bOk = RunSimulationPerf(*this, TEXT("KawaiiPhysics.Perf.SharedWindRead.LocalCalib"),
+	                             SetupLocalWind, 1000, GAverageSubsteps, PrimeLocalWind);
+	bOk &= RunSimulationPerf(*this, TEXT("KawaiiPhysics.Perf.SharedWindRead"),
+	                         SetupSharedWind, 1000, GAverageSubsteps, PublishAndPrimeSharedWind);
+	return bOk;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerfSizeofTest,

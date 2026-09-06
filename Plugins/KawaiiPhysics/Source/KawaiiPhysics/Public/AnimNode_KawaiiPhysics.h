@@ -1156,6 +1156,10 @@ private:
 	// unconsumed component movement carries to the next stepping frame (0 holds it when NumSteps==0). 1 for legacy/teleport.
 	float PreSkelCompTransformConsumeFraction = 1.0f;
 
+	// WarmUp() のループ中だけ true。外力は永続クロックの前進を抑制する
+	// True only inside the WarmUp() loop; external forces suppress persistent clock advances
+	bool bIsWarmingUp = false;
+
 #if WITH_EDITORONLY_DATA
 	bool bEditing = false;
 	double LastEvaluatedTime = 0.0;
@@ -1226,6 +1230,17 @@ public:
 	float GetStepDeltaTime() const
 	{
 		return bInSubstep ? StepDeltaTime : DeltaTime;
+	}
+
+	/**
+	 * WarmUp() のループ中かどうかを返す。warm-up は 1 回の評価内で外力の PreApply を WarmUpFrames 回呼ぶため、
+	 * 共有クロックのような永続的な時間を進める外力はこれを見て前進を抑制する。
+	 * Returns whether the WarmUp() loop is running. Warm-up calls each external force's PreApply WarmUpFrames
+	 * times within a single evaluation, so forces that advance persistent time (e.g. a shared clock) hold still.
+	 */
+	bool IsWarmingUp() const
+	{
+		return bIsWarmingUp;
 	}
 
 	/**

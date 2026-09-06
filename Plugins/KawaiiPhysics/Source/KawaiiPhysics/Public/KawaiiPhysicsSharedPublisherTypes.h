@@ -171,6 +171,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedPublisherEntry
 	{
 		TOptional<bool> Enabled;
 		TOptional<FKawaiiPhysicsSimpleWorldCollisionSettings> SimpleWorldSettings;
+		TOptional<FKawaiiProceduralWindDynamicParams> WindParams;
 	};
 
 	/**
@@ -187,12 +188,24 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedPublisherEntry
 	uint64 GetProviderID() const;
 	uint64 GetLastPublishFrame() const;
 	bool IsExpired(uint64 CurrentFrame, uint64 MaxAgeFrames) const;
+	/** provider の所有状態を 1 回のロック区間で読む / Provider ownership snapshot taken under a single lock. */
+	struct FProviderSnapshot
+	{
+		uint64 ProviderID = 0;
+		bool bExpired = true;
+	};
+	FProviderSnapshot ReadProviderSnapshot(uint64 CurrentFrame, uint64 ProviderMaxAgeFrames) const;
 	/**
 	 * MarkExpired 済みか（フレーム経過による期限切れは含まない）。
 	 * Whether MarkExpired has been called (frame-age expiry is not included).
 	 */
 	bool IsMarkedExpired() const;
 	void MarkExpired();
+	/**
+	 * 指定 provider が現在の所有者のときだけ期限切れにする（所有権確認と同じロック区間）。
+	 * Marks the entry expired only while ExpectedProviderID still owns it (checked under the same lock). Returns true when expired.
+	 */
+	bool MarkExpiredIfProvider(uint64 ExpectedProviderID);
 
 	void RequestGust(float Strength, float RiseTime, float DecayTime, float HoldTime);
 	void RequestGustStop(float BlendOutTime);
@@ -200,6 +213,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedPublisherEntry
 
 	void RequestPublisherEnabled(bool bEnabled);
 	void RequestSimpleWorldSettings(const FKawaiiPhysicsSimpleWorldCollisionSettings& Settings);
+	void RequestWindParams(const FKawaiiProceduralWindDynamicParams& Params);
 	bool ConsumePendingPublisherRequests(FPendingPublisherRequests& Out);
 
 private:
@@ -214,4 +228,5 @@ private:
 	TArray<FKawaiiPhysicsSharedPublisherGustRequest> PendingGusts;
 	TOptional<bool> PendingPublisherEnabled;
 	TOptional<FKawaiiPhysicsSimpleWorldCollisionSettings> PendingSimpleWorldSettings;
+	TOptional<FKawaiiProceduralWindDynamicParams> PendingWindParams;
 };

@@ -4,6 +4,7 @@
 
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
 
+#include "GameplayTagContainer.h"
 #include "HAL/CriticalSection.h"
 #include "Math/Interval.h"
 #include "Math/RandomStream.h"
@@ -52,6 +53,20 @@ enum class EKawaiiProceduralWindParameterMode : uint8
 {
 	Simple,
 	Advanced,
+};
+
+/**
+ * ProceduralWind の風ソース / Wind source for ProceduralWind
+ */
+UENUM(BlueprintType)
+enum class EKawaiiPhysicsProceduralWindSource : uint8
+{
+	/** このノードの ProceduralWind 自身が風を計算する（従来どおり） / This ProceduralWind computes the wind on its own (legacy behavior). */
+	Local UMETA(DisplayName = "Local"),
+	/** 同じ Actor ファミリーの Kawaii Physics Shared Publisher（同じ Shared Wind Tag）が配る風パラメータ・位相・突風を使う。Publisher が無い間はローカル積算で動き続ける / Uses the wind parameters, phase and gusts published by the Shared Publisher with the same Shared Wind Tag in this actor family. Keeps running locally while no publisher exists. */
+	Shared UMETA(DisplayName = "Shared"),
+	/** Publisher があれば Shared、無ければ Local として動く。Publisher の出現・消失に追従する / Shared while a publisher exists, otherwise Local. Follows the publisher appearing or disappearing. */
+	Auto UMETA(DisplayName = "Auto"),
 };
 
 /**
@@ -208,6 +223,26 @@ struct KAWAIIPHYSICS_API FKawaiiProceduralWindDynamicParams
 	float TimeScale = 1.0f;
 };
 
+/**
+* Source の bOverride が true の項目だけを Target に上書きする。
+* Copies only the fields whose bOverride is true from Source into Target.
+*/
+KAWAIIPHYSICS_API void MergeProceduralWindDynamicParams(FKawaiiProceduralWindDynamicParams& Target,
+                                                         const FKawaiiProceduralWindDynamicParams& Source);
+
+struct FKawaiiPhysicsSharedPublisherEntry;
+struct FKawaiiPhysicsSharedWindState;
+
+namespace KawaiiPhysicsProceduralWindInternal
+{
+	/**
+	 * 消費側が Shared Publisher Entry を採用してよいか（provider が claim 済みで、かつ期限切れでない）を判定します。
+	 * Returns whether a consumer may adopt a Shared Publisher entry (claimed by a provider and not expired).
+	 */
+	KAWAIIPHYSICS_API bool IsSharedPublisherEntryLive(const FKawaiiPhysicsSharedPublisherEntry& Entry,
+	                                                  uint64 CurrentFrame, uint64 MaxAgeFrames);
+}
+
 struct FKawaiiProceduralWindRuntimeState
 {
 	FCriticalSection Mutex;
@@ -223,6 +258,27 @@ struct FKawaiiProceduralWindRuntimeState
 	float CachedRandom = 0.0f;
 	float CachedGust = 0.0f;
 	FVector CachedWindVector = FVector::ZeroVector;
+
+	// 以下の共有風状態は PreApply を回す Worker だけが読み書きする。Mutex の保護対象には含めない。
+	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> SharedPublisherEntry;
+	// SharedPublisherEntry の解決に使った Shared Wind Tag（Worker 専用） / Shared Wind Tag used to resolve SharedPublisherEntry (worker only)
+	FGameplayTag ResolvedSharedTag;
+	uint64 LastAppliedSharedSerial = 0;
+	// Publisher が止まっていた間の時間は Publisher が再開時にまとめて進めるため、採用時に Time は巻き戻らない
+	// The publisher advances the time it spent stalled in one step when it resumes, so adopting its Time never rewinds this clock.
+	float CachedPublisherTimeScale = 1.0f;
+	// true の間は Publisher と同じ規則で Time の外挿も止める（無効の Publisher が停止→再開しても位相が巻き戻らない）
+	// While true the consumer also stops extrapolating Time, matching the publisher, so the phase never rewinds when a disabled publisher stalls and resumes.
+	bool bPublisherWindDisabled = false;
+	EKawaiiPhysicsProceduralWindSource ResolvedSource = EKawaiiPhysicsProceduralWindSource::Local;
+	int32 SharedResolveCountdown = 0;
+	int32 SharedResolveFailures = 0;
+	// Shared 採用前のローカル共有 13 項目。Shared を離れるときに復元する。Worker 専用
+	// Local values of the 13 shared fields captured before adopting Shared. Restored when leaving Shared. Worker only.
+	TOptional<FKawaiiProceduralWindDynamicParams> LocalSharedParamsBackup;
+#if !UE_BUILD_SHIPPING
+	bool bSharedResolveWarningLogged = false;
+#endif
 
 #if WITH_EDITOR
 	TArray<FKawaiiProceduralWindScopeSample> ScopeBuffer;
@@ -249,6 +305,20 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	// コピーは RuntimeState を共有しない。代入先の RuntimeState が有効ならポインタと中身を保持する（メンバ追加時は operator= のコピー処理にも追加すること）
 	FKawaiiPhysics_ExternalForce_ProceduralWind(const FKawaiiPhysics_ExternalForce_ProceduralWind& Other);
 	FKawaiiPhysics_ExternalForce_ProceduralWind& operator=(const FKawaiiPhysics_ExternalForce_ProceduralWind& Other);
+
+	/**
+	* 風の計算元。Shared のとき、共有 13 項目（Wind Direction 〜 Random Force Period）は Publisher の値で毎フレーム上書きされ、このノードの値は無視される。Phase Offset / Seed / Time Scale / Enabled / ボーンフィルタ / 空間はこのノードの値のまま。Auto は Local フォールバック時にだけこのノードの共有 13 項目を使う
+	* Wind source. In Shared mode, the 13 shared fields (Wind Direction through Random Force Period) are overwritten every frame from the Publisher and this node's values are ignored. Phase Offset / Seed / Time Scale / Enabled / bone filters / space stay on this node. Auto uses this node's 13 shared fields only during Local fallback.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kawaii Physics|ExternalForce|Procedural Wind", meta = (DisplayName = "Wind Source", DisplayPriority = 1))
+	EKawaiiPhysicsProceduralWindSource WindSource = EKawaiiPhysicsProceduralWindSource::Local;
+
+	/**
+	* Shared / Auto のときに参照する Shared Publisher の Shared Group Tag。Publisher 側の Shared Group Tag と一致させる
+	* Shared Group Tag of the Shared Publisher used in Shared / Auto mode. Must match the publisher's Shared Group Tag.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kawaii Physics|ExternalForce|Procedural Wind", meta = (DisplayName = "Shared Wind Tag", DisplayPriority = 1, EditCondition = "WindSource != EKawaiiPhysicsProceduralWindSource::Local"))
+	FGameplayTag SharedWindTag;
 
 	/**
 	* パラメータの表示モード。Simple は入門用の最小セットのみ表示し、Advanced で全パラメータを表示。非表示のパラメータも値は有効なまま
@@ -433,7 +503,19 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	bool BuildDynamicParamsForProperty(FName PropertyName, FKawaiiProceduralWindDynamicParams& OutParams) const;
 	// 全項目の bOverride を立てた現在値スナップショットを作る / Builds a snapshot of current values with every override flag set
 	FKawaiiProceduralWindDynamicParams BuildDynamicParamsSnapshot() const;
+	// TimeScale を使って ProceduralWind の時刻を進める / Advances ProceduralWind time using TimeScale
+	void AdvanceWindTime(float DeltaTime);
+	// Wind Scope 用の現在サンプルを計算して記録する / Computes and records the current sample for Wind Scope
+	void RecordScopeSample();
+	// 計算済みサンプルを Wind Scope 用に記録する（PreApply での二重計算を避ける） / Records an already computed sample for Wind Scope (avoids recomputing it in PreApply)
+	void RecordScopeSample(const FKawaiiPhysicsProceduralWindSample& Sample);
+	// 共有 13 項目だけを上書き対象にしたスナップショットを作る / Builds a snapshot overriding only the 13 shared fields
+	FKawaiiProceduralWindDynamicParams BuildSharedWindParams() const;
+	// Publisher から読んだ共有風状態を Serial 単位で適用する / Applies shared wind state read from the Publisher for a Serial
+	void ApplySharedWindState(const FKawaiiPhysicsSharedWindState& State, uint64 Serial);
 	void RequestGust(float Strength, float RiseTime, float DecayTime, float HoldTime = 0.0f);
+	// transient 突風用に Local へ戻してから突風を要求する / Forces Local source and requests a gust for transient gusts
+	void RequestLocalGust(float Strength, float RiseTime, float DecayTime, float HoldTime = 0.0f);
 	// 現在のガストを指定時間でフェードアウト停止する
 	void RequestGustStop(float BlendOutTime);
 	void ConsumePendingRequests();
@@ -449,7 +531,16 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	                   FComponentSpacePoseContext& PoseContext,
 	                   const FTransform& BoneTM = FTransform::Identity) override;
 
+private:
+	// Shared / Auto の共有風 Entry を解決する / Resolves the shared wind Entry for Shared / Auto
+	void ResolveSharedWindSource(const FAnimNode_KawaiiPhysics& Node, uint64 CurrentFrame);
+	// Shared を離れるときに、退避しておいたローカルの共有 13 項目を書き戻す / Restores the backed-up local values of the 13 shared fields when leaving Shared
+	void RestoreLocalSharedParams();
+	// 溜まった突風要求を Worker から Shared Publisher Entry へ転送する / Sends the queued gust requests to the Shared Publisher Entry from the worker
+	void SendPendingGustRequestsToSharedEntry();
+
 #if WITH_EDITOR
+public:
 	virtual void AnimDrawDebugForEditMode(const FKawaiiPhysicsModifyBone& ModifyBone,
 	                                      const FAnimNode_KawaiiPhysics& Node, FPrimitiveDrawInterface* PDI) override;
 #endif

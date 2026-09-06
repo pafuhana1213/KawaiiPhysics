@@ -6,6 +6,7 @@
 #include "AnimNode_KawaiiPhysicsSharedPublisherInternal.h"
 #include "KawaiiPhysics.h"
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
+#include "KawaiiPhysicsWindPresetDataAsset.h"
 #include "Animation/AnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
@@ -38,13 +39,15 @@ namespace
 		bool bEnabled,
 		const FKawaiiPhysicsSimpleWorldCollisionSettings& SimpleWorld,
 		bool bWindEnabled,
-		float WindTimeScale)
+		float WindTimeScale,
+		FKawaiiPhysics_ExternalForce_ProceduralWind* SharedWind = nullptr)
 	{
 		FKawaiiPhysicsSharedPublishInputs Inputs;
 		Inputs.bEnabled = bEnabled;
 		Inputs.SimpleWorld = SimpleWorld;
 		Inputs.bWindEnabled = bWindEnabled;
 		Inputs.WindTimeScale = WindTimeScale;
+		Inputs.SharedWind = SharedWind;
 		return Inputs;
 	}
 }
@@ -68,6 +71,8 @@ void FKawaiiPhysicsSharedPublishHelper::SetEntries(
 	SimpleWorldEntry = MoveTemp(InSimpleWorldEntry);
 	SkelComp = InSkelComp;
 	LastSentDesc.Reset();
+	// Entry が変わると消費側も新しい serial で採用し直すので、LastPublishedState を「消費側が持っている値」として使わない
+	bHasPublishedToCurrentEntry = false;
 	bNeedsEntryReacquire = false;
 #if !UE_BUILD_SHIPPING
 	bProviderConflictWarningLogged = false;
@@ -81,15 +86,19 @@ void FKawaiiPhysicsSharedPublishHelper::ReleaseEntries()
 		SimpleWorldEntry->RemoveDesc(SourceID);
 	}
 
-	if (PublisherEntry.IsValid() && PublisherEntry->GetProviderID() == SourceID)
+	if (PublisherEntry.IsValid())
 	{
-		PublisherEntry->MarkExpired();
+		// 所有権確認と期限切れは同じロック区間で行う（別々だと claim の割り込みで新 provider の Entry を expire してしまう）
+		PublisherEntry->MarkExpiredIfProvider(SourceID);
 	}
 
 	PublisherEntry.Reset();
 	SimpleWorldEntry.Reset();
 	SkelComp.Reset();
 	LastSentDesc.Reset();
+	// Entry を手放した後に古い累積を持ち越さない
+	PendingDeltaTime = 0.0f;
+	bHasPublishedToCurrentEntry = false;
 	bNeedsEntryReacquire = false;
 #if !UE_BUILD_SHIPPING
 	bProviderConflictWarningLogged = false;
@@ -101,6 +110,13 @@ void FKawaiiPhysicsSharedPublishHelper::ResetEffectiveValues(const FKawaiiPhysic
 	bEffectiveEnabled = Defaults.bEnabled;
 	EffectiveSimpleWorldSettings = Defaults.SimpleWorld;
 	LastInputs = Defaults;
+	// PendingDeltaTime は触らない。同じ Entry を保持したままの reinit（Persona のプリセット変更等）では消費側が serial を持ったまま外挿を続けているので、停止区間の累積は再開時にそのまま追いつきへ使う（累積を捨てるのは Entry を手放す ReleaseEntries と Entry 無しの早期 return だけ）
+}
+
+// PreUpdate は枝の relevance に関係なく毎フレーム走るので、Update が飛んだフレームの時間はここに溜まる
+void FKawaiiPhysicsSharedPublishHelper::AccumulatePendingDeltaTime(const float DeltaSeconds)
+{
+	PendingDeltaTime += FMath::Max(DeltaSeconds, 0.0f);
 }
 
 bool FKawaiiPhysicsSharedPublishHelper::ApplyInputChanges(const FKawaiiPhysicsSharedPublishInputs& Inputs)
@@ -138,7 +154,10 @@ void FKawaiiPhysicsSharedPublishHelper::UnregisterProviderDesc()
 }
 
 // 所有権を確定してから Desc を登録し Pending を消費する
-//（拒否された Publisher が収集設定や BP 要求を汚染しないため）
+//（拒否された Publisher が収集設定や BP 要求を汚染しないため）。
+// 所有権が前フレームから自分にあるフレームは publish 前に Pending 消費と風の更新を済ませ、publish を 1 回で終わらせる。
+// claim フレーム（provider 不在・期限切れからの取り直し）だけは受理後に消費し、変化があれば同フレームに publish し直す
+// 所有権判定は ReadProviderSnapshot の 1 回読みで行う（別々の読み取りだと claim の割り込みで所有権を誤認する）。
 bool FKawaiiPhysicsSharedPublishHelper::Update(
 	const FKawaiiPhysicsSharedPublishInputs& Inputs,
 	const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe>& WindRuntimeState,
@@ -148,16 +167,56 @@ bool FKawaiiPhysicsSharedPublishHelper::Update(
 {
 	if (!PublisherEntry.IsValid() || !SimpleWorldEntry.IsValid() || SourceID == 0)
 	{
+		// Entry を持たない間の累積は捨てる（取り直したときは消費側も新しい serial で採用し直すため）
+		PendingDeltaTime = 0.0f;
 		bNeedsEntryReacquire = true;
 		return false;
 	}
 
+	// PreUpdate は枝が Update されないフレームも走るので、累積分の方が大きければそれを採用し、
+	// 再開時に消費側の外挿へ追いつかせる（消費側が先に進んだ Time へ巻き戻さない）。
+	// Update が毎フレーム走っていれば両者は同じ値になる
+	const float EffectiveDeltaTime = FMath::Max(FMath::Max(DeltaTime, 0.0f), PendingDeltaTime);
+	PendingDeltaTime = 0.0f;
+
+	// クロックの前進は所有権判定より前に済ませる。
+	// claim フレームは受理判定のために BuildDescAndState → PublishState を先に行うので、ここで進めておかないと
+	// 最初に見える serial には前フレームの Time が載り、別 AnimBlueprint の消費側が並列評価でその中間 publish を読むと巻き戻る。
+	// Pending 要求の消費は従来どおり受理後に行う（拒否された Publisher が BP 要求を消費しないため）。
+	// 所有権に関係なく自分の SharedWind のクロックだけを進める
+	//（別 provider に所有されていても自分の publish は行われず、消費側は他 provider の Time を読むので害は無い）。
+	// 消費側は serial 未変化のフレームを、最後に publish した PublisherTimeScale / bPublisherWindEnabled
+	//（BuildDescAndState が State.Wind へ入れる SharedWind->TimeScale と bEffectiveEnabled && SharedWind->bIsEnabled と同じ値）
+	// で外挿する。別 AnimBlueprint の消費側は同じフレームで Publisher より先に評価されることがあるので、
+	// Publisher も当フレーム分を同じ値で進めてから新しい要求を取り込み、新しい scale は次フレーム以降の外挿用として publish する。
+	// こうすると評価順に関係なく publish 値 ≥ 消費側の外挿値になる（位相のポップ・突風エンベロープの巻き戻しを防ぐ）。
+	// 停止中に UPROPERTY の TimeScale / Enabled が変わった場合も、ApplyInputChanges より前に進めるので同じ規則になる。
+	// AdvanceWindTime は struct の現在 TimeScale を掛けてしまうので使わず、Time へ直接加算する
+	//（Helper は Worker 上で SharedWind の唯一の書き手なので lock は要らない）
+	if (Inputs.SharedWind && Inputs.SharedWind->RuntimeState.IsValid() && EffectiveDeltaTime > 0.0f)
+	{
+		const bool bCarriedEnabled = bHasPublishedToCurrentEntry
+			? LastPublishedState.Wind.bPublisherWindEnabled
+			: (Inputs.SharedWind->bIsEnabled && bEffectiveEnabled);
+		const float CarriedTimeScale = bHasPublishedToCurrentEntry
+			? LastPublishedState.Wind.PublisherTimeScale
+			: Inputs.SharedWind->TimeScale;
+		if (bCarriedEnabled)
+		{
+			Inputs.SharedWind->RuntimeState->Time += EffectiveDeltaTime * CarriedTimeScale;
+		}
+	}
+
 	// 所有権を先に確認する。生存中の別 provider がいる間は Desc も Pending も触らない。
 	// ロックは PublisherEntry / SimpleWorldEntry を 1 つずつ取り、同時に 2 つ以上保持しない。
-	const uint64 CurrentProviderID = PublisherEntry->GetProviderID();
-	const bool bOwnedByOther = CurrentProviderID != 0
-		&& CurrentProviderID != SourceID
-		&& !PublisherEntry->IsExpired(CurrentFrame, ProviderMaxAgeFrames);
+	// 所有権と期限切れは同じロック区間のスナップショットで判定する（別々に読むと claim の割り込みで旧 provider が自分を生存 provider と誤認する）。
+	const FKawaiiPhysicsSharedPublisherEntry::FProviderSnapshot Snapshot =
+		PublisherEntry->ReadProviderSnapshot(CurrentFrame, ProviderMaxAgeFrames);
+	const bool bOwnedByOther = Snapshot.ProviderID != 0
+		&& Snapshot.ProviderID != SourceID
+		&& !Snapshot.bExpired;
+	// 前フレームから自分が provider のままなら、publish 前に Pending を消費して 1 回だけ publish できる
+	const bool bAlreadyProvider = Snapshot.ProviderID == SourceID && !Snapshot.bExpired;
 
 	if (!bOwnedByOther)
 	{
@@ -165,11 +224,10 @@ bool FKawaiiPhysicsSharedPublishHelper::Update(
 		//（風の Time 積算が UPROPERTY の Enabled 変化に同フレームで追従するため）。
 		ApplyInputChanges(Inputs);
 
-		// RuntimeState->Mutex は PendingParams / PendingGust / PendingGustStop 用。
-		// このノードでは ProceduralWind::PreApply が走らないため、Time は Publisher Update が唯一の書き手になる。
-		if (WindRuntimeState.IsValid() && Inputs.bWindEnabled && bEffectiveEnabled)
+		if (!Inputs.SharedWind && WindRuntimeState.IsValid() && Inputs.bWindEnabled && bEffectiveEnabled)
 		{
-			WindRuntimeState->Time += FMath::Max(DeltaTime, 0.0f) * Inputs.WindTimeScale;
+			// SharedWind 本体が無い既存テスト互換経路では、従来どおり publish 前に Time だけを直接進める。
+			WindRuntimeState->Time += EffectiveDeltaTime * Inputs.WindTimeScale;
 		}
 
 		FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
@@ -177,6 +235,8 @@ bool FKawaiiPhysicsSharedPublishHelper::Update(
 		const auto BuildDescAndState = [&]()
 		{
 			const bool bProviderDisabled = !(bEffectiveEnabled && EffectiveSimpleWorldSettings.bEnabled);
+			const bool bEffectiveWindEnabled = bEffectiveEnabled &&
+				(Inputs.SharedWind ? Inputs.SharedWind->bIsEnabled : Inputs.bWindEnabled);
 			Desc = KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldCollisionDesc(EffectiveSimpleWorldSettings);
 			Desc.bProviderDisabled = bProviderDisabled;
 
@@ -185,33 +245,102 @@ bool FKawaiiPhysicsSharedPublishHelper::Update(
 			State.GatherScope = Desc.GatherScope;
 			State.SimpleWorldDesc = Desc;
 			State.SimpleWorldSettings = EffectiveSimpleWorldSettings;
-			State.Wind.bPublisherWindEnabled = Inputs.bWindEnabled && bEffectiveEnabled;
+			State.Wind.bPublisherWindEnabled = bEffectiveWindEnabled;
 			State.Wind.Time = WindRuntimeState.IsValid() ? WindRuntimeState->Time : 0.0f;
-			State.Wind.PublisherTimeScale = Inputs.WindTimeScale;
+			// 消費側が次フレーム以降の外挿に使う scale として、SharedWind があればその現在値を配る
+			State.Wind.PublisherTimeScale = Inputs.SharedWind ? Inputs.SharedWind->TimeScale : Inputs.WindTimeScale;
+			if (Inputs.SharedWind)
+			{
+				State.Wind.Params = Inputs.SharedWind->BuildSharedWindParams();
+				// ActiveGust はこの直前の ConsumePendingRequests と同じ Worker 上でのみ更新されるため、ここでは Mutex を取らない。
+				State.Wind.ActiveGust = Inputs.SharedWind->RuntimeState.IsValid()
+					? Inputs.SharedWind->RuntimeState->ActiveGust
+					: FKawaiiProceduralWindActiveGust();
+			}
 		};
-		BuildDescAndState();
 
-		if (PublisherEntry->PublishState(State, SourceID, CurrentFrame, ProviderMaxAgeFrames))
+		// BP からの Pending 要求の消費と SharedWind の gust / Time / Scope 更新をまとめて行う（何か処理したら true）
+		const auto ProcessPendingAndWind = [&]() -> bool
 		{
-			// ここから先は自分が provider。BP からの Pending 要求はこの段階で初めて消費する。
-			bool bEffectiveValuesChanged = false;
+			bool bProcessed = false;
+
 			FKawaiiPhysicsSharedPublisherEntry::FPendingPublisherRequests Pending;
 			if (PublisherEntry->ConsumePendingPublisherRequests(Pending))
 			{
 				if (Pending.Enabled.IsSet())
 				{
 					bEffectiveEnabled = Pending.Enabled.GetValue();
-					bEffectiveValuesChanged = true;
+					bProcessed = true;
 				}
 				if (Pending.SimpleWorldSettings.IsSet())
 				{
 					EffectiveSimpleWorldSettings = Pending.SimpleWorldSettings.GetValue();
-					bEffectiveValuesChanged = true;
+					bProcessed = true;
+				}
+				if (Pending.WindParams.IsSet())
+				{
+					if (Inputs.SharedWind)
+					{
+						// 風の live 値と publish 値の真実を SharedWind の struct 1 つに揃えるため、リクエストは永続上書きとして扱う。
+						Inputs.SharedWind->RequestDynamicParams(Pending.WindParams.GetValue());
+						bProcessed = true;
+					}
+					else
+					{
+						// SharedWind 本体が無い互換経路では publish 先が無いため、風パラメータ要求はここで破棄する。
+					}
 				}
 			}
 
-			// Pending で実効値が変わったので、同じフレームのうちに最新値で publish し直す（自分が provider なので受理される）
-			if (bEffectiveValuesChanged)
+			if (Inputs.SharedWind)
+			{
+				PendingGustBuffer.Reset();
+				PublisherEntry->ConsumePendingGustRequests(PendingGustBuffer);
+				for (const FKawaiiPhysicsSharedPublisherGustRequest& Gust : PendingGustBuffer)
+				{
+					if (Gust.bStop)
+					{
+						Inputs.SharedWind->RequestGustStop(Gust.BlendOutTime);
+					}
+					else
+					{
+						Inputs.SharedWind->RequestGust(Gust.Strength, Gust.RiseTime, Gust.DecayTime, Gust.HoldTime);
+					}
+				}
+
+				Inputs.SharedWind->ConsumePendingRequests();
+				// Time は当フレーム分まで Update の冒頭で進め済み。ここで新しい TimeScale / 有効フラグを掛け直すと、
+				// 先に評価された消費側が旧 scale で外挿した値より手前を publish して巻き戻す
+				Inputs.SharedWind->RecordScopeSample();
+				bProcessed = true;
+			}
+
+			return bProcessed;
+		};
+
+		if (bAlreadyProvider)
+		{
+			// 所有権が確定済みのフレームは、Time 積算まで済ませた最新状態を 1 回だけ publish する
+			//（publish 前に消費しても、他 provider に横取りされる余地は前フレームの所有権で塞がれている）
+			ProcessPendingAndWind();
+		}
+
+		BuildDescAndState();
+
+		if (PublisherEntry->PublishState(State, SourceID, CurrentFrame, ProviderMaxAgeFrames))
+		{
+#if WITH_DEV_AUTOMATION_TESTS
+			// claim フレームの最初の publish（受理判定）に当フレーム分までの追いつきが載っているかをテストから確認する
+			bLastUpdateWasClaim = !bAlreadyProvider;
+			if (!bAlreadyProvider)
+			{
+				LastClaimPublishedWindTime = State.Wind.Time;
+			}
+#endif
+
+			// claim フレームはここで初めて自分が provider になるので、受理後に Pending を消費する
+			//（拒否された Publisher が BP 要求を消費しないため）。反映があれば最新値で publish し直す
+			if (!bAlreadyProvider && ProcessPendingAndWind())
 			{
 				BuildDescAndState();
 				PublisherEntry->PublishState(State, SourceID, CurrentFrame, ProviderMaxAgeFrames);
@@ -219,6 +348,8 @@ bool FKawaiiPhysicsSharedPublishHelper::Update(
 
 			LastPublishedState = State;
 			LastPublishSerial = PublisherEntry->GetPublishSerial();
+			// 次のフレームの前進は、消費側の外挿と同じくこの State の TimeScale / Enabled で行う
+			bHasPublishedToCurrentEntry = true;
 			bNeedsEntryReacquire = false;
 #if !UE_BUILD_SHIPPING
 			bProviderConflictWarningLogged = false;
@@ -286,11 +417,14 @@ FAnimNode_KawaiiPhysicsSharedPublisher::FAnimNode_KawaiiPhysicsSharedPublisher(
 	, SharedGroupTag(Other.SharedGroupTag)
 	, SimpleWorldCollision(Other.SimpleWorldCollision)
 	, SharedWind(Other.SharedWind)
+	, WindPresetDataAsset(Other.WindPresetDataAsset)
+	, WindPresetTag(Other.WindPresetTag)
 	, ResolvedTag(Other.ResolvedTag)
 	, PreUpdateFrame(Other.PreUpdateFrame)
 	, ProviderMaxAgeFrames(Other.ProviderMaxAgeFrames)
 #if !UE_BUILD_SHIPPING
 	, bInvalidTagWarningLogged(Other.bInvalidTagWarningLogged)
+	, bInvalidWindPresetWarningLogged(Other.bInvalidWindPresetWarningLogged)
 #endif
 #if WITH_EDITORONLY_DATA
 	, LastUpdatedTime(Other.LastUpdatedTime)
@@ -320,6 +454,8 @@ FAnimNode_KawaiiPhysicsSharedPublisher& FAnimNode_KawaiiPhysicsSharedPublisher::
 	SharedGroupTag = Other.SharedGroupTag;
 	SimpleWorldCollision = Other.SimpleWorldCollision;
 	SharedWind = Other.SharedWind;
+	WindPresetDataAsset = Other.WindPresetDataAsset;
+	WindPresetTag = Other.WindPresetTag;
 	ResolvedTag = Other.ResolvedTag;
 	PreUpdateFrame = Other.PreUpdateFrame;
 	ProviderMaxAgeFrames = Other.ProviderMaxAgeFrames;
@@ -328,10 +464,15 @@ FAnimNode_KawaiiPhysicsSharedPublisher& FAnimNode_KawaiiPhysicsSharedPublisher::
 #endif
 #if !UE_BUILD_SHIPPING
 	bInvalidTagWarningLogged = Other.bInvalidTagWarningLogged;
+	bInvalidWindPresetWarningLogged = Other.bInvalidWindPresetWarningLogged;
 #endif
 	CachedSubsystem.Reset();
 	CachedSkelComp.Reset();
 	CachedFamilyRoot.Reset();
+	CachedWindPresetDataAsset.Reset();
+	CachedWindPresetTag = FGameplayTag();
+	// SharedWind ごと代入し直したので、代入前のノードで取った退避値は捨てる（次の適用で新しい authored 値を退避する）
+	SharedWindBeforePreset.Reset();
 	bReinitRequested.store(true, std::memory_order_release);
 	InitializeHelper();
 	return *this;
@@ -362,7 +503,7 @@ void FAnimNode_KawaiiPhysicsSharedPublisher::Initialize_AnyThread(const FAnimati
 	bReinitRequested.store(true, std::memory_order_release);
 	InitializeHelper();
 	Helper->ResetEffectiveValues(
-		MakePublishInputs(bEnabled, SimpleWorldCollision, SharedWind.bIsEnabled, SharedWind.TimeScale));
+		MakePublishInputs(bEnabled, SimpleWorldCollision, SharedWind.bIsEnabled, SharedWind.TimeScale, &SharedWind));
 }
 
 void FAnimNode_KawaiiPhysicsSharedPublisher::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
@@ -373,6 +514,12 @@ void FAnimNode_KawaiiPhysicsSharedPublisher::CacheBones_AnyThread(const FAnimati
 void FAnimNode_KawaiiPhysicsSharedPublisher::PreUpdate(const UAnimInstance* InAnimInstance)
 {
 	PreUpdateFrame = GFrameCounter;
+	// 枝が blend weight 0 で Update されないフレームの時間も累積し、Update_AnyThread が再開したときに
+	// まとめて Time を進める（消費側の外挿より Publisher が遅れて Time が巻き戻るのを防ぐ）
+	if (InAnimInstance && Helper.IsValid())
+	{
+		Helper->AccumulatePendingDeltaTime(InAnimInstance->GetDeltaSeconds());
+	}
 	ProviderMaxAgeFrames = static_cast<uint64>(
 		FMath::Max(0, GetKawaiiPhysicsSharedPublisherReaderReleaseMaxAge()));
 
@@ -395,7 +542,15 @@ void FAnimNode_KawaiiPhysicsSharedPublisher::PreUpdate(const UAnimInstance* InAn
 	const bool bReinit = bReinitRequested.exchange(false, std::memory_order_acq_rel);
 	const bool bNeedsReacquire = Helper->NeedsEntryReacquire();
 	const bool bTagChanged = ResolvedTag != SharedGroupTag;
-	if (!bReinit && !bNeedsReacquire && !bTagChanged)
+	const bool bWindPresetChanged =
+		CachedWindPresetDataAsset.Get() != WindPresetDataAsset.Get() || CachedWindPresetTag != WindPresetTag;
+	if (!bReinit && !bNeedsReacquire && !bTagChanged && !bWindPresetChanged)
+	{
+		return;
+	}
+
+	ApplySharedWindPreset();
+	if (bWindPresetChanged && !bReinit && !bNeedsReacquire && !bTagChanged)
 	{
 		return;
 	}
@@ -447,7 +602,7 @@ void FAnimNode_KawaiiPhysicsSharedPublisher::PreUpdate(const UAnimInstance* InAn
 		if (CurrentPublisherEntry.IsValid() && !CurrentPublisherEntry->IsExpired(PreUpdateFrame, ProviderMaxAgeFrames))
 		{
 			Helper->ResetEffectiveValues(
-				MakePublishInputs(bEnabled, SimpleWorldCollision, SharedWind.bIsEnabled, SharedWind.TimeScale));
+				MakePublishInputs(bEnabled, SimpleWorldCollision, SharedWind.bIsEnabled, SharedWind.TimeScale, &SharedWind));
 			return;
 		}
 	}
@@ -505,7 +660,7 @@ void FAnimNode_KawaiiPhysicsSharedPublisher::PreUpdate(const UAnimInstance* InAn
 	Helper->SetDebugTag(SharedGroupTag);
 	Helper->SetEntries(PublisherEntry, SimpleWorldEntry, TWeakObjectPtr<const USkeletalMeshComponent>(SkelComp));
 	Helper->ResetEffectiveValues(
-		MakePublishInputs(bEnabled, SimpleWorldCollision, SharedWind.bIsEnabled, SharedWind.TimeScale));
+		MakePublishInputs(bEnabled, SimpleWorldCollision, SharedWind.bIsEnabled, SharedWind.TimeScale, &SharedWind));
 }
 
 void FAnimNode_KawaiiPhysicsSharedPublisher::Update_AnyThread(const FAnimationUpdateContext& Context)
@@ -514,7 +669,7 @@ void FAnimNode_KawaiiPhysicsSharedPublisher::Update_AnyThread(const FAnimationUp
 	Source.Update(Context);
 
 	Helper->Update(
-		MakePublishInputs(bEnabled, SimpleWorldCollision, SharedWind.bIsEnabled, SharedWind.TimeScale),
+		MakePublishInputs(bEnabled, SimpleWorldCollision, SharedWind.bIsEnabled, SharedWind.TimeScale, &SharedWind),
 		SharedWind.RuntimeState,
 		Context.GetDeltaTime(),
 		PreUpdateFrame,
@@ -548,12 +703,82 @@ void FAnimNode_KawaiiPhysicsSharedPublisher::ResetDynamics(ETeleportType InTelep
 void FAnimNode_KawaiiPhysicsSharedPublisher::GatherDebugData(FNodeDebugData& DebugData)
 {
 	DebugData.AddDebugItem(FString::Printf(
-		TEXT("%s(Tag: %s, Enabled: %d, Serial: %llu)"),
+		TEXT("%s(Tag: %s, Enabled: %d, PresetTag: %s, Serial: %llu)"),
 		*DebugData.GetNodeName(this),
 		*SharedGroupTag.ToString(),
 		bEnabled ? 1 : 0,
+		*WindPresetTag.ToString(),
 		static_cast<unsigned long long>(Helper->GetLastPublishSerial())));
 	Source.GatherDebugData(DebugData);
+}
+
+void FAnimNode_KawaiiPhysicsSharedPublisher::ApplySharedWindPreset()
+{
+	if (!IsInGameThread())
+	{
+		return;
+	}
+
+	CachedWindPresetDataAsset = WindPresetDataAsset;
+	CachedWindPresetTag = WindPresetTag;
+
+	if (!WindPresetDataAsset)
+	{
+		// プリセットを外したら authored 値へ戻す（UPROPERTY の契約）。RuntimeState（Time / 突風）は保つ
+		if (SharedWindBeforePreset.IsSet())
+		{
+			SharedWind.ApplyDynamicParams(SharedWindBeforePreset.GetValue());
+			SharedWindBeforePreset.Reset();
+		}
+#if !UE_BUILD_SHIPPING
+		bInvalidWindPresetWarningLogged = false;
+#endif
+		return;
+	}
+
+	FKawaiiProceduralWindDynamicParams Params;
+	if (UKawaiiPhysicsWindPresetDataAsset::ResolvePresetParamsByTag(WindPresetDataAsset, WindPresetTag, Params))
+	{
+		// 最初の適用の直前だけ authored 値を退避する（プリセット A → B の切り替えでは A 適用前の値を保つ）
+		if (!SharedWindBeforePreset.IsSet())
+		{
+			SharedWindBeforePreset = SharedWind.BuildDynamicParamsSnapshot();
+		}
+		Params.bOverrideIsEnabled = true;
+		Params.bIsEnabled = true;
+		Params.bOverrideTimeScale = true;
+		Params.TimeScale = 1.0f;
+		SharedWind.ApplyDynamicParams(Params);
+#if !UE_BUILD_SHIPPING
+		bInvalidWindPresetWarningLogged = false;
+#endif
+		return;
+	}
+
+	// Tag が引けなくなった場合もプリセット無しと同じ扱いにして authored 値へ戻す（適用済みの値が残り続けないように）
+	if (SharedWindBeforePreset.IsSet())
+	{
+		SharedWind.ApplyDynamicParams(SharedWindBeforePreset.GetValue());
+		SharedWindBeforePreset.Reset();
+	}
+
+#if !UE_BUILD_SHIPPING
+	if (!bInvalidWindPresetWarningLogged)
+	{
+		UE_LOG(LogKawaiiPhysics, Warning,
+		       TEXT("Kawaii Physics Shared Publisher failed to apply Wind Preset Tag '%s' from DataAsset '%s'."),
+		       *WindPresetTag.ToString(),
+		       *GetNameSafe(WindPresetDataAsset));
+		bInvalidWindPresetWarningLogged = true;
+	}
+#endif
+}
+
+void FAnimNode_KawaiiPhysicsSharedPublisher::ResetSharedWindPresetSnapshot()
+{
+	// SharedWind を外から authored 値で置き換えられた後なので、置き換え前の値で取った退避は捨てる
+	//（次の ApplySharedWindPreset が新しい authored 値を退避してからプリセットを適用し直す）
+	SharedWindBeforePreset.Reset();
 }
 
 void FAnimNode_KawaiiPhysicsSharedPublisher::RequestSharedPublisherReinit()

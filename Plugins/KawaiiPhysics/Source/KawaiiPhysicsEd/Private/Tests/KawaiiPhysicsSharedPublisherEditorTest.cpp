@@ -16,10 +16,12 @@
 #include "Animation/Skeleton.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphPin.h"
+#include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
 #include "GameplayTagContainer.h"
 #include "KawaiiPhysicsEdUtils.h"
 #include "KawaiiPhysicsEditorCategoryNames.h"
 #include "KawaiiPhysicsSharedPublisherTypes.h"
+#include "KawaiiPhysicsWindPresetDataAsset.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Logging/TokenizedMessage.h"
@@ -185,6 +187,34 @@ namespace
 		return GraphNode;
 	}
 
+	UAnimGraphNode_KawaiiPhysics* AddSharedPublisherWindConsumerGraphNode(
+		UEdGraph* Graph,
+		EKawaiiPhysicsProceduralWindSource WindSource,
+		const FGameplayTag& SharedWindTag,
+		bool bAddWind = true)
+	{
+		if (!Graph)
+		{
+			return nullptr;
+		}
+
+		FGraphNodeCreator<UAnimGraphNode_KawaiiPhysics> NodeCreator(*Graph);
+		UAnimGraphNode_KawaiiPhysics* GraphNode = NodeCreator.CreateNode(false);
+		GraphNode->Node.RootBone = FBoneReference(TEXT("hair_01"));
+		if (bAddWind)
+		{
+			GraphNode->Node.ExternalForces.Add(FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_ProceduralWind>());
+			if (FKawaiiPhysics_ExternalForce_ProceduralWind* Wind =
+				GraphNode->Node.ExternalForces[0].GetMutablePtr<FKawaiiPhysics_ExternalForce_ProceduralWind>())
+			{
+				Wind->WindSource = WindSource;
+				Wind->SharedWindTag = SharedWindTag;
+			}
+		}
+		NodeCreator.Finalize();
+		return GraphNode;
+	}
+
 	int32 CountSharedPublisherNodes(UEdGraph* Graph)
 	{
 		int32 Count = 0;
@@ -229,6 +259,22 @@ namespace
 			}
 		}
 		return false;
+	}
+
+	UKawaiiPhysicsWindPresetDataAsset* CreateSharedPublisherWindPresetAsset(
+		UObject* Outer,
+		const FGameplayTag& PresetTag,
+		float PresetConstantForce,
+		float PresetSwayForce)
+	{
+		UKawaiiPhysicsWindPresetDataAsset* PresetAsset =
+			NewObject<UKawaiiPhysicsWindPresetDataAsset>(Outer ? Outer : GetTransientPackage());
+		FKawaiiProceduralWindPreset Preset;
+		Preset.PresetTag = PresetTag;
+		Preset.ConstantForce = PresetConstantForce;
+		Preset.SwayForce = PresetSwayForce;
+		PresetAsset->Presets.Add(Preset);
+		return PresetAsset;
 	}
 
 	void CollectPropertyCategories(const UStruct* Struct, TArray<FName>& OutCategories)
@@ -497,6 +543,99 @@ bool FKawaiiPhysicsEditorSharedPublisherConsumerTraversalTest::RunTest(const FSt
 	return bOk;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorSharedPublisherWindConsumerTraversalTest,
+                                 "KawaiiPhysics.Editor.SharedPublisher.WindConsumerTraversal",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorSharedPublisherWindConsumerTraversalTest::RunTest(const FString& Parameters)
+{
+	(void)Parameters;
+
+	FKawaiiPhysicsSharedPublisherEditorFixture Fixture = MakeSharedPublisherFixture(*this);
+	const FGameplayTag TagX = GetEditorSharedPublisherTagA();
+	const FGameplayTag TagY = GetEditorSharedPublisherTagB();
+
+	UAnimGraphNode_KawaiiPhysics* SharedWindNode =
+		AddSharedPublisherWindConsumerGraphNode(
+			Fixture.AnimGraph,
+			EKawaiiPhysicsProceduralWindSource::Shared,
+			TagX);
+	UAnimGraphNode_KawaiiPhysics* AutoWindNode =
+		AddSharedPublisherWindConsumerGraphNode(
+			Fixture.AnimGraph,
+			EKawaiiPhysicsProceduralWindSource::Auto,
+			TagX);
+	UAnimGraphNode_KawaiiPhysics* LocalWindNode =
+		AddSharedPublisherWindConsumerGraphNode(
+			Fixture.AnimGraph,
+			EKawaiiPhysicsProceduralWindSource::Local,
+			TagX);
+	UAnimGraphNode_KawaiiPhysics* NoWindNode =
+		AddSharedPublisherWindConsumerGraphNode(
+			Fixture.AnimGraph,
+			EKawaiiPhysicsProceduralWindSource::Shared,
+			TagX,
+			false);
+	UAnimGraphNode_KawaiiPhysics* MixedWindNode =
+		AddSharedPublisherWindConsumerGraphNode(
+			Fixture.AnimGraph,
+			EKawaiiPhysicsProceduralWindSource::Shared,
+			TagX);
+	MixedWindNode->Node.ExternalForces.Add(FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_ProceduralWind>());
+	if (FKawaiiPhysics_ExternalForce_ProceduralWind* SecondWind =
+		MixedWindNode->Node.ExternalForces[1].GetMutablePtr<FKawaiiPhysics_ExternalForce_ProceduralWind>())
+	{
+		SecondWind->WindSource = EKawaiiPhysicsProceduralWindSource::Shared;
+		SecondWind->SharedWindTag = TagY;
+	}
+
+	FGameplayTag FoundTag;
+	bool bAuto = false;
+	bool bOk = true;
+	bOk &= TestTrue(TEXT("Shared wind consumer is detected"),
+	                KawaiiPhysicsEdUtils::IsUsingSharedWindPublisher(SharedWindNode->Node, FoundTag, bAuto));
+	bOk &= TestTrue(TEXT("Shared wind tag is Tag X"), FoundTag == TagX);
+	bOk &= TestFalse(TEXT("Shared wind is not Auto"), bAuto);
+
+	FoundTag = FGameplayTag();
+	bAuto = false;
+	bOk &= TestTrue(TEXT("Auto wind consumer is detected"),
+	                KawaiiPhysicsEdUtils::IsUsingSharedWindPublisher(AutoWindNode->Node, FoundTag, bAuto));
+	bOk &= TestTrue(TEXT("Auto wind tag is Tag X"), FoundTag == TagX);
+	bOk &= TestTrue(TEXT("Auto wind reports Auto"), bAuto);
+
+	FoundTag = FGameplayTag();
+	bAuto = false;
+	bOk &= TestFalse(TEXT("Local wind consumer is ignored"),
+	                 KawaiiPhysicsEdUtils::IsUsingSharedWindPublisher(LocalWindNode->Node, FoundTag, bAuto));
+	bOk &= TestFalse(TEXT("No wind consumer is ignored"),
+	                 KawaiiPhysicsEdUtils::IsUsingSharedWindPublisher(NoWindNode->Node, FoundTag, bAuto));
+
+	FoundTag = FGameplayTag();
+	bAuto = false;
+	bOk &= TestTrue(TEXT("Mixed wind consumer is detected"),
+	                KawaiiPhysicsEdUtils::IsUsingSharedWindPublisher(MixedWindNode->Node, FoundTag, bAuto));
+	bOk &= TestTrue(TEXT("Mixed wind returns first Tag X"), FoundTag == TagX);
+
+	TArray<UAnimGraphNode_KawaiiPhysics*> Consumers;
+	KawaiiPhysicsEdUtils::FindKawaiiPhysicsConsumerGraphNodes(Fixture.AnimBlueprint, TagX, Consumers);
+	bOk &= TestTrue(TEXT("Shared wind node is a Tag X consumer"), Consumers.Contains(SharedWindNode));
+	bOk &= TestTrue(TEXT("Auto wind node is a Tag X consumer"), Consumers.Contains(AutoWindNode));
+	bOk &= TestTrue(TEXT("Mixed wind node is a Tag X consumer"), Consumers.Contains(MixedWindNode));
+	bOk &= TestFalse(TEXT("Local wind node is not a Tag X consumer"), Consumers.Contains(LocalWindNode));
+	bOk &= TestFalse(TEXT("No wind node is not a Tag X consumer"), Consumers.Contains(NoWindNode));
+
+	TArray<UAnimGraphNode_KawaiiPhysics*> ConsumersY;
+	KawaiiPhysicsEdUtils::FindKawaiiPhysicsConsumerGraphNodes(Fixture.AnimBlueprint, TagY, ConsumersY);
+	bOk &= TestTrue(TEXT("Mixed wind node is a Tag Y consumer"), ConsumersY.Contains(MixedWindNode));
+	bOk &= TestFalse(TEXT("Shared wind node is not a Tag Y consumer"), ConsumersY.Contains(SharedWindNode));
+	bOk &= TestFalse(TEXT("Auto wind node is not a Tag Y consumer"), ConsumersY.Contains(AutoWindNode));
+	bOk &= TestFalse(TEXT("Local wind node is not a Tag Y consumer"), ConsumersY.Contains(LocalWindNode));
+	bOk &= TestFalse(TEXT("No wind node is not a Tag Y consumer"), ConsumersY.Contains(NoWindNode));
+
+	return bOk;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorSharedPublisherCompileWarningsTest,
                                  "KawaiiPhysics.Editor.SharedPublisher.CompileWarnings",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -544,6 +683,93 @@ bool FKawaiiPhysicsEditorSharedPublisherCompileWarningsTest::RunTest(const FStri
 			                MessageLog,
 			                EMessageSeverity::Info,
 			                TEXT("has no consumer in this Animation Blueprint")));
+	}
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorSharedPublisherPreviewSyncKeepsWindPresetTest,
+                                 "KawaiiPhysics.Editor.SharedPublisher.PreviewSyncKeepsWindPreset",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsEditorSharedPublisherPreviewSyncKeepsWindPresetTest::RunTest(const FString& Parameters)
+{
+	(void)Parameters;
+
+	bool bOk = true;
+
+	// プリセット選択中は、authored の SharedWind を丸ごと同期しても退避を捨てて reinit するのでプリセット値へ戻せる
+	{
+		FKawaiiPhysicsSharedPublisherEditorFixture Fixture = MakeSharedPublisherFixture(*this);
+		UAnimGraphNode_KawaiiPhysicsSharedPublisher* GraphNode =
+			AddSharedPublisherGraphNode(Fixture.AnimGraph, GetEditorSharedPublisherTagA());
+		if (!GraphNode)
+		{
+			return false;
+		}
+
+		const FGameplayTag PresetTag = GetEditorSharedPublisherTagB();
+		GraphNode->Node.WindPresetDataAsset =
+			CreateSharedPublisherWindPresetAsset(Fixture.Package, PresetTag, 3.5f, 4.5f);
+		GraphNode->Node.WindPresetTag = PresetTag;
+		GraphNode->Node.SharedWind.ConstantForce = 77.0f;
+
+		FAnimNode_KawaiiPhysicsSharedPublisher Preview = GraphNode->Node;
+		Preview.ApplySharedWindPreset();
+		bOk &= TestEqual(TEXT("Preset ConstantForce is applied to the preview node"),
+		                 Preview.SharedWind.ConstantForce, 3.5f);
+		bOk &= TestTrue(TEXT("Pre-preset snapshot is held after apply"), Preview.HasSharedWindBeforePreset());
+
+		// authored 側の別項目を Details で編集した状況
+		Preview.ClearReinitRequestForTest();
+		GraphNode->Node.SharedWind.SwayForce = 9.0f;
+		GraphNode->CopyNodeDataToPreviewNode(&Preview);
+		bOk &= TestFalse(TEXT("Preview sync drops the pre-preset snapshot"), Preview.HasSharedWindBeforePreset());
+		bOk &= TestTrue(TEXT("Preview sync requests reinit while a preset is selected"),
+		                Preview.IsReinitRequestedForTest());
+
+		// reinit の PreUpdate 経路が行う再適用
+		Preview.ApplySharedWindPreset();
+		bOk &= TestEqual(TEXT("Preset ConstantForce is re-applied after the sync"),
+		                 Preview.SharedWind.ConstantForce, 3.5f);
+		bOk &= TestEqual(TEXT("Preset SwayForce is re-applied after the sync"),
+		                 Preview.SharedWind.SwayForce, 4.5f);
+		bOk &= TestTrue(TEXT("Pre-preset snapshot is retaken from the new authored values"),
+		                Preview.HasSharedWindBeforePreset());
+
+		Preview.WindPresetDataAsset = nullptr;
+		Preview.ApplySharedWindPreset();
+		bOk &= TestEqual(TEXT("Removing the preset restores the authored ConstantForce"),
+		                 Preview.SharedWind.ConstantForce, 77.0f);
+		bOk &= TestEqual(TEXT("Removing the preset restores the edited authored SwayForce"),
+		                 Preview.SharedWind.SwayForce, 9.0f);
+	}
+
+	// プリセット未選択なら退避にも reinit 要求にも触れない（既存の差分条件だけが効く）
+	{
+		FKawaiiPhysicsSharedPublisherEditorFixture PlainFixture = MakeSharedPublisherFixture(*this);
+		UAnimGraphNode_KawaiiPhysicsSharedPublisher* PlainGraphNode =
+			AddSharedPublisherGraphNode(PlainFixture.AnimGraph, GetEditorSharedPublisherTagA());
+		if (!PlainGraphNode)
+		{
+			return false;
+		}
+
+		PlainGraphNode->Node.SharedWind.ConstantForce = 55.0f;
+
+		FAnimNode_KawaiiPhysicsSharedPublisher PlainPreview = PlainGraphNode->Node;
+		PlainPreview.ApplySharedWindPreset();
+		PlainPreview.ClearReinitRequestForTest();
+		PlainGraphNode->Node.SharedWind.SwayForce = 9.0f;
+		PlainGraphNode->CopyNodeDataToPreviewNode(&PlainPreview);
+
+		bOk &= TestFalse(TEXT("No preset leaves the pre-preset snapshot untouched"),
+		                 PlainPreview.HasSharedWindBeforePreset());
+		bOk &= TestFalse(TEXT("No preset does not request reinit"), PlainPreview.IsReinitRequestedForTest());
+		bOk &= TestEqual(TEXT("Authored SwayForce edit still reaches the preview node"),
+		                 PlainPreview.SharedWind.SwayForce, 9.0f);
+		bOk &= TestEqual(TEXT("Authored ConstantForce is kept without a preset"),
+		                 PlainPreview.SharedWind.ConstantForce, 55.0f);
 	}
 
 	return bOk;

@@ -227,6 +227,38 @@ namespace
 		return true;
 	}
 
+	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> ResolveLiveSharedPublisherEntry(
+		AActor* Actor,
+		const FGameplayTag SharedGroupTag)
+	{
+		if (!IsInGameThread() || !Actor || !SharedGroupTag.IsValid())
+		{
+			return nullptr;
+		}
+
+		UWorld* World = Actor->GetWorld();
+		UKawaiiPhysicsSharedCollisionSubsystem* Subsystem =
+			World ? World->GetSubsystem<UKawaiiPhysicsSharedCollisionSubsystem>() : nullptr;
+		if (!Subsystem)
+		{
+			return nullptr;
+		}
+
+		TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry =
+			Subsystem->FindSharedPublisherEntry(Actor, SharedGroupTag);
+		const uint64 MaxAgeFrames = static_cast<uint64>(
+			FMath::Max(0, GetKawaiiPhysicsSharedPublisherReaderReleaseMaxAge()));
+		// claim 前の Entry（ProviderID 0）は起動直後の MaxAge フレームの間だけ期限切れに見えないため、
+		// provider が居ることも要求する（消費側の ResolveSharedWindSource と同じ判定）
+		if (!Entry.IsValid() ||
+			!KawaiiPhysicsProceduralWindInternal::IsSharedPublisherEntryLive(*Entry, GFrameCounter, MaxAgeFrames))
+		{
+			return nullptr;
+		}
+
+		return Entry;
+	}
+
 	// 検証済み前提の単一ノードキュー。公開 API は必ず CanQueueTransientExternalForce を通した後にこれを呼ぶ
 	bool QueueTransientExternalForceToNodeUnchecked(FAnimNode_KawaiiPhysics& Node,
 	                                                const FInstancedStruct& ExternalForce,
@@ -689,24 +721,9 @@ bool UKawaiiPhysicsLibrary::SetSharedPublisherEnabled(
 	FGameplayTag SharedGroupTag,
 	bool bEnabled)
 {
-	if (!IsInGameThread() || !Actor || !SharedGroupTag.IsValid())
-	{
-		return false;
-	}
-
-	UWorld* World = Actor->GetWorld();
-	UKawaiiPhysicsSharedCollisionSubsystem* Subsystem =
-		World ? World->GetSubsystem<UKawaiiPhysicsSharedCollisionSubsystem>() : nullptr;
-	if (!Subsystem)
-	{
-		return false;
-	}
-
 	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry =
-		Subsystem->FindSharedPublisherEntry(Actor, SharedGroupTag);
-	const uint64 MaxAgeFrames = static_cast<uint64>(
-		FMath::Max(0, GetKawaiiPhysicsSharedPublisherReaderReleaseMaxAge()));
-	if (!Entry.IsValid() || Entry->IsExpired(GFrameCounter, MaxAgeFrames))
+		ResolveLiveSharedPublisherEntry(Actor, SharedGroupTag);
+	if (!Entry.IsValid())
 	{
 		return false;
 	}
@@ -720,24 +737,9 @@ bool UKawaiiPhysicsLibrary::SetSimpleWorldCollisionSettingsOnSharedPublisher(
 	FGameplayTag SharedGroupTag,
 	const FKawaiiPhysicsSimpleWorldCollisionSettings& Settings)
 {
-	if (!IsInGameThread() || !Actor || !SharedGroupTag.IsValid())
-	{
-		return false;
-	}
-
-	UWorld* World = Actor->GetWorld();
-	UKawaiiPhysicsSharedCollisionSubsystem* Subsystem =
-		World ? World->GetSubsystem<UKawaiiPhysicsSharedCollisionSubsystem>() : nullptr;
-	if (!Subsystem)
-	{
-		return false;
-	}
-
 	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry =
-		Subsystem->FindSharedPublisherEntry(Actor, SharedGroupTag);
-	const uint64 MaxAgeFrames = static_cast<uint64>(
-		FMath::Max(0, GetKawaiiPhysicsSharedPublisherReaderReleaseMaxAge()));
-	if (!Entry.IsValid() || Entry->IsExpired(GFrameCounter, MaxAgeFrames))
+		ResolveLiveSharedPublisherEntry(Actor, SharedGroupTag);
+	if (!Entry.IsValid())
 	{
 		return false;
 	}
@@ -752,24 +754,9 @@ bool UKawaiiPhysicsLibrary::GetSimpleWorldCollisionSettingsOnSharedPublisher(
 	FKawaiiPhysicsSimpleWorldCollisionSettings& OutSettings)
 {
 	OutSettings = FKawaiiPhysicsSimpleWorldCollisionSettings();
-	if (!IsInGameThread() || !Actor || !SharedGroupTag.IsValid())
-	{
-		return false;
-	}
-
-	UWorld* World = Actor->GetWorld();
-	UKawaiiPhysicsSharedCollisionSubsystem* Subsystem =
-		World ? World->GetSubsystem<UKawaiiPhysicsSharedCollisionSubsystem>() : nullptr;
-	if (!Subsystem)
-	{
-		return false;
-	}
-
 	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry =
-		Subsystem->FindSharedPublisherEntry(Actor, SharedGroupTag);
-	const uint64 MaxAgeFrames = static_cast<uint64>(
-		FMath::Max(0, GetKawaiiPhysicsSharedPublisherReaderReleaseMaxAge()));
-	if (!Entry.IsValid() || Entry->IsExpired(GFrameCounter, MaxAgeFrames))
+		ResolveLiveSharedPublisherEntry(Actor, SharedGroupTag);
+	if (!Entry.IsValid())
 	{
 		return false;
 	}
@@ -800,6 +787,59 @@ bool UKawaiiPhysicsLibrary::GetSharedPublisherDebugInfo(
 	}
 
 	return Subsystem->BuildSharedPublisherDebugInfo(Actor, SharedGroupTag, OutInfo);
+}
+
+bool UKawaiiPhysicsLibrary::StartProceduralWindGustOnSharedPublisher(
+	AActor* Actor,
+	FGameplayTag SharedGroupTag,
+	const float Strength,
+	const float Duration,
+	const float RiseTime,
+	const float DecayTime)
+{
+	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry =
+		ResolveLiveSharedPublisherEntry(Actor, SharedGroupTag);
+	if (!Entry.IsValid())
+	{
+		return false;
+	}
+
+	const ::KawaiiPhysics::FWindGustEnvelope Envelope =
+		::KawaiiPhysics::ResolveWindGustEnvelope(Duration, RiseTime, DecayTime);
+	Entry->RequestGust(Strength, Envelope.RiseTime, Envelope.DecayTime, Envelope.HoldTime);
+	return true;
+}
+
+bool UKawaiiPhysicsLibrary::StopProceduralWindGustOnSharedPublisher(
+	AActor* Actor,
+	FGameplayTag SharedGroupTag,
+	const float BlendOutTime)
+{
+	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry =
+		ResolveLiveSharedPublisherEntry(Actor, SharedGroupTag);
+	if (!Entry.IsValid())
+	{
+		return false;
+	}
+
+	Entry->RequestGustStop(BlendOutTime);
+	return true;
+}
+
+bool UKawaiiPhysicsLibrary::SetProceduralWindParametersOnSharedPublisher(
+	AActor* Actor,
+	FGameplayTag SharedGroupTag,
+	const FKawaiiProceduralWindDynamicParams& Params)
+{
+	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry =
+		ResolveLiveSharedPublisherEntry(Actor, SharedGroupTag);
+	if (!Entry.IsValid())
+	{
+		return false;
+	}
+
+	Entry->RequestWindParams(Params);
+	return true;
 }
 
 int32 UKawaiiPhysicsLibrary::GetSimpleWorldColliderCountOnComponent(

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
+#include "KawaiiPhysicsWindScopeTarget.h"
 #include "KawaiiPhysicsWindPresetDataAsset.h"
 #include "UObject/SoftObjectPath.h"
 #include "Widgets/SCompoundWidget.h"
@@ -16,21 +17,20 @@ class SDockTab;
 class SComboButton;
 class SComboBoxBase;
 class SSplitter;
-class UAnimGraphNode_KawaiiPhysics;
+class UAnimGraphNode_Base;
 
 struct FKawaiiPhysicsWindScopeWindowArgs
 {
-	/** 表示対象のグラフノード / Graph node to inspect. */
-	TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics> GraphNode;
+	FKawaiiPhysicsWindScopeTarget Target;
+
+	/** Shared Publisher へリダイレクトされる前の KP 対象 / Original KP target before redirecting to a Shared Publisher. */
+	TOptional<FKawaiiPhysicsWindScopeTarget> RedirectOrigin;
 
 	/** ノードを再解決する AnimBlueprint パス / AnimBlueprint path used to re-resolve the node. */
 	FSoftObjectPath AnimBlueprintPath;
 
 	/** ノードを再解決する NodeGuid / NodeGuid used to re-resolve the node. */
 	FGuid NodeGuid;
-
-	/** 表示対象の ProceduralWind 外力インデックス / ProceduralWind external force index to inspect. */
-	int32 ExternalForceIndex = INDEX_NONE;
 };
 
 // グラフに表示する波形成分の種別 / Waveform component shown in the graph.
@@ -163,6 +163,7 @@ public:
 	void SetHighlightSeries(TOptional<EKawaiiPhysicsWindScopeComponent> InHighlightSeries);
 	bool IsSeriesActive(EKawaiiPhysicsWindScopeComponent Component) const;
 	FLinearColor ResolveSeriesDisplayColor(EKawaiiPhysicsWindScopeComponent Component) const;
+	void SetTarget(FKawaiiPhysicsWindScopeTarget Target);
 
 private:
 	// ExternalForces 配列のインデックスを保持するコンボボックス項目型 / Combo item type storing an ExternalForces array index.
@@ -172,6 +173,12 @@ private:
 	void OnExternalForceSelectionChanged(FExternalForceIndexPtr Item, ESelectInfo::Type SelectInfo);
 	FText GetSelectedExternalForceText() const;
 	FText GetTargetNodeText() const;
+	FText GetRedirectBannerText() const;
+	FText GetRedirectBannerButtonText() const;
+	FText GetRedirectBannerButtonToolTipText() const;
+	FText GetSharedRedirectEditToolTipText() const;
+	FText GetPasteWindParametersToolTipText() const;
+	FText GetGustButtonToolTipText() const;
 	FText GetModeText() const;
 	ECheckBoxState GetPauseCheckState() const;
 	void OnPauseCheckStateChanged(ECheckBoxState NewState);
@@ -179,12 +186,19 @@ private:
 	void OnDisplaySecondsChanged(float NewValue);
 	bool IsEditPanelExpanded() const;
 	EVisibility GetEditPanelVisibility() const;
+	EVisibility GetRedirectBannerVisibility() const;
+	EVisibility GetRedirectBannerButtonVisibility() const;
 	const FSlateBrush* GetEditPanelToggleIcon() const;
 	FReply OnToggleEditPanelClicked();
+	FReply OnRedirectBannerButtonClicked();
 	void OnEditPanelSlotResized(float NewFraction);
 	FSlateColor GetModeBadgeColor() const;
 	EVisibility GetTargetNodeEmptyStateVisibility() const;
 	bool IsWindEditable() const;
+	bool IsSharedRedirectEditingRestricted() const;
+	bool CanApplyWindPreset() const;
+	bool CanPasteWindParameters() const;
+	bool CanEditWindProperty(FName PropertyName) const;
 	const FKawaiiPhysicsWindScopeEditValues* GetEditValues() const;
 	const FKawaiiPhysicsWindScopeEditValues* GetLiveEditValues() const;
 
@@ -204,7 +218,7 @@ private:
 	FReply OnCopyWindParametersClicked();
 	FReply OnPasteWindParametersClicked();
 	FKawaiiPhysics_ExternalForce_ProceduralWind* ResolveEditableWind(
-		UAnimGraphNode_KawaiiPhysics*& OutGraphNode,
+		UAnimGraphNode_Base*& OutGraphNode,
 		int32& OutResolvedIndex,
 		bool bShowNotification = true);
 	bool PushParamsToLiveRuntime(const FKawaiiProceduralWindDynamicParams& Params);
@@ -233,7 +247,10 @@ private:
 	void LoadEditPanelConfig();
 	void SaveEditPanelConfig() const;
 	// 弱参照、または AnimBlueprintPath+NodeGuid から対象ノードを再解決する / Resolves the target node from weak reference or AnimBlueprintPath+NodeGuid.
-	UAnimGraphNode_KawaiiPhysics* ResolveGraphNode() const;
+	UAnimGraphNode_Base* ResolveGraphNode() const;
+	FKawaiiPhysicsWindScopeTarget ResolveTarget() const;
+	bool IsSharedPublisherTarget() const;
+	bool IsExternalForceComboEnabled() const;
 	static bool HasTargetArgs(const FKawaiiPhysicsWindScopeWindowArgs& InArgs);
 	static void SaveLastTargetArgs(const FKawaiiPhysicsWindScopeWindowArgs& InArgs);
 	void ClearPendingReconnect(bool bCancelAsyncLoad = true);
@@ -244,7 +261,7 @@ private:
 	FKawaiiPhysicsWindScopeWindowArgs Args;
 	FKawaiiPhysicsWindScopeWindowArgs PendingReconnectArgs;
 	// GUID再解決済みノードの弱キャッシュ / Weak cache for the node resolved by GUID.
-	mutable TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics> ResolvedGraphNodeCache;
+	mutable TWeakObjectPtr<UAnimGraphNode_Base> ResolvedGraphNodeCache;
 	TArray<FExternalForceIndexPtr> ExternalForceItems;
 	FExternalForceIndexPtr SelectedExternalForceItem;
 	FKawaiiPhysicsWindScopeSeriesVisibility SeriesVisibility;
