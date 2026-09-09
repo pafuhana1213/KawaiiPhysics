@@ -1274,15 +1274,16 @@ public:
 
 	/**
 	 * 同じ Actor ファミリーの Shared Publisher（Tag）に突風を積む。Publisher の次の Update で消費され、Shared の全消費ノードに同時に届く。Publisher が無ければ false。
-	 * Duration は Rise + Hold + Decay の合計実秒。Hold = max(0, Duration - RiseTime - DecayTime)。
+	 * Duration は Rise + Hold + Decay の合計。既定では Wind の TimeScale を無視するゲーム内秒。Hold = max(0, Duration - RiseTime - DecayTime)。
 	 * Queues a gust on the Shared Publisher (tag) of this actor family. Consumed on the publisher's next Update and delivered to every Shared consumer at once. Returns false when no publisher exists.
-	 * Duration is the total real seconds of Rise + Hold + Decay. Hold = max(0, Duration - RiseTime - DecayTime).
+	 * Duration is the total Rise + Hold + Decay, in game seconds ignoring wind TimeScale by default. Hold = max(0, Duration - RiseTime - DecayTime).
 	 * @param Actor 対象 Actor ファミリー内の Actor / Actor in the target actor family.
 	 * @param SharedGroupTag 対象 Shared Publisher の Tag / Target Shared Publisher tag.
 	 * @param Strength Gust のピーク強度 / Peak gust strength.
-	 * @param Duration Rise + Hold + Decay の合計実秒。Hold = max(0, Duration - RiseTime - DecayTime) / Total real seconds of Rise + Hold + Decay. Hold = max(0, Duration - RiseTime - DecayTime).
+	 * @param Duration 選択した時計での Rise + Hold + Decay の合計時間 / Total Rise + Hold + Decay duration in the selected clock.
 	 * @param RiseTime 0->ピークまでの立ち上がり時間（秒） / Time in seconds to rise from zero to peak.
 	 * @param DecayTime ピーク->0 までの減衰時間（秒） / Time in seconds to decay from peak to zero.
+	 * @param bRealTimeEnvelope true は Wind の TimeScale を無視する（ゲーム全体のポーズ・時間倍率には従う）。false は wind 時間 / True ignores wind TimeScale but follows game pause and time dilation; false uses wind time.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Shared Publisher")
 	static bool StartProceduralWindGustOnSharedPublisher(
@@ -1291,7 +1292,8 @@ public:
 		float Strength = 100.0f,
 		float Duration = 3.0f,
 		float RiseTime = 0.5f,
-		float DecayTime = 1.0f);
+		float DecayTime = 1.0f,
+		bool bRealTimeEnvelope = true);
 
 	/**
 	 * 同じ Actor ファミリーの Shared Publisher（Tag）へ現在の突風停止を積む。Publisher が無ければ false。

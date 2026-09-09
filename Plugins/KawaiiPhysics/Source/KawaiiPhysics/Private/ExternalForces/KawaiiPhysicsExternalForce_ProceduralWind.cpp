@@ -133,6 +133,8 @@ void InitializeRuntimeStateContents(FKawaiiProceduralWindRuntimeState& State)
 	State.PendingGust.Reset();
 	State.PendingGustStop.Reset();
 	State.Time = 0.0f;
+	State.UnscaledTime = 0.0f;
+	State.ClockGeneration = 0;
 	State.ActiveGust = FKawaiiProceduralWindActiveGust();
 	State.CachedSinesWithoutRipple = 0.0f;
 	State.CachedStrengthCycle = 1.0f;
@@ -142,6 +144,9 @@ void InitializeRuntimeStateContents(FKawaiiProceduralWindRuntimeState& State)
 	State.SharedPublisherEntry.Reset();
 	State.ResolvedSharedTag = FGameplayTag();
 	State.LastAppliedSharedSerial = 0;
+	State.SharedGameTimeAtPublish.Reset();
+	State.SharedWindTimeAtPublish = 0.0f;
+	State.SharedUnscaledTimeAtPublish = 0.0f;
 	State.CachedPublisherTimeScale = 1.0f;
 	State.bPublisherWindDisabled = false;
 	State.ResolvedSource = EKawaiiPhysicsProceduralWindSource::Local;
@@ -632,7 +637,10 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::RequestDynamicParams(
 // TimeScale を考慮したシミュレーション内時間を進める
 void FKawaiiPhysics_ExternalForce_ProceduralWind::AdvanceWindTime(const float DeltaTime)
 {
-	EnsureRuntimeState()->Time += FMath::Max(DeltaTime, 0.0f) * TimeScale;
+	const auto State = EnsureRuntimeState();
+	const float Dt = FMath::Max(DeltaTime, 0.0f);
+	State->Time += Dt * TimeScale;
+	State->UnscaledTime += Dt;
 }
 
 // 現在時刻のサンプルを計算して記録する（PreApply 以外の呼び出し元用の薄いラッパ）
@@ -700,6 +708,10 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::ApplySharedWindState(
 	}
 	ApplyDynamicParams(State.Params);
 	LocalRuntimeState->Time = State.Time;
+	LocalRuntimeState->UnscaledTime = State.UnscaledTime;
+	LocalRuntimeState->SharedGameTimeAtPublish = State.GameTimeSeconds;
+	LocalRuntimeState->SharedWindTimeAtPublish = State.Time;
+	LocalRuntimeState->SharedUnscaledTimeAtPublish = State.UnscaledTime;
 	LocalRuntimeState->ActiveGust = State.ActiveGust;
 	LocalRuntimeState->bPublisherWindDisabled = !State.bPublisherWindEnabled;
 	LocalRuntimeState->CachedPublisherTimeScale = State.PublisherTimeScale;
@@ -724,7 +736,8 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::RestoreLocalSharedParams()
 // Shared の消費側でも呼び出しスレッドからは Entry を触らず、Worker の PreApply から
 // SendPendingGustRequestsToSharedEntry() で転送する（ResolvedSource / SharedPublisherEntry は Worker 専用の領域のため）
 void FKawaiiPhysics_ExternalForce_ProceduralWind::RequestGust(
-	const float Strength, const float RiseTime, const float DecayTime, const float HoldTime)
+	const float Strength, const float RiseTime, const float DecayTime, const float HoldTime,
+	const bool bRealTimeEnvelope)
 {
 	const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> LocalRuntimeState = EnsureRuntimeState();
 	FScopeLock Lock(&LocalRuntimeState->Mutex);
@@ -732,7 +745,8 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::RequestGust(
 		Strength,
 		RiseTime,
 		DecayTime,
-		HoldTime
+		HoldTime,
+		bRealTimeEnvelope
 	};
 }
 
@@ -786,7 +800,7 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::SendPendingGustRequestsToShare
 	{
 		const FKawaiiProceduralWindGustRequest& Request = Gust.GetValue();
 		RuntimeState->SharedPublisherEntry->RequestGust(
-			Request.Strength, Request.RiseTime, Request.DecayTime, Request.HoldTime);
+			Request.Strength, Request.RiseTime, Request.DecayTime, Request.HoldTime, Request.bRealTimeEnvelope);
 	}
 	if (GustStop.IsSet())
 	{
@@ -816,7 +830,9 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::ConsumePendingRequests()
 	if (LocalRuntimeState->PendingGust.IsSet())
 	{
 		const FKawaiiProceduralWindGustRequest& PendingGust = LocalRuntimeState->PendingGust.GetValue();
-		LocalRuntimeState->ActiveGust.StartTime = LocalRuntimeState->Time;
+		LocalRuntimeState->ActiveGust.bRealTimeEnvelope = PendingGust.bRealTimeEnvelope;
+		LocalRuntimeState->ActiveGust.StartTime = PendingGust.bRealTimeEnvelope
+			? LocalRuntimeState->UnscaledTime : LocalRuntimeState->Time;
 		LocalRuntimeState->ActiveGust.Strength = PendingGust.Strength;
 		LocalRuntimeState->ActiveGust.RiseTime = PendingGust.RiseTime;
 		LocalRuntimeState->ActiveGust.DecayTime = PendingGust.DecayTime;
@@ -837,7 +853,10 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::ConsumePendingRequests()
 			}
 			else
 			{
-				const float CurrentGust = EvaluateActiveGust(LocalRuntimeState->ActiveGust, LocalRuntimeState->Time);
+				const float CurrentGust = EvaluateActiveGust(LocalRuntimeState->ActiveGust,
+					LocalRuntimeState->ActiveGust.bRealTimeEnvelope ? LocalRuntimeState->UnscaledTime : LocalRuntimeState->Time);
+				// 停止の BlendOutTime は従来どおり wind 時間。切り替え前の時計で現在強度を求めてから移行する。
+				LocalRuntimeState->ActiveGust.bRealTimeEnvelope = false;
 				LocalRuntimeState->ActiveGust.StartTime = LocalRuntimeState->Time;
 				LocalRuntimeState->ActiveGust.Strength = CurrentGust;
 				LocalRuntimeState->ActiveGust.RiseTime = 0.0f;
@@ -881,7 +900,8 @@ FKawaiiPhysicsProceduralWindSample FKawaiiPhysics_ExternalForce_ProceduralWind::
 	// アクティブな gust があれば加算
 	if (RuntimeState.IsValid())
 	{
-		Sample.Gust = EvaluateActiveGust(RuntimeState->ActiveGust, InTime);
+		Sample.Gust = EvaluateActiveGust(RuntimeState->ActiveGust,
+			RuntimeState->ActiveGust.bRealTimeEnvelope ? RuntimeState->UnscaledTime : InTime);
 	}
 
 	// 最終合成: (定常 + 一斉揺れ + 波揺れ) × 強弱サイクル + random + gust
@@ -1055,6 +1075,16 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::PreApply(FAnimNode_KawaiiPhysi
 	{
 		ResetRuntimeState();
 	}
+	const uint32 ClockGeneration = Node.GetSharedWindClockGeneration();
+	if (RuntimeState->ClockGeneration != ClockGeneration)
+	{
+		// 初回は起動直前に届いた要求を保持し、World の変更・時刻リセット時だけ旧時計を捨てる。
+		if (RuntimeState->ClockGeneration != 0)
+		{
+			ResetRuntimeState();
+		}
+		RuntimeState->ClockGeneration = ClockGeneration;
+	}
 
 	if (WindSource == EKawaiiPhysicsProceduralWindSource::Local)
 	{
@@ -1120,14 +1150,23 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::PreApply(FAnimNode_KawaiiPhysi
 			SendPendingGustRequestsToSharedEntry();
 			ConsumePendingRequests();
 
-			if (RuntimeState->SharedPublisherEntry->GetPublishSerial() != RuntimeState->LastAppliedSharedSerial)
+			const bool bNewSharedState = RuntimeState->SharedPublisherEntry->GetPublishSerial() != RuntimeState->LastAppliedSharedSerial;
+			if (bNewSharedState)
 			{
 				// Serial と State は同じロック区間で読む（別々に読むと間に publish が入って State と Serial がずれる）
 				FKawaiiPhysicsSharedWindState State;
 				const uint64 ReadSerial = RuntimeState->SharedPublisherEntry->ReadWindState(State);
 				ApplySharedWindState(State, ReadSerial);
 			}
-			else
+			if (RuntimeState->SharedGameTimeAtPublish.IsSet() && Node.GetSharedWindGameTimeSeconds().IsSet())
+			{
+				// 新しい serial も同じ基準時刻へ外挿する。warm-up や評価回数で時計を二重に進めない。
+				const float Elapsed = RuntimeState->bPublisherWindDisabled ? 0.0f : static_cast<float>(FMath::Max(
+					0.0, Node.GetSharedWindGameTimeSeconds().GetValue() - RuntimeState->SharedGameTimeAtPublish.GetValue()));
+				RuntimeState->Time = RuntimeState->SharedWindTimeAtPublish + Elapsed * RuntimeState->CachedPublisherTimeScale;
+				RuntimeState->UnscaledTime = RuntimeState->SharedUnscaledTimeAtPublish + Elapsed;
+			}
+			else if (!bNewSharedState)
 			{
 				// Publisher は無効の間クロックを止めて publish するので、外挿も同じ規則で止める
 				//（無効の Publisher が停止→再開したときに消費側だけ先へ進んで巻き戻らないため）
@@ -1137,6 +1176,7 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::PreApply(FAnimNode_KawaiiPhysi
 				if (!RuntimeState->bPublisherWindDisabled && !Node.IsWarmingUp())
 				{
 					RuntimeState->Time += Node.GetStepDeltaTime() * RuntimeState->CachedPublisherTimeScale;
+					RuntimeState->UnscaledTime += Node.GetStepDeltaTime();
 				}
 			}
 		}

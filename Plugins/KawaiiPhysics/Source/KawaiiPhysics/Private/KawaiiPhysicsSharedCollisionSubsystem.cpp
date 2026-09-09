@@ -1688,7 +1688,8 @@ bool FKawaiiPhysicsSharedPublisherEntry::MarkExpiredIfProvider(uint64 ExpectedPr
 	return true;
 }
 
-void FKawaiiPhysicsSharedPublisherEntry::RequestGust(float Strength, float RiseTime, float DecayTime, float HoldTime)
+void FKawaiiPhysicsSharedPublisherEntry::RequestGust(float Strength, float RiseTime, float DecayTime, float HoldTime,
+	bool bRealTimeEnvelope)
 {
 	FScopeLock Lock(&GustMutex);
 
@@ -1697,6 +1698,7 @@ void FKawaiiPhysicsSharedPublisherEntry::RequestGust(float Strength, float RiseT
 	Request.RiseTime = RiseTime;
 	Request.DecayTime = DecayTime;
 	Request.HoldTime = HoldTime;
+	Request.bRealTimeEnvelope = bRealTimeEnvelope;
 	PendingGusts.Add(Request);
 }
 

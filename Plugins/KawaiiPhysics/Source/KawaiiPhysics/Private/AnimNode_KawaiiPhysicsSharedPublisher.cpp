@@ -98,6 +98,7 @@ void FKawaiiPhysicsSharedPublishHelper::ReleaseEntries()
 	LastSentDesc.Reset();
 	// Entry を手放した後に古い累積を持ち越さない
 	PendingDeltaTime = 0.0f;
+	LastWindGameTimeSeconds.Reset();
 	bHasPublishedToCurrentEntry = false;
 	bNeedsEntryReacquire = false;
 #if !UE_BUILD_SHIPPING
@@ -113,10 +114,16 @@ void FKawaiiPhysicsSharedPublishHelper::ResetEffectiveValues(const FKawaiiPhysic
 	// PendingDeltaTime は触らない。同じ Entry を保持したままの reinit（Persona のプリセット変更等）では消費側が serial を持ったまま外挿を続けているので、停止区間の累積は再開時にそのまま追いつきへ使う（累積を捨てるのは Entry を手放す ReleaseEntries と Entry 無しの早期 return だけ）
 }
 
-// PreUpdate は枝の relevance に関係なく毎フレーム走るので、Update が飛んだフレームの時間はここに溜まる
+// World 時計を持たない呼び出し元の互換経路。実ノードは PreUpdate で取得したゲーム内時刻を渡す。
 void FKawaiiPhysicsSharedPublishHelper::AccumulatePendingDeltaTime(const float DeltaSeconds)
 {
 	PendingDeltaTime += FMath::Max(DeltaSeconds, 0.0f);
+}
+
+void FKawaiiPhysicsSharedPublishHelper::ResetWindClock()
+{
+	LastWindGameTimeSeconds.Reset();
+	PendingDeltaTime = 0.0f;
 }
 
 bool FKawaiiPhysicsSharedPublishHelper::ApplyInputChanges(const FKawaiiPhysicsSharedPublishInputs& Inputs)
@@ -173,10 +180,15 @@ bool FKawaiiPhysicsSharedPublishHelper::Update(
 		return false;
 	}
 
-	// PreUpdate は枝が Update されないフレームも走るので、累積分の方が大きければそれを採用し、
-	// 再開時に消費側の外挿へ追いつかせる（消費側が先に進んだ Time へ巻き戻さない）。
-	// Update が毎フレーム走っていれば両者は同じ値になる
-	const float EffectiveDeltaTime = FMath::Max(FMath::Max(DeltaTime, 0.0f), PendingDeltaTime);
+	// ゲーム内時刻の差分なら、AnimInstance の PreUpdate 自体が止まった期間も回収できる。
+	// World を持たない呼び出し元だけ従来の dt 積算を使う。
+	float EffectiveDeltaTime = FMath::Max(FMath::Max(DeltaTime, 0.0f), PendingDeltaTime);
+	if (Inputs.GameTimeSeconds.IsSet() && LastWindGameTimeSeconds.IsSet())
+	{
+		EffectiveDeltaTime = static_cast<float>(FMath::Max(0.0,
+			Inputs.GameTimeSeconds.GetValue() - LastWindGameTimeSeconds.GetValue()));
+	}
+	LastWindGameTimeSeconds = Inputs.GameTimeSeconds;
 	PendingDeltaTime = 0.0f;
 
 	// クロックの前進は所有権判定より前に済ませる。
@@ -204,6 +216,7 @@ bool FKawaiiPhysicsSharedPublishHelper::Update(
 		if (bCarriedEnabled)
 		{
 			Inputs.SharedWind->RuntimeState->Time += EffectiveDeltaTime * CarriedTimeScale;
+			Inputs.SharedWind->RuntimeState->UnscaledTime += EffectiveDeltaTime;
 		}
 	}
 
@@ -228,6 +241,7 @@ bool FKawaiiPhysicsSharedPublishHelper::Update(
 		{
 			// SharedWind 本体が無い既存テスト互換経路では、従来どおり publish 前に Time だけを直接進める。
 			WindRuntimeState->Time += EffectiveDeltaTime * Inputs.WindTimeScale;
+			WindRuntimeState->UnscaledTime += EffectiveDeltaTime;
 		}
 
 		FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
@@ -247,6 +261,8 @@ bool FKawaiiPhysicsSharedPublishHelper::Update(
 			State.SimpleWorldSettings = EffectiveSimpleWorldSettings;
 			State.Wind.bPublisherWindEnabled = bEffectiveWindEnabled;
 			State.Wind.Time = WindRuntimeState.IsValid() ? WindRuntimeState->Time : 0.0f;
+			State.Wind.UnscaledTime = WindRuntimeState.IsValid() ? WindRuntimeState->UnscaledTime : 0.0f;
+			State.Wind.GameTimeSeconds = Inputs.GameTimeSeconds;
 			// 消費側が次フレーム以降の外挿に使う scale として、SharedWind があればその現在値を配る
 			State.Wind.PublisherTimeScale = Inputs.SharedWind ? Inputs.SharedWind->TimeScale : Inputs.WindTimeScale;
 			if (Inputs.SharedWind)
@@ -304,7 +320,7 @@ bool FKawaiiPhysicsSharedPublishHelper::Update(
 					}
 					else
 					{
-						Inputs.SharedWind->RequestGust(Gust.Strength, Gust.RiseTime, Gust.DecayTime, Gust.HoldTime);
+						Inputs.SharedWind->RequestGust(Gust.Strength, Gust.RiseTime, Gust.DecayTime, Gust.HoldTime, Gust.bRealTimeEnvelope);
 					}
 				}
 
@@ -470,6 +486,8 @@ FAnimNode_KawaiiPhysicsSharedPublisher& FAnimNode_KawaiiPhysicsSharedPublisher::
 	CachedSkelComp.Reset();
 	CachedFamilyRoot.Reset();
 	CachedWindPresetDataAsset.Reset();
+	CachedWindWorld.Reset();
+	CachedWindGameTimeSeconds.Reset();
 	CachedWindPresetTag = FGameplayTag();
 	// SharedWind ごと代入し直したので、代入前のノードで取った退避値は捨てる（次の適用で新しい authored 値を退避する）
 	SharedWindBeforePreset.Reset();
@@ -514,18 +532,21 @@ void FAnimNode_KawaiiPhysicsSharedPublisher::CacheBones_AnyThread(const FAnimati
 void FAnimNode_KawaiiPhysicsSharedPublisher::PreUpdate(const UAnimInstance* InAnimInstance)
 {
 	PreUpdateFrame = GFrameCounter;
-	// 枝が blend weight 0 で Update されないフレームの時間も累積し、Update_AnyThread が再開したときに
-	// まとめて Time を進める（消費側の外挿より Publisher が遅れて Time が巻き戻るのを防ぐ）
-	if (InAnimInstance && Helper.IsValid())
-	{
-		Helper->AccumulatePendingDeltaTime(InAnimInstance->GetDeltaSeconds());
-	}
 	ProviderMaxAgeFrames = static_cast<uint64>(
 		FMath::Max(0, GetKawaiiPhysicsSharedPublisherReaderReleaseMaxAge()));
 
 	const USkeletalMeshComponent* SkelComp = InAnimInstance ? InAnimInstance->GetSkelMeshComponent() : nullptr;
 	AActor* Owner = SkelComp ? SkelComp->GetOwner() : nullptr;
 	UWorld* World = SkelComp ? SkelComp->GetWorld() : nullptr;
+	const double GameTime = World ? World->GetTimeSeconds() : 0.0;
+	if (CachedWindGameTimeSeconds.IsSet() &&
+		(CachedWindWorld != World || GameTime < CachedWindGameTimeSeconds.GetValue()))
+	{
+		SharedWind.ResetRuntimeState();
+		Helper->ResetWindClock();
+	}
+	CachedWindWorld = World;
+	CachedWindGameTimeSeconds = World ? TOptional<double>(GameTime) : TOptional<double>();
 	UKawaiiPhysicsSharedCollisionSubsystem* Subsystem =
 		World ? World->GetSubsystem<UKawaiiPhysicsSharedCollisionSubsystem>() : nullptr;
 	if (!SkelComp || !Owner || !World || !Subsystem)
@@ -542,15 +563,17 @@ void FAnimNode_KawaiiPhysicsSharedPublisher::PreUpdate(const UAnimInstance* InAn
 	const bool bReinit = bReinitRequested.exchange(false, std::memory_order_acq_rel);
 	const bool bNeedsReacquire = Helper->NeedsEntryReacquire();
 	const bool bTagChanged = ResolvedTag != SharedGroupTag;
+	AActor* FamilyRoot = UKawaiiPhysicsSharedCollisionSubsystem::GetFamilyRoot(Owner);
+	const bool bContextChanged = CachedFamilyRoot != FamilyRoot || CachedSubsystem != Subsystem || CachedSkelComp != SkelComp;
 	const bool bWindPresetChanged =
 		CachedWindPresetDataAsset.Get() != WindPresetDataAsset.Get() || CachedWindPresetTag != WindPresetTag;
-	if (!bReinit && !bNeedsReacquire && !bTagChanged && !bWindPresetChanged)
+	if (!bReinit && !bNeedsReacquire && !bTagChanged && !bWindPresetChanged && !bContextChanged)
 	{
 		return;
 	}
 
 	ApplySharedWindPreset();
-	if (bWindPresetChanged && !bReinit && !bNeedsReacquire && !bTagChanged)
+	if (bWindPresetChanged && !bReinit && !bNeedsReacquire && !bTagChanged && !bContextChanged)
 	{
 		return;
 	}
@@ -577,7 +600,6 @@ void FAnimNode_KawaiiPhysicsSharedPublisher::PreUpdate(const UAnimInstance* InAn
 	bInvalidTagWarningLogged = false;
 #endif
 
-	AActor* FamilyRoot = UKawaiiPhysicsSharedCollisionSubsystem::GetFamilyRoot(Owner);
 	if (!FamilyRoot)
 	{
 		Helper->ReleaseEntries();
@@ -668,8 +690,11 @@ void FAnimNode_KawaiiPhysicsSharedPublisher::Update_AnyThread(const FAnimationUp
 	GetEvaluateGraphExposedInputs().Execute(Context);
 	Source.Update(Context);
 
+	FKawaiiPhysicsSharedPublishInputs Inputs =
+		MakePublishInputs(bEnabled, SimpleWorldCollision, SharedWind.bIsEnabled, SharedWind.TimeScale, &SharedWind);
+	Inputs.GameTimeSeconds = CachedWindGameTimeSeconds;
 	Helper->Update(
-		MakePublishInputs(bEnabled, SimpleWorldCollision, SharedWind.bIsEnabled, SharedWind.TimeScale, &SharedWind),
+		Inputs,
 		SharedWind.RuntimeState,
 		Context.GetDeltaTime(),
 		PreUpdateFrame,
@@ -690,6 +715,7 @@ void FAnimNode_KawaiiPhysicsSharedPublisher::ResetDynamics(ETeleportType InTelep
 	if (InTeleportType == ETeleportType::ResetPhysics)
 	{
 		SharedWind.ResetRuntimeState();
+		Helper->ResetWindClock();
 	}
 	else if (InTeleportType == ETeleportType::TeleportPhysics)
 	{

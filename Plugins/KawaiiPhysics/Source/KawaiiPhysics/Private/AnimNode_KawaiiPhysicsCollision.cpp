@@ -1672,11 +1672,19 @@ bool FAnimNode_KawaiiPhysics::IsSharedProviderAlive(
 
 void FAnimNode_KawaiiPhysics::InitializeSimpleWorldCollision()
 {
+	if (bSimpleWorldCollisionInitialized &&
+		(InitializedSimpleWorldSource != SimpleWorldCollisionSource ||
+		 InitializedSimpleWorldSharedTag != SimpleWorldCollisionSharedTag))
+	{
+		RequestSimpleWorldCollisionReinit();
+	}
 	if (bSimpleWorldCollisionInitialized)
 	{
 		return;
 	}
 
+	InitializedSimpleWorldSource = SimpleWorldCollisionSource;
+	InitializedSimpleWorldSharedTag = SimpleWorldCollisionSharedTag;
 	ResolveSimpleWorldCollisionSource(GFrameCounter);
 
 	const uint64 SourceID = reinterpret_cast<uint64>(this);
@@ -1734,6 +1742,14 @@ void FAnimNode_KawaiiPhysics::InitializeSimpleWorldCollision()
 void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePoseContext& Output)
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdateSimpleWorldCollisionLimits);
+
+	// ピン更新は BP setter の再初期化要求を通らないため、評価時にも解決キーの変更を検出する。
+	if (bSimpleWorldCollisionInitialized &&
+		(InitializedSimpleWorldSource != SimpleWorldCollisionSource ||
+		 InitializedSimpleWorldSharedTag != SimpleWorldCollisionSharedTag))
+	{
+		InitializeSimpleWorldCollision();
+	}
 
 	auto ResetSimpleWorldSimulationSpaceLimits = [this]()
 	{

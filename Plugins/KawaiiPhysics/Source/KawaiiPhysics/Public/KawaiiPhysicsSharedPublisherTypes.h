@@ -127,6 +127,9 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedWindState
 	bool bPublisherWindEnabled = false;
 	FKawaiiProceduralWindDynamicParams Params;
 	float Time = 0.0f;
+	float UnscaledTime = 0.0f;
+	// 両時計に対応するゲーム内時刻。未設定は従来の dt 積算 / Game timestamp for both clocks; unset uses legacy delta accumulation.
+	TOptional<double> GameTimeSeconds;
 	float PublisherTimeScale = 1.0f;
 	FKawaiiProceduralWindActiveGust ActiveGust;
 };
@@ -159,6 +162,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedPublisherGustRequest
 	float DecayTime = 0.0f;
 	float HoldTime = 0.0f;
 	float BlendOutTime = 0.0f;
+	bool bRealTimeEnvelope = false;
 };
 
 /**
@@ -207,7 +211,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedPublisherEntry
 	 */
 	bool MarkExpiredIfProvider(uint64 ExpectedProviderID);
 
-	void RequestGust(float Strength, float RiseTime, float DecayTime, float HoldTime);
+	void RequestGust(float Strength, float RiseTime, float DecayTime, float HoldTime, bool bRealTimeEnvelope = false);
 	void RequestGustStop(float BlendOutTime);
 	void ConsumePendingGustRequests(TArray<FKawaiiPhysicsSharedPublisherGustRequest>& Out);
 
