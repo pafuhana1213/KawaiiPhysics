@@ -991,6 +991,27 @@ bool FAnimNode_KawaiiPhysics::IsValidToEvaluate(const USkeleton* Skeleton, const
 	return true;
 }
 
+void FAnimNode_KawaiiPhysics::PreUpdate(const UAnimInstance* InAnimInstance)
+{
+	UWorld* World = InAnimInstance ? InAnimInstance->GetWorld() : nullptr;
+	const USkeletalMeshComponent* SkelComp = InAnimInstance ? InAnimInstance->GetSkelMeshComponent() : nullptr;
+	const bool bWorldChanged = SharedWindWorld != World;
+	const double GameTime = World ? World->GetTimeSeconds() : 0.0;
+	if (bWorldChanged || (SharedWindGameTimeSeconds.IsSet() && GameTime < SharedWindGameTimeSeconds.GetValue()))
+	{
+		++SharedWindClockGeneration;
+	}
+	if (bWorldChanged || CachedSimpleWorldCollisionSkelComp != SkelComp)
+	{
+		RequestSimpleWorldCollisionReinit();
+	}
+	SharedWindWorld = World;
+	SharedWindGameTimeSeconds = World ? TOptional<double>(GameTime) : TOptional<double>();
+	CachedSharedCollisionSubsystem = World ? World->GetSubsystem<UKawaiiPhysicsSharedCollisionSubsystem>() : nullptr;
+	CachedSimpleWorldCollisionSkelComp = SkelComp;
+	CachedSharedCollisionOwnerActor = SkelComp ? SkelComp->GetOwner() : nullptr;
+}
+
 void FAnimNode_KawaiiPhysics::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
 {
 	FAnimNode_SkeletalControlBase::OnInitializeAnimInstance(InProxy, InAnimInstance);

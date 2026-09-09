@@ -193,6 +193,8 @@ struct FKawaiiPhysicsTestAccessor
 		Node.SimpleWorldAutomationLocalEntry = Entry;
 		Node.bUseSimpleWorldCollision = true;
 		Node.bSimpleWorldCollisionInitialized = true;
+		Node.InitializedSimpleWorldSource = Node.SimpleWorldCollisionSource;
+		Node.InitializedSimpleWorldSharedTag = Node.SimpleWorldCollisionSharedTag;
 		Node.bSimpleWorldDescSent = false;
 	}
 
@@ -248,6 +250,8 @@ struct FKawaiiPhysicsTestAccessor
 		Node.CachedSimpleWorldEntry = Entry;
 		Node.bUseSimpleWorldCollision = true;
 		Node.bSimpleWorldCollisionInitialized = Entry.IsValid();
+		Node.InitializedSimpleWorldSource = Node.SimpleWorldCollisionSource;
+		Node.InitializedSimpleWorldSharedTag = Node.SimpleWorldCollisionSharedTag;
 		Node.bSimpleWorldDescSent = false;
 
 		if (Entry.IsValid())

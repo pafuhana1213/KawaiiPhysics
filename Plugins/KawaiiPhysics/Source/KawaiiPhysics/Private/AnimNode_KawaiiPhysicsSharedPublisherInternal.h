@@ -16,6 +16,7 @@ struct FKawaiiPhysicsSharedPublishInputs
 	bool bWindEnabled = true;
 	float WindTimeScale = 1.0f;
 	FKawaiiPhysics_ExternalForce_ProceduralWind* SharedWind = nullptr;
+	TOptional<double> GameTimeSeconds;
 };
 
 struct FKawaiiPhysicsSharedPublishHelper
@@ -31,10 +32,11 @@ struct FKawaiiPhysicsSharedPublishHelper
 	            const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe>& WindRuntimeState,
 	            float DeltaTime, uint64 CurrentFrame, uint64 ProviderMaxAgeFrames);
 	/**
-	 * PreUpdate（GameThread）から毎フレーム呼び、まだ Update が消費していない DeltaSeconds を累積する。
-	 * Accumulates delta seconds not yet consumed by Update. Call every frame from PreUpdate (GameThread).
+	 * World を持たない呼び出し元向けに、未消費の DeltaSeconds を累積する。
+	 * Accumulates unconsumed delta seconds for callers without a world clock.
 	 */
 	void AccumulatePendingDeltaTime(float DeltaSeconds);
+	void ResetWindClock();
 
 	bool IsEffectiveEnabled() const { return bEffectiveEnabled; }
 	float GetPendingDeltaTime() const { return PendingDeltaTime; }
@@ -88,10 +90,11 @@ private:
 	 */
 	bool bHasPublishedToCurrentEntry = false;
 	/**
-	 * PreUpdate で累積した、まだ Update で消費していない DeltaSeconds。Publisher の枝が Update されないフレームの時間を再開時にまとめて進めるため。
-	 * Delta seconds accumulated by PreUpdate and not yet consumed by Update, so the time spent on frames where the publisher branch was not updated is advanced in one step when it resumes.
+	 * World のゲーム内時刻が無い場合だけ使う、未消費の DeltaSeconds。
+	 * Unconsumed delta seconds used only when world game time is unavailable.
 	 */
 	float PendingDeltaTime = 0.0f;
+	TOptional<double> LastWindGameTimeSeconds;
 	bool bNeedsEntryReacquire = false;
 	TArray<FKawaiiPhysicsSharedPublisherGustRequest> PendingGustBuffer;
 
