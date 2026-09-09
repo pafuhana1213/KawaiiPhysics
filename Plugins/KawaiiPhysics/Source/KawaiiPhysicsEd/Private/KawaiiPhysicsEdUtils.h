@@ -9,6 +9,8 @@
 #include "Animation/AnimInstance.h"
 #include "AnimNode_KawaiiPhysicsSharedPublisher.h"
 #include "EdGraph/EdGraph.h"
+#include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
+#include "GameplayTagContainer.h"
 
 namespace KawaiiPhysicsEdUtils
 {
@@ -34,6 +36,108 @@ namespace KawaiiPhysicsEdUtils
 			}
 		}
 		return true;
+	}
+
+	inline bool IsProceduralWindStructProperty(const FName PropertyName)
+	{
+		return PropertyName != NAME_None &&
+			FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct()->FindPropertyByName(PropertyName) != nullptr;
+	}
+
+	inline bool BuildProceduralWindDynamicParamsForProperty(
+		const FKawaiiPhysics_ExternalForce_ProceduralWind& Wind,
+		const FName PropertyName,
+		FKawaiiProceduralWindDynamicParams& OutParams)
+	{
+		return Wind.BuildDynamicParamsForProperty(PropertyName, OutParams);
+	}
+
+	inline bool IsSharedWindPublisherParameter(const FName PropertyName)
+	{
+		const FName SharedPropertyNames[] =
+		{
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindDirection),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindDirectionNoiseAngle),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindDirectionNoisePeriod),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, ConstantForce),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, SwayForce),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, SwayPeriod),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RippleForce),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RipplePeriod),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RippleTipPhaseDelay),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, StrengthCycleRange),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, StrengthCyclePeriod),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomForce),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomForcePeriod),
+		};
+
+		for (const FName& SharedPropertyName : SharedPropertyNames)
+		{
+			if (SharedPropertyName == PropertyName)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	inline bool IsUsingSharedWindPublisher(
+		const FAnimNode_KawaiiPhysics& Node,
+		FGameplayTag& OutTag,
+		bool& bOutAuto)
+	{
+		OutTag = FGameplayTag();
+		bOutAuto = false;
+
+		for (const FInstancedStruct& ExternalForce : Node.ExternalForces)
+		{
+			if (GetExternalForceScriptStruct(ExternalForce) != FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct())
+			{
+				continue;
+			}
+
+			const FKawaiiPhysics_ExternalForce_ProceduralWind* Wind =
+				ExternalForce.GetPtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+			if (!Wind || Wind->WindSource == EKawaiiPhysicsProceduralWindSource::Local)
+			{
+				continue;
+			}
+
+			OutTag = Wind->SharedWindTag;
+			bOutAuto = Wind->WindSource == EKawaiiPhysicsProceduralWindSource::Auto;
+			return true;
+		}
+
+		return false;
+	}
+
+	// Node の ExternalForces を全て走査し、Tag で共有されている風（ProceduralWind の Shared / Auto）の消費者が
+	// 1 つでもあれば true を返す。IsUsingSharedWindPublisher と異なり最初の 1 件で打ち切らない
+	inline bool IsSharedWindConsumerOfTag(const FAnimNode_KawaiiPhysics& Node, const FGameplayTag& Tag)
+	{
+		if (!Tag.IsValid())
+		{
+			return false;
+		}
+
+		for (const FInstancedStruct& ExternalForce : Node.ExternalForces)
+		{
+			if (GetExternalForceScriptStruct(ExternalForce) != FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct())
+			{
+				continue;
+			}
+
+			const FKawaiiPhysics_ExternalForce_ProceduralWind* Wind =
+				ExternalForce.GetPtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+			if (Wind &&
+				Wind->WindSource != EKawaiiPhysicsProceduralWindSource::Local &&
+				Wind->SharedWindTag == Tag)
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	// AnimBlueprint 内の AnimGraph を列挙する
@@ -142,6 +246,8 @@ namespace KawaiiPhysicsEdUtils
 		return nullptr;
 	}
 
+	// Simple World Collision と風（ProceduralWind の Shared / Auto）の両方の消費者を返す。
+	// 両方の条件を満たすノードも重複させず 1 回だけ追加する
 	inline void FindKawaiiPhysicsConsumerGraphNodes(
 		const UAnimBlueprint* AnimBlueprint,
 		const FGameplayTag& Tag,
@@ -157,12 +263,18 @@ namespace KawaiiPhysicsEdUtils
 		CollectAnimGraphNodes(AnimBlueprint, KawaiiPhysicsNodes);
 		for (UAnimGraphNode_KawaiiPhysics* KawaiiPhysicsNode : KawaiiPhysicsNodes)
 		{
-			if (KawaiiPhysicsNode &&
+			if (!KawaiiPhysicsNode)
+			{
+				continue;
+			}
+
+			const bool bIsSimpleWorldConsumer =
 				KawaiiPhysicsNode->Node.bUseSimpleWorldCollision &&
 				KawaiiPhysicsNode->Node.SimpleWorldCollisionSource != EKawaiiPhysicsSimpleWorldCollisionSource::Local &&
-				KawaiiPhysicsNode->Node.SimpleWorldCollisionSharedTag == Tag)
+				KawaiiPhysicsNode->Node.SimpleWorldCollisionSharedTag == Tag;
+			if (bIsSimpleWorldConsumer || IsSharedWindConsumerOfTag(KawaiiPhysicsNode->Node, Tag))
 			{
-				OutConsumers.Add(KawaiiPhysicsNode);
+				OutConsumers.AddUnique(KawaiiPhysicsNode);
 			}
 		}
 	}

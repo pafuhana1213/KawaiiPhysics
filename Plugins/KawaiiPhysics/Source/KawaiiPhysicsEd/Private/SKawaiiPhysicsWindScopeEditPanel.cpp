@@ -4,6 +4,7 @@
 
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
+#include "KawaiiPhysicsEdUtils.h"
 #include "KawaiiPhysicsWindScopeStyle.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Styling/AppStyle.h"
@@ -272,7 +273,7 @@ const TArray<FKawaiiPhysicsWindScopeParamGroup>& GetWindScopeParamGroups()
 			{
 				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, SwayForce), 0.0f, 50.0f, true, true},
 				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, SwayPeriod), 0.01f, 10.0f, true, true},
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, SwayPhaseOffset), -360.0f, 360.0f, true, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, SwayPhaseOffset), -360.0f, 360.0f, true, true, false},
 			}
 		},
 		{
@@ -298,7 +299,7 @@ const TArray<FKawaiiPhysicsWindScopeParamGroup>& GetWindScopeParamGroups()
 			{
 				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RippleForce), 0.0f, 50.0f, true},
 				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RipplePeriod), 0.01f, 10.0f, true},
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RipplePhaseOffset), -360.0f, 360.0f, true, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RipplePhaseOffset), -360.0f, 360.0f, true, true, false},
 				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RippleTipPhaseDelay), 0.0f, 720.0f, true},
 			}
 		},
@@ -320,7 +321,7 @@ const TArray<FKawaiiPhysicsWindScopeParamGroup>& GetWindScopeParamGroups()
 			{
 				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, StrengthCycleRange), 0.0f, 3.0f, true, true},
 				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, StrengthCyclePeriod), 0.01f, 60.0f, true, true},
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, StrengthCyclePhaseOffset), -360.0f, 360.0f, true, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, StrengthCyclePhaseOffset), -360.0f, 360.0f, true, true, false},
 			}
 		},
 		{
@@ -341,7 +342,7 @@ const TArray<FKawaiiPhysicsWindScopeParamGroup>& GetWindScopeParamGroups()
 			{
 				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomForce), 0.0f, 50.0f, true},
 				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RandomForcePeriod), 0.01f, 5.0f, true},
-				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, Seed), 0.0f, 10000.0f, false, true},
+				{GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, Seed), 0.0f, 10000.0f, false, true, false},
 			}
 		},
 	};
@@ -383,6 +384,9 @@ void SKawaiiPhysicsWindScopeEditPanel::Construct(const FArguments& InArgs)
 {
 	EditValues = InArgs._EditValues;
 	LiveEditValues = InArgs._LiveEditValues;
+	SharedPublisherTarget = InArgs._SharedPublisherTarget;
+	SharedConsumerRedirected = InArgs._SharedConsumerRedirected;
+	SharedConsumerRedirectToolTip = InArgs._SharedConsumerRedirectToolTip;
 	OnParamEdit = InArgs._OnParamEdit;
 	OnParamReset = InArgs._OnParamReset;
 	OnHighlightSeries = InArgs._OnHighlightSeries;
@@ -390,6 +394,7 @@ void SKawaiiPhysicsWindScopeEditPanel::Construct(const FArguments& InArgs)
 	LoadCollapsedGroupsFromConfig();
 	GroupAreas.Reset();
 	GroupPropertyNames.Reset();
+	SharedPublisherHiddenPropertyNames.Reset();
 	for (const FKawaiiPhysicsWindScopeParamGroup& Group : GetWindScopeParamGroups())
 	{
 		TArray<FName> PropertyNames;
@@ -397,6 +402,10 @@ void SKawaiiPhysicsWindScopeEditPanel::Construct(const FArguments& InArgs)
 		for (const FKawaiiPhysicsWindScopeParamDef& Param : Group.Params)
 		{
 			PropertyNames.Add(Param.PropertyName);
+			if (!Param.bVisibleForSharedPublisher)
+			{
+				SharedPublisherHiddenPropertyNames.Add(Param.PropertyName);
+			}
 		}
 		GroupPropertyNames.Add(Group.GroupId, MoveTemp(PropertyNames));
 	}
@@ -869,7 +878,12 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeParamRow(const FKawaii
 		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Center)
 		[
-			ValueWidget.ToSharedRef()
+			SNew(SBox)
+			.IsEnabled(this, &SKawaiiPhysicsWindScopeEditPanel::IsParamEditingEnabled, ParamDef.PropertyName)
+			.ToolTipText(this, &SKawaiiPhysicsWindScopeEditPanel::GetParamToolTipText, ParamDef.PropertyName, ToolTipText)
+			[
+				ValueWidget.ToSharedRef()
+			]
 		]
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
@@ -909,8 +923,16 @@ TSharedRef<SWidget> SKawaiiPhysicsWindScopeEditPanel::MakeResetButton(FName Prop
 	return SNew(SButton)
 		.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
 		.ContentPadding(FMargin(2.0f))
+		.IsEnabled(this, &SKawaiiPhysicsWindScopeEditPanel::IsParamEditingEnabled, PropertyName)
 		.Visibility(this, &SKawaiiPhysicsWindScopeEditPanel::GetResetVisibility, PropertyName)
-		.ToolTipText(LOCTEXT("ResetToDefaultTooltip", "Reset to default."))
+		.ToolTipText_Lambda([this, PropertyName]()
+		{
+			if (!IsParamEditingEnabled(PropertyName))
+			{
+				return LOCTEXT("ResetSharedConsumerRedirectTooltip", "Apply on the publisher");
+			}
+			return LOCTEXT("ResetToDefaultTooltip", "Reset to default.");
+		})
 		.OnClicked_Lambda([this, PropertyName]()
 		{
 			if (OnParamReset.IsBound())
@@ -1084,7 +1106,34 @@ bool SKawaiiPhysicsWindScopeEditPanel::IsParamAdvancedOnly(FName PropertyName) c
 
 bool SKawaiiPhysicsWindScopeEditPanel::IsParamVisibleInCurrentMode(FName PropertyName) const
 {
+	const bool bIsSharedPublisherTarget = SharedPublisherTarget.IsSet() && SharedPublisherTarget.Get();
+	if (bIsSharedPublisherTarget && SharedPublisherHiddenPropertyNames.Contains(PropertyName))
+	{
+		return false;
+	}
 	return IsAdvancedMode() || !IsParamAdvancedOnly(PropertyName);
+}
+
+bool SKawaiiPhysicsWindScopeEditPanel::IsParamEditingEnabled(FName PropertyName) const
+{
+	const bool bIsSharedConsumerRedirected =
+		SharedConsumerRedirected.IsSet() && SharedConsumerRedirected.Get();
+	return !bIsSharedConsumerRedirected ||
+		!KawaiiPhysicsEdUtils::IsSharedWindPublisherParameter(PropertyName);
+}
+
+FText SKawaiiPhysicsWindScopeEditPanel::GetParamToolTipText(
+	FName PropertyName,
+	FText DefaultToolTipText) const
+{
+	if (!IsParamEditingEnabled(PropertyName))
+	{
+		return SharedConsumerRedirectToolTip.IsSet()
+			       ? SharedConsumerRedirectToolTip.Get()
+			       : LOCTEXT("SharedConsumerRedirectDefaultTooltip", "Provided by Shared Publisher. Edit it on the publisher.");
+	}
+
+	return DefaultToolTipText;
 }
 
 FLinearColor SKawaiiPhysicsWindScopeEditPanel::ResolveSeriesDisplayColor(

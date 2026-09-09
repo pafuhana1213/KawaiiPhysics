@@ -105,8 +105,9 @@ namespace
 				FMath::Max(Request.DecayTime, 0.0f)) /
 			FMath::Max(EffectiveTimeScale, KINDA_SMALL_NUMBER) + TransientGustLifetimeMargin;
 
-		// RequestGust後にProceduralWind本体をコピーするとRuntimeState内のPendingGustが失われる
-		Wind->RequestGust(Request.Strength, Request.RiseTime, Request.DecayTime, Request.HoldTime);
+		// RequestGust後にProceduralWind本体をコピーするとRuntimeState内のPendingGustが失われる。
+		// Shared のコピーは Local に戻す（Entry へ転送すると全消費者に飛ぶ）。
+		Wind->RequestLocalGust(Request.Strength, Request.RiseTime, Request.DecayTime, Request.HoldTime);
 	}
 
 	// worker上で突風用ProceduralWindを構築する
@@ -1376,10 +1377,14 @@ void FAnimNode_KawaiiPhysics::WarmUp(FComponentSpacePoseContext& Output, const F
 		SubstepAccumulator = 0.0f;
 	}
 
+	// warm-up 中は外力の PreApply が 1 回の評価で WarmUpFrames 回走る。共有クロックのような永続的な時間を
+	// 持つ外力にそれを知らせ、この区間だけ前進を止めさせる（進めると Publisher より先へ行ってしまう）
+	bIsWarmingUp = true;
 	for (int32 i = 0; i < WarmUpFrames; ++i)
 	{
 		SimulateModifyBones(Output, ComponentTransform);
 	}
+	bIsWarmingUp = false;
 
 	if (bSubstep)
 	{

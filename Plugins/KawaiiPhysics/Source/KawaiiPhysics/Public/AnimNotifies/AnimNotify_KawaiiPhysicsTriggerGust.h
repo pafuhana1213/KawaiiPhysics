@@ -8,6 +8,16 @@
 
 #include "AnimNotify_KawaiiPhysicsTriggerGust.generated.h"
 
+UENUM(BlueprintType)
+enum class EKawaiiPhysicsGustTarget : uint8
+{
+	/** このメッシュの Kawaii Physics ノードに直接（従来どおり。Filter Tags で絞る） / Directly on the Kawaii Physics nodes of this mesh (legacy; narrowed by Filter Tags). */
+	Nodes UMETA(DisplayName = "Kawaii Physics Nodes"),
+
+	/** Owner Actor ファミリーの Shared Publisher（Tag）に積み、Shared の全消費ノードへ同時に届く / Queued on the owner actor family's Shared Publisher (tag) and delivered to every Shared consumer at once. */
+	SharedPublisher UMETA(DisplayName = "Shared Publisher"),
+};
+
 /**
  * 単発の AnimNotify で ProceduralWind の突風をトリガーする（タグでフィルタ可能）。
  * AnimNotify that triggers ProceduralWind gusts when fired (filterable by tag).
@@ -54,4 +64,12 @@ public:
 	/** Tag の完全一致でフィルタするか / Whether to filter tags by exact match. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Filter")
 	bool bFilterExactMatch = false;
+
+	/** 突風の送信先。Shared Publisher のとき Filter Tags / Gust Direction は使われない / Gust target. Filter Tags / Gust Direction are not used when targeting Shared Publisher. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Procedural Wind", meta = (DisplayName = "Gust Target"))
+	EKawaiiPhysicsGustTarget GustTarget = EKawaiiPhysicsGustTarget::Nodes;
+
+	/** Shared Publisher 宛てに積むときの Tag / Tag used when queuing the gust on a Shared Publisher. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Procedural Wind", meta = (DisplayName = "Shared Publisher Tag", EditCondition = "GustTarget == EKawaiiPhysicsGustTarget::SharedPublisher"))
+	FGameplayTag SharedPublisherTag;
 };

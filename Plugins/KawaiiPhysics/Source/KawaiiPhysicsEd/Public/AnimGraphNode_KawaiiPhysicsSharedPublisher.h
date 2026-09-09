@@ -13,6 +13,7 @@ class IDetailLayoutBuilder;
 class UGraphNodeContextMenuContext;
 class USkeleton;
 class UToolMenu;
+struct FPropertyChangedChainEvent;
 
 UCLASS()
 class UAnimGraphNode_KawaiiPhysicsSharedPublisher : public UAnimGraphNode_Base
@@ -30,12 +31,15 @@ public:
 	virtual void GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const override;
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 	virtual void ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog) override;
 	virtual void CopyNodeDataToPreviewNode(FAnimNode_Base* InPreviewNode) override;
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+	void OpenWindScopeWindow();
 
 private:
 	void FindConsumers();
+	void PushSharedWindEditToLiveInstance(const FPropertyChangedChainEvent& PropertyChangedEvent);
 
 	/** Constructing FText strings can be costly, so we cache the node's title */
 	FNodeTitleTextTable CachedNodeTitles;

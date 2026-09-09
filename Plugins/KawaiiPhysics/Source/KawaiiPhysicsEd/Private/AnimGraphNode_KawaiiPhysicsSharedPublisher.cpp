@@ -17,6 +17,7 @@
 #include "Kismet2/CompilerResultsLog.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "PropertyHandle.h"
+#include "SKawaiiPhysicsWindScopeWindow.h"
 #include "Styling/CoreStyle.h"
 #include "ToolMenu.h"
 #include "ToolMenuSection.h"
@@ -81,6 +82,8 @@ namespace
 			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce, ExternalForceSpace),
 			FName(TEXT("bCanSelectForceSpace")),
 			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, ForceRateByBoneLengthRate),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindSource),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, SharedWindTag),
 			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, SwayPhaseOffset),
 			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RipplePhaseOffset),
 			GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, StrengthCyclePhaseOffset),
@@ -91,6 +94,40 @@ namespace
 		{
 			HideChildProperty(SharedWindHandle, PropertyName);
 		}
+	}
+
+	bool IsSharedWindChainEdit(const FPropertyChangedChainEvent& PropertyChangedEvent)
+	{
+		bool bFoundNode = false;
+		bool bFoundSharedWind = false;
+		for (FEditPropertyChain::TDoubleLinkedListNode* ChainNode =
+			     PropertyChangedEvent.PropertyChain.GetHead();
+		     ChainNode;
+		     ChainNode = ChainNode->GetNextNode())
+		{
+			const FProperty* ChainProperty = ChainNode->GetValue();
+			if (!ChainProperty)
+			{
+				continue;
+			}
+
+			if (ChainProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UAnimGraphNode_KawaiiPhysicsSharedPublisher, Node))
+			{
+				bFoundNode = true;
+			}
+			else if (ChainProperty->GetFName() == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysicsSharedPublisher, SharedWind))
+			{
+				bFoundSharedWind = true;
+			}
+		}
+
+		const FProperty* ChangedProperty = PropertyChangedEvent.Property;
+		const UStruct* OwnerStruct = ChangedProperty ? ChangedProperty->GetOwnerStruct() : nullptr;
+		return bFoundNode &&
+			bFoundSharedWind &&
+			OwnerStruct &&
+			(OwnerStruct == FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct() ||
+				OwnerStruct->IsChildOf(FKawaiiPhysics_ExternalForce::StaticStruct()));
 	}
 
 	FText MakePreviewStatusText(const TWeakObjectPtr<UAnimGraphNode_KawaiiPhysicsSharedPublisher> WeakGraphNode)
@@ -177,6 +214,40 @@ void UAnimGraphNode_KawaiiPhysicsSharedPublisher::PostEditChangeProperty(FProper
 	}
 }
 
+void UAnimGraphNode_KawaiiPhysicsSharedPublisher::PostEditChangeChainProperty(
+	FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+	PushSharedWindEditToLiveInstance(PropertyChangedEvent);
+}
+
+void UAnimGraphNode_KawaiiPhysicsSharedPublisher::PushSharedWindEditToLiveInstance(
+	const FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	if (!IsSharedWindChainEdit(PropertyChangedEvent))
+	{
+		return;
+	}
+
+	const FName EditedPropertyName = PropertyChangedEvent.Property
+		                                 ? PropertyChangedEvent.Property->GetFName()
+		                                 : NAME_None;
+	FKawaiiProceduralWindDynamicParams Params;
+	if (!KawaiiPhysicsEdUtils::BuildProceduralWindDynamicParamsForProperty(Node.SharedWind, EditedPropertyName, Params))
+	{
+		return;
+	}
+
+	FAnimNode_KawaiiPhysicsSharedPublisher* LiveNode =
+		KawaiiPhysicsEdUtils::ResolveLiveSharedPublisherNode(this);
+	if (!LiveNode)
+	{
+		return;
+	}
+
+	LiveNode->SharedWind.RequestDynamicParams(Params);
+}
+
 void UAnimGraphNode_KawaiiPhysicsSharedPublisher::ValidateAnimNodeDuringCompilation(
 	USkeleton* ForSkeleton,
 	FCompilerResultsLog& MessageLog)
@@ -241,14 +312,27 @@ void UAnimGraphNode_KawaiiPhysicsSharedPublisher::CopyNodeDataToPreviewNode(FAni
 		Preview->SharedGroupTag != Node.SharedGroupTag ||
 		Preview->SimpleWorldCollision.GatherScope != Node.SimpleWorldCollision.GatherScope ||
 		Preview->SimpleWorldCollision.bGatherFamilyMembers != Node.SimpleWorldCollision.bGatherFamilyMembers ||
-		Preview->SimpleWorldCollision.bEnabled != Node.SimpleWorldCollision.bEnabled;
+		Preview->SimpleWorldCollision.bEnabled != Node.SimpleWorldCollision.bEnabled ||
+		Preview->WindPresetDataAsset.Get() != Node.WindPresetDataAsset.Get() ||
+		Preview->WindPresetTag != Node.WindPresetTag;
 
 	Preview->bEnabled = Node.bEnabled;
 	Preview->SharedGroupTag = Node.SharedGroupTag;
 	Preview->SimpleWorldCollision = Node.SimpleWorldCollision;
 	Preview->SharedWind = Node.SharedWind;
+	Preview->WindPresetDataAsset = Node.WindPresetDataAsset;
+	Preview->WindPresetTag = Node.WindPresetTag;
 
-	if (bNeedsReinit)
+	// プリセット適用中に authored の SharedWind を丸ごと同期すると live のプリセット値が消えるため、
+	// 退避を捨てて reinit でプリセットを適用し直す（authored の編集はプリセット適用前の値として退避される）。
+	// reinit は実効値を UPROPERTY 値へ戻すだけで SharedWind.RuntimeState には触らないので、位相・突風は保たれる
+	const bool bReapplyWindPreset = Node.WindPresetDataAsset.Get() != nullptr;
+	if (bReapplyWindPreset)
+	{
+		Preview->ResetSharedWindPresetSnapshot();
+	}
+
+	if (bNeedsReinit || bReapplyWindPreset)
 	{
 		Preview->RequestSharedPublisherReinit();
 	}
@@ -266,10 +350,33 @@ void UAnimGraphNode_KawaiiPhysicsSharedPublisher::CustomizeDetails(IDetailLayout
 		KawaiiPhysicsEditorCategoryNames::SharedPublisherSimpleWorldCollision,
 		LOCTEXT("Category_SharedPublisher_SimpleWorldCollision", "Shared Publisher > Simple World Collision"),
 		ECategoryPriority::Important);
-	DetailBuilder.EditCategory(
+	IDetailCategoryBuilder& WindCategory = DetailBuilder.EditCategory(
 		KawaiiPhysicsEditorCategoryNames::SharedPublisherWind,
 		LOCTEXT("Category_SharedPublisher_Wind", "Shared Publisher > Wind"),
 		ECategoryPriority::Important);
+
+	WindCategory.AddCustomRow(LOCTEXT("SharedPublisherWindScope", "Wind Scope"))
+	.WholeRowContent()
+	[
+		SNew(SButton)
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.ToolTipText(LOCTEXT("SharedPublisherWindScopeToolTip", "Opens the waveform preview tab for Shared Wind."))
+		.OnClicked_Lambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_KawaiiPhysicsSharedPublisher>(this)]()
+		{
+			if (UAnimGraphNode_KawaiiPhysicsSharedPublisher* GraphNode = WeakThis.Get())
+			{
+				GraphNode->OpenWindScopeWindow();
+			}
+			return FReply::Handled();
+		})
+		.Content()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("SharedPublisherWindScope", "Wind Scope"))
+			.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(), 9))
+		]
+	];
 
 	PublisherCategory.AddCustomRow(LOCTEXT("SharedPublisherPreviewStatus", "Preview Status"))
 	.NameContent()
@@ -356,6 +463,17 @@ void UAnimGraphNode_KawaiiPhysicsSharedPublisher::FindConsumers()
 	}
 }
 
+void UAnimGraphNode_KawaiiPhysicsSharedPublisher::OpenWindScopeWindow()
+{
+	const UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
+	FKawaiiPhysicsWindScopeWindowArgs Args;
+	Args.Target = FKawaiiPhysicsWindScopeTarget::MakeSharedPublisherNode(this);
+	Args.AnimBlueprintPath = AnimBlueprint ? FSoftObjectPath(AnimBlueprint) : FSoftObjectPath();
+	Args.NodeGuid = NodeGuid;
+
+	SKawaiiPhysicsWindScopeWindow::OpenWindow(MoveTemp(Args));
+}
+
 void UAnimGraphNode_KawaiiPhysicsSharedPublisher::GetNodeContextMenuActions(
 	UToolMenu* Menu,
 	UGraphNodeContextMenuContext* Context) const
@@ -370,6 +488,16 @@ void UAnimGraphNode_KawaiiPhysicsSharedPublisher::GetNodeContextMenuActions(
 		LOCTEXT("SharedPublisherContextMenuSection", "Kawaii Physics Shared Publisher"));
 	UAnimGraphNode_KawaiiPhysicsSharedPublisher* MutableThis =
 		const_cast<UAnimGraphNode_KawaiiPhysicsSharedPublisher*>(this);
+
+	Section.AddMenuEntry(
+		"KawaiiPhysicsSharedPublisherWindScope",
+		LOCTEXT("SharedPublisherWindScopeMenuLabel", "Wind Scope"),
+		LOCTEXT("SharedPublisherWindScopeMenuToolTip",
+		        "Opens the waveform preview tab for Shared Wind."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateUObject(
+			MutableThis,
+			&UAnimGraphNode_KawaiiPhysicsSharedPublisher::OpenWindScopeWindow)));
 
 	Section.AddMenuEntry(
 		"KawaiiPhysicsSharedPublisherFindConsumers",

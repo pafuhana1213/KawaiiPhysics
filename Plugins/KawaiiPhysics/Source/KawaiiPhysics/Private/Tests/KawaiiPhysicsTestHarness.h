@@ -227,8 +227,14 @@ struct FKawaiiPhysicsTestAccessor
 
 	void InjectSharedPublisherState(const FKawaiiPhysicsSharedPublisherState& State,
 	                                const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>& Entry,
-	                                uint64 ProviderID = 0xFFFF0001)
+	                                uint64 ProviderID = 0xFFFF0001,
+	                                const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry>& PublisherEntry = nullptr)
 	{
+		if (PublisherEntry.IsValid())
+		{
+			PublisherEntry->PublishState(State, ProviderID, GFrameCounter, 60);
+		}
+
 		if (Entry.IsValid())
 		{
 			Entry->SetDesc(ProviderID, State.SimpleWorldDesc, GFrameCounter,
@@ -250,6 +256,57 @@ struct FKawaiiPhysicsTestAccessor
 				reinterpret_cast<uint64>(&Node),
 				Node.CachedSimpleWorldCollisionSkelComp,
 				GFrameCounter);
+		}
+
+		if (PublisherEntry.IsValid())
+		{
+			for (int32 Index = 0; Index < Node.ExternalForces.Num(); ++Index)
+			{
+				FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = GetMutableProceduralWind(Index);
+				if (Wind && Wind->WindSource != EKawaiiPhysicsProceduralWindSource::Local)
+				{
+					BindSharedWindEntry(*Wind, PublisherEntry);
+				}
+			}
+		}
+	}
+
+	void InjectSharedWindEntry(int32 ExternalForceIndex,
+	                           const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry>& PublisherEntry)
+	{
+		FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = GetMutableProceduralWind(ExternalForceIndex);
+		if (!Wind)
+		{
+			return;
+		}
+
+		BindSharedWindEntry(*Wind, PublisherEntry);
+	}
+
+	/**
+	 * ProceduralWind の共有風 Entry を Worker の解決結果と同じ形で束ねる（Entry / ResolvedSource / Serial / 解決 Tag）。
+	 * Binds the shared wind Entry on a ProceduralWind exactly as the worker-side resolve does (entry, resolved source, serial, resolved tag).
+	 */
+	static void BindSharedWindEntry(FKawaiiPhysics_ExternalForce_ProceduralWind& Wind,
+	                                const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry>& PublisherEntry)
+	{
+		Wind.EnsureRuntimeState();
+		Wind.RuntimeState->SharedPublisherEntry = PublisherEntry;
+		Wind.RuntimeState->ResolvedSource = PublisherEntry.IsValid()
+			? EKawaiiPhysicsProceduralWindSource::Shared
+			: EKawaiiPhysicsProceduralWindSource::Local;
+		Wind.RuntimeState->LastAppliedSharedSerial = 0;
+		Wind.RuntimeState->ResolvedSharedTag = PublisherEntry.IsValid() ? Wind.SharedWindTag : FGameplayTag();
+	}
+
+	static void PublishSharedPublisherState(
+		const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry>& PublisherEntry,
+		const FKawaiiPhysicsSharedPublisherState& State,
+		uint64 ProviderID = 0xFFFF0001)
+	{
+		if (PublisherEntry.IsValid())
+		{
+			PublisherEntry->PublishState(State, ProviderID, GFrameCounter, 60);
 		}
 	}
 
@@ -682,6 +739,9 @@ struct FKawaiiPhysicsTestAccessor
 		Node.bInSubstep = true;
 	}
 
+	// WarmUp() のループ中と同じ状態にする（外力を直接呼ぶテストで warm-up 抑制を再現する）。
+	void SetWarmingUpForTest(bool bWarmingUp) { Node.bIsWarmingUp = bWarmingUp; }
+
 	// ========================================================================
 	//  アクセサ
 	// ========================================================================
@@ -690,6 +750,19 @@ struct FKawaiiPhysicsTestAccessor
 	FKawaiiPhysicsModifyBone& Bone(int32 Index) { return Node.ModifyBones[Index]; }
 	const FKawaiiPhysicsModifyBone& Bone(int32 Index) const { return Node.ModifyBones[Index]; }
 	FVector TipLocation() const { return Node.ModifyBones.Last().Location; }
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind* GetMutableProceduralWind(int32 ExternalForceIndex)
+	{
+		if (!Node.ExternalForces.IsValidIndex(ExternalForceIndex) ||
+			!Node.ExternalForces[ExternalForceIndex].IsValid() ||
+			Node.ExternalForces[ExternalForceIndex].GetScriptStruct() !=
+			FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct())
+		{
+			return nullptr;
+		}
+
+		return Node.ExternalForces[ExternalForceIndex].GetMutablePtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+	}
 
 	/** 全ボーン位置が有限（NaN/Inf 無し）か */
 	bool AllFinite() const

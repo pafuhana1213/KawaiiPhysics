@@ -17,6 +17,7 @@ struct FKawaiiPhysicsWindScopeParamDef
 	float SliderMax = 10.0f;
 	bool bDynamicParamsSupported = true;
 	bool bAdvancedOnly = false;
+	bool bVisibleForSharedPublisher = true;
 };
 
 // 折りたたみ時サマリーの単位 / Unit suffix for collapsed summaries.
@@ -67,6 +68,9 @@ public:
 		}
 		SLATE_ATTRIBUTE(const FKawaiiPhysicsWindScopeEditValues*, EditValues)
 		SLATE_ATTRIBUTE(const FKawaiiPhysicsWindScopeEditValues*, LiveEditValues)
+		SLATE_ATTRIBUTE(bool, SharedPublisherTarget)
+		SLATE_ATTRIBUTE(bool, SharedConsumerRedirected)
+		SLATE_ATTRIBUTE(FText, SharedConsumerRedirectToolTip)
 		SLATE_EVENT(FOnWindParamEdit, OnParamEdit)
 		SLATE_EVENT(FOnWindParamReset, OnParamReset)
 		SLATE_EVENT(FOnWindScopeHighlightSeries, OnHighlightSeries)
@@ -91,6 +95,7 @@ private:
 	FText GetLiveValueText(FName PropertyName) const;
 	FText GetGroupSummaryText(FName GroupId) const;
 	FText GetParameterModeText() const;
+	FText GetParamToolTipText(FName PropertyName, FText DefaultToolTipText) const;
 	ECheckBoxState GetBoolCheckState(FName PropertyName) const;
 	float GetFloatValue(FName PropertyName) const;
 	int32 GetIntValue(FName PropertyName) const;
@@ -100,6 +105,7 @@ private:
 	bool IsAdvancedMode() const;
 	bool IsParamAdvancedOnly(FName PropertyName) const;
 	bool IsParamVisibleInCurrentMode(FName PropertyName) const;
+	bool IsParamEditingEnabled(FName PropertyName) const;
 	FLinearColor ResolveSeriesDisplayColor(TOptional<EKawaiiPhysicsWindScopeComponent> LinkedSeries) const;
 
 	// ParameterMode コンボの内部選択状態をノードの実値へ合わせる / Syncs the ParameterMode combo's internal selection with the node value.
@@ -120,11 +126,15 @@ private:
 
 	TAttribute<const FKawaiiPhysicsWindScopeEditValues*> EditValues;
 	TAttribute<const FKawaiiPhysicsWindScopeEditValues*> LiveEditValues;
+	TAttribute<bool> SharedPublisherTarget;
+	TAttribute<bool> SharedConsumerRedirected;
+	TAttribute<FText> SharedConsumerRedirectToolTip;
 	FOnWindParamEdit OnParamEdit;
 	FOnWindParamReset OnParamReset;
 	FOnWindScopeHighlightSeries OnHighlightSeries;
 	TSet<FName> CollapsedGroups;
 	TMap<FName, TArray<FName>> GroupPropertyNames;
+	TSet<FName> SharedPublisherHiddenPropertyNames;
 	TArray<TSharedPtr<SExpandableArea>> GroupAreas;
 	TSharedPtr<SComboBox<TSharedPtr<EKawaiiProceduralWindParameterMode>>> ParameterModeComboBox;
 	bool bApplyingGroupExpansionBatch = false;

@@ -3,6 +3,7 @@
 #include "AnimNotifies/AnimNotify_KawaiiPhysicsTriggerGust.h"
 
 #include "KawaiiPhysicsLibrary.h"
+#include "KawaiiPhysicsSharedTags.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotify_KawaiiPhysicsTriggerGust)
 
@@ -15,6 +16,7 @@ UAnimNotify_KawaiiPhysicsTriggerGust::UAnimNotify_KawaiiPhysicsTriggerGust(
 #if WITH_EDITORONLY_DATA
 	NotifyColor = FColor(120, 210, 255, 255);
 #endif
+	SharedPublisherTag = TAG_KawaiiPhysics_Shared_Default;
 }
 
 FString UAnimNotify_KawaiiPhysicsTriggerGust::GetNotifyName_Implementation() const
@@ -32,11 +34,23 @@ void UAnimNotify_KawaiiPhysicsTriggerGust::Notify(USkeletalMeshComponent* MeshCo
 	}
 
 	// Notify は Gust API の Trigger 型オーサリングラッパ。Hold は旧 Trigger 経路と同じく 0 クランプし、Duration = Rise + Hold + Decay で渡し、wind 時間で進行させる
-	FKawaiiPhysicsTransientHandle DiscardedHandle;
-	UKawaiiPhysicsLibrary::StartProceduralWindGustOnComponent(MeshComp, DiscardedHandle, Strength,
-	                                                          RiseTime + FMath::Max(HoldTime, 0.0f) + DecayTime, RiseTime,
-	                                                          DecayTime, FilterTags, bFilterExactMatch,
-	                                                          GustDirection, /*bRealTimeEnvelope=*/false);
+	const float Duration = RiseTime + FMath::Max(HoldTime, 0.0f) + DecayTime;
+	if (GustTarget == EKawaiiPhysicsGustTarget::SharedPublisher)
+	{
+		if (AActor* Owner = MeshComp->GetOwner())
+		{
+			UKawaiiPhysicsLibrary::StartProceduralWindGustOnSharedPublisher(
+				Owner, SharedPublisherTag, Strength, Duration, RiseTime, DecayTime);
+		}
+	}
+	else
+	{
+		FKawaiiPhysicsTransientHandle DiscardedHandle;
+		UKawaiiPhysicsLibrary::StartProceduralWindGustOnComponent(MeshComp, DiscardedHandle, Strength,
+		                                                          Duration, RiseTime,
+		                                                          DecayTime, FilterTags, bFilterExactMatch,
+		                                                          GustDirection, /*bRealTimeEnvelope=*/false);
+	}
 
 	Super::Notify(MeshComp, Animation, EventReference);
 }

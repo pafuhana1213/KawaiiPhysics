@@ -1273,6 +1273,55 @@ public:
 		FKawaiiPhysicsSharedPublisherDebugInfo& OutInfo);
 
 	/**
+	 * 同じ Actor ファミリーの Shared Publisher（Tag）に突風を積む。Publisher の次の Update で消費され、Shared の全消費ノードに同時に届く。Publisher が無ければ false。
+	 * Duration は Rise + Hold + Decay の合計実秒。Hold = max(0, Duration - RiseTime - DecayTime)。
+	 * Queues a gust on the Shared Publisher (tag) of this actor family. Consumed on the publisher's next Update and delivered to every Shared consumer at once. Returns false when no publisher exists.
+	 * Duration is the total real seconds of Rise + Hold + Decay. Hold = max(0, Duration - RiseTime - DecayTime).
+	 * @param Actor 対象 Actor ファミリー内の Actor / Actor in the target actor family.
+	 * @param SharedGroupTag 対象 Shared Publisher の Tag / Target Shared Publisher tag.
+	 * @param Strength Gust のピーク強度 / Peak gust strength.
+	 * @param Duration Rise + Hold + Decay の合計実秒。Hold = max(0, Duration - RiseTime - DecayTime) / Total real seconds of Rise + Hold + Decay. Hold = max(0, Duration - RiseTime - DecayTime).
+	 * @param RiseTime 0->ピークまでの立ち上がり時間（秒） / Time in seconds to rise from zero to peak.
+	 * @param DecayTime ピーク->0 までの減衰時間（秒） / Time in seconds to decay from peak to zero.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Shared Publisher")
+	static bool StartProceduralWindGustOnSharedPublisher(
+		AActor* Actor,
+		FGameplayTag SharedGroupTag,
+		float Strength = 100.0f,
+		float Duration = 3.0f,
+		float RiseTime = 0.5f,
+		float DecayTime = 1.0f);
+
+	/**
+	 * 同じ Actor ファミリーの Shared Publisher（Tag）へ現在の突風停止を積む。Publisher が無ければ false。
+	 * Queues a stop request for the current gust on the Shared Publisher (tag) of this actor family. Returns false when no publisher exists.
+	 * @param Actor 対象 Actor ファミリー内の Actor / Actor in the target actor family.
+	 * @param SharedGroupTag 対象 Shared Publisher の Tag / Target Shared Publisher tag.
+	 * @param BlendOutTime フェードアウト時間（wind 時間） / Fade-out time in wind time.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Shared Publisher")
+	static bool StopProceduralWindGustOnSharedPublisher(
+		AActor* Actor,
+		FGameplayTag SharedGroupTag,
+		float BlendOutTime = 0.5f);
+
+	/**
+	 * bOverride が true の項目だけを Publisher の Shared Wind に上書きする。上書きは永続で、Initialize / reinit では戻らない（Set Shared Publisher Enabled / Set Simple World Collision Settings On Shared Publisher とは異なる）。
+	 * 共有されるのは Wind Direction 〜 Random Force Period の 13 項目で、Enabled / Phase Offset / Time Scale の override は Publisher 側の値を変えるだけで消費側には配られない。
+	 * Overrides only the fields whose bOverride is true on the publisher's Shared Wind. The override is persistent and is not reverted by Initialize / reinit (unlike Set Shared Publisher Enabled / Set Simple World Collision Settings On Shared Publisher).
+	 * Only the 13 shared fields (Wind Direction ... Random Force Period) reach consumers; Enabled / Phase Offset / Time Scale overrides change the publisher's own values only.
+	 * @param Actor 対象 Actor ファミリー内の Actor / Actor in the target actor family.
+	 * @param SharedGroupTag 対象 Shared Publisher の Tag / Target Shared Publisher tag.
+	 * @param Params Publisher の Shared Wind に適用する動的パラメータ / Dynamic parameters to apply to the publisher's Shared Wind.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Shared Publisher")
+	static bool SetProceduralWindParametersOnSharedPublisher(
+		AActor* Actor,
+		FGameplayTag SharedGroupTag,
+		const FKawaiiProceduralWindDynamicParams& Params);
+
+	/**
 	 * ノードが現在読み込んでいるシンプルワールドコリジョン形状の総数（Sphere+Capsule+TaperedCapsule+Box）
 	 * Total number of Simple World Collision shapes currently read by the node (Sphere+Capsule+TaperedCapsule+Box)
 	 */
