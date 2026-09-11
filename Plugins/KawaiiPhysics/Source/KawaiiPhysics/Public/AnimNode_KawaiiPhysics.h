@@ -1068,6 +1068,9 @@ private:
 	FName SimpleWorldReaderKeyObjectName;
 	EKawaiiPhysicsSimpleWorldCollisionSource SimpleWorldResolvedSource =
 		EKawaiiPhysicsSimpleWorldCollisionSource::Local;
+	EKawaiiPhysicsSimpleWorldCollisionSource InitializedSimpleWorldSource =
+		EKawaiiPhysicsSimpleWorldCollisionSource::Local;
+	FGameplayTag InitializedSimpleWorldSharedTag;
 	int32 SimpleWorldAutoResolveCountdown = 0;
 	bool bSimpleWorldDescSent = false;
 	bool bSimpleWorldCollisionInitialized = false;
@@ -1162,6 +1165,10 @@ private:
 	// WarmUp() のループ中だけ true。外力は永続クロックの前進を抑制する
 	// True only inside the WarmUp() loop; external forces suppress persistent clock advances
 	bool bIsWarmingUp = false;
+	// GameThread で取得し、共有風の Worker 評価で使うゲーム内時刻 / Game time cached on the game thread for shared wind evaluation.
+	TOptional<double> SharedWindGameTimeSeconds;
+	TWeakObjectPtr<UWorld> SharedWindWorld;
+	uint32 SharedWindClockGeneration = 0;
 
 #if WITH_EDITORONLY_DATA
 	bool bEditing = false;
@@ -1178,8 +1185,9 @@ public:
 	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
 	virtual bool NeedsDynamicReset() const override { return true; }
 	virtual void ResetDynamics(ETeleportType InTeleportType) override;
-	// GameThreadで1回だけ呼ばれる初期化。警告ログ用の識別名収集とbEditing判定をここで行う（毎フレームのPreUpdateを避けるため）
-	// Called once on the GameThread. Collects warning-log identifier names and resolves bEditing here (to avoid a per-frame PreUpdate)
+	virtual bool HasPreUpdate() const override { return true; }
+	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
+	// GameThreadで1回だけ呼ばれる初期化。警告ログ用の識別名収集とbEditing判定 / One-time game-thread initialization for diagnostics and editor state.
 	virtual bool NeedsOnInitializeAnimInstance() const override { return true; }
 	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
 	// End of FAnimNode_Base interface
@@ -1245,6 +1253,9 @@ public:
 	{
 		return bIsWarmingUp;
 	}
+
+	const TOptional<double>& GetSharedWindGameTimeSeconds() const { return SharedWindGameTimeSeconds; }
+	uint32 GetSharedWindClockGeneration() const { return SharedWindClockGeneration; }
 
 	/**
 	 * 現在読み込んでいるシンプルワールドコリジョン形状数を返す。

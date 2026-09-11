@@ -158,6 +158,14 @@ struct FKawaiiPhysicsTestAccessor
 	void SetGravityInSimSpace(const FVector& Gravity) { Node.GravityInSimSpace = Gravity; }
 	void SetSimpleExternalForceInSimSpace(const FVector& Force) { Node.SimpleExternalForceInSimSpace = Force; }
 	void SetSimulationSpace(EKawaiiPhysicsSimulationSpace Space) { Node.SimulationSpace = Space; }
+	/** テスト用のコンポーネント変換を評価中のワールド空間キャッシュへ設定する。 / Sets a test component transform in the evaluation world-space cache. */
+	void SetWorldSpaceTransformForTest(const FTransform& ComponentToWorld)
+	{
+		Node.CurrentEvalWorldSpaceCache.ComponentToTargetSpace = ComponentToWorld;
+		Node.CurrentEvalWorldSpaceCache.TargetSpaceToComponent = ComponentToWorld.Inverse();
+		Node.bHasCurrentEvalWorldSpaceCache = true;
+		Node.bHasCurrentEvalSimSpaceCache = false;
+	}
 
 	// コンポーネント空間の衝突テスト用に、評価時と同じワールド変換キャッシュを設定する。
 	void SetComponentSpaceCollisionTransform(const FTransform& ComponentTransform)
@@ -239,6 +247,8 @@ struct FKawaiiPhysicsTestAccessor
 		Node.SimpleWorldAutomationLocalEntry = Entry;
 		Node.bUseSimpleWorldCollision = true;
 		Node.bSimpleWorldCollisionInitialized = true;
+		Node.InitializedSimpleWorldSource = Node.SimpleWorldCollisionSource;
+		Node.InitializedSimpleWorldSharedTag = Node.SimpleWorldCollisionSharedTag;
 		Node.bSimpleWorldDescSent = false;
 	}
 
@@ -347,6 +357,8 @@ struct FKawaiiPhysicsTestAccessor
 		Node.CachedSimpleWorldEntry = Entry;
 		Node.bUseSimpleWorldCollision = true;
 		Node.bSimpleWorldCollisionInitialized = Entry.IsValid();
+		Node.InitializedSimpleWorldSource = Node.SimpleWorldCollisionSource;
+		Node.InitializedSimpleWorldSharedTag = Node.SimpleWorldCollisionSharedTag;
 		Node.bSimpleWorldDescSent = false;
 
 		if (Entry.IsValid())

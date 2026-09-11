@@ -19,6 +19,8 @@ struct FKawaiiProceduralWindGustRequest
 	float RiseTime = 0.0f;
 	float DecayTime = 0.0f;
 	float HoldTime = 0.0f;
+	/** Wind の TimeScale を無視するゲーム内秒を使う / Use game seconds ignoring wind TimeScale. */
+	bool bRealTimeEnvelope = false;
 };
 
 struct FKawaiiProceduralWindActiveGust
@@ -29,6 +31,8 @@ struct FKawaiiProceduralWindActiveGust
 	float DecayTime = 0.0f;
 	float HoldTime = 0.0f;
 	bool bIsActive = false;
+	/** StartTime とエンベロープの時計種別 / Clock used for StartTime and the envelope. */
+	bool bRealTimeEnvelope = false;
 };
 
 struct FKawaiiPhysicsProceduralWindSample
@@ -252,6 +256,9 @@ struct FKawaiiProceduralWindRuntimeState
 
 	float Time = 0.0f;
 	FKawaiiProceduralWindActiveGust ActiveGust;
+	// Wind の TimeScale を掛けないエンベロープ時刻 / Envelope time without the wind TimeScale.
+	float UnscaledTime = 0.0f;
+	uint32 ClockGeneration = 0;
 
 	float CachedSinesWithoutRipple = 0.0f;
 	float CachedStrengthCycle = 1.0f;
@@ -264,6 +271,9 @@ struct FKawaiiProceduralWindRuntimeState
 	// SharedPublisherEntry の解決に使った Shared Wind Tag（Worker 専用） / Shared Wind Tag used to resolve SharedPublisherEntry (worker only)
 	FGameplayTag ResolvedSharedTag;
 	uint64 LastAppliedSharedSerial = 0;
+	TOptional<double> SharedGameTimeAtPublish;
+	float SharedWindTimeAtPublish = 0.0f;
+	float SharedUnscaledTimeAtPublish = 0.0f;
 	// Publisher が止まっていた間の時間は Publisher が再開時にまとめて進めるため、採用時に Time は巻き戻らない
 	// The publisher advances the time it spent stalled in one step when it resumes, so adopting its Time never rewinds this clock.
 	float CachedPublisherTimeScale = 1.0f;
@@ -513,7 +523,9 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	FKawaiiProceduralWindDynamicParams BuildSharedWindParams() const;
 	// Publisher から読んだ共有風状態を Serial 単位で適用する / Applies shared wind state read from the Publisher for a Serial
 	void ApplySharedWindState(const FKawaiiPhysicsSharedWindState& State, uint64 Serial);
-	void RequestGust(float Strength, float RiseTime, float DecayTime, float HoldTime = 0.0f);
+	/** 突風を要求する。既定は従来の wind 時間 / Requests a gust, using legacy wind time by default. */
+	void RequestGust(float Strength, float RiseTime, float DecayTime, float HoldTime = 0.0f,
+	                 bool bRealTimeEnvelope = false);
 	// transient 突風用に Local へ戻してから突風を要求する / Forces Local source and requests a gust for transient gusts
 	void RequestLocalGust(float Strength, float RiseTime, float DecayTime, float HoldTime = 0.0f);
 	// 現在のガストを指定時間でフェードアウト停止する

@@ -712,21 +712,21 @@ bool FKawaiiPhysicsSimpleWorldConvertAggGeomTest::RunTest(const FString& Paramet
 
 		FKSphereElem NoCollisionSphere;
 		NoCollisionSphere.Radius = 5.0f;
-		NoCollisionSphere.SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		AggGeom.SphereElems.Add(NoCollisionSphere);
 
 		FKSphereElem QueryOnlySphere;
 		QueryOnlySphere.Center = FVector(10.0f, 0.0f, 0.0f);
 		QueryOnlySphere.Radius = 7.0f;
-		QueryOnlySphere.SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		AggGeom.SphereElems.Add(QueryOnlySphere);
+		// UE 5.3 の FKShapeElem コピーは CollisionEnabled を初期値へ戻すため、配列追加後に設定する。
+		AggGeom.SphereElems[0].SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		AggGeom.SphereElems[1].SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 
 		FKBoxElem PhysicsOnlyBox;
 		PhysicsOnlyBox.X = 4.0f;
 		PhysicsOnlyBox.Y = 6.0f;
 		PhysicsOnlyBox.Z = 8.0f;
-		PhysicsOnlyBox.SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
-		AggGeom.BoxElems.Add(PhysicsOnlyBox);
+		AggGeom.BoxElems.Add_GetRef(PhysicsOnlyBox).SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
 
 		FKawaiiPhysicsSharedCollisionData OutLimits;
 		KawaiiPhysicsSimpleWorldCollision::ConvertAggGeomToLocalLimits(
@@ -4918,8 +4918,7 @@ bool FKawaiiPhysicsSimpleWorldAppendPhysicsAssetLocalLimitsTest::RunTest(const F
 	HandBody->AggGeom.SphylElems.Add(HandCapsule);
 	FKSphereElem HandNoCollisionSphere;
 	HandNoCollisionSphere.Radius = 6.0f;
-	HandNoCollisionSphere.SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	HandBody->AggGeom.SphereElems.Add(HandNoCollisionSphere);
+	HandBody->AggGeom.SphereElems.Add_GetRef(HandNoCollisionSphere).SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	PhysicsAsset->SkeletalBodySetups.Add(HandBody);
 
 	USkeletalBodySetup* UnknownBody = NewObject<USkeletalBodySetup>(PhysicsAsset);
@@ -5040,8 +5039,7 @@ bool FKawaiiPhysicsSimpleWorldAppendPhysicsAssetLocalLimitsTest::RunTest(const F
 		NoCollisionSpineBody->BoneName = TEXT("spine");
 		FKSphereElem NoCollisionSpineSphere;
 		NoCollisionSpineSphere.Radius = 8.0f;
-		NoCollisionSpineSphere.SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		NoCollisionSpineBody->AggGeom.SphereElems.Add(NoCollisionSpineSphere);
+		NoCollisionSpineBody->AggGeom.SphereElems.Add_GetRef(NoCollisionSpineSphere).SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		NoCollisionShapePhysicsAsset->SkeletalBodySetups.Add(NoCollisionSpineBody);
 
 		USkeletalBodySetup* NoCollisionHandBody = NewObject<USkeletalBodySetup>(NoCollisionShapePhysicsAsset);
@@ -5049,8 +5047,7 @@ bool FKawaiiPhysicsSimpleWorldAppendPhysicsAssetLocalLimitsTest::RunTest(const F
 		FKSphylElem NoCollisionHandCapsule;
 		NoCollisionHandCapsule.Radius = 3.0f;
 		NoCollisionHandCapsule.Length = 12.0f;
-		NoCollisionHandCapsule.SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		NoCollisionHandBody->AggGeom.SphylElems.Add(NoCollisionHandCapsule);
+		NoCollisionHandBody->AggGeom.SphylElems.Add_GetRef(NoCollisionHandCapsule).SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		NoCollisionShapePhysicsAsset->SkeletalBodySetups.Add(NoCollisionHandBody);
 
 		FKawaiiPhysicsSharedCollisionData OutLimits;
