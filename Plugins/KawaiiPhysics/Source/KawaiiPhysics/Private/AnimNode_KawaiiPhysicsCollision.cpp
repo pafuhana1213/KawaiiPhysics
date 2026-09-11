@@ -1814,6 +1814,10 @@ FKawaiiPhysicsSimpleWorldCollisionDesc FAnimNode_KawaiiPhysics::BuildSimpleWorld
 
 void FAnimNode_KawaiiPhysics::ResolveSimpleWorldCollisionSource(uint64 CurrentFrame)
 {
+	// この解決に使った設定側の値を控える。Update側はこれと現在値を比べてpin駆動の変更を検知する（どのreturn経路でも同じ値になるよう冒頭で記録）。
+	SimpleWorldResolvedInputSource = SimpleWorldCollisionSource;
+	SimpleWorldResolvedInputTag = SimpleWorldCollisionSharedTag;
+
 	const bool bInjectedReaderKey =
 		bSimpleWorldReaderMode
 		&& SimpleWorldReaderKey.IsValid()
@@ -2028,6 +2032,25 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 		SimpleWorldGroundBoxLimits.Reset();
 		SimpleWorldConvexLimits.Reset();
 	};
+
+	// pin駆動でSource / Shared Tagが変わったら再初期化する（Wind側のResolvedSharedTag比較と同じ流儀）。
+	// 比べるのは解決時に控えた設定側の値なので、ハーネス注入readerキー（Sourceは設定どおりLocalのまま）や
+	// AutoのLocalフォールバック中（設定値はAutoのまま）では一致したままで、毎評価の再初期化にはならない。
+	// provider待ちでスロットル中のreader（未初期化のままreaderモードだけ保持している状態）も検知対象にする。
+	// 再試行状態をリセットするので、旧スロットル間隔が明けるのを待たず次の評価で新しいSource / Tagへ解決し直せる。
+	// bSimpleWorldReaderModeが立つのは一度Sharedとして解決した後だけなので、未解決のノードでは誤検知しない。
+	// Local provider側は解放されてもスロットルが無く次の評価で即初期化されるため、この条件に含めなくてよい。
+	if ((bSimpleWorldCollisionInitialized || bSimpleWorldReaderMode)
+		&& (SimpleWorldCollisionSource != SimpleWorldResolvedInputSource
+			|| SimpleWorldCollisionSharedTag != SimpleWorldResolvedInputTag))
+	{
+		// 旧モードの登録（provider Desc / readerメンバー）を解除してEntryを手放す。scratchとserialもこの中でクリアされる。
+		// SimpleWorldReaderRetryCountとbSimpleWorldReaderWarningLoggedもここで戻るので、再試行スロットルは即座に解除される。
+		RequestSimpleWorldCollisionReinit();
+		ResetSimpleWorldSimulationSpaceLimits();
+		// この評価は押し出し無しで抜け、次の評価のInitializeが新しいSource / Tagで解決し直す（1評価の空白は既存のAuto遷移と同じ）。
+		return;
+	}
 
 	if (!CachedSimpleWorldEntry.IsValid())
 	{

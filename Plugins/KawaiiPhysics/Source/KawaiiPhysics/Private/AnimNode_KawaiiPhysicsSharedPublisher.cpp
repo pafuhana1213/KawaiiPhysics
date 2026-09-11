@@ -65,12 +65,15 @@ void FKawaiiPhysicsSharedPublishHelper::SetDebugTag(FGameplayTag InDebugTag)
 void FKawaiiPhysicsSharedPublishHelper::SetEntries(
 	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> InPublisherEntry,
 	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> InSimpleWorldEntry,
-	TWeakObjectPtr<const USkeletalMeshComponent> InSkelComp)
+	TWeakObjectPtr<const USkeletalMeshComponent> InSkelComp,
+	bool bInProviderDescRegistered)
 {
 	PublisherEntry = MoveTemp(InPublisherEntry);
 	SimpleWorldEntry = MoveTemp(InSimpleWorldEntry);
 	SkelComp = InSkelComp;
 	LastSentDesc.Reset();
+	// PreUpdate が provider として Entry を作った場合は Desc が既に載っているので、publish に負けたときの取り下げ責任をここで引き継ぐ
+	bProviderDescRegistered = bInProviderDescRegistered;
 	// Entry が変わると消費側も新しい serial で採用し直すので、LastPublishedState を「消費側が持っている値」として使わない
 	bHasPublishedToCurrentEntry = false;
 	bNeedsEntryReacquire = false;
@@ -81,10 +84,13 @@ void FKawaiiPhysicsSharedPublishHelper::SetEntries(
 }
 
 void FKawaiiPhysicsSharedPublishHelper::SetSimpleWorldEntry(
-	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> InSimpleWorldEntry)
+	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> InSimpleWorldEntry,
+	bool bInProviderDescRegistered)
 {
 	SimpleWorldEntry = MoveTemp(InSimpleWorldEntry);
 	LastSentDesc.Reset();
+	// SetEntries と同じく、PreUpdate が provider として取り直した Entry には既に Desc が載っている
+	bProviderDescRegistered = bInProviderDescRegistered;
 	bNeedsSimpleWorldEntryReacquire = false;
 }
 
@@ -105,6 +111,7 @@ void FKawaiiPhysicsSharedPublishHelper::ReleaseEntries()
 	SimpleWorldEntry.Reset();
 	SkelComp.Reset();
 	LastSentDesc.Reset();
+	bProviderDescRegistered = false;
 	// Entry を手放した後に古い累積を持ち越さない
 	PendingDeltaTime = 0.0f;
 	bHasPublishedToCurrentEntry = false;
@@ -129,38 +136,44 @@ void FKawaiiPhysicsSharedPublishHelper::AccumulatePendingDeltaTime(const float D
 	PendingDeltaTime += FMath::Max(DeltaSeconds, 0.0f);
 }
 
-bool FKawaiiPhysicsSharedPublishHelper::ApplyInputChanges(const FKawaiiPhysicsSharedPublishInputs& Inputs)
+// 変化した項目を呼び出し側へ返す（Pending 消費で上書きされた分を同フレームに戻すため）
+FKawaiiPhysicsSharedPublishHelper::FInputChangeFlags FKawaiiPhysicsSharedPublishHelper::ApplyInputChanges(
+	const FKawaiiPhysicsSharedPublishInputs& Inputs)
 {
+	FInputChangeFlags Changes;
 	if (!LastInputs.IsSet())
 	{
 		LastInputs = Inputs;
-		return false;
+		return Changes;
 	}
 
 	const FKawaiiPhysicsSharedPublishInputs& Previous = LastInputs.GetValue();
-	bool bChanged = false;
 	if (Previous.bEnabled != Inputs.bEnabled)
 	{
 		bEffectiveEnabled = Inputs.bEnabled;
-		bChanged = true;
+		Changes.bEnabledChanged = true;
 	}
 	if (!AreSimpleWorldSettingsEqual(Previous.SimpleWorld, Inputs.SimpleWorld))
 	{
 		EffectiveSimpleWorldSettings = Inputs.SimpleWorld;
-		bChanged = true;
+		Changes.bSimpleWorldSettingsChanged = true;
 	}
 
 	LastInputs = Inputs;
-	return bChanged;
+	return Changes;
 }
 
 void FKawaiiPhysicsSharedPublishHelper::UnregisterProviderDesc()
 {
-	if (SimpleWorldEntry.IsValid() && LastSentDesc.IsSet())
+	// PreUpdate の FindOrCreate（provider）で登録された Desc は LastSentDesc を伴わないので、
+	// 登録済みフラグも見て取り下げる（負け側の設定が BuildMergedDesc に混ざったまま age-out を待つのを防ぐ）
+	if (SimpleWorldEntry.IsValid() && (LastSentDesc.IsSet() || bProviderDescRegistered))
 	{
 		SimpleWorldEntry->RemoveDesc(SourceID);
 	}
 	LastSentDesc.Reset();
+	// 取り下げ済みなので、拒否が続くフレームで DescLock を取り直さない
+	bProviderDescRegistered = false;
 }
 
 // 所有権を確定してから Desc を登録し Pending を消費する
@@ -232,7 +245,21 @@ bool FKawaiiPhysicsSharedPublishHelper::Update(
 	{
 		// UPROPERTY 入力の変化は共有状態に触らないので publish 前に実効値へ取り込む
 		//（風の Time 積算が UPROPERTY の Enabled 変化に同フレームで追従するため）。
-		ApplyInputChanges(Inputs);
+		const FInputChangeFlags InputChanges = ApplyInputChanges(Inputs);
+
+		// 同フレームに UPROPERTY 変化と Pending 要求が競合したら UPROPERTY 値が勝つ（docs §5-(b) 手順 2）。
+		// Pending 消費の後に当フレームの変化分だけを戻す（変化していない項目は Pending の上書きを残す）
+		const auto ReapplyChangedInputs = [&]()
+		{
+			if (InputChanges.bEnabledChanged)
+			{
+				bEffectiveEnabled = Inputs.bEnabled;
+			}
+			if (InputChanges.bSimpleWorldSettingsChanged)
+			{
+				EffectiveSimpleWorldSettings = Inputs.SimpleWorld;
+			}
+		};
 
 		if (!Inputs.SharedWind && WindRuntimeState.IsValid() && Inputs.bWindEnabled && bEffectiveEnabled)
 		{
@@ -277,6 +304,8 @@ bool FKawaiiPhysicsSharedPublishHelper::Update(
 			FKawaiiPhysicsSharedPublisherEntry::FPendingPublisherRequests Pending;
 			if (PublisherEntry->ConsumePendingPublisherRequests(Pending))
 			{
+				// 実効値への上書き。当フレームに同じ項目の UPROPERTY も変わっていれば、
+				// この後の ReapplyChangedInputs が UPROPERTY 値へ戻す（docs §5-(b) 手順 2）
 				if (Pending.Enabled.IsSet())
 				{
 					bEffectiveEnabled = Pending.Enabled.GetValue();
@@ -333,6 +362,7 @@ bool FKawaiiPhysicsSharedPublishHelper::Update(
 			// 所有権が確定済みのフレームは、Time 積算まで済ませた最新状態を 1 回だけ publish する
 			//（publish 前に消費しても、他 provider に横取りされる余地は前フレームの所有権で塞がれている）
 			ProcessPendingAndWind();
+			ReapplyChangedInputs();
 		}
 
 		BuildDescAndState();
@@ -352,6 +382,7 @@ bool FKawaiiPhysicsSharedPublishHelper::Update(
 			//（拒否された Publisher が BP 要求を消費しないため）。反映があれば最新値で publish し直す
 			if (!bAlreadyProvider && ProcessPendingAndWind())
 			{
+				ReapplyChangedInputs();
 				BuildDescAndState();
 				PublisherEntry->PublishState(State, SourceID, CurrentFrame, ProviderMaxAgeFrames);
 			}
@@ -380,6 +411,7 @@ bool FKawaiiPhysicsSharedPublishHelper::Update(
 					return true;
 				}
 				LastSentDesc = Desc;
+				bProviderDescRegistered = true;
 #if WITH_DEV_AUTOMATION_TESTS
 				++NumSetDescCalls;
 #endif
@@ -636,10 +668,13 @@ void FAnimNode_KawaiiPhysicsSharedPublisher::PreUpdate(const UAnimInstance* InAn
 				FKawaiiPhysicsSimpleWorldCollisionDesc Desc =
 					KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldCollisionDesc(EffectiveSettings);
 				Desc.bProviderDisabled = !(Helper->IsEffectiveEnabled() && EffectiveSettings.bEnabled);
-				Helper->SetSimpleWorldEntry(bOwnedByOther
+				const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> ReboundSimpleWorldEntry = bOwnedByOther
 					? Subsystem->FindSimpleWorldEntry(SimpleWorldKey)
 					: Subsystem->FindOrCreateSimpleWorldEntry(SimpleWorldKey, GetSourceID(), Desc,
-						TWeakObjectPtr<const USkeletalMeshComponent>(SkelComp), true));
+						TWeakObjectPtr<const USkeletalMeshComponent>(SkelComp), true);
+				// provider として取り直した Entry には FindOrCreate が Desc を載せているので、取り下げ責任を Helper へ渡す
+				Helper->SetSimpleWorldEntry(ReboundSimpleWorldEntry,
+				                            !bOwnedByOther && ReboundSimpleWorldEntry.IsValid());
 			}
 			return;
 		}
@@ -690,7 +725,8 @@ void FAnimNode_KawaiiPhysicsSharedPublisher::PreUpdate(const UAnimInstance* InAn
 			CachedFamilyRoot = FamilyRoot;
 			ResolvedTag = SharedGroupTag;
 			Helper->SetDebugTag(SharedGroupTag);
-			Helper->SetEntries(PublisherEntry, nullptr, TWeakObjectPtr<const USkeletalMeshComponent>(SkelComp));
+			Helper->SetEntries(PublisherEntry, nullptr, TWeakObjectPtr<const USkeletalMeshComponent>(SkelComp),
+			                   /*bInProviderDescRegistered*/ false);
 		}
 		return;
 	}
@@ -698,7 +734,10 @@ void FAnimNode_KawaiiPhysicsSharedPublisher::PreUpdate(const UAnimInstance* InAn
 	CachedFamilyRoot = FamilyRoot;
 	ResolvedTag = SharedGroupTag;
 	Helper->SetDebugTag(SharedGroupTag);
-	Helper->SetEntries(PublisherEntry, SimpleWorldEntry, TWeakObjectPtr<const USkeletalMeshComponent>(SkelComp));
+	// bOwnedByOther で無い経路は FindOrCreateSimpleWorldEntry（provider）が InitialDesc を登録済みなので、
+	// publish に負けたときに取り下げるよう Helper へ登録済みとして渡す
+	Helper->SetEntries(PublisherEntry, SimpleWorldEntry, TWeakObjectPtr<const USkeletalMeshComponent>(SkelComp),
+	                   !bOwnedByOther);
 	Helper->ResetEffectiveValues(
 		MakePublishInputs(bEnabled, SimpleWorldCollision, SharedWind.bIsEnabled, SharedWind.TimeScale, &SharedWind));
 }

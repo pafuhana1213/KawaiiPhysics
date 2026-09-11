@@ -220,6 +220,10 @@ int32 GetKawaiiPhysicsSharedPublisherAutoResolveInterval()
 FAnimNode_KawaiiPhysics::FAnimNode_KawaiiPhysics()
 {
 	SimpleWorldCollisionSharedTag = TAG_KawaiiPhysics_Shared_Default;
+
+	// 未解決の間は記録値を authored の既定と揃え、Resolve を通さない経路（テストハーネスの注入）で pin 変更と誤検知しない
+	SimpleWorldResolvedInputSource = SimpleWorldCollisionSource;
+	SimpleWorldResolvedInputTag = SimpleWorldCollisionSharedTag;
 }
 
 void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeContext& Context)

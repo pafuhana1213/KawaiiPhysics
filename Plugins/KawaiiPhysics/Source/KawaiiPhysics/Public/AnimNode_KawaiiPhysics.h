@@ -1068,6 +1068,11 @@ private:
 	FName SimpleWorldReaderKeyObjectName;
 	EKawaiiPhysicsSimpleWorldCollisionSource SimpleWorldResolvedSource =
 		EKawaiiPhysicsSimpleWorldCollisionSource::Local;
+	// 直近の解決に使った設定側の Source（pin 駆動の変更検知用） / Authored Source used by the last resolve (used to detect pin-driven changes)
+	EKawaiiPhysicsSimpleWorldCollisionSource SimpleWorldResolvedInputSource =
+		EKawaiiPhysicsSimpleWorldCollisionSource::Local;
+	// 直近の解決に使った設定側の Shared Tag（pin 駆動の変更検知用） / Authored Shared Tag used by the last resolve (used to detect pin-driven changes)
+	FGameplayTag SimpleWorldResolvedInputTag;
 	int32 SimpleWorldAutoResolveCountdown = 0;
 	bool bSimpleWorldDescSent = false;
 	bool bSimpleWorldCollisionInitialized = false;

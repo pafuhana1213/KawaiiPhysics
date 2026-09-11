@@ -239,6 +239,9 @@ struct FKawaiiPhysicsTestAccessor
 		Node.SimpleWorldAutomationLocalEntry = Entry;
 		Node.bUseSimpleWorldCollision = true;
 		Node.bSimpleWorldCollisionInitialized = true;
+		// Resolve を迂回するので、pin 変更検知の記録値を現在の authored 値に合わせる
+		Node.SimpleWorldResolvedInputSource = Node.SimpleWorldCollisionSource;
+		Node.SimpleWorldResolvedInputTag = Node.SimpleWorldCollisionSharedTag;
 		Node.bSimpleWorldDescSent = false;
 	}
 
@@ -347,6 +350,9 @@ struct FKawaiiPhysicsTestAccessor
 		Node.CachedSimpleWorldEntry = Entry;
 		Node.bUseSimpleWorldCollision = true;
 		Node.bSimpleWorldCollisionInitialized = Entry.IsValid();
+		// Resolve を迂回するので、pin 変更検知の記録値を現在の authored 値に合わせる
+		Node.SimpleWorldResolvedInputSource = Node.SimpleWorldCollisionSource;
+		Node.SimpleWorldResolvedInputTag = Node.SimpleWorldCollisionSharedTag;
 		Node.bSimpleWorldDescSent = false;
 
 		if (Entry.IsValid())
