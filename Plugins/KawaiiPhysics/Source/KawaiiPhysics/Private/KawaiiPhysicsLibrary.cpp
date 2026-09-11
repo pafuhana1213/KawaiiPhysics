@@ -795,7 +795,8 @@ bool UKawaiiPhysicsLibrary::StartProceduralWindGustOnSharedPublisher(
 	const float Strength,
 	const float Duration,
 	const float RiseTime,
-	const float DecayTime)
+	const float DecayTime,
+	const bool bRealTimeEnvelope)
 {
 	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry =
 		ResolveLiveSharedPublisherEntry(Actor, SharedGroupTag);
@@ -806,7 +807,7 @@ bool UKawaiiPhysicsLibrary::StartProceduralWindGustOnSharedPublisher(
 
 	const ::KawaiiPhysics::FWindGustEnvelope Envelope =
 		::KawaiiPhysics::ResolveWindGustEnvelope(Duration, RiseTime, DecayTime);
-	Entry->RequestGust(Strength, Envelope.RiseTime, Envelope.DecayTime, Envelope.HoldTime);
+	Entry->RequestGust(Strength, Envelope.RiseTime, Envelope.DecayTime, Envelope.HoldTime, bRealTimeEnvelope);
 	return true;
 }
 

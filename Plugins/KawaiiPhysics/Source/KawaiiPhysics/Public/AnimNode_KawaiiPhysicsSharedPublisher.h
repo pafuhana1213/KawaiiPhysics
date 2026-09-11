@@ -147,6 +147,8 @@ private:
 
 	TUniquePtr<FKawaiiPhysicsSharedPublishHelper> Helper;
 	TWeakObjectPtr<UKawaiiPhysicsSharedCollisionSubsystem> CachedSubsystem;
+	TWeakObjectPtr<UWorld> CachedWindWorld;
+	TOptional<double> CachedWindGameTimeSeconds;
 	TWeakObjectPtr<const USkeletalMeshComponent> CachedSkelComp;
 	TWeakObjectPtr<AActor> CachedFamilyRoot;
 	TWeakObjectPtr<UKawaiiPhysicsWindPresetDataAsset> CachedWindPresetDataAsset;

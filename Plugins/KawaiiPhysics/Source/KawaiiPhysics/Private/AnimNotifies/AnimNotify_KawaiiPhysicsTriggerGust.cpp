@@ -40,7 +40,7 @@ void UAnimNotify_KawaiiPhysicsTriggerGust::Notify(USkeletalMeshComponent* MeshCo
 		if (AActor* Owner = MeshComp->GetOwner())
 		{
 			UKawaiiPhysicsLibrary::StartProceduralWindGustOnSharedPublisher(
-				Owner, SharedPublisherTag, Strength, Duration, RiseTime, DecayTime);
+				Owner, SharedPublisherTag, Strength, Duration, RiseTime, DecayTime, /*bRealTimeEnvelope=*/false);
 		}
 	}
 	else

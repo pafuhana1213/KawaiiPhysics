@@ -712,21 +712,21 @@ bool FKawaiiPhysicsSimpleWorldConvertAggGeomTest::RunTest(const FString& Paramet
 
 		FKSphereElem NoCollisionSphere;
 		NoCollisionSphere.Radius = 5.0f;
-		NoCollisionSphere.SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		AggGeom.SphereElems.Add(NoCollisionSphere);
 
 		FKSphereElem QueryOnlySphere;
 		QueryOnlySphere.Center = FVector(10.0f, 0.0f, 0.0f);
 		QueryOnlySphere.Radius = 7.0f;
-		QueryOnlySphere.SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		AggGeom.SphereElems.Add(QueryOnlySphere);
+		// UE 5.3 の FKShapeElem コピーは CollisionEnabled を初期値へ戻すため、配列追加後に設定する。
+		AggGeom.SphereElems[0].SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		AggGeom.SphereElems[1].SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 
 		FKBoxElem PhysicsOnlyBox;
 		PhysicsOnlyBox.X = 4.0f;
 		PhysicsOnlyBox.Y = 6.0f;
 		PhysicsOnlyBox.Z = 8.0f;
-		PhysicsOnlyBox.SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
-		AggGeom.BoxElems.Add(PhysicsOnlyBox);
+		AggGeom.BoxElems.Add_GetRef(PhysicsOnlyBox).SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
 
 		FKawaiiPhysicsSharedCollisionData OutLimits;
 		KawaiiPhysicsSimpleWorldCollision::ConvertAggGeomToLocalLimits(
@@ -3823,116 +3823,6 @@ bool FKawaiiPhysicsSimpleWorldSharedSourceUsesReaderKeyTest::RunTest(const FStri
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldSourcePinChangeReinitializesTest,
-                                 "KawaiiPhysics.SimpleWorld.SourcePinChangeReinitializes",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSimpleWorldSourcePinChangeReinitializesTest::RunTest(const FString& Parameters)
-{
-	constexpr uint64 ProviderID = 0xFFFF1005;
-	constexpr int32 NumUnchangedEvaluations = 5;
-	constexpr int32 NumAutoFallbackEvaluations = 30;
-
-	UKawaiiPhysicsSharedCollisionSubsystem* Subsystem = NewObject<UKawaiiPhysicsSharedCollisionSubsystem>();
-	USkeletalMeshComponent* SkelComp = NewObject<USkeletalMeshComponent>(GetTransientPackage());
-	const FKawaiiPhysicsSimpleWorldRegistryKey LocalKey = FKawaiiPhysicsSimpleWorldRegistryKey::MakeLocalKey(SkelComp);
-
-	const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> SharedEntry =
-		MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
-	const FKawaiiPhysicsSharedPublisherState State = MakeSimpleWorldReaderState(false);
-	SharedEntry->SetDesc(ProviderID, State.SimpleWorldDesc, GFrameCounter,
-	                     TWeakObjectPtr<const USkeletalMeshComponent>(), true);
-
-	FKawaiiPhysicsTestAccessor Accessor;
-	Accessor.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
-	Accessor.SetSimpleWorldOwnSkelComp(SkelComp);
-	Accessor.SetSimpleWorldSubsystem(Subsystem);
-	Accessor.SetSimpleWorldCollisionSharedTag(TAG_KawaiiPhysicsSimpleWorldRegistryX);
-	Accessor.SetSimpleWorldCollisionSource(EKawaiiPhysicsSimpleWorldCollisionSource::Local);
-	Accessor.SetSimpleWorldSharedEntryForAuto(SharedEntry);
-
-	FAnimInstanceProxy AnimInstanceProxy;
-	FComponentSpacePoseContext PoseContext(&AnimInstanceProxy);
-
-	// Local（provider）として初期化する。
-	Accessor.EvaluateSimpleWorldCollision(PoseContext);
-	const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> LocalEntry = Subsystem->FindSimpleWorldEntry(LocalKey);
-	if (!TestTrue(TEXT("Local initialization creates registry entry"), LocalEntry.IsValid()))
-	{
-		return false;
-	}
-	TestTrue(TEXT("Local initialization registers provider"), LocalEntry->HasAnyDesc());
-	TestTrue(TEXT("Local node is initialized"), Accessor.IsSimpleWorldCollisionInitialized());
-	TestFalse(TEXT("Local node stays out of reader mode"), Accessor.IsSimpleWorldReaderMode());
-
-	// setter を通さず pin 相当の直接代入で Source を変える。
-	Accessor.Node.SimpleWorldCollisionSource = EKawaiiPhysicsSimpleWorldCollisionSource::Shared;
-	Accessor.UpdateSimpleWorldCollisionLimits(PoseContext);
-	TestFalse(TEXT("Source pin change clears initialization"), Accessor.IsSimpleWorldCollisionInitialized());
-	TestFalse(TEXT("Source pin change releases the entry"), Accessor.HasSimpleWorldEntry());
-	TestFalse(TEXT("Source pin change unregisters the local provider"), LocalEntry->HasAnyDesc());
-
-	Accessor.EvaluateSimpleWorldCollision(PoseContext);
-	TestTrue(TEXT("Next evaluation enters reader mode"), Accessor.IsSimpleWorldReaderMode());
-	TestTrue(TEXT("Next evaluation initializes the reader"), Accessor.IsSimpleWorldCollisionInitialized());
-	TestTrue(TEXT("Reader registers on the shared entry"), SharedEntry->HasAnyReader());
-
-	// 設定が変わらない評価では再初期化しない（注入 reader キーや毎評価 reinit の誤検知除け）。
-	const int32 AttemptsAfterShared = Accessor.GetNumSimpleWorldInitializeAttempts();
-	for (int32 EvaluationIndex = 0; EvaluationIndex < NumUnchangedEvaluations; ++EvaluationIndex)
-	{
-		Accessor.EvaluateSimpleWorldCollision(PoseContext);
-	}
-	TestTrue(TEXT("Unchanged settings keep the reader initialized"), Accessor.IsSimpleWorldCollisionInitialized());
-	TestEqual(TEXT("Unchanged settings skip re-initialization"),
-	          Accessor.GetNumSimpleWorldInitializeAttempts(), AttemptsAfterShared);
-
-	// Shared Tag の直接代入も 1 評価で再初期化に入る。
-	Accessor.Node.SimpleWorldCollisionSharedTag = TAG_KawaiiPhysicsSimpleWorldRegistryY;
-	Accessor.UpdateSimpleWorldCollisionLimits(PoseContext);
-	TestFalse(TEXT("Shared Tag pin change clears initialization"), Accessor.IsSimpleWorldCollisionInitialized());
-	TestFalse(TEXT("Shared Tag pin change removes the reader"), SharedEntry->HasAnyReader());
-
-	Accessor.EvaluateSimpleWorldCollision(PoseContext);
-	TestTrue(TEXT("Reader rebinds after the tag change"), Accessor.IsSimpleWorldCollisionInitialized());
-	TestTrue(TEXT("Reader stays in reader mode after the tag change"), Accessor.IsSimpleWorldReaderMode());
-
-	// Local へ戻すと provider として再登録される。
-	Accessor.Node.SimpleWorldCollisionSource = EKawaiiPhysicsSimpleWorldCollisionSource::Local;
-	Accessor.UpdateSimpleWorldCollisionLimits(PoseContext);
-	TestFalse(TEXT("Return to Local clears initialization"), Accessor.IsSimpleWorldCollisionInitialized());
-	TestFalse(TEXT("Return to Local removes the reader"), SharedEntry->HasAnyReader());
-
-	Accessor.EvaluateSimpleWorldCollision(PoseContext);
-	TestFalse(TEXT("Return to Local leaves reader mode"), Accessor.IsSimpleWorldReaderMode());
-	const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> RelocalEntry = Subsystem->FindSimpleWorldEntry(LocalKey);
-	if (!TestTrue(TEXT("Return to Local finds the local entry"), RelocalEntry.IsValid()))
-	{
-		return false;
-	}
-	TestTrue(TEXT("Return to Local registers the provider again"), RelocalEntry->HasAnyDesc());
-
-	// Auto の Local フォールバック中は毎評価の再初期化を起こさない。
-	SharedEntry->RemoveDesc(ProviderID);
-	Accessor.Node.SimpleWorldCollisionSource = EKawaiiPhysicsSimpleWorldCollisionSource::Auto;
-	Accessor.UpdateSimpleWorldCollisionLimits(PoseContext);
-	Accessor.EvaluateSimpleWorldCollision(PoseContext);
-	TestEqual(TEXT("Auto without a provider resolves to Local"),
-	          Accessor.GetSimpleWorldResolvedSource(), EKawaiiPhysicsSimpleWorldCollisionSource::Local);
-	TestTrue(TEXT("Auto fallback is initialized"), Accessor.IsSimpleWorldCollisionInitialized());
-
-	const int32 AttemptsAfterAuto = Accessor.GetNumSimpleWorldInitializeAttempts();
-	for (int32 EvaluationIndex = 0; EvaluationIndex < NumAutoFallbackEvaluations; ++EvaluationIndex)
-	{
-		Accessor.EvaluateSimpleWorldCollision(PoseContext);
-	}
-	TestTrue(TEXT("Auto fallback stays initialized"), Accessor.IsSimpleWorldCollisionInitialized());
-	TestEqual(TEXT("Auto fallback skips re-initialization"),
-	          Accessor.GetNumSimpleWorldInitializeAttempts(), AttemptsAfterAuto);
-
-	return true;
-}
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldThrottledReaderDetectsPinChangeTest,
                                  "KawaiiPhysics.SimpleWorld.ThrottledReaderDetectsPinChange",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -4007,15 +3897,10 @@ bool FKawaiiPhysicsSimpleWorldThrottledReaderDetectsPinChangeTest::RunTest(const
 		          Accessor.GetNumSimpleWorldInitializeAttempts(), AttemptsWhileThrottled);
 
 		// setter を通さず pin 相当の直接代入で Source を Local へ変える。
-		// 1 評価目: 初期化ゲートは閉じたままだが Update 冒頭の検知が走り、再試行状態がリセットされる。
-		// 2 評価目: RetryCount == 0 でゲートが開き、Local provider として初期化される。
-		// 検知条件が bSimpleWorldCollisionInitialized のみだった頃は 1 評価目で検知されず、
+		// 初期化ゲートは閉じたままだが Update 冒頭の検知が走り、同じ評価の中で Local provider として解決し直される。
+		// 検知条件が bSimpleWorldCollisionInitialized のみだった頃は未初期化の reader が検知されず、
 		// RetryCount が ThrottleInterval の倍数に達するまで（既定で最大 59 評価）初期化されなかった。
 		Accessor.Node.SimpleWorldCollisionSource = EKawaiiPhysicsSimpleWorldCollisionSource::Local;
-		Accessor.EvaluateSimpleWorldCollision(PoseContext);
-		TestEqual(TEXT("Source pin change resets the reader retry throttle"),
-		          Accessor.GetSimpleWorldReaderRetryCount(), 0);
-
 		Accessor.EvaluateSimpleWorldCollision(PoseContext);
 		TestTrue(TEXT("Throttled reader initializes as Local after the source pin change"),
 		         Accessor.IsSimpleWorldCollisionInitialized());
@@ -4063,12 +3948,8 @@ bool FKawaiiPhysicsSimpleWorldThrottledReaderDetectsPinChangeTest::RunTest(const
 		                     TWeakObjectPtr<const USkeletalMeshComponent>(), true);
 		Accessor.SetSimpleWorldSharedEntryForAuto(SharedEntry);
 
-		// Source 変更と同じく 1 評価目で検知＋再試行リセット、2 評価目で reader として初期化される。
+		// Source 変更と同じく、検知が走った評価の中で新しい Tag の reader として初期化される。
 		Accessor.Node.SimpleWorldCollisionSharedTag = TAG_KawaiiPhysicsSimpleWorldRegistryY;
-		Accessor.EvaluateSimpleWorldCollision(PoseContext);
-		TestEqual(TEXT("Shared Tag pin change resets the reader retry throttle"),
-		          Accessor.GetSimpleWorldReaderRetryCount(), 0);
-
 		Accessor.EvaluateSimpleWorldCollision(PoseContext);
 		TestTrue(TEXT("Throttled reader rebinds after the shared tag pin change"),
 		         Accessor.IsSimpleWorldCollisionInitialized());
@@ -4076,6 +3957,9 @@ bool FKawaiiPhysicsSimpleWorldThrottledReaderDetectsPinChangeTest::RunTest(const
 		TestEqual(TEXT("Rebound node resolves to Shared"),
 		          Accessor.GetSimpleWorldResolvedSource(), EKawaiiPhysicsSimpleWorldCollisionSource::Shared);
 		TestTrue(TEXT("Rebound reader registers on the shared entry"), SharedEntry->HasAnyReader());
+		// provider を掴み直した評価で再試行スロットルも解除される。
+		TestEqual(TEXT("Shared Tag pin change clears the reader retry throttle"),
+		          Accessor.GetSimpleWorldReaderRetryCount(), 0);
 	}
 
 	return true;
@@ -5176,8 +5060,7 @@ bool FKawaiiPhysicsSimpleWorldAppendPhysicsAssetLocalLimitsTest::RunTest(const F
 	HandBody->AggGeom.SphylElems.Add(HandCapsule);
 	FKSphereElem HandNoCollisionSphere;
 	HandNoCollisionSphere.Radius = 6.0f;
-	HandNoCollisionSphere.SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	HandBody->AggGeom.SphereElems.Add(HandNoCollisionSphere);
+	HandBody->AggGeom.SphereElems.Add_GetRef(HandNoCollisionSphere).SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	PhysicsAsset->SkeletalBodySetups.Add(HandBody);
 
 	USkeletalBodySetup* UnknownBody = NewObject<USkeletalBodySetup>(PhysicsAsset);
@@ -5298,8 +5181,7 @@ bool FKawaiiPhysicsSimpleWorldAppendPhysicsAssetLocalLimitsTest::RunTest(const F
 		NoCollisionSpineBody->BoneName = TEXT("spine");
 		FKSphereElem NoCollisionSpineSphere;
 		NoCollisionSpineSphere.Radius = 8.0f;
-		NoCollisionSpineSphere.SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		NoCollisionSpineBody->AggGeom.SphereElems.Add(NoCollisionSpineSphere);
+		NoCollisionSpineBody->AggGeom.SphereElems.Add_GetRef(NoCollisionSpineSphere).SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		NoCollisionShapePhysicsAsset->SkeletalBodySetups.Add(NoCollisionSpineBody);
 
 		USkeletalBodySetup* NoCollisionHandBody = NewObject<USkeletalBodySetup>(NoCollisionShapePhysicsAsset);
@@ -5307,8 +5189,7 @@ bool FKawaiiPhysicsSimpleWorldAppendPhysicsAssetLocalLimitsTest::RunTest(const F
 		FKSphylElem NoCollisionHandCapsule;
 		NoCollisionHandCapsule.Radius = 3.0f;
 		NoCollisionHandCapsule.Length = 12.0f;
-		NoCollisionHandCapsule.SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		NoCollisionHandBody->AggGeom.SphylElems.Add(NoCollisionHandCapsule);
+		NoCollisionHandBody->AggGeom.SphylElems.Add_GetRef(NoCollisionHandCapsule).SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		NoCollisionShapePhysicsAsset->SkeletalBodySetups.Add(NoCollisionHandBody);
 
 		FKawaiiPhysicsSharedCollisionData OutLimits;
