@@ -158,6 +158,15 @@ struct FKawaiiPhysicsTestAccessor
 	void SetGravityInSimSpace(const FVector& Gravity) { Node.GravityInSimSpace = Gravity; }
 	void SetSimpleExternalForceInSimSpace(const FVector& Force) { Node.SimpleExternalForceInSimSpace = Force; }
 	void SetSimulationSpace(EKawaiiPhysicsSimulationSpace Space) { Node.SimulationSpace = Space; }
+	/** テスト用のコンポーネント変換を評価中のワールド空間キャッシュへ設定する。 / Sets a test component transform in the evaluation world-space cache. */
+	void SetWorldSpaceTransformForTest(const FTransform& ComponentToWorld)
+	{
+		Node.CurrentEvalWorldSpaceCache.ComponentToTargetSpace = ComponentToWorld;
+		Node.CurrentEvalWorldSpaceCache.TargetSpaceToComponent = ComponentToWorld.Inverse();
+		Node.bHasCurrentEvalWorldSpaceCache = true;
+		Node.bHasCurrentEvalSimSpaceCache = false;
+	}
+
 	void SetUseLegacyGravity(bool bUse) { Node.bUseLegacyGravity = bUse; }
 	void SetSkelCompMove(const FVector& MoveVec, const FQuat& MoveRot = FQuat::Identity)
 	{

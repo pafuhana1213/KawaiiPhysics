@@ -165,8 +165,10 @@ public:
 
 protected:
 	/**
-	 * 外力ベクトルを現在のシミュレーション空間へ変換
-	 * Converts an external force vector to the current simulation space
+	 * WorldSpace / ComponentSpace の外力を Node.SimulationSpace へ変換する。
+	 * BoneSpace はボーンローカルのまま返し、Apply 側で BoneTM を1回だけ掛ける。
+	 * Converts WorldSpace / ComponentSpace forces to Node.SimulationSpace.
+	 * Returns BoneSpace forces in bone-local space; Apply transforms them once with BoneTM.
 	 */
 	FVector ConvertExternalForceToSimulationSpace(FAnimNode_KawaiiPhysics& Node,
 	                                              FComponentSpacePoseContext& PoseContext,
