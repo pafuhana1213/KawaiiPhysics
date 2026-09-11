@@ -176,15 +176,22 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionEntry
 {
 	friend class UKawaiiPhysicsSharedCollisionSubsystem;
 
-	void SetDesc(uint64 SourceID, const FKawaiiPhysicsSimpleWorldCollisionDesc& InDesc, uint64 CurrentFrame,
+	bool SetDesc(uint64 SourceID, const FKawaiiPhysicsSimpleWorldCollisionDesc& InDesc, uint64 CurrentFrame,
 	             const TWeakObjectPtr<const USkeletalMeshComponent>& SkelComp, bool bProvider = true);
-	void SetDesc(uint64 SourceID, const FKawaiiPhysicsSimpleWorldCollisionDesc& InDesc);
+	bool SetDesc(uint64 SourceID, const FKawaiiPhysicsSimpleWorldCollisionDesc& InDesc);
 	void RemoveDesc(uint64 SourceID);
+
+	/** Registry から除去済みかを返す / Returns whether this entry is retired from the Registry. */
+	bool IsRetired() const;
+	/** 全スロットが空なら同じロック区間で除去済みにする / Marks the entry retired atomically with checking that all slots are empty. */
+	bool MarkRetiredIfEmpty();
+	/** Registry から除去済みにする / Marks this entry retired from the Registry. */
+	void MarkRetired();
 
 	bool MarkRead(uint64 SourceID);
 	// provider の heartbeat。CurrentFrame を明示する版（Publisher など呼び出し側がフレームを持つ場合）/ Provider heartbeat with an explicit frame (for callers such as the Publisher that already hold the frame)
 	bool MarkRead(uint64 SourceID, uint64 CurrentFrame);
-	void AddReaderMember(uint64 SourceID, const TWeakObjectPtr<const USkeletalMeshComponent>& SkelComp,
+	bool AddReaderMember(uint64 SourceID, const TWeakObjectPtr<const USkeletalMeshComponent>& SkelComp,
 	                     uint64 CurrentFrame);
 	void RemoveReaderMember(uint64 SourceID);
 	bool MarkReaderRead(uint64 SourceID, uint64 CurrentFrame, uint64 ProviderMaxAgeFrames);
@@ -345,6 +352,8 @@ private:
 
 	TMap<uint64, FDescSlot> DescSlots;
 	mutable FRWLock DescLock;
+	// DescLock で保護。Registry から外れた Entry。以後の登録・heartbeat は全て拒否し、保持側は再取得する / Protected by DescLock. Retired entries reject all registration and heartbeats; holders must rebind.
+	bool bRetired = false;
 	// 次に登録する Desc へ割り当てる登録順。DescLock 内でのみ触る / Registration order for the next Desc. Touched only under DescLock
 	uint64 NextDescRegistrationOrdinal = 1;
 	uint64 LastProviderFrame = 0;
@@ -555,9 +564,9 @@ public:
 
 	/**
 	 * SimpleWorld Source用: SkelComp単位のEntryを検索、なければ作成し、作成と初回Desc登録を同一SimpleWorldRegistryLock write lock内で行う。
-	 * cleanupのHasAnyDesc()==false除去と割り込まない（任意スレッドから呼べる。SkelCompをdereferenceしない）。
+	 * cleanupの空判定・除去と割り込まない（任意スレッドから呼べる。SkelCompをdereferenceしない）。
 	 * For SimpleWorld sources: Find or create a SkelComp-level entry and register the initial Desc under the same
-	 * SimpleWorldRegistryLock write lock, preventing cleanup's HasAnyDesc()==false removal from interleaving
+	 * SimpleWorldRegistryLock write lock, preventing cleanup's empty check and removal from interleaving
 	 * (callable from any thread; does not dereference SkelComp).
 	 */
 	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> FindOrCreateSimpleWorldEntry(

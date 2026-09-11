@@ -25,6 +25,8 @@ struct FKawaiiPhysicsSharedPublishHelper
 	void SetEntries(TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> InPublisherEntry,
 	                TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> InSimpleWorldEntry,
 	                TWeakObjectPtr<const USkeletalMeshComponent> InSkelComp);
+	/** SimpleWorld Entry だけを差し替え、実効値と風クロックを保持する / Replaces only the SimpleWorld entry, preserving effective values and the wind clock. */
+	void SetSimpleWorldEntry(TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> InSimpleWorldEntry);
 	void ReleaseEntries();
 	void ResetEffectiveValues(const FKawaiiPhysicsSharedPublishInputs& Defaults);
 	bool Update(const FKawaiiPhysicsSharedPublishInputs& Inputs,
@@ -43,7 +45,9 @@ struct FKawaiiPhysicsSharedPublishHelper
 		return EffectiveSimpleWorldSettings;
 	}
 	uint64 GetLastPublishSerial() const { return LastPublishSerial; }
-	bool NeedsEntryReacquire() const { return bNeedsEntryReacquire || !PublisherEntry.IsValid() || !SimpleWorldEntry.IsValid(); }
+	bool NeedsEntryReacquire() const { return bNeedsEntryReacquire || !PublisherEntry.IsValid(); }
+	/** SimpleWorld Entry の再取得が必要かを返す / Returns whether the SimpleWorld entry needs rebinding. */
+	bool NeedsSimpleWorldEntryReacquire() const { return bNeedsSimpleWorldEntryReacquire || !SimpleWorldEntry.IsValid(); }
 	const FKawaiiPhysicsSharedPublisherState& GetLastPublishedState() const { return LastPublishedState; }
 	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> GetSharedPublisherEntry() const { return PublisherEntry; }
 	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> GetSimpleWorldEntry() const { return SimpleWorldEntry; }
@@ -93,6 +97,7 @@ private:
 	 */
 	float PendingDeltaTime = 0.0f;
 	bool bNeedsEntryReacquire = false;
+	bool bNeedsSimpleWorldEntryReacquire = false;
 	TArray<FKawaiiPhysicsSharedPublisherGustRequest> PendingGustBuffer;
 
 #if !UE_BUILD_SHIPPING

@@ -1037,16 +1037,20 @@ FKawaiiPhysicsSimpleWorldCollisionDesc FKawaiiPhysicsSimpleWorldCollisionDesc::M
 	return Merged;
 }
 
-void FKawaiiPhysicsSimpleWorldCollisionEntry::SetDesc(
+bool FKawaiiPhysicsSimpleWorldCollisionEntry::SetDesc(
 	uint64 SourceID, const FKawaiiPhysicsSimpleWorldCollisionDesc& InDesc, uint64 CurrentFrame,
 	const TWeakObjectPtr<const USkeletalMeshComponent>& SkelComp, bool bProvider)
 {
 	if (SourceID == 0)
 	{
-		return;
+		return false;
 	}
 
 	FWriteScopeLock WriteLock(DescLock);
+	if (bRetired)
+	{
+		return false;
+	}
 	const bool bIsNewSource = !DescSlots.Contains(SourceID);
 
 	// 新規 provider 登録時のみ、同一設定の provider スロットが既にあるかをFindOrAddの前に調べる。
@@ -1120,12 +1124,13 @@ void FKawaiiPhysicsSimpleWorldCollisionEntry::SetDesc(
 			RemoveMemberSlotsNotInLocked(EmptyMembers);
 		}
 	}
+	return true;
 }
 
-void FKawaiiPhysicsSimpleWorldCollisionEntry::SetDesc(
+bool FKawaiiPhysicsSimpleWorldCollisionEntry::SetDesc(
 	uint64 SourceID, const FKawaiiPhysicsSimpleWorldCollisionDesc& InDesc)
 {
-	SetDesc(SourceID, InDesc, GFrameCounter, TWeakObjectPtr<const USkeletalMeshComponent>(), true);
+	return SetDesc(SourceID, InDesc, GFrameCounter, TWeakObjectPtr<const USkeletalMeshComponent>(), true);
 }
 
 void FKawaiiPhysicsSimpleWorldCollisionEntry::RemoveDesc(uint64 SourceID)
@@ -1180,6 +1185,11 @@ bool FKawaiiPhysicsSimpleWorldCollisionEntry::MarkRead(uint64 SourceID, uint64 C
 	// FDescSlotのLastReadFrameはatomicにせず、DescSlotsの構造変更と同じDescLock(write)で保護する。
 	// TMap要素を値型で保持でき、期限切れ除去と読み取りマークの整合も同じロック順序で扱える。
 	FWriteScopeLock WriteLock(DescLock);
+	if (bRetired)
+	{
+		return false;
+	}
+
 	if (FDescSlot* DescSlotPtr = DescSlots.Find(SourceID))
 	{
 		if (!DescSlotPtr->bProvider)
@@ -1193,17 +1203,22 @@ bool FKawaiiPhysicsSimpleWorldCollisionEntry::MarkRead(uint64 SourceID, uint64 C
 	return false;
 }
 
-void FKawaiiPhysicsSimpleWorldCollisionEntry::AddReaderMember(
+bool FKawaiiPhysicsSimpleWorldCollisionEntry::AddReaderMember(
 	uint64 SourceID,
 	const TWeakObjectPtr<const USkeletalMeshComponent>& SkelComp,
 	uint64 CurrentFrame)
 {
 	if (SourceID == 0)
 	{
-		return;
+		return false;
 	}
 
 	FWriteScopeLock WriteLock(DescLock);
+	if (bRetired)
+	{
+		return false;
+	}
+
 	FDescSlot& DescSlotRef = DescSlots.FindOrAdd(SourceID);
 	// Worker から呼ばれるため、差し替え検知は弱参照同士の比較で行う（Get() でデリファレンスしない）。
 	const bool bSkelCompChanged = DescSlotRef.SkelComp != SkelComp;
@@ -1253,6 +1268,7 @@ void FKawaiiPhysicsSimpleWorldCollisionEntry::AddReaderMember(
 		}
 		bRegatherRequested.store(true, std::memory_order_release);
 	}
+	return true;
 }
 
 void FKawaiiPhysicsSimpleWorldCollisionEntry::RemoveReaderMember(uint64 SourceID)
@@ -1266,6 +1282,11 @@ bool FKawaiiPhysicsSimpleWorldCollisionEntry::MarkReaderRead(
 	uint64 ProviderMaxAgeFrames)
 {
 	FWriteScopeLock WriteLock(DescLock);
+	if (bRetired)
+	{
+		return false;
+	}
+
 	FDescSlot* ReaderSlotPtr = DescSlots.Find(SourceID);
 	if (!ReaderSlotPtr || ReaderSlotPtr->bProvider)
 	{
@@ -1336,6 +1357,29 @@ void FKawaiiPhysicsSimpleWorldCollisionEntry::RemoveExpiredDescs(uint64 CurrentF
 		}
 		bRegatherRequested.store(true, std::memory_order_release);
 	}
+}
+
+bool FKawaiiPhysicsSimpleWorldCollisionEntry::IsRetired() const
+{
+	FReadScopeLock ReadLock(DescLock);
+	return bRetired;
+}
+
+bool FKawaiiPhysicsSimpleWorldCollisionEntry::MarkRetiredIfEmpty()
+{
+	FWriteScopeLock WriteLock(DescLock);
+	if (bRetired || DescSlots.IsEmpty())
+	{
+		bRetired = true;
+		return true;
+	}
+	return false;
+}
+
+void FKawaiiPhysicsSimpleWorldCollisionEntry::MarkRetired()
+{
+	FWriteScopeLock WriteLock(DescLock);
+	bRetired = true;
 }
 
 bool FKawaiiPhysicsSimpleWorldCollisionEntry::HasAnyDesc() const
@@ -1872,7 +1916,7 @@ TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> UKawaiiPhysicsSharedCollisio
 		return nullptr;
 	}
 
-	// Entry 作成と初回 Desc 登録は同一ロック内。cleanup は同ロックで HasAnyDesc を見るため、空 Entry が観測される瞬間が無い。
+	// Entry 作成と初回 Desc 登録は同一ロック内。cleanup は同ロックで空判定と除去を行うため、空 Entry が観測される瞬間が無い。
 	FWriteScopeLock WriteLock(SimpleWorldRegistryLock);
 	if (TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>* Existing = SimpleWorldRegistry.Find(Key))
 	{
@@ -3135,6 +3179,13 @@ void UKawaiiPhysicsSharedCollisionSubsystem::Deinitialize()
 	}
 	{
 		FWriteScopeLock WriteLock(SimpleWorldRegistryLock);
+		for (const auto& Pair : SimpleWorldRegistry)
+		{
+			if (Pair.Value.IsValid())
+			{
+				Pair.Value->MarkRetired();
+			}
+		}
 		SimpleWorldRegistry.Empty();
 	}
 	{
@@ -3209,12 +3260,16 @@ void UKawaiiPhysicsSharedCollisionSubsystem::Tick(float DeltaTime)
 		{
 			if (!It->Key.IsValid() || !It->Value.IsValid())
 			{
+				if (It->Value.IsValid())
+				{
+					It->Value->MarkRetired();
+				}
 				It.RemoveCurrent();
 				continue;
 			}
 
 			It->Value->RemoveExpiredDescs(CurrentFrame, SimpleWorldCleanupMaxAge);
-			if (!It->Value->HasAnyDesc() && !It->Value->HasAnyReader())
+			if (It->Value->MarkRetiredIfEmpty())
 			{
 				It.RemoveCurrent();
 				continue;
