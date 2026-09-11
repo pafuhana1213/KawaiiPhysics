@@ -705,6 +705,83 @@ bool FKawaiiPhysicsLibrarySharedPublisherWindApiTest::RunTest(const FString& Par
 	return bOk;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSharedPublisherDetachedSimpleWorldEntryReboundTest,
+                                 "KawaiiPhysics.SharedPublisher.DetachedSimpleWorldEntryRebound",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSharedPublisherDetachedSimpleWorldEntryReboundTest::RunTest(const FString& Parameters)
+{
+	constexpr uint64 SourceID = 0xA001;
+	const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> PublisherEntry = MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+	const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> OldEntry = MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
+	USkeletalMeshComponent* SkelComp = NewObject<USkeletalMeshComponent>(GetTransientPackage());
+	const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> WindState =
+		MakeShared<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe>();
+	FKawaiiPhysicsSharedPublishInputs Inputs;
+	FKawaiiPhysicsSharedPublishHelper Helper;
+	Helper.SetSourceID(SourceID);
+	Helper.SetEntries(PublisherEntry, OldEntry, SkelComp);
+	Helper.ResetEffectiveValues(Inputs);
+	for (uint64 Frame = 1; Frame <= 3; ++Frame)
+	{
+		TestTrue(TEXT("Initial updates publish"), Helper.Update(Inputs, WindState, 0.1f, Frame, 60));
+	}
+	TestTrue(TEXT("Initial provider desc exists"), OldEntry->HasAnyDesc());
+	TestEqual(TEXT("Initial desc is sent once"), Helper.GetNumSetDescCalls(), 1);
+	PublisherEntry->RequestPublisherEnabled(false);
+	FKawaiiPhysicsSimpleWorldCollisionSettings EffectiveSettings = Inputs.SimpleWorld;
+	EffectiveSettings.GatherInterval = Inputs.SimpleWorld.GatherInterval + 0.25f;
+	PublisherEntry->RequestSimpleWorldSettings(EffectiveSettings);
+	TestTrue(TEXT("Blueprint override publishes"), Helper.Update(Inputs, WindState, 0.1f, 4, 60));
+	TestFalse(TEXT("Blueprint override disables effective publisher"), Helper.IsEffectiveEnabled());
+
+	OldEntry->RemoveDesc(SourceID);
+	TestTrue(TEXT("Detached SimpleWorld entry retires"), OldEntry->MarkRetiredIfEmpty());
+	const float PendingBeforeRetiredUpdate = Helper.GetPendingDeltaTime();
+	const int32 NumSetDescBeforeRetiredUpdate = Helper.GetNumSetDescCalls();
+	TestTrue(TEXT("Retired SimpleWorld entry does not reject publisher state"), Helper.Update(Inputs, WindState, 0.1f, 5, 60));
+	TestTrue(TEXT("Only SimpleWorld entry needs rebinding"), Helper.NeedsSimpleWorldEntryReacquire());
+	TestFalse(TEXT("Publisher entry does not need rebinding"), Helper.NeedsEntryReacquire());
+	TestTrue(TEXT("Publisher entry pointer is preserved"), Helper.GetSharedPublisherEntry() == PublisherEntry);
+	TestFalse(TEXT("Publisher entry remains alive"), PublisherEntry->IsExpired(5, 60));
+	TestFalse(TEXT("Effective enabled override survives retirement"), Helper.IsEffectiveEnabled());
+	TestEqual(TEXT("Retired update keeps pending time unchanged"), Helper.GetPendingDeltaTime(), PendingBeforeRetiredUpdate);
+	TestEqual(TEXT("Rejected registration is not counted"), Helper.GetNumSetDescCalls(), NumSetDescBeforeRetiredUpdate);
+	TestFalse(TEXT("Retired entry has no recreated provider"), OldEntry->HasAnyDesc());
+	TestFalse(TEXT("Retired entry has no recreated reader"), OldEntry->HasAnyReader());
+
+	Helper.AccumulatePendingDeltaTime(0.3f);
+	const float PendingBeforeRebind = Helper.GetPendingDeltaTime();
+	const uint64 SerialBeforeRebind = Helper.GetLastPublishSerial();
+	const float PublishedTimeBeforeRebind = Helper.GetLastPublishedState().Wind.Time;
+	const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> NewEntry = MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
+	Helper.SetSimpleWorldEntry(NewEntry);
+	TestEqual(TEXT("Rebinding preserves pending time"), Helper.GetPendingDeltaTime(), PendingBeforeRebind);
+	TestEqual(TEXT("Rebinding preserves publisher serial"), Helper.GetLastPublishSerial(), SerialBeforeRebind);
+	TestEqual(TEXT("Rebinding preserves published wind time"), Helper.GetLastPublishedState().Wind.Time, PublishedTimeBeforeRebind);
+	TestTrue(TEXT("Rebinding preserves publisher pointer"), Helper.GetSharedPublisherEntry() == PublisherEntry);
+	TestFalse(TEXT("Rebinding does not expire publisher"), PublisherEntry->IsExpired(5, 60));
+	TestFalse(TEXT("Rebinding preserves effective enabled"), Helper.IsEffectiveEnabled());
+	TestTrue(TEXT("Replacement update publishes"), Helper.Update(Inputs, WindState, 0.1f, 6, 60));
+	FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
+	TestTrue(TEXT("Replacement receives provider desc"), NewEntry->BuildMergedDesc(Desc));
+	TestTrue(TEXT("Replacement desc reflects disabled override"), Desc.bProviderDisabled);
+	TestEqual(TEXT("Replacement desc preserves effective settings"), Desc.GatherIntervalSec, EffectiveSettings.GatherInterval);
+	TestFalse(TEXT("Replacement clears SimpleWorld rebind request"), Helper.NeedsSimpleWorldEntryReacquire());
+	TestFalse(TEXT("Replacement does not request publisher rebind"), Helper.NeedsEntryReacquire());
+	TestTrue(TEXT("Replacement desc preserves skeletal mesh component"), NewEntry->GetPrimarySkelComp() == SkelComp);
+
+	// null の差し替えでも Publisher Entry は保持し、次の SimpleWorld 再取得を待つ。
+	NewEntry->RemoveDesc(SourceID);
+	TestTrue(TEXT("Replacement is detached before null retry"), NewEntry->MarkRetiredIfEmpty());
+	Helper.SetSimpleWorldEntry(nullptr);
+	TestTrue(TEXT("Null SimpleWorld entry needs rebinding"), Helper.NeedsSimpleWorldEntryReacquire());
+	TestFalse(TEXT("Null SimpleWorld entry keeps publisher"), Helper.NeedsEntryReacquire());
+	TestTrue(TEXT("Null SimpleWorld entry still permits publishing"), Helper.Update(Inputs, WindState, 0.1f, 7, 60));
+	TestFalse(TEXT("Null update keeps publisher alive"), PublisherEntry->IsExpired(7, 60));
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSharedPublisherPublishHelperUpdateTest,
                                  "KawaiiPhysics.SharedPublisher.PublishHelperUpdate",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

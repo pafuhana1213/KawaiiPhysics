@@ -74,9 +74,18 @@ void FKawaiiPhysicsSharedPublishHelper::SetEntries(
 	// Entry が変わると消費側も新しい serial で採用し直すので、LastPublishedState を「消費側が持っている値」として使わない
 	bHasPublishedToCurrentEntry = false;
 	bNeedsEntryReacquire = false;
+	bNeedsSimpleWorldEntryReacquire = false;
 #if !UE_BUILD_SHIPPING
 	bProviderConflictWarningLogged = false;
 #endif
+}
+
+void FKawaiiPhysicsSharedPublishHelper::SetSimpleWorldEntry(
+	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> InSimpleWorldEntry)
+{
+	SimpleWorldEntry = MoveTemp(InSimpleWorldEntry);
+	LastSentDesc.Reset();
+	bNeedsSimpleWorldEntryReacquire = false;
 }
 
 void FKawaiiPhysicsSharedPublishHelper::ReleaseEntries()
@@ -101,6 +110,7 @@ void FKawaiiPhysicsSharedPublishHelper::ReleaseEntries()
 	LastWindGameTimeSeconds.Reset();
 	bHasPublishedToCurrentEntry = false;
 	bNeedsEntryReacquire = false;
+	bNeedsSimpleWorldEntryReacquire = false;
 #if !UE_BUILD_SHIPPING
 	bProviderConflictWarningLogged = false;
 #endif
@@ -172,9 +182,9 @@ bool FKawaiiPhysicsSharedPublishHelper::Update(
 	uint64 CurrentFrame,
 	uint64 ProviderMaxAgeFrames)
 {
-	if (!PublisherEntry.IsValid() || !SimpleWorldEntry.IsValid() || SourceID == 0)
+	if (!PublisherEntry.IsValid() || SourceID == 0)
 	{
-		// Entry を持たない間の累積は捨てる（取り直したときは消費側も新しい serial で採用し直すため）
+		// Publisher Entry を持たない間の累積は捨てる（取り直したときは消費側も新しい serial で採用し直すため）
 		PendingDeltaTime = 0.0f;
 		bNeedsEntryReacquire = true;
 		return false;
@@ -372,17 +382,19 @@ bool FKawaiiPhysicsSharedPublishHelper::Update(
 #endif
 
 			// provider として受理されてから SimpleWorld Entry へ Desc を登録・heartbeat する
-			if (!LastSentDesc.IsSet() || !(LastSentDesc.GetValue() == Desc))
+			if (!SimpleWorldEntry.IsValid())
 			{
-				SimpleWorldEntry->SetDesc(SourceID, Desc, CurrentFrame, SkelComp, true);
-				LastSentDesc = Desc;
-#if WITH_DEV_AUTOMATION_TESTS
-				++NumSetDescCalls;
-#endif
+				bNeedsSimpleWorldEntryReacquire = true;
+				return true;
 			}
-			else if (!SimpleWorldEntry->MarkRead(SourceID, CurrentFrame))
+			if (!LastSentDesc.IsSet() || !(LastSentDesc.GetValue() == Desc)
+				|| !SimpleWorldEntry->MarkRead(SourceID, CurrentFrame))
 			{
-				SimpleWorldEntry->SetDesc(SourceID, Desc, CurrentFrame, SkelComp, true);
+				if (!SimpleWorldEntry->SetDesc(SourceID, Desc, CurrentFrame, SkelComp, true))
+				{
+					bNeedsSimpleWorldEntryReacquire = true;
+					return true;
+				}
 				LastSentDesc = Desc;
 #if WITH_DEV_AUTOMATION_TESTS
 				++NumSetDescCalls;
@@ -567,13 +579,20 @@ void FAnimNode_KawaiiPhysicsSharedPublisher::PreUpdate(const UAnimInstance* InAn
 	const bool bContextChanged = CachedFamilyRoot != FamilyRoot || CachedSubsystem != Subsystem || CachedSkelComp != SkelComp;
 	const bool bWindPresetChanged =
 		CachedWindPresetDataAsset.Get() != WindPresetDataAsset.Get() || CachedWindPresetTag != WindPresetTag;
-	if (!bReinit && !bNeedsReacquire && !bTagChanged && !bWindPresetChanged && !bContextChanged)
+	const bool bNeedsSimpleWorldReacquire = Helper->NeedsSimpleWorldEntryReacquire();
+	const bool bPresetTrigger = bReinit || bNeedsReacquire || bTagChanged || bWindPresetChanged || bContextChanged;
+	if (!bPresetTrigger && !bNeedsSimpleWorldReacquire)
 	{
 		return;
 	}
 
-	ApplySharedWindPreset();
-	if (bWindPresetChanged && !bReinit && !bNeedsReacquire && !bTagChanged && !bContextChanged)
+	// プリセット適用は reinit / Publisher Entry 再取得 / Tag 変更 / FamilyRoot・Subsystem・SkelComp の変更 / プリセット差分のときだけ。
+	// SimpleWorld Entry だけの再取得では SharedWind（BP 上書き込み）に触らない
+	if (bPresetTrigger)
+	{
+		ApplySharedWindPreset();
+	}
+	if (bWindPresetChanged && !bReinit && !bNeedsReacquire && !bNeedsSimpleWorldReacquire && !bTagChanged && !bContextChanged)
 	{
 		return;
 	}
@@ -610,9 +629,8 @@ void FAnimNode_KawaiiPhysicsSharedPublisher::PreUpdate(const UAnimInstance* InAn
 		return;
 	}
 
-	// 同じキーへの reinit では Entry を保持して reader の解放・再登録を起こさない。
-	// ここで再取得すると provider Desc が一瞬消え、消費側が登録し直すうえ Publisher Entry も期限切れ扱いになる。
-	// reinit の意味は「実効値を UPROPERTY 値へ戻す」ことなので、ResetEffectiveValues だけ行う。
+	// 同じキーで健全な Publisher Entry は保持し、除去された SimpleWorld Entry だけを取り直す。
+	// 実効値を UPROPERTY 値へ戻すのは reinit 時だけとし、通常の再取得では BP 上書きと風クロックを保持する。
 	// Cached* は GameThread（PreUpdate）からしか触らないので Get() での比較で足りる。
 	const bool bSameKey = !bTagChanged
 		&& CachedFamilyRoot.Get() == FamilyRoot
@@ -623,13 +641,33 @@ void FAnimNode_KawaiiPhysicsSharedPublisher::PreUpdate(const UAnimInstance* InAn
 		const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> CurrentPublisherEntry = Helper->GetSharedPublisherEntry();
 		if (CurrentPublisherEntry.IsValid() && !CurrentPublisherEntry->IsExpired(PreUpdateFrame, ProviderMaxAgeFrames))
 		{
-			Helper->ResetEffectiveValues(
-				MakePublishInputs(bEnabled, SimpleWorldCollision, SharedWind.bIsEnabled, SharedWind.TimeScale, &SharedWind));
+			if (bReinit)
+			{
+				Helper->ResetEffectiveValues(
+					MakePublishInputs(bEnabled, SimpleWorldCollision, SharedWind.bIsEnabled, SharedWind.TimeScale, &SharedWind));
+			}
+			if (Helper->NeedsSimpleWorldEntryReacquire())
+			{
+				const FKawaiiPhysicsSimpleWorldRegistryKey SimpleWorldKey =
+					FKawaiiPhysicsSimpleWorldRegistryKey::MakeSharedKey(FamilyRoot, SharedGroupTag);
+				const uint64 ExistingProviderID = CurrentPublisherEntry->GetProviderID();
+				const bool bOwnedByOther = (ExistingProviderID != 0 && ExistingProviderID != GetSourceID()
+						&& !CurrentPublisherEntry->IsExpired(PreUpdateFrame, ProviderMaxAgeFrames))
+					|| CurrentPublisherEntry->IsMarkedExpired();
+				const FKawaiiPhysicsSimpleWorldCollisionSettings& EffectiveSettings = Helper->GetEffectiveSimpleWorldSettings();
+				FKawaiiPhysicsSimpleWorldCollisionDesc Desc =
+					KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldCollisionDesc(EffectiveSettings);
+				Desc.bProviderDisabled = !(Helper->IsEffectiveEnabled() && EffectiveSettings.bEnabled);
+				Helper->SetSimpleWorldEntry(bOwnedByOther
+					? Subsystem->FindSimpleWorldEntry(SimpleWorldKey)
+					: Subsystem->FindOrCreateSimpleWorldEntry(SimpleWorldKey, GetSourceID(), Desc,
+						TWeakObjectPtr<const USkeletalMeshComponent>(SkelComp), true));
+			}
 			return;
 		}
 	}
 
-	// Tag 変更・FamilyRoot / Subsystem / SkelComp の差し替え・期限切れ・publish 拒否・Entry 消失のいずれかなので取り直す
+	// Tag 変更・FamilyRoot / Subsystem / SkelComp の差し替え・Publisher Entry の期限切れ・再取得要求・消失のいずれかなので取り直す
 	Helper->ReleaseEntries();
 	CachedSubsystem = Subsystem;
 	CachedSkelComp = SkelComp;
@@ -650,7 +688,7 @@ void FAnimNode_KawaiiPhysicsSharedPublisher::PreUpdate(const UAnimInstance* InAn
 	// 生存中の別 provider がいる間は SimpleWorld へ provider Desc を登録しない。
 	// 登録すると負け側の設定が BuildMergedDesc に混ざるため、参照だけ持って勝った時点で Helper::Update が SetDesc する。
 	// MarkExpired 済みの Entry を掴んだ場合（FindOrCreateSharedPublisherEntry の置き換えと競合した等）も publish が必ず拒否されるので、
-	// 同じく Desc を登録せず次フレームの再取得を待つ。
+	// 同じく Desc を登録せず待つ。健全な Publisher Entry なら次フレーム以降は SimpleWorld Entry だけを取り直す。
 	const FKawaiiPhysicsSimpleWorldRegistryKey SimpleWorldKey =
 		FKawaiiPhysicsSimpleWorldRegistryKey::MakeSharedKey(FamilyRoot, SharedGroupTag);
 	const uint64 ExistingProviderID = PublisherEntry->GetProviderID();
@@ -670,8 +708,10 @@ void FAnimNode_KawaiiPhysicsSharedPublisher::PreUpdate(const UAnimInstance* InAn
 	{
 		if (bOwnedByOther)
 		{
-			// 勝ち側がまだ Entry を作っていないので、Publisher Entry だけ持って次フレームに取り直す
-			//（SimpleWorldEntry が null のままなので NeedsEntryReacquire() は true）
+			// 勝ち側がまだ Entry を作っていないので、キーと Publisher Entry を保持して SimpleWorld Entry だけ再試行する
+			CachedFamilyRoot = FamilyRoot;
+			ResolvedTag = SharedGroupTag;
+			Helper->SetDebugTag(SharedGroupTag);
 			Helper->SetEntries(PublisherEntry, nullptr, TWeakObjectPtr<const USkeletalMeshComponent>(SkelComp));
 		}
 		return;

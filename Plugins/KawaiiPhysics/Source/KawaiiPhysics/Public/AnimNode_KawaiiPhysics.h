@@ -1093,6 +1093,9 @@ private:
 #if WITH_DEV_AUTOMATION_TESTS
 	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> SimpleWorldAutomationLocalEntry;
 	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> SimpleWorldAutomationSharedEntry;
+	// InitializeSimpleWorldCollisionが実処理に入った回数。reader再試行スロットルの効きをテストから数えるための診断専用カウンタ
+	// Number of times InitializeSimpleWorldCollision entered its real work; diagnostics-only counter so tests can verify the reader retry throttle
+	int32 NumSimpleWorldInitializeAttempts = 0;
 #endif
 	// 形状 Slot 用のワールド空間スクラッチ / World-space scratch for the shape Slot
 	FKawaiiPhysicsSharedCollisionData SimpleWorldMergedScratch;
@@ -1590,6 +1593,12 @@ protected:
 	bool IsSharedProviderAlive(const FKawaiiPhysicsSimpleWorldRegistryKey& Key, uint64 CurrentFrame) const;
 
 	/**
+	 * provider不在のShared readerが今回の評価で再初期化を試みてよいかを返す（AnyThread）
+	 * Returns whether a provider-less Shared reader may retry initialization on this evaluation (any thread)
+	 */
+	bool ShouldRetrySimpleWorldReaderInitialize() const;
+
+	/**
 	 * 現在の設定からシンプルワールドコリジョンのDescを構築する（AnyThread、UObjectをdereferenceしない）
 	 * Build the Simple World Collision Desc from current settings (any thread; does not dereference UObject)
 	 */
@@ -1597,9 +1606,13 @@ protected:
 
 	/**
 	 * シンプルワールドコリジョンを読み取り、シミュレーション空間に変換する（AnyThread）
-	 * Read Simple World Collision and convert to simulation space (any thread)
+	 * bInitializeAlreadyAttempted は「この評価でEvaluate側が既にInitializeSimpleWorldCollisionを試みた」ことを示し、
+	 * trueならEntry未取得のreader再試行をここでは行わない（1評価あたりInitializeは最大1回）
+	 * Read Simple World Collision and convert to simulation space (any thread).
+	 * bInitializeAlreadyAttempted tells this function that Evaluate already tried InitializeSimpleWorldCollision on this
+	 * evaluation; when true the reader retry is skipped here, so initialization runs at most once per evaluation.
 	 */
-	void UpdateSimpleWorldCollisionLimits(FComponentSpacePoseContext& Output);
+	void UpdateSimpleWorldCollisionLimits(FComponentSpacePoseContext& Output, bool bInitializeAlreadyAttempted = false);
 
 	/**
 	 * SimpleWorld の収集半径がチェーン到達距離を覆うか 1 回だけ確認する（AnyThread）

@@ -841,13 +841,21 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	// CVarで全体無効化されている間はUpdateを行わず、else側でSimpleWorldXxxLimitsをResetして適用もスキップする
 	if (bUseSimpleWorldCollision && CVarSimpleWorldCollisionEnable.GetValueOnAnyThread())
 	{
-		if (!bSimpleWorldCollisionInitialized)
+		// provider不在のreaderはEntryの作成→解放を毎評価繰り返すため、再試行だけUpdate側と同じスロットルに通す。
+		// 初回（RetryCount == 0）とRequestSimpleWorldCollisionReinit直後は従来どおり即時に初期化する。
+		const bool bShouldInitializeSimpleWorldCollision =
+			!bSimpleWorldCollisionInitialized
+			&& (!bSimpleWorldReaderMode
+				|| SimpleWorldReaderRetryCount == 0
+				|| ShouldRetrySimpleWorldReaderInitialize());
+		if (bShouldInitializeSimpleWorldCollision)
 		{
 			InitializeSimpleWorldCollision();
 		}
 		if (CachedSimpleWorldEntry.IsValid() || bSimpleWorldReaderMode)
 		{
-			UpdateSimpleWorldCollisionLimits(Output);
+			// ここで初期化を試みた評価かを伝え、Update側のreader再試行と二重にInitializeしない
+			UpdateSimpleWorldCollisionLimits(Output, bShouldInitializeSimpleWorldCollision);
 			if (TeleportType == ETeleportType::TeleportPhysics && CachedSimpleWorldEntry.IsValid())
 			{
 				CachedSimpleWorldEntry->RequestRegather();
