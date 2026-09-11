@@ -2028,7 +2028,9 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdateSimpleWorldCollisionLimits);
 
 	// ピン更新は BP setter の再初期化要求を通らないため、評価時にも解決キーの変更を検出する。
-	if (bSimpleWorldCollisionInitialized &&
+	// provider 待ちでスロットル中の reader（未初期化のまま reader モードだけ保持）も対象にし、旧スロットル間隔を待たずに解決し直す。
+	// bSimpleWorldReaderMode が立つのは一度 Shared として解決した後だけなので、未解決のノードでは誤検知しない。
+	if ((bSimpleWorldCollisionInitialized || bSimpleWorldReaderMode) &&
 		(InitializedSimpleWorldSource != SimpleWorldCollisionSource ||
 		 InitializedSimpleWorldSharedTag != SimpleWorldCollisionSharedTag))
 	{

@@ -23,11 +23,17 @@ struct FKawaiiPhysicsSharedPublishHelper
 {
 	void SetSourceID(uint64 InSourceID);
 	void SetDebugTag(FGameplayTag InDebugTag);
+	/**
+	 * Entry を差し替える。bInProviderDescRegistered は PreUpdate の FindOrCreate（provider）で provider Desc を登録済みのときに true を渡す。
+	 * Replaces the entries. Pass bInProviderDescRegistered as true when PreUpdate already registered a provider Desc through the provider FindOrCreate.
+	 */
 	void SetEntries(TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> InPublisherEntry,
 	                TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> InSimpleWorldEntry,
-	                TWeakObjectPtr<const USkeletalMeshComponent> InSkelComp);
+	                TWeakObjectPtr<const USkeletalMeshComponent> InSkelComp,
+	                bool bInProviderDescRegistered = false);
 	/** SimpleWorld Entry だけを差し替え、実効値と風クロックを保持する / Replaces only the SimpleWorld entry, preserving effective values and the wind clock. */
-	void SetSimpleWorldEntry(TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> InSimpleWorldEntry);
+	void SetSimpleWorldEntry(TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> InSimpleWorldEntry,
+	                         bool bInProviderDescRegistered = false);
 	void ReleaseEntries();
 	void ResetEffectiveValues(const FKawaiiPhysicsSharedPublishInputs& Defaults);
 	bool Update(const FKawaiiPhysicsSharedPublishInputs& Inputs,
@@ -69,7 +75,17 @@ struct FKawaiiPhysicsSharedPublishHelper
 #endif
 
 private:
-	bool ApplyInputChanges(const FKawaiiPhysicsSharedPublishInputs& Inputs);
+	/**
+	 * 当フレームに変化した UPROPERTY 入力の種別。Pending 消費後の再適用に使い、フレームを跨いで持たない。
+	 * Which UPROPERTY inputs changed this frame. Used to re-apply them after pending requests are consumed; never kept across frames.
+	 */
+	struct FInputChangeFlags
+	{
+		bool bEnabledChanged = false;
+		bool bSimpleWorldSettingsChanged = false;
+	};
+
+	FInputChangeFlags ApplyInputChanges(const FKawaiiPhysicsSharedPublishInputs& Inputs);
 	/**
 	 * SimpleWorld Entry へ登録済みの provider Desc を登録解除する。
 	 * Unregisters this source's provider Desc from the SimpleWorld entry.
@@ -101,6 +117,11 @@ private:
 	TOptional<double> LastWindGameTimeSeconds;
 	bool bNeedsEntryReacquire = false;
 	bool bNeedsSimpleWorldEntryReacquire = false;
+	/**
+	 * この SourceID の provider Desc が SimpleWorld Entry に登録済みか。PreUpdate の FindOrCreate（provider）成功時と SetDesc 成功時に立て、RemoveDesc で下ろす。
+	 * Whether this source's provider Desc is registered with the SimpleWorld entry. Set when PreUpdate's provider FindOrCreate succeeds and when SetDesc succeeds; cleared by RemoveDesc.
+	 */
+	bool bProviderDescRegistered = false;
 	TArray<FKawaiiPhysicsSharedPublisherGustRequest> PendingGustBuffer;
 
 #if !UE_BUILD_SHIPPING

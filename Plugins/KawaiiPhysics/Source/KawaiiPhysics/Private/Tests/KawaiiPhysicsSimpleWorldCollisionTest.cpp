@@ -3823,6 +3823,148 @@ bool FKawaiiPhysicsSimpleWorldSharedSourceUsesReaderKeyTest::RunTest(const FStri
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldThrottledReaderDetectsPinChangeTest,
+                                 "KawaiiPhysics.SimpleWorld.ThrottledReaderDetectsPinChange",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldThrottledReaderDetectsPinChangeTest::RunTest(const FString& Parameters)
+{
+	constexpr uint64 ProviderID = 0xFFFF1006;
+	constexpr int32 NumNoChangeEvaluations = 1;
+
+	IConsoleVariable* RetryThresholdCVar = IConsoleManager::Get().FindConsoleVariable(
+		TEXT("a.AnimNode.KawaiiPhysics.SharedCollision.InitRetryThreshold"));
+	IConsoleVariable* ThrottleIntervalCVar = IConsoleManager::Get().FindConsoleVariable(
+		TEXT("a.AnimNode.KawaiiPhysics.SharedCollision.InitRetryThrottleInterval"));
+	if (!TestNotNull(TEXT("Init retry threshold CVar exists"), RetryThresholdCVar)
+		|| !TestNotNull(TEXT("Init retry throttle interval CVar exists"), ThrottleIntervalCVar))
+	{
+		return false;
+	}
+	const int32 RetryThreshold = FMath::Max(1, RetryThresholdCVar->GetInt());
+	const int32 ThrottleInterval = FMath::Max(1, ThrottleIntervalCVar->GetInt());
+
+	// provider 不在の間 RetryCount は 1 評価につき 1 増えるので、警告しきい値を 1 評価だけ越えたところで止めると
+	// 以後のゲート（RetryCount % ThrottleInterval == 0）は閉じたままになる。
+	const int32 NumThrottleEvaluations = RetryThreshold + 1;
+	if (!TestTrue(TEXT("Throttle keeps the initialize gate closed after the warning"),
+	              ThrottleInterval > 1
+	              && (NumThrottleEvaluations % ThrottleInterval) != 0
+	              && ((NumThrottleEvaluations + NumNoChangeEvaluations) % ThrottleInterval) != 0))
+	{
+		return false;
+	}
+
+	// provider 待ちの警告は Source 変更用と Shared Tag 変更用のノードで 1 回ずつ出る。
+	AddExpectedError(TEXT("Shared Simple World Collision entry has no provider"),
+	                 EAutomationExpectedErrorFlags::Contains, 2);
+
+	FAnimInstanceProxy AnimInstanceProxy;
+	FComponentSpacePoseContext PoseContext(&AnimInstanceProxy);
+
+	// Source ピンの変更（provider 不在の Shared → Local）。
+	{
+		UKawaiiPhysicsSharedCollisionSubsystem* Subsystem = NewObject<UKawaiiPhysicsSharedCollisionSubsystem>();
+		USkeletalMeshComponent* SkelComp = NewObject<USkeletalMeshComponent>(GetTransientPackage());
+		const FKawaiiPhysicsSimpleWorldRegistryKey LocalKey =
+			FKawaiiPhysicsSimpleWorldRegistryKey::MakeLocalKey(SkelComp);
+
+		FKawaiiPhysicsTestAccessor Accessor;
+		Accessor.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+		Accessor.SetSimpleWorldOwnSkelComp(SkelComp);
+		Accessor.SetSimpleWorldSubsystem(Subsystem);
+		Accessor.SetSimpleWorldCollisionSharedTag(TAG_KawaiiPhysicsSimpleWorldRegistryX);
+		Accessor.SetSimpleWorldCollisionSource(EKawaiiPhysicsSimpleWorldCollisionSource::Shared);
+
+		// family root も provider も居ないので Shared は reader として解決されたまま Entry を掴めず、再試行スロットルに入る。
+		for (int32 EvaluationIndex = 0; EvaluationIndex < NumThrottleEvaluations; ++EvaluationIndex)
+		{
+			Accessor.EvaluateSimpleWorldCollision(PoseContext);
+		}
+		TestFalse(TEXT("Throttled reader is not initialized"), Accessor.IsSimpleWorldCollisionInitialized());
+		TestTrue(TEXT("Throttled reader keeps reader mode"), Accessor.IsSimpleWorldReaderMode());
+		TestTrue(TEXT("Throttled reader logs the no-provider warning"),
+		         Accessor.IsSimpleWorldReaderWarningLogged());
+		TestFalse(TEXT("Throttled reader holds no entry"), Accessor.HasSimpleWorldEntry());
+
+		// 設定が変わらない評価では初期化を試みない（スロットルが効いていること＝誤検知していないこと）。
+		const int32 AttemptsWhileThrottled = Accessor.GetNumSimpleWorldInitializeAttempts();
+		for (int32 EvaluationIndex = 0; EvaluationIndex < NumNoChangeEvaluations; ++EvaluationIndex)
+		{
+			Accessor.EvaluateSimpleWorldCollision(PoseContext);
+		}
+		TestEqual(TEXT("Throttled reader skips initialization while nothing changes"),
+		          Accessor.GetNumSimpleWorldInitializeAttempts(), AttemptsWhileThrottled);
+
+		// setter を通さず pin 相当の直接代入で Source を Local へ変える。
+		// 初期化ゲートは閉じたままだが Update 冒頭の検知が走り、同じ評価の中で Local provider として解決し直される。
+		// 検知条件が bSimpleWorldCollisionInitialized のみだった頃は未初期化の reader が検知されず、
+		// RetryCount が ThrottleInterval の倍数に達するまで（既定で最大 59 評価）初期化されなかった。
+		Accessor.Node.SimpleWorldCollisionSource = EKawaiiPhysicsSimpleWorldCollisionSource::Local;
+		Accessor.EvaluateSimpleWorldCollision(PoseContext);
+		TestTrue(TEXT("Throttled reader initializes as Local after the source pin change"),
+		         Accessor.IsSimpleWorldCollisionInitialized());
+		TestFalse(TEXT("Local source leaves reader mode"), Accessor.IsSimpleWorldReaderMode());
+		const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> LocalEntry = Subsystem->FindSimpleWorldEntry(LocalKey);
+		if (!TestTrue(TEXT("Local initialization creates registry entry"), LocalEntry.IsValid()))
+		{
+			return false;
+		}
+		TestTrue(TEXT("Local initialization registers provider"), LocalEntry->HasAnyDesc());
+	}
+
+	// Shared Tag ピンの変更（provider 不在の X → provider 在籍の Y）。
+	{
+		UKawaiiPhysicsSharedCollisionSubsystem* Subsystem = NewObject<UKawaiiPhysicsSharedCollisionSubsystem>();
+		USkeletalMeshComponent* SkelComp = NewObject<USkeletalMeshComponent>(GetTransientPackage());
+
+		FKawaiiPhysicsTestAccessor Accessor;
+		Accessor.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+		Accessor.SetSimpleWorldOwnSkelComp(SkelComp);
+		Accessor.SetSimpleWorldSubsystem(Subsystem);
+		Accessor.SetSimpleWorldCollisionSharedTag(TAG_KawaiiPhysicsSimpleWorldRegistryX);
+		Accessor.SetSimpleWorldCollisionSource(EKawaiiPhysicsSimpleWorldCollisionSource::Shared);
+
+		for (int32 EvaluationIndex = 0; EvaluationIndex < NumThrottleEvaluations; ++EvaluationIndex)
+		{
+			Accessor.EvaluateSimpleWorldCollision(PoseContext);
+		}
+		TestFalse(TEXT("Throttled tag reader is not initialized"), Accessor.IsSimpleWorldCollisionInitialized());
+		TestTrue(TEXT("Throttled tag reader keeps reader mode"), Accessor.IsSimpleWorldReaderMode());
+
+		const int32 AttemptsWhileThrottled = Accessor.GetNumSimpleWorldInitializeAttempts();
+		for (int32 EvaluationIndex = 0; EvaluationIndex < NumNoChangeEvaluations; ++EvaluationIndex)
+		{
+			Accessor.EvaluateSimpleWorldCollision(PoseContext);
+		}
+		TestEqual(TEXT("Throttled tag reader skips initialization while nothing changes"),
+		          Accessor.GetNumSimpleWorldInitializeAttempts(), AttemptsWhileThrottled);
+
+		// provider 付きの Entry を用意してから、pin 相当の直接代入で Shared Tag を切り替える。
+		const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> SharedEntry =
+			MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
+		const FKawaiiPhysicsSharedPublisherState State = MakeSimpleWorldReaderState(false);
+		SharedEntry->SetDesc(ProviderID, State.SimpleWorldDesc, GFrameCounter,
+		                     TWeakObjectPtr<const USkeletalMeshComponent>(), true);
+		Accessor.SetSimpleWorldSharedEntryForAuto(SharedEntry);
+
+		// Source 変更と同じく、検知が走った評価の中で新しい Tag の reader として初期化される。
+		Accessor.Node.SimpleWorldCollisionSharedTag = TAG_KawaiiPhysicsSimpleWorldRegistryY;
+		Accessor.EvaluateSimpleWorldCollision(PoseContext);
+		TestTrue(TEXT("Throttled reader rebinds after the shared tag pin change"),
+		         Accessor.IsSimpleWorldCollisionInitialized());
+		TestTrue(TEXT("Rebound node stays in reader mode"), Accessor.IsSimpleWorldReaderMode());
+		TestEqual(TEXT("Rebound node resolves to Shared"),
+		          Accessor.GetSimpleWorldResolvedSource(), EKawaiiPhysicsSimpleWorldCollisionSource::Shared);
+		TestTrue(TEXT("Rebound reader registers on the shared entry"), SharedEntry->HasAnyReader());
+		// provider を掴み直した評価で再試行スロットルも解除される。
+		TestEqual(TEXT("Shared Tag pin change clears the reader retry throttle"),
+		          Accessor.GetSimpleWorldReaderRetryCount(), 0);
+	}
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldRetiredEntryRejectsRegistrationTest,
                                  "KawaiiPhysics.SimpleWorld.RetiredEntryRejectsRegistration",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
