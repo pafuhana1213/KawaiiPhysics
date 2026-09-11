@@ -1719,4 +1719,171 @@ bool FKawaiiPhysicsProceduralWindAssignmentCopiesWindSourceTest::RunTest(const F
 	return bOk;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindBoneSpaceKeepsLocalDirectionInCacheTest,
+                                 "KawaiiPhysics.ProceduralWind.BoneSpaceKeepsLocalDirectionInCache",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindBoneSpaceKeepsLocalDirectionInCacheTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor Accessor;
+	Accessor.BuildVerticalChain(2, 10.0f);
+	Accessor.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+	Accessor.SetTimeState(1.0f / 30.0f, 1.0f / 30.0f);
+	FAnimInstanceProxy AnimInstanceProxy;
+	FComponentSpacePoseContext PoseContext(&AnimInstanceProxy);
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
+	Wind.WindSource = EKawaiiPhysicsProceduralWindSource::Local;
+	Wind.ExternalForceSpace = EExternalForceSpace::BoneSpace;
+	Wind.WindDirection = FVector::ForwardVector;
+	Wind.WindDirectionNoiseAngle = 0.0f;
+	Wind.PreApply(Accessor.Node, PoseContext);
+	if (!TestTrue(TEXT("PreApply creates the runtime cache"), Wind.RuntimeState.IsValid()))
+	{
+		return false;
+	}
+	bool bOk = TestTrue(TEXT("BoneSpace cache keeps the local X direction"),
+		Wind.RuntimeState->CachedWindVector.Equals(FVector::ForwardVector, GProceduralWindTol));
+
+	Wind.ExternalForceSpace = EExternalForceSpace::ComponentSpace;
+	Wind.PreApply(Accessor.Node, PoseContext);
+	const FVector Expected = Accessor.Node.ConvertSimulationSpaceVector(PoseContext,
+		EKawaiiPhysicsSimulationSpace::ComponentSpace, Accessor.Node.SimulationSpace, FVector::ForwardVector);
+	bOk &= TestTrue(TEXT("ComponentSpace cache keeps the existing conversion"),
+		Wind.RuntimeState->CachedWindVector.Equals(Expected, GProceduralWindTol));
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindBoneSpaceDirectionWorldSimTest,
+                                 "KawaiiPhysics.ProceduralWind.BoneSpaceDirectionWorldSim",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindBoneSpaceDirectionWorldSimTest::RunTest(const FString& Parameters)
+{
+	const float Dt = 1.0f / 30.0f;
+	FKawaiiPhysicsTestAccessor Accessor;
+	Accessor.BuildVerticalChain(2, 10.0f);
+	Accessor.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::WorldSpace);
+	Accessor.SetTimeState(Dt, Dt);
+	const FTransform ComponentToWorld(FRotator(0.0f, 90.0f, 0.0f));
+	// 実コンポーネントの差し替えには未対応のため、評価キャッシュへ同じ回転を注入し BoneTM を合成する
+	// 旧処理では PreApply と Apply の二重回転で -X へ進むため、+Y の検証で回帰を検出できる
+	Accessor.SetWorldSpaceTransformForTest(ComponentToWorld);
+	FAnimInstanceProxy AnimInstanceProxy;
+	FComponentSpacePoseContext PoseContext(&AnimInstanceProxy);
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
+	Wind.WindSource = EKawaiiPhysicsProceduralWindSource::Local;
+	Wind.ExternalForceSpace = EExternalForceSpace::BoneSpace;
+	Wind.WindDirection = FVector::ForwardVector;
+	Wind.WindDirectionNoiseAngle = 0.0f;
+	Wind.ConstantForce = 1.0f;
+	Wind.SwayForce = 0.0f;
+	Wind.RippleForce = 0.0f;
+	Wind.RandomForce = 0.0f;
+	Wind.StrengthCycleRange = FFloatInterval(1.0f, 1.0f);
+	Wind.PreApply(Accessor.Node, PoseContext);
+	if (!TestTrue(TEXT("PreApply creates the world-sim runtime cache"), Wind.RuntimeState.IsValid()))
+	{
+		return false;
+	}
+	bool bOk = TestTrue(TEXT("World simulation keeps BoneSpace cache local"),
+		Wind.RuntimeState->CachedWindVector.Equals(FVector::ForwardVector, GProceduralWindTol));
+	for (const float Scale : {1.0f, 2.0f})
+	{
+		// TransformVector のスケールによる大きさを維持しつつ、回転は1回だけにする
+		FTransform BoneTM = ComponentToWorld;
+		BoneTM.SetScale3D(FVector(Scale, 1.0f, 1.0f));
+		const FVector InitialLocation = Accessor.Bone(1).Location;
+		Wind.Apply(Accessor.Bone(1), Accessor.Node, PoseContext, BoneTM);
+		const FVector Displacement = Accessor.Bone(1).Location - InitialLocation;
+		bOk &= TestTrue(TEXT("BoneSpace wind displacement follows BoneTM exactly once"),
+			Displacement.Equals(BoneTM.TransformVector(FVector::ForwardVector) * Dt, GProceduralWindTol));
+		bOk &= TestTrue(TEXT("BoneSpace wind displacement points along positive Y"),
+			Displacement.GetSafeNormal().Equals(FVector::RightVector, GProceduralWindTol));
+#if ENABLE_ANIM_DEBUG
+		const FVector* DebugForce = Wind.BoneForceMap.Find(Accessor.Bone(1).BoneRef.BoneName);
+		bOk &= TestTrue(TEXT("Wind debug map stores the transformed force"),
+			DebugForce && DebugForce->Equals(BoneTM.TransformVector(FVector::ForwardVector), GProceduralWindTol));
+#endif
+	}
+
+	Wind.ExternalForceSpace = EExternalForceSpace::ComponentSpace;
+	Wind.PreApply(Accessor.Node, PoseContext);
+	bOk &= TestTrue(TEXT("ComponentSpace wind still rotates into world simulation"),
+		Wind.RuntimeState->CachedWindVector.Equals(ComponentToWorld.TransformVector(FVector::ForwardVector),
+			GProceduralWindTol));
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindSharedTagClearedRestoresLocalWindTest,
+                                 "KawaiiPhysics.ProceduralWind.SharedTagClearedRestoresLocalWind",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsProceduralWindSharedTagClearedRestoresLocalWindTest::RunTest(const FString& Parameters)
+{
+	// 無効な Publisher（bPublisherWindEnabled=false）を採用すると bPublisherWindDisabled が立つ。
+	// その後 SharedWindTag を None にしても Local の風が0のまま戻らない回帰を防ぐ
+	// （Shared を離れる全経路でこのフラグを戻す契約：ResolveSharedWindSource の Tag無効経路と
+	// PreApply の Tag変化ブロックの両方）
+	FKawaiiPhysicsTestAccessor Accessor;
+	Accessor.BuildVerticalChain(2, 10.0f);
+	constexpr float Dt = 1.0f / 60.0f;
+
+	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
+	Wind.WindSource = EKawaiiPhysicsProceduralWindSource::Shared;
+	Wind.bIsEnabled = true;
+	Wind.ConstantForce = 100.0f;
+	Wind.WindDirection = FVector(1.0f, 0.0f, 0.0f);
+
+	const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry = MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+	FKawaiiPhysicsSharedPublisherState State;
+	State.bPublisherEnabled = true;
+	State.Wind.bPublisherWindEnabled = false;
+	// Params は既定（bOverride* が全て false）のままにし、ConstantForce / WindDirection をローカル値のまま保つ
+	FKawaiiPhysicsTestAccessor::PublishSharedPublisherState(Entry, State);
+	FKawaiiPhysicsTestAccessor::BindSharedWindEntry(Wind, Entry);
+
+	RunProceduralWindPreApply(Accessor, Wind, Dt);
+	bool bOk = TestTrue(TEXT("Disabled publisher sets bPublisherWindDisabled"),
+	                    Wind.RuntimeState->bPublisherWindDisabled);
+	bOk &= TestTrue(TEXT("Disabled publisher zeroes cached wind vector"),
+	                Wind.RuntimeState->CachedWindVector.IsNearlyZero());
+
+	// Tag を None にする（setter を使わず直接代入。Persona の in-place 同期を模す）
+	Wind.SharedWindTag = FGameplayTag();
+	RunProceduralWindPreApply(Accessor, Wind, Dt);
+	bOk &= TestFalse(TEXT("Clearing the tag restores bPublisherWindDisabled"),
+	                 Wind.RuntimeState->bPublisherWindDisabled);
+	bOk &= TestTrue(TEXT("Clearing the tag resolves to Local"),
+	                Wind.RuntimeState->ResolvedSource == EKawaiiPhysicsProceduralWindSource::Local);
+	bOk &= TestFalse(TEXT("Clearing the tag drops the shared entry"),
+	                 Wind.RuntimeState->SharedPublisherEntry.IsValid());
+
+	RunProceduralWindPreApply(Accessor, Wind, Dt);
+	bOk &= TestFalse(TEXT("Local wind resumes with a non-zero cached vector"),
+	                 Wind.RuntimeState->CachedWindVector.IsNearlyZero());
+	bOk &= TestTrue(TEXT("Local ConstantForce still drives a positive sample"),
+	                Wind.ComputeWindSample(Wind.RuntimeState->Time, 0.0f).Total > 0.0f);
+
+	// 対称ケース: Tag を外さず WindSource = Local へ切り替える既存経路も戻ることを確認する
+	FKawaiiPhysics_ExternalForce_ProceduralWind LocalSwitchWind;
+	LocalSwitchWind.WindSource = EKawaiiPhysicsProceduralWindSource::Shared;
+	LocalSwitchWind.bIsEnabled = true;
+	const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> LocalSwitchEntry =
+		MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+	FKawaiiPhysicsTestAccessor::PublishSharedPublisherState(LocalSwitchEntry, State);
+	FKawaiiPhysicsTestAccessor::BindSharedWindEntry(LocalSwitchWind, LocalSwitchEntry);
+	RunProceduralWindPreApply(Accessor, LocalSwitchWind, Dt);
+	bOk &= TestTrue(TEXT("Symmetric case: disabled publisher sets the flag"),
+	                LocalSwitchWind.RuntimeState->bPublisherWindDisabled);
+
+	LocalSwitchWind.WindSource = EKawaiiPhysicsProceduralWindSource::Local;
+	RunProceduralWindPreApply(Accessor, LocalSwitchWind, Dt);
+	bOk &= TestFalse(TEXT("Symmetric case: switching WindSource to Local also clears the flag"),
+	                 LocalSwitchWind.RuntimeState->bPublisherWindDisabled);
+
+	return bOk;
+}
+
 #endif

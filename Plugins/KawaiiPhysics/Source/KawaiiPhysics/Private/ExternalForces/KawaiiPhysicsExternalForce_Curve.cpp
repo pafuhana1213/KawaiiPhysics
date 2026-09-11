@@ -100,6 +100,7 @@ void FKawaiiPhysics_ExternalForce_Curve::PreApply(FAnimNode_KawaiiPhysics& Node,
 		Force *= RandomizedForceScale;
 	}
 
+	// BoneSpace はボーンローカルの生ベクトルをキャッシュし、Apply 側で BoneTM を1回だけ掛ける
 	Force = ConvertExternalForceToSimulationSpace(Node, PoseContext, Force);
 }
 

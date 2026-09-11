@@ -975,8 +975,10 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::ResolveSharedWindSource(
 
 	if (!SharedWindTag.IsValid())
 	{
-		// Shared を離れる経路なので、退避済みのローカル値があれば書き戻す
+		// Shared を離れる経路なので、退避済みのローカル値があれば書き戻す。
+		// Shared を離れる全経路でこのフラグを戻す（無効 Publisher を採用した後に Tag を外しても Local の風が吹く）
 		RestoreLocalSharedParams();
+		LocalRuntimeState->bPublisherWindDisabled = false;
 		LocalRuntimeState->ResolvedSource = EKawaiiPhysicsProceduralWindSource::Local;
 		LocalRuntimeState->SharedPublisherEntry.Reset();
 		LocalRuntimeState->ResolvedSharedTag = FGameplayTag();
@@ -1085,6 +1087,7 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::PreApply(FAnimNode_KawaiiPhysi
 			RuntimeState->ResolvedSharedTag = FGameplayTag();
 			RuntimeState->LastAppliedSharedSerial = 0;
 			RuntimeState->SharedResolveCountdown = 0;
+			RuntimeState->bPublisherWindDisabled = false;
 		}
 
 		if (!RuntimeState->SharedPublisherEntry.IsValid())
@@ -1180,7 +1183,7 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::PreApply(FAnimNode_KawaiiPhysi
 			const float NoiseY = SampleSmoothNoise(DirectionNoiseU, Seed, 2);
 			NoisyWindDirection = ApplyConeNoiseToDirection(BaseWindDirection, NoiseX, NoiseY, WindDirectionNoiseAngle);
 		}
-		// シミュレーション空間へ変換してフレーム単位でキャッシュ（BoneSpace指定時は Apply 側で更にボーンのTMを掛ける）
+		// BoneSpace はボーンローカルの生ベクトルをキャッシュし、Apply 側で BoneTM を1回だけ掛ける
 		RuntimeState->CachedWindVector = ConvertExternalForceToSimulationSpace(Node, PoseContext, NoisyWindDirection);
 	}
 
@@ -1266,7 +1269,25 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::AnimDrawDebugForEditMode(
 
 	// 風向きの矢印を該当ボーン位置に描画。BaseBoneSpace の場合はコンポーネント空間へ変換してから配置する
 	FVector ArrowLocation = ModifyBone.Location + DebugArrowOffset;
-	FQuat ArrowRotation = RuntimeState->CachedWindVector.GetSafeNormal().ToOrientationQuat();
+	// BoneSpace の風向きは sim 空間のボーン姿勢（PoseRotation）で回す。ArrowRotation は sim 空間なので、BaseBoneSpace のときは非 BoneSpace と同様にコンポーネント空間へ変換する
+	// Apply の BoneTM（ResolveExternalForceBoneTransform）と同じ変換用ボーンを選ぶ。dummy は実親（無効なら親）の回転を使う
+	const FKawaiiPhysicsModifyBone* TransformBone = &ModifyBone;
+	if (ModifyBone.bDummy)
+	{
+		if (Node.ModifyBones.IsValidIndex(ModifyBone.InterBoneRealParentIndex))
+		{
+			TransformBone = &Node.ModifyBones[ModifyBone.InterBoneRealParentIndex];
+		}
+		else if (Node.ModifyBones.IsValidIndex(ModifyBone.ParentIndex))
+		{
+			TransformBone = &Node.ModifyBones[ModifyBone.ParentIndex];
+		}
+	}
+	const bool bBoneSpaceForce = ExternalForceSpace == EExternalForceSpace::BoneSpace;
+	const FVector ArrowDirection = bBoneSpaceForce
+		? TransformBone->PoseRotation.RotateVector(RuntimeState->CachedWindVector)
+		: RuntimeState->CachedWindVector;
+	FQuat ArrowRotation = ArrowDirection.GetSafeNormal().ToOrientationQuat();
 	if (Node.SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
 	{
 		const FTransform& BaseBoneSpace2ComponentSpace = Node.GetBaseBoneSpace2ComponentSpace();
@@ -1284,12 +1305,11 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::AnimDrawDebugForEditMode(
 	if (ModifyBone.Index == 0)
 	{
 		FVector RootArrowLocation = ModifyBone.Location + DebugArrowOffset * 2.0f;
-		FQuat RootArrowRotation = RuntimeState->CachedWindVector.GetSafeNormal().ToOrientationQuat();
+		const FQuat RootArrowRotation = ArrowRotation;
 		if (Node.SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
 		{
 			const FTransform& BaseBoneSpace2ComponentSpace = Node.GetBaseBoneSpace2ComponentSpace();
 			RootArrowLocation = BaseBoneSpace2ComponentSpace.TransformPosition(RootArrowLocation);
-			RootArrowRotation = BaseBoneSpace2ComponentSpace.TransformRotation(RootArrowRotation);
 		}
 
 		const FTransform RootArrowTransform(RootArrowRotation, RootArrowLocation);

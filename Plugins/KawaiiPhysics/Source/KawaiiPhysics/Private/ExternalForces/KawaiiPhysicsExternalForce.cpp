@@ -71,15 +71,17 @@ FVector FKawaiiPhysics_ExternalForce::ConvertExternalForceToSimulationSpace(FAni
                                                                             FComponentSpacePoseContext& PoseContext,
                                                                             const FVector& InForce) const
 {
+	// BoneSpace はボーンローカルのまま返し、Apply 側の BoneTM で1回だけシミュレーション空間へ変換する
+	if (ExternalForceSpace == EExternalForceSpace::BoneSpace)
+	{
+		return InForce;
+	}
+
 	// ExternalForceSpaceに対応する変換元のSimulationSpaceを決定
 	EKawaiiPhysicsSimulationSpace From = EKawaiiPhysicsSimulationSpace::ComponentSpace;
 	if (ExternalForceSpace == EExternalForceSpace::WorldSpace)
 	{
 		From = EKawaiiPhysicsSimulationSpace::WorldSpace;
-	}
-	else if (ExternalForceSpace == EExternalForceSpace::BoneSpace)
-	{
-		From = EKawaiiPhysicsSimulationSpace::BaseBoneSpace;
 	}
 
 	// 変換元からNode.SimulationSpaceへ変換して返す
