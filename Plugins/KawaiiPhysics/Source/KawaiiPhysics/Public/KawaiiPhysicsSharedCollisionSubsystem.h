@@ -24,6 +24,7 @@ class USkinnedAsset;
 class UCharacterMovementComponent;
 class UWorld;
 struct FKawaiiPhysicsSharedPublisherEntry;
+struct FKawaiiPhysicsCollisionBufferWriter;
 
 // 地面ソースの種類（DebugDraw の色分けにも使う） / Ground source kind (also used for debug draw colors)
 UENUM(BlueprintType)
@@ -54,12 +55,21 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedCollisionSourceSlot
 
 	/** ワーカースレッドから呼び出し可能 / Can be called from any thread */
 	void AppendTo(FKawaiiPhysicsSharedCollisionData& OutData) const;
+	/** Internal snapshot rebuild, preserving nested convex capacity. */
+	void AppendToBuffer(FKawaiiPhysicsCollisionBufferWriter& Writer) const;
+	void CopyTo(FKawaiiPhysicsSharedCollisionData& OutData) const;
 
 	/** スロットが古くなっているか判定 / Check if this slot has not been published to recently */
 	bool IsExpired(uint64 CurrentFrame, uint64 MaxAge) const;
 
 	/** スロットを即座に期限切れ化 / Mark this slot as immediately expired */
 	void MarkExpired();
+
+	/** Permanently detach the slot and release its buffer, even while a node retains the handle. */
+	void Retire();
+	/** Check expiration and retire under the publish lock, so a concurrent fresh publish is not discarded. */
+	bool RetireIfExpired(uint64 CurrentFrame, uint64 MaxAge);
+	bool IsRetired() const { return bRetired.load(std::memory_order_acquire); }
 
 	/**
 	 * Publish ごとに 1 増える単調カウンタ。読み手は AppendTo の**前**に読んで前回値と比較し、一致ならコピーを省略できる（後に読むと Publish が割り込んだとき新しい serial を古いデータに紐付けて更新を取りこぼす）
@@ -69,6 +79,8 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedCollisionSourceSlot
 
 private:
 	FKawaiiPhysicsSharedCollisionData Buffer;
+	std::atomic<bool> bRetired{false};
+	void RetireLocked();
 
 	/** Publish ごとに増える単調カウンタ / Monotonic counter incremented per Publish */
 	std::atomic<uint64> PublishSerial{0};
@@ -110,12 +122,19 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedCollisionEntry
 	/** スロットが空か判定（読み取りロック内） / Check if empty under read lock */
 	bool IsEmpty() const;
 
+	/** Permanently detach the entry and every source slot before removing the registry mapping. */
+	void Retire();
+	/** Atomically retire an empty entry relative to GetOrCreateSlot. */
+	bool RetireIfEmpty();
+	bool IsRetired() const { return bRetired.load(std::memory_order_acquire); }
+
 private:
 	/** SourceID（AnimNodeアドレス等）→ 専用スロット / Source ID -> dedicated slot */
 	TMap<uint64, TSharedPtr<FKawaiiPhysicsSharedCollisionSourceSlot>> Slots;
 
 	/** TMap構造変更とイテレーションの競合を防ぐロック / Lock to protect TMap structural changes vs iteration */
 	mutable FRWLock SlotsLock;
+	std::atomic<bool> bRetired{false};
 };
 
 /**
@@ -201,6 +220,9 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionEntry
 	bool HasAnyReader() const;
 	bool IsProviderDisabled() const;
 	bool BuildMergedDesc(FKawaiiPhysicsSimpleWorldCollisionDesc& OutMerged) const;
+#if WITH_DEV_AUTOMATION_TESTS
+	uint64 GetMergedDescRebuildCount() const;
+#endif
 	int32 GetNumDescs() const;
 	int32 GetNumReaders() const;
 	/** GameThread（Tick）専用。弱参照から生ポインタを解決する / GameThread (Tick) only. Resolves raw pointers from weak pointers. */
@@ -215,7 +237,10 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSimpleWorldCollisionEntry
 	 * Self-exclusion compares weak pointers, so OwnSkelComp is never dereferenced.
 	 */
 	void AppendFamilyMemberLimits(const TWeakObjectPtr<const USkeletalMeshComponent>& OwnSkelComp,
-	                              FKawaiiPhysicsSharedCollisionData& OutData) const;
+		FKawaiiPhysicsSharedCollisionData& OutData) const;
+	/** Replace the shape snapshot, optionally including family members other than this reader. */
+	void CopyShapeLimits(const TWeakObjectPtr<const USkeletalMeshComponent>& OwnSkelComp,
+		FKawaiiPhysicsSharedCollisionData& OutData, bool bIncludeFamilyMembers) const;
 	/** 全ファミリーメンバー Slot の PublishSerial 合計を返す / Returns the sum of PublishSerial for all family-member slots */
 	uint64 GetMemberSlotsPublishSerialSum() const;
 	/** ファミリーメンバー Slot 数を返す / Returns the number of family-member slots */
@@ -357,8 +382,15 @@ private:
 	// 次に登録する Desc へ割り当てる登録順。DescLock 内でのみ触る / Registration order for the next Desc. Touched only under DescLock
 	uint64 NextDescRegistrationOrdinal = 1;
 	uint64 LastProviderFrame = 0;
+	// DescLock protects the cache; only provider registration/settings changes rebuild it.
+	FKawaiiPhysicsSimpleWorldCollisionDesc CachedMergedDesc;
+	bool bHasMergedDesc = false;
+#if WITH_DEV_AUTOMATION_TESTS
+	uint64 MergedDescRebuildCount = 0;
+#endif
 	std::atomic<bool> bRegatherRequested{false};
 
+	void RebuildMergedDescLocked();
 	void RemoveMemberSlotsNotInLocked(const TArray<TWeakObjectPtr<const USkeletalMeshComponent>>& MembersToKeep);
 };
 

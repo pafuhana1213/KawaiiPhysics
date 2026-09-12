@@ -3,6 +3,8 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "KawaiiPhysicsTestHarness.h"
 
 namespace
@@ -109,6 +111,21 @@ namespace
 	bool CheckOrCapture(FAutomationTestBase& Test, const TCHAR* ScenarioName, const TArray<FVector>& Actual,
 	                    const TArray<uint64>& Expected)
 	{
+		// Optional diagnostics for comparing builds on the same machine. Keep the stored
+		// expectations and normal test result intact, including any existing mismatch.
+		if (FParse::Param(FCommandLine::Get(), TEXT("KawaiiCaptureGolden")))
+		{
+			for (int32 BoneIndex = 0; BoneIndex < Actual.Num(); ++BoneIndex)
+			{
+				for (int32 ComponentIndex = 0; ComponentIndex < 3; ++ComponentIndex)
+				{
+					Test.AddInfo(FString::Printf(TEXT("GOLDEN_ACTUAL scenario=%s bone=%d component=%d bits=0x%016llx"),
+						ScenarioName, BoneIndex, ComponentIndex,
+						static_cast<unsigned long long>(VectorComponentToBits(Actual[BoneIndex], ComponentIndex))));
+				}
+			}
+		}
+
 		const int32 ExpectedNum = Expected.Num();
 		const int32 ActualNum = Actual.Num() * 3;
 		if (ExpectedNum != ActualNum)

@@ -1,6 +1,7 @@
 // Copyright 2019-2026 pafuhana1213. All Rights Reserved.
 
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
+#include "KawaiiPhysicsCollisionBuffer.h"
 #include "KawaiiPhysicsSharedPublisherTypes.h"
 #include "AnimNode_KawaiiPhysics.h"
 #include "AnimNode_KawaiiPhysicsInternal.h"
@@ -794,6 +795,10 @@ void FKawaiiPhysicsSharedCollisionSourceSlot::Publish(FKawaiiPhysicsSharedCollis
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SharedCollision_Publish);
 
 	FWriteScopeLock WriteLock(BufferLock);
+	if (IsRetired())
+	{
+		return;
+	}
 	// Swapで旧BufferをInOutDataへ返し、呼び出し側が確保済みメモリを再利用できるようにする（ロック区間はSwapのみで最小）
 	Swap(Buffer, InOutData);
 	PublishSerial.fetch_add(1, std::memory_order_release);
@@ -805,7 +810,7 @@ void FKawaiiPhysicsSharedCollisionSourceSlot::Publish(FKawaiiPhysicsSharedCollis
 bool FKawaiiPhysicsSharedCollisionSourceSlot::IsExpired(uint64 CurrentFrame, uint64 MaxAge) const
 {
 	const uint64 LastFrame = LastPublishFrame.load(std::memory_order_acquire);
-	return (LastFrame == 0) || (CurrentFrame - LastFrame > MaxAge);
+	return IsRetired() || (LastFrame == 0) || (CurrentFrame - LastFrame > MaxAge);
 }
 
 void FKawaiiPhysicsSharedCollisionSourceSlot::MarkExpired()
@@ -813,15 +818,58 @@ void FKawaiiPhysicsSharedCollisionSourceSlot::MarkExpired()
 	LastPublishFrame.store(0, std::memory_order_release);
 }
 
+void FKawaiiPhysicsSharedCollisionSourceSlot::RetireLocked()
+{
+	bRetired.store(true, std::memory_order_release);
+	LastPublishFrame.store(0, std::memory_order_release);
+	Buffer = FKawaiiPhysicsSharedCollisionData();
+}
+
+void FKawaiiPhysicsSharedCollisionSourceSlot::Retire()
+{
+	FWriteScopeLock WriteLock(BufferLock);
+	RetireLocked();
+}
+
+bool FKawaiiPhysicsSharedCollisionSourceSlot::RetireIfExpired(uint64 CurrentFrame, uint64 MaxAge)
+{
+	FWriteScopeLock WriteLock(BufferLock);
+	if (!IsExpired(CurrentFrame, MaxAge))
+	{
+		return false;
+	}
+	RetireLocked();
+	return true;
+}
+
 void FKawaiiPhysicsSharedCollisionSourceSlot::AppendTo(FKawaiiPhysicsSharedCollisionData& OutData) const
 {
 	FReadScopeLock ReadLock(BufferLock);
+	if (IsRetired())
+	{
+		return;
+	}
 	OutData.SphericalLimits.Append(Buffer.SphericalLimits);
 	OutData.CapsuleLimits.Append(Buffer.CapsuleLimits);
 	OutData.TaperedCapsuleLimits.Append(Buffer.TaperedCapsuleLimits);
 	OutData.BoxLimits.Append(Buffer.BoxLimits);
 	OutData.PlanarLimits.Append(Buffer.PlanarLimits);
 	OutData.ConvexLimits.Append(Buffer.ConvexLimits);
+}
+
+void FKawaiiPhysicsSharedCollisionSourceSlot::AppendToBuffer(FKawaiiPhysicsCollisionBufferWriter& Writer) const
+{
+	FReadScopeLock ReadLock(BufferLock);
+	if (!IsRetired())
+	{
+		Writer.Append(Buffer);
+	}
+}
+
+void FKawaiiPhysicsSharedCollisionSourceSlot::CopyTo(FKawaiiPhysicsSharedCollisionData& OutData) const
+{
+	FKawaiiPhysicsCollisionBufferWriter Writer(OutData);
+	AppendToBuffer(Writer);
 }
 
 // -------------------------------------------------------------------
@@ -835,6 +883,10 @@ TSharedPtr<FKawaiiPhysicsSharedCollisionSourceSlot> FKawaiiPhysicsSharedCollisio
 	// 既存Slotの検索は読み取りロック
 	{
 		FReadScopeLock ReadLock(SlotsLock);
+		if (IsRetired())
+		{
+			return nullptr;
+		}
 		if (TSharedPtr<FKawaiiPhysicsSharedCollisionSourceSlot>* Existing = Slots.Find(SourceID))
 		{
 			return *Existing;
@@ -843,6 +895,10 @@ TSharedPtr<FKawaiiPhysicsSharedCollisionSourceSlot> FKawaiiPhysicsSharedCollisio
 
 	// 構造変更は書き込みロック。ロック取得待ちの間に他スレッドが作成済みの可能性があるため再確認
 	FWriteScopeLock WriteLock(SlotsLock);
+	if (IsRetired())
+	{
+		return nullptr;
+	}
 	if (TSharedPtr<FKawaiiPhysicsSharedCollisionSourceSlot>* Existing = Slots.Find(SourceID))
 	{
 		return *Existing;
@@ -855,7 +911,7 @@ TSharedPtr<FKawaiiPhysicsSharedCollisionSourceSlot> FKawaiiPhysicsSharedCollisio
 void FKawaiiPhysicsSharedCollisionEntry::ReadMerged(FKawaiiPhysicsSharedCollisionData& OutData) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SharedCollision_ReadMerged);
-	OutData.Reset();
+	FKawaiiPhysicsCollisionBufferWriter Writer(OutData);
 
 	const uint64 CurrentFrame = GFrameCounter;
 
@@ -868,7 +924,7 @@ void FKawaiiPhysicsSharedCollisionEntry::ReadMerged(FKawaiiPhysicsSharedCollisio
 			continue;
 		}
 
-		Pair.Value->AppendTo(OutData);
+		Pair.Value->AppendToBuffer(Writer);
 	}
 }
 
@@ -877,7 +933,7 @@ void FKawaiiPhysicsSharedCollisionEntry::RemoveExpiredSlots(uint64 CurrentFrame,
 	FWriteScopeLock WriteLock(SlotsLock);
 	for (auto SlotIt = Slots.CreateIterator(); SlotIt; ++SlotIt)
 	{
-		if (SlotIt->Value->IsExpired(CurrentFrame, MaxAge))
+		if (SlotIt->Value->RetireIfExpired(CurrentFrame, MaxAge))
 		{
 			SlotIt.RemoveCurrent();
 		}
@@ -894,6 +950,28 @@ bool FKawaiiPhysicsSharedCollisionEntry::IsEmpty() const
 {
 	FReadScopeLock ReadLock(SlotsLock);
 	return Slots.IsEmpty();
+}
+
+void FKawaiiPhysicsSharedCollisionEntry::Retire()
+{
+	FWriteScopeLock WriteLock(SlotsLock);
+	bRetired.store(true, std::memory_order_release);
+	for (const auto& Pair : Slots)
+	{
+		Pair.Value->Retire();
+	}
+	Slots.Empty();
+}
+
+bool FKawaiiPhysicsSharedCollisionEntry::RetireIfEmpty()
+{
+	FWriteScopeLock WriteLock(SlotsLock);
+	if (!Slots.IsEmpty())
+	{
+		return false;
+	}
+	bRetired.store(true, std::memory_order_release);
+	return true;
 }
 
 // -------------------------------------------------------------------
@@ -1069,6 +1147,7 @@ bool FKawaiiPhysicsSimpleWorldCollisionEntry::SetDesc(
 
 	FDescSlot& DescSlotRef = DescSlots.FindOrAdd(SourceID);
 	const bool bProviderChanged = !bIsNewSource && (DescSlotRef.bProvider != bProvider);
+	const bool bProviderSettingsChanged = bProvider && (bIsNewSource || !(DescSlotRef.Desc == InDesc));
 	if (bIsNewSource)
 	{
 		// 登録順は新規登録時にだけ確定する（同じノードが設定を変えても順位は維持する）。
@@ -1104,20 +1183,10 @@ bool FKawaiiPhysicsSimpleWorldCollisionEntry::SetDesc(
 		}
 	}
 
-	if (bProvider)
+	if (bProviderChanged || bProviderSettingsChanged)
 	{
-		TArray<FKawaiiPhysicsSimpleWorldCollisionDesc> ProviderDescs;
-		ProviderDescs.Reserve(DescSlots.Num());
-		for (const auto& Pair : DescSlots)
-		{
-			if (Pair.Value.bProvider)
-			{
-				ProviderDescs.Add(Pair.Value.Desc);
-			}
-		}
-
-		const bool bKeepMemberSlots = !ProviderDescs.IsEmpty()
-			&& FKawaiiPhysicsSimpleWorldCollisionDesc::Merge(ProviderDescs).bGatherFamilyMembers;
+		RebuildMergedDescLocked();
+		const bool bKeepMemberSlots = bHasMergedDesc && CachedMergedDesc.bGatherFamilyMembers;
 		if (!bKeepMemberSlots)
 		{
 			TArray<TWeakObjectPtr<const USkeletalMeshComponent>> EmptyMembers;
@@ -1141,18 +1210,18 @@ void FKawaiiPhysicsSimpleWorldCollisionEntry::RemoveDesc(uint64 SourceID)
 	}
 
 	FWriteScopeLock WriteLock(DescLock);
+	const FDescSlot* RemovedSlot = DescSlots.Find(SourceID);
+	const bool bRemovedProvider = RemovedSlot && RemovedSlot->bProvider;
 	if (DescSlots.Remove(SourceID) > 0)
 	{
-		TArray<FKawaiiPhysicsSimpleWorldCollisionDesc> ProviderDescs;
+		if (bRemovedProvider)
+		{
+			RebuildMergedDescLocked();
+		}
 		TArray<TWeakObjectPtr<const USkeletalMeshComponent>> MembersToKeep;
-		ProviderDescs.Reserve(DescSlots.Num());
 		MembersToKeep.Reserve(DescSlots.Num());
 		for (const auto& Pair : DescSlots)
 		{
-			if (Pair.Value.bProvider)
-			{
-				ProviderDescs.Add(Pair.Value.Desc);
-			}
 			// Worker から呼ばれるため、弱参照のままスレッドセーフ判定だけで残す/捨てるを決める。
 			if (Pair.Value.SkelComp.IsValid(false, true))
 			{
@@ -1160,8 +1229,7 @@ void FKawaiiPhysicsSimpleWorldCollisionEntry::RemoveDesc(uint64 SourceID)
 			}
 		}
 
-		const bool bKeepMemberSlots = !ProviderDescs.IsEmpty()
-			&& FKawaiiPhysicsSimpleWorldCollisionDesc::Merge(ProviderDescs).bGatherFamilyMembers;
+		const bool bKeepMemberSlots = bHasMergedDesc && CachedMergedDesc.bGatherFamilyMembers;
 		if (bKeepMemberSlots)
 		{
 			RemoveMemberSlotsNotInLocked(MembersToKeep);
@@ -1219,6 +1287,8 @@ bool FKawaiiPhysicsSimpleWorldCollisionEntry::AddReaderMember(
 		return false;
 	}
 
+	const FDescSlot* PreviousSlot = DescSlots.Find(SourceID);
+	const bool bWasProvider = PreviousSlot && PreviousSlot->bProvider;
 	FDescSlot& DescSlotRef = DescSlots.FindOrAdd(SourceID);
 	// Worker から呼ばれるため、差し替え検知は弱参照同士の比較で行う（Get() でデリファレンスしない）。
 	const bool bSkelCompChanged = DescSlotRef.SkelComp != SkelComp;
@@ -1237,26 +1307,23 @@ bool FKawaiiPhysicsSimpleWorldCollisionEntry::AddReaderMember(
 		DescSlotRef.bProvider = false;
 		bRegatherRequested.store(true, std::memory_order_release);
 	}
-	if (bHasSkelComp && bSkelCompChanged)
+	if (bWasProvider)
 	{
-		TArray<FKawaiiPhysicsSimpleWorldCollisionDesc> ProviderDescs;
+		RebuildMergedDescLocked();
+	}
+	if (bWasProvider || (bHasSkelComp && bSkelCompChanged))
+	{
 		TArray<TWeakObjectPtr<const USkeletalMeshComponent>> MembersToKeep;
-		ProviderDescs.Reserve(DescSlots.Num());
 		MembersToKeep.Reserve(DescSlots.Num());
 		for (const auto& Pair : DescSlots)
 		{
-			if (Pair.Value.bProvider)
-			{
-				ProviderDescs.Add(Pair.Value.Desc);
-			}
 			if (Pair.Value.SkelComp.IsValid(false, true))
 			{
 				MembersToKeep.AddUnique(Pair.Value.SkelComp);
 			}
 		}
 
-		const bool bKeepMemberSlots = !ProviderDescs.IsEmpty()
-			&& FKawaiiPhysicsSimpleWorldCollisionDesc::Merge(ProviderDescs).bGatherFamilyMembers;
+		const bool bKeepMemberSlots = bHasMergedDesc && CachedMergedDesc.bGatherFamilyMembers;
 		if (bKeepMemberSlots)
 		{
 			RemoveMemberSlotsNotInLocked(MembersToKeep);
@@ -1316,11 +1383,13 @@ void FKawaiiPhysicsSimpleWorldCollisionEntry::RemoveExpiredDescs(uint64 CurrentF
 {
 	FWriteScopeLock WriteLock(DescLock);
 	bool bRemoved = false;
+	bool bRemovedProvider = false;
 	for (auto DescIt = DescSlots.CreateIterator(); DescIt; ++DescIt)
 	{
 		const uint64 LastFrame = DescIt->Value.LastReadFrame;
 		if ((LastFrame == 0) || (CurrentFrame - LastFrame > MaxAge))
 		{
+			bRemovedProvider |= DescIt->Value.bProvider;
 			DescIt.RemoveCurrent();
 			bRemoved = true;
 		}
@@ -1328,24 +1397,21 @@ void FKawaiiPhysicsSimpleWorldCollisionEntry::RemoveExpiredDescs(uint64 CurrentF
 
 	if (bRemoved)
 	{
-		TArray<FKawaiiPhysicsSimpleWorldCollisionDesc> ProviderDescs;
+		if (bRemovedProvider)
+		{
+			RebuildMergedDescLocked();
+		}
 		TArray<TWeakObjectPtr<const USkeletalMeshComponent>> MembersToKeep;
-		ProviderDescs.Reserve(DescSlots.Num());
 		MembersToKeep.Reserve(DescSlots.Num());
 		for (const auto& Pair : DescSlots)
 		{
-			if (Pair.Value.bProvider)
-			{
-				ProviderDescs.Add(Pair.Value.Desc);
-			}
 			if (Pair.Value.SkelComp.IsValid(false, true))
 			{
 				MembersToKeep.AddUnique(Pair.Value.SkelComp);
 			}
 		}
 
-		const bool bKeepMemberSlots = !ProviderDescs.IsEmpty()
-			&& FKawaiiPhysicsSimpleWorldCollisionDesc::Merge(ProviderDescs).bGatherFamilyMembers;
+		const bool bKeepMemberSlots = bHasMergedDesc && CachedMergedDesc.bGatherFamilyMembers;
 		if (bKeepMemberSlots)
 		{
 			RemoveMemberSlotsNotInLocked(MembersToKeep);
@@ -1508,6 +1574,25 @@ void FKawaiiPhysicsSimpleWorldCollisionEntry::AppendFamilyMemberLimits(
 	}
 }
 
+void FKawaiiPhysicsSimpleWorldCollisionEntry::CopyShapeLimits(
+	const TWeakObjectPtr<const USkeletalMeshComponent>& OwnSkelComp,
+	FKawaiiPhysicsSharedCollisionData& OutData, bool bIncludeFamilyMembers) const
+{
+	FKawaiiPhysicsCollisionBufferWriter Writer(OutData);
+	Slot.AppendToBuffer(Writer);
+	if (bIncludeFamilyMembers)
+	{
+		FReadScopeLock ReadLock(DescLock);
+		for (const auto& Pair : MemberSlots)
+		{
+			if (Pair.Key.IsValid(false, true) && Pair.Key != OwnSkelComp && Pair.Value.IsValid())
+			{
+				Pair.Value->AppendToBuffer(Writer);
+			}
+		}
+	}
+}
+
 uint64 FKawaiiPhysicsSimpleWorldCollisionEntry::GetMemberSlotsPublishSerialSum() const
 {
 	uint64 SerialSum = 0;
@@ -1557,28 +1642,44 @@ void FKawaiiPhysicsSimpleWorldCollisionEntry::RemoveMemberSlotsNotInLocked(
 bool FKawaiiPhysicsSimpleWorldCollisionEntry::BuildMergedDesc(
 	FKawaiiPhysicsSimpleWorldCollisionDesc& OutMerged) const
 {
+	FReadScopeLock ReadLock(DescLock);
+	if (!bHasMergedDesc)
+	{
+		return false;
+	}
+	OutMerged = CachedMergedDesc;
+	return true;
+}
+
+#if WITH_DEV_AUTOMATION_TESTS
+uint64 FKawaiiPhysicsSimpleWorldCollisionEntry::GetMergedDescRebuildCount() const
+{
+	FReadScopeLock ReadLock(DescLock);
+	return MergedDescRebuildCount;
+}
+#endif
+
+void FKawaiiPhysicsSimpleWorldCollisionEntry::RebuildMergedDescLocked()
+{
+#if WITH_DEV_AUTOMATION_TESTS
+	++MergedDescRebuildCount;
+#endif
 	// TMap の反復順は SourceID（ノードアドレス）のハッシュ順で非決定的なため、登録順に並べてから Merge する
 	// （CollisionChannel の「最初の非 ECC_MAX を採用」を決定的にする）。
 	TArray<TPair<uint64, FKawaiiPhysicsSimpleWorldCollisionDesc>> OrderedDescs;
+	OrderedDescs.Reserve(DescSlots.Num());
+	for (const auto& Pair : DescSlots)
 	{
-		FReadScopeLock ReadLock(DescLock);
-		if (DescSlots.IsEmpty())
+		if (Pair.Value.bProvider)
 		{
-			return false;
-		}
-
-		OrderedDescs.Reserve(DescSlots.Num());
-		for (const auto& Pair : DescSlots)
-		{
-			if (Pair.Value.bProvider)
-			{
-				OrderedDescs.Emplace(Pair.Value.RegistrationOrdinal, Pair.Value.Desc);
-			}
+			OrderedDescs.Emplace(Pair.Value.RegistrationOrdinal, Pair.Value.Desc);
 		}
 	}
-	if (OrderedDescs.IsEmpty())
+	bHasMergedDesc = !OrderedDescs.IsEmpty();
+	if (!bHasMergedDesc)
 	{
-		return false;
+		CachedMergedDesc = FKawaiiPhysicsSimpleWorldCollisionDesc();
+		return;
 	}
 
 	// RegistrationOrdinal は一意なので安定ソートは不要。
@@ -1595,8 +1696,7 @@ bool FKawaiiPhysicsSimpleWorldCollisionEntry::BuildMergedDesc(
 		Descs.Add(OrderedDesc.Value);
 	}
 
-	OutMerged = FKawaiiPhysicsSimpleWorldCollisionDesc::Merge(Descs);
-	return true;
+	CachedMergedDesc = FKawaiiPhysicsSimpleWorldCollisionDesc::Merge(Descs);
 }
 
 void FKawaiiPhysicsSimpleWorldCollisionEntry::RequestRegather()
@@ -1838,7 +1938,7 @@ TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> UKawaiiPhysicsSharedCollisionSubs
 	if (const TSharedPtr<FKawaiiPhysicsSharedCollisionEntry>* Found = Registry.Find(Key))
 	{
 		// Actorが無効ならスキップ（Tick()で定期的にクリーンアップ）
-		if (Key.Key.IsValid())
+		if (Key.Key.IsValid() && !(*Found)->IsRetired())
 		{
 			return *Found;
 		}
@@ -1881,7 +1981,10 @@ TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> UKawaiiPhysicsSharedCollisionSubs
 	FWriteScopeLock WriteLock(RegistryLock);
 	if (TSharedPtr<FKawaiiPhysicsSharedCollisionEntry>* Existing = Registry.Find(Key))
 	{
-		return *Existing;
+		if (!(*Existing)->IsRetired())
+		{
+			return *Existing;
+		}
 	}
 	TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> NewEntry = MakeShared<FKawaiiPhysicsSharedCollisionEntry>();
 	Registry.Add(Key, NewEntry);
@@ -2243,40 +2346,65 @@ void UKawaiiPhysicsSharedCollisionSubsystem::PublishSimpleWorldShapeLimits(
 	FKawaiiPhysicsSimpleWorldCollisionEntry& Entry,
 	float BoxEnableThreshold)
 {
-	Entry.PublishScratch.Reset();
-	Entry.MemberPublishScratch.Reset();
-	for (const FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent& Component : Entry.GatheredComponents)
+	// Only cursor metadata is temporary; published member buffers survive the swap for reuse.
+	TMap<TWeakObjectPtr<const USkeletalMeshComponent>, int32, TInlineSetAllocator<8>> MemberConvexCounts;
 	{
-		FKawaiiPhysicsSharedCollisionData* PublishTarget = &Entry.PublishScratch;
-		if (Component.MemberSkelComp.IsValid())
+		FKawaiiPhysicsCollisionBufferWriter MainWriter(Entry.PublishScratch);
+		for (const FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent& Component : Entry.GatheredComponents)
 		{
-			PublishTarget = &Entry.MemberPublishScratch.FindOrAdd(Component.MemberSkelComp);
-		}
+			auto AppendComponent = [&Component, BoxEnableThreshold](FKawaiiPhysicsCollisionBufferWriter& Writer)
+			{
+				if (!Component.BodyBindings.IsEmpty())
+				{
+					KawaiiPhysicsSimpleWorldCollision::AppendFadedSkeletalLocalLimits(
+						Component.LocalLimits, MakeArrayView(Component.BodyBindings),
+						MakeArrayView(Component.LastBodyWorldTMs), Component.FadeAlpha, Writer, BoxEnableThreshold);
+				}
+				else
+				{
+					KawaiiPhysicsSimpleWorldCollision::AppendFadedLocalLimits(
+						Component.LocalLimits, Component.FadeAlpha, Component.LastComponentTM, Writer, BoxEnableThreshold);
+				}
+			};
+			if (!Component.MemberSkelComp.IsValid())
+			{
+				AppendComponent(MainWriter);
+				continue;
+			}
 
-		// フェード計算本体は KawaiiPhysicsSimpleWorldCollision 名前空間へ移設済み（単体テスト可能化のため）。
-		// しきい値定数はここ（Subsystem側）で保持したまま引数として渡す。
-		if (!Component.BodyBindings.IsEmpty())
+			FKawaiiPhysicsSharedCollisionData& Data = Entry.MemberPublishScratch.FindOrAdd(Component.MemberSkelComp);
+			int32* Count = MemberConvexCounts.Find(Component.MemberSkelComp);
+			if (!Count)
+			{
+				Count = &MemberConvexCounts.Add(Component.MemberSkelComp, 0);
+				// Start a new snapshot while leaving the convex elements alive until finalization.
+				FKawaiiPhysicsCollisionBufferWriter ResetWriter(Data);
+				ResetWriter.ConvexIndex = Data.ConvexLimits.Num();
+			}
+			FKawaiiPhysicsCollisionBufferWriter MemberWriter(Data, *Count);
+			AppendComponent(MemberWriter);
+			*Count = MemberWriter.ConvexIndex;
+		}
+	}
+	for (auto It = Entry.MemberPublishScratch.CreateIterator(); It; ++It)
+	{
+		if (const int32* Count = MemberConvexCounts.Find(It.Key()))
 		{
-			KawaiiPhysicsSimpleWorldCollision::AppendFadedSkeletalLocalLimits(
-				Component.LocalLimits,
-				MakeArrayView(Component.BodyBindings),
-				MakeArrayView(Component.LastBodyWorldTMs),
-				Component.FadeAlpha,
-				*PublishTarget,
-				BoxEnableThreshold);
+			FKawaiiPhysicsCollisionBufferWriter::SetConvexCount(It.Value().ConvexLimits, *Count);
 		}
 		else
 		{
-			KawaiiPhysicsSimpleWorldCollision::AppendFadedLocalLimits(
-				Component.LocalLimits,
-				Component.FadeAlpha,
-				Component.LastComponentTM,
-				*PublishTarget,
-				BoxEnableThreshold);
+			// A departed member must release the old publish buffer, including all nested arrays.
+			It.RemoveCurrent();
 		}
 	}
 
+	const int32 PublishedConvexCount = Entry.PublishScratch.ConvexLimits.Num();
 	Entry.Slot.Publish(Entry.PublishScratch);
+	// Swap returns the old snapshot. Trim shapes removed by this publication immediately,
+	// even when the now-static scene never needs another publish.
+	FKawaiiPhysicsCollisionBufferWriter::SetConvexCount(Entry.PublishScratch.ConvexLimits,
+		FMath::Min(Entry.PublishScratch.ConvexLimits.Num(), PublishedConvexCount));
 	{
 		FWriteScopeLock WriteLock(Entry.DescLock);
 		for (auto& Pair : Entry.MemberPublishScratch)
@@ -2292,6 +2420,8 @@ void UKawaiiPhysicsSharedCollisionSubsystem::PublishSimpleWorldShapeLimits(
 				MemberSlot = MakeShared<FKawaiiPhysicsSharedCollisionSourceSlot>();
 			}
 			MemberSlot->Publish(Pair.Value);
+			FKawaiiPhysicsCollisionBufferWriter::SetConvexCount(Pair.Value.ConvexLimits,
+				FMath::Min(Pair.Value.ConvexLimits.Num(), MemberConvexCounts.FindChecked(Pair.Key)));
 		}
 
 		for (auto& Pair : Entry.MemberSlots)
@@ -2302,6 +2432,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::PublishSimpleWorldShapeLimits(
 			}
 			Entry.EmptyMemberPublishScratch.Reset();
 			Pair.Value->Publish(Entry.EmptyMemberPublishScratch);
+			Entry.EmptyMemberPublishScratch.Reset();
 		}
 	}
 	Entry.bWorldLimitsDirty = false;
@@ -3177,6 +3308,10 @@ void UKawaiiPhysicsSharedCollisionSubsystem::Deinitialize()
 {
 	{
 		FWriteScopeLock WriteLock(RegistryLock);
+		for (const auto& Pair : Registry)
+		{
+			Pair.Value->Retire();
+		}
 		Registry.Empty();
 	}
 	{
@@ -3229,6 +3364,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::Tick(float DeltaTime)
 			// Actorが無効 → エントリ除去
 			if (!It->Key.Key.IsValid())
 			{
+				It->Value->Retire();
 				It.RemoveCurrent();
 				continue;
 			}
@@ -3238,7 +3374,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::Tick(float DeltaTime)
 			Entry.RemoveExpiredSlots(CurrentFrame, CVarSharedCollisionCleanupMaxAge.GetValueOnGameThread());
 
 			// スロットが空になったエントリも除去
-			if (Entry.IsEmpty())
+			if (Entry.RetireIfEmpty())
 			{
 				It.RemoveCurrent();
 			}

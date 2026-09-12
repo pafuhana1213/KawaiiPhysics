@@ -1,4 +1,4 @@
-﻿// Copyright 2019-2026 pafuhana1213. All Rights Reserved.
+// Copyright 2019-2026 pafuhana1213. All Rights Reserved.
 
 #include "AnimNode_KawaiiPhysics.h"
 
@@ -793,42 +793,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	// これによりランタイム有効化(BP setter)も全ビルド構成で正しく動作する。
 	if ((bSharedCollisionSource || bUseSharedCollision) && SharedCollisionGroupTag.IsValid())
 	{
-		// 初期化（未初期化時のみ。Subsystem側のロックでWorkerから安全に呼べる）
-		if (!bSharedCollisionInitialized)
-		{
-			const int32 RetryThreshold = CVarSharedCollisionInitRetryThreshold.GetValueOnAnyThread();
-			const int32 ThrottleInterval = FMath::Max(1, CVarSharedCollisionInitRetryThrottleInterval.GetValueOnAnyThread());
-
-			if (!bSharedCollisionInitWarningLogged)
-			{
-				// 警告前: 毎フレーム試行（正常な起動ウィンドウでの即接続を維持）。しきい値到達で1回だけ警告し間引きへ移行
-				InitializeSharedCollision();
-				if (!bSharedCollisionInitialized)
-				{
-					SharedCollisionInitRetryCount++;
-					if (SharedCollisionInitRetryCount > RetryThreshold)
-					{
-						KAWAII_LOG_NODE_WARNING(LogKawaiiPhysics,
-							TEXT("SharedCollision: Target could not find source entry for tag [%s]. "
-								"Ensure a source node with matching tag exists in the same actor/child-actor family."),
-							*SharedCollisionGroupTag.ToString());
-						bSharedCollisionInitWarningLogged = true;
-						SharedCollisionInitRetryCount = 0; // 間引きフェーズ用にカウンタを0起点で再利用
-					}
-				}
-			}
-			else
-			{
-				// 警告後(Sourceが見つからない誤設定の可能性大): ThrottleInterval間隔で試行。カウンタは[0, ThrottleInterval]に
-				// 収まりオーバーフローしない。誤設定タグでの毎フレームのfamily-root walk/registry lock取得を削減しつつ、
-				// Sourceが後から現れた場合の接続は維持する（最大ThrottleInterval遅れ）。
-				if (++SharedCollisionInitRetryCount >= ThrottleInterval)
-				{
-					SharedCollisionInitRetryCount = 0;
-					InitializeSharedCollision();
-				}
-			}
-		}
+		UpdateSharedCollisionRegistration();
 
 		// Target: 全Sourceのコリジョンをマージして取得
 		if (bUseSharedCollision && !bSharedCollisionSource && CachedSharedCollisionEntry.IsValid())
@@ -1024,6 +989,12 @@ void FAnimNode_KawaiiPhysics::OnInitializeAnimInstance(const FAnimInstanceProxy*
 {
 	FAnimNode_SkeletalControlBase::OnInitializeAnimInstance(InProxy, InAnimInstance);
 
+#if WITH_EDITOR
+	bCacheMirrorTablesForPIE = InAnimInstance && InAnimInstance->GetWorld()
+		&& InAnimInstance->GetWorld()->WorldType == EWorldType::PIE;
+	CachedMirrorTables.Reset();
+#endif
+
 	CachedSimpleWorldCollisionSkelComp.Reset();
 
 	// 共有コリジョン初期化で使うSubsystemとowner ActorをGameThreadで1回だけ解決してキャッシュする。
@@ -1102,5 +1073,58 @@ FVector FAnimNode_KawaiiPhysics::GetBoneForwardVector(const FQuat& Rotation) con
 		return Rotation.GetAxisZ();
 	case EBoneForwardAxis::Z_Negative:
 		return -Rotation.GetAxisZ();
+	}
+}
+
+void FAnimNode_KawaiiPhysics::UpdateSharedCollisionRegistration()
+{
+	// Cleanup can detach handles while a node is not evaluated (LOD, visibility, etc.).
+	// Reconnect using the same grace period and retry policy as a requested reinitialization.
+	if ((CachedSharedCollisionEntry.IsValid() && CachedSharedCollisionEntry->IsRetired())
+		|| (CachedSourceSlot.IsValid() && CachedSourceSlot->IsRetired()))
+	{
+		bSharedCollisionInitialized = false;
+		CachedSharedCollisionEntry.Reset();
+		CachedSourceSlot.Reset();
+		SharedCollisionMergedData.Reset();
+		SharedCollisionInitRetryCount = 0;
+		bSharedCollisionInitWarningLogged = false;
+	}
+
+	// 初期化（未初期化時のみ。Subsystem側のロックでWorkerから安全に呼べる）
+	if (!bSharedCollisionInitialized)
+	{
+		const int32 RetryThreshold = CVarSharedCollisionInitRetryThreshold.GetValueOnAnyThread();
+		const int32 ThrottleInterval = FMath::Max(1, CVarSharedCollisionInitRetryThrottleInterval.GetValueOnAnyThread());
+
+		if (!bSharedCollisionInitWarningLogged)
+		{
+			// 警告前: 毎フレーム試行（正常な起動ウィンドウでの即接続を維持）。しきい値到達で1回だけ警告し間引きへ移行
+			InitializeSharedCollision();
+			if (!bSharedCollisionInitialized)
+			{
+				SharedCollisionInitRetryCount++;
+				if (SharedCollisionInitRetryCount > RetryThreshold)
+				{
+					KAWAII_LOG_NODE_WARNING(LogKawaiiPhysics,
+						TEXT("SharedCollision: Target could not find source entry for tag [%s]. "
+							"Ensure a source node with matching tag exists in the same actor/child-actor family."),
+						*SharedCollisionGroupTag.ToString());
+					bSharedCollisionInitWarningLogged = true;
+					SharedCollisionInitRetryCount = 0; // 間引きフェーズ用にカウンタを0起点で再利用
+				}
+			}
+		}
+		else
+		{
+			// 警告後(Sourceが見つからない誤設定の可能性大): ThrottleInterval間隔で試行。カウンタは[0, ThrottleInterval]に
+			// 収まりオーバーフローしない。誤設定タグでの毎フレームのfamily-root walk/registry lock取得を削減しつつ、
+			// Sourceが後から現れた場合の接続は維持する（最大ThrottleInterval遅れ）。
+			if (++SharedCollisionInitRetryCount >= ThrottleInterval)
+			{
+				SharedCollisionInitRetryCount = 0;
+				InitializeSharedCollision();
+			}
+		}
 	}
 }
