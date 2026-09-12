@@ -23,6 +23,12 @@ struct FKawaiiPhysicsTestAccessor
 {
 	FAnimNode_KawaiiPhysics Node;
 
+#if WITH_EDITOR
+	void SetMirrorTableCacheForPIE(bool bEnabled) { Node.bCacheMirrorTablesForPIE = bEnabled; }
+	void ApplyMirrorLimits(const FBoneContainer& RequiredBones) { Node.ApplyMirrorLimits(RequiredBones); }
+	const FKawaiiPhysicsMirrorTableCache* GetMirrorTableCache() const { return Node.CachedMirrorTables.Get(); }
+#endif
+
 	// ========================================================================
 	//  セットアップ
 	// ========================================================================
@@ -234,6 +240,25 @@ struct FKawaiiPhysicsTestAccessor
 	void InitializeSimpleWorldCollision()
 	{
 		Node.InitializeSimpleWorldCollision();
+	}
+
+	// Uses the exact registration/retry path called by EvaluateSkeletalControl_AnyThread.
+	void UpdateSharedCollisionRegistration() { Node.UpdateSharedCollisionRegistration(); }
+	TSharedPtr<FKawaiiPhysicsSharedCollisionEntry> GetSharedCollisionEntry() const
+	{
+		return Node.CachedSharedCollisionEntry;
+	}
+	TSharedPtr<FKawaiiPhysicsSharedCollisionSourceSlot> GetSharedCollisionSourceSlot() const
+	{
+		return Node.CachedSourceSlot;
+	}
+	bool IsSharedCollisionInitialized() const { return Node.bSharedCollisionInitialized; }
+	int32 GetSharedCollisionRetryCount() const { return Node.SharedCollisionInitRetryCount; }
+	bool HasSharedCollisionWarning() const { return Node.bSharedCollisionInitWarningLogged; }
+	void SetSharedCollisionRetryState(int32 RetryCount, bool bWarningLogged)
+	{
+		Node.SharedCollisionInitRetryCount = RetryCount;
+		Node.bSharedCollisionInitWarningLogged = bWarningLogged;
 	}
 
 	void InjectSharedPublisherState(const FKawaiiPhysicsSharedPublisherState& State,

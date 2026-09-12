@@ -3,6 +3,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
+#include "KawaiiPhysicsMemoryTraceRegion.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "HAL/PlatformTime.h"
 #include "Runtime/Launch/Resources/Version.h"
@@ -642,7 +643,7 @@ namespace
 
 	bool RunSimpleWorldReadPerf(FAutomationTestBase& Test, const TCHAR* TestLabel, int32 PublishInterval)
 	{
-		constexpr int32 MeasureFrames = 100000;
+		const int32 MeasureFrames = FParse::Param(FCommandLine::Get(), TEXT("KawaiiMemoryCapture")) ? 1000 : 100000;
 		const int32 SafePublishInterval = FMath::Max(1, PublishInterval);
 		const FKawaiiPhysicsSharedCollisionData SourceTemplate = MakeSimpleWorldReadSourceTemplate();
 		const FKawaiiPhysicsSharedCollisionData GroundTemplate = MakeSimpleWorldReadGroundTemplate();
@@ -653,6 +654,8 @@ namespace
 
 		for (int32 Trial = 0; Trial < GTrials; ++Trial)
 		{
+			FKawaiiPhysicsMemoryTraceRegion MemoryRegion(SafePublishInterval == 1
+				? TEXT("SimpleWorldReadEvery1") : TEXT("SimpleWorldReadEvery12"), Trial + 1);
 			TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> Entry =
 				MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
 			FKawaiiPhysicsTestAccessor Accessor;
@@ -684,6 +687,7 @@ namespace
 				Accessor.UpdateSimpleWorldCollisionLimits(PoseContext);
 			}
 
+			MemoryRegion.Warmup();
 			const double StartSeconds = FPlatformTime::Seconds();
 			for (int32 Frame = 0; Frame < MeasureFrames; ++Frame)
 			{
@@ -697,6 +701,7 @@ namespace
 				Accessor.UpdateSimpleWorldCollisionLimits(PoseContext);
 			}
 			const double ElapsedSeconds = FPlatformTime::Seconds() - StartSeconds;
+			MemoryRegion.End();
 			const double MsPerFrame = ElapsedSeconds * 1000.0 / static_cast<double>(MeasureFrames);
 
 			Test.AddInfo(FString::Printf(

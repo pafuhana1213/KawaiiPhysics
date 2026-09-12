@@ -176,4 +176,10 @@ protected:
 
 	/** Checks if the external force can be applied to a bone */
 	bool CanApply(const FKawaiiPhysicsModifyBone& Bone) const;
+
+private:
+	friend struct FKawaiiPhysicsExternalForcePostApply;
+
+	// Runtime-only: the node destroys a one-shot after the complete virtual callback returns.
+	bool bRemovalRequestedAfterPostApply = false;
 };

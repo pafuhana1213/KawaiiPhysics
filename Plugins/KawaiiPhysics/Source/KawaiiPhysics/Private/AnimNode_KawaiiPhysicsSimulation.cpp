@@ -7,6 +7,7 @@
 #include "KawaiiPhysicsCustomExternalForce.h"
 #include "KawaiiPhysicsDeveloperSettings.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
+#include "KawaiiPhysicsExternalForcePostApply.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
@@ -307,22 +308,22 @@ void FAnimNode_KawaiiPhysics::ConsumeAndRemoveExpiredTransientExternalForces(con
 		}
 	}
 
-	TArray<FKawaiiPhysicsTransientExternalForce> PendingForces;
-	TArray<FKawaiiPhysicsTransientGustRequest> PendingGusts;
-	TArray<FKawaiiPhysicsTransientForceStopRequest> PendingStops;
+	auto& PendingForces = TransientForceStore.ConsumingForces;
+	auto& PendingGusts = TransientForceStore.ConsumingGusts;
+	auto& PendingStops = TransientForceStore.ConsumingStops;
 	if (TransientForceStore.Queue.IsValid())
 	{
 		FScopeLock Lock(&TransientForceStore.Queue->Mutex);
-		PendingForces = MoveTemp(TransientForceStore.Queue->PendingForces);
-		PendingGusts = MoveTemp(TransientForceStore.Queue->PendingGusts);
-		PendingStops = MoveTemp(TransientForceStore.Queue->PendingStops);
+		Swap(PendingForces, TransientForceStore.Queue->PendingForces);
+		Swap(PendingGusts, TransientForceStore.Queue->PendingGusts);
+		Swap(PendingStops, TransientForceStore.Queue->PendingStops);
 	}
 
 	for (FKawaiiPhysicsTransientExternalForce& PendingForce : PendingForces)
 	{
 		if (FKawaiiPhysics_ExternalForce* Force = PendingForce.Force.GetMutablePtr<FKawaiiPhysics_ExternalForce>())
 		{
-			// PostApplyのone-shot削除はNode.ExternalForcesを走査するため、一時外力では必ず無効化する
+			// 一時外力は one-shot ではなくストアの寿命で削除する
 			Force->bIsOneShot = false;
 		}
 		TransientForceStore.Items.Emplace(MoveTemp(PendingForce));
@@ -382,6 +383,9 @@ void FAnimNode_KawaiiPhysics::ConsumeAndRemoveExpiredTransientExternalForces(con
 		       static_cast<long long>(TransientForceStore.Items[0].HandleId));
 		TransientForceStore.Items.RemoveAt(0);
 	}
+	PendingForces.Reset();
+	PendingGusts.Reset();
+	PendingStops.Reset();
 }
 
 bool FAnimNode_KawaiiPhysics::ConsumeAndAdvancePhysicsSettingsMultipliers(const float InFrameDeltaTime)
@@ -453,15 +457,15 @@ bool FAnimNode_KawaiiPhysics::ConsumeAndAdvancePhysicsSettingsMultipliers(const 
 		}
 	}
 
-	TArray<FKawaiiPhysicsSettingsMultiplierPushRequest> PendingSets;
-	TArray<FKawaiiPhysicsSettingsMultiplierRequest> PendingOverrides;
-	TArray<FKawaiiPhysicsTransientForceStopRequest> PendingStops;
+	auto& PendingSets = TransientForceStore.ConsumingSettingsMultiplierPushes;
+	auto& PendingOverrides = TransientForceStore.ConsumingSettingsMultipliers;
+	auto& PendingStops = TransientForceStore.ConsumingSettingsMultiplierStops;
 	if (TransientForceStore.Queue.IsValid())
 	{
 		FScopeLock Lock(&TransientForceStore.Queue->Mutex);
-		PendingSets = MoveTemp(TransientForceStore.Queue->PendingSettingsMultiplierPushes);
-		PendingOverrides = MoveTemp(TransientForceStore.Queue->PendingSettingsMultipliers);
-		PendingStops = MoveTemp(TransientForceStore.Queue->PendingSettingsMultiplierStops);
+		Swap(PendingSets, TransientForceStore.Queue->PendingSettingsMultiplierPushes);
+		Swap(PendingOverrides, TransientForceStore.Queue->PendingSettingsMultipliers);
+		Swap(PendingStops, TransientForceStore.Queue->PendingSettingsMultiplierStops);
 	}
 
 	for (const FKawaiiPhysicsSettingsMultiplierPushRequest& PendingSet : PendingSets)
@@ -583,6 +587,9 @@ bool FAnimNode_KawaiiPhysics::ConsumeAndAdvancePhysicsSettingsMultipliers(const 
 		TransientForceStore.SettingsMultiplierItems.RemoveAt(0);
 	}
 
+	PendingSets.Reset();
+	PendingOverrides.Reset();
+	PendingStops.Reset();
 	return !TransientForceStore.SettingsMultiplierItems.IsEmpty();
 }
 
@@ -892,14 +899,7 @@ void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
 	}
 
 	// External Force : PostApply
-	for (int i = 0; i < ExternalForces.Num(); ++i)
-	{
-		if (ExternalForces[i].IsValid())
-		{
-			auto& Force = ExternalForces[i].GetMutable<FKawaiiPhysics_ExternalForce>();
-			Force.PostApply(*this, Output);
-		}
-	}
+	FKawaiiPhysicsExternalForcePostApply::Apply(*this, Output);
 	for (int i = 0; i < TransientForceStore.Items.Num(); ++i)
 	{
 		if (TransientForceStore.Items[i].Force.IsValid())

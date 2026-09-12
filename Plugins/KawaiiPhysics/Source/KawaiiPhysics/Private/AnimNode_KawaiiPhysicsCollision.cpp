@@ -5,6 +5,8 @@
 #include "Animation/MirrorDataTable.h"
 #include "AnimationRuntime.h"
 #include "KawaiiPhysicsMirrorUtils.h"
+#include "KawaiiPhysicsMirrorTableCache.h"
+#include "KawaiiPhysicsCollisionBuffer.h"
 #include "KawaiiPhysicsBoneConstraintsDataAsset.h"
 #include "KawaiiPhysicsCustomExternalForce.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
@@ -54,7 +56,7 @@ namespace
 		OutLimits.Reserve(OutLimits.Num() + InLimits.Num());
 		for (const LimitType& Limit : InLimits)
 		{
-			LimitType Converted = Limit;
+			LimitType& Converted = OutLimits.Add_GetRef(Limit);
 			const FTransform WorldTransform(Limit.Rotation, Limit.Location);
 			const FTransform SimTransform = Node.ConvertSimulationSpaceTransform(
 				Output, EKawaiiPhysicsSimulationSpace::WorldSpace, TargetSpace, WorldTransform);
@@ -62,7 +64,6 @@ namespace
 			Converted.Rotation = SimTransform.GetRotation();
 			Converted.bEnable = true;
 			PostConvert(Converted, SimTransform);
-			OutLimits.Add(Converted);
 		}
 	}
 
@@ -338,26 +339,58 @@ void FAnimNode_KawaiiPhysics::ApplyMirrorLimits(const FBoneContainer& RequiredBo
 
 	if (!MirrorDataTableForLimits)
 	{
+#if WITH_EDITOR
+		CachedMirrorTables.Reset();
+#endif
 		return;
 	}
 
 	const EAxis::Type MirrorAxis = MirrorDataTableForLimits->MirrorAxis;
 	if (MirrorAxis == EAxis::None)
 	{
+#if WITH_EDITOR
+		CachedMirrorTables.Reset();
+#endif
 		return;
 	}
 
 	const USkeleton* Skeleton = RequiredBones.GetSkeletonAsset();
 	if (!Skeleton)
 	{
+#if WITH_EDITOR
+		CachedMirrorTables.Reset();
+#endif
 		KAWAII_LOG_NODE_WARNING_ONCE(bMirrorSkeletonMissingWarned, LogKawaiiPhysics,
 			TEXT("MirrorDataTableForLimits is set, but RequiredBones has no Skeleton. Skip collision mirroring.%s"),
 			TEXT(""));
 		return;
 	}
 
-	TCustomBoneIndexArray<FSkeletonPoseBoneIndex, FSkeletonPoseBoneIndex> MirrorBoneIndexes;
-	MirrorDataTableForLimits->FillMirrorBoneIndexes(Skeleton, MirrorBoneIndexes);
+	TCustomBoneIndexArray<FSkeletonPoseBoneIndex, FSkeletonPoseBoneIndex> UncachedMirrorBoneIndexes;
+	TArray<FQuat> UncachedCSRefRotations;
+	const auto* MirrorBoneIndexesPtr = &UncachedMirrorBoneIndexes;
+	const auto* CSRefRotationsPtr = &UncachedCSRefRotations;
+	const FReferenceSkeleton& MeshRefSkeleton = RequiredBones.GetReferenceSkeleton();
+#if WITH_EDITOR
+	if (bCacheMirrorTablesForPIE)
+	{
+		const FKawaiiPhysicsMirrorTableCache::FInputs Inputs{ *MirrorDataTableForLimits, *Skeleton,
+			MeshRefSkeleton, &RequiredBones, RequiredBones.GetSerialNumber(), RequiredBones.GetAsset() };
+		if (!CachedMirrorTables || !CachedMirrorTables->Matches(Inputs))
+		{
+			CachedMirrorTables = MakeShared<FKawaiiPhysicsMirrorTableCache, ESPMode::ThreadSafe>(Inputs);
+		}
+		MirrorBoneIndexesPtr = &CachedMirrorTables->MirrorBoneIndexes;
+		CSRefRotationsPtr = &CachedMirrorTables->CSRefRotations;
+	}
+	else
+#endif
+	{
+		MirrorDataTableForLimits->FillMirrorBoneIndexes(Skeleton, UncachedMirrorBoneIndexes);
+		KawaiiPhysicsMirrorUtils::BuildComponentSpaceRefRotations(MeshRefSkeleton, UncachedCSRefRotations);
+	}
+	const auto& MirrorBoneIndexes = *MirrorBoneIndexesPtr;
+	const auto& CSRefRotations = *CSRefRotationsPtr;
 
 	const FReferenceSkeleton& SkeletonRefSkeleton = Skeleton->GetReferenceSkeleton();
 	const auto ResolveMirrorBoneName = [&SkeletonRefSkeleton, &MirrorBoneIndexes](FName BoneName) -> FName
@@ -382,10 +415,6 @@ void FAnimNode_KawaiiPhysics::ApplyMirrorLimits(const FBoneContainer& RequiredBo
 
 		return SkeletonRefSkeleton.GetBoneName(MirroredBoneIndex.GetInt());
 	};
-
-	const FReferenceSkeleton& MeshRefSkeleton = RequiredBones.GetReferenceSkeleton();
-	TArray<FQuat> CSRefRotations;
-	KawaiiPhysicsMirrorUtils::BuildComponentSpaceRefRotations(MeshRefSkeleton, CSRefRotations);
 
 	const auto FindBoneIndex = [&MeshRefSkeleton](FName BoneName) -> int32
 	{
@@ -1739,6 +1768,38 @@ void FAnimNode_KawaiiPhysics::InitializeSimpleWorldCollision()
 	}
 }
 
+namespace
+{
+	void CopySimpleWorldLimitsToSimulationSpace(
+		const FAnimNode_KawaiiPhysics& Node, FComponentSpacePoseContext& Output,
+		EKawaiiPhysicsSimulationSpace TargetSpace, const FKawaiiPhysicsSharedCollisionData& Source,
+		TArray<FSphericalLimit>& Spheres, TArray<FCapsuleLimit>& Capsules,
+		TArray<FTaperedCapsuleLimit>& TaperedCapsules, TArray<FBoxLimit>& Boxes,
+		TArray<FKawaiiPhysicsConvexLimit>& Convexes)
+	{
+		Spheres.Reset();
+		Capsules.Reset();
+		TaperedCapsules.Reset();
+		Boxes.Reset();
+		KawaiiPhysicsSimpleWorldReadPath::AppendSharedCollisionDataToSimulationSpace(
+			Node, Output, TargetSpace, Source, Spheres, Capsules, TaperedCapsules, Boxes, nullptr, nullptr);
+		FKawaiiPhysicsCollisionBufferWriter::SetConvexCount(Convexes, Source.ConvexLimits.Num());
+		for (int32 Index = 0; Index < Source.ConvexLimits.Num(); ++Index)
+		{
+			const FKawaiiPhysicsConvexLimit& Input = Source.ConvexLimits[Index];
+			FKawaiiPhysicsConvexLimit& Target = Convexes[Index];
+			FKawaiiPhysicsCollisionBufferWriter::CopyConvex(Input, Target);
+			const FTransform Transform = Node.ConvertSimulationSpaceTransform(
+				Output, EKawaiiPhysicsSimulationSpace::WorldSpace, TargetSpace,
+				FTransform(Input.Rotation, Input.Location));
+			Target.Location = Transform.GetLocation();
+			Target.Rotation = Transform.GetRotation();
+			Target.bEnable = true;
+			Target.UpdateRuntimeCache();
+		}
+	}
+}
+
 void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePoseContext& Output)
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdateSimpleWorldCollisionLimits);
@@ -1861,22 +1922,15 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 			|| ShapeSerial != LastReadSimpleWorldShapeSerial
 			|| MemberSerialSum != LastReadSimpleWorldMemberSerialSum)
 		{
-			SimpleWorldMergedScratch.Reset();
-			CachedSimpleWorldEntry->Slot.AppendTo(SimpleWorldMergedScratch);
-			CachedSimpleWorldEntry->AppendFamilyMemberLimits(
-				CachedSimpleWorldCollisionSkelComp, SimpleWorldMergedScratch);
+			CachedSimpleWorldEntry->CopyShapeLimits(
+				CachedSimpleWorldCollisionSkelComp, SimpleWorldMergedScratch, true);
 			LastReadSimpleWorldShapeSerial = ShapeSerial;
 			LastReadSimpleWorldMemberSerialSum = MemberSerialSum;
 
-			SimpleWorldSphericalLimits.Reset();
-			SimpleWorldCapsuleLimits.Reset();
-			SimpleWorldTaperedCapsuleLimits.Reset();
-			SimpleWorldBoxLimits.Reset();
-			SimpleWorldConvexLimits.Reset();
-			KawaiiPhysicsSimpleWorldReadPath::AppendSharedCollisionDataToSimulationSpace(
+			CopySimpleWorldLimitsToSimulationSpace(
 				*this, Output, SimulationSpace, SimpleWorldMergedScratch,
 				SimpleWorldSphericalLimits, SimpleWorldCapsuleLimits, SimpleWorldTaperedCapsuleLimits,
-				SimpleWorldBoxLimits, nullptr, &SimpleWorldConvexLimits);
+				SimpleWorldBoxLimits, SimpleWorldConvexLimits);
 		}
 		else if (!KawaiiPhysicsSimpleWorldReadPath::RefreshSimulationSpaceLimitsInPlace(
 			*this, Output, SimulationSpace, SimpleWorldMergedScratch,
@@ -1884,15 +1938,10 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 			SimpleWorldBoxLimits, SimpleWorldConvexLimits))
 		{
 			// 配列数がずれた場合は、前回配列が外部テスト注入や将来の形状追加で変わった可能性があるため全再構築へ戻す。
-			SimpleWorldSphericalLimits.Reset();
-			SimpleWorldCapsuleLimits.Reset();
-			SimpleWorldTaperedCapsuleLimits.Reset();
-			SimpleWorldBoxLimits.Reset();
-			SimpleWorldConvexLimits.Reset();
-			KawaiiPhysicsSimpleWorldReadPath::AppendSharedCollisionDataToSimulationSpace(
+			CopySimpleWorldLimitsToSimulationSpace(
 				*this, Output, SimulationSpace, SimpleWorldMergedScratch,
 				SimpleWorldSphericalLimits, SimpleWorldCapsuleLimits, SimpleWorldTaperedCapsuleLimits,
-				SimpleWorldBoxLimits, nullptr, &SimpleWorldConvexLimits);
+				SimpleWorldBoxLimits, SimpleWorldConvexLimits);
 		}
 
 		const uint64 GroundSerial = CachedSimpleWorldEntry->GroundSlot.GetPublishSerial();
@@ -1976,19 +2025,14 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 	const uint64 ShapeSerial = CachedSimpleWorldEntry->Slot.GetPublishSerial();
 	if (LastReadSimpleWorldShapeSerial == 0 || ShapeSerial != LastReadSimpleWorldShapeSerial)
 	{
-		SimpleWorldMergedScratch.Reset();
-		CachedSimpleWorldEntry->Slot.AppendTo(SimpleWorldMergedScratch);
+		CachedSimpleWorldEntry->CopyShapeLimits(
+			CachedSimpleWorldCollisionSkelComp, SimpleWorldMergedScratch, false);
 		LastReadSimpleWorldShapeSerial = ShapeSerial;
 
-		SimpleWorldSphericalLimits.Reset();
-		SimpleWorldCapsuleLimits.Reset();
-		SimpleWorldTaperedCapsuleLimits.Reset();
-		SimpleWorldBoxLimits.Reset();
-		SimpleWorldConvexLimits.Reset();
-		KawaiiPhysicsSimpleWorldReadPath::AppendSharedCollisionDataToSimulationSpace(
+		CopySimpleWorldLimitsToSimulationSpace(
 			*this, Output, SimulationSpace, SimpleWorldMergedScratch,
 			SimpleWorldSphericalLimits, SimpleWorldCapsuleLimits, SimpleWorldTaperedCapsuleLimits,
-			SimpleWorldBoxLimits, nullptr, &SimpleWorldConvexLimits);
+			SimpleWorldBoxLimits, SimpleWorldConvexLimits);
 	}
 	else if (!KawaiiPhysicsSimpleWorldReadPath::RefreshSimulationSpaceLimitsInPlace(
 		*this, Output, SimulationSpace, SimpleWorldMergedScratch,
@@ -1996,15 +2040,10 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 		SimpleWorldBoxLimits, SimpleWorldConvexLimits))
 	{
 		// 配列数がずれた場合は、前回配列が外部テスト注入や将来の形状追加で変わった可能性があるため全再構築へ戻す。
-		SimpleWorldSphericalLimits.Reset();
-		SimpleWorldCapsuleLimits.Reset();
-		SimpleWorldTaperedCapsuleLimits.Reset();
-		SimpleWorldBoxLimits.Reset();
-		SimpleWorldConvexLimits.Reset();
-		KawaiiPhysicsSimpleWorldReadPath::AppendSharedCollisionDataToSimulationSpace(
+		CopySimpleWorldLimitsToSimulationSpace(
 			*this, Output, SimulationSpace, SimpleWorldMergedScratch,
 			SimpleWorldSphericalLimits, SimpleWorldCapsuleLimits, SimpleWorldTaperedCapsuleLimits,
-			SimpleWorldBoxLimits, nullptr, &SimpleWorldConvexLimits);
+			SimpleWorldBoxLimits, SimpleWorldConvexLimits);
 	}
 
 	const uint64 GroundSerial = CachedSimpleWorldEntry->GroundSlot.GetPublishSerial();

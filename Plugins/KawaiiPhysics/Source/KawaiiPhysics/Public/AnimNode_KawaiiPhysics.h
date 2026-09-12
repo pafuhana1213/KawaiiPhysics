@@ -37,6 +37,7 @@ class UKawaiiPhysics_CustomExternalForce;
 class UKawaiiPhysicsLimitsDataAsset;
 class UKawaiiPhysicsBoneConstraintsDataAsset;
 class UMirrorDataTable;
+struct FKawaiiPhysicsMirrorTableCache;
 
 #if ENABLE_ANIM_DEBUG
 extern KAWAIIPHYSICS_API TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsEnable;
@@ -132,6 +133,14 @@ struct FKawaiiPhysicsTransientForceStore
 {
 	TArray<FKawaiiPhysicsTransientExternalForce> Items;
 	TArray<FKawaiiPhysicsActiveSettingsMultiplier> SettingsMultiplierItems;
+	// Worker-owned consume buffers exchange capacity with the producer under Queue->Mutex.
+	// Contents are reset after each consume; copied nodes start with independent empty buffers.
+	TArray<FKawaiiPhysicsTransientExternalForce> ConsumingForces;
+	TArray<FKawaiiPhysicsTransientGustRequest> ConsumingGusts;
+	TArray<FKawaiiPhysicsTransientForceStopRequest> ConsumingStops;
+	TArray<FKawaiiPhysicsSettingsMultiplierRequest> ConsumingSettingsMultipliers;
+	TArray<FKawaiiPhysicsSettingsMultiplierPushRequest> ConsumingSettingsMultiplierPushes;
+	TArray<FKawaiiPhysicsTransientForceStopRequest> ConsumingSettingsMultiplierStops;
 	TSharedPtr<FKawaiiPhysicsTransientForceQueue, ESPMode::ThreadSafe> Queue =
 		MakeShared<FKawaiiPhysicsTransientForceQueue, ESPMode::ThreadSafe>();
 
@@ -1023,6 +1032,12 @@ private:
 	bool bMirrorSkeletonMissingWarned = false;
 #endif
 
+	// PIE caches only skeleton-derived mirror tables. Immutable snapshots are safe across copied nodes.
+#if WITH_EDITOR
+	bool bCacheMirrorTablesForPIE = false;
+	TSharedPtr<const FKawaiiPhysicsMirrorTableCache, ESPMode::ThreadSafe> CachedMirrorTables;
+#endif
+
 	// --- Shared Collision ---
 	// Subsystemとowner ActorはGameThread(OnInitializeAnimInstance)で1回解決してキャッシュする（Evaluate(AnyThread)での
 	// GetWorld/GetSubsystem/GetOwnerナビゲーション回避）。ファミリーrootはアタッチ変更追従のためEvaluate側で都度解決する。
@@ -1567,6 +1582,7 @@ protected:
 	 * mid-eval, is not supported).
 	 */
 	void InitializeSharedCollision();
+	void UpdateSharedCollisionRegistration();
 
 	/**
 	 * 計算済みコリジョンをSubsystemに公開する（AnyThread）

@@ -1,6 +1,7 @@
 // Copyright 2019-2026 pafuhana1213. All Rights Reserved.
 
 #include "KawaiiPhysicsSimpleWorldCollision.h"
+#include "KawaiiPhysicsCollisionBuffer.h"
 
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
 #include "KawaiiPhysicsSharedPublisherTypes.h"
@@ -70,12 +71,26 @@ namespace
 		const FQuat ComponentRotation = ComponentTM.GetRotation();
 		for (const auto& LocalLimit : LocalLimits)
 		{
-			auto WorldLimit = LocalLimit;
+			auto& WorldLimit = OutWorldLimits.Add_GetRef(LocalLimit);
 			WorldLimit.Location = ComponentTM.TransformPosition(LocalLimit.Location);
 			WorldLimit.Rotation = ComponentRotation * LocalLimit.Rotation;
 			WorldLimit.Rotation.Normalize();
 			ApplyRadiusScale(WorldLimit, RadiusScale);
-			OutWorldLimits.Add(WorldLimit);
+		}
+	}
+
+	void AppendTransformedConvexLimits(TArrayView<const FKawaiiPhysicsConvexLimit> Limits,
+		const FTransform& ComponentTM, FKawaiiPhysicsSharedCollisionData& OutData,
+		FKawaiiPhysicsCollisionBufferWriter* Writer)
+	{
+		OutData.ConvexLimits.Reserve((Writer ? Writer->ConvexIndex : OutData.ConvexLimits.Num()) + Limits.Num());
+		const FQuat Rotation = ComponentTM.GetRotation();
+		for (const FKawaiiPhysicsConvexLimit& Local : Limits)
+		{
+			FKawaiiPhysicsConvexLimit& World = Writer ? Writer->AddConvex(Local) : OutData.ConvexLimits.Add_GetRef(Local);
+			World.Location = ComponentTM.TransformPosition(Local.Location);
+			World.Rotation = Rotation * Local.Rotation;
+			World.Rotation.Normalize();
 		}
 	}
 
@@ -100,12 +115,11 @@ namespace
 		const FQuat ComponentRotation = ComponentTM.GetRotation();
 		for (const auto& LocalLimit : LocalLimits)
 		{
-			auto WorldLimit = LocalLimit;
+			auto& WorldLimit = OutWorldLimits.Add_GetRef(LocalLimit);
 			WorldLimit.Location = ComponentTM.TransformPosition(LocalLimit.Location);
 			WorldLimit.Rotation = ComponentRotation * LocalLimit.Rotation;
 			WorldLimit.Rotation.Normalize();
 			WorldLimit.Plane = FPlane(WorldLimit.Location, WorldLimit.Rotation.GetUpVector());
-			OutWorldLimits.Add(WorldLimit);
 		}
 	}
 
@@ -804,13 +818,13 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		return NumMissingBones;
 	}
 
-	void AppendFadedSkeletalLocalLimits(
+	static void AppendFadedSkeletalLocalLimitsImpl(
 		const FKawaiiPhysicsSharedCollisionData& LocalLimits,
 		TArrayView<const FKawaiiPhysicsSimpleWorldBodyBinding> Bindings,
 		TArrayView<const FTransform> BodyWorldTMs,
 		float FadeAlpha,
 		FKawaiiPhysicsSharedCollisionData& OutWorldLimits,
-		float BoxEnableThreshold)
+		float BoxEnableThreshold, FKawaiiPhysicsCollisionBufferWriter* Writer)
 	{
 		int32 SphereOffset = 0;
 		int32 CapsuleOffset = 0;
@@ -850,11 +864,10 @@ namespace KawaiiPhysicsSimpleWorldCollision
 					BodyWorldTM,
 					OutWorldLimits.BoxLimits);
 				// Convex は半径縮小できないため、Box と同じしきい値ゲートを共用する。
-				AppendTransformedLimits(
+				AppendTransformedConvexLimits(
 					MakeKawaiiPhysicsSimpleWorldLimitView(
 						LocalLimits.ConvexLimits, ConvexOffset, Binding.NumConvexLimits),
-					BodyWorldTM,
-					OutWorldLimits.ConvexLimits);
+					BodyWorldTM, OutWorldLimits, Writer);
 			}
 
 			SphereOffset += Binding.NumSphericalLimits;
@@ -865,12 +878,12 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		}
 	}
 
-	void AppendFadedLocalLimits(
+	static void AppendFadedLocalLimitsImpl(
 		const FKawaiiPhysicsSharedCollisionData& LocalLimits,
 		float FadeAlpha,
 		const FTransform& ComponentTM,
 		FKawaiiPhysicsSharedCollisionData& OutWorldLimits,
-		float BoxEnableThreshold)
+		float BoxEnableThreshold, FKawaiiPhysicsCollisionBufferWriter* Writer)
 	{
 		// フェード係数はワールドLimitへの追記時に適用し、ローカルLimit全体のコピーを避ける。
 		// Spheres/Capsules/TaperedCapsules は半径のみ縮小し、Boxes は一定Alphaまでpublishしない。
@@ -890,11 +903,41 @@ namespace KawaiiPhysicsSimpleWorldCollision
 				MakeKawaiiPhysicsSimpleWorldLimitView(LocalLimits.BoxLimits, 0, LocalLimits.BoxLimits.Num()),
 				ComponentTM, OutWorldLimits.BoxLimits);
 			// Convex は半径縮小できないため、Box と同じしきい値ゲートを共用する。
-			AppendTransformedLimits(
+			AppendTransformedConvexLimits(
 				MakeKawaiiPhysicsSimpleWorldLimitView(LocalLimits.ConvexLimits, 0, LocalLimits.ConvexLimits.Num()),
-				ComponentTM, OutWorldLimits.ConvexLimits);
+				ComponentTM, OutWorldLimits, Writer);
 		}
 		AppendTransformedPlanarLimits(LocalLimits.PlanarLimits, ComponentTM, OutWorldLimits.PlanarLimits);
+	}
+
+	void AppendFadedSkeletalLocalLimits(const FKawaiiPhysicsSharedCollisionData& LocalLimits,
+		TArrayView<const FKawaiiPhysicsSimpleWorldBodyBinding> Bindings,
+		TArrayView<const FTransform> BodyWorldTMs, float FadeAlpha,
+		FKawaiiPhysicsSharedCollisionData& OutWorldLimits, float BoxEnableThreshold)
+	{
+		AppendFadedSkeletalLocalLimitsImpl(LocalLimits, Bindings, BodyWorldTMs, FadeAlpha,
+			OutWorldLimits, BoxEnableThreshold, nullptr);
+	}
+
+	void AppendFadedSkeletalLocalLimits(const FKawaiiPhysicsSharedCollisionData& LocalLimits,
+		TArrayView<const FKawaiiPhysicsSimpleWorldBodyBinding> Bindings,
+		TArrayView<const FTransform> BodyWorldTMs, float FadeAlpha,
+		FKawaiiPhysicsCollisionBufferWriter& Writer, float BoxEnableThreshold)
+	{
+		AppendFadedSkeletalLocalLimitsImpl(LocalLimits, Bindings, BodyWorldTMs, FadeAlpha,
+			Writer.Data, BoxEnableThreshold, &Writer);
+	}
+
+	void AppendFadedLocalLimits(const FKawaiiPhysicsSharedCollisionData& LocalLimits, float FadeAlpha,
+		const FTransform& ComponentTM, FKawaiiPhysicsSharedCollisionData& OutWorldLimits, float BoxEnableThreshold)
+	{
+		AppendFadedLocalLimitsImpl(LocalLimits, FadeAlpha, ComponentTM, OutWorldLimits, BoxEnableThreshold, nullptr);
+	}
+
+	void AppendFadedLocalLimits(const FKawaiiPhysicsSharedCollisionData& LocalLimits, float FadeAlpha,
+		const FTransform& ComponentTM, FKawaiiPhysicsCollisionBufferWriter& Writer, float BoxEnableThreshold)
+	{
+		AppendFadedLocalLimitsImpl(LocalLimits, FadeAlpha, ComponentTM, Writer.Data, BoxEnableThreshold, &Writer);
 	}
 
 	bool ComputeSimpleWorldGatherBounds(
