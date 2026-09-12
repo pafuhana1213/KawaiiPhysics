@@ -44,6 +44,242 @@ extern TAutoConsoleVariable<int32> CVarSharedCollisionInitRetryThrottleInterval;
 
 namespace
 {
+	// 相似変換と判定する相対許容。double の FTransform / FQuat 合成の丸め誤差は 1e-15 程度なので十分な余裕がある。
+	// 高速経路は元の寸法をそのまま保つため、許容内の残差 ε は「ε × 写像の倍率 × 形状の寸法の和」のオーダーの包含不足に化ける
+	//（係数 1 の厳密な不等式ではなく桁の目安。1e-9 なら 10 km の Box でもおおよそ 1e-3 cm 程度）。超える写像は全て保守経路（8 頂点フィット / σ_max 上界）へ回す。
+	constexpr double LimitDimensionSimilarityTolerance = 1e-9;
+
+	struct FLimitDimensionMapping
+	{
+		bool bUniform = true;
+		double UniformScale = 1.0;
+		double ConservativeScale = 1.0;
+		FVector AxisImages[3];
+	};
+
+	FLimitDimensionMapping ComputeLimitDimensionMapping(
+		const FAnimNode_KawaiiPhysics& Node, FComponentSpacePoseContext& Output,
+		EKawaiiPhysicsSimulationSpace From, EKawaiiPhysicsSimulationSpace To)
+	{
+		FLimitDimensionMapping Map;
+		const FVector Basis[3] = {FVector::XAxisVector, FVector::YAxisVector, FVector::ZAxisVector};
+		double Lengths[3];
+		for (int32 Axis = 0; Axis < 3; ++Axis)
+		{
+			Map.AxisImages[Axis] = Node.ConvertSimulationSpaceVector(Output, From, To, Basis[Axis]);
+			Lengths[Axis] = Map.AxisImages[Axis].Size();
+		}
+
+		// LimitDimensionSimilarityTolerance は double の合成丸め誤差を吸収し、全列の長さの差と直交性に適用する。
+		// 高速経路の包含不足は許容 × 形状の寸法の和程度に抑え、許容を超える写像は保守経路へ回す。
+		const double MaxLength = FMath::Max3(Lengths[0], Lengths[1], Lengths[2]);
+		const double MinLength = FMath::Min3(Lengths[0], Lengths[1], Lengths[2]);
+		const double Dot01 = FVector::DotProduct(Map.AxisImages[0], Map.AxisImages[1]);
+		const double Dot02 = FVector::DotProduct(Map.AxisImages[0], Map.AxisImages[2]);
+		const double Dot12 = FVector::DotProduct(Map.AxisImages[1], Map.AxisImages[2]);
+		Map.bUniform = MaxLength > KINDA_SMALL_NUMBER
+			&& (MaxLength - MinLength) <= LimitDimensionSimilarityTolerance * MaxLength
+			&& FMath::Abs(Dot01) <= LimitDimensionSimilarityTolerance * Lengths[0] * Lengths[1]
+			&& FMath::Abs(Dot02) <= LimitDimensionSimilarityTolerance * Lengths[0] * Lengths[2]
+			&& FMath::Abs(Dot12) <= LimitDimensionSimilarityTolerance * Lengths[1] * Lengths[2];
+		if (Map.bUniform)
+		{
+			// 平均ではなく最大列長を採用し、列長の残差に対して保守側に寄せる。
+			Map.UniformScale = MaxLength;
+			// 恒等・純回転の丸め誤差を１へスナップし、寸法をビット一致で保持する。
+			if (FMath::Abs(MaxLength - 1.0) <= LimitDimensionSimilarityTolerance)
+			{
+				Map.UniformScale = 1.0;
+			}
+		}
+		else
+		{
+			const double Square0 = FMath::Square(Lengths[0]);
+			const double Square1 = FMath::Square(Lengths[1]);
+			const double Square2 = FMath::Square(Lengths[2]);
+			// Gram 行列 G_ij = c_i・c_j の Gershgorin 行和と trace（Frobenius ノルムの二乗）は共に σ_max² の上界なので、
+			// 小さい方も上界になる。直交列では行和が MaxLength² に一致し、半径を最大 √3 倍に膨らませずに σ_max の上界を得る。
+			const double RowSumBound = FMath::Max3(
+				Square0 + FMath::Abs(Dot01) + FMath::Abs(Dot02),
+				Square1 + FMath::Abs(Dot01) + FMath::Abs(Dot12),
+				Square2 + FMath::Abs(Dot02) + FMath::Abs(Dot12));
+			const double Trace = Square0 + Square1 + Square2;
+			// 全列が潰れた写像でも係数をゼロにせず、実列のノルムに下限だけを設ける。
+			Map.ConservativeScale = FMath::Max(FMath::Sqrt(FMath::Min(RowSumBound, Trace)),
+				static_cast<double>(KINDA_SMALL_NUMBER));
+		}
+		return Map;
+	}
+
+	void ApplyScaledSphereDimensions(
+		FSphericalLimit& Target, const FSphericalLimit& Source, const FLimitDimensionMapping& Map)
+	{
+		Target.Radius = Source.Radius * (Map.bUniform ? Map.UniformScale : Map.ConservativeScale);
+	}
+
+	template <typename LimitType, typename ConvertLocationType>
+	void ApplyScaledCapsuleAxis(
+		LimitType& Target, const LimitType& Source, const FLimitDimensionMapping& Map,
+		ConvertLocationType ConvertLocation)
+	{
+		if (Map.bUniform)
+		{
+			// 相似変換では長さだけを拡縮し、呼び出し元が変換した位置と回転を保持する。
+			Target.Length = Source.Length * Map.UniformScale;
+			return;
+		}
+
+		// 非一様な写像では端点を変換して中心・長さ・軸方向を求める。
+		const FVector Offset = Source.Rotation.GetAxisZ() * Source.Length * 0.5;
+		const FVector Q0 = ConvertLocation(Source.Location + Offset);
+		const FVector Q1 = ConvertLocation(Source.Location - Offset);
+		const FVector Segment = Q0 - Q1;
+		Target.Location = (Q0 + Q1) * 0.5;
+		Target.Length = Segment.Size();
+		const FVector Dir = Segment.GetSafeNormal();
+		if (!Dir.IsZero())
+		{
+			// 元の＋Ｚ端を維持し、テーパードの両端の半径を入れ替えない。
+			Target.Rotation = FQuat::FindBetweenNormals(Target.Rotation.GetAxisZ(), Dir) * Target.Rotation;
+		}
+	}
+
+	template <typename ConvertLocationType>
+	void ApplyScaledCapsuleDimensions(
+		FCapsuleLimit& Target, const FCapsuleLimit& Source, const FLimitDimensionMapping& Map,
+		ConvertLocationType ConvertLocation)
+	{
+		Target.Radius = Source.Radius * (Map.bUniform ? Map.UniformScale : Map.ConservativeScale);
+		ApplyScaledCapsuleAxis(Target, Source, Map, ConvertLocation);
+	}
+
+	template <typename ConvertLocationType>
+	void ApplyScaledTaperedCapsuleDimensions(
+		FTaperedCapsuleLimit& Target, const FTaperedCapsuleLimit& Source, const FLimitDimensionMapping& Map,
+		ConvertLocationType ConvertLocation)
+	{
+		if (Map.bUniform)
+		{
+			Target.Radius0 = Source.Radius0 * Map.UniformScale;
+			Target.Radius1 = Source.Radius1 * Map.UniformScale;
+		}
+		else
+		{
+			// 非相似写像では点の線分への射影位置が変わり、ソルバが射影位置で補間する半径が細い端へ寄って包含が崩れ得る。
+			// 両端を大きい方の半径 × σ_max 上界にそろえ、像を包含する通常のカプセルとして扱う（保守側の近似）。
+			const float MaxRadius = FMath::Max(Source.Radius0, Source.Radius1) * Map.ConservativeScale;
+			Target.Radius0 = MaxRadius;
+			Target.Radius1 = MaxRadius;
+		}
+		ApplyScaledCapsuleAxis(Target, Source, Map, ConvertLocation);
+	}
+
+	template <typename ConvertLocationType>
+	void ApplyScaledBoxDimensions(
+		FBoxLimit& Target, const FBoxLimit& Source, const FLimitDimensionMapping& Map, ConvertLocationType ConvertLocation)
+	{
+		if (Map.bUniform)
+		{
+			Target.Extent = Source.Extent * Map.UniformScale;
+			return;
+		}
+
+		// 非一様スケールでは元空間の８頂点を変換し、変換先の回転に沿う包含箱を作る。
+		FVector Extent = FVector::ZeroVector;
+		const FQuat InverseRotation = Target.Rotation.Inverse();
+		for (int32 Corner = 0; Corner < 8; ++Corner)
+		{
+			const FVector Offset(
+				(Corner & 1) ? Source.Extent.X : -Source.Extent.X,
+				(Corner & 2) ? Source.Extent.Y : -Source.Extent.Y,
+				(Corner & 4) ? Source.Extent.Z : -Source.Extent.Z);
+			const FVector Position = ConvertLocation(Source.Location + Source.Rotation.RotateVector(Offset));
+			const FVector LocalPosition = InverseRotation.RotateVector(Position - Target.Location);
+			Extent = Extent.ComponentMax(LocalPosition.GetAbs());
+		}
+		Target.Extent = Extent;
+	}
+
+	void ApplyScaledConvexDimensions(
+		FKawaiiPhysicsConvexLimit& Target, const FKawaiiPhysicsConvexLimit& Source, const FLimitDimensionMapping& Map)
+	{
+		// 非一様スケールの凸は線形写像の σ_max 上界（ConservativeScale）による保守的な一様拡縮で近似する。
+		const double UniformScale = Map.bUniform ? Map.UniformScale : Map.ConservativeScale;
+		// 初回コピーで確保済みの配列を再利用し、更新時も必ず元の寸法から代入する。
+		// 要素数が食い違ったら Source から取り直す（通常は一致するので再確保は起きない）。
+		if (Target.LocalPlanes.Num() != Source.LocalPlanes.Num())
+		{
+			Target.LocalPlanes = Source.LocalPlanes;
+		}
+		for (int32 Index = 0; Index < Source.LocalPlanes.Num(); ++Index)
+		{
+			const FPlane& Plane = Source.LocalPlanes[Index];
+			Target.LocalPlanes[Index] = FPlane(Plane.X, Plane.Y, Plane.Z, Plane.W * UniformScale);
+		}
+		Target.LocalBounds = FBox(Source.LocalBounds.Min * UniformScale, Source.LocalBounds.Max * UniformScale);
+#if !UE_BUILD_SHIPPING
+		if (Target.LocalVertices.Num() != Source.LocalVertices.Num())
+		{
+			Target.LocalVertices = Source.LocalVertices;
+		}
+		for (int32 Index = 0; Index < Source.LocalVertices.Num(); ++Index)
+		{
+			Target.LocalVertices[Index] = Source.LocalVertices[Index] * UniformScale;
+		}
+		if (Target.LocalEdges.Num() != Source.LocalEdges.Num())
+		{
+			Target.LocalEdges = Source.LocalEdges;
+		}
+		else
+		{
+			for (int32 Index = 0; Index < Source.LocalEdges.Num(); ++Index)
+			{
+				Target.LocalEdges[Index] = Source.LocalEdges[Index];
+			}
+		}
+#endif
+	}
+
+	template <typename ConvertLocationType>
+	void ApplyScaledLimitDimensions(
+		FSphericalLimit& Target, const FSphericalLimit& Source, const FLimitDimensionMapping& Map, ConvertLocationType)
+	{
+		ApplyScaledSphereDimensions(Target, Source, Map);
+	}
+
+	template <typename ConvertLocationType>
+	void ApplyScaledLimitDimensions(
+		FCapsuleLimit& Target, const FCapsuleLimit& Source, const FLimitDimensionMapping& Map, ConvertLocationType ConvertLocation)
+	{
+		ApplyScaledCapsuleDimensions(Target, Source, Map, ConvertLocation);
+	}
+
+	template <typename ConvertLocationType>
+	void ApplyScaledLimitDimensions(
+		FTaperedCapsuleLimit& Target, const FTaperedCapsuleLimit& Source, const FLimitDimensionMapping& Map, ConvertLocationType ConvertLocation)
+	{
+		ApplyScaledTaperedCapsuleDimensions(Target, Source, Map, ConvertLocation);
+	}
+
+	template <typename ConvertLocationType>
+	void ApplyScaledLimitDimensions(
+		FBoxLimit& Target, const FBoxLimit& Source, const FLimitDimensionMapping& Map, ConvertLocationType ConvertLocation)
+	{
+		ApplyScaledBoxDimensions(Target, Source, Map, ConvertLocation);
+	}
+
+	template <typename ConvertLocationType>
+	void ApplyScaledLimitDimensions(
+		FKawaiiPhysicsConvexLimit& Target, const FKawaiiPhysicsConvexLimit& Source, const FLimitDimensionMapping& Map, ConvertLocationType)
+	{
+		ApplyScaledConvexDimensions(Target, Source, Map);
+	}
+
+	template <typename ConvertLocationType>
+	void ApplyScaledLimitDimensions(FPlanarLimit&, const FPlanarLimit&, const FLimitDimensionMapping&, ConvertLocationType)
+	{
+	}
+
 	template <typename LimitType, typename PostConvertType>
 	void AppendWorldLimitsToSimulationSpace(
 		const FAnimNode_KawaiiPhysics& Node,
@@ -53,6 +289,12 @@ namespace
 		TArray<LimitType>& OutLimits,
 		PostConvertType PostConvert)
 	{
+		if (InLimits.IsEmpty())
+		{
+			return;
+		}
+		const FLimitDimensionMapping Map = ComputeLimitDimensionMapping(
+			Node, Output, EKawaiiPhysicsSimulationSpace::WorldSpace, TargetSpace);
 		OutLimits.Reserve(OutLimits.Num() + InLimits.Num());
 		for (const LimitType& Limit : InLimits)
 		{
@@ -63,6 +305,11 @@ namespace
 			Converted.Location = SimTransform.GetLocation();
 			Converted.Rotation = SimTransform.GetRotation();
 			Converted.bEnable = true;
+			ApplyScaledLimitDimensions(Converted, Limit, Map, [&](const FVector& Position)
+			{
+				return Node.ConvertSimulationSpaceLocation(
+					Output, EKawaiiPhysicsSimulationSpace::WorldSpace, TargetSpace, Position);
+			});
 			PostConvert(Converted, SimTransform);
 		}
 	}
@@ -81,6 +328,12 @@ namespace
 			return false;
 		}
 
+		if (InLimits.IsEmpty())
+		{
+			return true;
+		}
+		const FLimitDimensionMapping Map = ComputeLimitDimensionMapping(
+			Node, Output, EKawaiiPhysicsSimulationSpace::WorldSpace, TargetSpace);
 		for (int32 Index = 0; Index < InLimits.Num(); ++Index)
 		{
 			const LimitType& Source = InLimits[Index];
@@ -91,6 +344,11 @@ namespace
 			Target.Location = SimTransform.GetLocation();
 			Target.Rotation = SimTransform.GetRotation();
 			Target.bEnable = true;
+			ApplyScaledLimitDimensions(Target, Source, Map, [&](const FVector& Position)
+			{
+				return Node.ConvertSimulationSpaceLocation(
+					Output, EKawaiiPhysicsSimulationSpace::WorldSpace, TargetSpace, Position);
+			});
 			PostConvert(Target, SimTransform);
 		}
 
@@ -993,32 +1251,36 @@ void FAnimNode_KawaiiPhysics::AdjustByBoxCollision(FKawaiiPhysicsModifyBone& Bon
 			FVector PushOutVector = LocalSphereCenter - ClosestPoint;
 			float Distance = PushOutVector.Size();
 
-			// ボーンスフィアが Box 内部に完全に埋没している場合は強制的に押し出す。
-			if (PushOutVector.IsNearlyZero())
+			const bool bCenterInsideOrOnBox = LocalBox.IsInsideOrOn(LocalSphereCenter) || Distance <= KINDA_SMALL_NUMBER;
+			// 内部・境界上の中心は最小貫通面へ、面までの貫通深さ + 半径だけ押し出す。
+			// 放射方向では薄く広い Box（地面）で横滑りし、内部から抜けないため。
+			// 境界のごく直外（Distance ≤ KINDA_SMALL_NUMBER）も含める（GetSafeNormal がゼロになる隙間を塞ぐ）。
+			if (bCenterInsideOrOnBox)
 			{
-				PushOutVector = LocalSphereCenter;
-				Distance = SphereRadius;
-
-				// 中心一致時は半径方向が定まらず GetSafeNormal()==0 で動かなくなるため、最近面（最小貫通軸）を選ぶ。
-				if (PushOutVector.IsNearlyZero())
+				const FVector Penetration = Box.Extent - LocalSphereCenter.GetAbs();
+				int32 Axis;
+				// 同値では X → Y → Z の順に選ぶ。
+				if (Penetration.X <= Penetration.Y && Penetration.X <= Penetration.Z)
 				{
-					const FVector Penetration = Box.Extent - LocalSphereCenter.GetAbs();
-					if (Penetration.X <= Penetration.Y && Penetration.X <= Penetration.Z)
-					{
-						PushOutVector = FVector(LocalSphereCenter.X >= 0.0 ? 1.0 : -1.0, 0.0, 0.0);
-					}
-					else if (Penetration.Y <= Penetration.Z)
-					{
-						PushOutVector = FVector(0.0, LocalSphereCenter.Y >= 0.0 ? 1.0 : -1.0, 0.0);
-					}
-					else
-					{
-						PushOutVector = FVector(0.0, 0.0, LocalSphereCenter.Z >= 0.0 ? 1.0 : -1.0);
-					}
+					Axis = 0;
 				}
+				else if (Penetration.Y <= Penetration.Z)
+				{
+					Axis = 1;
+				}
+				else
+				{
+					Axis = 2;
+				}
+
+				const double Sign = LocalSphereCenter[Axis] >= 0.0 ? 1.0 : -1.0;
+				FVector NewLocalSphereCenter = LocalSphereCenter;
+				NewLocalSphereCenter[Axis] = Sign * (Box.Extent[Axis] + SphereRadius);
+				Bone.Location = BoxTransform.TransformPosition(NewLocalSphereCenter);
+				continue;
 			}
 
-			// 押し出し
+			// 外部の中心は従来どおり最近点から半径だけ押し出す。
 			if (Distance <= SphereRadius)
 			{
 				FVector PushOutDirection = PushOutVector.GetSafeNormal();
@@ -1481,6 +1743,9 @@ void FAnimNode_KawaiiPhysics::WriteSharedCollisionToSubsystem(
 	FKawaiiPhysicsSharedCollisionData& Data = SharedCollisionPublishScratch;
 	Data.Reset();
 
+	const FLimitDimensionMapping Map = ComputeLimitDimensionMapping(
+		*this, Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::WorldSpace);
+
 	// ヘルパー: 有効なコリジョンを SimulationSpace→WorldSpace に変換して収集
 	auto ConvertAndAppend = [&](const auto& InLimits, auto& OutLimits, auto PostConvert)
 	{
@@ -1496,6 +1761,11 @@ void FAnimNode_KawaiiPhysics::WriteSharedCollisionToSubsystem(
 				Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::WorldSpace, SimTransform);
 			Converted.Location = WorldTransform.GetLocation();
 			Converted.Rotation = WorldTransform.GetRotation();
+			ApplyScaledLimitDimensions(Converted, Limit, Map, [&](const FVector& Position)
+			{
+				return ConvertSimulationSpaceLocation(
+					Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::WorldSpace, Position);
+			});
 			PostConvert(Converted, WorldTransform);
 			OutLimits.Add(Converted);
 		}
@@ -1699,6 +1969,15 @@ bool FAnimNode_KawaiiPhysics::IsSharedProviderAlive(
 		&& KawaiiPhysicsSimpleWorldCollision::IsSimpleWorldProviderAlive(*Entry, CurrentFrame, ProviderMaxAge);
 }
 
+bool FAnimNode_KawaiiPhysics::ShouldRetrySimpleWorldReaderInitialize() const
+{
+	const int32 ThrottleInterval =
+		FMath::Max(1, CVarSharedCollisionInitRetryThrottleInterval.GetValueOnAnyThread());
+	// 警告前は毎評価試行して正常な起動ウィンドウでの即接続を維持し、警告後はThrottleInterval評価に1回へ間引く。
+	// 間引き中はEntryの作成・解放（Registryのwrite lock）が消費ノード数×毎フレームで走り続けるのを防ぐ。
+	return !bSimpleWorldReaderWarningLogged || (SimpleWorldReaderRetryCount % ThrottleInterval) == 0;
+}
+
 void FAnimNode_KawaiiPhysics::InitializeSimpleWorldCollision()
 {
 	if (bSimpleWorldCollisionInitialized &&
@@ -1711,6 +1990,10 @@ void FAnimNode_KawaiiPhysics::InitializeSimpleWorldCollision()
 	{
 		return;
 	}
+
+#if WITH_DEV_AUTOMATION_TESTS
+	++NumSimpleWorldInitializeAttempts;
+#endif
 
 	InitializedSimpleWorldSource = SimpleWorldCollisionSource;
 	InitializedSimpleWorldSharedTag = SimpleWorldCollisionSharedTag;
@@ -1784,6 +2067,12 @@ namespace
 		KawaiiPhysicsSimpleWorldReadPath::AppendSharedCollisionDataToSimulationSpace(
 			Node, Output, TargetSpace, Source, Spheres, Capsules, TaperedCapsules, Boxes, nullptr, nullptr);
 		FKawaiiPhysicsCollisionBufferWriter::SetConvexCount(Convexes, Source.ConvexLimits.Num());
+		if (Source.ConvexLimits.IsEmpty())
+		{
+			return;
+		}
+		const FLimitDimensionMapping ConvexDimensionMap = ComputeLimitDimensionMapping(
+			Node, Output, EKawaiiPhysicsSimulationSpace::WorldSpace, TargetSpace);
 		for (int32 Index = 0; Index < Source.ConvexLimits.Num(); ++Index)
 		{
 			const FKawaiiPhysicsConvexLimit& Input = Source.ConvexLimits[Index];
@@ -1795,17 +2084,25 @@ namespace
 			Target.Location = Transform.GetLocation();
 			Target.Rotation = Transform.GetRotation();
 			Target.bEnable = true;
+			ApplyScaledLimitDimensions(Target, Input, ConvexDimensionMap, [&](const FVector& Position)
+			{
+				return Node.ConvertSimulationSpaceLocation(
+					Output, EKawaiiPhysicsSimulationSpace::WorldSpace, TargetSpace, Position);
+			});
 			Target.UpdateRuntimeCache();
 		}
 	}
 }
 
-void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePoseContext& Output)
+void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePoseContext& Output,
+                                                              bool bInitializeAlreadyAttempted)
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdateSimpleWorldCollisionLimits);
 
 	// ピン更新は BP setter の再初期化要求を通らないため、評価時にも解決キーの変更を検出する。
-	if (bSimpleWorldCollisionInitialized &&
+	// provider 待ちでスロットル中の reader（未初期化のまま reader モードだけ保持）も対象にし、旧スロットル間隔を待たずに解決し直す。
+	// bSimpleWorldReaderMode が立つのは一度 Shared として解決した後だけなので、未解決のノードでは誤検知しない。
+	if ((bSimpleWorldCollisionInitialized || bSimpleWorldReaderMode) &&
 		(InitializedSimpleWorldSource != SimpleWorldCollisionSource ||
 		 InitializedSimpleWorldSharedTag != SimpleWorldCollisionSharedTag))
 	{
@@ -1828,10 +2125,11 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 		if (bSimpleWorldReaderMode)
 		{
 			const int32 RetryThreshold = FMath::Max(1, CVarSharedCollisionInitRetryThreshold.GetValueOnAnyThread());
-			const int32 ThrottleInterval =
-				FMath::Max(1, CVarSharedCollisionInitRetryThrottleInterval.GetValueOnAnyThread());
+			// Evaluate側は同じ述語でInitializeを試みるため、そこで試みた評価ではここで二重に呼ばない。
+			// 結果としてInitializeは1評価につき最大1回、下の++SimpleWorldReaderRetryCountも1評価につき最大1回になる。
+			// （Evaluateが間引いた評価ではSimpleWorldReaderRetryCountが同値のまま渡ってくるので、述語の結果も一致する）
 			const bool bShouldRetryInitialize =
-				!bSimpleWorldReaderWarningLogged || (SimpleWorldReaderRetryCount % ThrottleInterval) == 0;
+				!bInitializeAlreadyAttempted && ShouldRetrySimpleWorldReaderInitialize();
 
 			if (bShouldRetryInitialize)
 			{
@@ -1986,27 +2284,8 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 		}
 	}
 
-	const FKawaiiPhysicsSimpleWorldCollisionDesc Desc = BuildSimpleWorldCollisionDesc();
-
-	if (!bSimpleWorldDescSent || !(Desc == LastSentSimpleWorldDesc))
+	const auto ReleaseInvalidSimpleWorldEntry = [this]()
 	{
-		// 半径警告の再チェックは収集半径の指定が変わったときだけ解禁する（GatherInterval のピン駆動で毎フレーム再送されても走査を繰り返さない）。
-		if (!bSimpleWorldDescSent
-			|| !FMath::IsNearlyEqual(Desc.GatherRadiusOverride, LastSentSimpleWorldDesc.GatherRadiusOverride))
-		{
-			bSimpleWorldRadiusChecked = false;
-			SimpleWorldRadiusCheckDeferrals = 0;
-		}
-		// 期限切れで provider slot が消えた後の再送でも SkelComp を失わないよう、必ず自分の SkelComp を渡す。
-		CachedSimpleWorldEntry->SetDesc(SourceID, Desc, GFrameCounter, CachedSimpleWorldCollisionSkelComp, true);
-		LastSentSimpleWorldDesc = Desc;
-		bSimpleWorldDescSent = true;
-	}
-
-	if (!CachedSimpleWorldEntry->MarkRead(SourceID))
-	{
-		// SetDescはDescLock内でLastReadFrameも現在フレームへ刻印するため、再登録直後のMarkReadはtrueになり、
-		// 期限切れ検知によるReleaseを繰り返さない。
 		ReleaseSimpleWorldCollision();
 		SimpleWorldSphericalLimits.Reset();
 		SimpleWorldCapsuleLimits.Reset();
@@ -2019,6 +2298,37 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 		LastReadSimpleWorldShapeSerial = 0;
 		LastReadSimpleWorldGroundSerial = 0;
 		LastReadSimpleWorldMemberSerialSum = 0;
+	};
+	if (CachedSimpleWorldEntry->IsRetired())
+	{
+		ReleaseInvalidSimpleWorldEntry();
+		return;
+	}
+
+	const FKawaiiPhysicsSimpleWorldCollisionDesc Desc = BuildSimpleWorldCollisionDesc();
+
+	if (!bSimpleWorldDescSent || !(Desc == LastSentSimpleWorldDesc))
+	{
+		// 半径警告の再チェックは収集半径の指定が変わったときだけ解禁する（GatherInterval のピン駆動で毎フレーム再送されても走査を繰り返さない）。
+		if (!bSimpleWorldDescSent
+			|| !FMath::IsNearlyEqual(Desc.GatherRadiusOverride, LastSentSimpleWorldDesc.GatherRadiusOverride))
+		{
+			bSimpleWorldRadiusChecked = false;
+			SimpleWorldRadiusCheckDeferrals = 0;
+		}
+		// 期限切れで provider slot が消えた後の再送でも SkelComp を失わないよう、必ず自分の SkelComp を渡す。
+		if (!CachedSimpleWorldEntry->SetDesc(SourceID, Desc, GFrameCounter, CachedSimpleWorldCollisionSkelComp, true))
+		{
+			ReleaseInvalidSimpleWorldEntry();
+			return;
+		}
+		LastSentSimpleWorldDesc = Desc;
+		bSimpleWorldDescSent = true;
+	}
+
+	if (!CachedSimpleWorldEntry->MarkRead(SourceID))
+	{
+		ReleaseInvalidSimpleWorldEntry();
 		return;
 	}
 

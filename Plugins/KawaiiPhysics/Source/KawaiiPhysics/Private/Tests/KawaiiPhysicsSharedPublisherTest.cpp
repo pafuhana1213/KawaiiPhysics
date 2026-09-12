@@ -705,6 +705,83 @@ bool FKawaiiPhysicsLibrarySharedPublisherWindApiTest::RunTest(const FString& Par
 	return bOk;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSharedPublisherDetachedSimpleWorldEntryReboundTest,
+                                 "KawaiiPhysics.SharedPublisher.DetachedSimpleWorldEntryRebound",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSharedPublisherDetachedSimpleWorldEntryReboundTest::RunTest(const FString& Parameters)
+{
+	constexpr uint64 SourceID = 0xA001;
+	const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> PublisherEntry = MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+	const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> OldEntry = MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
+	USkeletalMeshComponent* SkelComp = NewObject<USkeletalMeshComponent>(GetTransientPackage());
+	const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> WindState =
+		MakeShared<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe>();
+	FKawaiiPhysicsSharedPublishInputs Inputs;
+	FKawaiiPhysicsSharedPublishHelper Helper;
+	Helper.SetSourceID(SourceID);
+	Helper.SetEntries(PublisherEntry, OldEntry, SkelComp);
+	Helper.ResetEffectiveValues(Inputs);
+	for (uint64 Frame = 1; Frame <= 3; ++Frame)
+	{
+		TestTrue(TEXT("Initial updates publish"), Helper.Update(Inputs, WindState, 0.1f, Frame, 60));
+	}
+	TestTrue(TEXT("Initial provider desc exists"), OldEntry->HasAnyDesc());
+	TestEqual(TEXT("Initial desc is sent once"), Helper.GetNumSetDescCalls(), 1);
+	PublisherEntry->RequestPublisherEnabled(false);
+	FKawaiiPhysicsSimpleWorldCollisionSettings EffectiveSettings = Inputs.SimpleWorld;
+	EffectiveSettings.GatherInterval = Inputs.SimpleWorld.GatherInterval + 0.25f;
+	PublisherEntry->RequestSimpleWorldSettings(EffectiveSettings);
+	TestTrue(TEXT("Blueprint override publishes"), Helper.Update(Inputs, WindState, 0.1f, 4, 60));
+	TestFalse(TEXT("Blueprint override disables effective publisher"), Helper.IsEffectiveEnabled());
+
+	OldEntry->RemoveDesc(SourceID);
+	TestTrue(TEXT("Detached SimpleWorld entry retires"), OldEntry->MarkRetiredIfEmpty());
+	const float PendingBeforeRetiredUpdate = Helper.GetPendingDeltaTime();
+	const int32 NumSetDescBeforeRetiredUpdate = Helper.GetNumSetDescCalls();
+	TestTrue(TEXT("Retired SimpleWorld entry does not reject publisher state"), Helper.Update(Inputs, WindState, 0.1f, 5, 60));
+	TestTrue(TEXT("Only SimpleWorld entry needs rebinding"), Helper.NeedsSimpleWorldEntryReacquire());
+	TestFalse(TEXT("Publisher entry does not need rebinding"), Helper.NeedsEntryReacquire());
+	TestTrue(TEXT("Publisher entry pointer is preserved"), Helper.GetSharedPublisherEntry() == PublisherEntry);
+	TestFalse(TEXT("Publisher entry remains alive"), PublisherEntry->IsExpired(5, 60));
+	TestFalse(TEXT("Effective enabled override survives retirement"), Helper.IsEffectiveEnabled());
+	TestEqual(TEXT("Retired update keeps pending time unchanged"), Helper.GetPendingDeltaTime(), PendingBeforeRetiredUpdate);
+	TestEqual(TEXT("Rejected registration is not counted"), Helper.GetNumSetDescCalls(), NumSetDescBeforeRetiredUpdate);
+	TestFalse(TEXT("Retired entry has no recreated provider"), OldEntry->HasAnyDesc());
+	TestFalse(TEXT("Retired entry has no recreated reader"), OldEntry->HasAnyReader());
+
+	Helper.AccumulatePendingDeltaTime(0.3f);
+	const float PendingBeforeRebind = Helper.GetPendingDeltaTime();
+	const uint64 SerialBeforeRebind = Helper.GetLastPublishSerial();
+	const float PublishedTimeBeforeRebind = Helper.GetLastPublishedState().Wind.Time;
+	const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> NewEntry = MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
+	Helper.SetSimpleWorldEntry(NewEntry);
+	TestEqual(TEXT("Rebinding preserves pending time"), Helper.GetPendingDeltaTime(), PendingBeforeRebind);
+	TestEqual(TEXT("Rebinding preserves publisher serial"), Helper.GetLastPublishSerial(), SerialBeforeRebind);
+	TestEqual(TEXT("Rebinding preserves published wind time"), Helper.GetLastPublishedState().Wind.Time, PublishedTimeBeforeRebind);
+	TestTrue(TEXT("Rebinding preserves publisher pointer"), Helper.GetSharedPublisherEntry() == PublisherEntry);
+	TestFalse(TEXT("Rebinding does not expire publisher"), PublisherEntry->IsExpired(5, 60));
+	TestFalse(TEXT("Rebinding preserves effective enabled"), Helper.IsEffectiveEnabled());
+	TestTrue(TEXT("Replacement update publishes"), Helper.Update(Inputs, WindState, 0.1f, 6, 60));
+	FKawaiiPhysicsSimpleWorldCollisionDesc Desc;
+	TestTrue(TEXT("Replacement receives provider desc"), NewEntry->BuildMergedDesc(Desc));
+	TestTrue(TEXT("Replacement desc reflects disabled override"), Desc.bProviderDisabled);
+	TestEqual(TEXT("Replacement desc preserves effective settings"), Desc.GatherIntervalSec, EffectiveSettings.GatherInterval);
+	TestFalse(TEXT("Replacement clears SimpleWorld rebind request"), Helper.NeedsSimpleWorldEntryReacquire());
+	TestFalse(TEXT("Replacement does not request publisher rebind"), Helper.NeedsEntryReacquire());
+	TestTrue(TEXT("Replacement desc preserves skeletal mesh component"), NewEntry->GetPrimarySkelComp() == SkelComp);
+
+	// null の差し替えでも Publisher Entry は保持し、次の SimpleWorld 再取得を待つ。
+	NewEntry->RemoveDesc(SourceID);
+	TestTrue(TEXT("Replacement is detached before null retry"), NewEntry->MarkRetiredIfEmpty());
+	Helper.SetSimpleWorldEntry(nullptr);
+	TestTrue(TEXT("Null SimpleWorld entry needs rebinding"), Helper.NeedsSimpleWorldEntryReacquire());
+	TestFalse(TEXT("Null SimpleWorld entry keeps publisher"), Helper.NeedsEntryReacquire());
+	TestTrue(TEXT("Null SimpleWorld entry still permits publishing"), Helper.Update(Inputs, WindState, 0.1f, 7, 60));
+	TestFalse(TEXT("Null update keeps publisher alive"), PublisherEntry->IsExpired(7, 60));
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSharedPublisherPublishHelperUpdateTest,
                                  "KawaiiPhysics.SharedPublisher.PublishHelperUpdate",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -905,6 +982,179 @@ bool FKawaiiPhysicsSharedPublisherPublishHelperUpdateTest::RunTest(const FString
 	Helper.ReleaseEntries();
 	TestFalse(TEXT("Release removes provider desc"), SimpleWorldEntry->HasProviderDesc());
 	TestEqual(TEXT("Release keeps wind time"), WindState->Time, TimeBeforeRelease);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSharedPublisherRejectedDuplicateRemovesPreUpdateDescTest,
+                                 "KawaiiPhysics.SharedPublisher.RejectedDuplicateRemovesPreUpdateDesc",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+// 同じ Tag の Publisher 2 個が同じフレームに PreUpdate で provider Desc を登録した場合、
+// publish に負けた側の Desc をその場で取り下げる（age-out を待たずに収集設定から外れる）
+bool FKawaiiPhysicsSharedPublisherRejectedDuplicateRemovesPreUpdateDescTest::RunTest(const FString& Parameters)
+{
+	constexpr uint64 SourceIDA = 0xA001;
+	constexpr uint64 SourceIDB = 0xA002;
+	constexpr uint64 MaxAgeFrames = 60;
+
+	const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> PublisherEntry =
+		MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+	const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> SimpleWorldEntry =
+		MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
+	USkeletalMeshComponent* SkelComp = NewObject<USkeletalMeshComponent>(GetTransientPackage());
+	const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> WindState =
+		MakeShared<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe>();
+
+	FKawaiiPhysicsSharedPublishInputs InputsA;
+	// 負け側にはマージ結果が変わる値を持たせる（GatherInterval は min、bGatherFamilyMembers は or）
+	FKawaiiPhysicsSharedPublishInputs InputsB;
+	InputsB.SimpleWorld.GatherInterval = 0.05f;
+	InputsB.SimpleWorld.bGatherFamilyMembers = true;
+
+	// PreUpdate 相当。両方が FindOrCreateSimpleWorldEntry(bProvider=true) を通った直後と同じ状態を作る
+	const FKawaiiPhysicsSimpleWorldCollisionDesc DescA =
+		KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldCollisionDesc(InputsA.SimpleWorld);
+	const FKawaiiPhysicsSimpleWorldCollisionDesc DescB =
+		KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldCollisionDesc(InputsB.SimpleWorld);
+	const TWeakObjectPtr<const USkeletalMeshComponent> WeakSkelComp(SkelComp);
+	TestTrue(TEXT("PreUpdate registers the provider A desc"),
+		SimpleWorldEntry->SetDesc(SourceIDA, DescA, 1, WeakSkelComp, true));
+	TestTrue(TEXT("PreUpdate registers the provider B desc"),
+		SimpleWorldEntry->SetDesc(SourceIDB, DescB, 1, WeakSkelComp, true));
+	TestEqual(TEXT("Both PreUpdate descs are registered"), SimpleWorldEntry->GetNumDescs(), 2);
+
+	FKawaiiPhysicsSharedPublishHelper ProviderA;
+	FKawaiiPhysicsSharedPublishHelper ProviderB;
+	ProviderA.SetSourceID(SourceIDA);
+	ProviderB.SetSourceID(SourceIDB);
+	ProviderA.SetEntries(PublisherEntry, SimpleWorldEntry, SkelComp, /*bInProviderDescRegistered*/ true);
+	ProviderB.SetEntries(PublisherEntry, SimpleWorldEntry, SkelComp, /*bInProviderDescRegistered*/ true);
+	ProviderA.ResetEffectiveValues(InputsA);
+	ProviderB.ResetEffectiveValues(InputsB);
+
+	AddExpectedError(TEXT("Kawaii Physics Shared Publisher rejected publish"),
+	                 EAutomationExpectedErrorFlags::Contains, 1);
+	TestTrue(TEXT("Provider A claims the publisher entry"),
+		ProviderA.Update(InputsA, WindState, 0.0f, 1, MaxAgeFrames));
+	TestFalse(TEXT("Provider B is rejected in the same frame"),
+		ProviderB.Update(InputsB, WindState, 0.0f, 1, MaxAgeFrames));
+
+	TestEqual(TEXT("Rejected provider desc is withdrawn"), SimpleWorldEntry->GetNumDescs(), 1);
+	TestFalse(TEXT("Rejected provider has no desc left"), SimpleWorldEntry->MarkRead(SourceIDB, 1));
+	TestTrue(TEXT("Winning provider keeps its desc"), SimpleWorldEntry->MarkRead(SourceIDA, 1));
+
+	FKawaiiPhysicsSimpleWorldCollisionDesc MergedDesc;
+	TestTrue(TEXT("Merged desc exists after the rejection"), SimpleWorldEntry->BuildMergedDesc(MergedDesc));
+	TestEqual(TEXT("Merged desc keeps the winning gather interval"),
+		MergedDesc.GatherIntervalSec, InputsA.SimpleWorld.GatherInterval);
+	TestFalse(TEXT("Merged desc drops the rejected family member flag"), MergedDesc.bGatherFamilyMembers);
+
+	// 取り下げ済みなので、拒否が続くフレームで Desc 数も勝ち側の登録も動かない
+	for (uint64 Frame = 2; Frame <= 4; ++Frame)
+	{
+		TestFalse(TEXT("Provider B stays rejected"),
+			ProviderB.Update(InputsB, WindState, 0.0f, Frame, MaxAgeFrames));
+		TestTrue(TEXT("Provider A keeps publishing"),
+			ProviderA.Update(InputsA, WindState, 0.0f, Frame, MaxAgeFrames));
+		TestEqual(TEXT("Rejected provider stays unregistered"), SimpleWorldEntry->GetNumDescs(), 1);
+	}
+	TestEqual(TEXT("Winning provider sends its desc only once"), ProviderA.GetNumSetDescCalls(), 1);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSharedPublisherInputChangeBeatsSameFramePendingTest,
+                                 "KawaiiPhysics.SharedPublisher.InputChangeBeatsSameFramePending",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+// 同じフレームに Blueprint の Pending 要求と UPROPERTY 変化が競合したら UPROPERTY 値が勝つ（docs §5-(b) 手順 2）
+bool FKawaiiPhysicsSharedPublisherInputChangeBeatsSameFramePendingTest::RunTest(const FString& Parameters)
+{
+	constexpr uint64 SourceID = 0xA001;
+	constexpr uint64 ClaimSourceID = 0xA004;
+	constexpr uint64 MaxAgeFrames = 60;
+
+	const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> PublisherEntry =
+		MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+	const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> SimpleWorldEntry =
+		MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
+	USkeletalMeshComponent* SkelComp = NewObject<USkeletalMeshComponent>(GetTransientPackage());
+	const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> WindState =
+		MakeShared<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe>();
+
+	FKawaiiPhysicsSharedPublishInputs Defaults;
+	FKawaiiPhysicsSharedPublishHelper Helper;
+	Helper.SetSourceID(SourceID);
+	Helper.SetEntries(PublisherEntry, SimpleWorldEntry, SkelComp);
+	Helper.ResetEffectiveValues(Defaults);
+
+	FKawaiiPhysicsSharedPublishInputs Inputs = Defaults;
+	TestTrue(TEXT("Claim frame publishes"), Helper.Update(Inputs, WindState, 0.0f, 1, MaxAgeFrames));
+	TestTrue(TEXT("Steady frame publishes"), Helper.Update(Inputs, WindState, 0.0f, 2, MaxAgeFrames));
+
+	// (a) Pending の無効化と UPROPERTY の有効化が同フレームで競合する
+	Inputs.bEnabled = false;
+	TestTrue(TEXT("UPROPERTY disable publishes"), Helper.Update(Inputs, WindState, 0.0f, 3, MaxAgeFrames));
+	TestFalse(TEXT("UPROPERTY disable takes effect"), Helper.IsEffectiveEnabled());
+
+	PublisherEntry->RequestPublisherEnabled(false);
+	Inputs.bEnabled = true;
+	TestTrue(TEXT("Conflicting enable publishes"), Helper.Update(Inputs, WindState, 0.0f, 4, MaxAgeFrames));
+	TestTrue(TEXT("UPROPERTY enable beats the same frame pending disable"), Helper.IsEffectiveEnabled());
+	FKawaiiPhysicsSharedPublisherState ReadState;
+	PublisherEntry->ReadState(ReadState);
+	TestTrue(TEXT("Published state follows the UPROPERTY enable"), ReadState.bPublisherEnabled);
+
+	// Pending は消費済みなので、次フレーム以降も UPROPERTY 値のまま
+	TestTrue(TEXT("Next frame publishes"), Helper.Update(Inputs, WindState, 0.0f, 5, MaxAgeFrames));
+	TestTrue(TEXT("Effective enabled stays true on the next frame"), Helper.IsEffectiveEnabled());
+
+	// (b) 収集設定も同じ規則
+	FKawaiiPhysicsSimpleWorldCollisionSettings PendingSettings = Inputs.SimpleWorld;
+	PendingSettings.GatherInterval = 0.25f;
+	PublisherEntry->RequestSimpleWorldSettings(PendingSettings);
+	Inputs.SimpleWorld.GatherInterval = 0.5f;
+	TestTrue(TEXT("Conflicting settings publish"), Helper.Update(Inputs, WindState, 0.0f, 6, MaxAgeFrames));
+	TestEqual(TEXT("UPROPERTY settings beat the same frame pending settings"),
+		Helper.GetEffectiveSimpleWorldSettings().GatherInterval, 0.5f);
+	PublisherEntry->ReadState(ReadState);
+	TestEqual(TEXT("Published settings follow the UPROPERTY change"),
+		ReadState.SimpleWorldSettings.GatherInterval, 0.5f);
+
+	// (c) 競合していない項目は Pending が勝つ
+	PublisherEntry->RequestPublisherEnabled(false);
+	Inputs.SimpleWorld.GatherInterval = 0.35f;
+	TestTrue(TEXT("Non conflicting pending publishes"), Helper.Update(Inputs, WindState, 0.0f, 7, MaxAgeFrames));
+	TestFalse(TEXT("Pending disable wins while the UPROPERTY did not change"), Helper.IsEffectiveEnabled());
+	TestEqual(TEXT("Changed settings still follow the UPROPERTY value"),
+		Helper.GetEffectiveSimpleWorldSettings().GatherInterval, 0.35f);
+
+	// (d) claim フレーム（受理後に Pending を消費する経路）でも同じ裁定になる
+	{
+		const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> ClaimPublisherEntry =
+			MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+		const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> ClaimSimpleWorldEntry =
+			MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
+		FKawaiiPhysicsSharedPublishInputs ClaimDefaults;
+		ClaimDefaults.bEnabled = false;
+		FKawaiiPhysicsSharedPublishHelper ClaimProvider;
+		ClaimProvider.SetSourceID(ClaimSourceID);
+		ClaimProvider.SetEntries(ClaimPublisherEntry, ClaimSimpleWorldEntry, SkelComp);
+		ClaimProvider.ResetEffectiveValues(ClaimDefaults);
+
+		ClaimPublisherEntry->RequestPublisherEnabled(false);
+		FKawaiiPhysicsSharedPublishInputs ClaimInputs = ClaimDefaults;
+		ClaimInputs.bEnabled = true;
+		TestTrue(TEXT("Claim frame with a conflicting request publishes"),
+			ClaimProvider.Update(ClaimInputs, WindState, 0.0f, 1, MaxAgeFrames));
+		TestTrue(TEXT("Claim frame is reported as a claim"), ClaimProvider.WasLastUpdateClaim());
+		TestTrue(TEXT("UPROPERTY enable beats the pending disable on a claim frame"),
+			ClaimProvider.IsEffectiveEnabled());
+		FKawaiiPhysicsSharedPublisherState ClaimState;
+		ClaimPublisherEntry->ReadState(ClaimState);
+		TestTrue(TEXT("Claim frame republishes the UPROPERTY value"), ClaimState.bPublisherEnabled);
+	}
 
 	return true;
 }

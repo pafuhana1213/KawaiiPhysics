@@ -173,6 +173,51 @@ struct FKawaiiPhysicsTestAccessor
 		Node.bHasCurrentEvalSimSpaceCache = false;
 	}
 
+	// コンポーネント空間の衝突テスト用に、評価時と同じワールド変換キャッシュを設定する。
+	void SetComponentSpaceCollisionTransform(const FTransform& ComponentTransform)
+	{
+		Node.SimulationSpace = EKawaiiPhysicsSimulationSpace::ComponentSpace;
+		Node.bHasCurrentEvalSimSpaceCache = false;
+		Node.CurrentEvalWorldSpaceCache.ComponentToTargetSpace = ComponentTransform;
+		Node.CurrentEvalWorldSpaceCache.TargetSpaceToComponent = ComponentTransform.Inverse();
+		Node.bHasCurrentEvalWorldSpaceCache = true;
+	}
+
+	// 読み取り経路の衝突テスト用に、任意のシミュレーション空間の評価時キャッシュを設定する。
+	void SetSimulationSpaceCollisionTransform(
+		EKawaiiPhysicsSimulationSpace Space, const FTransform& TargetToComponent)
+	{
+		Node.SimulationSpace = Space;
+		Node.CurrentEvalSimSpaceCache.TargetSpaceToComponent = TargetToComponent;
+		Node.CurrentEvalSimSpaceCache.ComponentToTargetSpace = TargetToComponent.Inverse();
+		Node.bHasCurrentEvalSimSpaceCache = true;
+	}
+
+	void SetSharedCollisionSourceSlot(const TSharedPtr<FKawaiiPhysicsSharedCollisionSourceSlot>& Slot)
+	{
+		Node.CachedSourceSlot = Slot;
+	}
+
+	void WriteSharedCollisionToSubsystem(FComponentSpacePoseContext& Output, const FTransform& ComponentTransform)
+	{
+		Node.WriteSharedCollisionToSubsystem(Output, ComponentTransform);
+	}
+
+	void SetSharedCollisionEntry(const TSharedPtr<FKawaiiPhysicsSharedCollisionEntry>& Entry)
+	{
+		Node.CachedSharedCollisionEntry = Entry;
+	}
+
+	void UpdateSharedCollisionLimits(FComponentSpacePoseContext& Output)
+	{
+		Node.UpdateSharedCollisionLimits(Output);
+	}
+
+	const TArray<FSphericalLimit>& GetSharedSphericalLimits() const
+	{
+		return Node.SharedSphericalLimits;
+	}
+
 	void SetUseLegacyGravity(bool bUse) { Node.bUseLegacyGravity = bUse; }
 	void SetSkelCompMove(const FVector& MoveVec, const FQuat& MoveRot = FQuat::Identity)
 	{
@@ -237,6 +282,15 @@ struct FKawaiiPhysicsTestAccessor
 		Node.SimpleWorldAutomationLocalEntry = Entry;
 	}
 
+	/** SimpleWorld 初期化に使う Subsystem を設定する / Sets the subsystem used for SimpleWorld initialization. */
+	void SetSimpleWorldSubsystem(UKawaiiPhysicsSharedCollisionSubsystem* Subsystem)
+	{
+		Node.CachedSharedCollisionSubsystem = Subsystem;
+	}
+
+	/** SimpleWorld 初期化済みかを返す / Returns whether SimpleWorld is initialized. */
+	bool IsSimpleWorldCollisionInitialized() const { return Node.bSimpleWorldCollisionInitialized; }
+
 	void InitializeSimpleWorldCollision()
 	{
 		Node.InitializeSimpleWorldCollision();
@@ -259,6 +313,50 @@ struct FKawaiiPhysicsTestAccessor
 	{
 		Node.SharedCollisionInitRetryCount = RetryCount;
 		Node.bSharedCollisionInitWarningLogged = bWarningLogged;
+	}
+
+	/**
+	 * SimpleWorld の reader キーを直接注入する（Shared Publisher 無しで Subsystem 経由の reader 経路へ向ける）。
+	 * Injects the SimpleWorld reader key directly, pointing the node at the subsystem reader path without a Shared Publisher.
+	 */
+	void SetSimpleWorldReaderKey(const FKawaiiPhysicsSimpleWorldRegistryKey& Key)
+	{
+		Node.SetSimpleWorldReaderKey(Key);
+		Node.bUseSimpleWorldCollision = true;
+	}
+
+	/**
+	 * InitializeSimpleWorldCollision が実処理に入った回数を返す（reader 再試行スロットルの検証用）。
+	 * Returns how many times InitializeSimpleWorldCollision entered its real work (used to verify the reader retry throttle).
+	 */
+	int32 GetNumSimpleWorldInitializeAttempts() const
+	{
+		return Node.NumSimpleWorldInitializeAttempts;
+	}
+
+	/**
+	 * 本番 Evaluate（EvaluateSkeletalControl_AnyThread の SimpleWorld ブロック）の初期化ゲート → 読み取り更新の順序を複製する。
+	 * bUseSimpleWorldCollision / CVar による全体無効化と TeleportPhysics の再収集要求は複製しない。
+	 * 条件を変えたら AnimNode_KawaiiPhysics.cpp 側と両方を直すこと。
+	 * Duplicates the production Evaluate order (initialize gate, then the read update) from the SimpleWorld block of
+	 * EvaluateSkeletalControl_AnyThread. The bUseSimpleWorldCollision / CVar master switch and the TeleportPhysics
+	 * regather request are not duplicated. Any condition change must be applied to AnimNode_KawaiiPhysics.cpp as well.
+	 */
+	void EvaluateSimpleWorldCollision(FComponentSpacePoseContext& Output)
+	{
+		const bool bShouldInitializeSimpleWorldCollision =
+			!Node.bSimpleWorldCollisionInitialized
+			&& (!Node.bSimpleWorldReaderMode
+				|| Node.SimpleWorldReaderRetryCount == 0
+				|| Node.ShouldRetrySimpleWorldReaderInitialize());
+		if (bShouldInitializeSimpleWorldCollision)
+		{
+			Node.InitializeSimpleWorldCollision();
+		}
+		if (Node.CachedSimpleWorldEntry.IsValid() || Node.bSimpleWorldReaderMode)
+		{
+			Node.UpdateSimpleWorldCollisionLimits(Output, bShouldInitializeSimpleWorldCollision);
+		}
 	}
 
 	void InjectSharedPublisherState(const FKawaiiPhysicsSharedPublisherState& State,

@@ -242,21 +242,75 @@ bool FKawaiiPhysicsBoxTest::RunTest(const FString& Parameters)
 	                         *Bone.Location.ToString(), *Expected.ToString()),
 	         Bone.Location.Equals(Expected, GCollisionTol));
 
-	// 完全に内部（buried）ケース。現行アルゴリズムは中心方向へ「半径ぶん」だけ押すため箱から出きらず
-	// (8,0,0) で止まる（理想は (13,0,0)）。現挙動の固定＝リグレッション検出用。
+	// 完全に内部のケース。最近面 X=10 までの貫通深さ 5 + 半径 3 だけ押し出す。
 	FKawaiiPhysicsModifyBone Buried = MakeBone(FVector(5, 0, 0), 3.0f, FVector(5, 0, 0));
 	A.CallBoxCollision(Buried, Limits);
-	TestTrue(FString::Printf(TEXT("Box buried push (pins current behavior): got %s expected (8,0,0)"),
+	TestTrue(FString::Printf(TEXT("Box buried push-out: got %s expected (13,0,0)"),
 	                         *Buried.Location.ToString()),
-	         Buried.Location.Equals(FVector(8, 0, 0), GCollisionTol));
+	         Buried.Location.Equals(FVector(13, 0, 0), GCollisionTol));
 
-	// 中心一致の縮退ケース。修正前はゼロ法線で中心に留まるバグ → 最小貫通軸（X==Y==Z なので +X）へ決定的に押し出し (3,0,0)。
-	// 目的は完全脱出でなくゼロ法線バグの解消（buried 同様「半径ぶんのみ押す」ので Box 内部に留まる）。
+	// 中心一致では最小貫通軸（X==Y==Z なので +X）へ、貫通深さ 10 + 半径 3 だけ押し出す。
 	FKawaiiPhysicsModifyBone Center = MakeBone(FVector(0, 0, 0), 3.0f, FVector(0, 0, 0));
 	A.CallBoxCollision(Center, Limits);
-	TestTrue(FString::Printf(TEXT("Box center-coincident push-out: got %s expected (3,0,0)"),
+	TestTrue(FString::Printf(TEXT("Box center-coincident push-out: got %s expected (13,0,0)"),
 	                         *Center.Location.ToString()),
-	         Center.Location.Equals(FVector(3, 0, 0), GCollisionTol));
+	         Center.Location.Equals(FVector(13, 0, 0), GCollisionTol));
+
+	return true;
+}
+
+// 内部の最近面への押し出し。地面 Box でも端では側面から横に抜ける仕様を含む。
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsBoxInteriorPushOutToNearestFaceTest,
+                                 "KawaiiPhysics.Collision.BoxInteriorPushOutToNearestFace",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsBoxInteriorPushOutToNearestFaceTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor A;
+	FBoxLimit Box;
+	Box.Location = FVector::ZeroVector;
+	Box.Rotation = FQuat::Identity;
+	Box.Extent = FVector(100, 100, 2);
+	Box.bEnable = true;
+	Box.UpdateRuntimeCache();
+	TArray<FBoxLimit> Limits = {Box};
+
+	auto CheckPushOut = [&](const TCHAR* Label, const FVector& Start, float Radius, const FVector& Expected)
+	{
+		FKawaiiPhysicsModifyBone Bone = MakeBone(Start, Radius, Start);
+		A.CallBoxCollision(Bone, Limits);
+		TestTrue(FString::Printf(TEXT("%s: got %s expected %s"),
+		                         Label, *Bone.Location.ToString(), *Expected.ToString()),
+		         Bone.Location.Equals(Expected, 1e-4));
+	};
+
+	// (a) 最小貫通深さは Z の 1.5。正側へ押し出し、他の軸は保つ。
+	CheckPushOut(TEXT("Interior positive Z"), FVector(30, -20, 0.5), 1.0f, FVector(30, -20, 3));
+	// (b) 負側の最近面へ押し出す。
+	CheckPushOut(TEXT("Interior negative Z"), FVector(30, -20, -0.5), 1.0f, FVector(30, -20, -3));
+	// (c) 中心一致でも最も薄い軸の正側へ押し出す。
+	CheckPushOut(TEXT("Thin box center"), FVector::ZeroVector, 1.0f, FVector(0, 0, 3));
+
+	// (d) 立方体の中心では全軸同値なので +X を選ぶ。
+	Limits[0].Extent = FVector(5, 5, 5);
+	CheckPushOut(TEXT("Cube center tie chooses X"), FVector::ZeroVector, 1.0f, FVector(6, 0, 0));
+	Limits[0].Extent = Box.Extent;
+
+	// (e) 境界上は内部と同じ経路で半径ぶん押し出す。
+	CheckPushOut(TEXT("On top face"), FVector(10, 0, 2), 1.0f, FVector(10, 0, 3));
+	// (f) 半径ゼロでも面まで押し出す。
+	CheckPushOut(TEXT("Zero radius inside"), FVector(10, 0, 1), 0.0f, FVector(10, 0, 2));
+
+	// (g) Z 軸正方向に 90 度回転し、ローカル (10,0,3) はワールド (0,10,3) になる。
+	Limits[0].Rotation = FQuat(FVector::ZAxisVector, FMath::DegreesToRadians(90.0f));
+	CheckPushOut(TEXT("Rotated box interior"), FVector(0, 10, 1), 1.0f, FVector(0, 10, 3));
+	Limits[0].Rotation = FQuat::Identity;
+
+	// (h) 外部の交差は従来の最近点 + 法線 * 半径、非交差は不変。
+	CheckPushOut(TEXT("Exterior overlapping"), FVector(0, 0, 2.5), 1.0f, FVector(0, 0, 3));
+	CheckPushOut(TEXT("Exterior separated"), FVector(0, 0, 3.5), 1.0f, FVector(0, 0, 3.5));
+	// (i) 地面 Box でも端では側面が最近面となり、横に抜ける。
+	CheckPushOut(TEXT("Nearest side face at ground edge"), FVector(99.5, 0, 0), 1.0f, FVector(101, 0, 0));
 
 	return true;
 }
