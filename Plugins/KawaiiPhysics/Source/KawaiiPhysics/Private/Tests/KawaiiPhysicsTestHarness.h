@@ -23,6 +23,8 @@ struct FKawaiiPhysicsTestAccessor
 {
 	FAnimNode_KawaiiPhysics Node;
 
+	void ApplyPhysicsAsset(const FBoneContainer& RequiredBones) { Node.ApplyPhysicsAsset(RequiredBones); }
+
 #if WITH_EDITOR
 	void SetMirrorTableCacheForPIE(bool bEnabled) { Node.bCacheMirrorTablesForPIE = bEnabled; }
 	void ApplyMirrorLimits(const FBoneContainer& RequiredBones) { Node.ApplyMirrorLimits(RequiredBones); }

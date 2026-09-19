@@ -4,6 +4,15 @@
 
 #include "Misc/AutomationTest.h"
 #include "KawaiiPhysicsTestHarness.h"
+#include "Animation/Skeleton.h"
+#include "Misc/EngineVersionComparison.h"
+#include "PhysicsEngine/PhysicsAsset.h"
+#include "PhysicsEngine/TaperedCapsuleElem.h"
+#include "ReferenceSkeleton.h"
+
+#if !UE_VERSION_OLDER_THAN(5, 5, 0)
+#include "PhysicsEngine/SkeletalBodySetup.h"
+#endif
 
 // コリジョン押し出しの正しさ（解析的基準値）。
 // 各形状: ボーン(半径r)が形状に食い込んだとき、表面+r へ正しく押し出されることを検証。
@@ -208,6 +217,86 @@ bool FKawaiiPhysicsTaperedCapsuleTest::RunTest(const FString& Parameters)
 	TestTrue(FString::Printf(TEXT("Tapered capsule negative end radius: got %s expected (3,0,5)"),
 	                         *NegativeEndBone.Location.ToString()),
 	         NegativeEndBone.Location.Equals(FVector(3, 0, 5), GCollisionTol));
+
+	FTaperedCapsuleLimit StrongTaper;
+	StrongTaper.Location = FVector::ZeroVector;
+	StrongTaper.Rotation = FQuat::Identity;
+	StrongTaper.Length = 5.0f;
+	StrongTaper.Radius0 = 10.0f;
+	StrongTaper.Radius1 = 1.0f;
+	StrongTaper.bEnable = true;
+	TArray<FTaperedCapsuleLimit> StrongTaperLimits{StrongTaper};
+
+	// |R0-R1| >= Length: 小さい端球は大きい端球に包含されるため、+Z端の半径10の球として押し出す。
+	// 大球中心は(0,0,2.5)、Bone半径2を加えた押し出し距離は12なので、-Z方向の(0,0,-9.5)へ移動する。
+	FKawaiiPhysicsModifyBone StrongTaperBone = MakeBone(FVector(0, 0, -2.5f), 2.0f, FVector(0, 0, -2.5f));
+	A.CallTaperedCapsuleCollision(StrongTaperBone, StrongTaperLimits);
+	TestTrue(FString::Printf(TEXT("Strong taper falls back to larger endpoint sphere: got %s expected (0,0,-9.5)"),
+	                         *StrongTaperBone.Location.ToString()),
+	         StrongTaperBone.Location.Equals(FVector(0, 0, -9.5f), GCollisionTol));
+
+	FTaperedCapsuleLimit BoundaryTaper = StrongTaper;
+	BoundaryTaper.Length = 5.0f;
+	BoundaryTaper.Radius0 = 1.0f;
+	BoundaryTaper.Radius1 = 6.0f;
+	TArray<FTaperedCapsuleLimit> BoundaryTaperLimits{BoundaryTaper};
+
+	// |R0-R1| == Length の境界でも縮退し、半径が大きい -Z 端を球中心として選ぶ。
+	FKawaiiPhysicsModifyBone BoundaryTaperBone = MakeBone(FVector(0, 0, 2.5f), 1.0f, FVector(0, 0, 2.5f));
+	A.CallTaperedCapsuleCollision(BoundaryTaperBone, BoundaryTaperLimits);
+	TestTrue(FString::Printf(TEXT("Boundary taper uses larger -Z endpoint sphere: got %s expected (0,0,4.5)"),
+	                         *BoundaryTaperBone.Location.ToString()),
+	         BoundaryTaperBone.Location.Equals(FVector(0, 0, 4.5f), GCollisionTol));
+
+	return true;
+}
+
+// PhysicsAsset の FKTaperedCapsuleElem も Radius0 が +Z 端のため、半径を入れ替えずにそのまま取り込むことを確認
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTaperedCapsulePhysicsAssetImportTest,
+	"KawaiiPhysics.Collision.TaperedCapsulePhysicsAssetImport",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsTaperedCapsulePhysicsAssetImportTest::RunTest(const FString& Parameters)
+{
+	USkeleton* Skeleton = NewObject<USkeleton>(GetTransientPackage());
+	{
+		FReferenceSkeletonModifier Modifier(Skeleton);
+		Modifier.Add(FMeshBoneInfo(TEXT("root"), TEXT("root"), INDEX_NONE), FTransform::Identity);
+		Modifier.Add(FMeshBoneInfo(TEXT("taper_bone"), TEXT("taper_bone"), 0), FTransform::Identity);
+	}
+
+	TArray<FBoneIndexType> RequiredIndexes{0, 1};
+	FBoneContainer RequiredBones;
+	RequiredBones.InitializeTo(RequiredIndexes, UE::Anim::FCurveFilterSettings(), *Skeleton);
+
+	UPhysicsAsset* PhysicsAsset = NewObject<UPhysicsAsset>(GetTransientPackage());
+	USkeletalBodySetup* BodySetup = NewObject<USkeletalBodySetup>(PhysicsAsset);
+	BodySetup->BoneName = TEXT("taper_bone");
+	FKTaperedCapsuleElem Elem;
+	Elem.Center = FVector(1.0f, 2.0f, 3.0f);
+	Elem.Rotation = FRotator(10.0f, 20.0f, 30.0f);
+	Elem.Radius0 = 8.0f;
+	Elem.Radius1 = 3.0f;
+	Elem.Length = 14.0f;
+	BodySetup->AggGeom.TaperedCapsuleElems.Add(Elem);
+	PhysicsAsset->SkeletalBodySetups.Add(BodySetup);
+
+	FKawaiiPhysicsTestAccessor Accessor;
+	Accessor.Node.PhysicsAssetForLimits = PhysicsAsset;
+	Accessor.ApplyPhysicsAsset(RequiredBones);
+
+	TestEqual(TEXT("PhysicsAsset imports one tapered capsule"), Accessor.Node.TaperedCapsuleLimitsData.Num(), 1);
+	if (Accessor.Node.TaperedCapsuleLimitsData.Num() == 1)
+	{
+		const FTaperedCapsuleLimit& Imported = Accessor.Node.TaperedCapsuleLimitsData[0];
+		TestEqual(TEXT("Imported driving bone"), Imported.DrivingBone.BoneName, FName(TEXT("taper_bone")));
+		TestTrue(TEXT("Imported center"), Imported.OffsetLocation.Equals(Elem.Center, GCollisionTol));
+		TestTrue(TEXT("Imported rotation"), Imported.OffsetRotation.Equals(Elem.Rotation, GCollisionTol));
+		TestTrue(TEXT("Imported Radius0"), FMath::IsNearlyEqual(Imported.Radius0, Elem.Radius0, GCollisionTol));
+		TestTrue(TEXT("Imported Radius1"), FMath::IsNearlyEqual(Imported.Radius1, Elem.Radius1, GCollisionTol));
+		TestTrue(TEXT("Imported length"), FMath::IsNearlyEqual(Imported.Length, Elem.Length, GCollisionTol));
+		TestTrue(TEXT("Imported source type"), Imported.SourceType == ECollisionSourceType::PhysicsAsset);
+	}
 
 	return true;
 }

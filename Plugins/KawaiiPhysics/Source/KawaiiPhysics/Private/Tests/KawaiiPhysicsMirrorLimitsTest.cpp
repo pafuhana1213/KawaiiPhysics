@@ -288,6 +288,42 @@ bool FKawaiiPhysicsAppendMirroredLimitsTest::RunTest(const FString& Parameters)
 #endif
 	}
 
+	// TaperedCapsule は鏡像後も Radius0 = +Z 端 / Radius1 = -Z 端の対応を元の物理端点に保つ。
+	// 参照回転が Identity のため、X ミラーは +Z が変わらず半径そのまま、Z ミラーは +Z 端が反転して半径が入れ替わる
+	FTaperedCapsuleLimit TaperedSource;
+	TaperedSource.DrivingBone = FBoneReference(SourceBoneName);
+	TaperedSource.OffsetRotation = FRotator::ZeroRotator;
+	TaperedSource.Radius0 = 9.0f;
+	TaperedSource.Radius1 = 2.0f;
+	TaperedSource.Length = 12.0f;
+	TArray<FTaperedCapsuleLimit> TaperedSources{TaperedSource};
+	TArray<FTaperedCapsuleLimit> MirroredTapered;
+
+	KawaiiPhysicsMirrorUtils::AppendMirroredLimits(
+		TaperedSources, TArray<FTaperedCapsuleLimit>(), TArray<FTaperedCapsuleLimit>(), false,
+		ResolveMirrorBoneName, FindBoneIndex, CSRefRotations, EAxis::X, MirroredTapered);
+	TestEqual(TEXT("X mirror preserves tapered +Z endpoint radius"), MirroredTapered.Num(), 1);
+	if (MirroredTapered.Num() == 1)
+	{
+		TestTrue(TEXT("X mirror keeps Radius0"),
+		         FMath::IsNearlyEqual(MirroredTapered[0].Radius0, TaperedSource.Radius0, GMirrorVectorTol));
+		TestTrue(TEXT("X mirror keeps Radius1"),
+		         FMath::IsNearlyEqual(MirroredTapered[0].Radius1, TaperedSource.Radius1, GMirrorVectorTol));
+	}
+
+	MirroredTapered.Reset();
+	KawaiiPhysicsMirrorUtils::AppendMirroredLimits(
+		TaperedSources, TArray<FTaperedCapsuleLimit>(), TArray<FTaperedCapsuleLimit>(), false,
+		ResolveMirrorBoneName, FindBoneIndex, CSRefRotations, EAxis::Z, MirroredTapered);
+	TestEqual(TEXT("Z mirror produces one tapered capsule"), MirroredTapered.Num(), 1);
+	if (MirroredTapered.Num() == 1)
+	{
+		TestTrue(TEXT("Z mirror moves source +Z radius to generated -Z endpoint"),
+		         FMath::IsNearlyEqual(MirroredTapered[0].Radius1, TaperedSource.Radius0, GMirrorVectorTol));
+		TestTrue(TEXT("Z mirror moves source -Z radius to generated +Z endpoint"),
+		         FMath::IsNearlyEqual(MirroredTapered[0].Radius0, TaperedSource.Radius1, GMirrorVectorTol));
+	}
+
 	return true;
 }
 
