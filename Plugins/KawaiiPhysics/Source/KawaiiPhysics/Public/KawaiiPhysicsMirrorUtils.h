@@ -10,6 +10,38 @@
 
 namespace KawaiiPhysicsMirrorUtils
 {
+	namespace Private
+	{
+		// 端点ごとの属性を持たない形状では何もしない
+		template <typename TLimit>
+		void PreserveMirroredEndpointMeaning(
+			const TLimit&, TLimit&, const FQuat&, const FQuat&, EAxis::Type)
+		{
+		}
+
+		inline void PreserveMirroredEndpointMeaning(
+			const FTaperedCapsuleLimit& Source,
+			FTaperedCapsuleLimit& Mirrored,
+			const FQuat& SourceBoneRefCS,
+			const FQuat& TargetBoneRefCS,
+			const EAxis::Type MirrorAxis)
+		{
+			// 鏡映は回転で表せず MirrorQuat は回転を返すため、反射軸によっては生成後の +Z 端が鏡像の -Z 端側に来る（端点の意味が反転）。
+			// Radius0 = +Z 端 / Radius1 = -Z 端の規約で半径を元の物理端点に結び付けるため、期待する鏡像 +Z と生成後 +Z が逆向きなら半径を交換する。
+			const FVector SourcePlusZCS =
+				(SourceBoneRefCS * Source.OffsetRotation.Quaternion()).GetAxisZ();
+			const FVector ExpectedMirroredPlusZCS =
+				FAnimationRuntime::MirrorVector(SourcePlusZCS, MirrorAxis).GetSafeNormal();
+			const FVector GeneratedPlusZCS =
+				(TargetBoneRefCS * Mirrored.OffsetRotation.Quaternion()).GetAxisZ().GetSafeNormal();
+
+			if (FVector::DotProduct(ExpectedMirroredPlusZCS, GeneratedPlusZCS) < 0.0f)
+			{
+				Swap(Mirrored.Radius0, Mirrored.Radius1);
+			}
+		}
+	}
+
 	/**
 	 * ボーンローカル空間のコリジョンオフセット位置をミラー先ボーンのローカル空間へ変換
 	 * Converts a bone-local collision offset location into the mirrored target bone-local space.
@@ -85,6 +117,8 @@ namespace KawaiiPhysicsMirrorUtils
 			NewLimit.OffsetRotation = MirrorOffsetRotation(Source.OffsetRotation.Quaternion(),
 			                                               CSRefRotations[SourceBoneIndex],
 			                                               CSRefRotations[TargetBoneIndex], MirrorAxis).Rotator();
+			Private::PreserveMirroredEndpointMeaning(
+				Source, NewLimit, CSRefRotations[SourceBoneIndex], CSRefRotations[TargetBoneIndex], MirrorAxis);
 			NewLimit.SourceType = ECollisionSourceType::Mirror;
 #if WITH_EDITORONLY_DATA
 			NewLimit.Guid = FGuid::NewGuid();

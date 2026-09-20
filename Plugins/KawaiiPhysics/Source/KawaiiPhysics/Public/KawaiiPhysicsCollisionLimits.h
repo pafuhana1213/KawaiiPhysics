@@ -218,7 +218,10 @@ struct FTaperedCapsuleLimit : public FCollisionLimitBase
 	UPROPERTY(EditAnywhere, Category = "Tapered Capsule Limit", meta = (ClampMin = "0", Units = "cm"))
 	float Radius1 = 5.0f;
 
-	/** カプセルの長さ / Length of the capsule */
+	/**
+	 * 端球中心間の長さ。Length <= |Radius0 - Radius1| の場合は大きい端球として扱う。
+	 * Distance between endpoint sphere centers. If Length <= |Radius0 - Radius1|, the larger endpoint sphere is used.
+	 */
 	UPROPERTY(EditAnywhere, Category = "Tapered Capsule Limit", meta = (ClampMin = "0", Units = "cm"))
 	float Length = 10.0f;
 
@@ -232,11 +235,50 @@ struct FTaperedCapsuleLimit : public FCollisionLimitBase
 	void UpdateRuntimeCache()
 	{
 		const FVector AxisZ = Rotation.GetAxisZ();
+		// Start = +Z 端（Radius0）、End = -Z 端（Radius1）。衝突判定の LERP は T=0 で Radius0 になる
 		CachedStartPoint = Location + AxisZ * Length * 0.5f;
 		CachedEndPoint = Location - AxisZ * Length * 0.5f;
 		CachedSegment = CachedEndPoint - CachedStartPoint;
 		CachedSegmentSizeSq = CachedSegment.SizeSquared();
 		CachedFallbackPushDir = Rotation.GetAxisX();
+	}
+
+	float GetClampedRadius0() const
+	{
+		return FMath::Max(Radius0, 0.0f);
+	}
+
+	float GetClampedRadius1() const
+	{
+		return FMath::Max(Radius1, 0.0f);
+	}
+
+	float GetEffectiveLength() const
+	{
+		return FMath::Max(Length, 0.0f);
+	}
+
+	/**
+	 * Length <= |Radius0 - Radius1| では小さい端球が大きい端球に包含され、2 球の凸包は大きい端球そのものになる。
+	 * 衝突・Edit Mode・Debug 描画はすべてこの球へ縮退させる（Edit Mode / Debug は生値から同条件を再計算するため判定を揃えること）。
+	 * When Length <= |Radius0 - Radius1|, the smaller endpoint sphere lies inside the larger one, so their hull is just the larger sphere.
+	 * Collision, Edit Mode and debug drawing all collapse to it (Edit Mode / debug recompute this condition from raw values; keep them in sync).
+	 */
+	bool UsesSphereFallback() const
+	{
+		return GetEffectiveLength() <= FMath::Abs(GetClampedRadius0() - GetClampedRadius1()) + KINDA_SMALL_NUMBER;
+	}
+
+	float GetFallbackSphereRadius() const
+	{
+		return FMath::Max(GetClampedRadius0(), GetClampedRadius1());
+	}
+
+	FVector GetFallbackSphereCenter() const
+	{
+		const float HalfLength = GetEffectiveLength() * 0.5f;
+		const float Direction = GetClampedRadius0() >= GetClampedRadius1() ? 1.0f : -1.0f;
+		return Location + Rotation.GetAxisZ() * HalfLength * Direction;
 	}
 
 	/** Assignment operator */

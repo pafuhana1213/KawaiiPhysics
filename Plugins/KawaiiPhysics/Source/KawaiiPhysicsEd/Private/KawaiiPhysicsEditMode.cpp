@@ -3,6 +3,7 @@
 #include "KawaiiPhysicsEditMode.h"
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
+#include "DynamicMeshBuilder.h"
 #include "EditorModeManager.h"
 #include "EditorViewportClient.h"
 #include "Engine/Engine.h"
@@ -12,13 +13,9 @@
 #include "KawaiiPhysicsLimitsDataAsset.h"
 #include "ScopedTransaction.h"
 #include "SceneManagement.h"
+#include "SceneView.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "PhysicsEngine/TaperedCapsuleElem.h"
-
-#if !UE_VERSION_OLDER_THAN(5, 6, 0)
-#include "SceneView.h"
-#endif
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysicsEditMode"
 DEFINE_LOG_CATEGORY(LogKawaiiPhysics);
@@ -47,6 +44,150 @@ struct HKawaiiPhysicsHitProxy : HHitProxy
 };
 
 IMPLEMENT_HIT_PROXY(HKawaiiPhysicsHitProxy, HHitProxy);
+
+namespace
+{
+	// 回転体の断面点。NormalRadius / NormalZ は断面内の法線（半径方向・Z 成分）
+	struct FTaperedCapsuleProfilePoint
+	{
+		float Radius = 0.0f;
+		float Z = 0.0f;
+		float NormalRadius = 0.0f;
+		float NormalZ = 1.0f;
+	};
+
+	// Runtime solver の形状（+Z 側 Radius0 半球 → 両端の赤道を結ぶ円錐台 → -Z 側 Radius1 半球）を +Z 極から順に並べる
+	void BuildTaperedCapsuleSolverProfile(float Radius0, float Radius1, float Length,
+	                                      TArray<FTaperedCapsuleProfilePoint>& OutProfile)
+	{
+		constexpr int32 CapSegments = 6;
+		OutProfile.Reset(2 * CapSegments + 2);
+
+		const float HalfLength = Length * 0.5f;
+		// +Z 側 Radius0 半球（極 → 赤道の手前）
+		for (int32 Index = 0; Index < CapSegments; ++Index)
+		{
+			const float Angle = HALF_PI * static_cast<float>(Index) / static_cast<float>(CapSegments);
+			OutProfile.Add({Radius0 * FMath::Sin(Angle), HalfLength + Radius0 * FMath::Cos(Angle),
+			                FMath::Sin(Angle), FMath::Cos(Angle)});
+		}
+
+		// 側面: 両端の赤道を結ぶ円錐台（solver の LERP 半径と一致）。赤道の 2 点には側面の法線を持たせる
+		const FVector2f SideNormal = Length > KINDA_SMALL_NUMBER
+			? FVector2f(1.0f, (Radius1 - Radius0) / Length).GetSafeNormal()
+			: FVector2f(1.0f, 0.0f);
+		OutProfile.Add({Radius0, HalfLength, SideNormal.X, SideNormal.Y});
+		OutProfile.Add({Radius1, -HalfLength, SideNormal.X, SideNormal.Y});
+
+		// -Z 側 Radius1 半球（赤道の直後 → 極）
+		for (int32 Index = 1; Index <= CapSegments; ++Index)
+		{
+			const float Angle = HALF_PI + HALF_PI * static_cast<float>(Index) / static_cast<float>(CapSegments);
+			OutProfile.Add({Radius1 * FMath::Sin(Angle), -HalfLength + Radius1 * FMath::Cos(Angle),
+			                FMath::Sin(Angle), FMath::Cos(Angle)});
+		}
+	}
+
+	// FKTaperedCapsuleElem の描画は 2 球の接線 hull で、solver の LERP 近似より側面が太く見える。
+	// Edit Mode の表示を実際の衝突形状と一致させるため、solver と同じプロファイルから独自メッシュを組む
+	void DrawTaperedCapsuleSolverShape(FPrimitiveDrawInterface* PDI, FVector Location,
+	                                   const FQuat& Rotation, float Radius0, float Radius1, float Length,
+	                                   const FMaterialRenderProxy* MaterialProxy, const FHitProxyId HitProxyId)
+	{
+		// solver と同じく負値は 0 に丸める
+		Radius0 = FMath::Max(Radius0, 0.0f);
+		Radius1 = FMath::Max(Radius1, 0.0f);
+		Length = FMath::Max(Length, 0.0f);
+
+		// FTaperedCapsuleLimit::UsesSphereFallback と同条件。一方の端球が他方を包含する場合は大きい端球（Length 0）として描く
+		if (Length <= FMath::Abs(Radius0 - Radius1) + KINDA_SMALL_NUMBER)
+		{
+			const float SphereRadius = FMath::Max(Radius0, Radius1);
+			const float Direction = Radius0 >= Radius1 ? 1.0f : -1.0f;
+			Location += Rotation.GetAxisZ() * Length * 0.5f * Direction;
+			Radius0 = SphereRadius;
+			Radius1 = SphereRadius;
+			Length = 0.0f;
+		}
+
+		// プロファイルを Z 軸まわりに回して solid mesh を構築
+		constexpr int32 NumSides = 24;
+		TArray<FTaperedCapsuleProfilePoint> Profile;
+		BuildTaperedCapsuleSolverProfile(Radius0, Radius1, Length, Profile);
+
+		FDynamicMeshBuilder MeshBuilder(PDI->View->GetFeatureLevel());
+		MeshBuilder.ReserveVertices(Profile.Num() * NumSides);
+		MeshBuilder.ReserveTriangles((Profile.Num() - 1) * NumSides * 2);
+
+		for (int32 ProfileIndex = 0; ProfileIndex < Profile.Num(); ++ProfileIndex)
+		{
+			const FTaperedCapsuleProfilePoint& Point = Profile[ProfileIndex];
+			for (int32 SideIndex = 0; SideIndex < NumSides; ++SideIndex)
+			{
+				const float Angle = 2.0f * PI * static_cast<float>(SideIndex) / static_cast<float>(NumSides);
+				const float CosAngle = FMath::Cos(Angle);
+				const float SinAngle = FMath::Sin(Angle);
+				const FVector3f Position(Point.Radius * CosAngle, Point.Radius * SinAngle, Point.Z);
+				const FVector3f Tangent(-SinAngle, CosAngle, 0.0f);
+				const FVector3f Normal(Point.NormalRadius * CosAngle, Point.NormalRadius * SinAngle, Point.NormalZ);
+				const FVector3f TangentY = FVector3f::CrossProduct(Normal, Tangent);
+				MeshBuilder.AddVertex(Position, FVector2f(
+					static_cast<float>(SideIndex) / static_cast<float>(NumSides),
+					static_cast<float>(ProfileIndex) / static_cast<float>(Profile.Num() - 1)),
+					Tangent, TangentY, Normal, FColor::White);
+			}
+		}
+
+		for (int32 ProfileIndex = 0; ProfileIndex + 1 < Profile.Num(); ++ProfileIndex)
+		{
+			for (int32 SideIndex = 0; SideIndex < NumSides; ++SideIndex)
+			{
+				const int32 NextSide = (SideIndex + 1) % NumSides;
+				const int32 Top0 = ProfileIndex * NumSides + SideIndex;
+				const int32 Top1 = ProfileIndex * NumSides + NextSide;
+				const int32 Bottom0 = (ProfileIndex + 1) * NumSides + SideIndex;
+				const int32 Bottom1 = (ProfileIndex + 1) * NumSides + NextSide;
+				MeshBuilder.AddTriangle(Top0, Bottom0, Top1);
+				MeshBuilder.AddTriangle(Top1, Bottom0, Bottom1);
+			}
+		}
+
+		const FTransform ShapeTransform(Rotation, Location);
+		MeshBuilder.Draw(PDI, ShapeTransform.ToMatrixWithScale(), MaterialProxy, SDPG_World,
+		                 false, true, HitProxyId);
+
+		// ワイヤ: 緯線リング
+		for (int32 ProfileIndex = 0; ProfileIndex < Profile.Num(); ++ProfileIndex)
+		{
+			const FTaperedCapsuleProfilePoint& Point = Profile[ProfileIndex];
+			for (int32 SideIndex = 0; SideIndex < NumSides; ++SideIndex)
+			{
+				const int32 NextSide = (SideIndex + 1) % NumSides;
+				const float Angle0 = 2.0f * PI * static_cast<float>(SideIndex) / static_cast<float>(NumSides);
+				const float Angle1 = 2.0f * PI * static_cast<float>(NextSide) / static_cast<float>(NumSides);
+				const FVector Local0(Point.Radius * FMath::Cos(Angle0), Point.Radius * FMath::Sin(Angle0), Point.Z);
+				const FVector Local1(Point.Radius * FMath::Cos(Angle1), Point.Radius * FMath::Sin(Angle1), Point.Z);
+				PDI->DrawLine(ShapeTransform.TransformPosition(Local0), ShapeTransform.TransformPosition(Local1),
+				              FLinearColor::Black, SDPG_World);
+			}
+		}
+
+		// ワイヤ: 90° ごとの経線
+		for (int32 SideIndex = 0; SideIndex < NumSides; SideIndex += NumSides / 4)
+		{
+			const float Angle = 2.0f * PI * static_cast<float>(SideIndex) / static_cast<float>(NumSides);
+			for (int32 ProfileIndex = 0; ProfileIndex + 1 < Profile.Num(); ++ProfileIndex)
+			{
+				const FTaperedCapsuleProfilePoint& Point0 = Profile[ProfileIndex];
+				const FTaperedCapsuleProfilePoint& Point1 = Profile[ProfileIndex + 1];
+				const FVector Local0(Point0.Radius * FMath::Cos(Angle), Point0.Radius * FMath::Sin(Angle), Point0.Z);
+				const FVector Local1(Point1.Radius * FMath::Cos(Angle), Point1.Radius * FMath::Sin(Angle), Point1.Z);
+				PDI->DrawLine(ShapeTransform.TransformPosition(Local0), ShapeTransform.TransformPosition(Local1),
+				              FLinearColor::Black, SDPG_World);
+			}
+		}
+	}
+}
 
 
 FKawaiiPhysicsEditMode::FKawaiiPhysicsEditMode()
@@ -473,16 +614,17 @@ void FKawaiiPhysicsEditMode::RenderTaperedCapsuleLimit(FPrimitiveDrawInterface* 
 				Rotation = BaseBoneSpace2ComponentSpace.TransformRotation(Rotation);
 			}
 
-			PDI->SetHitProxy(bUseHit
-				                 ? new HKawaiiPhysicsHitProxy(ECollisionLimitType::TaperedCapsule, Index,
-				                                              TaperedCapsule.SourceType)
-				                 : nullptr);
+			// HitProxy は直接編集できる source（ノード直下 / DataAsset）だけに持たせ、PhysicsAsset / Mirror 由来は表示のみ
+			HKawaiiPhysicsHitProxy* HitProxy = bUseHit
+				                                      ? new HKawaiiPhysicsHitProxy(
+					                                      ECollisionLimitType::TaperedCapsule, Index,
+					                                      TaperedCapsule.SourceType)
+				                                      : nullptr;
+			PDI->SetHitProxy(HitProxy);
 
-			const FKTaperedCapsuleElem TaperedCapsuleElem(
-				TaperedCapsule.Radius0, TaperedCapsule.Radius1, TaperedCapsule.Length);
-			const FTransform ElemTM(Rotation, Location);
-			TaperedCapsuleElem.DrawElemSolid(PDI, ElemTM, 1.0f, MaterialProxy);
-			TaperedCapsuleElem.DrawElemWire(PDI, ElemTM, 1.0f, FColor::Black);
+			DrawTaperedCapsuleSolverShape(PDI, Location, Rotation, TaperedCapsule.Radius0,
+			                               TaperedCapsule.Radius1, TaperedCapsule.Length, MaterialProxy,
+			                               HitProxy ? HitProxy->Id : FHitProxyId());
 			DrawCoordinateSystem(PDI, Location, Rotation.Rotator(),
 			                     FMath::Max(TaperedCapsule.Radius0, TaperedCapsule.Radius1), SDPG_World + 1);
 			PDI->SetHitProxy(nullptr);

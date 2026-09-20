@@ -377,28 +377,74 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebugTaperedCapsule(FComponentSpacePoseCon
 		                                FTransform(RotationSim, CenterLocationSim));
 	const FVector CenterWS = TransformWS.GetLocation();
 	const FQuat RotationWS = TransformWS.GetRotation();
-	const float HalfLength = FMath::Max(Length, 0.0f) * 0.5f;
 	const float R0 = FMath::Max(Radius0, 0.0f);
 	const float R1 = FMath::Max(Radius1, 0.0f);
+	const float EffectiveLength = FMath::Max(Length, 0.0f);
+	const float HalfLength = EffectiveLength * 0.5f;
 
 	const FVector AxisX = RotationWS.GetAxisX();
 	const FVector AxisY = RotationWS.GetAxisY();
 	const FVector AxisZ = RotationWS.GetAxisZ();
-	const FVector StartPoint = CenterWS + AxisZ * HalfLength;
-	const FVector EndPoint = CenterWS - AxisZ * HalfLength;
+	// FTaperedCapsuleLimit::UsesSphereFallback と同条件。一方の端球が他方を包含する場合は衝突判定と同じく大きい端球だけを描く
+	if (EffectiveLength <= FMath::Abs(R0 - R1) + KINDA_SMALL_NUMBER)
+	{
+		const float SphereRadius = FMath::Max(R0, R1);
+		const float Direction = R0 >= R1 ? 1.0f : -1.0f;
+		AnimInstanceProxy->AnimDrawDebugSphere(CenterWS + AxisZ * HalfLength * Direction, SphereRadius, 8,
+		                                       Color, false, -1, LineThickness, SDPG_Foreground);
+		return;
+	}
 
-	AnimInstanceProxy->AnimDrawDebugSphere(StartPoint, R0, 8, Color, false, -1,
-	                                       LineThickness, SDPG_Foreground);
-	AnimInstanceProxy->AnimDrawDebugSphere(EndPoint, R1, 8, Color, false, -1,
-	                                       LineThickness, SDPG_Foreground);
+	// 衝突判定の形状（+Z 側 R0 半球 → 両端の赤道を結ぶ円錐台 → -Z 側 R1 半球）を回転体の断面プロファイルで描く
+	struct FProfilePoint
+	{
+		float Radius;
+		float Z;
+	};
+	constexpr int32 CapSegments = 4;
+	constexpr int32 NumSides = 16;
+	TArray<FProfilePoint, TInlineAllocator<12>> Profile;
+	for (int32 Index = 0; Index < CapSegments; ++Index)
+	{
+		const float Angle = HALF_PI * static_cast<float>(Index) / static_cast<float>(CapSegments);
+		Profile.Add({R0 * FMath::Sin(Angle), HalfLength + R0 * FMath::Cos(Angle)});
+	}
+	Profile.Add({R0, HalfLength});
+	Profile.Add({R1, -HalfLength});
+	for (int32 Index = 1; Index <= CapSegments; ++Index)
+	{
+		const float Angle = HALF_PI + HALF_PI * static_cast<float>(Index) / static_cast<float>(CapSegments);
+		Profile.Add({R1 * FMath::Sin(Angle), -HalfLength + R1 * FMath::Cos(Angle)});
+	}
 
-	AnimInstanceProxy->AnimDrawDebugLine(StartPoint + AxisX * R0, EndPoint + AxisX * R1, Color, false, -1.0f,
-	                                     LineThickness, SDPG_Foreground);
-	AnimInstanceProxy->AnimDrawDebugLine(StartPoint - AxisX * R0, EndPoint - AxisX * R1, Color, false, -1.0f,
-	                                     LineThickness, SDPG_Foreground);
-	AnimInstanceProxy->AnimDrawDebugLine(StartPoint + AxisY * R0, EndPoint + AxisY * R1, Color, false, -1.0f,
-	                                     LineThickness, SDPG_Foreground);
-	AnimInstanceProxy->AnimDrawDebugLine(StartPoint - AxisY * R0, EndPoint - AxisY * R1, Color, false, -1.0f,
-	                                     LineThickness, SDPG_Foreground);
+	const auto ToWorld = [&](const FProfilePoint& Point, const float Angle)
+	{
+		return CenterWS + AxisZ * Point.Z
+			+ AxisX * (Point.Radius * FMath::Cos(Angle))
+			+ AxisY * (Point.Radius * FMath::Sin(Angle));
+	};
+
+	// 緯線リング
+	for (const FProfilePoint& Point : Profile)
+	{
+		for (int32 SideIndex = 0; SideIndex < NumSides; ++SideIndex)
+		{
+			const float Angle0 = 2.0f * PI * static_cast<float>(SideIndex) / static_cast<float>(NumSides);
+			const float Angle1 = 2.0f * PI * static_cast<float>(SideIndex + 1) / static_cast<float>(NumSides);
+			AnimInstanceProxy->AnimDrawDebugLine(ToWorld(Point, Angle0), ToWorld(Point, Angle1), Color, false,
+			                                     -1.0f, LineThickness, SDPG_Foreground);
+		}
+	}
+	// 90° ごとの経線
+	for (int32 SideIndex = 0; SideIndex < NumSides; SideIndex += NumSides / 4)
+	{
+		const float Angle = 2.0f * PI * static_cast<float>(SideIndex) / static_cast<float>(NumSides);
+		for (int32 ProfileIndex = 0; ProfileIndex + 1 < Profile.Num(); ++ProfileIndex)
+		{
+			AnimInstanceProxy->AnimDrawDebugLine(ToWorld(Profile[ProfileIndex], Angle),
+			                                     ToWorld(Profile[ProfileIndex + 1], Angle), Color, false,
+			                                     -1.0f, LineThickness, SDPG_Foreground);
+		}
+	}
 }
 #endif

@@ -1197,17 +1197,22 @@ void FAnimNode_KawaiiPhysics::AdjustByTaperedCapsuleCollision(FKawaiiPhysicsModi
 		}
 
 		FVector ClosestPoint = TaperedCapsule.Location;
-		// 負の半径が入り得るため、使用する半径は0以上に丸める。
-		float TaperedRadius = FMath::Max(FMath::Max(TaperedCapsule.Radius0, TaperedCapsule.Radius1), 0.0f);
+		float TaperedRadius = TaperedCapsule.GetFallbackSphereRadius();
 
-		if (TaperedCapsule.Length > KINDA_SMALL_NUMBER)
+		if (TaperedCapsule.UsesSphereFallback())
 		{
+			// 一方の端球が他方を包含する強いテーパーは大きい端球へ縮退させる（Edit Mode / Debug 描画と同じ形状）
+			ClosestPoint = TaperedCapsule.GetFallbackSphereCenter();
+		}
+		else
+		{
+			// 通常ケースは従来どおり、軸線分上の最近点（T=0 が +Z 端 = Radius0）で判定する
 			const FVector StartPoint = TaperedCapsule.CachedStartPoint;
 			const FVector Segment = TaperedCapsule.CachedSegment;
 			const float T = FMath::Clamp(FVector::DotProduct(Bone.Location - StartPoint, Segment) / TaperedCapsule.CachedSegmentSizeSq,
 			                             0.0f, 1.0f);
 			ClosestPoint = StartPoint + Segment * T;
-			// Chaos PhiWithNormal 準拠の近似（厳密な2球凸包SDFではない）
+			// 半径は T で LERP（Chaos PhiWithNormal 準拠の近似。厳密な 2 球凸包 SDF ではなく、Edit Mode 表示もこの形状に合わせる）
 			TaperedRadius = FMath::Max(FMath::Lerp(TaperedCapsule.Radius0, TaperedCapsule.Radius1, T), 0.0f);
 		}
 
