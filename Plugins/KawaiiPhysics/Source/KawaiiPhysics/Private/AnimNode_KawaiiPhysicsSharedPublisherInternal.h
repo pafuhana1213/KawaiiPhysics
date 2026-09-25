@@ -19,7 +19,7 @@ struct FKawaiiPhysicsSharedPublishInputs
 	TOptional<double> GameTimeSeconds;
 };
 
-struct FKawaiiPhysicsSharedPublishHelper
+struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedPublishHelper
 {
 	void SetSourceID(uint64 InSourceID);
 	void SetDebugTag(FGameplayTag InDebugTag);

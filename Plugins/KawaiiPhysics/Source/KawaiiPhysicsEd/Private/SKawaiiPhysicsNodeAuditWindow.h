@@ -45,7 +45,7 @@ public:
 
 	void Construct(const FArguments& InArgs, FKawaiiPhysicsNodeAuditWindowArgs InitArgs = FKawaiiPhysicsNodeAuditWindowArgs());
 
-	static const FName NodeAuditTabId;
+	static KAWAIIPHYSICSED_API const FName NodeAuditTabId;
 
 	/** 監査タブスポナーを登録する / Registers the audit tab spawner. */
 	static void RegisterTabSpawner();

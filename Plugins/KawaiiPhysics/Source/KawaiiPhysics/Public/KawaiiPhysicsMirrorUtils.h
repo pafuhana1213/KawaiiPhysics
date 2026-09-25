@@ -46,21 +46,21 @@ namespace KawaiiPhysicsMirrorUtils
 	 * ボーンローカル空間のコリジョンオフセット位置をミラー先ボーンのローカル空間へ変換
 	 * Converts a bone-local collision offset location into the mirrored target bone-local space.
 	 */
-	FVector MirrorOffsetLocation(const FVector& OffsetLocation, const FQuat& SourceBoneRefCS,
+	KAWAIIPHYSICS_API FVector MirrorOffsetLocation(const FVector& OffsetLocation, const FQuat& SourceBoneRefCS,
 	                             const FQuat& TargetBoneRefCS, EAxis::Type MirrorAxis);
 
 	/**
 	 * ボーンローカル空間のコリジョンオフセット回転をミラー先ボーンのローカル空間へ変換
 	 * Converts a bone-local collision offset rotation into the mirrored target bone-local space.
 	 */
-	FQuat MirrorOffsetRotation(const FQuat& OffsetRotation, const FQuat& SourceBoneRefCS,
+	KAWAIIPHYSICS_API FQuat MirrorOffsetRotation(const FQuat& OffsetRotation, const FQuat& SourceBoneRefCS,
 	                           const FQuat& TargetBoneRefCS, EAxis::Type MirrorAxis);
 
 	/**
 	 * RefSkeletonの参照ポーズから全ボーンのコンポーネント空間回転を構築
 	 * Builds component-space reference rotations for all bones from the RefSkeleton reference pose.
 	 */
-	void BuildComponentSpaceRefRotations(const FReferenceSkeleton& RefSkeleton, TArray<FQuat>& OutCSRotations);
+	KAWAIIPHYSICS_API void BuildComponentSpaceRefRotations(const FReferenceSkeleton& RefSkeleton, TArray<FQuat>& OutCSRotations);
 
 	/**
 	 * 既存コリジョンをミラー先ボーンへ複製し、生成結果をOutNewLimitsへ追加。DrivingBone.Initializeは呼び出し側で行うこと

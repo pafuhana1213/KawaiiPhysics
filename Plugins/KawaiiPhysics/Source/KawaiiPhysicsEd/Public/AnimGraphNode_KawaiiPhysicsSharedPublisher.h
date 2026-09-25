@@ -15,7 +15,7 @@ class USkeleton;
 class UToolMenu;
 struct FPropertyChangedChainEvent;
 
-UCLASS()
+UCLASS(MinimalAPI)
 class UAnimGraphNode_KawaiiPhysicsSharedPublisher : public UAnimGraphNode_Base
 {
 	GENERATED_BODY()

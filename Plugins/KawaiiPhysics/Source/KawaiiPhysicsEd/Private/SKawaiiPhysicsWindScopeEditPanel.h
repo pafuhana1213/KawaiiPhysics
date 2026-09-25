@@ -51,9 +51,9 @@ struct FKawaiiPhysicsWindScopeParamGroup
 	bool bPinned = false;
 };
 
-const TArray<FKawaiiPhysicsWindScopeParamGroup>& GetWindScopeParamGroups();
-FString SerializeWindScopeCollapsedGroups(const TSet<FName>& CollapsedGroups);
-TSet<FName> ParseWindScopeCollapsedGroups(const FString& CollapsedGroupsValue);
+KAWAIIPHYSICSED_API const TArray<FKawaiiPhysicsWindScopeParamGroup>& GetWindScopeParamGroups();
+KAWAIIPHYSICSED_API FString SerializeWindScopeCollapsedGroups(const TSet<FName>& CollapsedGroups);
+KAWAIIPHYSICSED_API TSet<FName> ParseWindScopeCollapsedGroups(const FString& CollapsedGroupsValue);
 
 DECLARE_DELEGATE_RetVal_FourParams(bool, FOnWindParamEdit, FName, double, int32, EKawaiiPhysicsWindEditPhase);
 DECLARE_DELEGATE_RetVal_OneParam(bool, FOnWindParamReset, FName);

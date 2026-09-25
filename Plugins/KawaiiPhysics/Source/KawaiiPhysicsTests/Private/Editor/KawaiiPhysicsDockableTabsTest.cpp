@@ -2,11 +2,11 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-#include "../KawaiiPhysicsEditorTabFactories.h"
-#include "../KawaiiPhysicsEdWindowUtils.h"
-#include "../SKawaiiPhysicsNodeAuditWindow.h"
-#include "../SKawaiiPhysicsPresetDiffWindow.h"
-#include "../SKawaiiPhysicsWindScopeWindow.h"
+#include "KawaiiPhysicsEditorTabFactories.h"
+#include "KawaiiPhysicsEdWindowUtils.h"
+#include "SKawaiiPhysicsNodeAuditWindow.h"
+#include "SKawaiiPhysicsPresetDiffWindow.h"
+#include "SKawaiiPhysicsWindScopeWindow.h"
 
 #include "CoreGlobals.h"
 #include "Framework/Application/SlateApplication.h"

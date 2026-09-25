@@ -40,7 +40,7 @@ public:
 
 	void Construct(const FArguments& InArgs, FKawaiiPhysicsPresetDiffWindowArgs DiffArgs = FKawaiiPhysicsPresetDiffWindowArgs());
 
-	static const FName PresetDiffTabId;
+	static KAWAIIPHYSICSED_API const FName PresetDiffTabId;
 
 	/** 差分タブを開くか既存タブを更新する / Opens the diff tab or updates the existing one. */
 	static void OpenWindow(FKawaiiPhysicsPresetDiffWindowArgs Args);

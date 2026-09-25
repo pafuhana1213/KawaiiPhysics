@@ -85,7 +85,7 @@ namespace KawaiiPhysicsPresetDiff
 	 * 単一プリセットに対する差分スナップショットを構築する。
 	 * Build a diff snapshot for a single preset.
 	 */
-	TSharedRef<FKawaiiPhysicsPresetDiffSnapshot> BuildSnapshot(const FAnimNode_KawaiiPhysics& Node,
+	KAWAIIPHYSICSED_API TSharedRef<FKawaiiPhysicsPresetDiffSnapshot> BuildSnapshot(const FAnimNode_KawaiiPhysics& Node,
 	                                                          const UKawaiiPhysicsPresetDataAsset& Preset,
 	                                                          const FKawaiiPhysicsPresetApplyOptions& Options);
 
@@ -101,13 +101,13 @@ namespace KawaiiPhysicsPresetDiff
 	 * 差分行だけをタブ区切りのクリップボード文字列に変換する。
 	 * Convert only differing rows to tab-separated clipboard text.
 	 */
-	FString MakeClipboardTextFromSnapshot(const FKawaiiPhysicsPresetDiffSnapshot& Snapshot, const FText& ContextLabel);
+	KAWAIIPHYSICSED_API FString MakeClipboardTextFromSnapshot(const FKawaiiPhysicsPresetDiffSnapshot& Snapshot, const FText& ContextLabel);
 
 	/**
 	 * 差分プロパティの値ペア配列を生成する。
 	 * Build value pairs for differing properties.
 	 */
-	TArray<FKawaiiPhysicsPresetDiffValue> BuildDiffValues(const FAnimNode_KawaiiPhysics& Node,
+	KAWAIIPHYSICSED_API TArray<FKawaiiPhysicsPresetDiffValue> BuildDiffValues(const FAnimNode_KawaiiPhysics& Node,
 	                                                      const UKawaiiPhysicsPresetDataAsset& Preset,
 	                                                      const FKawaiiPhysicsPresetApplyOptions& Options);
 }

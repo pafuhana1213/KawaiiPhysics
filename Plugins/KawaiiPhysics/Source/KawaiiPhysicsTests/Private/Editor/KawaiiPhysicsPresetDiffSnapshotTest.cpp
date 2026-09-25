@@ -1,6 +1,6 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
-#include "../KawaiiPhysicsPresetDiffSnapshot.h"
+#include "KawaiiPhysicsPresetDiffSnapshot.h"
 
 #include "KawaiiPhysicsWindPresetTags.h"
 #include "Misc/AutomationTest.h"

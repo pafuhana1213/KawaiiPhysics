@@ -9,7 +9,7 @@
 #if WITH_EDITOR
 
 /** Immutable snapshot: copied anim nodes may share it, but never mutate one another's cache. */
-struct FKawaiiPhysicsMirrorTableCache
+struct KAWAIIPHYSICS_API FKawaiiPhysicsMirrorTableCache
 {
 	struct FInputs
 	{

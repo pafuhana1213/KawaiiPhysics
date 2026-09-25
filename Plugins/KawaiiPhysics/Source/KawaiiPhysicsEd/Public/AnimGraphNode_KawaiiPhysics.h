@@ -13,7 +13,7 @@ class FCompilerResultsLog;
 class UToolMenu;
 class UGraphNodeContextMenuContext;
 
-UCLASS()
+UCLASS(MinimalAPI)
 class UAnimGraphNode_KawaiiPhysics : public UAnimGraphNode_SkeletalControlBase
 {
 	GENERATED_UCLASS_BODY()

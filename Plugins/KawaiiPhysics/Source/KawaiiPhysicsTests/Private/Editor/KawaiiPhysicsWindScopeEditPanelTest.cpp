@@ -2,7 +2,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-#include "../SKawaiiPhysicsWindScopeEditPanel.h"
+#include "SKawaiiPhysicsWindScopeEditPanel.h"
 
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"

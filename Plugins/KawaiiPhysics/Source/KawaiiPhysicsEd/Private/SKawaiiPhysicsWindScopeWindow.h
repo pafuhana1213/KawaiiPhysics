@@ -141,7 +141,7 @@ public:
 	void Construct(const FArguments& InArgs, FKawaiiPhysicsWindScopeWindowArgs InitArgs = FKawaiiPhysicsWindScopeWindowArgs());
 	virtual ~SKawaiiPhysicsWindScopeWindow() override;
 
-	static const FName WindScopeTabId;
+	static KAWAIIPHYSICSED_API const FName WindScopeTabId;
 
 	/** Wind Scope タブを開くか既存タブを更新する / Opens the Wind Scope tab or updates the existing one. */
 	static void OpenWindow(FKawaiiPhysicsWindScopeWindowArgs Args);
