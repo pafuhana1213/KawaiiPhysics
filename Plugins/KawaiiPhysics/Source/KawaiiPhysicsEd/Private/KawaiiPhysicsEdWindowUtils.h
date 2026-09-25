@@ -23,8 +23,8 @@ namespace KawaiiPhysicsEdWindowUtils
 	TSharedPtr<SDockTab> InvokeAnimBlueprintEditorTab(const FSoftObjectPath& AnimBlueprintPath, FName TabId, const FText& ResolveFailedMessage);
 
 	/** 親 workspace item 配下の Kawaii Physics メニューグループを検索し、無ければ作成して返す / Finds the Kawaii Physics menu group under the parent workspace item, creating it if missing. */
-	TSharedRef<FWorkspaceItem> FindOrAddKawaiiPhysicsMenuGroup(const TSharedRef<FWorkspaceItem>& Parent);
+	KAWAIIPHYSICSED_API TSharedRef<FWorkspaceItem> FindOrAddKawaiiPhysicsMenuGroup(const TSharedRef<FWorkspaceItem>& Parent);
 
 	/** グループ配下から指定 TabId の古い spawner 子要素を除去する / Removes stale spawner children with the given TabId from the group. */
-	void RemoveStaleSpawnerChildren(const TSharedRef<FWorkspaceItem>& Group, FName TabId);
+	KAWAIIPHYSICSED_API void RemoveStaleSpawnerChildren(const TSharedRef<FWorkspaceItem>& Group, FName TabId);
 }

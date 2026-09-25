@@ -36,6 +36,16 @@
 				"Mac",
 				"Linux"
 			]
+		},
+		{
+			"Name": "KawaiiPhysicsTests",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Mac",
+				"Linux"
+			]
 		}
 	],
 	"LocalizationTargets": [

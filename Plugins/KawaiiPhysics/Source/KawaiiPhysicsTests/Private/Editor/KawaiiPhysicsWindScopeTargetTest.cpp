@@ -2,7 +2,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-#include "../KawaiiPhysicsWindScopeTarget.h"
+#include "KawaiiPhysicsWindScopeTarget.h"
 
 #include "AnimationGraph.h"
 #include "Animation/AnimBlueprint.h"

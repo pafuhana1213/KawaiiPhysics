@@ -407,6 +407,13 @@ namespace
 	}
 
 #if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
+	// UKawaiiPhysicsMcpCommentNode は 5.5 未満で gen.cpp を持たないためエクスポートできない。
+	// 別モジュールから StaticClass() / Cast<> を呼ぶとリンクできないので、UClass はパスで引く
+	UClass* GetMcpCommentNodeClass()
+	{
+		return FindObject<UClass>(nullptr, TEXT("/Script/KawaiiPhysicsEd.KawaiiPhysicsMcpCommentNode"));
+	}
+
 	UKawaiiPhysicsMcpCommentNode* FindMcpCommentNode(UEdGraph* Graph, const FString& CommentText)
 #else
 	UEdGraphNode_Comment* FindMcpCommentNode(UEdGraph* Graph, const FString& CommentText)
@@ -420,10 +427,12 @@ namespace
 		for (UEdGraphNode* Node : Graph->Nodes)
 		{
 #if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
-			UKawaiiPhysicsMcpCommentNode* CommentNode = Cast<UKawaiiPhysicsMcpCommentNode>(Node);
-			if (CommentNode &&
-				CommentNode->GetClass() == UKawaiiPhysicsMcpCommentNode::StaticClass() &&
-				CommentNode->NodeComment == CommentText)
+			const UClass* McpCommentNodeClass = GetMcpCommentNodeClass();
+			UKawaiiPhysicsMcpCommentNode* CommentNode =
+				Node && McpCommentNodeClass && Node->GetClass() == McpCommentNodeClass
+					? static_cast<UKawaiiPhysicsMcpCommentNode*>(Node)
+					: nullptr;
+			if (CommentNode && CommentNode->NodeComment == CommentText)
 #else
 			UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node);
 			if (CommentNode &&
@@ -1695,7 +1704,7 @@ bool FKawaiiPhysicsEditorScriptingPlacementCommentTest::RunTest(const FString& P
 	                FirstHandles.IsValidIndex(1) && FirstHandles[1].IsValid());
 #if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
 	bOk &= TestEqual(TEXT("Exactly one MCP comment node is created"),
-	                 CountExactNodesOfClass(Fixture.AnimGraph, UKawaiiPhysicsMcpCommentNode::StaticClass()), 1);
+	                 CountExactNodesOfClass(Fixture.AnimGraph, GetMcpCommentNodeClass()), 1);
 #else
 	bOk &= TestEqual(TEXT("Exactly one MCP comment node is created"),
 	                 CountExactNodesOfClass(Fixture.AnimGraph, UEdGraphNode_Comment::StaticClass()), 1);
@@ -1765,7 +1774,7 @@ bool FKawaiiPhysicsEditorScriptingPlacementCommentTest::RunTest(const FString& P
 	                SecondHandles.IsValidIndex(1) && SecondHandles[1].IsValid());
 #if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
 	bOk &= TestEqual(TEXT("Comment match keeps one MCP comment"),
-	                 CountExactNodesOfClass(Fixture.AnimGraph, UKawaiiPhysicsMcpCommentNode::StaticClass()), 1);
+	                 CountExactNodesOfClass(Fixture.AnimGraph, GetMcpCommentNodeClass()), 1);
 #else
 	bOk &= TestEqual(TEXT("Comment match keeps one MCP comment"),
 	                 CountExactNodesOfClass(Fixture.AnimGraph, UEdGraphNode_Comment::StaticClass()), 1);

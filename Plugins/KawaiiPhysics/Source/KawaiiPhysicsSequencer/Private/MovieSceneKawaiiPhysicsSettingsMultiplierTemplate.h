@@ -14,7 +14,7 @@
 class UMovieSceneKawaiiPhysicsSettingsMultiplierSection;
 
 USTRUCT()
-struct FMovieSceneKawaiiPhysicsSettingsMultiplierSectionTemplate : public FMovieSceneEvalTemplate
+struct KAWAIIPHYSICSSEQUENCER_API FMovieSceneKawaiiPhysicsSettingsMultiplierSectionTemplate : public FMovieSceneEvalTemplate
 {
 	GENERATED_BODY()
 

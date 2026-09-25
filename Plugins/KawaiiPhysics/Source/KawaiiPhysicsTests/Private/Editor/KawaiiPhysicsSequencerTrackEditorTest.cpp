@@ -10,6 +10,7 @@
 #include "Misc/AutomationTest.h"
 #include "MovieSceneTrack.h"
 #include "UObject/Class.h"
+#include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
 
 namespace
