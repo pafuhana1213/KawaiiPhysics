@@ -1,7 +1,7 @@
 # Kawaii Physics
 
 ![UE Version](https://img.shields.io/badge/Unreal%20Engine-5.3--5.8-0e1128?logo=unrealengine&logoColor=white)
-[![Docs](https://img.shields.io/badge/Docs-Portal-blue)](https://pafuhana1213.github.io/KawaiiPhysics-Portal/docs)
+[![Docs](https://img.shields.io/badge/Docs-Portal-blue)](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs)
 [![GitHub release (latest by tag)](https://img.shields.io/github/v/release/pafuhana1213/KawaiiPhysics)](https://github.com/pafuhana1213/KawaiiPhysics/releases)
 [![Downloads](https://img.shields.io/github/downloads/pafuhana1213/KawaiiPhysics/total)](https://github.com/pafuhana1213/KawaiiPhysics/releases)
 [![Discussions](https://img.shields.io/github/discussions/pafuhana1213/KawaiiPhysics?logo=github)](https://github.com/pafuhana1213/KawaiiPhysics/discussions)
@@ -10,51 +10,51 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/pafuhana1213/KawaiiPhysics)
 [![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/pafuhana1213?style=social)](https://twitter.com/pafuhana1213)
 
-[English README](https://github.com/pafuhana1213/KawaiiPhysics/blob/master/README_en.md)
+[日本語 (Japanese)](README_ja.md)
 
 ---
 
-Kawaii Physicsは、Unreal Engine向けのシンプルな疑似物理プラグインです。  
-髪、スカート、胸などの揺れものを「かんたんに」「かわいく」揺らすことができます。
+Kawaii Physics is a simple pseudo-physics plugin for Unreal Engine.  
+It allows you to easily and cutely animate things that sway, such as hair, skirts, and breasts.
 
 <a href="https://youtu.be/0f-l-SP07Mo">
   <img src="https://github.com/user-attachments/assets/0bc33f5c-c7db-49b3-8e98-75dc062a4e2a" alt="Demo Video" width="640px">
 </a>
 
-[デモ動画 (Demo Video)](https://youtu.be/0f-l-SP07Mo)
+[Demo Video](https://youtu.be/0f-l-SP07Mo)
 
 <details>
-<summary>目次 (Contents)</summary>
+<summary>Contents</summary>
 
-- [ギャラリー](#ギャラリー)
-- [特徴](#特徴)
-- [導入方法](#導入方法)
-- [ドキュメント＆コミュニティ](#ドキュメントコミュニティ)
-- [解説記事・動画](#解説記事動画)
-- [サンプル](#サンプル)
-- [採用実績](#採用実績)
-- [関連ツール](#関連ツール)
-- [ライセンス](#ライセンス)
-- [作者](#作者)
-- [更新履歴](#更新履歴)
+- [Gallery](#gallery)
+- [Features](#features)
+- [Getting Started](#getting-started)
+- [Documentation & Community](#documentation--community)
+- [Tutorials & Articles](#tutorials--articles)
+- [Sample](#sample)
+- [Showcase](#showcase)
+- [Related Tools](#related-tools)
+- [License](#license)
+- [Author](#author)
+- [Changelog](#changelog)
 
 </details>
 
-## ギャラリー
+## Gallery
 
 <img src="https://github.com/user-attachments/assets/fda69859-b60f-4fde-a683-62da3e2839e4" alt="compare" width="640px">
 
-*キャラクター：[Grayちゃん](http://rarihoma.xvs.jp/products/graychan)*
+*Character: [Gray-chan](http://rarihoma.xvs.jp/products/graychan)*
 
 <img src="https://github.com/user-attachments/assets/28d72d0c-4423-41c7-bc52-c5c7c3886e02" alt="dance5" width="640px">
 
-*キャラクター：[オリジナル3Dモデル『ルゼブル』-Lzebul-](https://booth.pm/ja/items/4887691) / モーション：[ミライ小町](https://www.miraikomachi.com/download/)*
+*Character: [Original 3D Model "Lzebul"](https://booth.pm/ja/items/4887691) / Motion: [Mirai Komachi](https://www.miraikomachi.com/download/)*
 
 <img src="https://github.com/user-attachments/assets/63faed3c-8aaa-4d4d-ae33-e98f9c8c15fd" alt="danceKano" width="640px">
 
-*キャラクター：[TA式 鷺宮カノ](https://uzurig.com/ja/uzurig2-rigging-plugin-for-maya-jp/) / モーション：[しかのこのこのここしたんたん](https://booth.pm/ja/items/5975857) / セットアップ：[株式会社TA様](https://xta.co.jp/)*
+*Character: [TA-style Kano Saginomiya](https://uzurig.com/ja/uzurig2-rigging-plugin-for-maya-jp/) / Motion: [Shikanokonokonokoshitantan](https://booth.pm/ja/items/5975857) / Setup: [TA Co., Ltd.](https://xta.co.jp/)*
 
-## 特徴
+## Features
 
 <table>
   <tr>
@@ -63,117 +63,121 @@ Kawaii Physicsは、Unreal Engine向けのシンプルな疑似物理プラグ�
   </tr>
 </table>
 
-- アニメーションやキャラクターの動きに合わせて、揺れものを物理制御します
-- AnimGraphに`KawaiiPhysics`ノードをひとつ追加するだけで使えます
-- 球・カプセル・平面のコリジョンに対応。ビューポート上で直感的に調整できます
-- 骨の長さを保つので、計算が破綻してもボーンが伸び縮みしません
-- PhysXに頼らないシンプルな計算なので、動作が軽いのが特長です
-- 風や重力に加えて、演出目的の外力も加えられます
-- `DataAsset`や`PhysicsAsset`にパラメータを保存して使い回せます
-- ボーン間の距離制約で、スカートの裾が足を貫通するのを抑えられます（BoneConstraint)
-- アニメ制御下のボーン（足など）の動きを揺れものに同期させ、追従や貫通対策ができます（SyncBone）
-- Blueprint・C++から、実行中にパラメータや外力を動的に制御できます
-- その他の最新機能は [更新履歴（KawaiiPhysics Portal）](https://pafuhana1213.github.io/KawaiiPhysics-Portal/docs/changelog) を参照
+- Drives your sway bones from the character's animation and movement
+- Just drop a single `KawaiiPhysics` node into your AnimGraph and you're set
+- Supports sphere, capsule, and plane collisions, all adjustable right in the viewport
+- Keeps bone lengths fixed, so bones never stretch or collapse even if the simulation breaks down
+- Uses a simple, PhysX-free algorithm, so it stays light at runtime
+- Apply not just wind and gravity, but also custom forces for artistic effect
+- Save and reuse your settings through `DataAsset` and `PhysicsAsset`
+- Constrain the distance between bones to keep skirts from clipping through the legs (BoneConstraint)
+- Sync animation-driven bones (e.g. legs) into the simulation so cloth follows the body and avoids penetration (SyncBone)
+- Drive parameters and external forces at runtime from Blueprint or C++
+- For other recent features, see the [Changelog (KawaiiPhysics Portal)](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs/changelog)
 
-### 参考資料
-物理挙動を実装するにあたって、以下の資料を参考にしました。
-- [次期アイドルマスター グラフィクス＆アニメーション プログラミング プレビュー](https://cedil.cesa.or.jp/cedil_sessions/view/416)
+### Reference Material
 
-## 導入方法
+I referred to the following material while implementing the physics behavior:
+- [Next Idolmaster Graphics & Animation Programming Preview](https://cedil.cesa.or.jp/cedil_sessions/view/416)
 
-### 1. ダウンロード
+## Getting Started
 
-C++ビルド環境がない方は、以下のリンクからプラグインをダウンロードしてください。
+### 1. Download
+
+If you do not have a C++ build environment, please download the plugin from the following links:
+
 - **[GitHub Releases](https://github.com/pafuhana1213/KawaiiPhysics/releases/)**
-- **[FAB](https://www.fab.com/ja/listings/f870c07e-0a02-4a78-a888-e52a22794572)** (内容はGitHub版と同じです）
-- **[Booth](https://pafuhana1213.booth.pm/items/5943534)** (ストアをフォローすると更新通知が届きます)
+- **[FAB](https://www.fab.com/ja/listings/f870c07e-0a02-4a78-a888-e52a22794572)** (Same content as the GitHub version)
+- **[Booth](https://pafuhana1213.booth.pm/items/5943534)** (Follow the store to receive update notifications)
 
-### 2. 対応バージョン
+### 2. Supported Versions
 
-- **UE 5.3 ~ 5.8**
+- **Unreal Engine 5.3 ~ 5.8**
 - UE4.27: [v1.11.1](https://github.com/pafuhana1213/KawaiiPhysics/releases/tag/20230830-v1.11.1)
 
-### 3. インストール
+### 3. Installation
 
-1. プロジェクトのルートに `Plugins` フォルダを作成します。
-2. ダウンロードした `KawaiiPhysics` フォルダを `Plugins` フォルダにコピーします。
+1. Create a `Plugins` folder in the root of your project.
+2. Copy the downloaded `KawaiiPhysics` folder to the `Plugins` folder.
 
-### 4. 使い方
+### 4. How to Use
 
-- Animation BlueprintのAnimGraphで `KawaiiPhysics` ノードを追加して利用します。
-- 詳細なパラメータ設定については、[ドキュメント](https://pafuhana1213.github.io/KawaiiPhysics-Portal/docs/parameters/physics)を参照してください。
+- Add and use the `KawaiiPhysics` node in the AnimGraph of the Animation Blueprint.
+- For detailed parameter settings, please refer to the [documentation](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs/parameters/physics).
 
-> **Note:** Blueprintのみのプロジェクトでパッケージ化する際にエラーが出る場合があります。その際は、C++プロジェクトに変換するか、[こちらの記事](https://papersloth.hatenablog.com/entry/2024/02/14/201629)を参考にしてください。
+> **Note:** An error may occur when packaging a project that only uses Blueprints. In that case, please convert it to a C++ project or refer to [this article](https://papersloth.hatenablog.com/entry/2024/02/14/201629).
 
-## ドキュメント＆コミュニティ
+## Documentation & Community
 
-- **[Portal](https://pafuhana1213.github.io/KawaiiPhysics-Portal/docs)**: 公式ドキュメント（最新）
-- **[Wiki](https://github.com/pafuhana1213/KawaiiPhysics/wiki)**: 旧ドキュメント（最新情報はポータルへ移動しました）
-- **[DeepWiki](https://deepwiki.com/pafuhana1213/KawaiiPhysics)**: AIによる自動生成ドキュメント
-- **[Discussions](https://github.com/pafuhana1213/KawaiiPhysics/discussions)**: 質問、要望、雑談などはこちらへ
-- **[Issues](https://github.com/pafuhana1213/KawaiiPhysics/issues)**: 不具合報告
+- **[Portal](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs)**: Official documentation (latest)
+- **[Wiki](https://github.com/pafuhana1213/KawaiiPhysics/wiki)**: Legacy documentation (the latest information has moved to the Portal)
+- **[DeepWiki](https://deepwiki.com/pafuhana1213/KawaiiPhysics)**: AI-generated documentation
+- **[Discussions](https://github.com/pafuhana1213/KawaiiPhysics/discussions)**: For questions, requests, and general chat
+- **[Issues](https://github.com/pafuhana1213/KawaiiPhysics/issues)**: Bug reports
 
-## 解説記事・動画
+## Tutorials & Articles
 
-### 公式
+### Official
 
-- [揺れ骨用自作AnimNode「Kawaii Physics」の内部実装解説的なもの その1](http://pafuhana1213.hatenablog.com/entry/2019/07/26/171046)
-- [#ControlRig を使ったスカートの突き抜け対策と#KawaiiPhysics を併用してみるテスト](https://twitter.com/pafuhana1213/status/1300454762542817280)
+- [Internal Implementation Explanation of the Self-Made AnimNode "Kawaii Physics" Part 1](http://pafuhana1213.hatenablog.com/entry/2019/07/26/171046)
+- [Test of using #ControlRig to prevent skirt penetration in conjunction with #KawaiiPhysics](https://twitter.com/pafuhana1213/status/1300454762542817280)
 
-### 非公式 (ありがとうございます！)
+### Unofficial (Thank you!)
 
-- [揺れモノ超ド素人がKawaiiPhysicsを使って、感覚を頼りに女性キャラクターモデルのKawaiiを増す方法まとめ](https://qiita.com/YuukiOgino/items/7f3198a90dab43019f26)
-- [揺れものとコントロールリグ UEを使用したバーチャルライブでの実例](https://www.docswell.com/s/indieusgames/K4Q2XJ-2024-06-14-175045)
-- [【UE】揺れ物設定（Kawaii Physics）](https://techblog.sumelagi.co.jp/unrealengine/147/)
-- [【UE4】Kawaii Physicsチュートリアル#1](https://www.youtube.com/watch?v=hlgXuVML_is)
 - [How To Setup Kawaii Physics in Unreal Engine 5](https://dev.epicgames.com/community/learning/tutorials/d1Z9/unreal-engine-how-to-setup-kawaii-physics-in-unreal)
-- [５分でわかるKawaii Physicsの使い方！【UE5】【tutorial】](https://www.youtube.com/watch?v=TliP9vSxm4c)
-- [The Hidden Physics “Engine” Behind Unreal's Most Stylish Games ...](https://www.youtube.com/watch?v=9ThmoMHnHhw)
 
-## サンプル
+- [The Hidden Physics “Engine” Behind Unreal's Most Stylish Games ...](https://www.youtube.com/watch?v=9ThmoMHnHhw)
+- In Japanese
+  - [A Complete Beginner's Guide to Increasing a Female Character's Kawaii with KawaiiPhysics](https://qiita.com/YuukiOgino/items/7f3198a90dab43019f26)
+  - [Swaying Objects and Control Rig: A Case Study in Virtual Live Using UE](https://www.docswell.com/s/indieusgames/K4Q2XJ-2024-06-14-175045)
+  - [【UE】Swaying Object Settings (Kawaii Physics)](https://techblog.sumelagi.co.jp/unrealengine/147/)
+  - [【UE4】Kawaii Physics Tutorial #1](https://www.youtube.com/watch?v=hlgXuVML_is)
+  - [Learn Kawaii Physics in 5 minutes!【UE5】【tutorial】](https://www.youtube.com/watch?v=TliP9vSxm4c)
+
+## Sample
 
 <img src="https://github.com/user-attachments/assets/0d866ad2-f803-400b-bd23-2d46ab17b8ae" alt="sample2" width="640px">
 
-プロジェクト内にサンプルレベルとキャラクターが含まれています。
-- **サンプルレベル**: `Content/KawaiiPhysicsSample/L_KawaiiPhysicsSample`
-- **使用キャラクター**:
-  - **Grayちゃん**: http://rarihoma.xvs.jp/products/graychan
-  - **TA式 鷺宮カノ**: [株式会社TA様](https://xta.co.jp/)よりご提供
-    - Copyright (c) 2025 株式会社TA All rights reserved
-    - 利用規約：https://uzurig.com/ja/terms_of_use_jp/
+The sample project on GitHub includes a sample level and characters.
+- **Sample Level**: `Content/KawaiiPhysicsSample/L_KawaiiPhysicsSample`
+- **Characters Used**:
+  - **Gray-chan**: http://rarihoma.xvs.jp/products/graychan
+  - **TA-style Kano Saginomiya**: Provided by [TA Co., Ltd.](https://xta.co.jp/)
+    - Copyright (c) 2025 TA Co., Ltd. All rights reserved
+    - Terms of Use: https://uzurig.com/ja/terms_of_use_jp/
 
-## 採用実績
+## Showcase
 
-多くのプロジェクトで採用されています！
-- **[採用実績一覧](https://pafuhana1213.github.io/KawaiiPhysics-Portal/adoption)**
-- あなたの作品もぜひ [こちら](https://github.com/pafuhana1213/KawaiiPhysics/discussions/65) で教えてください！
-- Twitter/Xで作品を共有する際は、ぜひハッシュタグ **[#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)** をお使いください！
+Kawaii Physics is used in many projects!
+- **[Showcase List](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/adoption)**
+- Please share your work with us [here](https://github.com/pafuhana1213/KawaiiPhysics/discussions/65)!
+- When sharing your work on Twitter/X, please use the hashtag **[#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)**!
 
-## 関連ツール
-- [VRM SpringBoneをKawaiiPhysicsに変換するツール](https://yumetengu.booth.pm/items/7943387)
+## Related Tools
+- [A tool to convert VRM SpringBone to KawaiiPhysics](https://yumetengu.booth.pm/items/7943387)
 
-## ライセンス
+## License
 
 [MIT License](https://github.com/pafuhana1213/KawaiiPhysics/blob/master/LICENSE)
 
-## 作者
+## Author
 
-[おかず @pafuhana1213](https://twitter.com/pafuhana1213)
+[Okazu @pafuhana1213](https://twitter.com/pafuhana1213)
 
-## 更新履歴
+## Changelog
 
-- [Announcements - アナウンス](https://github.com/pafuhana1213/KawaiiPhysics/discussions/categories/announcements-%E3%82%A2%E3%83%8A%E3%82%A6%E3%83%B3%E3%82%B9)
-- [更新履歴 - Changelog (KawaiiPhysics Portal)](https://pafuhana1213.github.io/KawaiiPhysics-Portal/docs/changelog)
+- [Announcements](https://github.com/pafuhana1213/KawaiiPhysics/discussions/categories/announcements-%E3%82%A2%E3%83%8A%E3%82%A6%E3%83%B3%E3%82%B9)
+- [Changelog (KawaiiPhysics Portal)](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs/changelog)
 
 ---
 
-## よろしければご支援を！
+## Support Me If You’d Like!
 
-このプラグインが、皆さんのUEプロジェクトに少しでも役立っていれば、とても嬉しいです。
+If this plugin has been even a little helpful for your UE projects, I’m truly glad to hear that!
 
-開発は私個人が趣味と実益を兼ねて、開発時間の確保やコーヒー代を自腹でやりくりしながら進めています☕  
-もし「なかなか良いじゃん！」と思っていただけたら、FABでの購入やGitHub Sponsorsで応援していただけると、  
-開発を続ける上で大きな励みになります（[FABでの販売を開始に関して詳細な経緯はこちら](https://github.com/pafuhana1213/KawaiiPhysics/discussions/170)）。  
+I’ve been developing it solo as both a hobby and a practical tool — squeezing out development time and even covering coffee costs out of my own pocket ☕  
+If you think “Hey, this is pretty good!”, your support via a purchase on FAB or through GitHub Sponsors would mean a lot to me and help keep development going.  
+(You can read more about the background behind the FAB launch [here](https://github.com/pafuhana1213/KawaiiPhysics/discussions/170).)
 
-[💖**FABで購入する**](https://www.fab.com/ja/listings/f870c07e-0a02-4a78-a888-e52a22794572)  
-[💖 **GitHub Sponsorsで応援する**](https://github.com/sponsors/pafuhana1213)
+[💖 **Buy on FAB**](https://www.fab.com/ja/listings/f870c07e-0a02-4a78-a888-e52a22794572)  
+[💖 **Support via GitHub Sponsors**](https://github.com/sponsors/pafuhana1213)

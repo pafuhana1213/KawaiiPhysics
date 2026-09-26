@@ -4,7 +4,7 @@ on:
   push:
     paths:
       - README.md
-      - README_en.md
+      - README_ja.md
       - Fab_StoreDescription.md
       - Fab_StoreDescription.txt
       - Fab_Changelog.txt
@@ -14,7 +14,7 @@ on:
   pull_request:
     paths:
       - README.md
-      - README_en.md
+      - README_ja.md
       - Fab_StoreDescription.md
       - Fab_StoreDescription.txt
       - Fab_Changelog.txt
