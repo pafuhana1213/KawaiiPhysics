@@ -1,8 +1,5 @@
 # Kawaii Physics
 
-> [!TIP]
-> 🇯🇵 **日本語の説明はこちら → [README_ja.md（日本語版 README）](README_ja.md)**
-
 ![UE Version](https://img.shields.io/badge/Unreal%20Engine-5.3--5.8-0e1128?logo=unrealengine&logoColor=white)
 [![Docs](https://img.shields.io/badge/Docs-Portal-blue)](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs)
 [![GitHub release (latest by tag)](https://img.shields.io/github/v/release/pafuhana1213/KawaiiPhysics)](https://github.com/pafuhana1213/KawaiiPhysics/releases)
@@ -14,6 +11,9 @@
 [![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/pafuhana1213?style=social)](https://twitter.com/pafuhana1213)
 
 ---
+
+> [!TIP]
+> **日本語の説明はこちら → [README_ja.md（日本語版 README）](README_ja.md)**
 
 Kawaii Physics is a simple pseudo-physics plugin for Unreal Engine.  
 It allows you to easily and cutely animate things that sway, such as hair, skirts, and breasts.
