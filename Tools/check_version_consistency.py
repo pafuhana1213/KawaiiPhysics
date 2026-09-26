@@ -18,7 +18,7 @@ class VersionRangeCheck:
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MANDATORY_FILES = {
     "README.md",
-    "README_en.md",
+    "README_ja.md",
     "Plugins/KawaiiPhysics/KawaiiPhysics.uplugin",
 }
 
@@ -31,17 +31,17 @@ VERSION_RANGE_CHECKS = [
     VersionRangeCheck(
         "README.md",
         "body",
-        re.compile(r"\*\*UE\s+(?P<min>\d+\.\d+)\s*~\s*(?P<max>\d+\.\d+)\*\*"),
+        re.compile(r"\*\*Unreal Engine\s+(?P<min>\d+\.\d+)\s*~\s*(?P<max>\d+\.\d+)\*\*"),
     ),
     VersionRangeCheck(
-        "README_en.md",
+        "README_ja.md",
         "badge",
         re.compile(r"!\[UE Version\]\(https://img\.shields\.io/badge/Unreal%20Engine-(?P<min>\d+\.\d+)--(?P<max>\d+\.\d+)-"),
     ),
     VersionRangeCheck(
-        "README_en.md",
+        "README_ja.md",
         "body",
-        re.compile(r"\*\*Unreal Engine\s+(?P<min>\d+\.\d+)\s*~\s*(?P<max>\d+\.\d+)\*\*"),
+        re.compile(r"\*\*UE\s+(?P<min>\d+\.\d+)\s*~\s*(?P<max>\d+\.\d+)\*\*"),
     ),
     VersionRangeCheck(
         "Fab_StoreDescription.md",
