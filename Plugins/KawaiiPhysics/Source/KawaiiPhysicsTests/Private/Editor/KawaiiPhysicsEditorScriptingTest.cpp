@@ -767,7 +767,7 @@ bool FKawaiiPhysicsEditorScriptingPublishedEditorApisTest::RunTest(const FString
 	}
 
 	TArray<FString> ContentPaths;
-	ContentPaths.Add(TEXT("/Game/KawaiiPhysicsSample/Chain"));
+	ContentPaths.Add(TEXT("/Game/KawaiiPhysicsSample/Samples/1-Basic"));
 	TArray<FSoftObjectPath> AnimBlueprintPaths =
 		UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssets(ContentPaths);
 	bOk &= TestFalse(TEXT("FindAnimBlueprintAssets returns results for narrowed /Game path"),
@@ -776,7 +776,7 @@ bool FKawaiiPhysicsEditorScriptingPublishedEditorApisTest::RunTest(const FString
 	const bool bHasNarrowedPathResult = AnimBlueprintPaths.ContainsByPredicate(
 		[](const FSoftObjectPath& AssetPath)
 		{
-			return AssetPath.ToString().StartsWith(TEXT("/Game/KawaiiPhysicsSample/Chain/"));
+			return AssetPath.ToString().StartsWith(TEXT("/Game/KawaiiPhysicsSample/Samples/1-Basic/"));
 		});
 	bOk &= TestTrue(TEXT("FindAnimBlueprintAssets results stay under narrowed path"),
 	                bHasNarrowedPathResult);
