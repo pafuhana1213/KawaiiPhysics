@@ -1,5 +1,8 @@
 # Kawaii Physics
 
+> [!TIP]
+> 🇯🇵 **日本語の説明はこちら → [README_ja.md（日本語版 README）](README_ja.md)**
+
 ![UE Version](https://img.shields.io/badge/Unreal%20Engine-5.3--5.8-0e1128?logo=unrealengine&logoColor=white)
 [![Docs](https://img.shields.io/badge/Docs-Portal-blue)](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs)
 [![GitHub release (latest by tag)](https://img.shields.io/github/v/release/pafuhana1213/KawaiiPhysics)](https://github.com/pafuhana1213/KawaiiPhysics/releases)
@@ -9,8 +12,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/pafuhana1213/KawaiiPhysics)
 [![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/pafuhana1213?style=social)](https://twitter.com/pafuhana1213)
-
-[日本語 (Japanese)](README_ja.md)
 
 ---
 
