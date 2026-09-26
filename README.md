@@ -148,6 +148,17 @@ The sample project on GitHub includes a sample level and characters.
     - Copyright (c) 2025 TA Co., Ltd. All rights reserved
     - Terms of Use: https://uzurig.com/ja/terms_of_use_jp/
 
+### MCP (Experimental)
+
+The sample project enables UE 5.8's experimental **Unreal MCP** plugin, so MCP clients can operate the editor. Kawaii Physics bundles its own toolset (`KawaiiPhysicsToolset`) for creating KawaiiPhysics nodes, applying presets, and auditing settings.
+
+1. Start the MCP server with either of the following:
+   - Run the console command `ModelContextProtocol.StartServer` (starts immediately)
+   - Enable **Auto Start Server** under **Editor Preferences > General > Model Context Protocol** (applies from the next launch; saved per user)
+2. Connect your MCP client to `http://127.0.0.1:8000/mcp`. The `.mcp.json` in the project root already contains this setting.
+
+The server lets clients control the editor. Start it only when you need it.
+
 ## Showcase
 
 Kawaii Physics is used in many projects!
