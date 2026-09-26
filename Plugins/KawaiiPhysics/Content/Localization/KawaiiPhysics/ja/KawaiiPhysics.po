@@ -1376,7 +1376,7 @@ msgstr "Simple World Collision の収集設定。bGatherFamilyMembers を使う�
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysicsSharedPublisher:Source [StructProperty Category meta-data]
 msgctxt "UObjectCategory,Links"
 msgid "Links"
-msgstr ""
+msgstr "リンク"
 
 #. Key:	AnimNode_KawaiiPhysicsSharedPublisher:Source
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysicsSharedPublisher:Source [StructProperty DisplayName meta-data]
