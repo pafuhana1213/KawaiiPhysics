@@ -430,6 +430,26 @@ namespace
 		return Package && Package->IsDirty();
 	}
 
+	bool DoesLoadedAnimBlueprintMatchTagNameFilter(const UAnimBlueprint* AnimBlueprint,
+	                                               const FKawaiiPhysicsTagNameFilter& TagNameFilter)
+	{
+		if (!AnimBlueprint)
+		{
+			return false;
+		}
+
+		TArray<UAnimGraphNode_KawaiiPhysics*> GraphNodes;
+		KawaiiPhysicsEdUtils::CollectAnimGraphNodes(AnimBlueprint, GraphNodes);
+		for (const UAnimGraphNode_KawaiiPhysics* GraphNode : GraphNodes)
+		{
+			if (GraphNode && TagNameFilter.Matches(GraphNode->Node.KawaiiPhysicsTag.GetTagName()))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	bool CheckOutPackageIfNeeded(UPackage* Package, bool bCheckOutFiles)
 	{
 		// source controlが無効、またはcheckout不要な場合は成功扱いで通す。
@@ -1717,6 +1737,17 @@ void UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssetDataReferencingTags(
 		if (IsDirtyPackageCandidate(AssetData))
 		{
 			OutAssets.Add(AssetData);
+			continue;
+		}
+
+		// ロード済みなら下流（GetAsset → CollectKawaiiPhysicsGraphNodes）が見るのもこのメモリ上のノードなので、AssetRegistry ではなくメモリのタグを正とする。
+		// 保存直後は SearchableName 依存がディスク再スキャンまで更新されないため、同じフレームで保存したアセットもこれで拾える。
+		if (const UAnimBlueprint* LoadedAnimBlueprint = Cast<UAnimBlueprint>(AssetData.FastGetAsset(false)))
+		{
+			if (DoesLoadedAnimBlueprintMatchTagNameFilter(LoadedAnimBlueprint, TagNameFilter))
+			{
+				OutAssets.Add(AssetData);
+			}
 			continue;
 		}
 
