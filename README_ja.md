@@ -143,6 +143,17 @@ C++ビルド環境がない方は、以下のリンクからプラグインを�
     - Copyright (c) 2025 株式会社TA All rights reserved
     - 利用規約：https://uzurig.com/ja/terms_of_use_jp/
 
+### MCP（Experimental）
+
+サンプルプロジェクトでは UE 5.8 の Experimental プラグイン **Unreal MCP** を有効にしており、MCP クライアントからエディタを操作できます。Kawaii Physics は専用の Toolset（`KawaiiPhysicsToolset`）を同梱しており、KawaiiPhysics ノードの作成・プリセットの適用・設定の監査を行えます。
+
+1. 次のどちらかで MCP サーバーを起動します
+   - コンソールコマンド `ModelContextProtocol.StartServer` を実行する（すぐに起動）
+   - **Editor Preferences > General > Model Context Protocol** で **Auto Start Server** を有効にする（次回起動から有効。設定はユーザーごとに保存）
+2. MCP クライアントから `http://127.0.0.1:8000/mcp` に接続します。プロジェクト直下の `.mcp.json` にこの設定が入っています。
+
+サーバーはクライアントからのエディタ操作を受け付けます。必要なときだけ起動してください。
+
 ## 採用実績
 
 多くのプロジェクトで採用されています！
