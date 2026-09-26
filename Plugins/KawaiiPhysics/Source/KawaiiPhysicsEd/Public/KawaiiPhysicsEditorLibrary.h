@@ -357,8 +357,8 @@ public:
 	static void FindAnimBlueprintAssetData(const TArray<FString>& ContentPaths, TArray<FAssetData>& OutAssets);
 
 	/**
-	 * 指定 Content パス配下の AnimBlueprint を、GameplayTag の SearchableName 依存関係でロードなしに事前絞り込みする。FilterTags が空なら全 AnimBlueprint を返す。非 Exact では保存タグ名のプレフィックス一致で子タグ（タグ辞書未登録を含む）も対象にし、未保存の dirty パッケージは常に候補へ含める。既知の限界: UE4.15 未満保存の極端に古いパッケージ、多段タグリダイレクト。
-	 * Pre-filter AnimBlueprint assets under Content paths without loading them by GameplayTag SearchableName dependencies. Empty FilterTags returns all AnimBlueprint assets. Non-exact matching includes child tags by saved tag-name prefix matching, including tags not registered in the current dictionary, and unsaved dirty packages are always kept as candidates. Known limits: extremely old packages saved before UE4.15 and multi-hop tag redirects.
+	 * 指定 Content パス配下の AnimBlueprint を、GameplayTag の SearchableName 依存関係でロードなしに事前絞り込みする。FilterTags が空なら全 AnimBlueprint を返す。非 Exact では保存タグ名のプレフィックス一致で子タグ（タグ辞書未登録を含む）も対象にし、未保存の dirty パッケージは常に候補へ含める。ロード済みの AnimBlueprint は AssetRegistry ではなくメモリ上の KawaiiPhysics ノードのタグで判定する。既知の限界: UE4.15 未満保存の極端に古いパッケージ。
+	 * Pre-filter AnimBlueprint assets under Content paths without loading them by GameplayTag SearchableName dependencies. Empty FilterTags returns all AnimBlueprint assets. Non-exact matching includes child tags by saved tag-name prefix matching, including tags not registered in the current dictionary, and unsaved dirty packages are always kept as candidates. Loaded AnimBlueprint assets are matched by the tags of their in-memory KawaiiPhysics nodes instead of the AssetRegistry. Known limit: extremely old packages saved before UE4.15.
 	 */
 	static void FindAnimBlueprintAssetDataReferencingTags(
 		const FGameplayTagContainer& FilterTags,

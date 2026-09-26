@@ -2722,7 +2722,7 @@ bool FKawaiiPhysicsEditorScriptingTagPrefilterSavedAssetsTest::RunTest(const FSt
 
 	bool bOk = true;
 
-	// (a) KawaiiPhysics.Hairの完全一致(非Exact)で、保存済みSearchableName依存経由でヒットする。
+	// (a) KawaiiPhysics.Hairの完全一致(非Exact)でヒットする（未ロードならSearchableName依存経由、ロード済みならメモリ上のノードタグ経由）。
 	FGameplayTagContainer HairFilter;
 	HairFilter.AddTag(HairTag);
 	TArray<FAssetData> HairResults;
