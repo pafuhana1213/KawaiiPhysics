@@ -261,6 +261,15 @@ namespace
 		return false;
 	}
 
+	// 表示言語に依存しないよう、本体と同じキーの訳文から @@（ノード名に置換される部分）を除いて照合に使う
+	FString MakeSharedPublisherCompilerMessageNeedle(const FText& LocalizedFormat)
+	{
+		FString Needle = LocalizedFormat.ToString();
+		Needle.ReplaceInline(TEXT("@@"), TEXT(""));
+		Needle.TrimStartAndEndInline();
+		return Needle;
+	}
+
 	UKawaiiPhysicsWindPresetDataAsset* CreateSharedPublisherWindPresetAsset(
 		UObject* Outer,
 		const FGameplayTag& PresetTag,
@@ -655,7 +664,9 @@ bool FKawaiiPhysicsEditorSharedPublisherCompileWarningsTest::RunTest(const FStri
 		                ContainsCompilerMessage(
 			                MessageLog,
 			                EMessageSeverity::Warning,
-			                TEXT("has no Shared Group Tag")));
+			                MakeSharedPublisherCompilerMessageNeedle(NSLOCTEXT(
+				                "KawaiiPhysics", "SharedPublisherNoTag",
+				                "@@ has no Shared Group Tag. Consumers cannot find it."))));
 	}
 
 	{
@@ -669,7 +680,9 @@ bool FKawaiiPhysicsEditorSharedPublisherCompileWarningsTest::RunTest(const FStri
 		                ContainsCompilerMessage(
 			                MessageLog,
 			                EMessageSeverity::Warning,
-			                TEXT("shares its tag with another Shared Publisher")));
+			                MakeSharedPublisherCompilerMessageNeedle(NSLOCTEXT(
+				                "KawaiiPhysics", "SharedPublisherDuplicateTag",
+				                "@@ shares its tag with another Shared Publisher in this Animation Blueprint. Only one publisher per tag per actor family is used."))));
 	}
 
 	{
@@ -682,7 +695,9 @@ bool FKawaiiPhysicsEditorSharedPublisherCompileWarningsTest::RunTest(const FStri
 		                ContainsCompilerMessage(
 			                MessageLog,
 			                EMessageSeverity::Info,
-			                TEXT("has no consumer in this Animation Blueprint")));
+			                MakeSharedPublisherCompilerMessageNeedle(NSLOCTEXT(
+				                "KawaiiPhysics", "SharedPublisherNoConsumers",
+				                "@@ has no consumer in this Animation Blueprint. Consumers in other Animation Blueprints (Post Process, Linked Layers, child actors) can still read it."))));
 	}
 
 	return bOk;

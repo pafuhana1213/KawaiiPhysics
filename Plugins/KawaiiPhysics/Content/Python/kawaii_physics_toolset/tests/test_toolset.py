@@ -11,9 +11,9 @@ from toolset_registry.tests.toolset_testcase import ToolCallTestCase
 
 UNKNOWN_ACTOR_LABEL = '__KP_NO_SUCH_ACTOR__'
 TEST_FOLDER = '/Game/Test/PyToolset/'
-GRAYCHAN_SKELETON_PATH = '/Game/KawaiiPhysicsSample/GrayChan/Mesh/GrayChan_Skeleton'
+GRAYCHAN_SKELETON_PATH = '/Game/KawaiiPhysicsSample/Model/GrayChan/Mesh/GrayChan_Skeleton'
 HAIR_PRESET_PATH = '/Game/KawaiiPhysicsSample/Presets/KPP_Hair_Soft'
-CHAIN_SKELETON_PATH = '/Game/KawaiiPhysicsSample/Chain/S_Chain_Skeleton'
+CHAIN_SKELETON_PATH = '/Game/KawaiiPhysicsSample/Model/Chain/S_Chain_Skeleton'
 REAPPLY_TAG = 'KawaiiPhysics.Test.Reapply'
 HAIR_TAG = 'KawaiiPhysics.Hair.Soft'
 
