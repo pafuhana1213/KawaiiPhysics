@@ -135,6 +135,7 @@ C++ビルド環境がない方は、以下のリンクからプラグインを�
 <img src="https://github.com/user-attachments/assets/0d866ad2-f803-400b-bd23-2d46ab17b8ae" alt="sample2" width="640px">
 
 プロジェクト内にサンプルレベルとキャラクターが含まれています。
+- **エンジンバージョン**: UE 5.8
 - **サンプルレベル**: `Content/KawaiiPhysicsSample/L_KawaiiPhysicsSample`
 - **使用キャラクター**:
   - **Grayちゃん**: http://rarihoma.xvs.jp/products/graychan
