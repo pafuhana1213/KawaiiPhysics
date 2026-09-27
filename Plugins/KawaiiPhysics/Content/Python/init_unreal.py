@@ -3,6 +3,7 @@ try:
     import toolset_registry  # noqa: F401  # UE5.8+ の ToolsetRegistry プラグインが必要
     from kawaii_physics_toolset import registration
     registration.register_toolsets()
+    from kawaii_physics_toolset import skills  # noqa: F401  # Agent Skill はインポートで登録される
 except ImportError:
     pass  # ToolsetRegistry が無い環境では何もしない
 except Exception as exc:
