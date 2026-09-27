@@ -2,23 +2,40 @@
 
 Builds SM_KPS_Pedestal (exhibit base with a grid deck), SM_KPS_BoardFrame
 (sign board with frame, legs and feet) and SM_KPS_Placard_176/230/280 (subject
-labels) into /Game/KawaiiPhysicsSample/Examples/Common/Meshes. Parts are lofted
-from rounded outlines, get one material slot per surface role and one aligned
-box of simple collision each. Existing assets are replaced in place, so the
-exhibit Blueprints that reference them keep working.
+labels) into /Game/KawaiiPhysicsSample/Examples/Common/Meshes, plus the collider
+visuals SM_KPS_3_2_Capsule and SM_KPS_3_3_TaperedCapsule into
+/Game/KawaiiPhysicsSample/Examples/03_Collision/Meshes. Parts are lofted from
+rounded outlines, get one material slot per surface role and one aligned box of
+simple collision each. Existing assets are replaced in place, so the exhibit
+Blueprints that reference them keep working.
 
 Requires the GeometryScripting plugin (enabled for the editor in the uproject).
 Run inside the editor (Output Log > Python, or `py "<path>"`):
     py "<project>/Tools/SampleMeshes/generate_sample_meshes.py"
 
+Set ONLY_MESHES (a list of asset names) in the globals the script runs with to
+rebuild just those meshes.
+
 Dimensions are in cm and follow the exhibit layout: deck top at Z 18, board
-face at X = 200, board Z 180..430.
+face at X = 200, board Z 180..430. The collider visuals are modelled in limit
+space (axis along +Z, origin at the limit centre) so they match the collision
+shape exactly.
 """
 import math
 import unreal
 
 MESH_DIR = '/Game/KawaiiPhysicsSample/Examples/Common/Meshes'
+COLLISION_MESH_DIR = '/Game/KawaiiPhysicsSample/Examples/03_Collision/Meshes'
 MAT = '/Game/KawaiiPhysicsSample/Examples/Common/Materials/'
+MAT_COLLIDER = '/Game/KawaiiPhysicsSample/Other/Stage/Material/MI_Solid_Blue'
+
+# ABP_3_2_Capsule CapsuleLimits[0]: Radius 16, Length 60 (distance between the end sphere centres)
+CAPSULE_RADIUS = 16.0
+CAPSULE_LENGTH = 60.0
+# ABP_3_3_TaperedCapsule TaperedCapsuleLimits[0]: Radius0 22 at +Z, Radius1 6 at -Z, Length 70
+TAPERED_RADIUS0 = 22.0
+TAPERED_RADIUS1 = 6.0
+TAPERED_LENGTH = 70.0
 GS = unreal
 ONLY = globals().get('ONLY_MESHES')
 
@@ -176,6 +193,44 @@ def build_placard(w):
     return mesh, ['Face', 'Frame'], [MAT + 'MI_KPS_Face', MAT + 'MI_KPS_Frame'], [((0.0, 0.0, 0.0), (3.0, w, 26.0))]
 
 
+def build_tapered_capsule(r0, r1, length, radial=48, arc_seg=12):
+    """Revolved tapered capsule along Z: hemisphere r0 centred at +length/2, straight frustum
+    r0 -> r1, hemisphere r1 centred at -length/2 (the shape AdjustByTaperedCapsuleCollision
+    resolves against; r0 == r1 gives a plain capsule)."""
+    h = length / 2.0
+    prof = []  # (z, radius) from the bottom pole to the top pole, poles excluded
+    for k in range(1, arc_seg + 1):
+        t = math.radians(-90.0 + 90.0 * k / arc_seg)
+        prof.append((-h + r1 * math.sin(t), r1 * math.cos(t)))
+    for k in range(arc_seg):
+        t = math.radians(90.0 * k / arc_seg)
+        prof.append((h + r0 * math.sin(t), r0 * math.cos(t)))
+    verts = [(0.0, 0.0, -h - r1)]
+    for z, r in prof:
+        for i in range(radial):
+            a = 2.0 * math.pi * i / radial
+            verts.append((r * math.cos(a), r * math.sin(a), z))
+    verts.append((0.0, 0.0, h + r0))
+    top = len(verts) - 1
+    tris = []
+    for i in range(radial):
+        tris.append((0, 1 + i, 1 + (i + 1) % radial))
+    for j in range(len(prof) - 1):
+        b0, b1 = 1 + j * radial, 1 + (j + 1) * radial
+        for i in range(radial):
+            i2 = (i + 1) % radial
+            tris.append((b0 + i, b0 + i2, b1 + i2))
+            tris.append((b0 + i, b1 + i2, b1 + i))
+    last = 1 + (len(prof) - 1) * radial
+    for i in range(radial):
+        tris.append((top, last + i, last + (i + 1) % radial))
+    mesh = {}
+    Part(mesh, (0.0, 0.0, 0.0)).add(0, verts, tris)
+    rmax = max(r0, r1)
+    box = ((0.0, 0.0, (r0 - r1) / 2.0), (2.0 * rmax, 2.0 * rmax, length + r0 + r1))
+    return mesh, ['Solid'], [MAT_COLLIDER], [box]
+
+
 # ---------------------------------------------------------------- orientation + buffers
 def sub(a, b): return (a[0] - b[0], a[1] - b[1], a[2] - b[2])
 def cross(a, b): return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
@@ -239,10 +294,10 @@ def collision_mesh(boxes):
     return dm
 
 
-def save_mesh(name, builder):
+def save_mesh(name, builder, mesh_dir=MESH_DIR):
     parts, slot_names, mats, boxes = builder()
     dm, degenerate = to_dynamic(parts)
-    path = MESH_DIR + '/' + name
+    path = mesh_dir + '/' + name
     if unreal.EditorAssetLibrary.does_asset_exist(path):
         sm = unreal.load_asset(path)
         opts = unreal.GeometryScriptCopyMeshToAssetOptions()
@@ -280,14 +335,21 @@ def save_mesh(name, builder):
 
 BUILDERS = [('SM_KPS_Pedestal', build_pedestal), ('SM_KPS_BoardFrame', build_boardframe)] + [
     ('SM_KPS_Placard_%d' % w, (lambda w=w: build_placard(float(w)))) for w in (176, 230, 280)]
+COLLIDER_BUILDERS = [
+    ('SM_KPS_3_2_Capsule', lambda: build_tapered_capsule(CAPSULE_RADIUS, CAPSULE_RADIUS, CAPSULE_LENGTH)),
+    ('SM_KPS_3_3_TaperedCapsule', lambda: build_tapered_capsule(TAPERED_RADIUS0, TAPERED_RADIUS1, TAPERED_LENGTH))]
 for name, fn in BUILDERS:
     if ONLY and name not in ONLY:
         continue
     save_mesh(name, fn)
+for name, fn in COLLIDER_BUILDERS:
+    if ONLY and name not in ONLY:
+        continue
+    save_mesh(name, fn, COLLISION_MESH_DIR)
 
 # per-section shadow: no shadow from the display face of the board
 sms = unreal.get_editor_subsystem(unreal.StaticMeshEditorSubsystem)
-bf = unreal.load_asset(MESH_DIR + '/SM_KPS_BoardFrame')
+bf = unreal.load_asset(MESH_DIR + '/SM_KPS_BoardFrame') if not ONLY or 'SM_KPS_BoardFrame' in ONLY else None
 if bf:
     try:
         sms.enable_section_cast_shadow(bf, False, 0, 0)
