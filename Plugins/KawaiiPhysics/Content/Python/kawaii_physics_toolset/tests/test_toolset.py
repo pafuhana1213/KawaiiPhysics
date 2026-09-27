@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import ast
+import inspect
 import json
 import unittest
 
@@ -1052,6 +1054,112 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
             0,
         )
 
+    def test_add_shared_publisher_node_with_default_tag_and_properties(self):
+        anim_blueprint = self._create_anim_blueprint()
+        animation = self._load_animation()
+        KawaiiPhysicsToolset.set_anim_graph_input_animation(anim_blueprint, animation)
+
+        handle = KawaiiPhysicsToolset.add_shared_publisher_node(
+            anim_blueprint,
+            'KawaiiPhysics.Shared.Default',
+            True,
+            json.dumps({
+                'SharedWind': '(ParameterMode=Advanced,ConstantForce=8.0,SwayForce=12.0)',
+                'bEnabled': True,
+            }),
+        )
+
+        self.assertTrue(unreal.KawaiiPhysicsEditorLibrary.is_shared_publisher_graph_node_handle_valid(handle))
+        self.assertIn(
+            'KawaiiPhysics.Shared.Default',
+            KawaiiPhysicsToolset.get_shared_publisher_node_property(handle, 'SharedGroupTag'),
+        )
+        shared_wind = KawaiiPhysicsToolset.get_shared_publisher_node_property(handle, 'SharedWind')
+        self.assertIn('ParameterMode=Advanced', shared_wind)
+        self.assertIn('ConstantForce=8', shared_wind)
+        self.assertIn('SwayForce=12', shared_wind)
+        self.assertEqual(
+            KawaiiPhysicsToolset.get_shared_publisher_node_property(handle, 'bEnabled'),
+            'True',
+        )
+        self.assertEqual(len(KawaiiPhysicsToolset.collect_shared_publisher_nodes(anim_blueprint)), 1)
+        self._assert_compiles_without_errors(anim_blueprint)
+
+    def test_add_shared_publisher_node_reuse_existing(self):
+        anim_blueprint = self._create_anim_blueprint()
+
+        KawaiiPhysicsToolset.add_shared_publisher_node(anim_blueprint, REAPPLY_TAG)
+        KawaiiPhysicsToolset.add_shared_publisher_node(anim_blueprint, REAPPLY_TAG, True)
+        self.assertEqual(len(KawaiiPhysicsToolset.collect_shared_publisher_nodes(anim_blueprint)), 1)
+
+        KawaiiPhysicsToolset.add_shared_publisher_node(anim_blueprint, REAPPLY_TAG, False)
+        self.assertEqual(len(KawaiiPhysicsToolset.collect_shared_publisher_nodes(anim_blueprint)), 2)
+
+    def test_add_shared_publisher_node_unregistered_tag_raises(self):
+        anim_blueprint = self._create_anim_blueprint()
+
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.add_shared_publisher_node(
+                anim_blueprint,
+                'KawaiiPhysics.Test.NotRegisteredForPythonToolset',
+            )
+
+        self.assertIn('No valid gameplay tags were resolved', str(cm.exception))
+        self.assertEqual(len(KawaiiPhysicsToolset.collect_shared_publisher_nodes(anim_blueprint)), 0)
+
+    def test_add_shared_publisher_node_invalid_properties_json_adds_nothing(self):
+        anim_blueprint = self._create_anim_blueprint()
+
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.add_shared_publisher_node(
+                anim_blueprint,
+                'KawaiiPhysics.Shared.Default',
+                True,
+                'not json',
+            )
+
+        self.assertIn('properties_json is not valid JSON', str(cm.exception))
+        self.assertEqual(len(KawaiiPhysicsToolset.collect_shared_publisher_nodes(anim_blueprint)), 0)
+
+    def test_collect_shared_publisher_nodes_empty(self):
+        anim_blueprint = self._create_anim_blueprint()
+
+        self.assertEqual(KawaiiPhysicsToolset.collect_shared_publisher_nodes(anim_blueprint), [])
+
+    def test_set_get_shared_publisher_node_property_round_trip(self):
+        anim_blueprint = self._create_anim_blueprint()
+        handle = KawaiiPhysicsToolset.add_shared_publisher_node(anim_blueprint)
+
+        KawaiiPhysicsToolset.set_shared_publisher_node_property(handle, 'bEnabled', 'False')
+
+        self.assertEqual(
+            KawaiiPhysicsToolset.get_shared_publisher_node_property(handle, 'bEnabled'),
+            'False',
+        )
+
+    def test_set_shared_publisher_node_property_unknown_property_raises(self):
+        anim_blueprint = self._create_anim_blueprint()
+        handle = KawaiiPhysicsToolset.add_shared_publisher_node(anim_blueprint)
+
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.set_shared_publisher_node_property(handle, 'NoSuchProperty_XYZ', '1')
+        self.assertIn('NoSuchProperty_XYZ', str(cm.exception))
+
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.get_shared_publisher_node_property(handle, 'NoSuchProperty_XYZ')
+        self.assertIn('NoSuchProperty_XYZ', str(cm.exception))
+
+    def test_shared_publisher_node_property_invalid_handle_raises(self):
+        invalid_handle = unreal.KawaiiPhysicsSharedPublisherGraphNodeHandle()
+
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.set_shared_publisher_node_property(invalid_handle, 'bEnabled', 'False')
+        self.assertIn('not a valid KawaiiPhysics Shared Publisher graph node handle', str(cm.exception))
+
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.get_shared_publisher_node_property(invalid_handle, 'bEnabled')
+        self.assertIn('not a valid KawaiiPhysics Shared Publisher graph node handle', str(cm.exception))
+
     def test_set_anim_graph_input_animation_before_nodes_compiles(self):
         anim_blueprint = self._create_anim_blueprint()
         animation = self._load_animation()
@@ -1103,6 +1211,82 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         )
         self.assertIsInstance(anim_blueprint, unreal.AnimBlueprint)
         KawaiiPhysicsToolset.add_kawaii_physics_node(anim_blueprint, 'TwintailA_L')
+
+        self._assert_compiles_without_errors(anim_blueprint)
+
+    def test_layout_anim_graph_refits_comment(self):
+        anim_blueprint = KawaiiPhysicsToolset.create_anim_blueprint(
+            TEST_FOLDER,
+            'ABP_LayoutAnimGraph',
+            self.skeleton,
+            self._load_animation(),
+        )
+        comment = 'Twintail layout'
+        comment_prefix = unreal.get_default_object(
+            unreal.KawaiiPhysicsDeveloperSettings,
+        ).get_editor_property('mcp_comment_prefix')
+        KawaiiPhysicsToolset.add_kawaii_physics_node(
+            anim_blueprint, 'TwintailA_L', comment=comment)
+        # 2 回目の追加で最初のノードは上流側へ動くが、MCP コメント枠もレイアウトで追従する
+        KawaiiPhysicsToolset.add_kawaii_physics_node(anim_blueprint, 'TwintailA_R')
+
+        KawaiiPhysicsToolset.layout_anim_graph(anim_blueprint)
+        KawaiiPhysicsToolset.layout_anim_graph(anim_blueprint, '')
+
+        comments = [
+            info for info in KawaiiPhysicsToolset.get_anim_graph_comments(anim_blueprint)
+            if info.get_editor_property('title') == comment_prefix + comment
+        ]
+        self.assertEqual(len(comments), 1)
+        comment_info = comments[0]
+        comment_node = comment_info.get_editor_property('comment_node')
+        self.assertIsNotNone(comment_node)
+        self.assertIsInstance(comment_node, unreal.Object)
+        node_size = comment_info.get_editor_property('node_size')
+        self.assertGreater(node_size.x, 0.0)
+        self.assertGreater(node_size.y, 0.0)
+        self._assert_compiles_without_errors(anim_blueprint)
+
+    def test_layout_anim_graph_invalid_input_raises(self):
+        with self.assertToolRaisesRuntimeError():
+            KawaiiPhysicsToolset.layout_anim_graph(None)
+
+        anim_blueprint = self._create_anim_blueprint()
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.layout_anim_graph(anim_blueprint, 'NoSuchGraph')
+        self.assertIn('Unable to lay out the AnimGraph', str(cm.exception))
+
+    def test_tool_schema_requires_only_params_without_defaults(self):
+        # ToolsetRegistry はデコレータ越しに Python の既定値を見られないため、ソースから各ツールの引数を読む
+        class_node = next(
+            node for node in ast.parse(inspect.getsource(toolset_module)).body
+            if isinstance(node, ast.ClassDef) and node.name == 'KawaiiPhysicsToolset'
+        )
+        expected_required = {}
+        for node in class_node.body:
+            if isinstance(node, ast.FunctionDef):
+                args = node.args.args
+                expected_required[node.name] = [
+                    arg.arg for arg in args[:len(args) - len(node.args.defaults)]
+                ]
+
+        schema = json.loads(unreal.ToolsetRegistry.get_toolset_json_schema(KawaiiPhysicsToolset))
+        self.assertTrue(schema['tools'])
+        for tool in schema['tools']:
+            tool_name = tool['name'].rsplit('.', 1)[-1]
+            with self.subTest(tool=tool_name):
+                self.assertIn(tool_name, expected_required)
+                input_schema = tool.get('inputSchema', {})
+                self.assertEqual(
+                    sorted(input_schema.get('required', [])),
+                    sorted(expected_required[tool_name]),
+                )
+
+    def test_layout_anim_graph_without_graph_name(self):
+        anim_blueprint = self._create_anim_blueprint()
+        KawaiiPhysicsToolset.add_kawaii_physics_node(anim_blueprint, 'TwintailA_L')
+
+        KawaiiPhysicsToolset.layout_anim_graph(anim_blueprint, None)
 
         self._assert_compiles_without_errors(anim_blueprint)
 

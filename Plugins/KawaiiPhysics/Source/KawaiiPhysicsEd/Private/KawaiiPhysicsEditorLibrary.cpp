@@ -6,6 +6,7 @@
 #include "AnimGraphNode_ComponentToLocalSpace.h"
 #include "AnimGraphNode_KawaiiPhysics.h"
 #include "AnimGraphNode_KawaiiPhysicsSharedPublisher.h"
+#include "AnimGraphNode_LocalToComponentSpace.h"
 #include "AnimGraphNode_Root.h"
 #include "AnimGraphNode_SequencePlayer.h"
 #include "AnimationGraph.h"
@@ -69,8 +70,8 @@ namespace
 	constexpr int32 KawaiiPhysicsMcpCommentTopPaddingY = 80;
 	constexpr int32 KawaiiPhysicsPlacementExpectedNodeWidth = 400;
 	constexpr int32 KawaiiPhysicsPlacementExpectedNodeHeight = 260;
-	constexpr int32 KawaiiPhysicsMcpCommentExpectedNodeWidthWithPadding = 450;
-	constexpr int32 KawaiiPhysicsMcpCommentExpectedNodeHeightWithPadding = 310;
+	// コメント枠の右端・下端に対象ノードの外側へ足す余白
+	constexpr int32 KawaiiPhysicsMcpCommentTrailingPadding = 50;
 	constexpr int32 KawaiiPhysicsPlacementMaxOverlapResolutionAttempts = 100;
 	// AutoConnectが生成するComponentToLocalSpace変換ノード用に確保する横幅
 	constexpr int32 KawaiiPhysicsPlacementConversionNodeReserveX = 220;
@@ -80,6 +81,44 @@ namespace
 	// KawaiiPhysics/MCPコメント以外のノード（変換ノード等）の推定サイズ
 	constexpr int32 KawaiiPhysicsPlacementEstimatedOtherNodeWidth = 250;
 	constexpr int32 KawaiiPhysicsPlacementEstimatedOtherNodeHeight = 120;
+	// AnimGraphレイアウトでチェーン上の隣接ノード間に空ける横方向の隙間。
+	// 空間変換ノードの推定幅160と合わせて、Result直前の変換ノードを従来どおりResultの220左へ置く
+	constexpr int32 KawaiiPhysicsLayoutNodeGapX = 60;
+	// グラフノードに幅が記録されていない場合に使う推定幅（KawaiiPhysicsノードは配置用の推定幅400を使う）
+	constexpr int32 KawaiiPhysicsLayoutConversionNodeWidth = 160;
+	constexpr int32 KawaiiPhysicsLayoutOtherNodeWidth = 300;
+
+	// グラフノードの幅と高さ。ウィジェットが記録した値があれば優先し、なければノード種別ごとの推定値を使う
+	FIntPoint GetLayoutNodeSize(const UEdGraphNode* Node)
+	{
+		const bool bKawaiiPhysicsNode = Node && Node->IsA<UAnimGraphNode_KawaiiPhysics>();
+		int32 Width = Node ? Node->NodeWidth : 0;
+		if (Width <= 0)
+		{
+			if (bKawaiiPhysicsNode)
+			{
+				Width = KawaiiPhysicsPlacementExpectedNodeWidth;
+			}
+			else if (Node &&
+				(Node->IsA<UAnimGraphNode_ComponentToLocalSpace>() || Node->IsA<UAnimGraphNode_LocalToComponentSpace>()))
+			{
+				Width = KawaiiPhysicsLayoutConversionNodeWidth;
+			}
+			else
+			{
+				Width = KawaiiPhysicsLayoutOtherNodeWidth;
+			}
+		}
+
+		int32 Height = Node ? Node->NodeHeight : 0;
+		if (Height <= 0)
+		{
+			Height = bKawaiiPhysicsNode
+				         ? KawaiiPhysicsPlacementExpectedNodeHeight
+				         : KawaiiPhysicsPlacementEstimatedOtherNodeHeight;
+		}
+		return FIntPoint(Width, Height);
+	}
 
 	UAnimGraphNode_KawaiiPhysics* GetGraphNode(const FKawaiiPhysicsGraphNodeHandle& Handle)
 	{
@@ -1021,11 +1060,11 @@ namespace
 		return nullptr;
 	}
 
-	bool ComputeMcpCommentBounds(const TArray<FKawaiiPhysicsGraphNodeHandle>& Handles,
-	                             int32& OutNodePosX,
-	                             int32& OutNodePosY,
-	                             int32& OutNodeWidth,
-	                             int32& OutNodeHeight)
+	bool ComputeMcpCommentBoundsForNodes(const TArray<const UEdGraphNode*>& Nodes,
+	                                     int32& OutNodePosX,
+	                                     int32& OutNodePosY,
+	                                     int32& OutNodeWidth,
+	                                     int32& OutNodeHeight)
 	{
 		int32 MinX = TNumericLimits<int32>::Max();
 		int32 MinY = TNumericLimits<int32>::Max();
@@ -1033,18 +1072,18 @@ namespace
 		int32 MaxY = TNumericLimits<int32>::Lowest();
 		bool bHasNode = false;
 
-		for (const FKawaiiPhysicsGraphNodeHandle& Handle : Handles)
+		for (const UEdGraphNode* Node : Nodes)
 		{
-			const UAnimGraphNode_KawaiiPhysics* GraphNode = GetGraphNode(Handle);
-			if (!GraphNode)
+			if (!Node)
 			{
 				continue;
 			}
 
-			MinX = FMath::Min(MinX, GraphNode->NodePosX);
-			MinY = FMath::Min(MinY, GraphNode->NodePosY);
-			MaxX = FMath::Max(MaxX, GraphNode->NodePosX);
-			MaxY = FMath::Max(MaxY, GraphNode->NodePosY);
+			const FIntPoint NodeSize = GetLayoutNodeSize(Node);
+			MinX = FMath::Min(MinX, Node->NodePosX);
+			MinY = FMath::Min(MinY, Node->NodePosY);
+			MaxX = FMath::Max(MaxX, Node->NodePosX + NodeSize.X);
+			MaxY = FMath::Max(MaxY, Node->NodePosY + NodeSize.Y);
 			bHasNode = true;
 		}
 
@@ -1053,14 +1092,27 @@ namespace
 			return false;
 		}
 
+		// 対象ノード群の外接矩形に余白を足してコメント枠サイズを決める。上側はタイトル分を広めに空ける
 		OutNodePosX = MinX - KawaiiPhysicsMcpCommentPaddingX;
 		OutNodePosY = MinY - KawaiiPhysicsMcpCommentTopPaddingY;
-		// 対象ノード群の外接矩形に余白を足してコメント枠サイズを決める。
-		const int32 BoundsMaxX = MaxX + KawaiiPhysicsMcpCommentExpectedNodeWidthWithPadding;
-		const int32 BoundsMaxY = MaxY + KawaiiPhysicsMcpCommentExpectedNodeHeightWithPadding;
-		OutNodeWidth = BoundsMaxX - OutNodePosX;
-		OutNodeHeight = BoundsMaxY - OutNodePosY;
+		OutNodeWidth = MaxX + KawaiiPhysicsMcpCommentTrailingPadding - OutNodePosX;
+		OutNodeHeight = MaxY + KawaiiPhysicsMcpCommentTrailingPadding - OutNodePosY;
 		return true;
+	}
+
+	bool ComputeMcpCommentBounds(const TArray<FKawaiiPhysicsGraphNodeHandle>& Handles,
+	                             int32& OutNodePosX,
+	                             int32& OutNodePosY,
+	                             int32& OutNodeWidth,
+	                             int32& OutNodeHeight)
+	{
+		TArray<const UEdGraphNode*> Nodes;
+		Nodes.Reserve(Handles.Num());
+		for (const FKawaiiPhysicsGraphNodeHandle& Handle : Handles)
+		{
+			Nodes.Add(GetGraphNode(Handle));
+		}
+		return ComputeMcpCommentBoundsForNodes(Nodes, OutNodePosX, OutNodePosY, OutNodeWidth, OutNodeHeight);
 	}
 
 	// UE5.5未満ではUEdGraphNode_Comment継承クラスがリンクできないため、素のコメント枠を使う
@@ -1816,6 +1868,221 @@ namespace
 
 		return false;
 	}
+
+	bool IsMcpCommentNodeForLayout(const UEdGraphNode* Node)
+	{
+#if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
+		return Node && Node->IsA<UKawaiiPhysicsMcpCommentNode>();
+#else
+		// 5.5未満ではMCPコメント枠も素のコメントノードのため、設定の接頭辞で始まるタイトルで見分ける
+		const UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node);
+		const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
+		return CommentNode &&
+			CommentNode->GetClass() == UEdGraphNode_Comment::StaticClass() &&
+			Settings &&
+			!Settings->McpCommentPrefix.IsEmpty() &&
+			CommentNode->NodeComment.StartsWith(Settings->McpCommentPrefix);
+#endif
+	}
+
+	UEdGraphPin* FindFirstLinkedPoseInputPinForLayout(UEdGraphNode* Node)
+	{
+		if (!Node)
+		{
+			return nullptr;
+		}
+
+		for (UEdGraphPin* Pin : Node->Pins)
+		{
+			if (Pin &&
+				Pin->Direction == EGPD_Input &&
+				UAnimationGraphSchema::IsPosePin(Pin->PinType) &&
+				!Pin->LinkedTo.IsEmpty() &&
+				Pin->LinkedTo[0])
+			{
+				return Pin;
+			}
+		}
+
+		return nullptr;
+	}
+
+	// Result から各ノードの先頭の接続済みポーズ入力を上流へ辿ったチェーン。先頭が Result で、下流から上流の順に並ぶ
+	TArray<UEdGraphNode*> CollectResultPoseChainForLayout(UAnimGraphNode_Root* RootNode)
+	{
+		TArray<UEdGraphNode*> Chain;
+		if (!RootNode)
+		{
+			return Chain;
+		}
+
+		Chain.Add(RootNode);
+		UEdGraphPin* CurrentPin = FindFirstLinkedPoseInputPinForLayout(RootNode);
+		while (CurrentPin)
+		{
+			UEdGraphNode* SourceNode = CurrentPin->LinkedTo[0]->GetOwningNode();
+			// 循環していたらそこで打ち切る
+			if (!SourceNode || Chain.Contains(SourceNode))
+			{
+				break;
+			}
+
+			Chain.Add(SourceNode);
+			CurrentPin = FindFirstLinkedPoseInputPinForLayout(SourceNode);
+		}
+
+		return Chain;
+	}
+
+	struct FMcpCommentLayoutTarget
+	{
+		UEdGraphNode_Comment* CommentNode = nullptr;
+		TArray<UEdGraphNode*> KawaiiPhysicsNodes;
+	};
+
+	// MCPコメント枠ごとに囲む KawaiiPhysics ノードを決める。ノード移動前に呼ぶこと
+	TArray<FMcpCommentLayoutTarget> CollectMcpCommentLayoutTargets(UEdGraph* Graph)
+	{
+		TArray<FMcpCommentLayoutTarget> Targets;
+		if (!Graph)
+		{
+			return Targets;
+		}
+
+		for (UEdGraphNode* Node : Graph->Nodes)
+		{
+			if (!IsMcpCommentNodeForLayout(Node))
+			{
+				continue;
+			}
+
+			FMcpCommentLayoutTarget& Target = Targets.AddDefaulted_GetRef();
+			Target.CommentNode = CastChecked<UEdGraphNode_Comment>(Node);
+
+			// AddKawaiiPhysicsNodes が登録した枠内ノード（エディタ上で枠を動かした場合はウィジェットが更新した枠内ノード）を優先する
+			for (UObject* UnderCommentObject : Target.CommentNode->GetNodesUnderComment())
+			{
+				UEdGraphNode* KawaiiPhysicsNode = Cast<UAnimGraphNode_KawaiiPhysics>(UnderCommentObject);
+				if (KawaiiPhysicsNode && Graph->Nodes.Contains(KawaiiPhysicsNode))
+				{
+					Target.KawaiiPhysicsNodes.AddUnique(KawaiiPhysicsNode);
+				}
+			}
+
+			if (!Target.KawaiiPhysicsNodes.IsEmpty())
+			{
+				continue;
+			}
+
+			// 枠内ノードは保存されないため、再ロード後などで空なら、現在の枠と矩形が重なる KawaiiPhysics ノードを対象にする
+			const FIntRect CommentRect = MakePlacementRect(
+				Target.CommentNode->NodePosX,
+				Target.CommentNode->NodePosY,
+				Target.CommentNode->NodeWidth,
+				Target.CommentNode->NodeHeight);
+			for (UEdGraphNode* CandidateNode : Graph->Nodes)
+			{
+				if (!CandidateNode || !CandidateNode->IsA<UAnimGraphNode_KawaiiPhysics>())
+				{
+					continue;
+				}
+
+				const FIntPoint CandidateSize = GetLayoutNodeSize(CandidateNode);
+				if (DoPlacementRectsOverlap(
+					CommentRect,
+					MakePlacementRect(CandidateNode->NodePosX, CandidateNode->NodePosY, CandidateSize.X, CandidateSize.Y)))
+				{
+					Target.KawaiiPhysicsNodes.Add(CandidateNode);
+				}
+			}
+		}
+
+		// 過去のセッションで枠だけ離れて置かれ、どの方法でも対象が見つからない場合、
+		// グラフ内の MCP コメント枠が1つだけならグラフ内の全 KawaiiPhysics ノードをその枠の対象とみなす
+		if (Targets.Num() == 1 && Targets[0].KawaiiPhysicsNodes.IsEmpty())
+		{
+			for (UEdGraphNode* CandidateNode : Graph->Nodes)
+			{
+				if (CandidateNode && CandidateNode->IsA<UAnimGraphNode_KawaiiPhysics>())
+				{
+					Targets[0].KawaiiPhysicsNodes.Add(CandidateNode);
+				}
+			}
+		}
+
+		return Targets;
+	}
+
+	// Result 上流のポーズチェーンを Result の行へ並べ、MCPコメント枠を対象ノードに合わせる。何か変更したら true
+	bool ApplyAnimGraphLayout(UEdGraph* Graph)
+	{
+		UAnimGraphNode_Root* RootNode = FindResultRootNodeForEditorLibrary(Graph);
+		if (!RootNode)
+		{
+			return false;
+		}
+
+		const TArray<FMcpCommentLayoutTarget> CommentTargets = CollectMcpCommentLayoutTargets(Graph);
+		const TArray<UEdGraphNode*> Chain = CollectResultPoseChainForLayout(RootNode);
+
+		bool bChanged = false;
+		// Result は動かさず、下流側のノードの左端から隙間と自身の幅だけ左へ順に詰めて置く
+		int32 DownstreamNodePosX = RootNode->NodePosX;
+		const int32 RowNodePosY = RootNode->NodePosY;
+		for (int32 ChainIndex = 1; ChainIndex < Chain.Num(); ++ChainIndex)
+		{
+			UEdGraphNode* ChainNode = Chain[ChainIndex];
+			const int32 NewNodePosX = DownstreamNodePosX - KawaiiPhysicsLayoutNodeGapX - GetLayoutNodeSize(ChainNode).X;
+			if (ChainNode->NodePosX != NewNodePosX || ChainNode->NodePosY != RowNodePosY)
+			{
+				ChainNode->Modify();
+				ChainNode->NodePosX = NewNodePosX;
+				ChainNode->NodePosY = RowNodePosY;
+				bChanged = true;
+			}
+			DownstreamNodePosX = NewNodePosX;
+		}
+
+		for (const FMcpCommentLayoutTarget& Target : CommentTargets)
+		{
+			UEdGraphNode_Comment* CommentNode = Target.CommentNode;
+			TArray<const UEdGraphNode*> TargetNodes(Target.KawaiiPhysicsNodes);
+			int32 NodePosX = 0;
+			int32 NodePosY = 0;
+			int32 NodeWidth = 0;
+			int32 NodeHeight = 0;
+			if (!CommentNode || !ComputeMcpCommentBoundsForNodes(TargetNodes, NodePosX, NodePosY, NodeWidth, NodeHeight))
+			{
+				continue;
+			}
+
+			if (CommentNode->NodePosX != NodePosX ||
+				CommentNode->NodePosY != NodePosY ||
+				CommentNode->NodeWidth != NodeWidth ||
+				CommentNode->NodeHeight != NodeHeight)
+			{
+				CommentNode->Modify();
+				CommentNode->NodePosX = NodePosX;
+				CommentNode->NodePosY = NodePosY;
+				CommentNode->NodeWidth = NodeWidth;
+				CommentNode->NodeHeight = NodeHeight;
+				bChanged = true;
+			}
+
+			// 枠内ノードの登録は保存されない一時状態のため、Modify せずに対象ノードで登録し直す
+			CommentNode->ClearNodesUnderComment();
+			for (UEdGraphNode* KawaiiPhysicsNode : Target.KawaiiPhysicsNodes)
+			{
+				CommentNode->AddNodeUnderComment(KawaiiPhysicsNode);
+			}
+		}
+
+		if (bChanged)
+		{
+			Graph->NotifyGraphChanged();
+		}
+		return bChanged;
+	}
 }
 
 void UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssetData(const TArray<FString>& ContentPaths, TArray<FAssetData>& OutAssets)
@@ -2131,6 +2398,7 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 	bool bConnectedNode = false;
 	bool bSpawnedConversionNode = false;
 	bool bAddedCommentNode = false;
+	bool bNeedsChainLayout = false;
 
 	for (int32 RequestIndex = 0; RequestIndex < Requests.Num(); ++RequestIndex)
 	{
@@ -2140,6 +2408,8 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 		}
 
 		const FResolvedKawaiiPhysicsNodePlacementRequest& ResolvedRequest = ResolvedRequests[RequestIndex];
+		// 自動配置かつ自動接続のノードは Result 上流のチェーンに入るため、最後にチェーン全体を並べ直す
+		bNeedsChainLayout |= ResolvedRequest.bAutoPosition && ResolvedRequest.bAutoConnect;
 
 		const FVector2D NodePosition = ResolveNodePosition(
 			Graph,
@@ -2230,12 +2500,15 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 		bAddedCommentNode = FindOrAddMcpCommentNode(Graph, Result, CommentPrefix + TrimmedComment, Prompt);
 	}
 
+	// コメント枠の登録後にレイアウトし、移動したノードに合わせて枠も整える
+	const bool bLaidOutGraph = !Result.IsEmpty() && bNeedsChainLayout && ApplyAnimGraphLayout(Graph);
+
 	// 構造変更、軽微な変更、変更なしを分けてBlueprintの変更状態とTransactionを確定する。
 	if (bAddedNode || bSpawnedConversionNode || bAddedCommentNode)
 	{
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(AnimBlueprint);
 	}
-	else if (bUpdatedNode || bConnectedNode)
+	else if (bUpdatedNode || bConnectedNode || bLaidOutGraph)
 	{
 		FBlueprintEditorUtils::MarkBlueprintAsModified(AnimBlueprint);
 	}
@@ -2443,6 +2716,48 @@ bool UKawaiiPhysicsEditorLibrary::SetAnimGraphInputAnimation(
 	return true;
 }
 
+bool UKawaiiPhysicsEditorLibrary::LayoutKawaiiPhysicsAnimGraph(
+	UAnimBlueprint* AnimBlueprint,
+	FName GraphName)
+{
+	if (!AnimBlueprint)
+	{
+		UE_LOG(LogKawaiiPhysics, Warning, TEXT("LayoutKawaiiPhysicsAnimGraph: AnimBlueprint must not be null."));
+		return false;
+	}
+
+	UEdGraph* Graph = FindPlacementAnimGraph(AnimBlueprint, GraphName);
+	if (!Graph)
+	{
+		UE_LOG(LogKawaiiPhysics, Warning,
+		       TEXT("LayoutKawaiiPhysicsAnimGraph: AnimGraph '%s' was not found in AnimBlueprint '%s'."),
+		       *(GraphName.IsNone() ? UEdGraphSchema_K2::GN_AnimGraph : GraphName).ToString(),
+		       *AnimBlueprint->GetName());
+		return false;
+	}
+
+	if (!FindResultRootNodeForEditorLibrary(Graph))
+	{
+		UE_LOG(LogKawaiiPhysics, Warning,
+		       TEXT("LayoutKawaiiPhysicsAnimGraph: Result node was not found in AnimGraph '%s'."),
+		       *Graph->GetName());
+		return false;
+	}
+
+	FScopedTransaction Transaction(
+		NSLOCTEXT("KawaiiPhysicsEditorLibrary", "LayoutKawaiiPhysicsAnimGraph", "Layout Kawaii Physics Anim Graph"));
+	if (ApplyAnimGraphLayout(Graph))
+	{
+		FBlueprintEditorUtils::MarkBlueprintAsModified(AnimBlueprint);
+	}
+	else
+	{
+		// 既に整っていれば Undo 履歴を残さない
+		Transaction.Cancel();
+	}
+	return true;
+}
+
 int32 UKawaiiPhysicsEditorLibrary::CompileAnimBlueprintWithMessages(
 	UAnimBlueprint* AnimBlueprint,
 	TArray<FString>& OutMessages)
@@ -2504,6 +2819,13 @@ TArray<FKawaiiPhysicsAnimGraphCommentInfo> UKawaiiPhysicsEditorLibrary::GetAnimG
 
 		FKawaiiPhysicsAnimGraphCommentInfo Info;
 		Info.Title = CommentNode->NodeComment;
+		Info.CommentNode = CommentNode;
+		Info.NodePosition = FVector2D(
+			static_cast<double>(CommentNode->NodePosX),
+			static_cast<double>(CommentNode->NodePosY));
+		Info.NodeSize = FVector2D(
+			static_cast<double>(CommentNode->NodeWidth),
+			static_cast<double>(CommentNode->NodeHeight));
 #if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
 		if (const UKawaiiPhysicsMcpCommentNode* McpCommentNode = Cast<UKawaiiPhysicsMcpCommentNode>(CommentNode))
 		{

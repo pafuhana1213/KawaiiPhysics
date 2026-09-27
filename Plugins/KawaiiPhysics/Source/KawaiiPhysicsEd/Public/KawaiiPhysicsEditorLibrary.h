@@ -17,6 +17,7 @@ class UAnimBlueprint;
 class UAnimSequenceBase;
 class UAnimGraphNode_KawaiiPhysics;
 class UAnimGraphNode_KawaiiPhysicsSharedPublisher;
+class UEdGraphNode_Comment;
 class USkeleton;
 class UWorld;
 
@@ -119,6 +120,18 @@ struct KAWAIIPHYSICSED_API FKawaiiPhysicsAnimGraphCommentInfo
 	/** MCPコメント枠か / Whether this is an MCP comment frame. */
 	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
 	bool bMcpComment = false;
+
+	/** コメントノード本体 / The comment node itself. */
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
+	TObjectPtr<UEdGraphNode_Comment> CommentNode = nullptr;
+
+	/** コメント枠の左上位置（グラフ座標） / Top-left position of the comment frame in graph coordinates. */
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
+	FVector2D NodePosition = FVector2D::ZeroVector;
+
+	/** コメント枠の幅と高さ / Width and height of the comment frame. */
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
+	FVector2D NodeSize = FVector2D::ZeroVector;
 };
 
 /**
@@ -387,8 +400,8 @@ public:
 		const TArray<FString>& ContentPaths);
 
 	/**
-	 * AnimGraph に KawaiiPhysics ノードを追加または更新する。bAutoConnect 指定時は Result ノード直前へ直列に接続する。Comment 指定時は MCP コメント枠を追加する。
-	 * Add or update KawaiiPhysics nodes into an AnimGraph. When bAutoConnect is set, nodes are connected in series just before the Result node. A non-empty Comment adds an MCP comment frame.
+	 * AnimGraph に KawaiiPhysics ノードを追加または更新する。bAutoConnect 指定時は Result ノード直前へ直列に接続する。Comment 指定時は MCP コメント枠を追加する。bAutoPosition と bAutoConnect を両方指定したリクエストがあれば、最後に LayoutKawaiiPhysicsAnimGraph と同じレイアウトで Result 上流のチェーンを1行に並べ直す。
+	 * Add or update KawaiiPhysics nodes into an AnimGraph. When bAutoConnect is set, nodes are connected in series just before the Result node. A non-empty Comment adds an MCP comment frame. When any request sets both bAutoPosition and bAutoConnect, the pose chain upstream of Result is finally laid out on one row, as LayoutKawaiiPhysicsAnimGraph does.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor",
 		meta=(AutoCreateRefTerm = "Requests,Comment,Prompt"))
@@ -419,6 +432,15 @@ public:
 	static bool SetAnimGraphInputAnimation(
 		UAnimBlueprint* AnimBlueprint,
 		UAnimSequenceBase* Animation,
+		FName GraphName = NAME_None);
+
+	/**
+	 * AnimGraph のノード配置を整える。Result から各ノードの先頭の接続済みポーズ入力を上流へ辿り、そのチェーンを Result の行へ上流から下流の順に左から右へ並べる（Result は動かさず、間隔はノード幅に基づく）。チェーン外のノードは動かさない。MCP コメント枠は、紐付いた KawaiiPhysics ノード（紐付けが無ければレイアウト前に枠と重なっていた KawaiiPhysics ノード、それも無く MCP コメント枠が1つだけならグラフ内の全 KawaiiPhysics ノード）を囲むよう再調整する。コンパイルは行わない。入力が不正なら false。
+	 * Tidy the node layout of an AnimGraph. Follows the first linked pose input of each node upstream from Result and places that chain on Result's row, left to right from upstream to downstream (Result stays in place; spacing is based on node widths). Nodes off the chain are left in place. Each MCP comment frame is refit around its associated KawaiiPhysics nodes (or, without an association, the KawaiiPhysics nodes that overlapped it before the layout; failing that, all KawaiiPhysics nodes in the graph when it is the only MCP comment frame). Does not compile. Returns false for invalid input.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static bool LayoutKawaiiPhysicsAnimGraph(
+		UAnimBlueprint* AnimBlueprint,
 		FName GraphName = NAME_None);
 
 	/**

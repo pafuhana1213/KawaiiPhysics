@@ -1008,8 +1008,12 @@ bool FKawaiiPhysicsEditorScriptingPlacementDirectionVerticalWithAutoConnectTest:
 		return false;
 	}
 
-	const FVector2D BasePosition =
-		GetExpectedAutoPlacementBasePosition(*this, Fixture.AnimGraph, 500, true);
+	const UAnimGraphNode_Root* LayoutRootNode = FindResultRootNode(Fixture.AnimGraph);
+	TestNotNull(TEXT("Vertical AutoConnect Result root node is found"), LayoutRootNode);
+	if (!LayoutRootNode)
+	{
+		return false;
+	}
 	TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
 	Requests.Add(MakeAutoConnectRequest(TEXT("hair_01"), GetKawaiiPhysicsEditorScriptingTagA()));
 	Requests.Add(MakeAutoConnectRequest(TEXT("tail_01"), GetKawaiiPhysicsEditorScriptingTagB()));
@@ -1019,13 +1023,18 @@ bool FKawaiiPhysicsEditorScriptingPlacementDirectionVerticalWithAutoConnectTest:
 
 	bool bOk = true;
 	bOk &= TestEqual(TEXT("Vertical AutoConnect placement creates two nodes"), Handles.Num(), 2);
+	// AutoConnectしたチェーンは配置方向の設定に関わらず最後にResultの行へ並べ直される。
+	// Result直前の変換ノード(推定幅160+隙間60)の左に、KawaiiPhysicsノード(推定幅400+隙間60)が上流ほど左へ並ぶ
+	const FVector2D DownstreamPosition(
+		static_cast<double>(LayoutRootNode->NodePosX - 220 - 460),
+		static_cast<double>(LayoutRootNode->NodePosY));
 	if (Handles.IsValidIndex(0))
 	{
 		bOk &= TestNodePosition(
 			*this,
 			TEXT("Vertical AutoConnect first node"),
 			Handles[0],
-			BasePosition);
+			FVector2D(DownstreamPosition.X - 460.0, DownstreamPosition.Y));
 	}
 	if (Handles.IsValidIndex(1))
 	{
@@ -1033,7 +1042,7 @@ bool FKawaiiPhysicsEditorScriptingPlacementDirectionVerticalWithAutoConnectTest:
 			*this,
 			TEXT("Vertical AutoConnect second node"),
 			Handles[1],
-			FVector2D(BasePosition.X, BasePosition.Y + 300.0));
+			DownstreamPosition);
 	}
 
 	UAnimGraphNode_KawaiiPhysics* FirstNode =
@@ -1593,14 +1602,22 @@ bool FKawaiiPhysicsEditorScriptingPlacementHorizontalRequestOrderTest::RunTest(c
 		return bOk;
 	}
 
-	const FVector2D BasePosition =
-		GetExpectedAutoPlacementBasePosition(*this, Fixture.AnimGraph, 500, true);
+	const UAnimGraphNode_Root* LayoutRootNode = FindResultRootNode(Fixture.AnimGraph);
+	bOk &= TestNotNull(TEXT("HorizontalRequestOrder Result root node is found"), LayoutRootNode);
+	if (!LayoutRootNode)
+	{
+		return bOk;
+	}
 	UAnimGraphNode_KawaiiPhysics* FirstNode = Handles[0].Node.Get();
 	UAnimGraphNode_KawaiiPhysics* SecondNode = Handles[1].Node.Get();
 	UAnimGraphNode_KawaiiPhysics* ThirdNode = Handles[2].Node.Get();
 
-	bOk &= TestEqual(TEXT("HorizontalRequestOrder last node X is the base position"),
-	                  ThirdNode->NodePosX, static_cast<int32>(BasePosition.X));
+	// AutoConnectしたチェーンは最後にResultの行へ並べ直されるため、末尾ノードは
+	// Result直前の変換ノード(推定幅160+隙間60)のさらに左へ、自身の推定幅400+隙間60だけ離れて並ぶ
+	bOk &= TestEqual(TEXT("HorizontalRequestOrder last node X is left of the conversion node"),
+	                  ThirdNode->NodePosX, LayoutRootNode->NodePosX - 220 - 460);
+	bOk &= TestEqual(TEXT("HorizontalRequestOrder last node Y is on the Result row"),
+	                  ThirdNode->NodePosY, LayoutRootNode->NodePosY);
 	bOk &= TestTrue(TEXT("HorizontalRequestOrder nodes are ordered left to right by request order"),
 	                FirstNode->NodePosX < SecondNode->NodePosX &&
 	                SecondNode->NodePosX < ThirdNode->NodePosX);

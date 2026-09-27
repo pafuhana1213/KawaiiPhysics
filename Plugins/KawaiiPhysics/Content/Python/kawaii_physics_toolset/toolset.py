@@ -152,6 +152,37 @@ def _set_graph_node_properties_impl(
     return set_names
 
 
+def _raise_for_invalid_shared_publisher_handle(
+        handle: unreal.KawaiiPhysicsSharedPublisherGraphNodeHandle,
+        name: str) -> None:
+    if handle is None:
+        raise ValueError(f'{name} must not be None.')
+    if not unreal.KawaiiPhysicsEditorLibrary.is_shared_publisher_graph_node_handle_valid(handle):
+        raise ValueError(
+            f'{name} is not a valid KawaiiPhysics Shared Publisher graph node handle.')
+
+
+def _set_shared_publisher_node_property_impl(
+        handle: unreal.KawaiiPhysicsSharedPublisherGraphNodeHandle,
+        property_name: str,
+        value: str) -> None:
+    # tool_call ラッパは例外を握るため、add_shared_publisher_node からもこの素の関数を使う
+    _raise_for_invalid_shared_publisher_handle(handle, 'handle')
+    if not property_name:
+        raise ValueError('property_name must not be empty.')
+    if value is None:
+        raise ValueError('value must not be None.')
+
+    ok = unreal.KawaiiPhysicsEditorLibrary.set_shared_publisher_node_property_from_string(
+        handle,
+        unreal.Name(property_name),
+        value,
+    )
+    if not ok:
+        raise RuntimeError(
+            f'Unable to set KawaiiPhysics Shared Publisher node property: {property_name}')
+
+
 def _set_anim_graph_input_animation_impl(
         anim_blueprint: unreal.AnimBlueprint,
         animation: unreal.AnimSequenceBase,
@@ -759,7 +790,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
     def set_anim_graph_input_animation(
             anim_blueprint: unreal.AnimBlueprint,
             animation: unreal.AnimSequenceBase,
-            graph_name: str = '') -> None:
+            graph_name: str | None = None) -> None:
         """Sets the animation that feeds the AnimGraph pose chain; does not compile.
 
         Follows pose inputs upstream from Result (through KawaiiPhysics and
@@ -768,6 +799,8 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         Works before or after adding KawaiiPhysics nodes. The animation skeleton
         must match the AnimBlueprint target skeleton.
         """
+        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        graph_name = graph_name or ''
         _set_anim_graph_input_animation_impl(anim_blueprint, animation, graph_name)
 
     @toolset_registry.tool_call
@@ -793,20 +826,29 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
     def add_kawaii_physics_node(
             anim_blueprint: unreal.AnimBlueprint,
             root_bone: str,
-            exclude_bones: list[str] = [],
-            additional_root_bones: list[str] = [],
-            tag: str = '',
-            properties_json: str = '',
-            graph_name: str = '',
-            comment: str = '',
-            prompt: str = '') -> unreal.KawaiiPhysicsGraphNodeHandle:
+            exclude_bones: list[str] | None = None,
+            additional_root_bones: list[str] | None = None,
+            tag: str | None = None,
+            properties_json: str | None = None,
+            graph_name: str | None = None,
+            comment: str | None = None,
+            prompt: str | None = None) -> unreal.KawaiiPhysicsGraphNodeHandle:
         """Adds one KawaiiPhysics node auto-positioned and auto-connected before Result.
 
-        Always adds a new node. tag is a registered gameplay tag name.
+        Always adds a new node; the pose chain upstream of Result is then laid
+        out on one row as in layout_anim_graph. tag is a registered gameplay tag name.
         properties_json is applied like set_graph_node_properties; if a property
         fails the node stays in the graph. comment/prompt behave as in
         add_kawaii_physics_nodes.
         """
+        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        exclude_bones = exclude_bones or []
+        additional_root_bones = additional_root_bones or []
+        tag = tag or ''
+        properties_json = properties_json or ''
+        graph_name = graph_name or ''
+        comment = comment or ''
+        prompt = prompt or ''
         _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
         if not root_bone:
             raise ValueError('root_bone must not be empty.')
@@ -858,14 +900,20 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             requests: list[unreal.KawaiiPhysicsNodePlacementRequest],
             match_key: unreal.KawaiiPhysicsPlacementMatchKey,
             graph_name: str,
-            comment: str = '',
-            prompt: str = '') -> list[unreal.KawaiiPhysicsGraphNodeHandle]:
+            comment: str | None = None,
+            prompt: str | None = None) -> list[unreal.KawaiiPhysicsGraphNodeHandle]:
         """Adds or updates KawaiiPhysics nodes; auto_connect wires before Result.
 
         A non-empty comment creates an MCP comment frame with the configured
         prefix. The prompt is stored in that frame's Details. Requests may set
         placement_direction; project settings also control node direction/wrap/spacing.
+        When a request sets both auto_position and auto_connect, the nodes are
+        finally laid out with the upstream pose chain on Result's row, as in
+        layout_anim_graph (placement_direction then applies only to unconnected nodes).
         """
+        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        comment = comment or ''
+        prompt = prompt or ''
         _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
         _validate_requests_or_raise(anim_blueprint, requests)
 
@@ -880,10 +928,36 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
 
     @toolset_registry.tool_call
     @staticmethod
+    def layout_anim_graph(
+            anim_blueprint: unreal.AnimBlueprint,
+            graph_name: str | None = None) -> None:
+        """Lays out the AnimGraph pose chain on one row; does not compile.
+
+        Follows the first linked pose input of each node upstream from Result
+        and places that chain left to right on Result's row (Result stays put,
+        spacing follows node widths). Nodes off the chain are not moved. MCP
+        comment frames are refit around their KawaiiPhysics nodes. graph_name
+        defaults to the main AnimGraph.
+        """
+        _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
+        # str | None は ToolsetRegistry のスキーマで任意引数になる（str = '' は既定値が伝わらず必須扱い）
+        ok = unreal.KawaiiPhysicsEditorLibrary.layout_kawaii_physics_anim_graph(
+            anim_blueprint,
+            graph_name or '',
+        )
+        if not ok:
+            raise RuntimeError(
+                'Unable to lay out the AnimGraph. Check that the graph exists and '
+                'has a Result node; see the output log for details.')
+
+    @toolset_registry.tool_call
+    @staticmethod
     def get_anim_graph_comments(
             anim_blueprint: unreal.AnimBlueprint,
-            graph_name: str = '') -> list[unreal.KawaiiPhysicsAnimGraphCommentInfo]:
-        """Returns comment nodes in the AnimGraph."""
+            graph_name: str | None = None) -> list[unreal.KawaiiPhysicsAnimGraphCommentInfo]:
+        """Returns comment nodes in the AnimGraph with node, position and size."""
+        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        graph_name = graph_name or ''
         _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
         return unreal.KawaiiPhysicsEditorLibrary.get_anim_graph_comments(
             anim_blueprint,
@@ -979,6 +1053,98 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
 
     @toolset_registry.tool_call
     @staticmethod
+    def add_shared_publisher_node(
+            anim_blueprint: unreal.AnimBlueprint,
+            shared_group_tag: str = 'KawaiiPhysics.Shared.Default',
+            reuse_existing: bool = True,
+            properties_json: str | None = None) -> unreal.KawaiiPhysicsSharedPublisherGraphNodeHandle:
+        """Adds a KawaiiPhysics Shared Publisher node auto-connected before Result.
+
+        The pass-through node publishes shared ProceduralWind parameters, phase
+        and gusts plus Simple World Collision gather results to KawaiiPhysics
+        nodes in the same actor family whose WindSource /
+        SimpleWorldCollisionSource is Shared or Auto with the same tag. Place it
+        where the AnimGraph always updates (e.g. just before Output Pose).
+        With reuse_existing, an existing node with the same tag is returned
+        (properties_json is still applied to it). properties_json is applied
+        like set_graph_node_properties; SharedWind is an ImportText string such
+        as "(ParameterMode=Advanced,ConstantForce=8.0,SwayForce=12.0)". If a
+        property fails the node stays in the graph.
+        """
+        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        properties_json = properties_json or ''
+        _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
+        if not shared_group_tag:
+            raise ValueError('shared_group_tag must not be empty.')
+        tag = _resolve_gameplay_tag(shared_group_tag)
+        # ノード追加前に JSON を検証し、書式エラーでノードだけ残らないようにする
+        properties = (
+            _parse_graph_node_properties(properties_json)
+            if properties_json else []
+        )
+
+        handle = unreal.KawaiiPhysicsEditorLibrary.add_kawaii_physics_shared_publisher_node(
+            anim_blueprint,
+            tag,
+            reuse_existing,
+            True,
+        )
+        if (handle is None or
+                not unreal.KawaiiPhysicsEditorLibrary.is_shared_publisher_graph_node_handle_valid(
+                    handle)):
+            raise RuntimeError(
+                f'Unable to add KawaiiPhysics Shared Publisher node: {shared_group_tag}')
+
+        for name, text in properties:
+            _set_shared_publisher_node_property_impl(handle, name, text)
+        return handle
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def collect_shared_publisher_nodes(
+            anim_blueprint: unreal.AnimBlueprint
+    ) -> list[unreal.KawaiiPhysicsSharedPublisherGraphNodeHandle]:
+        """Collects KawaiiPhysics Shared Publisher graph nodes in an AnimBlueprint."""
+        _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
+        return list(
+            unreal.KawaiiPhysicsEditorLibrary.collect_kawaii_physics_shared_publisher_graph_nodes(
+                anim_blueprint))
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def set_shared_publisher_node_property(
+            handle: unreal.KawaiiPhysicsSharedPublisherGraphNodeHandle,
+            property_name: str,
+            value: str) -> None:
+        """Sets a Shared Publisher node property from a string value.
+
+        value is in ImportText format, e.g. SharedWind
+        "(ParameterMode=Advanced,ConstantForce=8.0)" or bEnabled "False".
+        """
+        _set_shared_publisher_node_property_impl(handle, property_name, value)
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def get_shared_publisher_node_property(
+            handle: unreal.KawaiiPhysicsSharedPublisherGraphNodeHandle,
+            property_name: str) -> str:
+        """Gets a Shared Publisher node property as a string value."""
+        _raise_for_invalid_shared_publisher_handle(handle, 'handle')
+        if not property_name:
+            raise ValueError('property_name must not be empty.')
+
+        value = unreal.KawaiiPhysicsEditorLibrary.get_shared_publisher_node_property_as_string(
+            handle,
+            unreal.Name(property_name),
+        )
+        # C++ 側は失敗時に空文字列を返す（有効なプロパティの書き出しは空にならない）
+        if not value:
+            raise RuntimeError(
+                f'Unable to get KawaiiPhysics Shared Publisher node property: {property_name}')
+        return str(value)
+
+    @toolset_registry.tool_call
+    @staticmethod
     def get_graph_node_external_forces(
             handle: unreal.KawaiiPhysicsGraphNodeHandle) -> str:
         """Returns the node's ExternalForces as a JSON array.
@@ -1030,11 +1196,11 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             shape: str,
             driving_bone: str,
             location: list[float],
-            rotation: list[float] = [],
+            rotation: list[float] | None = None,
             radius: float = 5.0,
             radius1: float = 5.0,
             length: float = 10.0,
-            extent: list[float] = [],
+            extent: list[float] | None = None,
             limit_type: str = 'Outer') -> int:
         """Appends one collision limit placed in component space and returns the new size of that shape's array.
 
@@ -1048,6 +1214,9 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         radius, radius1 the TaperedCapsule -Z end radius, extent the Box half
         extents [x, y, z] (empty = default), limit_type (Outer/Inner) is for Sphere.
         """
+        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        rotation = rotation or []
+        extent = extent or []
         _raise_for_invalid_handle(handle, 'handle')
         shape_entry = _COLLISION_LIMIT_SHAPES.get(str(shape or '').lower())
         if shape_entry is None:
@@ -1115,12 +1284,14 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             anim_blueprint: unreal.AnimBlueprint,
             property_name: str,
             value: str,
-            filter_tag_names: list[str] = [],
+            filter_tag_names: list[str] | None = None,
             filter_exact_match: bool = False) -> int:
         """Sets a FAnimNode_KawaiiPhysics property from a string on every KawaiiPhysics node in the AnimBlueprint (optionally filtered by tags).
 
         Returns the number of nodes updated.
         """
+        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        filter_tag_names = filter_tag_names or []
         _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
         if not property_name:
             raise ValueError('property_name must not be empty.')
@@ -1149,13 +1320,15 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
     def get_graph_nodes_property(
             anim_blueprint: unreal.AnimBlueprint,
             property_name: str,
-            filter_tag_names: list[str] = [],
+            filter_tag_names: list[str] | None = None,
             filter_exact_match: bool = False) -> dict[str, str]:
         """Gets a FAnimNode_KawaiiPhysics property as a string from every KawaiiPhysics node in the AnimBlueprint (optionally filtered by tags).
 
         Keys are the node GUID when it can be read, otherwise a stable
         node name or "node<index>" fallback.
         """
+        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        filter_tag_names = filter_tag_names or []
         _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
         if not property_name:
             raise ValueError('property_name must not be empty.')
@@ -1568,13 +1741,15 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
     @toolset_registry.tool_call
     @staticmethod
     def find_kawaii_physics_actors(
-            actor_label: str = '',
+            actor_label: str | None = None,
             prefer_pie: bool = True) -> list[str]:
         """Lists SkeletalMeshComponents that run an AnimBlueprint as "<actor_label>|<component_name>|<anim_class_name>".
 
         An empty actor_label scans every actor; components without an
         AnimClass are skipped.
         """
+        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        actor_label = actor_label or ''
         world = _resolve_world(prefer_pie)
         entries = []
         for actor in unreal.GameplayStatics.get_all_actors_of_class(world, unreal.Actor):
@@ -1687,7 +1862,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             duration: float,
             blend_in_time: float = 0.2,
             blend_out_time: float = 0.5,
-            filter_tag_names: list[str] = [],
+            filter_tag_names: list[str] | None = None,
             filter_exact_match: bool = False,
             prefer_pie: bool = True) -> str:
         """Starts a temporary physics settings multiplier on every SkeletalMeshComponent of the matching actors.
@@ -1696,6 +1871,8 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         Stiffness, WorldDampingLocation, WorldDampingRotation, Radius,
         LimitAngle); the JSON array result carries the stop handles.
         """
+        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        filter_tag_names = filter_tag_names or []
         settings_scale = _make_settings_multiplier(settings_json)
         components = _find_skeletal_mesh_components_by_label(actor_label, prefer_pie)
         filter_tags = _make_tag_container(filter_tag_names)
@@ -1726,7 +1903,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             actor_label: str,
             handle_json: str,
             blend_out_time: float = 0.5,
-            filter_tag_names: list[str] = [],
+            filter_tag_names: list[str] | None = None,
             filter_exact_match: bool = False,
             prefer_pie: bool = True) -> int:
         """Stops the physics settings multiplier matching the handle and returns the total number of stopped nodes.
@@ -1734,6 +1911,8 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         handle_json is the handle from start_physics_settings_multiplier_on_actor
         ({"id": <int>} or a bare integer).
         """
+        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        filter_tag_names = filter_tag_names or []
         handle = _handle_from_json(handle_json)
         components = _find_skeletal_mesh_components_by_label(actor_label, prefer_pie)
         filter_tags = _make_tag_container(filter_tag_names)
@@ -1759,8 +1938,8 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             duration: float,
             rise_time: float = 0.1,
             decay_time: float = 0.3,
-            direction: list[float] = [],
-            filter_tag_names: list[str] = [],
+            direction: list[float] | None = None,
+            filter_tag_names: list[str] | None = None,
             filter_exact_match: bool = False,
             prefer_pie: bool = True) -> str:
         """Starts a runtime ProceduralWind gust on every SkeletalMeshComponent of the matching actors.
@@ -1769,6 +1948,9 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         direction; pass a world space vector such as [1, 0, 0] for an explicit
         direction. The JSON array result carries the stop handles.
         """
+        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        direction = direction or []
+        filter_tag_names = filter_tag_names or []
         gust_direction = _make_gust_direction(direction)
         components = _find_skeletal_mesh_components_by_label(actor_label, prefer_pie)
         filter_tags = _make_tag_container(filter_tag_names)
@@ -1800,7 +1982,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             actor_label: str,
             handle_json: str,
             blend_out_time: float = 0.5,
-            filter_tag_names: list[str] = [],
+            filter_tag_names: list[str] | None = None,
             filter_exact_match: bool = False,
             prefer_pie: bool = True) -> int:
         """Stops the transient external force matching the handle and returns the total number of stopped nodes.
@@ -1808,6 +1990,8 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         handle_json is the handle from start_procedural_wind_gust_on_actor
         ({"id": <int>} or a bare integer).
         """
+        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        filter_tag_names = filter_tag_names or []
         handle = _handle_from_json(handle_json)
         components = _find_skeletal_mesh_components_by_label(actor_label, prefer_pie)
         filter_tags = _make_tag_container(filter_tag_names)
@@ -1830,10 +2014,12 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
     def set_alpha_on_actor(
             actor_label: str,
             alpha: float,
-            filter_tag_names: list[str] = [],
+            filter_tag_names: list[str] | None = None,
             filter_exact_match: bool = False,
             prefer_pie: bool = True) -> int:
         """Sets the KawaiiPhysics alpha on every SkeletalMeshComponent of the matching actors and returns the number of updated components."""
+        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        filter_tag_names = filter_tag_names or []
         components = _find_skeletal_mesh_components_by_label(actor_label, prefer_pie)
         filter_tags = _make_tag_container(filter_tag_names)
 
@@ -1847,10 +2033,12 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
     @staticmethod
     def get_alpha_on_actor(
             actor_label: str,
-            filter_tag_names: list[str] = [],
+            filter_tag_names: list[str] | None = None,
             filter_exact_match: bool = False,
             prefer_pie: bool = True) -> float:
         """Gets the KawaiiPhysics alpha from the first matching SkeletalMeshComponent; returns -1.0 when no value is available."""
+        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        filter_tag_names = filter_tag_names or []
         components = _find_skeletal_mesh_components_by_label(actor_label, prefer_pie)
         filter_tags = _make_tag_container(filter_tag_names)
 
@@ -1913,10 +2101,12 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
     @staticmethod
     def get_simple_world_collider_count_on_actor(
             actor_label: str,
-            filter_tag_names: list[str] = [],
+            filter_tag_names: list[str] | None = None,
             filter_exact_match: bool = False,
             prefer_pie: bool = True) -> int:
         """Returns the total number of Simple World Collision colliders across every SkeletalMeshComponent of the matching actors."""
+        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        filter_tag_names = filter_tag_names or []
         components = _find_skeletal_mesh_components_by_label(actor_label, prefer_pie)
         filter_tags = _make_tag_container(filter_tag_names)
 
