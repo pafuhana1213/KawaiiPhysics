@@ -142,6 +142,15 @@ If you do not have a C++ build environment, please download the plugin from the 
 The sample project on GitHub includes a sample level and characters.
 - **Engine Version**: UE 5.8
 - **Sample Level**: `Content/KawaiiPhysicsSample/L_KawaiiPhysicsSample`
+- **Feature Samples**: `Content/KawaiiPhysicsSample/Examples/` has one level per topic. Each exhibit shows a single feature with its own AnimBlueprint, step by step.
+  - `01_BoneChain` (RootBone / DummyBoneLength / ExcludeBones / AdditionalRootBones / multiple nodes and tags)
+  - `02_PhysicsSettings` (Damping / Stiffness / WorldDamping / LimitAngle / curves / teleport threshold)
+  - `03_Collision` (sphere / capsule / tapered capsule / box / planar / LimitsDataAsset / PhysicsAsset / world collision)
+  - `04_Forces` (gravity / simple external force / external force presets / AnimNotify)
+  - `05_Advanced` (bone constraints / bone subdivision / SyncBone / presets / shared collision)
+  - `06_RuntimeControl` (alpha, physics settings multiplier and wind gusts from Blueprint / settings multiplier AnimNotifyState / Sequencer track)
+  - `07_SimpleWorldCollision` (automatic level collision / gathered shapes / skeletal mesh collision modes / gather radius)
+  - `08_Wind` (ProceduralWind components / wind preset DataAsset / trigger gust AnimNotify / Shared Publisher)
 - **Characters Used**:
   - **Gray-chan**: http://rarihoma.xvs.jp/products/graychan
   - **TA-style Kano Saginomiya**: Provided by [TA Co., Ltd.](https://xta.co.jp/)
@@ -156,6 +165,8 @@ The sample project enables UE 5.8's experimental **Unreal MCP** plugin, so MCP c
    - Run the console command `ModelContextProtocol.StartServer` (starts immediately)
    - Enable **Auto Start Server** under **Editor Preferences > General > Model Context Protocol** (applies from the next launch; saved per user)
 2. Connect your MCP client to `http://127.0.0.1:8000/mcp`. The `.mcp.json` in the project root already contains this setting.
+
+The toolset also registers an Agent Skill (`KawaiiPhysicsSetupSkill`) with tips for setting up and verifying KawaiiPhysics nodes through MCP. The sample project adds a project skill (`Examples/Skills/KawaiiPhysicsSampleAuthoring`) describing how the feature samples are built.
 
 The server lets clients control the editor. Start it only when you need it.
 

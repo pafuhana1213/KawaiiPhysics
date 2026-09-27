@@ -137,6 +137,15 @@ C++ビルド環境がない方は、以下のリンクからプラグインを�
 プロジェクト内にサンプルレベルとキャラクターが含まれています。
 - **エンジンバージョン**: UE 5.8
 - **サンプルレベル**: `Content/KawaiiPhysicsSample/L_KawaiiPhysicsSample`
+- **機能別サンプル**: `Content/KawaiiPhysicsSample/Examples/` にテーマごとのレベルがあります。各展示は 1 つの機能だけを専用の AnimBlueprint で紹介し、段階的に学べるようにしています。
+  - `01_BoneChain`（RootBone / DummyBoneLength / ExcludeBones / AdditionalRootBones / 複数ノードとタグ）
+  - `02_PhysicsSettings`（Damping / Stiffness / WorldDamping / LimitAngle / カーブ / テレポートしきい値）
+  - `03_Collision`（球 / カプセル / テーパードカプセル / 箱 / 平面 / LimitsDataAsset / PhysicsAsset / ワールドコリジョン）
+  - `04_Forces`（重力 / SimpleExternalForce / 外力プリセット / AnimNotify）
+  - `05_Advanced`（ボーン拘束 / ボーン細分化 / SyncBone / プリセット / 共有コリジョン）
+  - `06_RuntimeControl`（Blueprint からの Alpha・設定倍率・突風 / 設定倍率の AnimNotifyState / Sequencer トラック）
+  - `07_SimpleWorldCollision`（レベルのコリジョンの自動収集 / 対応形状 / スケルタルメッシュとの当たり / 収集半径）
+  - `08_Wind`（ProceduralWind の成分 / 風プリセット DataAsset / 突風 AnimNotify / Shared Publisher）
 - **使用キャラクター**:
   - **Grayちゃん**: http://rarihoma.xvs.jp/products/graychan
   - **TA式 鷺宮カノ**: [株式会社TA様](https://xta.co.jp/)よりご提供
@@ -151,6 +160,8 @@ C++ビルド環境がない方は、以下のリンクからプラグインを�
    - コンソールコマンド `ModelContextProtocol.StartServer` を実行する（すぐに起動）
    - **Editor Preferences > General > Model Context Protocol** で **Auto Start Server** を有効にする（次回起動から有効。設定はユーザーごとに保存）
 2. MCP クライアントから `http://127.0.0.1:8000/mcp` に接続します。プロジェクト直下の `.mcp.json` にこの設定が入っています。
+
+Toolset は Agent Skill（`KawaiiPhysicsSetupSkill`）も登録し、MCP で KawaiiPhysics ノードを設定・確認するときの注意点を提供します。サンプルプロジェクトには、機能別サンプルの作り方をまとめたプロジェクト用スキル（`Examples/Skills/KawaiiPhysicsSampleAuthoring`）もあります。
 
 サーバーはクライアントからのエディタ操作を受け付けます。必要なときだけ起動してください。
 
