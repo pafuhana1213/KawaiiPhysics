@@ -511,7 +511,7 @@ public:
 	                             UObject* Owner, bool bIsOneShot = false);
 
 	/** Add ExternalForces to SkeletalMeshComponent */
-	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe, AutoCreateRefTerm = "FilterTags"))
 	static bool AddExternalForcesOnComponent(USkeletalMeshComponent* MeshComp,
 	                                         UPARAM(ref, meta=(BaseStruct="/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce", ExcludeBaseStruct)) TArray<FInstancedStruct>& ExternalForces,
 	                                         UObject* Owner,
@@ -524,7 +524,7 @@ public:
 	 * Add ExternalForces to SkeletalMeshComponent
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
-		meta=(BlueprintThreadSafe, DeprecatedFunction, DeprecationMessage = "Use AddExternalForcesOnComponent"))
+		meta=(BlueprintThreadSafe, AutoCreateRefTerm = "FilterTags", DeprecatedFunction, DeprecationMessage = "Use AddExternalForcesOnComponent"))
 	static bool AddExternalForcesToComponent(USkeletalMeshComponent* MeshComp,
 	                                         UPARAM(ref, meta=(BaseStruct="/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce", ExcludeBaseStruct)) TArray<FInstancedStruct>& ExternalForces,
 	                                         UObject* Owner,
@@ -533,7 +533,7 @@ public:
 	                                         bool bIsOneShot = false);
 
 	/** Remove ExternalForces from SkeletalMeshComponent (by Owner) */
-	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe, AutoCreateRefTerm = "FilterTags"))
 	static bool RemoveExternalForcesOnComponent(USkeletalMeshComponent* MeshComp, UObject* Owner,
 	                                              UPARAM(ref) FGameplayTagContainer& FilterTags,
 	                                              bool bFilterExactMatch = false);
@@ -543,7 +543,7 @@ public:
 	 * Remove ExternalForces from SkeletalMeshComponent (by Owner)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
-		meta=(BlueprintThreadSafe, DeprecatedFunction, DeprecationMessage = "Use RemoveExternalForcesOnComponent"))
+		meta=(BlueprintThreadSafe, AutoCreateRefTerm = "FilterTags", DeprecatedFunction, DeprecationMessage = "Use RemoveExternalForcesOnComponent"))
 	static bool RemoveExternalForcesFromComponent(USkeletalMeshComponent* MeshComp, UObject* Owner,
 	                                              UPARAM(ref) FGameplayTagContainer& FilterTags,
 	                                              bool bFilterExactMatch = false);
@@ -1031,7 +1031,7 @@ public:
 	 * Set alpha (input) to all KawaiiPhysics nodes in the component (and linked/post-process instances).
 	 * This is intended for AnimNotifyState usage.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe, AutoCreateRefTerm = "FilterTags"))
 	static bool SetAlphaOnComponent(USkeletalMeshComponent* MeshComp, float Alpha,
 	                                UPARAM(ref) FGameplayTagContainer& FilterTags,
 	                                bool bFilterExactMatch = false);
@@ -1042,13 +1042,13 @@ public:
 	 * This is intended for AnimNotifyState usage.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
-		meta=(BlueprintThreadSafe, DeprecatedFunction, DeprecationMessage = "Use SetAlphaOnComponent"))
+		meta=(BlueprintThreadSafe, AutoCreateRefTerm = "FilterTags", DeprecatedFunction, DeprecationMessage = "Use SetAlphaOnComponent"))
 	static bool SetAlphaToComponent(USkeletalMeshComponent* MeshComp, float Alpha,
 	                                UPARAM(ref) FGameplayTagContainer& FilterTags,
 	                                bool bFilterExactMatch = false);
 
 	/** Get current alpha (input) from the first matched KawaiiPhysics node in the component. */
-	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe, AutoCreateRefTerm = "FilterTags"))
 	static bool GetAlphaOnComponent(USkeletalMeshComponent* MeshComp, float& OutAlpha,
 	                                  UPARAM(ref) FGameplayTagContainer& FilterTags,
 	                                  bool bFilterExactMatch = false);
@@ -1058,7 +1058,7 @@ public:
 	 * Get current alpha (input) from the first matched KawaiiPhysics node in the component.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
-		meta=(BlueprintThreadSafe, DeprecatedFunction, DeprecationMessage = "Use GetAlphaOnComponent"))
+		meta=(BlueprintThreadSafe, AutoCreateRefTerm = "FilterTags", DeprecatedFunction, DeprecationMessage = "Use GetAlphaOnComponent"))
 	static bool GetAlphaFromComponent(USkeletalMeshComponent* MeshComp, float& OutAlpha,
 	                                  UPARAM(ref) FGameplayTagContainer& FilterTags,
 	                                  bool bFilterExactMatch = false);

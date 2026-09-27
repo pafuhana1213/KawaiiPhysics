@@ -20,6 +20,27 @@ _SETTINGS_MULTIPLIER_FIELDS = {
     'LimitAngle': 'limit_angle',
 }
 
+# add_collision_limit の shape（小文字） -> (正規の shape 名, FAnimNode_KawaiiPhysics の配列プロパティ名)
+_COLLISION_LIMIT_SHAPES = {
+    'sphere': ('Sphere', 'SphericalLimits'),
+    'capsule': ('Capsule', 'CapsuleLimits'),
+    'taperedcapsule': ('TaperedCapsule', 'TaperedCapsuleLimits'),
+    'box': ('Box', 'BoxLimits'),
+    'planar': ('Planar', 'PlanarLimits'),
+}
+
+# ESphericalLimitType の値（小文字） -> ImportText の列挙子名
+_SPHERICAL_LIMIT_TYPES = {
+    'outer': 'Outer',
+    'inner': 'Inner',
+}
+
+# start_bone_sampler の space -> GetSocketTransform の座標空間
+_BONE_SAMPLER_SPACES = {
+    'world': unreal.RelativeTransformSpace.RTS_WORLD,
+    'component': unreal.RelativeTransformSpace.RTS_COMPONENT,
+}
+
 # start_bone_sampler / get_bone_sampler_result / stop_bone_sampler が共有する採取状態
 _BONE_SAMPLER: dict | None = None
 
@@ -71,6 +92,95 @@ def _make_tag_container(filter_tag_names: list[str]) -> unreal.GameplayTagContai
         raise ValueError(
             f'No valid gameplay tags were resolved from: {filter_tag_names}')
     return result
+
+
+def _resolve_gameplay_tag(tag_name: str) -> unreal.GameplayTag:
+    container = unreal.KawaiiPhysicsEditorLibrary.make_gameplay_tag_container_from_names(
+        [unreal.Name(tag_name)])
+    if container is None:
+        raise ValueError(f'No valid gameplay tags were resolved from: {tag_name}')
+    tags = container.get_editor_property('gameplay_tags')
+    if len(tags) == 0:
+        raise ValueError(f'No valid gameplay tags were resolved from: {tag_name}')
+    return tags[0]
+
+
+def _parse_graph_node_properties(properties_json: str) -> list[tuple[str, str]]:
+    # 値は ImportText 形式の文字列へ揃える。bool は Python の True/False、数値は str() で変換する
+    if not properties_json:
+        raise ValueError('properties_json must not be empty.')
+    try:
+        values = json.loads(properties_json)
+    except ValueError as error:
+        raise ValueError(f'properties_json is not valid JSON: {error}')
+    if not isinstance(values, dict):
+        raise ValueError('properties_json must be a JSON object.')
+
+    properties = []
+    for name, value in values.items():
+        if not name:
+            raise ValueError('properties_json must not contain an empty property name.')
+        if isinstance(value, bool):
+            text = 'True' if value else 'False'
+        elif isinstance(value, (int, float)):
+            text = str(value)
+        elif isinstance(value, str):
+            text = value
+        else:
+            raise ValueError(
+                f'{name} must be a string (ImportText format), number or bool.')
+        properties.append((name, text))
+    return properties
+
+
+def _set_graph_node_properties_impl(
+        handle: unreal.KawaiiPhysicsGraphNodeHandle,
+        properties: list[tuple[str, str]]) -> list[str]:
+    # tool_call ラッパは例外を握るため、add_kawaii_physics_node からもこの素の関数を使う
+    _raise_for_invalid_handle(handle, 'handle')
+    set_names = []
+    for name, text in properties:
+        ok = unreal.KawaiiPhysicsEditorLibrary.set_graph_node_property_from_string(
+            handle,
+            unreal.Name(name),
+            text,
+        )
+        if not ok:
+            raise RuntimeError(
+                f'Unable to set KawaiiPhysics graph node property: {name}')
+        set_names.append(name)
+    return set_names
+
+
+def _set_anim_graph_input_animation_impl(
+        anim_blueprint: unreal.AnimBlueprint,
+        animation: unreal.AnimSequenceBase,
+        graph_name: str) -> None:
+    _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
+    _raise_for_invalid_object(animation, 'animation')
+    ok = unreal.KawaiiPhysicsEditorLibrary.set_anim_graph_input_animation(
+        anim_blueprint,
+        animation,
+        graph_name,
+    )
+    if not ok:
+        raise RuntimeError(
+            'Unable to set the AnimGraph input animation. Check that the '
+            'animation skeleton matches the AnimBlueprint target skeleton, that '
+            'the graph exists, and see the output log for details.')
+
+
+def _make_root_bone_setting(bone_name: str) -> unreal.KawaiiPhysicsRootBoneSetting:
+    if not bone_name:
+        raise ValueError('additional_root_bones must not contain an empty bone name.')
+    bone_reference = unreal.BoneReference()
+    bone_reference.set_editor_property('bone_name', unreal.Name(bone_name))
+    setting = unreal.KawaiiPhysicsRootBoneSetting()
+    setting.set_editor_property('root_bone', bone_reference)
+    setting.set_editor_property('override_exclude_bones', [])
+    # C++ プロパティ名 bUseOverrideExcludeBones は Python では use_override_exclude_bones に変換される。
+    setting.set_editor_property('use_override_exclude_bones', False)
+    return setting
 
 
 def _collect_graph_nodes_impl(
@@ -125,10 +235,38 @@ def _unpack_bool_out(result: object, default: object) -> object:
     if isinstance(result, tuple):
         if len(result) != 2:
             raise RuntimeError(f'Unexpected return value: {result}')
+        if isinstance(result[0], bool) and not result[0]:
+            return default
         return result[1]
     if result is None:
         return default
     return result
+
+
+def _unpack_bool_result(result: object) -> bool:
+    # UPARAM(ref) 引数を持つ bool 関数は (bool, ref の値) のタプル、または bool を剥がした
+    # ref の値単体（失敗時は None）で返る。タプルは常に真になるため bool を取り出して判定する。
+    if isinstance(result, bool):
+        return result
+    if result is None:
+        return False
+    if isinstance(result, tuple):
+        return bool(result[0]) if result and isinstance(result[0], bool) else True
+    return True
+
+
+def _unpack_float_out(result: object) -> float | None:
+    # bool 戻り値 + float& 出力 + UPARAM(ref) 引数（GetAlphaOnComponent の FilterTags 等）は
+    # (bool, float, ref の値)・(float, ref の値)・float・None のいずれかで返るため float 要素を探す。
+    if result is None:
+        return None
+    values = result if isinstance(result, tuple) else (result,)
+    if values and isinstance(values[0], bool) and not values[0]:
+        return None
+    for value in values:
+        if isinstance(value, float):
+            return value
+    return None
 
 
 def _unpack_count_and_out(result: object) -> tuple[int, object]:
@@ -139,17 +277,44 @@ def _unpack_count_and_out(result: object) -> tuple[int, object]:
 
 
 def _resolve_world(prefer_pie: bool) -> unreal.World:
-    editor_subsystem = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem)
-    if editor_subsystem is None:
-        raise RuntimeError('No world available.')
-
-    world = editor_subsystem.get_game_world() if prefer_pie else None
+    world = None
+    if prefer_pie:
+        editor_subsystem = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem)
+        if editor_subsystem is not None:
+            world = editor_subsystem.get_game_world()
     if world is None:
-        # get_editor_world() は PIE 中に None を返してログを出すため、PIE ワールドが取れたときは呼ばない
-        world = editor_subsystem.get_editor_world()
+        # UnrealEditorSubsystem.get_editor_world() は PIE 中にプレイモードのエラーを出して None を返すため、
+        # PIE 中でもエディタワールドを返す C++ 側の関数を使う
+        world = unreal.KawaiiPhysicsEditorLibrary.get_editor_world_ignoring_play_mode()
     if world is None:
         raise RuntimeError('No world available.')
     return world
+
+
+def _get_alpha_on_component(
+        component: unreal.SkeletalMeshComponent,
+        filter_tags: unreal.GameplayTagContainer,
+        filter_exact_match: bool) -> float | None:
+    return _unpack_float_out(
+        unreal.KawaiiPhysicsLibrary.get_alpha_on_component(
+            component,
+            filter_tags,
+            filter_exact_match,
+        ))
+
+
+def _set_alpha_on_component(
+        component: unreal.SkeletalMeshComponent,
+        alpha: float,
+        filter_tags: unreal.GameplayTagContainer,
+        filter_exact_match: bool) -> bool:
+    return _unpack_bool_result(
+        unreal.KawaiiPhysicsLibrary.set_alpha_on_component(
+            component,
+            alpha,
+            filter_tags,
+            filter_exact_match,
+        ))
 
 
 def _actor_label(actor: unreal.Actor) -> str:
@@ -311,6 +476,146 @@ def _make_gust_direction(direction: list[float]) -> unreal.Vector:
     )
 
 
+def _make_float3(values: list[float], name: str) -> list[float]:
+    if values is None or len(values) != 3:
+        raise ValueError(f'{name} must have 3 elements.')
+    result = []
+    for value in values:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f'{name} must contain only numbers.')
+        result.append(float(value))
+    return result
+
+
+def _make_rotator(pitch_yaw_roll: list[float]) -> unreal.Rotator:
+    # unreal.Rotator の位置引数は (roll, pitch, yaw) 順のため属性で設定する
+    rotator = unreal.Rotator()
+    rotator.pitch = float(pitch_yaw_roll[0])
+    rotator.yaw = float(pitch_yaw_roll[1])
+    rotator.roll = float(pitch_yaw_roll[2])
+    return rotator
+
+
+def _clean_float(value: float) -> float:
+    # 行列演算の丸め誤差と -0.0 を落とし、ImportText 文字列を安定させる
+    rounded = round(float(value), 4)
+    return 0.0 if rounded == 0.0 else rounded
+
+
+def _compute_collision_limit_offset(
+        bone_transform: unreal.Transform | None,
+        location: list[float],
+        rotation: list[float]) -> tuple[list[float], list[float]]:
+    """Converts a component-space limit transform into the DrivingBone-local offset.
+
+    bone_transform is the DrivingBone component-space reference pose (None
+    keeps the values in component space, as for a Planar limit without a
+    DrivingBone). location is [x, y, z]; rotation is [pitch, yaw, roll] or
+    empty for identity. Returns (OffsetLocation [x, y, z], OffsetRotation
+    [pitch, yaw, roll]).
+    """
+    target_location = _make_float3(location, 'location')
+    target_rotation = _make_float3(rotation, 'rotation') if rotation else [0.0, 0.0, 0.0]
+
+    # ランタイムは FTransform(OffsetRotation, OffsetLocation) * BoneCS で配置するため、
+    # オフセットは目標トランスフォームの DrivingBone 相対になる
+    # Kismet の Transform 系関数は Python では unreal.Transform のメソッドとして公開される
+    target = unreal.Transform(
+        unreal.Vector(*target_location),
+        _make_rotator(target_rotation),
+        unreal.Vector(1.0, 1.0, 1.0),
+    )
+    offset = target if bone_transform is None else target.make_relative(bone_transform)
+    offset_location = offset.translation
+    offset_rotation = offset.rotation.rotator()
+    return (
+        [
+            _clean_float(offset_location.x),
+            _clean_float(offset_location.y),
+            _clean_float(offset_location.z),
+        ],
+        [
+            _clean_float(offset_rotation.pitch),
+            _clean_float(offset_rotation.yaw),
+            _clean_float(offset_rotation.roll),
+        ],
+    )
+
+
+def _format_import_float(value: float) -> str:
+    return f'{float(value):.6f}'
+
+
+def _format_import_vector(values: list[float]) -> str:
+    return '(X={},Y={},Z={})'.format(*[_format_import_float(value) for value in values])
+
+
+def _make_collision_limit_text(
+        shape: str,
+        driving_bone: str,
+        offset_location: list[float],
+        offset_rotation: list[float],
+        radius: float,
+        radius1: float,
+        length: float,
+        extent: list[float],
+        limit_type: str) -> str:
+    fields = []
+    if driving_bone:
+        fields.append(f'DrivingBone=(BoneName="{driving_bone}")')
+    fields.append('OffsetLocation=' + _format_import_vector(offset_location))
+    fields.append('OffsetRotation=(Pitch={},Yaw={},Roll={})'.format(
+        *[_format_import_float(value) for value in offset_rotation]))
+    if shape == 'Sphere':
+        fields.append('Radius=' + _format_import_float(radius))
+        fields.append('LimitType=' + limit_type)
+    elif shape == 'Capsule':
+        fields.append('Radius=' + _format_import_float(radius))
+        fields.append('Length=' + _format_import_float(length))
+    elif shape == 'TaperedCapsule':
+        fields.append('Radius0=' + _format_import_float(radius))
+        fields.append('Radius1=' + _format_import_float(radius1))
+        fields.append('Length=' + _format_import_float(length))
+    elif shape == 'Box' and extent:
+        fields.append('Extent=' + _format_import_vector(extent))
+    return '(' + ','.join(fields) + ')'
+
+
+def _count_import_text_array_elements(array_text: str) -> int:
+    # 構造体配列の ImportText は "((...),(...))" 形式のため、深さ 2 へ入る括弧の数が要素数になる
+    depth = 0
+    count = 0
+    in_quote = False
+    escaped = False
+    for character in array_text or '':
+        if in_quote:
+            if escaped:
+                escaped = False
+            elif character == '\\':
+                escaped = True
+            elif character == '"':
+                in_quote = False
+            continue
+        if character == '"':
+            in_quote = True
+        elif character == '(':
+            depth += 1
+            if depth == 2:
+                count += 1
+        elif character == ')':
+            depth -= 1
+    return count
+
+
+def _append_import_text_array_element(array_text: str, element_text: str) -> str:
+    text = (array_text or '').strip()
+    if text in ('', '()'):
+        return f'({element_text})'
+    if not (text.startswith('(') and text.endswith(')')):
+        raise RuntimeError(f'Unexpected array text: {text}')
+    return f'{text[:-1]},{element_text})'
+
+
 def _make_bone_sampler_targets(
         components: list[unreal.SkeletalMeshComponent],
         bone_pattern: str) -> list[tuple[str, unreal.SkeletalMeshComponent, str]]:
@@ -388,7 +693,7 @@ def _bone_sampler_tick(delta_seconds: float) -> None:
         for key, component, bone_name in state['targets']:
             transform = component.get_socket_transform(
                 unreal.Name(bone_name),
-                unreal.RelativeTransformSpace.RTS_WORLD,
+                _BONE_SAMPLER_SPACES[state['space']],
             )
             location = transform.translation
             _accumulate_bone_sample(
@@ -421,8 +726,13 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
     def create_anim_blueprint(
             folder_path: str,
             asset_name: str,
-            skeleton: unreal.Skeleton) -> unreal.AnimBlueprint:
-        """Creates an AnimBlueprint with a target skeleton."""
+            skeleton: unreal.Skeleton,
+            input_animation: unreal.AnimSequenceBase | None = None) -> unreal.AnimBlueprint:
+        """Creates an AnimBlueprint with a target skeleton.
+
+        A non-None input_animation is set as the AnimGraph input pose in the
+        same way as set_anim_graph_input_animation.
+        """
         _raise_for_invalid_object(skeleton, 'skeleton')
 
         factory = unreal.AnimBlueprintFactory()
@@ -440,7 +750,106 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
                 f'Unable to create AnimBlueprint {asset_name} at {folder_path}.')
         if not isinstance(asset, unreal.AnimBlueprint):
             raise RuntimeError(f'Created asset is not an AnimBlueprint: {asset}')
+        if input_animation is not None:
+            _set_anim_graph_input_animation_impl(asset, input_animation, '')
         return asset
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def set_anim_graph_input_animation(
+            anim_blueprint: unreal.AnimBlueprint,
+            animation: unreal.AnimSequenceBase,
+            graph_name: str = '') -> None:
+        """Sets the animation that feeds the AnimGraph pose chain; does not compile.
+
+        Follows pose inputs upstream from Result (through KawaiiPhysics and
+        space conversion nodes). An existing SequencePlayer gets the animation;
+        otherwise a SequencePlayer is added at the first unlinked pose input.
+        Works before or after adding KawaiiPhysics nodes. The animation skeleton
+        must match the AnimBlueprint target skeleton.
+        """
+        _set_anim_graph_input_animation_impl(anim_blueprint, animation, graph_name)
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def compile_anim_blueprint(
+            anim_blueprint: unreal.AnimBlueprint) -> list[str]:
+        """Compiles an AnimBlueprint and returns the compiler messages.
+
+        Each message starts with "Error:", "Warning:" or "Note:"; compile errors
+        are returned as messages instead of raising.
+        """
+        _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
+
+        error_count, messages = _unpack_count_and_out(
+            unreal.KawaiiPhysicsEditorLibrary.compile_anim_blueprint_with_messages(
+                anim_blueprint))
+        if error_count < 0:
+            raise RuntimeError('Unable to compile AnimBlueprint.')
+        return [str(message) for message in messages]
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def add_kawaii_physics_node(
+            anim_blueprint: unreal.AnimBlueprint,
+            root_bone: str,
+            exclude_bones: list[str] = [],
+            additional_root_bones: list[str] = [],
+            tag: str = '',
+            properties_json: str = '',
+            graph_name: str = '',
+            comment: str = '',
+            prompt: str = '') -> unreal.KawaiiPhysicsGraphNodeHandle:
+        """Adds one KawaiiPhysics node auto-positioned and auto-connected before Result.
+
+        Always adds a new node. tag is a registered gameplay tag name.
+        properties_json is applied like set_graph_node_properties; if a property
+        fails the node stays in the graph. comment/prompt behave as in
+        add_kawaii_physics_nodes.
+        """
+        _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
+        if not root_bone:
+            raise ValueError('root_bone must not be empty.')
+        # ノード追加前に JSON を検証し、書式エラーでノードだけ残らないようにする
+        properties = (
+            _parse_graph_node_properties(properties_json)
+            if properties_json else []
+        )
+
+        request = unreal.KawaiiPhysicsNodePlacementRequest()
+        request.set_editor_property('preset', None)
+        request.set_editor_property('root_bone_name', unreal.Name(root_bone))
+        request.set_editor_property(
+            'exclude_bone_names',
+            [unreal.Name(bone_name) for bone_name in exclude_bones],
+        )
+        request.set_editor_property(
+            'additional_root_bones',
+            [_make_root_bone_setting(bone_name) for bone_name in additional_root_bones],
+        )
+        if tag:
+            request.set_editor_property('kawaii_physics_tag', _resolve_gameplay_tag(tag))
+        # C++ プロパティ名 bAutoPosition / bAutoConnect は Python では auto_position / auto_connect に変換される。
+        request.set_editor_property('auto_position', True)
+        request.set_editor_property('auto_connect', True)
+
+        _validate_requests_or_raise(anim_blueprint, [request])
+        handles = unreal.KawaiiPhysicsEditorLibrary.add_kawaii_physics_nodes(
+            anim_blueprint,
+            [request],
+            unreal.KawaiiPhysicsPlacementMatchKey.NONE,
+            graph_name,
+            comment,
+            prompt,
+        )
+        if not handles:
+            raise RuntimeError(
+                f'Unable to add KawaiiPhysics node for RootBone: {root_bone}')
+        handle = handles[0]
+
+        if properties:
+            _set_graph_node_properties_impl(handle, properties)
+        return handle
 
     @toolset_registry.tool_call
     @staticmethod
@@ -510,7 +919,12 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             handle: unreal.KawaiiPhysicsGraphNodeHandle,
             property_name: str,
             value: str) -> None:
-        """Sets a graph node property from a string value."""
+        """Sets a graph node property from a string value.
+
+        ExternalForces is not accessible here; use set_graph_node_external_forces
+        for ExternalForces and add_collision_limit to place a collision limit
+        in component space.
+        """
         _raise_for_invalid_handle(handle, 'handle')
         if not property_name:
             raise ValueError('property_name must not be empty.')
@@ -528,10 +942,28 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
 
     @toolset_registry.tool_call
     @staticmethod
+    def set_graph_node_properties(
+            handle: unreal.KawaiiPhysicsGraphNodeHandle,
+            properties_json: str) -> list[str]:
+        """Sets several FAnimNode_KawaiiPhysics properties in order and returns the names set.
+
+        properties_json is a JSON object {"<property name>": value}; a value is
+        an ImportText string such as "(Damping=0.3,Stiffness=0.1)", a number or
+        a bool. Stops at the first property that fails; earlier ones stay set.
+        """
+        _raise_for_invalid_handle(handle, 'handle')
+        properties = _parse_graph_node_properties(properties_json)
+        return _set_graph_node_properties_impl(handle, properties)
+
+    @toolset_registry.tool_call
+    @staticmethod
     def get_graph_node_property(
             handle: unreal.KawaiiPhysicsGraphNodeHandle,
             property_name: str) -> str:
-        """Gets a graph node property as a string value."""
+        """Gets a graph node property as a string value.
+
+        Use get_graph_node_external_forces for ExternalForces.
+        """
         _raise_for_invalid_handle(handle, 'handle')
         if not property_name:
             raise ValueError('property_name must not be empty.')
@@ -544,6 +976,138 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             raise RuntimeError(
                 f'Unable to get KawaiiPhysics graph node property: {property_name}')
         return str(value)
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def get_graph_node_external_forces(
+            handle: unreal.KawaiiPhysicsGraphNodeHandle) -> str:
+        """Returns the node's ExternalForces as a JSON array.
+
+        Each element is {"_structType": "/Script/KawaiiPhysics.<struct>", ...}
+        with the editable fields of that force (an empty slot is null); the
+        same format is accepted by set_graph_node_external_forces.
+        """
+        _raise_for_invalid_handle(handle, 'handle')
+
+        text = _unpack_bool_out(
+            unreal.KawaiiPhysicsEditorLibrary.get_graph_node_external_forces_as_json(handle),
+            None,
+        )
+        if text is None:
+            raise RuntimeError('Unable to get KawaiiPhysics graph node ExternalForces.')
+        return str(text)
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def set_graph_node_external_forces(
+            handle: unreal.KawaiiPhysicsGraphNodeHandle,
+            forces_json: str) -> int:
+        """Replaces the node's ExternalForces from a JSON array and returns the element count.
+
+        Uses the get_graph_node_external_forces format, e.g. [{"_structType":
+        "/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Basic", "ForceDir":
+        {"X": 0, "Y": 1, "Z": 0}}]. _structType must be a struct derived from
+        FKawaiiPhysics_ExternalForce (path or struct name); omitted fields keep
+        their defaults and "[]" clears the array. Nothing changes on error.
+        """
+        _raise_for_invalid_handle(handle, 'handle')
+        if forces_json is None or not forces_json.strip():
+            raise ValueError('forces_json must not be empty.')
+
+        count, error = _unpack_count_and_out(
+            unreal.KawaiiPhysicsEditorLibrary.set_graph_node_external_forces_from_json(
+                handle,
+                forces_json,
+            ))
+        if count < 0:
+            raise ValueError(f'Unable to set ExternalForces: {error}')
+        return count
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def add_collision_limit(
+            handle: unreal.KawaiiPhysicsGraphNodeHandle,
+            shape: str,
+            driving_bone: str,
+            location: list[float],
+            rotation: list[float] = [],
+            radius: float = 5.0,
+            radius1: float = 5.0,
+            length: float = 10.0,
+            extent: list[float] = [],
+            limit_type: str = 'Outer') -> int:
+        """Appends one collision limit placed in component space and returns the new size of that shape's array.
+
+        shape is Sphere, Capsule, TaperedCapsule, Box or Planar. location and
+        rotation ([pitch, yaw, roll], empty = identity) are component-space
+        values in the reference pose; they are converted to the DrivingBone
+        local OffsetLocation/OffsetRotation. Capsules extend along the limit's
+        local Z axis and a Planar normal is its local Z (up) axis. An empty
+        driving_bone is allowed only for Planar (stays in component space).
+        radius is the Sphere/Capsule radius and the TaperedCapsule +Z end
+        radius, radius1 the TaperedCapsule -Z end radius, extent the Box half
+        extents [x, y, z] (empty = default), limit_type (Outer/Inner) is for Sphere.
+        """
+        _raise_for_invalid_handle(handle, 'handle')
+        shape_entry = _COLLISION_LIMIT_SHAPES.get(str(shape or '').lower())
+        if shape_entry is None:
+            raise ValueError(
+                f'Unknown shape: {shape}. Valid shapes: Sphere, Capsule, '
+                'TaperedCapsule, Box, Planar.')
+        shape_name, property_name = shape_entry
+        canonical_limit_type = _SPHERICAL_LIMIT_TYPES.get(str(limit_type or '').lower())
+        if canonical_limit_type is None:
+            raise ValueError(f'Unknown limit_type: {limit_type}. Valid values: Outer, Inner.')
+        box_extent = _make_float3(extent, 'extent') if extent else []
+
+        bone_transform = None
+        if driving_bone:
+            bone_transform = _unpack_bool_out(
+                unreal.KawaiiPhysicsEditorLibrary.get_graph_node_reference_bone_transform(
+                    handle,
+                    unreal.Name(driving_bone),
+                ),
+                None,
+            )
+            if bone_transform is None:
+                raise ValueError(
+                    f"driving_bone '{driving_bone}' does not exist in the target "
+                    "skeleton of the node's AnimBlueprint.")
+        elif shape_name != 'Planar':
+            raise ValueError(
+                'driving_bone must not be empty unless shape is Planar.')
+
+        offset_location, offset_rotation = _compute_collision_limit_offset(
+            bone_transform,
+            location,
+            rotation,
+        )
+        element_text = _make_collision_limit_text(
+            shape_name,
+            driving_bone,
+            offset_location,
+            offset_rotation,
+            radius,
+            radius1,
+            length,
+            box_extent,
+            canonical_limit_type,
+        )
+
+        current_text = _graph_node_property_or_none(handle, property_name)
+        if current_text is None:
+            raise RuntimeError(
+                f'Unable to get KawaiiPhysics graph node property: {property_name}')
+        _set_graph_node_properties_impl(
+            handle,
+            [(property_name, _append_import_text_array_element(current_text, element_text))],
+        )
+
+        updated_text = _graph_node_property_or_none(handle, property_name)
+        if updated_text is None:
+            raise RuntimeError(
+                f'Unable to get KawaiiPhysics graph node property: {property_name}')
+        return _count_import_text_array_elements(updated_text)
 
     @toolset_registry.tool_call
     @staticmethod
@@ -741,17 +1305,9 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         if not tag_name:
             raise ValueError('tag_name must not be empty.')
 
-        container = unreal.KawaiiPhysicsEditorLibrary.make_gameplay_tag_container_from_names(
-            [unreal.Name(tag_name)])
-        if container is None:
-            raise ValueError(f'No valid gameplay tags were resolved from: {tag_name}')
-        tags = container.get_editor_property('gameplay_tags')
-        if len(tags) == 0:
-            raise ValueError(f'No valid gameplay tags were resolved from: {tag_name}')
-
         ok = unreal.KawaiiPhysicsEditorLibrary.set_graph_node_tag(
             handle,
-            tags[0],
+            _resolve_gameplay_tag(tag_name),
         )
         if not ok:
             raise RuntimeError(
@@ -995,10 +1551,12 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
     def execute_console_command(
             command: str,
             prefer_pie: bool = True) -> bool:
-        """Executes a console command in the PIE world when available, otherwise the editor world.
+        """Executes a console command in the PIE world when prefer_pie and PIE runs, otherwise the editor world.
 
-        Also usable for CVars, stat commands and `py "<file>"`; returns True
-        because the console reports failures only through the log.
+        prefer_pie=False targets the editor world even while PIE runs. Also
+        usable for CVars, stat commands and `py "<file>"`. Raises when no world
+        is available; True means the command was dispatched (the console
+        reports command errors only through the log).
         """
         if not command:
             raise ValueError('command must not be empty.')
@@ -1037,11 +1595,14 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             actor_label: str,
             bone_pattern: str,
             frames: int = 120,
-            prefer_pie: bool = True) -> str:
-        """Records world positions of matching bones for the next frames via a Slate post-tick callback.
+            prefer_pie: bool = True,
+            space: str = 'world') -> str:
+        """Records positions of matching bones for the next frames via a Slate post-tick callback.
 
         bone_pattern is a regular expression matched against socket and bone
-        names; a running sampler is stopped first.
+        names; a running sampler is stopped first. space is "world" or
+        "component" (relative to the SkeletalMeshComponent, so component
+        movement does not show up).
         """
         global _BONE_SAMPLER
 
@@ -1049,6 +1610,9 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             raise ValueError('bone_pattern must not be empty.')
         if frames < 1:
             raise ValueError('frames must be 1 or greater.')
+        sampler_space = str(space or '').lower()
+        if sampler_space not in _BONE_SAMPLER_SPACES:
+            raise ValueError(f'Unknown space: {space}. Valid values: world, component.')
 
         components = _find_skeletal_mesh_components_by_label(actor_label, prefer_pie)
         targets = _make_bone_sampler_targets(components, bone_pattern)
@@ -1062,6 +1626,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             'targets': targets,
             'bones': {key: _make_bone_sample_accumulator() for key, _, _ in targets},
             'frames': frames,
+            'space': sampler_space,
             'frames_collected': 0,
             'done': False,
             'error': '',
@@ -1074,6 +1639,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             'actor': actor_label,
             'bones': [key for key, _, _ in targets],
             'frames': frames,
+            'space': sampler_space,
         })
 
     @toolset_registry.tool_call
@@ -1099,6 +1665,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         result = {
             'done': state['done'],
             'frames_collected': state['frames_collected'],
+            'space': state['space'],
             'bones': bones,
         }
         if state['error']:
@@ -1192,14 +1759,15 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             duration: float,
             rise_time: float = 0.1,
             decay_time: float = 0.3,
-            direction: list[float] = [1.0, 0.0, 0.0],
+            direction: list[float] = [],
             filter_tag_names: list[str] = [],
             filter_exact_match: bool = False,
             prefer_pie: bool = True) -> str:
         """Starts a runtime ProceduralWind gust on every SkeletalMeshComponent of the matching actors.
 
-        direction is a world space vector; an empty list inherits the authored
-        ProceduralWind direction. The JSON array result carries the stop handles.
+        Omitting direction (empty list) inherits the authored ProceduralWind
+        direction; pass a world space vector such as [1, 0, 0] for an explicit
+        direction. The JSON array result carries the stop handles.
         """
         gust_direction = _make_gust_direction(direction)
         components = _find_skeletal_mesh_components_by_label(actor_label, prefer_pie)
@@ -1271,12 +1839,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
 
         updated_count = 0
         for component in components:
-            if unreal.KawaiiPhysicsLibrary.set_alpha_on_component(
-                    component,
-                    alpha,
-                    filter_tags,
-                    filter_exact_match,
-            ):
+            if _set_alpha_on_component(component, alpha, filter_tags, filter_exact_match):
                 updated_count += 1
         return updated_count
 
@@ -1292,14 +1855,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         filter_tags = _make_tag_container(filter_tag_names)
 
         for component in components:
-            alpha = _unpack_bool_out(
-                unreal.KawaiiPhysicsLibrary.get_alpha_on_component(
-                    component,
-                    filter_tags,
-                    filter_exact_match,
-                ),
-                None,
-            )
+            alpha = _get_alpha_on_component(component, filter_tags, filter_exact_match)
             if alpha is not None:
                 return float(alpha)
         return -1.0

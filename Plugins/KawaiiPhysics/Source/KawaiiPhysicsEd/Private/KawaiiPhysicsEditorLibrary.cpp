@@ -7,8 +7,10 @@
 #include "AnimGraphNode_KawaiiPhysics.h"
 #include "AnimGraphNode_KawaiiPhysicsSharedPublisher.h"
 #include "AnimGraphNode_Root.h"
+#include "AnimGraphNode_SequencePlayer.h"
 #include "AnimationGraph.h"
 #include "Animation/AnimNode_Root.h"
+#include "Animation/AnimSequenceBase.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "EdGraphSchema_K2.h"
 #include "KawaiiPhysics.h"
@@ -19,16 +21,29 @@
 #include "AssetRegistry/AssetIdentifier.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
+#include "AnimationRuntime.h"
 #include "BlueprintGameplayTagLibrary.h"
+#include "Dom/JsonObject.h"
+#include "Dom/JsonValue.h"
 #include "EdGraphNode_Comment.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphPin.h"
+#include "Editor.h"
+#include "ExternalForces/KawaiiPhysicsExternalForce.h"
+#include "JsonObjectConverter.h"
+#include "Policies/CondensedJsonPrintPolicy.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
+#include "Serialization/JsonWriter.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GameplayTagsManager.h"
 #include "GameplayTagsSettings.h"
 #include "Internationalization/Regex.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "Kismet2/KismetEditorUtilities.h"
 #include "KawaiiPhysicsDeveloperSettings.h"
+#include "Logging/TokenizedMessage.h"
 #include "KawaiiPhysicsMcpCommentNode.h"
 #include "KawaiiPhysicsPresetDiffSnapshot.h"
 #include "Misc/App.h"
@@ -726,15 +741,56 @@ namespace
 		}
 	}
 
-	TArray<FName> CollectResolvedRootBoneNames(
+	// 解決済みRootと、そのRootのチェーン走査で使われるExcludeBones（Bone自身と子孫が対象外）の組
+	struct FResolvedRootBoneEntry
+	{
+		FName RootBoneName;
+		TArray<FName> ExcludeBoneNames;
+	};
+
+	void AddResolvedRootBoneEntries(const FResolvedKawaiiPhysicsNodePlacementRequest& ResolvedRequest,
+	                                TArray<FResolvedRootBoneEntry>& OutEntries)
+	{
+		if (!ResolvedRequest.RootBoneName.IsNone())
+		{
+			FResolvedRootBoneEntry& Entry = OutEntries.AddDefaulted_GetRef();
+			Entry.RootBoneName = ResolvedRequest.RootBoneName;
+			Entry.ExcludeBoneNames = ResolvedRequest.ExcludeBoneNames;
+		}
+
+		// ランタイムの InitModifyBones と同じく、AdditionalRootBone は Override 指定時だけ専用の ExcludeBones を使う
+		for (const FKawaiiPhysicsRootBoneSetting& AdditionalRootBone : ResolvedRequest.AdditionalRootBones)
+		{
+			if (AdditionalRootBone.RootBone.BoneName.IsNone())
+			{
+				continue;
+			}
+
+			FResolvedRootBoneEntry& Entry = OutEntries.AddDefaulted_GetRef();
+			Entry.RootBoneName = AdditionalRootBone.RootBone.BoneName;
+			if (AdditionalRootBone.bUseOverrideExcludeBones)
+			{
+				for (const FBoneReference& ExcludeBone : AdditionalRootBone.OverrideExcludeBones)
+				{
+					AddUniqueBoneName(Entry.ExcludeBoneNames, ExcludeBone.BoneName);
+				}
+			}
+			else
+			{
+				Entry.ExcludeBoneNames = ResolvedRequest.ExcludeBoneNames;
+			}
+		}
+	}
+
+	TArray<FResolvedRootBoneEntry> CollectResolvedRootBoneEntries(
 		const TArray<FResolvedKawaiiPhysicsNodePlacementRequest>& ResolvedRequests)
 	{
-		TArray<FName> RootBoneNames;
+		TArray<FResolvedRootBoneEntry> RootBoneEntries;
 		for (const FResolvedKawaiiPhysicsNodePlacementRequest& ResolvedRequest : ResolvedRequests)
 		{
-			AddResolvedRootBoneNames(ResolvedRequest, RootBoneNames);
+			AddResolvedRootBoneEntries(ResolvedRequest, RootBoneEntries);
 		}
-		return RootBoneNames;
+		return RootBoneEntries;
 	}
 
 	bool AnyResolvedRequestHasAutoConnect(
@@ -777,10 +833,39 @@ namespace
 		return false;
 	}
 
+	bool IsBoneInResolvedRootChain(
+		const FReferenceSkeleton& RefSkeleton,
+		FName BoneName,
+		const FResolvedRootBoneEntry& RootBoneEntry)
+	{
+		if (!IsBoneDescendantOf(RefSkeleton, BoneName, RootBoneEntry.RootBoneName))
+		{
+			return false;
+		}
+
+		// ExcludeBones は Bone 自身と子孫を除外するため、Bone から Root までの経路に除外 Bone があればチェーン外とみなす
+		const int32 RootBoneIndex = RefSkeleton.FindBoneIndex(RootBoneEntry.RootBoneName);
+		for (int32 BoneIndex = RefSkeleton.FindBoneIndex(BoneName);
+		     BoneIndex != INDEX_NONE;
+		     BoneIndex = RefSkeleton.GetParentIndex(BoneIndex))
+		{
+			if (RootBoneEntry.ExcludeBoneNames.Contains(RefSkeleton.GetBoneName(BoneIndex)))
+			{
+				return false;
+			}
+			if (BoneIndex == RootBoneIndex)
+			{
+				break;
+			}
+		}
+
+		return true;
+	}
+
 	void AddNestedResolvedRootWarnings(
 		USkeleton* Skeleton,
 		const FResolvedKawaiiPhysicsNodePlacementRequest& ResolvedRequest,
-		const TArray<FName>& AllResolvedRootBoneNames,
+		const TArray<FResolvedRootBoneEntry>& AllResolvedRootBoneEntries,
 		int32 RequestIndex,
 		TArray<FString>& OutErrors)
 	{
@@ -793,12 +878,12 @@ namespace
 		AddResolvedRootBoneNames(ResolvedRequest, RequestRootBoneNames);
 
 		const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
-		// 解決済みRoot同士が親子関係にある場合、Patternがチェーン途中のBoneまで拾った兆候として警告する。
+		// 解決済みRootが別Rootのチェーン内（ExcludeBonesで外れた枝を除く）にある場合、Patternがチェーン途中のBoneまで拾った兆候として警告する。
 		for (const FName RootBoneName : RequestRootBoneNames)
 		{
-			for (const FName AncestorRootBoneName : AllResolvedRootBoneNames)
+			for (const FResolvedRootBoneEntry& AncestorRootBoneEntry : AllResolvedRootBoneEntries)
 			{
-				if (!IsBoneDescendantOf(RefSkeleton, RootBoneName, AncestorRootBoneName))
+				if (!IsBoneInResolvedRootChain(RefSkeleton, RootBoneName, AncestorRootBoneEntry))
 				{
 					continue;
 				}
@@ -809,7 +894,7 @@ namespace
 					FString::Printf(
 						TEXT("Warning: Resolved root '%s' is a descendant of another resolved root '%s'. Pattern should match only chain start bones."),
 						*RootBoneName.ToString(),
-						*AncestorRootBoneName.ToString()));
+						*AncestorRootBoneEntry.RootBoneName.ToString()));
 				break;
 			}
 		}
@@ -819,7 +904,7 @@ namespace
 		UAnimBlueprint* AnimBlueprint,
 		const FKawaiiPhysicsNodePlacementRequest& SourceRequest,
 		const FResolvedKawaiiPhysicsNodePlacementRequest& ResolvedRequest,
-		const TArray<FName>& AllResolvedRootBoneNames,
+		const TArray<FResolvedRootBoneEntry>& AllResolvedRootBoneEntries,
 		int32 RequestIndex,
 		TArray<FString>& OutErrors)
 	{
@@ -904,7 +989,7 @@ namespace
 		AddNestedResolvedRootWarnings(
 			TargetSkeleton,
 			ResolvedRequest,
-			AllResolvedRootBoneNames,
+			AllResolvedRootBoneEntries,
 			RequestIndex,
 			OutErrors);
 
@@ -1690,6 +1775,47 @@ namespace
 
 		return true;
 	}
+
+	// Result から上流へ接続済みのポーズ入力を辿り、既存の SequencePlayer か未接続のポーズ入力ピンを探す。
+	// どちらにも到達しない（ポーズ入力を持たないノードで途切れる・循環する）場合は false を返す。
+	bool FindAnimGraphInputPoseTarget(UAnimGraphNode_Root* RootNode,
+	                                  UAnimGraphNode_SequencePlayer*& OutSequencePlayer,
+	                                  UEdGraphPin*& OutUnlinkedPosePin)
+	{
+		OutSequencePlayer = nullptr;
+		OutUnlinkedPosePin = nullptr;
+
+		UEdGraphPin* CurrentPin =
+			RootNode ? RootNode->FindPin(GET_MEMBER_NAME_CHECKED(FAnimNode_Root, Result), EGPD_Input) : nullptr;
+		TSet<const UEdGraphNode*> VisitedNodes;
+		while (CurrentPin)
+		{
+			if (CurrentPin->LinkedTo.IsEmpty())
+			{
+				OutUnlinkedPosePin = CurrentPin;
+				return true;
+			}
+
+			const UEdGraphPin* SourcePin = CurrentPin->LinkedTo[0];
+			UEdGraphNode* SourceNode = SourcePin ? SourcePin->GetOwningNode() : nullptr;
+			if (!SourceNode || VisitedNodes.Contains(SourceNode))
+			{
+				return false;
+			}
+			VisitedNodes.Add(SourceNode);
+
+			if (UAnimGraphNode_SequencePlayer* SequencePlayer = Cast<UAnimGraphNode_SequencePlayer>(SourceNode))
+			{
+				OutSequencePlayer = SequencePlayer;
+				return true;
+			}
+
+			// KawaiiPhysics ノードや空間変換ノードを含め、複数のポーズ入力を持つノードは先頭のポーズ入力を辿る
+			CurrentPin = FindFirstPosePinForEditorLibrary(SourceNode, EGPD_Input);
+		}
+
+		return false;
+	}
 }
 
 void UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssetData(const TArray<FString>& ContentPaths, TArray<FAssetData>& OutAssets)
@@ -1964,7 +2090,7 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 	{
 		ResolvedRequests.Add(ResolvePlacementRequest(TargetSkeleton, Request));
 	}
-	const TArray<FName> AllResolvedRootBoneNames = CollectResolvedRootBoneNames(ResolvedRequests);
+	const TArray<FResolvedRootBoneEntry> AllResolvedRootBoneEntries = CollectResolvedRootBoneEntries(ResolvedRequests);
 
 	const FVector2D AutoPlacementBasePosition =
 		GetAutoPlacementBasePosition(Graph, AnyResolvedRequestHasAutoConnect(ResolvedRequests));
@@ -1983,7 +2109,7 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 			AnimBlueprint,
 			Requests[RequestIndex],
 			ResolvedRequest,
-			AllResolvedRootBoneNames,
+			AllResolvedRootBoneEntries,
 			RequestIndex,
 			ValidationMessages);
 
@@ -2183,6 +2309,180 @@ FKawaiiPhysicsSharedPublisherGraphNodeHandle UKawaiiPhysicsEditorLibrary::AddKaw
 	return MakeSharedPublisherHandle(NewGraphNode);
 }
 
+bool UKawaiiPhysicsEditorLibrary::SetAnimGraphInputAnimation(
+	UAnimBlueprint* AnimBlueprint,
+	UAnimSequenceBase* Animation,
+	FName GraphName)
+{
+	if (!AnimBlueprint || !Animation)
+	{
+		UE_LOG(LogKawaiiPhysics, Warning,
+		       TEXT("SetAnimGraphInputAnimation: AnimBlueprint and Animation must not be null."));
+		return false;
+	}
+
+	// アニメーションの Skeleton が AnimBlueprint の TargetSkeleton と互換でなければ設定しない。
+	USkeleton* TargetSkeleton = AnimBlueprint->TargetSkeleton;
+	USkeleton* AnimationSkeleton = Animation->GetSkeleton();
+	if (!TargetSkeleton || !AnimationSkeleton || !TargetSkeleton->IsCompatibleForEditor(AnimationSkeleton))
+	{
+		UE_LOG(LogKawaiiPhysics, Warning,
+		       TEXT("SetAnimGraphInputAnimation: Skeleton of Animation '%s' (%s) does not match the target skeleton of AnimBlueprint '%s' (%s)."),
+		       *Animation->GetName(),
+		       AnimationSkeleton ? *AnimationSkeleton->GetName() : TEXT("None"),
+		       *AnimBlueprint->GetName(),
+		       TargetSkeleton ? *TargetSkeleton->GetName() : TEXT("None"));
+		return false;
+	}
+
+	UEdGraph* Graph = FindPlacementAnimGraph(AnimBlueprint, GraphName);
+	if (!Graph)
+	{
+		UE_LOG(LogKawaiiPhysics, Warning,
+		       TEXT("SetAnimGraphInputAnimation: AnimGraph '%s' was not found in AnimBlueprint '%s'."),
+		       *(GraphName.IsNone() ? UEdGraphSchema_K2::GN_AnimGraph : GraphName).ToString(),
+		       *AnimBlueprint->GetName());
+		return false;
+	}
+
+	UAnimGraphNode_Root* RootNode = FindResultRootNodeForEditorLibrary(Graph);
+	if (!RootNode)
+	{
+		UE_LOG(LogKawaiiPhysics, Warning,
+		       TEXT("SetAnimGraphInputAnimation: Result node was not found in AnimGraph '%s'."),
+		       *Graph->GetName());
+		return false;
+	}
+
+	UAnimGraphNode_SequencePlayer* ExistingSequencePlayer = nullptr;
+	UEdGraphPin* UnlinkedPosePin = nullptr;
+	if (!FindAnimGraphInputPoseTarget(RootNode, ExistingSequencePlayer, UnlinkedPosePin))
+	{
+		UE_LOG(LogKawaiiPhysics, Warning,
+		       TEXT("SetAnimGraphInputAnimation: The pose chain from Result in AnimGraph '%s' reaches neither a SequencePlayer nor an unlinked pose input."),
+		       *Graph->GetName());
+		return false;
+	}
+
+	FScopedTransaction Transaction(
+		NSLOCTEXT("KawaiiPhysicsEditorLibrary", "SetAnimGraphInputAnimation", "Set Anim Graph Input Animation"));
+
+	if (ExistingSequencePlayer)
+	{
+		// 既存の SequencePlayer はシーケンスだけを差し替え、2 つ目のプレイヤーは追加しない。
+		ExistingSequencePlayer->Modify();
+		ExistingSequencePlayer->SetAnimationAsset(Animation);
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(AnimBlueprint);
+		return true;
+	}
+
+	UEdGraphNode* PinOwnerNode = UnlinkedPosePin->GetOwningNode();
+	Graph->Modify();
+	if (PinOwnerNode)
+	{
+		PinOwnerNode->Modify();
+	}
+
+	FGraphNodeCreator<UAnimGraphNode_SequencePlayer> NodeCreator(*Graph);
+	UAnimGraphNode_SequencePlayer* NewSequencePlayer = NodeCreator.CreateNode(false);
+	NewSequencePlayer->SetAnimationAsset(Animation);
+	NodeCreator.Finalize();
+
+	// 接続の前後でノード集合を比較し、スキーマが自動挿入した空間変換ノードを検出する。
+	TSet<UEdGraphNode*> NodesBeforeConnection;
+	for (UEdGraphNode* Node : Graph->Nodes)
+	{
+		NodesBeforeConnection.Add(Node);
+	}
+
+	const UAnimationGraphSchema* Schema = CastChecked<UAnimationGraphSchema>(Graph->GetSchema());
+	UEdGraphPin* SequencePlayerPosePin = FindFirstPosePinForEditorLibrary(NewSequencePlayer, EGPD_Output);
+	if (!SequencePlayerPosePin || !Schema->TryCreateConnection(SequencePlayerPosePin, UnlinkedPosePin))
+	{
+		// 接続できなければ追加したプレイヤーを取り除いてグラフを元の構成へ戻す。
+		FBlueprintEditorUtils::RemoveNode(AnimBlueprint, NewSequencePlayer, true);
+		UE_LOG(LogKawaiiPhysics, Warning,
+		       TEXT("SetAnimGraphInputAnimation: Failed to connect the SequencePlayer to pin '%s' in AnimGraph '%s'."),
+		       *UnlinkedPosePin->PinName.ToString(),
+		       *Graph->GetName());
+		return false;
+	}
+
+	// プレイヤーはポーズ入力を持つノードの左隣へ置く。Result 直結の場合は、後から AutoConnect で
+	// Result 直前へ挿入される KawaiiPhysics ノードの配置枠を空けるため、さらに 1 枠分左へずらす。
+	const int32 SpacingX = GetAutoPlacementSpacingX();
+	const int32 OwnerPosX = PinOwnerNode ? PinOwnerNode->NodePosX : RootNode->NodePosX;
+	const int32 OwnerPosY = PinOwnerNode ? PinOwnerNode->NodePosY : RootNode->NodePosY;
+	int32 SequencePlayerPosX = OwnerPosX - SpacingX;
+	if (PinOwnerNode == RootNode)
+	{
+		SequencePlayerPosX -= SpacingX + KawaiiPhysicsPlacementAutoConnectBaseReserveX;
+	}
+
+	// コンポーネント空間の入力へ接続すると変換ノードが挿入されるため、所有ノードの左隣へ置き直してプレイヤーをその分左へずらす。
+	bool bSpawnedConversionNode = false;
+	for (UEdGraphNode* Node : Graph->Nodes)
+	{
+		if (Node && !NodesBeforeConnection.Contains(Node))
+		{
+			Node->Modify();
+			Node->NodePosX = OwnerPosX - KawaiiPhysicsPlacementConversionNodeReserveX;
+			Node->NodePosY = OwnerPosY;
+			bSpawnedConversionNode = true;
+		}
+	}
+	if (bSpawnedConversionNode)
+	{
+		SequencePlayerPosX -= KawaiiPhysicsPlacementConversionNodeReserveX;
+	}
+
+	NewSequencePlayer->NodePosX = SequencePlayerPosX;
+	NewSequencePlayer->NodePosY = OwnerPosY;
+
+	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(AnimBlueprint);
+	return true;
+}
+
+int32 UKawaiiPhysicsEditorLibrary::CompileAnimBlueprintWithMessages(
+	UAnimBlueprint* AnimBlueprint,
+	TArray<FString>& OutMessages)
+{
+	OutMessages.Reset();
+	if (!AnimBlueprint)
+	{
+		UE_LOG(LogKawaiiPhysics, Warning, TEXT("CompileAnimBlueprintWithMessages: AnimBlueprint is null."));
+		return INDEX_NONE;
+	}
+
+	// 呼び出し側へメッセージを返すため、専用のログへコンパイル結果を集める。
+	FCompilerResultsLog Results;
+	Results.SetSourcePath(AnimBlueprint->GetPathName());
+	Results.BeginEvent(TEXT("Compile"));
+	FKismetEditorUtilities::CompileBlueprint(AnimBlueprint, EBlueprintCompileOptions::None, &Results);
+	Results.EndEvent();
+
+	int32 ErrorCount = 0;
+	OutMessages.Reserve(Results.Messages.Num());
+	for (const TSharedRef<FTokenizedMessage>& Message : Results.Messages)
+	{
+		// 重大度は Error 以下（旧 CriticalError を含む）をエラー、Warning 以下（PerformanceWarning を含む）を警告として扱う。
+		const EMessageSeverity::Type Severity = Message->GetSeverity();
+		const TCHAR* SeverityPrefix = TEXT("Note");
+		if (Severity <= EMessageSeverity::Error)
+		{
+			SeverityPrefix = TEXT("Error");
+			++ErrorCount;
+		}
+		else if (Severity <= EMessageSeverity::Warning)
+		{
+			SeverityPrefix = TEXT("Warning");
+		}
+		OutMessages.Add(FString::Printf(TEXT("%s: %s"), SeverityPrefix, *Message->ToText().ToString()));
+	}
+
+	return FMath::Max(ErrorCount, Results.NumErrors);
+}
+
 TArray<FKawaiiPhysicsAnimGraphCommentInfo> UKawaiiPhysicsEditorLibrary::GetAnimGraphComments(
 	UAnimBlueprint* AnimBlueprint,
 	FName GraphName)
@@ -2232,7 +2532,7 @@ TArray<FString> UKawaiiPhysicsEditorLibrary::ValidatePlacementRequests(
 	{
 		ResolvedRequests.Add(ResolvePlacementRequest(TargetSkeleton, Request));
 	}
-	const TArray<FName> AllResolvedRootBoneNames = CollectResolvedRootBoneNames(ResolvedRequests);
+	const TArray<FResolvedRootBoneEntry> AllResolvedRootBoneEntries = CollectResolvedRootBoneEntries(ResolvedRequests);
 
 	for (int32 RequestIndex = 0; RequestIndex < Requests.Num(); ++RequestIndex)
 	{
@@ -2240,7 +2540,7 @@ TArray<FString> UKawaiiPhysicsEditorLibrary::ValidatePlacementRequests(
 			AnimBlueprint,
 			Requests[RequestIndex],
 			ResolvedRequests[RequestIndex],
-			AllResolvedRootBoneNames,
+			AllResolvedRootBoneEntries,
 			RequestIndex,
 			Errors);
 	}
@@ -2329,6 +2629,259 @@ bool UKawaiiPhysicsEditorLibrary::GetGraphNodePropertyAsString(
 	UAnimGraphNode_KawaiiPhysics* GraphNode = GetGraphNode(Handle);
 	return GraphNode &&
 		UKawaiiPhysicsLibrary::GetNodePropertyValueAsString(GraphNode->Node, PropertyName, OutValue);
+}
+
+namespace
+{
+	const TCHAR* const KawaiiPhysicsExternalForceStructTypeField = TEXT("_structType");
+
+	// "_structType" の値（構造体パス、名前、F 接頭辞付きの C++ 名）から構造体を解決する
+	const UScriptStruct* ResolveKawaiiPhysicsExternalForceStruct(const FString& TypeName)
+	{
+		if (TypeName.IsEmpty())
+		{
+			return nullptr;
+		}
+
+		if (TypeName.Contains(TEXT("/")))
+		{
+			return FindObject<UScriptStruct>(nullptr, *TypeName);
+		}
+
+		if (const UScriptStruct* ScriptStruct =
+			FindFirstObject<UScriptStruct>(*TypeName, EFindFirstObjectOptions::NativeFirst))
+		{
+			return ScriptStruct;
+		}
+
+		if (TypeName.Len() > 1 && TypeName[0] == TEXT('F'))
+		{
+			return FindFirstObject<UScriptStruct>(*TypeName.RightChop(1), EFindFirstObjectOptions::NativeFirst);
+		}
+		return nullptr;
+	}
+
+	bool IsKawaiiPhysicsExternalForceJsonField(const FProperty* Property)
+	{
+		// 実行時状態（UPROPERTY() のみのフィールド）を JSON に含めず、編集可能なフィールドだけを対象にする
+		return Property &&
+			Property->HasAnyPropertyFlags(CPF_Edit) &&
+			!Property->HasAnyPropertyFlags(CPF_Transient | CPF_Deprecated);
+	}
+
+	TSharedPtr<FJsonValue> ConvertKawaiiPhysicsExternalForceToJsonValue(const FInstancedStruct& Force)
+	{
+		const UScriptStruct* ScriptStruct = Force.GetScriptStruct();
+		const uint8* Memory = Force.GetMemory();
+		if (!ScriptStruct || !Memory)
+		{
+			return MakeShared<FJsonValueNull>();
+		}
+
+		TSharedRef<FJsonObject> JsonObject = MakeShared<FJsonObject>();
+		JsonObject->SetStringField(KawaiiPhysicsExternalForceStructTypeField, ScriptStruct->GetPathName());
+		for (TFieldIterator<FProperty> PropertyIt(ScriptStruct); PropertyIt; ++PropertyIt)
+		{
+			FProperty* Property = *PropertyIt;
+			if (!IsKawaiiPhysicsExternalForceJsonField(Property))
+			{
+				continue;
+			}
+
+			// ネストした構造体はカーブ等のデータを失わないようフラグで絞らずに変換する
+			const TSharedPtr<FJsonValue> JsonValue = FJsonObjectConverter::UPropertyToJsonValue(
+				Property,
+				Property->ContainerPtrToValuePtr<void>(Memory),
+				0,
+				0,
+				nullptr,
+				nullptr,
+				EJsonObjectConversionFlags::SkipStandardizeCase);
+			if (JsonValue.IsValid())
+			{
+				JsonObject->SetField(Property->GetName(), JsonValue);
+			}
+		}
+		return MakeShared<FJsonValueObject>(JsonObject);
+	}
+
+	bool ConvertJsonValueToKawaiiPhysicsExternalForce(
+		const TSharedPtr<FJsonValue>& JsonValue,
+		int32 Index,
+		FInstancedStruct& OutForce,
+		FString& OutError)
+	{
+		if (!JsonValue.IsValid() || JsonValue->IsNull())
+		{
+			OutForce.Reset();
+			return true;
+		}
+
+		const TSharedPtr<FJsonObject>* JsonObjectPtr = nullptr;
+		if (!JsonValue->TryGetObject(JsonObjectPtr) || !JsonObjectPtr || !JsonObjectPtr->IsValid())
+		{
+			OutError = FString::Printf(TEXT("Element %d must be a JSON object or null."), Index);
+			return false;
+		}
+		const TSharedPtr<FJsonObject>& JsonObject = *JsonObjectPtr;
+
+		FString TypeName;
+		if (!JsonObject->TryGetStringField(KawaiiPhysicsExternalForceStructTypeField, TypeName) || TypeName.IsEmpty())
+		{
+			OutError = FString::Printf(TEXT("Element %d is missing \"_structType\"."), Index);
+			return false;
+		}
+
+		const UScriptStruct* BaseStruct = FKawaiiPhysics_ExternalForce::StaticStruct();
+		const UScriptStruct* ScriptStruct = ResolveKawaiiPhysicsExternalForceStruct(TypeName);
+		if (!ScriptStruct || ScriptStruct == BaseStruct || !ScriptStruct->IsChildOf(BaseStruct))
+		{
+			OutError = FString::Printf(
+				TEXT("Element %d: _structType '%s' is not a struct derived from FKawaiiPhysics_ExternalForce."),
+				Index,
+				*TypeName);
+			return false;
+		}
+
+		// 省略したフィールドは構造体の既定値のまま残す
+		OutForce.InitializeAs(ScriptStruct);
+		uint8* Memory = OutForce.GetMutableMemory();
+		for (const auto& Field : JsonObject->Values)
+		{
+			const FString FieldName(*Field.Key);
+			if (FieldName == KawaiiPhysicsExternalForceStructTypeField)
+			{
+				continue;
+			}
+
+			const FName PropertyName = FieldName.Len() < NAME_SIZE ? FName(*FieldName, FNAME_Find) : NAME_None;
+			FProperty* Property = PropertyName.IsNone() ? nullptr : ScriptStruct->FindPropertyByName(PropertyName);
+			if (!IsKawaiiPhysicsExternalForceJsonField(Property))
+			{
+				OutError = FString::Printf(
+					TEXT("Element %d: '%s' is not an editable field of %s."),
+					Index,
+					*FieldName,
+					*ScriptStruct->GetName());
+				return false;
+			}
+
+			if (!FJsonObjectConverter::JsonValueToUProperty(
+				Field.Value,
+				Property,
+				Property->ContainerPtrToValuePtr<void>(Memory),
+				0,
+				0))
+			{
+				OutError = FString::Printf(TEXT("Element %d: unable to convert field '%s'."), Index, *FieldName);
+				return false;
+			}
+		}
+		return true;
+	}
+}
+
+bool UKawaiiPhysicsEditorLibrary::GetGraphNodeExternalForcesAsJson(
+	const FKawaiiPhysicsGraphNodeHandle& Handle,
+	FString& OutJson)
+{
+	OutJson.Reset();
+	const UAnimGraphNode_KawaiiPhysics* GraphNode = GetGraphNode(Handle);
+	if (!GraphNode)
+	{
+		return false;
+	}
+
+	TArray<TSharedPtr<FJsonValue>> JsonValues;
+	JsonValues.Reserve(GraphNode->Node.ExternalForces.Num());
+	for (const FInstancedStruct& Force : GraphNode->Node.ExternalForces)
+	{
+		JsonValues.Add(ConvertKawaiiPhysicsExternalForceToJsonValue(Force));
+	}
+
+	const TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> Writer =
+		TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&OutJson);
+	return FJsonSerializer::Serialize(JsonValues, Writer);
+}
+
+int32 UKawaiiPhysicsEditorLibrary::SetGraphNodeExternalForcesFromJson(
+	const FKawaiiPhysicsGraphNodeHandle& Handle,
+	const FString& ForcesJson,
+	FString& OutError)
+{
+	OutError.Reset();
+	if (!GetGraphNode(Handle))
+	{
+		OutError = TEXT("Handle is not a valid KawaiiPhysics graph node handle.");
+		return -1;
+	}
+
+	TArray<TSharedPtr<FJsonValue>> JsonValues;
+	const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(ForcesJson);
+	if (!FJsonSerializer::Deserialize(Reader, JsonValues))
+	{
+		OutError = FString::Printf(TEXT("ForcesJson is not a valid JSON array: %s"), *Reader->GetErrorMessage());
+		return -1;
+	}
+
+	// 全要素を変換できてからノードへ反映し、途中で失敗してもノードを変更しない
+	TArray<FInstancedStruct> NewForces;
+	NewForces.SetNum(JsonValues.Num());
+	for (int32 Index = 0; Index < JsonValues.Num(); ++Index)
+	{
+		if (!ConvertJsonValueToKawaiiPhysicsExternalForce(JsonValues[Index], Index, NewForces[Index], OutError))
+		{
+			return -1;
+		}
+	}
+
+	const int32 ForceCount = NewForces.Num();
+	const bool bModified = ModifyGraphNodeProperty(
+		Handle,
+		GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, ExternalForces),
+		NSLOCTEXT("KawaiiPhysicsEditorLibrary", "SetGraphNodeExternalForcesFromJson", "Set Kawaii Physics External Forces"),
+		[&NewForces](UAnimGraphNode_KawaiiPhysics& GraphNode)
+		{
+			GraphNode.Node.ExternalForces = MoveTemp(NewForces);
+			return true;
+		});
+	if (!bModified)
+	{
+		OutError = TEXT("Unable to modify ExternalForces on the graph node.");
+		return -1;
+	}
+	return ForceCount;
+}
+
+bool UKawaiiPhysicsEditorLibrary::GetGraphNodeReferenceBoneTransform(
+	const FKawaiiPhysicsGraphNodeHandle& Handle,
+	FName BoneName,
+	FTransform& OutComponentTransform)
+{
+	OutComponentTransform = FTransform::Identity;
+	UAnimGraphNode_KawaiiPhysics* GraphNode = GetGraphNode(Handle);
+	UAnimBlueprint* AnimBlueprint = GraphNode ? GraphNode->GetAnimBlueprint() : nullptr;
+	const USkeleton* Skeleton = AnimBlueprint ? AnimBlueprint->TargetSkeleton.Get() : nullptr;
+	if (!Skeleton || BoneName.IsNone())
+	{
+		return false;
+	}
+
+	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
+	const int32 BoneIndex = RefSkeleton.FindBoneIndex(BoneName);
+	if (BoneIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	OutComponentTransform = FAnimationRuntime::GetComponentSpaceTransformRefPose(RefSkeleton, BoneIndex);
+	return true;
+}
+
+UWorld* UKawaiiPhysicsEditorLibrary::GetEditorWorldIgnoringPlayMode()
+{
+	// UnrealEditorSubsystem::GetEditorWorld は PIE 中にエラーを出して null を返すため、エディタのワールドコンテキストを直接参照する
+	return GEditor ? GEditor->GetEditorWorldContext(false).World() : nullptr;
 }
 
 bool UKawaiiPhysicsEditorLibrary::SetSharedPublisherNodePropertyFromString(

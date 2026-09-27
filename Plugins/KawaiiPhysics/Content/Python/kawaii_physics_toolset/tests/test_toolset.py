@@ -5,6 +5,7 @@ import unittest
 
 import unreal
 
+from kawaii_physics_toolset import toolset as toolset_module
 from kawaii_physics_toolset.toolset import KawaiiPhysicsToolset
 from toolset_registry.tests.toolset_testcase import ToolCallTestCase
 
@@ -14,6 +15,16 @@ TEST_FOLDER = '/Game/Test/PyToolset/'
 GRAYCHAN_SKELETON_PATH = '/Game/KawaiiPhysicsSample/Model/GrayChan/Mesh/GrayChan_Skeleton'
 HAIR_PRESET_PATH = '/Game/KawaiiPhysicsSample/Presets/KPP_Hair_Soft'
 CHAIN_SKELETON_PATH = '/Game/KawaiiPhysicsSample/Model/Chain/S_Chain_Skeleton'
+GRAYCHAN_RUN_ANIMATION_PATH = '/Game/KawaiiPhysicsSample/Model/GrayChan/Animations/ThirdPersonRun'
+GRAYCHAN_IDLE_ANIMATION_PATH = '/Game/KawaiiPhysicsSample/Model/GrayChan/Animations/ThirdPersonIdle'
+SKIRT_ANIMATION_PATH = '/Game/KawaiiPhysicsSample/Model/Skirt/Animations/A_CheckSkirt'
+GRAYCHAN_MESH_PATH = '/Game/KawaiiPhysicsSample/Model/GrayChan/Mesh/GrayChan'
+BONE_SAMPLER_ACTOR_LABEL = 'KP_PyToolsetBoneSamplerSpaceTest'
+BASIC_EXTERNAL_FORCE_STRUCT = '/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Basic'
+PHYSICS_SETTINGS_VALUE = (
+    '(Damping=0.3,Stiffness=0.1,WorldDampingLocation=0.55,'
+    'WorldDampingRotation=0.66,Radius=7.0,LimitAngle=45.0)'
+)
 REAPPLY_TAG = 'KawaiiPhysics.Test.Reapply'
 HAIR_TAG = 'KawaiiPhysics.Hair.Soft'
 
@@ -149,6 +160,17 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
             world = editor_subsystem.get_editor_world()
         if world is None:
             self.skipTest('No world is available in this environment.')
+
+    def _load_animation(self, asset_path: str = GRAYCHAN_RUN_ANIMATION_PATH) -> unreal.AnimSequenceBase:
+        animation = _load_asset_checked(asset_path)
+        self.assertIsInstance(animation, unreal.AnimSequenceBase)
+        return animation
+
+    def _assert_compiles_without_errors(self, anim_blueprint: unreal.AnimBlueprint) -> list[str]:
+        messages = list(KawaiiPhysicsToolset.compile_anim_blueprint(anim_blueprint))
+        errors = [message for message in messages if message.startswith('Error:')]
+        self.assertEqual(errors, [])
+        return messages
 
     def _save_asset(self, asset: unreal.Object) -> None:
         self.assertTrue(unreal.EditorAssetLibrary.save_loaded_asset(asset, False))
@@ -857,6 +879,250 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         self.assertTrue(any('Skeleton does not match' in error for error in errors))
         self.assertEqual(len(handles), 1)
 
+    def test_set_graph_node_properties_sets_values_in_order(self):
+        handle = self._place_test_node()
+
+        names = KawaiiPhysicsToolset.set_graph_node_properties(
+            handle,
+            json.dumps({
+                'WindScale': 2.5,
+                'bUseSimpleWorldCollision': True,
+                'PhysicsSettings': PHYSICS_SETTINGS_VALUE,
+            }),
+        )
+
+        self.assertEqual(
+            list(names),
+            ['WindScale', 'bUseSimpleWorldCollision', 'PhysicsSettings'],
+        )
+        self.assertAlmostEqual(
+            float(KawaiiPhysicsToolset.get_graph_node_property(handle, 'WindScale')),
+            2.5,
+        )
+        self.assertEqual(
+            KawaiiPhysicsToolset.get_graph_node_property(handle, 'bUseSimpleWorldCollision'),
+            'True',
+        )
+        self.assertIn(
+            'Damping=0.3',
+            KawaiiPhysicsToolset.get_graph_node_property(handle, 'PhysicsSettings'),
+        )
+
+    def test_set_graph_node_properties_invalid_json_raises(self):
+        handle = self._place_test_node()
+
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.set_graph_node_properties(handle, 'not json')
+        self.assertIn('properties_json is not valid JSON', str(cm.exception))
+
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.set_graph_node_properties(handle, '[1, 2]')
+        self.assertIn('properties_json must be a JSON object', str(cm.exception))
+
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.set_graph_node_properties(handle, '')
+        self.assertIn('properties_json must not be empty', str(cm.exception))
+
+    def test_set_graph_node_properties_unknown_property_raises(self):
+        handle = self._place_test_node()
+
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.set_graph_node_properties(
+                handle,
+                '{"WindScale": 1.5, "NoSuchProperty_XYZ": 1}',
+            )
+
+        self.assertIn('NoSuchProperty_XYZ', str(cm.exception))
+        # 失敗より前のプロパティは設定済みのまま残る
+        self.assertAlmostEqual(
+            float(KawaiiPhysicsToolset.get_graph_node_property(handle, 'WindScale')),
+            1.5,
+        )
+
+    def test_set_graph_node_properties_invalid_handle_raises(self):
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.set_graph_node_properties(
+                unreal.KawaiiPhysicsGraphNodeHandle(),
+                '{"WindScale": 1.5}',
+            )
+        self.assertIn('handle is not a valid KawaiiPhysics graph node handle', str(cm.exception))
+
+    def test_add_kawaii_physics_node_with_tag_and_properties(self):
+        anim_blueprint = self._create_anim_blueprint()
+
+        handle = KawaiiPhysicsToolset.add_kawaii_physics_node(
+            anim_blueprint,
+            'TwintailA_L',
+            [],
+            [],
+            REAPPLY_TAG,
+            '{"WindScale": 2.0, "bUseSimpleWorldCollision": true}',
+        )
+
+        self.assertTrue(KawaiiPhysicsToolset.is_graph_node_handle_valid(handle))
+        self.assertEqual(KawaiiPhysicsToolset.get_graph_node_root_bone(handle), 'TwintailA_L')
+        self.assertEqual(KawaiiPhysicsToolset.get_graph_node_tag(handle), REAPPLY_TAG)
+        self.assertAlmostEqual(
+            float(KawaiiPhysicsToolset.get_graph_node_property(handle, 'WindScale')),
+            2.0,
+        )
+        self.assertEqual(
+            KawaiiPhysicsToolset.get_graph_node_property(handle, 'bUseSimpleWorldCollision'),
+            'True',
+        )
+        self.assertEqual(
+            len(KawaiiPhysicsToolset.collect_kawaii_physics_graph_nodes(anim_blueprint, [], False)),
+            1,
+        )
+        self._assert_compiles_without_errors(anim_blueprint)
+
+    def test_add_kawaii_physics_node_sets_exclude_and_additional_root_bones(self):
+        anim_blueprint = self._create_anim_blueprint()
+
+        handle = KawaiiPhysicsToolset.add_kawaii_physics_node(
+            anim_blueprint,
+            'TwintailA_L',
+            ['TwintailD_L'],
+            ['TwintailA_R'],
+        )
+
+        self.assertTrue(KawaiiPhysicsToolset.is_graph_node_handle_valid(handle))
+        self.assertIn(
+            'TwintailD_L',
+            KawaiiPhysicsToolset.get_graph_node_property(handle, 'ExcludeBones'),
+        )
+        self.assertIn(
+            'TwintailA_R',
+            KawaiiPhysicsToolset.get_graph_node_property(handle, 'AdditionalRootBones'),
+        )
+
+    def test_add_kawaii_physics_node_always_adds_new_node(self):
+        anim_blueprint = self._create_anim_blueprint()
+
+        KawaiiPhysicsToolset.add_kawaii_physics_node(anim_blueprint, 'TwintailA_L')
+        KawaiiPhysicsToolset.add_kawaii_physics_node(anim_blueprint, 'TwintailA_L')
+
+        self.assertEqual(
+            len(KawaiiPhysicsToolset.collect_kawaii_physics_graph_nodes(anim_blueprint, [], False)),
+            2,
+        )
+
+    def test_add_kawaii_physics_node_unregistered_tag_raises(self):
+        anim_blueprint = self._create_anim_blueprint()
+
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.add_kawaii_physics_node(
+                anim_blueprint,
+                'TwintailA_L',
+                [],
+                [],
+                'KawaiiPhysics.Test.NotRegisteredForPythonToolset',
+            )
+
+        self.assertIn('No valid gameplay tags were resolved', str(cm.exception))
+        self.assertEqual(
+            len(KawaiiPhysicsToolset.collect_kawaii_physics_graph_nodes(anim_blueprint, [], False)),
+            0,
+        )
+
+    def test_add_kawaii_physics_node_unknown_root_bone_raises(self):
+        anim_blueprint = self._create_anim_blueprint()
+
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.add_kawaii_physics_node(anim_blueprint, 'TotallyBogusBone_XYZ')
+
+        self.assertIn('TotallyBogusBone_XYZ', str(cm.exception))
+
+    def test_add_kawaii_physics_node_invalid_properties_json_adds_nothing(self):
+        anim_blueprint = self._create_anim_blueprint()
+
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.add_kawaii_physics_node(
+                anim_blueprint,
+                'TwintailA_L',
+                [],
+                [],
+                '',
+                'not json',
+            )
+
+        self.assertIn('properties_json is not valid JSON', str(cm.exception))
+        self.assertEqual(
+            len(KawaiiPhysicsToolset.collect_kawaii_physics_graph_nodes(anim_blueprint, [], False)),
+            0,
+        )
+
+    def test_set_anim_graph_input_animation_before_nodes_compiles(self):
+        anim_blueprint = self._create_anim_blueprint()
+        animation = self._load_animation()
+
+        KawaiiPhysicsToolset.set_anim_graph_input_animation(anim_blueprint, animation)
+        KawaiiPhysicsToolset.add_kawaii_physics_node(anim_blueprint, 'TwintailA_L')
+
+        self._assert_compiles_without_errors(anim_blueprint)
+
+    def test_set_anim_graph_input_animation_after_nodes_compiles(self):
+        anim_blueprint = self._create_anim_blueprint()
+        animation = self._load_animation()
+        KawaiiPhysicsToolset.add_kawaii_physics_node(anim_blueprint, 'TwintailA_L')
+        KawaiiPhysicsToolset.add_kawaii_physics_node(anim_blueprint, 'TwintailA_R')
+
+        KawaiiPhysicsToolset.set_anim_graph_input_animation(anim_blueprint, animation, '')
+        # 2 回目は既存の SequencePlayer のシーケンスを差し替えるだけで成功する
+        KawaiiPhysicsToolset.set_anim_graph_input_animation(
+            anim_blueprint,
+            self._load_animation(GRAYCHAN_IDLE_ANIMATION_PATH),
+        )
+
+        self._assert_compiles_without_errors(anim_blueprint)
+
+    def test_set_anim_graph_input_animation_skeleton_mismatch_raises(self):
+        mismatch_animation = unreal.EditorAssetLibrary.load_asset(SKIRT_ANIMATION_PATH)
+        if mismatch_animation is None:
+            self.skipTest(f'Mismatch animation fixture is unavailable: {SKIRT_ANIMATION_PATH}')
+        self.assertIsInstance(mismatch_animation, unreal.AnimSequenceBase)
+        anim_blueprint = self._create_anim_blueprint()
+
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.set_anim_graph_input_animation(anim_blueprint, mismatch_animation)
+        self.assertIn('Unable to set the AnimGraph input animation', str(cm.exception))
+
+    def test_set_anim_graph_input_animation_none_raises(self):
+        anim_blueprint = self._create_anim_blueprint()
+
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.set_anim_graph_input_animation(anim_blueprint, None)
+        self.assertIn('animation must not be None', str(cm.exception))
+
+    def test_create_anim_blueprint_with_input_animation(self):
+        anim_blueprint = KawaiiPhysicsToolset.create_anim_blueprint(
+            TEST_FOLDER,
+            'ABP_WithInputAnimation',
+            self.skeleton,
+            self._load_animation(),
+        )
+        self.assertIsInstance(anim_blueprint, unreal.AnimBlueprint)
+        KawaiiPhysicsToolset.add_kawaii_physics_node(anim_blueprint, 'TwintailA_L')
+
+        self._assert_compiles_without_errors(anim_blueprint)
+
+    def test_compile_anim_blueprint_reports_unknown_root_bone_warning(self):
+        anim_blueprint = self._create_anim_blueprint()
+        handle = KawaiiPhysicsToolset.add_kawaii_physics_node(anim_blueprint, 'TwintailA_L')
+        KawaiiPhysicsToolset.set_graph_node_root_bone(handle, 'TotallyBogusBone_XYZ')
+
+        messages = self._assert_compiles_without_errors(anim_blueprint)
+
+        self.assertTrue(any(
+            message.startswith('Warning:') and 'RootBone is empty' in message
+            for message in messages
+        ))
+
+    def test_compile_anim_blueprint_none_raises(self):
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.compile_anim_blueprint(None)
+        self.assertIn('anim_blueprint must not be None', str(cm.exception))
+
     def test_get_simple_world_collision_debug_info_without_entry(self):
         skeletal_mesh_component = unreal.new_object(unreal.SkeletalMeshComponent)
         self.assertIsInstance(skeletal_mesh_component, unreal.SkeletalMeshComponent)
@@ -998,6 +1264,21 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
             )
         self.assertIn('direction must have 3 elements', str(cm.exception))
 
+    def test_start_procedural_wind_gust_explicit_direction_unknown_label_returns_empty(self):
+        self._require_world()
+
+        result = json.loads(
+            KawaiiPhysicsToolset.start_procedural_wind_gust_on_actor(
+                UNKNOWN_ACTOR_LABEL,
+                1.0,
+                1.0,
+                0.1,
+                0.3,
+                [1.0, 0.0, 0.0],
+            ))
+
+        self.assertEqual(result, [])
+
     def test_stop_transient_external_force_unknown_label_returns_zero(self):
         self._require_world()
 
@@ -1038,6 +1319,362 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
             ),
             0,
         )
+
+    # ===== Task A: editor world while PIE =====
+
+    def test_editor_world_getter_matches_editor_subsystem(self):
+        editor_subsystem = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem)
+        if editor_subsystem is None or editor_subsystem.get_game_world() is not None:
+            self.skipTest('Requires the editor without PIE.')
+        editor_world = editor_subsystem.get_editor_world()
+        if editor_world is None:
+            self.skipTest('No editor world is available in this environment.')
+
+        self.assertEqual(
+            unreal.KawaiiPhysicsEditorLibrary.get_editor_world_ignoring_play_mode(),
+            editor_world,
+        )
+        self.assertEqual(toolset_module._resolve_world(False), editor_world)
+        self.assertEqual(toolset_module._resolve_world(True), editor_world)
+
+    def test_execute_console_command_editor_world_succeeds(self):
+        self._require_world()
+
+        self.assertTrue(KawaiiPhysicsToolset.execute_console_command('stat none', False))
+
+    # ===== Task B: ExternalForces =====
+
+    def test_set_get_graph_node_external_forces_round_trip(self):
+        anim_blueprint = self._create_anim_blueprint()
+        handle = self._place_test_node(anim_blueprint, _make_request('TwintailA_L'))
+
+        count = KawaiiPhysicsToolset.set_graph_node_external_forces(
+            handle,
+            json.dumps([{
+                '_structType': BASIC_EXTERNAL_FORCE_STRUCT,
+                'ForceDir': {'X': 0, 'Y': 1, 'Z': 0},
+                'RandomForceScaleRange': {'Min': 30, 'Max': 30},
+            }]),
+        )
+        forces = json.loads(KawaiiPhysicsToolset.get_graph_node_external_forces(handle))
+
+        self.assertEqual(count, 1)
+        self.assertEqual(len(forces), 1)
+        self.assertEqual(forces[0]['_structType'], BASIC_EXTERNAL_FORCE_STRUCT)
+        self.assertAlmostEqual(forces[0]['ForceDir']['Y'], 1.0)
+        self.assertAlmostEqual(forces[0]['RandomForceScaleRange']['Min'], 30.0)
+        self.assertTrue(forces[0]['bIsEnabled'])
+
+        # 読み出した JSON はそのまま書き戻せる
+        self.assertEqual(
+            KawaiiPhysicsToolset.set_graph_node_external_forces(handle, json.dumps(forces)),
+            1,
+        )
+        self._assert_compiles_without_errors(anim_blueprint)
+
+        self.assertEqual(KawaiiPhysicsToolset.set_graph_node_external_forces(handle, '[]'), 0)
+        self.assertEqual(json.loads(KawaiiPhysicsToolset.get_graph_node_external_forces(handle)), [])
+
+    def test_set_graph_node_external_forces_rejects_other_struct(self):
+        handle = self._place_test_node()
+        KawaiiPhysicsToolset.set_graph_node_external_forces(
+            handle,
+            json.dumps([{'_structType': BASIC_EXTERNAL_FORCE_STRUCT}]),
+        )
+
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.set_graph_node_external_forces(
+                handle,
+                json.dumps([{'_structType': '/Script/CoreUObject.Vector'}]),
+            )
+        self.assertIn('FKawaiiPhysics_ExternalForce', str(cm.exception))
+
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.set_graph_node_external_forces(
+                handle,
+                json.dumps([{'_structType': BASIC_EXTERNAL_FORCE_STRUCT, 'NoSuchField': 1}]),
+            )
+        self.assertIn('NoSuchField', str(cm.exception))
+
+        # 失敗した呼び出しはノードを変更しない
+        self.assertEqual(
+            len(json.loads(KawaiiPhysicsToolset.get_graph_node_external_forces(handle))),
+            1,
+        )
+
+    def test_set_graph_node_external_forces_empty_json_raises(self):
+        handle = self._place_test_node()
+
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.set_graph_node_external_forces(handle, '')
+        self.assertIn('forces_json must not be empty', str(cm.exception))
+
+    # ===== Task C: collision limits in component space =====
+
+    def test_compute_collision_limit_offset_converts_to_bone_local(self):
+        bone_transform = unreal.Transform(
+            unreal.Vector(0.0, 0.0, 0.0),
+            toolset_module._make_rotator([-90.0, 0.0, 0.0]),
+            unreal.Vector(1.0, 1.0, 1.0),
+        )
+
+        offset_location, offset_rotation = toolset_module._compute_collision_limit_offset(
+            bone_transform,
+            [8.0, 0.0, -75.0],
+            [],
+        )
+
+        for actual, expected in zip(offset_location, [75.0, 0.0, 8.0]):
+            self.assertAlmostEqual(actual, expected, places=3)
+        self.assertAlmostEqual(offset_rotation[0], 90.0, places=2)
+        rotator = toolset_module._make_rotator(offset_rotation)
+        forward = rotator.get_forward_vector()
+        up = rotator.get_up_vector()
+        for actual, expected in zip([forward.x, forward.y, forward.z], [0.0, 0.0, 1.0]):
+            self.assertAlmostEqual(actual, expected, places=3)
+        for actual, expected in zip([up.x, up.y, up.z], [-1.0, 0.0, 0.0]):
+            self.assertAlmostEqual(actual, expected, places=3)
+
+    def test_compute_collision_limit_offset_round_trips_through_bone(self):
+        bone_transform = unreal.Transform(
+            unreal.Vector(3.0, -4.0, 120.0),
+            toolset_module._make_rotator([-35.0, 60.0, 10.0]),
+            unreal.Vector(1.0, 1.0, 1.0),
+        )
+        location = [12.0, 5.0, 90.0]
+        rotation = [15.0, -20.0, 5.0]
+
+        offset_location, offset_rotation = toolset_module._compute_collision_limit_offset(
+            bone_transform,
+            location,
+            rotation,
+        )
+        # ランタイムと同じ Offset * BoneCS で目標のコンポーネント空間トランスフォームへ戻る
+        composed_location = bone_transform.transform_location(unreal.Vector(*offset_location))
+        composed_rotation = bone_transform.transform_rotation(
+            toolset_module._make_rotator(offset_rotation))
+        target_rotation = toolset_module._make_rotator(rotation)
+
+        for actual, expected in zip(
+                [composed_location.x, composed_location.y, composed_location.z],
+                location):
+            self.assertAlmostEqual(actual, expected, places=2)
+        for actual_axis, expected_axis in (
+                (composed_rotation.get_forward_vector(), target_rotation.get_forward_vector()),
+                (composed_rotation.get_up_vector(), target_rotation.get_up_vector())):
+            for actual, expected in zip(
+                    [actual_axis.x, actual_axis.y, actual_axis.z],
+                    [expected_axis.x, expected_axis.y, expected_axis.z]):
+                self.assertAlmostEqual(actual, expected, places=3)
+
+    def test_compute_collision_limit_offset_without_bone_keeps_component_space(self):
+        offset_location, offset_rotation = toolset_module._compute_collision_limit_offset(
+            None,
+            [1.0, 2.0, -3.0],
+            [0.0, 45.0, 0.0],
+        )
+
+        self.assertEqual(offset_location, [1.0, 2.0, -3.0])
+        self.assertAlmostEqual(offset_rotation[1], 45.0, places=3)
+
+    def test_count_import_text_array_elements(self):
+        self.assertEqual(toolset_module._count_import_text_array_elements(''), 0)
+        self.assertEqual(toolset_module._count_import_text_array_elements('()'), 0)
+        self.assertEqual(
+            toolset_module._count_import_text_array_elements(
+                '((DrivingBone=(BoneName="a(b"),Radius=1),(Radius=2))'),
+            2,
+        )
+        self.assertEqual(
+            toolset_module._append_import_text_array_element('()', '(Radius=1)'),
+            '((Radius=1))',
+        )
+        self.assertEqual(
+            toolset_module._append_import_text_array_element('((Radius=1))', '(Radius=2)'),
+            '((Radius=1),(Radius=2))',
+        )
+
+    def test_add_collision_limit_appends_each_shape(self):
+        anim_blueprint = self._create_anim_blueprint()
+        handle = self._place_test_node(anim_blueprint, _make_request('TwintailA_L'))
+
+        self.assertEqual(
+            KawaiiPhysicsToolset.add_collision_limit(
+                handle, 'Sphere', 'TwintailA_L', [0.0, 10.0, 150.0], [], 7.0),
+            1,
+        )
+        self.assertEqual(
+            KawaiiPhysicsToolset.add_collision_limit(
+                handle, 'sphere', 'TwintailA_L', [0.0, 12.0, 150.0], [], 3.0, 5.0, 10.0, [], 'Inner'),
+            2,
+        )
+        self.assertEqual(
+            KawaiiPhysicsToolset.add_collision_limit(
+                handle, 'Capsule', 'TwintailA_L', [0.0, 10.0, 140.0], [90.0, 0.0, 0.0], 4.0, 5.0, 20.0),
+            1,
+        )
+        self.assertEqual(
+            KawaiiPhysicsToolset.add_collision_limit(
+                handle, 'TaperedCapsule', 'TwintailA_L', [0.0, 10.0, 140.0], [], 4.0, 2.0, 20.0),
+            1,
+        )
+        self.assertEqual(
+            KawaiiPhysicsToolset.add_collision_limit(
+                handle, 'Box', 'TwintailA_L', [0.0, 10.0, 140.0], [], 5.0, 5.0, 10.0, [3.0, 4.0, 5.0]),
+            1,
+        )
+        self.assertEqual(
+            KawaiiPhysicsToolset.add_collision_limit(handle, 'Planar', '', [0.0, 0.0, 5.0]),
+            1,
+        )
+
+        spherical_limits = KawaiiPhysicsToolset.get_graph_node_property(handle, 'SphericalLimits')
+        self.assertIn('TwintailA_L', spherical_limits)
+        self.assertIn('Inner', spherical_limits)
+        self.assertIn('Radius1=2', KawaiiPhysicsToolset.get_graph_node_property(handle, 'TaperedCapsuleLimits'))
+        self.assertIn('Extent=(X=3', KawaiiPhysicsToolset.get_graph_node_property(handle, 'BoxLimits'))
+        # DrivingBone 無しの Planar はコンポーネント空間の値がそのままオフセットになる
+        self.assertIn('Z=5', KawaiiPhysicsToolset.get_graph_node_property(handle, 'PlanarLimits'))
+        self._assert_compiles_without_errors(anim_blueprint)
+
+    def test_add_collision_limit_places_limit_at_bone_location(self):
+        handle = self._place_test_node()
+        bone_transform = toolset_module._unpack_bool_out(
+            unreal.KawaiiPhysicsEditorLibrary.get_graph_node_reference_bone_transform(
+                handle,
+                unreal.Name('TwintailA_L'),
+            ),
+            None,
+        )
+        self.assertIsNotNone(bone_transform)
+        bone_location = bone_transform.translation
+
+        KawaiiPhysicsToolset.add_collision_limit(
+            handle,
+            'Sphere',
+            'TwintailA_L',
+            [bone_location.x, bone_location.y, bone_location.z],
+        )
+
+        # ボーン位置に置いた球はボーンローカルのオフセットが 0 になる
+        spherical_limits = KawaiiPhysicsToolset.get_graph_node_property(handle, 'SphericalLimits')
+        offset_text = spherical_limits.split('OffsetLocation=(', 1)[1].split(')', 1)[0]
+        offset_values = [
+            abs(float(part.split('=', 1)[1]))
+            for part in offset_text.split(',')
+        ]
+        self.assertEqual(len(offset_values), 3)
+        for value in offset_values:
+            self.assertLess(value, 0.01)
+
+    def test_add_collision_limit_invalid_arguments_raise(self):
+        handle = self._place_test_node()
+
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.add_collision_limit(handle, 'Cone', 'TwintailA_L', [0.0, 0.0, 0.0])
+        self.assertIn('Unknown shape', str(cm.exception))
+
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.add_collision_limit(handle, 'Sphere', '', [0.0, 0.0, 0.0])
+        self.assertIn('driving_bone must not be empty', str(cm.exception))
+
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.add_collision_limit(
+                handle, 'Sphere', 'TotallyBogusBone_XYZ', [0.0, 0.0, 0.0])
+        self.assertIn('TotallyBogusBone_XYZ', str(cm.exception))
+
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.add_collision_limit(handle, 'Sphere', 'TwintailA_L', [0.0, 0.0])
+        self.assertIn('location must have 3 elements', str(cm.exception))
+
+        self.assertEqual(
+            toolset_module._count_import_text_array_elements(
+                KawaiiPhysicsToolset.get_graph_node_property(handle, 'SphericalLimits')),
+            0,
+        )
+
+    # ===== Task D: bone sampler space =====
+
+    def test_start_bone_sampler_invalid_space_raises(self):
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.start_bone_sampler(UNKNOWN_ACTOR_LABEL, '.*', 1, True, 'local')
+        self.assertIn('Unknown space', str(cm.exception))
+
+    def test_bone_sampler_component_space_ignores_actor_location(self):
+        self._require_world()
+        mesh = _load_asset_checked(GRAYCHAN_MESH_PATH)
+        actor_subsystem = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+        actor = actor_subsystem.spawn_actor_from_class(
+            unreal.SkeletalMeshActor,
+            unreal.Vector(5000.0, 0.0, 0.0),
+        )
+        if actor is None:
+            self.skipTest('Unable to spawn a SkeletalMeshActor in the editor world.')
+        try:
+            actor.set_actor_label(BONE_SAMPLER_ACTOR_LABEL)
+            component = actor.get_editor_property('skeletal_mesh_component')
+            if hasattr(component, 'set_skeletal_mesh_asset'):
+                component.set_skeletal_mesh_asset(mesh)
+            else:
+                component.set_skeletal_mesh(mesh)
+
+            means = {}
+            for space in ('component', 'world'):
+                started = json.loads(KawaiiPhysicsToolset.start_bone_sampler(
+                    BONE_SAMPLER_ACTOR_LABEL, '^TwintailA_L$', 1, False, space))
+                self.assertEqual(started['space'], space)
+                # Slate のティックを待たずに採取コールバックを直接呼ぶ
+                toolset_module._bone_sampler_tick(0.0)
+                result = json.loads(KawaiiPhysicsToolset.get_bone_sampler_result())
+                self.assertTrue(result['done'])
+                self.assertEqual(result['space'], space)
+                means[space] = result['bones']['TwintailA_L']['mean']
+
+            self.assertAlmostEqual(means['world'][0] - means['component'][0], 5000.0, places=1)
+            self.assertAlmostEqual(means['world'][1], means['component'][1], places=1)
+            self.assertAlmostEqual(means['world'][2], means['component'][2], places=1)
+        finally:
+            KawaiiPhysicsToolset.stop_bone_sampler()
+            # 他テストが未開始状態を前提にするため採取状態を消す
+            toolset_module._BONE_SAMPLER = None
+            actor_subsystem.destroy_actor(actor)
+
+    # ===== Task F: alpha return shape =====
+
+    def test_unpack_float_out_handles_return_shapes(self):
+        container = unreal.GameplayTagContainer()
+
+        self.assertEqual(toolset_module._unpack_float_out((True, 0.5, container)), 0.5)
+        self.assertEqual(toolset_module._unpack_float_out((0.25, container)), 0.25)
+        self.assertEqual(toolset_module._unpack_float_out(0.75), 0.75)
+        self.assertIsNone(toolset_module._unpack_float_out((False, 0.0, container)))
+        self.assertIsNone(toolset_module._unpack_float_out(None))
+        self.assertIsNone(toolset_module._unpack_float_out(container))
+
+    def test_unpack_bool_result_handles_return_shapes(self):
+        container = unreal.GameplayTagContainer()
+
+        self.assertTrue(toolset_module._unpack_bool_result((True, container)))
+        self.assertFalse(toolset_module._unpack_bool_result((False, container)))
+        self.assertTrue(toolset_module._unpack_bool_result(True))
+        self.assertFalse(toolset_module._unpack_bool_result(False))
+        self.assertTrue(toolset_module._unpack_bool_result(container))
+        self.assertFalse(toolset_module._unpack_bool_result(None))
+
+    def test_alpha_helpers_on_component_without_anim_instance(self):
+        skeletal_mesh_component = unreal.new_object(unreal.SkeletalMeshComponent)
+
+        self.assertIsNone(toolset_module._get_alpha_on_component(
+            skeletal_mesh_component,
+            unreal.GameplayTagContainer(),
+            False,
+        ))
+        self.assertFalse(toolset_module._set_alpha_on_component(
+            skeletal_mesh_component,
+            0.5,
+            unreal.GameplayTagContainer(),
+            False,
+        ))
 
 
 if __name__ == '__main__':

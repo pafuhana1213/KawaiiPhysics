@@ -14,9 +14,11 @@
 #include "KawaiiPhysicsEditorLibrary.generated.h"
 
 class UAnimBlueprint;
+class UAnimSequenceBase;
 class UAnimGraphNode_KawaiiPhysics;
 class UAnimGraphNode_KawaiiPhysicsSharedPublisher;
 class USkeleton;
+class UWorld;
 
 UENUM(BlueprintType)
 enum class EKawaiiPhysicsEditorAccessResult : uint8
@@ -410,6 +412,25 @@ public:
 		bool bAutoConnect = true);
 
 	/**
+	 * AnimGraph の入力ポーズとしてアニメーションを設定する。Result から上流のポーズ入力を辿り、既存の SequencePlayer があればそのシーケンスを差し替え、未接続のポーズ入力に達したら SequencePlayer を追加して接続する（コンポーネント空間の入力には変換ノードを自動挿入）。コンパイルは行わない。
+	 * Set an animation as the input pose of the AnimGraph. Follows the pose inputs upstream from Result; replaces the sequence of an existing SequencePlayer, or adds and connects a SequencePlayer at the first unlinked pose input (a space conversion node is inserted automatically for component-space inputs). Does not compile.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static bool SetAnimGraphInputAnimation(
+		UAnimBlueprint* AnimBlueprint,
+		UAnimSequenceBase* Animation,
+		FName GraphName = NAME_None);
+
+	/**
+	 * AnimBlueprint をコンパイルし、コンパイラメッセージを "Error: " / "Warning: " / "Note: " 付きの文字列で返す。戻り値はエラー数（0 なら成功、AnimBlueprint が null なら -1）。
+	 * Compile an AnimBlueprint and return compiler messages prefixed with "Error: ", "Warning: " or "Note: ". Returns the error count (0 means success, -1 when AnimBlueprint is null).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static int32 CompileAnimBlueprintWithMessages(
+		UAnimBlueprint* AnimBlueprint,
+		TArray<FString>& OutMessages);
+
+	/**
 	 * AnimGraph 上のコメントノード一覧を返す。
 	 * Returns comment nodes in the AnimGraph.
 	 */
@@ -455,6 +476,42 @@ public:
 		const FKawaiiPhysicsGraphNodeHandle& Handle,
 		FName PropertyName,
 		FString& OutValue);
+
+	/**
+	 * ノードの ExternalForces を JSON 配列で取得する。各要素は "_structType"（構造体パス）と編集可能なフィールドを持つオブジェクト（空スロットは null）。
+	 * Get the node's ExternalForces as a JSON array. Each element is an object with "_structType" (struct path) and the editable fields (an empty slot is null).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static bool GetGraphNodeExternalForcesAsJson(
+		const FKawaiiPhysicsGraphNodeHandle& Handle,
+		FString& OutJson);
+
+	/**
+	 * ノードの ExternalForces を GetGraphNodeExternalForcesAsJson と同じ形式の JSON 配列で置き換える。"_structType" は FKawaiiPhysics_ExternalForce の派生構造体（パスまたは名前）であること。省略したフィールドは既定値。戻り値は設定した要素数（失敗時は -1 で OutError に理由、ノードは変更しない）。
+	 * Replace the node's ExternalForces from a JSON array in the GetGraphNodeExternalForcesAsJson format. "_structType" must name a struct derived from FKawaiiPhysics_ExternalForce (path or name). Omitted fields keep their defaults. Returns the element count (-1 on failure with the reason in OutError; the node is left unchanged).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static int32 SetGraphNodeExternalForcesFromJson(
+		const FKawaiiPhysicsGraphNodeHandle& Handle,
+		const FString& ForcesJson,
+		FString& OutError);
+
+	/**
+	 * ノードを含む AnimBlueprint のターゲットスケルトンについて、ボーンの参照ポーズのコンポーネント空間トランスフォームを取得する。
+	 * Get the component-space reference pose transform of a bone in the target skeleton of the AnimBlueprint that owns the node.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static bool GetGraphNodeReferenceBoneTransform(
+		const FKawaiiPhysicsGraphNodeHandle& Handle,
+		FName BoneName,
+		FTransform& OutComponentTransform);
+
+	/**
+	 * エディタワールド（PIE ではない側）を返す。PIE 実行中でもプレイモードのエラーを出さずに返す（取得できなければ null）。
+	 * Return the editor (non-PIE) world. Works while PIE runs without logging the play-mode error (null when unavailable).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static UWorld* GetEditorWorldIgnoringPlayMode();
 
 	/** Shared Publisher ノードプロパティを文字列で設定 / Set a Shared Publisher node property from string. */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
