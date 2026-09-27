@@ -26,6 +26,12 @@ FONT_HEIGHT = 24.0
 FR_PRIVATE = 0x10
 # Blank glyphs come out with zero width in distance field mode.
 BLANK_GLYPH_ADVANCE = {0x20: 8, 0x3000: 24}
+# DefaultTextMaterialOpaque cuts the distance field at about 0.502 and the page
+# has no mips, so strokes thinner than a screen pixel drop out when a sign is
+# read from the walkway; a lone thin bar such as '-' vanished entirely. Lifting
+# the alpha floor moves that cut outward (about half a texel) and thickens every
+# stroke without changing glyph metrics or sign layout.
+PAGE_ADJUST_MIN_ALPHA = 0.03
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -88,17 +94,30 @@ def _fix_blank_glyphs(font: unreal.Font, chars: str) -> None:
     font.set_editor_property('characters', characters)
 
 
-def _remove_redirector(path: str) -> None:
-    # Resave every referencer so it points at the redirect target, then delete
-    # the redirector. Only the sign Blueprints reference the font; levels use
-    # those Blueprints, so no map needs to be loaded here.
+def _embolden_pages(font: unreal.Font) -> None:
+    # Font.Textures is protected in Python, so find the pages by outer.
+    for texture in unreal.ObjectIterator(unreal.Texture2D):
+        if texture.get_outer() == font:
+            texture.set_editor_property('adjust_min_alpha', PAGE_ADJUST_MIN_ALPHA)
+
+
+def _referencer_packages(path: str) -> list:
     registry = unreal.AssetRegistryHelpers.get_asset_registry()
     referencers = registry.get_referencers(
         unreal.Name(path), unreal.AssetRegistryDependencyOptions())
-    for referencer in referencers or []:
-        package = str(referencer)
-        if package == path:
-            continue
+    return [str(referencer) for referencer in referencers or []
+            if str(referencer) != path]
+
+
+def _remove_redirector(path: str, packages=()) -> None:
+    # Resave every referencer so it points at the redirect target, then delete
+    # the redirector. Only the sign Blueprints reference the font; levels use
+    # those Blueprints, so no map needs to be loaded here.
+    # The registry is not updated right after a rename, so the caller also
+    # passes the packages it recorded before the replacement; missing one would
+    # leave it saved against the deleted redirector.
+    registry = unreal.AssetRegistryHelpers.get_asset_registry()
+    for package in dict.fromkeys(list(packages) + _referencer_packages(path)):
         asset_data = registry.get_assets_by_package_name(unreal.Name(package))
         if any(str(data.asset_class_path.asset_name) == 'World' for data in asset_data):
             raise RuntimeError(
@@ -131,18 +150,21 @@ def generate() -> unreal.Font:
         raise RuntimeError('Font creation failed.')
 
     _fix_blank_glyphs(font, chars)
+    _embolden_pages(font)
 
     if replace:
         # Redirect references to the new asset instead of deleting the old one,
         # which would clear the Font on every sign that uses it.
+        new_path = f'{FONT_ASSET_DIR}/{new_name}'
+        referencers = [package for package in _referencer_packages(asset_path)
+                       if package != new_path]
         old_font = unreal.load_asset(asset_path)
         if not unreal.EditorAssetLibrary.consolidate_assets(font, [old_font]):
             raise RuntimeError('consolidate_assets failed.')
-        _remove_redirector(asset_path)
-        new_path = f'{FONT_ASSET_DIR}/{new_name}'
+        _remove_redirector(asset_path, referencers)
         if not unreal.EditorAssetLibrary.rename_asset(new_path, asset_path):
             raise RuntimeError(f'rename_asset failed: {new_path} -> {asset_path}')
-        _remove_redirector(new_path)
+        _remove_redirector(new_path, referencers)
         font = unreal.load_asset(asset_path)
 
     unreal.EditorAssetLibrary.save_loaded_asset(font)
