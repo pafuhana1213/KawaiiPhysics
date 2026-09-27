@@ -144,13 +144,14 @@ The sample project on GitHub includes a sample level and characters.
 - **Sample Level**: `Content/KawaiiPhysicsSample/L_KawaiiPhysicsSample`
 - **Feature Samples**: `Content/KawaiiPhysicsSample/Examples/` has one level per topic. Each exhibit shows a single feature with its own AnimBlueprint, step by step.
   - `01_BoneChain` (RootBone / DummyBoneLength / ExcludeBones / AdditionalRootBones / multiple nodes and tags)
-  - `02_PhysicsSettings` (Damping / Stiffness / WorldDamping / LimitAngle / curves / teleport threshold)
+  - `02_PhysicsSettings` (Damping / Stiffness / WorldDamping / LimitAngle / curves / teleport thresholds / warm-up / SkelCompMoveScale)
   - `03_Collision` (sphere / capsule / tapered capsule / box / planar / LimitsDataAsset / PhysicsAsset / world collision)
-  - `04_Forces` (gravity / simple external force / external force presets / AnimNotify)
+  - `04_Forces` (gravity / simple external force / external force presets / AnimNotify / external force space / force rate by bone length / legacy gravity)
   - `05_Advanced` (bone constraints / bone subdivision / SyncBone / presets / shared collision)
-  - `06_RuntimeControl` (alpha, physics settings multiplier and wind gusts from Blueprint / settings multiplier AnimNotifyState / Sequencer track)
+  - `06_RuntimeControl` (alpha, physics settings multiplier and wind gusts from Blueprint / settings multiplier AnimNotifyState / Sequencer track / post process AnimBlueprint for Sequencer / AnimNode function / external force volume)
   - `07_SimpleWorldCollision` (automatic level collision / gathered shapes / skeletal mesh collision modes / gather radius)
   - `08_Wind` (ProceduralWind components / wind preset DataAsset / trigger gust AnimNotify / Shared Publisher)
+  - `09_Showcase` (a complete setup on the TA-style Kano Saginomiya character, part by part)
 - **Characters Used**:
   - **Gray-chan**: http://rarihoma.xvs.jp/products/graychan
   - **TA-style Kano Saginomiya**: Provided by [TA Co., Ltd.](https://xta.co.jp/)

@@ -139,13 +139,14 @@ C++ビルド環境がない方は、以下のリンクからプラグインを�
 - **サンプルレベル**: `Content/KawaiiPhysicsSample/L_KawaiiPhysicsSample`
 - **機能別サンプル**: `Content/KawaiiPhysicsSample/Examples/` にテーマごとのレベルがあります。各展示は 1 つの機能だけを専用の AnimBlueprint で紹介し、段階的に学べるようにしています。
   - `01_BoneChain`（RootBone / DummyBoneLength / ExcludeBones / AdditionalRootBones / 複数ノードとタグ）
-  - `02_PhysicsSettings`（Damping / Stiffness / WorldDamping / LimitAngle / カーブ / テレポートしきい値）
+  - `02_PhysicsSettings`（Damping / Stiffness / WorldDamping / LimitAngle / カーブ / テレポートしきい値 / ウォームアップ / SkelCompMoveScale）
   - `03_Collision`（球 / カプセル / テーパードカプセル / 箱 / 平面 / LimitsDataAsset / PhysicsAsset / ワールドコリジョン）
-  - `04_Forces`（重力 / SimpleExternalForce / 外力プリセット / AnimNotify）
+  - `04_Forces`（重力 / SimpleExternalForce / 外力プリセット / AnimNotify / 外力の座標系 / ボーン長による外力の倍率 / 従来方式の重力）
   - `05_Advanced`（ボーン拘束 / ボーン細分化 / SyncBone / プリセット / 共有コリジョン）
-  - `06_RuntimeControl`（Blueprint からの Alpha・設定倍率・突風 / 設定倍率の AnimNotifyState / Sequencer トラック）
+  - `06_RuntimeControl`（Blueprint からの Alpha・設定倍率・突風 / 設定倍率の AnimNotifyState / Sequencer トラック / Sequencer 用の PostProcess ABP / AnimNode Function / 外力ボリューム）
   - `07_SimpleWorldCollision`（レベルのコリジョンの自動収集 / 対応形状 / スケルタルメッシュとの当たり / 収集半径）
   - `08_Wind`（ProceduralWind の成分 / 風プリセット DataAsset / 突風 AnimNotify / Shared Publisher）
+  - `09_Showcase`（TA式 鷺宮カノでの完成形のセットアップを部位ごとに紹介）
 - **使用キャラクター**:
   - **Grayちゃん**: http://rarihoma.xvs.jp/products/graychan
   - **TA式 鷺宮カノ**: [株式会社TA様](https://xta.co.jp/)よりご提供
