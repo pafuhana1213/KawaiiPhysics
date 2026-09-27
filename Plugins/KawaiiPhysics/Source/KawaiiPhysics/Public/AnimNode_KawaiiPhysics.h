@@ -1666,6 +1666,17 @@ protected:
 	void UpdateSkelCompMove(FComponentSpacePoseContext& Output, const FTransform& ComponentTransform);
 
 	/**
+	 * 評価の最後に PreSkelCompTransform を今回消費した割合だけ前進させる。テレポートしたフレームは全量前進させ、
+	 * テレポート分の移動を次フレームへ繰り越さない。
+	 * Advances PreSkelCompTransform by the fraction consumed this evaluation. On a teleport frame it advances fully so
+	 * no part of the teleport movement carries over to the next frame.
+	 *
+	 * @param ComponentTransform 現在のコンポーネント変換 / The current component transform.
+	 * @param bTeleportedThisFrame このフレームでテレポートを検出したか / Whether a teleport was detected this frame.
+	 */
+	void AdvancePreSkelCompTransform(const FTransform& ComponentTransform, bool bTeleportedThisFrame);
+
+	/**
 	 * Simulates the physics for all modified bones.
 	 *
 	 * @param Output The pose context.

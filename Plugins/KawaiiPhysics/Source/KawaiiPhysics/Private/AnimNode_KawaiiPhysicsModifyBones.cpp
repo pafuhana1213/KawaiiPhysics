@@ -595,6 +595,34 @@ void FAnimNode_KawaiiPhysics::UpdateSkelCompMove(FComponentSpacePoseContext& Out
 	}
 }
 
+void FAnimNode_KawaiiPhysics::AdvancePreSkelCompTransform(const FTransform& ComponentTransform,
+                                                          bool bTeleportedThisFrame)
+{
+	// テレポートと判定したフレームは SimulationSpace やサブステップ設定によらず Component 移動を全量破棄する。
+	// 消費割合だけ前進させると、未消費の残りが次フレームで閾値未満の通常移動として world move follow に適用されてしまう。
+	if (bTeleportedThisFrame)
+	{
+		PreSkelCompTransformConsumeFraction = 1.0f;
+	}
+
+	// サブステップで未消費の実時間がある場合、PreSkelCompTransform を消費割合だけ前進させ、
+	// 未適用のComponent移動を次にステップが走るフレームへ繰り越す（NumSteps==0 では割合0で据え置き）。
+	const float PreSkelCompConsumeFrac = FMath::Clamp(PreSkelCompTransformConsumeFraction, 0.0f, 1.0f);
+	if (PreSkelCompConsumeFrac >= 1.0f - KINDA_SMALL_NUMBER)
+	{
+		PreSkelCompTransform = ComponentTransform;
+	}
+	else
+	{
+		PreSkelCompTransform.SetLocation(
+			FMath::Lerp(PreSkelCompTransform.GetLocation(), ComponentTransform.GetLocation(), PreSkelCompConsumeFrac));
+		PreSkelCompTransform.SetRotation(
+			FQuat::Slerp(PreSkelCompTransform.GetRotation(), ComponentTransform.GetRotation(), PreSkelCompConsumeFrac).GetNormalized());
+		PreSkelCompTransform.SetScale3D(
+			FMath::Lerp(PreSkelCompTransform.GetScale3D(), ComponentTransform.GetScale3D(), PreSkelCompConsumeFrac));
+	}
+}
+
 int32 FAnimNode_KawaiiPhysics::CalcInterBoneDummyCoverageCount(float Distance, float AvgRadius) const
 {
 	if (Distance <= KINDA_SMALL_NUMBER || AvgRadius <= KINDA_SMALL_NUMBER)

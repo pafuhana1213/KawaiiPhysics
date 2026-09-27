@@ -651,6 +651,7 @@ struct FKawaiiPhysicsTestAccessor
 			}
 			StepOnce();
 			Node.DeltaTimeOld = FrameDt;
+			Node.PreSkelCompTransformConsumeFraction = 1.0f;
 		}
 		else
 		{
@@ -658,9 +659,13 @@ struct FKawaiiPhysicsTestAccessor
 			const float FixedDt = 1.0f / Node.GetEffectiveTargetFramerate();
 			const float RawElapsed = FMath::Max(Node.SubstepAccumulator + Node.FrameDeltaTime, KINDA_SMALL_NUMBER);
 			Node.SubstepAccumulator = FMath::Min(RawElapsed, Node.MaxSubstepsCached * FixedDt);
+			const float DroppedTime = RawElapsed - Node.SubstepAccumulator;
 			const int32 NumSteps = FMath::FloorToInt(Node.SubstepAccumulator / FixedDt);
 			Node.SubstepAccumulator -= NumSteps * FixedDt;
 			const float MoveFrac = FixedDt / RawElapsed;
+			// 本番と同じく PreSkelCompTransform の前進割合（消費＋破棄）を記録する（StepFrameWithComponentTransform が使う）
+			Node.PreSkelCompTransformConsumeFraction =
+				FMath::Clamp((NumSteps * FixedDt + DroppedTime) / RawElapsed, 0.0f, 1.0f);
 			const FVector FullSkelCompMove = Node.SkelCompMoveVector;
 			const FQuat FullSkelCompRot = Node.SkelCompMoveRotation;
 
@@ -697,6 +702,36 @@ struct FKawaiiPhysicsTestAccessor
 			Bone.PrevPoseRotation = Bone.CurrentPoseRotation;
 		}
 	}
+
+	/**
+	 * コンポーネント変換から world 移動を求めて1フレーム進める（EvaluateSkeletalControl_AnyThread の
+	 * UpdateSkelCompMove → SimulateModifyBones → TeleportType リセット → AdvancePreSkelCompTransform の順序を複製）。
+	 * テレポート判定・閾値・PreSkelCompTransform の繰り越しは本番と同一関数を呼ぶ。
+	 * WorldSpace のテレポート時シミュレーションスキップは Output 依存のため非対応（ComponentSpace のみ）。
+	 * Steps one frame deriving the world move from a component transform, duplicating the Evaluate order
+	 * (UpdateSkelCompMove -> SimulateModifyBones -> TeleportType reset -> AdvancePreSkelCompTransform).
+	 * Teleport detection, thresholds and the PreSkelCompTransform carry-over call the production functions.
+	 * The WorldSpace teleport simulation skip needs Output and is not supported (ComponentSpace only).
+	 */
+	void StepFrameWithComponentTransform(FComponentSpacePoseContext& Output, float FrameDt,
+	                                     const FTransform& ComponentTransform)
+	{
+		if (!ensureMsgf(Node.SimulationSpace == EKawaiiPhysicsSimulationSpace::ComponentSpace,
+		                TEXT("FKawaiiPhysicsTestAccessor: StepFrameWithComponentTransform supports ComponentSpace only.")))
+		{
+			return;
+		}
+		Node.UpdateSkelCompMove(Output, ComponentTransform);
+		StepFrame(FrameDt);
+		const bool bTeleportedThisFrame = (Node.TeleportType == ETeleportType::TeleportPhysics);
+		Node.TeleportType = ETeleportType::None;
+		Node.AdvancePreSkelCompTransform(ComponentTransform, bTeleportedThisFrame);
+	}
+
+	/** 前フレームのコンポーネント変換を設定する / Sets the previous-frame component transform. */
+	void SetPreSkelCompTransform(const FTransform& Transform) { Node.PreSkelCompTransform = Transform; }
+	const FTransform& GetPreSkelCompTransform() const { return Node.PreSkelCompTransform; }
+	float GetSubstepAccumulator() const { return Node.SubstepAccumulator; }
 
 	/** 固定フレーム dt で N フレーム進める */
 	void StepFrames(int32 NumFrames, float FrameDt)

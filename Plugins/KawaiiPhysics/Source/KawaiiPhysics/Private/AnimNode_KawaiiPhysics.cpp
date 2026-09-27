@@ -910,23 +910,9 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 
 	ApplySimulateResult(Output, BoneContainer, OutBoneTransforms);
 
+	const bool bTeleportedThisFrame = (TeleportType == ETeleportType::TeleportPhysics);
 	TeleportType = ETeleportType::None;
-	// サブステップで未消費の実時間がある場合、PreSkelCompTransform を消費割合だけ前進させ、
-	// 未適用のComponent移動を次にステップが走るフレームへ繰り越す（NumSteps==0 では割合0で据え置き）。
-	const float PreSkelCompConsumeFrac = FMath::Clamp(PreSkelCompTransformConsumeFraction, 0.0f, 1.0f);
-	if (PreSkelCompConsumeFrac >= 1.0f - KINDA_SMALL_NUMBER)
-	{
-		PreSkelCompTransform = ComponentTransform;
-	}
-	else
-	{
-		PreSkelCompTransform.SetLocation(
-			FMath::Lerp(PreSkelCompTransform.GetLocation(), ComponentTransform.GetLocation(), PreSkelCompConsumeFrac));
-		PreSkelCompTransform.SetRotation(
-			FQuat::Slerp(PreSkelCompTransform.GetRotation(), ComponentTransform.GetRotation(), PreSkelCompConsumeFrac).GetNormalized());
-		PreSkelCompTransform.SetScale3D(
-			FMath::Lerp(PreSkelCompTransform.GetScale3D(), ComponentTransform.GetScale3D(), PreSkelCompConsumeFrac));
-	}
+	AdvancePreSkelCompTransform(ComponentTransform, bTeleportedThisFrame);
 
 #if ENABLE_ANIM_DEBUG
 

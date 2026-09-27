@@ -4,6 +4,7 @@
 
 #include "Misc/AutomationTest.h"
 #include "KawaiiPhysicsTestHarness.h"
+#include "Animation/AnimInstanceProxy.h"
 
 // 物理計算の回帰テスト（Output 非依存の物理関数を直接呼ぶ）：決定性／パラメータ応答（重力方向・剛性単調性・減衰オーバーシュート）／フレームレート非依存性／数値安定性。
 
@@ -572,6 +573,122 @@ bool FKawaiiPhysicsPhysicsSettingsCurveTest::RunTest(const FString& Parameters)
 	// per-bone 経路で Stiffness が実際にボーン毎に変化していること（カーブが効いている証拠）
 	TestTrue(TEXT("PerBone stiffness varies along the chain"),
 	         A.Bone(0).PhysicsSettings.Stiffness != A.Bone(NumBones - 1).PhysicsSettings.Stiffness);
+
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+//  テレポート時の Component 移動の破棄（固定サブステップの繰り越しで漏れないこと）
+// ---------------------------------------------------------------------------
+namespace
+{
+	struct FTeleportRunResult
+	{
+		// tip のポーズ位置からの最大ずれ（cm）
+		float MaxTipDeviation = 0.0f;
+		// 瞬間移動したフレーム直後の PreSkelCompTransform
+		FTransform PreSkelAfterJump = FTransform::Identity;
+	};
+
+	// ComponentSpace の縦チェーン（約140cm）を静止させ、初フレームでコンポーネントを Jump へ瞬間移動させてから 60 フレーム進める。
+	// WorldDamping=0 なので反映された移動はそのまま慣性（揺れ）になる。重力なしなので移動が破棄されればチェーンは直立したまま。
+	FTeleportRunResult RunComponentJump(bool bFixedSubstep, const FTransform& Jump,
+	                                    float DistanceThreshold, float RotationThreshold)
+	{
+		FKawaiiPhysicsTestAccessor A;
+		A.BuildVerticalChain(6, 28.0f);
+
+		FKawaiiPhysicsSettings S;
+		S.Damping = 0.1f;
+		S.Stiffness = 0.05f;
+		S.WorldDampingLocation = 0.0f;
+		S.WorldDampingRotation = 0.0f;
+		S.LimitAngle = 0.0f;
+		S.Radius = 0.0f;
+		A.SetAllPhysicsSettings(S);
+
+		A.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+		A.SetGravityInSimSpace(FVector::ZeroVector);
+		A.SetFixedSubstepping(bFixedSubstep, 60, 8);
+		A.Node.TeleportDistanceThreshold = DistanceThreshold;
+		A.Node.TeleportRotationThreshold = RotationThreshold;
+		A.SetPreSkelCompTransform(FTransform::Identity);
+
+		FAnimInstanceProxy Proxy;
+		FComponentSpacePoseContext Output(&Proxy);
+
+		// 60Hz 固定ステップに対し 1.5 ステップ分の dt。初フレームは 1 ステップだけ消費し、移動の 1/3 を繰り越す。
+		const float FrameDt = 1.0f / 40.0f;
+		FTeleportRunResult Result;
+		for (int32 Frame = 0; Frame < 60; ++Frame)
+		{
+			A.StepFrameWithComponentTransform(Output, FrameDt, Jump);
+			if (Frame == 0)
+			{
+				Result.PreSkelAfterJump = A.GetPreSkelCompTransform();
+			}
+			const FKawaiiPhysicsModifyBone& Tip = A.Bone(A.Num() - 1);
+			Result.MaxTipDeviation = FMath::Max(Result.MaxTipDeviation,
+			                                    static_cast<float>((Tip.Location - Tip.PoseLocation).Size()));
+		}
+		return Result;
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTeleportDiscardsComponentMoveTest,
+                                 "KawaiiPhysics.Simulation.TeleportDiscardsComponentMove",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsTeleportDiscardsComponentMoveTest::RunTest(const FString& Parameters)
+{
+	const FTransform Translate120(FVector(0.0f, 120.0f, 0.0f));
+	const FTransform RotateX25(FQuat(FVector::XAxisVector, FMath::DegreesToRadians(25.0f)));
+	const float RigidTol = 0.01f;   // cm。破棄されていればポーズから動かない
+	const float SwingMin = 5.0f;    // cm。反映されていれば明確に揺れる
+
+	struct FCase
+	{
+		const TCHAR* Name;
+		bool bFixedSubstep;
+	};
+	const FCase Cases[] = {{TEXT("FixedSubstep"), true}, {TEXT("Legacy"), false}};
+
+	for (const FCase& Case : Cases)
+	{
+		// 距離テレポート（120cm > 閾値50cm）: 移動を全量破棄し、繰り越し分も漏れない
+		{
+			const FTeleportRunResult R = RunComponentJump(Case.bFixedSubstep, Translate120, 50.0f, 0.0f);
+			TestTrue(FString::Printf(TEXT("[%s] distance teleport keeps chain rigid: maxDev=%.4f"),
+			                         Case.Name, R.MaxTipDeviation),
+			         R.MaxTipDeviation < RigidTol);
+			TestTrue(FString::Printf(TEXT("[%s] distance teleport advances PreSkelCompTransform fully: %s"),
+			                         Case.Name, *R.PreSkelAfterJump.GetLocation().ToString()),
+			         R.PreSkelAfterJump.GetLocation().Equals(Translate120.GetLocation(), KINDA_SMALL_NUMBER));
+		}
+
+		// 回転テレポート（25° > 閾値10°、繰り越し分 8.3° は閾値未満）
+		{
+			const FTeleportRunResult R = RunComponentJump(Case.bFixedSubstep, RotateX25, 0.0f, 10.0f);
+			TestTrue(FString::Printf(TEXT("[%s] rotation teleport keeps chain rigid: maxDev=%.4f"),
+			                         Case.Name, R.MaxTipDeviation),
+			         R.MaxTipDeviation < RigidTol);
+			TestTrue(FString::Printf(TEXT("[%s] rotation teleport advances PreSkelCompTransform fully"), Case.Name),
+			         R.PreSkelAfterJump.GetRotation().Equals(RotateX25.GetRotation(), KINDA_SMALL_NUMBER));
+		}
+
+		// 対照: 閾値未満の移動は従来どおり反映されて揺れる
+		{
+			const FTeleportRunResult R = RunComponentJump(Case.bFixedSubstep, Translate120, 300.0f, 0.0f);
+			TestTrue(FString::Printf(TEXT("[%s] sub-threshold move still swings: maxDev=%.4f"),
+			                         Case.Name, R.MaxTipDeviation),
+			         R.MaxTipDeviation > SwingMin);
+			// 非テレポート時の繰り越しは従来どおり（固定サブステップは 1/1.5 ステップ分だけ前進 → Y=80）
+			const float ExpectedY = Case.bFixedSubstep ? 80.0f : 120.0f;
+			TestTrue(FString::Printf(TEXT("[%s] sub-threshold move keeps carry-over: PreSkel.Y=%.4f expected=%.4f"),
+			                         Case.Name, R.PreSkelAfterJump.GetLocation().Y, ExpectedY),
+			         FMath::IsNearlyEqual(static_cast<float>(R.PreSkelAfterJump.GetLocation().Y), ExpectedY, 0.01f));
+		}
+	}
 
 	return true;
 }
