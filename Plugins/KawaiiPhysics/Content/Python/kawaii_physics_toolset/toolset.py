@@ -457,7 +457,9 @@ def _anim_class_name(component: unreal.SkeletalMeshComponent) -> str:
 def _handle_to_dict(handle: unreal.KawaiiPhysicsTransientHandle) -> dict[str, int]:
     if handle is None:
         return {'id': 0}
-    return {'id': int(handle.get_editor_property('id'))}
+    # Id は Blueprint 非公開の UPROPERTY で get_editor_property では読めないため、ExportText から取り出す
+    match = re.search(r'Id=(-?\d+)', handle.export_text())
+    return {'id': int(match.group(1)) if match else 0}
 
 
 def _handle_to_json(handle: unreal.KawaiiPhysicsTransientHandle) -> str:
@@ -479,7 +481,7 @@ def _handle_from_json(text: str) -> unreal.KawaiiPhysicsTransientHandle:
         raise ValueError('handle_json must be {"id": <int>} or an integer.')
 
     handle = unreal.KawaiiPhysicsTransientHandle()
-    handle.set_editor_property('id', value)
+    handle.import_text(f'(Id={value})')
     return handle
 
 

@@ -823,6 +823,13 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
             KawaiiPhysicsToolset.get_shared_publisher_node_property(handle, 'NoSuchProperty_XYZ')
         self.assertIn('NoSuchProperty_XYZ', str(cm.exception))
 
+    def test_transient_handle_json_round_trip(self):
+        # Id は Python から直接読み書きできないため、start/stop 系ツールの handle 変換を往復で確かめる
+        handle = toolset_module._handle_from_json('{"id": 42}')
+        self.assertEqual(toolset_module._handle_to_dict(handle), {'id': 42})
+        self.assertEqual(json.loads(toolset_module._handle_to_json(toolset_module._handle_from_json('7'))), {'id': 7})
+        self.assertEqual(toolset_module._handle_to_dict(None), {'id': 0})
+
     def test_set_anim_graph_input_animation_skeleton_mismatch_raises(self):
         mismatch_animation = unreal.EditorAssetLibrary.load_asset(SKIRT_ANIMATION_PATH)
         if mismatch_animation is None:
