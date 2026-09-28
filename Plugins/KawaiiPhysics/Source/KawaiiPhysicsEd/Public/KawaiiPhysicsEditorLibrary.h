@@ -28,6 +28,18 @@ enum class EKawaiiPhysicsEditorAccessResult : uint8
 	NotValid,
 };
 
+/** AnimNode Function のイベント / AnimNode Function event. */
+UENUM(BlueprintType)
+enum class EKawaiiPhysicsAnimNodeFunctionEvent : uint8
+{
+	/** 初回更新時 / On Initial Update. */
+	InitialUpdate,
+	/** 有効になった時 / On Become Relevant. */
+	BecomeRelevant,
+	/** 更新時 / On Update. */
+	Update,
+};
+
 /** 自動配置方向のリクエスト単位上書き。Default はプロジェクト設定に従う / Per-request override for automatic placement direction. Default follows project settings. */
 UENUM(BlueprintType)
 enum class EKawaiiPhysicsNodePlacementDirectionOverride : uint8
@@ -435,6 +447,20 @@ public:
 		FName GraphName = NAME_None);
 
 	/**
+	 * AnimGraph の入力に InPose という Input Pose を追加する。既存の SequencePlayer は置き換え、接続済み Input Pose は変更しない。コンパイルは行わない。戻り値は新規ノード数（0 または 1）、失敗時は -1 で理由を OutError に返す。
+	 * Add an Input Pose named InPose to the AnimGraph input, replacing an existing SequencePlayer. An already connected Input Pose is unchanged. Does not compile. Returns the number of new nodes (0 or 1), or -1 on failure with the reason in OutError.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static int32 SetAnimGraphInputPose(UAnimBlueprint* AnimBlueprint, FString& OutError);
+
+	/**
+	 * AnimGraph の入力に InPose という Input Pose が接続されているかを返す。SetAnimGraphInputPose と同じく Result から上流のポーズ入力を辿って判定する。AnimBlueprint は変更しない。
+	 * Return whether an Input Pose named InPose is connected to the AnimGraph input. Follows the pose inputs upstream from Result, as SetAnimGraphInputPose does. Does not modify the AnimBlueprint.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static bool IsAnimGraphInputPoseConnected(UAnimBlueprint* AnimBlueprint);
+
+	/**
 	 * AnimGraph のノード配置を整える。Result から各ノードの先頭の接続済みポーズ入力を上流へ辿り、そのチェーンを Result の行へ上流から下流の順に左から右へ並べる（Result は動かさず、間隔はノード幅に基づく）。チェーン外のノードは動かさない。MCP コメント枠は、紐付いた KawaiiPhysics ノード（紐付けが無ければレイアウト前に枠と重なっていた KawaiiPhysics ノード、それも無く MCP コメント枠が1つだけならグラフ内の全 KawaiiPhysics ノード）を囲むよう再調整する。コンパイルは行わない。入力が不正なら false。
 	 * Tidy the node layout of an AnimGraph. Follows the first linked pose input of each node upstream from Result and places that chain on Result's row, left to right from upstream to downstream (Result stays in place; spacing is based on node widths). Nodes off the chain are left in place. Each MCP comment frame is refit around its associated KawaiiPhysics nodes (or, without an association, the KawaiiPhysics nodes that overlapped it before the layout; failing that, all KawaiiPhysics nodes in the graph when it is the only MCP comment frame). Does not compile. Returns false for invalid input.
 	 */
@@ -480,6 +506,25 @@ public:
 	/** グラフノードハンドルが有効か / Check whether a graph node handle is valid. */
 	UFUNCTION(BlueprintPure, Category = "Kawaii Physics|Editor")
 	static bool IsGraphNodeHandleValid(const FKawaiiPhysicsGraphNodeHandle& Handle);
+
+	/**
+	 * AnimNode Function を作成またはバインドする。None はバインドのみ解除し、関数グラフを残す。コンパイルは行わない。戻り値は新規関数グラフ数（0 または 1）、失敗時は -1 で理由を OutError に返す。
+	 * Create or bind an AnimNode Function. None clears only the binding and keeps the function graph. Does not compile. Returns the number of new function graphs (0 or 1), or -1 on failure with the reason in OutError.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static int32 BindGraphNodeAnimNodeFunction(
+		const FKawaiiPhysicsGraphNodeHandle& Handle,
+		EKawaiiPhysicsAnimNodeFunctionEvent Event,
+		FName FunctionName,
+		FString& OutError);
+
+	/** エディタが非アクティブなときの CPU スロットリングを設定し、変更前の値を返す。設定ファイルには保存しない。 / Set editor background CPU throttling and return its previous value without saving configuration. */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static bool SetBackgroundCPUThrottleEnabled(bool bEnabled);
+
+	/** エディタが非アクティブなときの CPU スロットリングの現在値を返す。 / Return whether editor background CPU throttling is currently enabled. */
+	UFUNCTION(BlueprintPure, Category = "Kawaii Physics|Editor")
+	static bool IsBackgroundCPUThrottleEnabled();
 
 	/** Shared Publisher グラフノードハンドルが有効か / Check whether a Shared Publisher graph node handle is valid. */
 	UFUNCTION(BlueprintPure, Category = "Kawaii Physics|Editor")

@@ -8,12 +8,14 @@
 #include "AnimGraphNode_ComponentToLocalSpace.h"
 #include "AnimGraphNode_KawaiiPhysics.h"
 #include "AnimGraphNode_LocalToComponentSpace.h"
+#include "AnimGraphNode_LinkedInputPose.h"
 #include "AnimGraphNode_Root.h"
 #include "AnimGraphNode_SequencePlayer.h"
 #include "Animation/AnimBlueprint.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimNode_Root.h"
+#include "Animation/AnimNode_LinkedInputPose.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
@@ -374,6 +376,85 @@ bool FKawaiiPhysicsAnimGraphInputCompileMessagesTest::RunTest(const FString& Par
 	                 UKawaiiPhysicsEditorLibrary::CompileAnimBlueprintWithMessages(nullptr, NullMessages),
 	                 static_cast<int32>(INDEX_NONE));
 	bOk &= TestTrue(TEXT("Null AnimBlueprint returns no messages"), NullMessages.IsEmpty());
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsAnimGraphInputPoseTest,
+                                 "KawaiiPhysics.EditorScripting.AnimGraphInput.InputPose",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsAnimGraphInputPoseTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsAnimGraphInputFixture Fixture = MakeAnimGraphInputFixture(*this);
+	if (!IsAnimGraphInputFixtureValid(Fixture))
+	{
+		return false;
+	}
+
+	bool bOk = true;
+	FString Error;
+	bOk &= TestEqual(TEXT("Input Pose is connected to a fresh AnimGraph"),
+	                 UKawaiiPhysicsEditorLibrary::SetAnimGraphInputPose(Fixture.AnimBlueprint, Error), 1);
+	bOk &= TestTrue(TEXT("Fresh Input Pose reports no error"), Error.IsEmpty());
+	UAnimGraphNode_LinkedInputPose* InputPose = Cast<UAnimGraphNode_LinkedInputPose>(
+		GetAnimGraphInputLinkedNode(GetAnimGraphInputResultPin(Fixture.AnimGraph)));
+	bOk &= TestNotNull(TEXT("Result is fed by Input Pose"), InputPose);
+	if (InputPose)
+	{
+		bOk &= TestEqual(TEXT("Input Pose is named InPose"), InputPose->Node.Name,
+		                 FAnimNode_LinkedInputPose::DefaultInputPoseName);
+	}
+	bOk &= TestTrue(TEXT("Connected InPose is reported as connected"),
+	                UKawaiiPhysicsEditorLibrary::IsAnimGraphInputPoseConnected(Fixture.AnimBlueprint));
+
+	TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+	Requests.Add(MakeAnimGraphInputAutoConnectRequest(TEXT("hair_01")));
+	bOk &= TestEqual(TEXT("KawaiiPhysics node is added"),
+	                 UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests).Num(), 1);
+	TArray<FString> Messages;
+	bOk &= TestEqual(TEXT("Input Pose chain compiles without errors"),
+	                 UKawaiiPhysicsEditorLibrary::CompileAnimBlueprintWithMessages(Fixture.AnimBlueprint, Messages), 0);
+
+	FKawaiiPhysicsAnimGraphInputFixture ReplacementFixture = MakeAnimGraphInputFixture(*this);
+	if (!IsAnimGraphInputFixtureValid(ReplacementFixture))
+	{
+		return false;
+	}
+	bOk &= TestTrue(TEXT("SequencePlayer is connected before replacement"),
+	                UKawaiiPhysicsEditorLibrary::SetAnimGraphInputAnimation(
+		                ReplacementFixture.AnimBlueprint, ReplacementFixture.Animation));
+	bOk &= TestEqual(TEXT("One SequencePlayer exists before replacement"),
+	                 CollectAnimGraphInputSequencePlayers(ReplacementFixture.AnimGraph).Num(), 1);
+	bOk &= TestFalse(TEXT("SequencePlayer input is not reported as a connected InPose"),
+	                 UKawaiiPhysicsEditorLibrary::IsAnimGraphInputPoseConnected(ReplacementFixture.AnimBlueprint));
+	bOk &= TestEqual(TEXT("SequencePlayer is replaced with a new Input Pose"),
+	                 UKawaiiPhysicsEditorLibrary::SetAnimGraphInputPose(ReplacementFixture.AnimBlueprint, Error), 1);
+	bOk &= TestEqual(TEXT("SequencePlayer is removed"),
+	                 CollectAnimGraphInputSequencePlayers(ReplacementFixture.AnimGraph).Num(), 0);
+	UAnimGraphNode_LinkedInputPose* ReplacementPose = Cast<UAnimGraphNode_LinkedInputPose>(
+		GetAnimGraphInputLinkedNode(GetAnimGraphInputResultPin(ReplacementFixture.AnimGraph)));
+	bOk &= TestNotNull(TEXT("Replacement Input Pose feeds Result"), ReplacementPose);
+	const int32 NodeCount = ReplacementFixture.AnimGraph->Nodes.Num();
+	bOk &= TestEqual(TEXT("Calling Input Pose setter twice creates no node"),
+	                 UKawaiiPhysicsEditorLibrary::SetAnimGraphInputPose(ReplacementFixture.AnimBlueprint, Error), 0);
+	bOk &= TestTrue(TEXT("Second call reports no error"), Error.IsEmpty());
+	bOk &= TestEqual(TEXT("Calling twice does not add nodes"), ReplacementFixture.AnimGraph->Nodes.Num(), NodeCount);
+	bOk &= TestTrue(TEXT("Calling twice keeps the same Input Pose"),
+	                GetAnimGraphInputLinkedNode(GetAnimGraphInputResultPin(ReplacementFixture.AnimGraph)) == ReplacementPose);
+	if (ReplacementPose)
+	{
+		ReplacementPose->Node.Name = TEXT("OtherPose");
+		Error.Reset();
+		bOk &= TestEqual(TEXT("Connected Input Pose with another name is rejected"),
+		                 UKawaiiPhysicsEditorLibrary::SetAnimGraphInputPose(ReplacementFixture.AnimBlueprint, Error), -1);
+		bOk &= TestFalse(TEXT("Connected Input Pose with another name reports a reason"), Error.IsEmpty());
+		bOk &= TestFalse(TEXT("Connected Input Pose with another name is not reported as InPose"),
+		                 UKawaiiPhysicsEditorLibrary::IsAnimGraphInputPoseConnected(ReplacementFixture.AnimBlueprint));
+	}
+	Error.Reset();
+	bOk &= TestEqual(TEXT("Null AnimBlueprint is rejected"),
+	                 UKawaiiPhysicsEditorLibrary::SetAnimGraphInputPose(nullptr, Error), -1);
+	bOk &= TestFalse(TEXT("Null AnimBlueprint reports a reason"), Error.IsEmpty());
 	return bOk;
 }
 

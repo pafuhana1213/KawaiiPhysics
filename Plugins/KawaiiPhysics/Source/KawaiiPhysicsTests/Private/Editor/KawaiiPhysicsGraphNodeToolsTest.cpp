@@ -10,11 +10,15 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/Skeleton.h"
 #include "AnimationRuntime.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraphSchema_K2.h"
 #include "Editor.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce_Basic.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce_Wind.h"
 #include "Kismet2/KismetEditorUtilities.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "K2Node_FunctionEntry.h"
 #include "Misc/AutomationTest.h"
 #include "ReferenceSkeleton.h"
 
@@ -308,6 +312,125 @@ bool FKawaiiPhysicsGraphNodeToolsEditorWorldTest::RunTest(const FString& Paramet
 	return TestTrue(TEXT("Editor world matches the editor world context"),
 	                UKawaiiPhysicsEditorLibrary::GetEditorWorldIgnoringPlayMode() ==
 	                GEditor->GetEditorWorldContext(false).World());
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsGraphNodeToolsAnimNodeFunctionTest,
+                                 "KawaiiPhysics.EditorScripting.GraphNode.AnimNodeFunction",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsGraphNodeToolsAnimNodeFunctionTest::RunTest(const FString& Parameters)
+{
+	UAnimBlueprint* AnimBlueprint = CreateGraphNodeToolsTestAnimBlueprint(*this);
+	FKawaiiPhysicsNodePlacementRequest Request;
+	Request.RootBoneName = TEXT("Spine_01");
+	Request.bAutoConnect = true;
+	TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
+	Requests.Add(Request);
+	const TArray<FKawaiiPhysicsGraphNodeHandle> Handles =
+		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(AnimBlueprint, Requests);
+	const FKawaiiPhysicsGraphNodeHandle Handle = Handles.IsValidIndex(0)
+		? Handles[0] : FKawaiiPhysicsGraphNodeHandle();
+	UAnimGraphNode_KawaiiPhysics* GraphNode = Handle.Node.Get();
+	if (!TestNotNull(TEXT("KawaiiPhysics graph node is created"), GraphNode))
+	{
+		return false;
+	}
+
+	bool bOk = true;
+	const EKawaiiPhysicsAnimNodeFunctionEvent Events[] = {
+		EKawaiiPhysicsAnimNodeFunctionEvent::InitialUpdate,
+		EKawaiiPhysicsAnimNodeFunctionEvent::BecomeRelevant,
+		EKawaiiPhysicsAnimNodeFunctionEvent::Update,
+	};
+	const FName FunctionNames[] = {TEXT("KPTestInitialUpdate"), TEXT("KPTestBecomeRelevant"), TEXT("KPTestUpdate")};
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Events); ++Index)
+	{
+		FString Error;
+		bOk &= TestEqual(TEXT("AnimNode Function is created and bound"),
+		                UKawaiiPhysicsEditorLibrary::BindGraphNodeAnimNodeFunction(
+			                Handle, Events[Index], FunctionNames[Index], Error), 1);
+		bOk &= TestTrue(TEXT("New function reports no error"), Error.IsEmpty());
+		UFunction* Function = AnimBlueprint->SkeletonGeneratedClass
+			? AnimBlueprint->SkeletonGeneratedClass->FindFunctionByName(FunctionNames[Index]) : nullptr;
+		bOk &= TestNotNull(TEXT("Function is in the skeleton generated class"), Function);
+		if (Function)
+		{
+			bOk &= TestTrue(TEXT("Function is Blueprint thread safe"),
+			                FBlueprintEditorUtils::HasFunctionBlueprintThreadSafeMetaData(Function));
+		}
+		const FMemberReference* Reference = Index == 0 ? &GraphNode->InitialUpdateFunction
+			: Index == 1 ? &GraphNode->BecomeRelevantFunction : &GraphNode->UpdateFunction;
+		bOk &= TestEqual(TEXT("Event references its function"), Reference->GetMemberName(), FunctionNames[Index]);
+	}
+	TArray<FString> Messages;
+	bOk &= TestEqual(TEXT("Bound AnimNode Functions compile without errors"),
+	                 UKawaiiPhysicsEditorLibrary::CompileAnimBlueprintWithMessages(AnimBlueprint, Messages), 0);
+
+	FString Error;
+	bOk &= TestEqual(TEXT("Same function can be rebound without creating a graph"),
+	                UKawaiiPhysicsEditorLibrary::BindGraphNodeAnimNodeFunction(
+		                Handle, EKawaiiPhysicsAnimNodeFunctionEvent::Update, FunctionNames[2], Error), 0);
+	bOk &= TestTrue(TEXT("Rebinding reports no error"), Error.IsEmpty());
+	UEdGraph* UpdateGraph = nullptr;
+	for (UEdGraph* Graph : AnimBlueprint->FunctionGraphs)
+	{
+		if (Graph && Graph->GetFName() == FunctionNames[2])
+		{
+			UpdateGraph = Graph;
+			break;
+		}
+	}
+	bOk &= TestNotNull(TEXT("Update function graph exists"), UpdateGraph);
+	bOk &= TestEqual(TEXT("None clears the binding without creating a graph"),
+	                UKawaiiPhysicsEditorLibrary::BindGraphNodeAnimNodeFunction(
+		                Handle, EKawaiiPhysicsAnimNodeFunctionEvent::Update, NAME_None, Error), 0);
+	bOk &= TestTrue(TEXT("Clearing reports no error"), Error.IsEmpty());
+	bOk &= TestTrue(TEXT("Update binding is cleared"), GraphNode->UpdateFunction.GetMemberName().IsNone());
+	bOk &= TestTrue(TEXT("Unbinding keeps the function graph"), AnimBlueprint->FunctionGraphs.Contains(UpdateGraph));
+
+	UEdGraph* InvalidGraph = FBlueprintEditorUtils::CreateNewGraph(
+		AnimBlueprint, TEXT("KPTestWrongSignature"), UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
+	FBlueprintEditorUtils::AddFunctionGraph(AnimBlueprint, InvalidGraph, true, static_cast<UFunction*>(nullptr));
+	TArray<UK2Node_FunctionEntry*> InvalidEntryNodes;
+	InvalidGraph->GetNodesOfClass(InvalidEntryNodes);
+	if (InvalidEntryNodes.IsValidIndex(0))
+	{
+		InvalidEntryNodes[0]->MetaData.bThreadSafe = true;
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(AnimBlueprint);
+	}
+	bOk &= TestEqual(TEXT("Function with no parameters is rejected"),
+	                 UKawaiiPhysicsEditorLibrary::BindGraphNodeAnimNodeFunction(
+		                 Handle, EKawaiiPhysicsAnimNodeFunctionEvent::Update, TEXT("KPTestWrongSignature"), Error), -1);
+	bOk &= TestFalse(TEXT("Rejected function reports an error"), Error.IsEmpty());
+	bOk &= TestTrue(TEXT("Rejected function reports signature mismatch"), Error.Contains(TEXT("signature")));
+	bOk &= TestTrue(TEXT("Rejected function leaves Update unbound"), GraphNode->UpdateFunction.GetMemberName().IsNone());
+	bOk &= TestEqual(TEXT("Existing AnimGraph name is rejected"),
+	                 UKawaiiPhysicsEditorLibrary::BindGraphNodeAnimNodeFunction(
+		                 Handle, EKawaiiPhysicsAnimNodeFunctionEvent::Update, UEdGraphSchema_K2::GN_AnimGraph,
+		                 Error), -1);
+	bOk &= TestFalse(TEXT("Existing graph name reports an error"), Error.IsEmpty());
+	bOk &= TestTrue(TEXT("Existing graph name reports it is already in use"), Error.Contains(TEXT("already in use")));
+
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsGraphNodeToolsBackgroundCPUThrottleTest,
+                                 "KawaiiPhysics.EditorScripting.BackgroundCPUThrottle",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsGraphNodeToolsBackgroundCPUThrottleTest::RunTest(const FString& Parameters)
+{
+	const bool bOriginal = UKawaiiPhysicsEditorLibrary::IsBackgroundCPUThrottleEnabled();
+	const bool bPrevious = UKawaiiPhysicsEditorLibrary::SetBackgroundCPUThrottleEnabled(!bOriginal);
+	const bool bCurrent = UKawaiiPhysicsEditorLibrary::IsBackgroundCPUThrottleEnabled();
+	const bool bRestoredPrevious = UKawaiiPhysicsEditorLibrary::SetBackgroundCPUThrottleEnabled(bOriginal);
+	const bool bRestored = UKawaiiPhysicsEditorLibrary::IsBackgroundCPUThrottleEnabled();
+	bool bOk = true;
+	bOk &= TestEqual(TEXT("Setter returns the previous value"), bPrevious, bOriginal);
+	bOk &= TestEqual(TEXT("Getter reports the changed value"), bCurrent, !bOriginal);
+	bOk &= TestEqual(TEXT("Restoring returns the changed value"), bRestoredPrevious, !bOriginal);
+	bOk &= TestEqual(TEXT("Original value is restored"), bRestored, bOriginal);
+	return bOk;
 }
 
 #endif

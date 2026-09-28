@@ -6,11 +6,13 @@
 #include "AnimGraphNode_ComponentToLocalSpace.h"
 #include "AnimGraphNode_KawaiiPhysics.h"
 #include "AnimGraphNode_KawaiiPhysicsSharedPublisher.h"
+#include "AnimGraphNode_LinkedInputPose.h"
 #include "AnimGraphNode_LocalToComponentSpace.h"
 #include "AnimGraphNode_Root.h"
 #include "AnimGraphNode_SequencePlayer.h"
 #include "AnimationGraph.h"
 #include "Animation/AnimNode_Root.h"
+#include "Animation/AnimNode_LinkedInputPose.h"
 #include "Animation/AnimSequenceBase.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "EdGraphSchema_K2.h"
@@ -30,6 +32,7 @@
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Editor.h"
+#include "Editor/EditorPerformanceSettings.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
 #include "JsonObjectConverter.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
@@ -41,12 +44,14 @@
 #include "GameplayTagsSettings.h"
 #include "Internationalization/Regex.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/Kismet2NameValidators.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "KawaiiPhysicsDeveloperSettings.h"
 #include "Logging/TokenizedMessage.h"
 #include "KawaiiPhysicsMcpCommentNode.h"
 #include "KawaiiPhysicsPresetDiffSnapshot.h"
+#include "K2Node_FunctionEntry.h"
 #include "Misc/App.h"
 #include "Misc/EngineVersionComparison.h"
 #include "Misc/PackageName.h"
@@ -2083,6 +2088,67 @@ namespace
 		}
 		return bChanged;
 	}
+
+	// AnimGraph の Result から上流のポーズ入力を辿った結果
+	struct FAnimGraphInputPoseTraceForEditorLibrary
+	{
+		UEdGraph* Graph = nullptr;
+		UAnimGraphNode_Root* RootNode = nullptr;
+		// 探索が止まったポーズ入力ピン。辿れる入力が無くなった場合は null
+		UEdGraphPin* TargetPin = nullptr;
+		UAnimGraphNode_LinkedInputPose* ConnectedInputPose = nullptr;
+		UAnimGraphNode_SequencePlayer* ExistingSequencePlayer = nullptr;
+	};
+
+	// Result から先頭のポーズ入力を上流へ辿り、接続済みの Input Pose か SequencePlayer で止まる。
+	// グラフや Result が無い、または連鎖が壊れている・循環している場合は false と理由を返す
+	bool TraceAnimGraphInputPoseForEditorLibrary(
+		UAnimBlueprint* AnimBlueprint,
+		FAnimGraphInputPoseTraceForEditorLibrary& OutTrace,
+		FString& OutError)
+	{
+		OutTrace = FAnimGraphInputPoseTraceForEditorLibrary();
+		OutTrace.Graph = FindPlacementAnimGraph(AnimBlueprint, UEdGraphSchema_K2::GN_AnimGraph);
+		if (!OutTrace.Graph)
+		{
+			OutError = TEXT("AnimGraph was not found.");
+			return false;
+		}
+		OutTrace.RootNode = FindResultRootNodeForEditorLibrary(OutTrace.Graph);
+		if (!OutTrace.RootNode)
+		{
+			OutError = TEXT("Result node was not found in AnimGraph.");
+			return false;
+		}
+
+		UEdGraphPin* TargetPin =
+			OutTrace.RootNode->FindPin(GET_MEMBER_NAME_CHECKED(FAnimNode_Root, Result), EGPD_Input);
+		TSet<const UEdGraphNode*> VisitedNodes;
+		while (TargetPin && !TargetPin->LinkedTo.IsEmpty())
+		{
+			UEdGraphPin* SourcePin = TargetPin->LinkedTo[0];
+			UEdGraphNode* SourceNode = SourcePin ? SourcePin->GetOwningNode() : nullptr;
+			if (!SourceNode || VisitedNodes.Contains(SourceNode))
+			{
+				OutError = TEXT("The pose chain from Result is invalid or cyclic.");
+				return false;
+			}
+			VisitedNodes.Add(SourceNode);
+			if (UAnimGraphNode_LinkedInputPose* InputPose = Cast<UAnimGraphNode_LinkedInputPose>(SourceNode))
+			{
+				OutTrace.ConnectedInputPose = InputPose;
+				break;
+			}
+			if (UAnimGraphNode_SequencePlayer* SequencePlayer = Cast<UAnimGraphNode_SequencePlayer>(SourceNode))
+			{
+				OutTrace.ExistingSequencePlayer = SequencePlayer;
+				break;
+			}
+			TargetPin = FindFirstPosePinForEditorLibrary(SourceNode, EGPD_Input);
+		}
+		OutTrace.TargetPin = TargetPin;
+		return true;
+	}
 }
 
 void UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssetData(const TArray<FString>& ContentPaths, TArray<FAssetData>& OutAssets)
@@ -2716,6 +2782,151 @@ bool UKawaiiPhysicsEditorLibrary::SetAnimGraphInputAnimation(
 	return true;
 }
 
+int32 UKawaiiPhysicsEditorLibrary::SetAnimGraphInputPose(UAnimBlueprint* AnimBlueprint, FString& OutError)
+{
+	OutError.Reset();
+	if (!AnimBlueprint)
+	{
+		OutError = TEXT("AnimBlueprint is null.");
+		return -1;
+	}
+
+	// Result から入力側を辿り、接続済みの Input Pose はそのまま使う。
+	FAnimGraphInputPoseTraceForEditorLibrary Trace;
+	if (!TraceAnimGraphInputPoseForEditorLibrary(AnimBlueprint, Trace, OutError))
+	{
+		return -1;
+	}
+	if (Trace.ConnectedInputPose)
+	{
+		if (Trace.ConnectedInputPose->Node.Name != FAnimNode_LinkedInputPose::DefaultInputPoseName)
+		{
+			OutError = TEXT("The connected Input Pose is not named InPose, so a post process instance will not use it.");
+			return -1;
+		}
+		return 0;
+	}
+	UEdGraph* Graph = Trace.Graph;
+	UAnimGraphNode_Root* RootNode = Trace.RootNode;
+	UEdGraphPin* TargetPin = Trace.TargetPin;
+	UAnimGraphNode_SequencePlayer* ExistingSequencePlayer = Trace.ExistingSequencePlayer;
+	if (!TargetPin)
+	{
+		OutError = TEXT("The pose chain from Result has no replaceable pose input.");
+		return -1;
+	}
+
+	// 同じ AnimGraph 内の未接続 InPose を再利用し、他グラフとの名前衝突は拒否する。
+	UAnimGraphNode_LinkedInputPose* ReusableInputPose = nullptr;
+	for (UEdGraph* FunctionGraph : AnimBlueprint->FunctionGraphs)
+	{
+		if (!FunctionGraph || !FunctionGraph->Schema || !FunctionGraph->Schema->IsChildOf(UAnimationGraphSchema::StaticClass()))
+		{
+			continue;
+		}
+		TArray<UAnimGraphNode_LinkedInputPose*> InputPoses;
+		FunctionGraph->GetNodesOfClass(InputPoses);
+		for (UAnimGraphNode_LinkedInputPose* InputPose : InputPoses)
+		{
+			if (InputPose && InputPose->Node.Name == FAnimNode_LinkedInputPose::DefaultInputPoseName)
+			{
+				UEdGraphPin* OutputPin = FindFirstPosePinForEditorLibrary(InputPose, EGPD_Output);
+				if (FunctionGraph != Graph || ReusableInputPose || !OutputPin || !OutputPin->LinkedTo.IsEmpty())
+				{
+					OutError = TEXT("An Input Pose named InPose already exists and cannot be reused.");
+					return -1;
+				}
+				ReusableInputPose = InputPose;
+			}
+		}
+	}
+
+	FScopedTransaction Transaction(
+		NSLOCTEXT("KawaiiPhysicsEditorLibrary", "SetAnimGraphInputPose", "Set Anim Graph Input Pose"));
+	Graph->Modify();
+	UEdGraphNode* PinOwnerNode = TargetPin->GetOwningNode();
+	if (PinOwnerNode)
+	{
+		PinOwnerNode->Modify();
+	}
+	UAnimGraphNode_LinkedInputPose* InputPose = ReusableInputPose;
+	if (!InputPose)
+	{
+		FGraphNodeCreator<UAnimGraphNode_LinkedInputPose> NodeCreator(*Graph);
+		InputPose = NodeCreator.CreateNode(false);
+		NodeCreator.Finalize();
+		if (InputPose->Node.Name != FAnimNode_LinkedInputPose::DefaultInputPoseName)
+		{
+			FBlueprintEditorUtils::RemoveNode(AnimBlueprint, InputPose, true);
+			OutError = TEXT("Input Pose was renamed because InPose is already in use.");
+			return -1;
+		}
+	}
+
+	TSet<UEdGraphNode*> NodesBeforeConnection;
+	for (UEdGraphNode* Node : Graph->Nodes)
+	{
+		NodesBeforeConnection.Add(Node);
+	}
+	const UAnimationGraphSchema* Schema = CastChecked<UAnimationGraphSchema>(Graph->GetSchema());
+	UEdGraphPin* OutputPin = FindFirstPosePinForEditorLibrary(InputPose, EGPD_Output);
+	if (!OutputPin || !Schema->TryCreateConnection(OutputPin, TargetPin))
+	{
+		if (!ReusableInputPose)
+		{
+			FBlueprintEditorUtils::RemoveNode(AnimBlueprint, InputPose, true);
+		}
+		OutError = TEXT("Failed to connect Input Pose to the AnimGraph pose input.");
+		return -1;
+	}
+
+	// 既存プレイヤーの位置を引き継ぎ、不要になったプレイヤーを取り除く。
+	const int32 OwnerPosX = PinOwnerNode ? PinOwnerNode->NodePosX : RootNode->NodePosX;
+	const int32 OwnerPosY = PinOwnerNode ? PinOwnerNode->NodePosY : RootNode->NodePosY;
+	int32 InputPosePosX = OwnerPosX - GetAutoPlacementSpacingX();
+	if (PinOwnerNode == RootNode)
+	{
+		InputPosePosX -= GetAutoPlacementSpacingX() + KawaiiPhysicsPlacementAutoConnectBaseReserveX;
+	}
+	if (ExistingSequencePlayer)
+	{
+		InputPosePosX = ExistingSequencePlayer->NodePosX;
+		InputPose->NodePosY = ExistingSequencePlayer->NodePosY;
+		FBlueprintEditorUtils::RemoveNode(AnimBlueprint, ExistingSequencePlayer, true);
+	}
+	else
+	{
+		InputPose->NodePosY = OwnerPosY;
+	}
+	for (UEdGraphNode* Node : Graph->Nodes)
+	{
+		if (Node && !NodesBeforeConnection.Contains(Node))
+		{
+			Node->Modify();
+			Node->NodePosX = OwnerPosX - KawaiiPhysicsPlacementConversionNodeReserveX;
+			Node->NodePosY = OwnerPosY;
+			InputPosePosX -= KawaiiPhysicsPlacementConversionNodeReserveX;
+		}
+	}
+	InputPose->Modify();
+	InputPose->NodePosX = InputPosePosX;
+	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(AnimBlueprint);
+	return ReusableInputPose ? 0 : 1;
+}
+
+bool UKawaiiPhysicsEditorLibrary::IsAnimGraphInputPoseConnected(UAnimBlueprint* AnimBlueprint)
+{
+	if (!AnimBlueprint)
+	{
+		return false;
+	}
+	FAnimGraphInputPoseTraceForEditorLibrary Trace;
+	FString IgnoredError;
+	return TraceAnimGraphInputPoseForEditorLibrary(AnimBlueprint, Trace, IgnoredError) &&
+		Trace.ConnectedInputPose &&
+		Trace.ConnectedInputPose->Node.Name == FAnimNode_LinkedInputPose::DefaultInputPoseName;
+}
+
 bool UKawaiiPhysicsEditorLibrary::LayoutKawaiiPhysicsAnimGraph(
 	UAnimBlueprint* AnimBlueprint,
 	FName GraphName)
@@ -2920,6 +3131,168 @@ TArray<FName> UKawaiiPhysicsEditorLibrary::FindBonesByPattern(USkeleton* Skeleto
 bool UKawaiiPhysicsEditorLibrary::IsGraphNodeHandleValid(const FKawaiiPhysicsGraphNodeHandle& Handle)
 {
 	return Handle.IsValid();
+}
+
+int32 UKawaiiPhysicsEditorLibrary::BindGraphNodeAnimNodeFunction(
+	const FKawaiiPhysicsGraphNodeHandle& Handle,
+	EKawaiiPhysicsAnimNodeFunctionEvent Event,
+	FName FunctionName,
+	FString& OutError)
+{
+	OutError.Reset();
+	UAnimGraphNode_KawaiiPhysics* GraphNode = GetGraphNode(Handle);
+	if (!GraphNode || !GraphNode->GetGraph())
+	{
+		OutError = TEXT("Graph node handle is invalid.");
+		return -1;
+	}
+	UAnimBlueprint* AnimBlueprint = GraphNode->GetAnimBlueprint();
+	if (!AnimBlueprint)
+	{
+		OutError = TEXT("AnimBlueprint is null.");
+		return -1;
+	}
+
+	FName PropertyName;
+	FMemberReference* Reference = nullptr;
+	switch (Event)
+	{
+	case EKawaiiPhysicsAnimNodeFunctionEvent::InitialUpdate:
+		PropertyName = GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, InitialUpdateFunction);
+		Reference = &GraphNode->InitialUpdateFunction;
+		break;
+	case EKawaiiPhysicsAnimNodeFunctionEvent::BecomeRelevant:
+		PropertyName = GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, BecomeRelevantFunction);
+		Reference = &GraphNode->BecomeRelevantFunction;
+		break;
+	case EKawaiiPhysicsAnimNodeFunctionEvent::Update:
+		PropertyName = GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, UpdateFunction);
+		Reference = &GraphNode->UpdateFunction;
+		break;
+	default:
+		OutError = TEXT("AnimNode Function event is invalid.");
+		return -1;
+	}
+
+	if (FunctionName.IsNone())
+	{
+		FScopedTransaction Transaction(
+			NSLOCTEXT("KawaiiPhysicsEditorLibrary", "BindGraphNodeAnimNodeFunction", "Bind AnimNode Function"));
+		GraphNode->Modify();
+		*Reference = FMemberReference();
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(AnimBlueprint);
+		return 0;
+	}
+	if (!AnimBlueprint->SkeletonGeneratedClass)
+	{
+		OutError = TEXT("AnimBlueprint skeleton generated class is null.");
+		return -1;
+	}
+	const FProperty* Property = UAnimGraphNode_Base::StaticClass()->FindPropertyByName(PropertyName);
+	const FString PrototypeName = Property ? Property->GetMetaData(TEXT("PrototypeFunction")) : FString();
+	const UFunction* PrototypeFunction = PrototypeName.IsEmpty()
+		? nullptr : FindObject<UFunction>(nullptr, *PrototypeName);
+	if (!PrototypeFunction)
+	{
+		OutError = TEXT("AnimNode Function prototype was not found.");
+		return -1;
+	}
+
+	UFunction* Function = AnimBlueprint->SkeletonGeneratedClass->FindFunctionByName(FunctionName);
+	if (Function)
+	{
+		// AnimGraph・レイヤー・親クラスの関数は束縛先にしない。この ABP のユーザー関数グラフだけ検証へ進める
+		const bool bIsUserFunctionGraph = AnimBlueprint->FunctionGraphs.ContainsByPredicate(
+			[FunctionName](const UEdGraph* Graph)
+			{
+				const UClass* SchemaClass = Graph ? Graph->Schema.Get() : nullptr;
+				return Graph && Graph->GetFName() == FunctionName && SchemaClass &&
+					SchemaClass->IsChildOf<UEdGraphSchema_K2>() &&
+					!SchemaClass->IsChildOf<UAnimationGraphSchema>();
+			});
+		if (!bIsUserFunctionGraph)
+		{
+			OutError = TEXT("Function name is already in use by something other than a function graph in the AnimBlueprint.");
+			return -1;
+		}
+		if (!FBlueprintEditorUtils::HasFunctionBlueprintThreadSafeMetaData(Function))
+		{
+			OutError = TEXT("Function is not Blueprint thread safe.");
+			return -1;
+		}
+		if (!PrototypeFunction->IsSignatureCompatibleWith(Function))
+		{
+			OutError = TEXT("Function signature is incompatible with the AnimNode Function prototype.");
+			return -1;
+		}
+	}
+	else
+	{
+		if (FKismetNameValidator(AnimBlueprint).IsValid(FunctionName.ToString()) != EValidatorResult::Ok)
+		{
+			OutError = TEXT("Function name is already in use or invalid in the AnimBlueprint.");
+			return -1;
+		}
+	}
+
+	FScopedTransaction Transaction(
+		NSLOCTEXT("KawaiiPhysicsEditorLibrary", "BindGraphNodeAnimNodeFunction", "Bind AnimNode Function"));
+	const bool bCreateGraph = !Function;
+	if (bCreateGraph)
+	{
+		// FunctionGraphs への追加を Undo に載せるため、エンジンのバインド作成と同じくグラフ生成前に記録する
+		AnimBlueprint->Modify();
+		UEdGraph* FunctionGraph = FBlueprintEditorUtils::CreateNewGraph(
+			AnimBlueprint, FunctionName, UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
+		if (!FunctionGraph)
+		{
+			OutError = TEXT("Failed to create the function graph.");
+			return -1;
+		}
+		FBlueprintEditorUtils::AddFunctionGraph(AnimBlueprint, FunctionGraph, true, PrototypeFunction);
+
+		// 以降の失敗ではグラフを残すため、作成済みであることと再バインド手順をエラーに含める
+		const FString CreatedGraphNote = FString::Printf(
+			TEXT("Function graph '%s' was created but could not be bound. Check the graph, compile the AnimBlueprint, and bind again with the same name."),
+			*FunctionName.ToString());
+		TArray<UK2Node_FunctionEntry*> EntryNodes;
+		FunctionGraph->GetNodesOfClass(EntryNodes);
+		if (EntryNodes.IsEmpty())
+		{
+			OutError = FString::Printf(
+				TEXT("%s The graph has no entry node, so it was not marked thread safe."), *CreatedGraphNote);
+			return -1;
+		}
+		EntryNodes[0]->Modify();
+		EntryNodes[0]->MetaData.bThreadSafe = true;
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(AnimBlueprint);
+		Function = AnimBlueprint->SkeletonGeneratedClass
+			? AnimBlueprint->SkeletonGeneratedClass->FindFunctionByName(FunctionName) : nullptr;
+		if (!Function)
+		{
+			OutError = FString::Printf(
+				TEXT("%s The function was not found in the skeleton generated class."), *CreatedGraphNote);
+			return -1;
+		}
+	}
+
+	GraphNode->Modify();
+	Reference->SetFromField<UFunction>(Function, true);
+	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(AnimBlueprint);
+	return bCreateGraph ? 1 : 0;
+}
+
+bool UKawaiiPhysicsEditorLibrary::SetBackgroundCPUThrottleEnabled(bool bEnabled)
+{
+	UEditorPerformanceSettings* Settings = GetMutableDefault<UEditorPerformanceSettings>();
+	const bool bPrevious = Settings->bThrottleCPUWhenNotForeground;
+	Settings->bThrottleCPUWhenNotForeground = bEnabled;
+	return bPrevious;
+}
+
+bool UKawaiiPhysicsEditorLibrary::IsBackgroundCPUThrottleEnabled()
+{
+	return GetDefault<UEditorPerformanceSettings>()->bThrottleCPUWhenNotForeground;
 }
 
 bool UKawaiiPhysicsEditorLibrary::IsSharedPublisherGraphNodeHandleValid(
