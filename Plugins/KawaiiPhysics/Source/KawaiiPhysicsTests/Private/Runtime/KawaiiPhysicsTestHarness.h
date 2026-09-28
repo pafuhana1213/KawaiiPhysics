@@ -220,6 +220,11 @@ struct FKawaiiPhysicsTestAccessor
 		return Node.SharedSphericalLimits;
 	}
 
+	void SetSharedCapsuleLimits(const TArray<FCapsuleLimit>& Limits)
+	{
+		Node.SharedCapsuleLimits = Limits;
+	}
+
 	void SetUseLegacyGravity(bool bUse) { Node.bUseLegacyGravity = bUse; }
 	void SetSkelCompMove(const FVector& MoveVec, const FQuat& MoveRot = FQuat::Identity)
 	{

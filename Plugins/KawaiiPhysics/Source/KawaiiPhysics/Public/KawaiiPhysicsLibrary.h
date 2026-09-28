@@ -9,6 +9,7 @@
 #include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
 #include "KawaiiPhysicsTypes.h"
 #include "KawaiiPhysicsPresetDataAsset.h"
+#include "KawaiiPhysicsRuntimeInfoTypes.h"
 #include "Animation/AnimNodeReference.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "UObject/UnrealType.h"
@@ -74,6 +75,10 @@ struct FKawaiiPhysicsSharedPublisherReference : public FAnimNodeReference
 
 namespace KawaiiPhysics
 {
+	// 1 ノード分のランタイム情報を組み立てる。AnimInstanceClassName と NodeIndex は呼び出し側が入れる（コンポーネント無しでテストできるよう公開）。
+	// Build the runtime info of one node. The caller fills AnimInstanceClassName and NodeIndex (public so it can be tested without a component).
+	KAWAIIPHYSICS_API void BuildRuntimeNodeInfo(const FAnimNode_KawaiiPhysics& Node, FKawaiiPhysicsRuntimeNodeInfo& OutInfo);
+
 	// 一時外力 struct がキュー可能か検証する（IsValid / FKawaiiPhysics_ExternalForce 派生 / live UObject 参照なし）。拒否理由を Warning ログに出す。
 	// Validate that a transient external-force struct can be queued (IsValid / derives from FKawaiiPhysics_ExternalForce / no live UObject references). Logs a warning with the reason when rejected.
 	KAWAIIPHYSICS_API bool CanQueueTransientExternalForce(const FInstancedStruct& ExternalForce, const TCHAR* ContextName);
@@ -1350,6 +1355,21 @@ public:
 	static int32 GetSimpleWorldColliderCountOnComponent(USkeletalMeshComponent* MeshComp,
 	                                                    const FGameplayTagContainer& FilterTags,
 	                                                    bool bFilterExactMatch = false);
+
+	/**
+	 * コンポーネント内の（タグ一致する）全 KawaiiPhysics ノードについて、直近の評価で実際に使われたボーン・当たり半径・コリジョン・拘束をコンポーネント空間で返す。調整ツール向けの診断用。
+	 * 半径は一時的な物理設定倍率を掛けた後の値。GameThread 専用。評価中には呼ばず、コンポーネントの Tick 後に呼ぶこと。
+	 * 戻り値は情報を返したノードの数。MeshComp が無効なら -1 を返し、OutError に理由を入れる。
+	 * Returns, in component space, the bones, collision radii, collision limits and constraints actually used in the latest evaluation of every (tag-matched) KawaiiPhysics node in the component. Intended for diagnostics in tuning tools.
+	 * Radii include temporary physics settings multipliers. GameThread only. Do not call during evaluation; call after the component has ticked.
+	 * Returns the number of nodes reported, or -1 with the reason in OutError when MeshComp is invalid.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta = (AutoCreateRefTerm = "FilterTags"))
+	static int32 GetRuntimeNodeInfosOnComponent(USkeletalMeshComponent* MeshComp,
+	                                            const FGameplayTagContainer& FilterTags,
+	                                            bool bFilterExactMatch,
+	                                            TArray<FKawaiiPhysicsRuntimeNodeInfo>& OutInfos,
+	                                            FString& OutError);
 
 	static bool IsNodePropertyAccessible(const FProperty* Property);
 	static bool IsNodePropertyAccessible(FName PropertyName);

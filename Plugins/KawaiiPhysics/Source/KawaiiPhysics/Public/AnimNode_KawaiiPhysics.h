@@ -1322,6 +1322,35 @@ public:
 		return FTransform::Identity;
 	}
 
+	/**
+	 * 直近の評価で使ったシミュレーション空間→コンポーネント空間の変換を返す。まだ評価されていなければ Identity を返し bOutEvaluated を偽にする。
+	 * Returns the simulation-space-to-component-space transform used by the latest evaluation. Returns Identity and sets bOutEvaluated to false when the node has not been evaluated yet.
+	 */
+	FTransform GetSimulationSpace2ComponentSpace(bool& bOutEvaluated) const
+	{
+		bOutEvaluated = bHasCurrentEvalSimSpaceCache;
+		return bHasCurrentEvalSimSpaceCache ? CurrentEvalSimSpaceCache.TargetSpaceToComponent : FTransform::Identity;
+	}
+
+	// 共有コリジョンとシンプルワールドコリジョンの作業配列（シミュレーション空間）。診断用 / Shared and simple world collision working arrays (simulation space), for diagnostics
+	const TArray<FSphericalLimit>& GetSharedSphericalLimits() const { return SharedSphericalLimits; }
+	const TArray<FCapsuleLimit>& GetSharedCapsuleLimits() const { return SharedCapsuleLimits; }
+	const TArray<FTaperedCapsuleLimit>& GetSharedTaperedCapsuleLimits() const { return SharedTaperedCapsuleLimits; }
+	const TArray<FBoxLimit>& GetSharedBoxLimits() const { return SharedBoxLimits; }
+	const TArray<FPlanarLimit>& GetSharedPlanarLimits() const { return SharedPlanarLimits; }
+	const TArray<FSphericalLimit>& GetSimpleWorldSphericalLimits() const { return SimpleWorldSphericalLimits; }
+	const TArray<FCapsuleLimit>& GetSimpleWorldCapsuleLimits() const { return SimpleWorldCapsuleLimits; }
+	const TArray<FTaperedCapsuleLimit>& GetSimpleWorldTaperedCapsuleLimits() const { return SimpleWorldTaperedCapsuleLimits; }
+	const TArray<FBoxLimit>& GetSimpleWorldBoxLimits() const { return SimpleWorldBoxLimits; }
+	const TArray<FBoxLimit>& GetSimpleWorldGroundBoxLimits() const { return SimpleWorldGroundBoxLimits; }
+	const TArray<FKawaiiPhysicsConvexLimit>& GetSimpleWorldConvexLimits() const { return SimpleWorldConvexLimits; }
+
+	/**
+	 * 統合後の BoneConstraint（BoneConstraints＋DataAsset＋自動ダミー拘束。InitBoneConstraints の結果）を返す。
+	 * Returns the merged bone constraints (BoneConstraints + data asset + automatic dummy constraints, as built by InitBoneConstraints).
+	 */
+	const TArray<FModifyBoneConstraint>& GetMergedBoneConstraints() const { return MergedBoneConstraints; }
+
 	// Given a bone index, get the transform in the currently selected simulation space
 	FTransform GetBoneTransformInSimSpace(FComponentSpacePoseContext& Output,
 	                                      const FCompactPoseBoneIndex& BoneIndex) const;
