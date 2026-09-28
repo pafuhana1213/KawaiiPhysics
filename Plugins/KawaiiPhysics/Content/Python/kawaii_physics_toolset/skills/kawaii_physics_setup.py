@@ -97,6 +97,75 @@ VERIFYING IN PLAY IN EDITOR
   frame rate; 0 disables it.
 - Python run through the console reports errors only in the output log.
 
+SKIRTS: SET UP, CHECK AND TUNE
+- A skirt is several bone columns hanging from the hips. Put every column root (not the
+  pelvis) in RootBone / AdditionalRootBones so the waist row stays on the pose, and give
+  the chains a DummyBoneLength so the last row can swing.
+- The check tools read what the running node actually uses (bones, radii after
+  multipliers, collisions, merged constraints) in component space, in cm. Every result has
+  a status. "not_found", "no_nodes", "not_evaluated" and "nothing_checked" mean nothing was
+  measured (an empty result is not a pass); "not_evaluated" means PIE is not running or the
+  mesh has not updated (off screen, background throttle). "ok" means checked with no
+  finding; "contact" (clearance) and "penetration" (sampler) mean checked with findings.
+- Tune in one loop, changing one kind of setting per round. Example with the sample
+  project's skirt (actor Ex5_1_B, 16 columns, animation A_CheckSkirt: one loop is 18.3 s and
+  the character stands still for the first 1.5 s):
+  1. Find the node: describe_kawaii_physics_bones_on_actor(actor_label="Ex5_1_B").
+  2. Check the input pose right after PIE starts, while the character stands still:
+     check_collision_clearance_on_actor(actor_label="Ex5_1_B", position_source="both").
+     Contacts in "pose" mean the leg collisions or bone radii already overlap before any
+     physics runs; contacts only in "simulated" are the push-out result.
+  3. Measure a baseline over at least one loop of the motion:
+     start_collision_penetration_sampler(actor_label="Ex5_1_B",
+       ring_root_bones=["skirt_01_01_l", "skirt_02_01_l", "skirt_03_01_l", "skirt_04_01_l",
+                        "skirt_05_01_l", "skirt_06_01_l", "skirt_07_01_l", "skirt_08_01_l",
+                        "skirt_08_01_r", "skirt_07_01_r", "skirt_06_01_r", "skirt_05_01_r",
+                        "skirt_04_01_r", "skirt_03_01_r", "skirt_02_01_r", "skirt_01_01_r"],
+       frames=700, min_depth=1, threshold=1.0, warmup_frames=40)
+     The column roots go around the waist in order. While sampling, game time advances at
+     fixed_frame_rate (default 30) so the sampling cost does not change the physics step;
+     choose frames as loop length x fixed_frame_rate or more (one 18.3 s loop at 30 is 549
+     frames; 700 adds margin). The editor itself runs slower in real time while sampling.
+     Poll get_collision_penetration_sampler_result() while status is "running"; it is
+     finished at "ok", "penetration", "nothing_checked" or "error" ("stopped" means
+     stop_collision_penetration_sampler ended it early; do not compare it). Compare mainly
+     max and mean_positive per category (vertical = along a column, horizontal = between
+     neighbouring columns, other = constraints outside the ring, usually empty) and look at
+     "worst"; samples_over_threshold depends on how many frames were run. Many
+     unchanged_frames mean the mesh stopped updating (off screen or throttled).
+  4. Change one thing: radius by depth, constraints, leg capsules or SyncBone.
+  5. Compile the AnimBlueprint, restart PIE and measure again with the same motion, start
+     phase, frames, warm-up, fixed_frame_rate and ring_root_bones (the segment set must
+     match). Compare the numbers and the view side by side.
+- Bones pinned to the input pose (skip_simulate, such as the column roots) are not checked:
+  the collision step skips them, so overlap there is fixed by moving the collision or the
+  pose, not by physics settings.
+- Which setting to change:
+  - Contacts already in the pose: move or shrink the leg capsules, or lower the radius of
+    the rows that overlap.
+  - Only "horizontal" is high (a leg slips between columns): raise the lower rows' radius
+    with set_graph_node_radius_by_depth and add ring constraints.
+  - The skirt looks stiff rather than penetrating: adjust Damping / Stiffness, not the
+    collision.
+- build_ring_bone_constraints(skeletal_mesh, ring_root_bones, 1, -1, True) pairs the same
+  depth of neighbouring columns. Set its import_text on BoneConstraints, or pass its result
+  to set_bone_constraints_data_asset_pairs (try dry_run first; a data asset is shared by
+  every node that references it). Constraints keep neighbouring columns at their rest
+  distance. BoneConstraintSubdivisionCount only adds collision dummies along constraints:
+  it fills collision gaps between columns but does not hold them together.
+- set_graph_node_radius_by_depth(handle, [2, 2, 3, 4, 4.5], skeletal_mesh) writes Radius and
+  RadiusCurveData for one radius per row (row 0 = column root). Check the per-bone error it
+  returns; columns of different lengths are averaged and listed in warnings. It refuses a
+  RadiusCurve that uses an external curve.
+- SyncBone follows only the position change of its bone. Sync from the knee (calf), not
+  the hip joint, which barely moves. For jumps set ApplyDirectionZ to None so the skirt does
+  not follow the vertical motion.
+- The sampler value is a proxy from bone placement (how deep a collision reaches into the
+  segments between bones), not the cloth mesh's own penetration. 1.0 cm is a guide, not a
+  pass criterion; judge the view too. Settings multipliers applied during a run change the
+  radii and therefore the numbers. Convex simple world shapes and the world collision sweep
+  are not checked (the results list them in reasons).
+
 SEQUENCER AND POST PROCESS
 - In UE 5.8 an animation section plays as a DefaultSlot montage when the actor's
   AnimBlueprint has a slot, so KawaiiPhysics in that AnimBlueprint keeps running; it stops

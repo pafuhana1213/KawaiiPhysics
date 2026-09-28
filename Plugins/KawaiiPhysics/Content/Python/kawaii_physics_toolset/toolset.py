@@ -4,10 +4,445 @@ import json
 import math
 import os
 import re
+import time
+from collections import defaultdict
 
 import unreal
 
 import toolset_registry
+
+
+_COMPLIANCE_TYPES = frozenset(
+    ('Concrete', 'Wood', 'Leather', 'Tendon', 'Rubber', 'Muscle', 'Fat'))
+
+
+def _geom_dot(a, b):
+    return sum(x * y for x, y in zip(a, b))
+
+
+def _geom_sub(a, b):
+    return tuple(x - y for x, y in zip(a, b))
+
+
+def _geom_norm(a):
+    return math.sqrt(_geom_dot(a, a))
+
+
+def _geom_lerp(a, b, t):
+    return tuple(x + t * (y - x) for x, y in zip(a, b))
+
+
+def _geom_closest_point_segment(point, start, end):
+    """Return the closest point on a segment, including a zero-length segment."""
+    direction = _geom_sub(end, start)
+    length2 = _geom_dot(direction, direction)
+    t = max(0.0, min(1.0, _geom_dot(_geom_sub(point, start), direction) / length2)) if length2 else 0.0
+    return _geom_lerp(start, end, t)
+
+
+def _geom_segment_distance(a, b, c, d):
+    """Return the minimum distance between two possibly degenerate segments."""
+    u, v, w = _geom_sub(b, a), _geom_sub(d, c), _geom_sub(a, c)
+    aa, bb, cc = _geom_dot(u, u), _geom_dot(u, v), _geom_dot(v, v)
+    dd, ee = _geom_dot(u, w), _geom_dot(v, w)
+    distances = [
+        _geom_norm(_geom_sub(p, _geom_closest_point_segment(p, c, d)))
+        for p in (a, b)] + [
+        _geom_norm(_geom_sub(p, _geom_closest_point_segment(p, a, b)))
+        for p in (c, d)]
+    denom = aa * cc - bb * bb
+    if denom > 1e-15:
+        s = (bb * ee - cc * dd) / denom
+        t = (aa * ee - bb * dd) / denom
+        if 0.0 <= s <= 1.0 and 0.0 <= t <= 1.0:
+            distances.append(_geom_norm(_geom_sub(_geom_lerp(a, b, s),
+                                                   _geom_lerp(c, d, t))))
+    return min(distances)
+
+
+def _geom_convex_minimum(fn):
+    left, right = 0.0, 1.0
+    golden = (math.sqrt(5.0) - 1.0) / 2.0
+    c, d = right - golden * (right - left), left + golden * (right - left)
+    fc, fd = fn(c), fn(d)
+    for _ in range(24):
+        if fc <= fd:
+            right, d, fd = d, c, fc
+            c = right - golden * (right - left)
+            fc = fn(c)
+        else:
+            left, c, fc = c, d, fd
+            d = left + golden * (right - left)
+            fd = fn(d)
+    return min(fn(0.0), fn(1.0), fc, fd)
+
+
+def _geom_tapered_distance(limit, point):
+    start, end = limit['start'], limit['end']
+    r0, r1 = limit['radius0'], limit['radius1']
+    axis = _geom_sub(end, start)
+    length2 = _geom_dot(axis, axis)
+    if length2 == 0:
+        return _geom_norm(_geom_sub(point, start)) - max(r0, r1)
+    radius_delta = r0 - r1
+    cone2 = length2 - radius_delta * radius_delta
+    if cone2 <= 0:
+        return min(_geom_norm(_geom_sub(point, start)) - r0,
+                   _geom_norm(_geom_sub(point, end)) - r1)
+    inverse_length2 = 1.0 / length2
+    offset = _geom_sub(point, start)
+    y = _geom_dot(offset, axis)
+    z = y - length2
+    perpendicular = tuple(p * length2 - direction * y
+                          for p, direction in zip(offset, axis))
+    x2 = _geom_dot(perpendicular, perpendicular)
+    k = (math.copysign(1.0, radius_delta) * radius_delta * radius_delta * x2
+         if radius_delta != 0 else 0.0)
+    if math.copysign(1.0, z) * cone2 * z * z * length2 > k:
+        return math.sqrt(x2 + z * z * length2) * inverse_length2 - r1
+    if math.copysign(1.0, y) * cone2 * y * y * length2 < k:
+        return math.sqrt(x2 + y * y * length2) * inverse_length2 - r0
+    return ((math.sqrt(x2 * cone2 * inverse_length2) + y * radius_delta)
+            * inverse_length2 - r0)
+
+
+def _geom_box_distance(limit, point):
+    x, y, z, w = limit['rotation']
+    length = math.sqrt(x*x + y*y + z*z + w*w)
+    x, y, z, w = (v / length for v in (x, y, z, w))
+    px, py, pz = _geom_sub(point, limit['location'])
+    # Inverse quaternion rotation, using its conjugate.
+    tx, ty, tz = 2 * (-y*pz + z*py), 2 * (-z*px + x*pz), 2 * (-x*py + y*px)
+    local = (px + w*tx - y*tz + z*ty,
+             py + w*ty - z*tx + x*tz,
+             pz + w*tz - x*ty + y*tx)
+    q = [abs(p) - e for p, e in zip(local, limit['extent'])]
+    return _geom_norm([max(0.0, v) for v in q]) + min(max(q), 0.0)
+
+
+def _geom_point_clearance(limit, point, radius):
+    """Return geometric clearance, separate from the solver's previous-frame crossing test."""
+    kind = limit['limit_type']
+    if kind == 'Spherical':
+        distance = _geom_norm(_geom_sub(point, limit['location']))
+        signed = (limit['radius0'] - distance if limit['inner_sphere']
+                  else distance - limit['radius0'])
+    elif kind == 'Capsule':
+        signed = _geom_norm(_geom_sub(point, _geom_closest_point_segment(
+            point, limit['start'], limit['end']))) - limit['radius0']
+    elif kind == 'TaperedCapsule':
+        signed = _geom_tapered_distance(limit, point)
+    elif kind == 'Box':
+        signed = _geom_box_distance(limit, point)
+    elif kind == 'Planar':
+        signed = _geom_dot(_geom_sub(point, limit['location']), limit['plane_normal'])
+    else:
+        raise ValueError(f'Unknown limit_type: {kind}')
+    return signed - radius
+
+
+def _geom_segment_penetration(limit, a, b):
+    """Return maximum penetration of a segment centerline into a limit."""
+    kind = limit['limit_type']
+    if kind == 'Spherical' and not limit['inner_sphere']:
+        bound_center, bound_radius = limit['location'], limit['radius0']
+    elif kind in ('Capsule', 'TaperedCapsule'):
+        start, end = limit['start'], limit['end']
+        bound_center = _geom_lerp(start, end, 0.5)
+        bound_radius = (_geom_norm(_geom_sub(end, start)) * 0.5 +
+                        max(limit['radius0'], limit.get('radius1', limit['radius0'])))
+    elif kind == 'Box':
+        bound_center, bound_radius = limit['location'], _geom_norm(limit['extent'])
+    else:
+        bound_center = None
+    if (bound_center is not None and
+            _geom_norm(_geom_sub(bound_center, _geom_closest_point_segment(
+                bound_center, a, b))) >= bound_radius):
+        return 0.0
+    if kind == 'Spherical':
+        if limit['inner_sphere']:
+            signed = limit['radius0'] - max(
+                _geom_norm(_geom_sub(a, limit['location'])),
+                _geom_norm(_geom_sub(b, limit['location'])))
+        else:
+            signed = _geom_norm(_geom_sub(limit['location'],
+                _geom_closest_point_segment(limit['location'], a, b))) - limit['radius0']
+    elif kind == 'Capsule':
+        signed = _geom_segment_distance(a, b, limit['start'], limit['end']) - limit['radius0']
+    elif kind == 'Planar':
+        signed = min(_geom_point_clearance(limit, p, 0.0) for p in (a, b))
+    else:
+        signed = _geom_convex_minimum(
+            lambda t: _geom_point_clearance(limit, _geom_lerp(a, b, t), 0.0))
+    return max(0.0, -signed)
+
+
+def _build_ring_constraints(children_by_bone, ring_root_bones, min_depth=1,
+                            max_depth=-1, closed=True, compliance_type='',
+                            exclude_from_subdivision=False):
+    """Build adjacent column pairs from a read-only bone hierarchy."""
+    if (not ring_root_bones or any(not isinstance(b, str) or not b.strip()
+                                   for b in ring_root_bones)
+            or len(set(ring_root_bones)) != len(ring_root_bones)):
+        raise ValueError('ring_root_bones must be nonempty and unique.')
+    if min_depth < 0 or (max_depth != -1 and max_depth < min_depth):
+        raise ValueError('Invalid depth range.')
+    if compliance_type != '' and compliance_type not in _COMPLIANCE_TYPES:
+        raise ValueError(f'Invalid compliance_type: {compliance_type}')
+    columns, branched = [], []
+    for root in ring_root_bones:
+        if root not in children_by_bone:
+            raise ValueError(f'Bone not found: {root}')
+        bones = [root]
+        while True:
+            children = children_by_bone.get(bones[-1], [])
+            if len(children) > 1:
+                branched.append({'root': root, 'bone': bones[-1], 'depth': len(bones)-1})
+                break
+            if not children:
+                break
+            bones.append(children[0])
+        columns.append({'root': root, 'bones': bones})
+    lengths = [len(c['bones']) for c in columns]
+    last_depth = max(lengths) - 1 if max_depth == -1 else max_depth
+    neighbors = [(i, i+1) for i in range(len(columns)-1)]
+    if closed and len(columns) >= 3:
+        neighbors.append((len(columns)-1, 0))
+    pairs, missing = [], []
+    for depth in range(min_depth, last_depth+1):
+        for i, j in neighbors:
+            if depth >= lengths[i] or depth >= lengths[j]:
+                missing.append({'root1': columns[i]['root'], 'root2': columns[j]['root'], 'depth': depth})
+                continue
+            pair = {'bone1': columns[i]['bones'][depth],
+                    'bone2': columns[j]['bones'][depth], 'depth': depth,
+                    'exclude_from_subdivision': bool(exclude_from_subdivision)}
+            if compliance_type:
+                pair['compliance_type'] = compliance_type
+            pairs.append(pair)
+    if not pairs:
+        raise ValueError(f'No constraint pairs were built: columns={len(columns)}, missing={missing}. '
+                         'At least two columns with bones at a requested depth are required.')
+    def quoted(name):
+        return name.replace('\\', '\\\\').replace('"', '\\"')
+    entries = []
+    for pair in pairs:
+        entries.append('(Bone1=(BoneName="%s"),Bone2=(BoneName="%s"),'
+                       'bOverrideCompliance=%s,ComplianceType=%s,'
+                       'bExcludeFromSubdivision=%s)' % (
+                           quoted(pair['bone1']), quoted(pair['bone2']),
+                           'True' if compliance_type else 'False',
+                           compliance_type or 'Leather',
+                           'True' if exclude_from_subdivision else 'False'))
+    return {'pairs': pairs, 'count': len(pairs), 'columns': columns,
+            'missing': missing, 'branched': branched,
+            'unequal_lengths': len(set(lengths)) > 1,
+            'import_text': '(' + ','.join(entries) + ')'}
+
+
+def _bone_children_from_mesh(skeletal_mesh):
+    modifier_type = getattr(unreal, 'SkeletonModifier', None)
+    if modifier_type is None:
+        raise RuntimeError('unreal.SkeletonModifier is required to read the bone hierarchy.')
+    modifier = modifier_type()
+    if not modifier.set_skeletal_mesh(skeletal_mesh):
+        raise RuntimeError('SkeletonModifier could not read the SkeletalMesh skeleton.')
+    return modifier
+
+
+def _collect_children(modifier, roots):
+    result = {}
+    pending = list(roots)
+    while pending:
+        bone = pending.pop()
+        if bone in result:
+            continue
+        # get_parent_name also checks that the name resolves in this skeleton.
+        modifier.get_parent_name(bone)
+        children = [str(name) for name in modifier.get_children_names(bone, False)]
+        result[bone] = children
+        pending.extend(children)
+    return result
+
+
+def _constraint_pair_key(pair):
+    return frozenset((pair['bone1'], pair['bone2']))
+
+
+def _validate_constraint_pairs(pairs_json):
+    try:
+        values = json.loads(pairs_json)
+    except (TypeError, ValueError) as error:
+        raise ValueError(f'pairs_json is not valid JSON: {error}')
+    pairs = values.get('pairs') if isinstance(values, dict) else values
+    if not isinstance(pairs, list):
+        raise ValueError('pairs_json must contain a pairs array.')
+    result, seen = [], set()
+    for index, pair in enumerate(pairs):
+        if not isinstance(pair, dict):
+            raise ValueError(f'Pair {index} must be an object.')
+        a, b = pair.get('bone1'), pair.get('bone2')
+        if not isinstance(a, str) or not a.strip() or not isinstance(b, str) or not b.strip() or a == b:
+            raise ValueError(f'Pair {index} needs two distinct nonempty bone names.')
+        compliance = pair.get('compliance_type', '')
+        if compliance not in ('',) and compliance not in _COMPLIANCE_TYPES:
+            raise ValueError(f'Invalid compliance_type in pair {index}: {compliance}')
+        exclude = pair.get('exclude_from_subdivision', False)
+        if not isinstance(exclude, bool):
+            raise ValueError(f'Pair {index} exclude_from_subdivision must be bool.')
+        normalized = {'bone1': a, 'bone2': b,
+                      'exclude_from_subdivision': exclude}
+        if compliance:
+            normalized['compliance_type'] = compliance
+        key = _constraint_pair_key(normalized)
+        if key in seen:
+            raise ValueError(f'Duplicate pair: {a}, {b}')
+        seen.add(key)
+        result.append(normalized)
+    return result
+
+
+def _constraint_data_to_pair(data):
+    a = str(data.get_editor_property('bone_reference1').get_editor_property('bone_name'))
+    b = str(data.get_editor_property('bone_reference2').get_editor_property('bone_name'))
+    result = {'bone1': a, 'bone2': b,
+              'exclude_from_subdivision': bool(data.get_editor_property('exclude_from_subdivision'))}
+    if data.get_editor_property('override_compliance'):
+        result['compliance_type'] = str(data.get_editor_property('compliance_type')).split('.')[-1].title()
+    return result
+
+
+def _constraint_pair_to_data(pair):
+    # TODO(verify): reflected FModifyBoneConstraintData field names in target UE.
+    item = unreal.ModifyBoneConstraintData()
+    for field, name in (('bone_reference1', pair['bone1']),
+                        ('bone_reference2', pair['bone2'])):
+        ref = unreal.BoneReference()
+        ref.set_editor_property('bone_name', unreal.Name(name))
+        item.set_editor_property(field, ref)
+    item.set_editor_property('override_compliance', 'compliance_type' in pair)
+    if 'compliance_type' in pair:
+        item.set_editor_property('compliance_type',
+                                 getattr(unreal.XPBDComplianceType, pair['compliance_type'].upper()))
+    item.set_editor_property('exclude_from_subdivision', pair['exclude_from_subdivision'])
+    return item
+
+
+def _radius_chain_rates(children_by_bone, local_lengths, roots_and_excludes,
+                        dummy_length):
+    """Mirror the per-root cumulative local-length normalization in C++."""
+    chains = []
+    for root, excludes in roots_and_excludes:
+        if root not in children_by_bone:
+            raise ValueError(f'Bone not found: {root}')
+        if root in excludes:
+            continue
+        records = []
+        def walk(bone, depth, length):
+            records.append({'bone': bone, 'depth': depth, 'length': length})
+            children = [child for child in children_by_bone.get(bone, [])
+                        if child not in excludes]
+            if not children and dummy_length > 0:
+                records.append({'bone': None, 'depth': depth + 1,
+                                'length': length + dummy_length})
+            for child in children:
+                walk(child, depth + 1, length + local_lengths.get(child, 0.0))
+        walk(root, 0, 0.0)
+        maximum = max(record['length'] for record in records)
+        for record in records:
+            record['length_rate'] = record['length'] / maximum if maximum > 0 else 0.0
+        chains.append({'root': root, 'records': records})
+    return chains
+
+
+def _radius_keys_and_bones(chains, radius_by_depth, dummy_length):
+    if not radius_by_depth or any(not isinstance(v, (int, float)) or not math.isfinite(v) or v < 0
+                                  for v in radius_by_depth):
+        raise ValueError('radius_by_depth must contain finite nonnegative radii.')
+    radius = max(radius_by_depth)
+    if radius <= 0:
+        raise ValueError('radius_by_depth must have a positive maximum.')
+    if not chains:
+        raise ValueError('No bones remain after exclusions.')
+    warnings = []
+    per_depth = defaultdict(list)
+    real_counts = []
+    for chain in chains:
+        real = [record for record in chain['records'] if record['bone'] is not None]
+        real_counts.append(len(real))
+        for record in real:
+            per_depth[record['depth']].append(record['length_rate'])
+    if len(set(real_counts)) > 1:
+        warnings.append('Chains have unequal bone counts; average LengthRates are used.')
+    key_values = defaultdict(list)
+    for depth, rates in sorted(per_depth.items()):
+        if max(rates) - min(rates) > 0.01:
+            warnings.append(f'LengthRate spread exceeds 0.01 at depth {depth}; average is used.')
+        if depth >= len(radius_by_depth):
+            warnings.append(f'Depth {depth} exceeds radius_by_depth; last radius is used.')
+        mean = sum(rates) / len(rates)
+        key_values[mean].append(radius_by_depth[min(depth, len(radius_by_depth)-1)] / radius)
+    if dummy_length > 0:
+        key_values[1.0].append(radius_by_depth[-1] / radius)
+    keys = []
+    for rate, values in sorted(key_values.items()):
+        if len(values) > 1:
+            warnings.append(f'Multiple curve keys at LengthRate {rate:.6f}; values are averaged.')
+        keys.append({'time': rate, 'value': sum(values) / len(values)})
+    def evaluate(rate):
+        if rate <= keys[0]['time']:
+            return keys[0]['value']
+        for left, right in zip(keys, keys[1:]):
+            if rate <= right['time']:
+                t = (rate-left['time']) / (right['time']-left['time'])
+                return left['value'] + t * (right['value']-left['value'])
+        return keys[-1]['value']
+    bones = []
+    for chain in chains:
+        for record in chain['records']:
+            if record['bone'] is None:
+                continue
+            requested = radius_by_depth[min(record['depth'], len(radius_by_depth)-1)]
+            predicted = radius * evaluate(record['length_rate'])
+            bones.append({'bone': record['bone'], 'chain_root': chain['root'],
+                          'depth': record['depth'], 'length_rate': record['length_rate'],
+                          'requested': requested, 'predicted': predicted,
+                          'error': predicted-requested})
+    return radius, keys, bones, warnings
+
+
+def _import_field(text, field):
+    match = re.search(r'(?<![A-Za-z0-9_])' + re.escape(field) + r'\s*=\s*', text)
+    if not match:
+        return None
+    start = match.end()
+    if start < len(text) and text[start] == '(':
+        depth = 0
+        for i in range(start, len(text)):
+            depth += (text[i] == '(') - (text[i] == ')')
+            if depth == 0:
+                return text[start:i+1]
+    return text[start:].split(',', 1)[0].split(')', 1)[0].strip()
+
+
+def _import_bone_names(text):
+    return re.findall(r'BoneName\s*=\s*"?([A-Za-z0-9_]+)', text or '')
+
+
+def _import_struct_items(text):
+    if not text or text == '()':
+        return []
+    items, depth, start = [], 0, None
+    for i, char in enumerate(text):
+        if char == '(':
+            if depth == 1:
+                start = i
+            depth += 1
+        elif char == ')':
+            depth -= 1
+            if depth == 1 and start is not None:
+                items.append(text[start:i+1])
+    return items
 
 
 # FKawaiiPhysicsSettingsMultiplier の C++ フィールド名 -> Python プロパティ名
@@ -89,6 +524,9 @@ _BONE_SAMPLER_SPACES = {
 
 # start_bone_sampler / get_bone_sampler_result / stop_bone_sampler が共有する採取状態
 _BONE_SAMPLER: dict | None = None
+
+# Independent from the socket/bone position sampler.
+_COLLISION_PENETRATION_SAMPLER: dict | None = None
 
 
 def _make_preset_apply_options(
@@ -791,12 +1229,733 @@ def _bone_sampler_tick(delta_seconds: float) -> None:
         _stop_bone_sampler_impl()
 
 
+def _runtime_enum(value):
+    name = str(getattr(value, 'name', value)).split('.')[-1]
+    # UE Python の列挙子名（UPPER_SNAKE）を C++ の列挙子名（PascalCase）へ戻す
+    return ''.join(part.capitalize() for part in name.split('_'))
+
+
+def _runtime_vector(value):
+    return [float(value.x), float(value.y), float(value.z)]
+
+
+def _runtime_info_to_dict(info, component_name):
+    """Contain all reflected runtime struct reads in one place."""
+    # TODO(verify): UE Python field and enum spellings derived from FKawaiiPhysicsRuntime*Info.
+    bones = [{
+        'index': int(bone.index), 'bone_name': str(bone.bone_name),
+        'dummy_type': _runtime_enum(bone.dummy_type),
+        'parent_index': int(bone.parent_index),
+        'location': _runtime_vector(bone.location),
+        'pose_location': _runtime_vector(bone.pose_location),
+        'radius': float(bone.radius),
+        'length_rate': float(bone.length_rate_from_root),
+        'skip_simulate': bool(getattr(bone, 'skip_simulate', False)),
+    } for bone in info.bones]
+    _assign_runtime_bone_keys(bones)
+    limits = [{
+        'limit_type': _runtime_enum(limit.limit_type),
+        'source_type': _runtime_enum(limit.source_type),
+        'source_array': str(limit.source_array_name),
+        'source_index': int(limit.source_index),
+        'driving_bone': str(limit.driving_bone),
+        'enabled': bool(limit.enabled),
+        'location': _runtime_vector(limit.location),
+        'rotation': [float(limit.rotation.x), float(limit.rotation.y),
+                     float(limit.rotation.z), float(limit.rotation.w)],
+        'start': _runtime_vector(limit.start),
+        'end': _runtime_vector(limit.end),
+        'radius0': float(limit.radius0), 'radius1': float(limit.radius1),
+        'extent': _runtime_vector(limit.extent),
+        'plane_normal': _runtime_vector(limit.plane_normal),
+        'inner_sphere': bool(limit.inner_sphere),
+    } for limit in info.limits]
+    by_index = {bone['index']: bone for bone in bones}
+    constraints = []
+    for item in info.constraints:
+        first, second = int(item.bone_index1), int(item.bone_index2)
+        constraints.append({
+            'bone_index1': first, 'bone_index2': second,
+            'bone_name1': str(item.bone_name1),
+            'bone_name2': str(item.bone_name2),
+            'bone_key1': by_index[first]['key'] if first in by_index else None,
+            'bone_key2': by_index[second]['key'] if second in by_index else None,
+            'source_type': _runtime_enum(item.source_type),
+        })
+    return {'component': str(component_name),
+            'anim_instance_class': str(info.anim_instance_class_name),
+            'node_index': int(info.node_index), 'root_bone': str(info.root_bone),
+            'tag': str(info.tag.get_editor_property('tag_name')),
+            'simulation_space': _runtime_enum(info.simulation_space),
+            'evaluated': bool(info.evaluated),
+            'non_uniform_scale': bool(info.non_uniform_scale),
+            'bones': bones, 'limits': limits, 'constraints': constraints,
+            'num_convex_limits': int(info.num_convex_limits),
+            'convex_fallback_shape': _runtime_enum(info.convex_fallback_shape)}
+
+
+def _assign_runtime_bone_keys(bones):
+    """Name real bones and assign stable names to the three dummy kinds."""
+    by_index = {bone['index']: bone for bone in bones}
+    counters = defaultdict(int)
+    for bone in bones:
+        parent = by_index.get(bone['parent_index'])
+        while parent is not None and parent['dummy_type'] != 'None':
+            parent = by_index.get(parent['parent_index'])
+        ancestor = parent['bone_name'] if parent else ''
+        bone['real_ancestor'] = ancestor
+        kind = bone['dummy_type']
+        if kind == 'None':
+            bone['key'] = bone['bone_name']
+        elif kind == 'Tip':
+            bone['key'] = f'{ancestor}#tip'
+        elif kind == 'InterBone':
+            counters[ancestor] += 1
+            bone['key'] = f'{ancestor}#inter{counters[ancestor]}'
+        else:
+            bone['key'] = f"#bridge{bone['index']}"
+
+
+def _runtime_sample_info(info, target):
+    """Read only the fixed segment endpoints and active limit geometry."""
+    raw_bones = info.bones
+    topology = tuple((int(bone.index), _runtime_enum(bone.dummy_type),
+                      int(bone.parent_index)) for bone in raw_bones)
+    if topology != target['topology']:
+        bones = [{'index': index, 'dummy_type': kind, 'parent_index': parent,
+                  'bone_name': str(bone.bone_name)}
+                 for bone, (index, kind, parent) in zip(raw_bones, topology)]
+        _assign_runtime_bone_keys(bones)
+        target['keys_by_index'] = {bone['index']: bone['key'] for bone in bones
+                                   if bone['key'] in target['endpoint_keys']}
+        target['topology'] = topology
+    keys_by_index = target['keys_by_index']
+    positions = {keys_by_index[index]: _runtime_vector(bone.location)
+                 for bone, (index, _, _) in zip(raw_bones, topology)
+                 if index in keys_by_index}
+    limits = []
+    for limit in info.limits:
+        if not limit.enabled:
+            continue
+        kind = _runtime_enum(limit.limit_type)
+        shape = {'limit_type': kind, 'source_type': _runtime_enum(limit.source_type),
+                 'source_array': str(limit.source_array_name),
+                 'source_index': int(limit.source_index),
+                 'driving_bone': str(limit.driving_bone)}
+        if kind == 'Spherical':
+            shape.update(location=_runtime_vector(limit.location),
+                         radius0=float(limit.radius0), inner_sphere=bool(limit.inner_sphere))
+        elif kind in ('Capsule', 'TaperedCapsule'):
+            shape.update(start=_runtime_vector(limit.start), end=_runtime_vector(limit.end),
+                         radius0=float(limit.radius0))
+            if kind == 'TaperedCapsule':
+                shape['radius1'] = float(limit.radius1)
+        elif kind == 'Box':
+            rotation = limit.rotation
+            shape.update(location=_runtime_vector(limit.location),
+                         rotation=[float(rotation.x), float(rotation.y),
+                                   float(rotation.z), float(rotation.w)],
+                         extent=_runtime_vector(limit.extent))
+        elif kind == 'Planar':
+            shape.update(location=_runtime_vector(limit.location),
+                         plane_normal=_runtime_vector(limit.plane_normal))
+        limits.append(shape)
+    return positions, limits
+
+
+def _runtime_sample_nodes(state):
+    if _runtime_world_info(_resolve_world(state['prefer_pie'])) != state['world']:
+        raise RuntimeError('Sampling world changed, possibly because PIE ended.')
+    by_id = {}
+    for component, component_name in state['components']:
+        count, infos, error = unreal.KawaiiPhysicsLibrary.get_runtime_node_infos_on_component(
+            component, state['filter_tags'], False)
+        if count < 0:
+            raise RuntimeError(str(error))
+        for info in infos:
+            if state['root_bone'] and str(info.root_bone) != state['root_bone']:
+                continue
+            identity = (component_name, str(info.anim_instance_class_name),
+                        int(info.node_index), str(info.root_bone),
+                        str(info.tag.get_editor_property('tag_name')))
+            target = state['targets_by_id'].get(identity)
+            if target is not None:
+                by_id[identity] = (_runtime_sample_info(info, target)
+                                   if info.evaluated else None)
+    if not by_id:
+        raise RuntimeError('Actor, component or KawaiiPhysics node disappeared.')
+    return by_id
+
+
+def _runtime_node_id(node):
+    return {key: node[key] for key in (
+        'component', 'anim_instance_class', 'node_index', 'root_bone', 'tag')}
+
+
+def _runtime_world_info(world):
+    editor = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem)
+    return {'name': str(world.get_name()),
+            'is_pie': bool(editor is not None and editor.get_game_world() == world)}
+
+
+def _runtime_snapshot(actor_label, prefer_pie, filter_tag_names, root_bone):
+    if not isinstance(actor_label, str) or not actor_label:
+        raise ValueError('actor_label must be a nonempty string.')
+    if not isinstance(root_bone, str):
+        raise ValueError('root_bone must be a string.')
+    filter_tag_names = [str(t) for t in (filter_tag_names or [])]
+    world = _resolve_world(prefer_pie)
+    components = _find_skeletal_mesh_components_by_label(actor_label, prefer_pie)
+    result = {'status': 'not_found' if not components else 'no_nodes',
+              'checked': 0, 'excluded': 0, 'reasons': [],
+              'world': _runtime_world_info(world), 'components': []}
+    if not components:
+        result['reasons'].append('Actor or SkeletalMeshComponent was not found.')
+        return result
+    tags = _make_tag_container(filter_tag_names)
+    nodes = []
+    for component in components:
+        # TODO(verify): reflected tuple return shape and method name in the target editor.
+        count, infos, error = unreal.KawaiiPhysicsLibrary.get_runtime_node_infos_on_component(
+            component, tags, False)
+        if count < 0:
+            raise RuntimeError(str(error))
+        converted = [_runtime_info_to_dict(info, component.get_name()) for info in infos]
+        if root_bone:
+            converted = [node for node in converted if node['root_bone'] == root_bone]
+        result['components'].append({'component': str(component.get_name()), 'nodes': converted})
+        nodes.extend(converted)
+    if nodes:
+        result['status'] = 'ok' if any(n['evaluated'] for n in nodes) else 'not_evaluated'
+        if result['status'] == 'not_evaluated':
+            result['reasons'].append('Matching nodes have not been evaluated.')
+    else:
+        result['reasons'].append('No matching KawaiiPhysics nodes.')
+    return result
+
+
+def _runtime_nodes(snapshot):
+    return [node for component in snapshot['components'] for node in component['nodes']]
+
+
+def _runtime_limit_id(limit):
+    return {key: limit[key] for key in (
+        'limit_type', 'source_type', 'source_array', 'source_index', 'driving_bone')}
+
+
+def _runtime_limit_reasons(nodes):
+    reasons = []
+    convex = [(n['num_convex_limits'], n['convex_fallback_shape']) for n in nodes
+              if n['num_convex_limits']]
+    if convex:
+        reasons.append(f'Convex shapes are not checked: {convex}.')
+    reasons.append('Ordinary World Collision sweeps are outside this check.')
+    if any(n['non_uniform_scale'] for n in nodes):
+        reasons.append('Radii and sizes are approximate under non-uniform scale.')
+    return reasons
+
+
+def _collision_checked_bones(node):
+    bones = [bone for bone in node['bones'] if not bone.get('skip_simulate', False)]
+    return bones, len(node['bones']) - len(bones)
+
+
+def _build_penetration_segments(node, ring_root_bones, min_depth, max_depth, closed):
+    """Build fixed, named centerlines from one snapshot without Unreal objects."""
+    bones = {bone['index']: bone for bone in node['bones']}
+    eligible = {i: b for i, b in bones.items() if b['dummy_type'] in ('None', 'Tip')}
+    keyed = {bone['key']: bone for bone in eligible.values()}
+    segments = {}
+    def add(a, b, category):
+        if a == b or (keyed[a].get('skip_simulate', False) and
+                      keyed[b].get('skip_simulate', False)):
+            return
+        pair = tuple(sorted((a, b)))
+        segments.setdefault(pair, {'bone1': a, 'bone2': b, 'category': category})
+    children = defaultdict(list)
+    for bone in eligible.values():
+        parent = bones.get(bone['parent_index'])
+        while parent is not None and parent['dummy_type'] == 'InterBone':
+            parent = bones.get(parent['parent_index'])
+        if parent is not None and parent['index'] in eligible:
+            children[parent['key']].append(bone['key'])
+            if not ring_root_bones:
+                add(parent['key'], bone['key'], 'vertical')
+    if ring_root_bones:
+        columns = []
+        for root in ring_root_bones:
+            if not any(b['key'] == root and b['dummy_type'] == 'None' for b in eligible.values()):
+                raise ValueError(f'Ring root bone not found: {root}')
+            column = [root]
+            while len(children[column[-1]]) == 1:
+                column.append(children[column[-1]][0])
+            columns.append(column)
+            end = len(column) - 1 if max_depth == -1 else min(max_depth, len(column) - 1)
+            for depth in range(min_depth, end):
+                add(column[depth], column[depth + 1], 'vertical')
+        neighbors = [(i, i + 1) for i in range(len(columns) - 1)]
+        if closed and len(columns) >= 3:
+            neighbors.append((len(columns) - 1, 0))
+        deepest = max(map(len, columns)) - 1 if max_depth == -1 else max_depth
+        for depth in range(min_depth, deepest + 1):
+            for i, j in neighbors:
+                if depth < len(columns[i]) and depth < len(columns[j]):
+                    add(columns[i][depth], columns[j][depth], 'horizontal')
+    for constraint in node['constraints']:
+        a, b = constraint['bone_index1'], constraint['bone_index2']
+        if a in eligible and b in eligible:
+            add(eligible[a]['key'], eligible[b]['key'], 'other')
+    return list(segments.values())
+
+
+def _build_penetration_targets(nodes, ring_root_bones, min_depth, max_depth, closed):
+    """Select only nodes with both centerlines and collision-used limits."""
+    targets, checked, excluded, reasons = [], 0, 0, []
+    for node in nodes:
+        try:
+            segments = _build_penetration_segments(
+                node, ring_root_bones, min_depth, max_depth, closed)
+        except ValueError as error:
+            reasons.append(str(error))
+            continue
+        excluded += sum(not limit['enabled'] for limit in node['limits']) * len(segments)
+        if not segments or not any(limit['enabled'] for limit in node['limits']):
+            continue
+        identity = _runtime_node_id(node)
+        endpoint_order = tuple(dict.fromkeys(
+            key for segment in segments for key in (segment['bone1'], segment['bone2'])))
+        targets.append({'node_id': tuple(identity.values()), 'identity': identity,
+                        'segments': segments,
+                        'segment_specs': [(segment['bone1'], segment['bone2'],
+                                           segment['category'],
+                                           (segment['bone1'], segment['bone2']))
+                                          for segment in segments],
+                        'endpoint_order': endpoint_order,
+                        'endpoint_keys': set(endpoint_order),
+                        'topology': tuple((bone['index'], bone['dummy_type'],
+                                           bone['parent_index']) for bone in node['bones']),
+                        'keys_by_index': {bone['index']: bone['key'] for bone in node['bones']
+                                          if bone['key'] in endpoint_order},
+                        'previous': None, 'unchanged_frames': 0, 'maxima': {}})
+        checked += len(segments)
+    return targets, checked, excluded, reasons, ('running' if targets else 'nothing_checked')
+
+
+def _new_penetration_stats():
+    return {category: {'max': 0.0, 'positive_sum': 0.0, 'positive_count': 0,
+                       'samples_over_threshold': 0, 'samples': 0,
+                       'stale_or_unknown': 0, 'worst': None}
+            for category in ('vertical', 'horizontal', 'other', 'all')}
+
+
+def _accumulate_penetration_sample(stats, category, value, threshold, stale, detail):
+    """Count one segment/frame maximum once in its class and in all."""
+    for name in (category, 'all'):
+        entry = stats[name]
+        if stale:
+            entry['stale_or_unknown'] += 1
+            continue
+        entry['samples'] += 1
+        if value > 0:
+            entry['positive_sum'] += value
+            entry['positive_count'] += 1
+        if value > threshold:
+            entry['samples_over_threshold'] += 1
+        if entry['worst'] is None or value > entry['max']:
+            entry['max'], entry['worst'] = value, detail
+
+
+def _penetration_stats_result(stats):
+    return {name: {key: value for key, value in entry.items()
+                   if key not in ('positive_sum', 'positive_count')} |
+            {'mean_positive': (entry['positive_sum'] / entry['positive_count']
+                               if entry['positive_count'] else 0.0)}
+            for name, entry in stats.items()}
+
+
+def _accumulate_penetration_frame(target, positions, limits, stats, threshold, frame):
+    """Measure one node's fixed centerlines using plain Python data."""
+    signature = (tuple(tuple(positions[key]) for key in target['endpoint_order'])
+                 if all(key in positions for key in target['endpoint_order']) else None)
+    if signature is not None and signature == target['previous']:
+        target['unchanged_frames'] = target.get('unchanged_frames', 0) + 1
+    target['previous'] = signature
+    if not positions:
+        for _, _, category, _ in target['segment_specs']:
+            _accumulate_penetration_sample(stats, category, 0.0, threshold, True, None)
+        return False
+    bounded = []
+    for limit in limits:
+        kind = limit['limit_type']
+        if kind == 'Spherical' and not limit['inner_sphere']:
+            center, radius = limit['location'], limit['radius0']
+        elif kind in ('Capsule', 'TaperedCapsule'):
+            start, end = limit['start'], limit['end']
+            center = ((start[0] + end[0]) * 0.5,
+                      (start[1] + end[1]) * 0.5,
+                      (start[2] + end[2]) * 0.5)
+            radius = (math.dist(start, end) * 0.5 +
+                      max(limit['radius0'], limit.get('radius1', limit['radius0'])))
+        elif kind == 'Box':
+            center, radius = limit['location'], _geom_norm(limit['extent'])
+        else:
+            center, radius = None, 0.0
+        bounded.append((limit, center, radius))
+
+    any_valid = False
+    for bone1, bone2, category, key in target['segment_specs']:
+        a, b = positions.get(bone1), positions.get(bone2)
+        if a is None or b is None:
+            _accumulate_penetration_sample(stats, category, 0.0, threshold, True, None)
+            continue
+        any_valid = True
+        mx, my, mz = ((a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5,
+                      (a[2] + b[2]) * 0.5)
+        half_length = math.dist(a, b) * 0.5
+        value, best_limit = 0.0, limits[0] if limits else None
+        for limit, center, radius in bounded:
+            if center is not None:
+                reach = half_length + radius
+                dx, dy, dz = mx - center[0], my - center[1], mz - center[2]
+                if dx*dx + dy*dy + dz*dz > reach*reach:
+                    continue
+            depth = _geom_segment_penetration(limit, a, b)
+            if depth > value:
+                value, best_limit = depth, limit
+        class_stats, all_stats = stats[category], stats['all']
+        detail = None
+        if (class_stats['worst'] is None or value > class_stats['max'] or
+                all_stats['worst'] is None or value > all_stats['max']):
+            detail = {'node': target['identity'], 'bone1': bone1, 'bone2': bone2,
+                       'category': category,
+                       'limit': _runtime_limit_id(best_limit) if best_limit else None,
+                      'frame': frame, 'value': value}
+        _accumulate_penetration_sample(stats, category, value, threshold, False, detail)
+        if value > target['maxima'].get(key, 0.0):
+            target['maxima'][key] = value
+    return any_valid
+
+
+def _find_sampler_engine():
+    engine = unreal.find_object(None, '/Engine/Transient.UnrealEdEngine_0')
+    return engine or unreal.find_object(None, '/Engine/Transient.GameEngine_0')
+
+
+def _restore_sampler_fixed_frame_rate(state):
+    """Restore saved engine settings once, including after partial setup."""
+    saved = state.pop('saved_engine_frame_rate', None)
+    engine = state.pop('frame_rate_engine', None)
+    if saved is None or engine is None:
+        return
+    for name, value in (('bUseFixedFrameRate', saved[0]),
+                        ('FixedFrameRate', saved[1])):
+        try:
+            engine.set_editor_property(name, value)
+        except Exception as error:
+            state.setdefault('notes', []).append(
+                f'Could not restore engine {name}: {error}')
+
+
+def _enable_sampler_fixed_frame_rate(state, rate, engine=None):
+    """Save and set both engine properties; leave the rate unset on failure."""
+    if rate <= 0:
+        return
+    try:
+        engine = engine if engine is not None else _find_sampler_engine()
+        if engine is None:
+            state.setdefault('notes', []).append('Engine was not found; fixed frame rate was not changed.')
+            return
+        saved = (engine.get_editor_property('bUseFixedFrameRate'),
+                 engine.get_editor_property('FixedFrameRate'))
+    except Exception as error:
+        state.setdefault('notes', []).append(
+            f'Could not read engine fixed frame rate; it was not changed: {error}')
+        return
+    state['frame_rate_engine'] = engine
+    state['saved_engine_frame_rate'] = saved
+    try:
+        engine.set_editor_property('bUseFixedFrameRate', True)
+        engine.set_editor_property('FixedFrameRate', rate)
+    except Exception as error:
+        _restore_sampler_fixed_frame_rate(state)
+        state.setdefault('notes', []).append(
+            f'Could not set engine fixed frame rate: {error}')
+        return
+    state['fixed_frame_rate'] = rate
+    state.setdefault('notes', []).append(
+        'Game time advanced at a fixed rate during sampling so the sampling cost does not change the physics step.')
+
+
+def _stop_collision_penetration_sampler_impl():
+    state = _COLLISION_PENETRATION_SAMPLER
+    if state is None:
+        return
+    handle = state.get('tick_handle')
+    state['tick_handle'] = None
+    try:
+        if handle is not None:
+            unreal.unregister_slate_post_tick_callback(handle)
+    except Exception as error:
+        state['error'] = state.get('error') or str(error)
+    finally:
+        _restore_sampler_fixed_frame_rate(state)
+        state['done'] = True
+
+
+def _collision_penetration_sampler_tick(delta_seconds):
+    state = _COLLISION_PENETRATION_SAMPLER
+    if state is None or state['done']:
+        return
+    started = time.perf_counter()
+    try:
+        by_id = _runtime_sample_nodes(state)
+        state['frames_seen'] += 1
+        if state['frames_seen'] <= state['warmup_frames']:
+            return
+        any_valid = False
+        all_unchanged = True
+        for target in state['targets']:
+            sample = by_id.get(target['node_id'])
+            positions, limits = sample if sample is not None else ({}, [])
+            previous_unchanged = target['unchanged_frames']
+            valid = _accumulate_penetration_frame(
+                target, positions, limits, state['stats'], state['threshold'],
+                state['frames_seen'])
+            any_valid |= valid
+            all_unchanged &= valid and target['unchanged_frames'] > previous_unchanged
+        if any_valid:
+            state['frames_collected'] += 1
+        if all_unchanged:
+            state['unchanged_frames'] += 1
+        if state['frames_collected'] >= state['frames']:
+            _stop_collision_penetration_sampler_impl()
+    except Exception as error:
+        state['error'] = str(error)
+        _stop_collision_penetration_sampler_impl()
+    finally:
+        elapsed_ms = (time.perf_counter() - started) * 1000.0
+        state['cost_total_ms'] += elapsed_ms
+        state['cost_max_ms'] = max(state['cost_max_ms'], elapsed_ms)
+        state['cost_samples'] += 1
+
+
+def _penetration_sampler_result(state):
+    rows = []
+    for target in state['targets']:
+        for segment in target['segments']:
+            key = (segment['bone1'], segment['bone2'])
+            rows.append({'node': target['identity'], **segment,
+                         'max': target['maxima'].get(key, 0.0)})
+    rows.sort(key=lambda row: row['max'], reverse=True)
+    stats = _penetration_stats_result(state['stats'])
+    status = ('error' if state['error'] else
+              'running' if not state['done'] else
+              'stopped' if state['frames_collected'] < state['frames'] else
+              'penetration' if stats['all']['samples_over_threshold'] else
+              'ok' if stats['all']['samples'] else 'nothing_checked')
+    result = {'status': status, 'checked': stats['all']['samples'],
+              'excluded': state['excluded'], 'reasons': state['reasons'],
+              'world': state['world'], 'done': state['done'],
+              'frames_collected': state['frames_collected'],
+              'unchanged_frames': state['unchanged_frames'],
+              'frames_seen': state['frames_seen'], 'frames_requested': state['frames'],
+              'threshold': state['threshold'], 'statistics': stats,
+              'top_segments': rows[:10],
+              'fixed_frame_rate': state['fixed_frame_rate'],
+              'cost_ms': {'mean': (state['cost_total_ms'] / state['cost_samples']
+                                   if state['cost_samples'] else 0.0),
+                          'max': state['cost_max_ms']},
+              'metric': 'At each sample, maximum depth (cm, component space) that an active limit enters each segment centerline. This is a bone-layout proxy, not cloth-mesh penetration.',
+              'notes': [
+                  'Sampling adds per-frame cost; compare runs under the same frame rate.',
+                  'Many unchanged_frames may mean the mesh is off-screen or throttled and is not updating.',
+                  'A physics-settings radius multiplier during sampling can change the comparison.',
+                  'The 1.0 cm threshold is a guide, not a pass criterion.',
+                  'For Off/On comparison, use the same motion, start phase, duration and warmup.',
+                  *state['notes']]}
+    if state['error']:
+        result['error'] = state['error']
+    return result
+
+
 @unreal.uclass()
 class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
     """Sets up, applies presets to, and audits KawaiiPhysics AnimGraph nodes.
 
     Tools wrap KawaiiPhysics editor scripting APIs for automation agents.
     """
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def build_ring_bone_constraints(
+            skeletal_mesh: unreal.SkeletalMesh,
+            ring_root_bones: list[str],
+            min_depth: int = 1,
+            max_depth: int = -1,
+            closed: bool = True,
+            compliance_type: str | None = None,
+            exclude_from_subdivision: bool = False) -> str:
+        """Build neighboring skirt-column constraints from roots in ring order.
+
+        Pass the returned pairs directly to set_bone_constraints_data_asset_pairs.
+        Constraints preserve distance between columns; BoneConstraintSubdivisionCount
+        adds collision dummies along constraint lines.
+        """
+        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        compliance_type = compliance_type or ''
+        _raise_for_invalid_object(skeletal_mesh, 'skeletal_mesh')
+        if not ring_root_bones or any(not isinstance(b, str) or not b.strip()
+                                      for b in ring_root_bones):
+            raise ValueError('ring_root_bones must contain nonempty bone names.')
+        if len(set(ring_root_bones)) != len(ring_root_bones):
+            raise ValueError('ring_root_bones must be unique.')
+        if min_depth < 0 or (max_depth != -1 and max_depth < min_depth):
+            raise ValueError('Invalid depth range.')
+        if compliance_type != '' and compliance_type not in _COMPLIANCE_TYPES:
+            raise ValueError(f'Invalid compliance_type: {compliance_type}')
+        modifier = _bone_children_from_mesh(skeletal_mesh)
+        all_names = {str(name) for name in modifier.get_all_bone_names()}
+        unknown = [name for name in ring_root_bones if name not in all_names]
+        if unknown:
+            raise ValueError(f'Bones not found in skeleton: {unknown}')
+        children = _collect_children(modifier, ring_root_bones)
+        return json.dumps(_build_ring_constraints(
+            children, ring_root_bones, min_depth, max_depth, closed,
+            compliance_type, exclude_from_subdivision))
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def set_bone_constraints_data_asset_pairs(
+            data_asset: unreal.KawaiiPhysicsBoneConstraintsDataAsset,
+            pairs_json: str,
+            mode: str = 'replace',
+            dry_run: bool = False) -> str:
+        """Replace or append validated constraint pairs in a shared DataAsset.
+
+        This tool does not clear all pairs; an empty request is rejected.
+        """
+        _raise_for_invalid_object(data_asset, 'data_asset')
+        if mode not in ('replace', 'append'):
+            raise ValueError('mode must be replace or append.')
+        requested = _validate_constraint_pairs(pairs_json)
+        if not requested:
+            raise ValueError('pairs must contain at least one constraint; this tool does not clear the DataAsset.')
+        previous = list(data_asset.get_editor_property('bone_constraints_data'))
+        before = [_constraint_data_to_pair(item) for item in previous]
+        previous_keys = {_constraint_pair_key(pair) for pair in before}
+        if mode == 'replace':
+            final = [_constraint_pair_to_data(pair) for pair in requested]
+            added = [pair for pair in requested if _constraint_pair_key(pair) not in previous_keys]
+            new_keys = {_constraint_pair_key(pair) for pair in requested}
+            removed = [pair for pair in before if _constraint_pair_key(pair) not in new_keys]
+            skipped = []
+        else:
+            added = [pair for pair in requested if _constraint_pair_key(pair) not in previous_keys]
+            skipped = [pair for pair in requested if _constraint_pair_key(pair) in previous_keys]
+            removed = []
+            final = previous + [_constraint_pair_to_data(pair) for pair in added]
+        package_name = _asset_package_path(data_asset.get_path_name())
+        registry = unreal.AssetRegistryHelpers.get_asset_registry()
+        referencers = [str(name) for name in (registry.get_referencers(
+            unreal.Name(package_name), unreal.AssetRegistryDependencyOptions(
+                include_hard_package_references=True,
+                include_soft_package_references=True)) or [])]
+        if not dry_run:
+            with unreal.ScopedEditorTransaction('Set KawaiiPhysics bone constraint pairs'):
+                data_asset.modify()
+                data_asset.set_editor_property('bone_constraints_data', final)
+        return json.dumps({
+            'mode': mode, 'dry_run': dry_run, 'before_count': len(before),
+            'after_count': len(final), 'added': added, 'removed': removed,
+            'skipped_existing': skipped, 'referencers': referencers,
+            'note': 'This is a shared asset and affects every referencing node. '
+                    'Compile the AnimBlueprint and restart PIE to apply changes.'})
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def set_graph_node_radius_by_depth(
+            handle: unreal.KawaiiPhysicsGraphNodeHandle,
+            radius_by_depth: list[float],
+            skeletal_mesh: unreal.SkeletalMesh,
+            dry_run: bool = False) -> str:
+        """Fit a linear radius curve to per-depth skirt-column radii using the required skeletal mesh.
+
+        The prediction uses all mesh bones, so a LOD that removes bones can change the actual LengthRate; check describe_kawaii_physics_bones_on_actor length_rate.
+        """
+        _raise_for_invalid_handle(handle, 'handle')
+        _raise_for_invalid_object(skeletal_mesh, 'skeletal_mesh')
+        read = lambda name: KawaiiPhysicsToolset.get_graph_node_property(handle, name)
+        curve_old = read('RadiusCurveData')
+        external_curve = _import_field(curve_old, 'ExternalCurve')
+        if external_curve and external_curve.strip().strip(chr(34)).strip(chr(39)).lower() != 'none':
+            raise RuntimeError('RadiusCurveData has an ExternalCurve; internal keys have no effect.')
+        settings_old = read('PhysicsSettings')
+        root_names = _import_bone_names(read('RootBone'))
+        if not root_names:
+            raise ValueError('RootBone is not set.')
+        base_excludes = set(_import_bone_names(read('ExcludeBones')))
+        roots_and_excludes = [(root_names[0], base_excludes)]
+        for item in _import_struct_items(read('AdditionalRootBones')):
+            root_field = _import_field(item, 'RootBone')
+            names = _import_bone_names(root_field)
+            if not names:
+                continue
+            override = _import_field(item, 'bUseOverrideExcludeBones') == 'True'
+            excludes = set(_import_bone_names(_import_field(item, 'OverrideExcludeBones'))) if override else base_excludes
+            roots_and_excludes.append((names[0], excludes))
+        dummy_length = float(read('DummyBoneLength'))
+        modifier = _bone_children_from_mesh(skeletal_mesh)
+        all_names = {str(name) for name in modifier.get_all_bone_names()}
+        unknown = [root for root, _ in roots_and_excludes if root not in all_names]
+        if unknown:
+            raise ValueError(f'Root bones not found in skeleton: {unknown}')
+        children = _collect_children(modifier, [root for root, _ in roots_and_excludes])
+        skeleton = skeletal_mesh.get_editor_property('skeleton')
+        pose = unreal.AnimPoseExtensions.get_reference_pose(skeleton)
+        local_lengths = {}
+        for bone in children:
+            transform = unreal.AnimPoseExtensions.get_ref_bone_pose(
+                pose, unreal.Name(bone), unreal.AnimPoseSpaces.LOCAL)
+            translation = transform.get_editor_property('translation')
+            local_lengths[bone] = math.sqrt(sum(float(getattr(translation, axis))**2
+                                                for axis in ('x', 'y', 'z')))
+        chains = _radius_chain_rates(children, local_lengths, roots_and_excludes,
+                                     dummy_length)
+        radius, keys, bones, warnings = _radius_keys_and_bones(
+            chains, radius_by_depth, dummy_length)
+        for name in ('BoneSubdivisionCount', 'bBoneSubdivisionDensifyByRadius',
+                     'BoneConstraintSubdivisionCount'):
+            value = read(name)
+            if value not in ('0', 'False', 'false'):
+                warnings.append(f'{name} is enabled; dummy counts or radii may change after reinitialization.')
+        key_text = ','.join('(InterpMode=RCIM_Linear,Time=%.9g,Value=%.9g)' %
+                            (key['time'], key['value']) for key in keys)
+        curve_new = ('(EditorCurveData=(Keys=(' + key_text + '),'
+                     'DefaultValue=340282346638528859811704183484516925440.000000,'
+                     'PreInfinityExtrap=RCCE_Constant,PostInfinityExtrap=RCCE_Constant),'
+                     'ExternalCurve=None)')
+        if re.search(r'(?<![A-Za-z])Radius\s*=\s*[^,)]+', settings_old):
+            settings_new = re.sub(r'(?<![A-Za-z])Radius\s*=\s*[^,)]+',
+                                  f'Radius={radius:.9g}', settings_old, count=1)
+        else:
+            separator = ',' if settings_old.strip() != '()' else ''
+            settings_new = settings_old[:-1] + f'{separator}Radius={radius:.9g})'
+        if not dry_run:
+            with unreal.ScopedEditorTransaction('Set KawaiiPhysics radius by depth'):
+                KawaiiPhysicsToolset.set_graph_node_property(handle, 'PhysicsSettings', settings_new)
+                try:
+                    KawaiiPhysicsToolset.set_graph_node_property(handle, 'RadiusCurveData', curve_new)
+                except Exception as error:
+                    KawaiiPhysicsToolset.set_graph_node_property(handle, 'PhysicsSettings', settings_old)
+                    raise RuntimeError('Unable to set RadiusCurveData; PhysicsSettings restored.') from error
+        chain_info = [{'root': chain['root'],
+                       'bone_count': sum(r['bone'] is not None for r in chain['records']),
+                       'length_rates': [r['length_rate'] for r in chain['records'] if r['bone'] is not None]}
+                      for chain in chains]
+        return json.dumps({'radius': radius, 'keys': keys, 'bones': bones,
+                           'chains': chain_info, 'warnings': warnings,
+                           'dry_run': dry_run,
+                           'next_steps': 'Compile the AnimBlueprint and restart PIE.'})
 
     # ===== Editor: AnimBlueprint / preset / audit =====
 
@@ -1994,6 +3153,223 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
                 'alpha': _get_alpha_on_component(component, filter_tags, False),
             })
         return json.dumps(descriptions)
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def describe_kawaii_physics_bones_on_actor(
+            actor_label: str, prefer_pie: bool = True,
+            filter_tag_names: list[str] | None = None, root_bone: str | None = None,
+            include_dummy: bool = False) -> str:
+        """Describe every runtime bone, limit and constraint in each matching node.
+
+        Unlike describe_kawaii_physics_runtime_on_actor, this returns the
+        per-node geometry instead of only component and node counts.
+        Hiding dummies affects display only and preserves original indices.
+        non_uniform_scale reports simulation-to-component scale, so scaling an
+        actor non-uniformly leaves it false for ComponentSpace nodes; radii are
+        in component-space centimeters.
+        """
+        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        filter_tag_names = list(filter_tag_names or [])
+        root_bone = root_bone or ''
+        result = _runtime_snapshot(actor_label, prefer_pie, filter_tag_names, root_bone)
+        nodes = _runtime_nodes(result)
+        result['checked'] = sum(len(node['bones']) for node in nodes if node['evaluated'])
+        if result['status'] == 'ok' and result['checked'] == 0:
+            result['status'] = 'nothing_checked'
+            result['reasons'].append('Evaluated nodes have no runtime bones.')
+        if not include_dummy:
+            for node in nodes:
+                hidden = sum(b['dummy_type'] != 'None' for b in node['bones'])
+                result['excluded'] += hidden
+                node['bones'] = [b for b in node['bones'] if b['dummy_type'] == 'None']
+            if result['excluded']:
+                result['reasons'].append('Dummy bones are hidden from display only.')
+        result['reasons'].extend(_runtime_limit_reasons(nodes))
+        return json.dumps(result)
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def check_collision_clearance_on_actor(
+            actor_label: str, prefer_pie: bool = True,
+            filter_tag_names: list[str] | None = None, root_bone: str | None = None,
+            position_source: str = 'both', contact_threshold: float = 0.0,
+            max_results: int = 20) -> str:
+        """Check current component-space bone clearances against active limits."""
+        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        filter_tag_names = list(filter_tag_names or [])
+        root_bone = root_bone or ''
+        if position_source not in ('pose', 'simulated', 'both'):
+            raise ValueError('position_source must be pose, simulated or both.')
+        if not isinstance(contact_threshold, (int, float)) or not math.isfinite(contact_threshold):
+            raise ValueError('contact_threshold must be finite.')
+        if not isinstance(max_results, int) or max_results < 0:
+            raise ValueError('max_results must be nonnegative.')
+        snapshot = _runtime_snapshot(actor_label, prefer_pie, filter_tag_names, root_bone)
+        result = {key: snapshot[key] for key in
+                  ('status', 'checked', 'excluded', 'reasons', 'world')}
+        result['contacts'] = []
+        result['by_source_type'] = {}
+        result['notes'] = [
+            'Displacement between pose and simulated positions alone does not prove collision caused it.',
+            'Plane clearance is geometric and differs from the solver previous-frame crossing test.',
+            'Values are centimeters in component space.']
+        if result['status'] in ('not_found', 'no_nodes', 'not_evaluated'):
+            return json.dumps(result)
+        nodes = [n for n in _runtime_nodes(snapshot) if n['evaluated']]
+        result['reasons'].extend(_runtime_limit_reasons(nodes))
+        contacts = []
+        excluded_disabled = 0
+        excluded_pinned = 0
+        for node in nodes:
+            identity = _runtime_node_id(node)
+            checked_bones, pinned_count = _collision_checked_bones(node)
+            for limit in node['limits']:
+                if not limit['enabled']:
+                    excluded_disabled += len(node['bones'])
+                    continue
+                excluded_pinned += pinned_count
+                source = limit['source_type']
+                group = result['by_source_type'].setdefault(source, {
+                    'checked': 0, 'minimum_clearance': None})
+                for bone in checked_bones:
+                    pose = _geom_point_clearance(limit, bone['pose_location'], bone['radius'])
+                    simulated = _geom_point_clearance(limit, bone['location'], bone['radius'])
+                    selected = (pose if position_source == 'pose' else simulated
+                                if position_source == 'simulated' else min(pose, simulated))
+                    result['checked'] += 1
+                    group['checked'] += 1
+                    group['minimum_clearance'] = (selected if group['minimum_clearance'] is None
+                        else min(group['minimum_clearance'], selected))
+                    if selected < contact_threshold:
+                        contacts.append((selected, {
+                            'node': identity, 'bone': bone['key'],
+                            'limit': _runtime_limit_id(limit),
+                            'pose_clearance': pose, 'simulated_clearance': simulated,
+                            'displacement': _geom_norm(_geom_sub(
+                                bone['location'], bone['pose_location']))}))
+        result['excluded'] += excluded_disabled + excluded_pinned
+        if excluded_disabled:
+            result['reasons'].append('Disabled limits were excluded.')
+        if any(bone.get('skip_simulate', False) for node in nodes for bone in node['bones']):
+            result['reasons'].append('Bones pinned to the input pose (skip_simulate) are not checked because the collision step skips them.')
+        result['contacts'] = [entry for _, entry in sorted(contacts, key=lambda pair: pair[0])[:max_results]]
+        result['status'] = ('nothing_checked' if not result['checked'] else
+                            'contact' if contacts else 'ok')
+        if result['status'] == 'nothing_checked':
+            result['reasons'].append('No bone and active limit pairs were available.')
+        return json.dumps(result)
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def start_collision_penetration_sampler(
+            actor_label: str, ring_root_bones: list[str], frames: int = 300,
+            prefer_pie: bool = True,
+            filter_tag_names: list[str] | None = None, root_bone: str | None = None,
+            min_depth: int = 0, max_depth: int = -1, closed: bool = True, threshold: float = 1.0,
+            warmup_frames: int = 0, fixed_frame_rate: float = 30.0) -> str:
+        """Sample fixed skirt centerlines after Slate ticks in component space.
+
+        Pass [] for ring_root_bones to use the default segment set.
+        fixed_frame_rate fixes game-time steps using the engine's fixed frame rate only
+        during sampling; values <= 0 disable it, and positive values below 15 are invalid.
+        The engine settings are restored on completion, stop, or error; real-time
+        FPS may fall, making the scene appear slower.
+        """
+        global _COLLISION_PENETRATION_SAMPLER
+        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        filter_tag_names = list(filter_tag_names or [])
+        root_bone = root_bone or ''
+        ring_root_bones = list(ring_root_bones)
+        if not isinstance(frames, int) or frames < 1:
+            raise ValueError('frames must be at least 1.')
+        if not isinstance(warmup_frames, int) or warmup_frames < 0:
+            raise ValueError('warmup_frames must be nonnegative.')
+        if not isinstance(threshold, (int, float)) or not math.isfinite(threshold) or threshold < 0:
+            raise ValueError('threshold must be finite and nonnegative.')
+        if (not isinstance(fixed_frame_rate, (int, float)) or
+                not math.isfinite(fixed_frame_rate) or
+                0 < fixed_frame_rate < 15):
+            raise ValueError('fixed_frame_rate must be finite and at least 15 when positive.')
+        if (not isinstance(min_depth, int) or min_depth < 0 or
+                not isinstance(max_depth, int) or
+                (max_depth != -1 and max_depth < min_depth)):
+            raise ValueError('Invalid depth range.')
+        if (any(not isinstance(root, str) or not root for root in ring_root_bones) or
+                len(set(ring_root_bones)) != len(ring_root_bones)):
+            raise ValueError('ring_root_bones must contain unique nonempty names.')
+        _stop_collision_penetration_sampler_impl()
+        snapshot = _runtime_snapshot(actor_label, prefer_pie, filter_tag_names, root_bone)
+        result = {key: snapshot[key] for key in ('status', 'checked', 'excluded', 'reasons', 'world')}
+        result['fixed_frame_rate'] = None
+        if snapshot['status'] in ('not_found', 'no_nodes', 'not_evaluated'):
+            return json.dumps(result)
+        nodes = [n for n in _runtime_nodes(snapshot) if n['evaluated']]
+        targets, checked, excluded, reasons, start_status = _build_penetration_targets(
+            nodes, ring_root_bones, min_depth, max_depth, closed)
+        result['checked'] = checked
+        result['excluded'] += excluded
+        result['reasons'].extend(reasons)
+        result['reasons'].extend(_runtime_limit_reasons(nodes))
+        if result['excluded']:
+            result['reasons'].append('Disabled limits were excluded.')
+        if start_status == 'nothing_checked':
+            result['status'] = start_status
+            result['reasons'].append('No eligible centerlines and active limits were available.')
+            return json.dumps(result)
+        _COLLISION_PENETRATION_SAMPLER = {
+            'actor': actor_label, 'prefer_pie': prefer_pie, 'filter_tag_names': list(filter_tag_names),
+            'root_bone': root_bone, 'world': result['world'], 'targets': targets,
+            'targets_by_id': {target['node_id']: target for target in targets},
+            'components': [(component, str(component.get_name())) for component in
+                           _find_skeletal_mesh_components_by_label(actor_label, prefer_pie)],
+            'filter_tags': _make_tag_container(filter_tag_names),
+            'frames': frames, 'frames_seen': 0, 'frames_collected': 0,
+            'unchanged_frames': 0,
+            'warmup_frames': warmup_frames, 'threshold': threshold,
+            'stats': _new_penetration_stats(), 'checked': result['checked'],
+            'excluded': result['excluded'], 'reasons': result['reasons'],
+            'done': False, 'error': '', 'tick_handle': None,
+            'fixed_frame_rate': None, 'notes': [],
+            'cost_total_ms': 0.0, 'cost_max_ms': 0.0, 'cost_samples': 0}
+        state = _COLLISION_PENETRATION_SAMPLER
+        _enable_sampler_fixed_frame_rate(state, fixed_frame_rate)
+        # TODO(verify): Slate post-tick callback availability and timing after component evaluation.
+        try:
+            state['tick_handle'] = unreal.register_slate_post_tick_callback(
+                _collision_penetration_sampler_tick)
+        except Exception as error:
+            state['error'] = str(error)
+            _stop_collision_penetration_sampler_impl()
+            result['status'] = 'error'
+            result['error'] = state['error']
+            result['fixed_frame_rate'] = state['fixed_frame_rate']
+            result['notes'] = state['notes']
+            return json.dumps(result)
+        result['status'] = start_status
+        result['fixed_frame_rate'] = state['fixed_frame_rate']
+        result['notes'] = state['notes']
+        return json.dumps(result)
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def get_collision_penetration_sampler_result() -> str:
+        """Return centerline penetration statistics with status running, ok,
+        penetration, nothing_checked, stopped, error, or not_started.
+        cost_ms is mean/max sampling cost per tick, unchanged_frames counts frames
+        with unchanged target positions, and fixed_frame_rate is the applied game-time rate.
+        """
+        state = _COLLISION_PENETRATION_SAMPLER
+        if state is None:
+            return json.dumps({'status': 'not_started'})
+        return json.dumps(_penetration_sampler_result(state))
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def stop_collision_penetration_sampler() -> bool:
+        """Stop sampling while retaining the result; idle stops are harmless."""
+        _stop_collision_penetration_sampler_impl()
+        return True
 
     @toolset_registry.tool_call
     @staticmethod

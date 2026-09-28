@@ -3,6 +3,8 @@ from __future__ import annotations
 import ast
 import inspect
 import json
+import time
+from types import SimpleNamespace
 import unittest
 
 import unreal
@@ -20,6 +22,11 @@ CHAIN_SKELETON_PATH = '/Game/KawaiiPhysicsSample/Model/Chain/S_Chain_Skeleton'
 GRAYCHAN_RUN_ANIMATION_PATH = '/Game/KawaiiPhysicsSample/Model/GrayChan/Animations/ThirdPersonRun'
 GRAYCHAN_IDLE_ANIMATION_PATH = '/Game/KawaiiPhysicsSample/Model/GrayChan/Animations/ThirdPersonIdle'
 SKIRT_ANIMATION_PATH = '/Game/KawaiiPhysicsSample/Model/Skirt/Animations/A_CheckSkirt'
+SKIRT_MESH_PATH = '/Game/KawaiiPhysicsSample/Model/Skirt/Meshs/SKM_Skirt'
+SKIRT_SKELETON_PATH = '/Game/KawaiiPhysicsSample/Model/Skirt/Meshs/SK_Skirt'
+SKIRT_CONSTRAINTS_PATH = '/Game/KawaiiPhysicsSample/Examples/05_Advanced/DA_5_2_SkirtConstraints'
+SKIRT_RING_ROOTS = ([f'skirt_{i:02d}_01_l' for i in range(1, 9)] +
+                    [f'skirt_{i:02d}_01_r' for i in range(8, 0, -1)])
 GRAYCHAN_MESH_PATH = '/Game/KawaiiPhysicsSample/Model/GrayChan/Mesh/GrayChan'
 BONE_SAMPLER_ACTOR_LABEL = 'KP_PyToolsetBoneSamplerSpaceTest'
 BASIC_EXTERNAL_FORCE_STRUCT = '/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Basic'
@@ -91,6 +98,562 @@ def _make_request(
 
 class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
     """Test KawaiiPhysicsToolset tool calls."""
+
+    def test_skirt_geometry_clearance_and_penetration(self):
+        sphere = {'limit_type': 'Spherical', 'location': [0, 0, 0],
+                  'radius0': 2.0, 'inner_sphere': False}
+        clear = toolset_module._geom_point_clearance
+        depth = toolset_module._geom_segment_penetration
+        self.assertAlmostEqual(clear(sphere, [4, 0, 0], 1), 1)
+        self.assertAlmostEqual(clear(sphere, [0, 0, 0], 0), -2)
+        self.assertAlmostEqual(depth(sphere, [-3, 0, 0], [3, 0, 0]), 2)
+        self.assertAlmostEqual(depth(sphere, [2, -3, 0], [2, 3, 0]), 0)
+        self.assertAlmostEqual(depth(sphere, [0, 0, 0], [0, 0, 0]), 2)
+        sphere['inner_sphere'] = True
+        self.assertAlmostEqual(clear(sphere, [0, 0, 0], 0.5), 1.5)
+        self.assertAlmostEqual(clear(sphere, [3, 0, 0], 0), -1)
+        self.assertAlmostEqual(depth(sphere, [0, 0, 0], [3, 0, 0]), 1)
+        capsule = {'limit_type': 'Capsule', 'start': [0, 0, 1],
+                   'end': [0, 0, -1], 'radius0': 1.0}
+        self.assertAlmostEqual(clear(capsule, [2, 0, 0], 0.5), 0.5)
+        self.assertAlmostEqual(depth(capsule, [-2, 0, 0], [2, 0, 0]), 1)
+        self.assertAlmostEqual(depth(capsule, [1, -2, 0], [1, 2, 0]), 0)
+        taper = {'limit_type': 'TaperedCapsule', 'start': [0, 0, 0],
+                 'end': [4, 0, 0], 'radius0': 2.0, 'radius1': 1.0}
+        self.assertAlmostEqual(clear(taper, [-2, 0, 0], 0), 0, places=5)
+        self.assertAlmostEqual(clear(taper, [5, 0, 0], 0), 0, places=5)
+        self.assertAlmostEqual(depth(taper, [0, -3, 0], [0, 3, 0]), 2, places=3)
+        taper['end'] = [0, 0, 0]
+        self.assertAlmostEqual(clear(taper, [0, 0, 0], 0), -2)
+        box = {'limit_type': 'Box', 'location': [0, 0, 0],
+               'rotation': [0, 0, 2**-0.5, 2**-0.5], 'extent': [2, 1, 1]}
+        self.assertAlmostEqual(clear(box, [0, 0, 0], 0), -1)
+        self.assertAlmostEqual(clear(box, [0, 3, 0], 0), 1)
+        self.assertAlmostEqual(depth(box, [0, -3, 0], [0, 3, 0]), 1, places=3)
+        plane = {'limit_type': 'Planar', 'location': [0, 0, 0],
+                 'plane_normal': [0, 0, 1]}
+        self.assertAlmostEqual(clear(plane, [0, 0, 2], 0.5), 1.5)
+        self.assertAlmostEqual(clear(plane, [0, 0, -2], 0.5), -2.5)
+        self.assertAlmostEqual(depth(plane, [0, 0, 2], [0, 0, -3]), 3)
+        self.assertAlmostEqual(toolset_module._geom_segment_distance(
+            [0, 0, 0], [0, 0, 0], [3, 0, 0], [3, 0, 0]), 3)
+        self.assertEqual(toolset_module._geom_closest_point_segment(
+            [3, 0, 0], [1, 0, 0], [1, 0, 0]), (1, 0, 0))
+        self.assertAlmostEqual(toolset_module._geom_segment_distance(
+            [-2, 0, 0], [2, 0, 0], [0, -2, 0], [0, 2, 0]), 0)
+
+    def test_tapered_capsule_closed_distance_matches_dense_sampling(self):
+        cases = [
+            ([0, 0, 0], [4, 0, 0], 2.0, 1.0, [2, 2, 0]),
+            ([0, 0, 0], [4, 0, 0], 2.0, 1.0, [-3, 1, 0]),
+            ([1, 2, 3], [3, 5, 7], 0.5, 1.75, [3, 3, 4]),
+            ([0, 0, 0], [2, 0, 0], 4.0, 1.0, [2, 2, 0]),
+            ([0, 0, 0], [0, 0, 0], 1.0, 2.0, [1, 2, 0]),
+        ]
+        for start, end, r0, r1, point in cases:
+            limit = {'limit_type': 'TaperedCapsule', 'start': start, 'end': end,
+                     'radius0': r0, 'radius1': r1}
+            sampled = min(
+                toolset_module._geom_norm(toolset_module._geom_sub(
+                    point, toolset_module._geom_lerp(start, end, i / 2000)))
+                - (r0 + (r1 - r0) * i / 2000)
+                for i in range(2001))
+            self.assertAlmostEqual(
+                toolset_module._geom_tapered_distance(limit, point), sampled,
+                delta=1e-3)
+
+    def test_tapered_capsule_penetration_144_segments_four_limits_under_one_second(self):
+        limits = [
+            {'limit_type': 'TaperedCapsule', 'start': [x, y, -2],
+             'end': [x + 1, y, 2], 'radius0': 6.0, 'radius1': 4.0}
+            for x, y in ((-1, -1), (1, -1), (-1, 1), (1, 1))]
+        segments = [([x / 2 - 3, y / 2 - 3, -2],
+                     [x / 2 - 3, y / 2 - 3, 2])
+                    for x in range(12) for y in range(12)]
+        start = time.perf_counter()
+        depths = [toolset_module._geom_segment_penetration(limit, a, b)
+                  for limit in limits for a, b in segments]
+        elapsed = time.perf_counter() - start
+        self.assertEqual(len(depths), 576)
+        self.assertTrue(any(value > 0 for value in depths))
+        self.assertLess(elapsed, 1.0)
+
+    def test_penetration_frame_96_bones_144_segments_four_limits_under_10ms(self):
+        positions = {f'b{i}': [10.0 * (i % 8), 10.0 * (i // 8), 0.0]
+                     for i in range(96)}
+        pairs = ([(f'b{i}', f'b{i + 1}') for i in range(96) if i % 8 != 7] +
+                 [(f'b{i}', f'b{i + 8}') for i in range(60)])
+        self.assertEqual(len(pairs), 144)
+        limits = [{
+            'limit_type': 'TaperedCapsule', 'start': [x, y, -2.0],
+            'end': [x, y, 2.0], 'radius0': 1.5, 'radius1': 1.0,
+            'source_type': 'AnimNode', 'source_array': 'TaperedCapsuleLimits',
+            'source_index': i, 'driving_bone': 'root'}
+            for i, (x, y) in enumerate(((5, 0), (25, 20), (45, 50), (65, 80)))]
+        target = {'identity': {'component': 'Mesh'},
+                  'endpoint_order': tuple(positions), 'previous': None, 'maxima': {},
+                  'segment_specs': [(a, b, 'vertical' if i >= 84 else 'horizontal',
+                                     (a, b)) for i, (a, b) in enumerate(pairs)]}
+        elapsed_ms = []
+        for _ in range(5):
+            target['previous'] = None
+            stats = toolset_module._new_penetration_stats()
+            started = time.perf_counter()
+            valid = toolset_module._accumulate_penetration_frame(
+                target, positions, limits, stats, 1.0, 1)
+            elapsed_ms.append((time.perf_counter() - started) * 1000.0)
+            self.assertTrue(valid)
+            self.assertEqual(stats['all']['samples'], 144)
+            self.assertGreater(stats['all']['max'], 0.0)
+            self.assertGreater(stats['all']['samples_over_threshold'], 0)
+        self.assertLess(min(elapsed_ms), 10.0, elapsed_ms)
+
+    def test_ring_constraints_pure(self):
+        hierarchy = {'a': ['a1'], 'a1': ['a2'], 'a2': [],
+                     'b': ['b1'], 'b1': [], 'c': ['c1'], 'c1': ['c2'], 'c2': []}
+        build = toolset_module._build_ring_constraints
+        closed = build(hierarchy, ['a', 'b', 'c'], 1, 2, True, '', False)
+        self.assertEqual(closed['count'], 4)
+        self.assertEqual(len(closed['missing']), 2)
+        self.assertTrue(closed['unequal_lengths'])
+        self.assertEqual(build(hierarchy, ['a', 'b', 'c'], 1, 1, False, '', False)['count'], 2)
+        self.assertEqual(build(hierarchy, ['a', 'c'], 1, 1, True, '', False)['count'], 1)
+        hierarchy['a1'] = ['a2', 'a3']
+        self.assertEqual(build(hierarchy, ['a', 'c'], 1, -1, True, '', False)['branched'][0]['bone'], 'a1')
+        self.assertEqual(build(hierarchy, ['a', 'c'], 1, -1, True, '', False)['count'], 1)
+
+    def test_ring_constraints_reject_empty_result_pure(self):
+        build = toolset_module._build_ring_constraints
+        with self.assertRaisesRegex(ValueError, 'columns=.*missing='):
+            build({'a': ['a1'], 'a1': []}, ['a'], 0, -1, True, '', False)
+        with self.assertRaisesRegex(ValueError, 'columns=.*missing='):
+            build({'a': [], 'b': []}, ['a', 'b'], 1, 1, False, '', False)
+
+    def test_ring_constraints_skirt_asset(self):
+        mesh = unreal.EditorAssetLibrary.load_asset(SKIRT_MESH_PATH)
+        asset = unreal.EditorAssetLibrary.load_asset(SKIRT_CONSTRAINTS_PATH)
+        if mesh is None or asset is None:
+            self.skipTest('Skirt mesh or constraint asset is unavailable.')
+        result = json.loads(KawaiiPhysicsToolset.build_ring_bone_constraints(
+            mesh, SKIRT_RING_ROOTS, 1, 4, True, '', False))
+        self.assertEqual(result['count'], 64)
+        expected = {frozenset((pair['bone1'], pair['bone2']))
+                    for pair in result['pairs']}
+        actual = {frozenset((str(item.get_editor_property('bone_reference1').get_editor_property('bone_name')),
+                             str(item.get_editor_property('bone_reference2').get_editor_property('bone_name'))))
+                  for item in asset.get_editor_property('bone_constraints_data')}
+        self.assertEqual(expected, actual)
+
+    def test_radius_length_rates_pure(self):
+        children = {'a': ['a1'], 'a1': ['a2'], 'a2': [],
+                    'b': ['b1'], 'b1': ['b2'], 'b2': []}
+        lengths = {'a1': 2.0, 'a2': 3.0, 'b1': 2.0, 'b2': 3.0}
+        chains = toolset_module._radius_chain_rates(
+            children, lengths, [('a', set()), ('b', {'b2'})], 1.0)
+        self.assertEqual([r['length_rate'] for r in chains[0]['records']],
+                         [0.0, 2/6, 5/6, 1.0])
+        self.assertEqual([r['length_rate'] for r in chains[1]['records']],
+                         [0.0, 2/3, 1.0])
+        radius, keys, bones, warnings = toolset_module._radius_keys_and_bones(
+            chains, [2.0, 3.0, 4.0], 1.0)
+        self.assertEqual(radius, 4.0)
+        self.assertEqual(keys[-1]['time'], 1.0)
+        self.assertTrue(any('unequal bone counts' in w for w in warnings))
+        self.assertEqual(len(bones), 5)
+
+    def test_bone_constraints_data_asset_pairs(self):
+        factory = unreal.DataAssetFactory()
+        factory.set_editor_property('data_asset_class',
+                                    unreal.KawaiiPhysicsBoneConstraintsDataAsset)
+        asset = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+            'DA_PairsTest', TEST_FOLDER,
+            unreal.KawaiiPhysicsBoneConstraintsDataAsset, factory)
+        self.assertIsNotNone(asset)
+        first = [{'bone1': 'a', 'bone2': 'b', 'compliance_type': 'Leather'}]
+        result = json.loads(KawaiiPhysicsToolset.set_bone_constraints_data_asset_pairs(
+            asset, json.dumps({'pairs': first}), 'replace', False))
+        self.assertEqual(result['after_count'], 1)
+        self.assertEqual(str(asset.get_editor_property('bone_constraints_data')[0]
+                             .get_editor_property('bone_reference1').get_editor_property('bone_name')), 'a')
+        appended = [{'bone1': 'b', 'bone2': 'a'}, {'bone1': 'b', 'bone2': 'c'}]
+        result = json.loads(KawaiiPhysicsToolset.set_bone_constraints_data_asset_pairs(
+            asset, json.dumps(appended), 'append', False))
+        self.assertEqual(result['after_count'], 2)
+        self.assertEqual(len(result['skipped_existing']), 1)
+        dry = json.loads(KawaiiPhysicsToolset.set_bone_constraints_data_asset_pairs(
+            asset, json.dumps(first), 'replace', True))
+        self.assertEqual(dry['after_count'], 1)
+        self.assertEqual(len(asset.get_editor_property('bone_constraints_data')), 2)
+        for mode in ('replace', 'append'):
+            with self.assertToolRaisesRuntimeError():
+                KawaiiPhysicsToolset.set_bone_constraints_data_asset_pairs(
+                    asset, json.dumps({'pairs': []}), mode, False)
+        self.assertEqual(len(asset.get_editor_property('bone_constraints_data')), 2)
+        with self.assertToolRaisesRuntimeError():
+            KawaiiPhysicsToolset.set_bone_constraints_data_asset_pairs(
+                asset, json.dumps([{'bone1': 'c', 'bone2': 'd'},
+                                   {'bone1': 'd', 'bone2': 'c'}]), 'replace', False)
+        for invalid in ([{'bone1': '', 'bone2': 'd'}],
+                        [{'bone1': 'c', 'bone2': 'c'}],
+                        [{'bone1': 'c', 'bone2': 'd',
+                          'compliance_type': 'Invalid'}]):
+            with self.assertToolRaisesRuntimeError():
+                KawaiiPhysicsToolset.set_bone_constraints_data_asset_pairs(
+                    asset, json.dumps(invalid), 'replace', False)
+        self.assertEqual(len(asset.get_editor_property('bone_constraints_data')), 2)
+        result = json.loads(KawaiiPhysicsToolset.set_bone_constraints_data_asset_pairs(
+            asset, json.dumps(first), 'replace', False))
+        self.assertEqual(len(result['removed']), 1)
+        self.assertEqual(len(asset.get_editor_property('bone_constraints_data')), 1)
+
+    def test_radius_by_depth_skirt_node(self):
+        mesh = unreal.EditorAssetLibrary.load_asset(SKIRT_MESH_PATH)
+        skeleton = unreal.EditorAssetLibrary.load_asset(SKIRT_SKELETON_PATH)
+        if mesh is None or skeleton is None:
+            self.skipTest('Skirt mesh or skeleton is unavailable.')
+        self.skeleton = skeleton
+        blueprint = self._create_anim_blueprint('ABP_RadiusByDepth')
+        handle = self._place_test_node(
+            blueprint, _make_request(root_bone_pattern='skirt_01_01_l'))
+        self._set_graph_node_property(
+            handle, 'AdditionalRootBones',
+            '((RootBone=(BoneName="skirt_02_01_l")),'
+            '(RootBone=(BoneName="skirt_03_01_l")))')
+        self._set_graph_node_property(handle, 'DummyBoneLength', '3.0')
+        radii = [2.0, 2.0, 3.0, 4.0, 4.5]
+        with self.assertToolRaisesRuntimeError():
+            KawaiiPhysicsToolset.set_graph_node_radius_by_depth(handle, radii, None, True)
+        old_settings = KawaiiPhysicsToolset.get_graph_node_property(handle, 'PhysicsSettings')
+        dry = json.loads(KawaiiPhysicsToolset.set_graph_node_radius_by_depth(
+            handle, radii, mesh, True))
+        self.assertTrue(dry['dry_run'])
+        self.assertEqual(old_settings,
+                         KawaiiPhysicsToolset.get_graph_node_property(handle, 'PhysicsSettings'))
+        result = json.loads(KawaiiPhysicsToolset.set_graph_node_radius_by_depth(
+            handle, radii, mesh, False))
+        self.assertEqual(result['radius'], 4.5)
+        self.assertEqual(len(result['keys']), 6)
+        for bone in result['bones']:
+            self.assertLessEqual(abs(bone['error']), 0.05)
+        settings = KawaiiPhysicsToolset.get_graph_node_property(handle, 'PhysicsSettings')
+        curve = KawaiiPhysicsToolset.get_graph_node_property(handle, 'RadiusCurveData')
+        self.assertIn('Radius=4.5', settings)
+        self.assertIn('RCIM_Linear', curve)
+        self._set_graph_node_property(handle, 'BoneSubdivisionCount', '1')
+        warned = json.loads(KawaiiPhysicsToolset.set_graph_node_radius_by_depth(
+            handle, radii, mesh, True))
+        self.assertTrue(any('BoneSubdivisionCount' in w for w in warned['warnings']))
+        curve_factory = unreal.CurveFactory()
+        curve_factory.set_editor_property('curve_class', unreal.CurveFloat)
+        external = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+            'Curve_ExternalRadius', TEST_FOLDER, unreal.CurveFloat, curve_factory)
+        self.assertIsNotNone(external)
+        self._set_graph_node_property(
+            handle, 'RadiusCurveData',
+            f'(ExternalCurve={external.get_path_name()})')
+        with self.assertToolRaisesRuntimeError():
+            KawaiiPhysicsToolset.set_graph_node_radius_by_depth(handle, radii, mesh, False)
+
+    def test_penetration_statistics_pure(self):
+        stats = toolset_module._new_penetration_stats()
+        add = toolset_module._accumulate_penetration_sample
+        add(stats, 'vertical', 0.0, 1.0, False, {'frame': 1})
+        add(stats, 'vertical', 2.0, 1.0, False, {'frame': 2})
+        add(stats, 'vertical', 0.0, 1.0, True, None)
+        add(stats, 'vertical', 4.0, 1.0, False, {'frame': 4})
+        result = toolset_module._penetration_stats_result(stats)
+        self.assertEqual(result['vertical']['samples'], 3)
+        self.assertEqual(result['vertical']['mean_positive'], 3.0)
+        self.assertEqual(result['vertical']['samples_over_threshold'], 2)
+        self.assertEqual(result['vertical']['stale_or_unknown'], 1)
+        self.assertEqual(result['vertical']['worst']['frame'], 4)
+        self.assertEqual(result['all']['max'], 4.0)
+
+    def test_penetration_unchanged_frames_are_measured_pure(self):
+        target = {'identity': {'component': 'Mesh'},
+                  'endpoint_order': ('a', 'b'), 'previous': None,
+                  'unchanged_frames': 0, 'maxima': {},
+                  'segment_specs': [('a', 'b', 'vertical', ('a', 'b'))]}
+        positions = {'a': [0.0, 0.0, 0.0], 'b': [1.0, 0.0, 0.0]}
+        limits = [{'limit_type': 'Spherical', 'inner_sphere': False,
+                   'location': [0.0, 0.0, 0.0], 'radius0': 2.0,
+                   'source_type': 'AnimNode', 'source_array': 'SphericalLimits',
+                   'source_index': 0, 'driving_bone': 'a'}]
+        stats = toolset_module._new_penetration_stats()
+        sample = toolset_module._accumulate_penetration_frame
+        self.assertTrue(sample(target, positions, limits, stats, 1.0, 1))
+        self.assertTrue(sample(target, positions, limits, stats, 1.0, 2))
+        self.assertEqual(stats['all']['samples'], 2)
+        self.assertEqual(stats['all']['stale_or_unknown'], 0)
+        self.assertEqual(target['unchanged_frames'], 1)
+        self.assertTrue(sample(target, positions, [], stats, 1.0, 3))
+        self.assertEqual(stats['all']['samples'], 3)
+        self.assertEqual(target['unchanged_frames'], 2)
+        self.assertFalse(sample(target, {}, [], stats, 1.0, 4))
+        self.assertEqual(stats['all']['stale_or_unknown'], 1)
+
+    def test_penetration_error_overrides_statistics_pure(self):
+        stats = toolset_module._new_penetration_stats()
+        toolset_module._accumulate_penetration_sample(
+            stats, 'vertical', 2.0, 1.0, False, {'frame': 1})
+        state = {'targets': [], 'stats': stats, 'error': 'PIE ended', 'done': True,
+                 'excluded': 0, 'reasons': [], 'world': {}, 'frames_collected': 1,
+                 'unchanged_frames': 0, 'frames_seen': 1, 'frames': 2,
+                 'threshold': 1.0, 'fixed_frame_rate': None, 'cost_total_ms': 0.0,
+                 'cost_samples': 0, 'cost_max_ms': 0.0, 'notes': []}
+        result = toolset_module._penetration_sampler_result(state)
+        self.assertEqual(result['status'], 'error')
+        self.assertEqual(result['error'], 'PIE ended')
+        self.assertEqual(result['statistics']['all']['samples'], 1)
+
+    def test_penetration_stopped_before_requested_frames_pure(self):
+        stats = toolset_module._new_penetration_stats()
+        toolset_module._accumulate_penetration_sample(
+            stats, 'vertical', 2.0, 1.0, False, {'frame': 1})
+        state = {'targets': [], 'stats': stats, 'error': '', 'done': True,
+                 'excluded': 0, 'reasons': [], 'world': {}, 'frames_collected': 1,
+                 'unchanged_frames': 0, 'frames_seen': 1, 'frames': 2,
+                 'threshold': 1.0, 'fixed_frame_rate': None, 'cost_total_ms': 0.0,
+                 'cost_samples': 0, 'cost_max_ms': 0.0, 'notes': []}
+        result = toolset_module._penetration_sampler_result(state)
+        self.assertEqual(result['status'], 'stopped')
+        self.assertEqual(result['frames_requested'], 2)
+        self.assertEqual(result['frames_collected'], 1)
+        self.assertEqual(result['statistics']['all']['samples'], 1)
+        state['frames_collected'] = 2
+        self.assertEqual(toolset_module._penetration_sampler_result(state)['status'],
+                         'penetration')
+        state['frames_collected'] = 1
+        state['error'] = 'PIE ended'
+        result = toolset_module._penetration_sampler_result(state)
+        self.assertEqual(result['status'], 'error')
+        self.assertEqual(result['error'], 'PIE ended')
+
+    def test_penetration_start_requires_segments_and_limits_on_same_node_pure(self):
+        def node(name, bones, limits):
+            return {'component': 'Mesh', 'anim_instance_class': 'ABP_C',
+                    'node_index': 0 if name == 'a' else 1, 'root_bone': name,
+                    'tag': '', 'bones': bones, 'limits': limits, 'constraints': []}
+        bones_a = [{'index': 0, 'key': 'a', 'dummy_type': 'None', 'parent_index': -1},
+                   {'index': 1, 'key': 'a1', 'dummy_type': 'None', 'parent_index': 0}]
+        bones_b = [{'index': 0, 'key': 'b', 'dummy_type': 'None', 'parent_index': -1}]
+        select = toolset_module._build_penetration_targets
+        targets, checked, _, _, status = select(
+            [node('a', bones_a, [{'enabled': False}]),
+             node('b', bones_b, [{'enabled': True}])], [], 0, -1, True)
+        self.assertEqual(status, 'nothing_checked')
+        self.assertEqual(checked, 0)
+        self.assertEqual(targets, [])
+        targets, checked, _, _, status = select(
+            [node('a', bones_a, [{'enabled': True}])], [], 0, -1, True)
+        self.assertEqual(status, 'running')
+        self.assertEqual(checked, 1)
+        self.assertEqual(len(targets), 1)
+
+    def test_penetration_segment_classification_pure(self):
+        bones = [
+            {'index': 0, 'key': 'a', 'dummy_type': 'None', 'parent_index': -1},
+            {'index': 1, 'key': 'a#inter1', 'dummy_type': 'InterBone', 'parent_index': 0},
+            {'index': 2, 'key': 'a1', 'dummy_type': 'None', 'parent_index': 1},
+            {'index': 3, 'key': 'a1#tip', 'dummy_type': 'Tip', 'parent_index': 2},
+            {'index': 4, 'key': 'b', 'dummy_type': 'None', 'parent_index': -1},
+            {'index': 5, 'key': 'b1', 'dummy_type': 'None', 'parent_index': 4},
+            {'index': 6, 'key': 'c', 'dummy_type': 'None', 'parent_index': -1},
+            {'index': 7, 'key': 'c1', 'dummy_type': 'None', 'parent_index': 6},
+            {'index': 8, 'key': '#bridge8', 'dummy_type': 'Bridge', 'parent_index': -1},
+        ]
+        node = {'bones': bones, 'constraints': [
+            {'bone_index1': 2, 'bone_index2': 5},
+            {'bone_index1': 2, 'bone_index2': 7},
+            {'bone_index1': 1, 'bone_index2': 8}]}
+        build = toolset_module._build_penetration_segments
+        closed = build(node, ['a', 'b', 'c'], 0, 1, True)
+        self.assertEqual(sum(s['category'] == 'horizontal' for s in closed), 6)
+        self.assertEqual(sum(s['category'] == 'vertical' for s in closed), 3)
+        self.assertFalse(any('#inter' in s['bone1'] or '#bridge' in s['bone2']
+                             for s in closed))
+        opened = build(node, ['a', 'b', 'c'], 1, 1, False)
+        self.assertEqual(sum(s['category'] == 'horizontal' for s in opened), 2)
+        self.assertEqual(sum(s['category'] == 'vertical' for s in opened), 0)
+        self.assertEqual(sum(s['category'] == 'other' for s in opened), 1)
+        unrestricted = build(node, [], 0, -1, True)
+        self.assertTrue(any(s['bone2'] == 'a1#tip' for s in unrestricted))
+        self.assertEqual(sum(s['category'] == 'other' for s in unrestricted), 2)
+
+    def test_penetration_segments_exclude_only_two_pinned_endpoints_pure(self):
+        node = {'bones': [
+            {'index': 0, 'key': 'a', 'dummy_type': 'None', 'parent_index': -1,
+             'skip_simulate': True},
+            {'index': 1, 'key': 'b', 'dummy_type': 'None', 'parent_index': 0,
+             'skip_simulate': True},
+            {'index': 2, 'key': 'c', 'dummy_type': 'None', 'parent_index': 1,
+             'skip_simulate': False}], 'constraints': []}
+        segments = toolset_module._build_penetration_segments(node, [], 0, -1, True)
+        self.assertEqual([(s['bone1'], s['bone2']) for s in segments], [('b', 'c')])
+        checked, excluded = toolset_module._collision_checked_bones(node)
+        self.assertEqual([bone['key'] for bone in checked], ['c'])
+        self.assertEqual(excluded, 2)
+
+    def test_runtime_info_to_dict_limit_shape(self):
+        vec = lambda x, y, z: SimpleNamespace(x=x, y=y, z=z)
+        quat = SimpleNamespace(x=0, y=0, z=0, w=1)
+        tag = SimpleNamespace(get_editor_property=lambda name: 'KawaiiPhysics.Test')
+        bone = SimpleNamespace(index=0, bone_name='a', dummy_type='None',
+            parent_index=-1, location=vec(1, 2, 3), pose_location=vec(2, 3, 4),
+            radius=1.0, length_rate_from_root=0.5)
+        limit = SimpleNamespace(limit_type='Spherical', source_type='AnimNode',
+            source_array_name='SphericalLimits', source_index=2, driving_bone='a',
+            enabled=True, location=vec(0, 0, 0), rotation=quat,
+            start=vec(0, 0, 0), end=vec(0, 0, 0), radius0=3.0, radius1=3.0,
+            extent=vec(0, 0, 0), plane_normal=vec(0, 0, 1), inner_sphere=False)
+        info = SimpleNamespace(bones=[bone], limits=[limit], constraints=[],
+            anim_instance_class_name='ABP_C', node_index=0, root_bone='a', tag=tag,
+            simulation_space='ComponentSpace', evaluated=True, non_uniform_scale=False,
+            num_convex_limits=0, convex_fallback_shape='ConvexHull')
+        result = toolset_module._runtime_info_to_dict(info, 'Mesh')
+        self.assertEqual(result['bones'][0]['key'], 'a')
+        self.assertFalse(result['bones'][0]['skip_simulate'])
+        bone.skip_simulate = True
+        self.assertTrue(toolset_module._runtime_info_to_dict(info, 'Mesh')['bones'][0]['skip_simulate'])
+        self.assertEqual(result['tag'], 'KawaiiPhysics.Test')
+        self.assertEqual(set(result['limits'][0]), {
+            'limit_type', 'source_type', 'source_array', 'source_index', 'driving_bone',
+            'enabled', 'location', 'rotation', 'start', 'end', 'radius0', 'radius1',
+            'extent', 'plane_normal', 'inner_sphere'})
+        self.assertEqual(result['limits'][0]['rotation'], [0, 0, 0, 1])
+        keyed = [
+            {'index': 0, 'bone_name': 'a', 'dummy_type': 'None', 'parent_index': -1},
+            {'index': 1, 'bone_name': 'None', 'dummy_type': 'InterBone', 'parent_index': 0},
+            {'index': 2, 'bone_name': 'None', 'dummy_type': 'Tip', 'parent_index': 1},
+            {'index': 3, 'bone_name': 'None', 'dummy_type': 'Bridge', 'parent_index': -1},
+        ]
+        toolset_module._assign_runtime_bone_keys(keyed)
+        self.assertEqual([item['key'] for item in keyed],
+                         ['a', 'a#inter1', 'a#tip', '#bridge3'])
+
+    def test_runtime_sample_info_reads_endpoints_and_active_shapes_only(self):
+        vec = lambda x, y, z: SimpleNamespace(x=x, y=y, z=z)
+        bone0 = SimpleNamespace(index=0, dummy_type='None', parent_index=-1,
+                                location=vec(1, 2, 3))
+        bone1 = SimpleNamespace(index=1, dummy_type='None', parent_index=0)
+        active = SimpleNamespace(enabled=True, limit_type='TAPERED_CAPSULE',
+            source_type='AnimNode', source_array_name='TaperedCapsuleLimits',
+            source_index=0, driving_bone='a', start=vec(0, 0, -1),
+            end=vec(0, 0, 1), radius0=2.0, radius1=1.0)
+        disabled = SimpleNamespace(enabled=False)
+        target = {'topology': ((0, 'None', -1), (1, 'None', 0)),
+                  'keys_by_index': {0: 'a'}, 'endpoint_keys': {'a', 'a#tip'}}
+        positions, limits = toolset_module._runtime_sample_info(
+            SimpleNamespace(bones=[bone0, bone1], limits=[active, disabled]), target)
+        self.assertEqual(positions, {'a': [1.0, 2.0, 3.0]})
+        self.assertEqual(len(limits), 1)
+        self.assertEqual(limits[0]['radius1'], 1.0)
+        bone0.bone_name = 'a'
+        bone1.bone_name = 'None'
+        bone1.dummy_type = 'TIP'
+        bone1.location = vec(4, 5, 6)
+        positions, _ = toolset_module._runtime_sample_info(
+            SimpleNamespace(bones=[bone0, bone1], limits=[active]), target)
+        self.assertEqual(positions['a#tip'], [4.0, 5.0, 6.0])
+
+    def test_sampler_fixed_frame_rate_save_set_and_restore_pure(self):
+        class FakeEngine:
+            def __init__(self):
+                self.values = {'bUseFixedFrameRate': False, 'FixedFrameRate': 60.0}
+                self.writes = []
+
+            def get_editor_property(self, name):
+                return self.values[name]
+
+            def set_editor_property(self, name, value):
+                self.writes.append((name, value))
+                self.values[name] = value
+
+        engine = FakeEngine()
+        state = {'fixed_frame_rate': None, 'notes': []}
+        toolset_module._enable_sampler_fixed_frame_rate(state, 30.0, engine)
+        self.assertEqual(engine.values,
+                         {'bUseFixedFrameRate': True, 'FixedFrameRate': 30.0})
+        self.assertEqual(state['fixed_frame_rate'], 30.0)
+        self.assertTrue(any('Game time advanced at a fixed rate' in note
+                            for note in state['notes']))
+        toolset_module._restore_sampler_fixed_frame_rate(state)
+        self.assertEqual(engine.values,
+                         {'bUseFixedFrameRate': False, 'FixedFrameRate': 60.0})
+        writes_after_restore = list(engine.writes)
+        toolset_module._restore_sampler_fixed_frame_rate(state)
+        self.assertEqual(engine.writes, writes_after_restore)
+
+    def test_sampler_fixed_frame_rate_disabled_pure(self):
+        state = {'fixed_frame_rate': None, 'notes': []}
+        toolset_module._enable_sampler_fixed_frame_rate(state, 0.0, None)
+        self.assertIsNone(state['fixed_frame_rate'])
+        self.assertEqual(state['notes'], [])
+
+    def test_skirt_check_tools_unknown_actor_and_guards(self):
+        self._require_world()
+        toolset_module._stop_collision_penetration_sampler_impl()
+        toolset_module._COLLISION_PENETRATION_SAMPLER = None
+        describe = json.loads(KawaiiPhysicsToolset.describe_kawaii_physics_bones_on_actor(
+            UNKNOWN_ACTOR_LABEL, False, [], '', False))
+        clearance = json.loads(KawaiiPhysicsToolset.check_collision_clearance_on_actor(
+            UNKNOWN_ACTOR_LABEL, False, [], '', 'both', 0.0, 20))
+        start = json.loads(KawaiiPhysicsToolset.start_collision_penetration_sampler(
+            UNKNOWN_ACTOR_LABEL, [], 10, False, [], '', 0, -1, True, 1.0, 0, 30.0))
+        for result in (describe, clearance, start):
+            self.assertEqual(result['status'], 'not_found')
+            self.assertEqual(result['checked'], 0)
+            self.assertIn('world', result)
+        self.assertEqual(json.loads(KawaiiPhysicsToolset.get_collision_penetration_sampler_result())['status'],
+                         'not_started')
+        self.assertTrue(KawaiiPhysicsToolset.stop_collision_penetration_sampler())
+        with self.assertToolRaisesRuntimeError():
+            KawaiiPhysicsToolset.check_collision_clearance_on_actor(
+                UNKNOWN_ACTOR_LABEL, False, [], '', 'invalid', 0.0, 20)
+        for arguments in ((0, 0, 1.0, 0, -1, []),
+                          (10, -1, 1.0, 0, -1, []),
+                          (10, 0, -1.0, 0, -1, []),
+                          (10, 0, 1.0, -1, -1, []),
+                          (10, 0, 1.0, 2, 1, []),
+                          (10, 0, 1.0, 0, -1, ['a', 'a'])):
+            frames, warmup, threshold, min_depth, max_depth, roots = arguments
+            with self.assertToolRaisesRuntimeError():
+                KawaiiPhysicsToolset.start_collision_penetration_sampler(
+                    UNKNOWN_ACTOR_LABEL, roots, frames, False, [], '',
+                    min_depth, max_depth, True, threshold, warmup, 30.0)
+        with self.assertToolRaisesRuntimeError():
+            KawaiiPhysicsToolset.start_collision_penetration_sampler(
+                UNKNOWN_ACTOR_LABEL, [], 10, False, [], '',
+                0, -1, True, 1.0, 0, 14.0)
+
+    def test_skirt_runtime_getter_smoke(self):
+        self._require_world()
+        mesh = unreal.EditorAssetLibrary.load_asset(SKIRT_MESH_PATH)
+        blueprint = unreal.EditorAssetLibrary.load_asset(
+            '/Game/KawaiiPhysicsSample/Examples/05_Advanced/ABP_5_1_BoneConstraint_On')
+        if mesh is None or blueprint is None:
+            self.skipTest('Skirt mesh or AnimBlueprint is unavailable.')
+        actor_subsystem = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+        actor = actor_subsystem.spawn_actor_from_class(
+            unreal.SkeletalMeshActor, unreal.Vector(5100.0, 0.0, 0.0))
+        if actor is None:
+            self.skipTest('Unable to spawn a SkeletalMeshActor in the editor world.')
+        try:
+            actor.set_actor_label('KP_PyToolsetSkirtRuntimeTest')
+            component = actor.get_editor_property('skeletal_mesh_component')
+            if hasattr(component, 'set_skeletal_mesh_asset'):
+                component.set_skeletal_mesh_asset(mesh)
+            else:
+                component.set_skeletal_mesh(mesh)
+            component.set_anim_instance_class(blueprint.generated_class())
+            result = json.loads(KawaiiPhysicsToolset.describe_kawaii_physics_bones_on_actor(
+                'KP_PyToolsetSkirtRuntimeTest', False, [], '', True))
+            nodes = [node for entry in result['components'] for node in entry['nodes']]
+            self.assertGreaterEqual(len(nodes), 1)
+            self.assertTrue(any(node['root_bone'] == 'skirt_01_01_l' for node in nodes))
+            self.assertIn(result['status'], ('ok', 'not_evaluated'))
+        finally:
+            actor_subsystem.destroy_actor(actor)
 
     def setUp(self):
         super().setUp()
