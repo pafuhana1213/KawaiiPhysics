@@ -6,6 +6,7 @@ import os
 import re
 import time
 from collections import defaultdict
+from decimal import Decimal, InvalidOperation
 
 import unreal
 
@@ -617,6 +618,149 @@ def _parse_graph_node_properties(properties_json: str) -> list[tuple[str, str]]:
     return properties
 
 
+_IGNORED_IMPORT_TEXT_FIELDS = {
+    'SyncBones': frozenset({
+        'ChildTargets', 'IsShowPreviewBone', 'PreviewBone',
+        'TranslationBySyncBone', 'ScaleByLengthRateCurve',
+        'LengthRateFromSyncTargetRoot', 'ModifyBoneIndex',
+        'InitialPoseLocation', 'DeltaDistance', 'ScaledDeltaDistance',
+    }),
+}
+
+
+def _normalize_import_text(value: str | None, property_name: str | None = None):
+    """Normalize ImportText tokens and ignore configured fields for a property."""
+    if value is None:
+        return None
+    tokens = []
+    atom = []
+
+    def flush_atom():
+        if not atom:
+            return
+        token = ''.join(atom)
+        atom.clear()
+        try:
+            number = Decimal(token)
+            if number.is_finite():
+                token = str(number.normalize())
+        except InvalidOperation:
+            if token.lower() in ('true', 'false'):
+                token = token.lower()
+        tokens.append(token)
+
+    index = 0
+    while index < len(value):
+        char = value[index]
+        if char == '"':
+            flush_atom()
+            start = index
+            index += 1
+            while index < len(value):
+                if value[index] == '\\':
+                    index += 2
+                elif value[index] == '"':
+                    index += 1
+                    break
+                else:
+                    index += 1
+            tokens.append(value[start:index])
+            continue
+        if char.isspace() or char in '(),=':
+            flush_atom()
+            if not char.isspace():
+                tokens.append(char)
+        else:
+            atom.append(char)
+        index += 1
+    flush_atom()
+    ignored = _IGNORED_IMPORT_TEXT_FIELDS.get(property_name, ())
+    if not ignored:
+        return tuple(tokens)
+    filtered = []
+    index = 0
+    while index < len(tokens):
+        if (tokens[index] in ignored and index + 2 < len(tokens) and
+                tokens[index + 1] == '=' and
+                (index == 0 or tokens[index - 1] in ('(', ','))):
+            index += 2
+            if tokens[index] == '(':
+                depth = 0
+                while index < len(tokens):
+                    if tokens[index] == '(':
+                        depth += 1
+                    elif tokens[index] == ')':
+                        depth -= 1
+                    index += 1
+                    if depth == 0:
+                        break
+            else:
+                index += 1
+            if index < len(tokens) and tokens[index] == ',':
+                index += 1
+            elif filtered and filtered[-1] == ',':
+                filtered.pop()
+            continue
+        filtered.append(tokens[index])
+        index += 1
+    return tuple(filtered)
+
+
+def _set_graph_node_property_verified(handle, name: str, text: str) -> None:
+    before = _graph_node_property_or_none(handle, name)
+    if before is None:
+        raise RuntimeError(f'Unable to read KawaiiPhysics graph node property: {name}')
+    ok = unreal.KawaiiPhysicsEditorLibrary.set_graph_node_property_from_string(
+        handle, unreal.Name(name), text)
+    if not ok:
+        raise RuntimeError(f'Unable to set KawaiiPhysics graph node property: {name}')
+    after = _graph_node_property_or_none(handle, name)
+    if after is None:
+        raise RuntimeError(f'Unable to read back KawaiiPhysics graph node property: {name}')
+    if (_normalize_import_text(after, name) == _normalize_import_text(before, name)
+            and _normalize_import_text(text, name) != _normalize_import_text(before, name)):
+        raise RuntimeError(
+            f'KawaiiPhysics graph node property {name} was not applied; '
+            f'read-back value: {after}')
+
+
+def _parse_graph_node_settings_snapshot(snapshot_json: str, node_index: int):
+    if not snapshot_json:
+        raise ValueError('Settings snapshot JSON must not be empty.')
+    try:
+        snapshot = json.loads(snapshot_json)
+    except ValueError as error:
+        raise ValueError(f'Settings snapshot is not valid JSON: {error}')
+    if isinstance(snapshot, list):
+        matches = [item for item in snapshot if isinstance(item, dict)
+                   and item.get('index') == node_index]
+        if len(matches) != 1:
+            raise ValueError(f'Settings snapshot must contain exactly one node with index {node_index}.')
+        snapshot = matches[0]
+    if not isinstance(snapshot, dict):
+        raise ValueError('Settings snapshot must be a node or settings JSON object.')
+    if 'settings' in snapshot:
+        if 'index' in snapshot and snapshot['index'] != node_index:
+            raise ValueError(f'Settings snapshot index does not match node_index {node_index}.')
+        settings = snapshot['settings']
+        forces = snapshot.get('external_forces')
+        has_forces = 'external_forces' in snapshot
+        key = snapshot.get('key')
+    else:
+        settings, forces, has_forces, key = snapshot, None, False, None
+    if not isinstance(settings, dict):
+        raise ValueError('Settings snapshot settings must be a JSON object.')
+    unknown = set(settings) - set(_GRAPH_NODE_SETTINGS_PROPERTIES)
+    if unknown:
+        raise ValueError(f'Unknown settings properties: {sorted(unknown)}')
+    for name, value in settings.items():
+        if value is not None and not isinstance(value, str):
+            raise ValueError(f'Settings snapshot property {name} must be an ImportText string or null.')
+    if has_forces and not isinstance(forces, list):
+        raise ValueError('Settings snapshot external_forces must be a JSON array.')
+    return settings, forces, has_forces, key
+
+
 def _set_graph_node_properties_impl(
         handle: unreal.KawaiiPhysicsGraphNodeHandle,
         properties: list[tuple[str, str]]) -> list[str]:
@@ -624,14 +768,7 @@ def _set_graph_node_properties_impl(
     _raise_for_invalid_handle(handle, 'handle')
     set_names = []
     for name, text in properties:
-        ok = unreal.KawaiiPhysicsEditorLibrary.set_graph_node_property_from_string(
-            handle,
-            unreal.Name(name),
-            text,
-        )
-        if not ok:
-            raise RuntimeError(
-                f'Unable to set KawaiiPhysics graph node property: {name}')
+        _set_graph_node_property_verified(handle, name, text)
         set_names.append(name)
     return set_names
 
@@ -1316,18 +1453,29 @@ def _assign_runtime_bone_keys(bones):
             bone['key'] = f"#bridge{bone['index']}"
 
 
-def _runtime_sample_info(info, target):
-    """Read only the fixed segment endpoints and active limit geometry."""
+def _runtime_sample_info(info, target, record=False):
+    """Read fixed endpoints and limits, plus all eligible bones when recording."""
     raw_bones = info.bones
     topology = tuple((int(bone.index), _runtime_enum(bone.dummy_type),
                       int(bone.parent_index)) for bone in raw_bones)
     if topology != target['topology']:
+        if target.get('record_started'):
+            raise RuntimeError('Runtime bone topology changed during recording.')
         bones = [{'index': index, 'dummy_type': kind, 'parent_index': parent,
                   'bone_name': str(bone.bone_name)}
                  for bone, (index, kind, parent) in zip(raw_bones, topology)]
         _assign_runtime_bone_keys(bones)
         target['keys_by_index'] = {bone['index']: bone['key'] for bone in bones
                                    if bone['key'] in target['endpoint_keys']}
+        if 'record_keys_by_index' in target:
+            target['record_keys_by_index'] = {bone['index']: bone['key'] for bone in bones
+                                              if bone['dummy_type'] in ('None', 'Tip')}
+            converted = _runtime_info_to_dict(info, target['identity']['component'])
+            target['record_header_node'].update(
+                _record_node_header(converted, target['ring_root_bones']))
+            target['real_bones'] = tuple(dict.fromkeys(
+                bone['bone_name'] for bone in converted['bones']
+                if bone['dummy_type'] == 'None'))
         target['topology'] = topology
     keys_by_index = target['keys_by_index']
     positions = {keys_by_index[index]: _runtime_vector(bone.location)
@@ -1359,7 +1507,15 @@ def _runtime_sample_info(info, target):
         elif kind == 'Planar':
             shape.update(location=_runtime_vector(limit.location),
                          plane_normal=_runtime_vector(limit.plane_normal))
+        if record and kind in ('Spherical', 'Capsule', 'TaperedCapsule'):
+            shape['radius1'] = float(limit.radius1)
         limits.append(shape)
+    if record:
+        recorded = {target['record_keys_by_index'][index]:
+                    _runtime_vector(bone.location) + _runtime_vector(bone.pose_location)
+                    for bone, (index, _, _) in zip(raw_bones, topology)
+                    if index in target['record_keys_by_index']}
+        return positions, limits, recorded
     return positions, limits
 
 
@@ -1380,7 +1536,9 @@ def _runtime_sample_nodes(state):
                         str(info.tag.get_editor_property('tag_name')))
             target = state['targets_by_id'].get(identity)
             if target is not None:
-                by_id[identity] = (_runtime_sample_info(info, target)
+                by_id[identity] = (_runtime_sample_info(
+                    info, target, bool(state.get('record_path')) and
+                    state['frames_seen'] >= state['warmup_frames'])
                                    if info.evaluated else None)
     if not by_id:
         raise RuntimeError('Actor, component or KawaiiPhysics node disappeared.')
@@ -1438,6 +1596,26 @@ def _runtime_nodes(snapshot):
     return [node for component in snapshot['components'] for node in component['nodes']]
 
 
+def _compact_runtime_bone_summary(node):
+    bone_counts = {kind: 0 for kind in ('None', 'Tip', 'InterBone', 'Bridge')}
+    for bone in node['bones']:
+        kind = bone['dummy_type']
+        bone_counts[kind] = bone_counts.get(kind, 0) + 1
+    limit_counts = {}
+    for limit in node['limits']:
+        kind = limit['limit_type']
+        limit_counts[kind] = limit_counts.get(kind, 0) + 1
+    return {
+        'node': _runtime_node_id(node),
+        'evaluated': node['evaluated'],
+        'total_bones': len(node['bones']),
+        'bones_by_dummy_type': bone_counts,
+        'constraint_count': len(node['constraints']),
+        'limit_count': len(node['limits']),
+        'limits_by_type': limit_counts,
+    }
+
+
 def _runtime_limit_id(limit):
     return {key: limit[key] for key in (
         'limit_type', 'source_type', 'source_array', 'source_index', 'driving_bone')}
@@ -1460,10 +1638,33 @@ def _collision_checked_bones(node):
     return bones, len(node['bones']) - len(bones)
 
 
-def _build_penetration_segments(node, ring_root_bones, min_depth, max_depth, closed):
-    """Build fixed, named centerlines from one snapshot without Unreal objects."""
+def _penetration_columns(node, ring_root_bones):
+    """Return eligible bones, vertical pairs, and ordered ring columns."""
     bones = {bone['index']: bone for bone in node['bones']}
     eligible = {i: b for i, b in bones.items() if b['dummy_type'] in ('None', 'Tip')}
+    children = defaultdict(list)
+    vertical_pairs = []
+    for bone in eligible.values():
+        parent = bones.get(bone['parent_index'])
+        while parent is not None and parent['dummy_type'] == 'InterBone':
+            parent = bones.get(parent['parent_index'])
+        if parent is not None and parent['index'] in eligible:
+            children[parent['key']].append(bone['key'])
+            vertical_pairs.append((parent['key'], bone['key']))
+    columns = []
+    for root in ring_root_bones:
+        if not any(b['key'] == root and b['dummy_type'] == 'None' for b in eligible.values()):
+            raise ValueError(f'Ring root bone not found: {root}')
+        column = [root]
+        while len(children[column[-1]]) == 1:
+            column.append(children[column[-1]][0])
+        columns.append(column)
+    return bones, eligible, vertical_pairs, columns
+
+
+def _build_penetration_segments(node, ring_root_bones, min_depth, max_depth, closed):
+    """Build fixed, named centerlines from one snapshot without Unreal objects."""
+    _, eligible, vertical_pairs, columns = _penetration_columns(node, ring_root_bones)
     keyed = {bone['key']: bone for bone in eligible.values()}
     segments = {}
     def add(a, b, category):
@@ -1472,24 +1673,11 @@ def _build_penetration_segments(node, ring_root_bones, min_depth, max_depth, clo
             return
         pair = tuple(sorted((a, b)))
         segments.setdefault(pair, {'bone1': a, 'bone2': b, 'category': category})
-    children = defaultdict(list)
-    for bone in eligible.values():
-        parent = bones.get(bone['parent_index'])
-        while parent is not None and parent['dummy_type'] == 'InterBone':
-            parent = bones.get(parent['parent_index'])
-        if parent is not None and parent['index'] in eligible:
-            children[parent['key']].append(bone['key'])
-            if not ring_root_bones:
-                add(parent['key'], bone['key'], 'vertical')
-    if ring_root_bones:
-        columns = []
-        for root in ring_root_bones:
-            if not any(b['key'] == root and b['dummy_type'] == 'None' for b in eligible.values()):
-                raise ValueError(f'Ring root bone not found: {root}')
-            column = [root]
-            while len(children[column[-1]]) == 1:
-                column.append(children[column[-1]][0])
-            columns.append(column)
+    if not ring_root_bones:
+        for parent, child in vertical_pairs:
+            add(parent, child, 'vertical')
+    else:
+        for column in columns:
             end = len(column) - 1 if max_depth == -1 else min(max_depth, len(column) - 1)
             for depth in range(min_depth, end):
                 add(column[depth], column[depth + 1], 'vertical')
@@ -1506,6 +1694,33 @@ def _build_penetration_segments(node, ring_root_bones, min_depth, max_depth, clo
         if a in eligible and b in eligible:
             add(eligible[a]['key'], eligible[b]['key'], 'other')
     return list(segments.values())
+
+
+def _record_node_header(node, ring_root_bones):
+    bones, eligible, _, columns = _penetration_columns(node, ring_root_bones)
+    depths = {key: depth for column in columns for depth, key in enumerate(column)}
+    listed = []
+    for bone in eligible.values():
+        parent = bones.get(bone['parent_index'])
+        while parent is not None and parent['index'] not in eligible:
+            parent = bones.get(parent['parent_index'])
+        listed.append({'key': bone['key'], 'bone_name': bone['bone_name'],
+                       'dummy_type': bone['dummy_type'],
+                       'parent_key': parent['key'] if parent else None,
+                       'depth': depths.get(bone['key'], -1),
+                       'radius': round(bone['radius'], 4),
+                       'skip_simulate': bone.get('skip_simulate', False)})
+    constraints, seen = [], set()
+    for item in node['constraints']:
+        a, b = item['bone_index1'], item['bone_index2']
+        if a in eligible and b in eligible:
+            pair = (eligible[a]['key'], eligible[b]['key'])
+            if tuple(sorted(pair)) not in seen:
+                constraints.append(pair)
+                seen.add(tuple(sorted(pair)))
+    return {'node': _runtime_node_id(node), 'columns': columns,
+            'bones': listed, 'constraints': constraints,
+            'rest': {bone['key']: bone['pose_location'] for bone in eligible.values()}}
 
 
 def _build_penetration_targets(nodes, ring_root_bones, min_depth, max_depth, closed):
@@ -1544,7 +1759,7 @@ def _build_penetration_targets(nodes, ring_root_bones, min_depth, max_depth, clo
 def _new_penetration_stats():
     return {category: {'max': 0.0, 'positive_sum': 0.0, 'positive_count': 0,
                        'samples_over_threshold': 0, 'samples': 0,
-                       'stale_or_unknown': 0, 'worst': None}
+                       'stale_or_unknown': 0, 'worst': None, 'events': []}
             for category in ('vertical', 'horizontal', 'other', 'all')}
 
 
@@ -1559,6 +1774,8 @@ def _accumulate_penetration_sample(stats, category, value, threshold, stale, det
         if value > 0:
             entry['positive_sum'] += value
             entry['positive_count'] += 1
+            if detail is not None and name == 'all':
+                entry['events'].append(detail if 'value' in detail else {**detail, 'value': value})
         if value > threshold:
             entry['samples_over_threshold'] += 1
         if entry['worst'] is None or value > entry['max']:
@@ -1567,13 +1784,17 @@ def _accumulate_penetration_sample(stats, category, value, threshold, stale, det
 
 def _penetration_stats_result(stats):
     return {name: {key: value for key, value in entry.items()
-                   if key not in ('positive_sum', 'positive_count')} |
-            {'mean_positive': (entry['positive_sum'] / entry['positive_count']
+                   if key not in ('positive_sum', 'positive_count', 'events')} |
+            {'positive_count': entry['positive_count'],
+             'mean_all': (entry['positive_sum'] / entry['samples']
+                          if entry['samples'] else 0.0),
+             'mean_positive': (entry['positive_sum'] / entry['positive_count']
                                if entry['positive_count'] else 0.0)}
             for name, entry in stats.items()}
 
 
-def _accumulate_penetration_frame(target, positions, limits, stats, threshold, frame):
+def _accumulate_penetration_frame(target, positions, limits, stats, threshold, frame,
+                                  game_time=None):
     """Measure one node's fixed centerlines using plain Python data."""
     signature = (tuple(tuple(positions[key]) for key in target['endpoint_order'])
                  if all(key in positions for key in target['endpoint_order']) else None)
@@ -1624,12 +1845,11 @@ def _accumulate_penetration_frame(target, positions, limits, stats, threshold, f
                 value, best_limit = depth, limit
         class_stats, all_stats = stats[category], stats['all']
         detail = None
-        if (class_stats['worst'] is None or value > class_stats['max'] or
-                all_stats['worst'] is None or value > all_stats['max']):
+        if value > 0 or class_stats['worst'] is None or all_stats['worst'] is None:
             detail = {'node': target['identity'], 'bone1': bone1, 'bone2': bone2,
                        'category': category,
                        'limit': _runtime_limit_id(best_limit) if best_limit else None,
-                      'frame': frame, 'value': value}
+                      'frame': frame, 'time': game_time, 'value': value}
         _accumulate_penetration_sample(stats, category, value, threshold, False, detail)
         if value > target['maxima'].get(key, 0.0):
             target['maxima'][key] = value
@@ -1690,6 +1910,8 @@ def _stop_collision_penetration_sampler_impl():
     state = _COLLISION_PENETRATION_SAMPLER
     if state is None:
         return
+    if state.get('done'):
+        return
     handle = state.get('tick_handle')
     state['tick_handle'] = None
     try:
@@ -1699,7 +1921,81 @@ def _stop_collision_penetration_sampler_impl():
         state['error'] = state.get('error') or str(error)
     finally:
         _restore_sampler_fixed_frame_rate(state)
+        if state.get('record_path'):
+            try:
+                with open(state['record_path'], 'w', encoding='utf-8') as output:
+                    output.write(json.dumps(state['record_header'], ensure_ascii=False) + '\n')
+                    for frame in state['record_frames']:
+                        output.write(json.dumps(frame, ensure_ascii=False) + '\n')
+            except Exception as error:
+                state.setdefault('notes', []).append(f'Could not write recording: {error}')
         state['done'] = True
+
+
+def _record_transform(component, name):
+    transform = component.get_socket_transform(
+        name, unreal.RelativeTransformSpace.RTS_COMPONENT)
+    location, rotation = transform.translation, transform.rotation
+    return [round(float(value), 4) for value in (
+        location.x, location.y, location.z,
+        rotation.x, rotation.y, rotation.z, rotation.w)]
+
+
+def _record_extra_bone_names(value):
+    """Copy and validate Unreal arrays or other bone-name iterables."""
+    if isinstance(value, str):
+        raise ValueError('record_extra_bones must contain nonempty bone names.')
+    try:
+        names = list(value)
+    except TypeError as error:
+        raise ValueError('record_extra_bones must contain nonempty bone names.') from error
+    if any(not isinstance(name, str) or not name for name in names):
+        raise ValueError('record_extra_bones must contain nonempty bone names.')
+    return names
+
+
+def _record_penetration_frame(state, by_id):
+    nodes, limits = [], []
+    for target in state['targets']:
+        sample = by_id.get(target['node_id'])
+        if sample is None:
+            nodes.append({'bones': None, 'final': {}})
+            continue
+        _, shapes, recorded = sample
+        component = target['component']
+        final = {name: _record_transform(component, name)
+                 for name in target['real_bones']}
+        nodes.append({'bones': {key: [round(float(x), 4) for x in values]
+                                for key, values in recorded.items()},
+                      'final': final})
+        target['record_started'] = True
+        for shape in shapes:
+            if shape['limit_type'] not in ('Capsule', 'TaperedCapsule', 'Spherical'):
+                continue
+            item = {'node': target['identity'], 'type': shape['limit_type'],
+                    'driving_bone': shape['driving_bone'],
+                    'radius0': round(shape['radius0'], 4),
+                    'radius1': round(shape.get('radius1', shape['radius0']), 4)}
+            for field in ('start', 'end', 'location'):
+                if field in shape:
+                    item[field] = [round(x, 4) for x in shape[field]]
+            limits.append(item)
+    extra = {name: _record_transform(state['extra_components'][name], name)
+             for name in state['record_extra_bones']}
+    positions = {(index, key): value[:3]
+                 for index, node in enumerate(nodes) if node['bones'] is not None
+                 for key, value in node['bones'].items()}
+    positions.update({('extra', key): value[:3] for key, value in extra.items()})
+    previous = state.get('record_positions')
+    stale = bool(positions and previous is not None and positions == previous)
+    state['record_positions'] = positions
+    state['record_frames'].append({'type': 'frame', 'frame': state['frames_seen'],
+                                   'time': state['frame_time'], 'stale': stale,
+                                   'nodes': nodes, 'extra': extra, 'limits': limits})
+
+
+def _sampler_world_time_seconds(prefer_pie: bool) -> float:
+    return float(unreal.GameplayStatics.get_time_seconds(_resolve_world(prefer_pie)))
 
 
 def _collision_penetration_sampler_tick(delta_seconds):
@@ -1714,17 +2010,21 @@ def _collision_penetration_sampler_tick(delta_seconds):
             return
         any_valid = False
         all_unchanged = True
+        game_time = _sampler_world_time_seconds(state['prefer_pie'])
+        state['frame_time'] = game_time
         for target in state['targets']:
             sample = by_id.get(target['node_id'])
-            positions, limits = sample if sample is not None else ({}, [])
+            positions, limits = sample[:2] if sample is not None else ({}, [])
             previous_unchanged = target['unchanged_frames']
             valid = _accumulate_penetration_frame(
                 target, positions, limits, state['stats'], state['threshold'],
-                state['frames_seen'])
+                state['frames_seen'], game_time)
             any_valid |= valid
             all_unchanged &= valid and target['unchanged_frames'] > previous_unchanged
         if any_valid:
             state['frames_collected'] += 1
+            if state.get('record_path'):
+                _record_penetration_frame(state, by_id)
         if all_unchanged:
             state['unchanged_frames'] += 1
         if state['frames_collected'] >= state['frames']:
@@ -1748,6 +2048,15 @@ def _penetration_sampler_result(state):
                          'max': target['maxima'].get(key, 0.0)})
     rows.sort(key=lambda row: row['max'], reverse=True)
     stats = _penetration_stats_result(state['stats'])
+    events = sorted(state['stats']['all'].get('events', []),
+                    key=lambda event: event['value'], reverse=True)
+    top_events = []
+    for event in events:
+        if all(abs(event['frame'] - selected['frame']) >= 5
+               for selected in top_events):
+            top_events.append(event)
+            if len(top_events) == 10:
+                break
     status = ('error' if state['error'] else
               'running' if not state['done'] else
               'stopped' if state['frames_collected'] < state['frames'] else
@@ -1760,7 +2069,7 @@ def _penetration_sampler_result(state):
               'unchanged_frames': state['unchanged_frames'],
               'frames_seen': state['frames_seen'], 'frames_requested': state['frames'],
               'threshold': state['threshold'], 'statistics': stats,
-              'top_segments': rows[:10],
+              'top_segments': rows[:10], 'top_events': top_events,
               'fixed_frame_rate': state['fixed_frame_rate'],
               'cost_ms': {'mean': (state['cost_total_ms'] / state['cost_samples']
                                    if state['cost_samples'] else 0.0),
@@ -1775,9 +2084,13 @@ def _penetration_sampler_result(state):
                   *state['notes']]}
     if state['error']:
         result['error'] = state['error']
+    if state.get('record_path'):
+        result['record_path'] = state['record_path']
+        result['recorded_frames'] = len(state['record_frames'])
     return result
 
 
+# UE 5.8 の MCP は省略可能なリスト引数（list[...] | None）に値を渡すと変換に失敗するため、リスト引数は省略不可の list にする（指定しないときは [] を渡す）
 @unreal.uclass()
 class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
     """Sets up, applies presets to, and audits KawaiiPhysics AnimGraph nodes.
@@ -2089,8 +2402,8 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
     def add_kawaii_physics_node(
             anim_blueprint: unreal.AnimBlueprint,
             root_bone: str,
-            exclude_bones: list[str] | None = None,
-            additional_root_bones: list[str] | None = None,
+            exclude_bones: list[str] = [],
+            additional_root_bones: list[str] = [],
             tag: str | None = None,
             properties_json: str | None = None,
             graph_name: str | None = None,
@@ -2286,7 +2599,8 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
 
         properties_json is a JSON object {"<property name>": value}; a value is
         an ImportText string such as "(Damping=0.3,Stiffness=0.1)", a number or
-        a bool. Stops at the first property that fails; earlier ones stay set.
+        a bool. Each write is read back; an unchanged value after a different
+        request raises with the property name. Earlier writes stay set on error.
         """
         _raise_for_invalid_handle(handle, 'handle')
         properties = _parse_graph_node_properties(properties_json)
@@ -2459,11 +2773,11 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             shape: str,
             driving_bone: str,
             location: list[float],
-            rotation: list[float] | None = None,
+            rotation: list[float] = [],
             radius: float = 5.0,
             radius1: float = 5.0,
             length: float = 10.0,
-            extent: list[float] | None = None,
+            extent: list[float] = [],
             limit_type: str = 'Outer') -> int:
         """Appends one collision limit placed in component space and returns the new size of that shape's array.
 
@@ -2477,7 +2791,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         radius, radius1 the TaperedCapsule -Z end radius, extent the Box half
         extents [x, y, z] (empty = default), limit_type (Outer/Inner) is for Sphere.
         """
-        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        # Python から None で呼ばれても動くよう空リストに揃える
         rotation = rotation or []
         extent = extent or []
         _raise_for_invalid_handle(handle, 'handle')
@@ -2547,13 +2861,14 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             anim_blueprint: unreal.AnimBlueprint,
             property_name: str,
             value: str,
-            filter_tag_names: list[str] | None = None,
+            filter_tag_names: list[str] = [],
             filter_exact_match: bool = False) -> int:
         """Sets a FAnimNode_KawaiiPhysics property from a string on every KawaiiPhysics node in the AnimBlueprint (optionally filtered by tags).
 
-        Returns the number of nodes updated.
+        Returns the number of nodes updated. Raises with the property and node
+        number when a requested change is absent on read-back.
         """
-        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        # Python から None で呼ばれても動くよう空リストに揃える
         filter_tag_names = filter_tag_names or []
         _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
         if not property_name:
@@ -2567,15 +2882,12 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             filter_exact_match,
         )
         for index, handle in enumerate(handles):
-            ok = unreal.KawaiiPhysicsEditorLibrary.set_graph_node_property_from_string(
-                handle,
-                unreal.Name(property_name),
-                value,
-            )
-            if not ok:
+            try:
+                _set_graph_node_property_verified(handle, property_name, value)
+            except RuntimeError as error:
                 raise RuntimeError(
                     f'Unable to set {property_name} on node '
-                    f'{index + 1}/{len(handles)}')
+                    f'{index + 1}/{len(handles)}: {error}') from error
         return len(handles)
 
     @toolset_registry.tool_call
@@ -2583,14 +2895,14 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
     def get_graph_nodes_property(
             anim_blueprint: unreal.AnimBlueprint,
             property_name: str,
-            filter_tag_names: list[str] | None = None,
+            filter_tag_names: list[str] = [],
             filter_exact_match: bool = False) -> dict[str, str]:
         """Gets a FAnimNode_KawaiiPhysics property as a string from every KawaiiPhysics node in the AnimBlueprint (optionally filtered by tags).
 
         Keys are the node GUID when it can be read, otherwise a stable
         node name or "node<index>" fallback.
         """
-        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        # Python から None で呼ばれても動くよう空リストに揃える
         filter_tag_names = filter_tag_names or []
         _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
         if not property_name:
@@ -2648,7 +2960,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
     @staticmethod
     def describe_graph_node_settings(
             anim_blueprint: unreal.AnimBlueprint,
-            filter_tag_names: list[str] | None = None,
+            filter_tag_names: list[str] = [],
             filter_exact_match: bool = False) -> str:
         """Returns a JSON array of KawaiiPhysics nodes with their FAnimNode_KawaiiPhysics settings and external forces.
 
@@ -2658,7 +2970,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         describe_kawaii_physics_runtime_on_actor for the runtime Alpha.
         Unreadable settings are null; external_forces is a JSON array.
         """
-        # MCP スキーマで任意引数にするため None を受け、未指定は空フィルタとして扱う
+        # Python から None で呼ばれても動くよう空リストに揃える
         filter_tag_names = filter_tag_names or []
         handles = _collect_graph_nodes_impl(
             anim_blueprint, filter_tag_names, filter_exact_match)
@@ -2688,6 +3000,167 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
                 'external_forces': json.loads(str(forces_text)),
             })
         return json.dumps(descriptions)
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def diff_graph_node_settings(
+            anim_blueprint: unreal.AnimBlueprint,
+            reference_json: str,
+            node_index: int = 0) -> str:
+        """Compare a node with a describe output, one node, or a settings object.
+
+        ImportText comparison ignores whitespace outside quotes and numeric
+        spelling differences. SyncBones ignores runtime and preview fields;
+        quoted text and all other tokens stay exact.
+        """
+        handles = _collect_graph_nodes_impl(anim_blueprint, [], False)
+        if not isinstance(node_index, int) or node_index < 0 or node_index >= len(handles):
+            raise ValueError(f'node_index {node_index} is out of range.')
+        settings, forces, has_forces, key = _parse_graph_node_settings_snapshot(
+            reference_json, node_index)
+        handle = handles[node_index]
+        if key is not None and key != _graph_node_key(handle, node_index):
+            raise ValueError(f'Settings snapshot key does not match node_index {node_index}.')
+        changed = []
+        missing = []
+        for name in _GRAPH_NODE_SETTINGS_PROPERTIES:
+            if name not in settings:
+                missing.append(name)
+                continue
+            try:
+                current = _graph_node_property_or_none(handle, name)
+            except Exception:
+                current = None
+            reference = settings[name]
+            if _normalize_import_text(current, name) != _normalize_import_text(reference, name):
+                changed.append({'name': name, 'current': current, 'reference': reference})
+        if has_forces:
+            current_forces = json.loads(
+                KawaiiPhysicsToolset.get_graph_node_external_forces(handle))
+            if current_forces != forces:
+                changed.append({
+                    'name': 'external_forces', 'current': current_forces,
+                    'reference': forces})
+        return json.dumps({
+            'status': 'differs' if changed or missing else 'ok',
+            'node_index': node_index,
+            'changed': changed,
+            'missing_in_reference': missing,
+        })
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def apply_graph_node_settings(
+            anim_blueprint: unreal.AnimBlueprint,
+            settings_json: str,
+            node_index: int = 0,
+            dry_run: bool = False) -> str:
+        """Restore a settings snapshot in one Undo transaction; does not compile or save.
+
+        Accepts a describe output, one node object, or a settings object.
+        The caller compiles with compile_anim_blueprint after applying changes.
+        """
+        handles = _collect_graph_nodes_impl(anim_blueprint, [], False)
+        if not isinstance(node_index, int) or node_index < 0 or node_index >= len(handles):
+            raise ValueError(f'node_index {node_index} is out of range.')
+        settings, forces, has_forces, key = _parse_graph_node_settings_snapshot(
+            settings_json, node_index)
+        handle = handles[node_index]
+        if key is not None and key != _graph_node_key(handle, node_index):
+            raise ValueError(f'Settings snapshot key does not match node_index {node_index}.')
+
+        pending = []
+        failed = []
+        unchanged_names = set()
+        for name in _GRAPH_NODE_SETTINGS_PROPERTIES:
+            if name not in settings:
+                continue
+            reference = settings[name]
+            try:
+                current = _graph_node_property_or_none(handle, name)
+                if current is None and reference is None:
+                    unchanged_names.add(name)
+                    continue
+                if reference is None:
+                    failed.append({'name': name, 'error': 'Snapshot value is null.'})
+                    continue
+                if current is None:
+                    raise RuntimeError('Current value is unreadable.')
+                if _normalize_import_text(current, name) == _normalize_import_text(reference, name):
+                    unchanged_names.add(name)
+                else:
+                    pending.append((name, reference))
+            except Exception as error:
+                if reference is None:
+                    unchanged_names.add(name)
+                else:
+                    failed.append({'name': name, 'error': str(error)})
+        if has_forces:
+            try:
+                current_forces = json.loads(
+                    KawaiiPhysicsToolset.get_graph_node_external_forces(handle))
+                if current_forces == forces:
+                    unchanged_names.add('external_forces')
+                else:
+                    pending.append(('external_forces', forces))
+            except Exception as error:
+                failed.append({'name': 'external_forces', 'error': str(error)})
+        if dry_run:
+            return json.dumps({
+                'status': 'dry_run', 'written': [], 'would_write': [name for name, _ in pending],
+                'failed': failed, 'unchanged_count': len(unchanged_names)})
+
+        written = []
+        if pending:
+            with unreal.ScopedEditorTransaction('Apply KawaiiPhysics graph node settings'):
+                for name, reference in pending:
+                    try:
+                        if name == 'external_forces':
+                            KawaiiPhysicsToolset.set_graph_node_external_forces(
+                                handle, json.dumps(reference))
+                            read_back = json.loads(
+                                KawaiiPhysicsToolset.get_graph_node_external_forces(handle))
+                            if read_back != reference:
+                                raise RuntimeError(f'Read-back value differs: {read_back}')
+                        else:
+                            _set_graph_node_property_verified(handle, name, reference)
+                            read_back = _graph_node_property_or_none(handle, name)
+                            if (_normalize_import_text(read_back, name) !=
+                                    _normalize_import_text(reference, name)):
+                                raise RuntimeError(f'Read-back value differs: {read_back}')
+                        written.append(name)
+                    except Exception as error:
+                        failed.append({'name': name, 'error': str(error)})
+                failed_names = {item['name'] for item in failed}
+                for name in _GRAPH_NODE_SETTINGS_PROPERTIES:
+                    if name not in settings or settings[name] is None or name in failed_names:
+                        continue
+                    try:
+                        read_back = _graph_node_property_or_none(handle, name)
+                        if (_normalize_import_text(read_back, name) !=
+                                _normalize_import_text(settings[name], name)):
+                            raise RuntimeError(f'Final read-back value differs: {read_back}')
+                    except Exception as error:
+                        failed.append({'name': name, 'error': str(error)})
+                        failed_names.add(name)
+                        unchanged_names.discard(name)
+                        if name in written:
+                            written.remove(name)
+                if has_forces and 'external_forces' not in failed_names:
+                    try:
+                        read_back = json.loads(
+                            KawaiiPhysicsToolset.get_graph_node_external_forces(handle))
+                        if read_back != forces:
+                            raise RuntimeError(f'Final read-back value differs: {read_back}')
+                    except Exception as error:
+                        failed.append({'name': 'external_forces', 'error': str(error)})
+                        unchanged_names.discard('external_forces')
+                        if 'external_forces' in written:
+                            written.remove('external_forces')
+        return json.dumps({
+            'status': 'partial' if failed else 'ok',
+            'written': written, 'failed': failed,
+            'unchanged_count': len(unchanged_names)})
 
     @toolset_registry.tool_call
     @staticmethod
@@ -3158,8 +3631,8 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
     @staticmethod
     def describe_kawaii_physics_bones_on_actor(
             actor_label: str, prefer_pie: bool = True,
-            filter_tag_names: list[str] | None = None, root_bone: str | None = None,
-            include_dummy: bool = False) -> str:
+            filter_tag_names: list[str] = [], root_bone: str | None = None,
+            include_dummy: bool = False, summary_only: bool = False) -> str:
         """Describe every runtime bone, limit and constraint in each matching node.
 
         Unlike describe_kawaii_physics_runtime_on_actor, this returns the
@@ -3167,9 +3640,9 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         Hiding dummies affects display only and preserves original indices.
         non_uniform_scale reports simulation-to-component scale, so scaling an
         actor non-uniformly leaves it false for ComponentSpace nodes; radii are
-        in component-space centimeters.
+        in component-space centimeters. summary_only returns node identities
+        and counts only; include_dummy does not affect those total counts.
         """
-        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
         filter_tag_names = list(filter_tag_names or [])
         root_bone = root_bone or ''
         result = _runtime_snapshot(actor_label, prefer_pie, filter_tag_names, root_bone)
@@ -3178,6 +3651,11 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         if result['status'] == 'ok' and result['checked'] == 0:
             result['status'] = 'nothing_checked'
             result['reasons'].append('Evaluated nodes have no runtime bones.')
+        if summary_only:
+            for component in result['components']:
+                component['nodes'] = [
+                    _compact_runtime_bone_summary(node) for node in component['nodes']]
+            return json.dumps(result)
         if not include_dummy:
             for node in nodes:
                 hidden = sum(b['dummy_type'] != 'None' for b in node['bones'])
@@ -3192,7 +3670,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
     @staticmethod
     def check_collision_clearance_on_actor(
             actor_label: str, prefer_pie: bool = True,
-            filter_tag_names: list[str] | None = None, root_bone: str | None = None,
+            filter_tag_names: list[str] = [], root_bone: str | None = None,
             position_source: str = 'both', contact_threshold: float = 0.0,
             max_results: int = 20) -> str:
         """Check current component-space bone clearances against active limits."""
@@ -3265,9 +3743,11 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
     def start_collision_penetration_sampler(
             actor_label: str, ring_root_bones: list[str], frames: int = 300,
             prefer_pie: bool = True,
-            filter_tag_names: list[str] | None = None, root_bone: str | None = None,
+            filter_tag_names: list[str] = [], root_bone: str | None = None,
             min_depth: int = 0, max_depth: int = -1, closed: bool = True, threshold: float = 1.0,
-            warmup_frames: int = 0, fixed_frame_rate: float = 30.0) -> str:
+            warmup_frames: int = 0, fixed_frame_rate: float = 30.0,
+            record_path: str | None = None,
+            record_extra_bones: list[str] = []) -> str:
         """Sample fixed skirt centerlines after Slate ticks in component space.
 
         Pass [] for ring_root_bones to use the default segment set.
@@ -3275,6 +3755,8 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         during sampling; values <= 0 disable it, and positive values below 15 are invalid.
         The engine settings are restored on completion, stop, or error; real-time
         FPS may fall, making the scene appear slower.
+        record_path writes a JSONL rest header and frames with game time and stale
+        markers. record_extra_bones adds final component-space leg or body transforms.
         """
         global _COLLISION_PENETRATION_SAMPLER
         # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
@@ -3298,6 +3780,12 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         if (any(not isinstance(root, str) or not root for root in ring_root_bones) or
                 len(set(ring_root_bones)) != len(ring_root_bones)):
             raise ValueError('ring_root_bones must contain unique nonempty names.')
+        if record_path is not None:
+            if (not isinstance(record_path, str) or not os.path.isabs(record_path) or
+                    os.path.splitext(record_path)[1].lower() != '.jsonl' or
+                    not os.path.isdir(os.path.dirname(record_path))):
+                raise ValueError('record_path must be an absolute .jsonl path in an existing directory.')
+        record_extra_bones = _record_extra_bone_names(record_extra_bones)
         _stop_collision_penetration_sampler_impl()
         snapshot = _runtime_snapshot(actor_label, prefer_pie, filter_tag_names, root_bone)
         result = {key: snapshot[key] for key in ('status', 'checked', 'excluded', 'reasons', 'world')}
@@ -3317,12 +3805,48 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             result['status'] = start_status
             result['reasons'].append('No eligible centerlines and active limits were available.')
             return json.dumps(result)
+        components = [(component, str(component.get_name())) for component in
+                      _find_skeletal_mesh_components_by_label(actor_label, prefer_pie)]
+        components_by_name = {name: component for component, name in components}
+        target_component_names = {target['identity']['component'] for target in targets}
+        component_sockets = [(component, {str(socket) for socket in
+                                          component.get_all_socket_names()})
+                             for component, name in components
+                             if name in target_component_names] if record_extra_bones else []
+        extra_components = {}
+        for name in record_extra_bones:
+            component = next((component for component, sockets in component_sockets
+                              if name in sockets), None)
+            if component is None:
+                raise ValueError(f'record_extra_bones bone not found: {name}')
+            extra_components[name] = component
+        if record_path:
+            nodes_by_id = {tuple(_runtime_node_id(node).values()): node for node in nodes}
+            for target in targets:
+                node = nodes_by_id[target['node_id']]
+                target['component'] = components_by_name[target['identity']['component']]
+                target['real_bones'] = tuple(dict.fromkeys(
+                    bone['bone_name'] for bone in node['bones']
+                    if bone['dummy_type'] == 'None'))
+                target['record_keys_by_index'] = {
+                    bone['index']: bone['key'] for bone in node['bones']
+                    if bone['dummy_type'] in ('None', 'Tip')}
+            record_header = {'type': 'header', 'version': 1, 'actor': actor_label,
+                             'world': result['world'], 'fixed_frame_rate': None,
+                             'warmup_frames': warmup_frames,
+                             'ring_root_bones': ring_root_bones,
+                             'nodes': [_record_node_header(nodes_by_id[target['node_id']],
+                                                           ring_root_bones)
+                                       for target in targets],
+                             'extra_bones': record_extra_bones}
+            for target, header_node in zip(targets, record_header['nodes']):
+                target['record_header_node'] = header_node
+                target['ring_root_bones'] = ring_root_bones
         _COLLISION_PENETRATION_SAMPLER = {
             'actor': actor_label, 'prefer_pie': prefer_pie, 'filter_tag_names': list(filter_tag_names),
             'root_bone': root_bone, 'world': result['world'], 'targets': targets,
             'targets_by_id': {target['node_id']: target for target in targets},
-            'components': [(component, str(component.get_name())) for component in
-                           _find_skeletal_mesh_components_by_label(actor_label, prefer_pie)],
+            'components': components,
             'filter_tags': _make_tag_container(filter_tag_names),
             'frames': frames, 'frames_seen': 0, 'frames_collected': 0,
             'unchanged_frames': 0,
@@ -3333,7 +3857,13 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             'fixed_frame_rate': None, 'notes': [],
             'cost_total_ms': 0.0, 'cost_max_ms': 0.0, 'cost_samples': 0}
         state = _COLLISION_PENETRATION_SAMPLER
+        if record_path:
+            state.update(record_path=record_path, record_extra_bones=record_extra_bones,
+                         record_header=record_header, record_frames=[],
+                         extra_components=extra_components)
         _enable_sampler_fixed_frame_rate(state, fixed_frame_rate)
+        if record_path:
+            record_header['fixed_frame_rate'] = state['fixed_frame_rate']
         # TODO(verify): Slate post-tick callback availability and timing after component evaluation.
         try:
             state['tick_handle'] = unreal.register_slate_post_tick_callback(
@@ -3345,10 +3875,16 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             result['error'] = state['error']
             result['fixed_frame_rate'] = state['fixed_frame_rate']
             result['notes'] = state['notes']
+            if record_path:
+                result['record_path'] = record_path
+                result['recorded_frames'] = len(state['record_frames'])
             return json.dumps(result)
         result['status'] = start_status
         result['fixed_frame_rate'] = state['fixed_frame_rate']
         result['notes'] = state['notes']
+        if record_path:
+            result['record_path'] = record_path
+            result['recorded_frames'] = 0
         return json.dumps(result)
 
     @toolset_registry.tool_call
@@ -3356,6 +3892,8 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
     def get_collision_penetration_sampler_result() -> str:
         """Return centerline penetration statistics with status running, ok,
         penetration, nothing_checked, stopped, error, or not_started.
+        Statistics include positive_count and mean_all; top_events gives the ten
+        largest samples at least five frames apart, with game time in seconds.
         cost_ms is mean/max sampling cost per tick, unchanged_frames counts frames
         with unchanged target positions, and fixed_frame_rate is the applied game-time rate.
         """
@@ -3370,6 +3908,42 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         """Stop sampling while retaining the result; idle stops are harmless."""
         _stop_collision_penetration_sampler_impl()
         return True
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def analyze_motion_recording(record_path: str, baseline_path: str | None = None,
+                                 spike_degrees: float = 25.0) -> str:
+        """Analyze skirt motion and optionally compare a tuning run with a baseline.
+
+        Deviation measures swing from pose; lift includes per-frame tip maxima.
+        The lifts flag uses lift.p50 only; lift.p90 and lift.max remain in the output.
+        Stretch uses start rest spacing, collapse counts short vertical segments,
+        and flips count rotations above 90 degrees. Stale frames are excluded;
+        status is stale when they exceed 10 percent. Comparison flags are hints.
+        """
+        from . import motion_metrics
+
+        try:
+            recording = motion_metrics.load_recording(record_path)
+            metrics = motion_metrics.compute_motion_metrics(recording, spike_degrees)
+            result = {'status': 'ok', 'metrics': metrics, 'notes': []}
+            stale = metrics['overall']['stale_frames']
+            total = metrics['overall']['frame_count']
+            if total and stale / total > 0.1:
+                result['status'] = 'stale'
+                result['notes'].append(
+                    f'{stale}/{total} recorded frames repeated all bone positions; '
+                    'motion scores exclude these frames and adjacent differences.')
+            if baseline_path is not None:
+                baseline = motion_metrics.compute_motion_metrics(
+                    motion_metrics.load_recording(baseline_path), spike_degrees)
+                result['comparison'] = motion_metrics.compare_motion_metrics(
+                    metrics, baseline)
+        except FileNotFoundError as error:
+            result = {'status': 'not_found', 'notes': [str(error)]}
+        except Exception as error:
+            result = {'status': 'invalid', 'notes': [str(error)]}
+        return json.dumps(result)
 
     @toolset_registry.tool_call
     @staticmethod
@@ -3493,7 +4067,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             duration: float,
             blend_in_time: float = 0.2,
             blend_out_time: float = 0.5,
-            filter_tag_names: list[str] | None = None,
+            filter_tag_names: list[str] = [],
             filter_exact_match: bool = False,
             prefer_pie: bool = True) -> str:
         """Starts a temporary physics settings multiplier on every SkeletalMeshComponent of the matching actors.
@@ -3502,7 +4076,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         Stiffness, WorldDampingLocation, WorldDampingRotation, Radius,
         LimitAngle); the JSON array result carries the stop handles.
         """
-        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        # Python から None で呼ばれても動くよう空リストに揃える
         filter_tag_names = filter_tag_names or []
         settings_scale = _make_settings_multiplier(settings_json)
         components = _find_skeletal_mesh_components_by_label(actor_label, prefer_pie)
@@ -3534,7 +4108,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             actor_label: str,
             handle_json: str,
             blend_out_time: float = 0.5,
-            filter_tag_names: list[str] | None = None,
+            filter_tag_names: list[str] = [],
             filter_exact_match: bool = False,
             prefer_pie: bool = True) -> int:
         """Stops the physics settings multiplier matching the handle and returns the total number of stopped nodes.
@@ -3542,7 +4116,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         handle_json is the handle from start_physics_settings_multiplier_on_actor
         ({"id": <int>} or a bare integer).
         """
-        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        # Python から None で呼ばれても動くよう空リストに揃える
         filter_tag_names = filter_tag_names or []
         handle = _handle_from_json(handle_json)
         components = _find_skeletal_mesh_components_by_label(actor_label, prefer_pie)
@@ -3569,8 +4143,8 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             duration: float,
             rise_time: float = 0.1,
             decay_time: float = 0.3,
-            direction: list[float] | None = None,
-            filter_tag_names: list[str] | None = None,
+            direction: list[float] = [],
+            filter_tag_names: list[str] = [],
             filter_exact_match: bool = False,
             prefer_pie: bool = True) -> str:
         """Starts a runtime ProceduralWind gust on every SkeletalMeshComponent of the matching actors.
@@ -3579,7 +4153,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         direction; pass a world space vector such as [1, 0, 0] for an explicit
         direction. The JSON array result carries the stop handles.
         """
-        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        # Python から None で呼ばれても動くよう空リストに揃える
         direction = direction or []
         filter_tag_names = filter_tag_names or []
         gust_direction = _make_gust_direction(direction)
@@ -3613,7 +4187,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             actor_label: str,
             handle_json: str,
             blend_out_time: float = 0.5,
-            filter_tag_names: list[str] | None = None,
+            filter_tag_names: list[str] = [],
             filter_exact_match: bool = False,
             prefer_pie: bool = True) -> int:
         """Stops the transient external force matching the handle and returns the total number of stopped nodes.
@@ -3621,7 +4195,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         handle_json is the handle from start_procedural_wind_gust_on_actor
         ({"id": <int>} or a bare integer).
         """
-        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        # Python から None で呼ばれても動くよう空リストに揃える
         filter_tag_names = filter_tag_names or []
         handle = _handle_from_json(handle_json)
         components = _find_skeletal_mesh_components_by_label(actor_label, prefer_pie)
@@ -3645,11 +4219,11 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
     def set_alpha_on_actor(
             actor_label: str,
             alpha: float,
-            filter_tag_names: list[str] | None = None,
+            filter_tag_names: list[str] = [],
             filter_exact_match: bool = False,
             prefer_pie: bool = True) -> int:
         """Sets the KawaiiPhysics alpha on every SkeletalMeshComponent of the matching actors and returns the number of updated components."""
-        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        # Python から None で呼ばれても動くよう空リストに揃える
         filter_tag_names = filter_tag_names or []
         components = _find_skeletal_mesh_components_by_label(actor_label, prefer_pie)
         filter_tags = _make_tag_container(filter_tag_names)
@@ -3664,11 +4238,11 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
     @staticmethod
     def get_alpha_on_actor(
             actor_label: str,
-            filter_tag_names: list[str] | None = None,
+            filter_tag_names: list[str] = [],
             filter_exact_match: bool = False,
             prefer_pie: bool = True) -> float:
         """Gets the KawaiiPhysics alpha from the first matching SkeletalMeshComponent; returns -1.0 when no value is available."""
-        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        # Python から None で呼ばれても動くよう空リストに揃える
         filter_tag_names = filter_tag_names or []
         components = _find_skeletal_mesh_components_by_label(actor_label, prefer_pie)
         filter_tags = _make_tag_container(filter_tag_names)
@@ -3732,11 +4306,11 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
     @staticmethod
     def get_simple_world_collider_count_on_actor(
             actor_label: str,
-            filter_tag_names: list[str] | None = None,
+            filter_tag_names: list[str] = [],
             filter_exact_match: bool = False,
             prefer_pie: bool = True) -> int:
         """Returns the total number of Simple World Collision colliders across every SkeletalMeshComponent of the matching actors."""
-        # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
+        # Python から None で呼ばれても動くよう空リストに揃える
         filter_tag_names = filter_tag_names or []
         components = _find_skeletal_mesh_components_by_label(actor_label, prefer_pie)
         filter_tags = _make_tag_container(filter_tag_names)

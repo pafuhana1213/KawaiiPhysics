@@ -3,9 +3,12 @@ from __future__ import annotations
 import ast
 import inspect
 import json
+import os
+import tempfile
 import time
 from types import SimpleNamespace
 import unittest
+from unittest import mock
 
 import unreal
 
@@ -94,6 +97,12 @@ def _make_request(
     if preset is not None:
         request.set_editor_property('preset', preset)
     return request
+
+
+def _is_list_annotation(annotation) -> bool:
+    # UE 5.8 の MCP は省略可能なリスト引数を変換できないため、リスト引数は既定値があってもスキーマ上は必須になる
+    return (isinstance(annotation, ast.Subscript) and isinstance(annotation.value, ast.Name)
+            and annotation.value.id in ('list', 'dict', 'set'))
 
 
 class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
@@ -625,6 +634,27 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
             KawaiiPhysicsToolset.start_collision_penetration_sampler(
                 UNKNOWN_ACTOR_LABEL, [], 10, False, [], '',
                 0, -1, True, 1.0, 0, 14.0)
+
+    def test_penetration_record_path_validation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            paths = ('relative.jsonl', os.path.join(directory, 'record.txt'),
+                     os.path.join(directory, 'missing', 'record.jsonl'))
+            for path in paths:
+                with self.subTest(path=path), self.assertToolRaisesRuntimeError():
+                    KawaiiPhysicsToolset.start_collision_penetration_sampler(
+                        UNKNOWN_ACTOR_LABEL, [], record_path=path)
+
+    def test_penetration_record_extra_bones_arguments(self):
+        class ArrayLike:
+            def __iter__(self):
+                return iter(('leg_l', 'leg_r'))
+
+        convert = toolset_module._record_extra_bone_names
+        self.assertEqual(convert(('leg_l', 'leg_r')), ['leg_l', 'leg_r'])
+        self.assertEqual(convert(ArrayLike()), ['leg_l', 'leg_r'])
+        for value in (['leg_l', 2], [''], 'leg_l', 2):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                convert(value)
 
     def test_skirt_runtime_getter_smoke(self):
         self._require_world()
@@ -1232,6 +1262,139 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
             1.5,
         )
 
+    def test_graph_node_settings_diff_and_restore(self):
+        anim_blueprint = self._create_anim_blueprint()
+        handle = self._place_test_node(anim_blueprint, _make_request('TwintailA_L'))
+        snapshot = KawaiiPhysicsToolset.describe_graph_node_settings(anim_blueprint)
+
+        own_diff = json.loads(KawaiiPhysicsToolset.diff_graph_node_settings(
+            anim_blueprint, snapshot))
+        self.assertEqual(own_diff['status'], 'ok')
+        self.assertEqual(own_diff['changed'], [])
+        self.assertEqual(own_diff['missing_in_reference'], [])
+
+        KawaiiPhysicsToolset.set_graph_node_properties(
+            handle, json.dumps({'WindScale': 2.5}))
+        changed = json.loads(KawaiiPhysicsToolset.diff_graph_node_settings(
+            anim_blueprint, snapshot))
+        self.assertEqual(changed['status'], 'differs')
+        self.assertEqual([item['name'] for item in changed['changed']], ['WindScale'])
+
+        before_dry_run = KawaiiPhysicsToolset.get_graph_node_property(handle, 'WindScale')
+        dry_run = json.loads(KawaiiPhysicsToolset.apply_graph_node_settings(
+            anim_blueprint, snapshot, dry_run=True))
+        self.assertEqual(dry_run['status'], 'dry_run')
+        self.assertEqual(dry_run['written'], [])
+        self.assertIn('WindScale', dry_run['would_write'])
+        self.assertEqual(KawaiiPhysicsToolset.get_graph_node_property(
+            handle, 'WindScale'), before_dry_run)
+
+        restored = json.loads(KawaiiPhysicsToolset.apply_graph_node_settings(
+            anim_blueprint, snapshot))
+        self.assertEqual(restored['status'], 'ok')
+        self.assertEqual(restored['written'], ['WindScale'])
+        self.assertEqual(json.loads(KawaiiPhysicsToolset.diff_graph_node_settings(
+            anim_blueprint, snapshot))['status'], 'ok')
+
+    def test_graph_node_settings_snapshot_selects_same_index(self):
+        anim_blueprint = self._create_anim_blueprint()
+        self._place_test_node(anim_blueprint, _make_request('TwintailA_L'))
+        second = self._place_test_node(anim_blueprint, _make_request('TwintailB_L'))
+        snapshot = KawaiiPhysicsToolset.describe_graph_node_settings(anim_blueprint)
+        KawaiiPhysicsToolset.set_graph_node_properties(
+            second, json.dumps({'WindScale': 3.0}))
+
+        changed = json.loads(KawaiiPhysicsToolset.diff_graph_node_settings(
+            anim_blueprint, snapshot, 1))
+        self.assertEqual([item['name'] for item in changed['changed']], ['WindScale'])
+        restored = json.loads(KawaiiPhysicsToolset.apply_graph_node_settings(
+            anim_blueprint, snapshot, 1))
+        self.assertEqual(restored['written'], ['WindScale'])
+        self.assertEqual(json.loads(KawaiiPhysicsToolset.diff_graph_node_settings(
+            anim_blueprint, snapshot, 1))['status'], 'ok')
+
+    def test_graph_node_settings_restores_external_forces(self):
+        anim_blueprint = self._create_anim_blueprint()
+        handle = self._place_test_node(anim_blueprint, _make_request('TwintailA_L'))
+        snapshot = KawaiiPhysicsToolset.describe_graph_node_settings(anim_blueprint)
+        KawaiiPhysicsToolset.set_graph_node_external_forces(
+            handle, json.dumps([{'_structType': BASIC_EXTERNAL_FORCE_STRUCT}]))
+
+        changed = json.loads(KawaiiPhysicsToolset.diff_graph_node_settings(
+            anim_blueprint, snapshot))
+        self.assertIn('external_forces', [item['name'] for item in changed['changed']])
+        restored = json.loads(KawaiiPhysicsToolset.apply_graph_node_settings(
+            anim_blueprint, snapshot))
+        self.assertEqual(restored['status'], 'ok')
+        self.assertEqual(restored['written'], ['external_forces'])
+        self.assertEqual(json.loads(KawaiiPhysicsToolset.diff_graph_node_settings(
+            anim_blueprint, snapshot))['status'], 'ok')
+
+    def test_import_text_normalization_preserves_quoted_text(self):
+        normalize = toolset_module._normalize_import_text
+        self.assertEqual(normalize('(Radius=1.0, Damping=1.000000)'),
+                         normalize('( Radius = 1.000000 ,Damping=1 )'))
+        self.assertNotEqual(normalize('(BoneName="A B")'),
+                            normalize('(BoneName="AB")'))
+
+    def test_sync_bones_import_text_ignores_runtime_and_preview_fields(self):
+        normalize = toolset_module._normalize_import_text
+        current = (
+            '((Bone=(BoneName="Leg"),GlobalScale=(X=1,Y=1,Z=1),'
+            'TargetRoots=((Bone=(BoneName="Skirt"),bIncludeChildBones=True,'
+            'ChildTargets=((ModifyBoneIndex=3,PreviewBone=(BoneName="Tip"))),'
+            'IsShowPreviewBone=True,PreviewBone=(BoneName="Root"),'
+            'TranslationBySyncBone=(X=1,Y=2,Z=3),ScaleByLengthRateCurve=0.5,'
+            'LengthRateFromSyncTargetRoot=0.2,ModifyBoneIndex=2)),'
+            'InitialPoseLocation=(X=1,Y=2,Z=3),DeltaDistance=(X=1,Y=0,Z=0),'
+            'ScaledDeltaDistance=(X=2,Y=0,Z=0)))'
+        )
+        reference = (
+            '((Bone=(BoneName="Leg"),GlobalScale=(X=1,Y=1,Z=1),'
+            'TargetRoots=((Bone=(BoneName="Skirt"),bIncludeChildBones=True,'
+            'ChildTargets=(),IsShowPreviewBone=False,PreviewBone=(BoneName="Other"),'
+            'TranslationBySyncBone=(X=0,Y=0,Z=0),ScaleByLengthRateCurve=1,'
+            'LengthRateFromSyncTargetRoot=0.8,ModifyBoneIndex=9)),'
+            'InitialPoseLocation=(X=0,Y=0,Z=0),DeltaDistance=(X=0,Y=0,Z=0),'
+            'ScaledDeltaDistance=(X=0,Y=0,Z=0)))'
+        )
+        self.assertEqual(normalize(current, 'SyncBones'),
+                         normalize(reference, 'SyncBones'))
+        self.assertNotEqual(normalize(current), normalize(reference))
+        self.assertNotEqual(normalize(current, 'SyncBones'),
+                            normalize(reference.replace('GlobalScale=(X=1',
+                                                        'GlobalScale=(X=0'), 'SyncBones'))
+
+    def test_sampler_world_time_uses_gameplay_statics(self):
+        world = object()
+        get_time = mock.Mock(return_value=12.5)
+        gameplay_statics = SimpleNamespace(get_time_seconds=get_time)
+        with mock.patch.object(toolset_module, '_resolve_world', return_value=world), \
+                mock.patch.object(toolset_module, 'unreal',
+                                  SimpleNamespace(GameplayStatics=gameplay_statics)):
+            self.assertEqual(toolset_module._sampler_world_time_seconds(True), 12.5)
+        get_time.assert_called_once_with(world)
+
+    def test_compact_runtime_bone_summary(self):
+        node = {
+            'component': 'Mesh', 'anim_instance_class': 'AnimClass',
+            'node_index': 1, 'root_bone': 'Root', 'tag': '', 'evaluated': True,
+            'bones': [{'dummy_type': kind} for kind in
+                      ('None', 'Tip', 'InterBone', 'Bridge', 'None')],
+            'limits': [{'limit_type': kind} for kind in
+                       ('Spherical', 'Capsule', 'Spherical')],
+            'constraints': [{}, {}],
+        }
+        summary = toolset_module._compact_runtime_bone_summary(node)
+        self.assertEqual(summary['total_bones'], 5)
+        self.assertEqual(summary['bones_by_dummy_type'],
+                         {'None': 2, 'Tip': 1, 'InterBone': 1, 'Bridge': 1})
+        self.assertEqual(summary['constraint_count'], 2)
+        self.assertEqual(summary['limits_by_type'], {'Spherical': 2, 'Capsule': 1})
+        self.assertEqual(summary['node']['root_bone'], 'Root')
+        for name in ('bones', 'limits', 'constraints'):
+            self.assertNotIn(name, summary)
+
     def test_add_kawaii_physics_node_with_tag_and_properties(self):
         anim_blueprint = self._create_anim_blueprint()
 
@@ -1447,8 +1610,10 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         for node in class_node.body:
             if isinstance(node, ast.FunctionDef):
                 args = node.args.args
+                first_default = len(args) - len(node.args.defaults)
                 expected_required[node.name] = [
-                    arg.arg for arg in args[:len(args) - len(node.args.defaults)]
+                    arg.arg for index, arg in enumerate(args)
+                    if index < first_default or _is_list_annotation(arg.annotation)
                 ]
 
         schema = json.loads(unreal.ToolsetRegistry.get_toolset_json_schema(KawaiiPhysicsToolset))

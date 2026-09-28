@@ -107,44 +107,84 @@ SKIRTS: SET UP, CHECK AND TUNE
   measured (an empty result is not a pass); "not_evaluated" means PIE is not running or the
   mesh has not updated (off screen, background throttle). "ok" means checked with no
   finding; "contact" (clearance) and "penetration" (sampler) mean checked with findings.
-- Tune in one loop, changing one kind of setting per round. Example with the sample
-  project's skirt (actor Ex5_1_B, 16 columns, animation A_CheckSkirt: one loop is 18.3 s and
-  the character stands still for the first 1.5 s):
-  1. Find the node: describe_kawaii_physics_bones_on_actor(actor_label="Ex5_1_B").
-  2. Check the input pose right after PIE starts, while the character stands still:
-     check_collision_clearance_on_actor(actor_label="Ex5_1_B", position_source="both").
-     Contacts in "pose" mean the leg collisions or bone radii already overlap before any
-     physics runs; contacts only in "simulated" are the push-out result.
-  3. Measure a baseline over at least one loop of the motion:
-     start_collision_penetration_sampler(actor_label="Ex5_1_B",
+- List parameters of these tools cannot be omitted over MCP; pass [] when not needed.
+- Judge penetration and motion together. The penetration numbers alone pick bad settings:
+  a skirt that runs away from the legs (for example inter-bone dummies that are not
+  collision-only) reaches 0 penetration while it jitters, flips and flies up. Record the
+  motion in the same run and compare it with the baseline every time.
+- Tune in one loop, one change per trial, and never keep a trial that makes penetration or
+  motion worse. Example with the sample project's skirt (actor Ex5_5_B, 16 columns,
+  animation A_CheckSkirt: one loop is 18.3 s and the character stands still for the first
+  1.5 s; the collision-only baseline is Ex5_5_A):
+  1. Find the node: describe_kawaii_physics_bones_on_actor(actor_label="Ex5_5_B",
+     filter_tag_names=[], summary_only=True) gives the bone, dummy and constraint counts
+     (the load); without summary_only it lists every bone.
+  2. Save the current settings: describe_graph_node_settings(anim_blueprint, []) and keep
+     the JSON as the snapshot of the current best.
+  3. Check the input pose right after PIE starts, while the character stands still:
+     check_collision_clearance_on_actor(actor_label="Ex5_5_B", filter_tag_names=[],
+     position_source="both"). Contacts in "pose" mean the leg collisions or bone radii
+     already overlap before any physics runs; contacts only in "simulated" are the push-out
+     result.
+  4. Measure over at least one loop of the motion, recording the bones:
+     start_collision_penetration_sampler(actor_label="Ex5_5_B",
        ring_root_bones=["skirt_01_01_l", "skirt_02_01_l", "skirt_03_01_l", "skirt_04_01_l",
                         "skirt_05_01_l", "skirt_06_01_l", "skirt_07_01_l", "skirt_08_01_l",
                         "skirt_08_01_r", "skirt_07_01_r", "skirt_06_01_r", "skirt_05_01_r",
                         "skirt_04_01_r", "skirt_03_01_r", "skirt_02_01_r", "skirt_01_01_r"],
-       frames=700, min_depth=1, threshold=1.0, warmup_frames=40)
+       frames=700, filter_tag_names=[], min_depth=1, threshold=1.0, warmup_frames=40,
+       record_path="<absolute path>.jsonl",
+       record_extra_bones=["calf_l", "calf_r", "thigh_l", "thigh_r"])
      The column roots go around the waist in order. While sampling, game time advances at
      fixed_frame_rate (default 30) so the sampling cost does not change the physics step;
      choose frames as loop length x fixed_frame_rate or more (one 18.3 s loop at 30 is 549
-     frames; 700 adds margin). The editor itself runs slower in real time while sampling.
+     frames; 700 adds margin). The editor itself runs slower in real time while sampling;
+     do not take screenshots meanwhile (they stall the mesh update).
      Poll get_collision_penetration_sampler_result() while status is "running"; it is
      finished at "ok", "penetration", "nothing_checked" or "error" ("stopped" means
-     stop_collision_penetration_sampler ended it early; do not compare it). Compare mainly
-     max and mean_positive per category (vertical = along a column, horizontal = between
-     neighbouring columns, other = constraints outside the ring, usually empty) and look at
-     "worst"; samples_over_threshold depends on how many frames were run. Many
-     unchanged_frames mean the mesh stopped updating (off screen or throttled).
-  4. Change one thing: radius by depth, constraints, leg capsules or SyncBone.
-  5. Compile the AnimBlueprint, restart PIE and measure again with the same motion, start
-     phase, frames, warm-up, fixed_frame_rate and ring_root_bones (the segment set must
-     match). Compare the numbers and the view side by side.
+     stop_collision_penetration_sampler ended it early; do not compare it). Compare per
+     category (vertical = along a column, horizontal = between neighbouring columns,
+     other = constraints outside the ring) mainly samples_over_threshold, mean_all and max;
+     mean_positive alone misleads when positive_count is small. top_events gives the worst
+     moments with their PIE time, to find the scene in the animation. max is decided by a few
+     frames and varies between identical runs; measure the baseline twice to know the noise.
+  5. analyze_motion_recording(record_path, baseline_path) scores the motion: deviation from
+     the pose (much lower = stiffer), lift (p50 is stable, max varies a lot between runs),
+     jitter, rotation spikes and flips (> 90 degrees in one frame), collapse (vertical
+     segments shorter than 70% of rest), and stretch between ring neighbours measured
+     against the rest pose. flags (stiffer, jittery, pops, flips, collapses, lifts,
+     stretches) compare with the baseline using a ratio and an absolute floor; they are hints,
+     so look at the recording before acting. status "stale" means the mesh stopped updating
+     for more than 10% of the frames: measure again.
+  6. Change one thing, compile, restart PIE (stop PIE before saving: a save during PIE fails
+     silently) and measure again with the same motion, frames, warm-up, fixed_frame_rate and
+     ring_root_bones. Keep the change only when penetration improves and the motion does not
+     get worse beyond the noise; otherwise restore the snapshot with
+     apply_graph_node_settings(anim_blueprint, snapshot, 0) and check with
+     diff_graph_node_settings that only the next change differs. Leftovers from a reverted
+     trial silently spoil the following measurements.
 - Bones pinned to the input pose (skip_simulate, such as the column roots) are not checked:
   the collision step skips them, so overlap there is fixed by moving the collision or the
   pose, not by physics settings.
-- Which setting to change:
+- Which setting to change (measured on the sample skirt, collision-only baseline = 1):
   - Contacts already in the pose: move or shrink the leg capsules, or lower the radius of
     the rows that overlap.
-  - Only "horizontal" is high (a leg slips between columns): raise the lower rows' radius
-    with set_graph_node_radius_by_depth and add ring constraints.
+  - A leg slips between columns ("horizontal"): ring BoneConstraints plus
+    BoneConstraintSubdivisionCount 2 cut the samples over 1 cm to about a tenth. More than 2
+    only lowers "vertical". A larger radius removes bridge dummies (they are not added where
+    the endpoint spheres already overlap) and made it worse.
+  - BoneConstraintSubdivisionFeedbackScale above 1 lowers horizontal penetration but brings
+    back flips in fast kicks; 1.0 was the best balance.
+  - BoneSubdivisionCount 1 with bBoneSubdivisionCollisionOnly lowers "vertical" and the
+    tip bounce in kicks. 2 or DensifyByRadius added penetration and lift. Keep
+    bBoneSubdivisionCollisionOnly on: simulated inter-bone dummies made the skirt jitter
+    and fly away from the legs.
+  - SyncBone (from the calf) raises the hem over the knee while walking (lift p50 about
+    1.5x the collision-only skirt) in exchange for fewer contacts; the combined setup keeps
+    that lift. GlobalScale around 0.65 avoids the hem riding up in jumps.
+  - Stiffness trades the two: 0.1 gave the calmest hem but pulled it back into the legs
+    (horizontal about 1.8x); 0.02 lowered penetration but left flips after jumps. Settings
+    that push harder raise flips; decide with both numbers.
   - The skirt looks stiff rather than penetrating: adjust Damping / Stiffness, not the
     collision.
 - build_ring_bone_constraints(skeletal_mesh, ring_root_bones, 1, -1, True) pairs the same
@@ -152,7 +192,8 @@ SKIRTS: SET UP, CHECK AND TUNE
   to set_bone_constraints_data_asset_pairs (try dry_run first; a data asset is shared by
   every node that references it). Constraints keep neighbouring columns at their rest
   distance. BoneConstraintSubdivisionCount only adds collision dummies along constraints:
-  it fills collision gaps between columns but does not hold them together.
+  it fills collision gaps between columns but does not hold them together. Keep
+  bAutoAddChildDummyBoneConstraint on with BoneSubdivision; it links the tips too.
 - set_graph_node_radius_by_depth(handle, [2, 2, 3, 4, 4.5], skeletal_mesh) writes Radius and
   RadiusCurveData for one radius per row (row 0 = column root). Check the per-bone error it
   returns; columns of different lengths are averaged and listed in warnings. It refuses a
@@ -162,9 +203,17 @@ SKIRTS: SET UP, CHECK AND TUNE
   not follow the vertical motion.
 - The sampler value is a proxy from bone placement (how deep a collision reaches into the
   segments between bones), not the cloth mesh's own penetration. 1.0 cm is a guide, not a
-  pass criterion; judge the view too. Settings multipliers applied during a run change the
-  radii and therefore the numbers. Convex simple world shapes and the world collision sweep
-  are not checked (the results list them in reasons).
+  pass criterion; judge the view too. For the final comparison look at the same moments of
+  the baseline and the candidates side by side, captured at the fixed frame rate (a
+  SceneCapture2D in the PIE world writes each frame synchronously; high resolution
+  screenshots stall PIE time and show an editor notification per shot). Measure the scene
+  times in the capture run itself; they drifted about 0.4 s from the sampler's times. Among
+  candidates with similar numbers, rotation spikes matched the visible hem disorder better
+  than the horizontal counts. A front camera cannot judge back kicks.
+- Ring constraints keep the hem from flaring in spins (it rides up instead); changing their
+  Compliance (Tendon, Rubber) did not change that. Settings multipliers applied during a run
+  change the radii and therefore the numbers. Convex simple world shapes and the world collision sweep are not checked (the
+  results list them in reasons).
 
 SEQUENCER AND POST PROCESS
 - In UE 5.8 an animation section plays as a DefaultSlot montage when the actor's
