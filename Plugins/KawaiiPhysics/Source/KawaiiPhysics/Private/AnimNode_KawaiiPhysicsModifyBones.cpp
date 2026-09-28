@@ -314,7 +314,7 @@ int32 FAnimNode_KawaiiPhysics::InsertInterBoneDummyBonesCore(TArray<FKawaiiPhysi
 		return EffectiveParentIndex;
 	}
 
-	// 最小配置数 = 指定数。bBoneSubdivisionCollisionOnly は積分挙動のみに作用し、配置数には影響しない。
+	// 最小配置数 = 指定数。bBoneSubdivisionCollisionOnly は配置数には影響しない。
 	// 0距離区間（座標が重なる実ボーン間）はダミーが同一点に乗るだけなので 0。
 	int32 EffectiveCount = (Distance > KINDA_SMALL_NUMBER) ? FMath::Clamp(BoneSubdivisionCount, 0, 10) : 0;
 
@@ -438,9 +438,17 @@ void FAnimNode_KawaiiPhysics::CalcBoneLength(FKawaiiPhysicsModifyBone& Bone,
 	{
 		if (!Bone.bDummy)
 		{
-			Bone.BoneLength = RefBonePose.IsValidIndex(Bone.BoneRef.BoneIndex)
-				                  ? RefBonePose[Bone.BoneRef.BoneIndex].GetLocation().Size()
-				                  : 0.0f;
+			if (InModifyBones[Bone.ParentIndex].bInterBoneDummy)
+			{
+				// 分割済みの実ボーンは最後のセグメント長を使い、LengthFromRoot の二重計上を防ぐ。
+				Bone.BoneLength = InModifyBones[Bone.ParentIndex].BoneLength;
+			}
+			else
+			{
+				Bone.BoneLength = RefBonePose.IsValidIndex(Bone.BoneRef.BoneIndex)
+					                  ? RefBonePose[Bone.BoneRef.BoneIndex].GetLocation().Size()
+					                  : 0.0f;
+			}
 		}
 		else if (!Bone.bInterBoneDummy)
 		{

@@ -822,7 +822,7 @@ void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
 			continue;
 		}
 
-		// コリジョン専用モード: Simulate()をスキップ（コリジョンとbone length restorationは後で実行）
+		// コリジョン専用モード: 積分をスキップし、実端点から位置を決めてコリジョンに参加させる。
 		if (Bone.bInterBoneDummy && bBoneSubdivisionCollisionOnly)
 		{
 			continue;
@@ -985,58 +985,8 @@ void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
 	SET_DWORD_STAT(STAT_KawaiiPhysics_NumWorldCollisionChecks, NumWorldChecks);
 
 	// bridge dummy のコリジョン変位を端点ボーンへ転送（実ボーンを押し出すフィードバック本体）。コリジョン後・Constraint/length復元前。
-	// Push = Location(押し出し後) - PoseLocation(LERP基準)。端点へ距離比 (1-α):α で配分し Scale で強さ調整。端点が縦dummyでも後段length復元で実子へ伝播。
-	if (BoneConstraintSubdivisionCount > 0 && BoneConstraintSubdivisionFeedbackScale > 0.0f)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_BridgeDummy);
-		// 端点ごとに押し出し量と重みを集計し divisor=max(1,重み合計) で割る。多数のdummyが同じ端点を押す病的ケースのみ加重平均でN倍オーバーシュート/発振を防ぐ。
-		// スクラッチ配列は端点index直アクセス。Reset+SetNumZeroed で再利用し TMap 確保/ハッシュをホットパスから排除。
-		const int32 NumBones = ModifyBones.Num();
-		BridgeFeedbackPushScratch.Reset();
-		BridgeFeedbackPushScratch.SetNumZeroed(NumBones);
-		BridgeFeedbackWeightScratch.Reset();
-		BridgeFeedbackWeightScratch.SetNumZeroed(NumBones);
-
-		for (const FKawaiiPhysicsModifyBone& Bone : ModifyBones)
-		{
-			if (!Bone.bBridgeDummy || Bone.bSkipSimulate)
-			{
-				continue;
-			}
-			if (!ModifyBones.IsValidIndex(Bone.InterBoneRealParentIndex) ||
-				!ModifyBones.IsValidIndex(Bone.InterBoneRealChildIndex))
-			{
-				continue;
-			}
-
-			const FVector Push = Bone.Location - Bone.PoseLocation; // コリジョンによる押し出し量
-			if (Push.IsNearlyZero())
-			{
-				continue;
-			}
-
-			const float A = Bone.InterBoneAlpha;
-			const int32 E1 = Bone.InterBoneRealParentIndex;
-			const int32 E2 = Bone.InterBoneRealChildIndex;
-			const float W1 = 1.0f - A; // 端点1に近いほど寄与大
-			const float W2 = A;
-
-			BridgeFeedbackPushScratch[E1] += Push * W1;
-			BridgeFeedbackWeightScratch[E1] += W1;
-			BridgeFeedbackPushScratch[E2] += Push * W2;
-			BridgeFeedbackWeightScratch[E2] += W2;
-		}
-
-		for (int32 EndpointIdx = 0; EndpointIdx < NumBones; ++EndpointIdx)
-		{
-			const float W = BridgeFeedbackWeightScratch[EndpointIdx];
-			if (W > 0.0f)
-			{
-				ModifyBones[EndpointIdx].Location +=
-					(BridgeFeedbackPushScratch[EndpointIdx] / FMath::Max(1.0f, W)) * BoneConstraintSubdivisionFeedbackScale;
-			}
-		}
-	}
+	// Push = Location(押し出し後) - PoseLocation(LERP基準)。端点へ距離比 (1-α):α で配分し Scale で強さ調整。
+	ApplyBridgeDummyCollisionFeedback();
 
 	// Adjust by Bone Constraints After Collision
 	if (BoneConstraintIterationCountAfterCollision > 0)
@@ -1054,34 +1004,122 @@ void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
 	// Adjust by Limits and Bone Length（角度制限 + 平面制約 + ボーン長復元のO(N)ループをまとめて計測）
 	{
 		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_AdjustByLimitsAndLength);
-		for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
-		{
-			if (Bone.bSkipSimulate)
-			{
-				continue;
-			}
-
-			// bridge dummyは縦親を持たないため長さ/角度復元をスキップ（ParentIndex=-1参照でクラッシュ）。
-			// 位置は直前のconstraint solveで確定済みで、次フレーム冒頭で端点間に再LERPされる。
-			if (Bone.bBridgeDummy)
-			{
-				continue;
-			}
-
-			auto& ParentBone = ModifyBones[Bone.ParentIndex];
-
-			// Adjust by angle limit
-			AdjustByAngleLimit(Bone, ParentBone);
-
-			// Adjust by Planar Constraint
-			AdjustByPlanarConstraint(Bone, ParentBone);
-
-			// Restore Bone Length
-			const float BoneLength = (Bone.PoseLocation - ParentBone.PoseLocation).Size();
-			Bone.Location = (Bone.Location - ParentBone.Location).GetSafeNormal() * BoneLength + ParentBone.Location;
-		}
+		RestoreBoneLengthsAndLimits();
 	}
 	// 注: DeltaTimeOld は呼び出し元 SimulateModifyBones（legacy=DeltaTime / substep=FixedDt）で設定
+}
+
+void FAnimNode_KawaiiPhysics::ApplyBridgeDummyCollisionFeedback()
+{
+	if (BoneConstraintSubdivisionCount <= 0 || BoneConstraintSubdivisionFeedbackScale <= 0.0f)
+	{
+		return;
+	}
+
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_BridgeDummy);
+	// 端点ごとに押し出し量と重みを集計し、同じ端点への過剰な押し出しを防ぐ。
+	const int32 NumBones = ModifyBones.Num();
+	BridgeFeedbackPushScratch.Reset();
+	BridgeFeedbackPushScratch.SetNumZeroed(NumBones);
+	BridgeFeedbackWeightScratch.Reset();
+	BridgeFeedbackWeightScratch.SetNumZeroed(NumBones);
+
+	for (const FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+	{
+		if (!Bone.bBridgeDummy || Bone.bSkipSimulate ||
+			!ModifyBones.IsValidIndex(Bone.InterBoneRealParentIndex) ||
+			!ModifyBones.IsValidIndex(Bone.InterBoneRealChildIndex))
+		{
+			continue;
+		}
+
+		const FVector Push = Bone.Location - Bone.PoseLocation;
+		if (Push.IsNearlyZero())
+		{
+			continue;
+		}
+
+		const auto AddEndpointPush = [this, &Push](int32 EndpointIndex, float Weight)
+		{
+			const FKawaiiPhysicsModifyBone& Endpoint = ModifyBones[EndpointIndex];
+			if (bBoneSubdivisionCollisionOnly && Endpoint.bInterBoneDummy)
+			{
+				if (!ensureMsgf(ModifyBones.IsValidIndex(Endpoint.InterBoneRealParentIndex) &&
+				                ModifyBones.IsValidIndex(Endpoint.InterBoneRealChildIndex),
+				                TEXT("KawaiiPhysics: invalid inter-bone dummy endpoint index.")))
+				{
+					return;
+				}
+				// 再配置で消えるダミーへの変位は、実端点へ同じ比率で分ける。
+				const float ParentWeight = Weight * (1.0f - Endpoint.InterBoneAlpha);
+				const float ChildWeight = Weight * Endpoint.InterBoneAlpha;
+				BridgeFeedbackPushScratch[Endpoint.InterBoneRealParentIndex] += Push * ParentWeight;
+				BridgeFeedbackWeightScratch[Endpoint.InterBoneRealParentIndex] += ParentWeight;
+				BridgeFeedbackPushScratch[Endpoint.InterBoneRealChildIndex] += Push * ChildWeight;
+				BridgeFeedbackWeightScratch[Endpoint.InterBoneRealChildIndex] += ChildWeight;
+			}
+			else
+			{
+				BridgeFeedbackPushScratch[EndpointIndex] += Push * Weight;
+				BridgeFeedbackWeightScratch[EndpointIndex] += Weight;
+			}
+		};
+
+		AddEndpointPush(Bone.InterBoneRealParentIndex, 1.0f - Bone.InterBoneAlpha);
+		AddEndpointPush(Bone.InterBoneRealChildIndex, Bone.InterBoneAlpha);
+	}
+
+	for (int32 EndpointIdx = 0; EndpointIdx < NumBones; ++EndpointIdx)
+	{
+		const float W = BridgeFeedbackWeightScratch[EndpointIdx];
+		if (W > 0.0f)
+		{
+			ModifyBones[EndpointIdx].Location +=
+				(BridgeFeedbackPushScratch[EndpointIdx] / FMath::Max(1.0f, W)) * BoneConstraintSubdivisionFeedbackScale;
+		}
+	}
+}
+
+void FAnimNode_KawaiiPhysics::RestoreBoneLengthsAndLimits()
+{
+	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+	{
+		if (Bone.bSkipSimulate || Bone.bBridgeDummy ||
+			(bBoneSubdivisionCollisionOnly && Bone.bInterBoneDummy))
+		{
+			continue;
+		}
+
+		int32 ParentIndex = Bone.ParentIndex;
+		if (bBoneSubdivisionCollisionOnly)
+		{
+			// コリジョン専用 dummy の位置は実端点から決まるため、実親を拘束の基準にする。
+			while (ModifyBones.IsValidIndex(ParentIndex) && ModifyBones[ParentIndex].bInterBoneDummy)
+			{
+				ParentIndex = ModifyBones[ParentIndex].ParentIndex;
+			}
+		}
+		const FKawaiiPhysicsModifyBone& ParentBone = ModifyBones[ParentIndex];
+		AdjustByAngleLimit(Bone, ParentBone);
+		AdjustByPlanarConstraint(Bone, ParentBone);
+		const float BoneLength = (Bone.PoseLocation - ParentBone.PoseLocation).Size();
+		Bone.Location = (Bone.Location - ParentBone.Location).GetSafeNormal() * BoneLength + ParentBone.Location;
+	}
+
+	if (bBoneSubdivisionCollisionOnly)
+	{
+		// 出力回転と次ステップが参照する位置を、復元後の実端点に合わせる。
+		for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+		{
+			if (Bone.bInterBoneDummy &&
+				ModifyBones.IsValidIndex(Bone.InterBoneRealParentIndex) &&
+				ModifyBones.IsValidIndex(Bone.InterBoneRealChildIndex))
+			{
+				Bone.Location = FMath::Lerp(ModifyBones[Bone.InterBoneRealParentIndex].Location,
+				                            ModifyBones[Bone.InterBoneRealChildIndex].Location, Bone.InterBoneAlpha);
+			}
+		}
+	}
 }
 
 FTransform FAnimNode_KawaiiPhysics::ResolveExternalForceBoneTransform(

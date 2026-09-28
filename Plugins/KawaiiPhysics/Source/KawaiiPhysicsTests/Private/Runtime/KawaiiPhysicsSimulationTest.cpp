@@ -282,6 +282,162 @@ bool FKawaiiPhysicsSyncBoneSubdivisionApplyTest::RunTest(const FString& Paramete
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSyncBoneSubdivisionLengthTest,
+                                 "KawaiiPhysics.Simulation.SyncBoneSubdivisionLength",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSyncBoneSubdivisionLengthTest::RunTest(const FString& Parameters)
+{
+	constexpr float SegmentLength = 12.0f;
+	constexpr float TipLength = 6.0f;
+	constexpr float Tol = 0.001f;
+
+	for (int32 SubdivisionCount = 1; SubdivisionCount <= 2; ++SubdivisionCount)
+	{
+		FKawaiiPhysicsTestAccessor A;
+		const int32 ChildIndex = A.BuildSyncBoneSubdivisionLengthFixture(
+			SubdivisionCount, SegmentLength, TipLength);
+		const float ExpectedSegmentLength = SegmentLength / (SubdivisionCount + 1);
+		TestTrue(FString::Printf(TEXT("N=%d real child BoneLength is final segment length"), SubdivisionCount),
+		         FMath::IsNearlyEqual(A.Bone(ChildIndex).BoneLength, ExpectedSegmentLength, Tol));
+		TestTrue(FString::Printf(TEXT("N=%d real child LengthFromRoot counts each segment once"), SubdivisionCount),
+		         FMath::IsNearlyEqual(A.Bone(ChildIndex).LengthFromRoot, SegmentLength, Tol));
+		TestTrue(FString::Printf(TEXT("N=%d subdivided tip LengthFromRoot includes tip once"), SubdivisionCount),
+		         FMath::IsNearlyEqual(A.Bone(A.Num() - 1).LengthFromRoot, SegmentLength + TipLength, Tol));
+		TestTrue(FString::Printf(TEXT("N=%d real child LengthRateFromRoot uses physical chain length"), SubdivisionCount),
+		         FMath::IsNearlyEqual(A.Bone(ChildIndex).LengthRateFromRoot,
+		                              SegmentLength / (SegmentLength + TipLength), Tol));
+
+		FKawaiiPhysicsSyncTargetRoot TargetRoot = A.CollectSyncChildTargetsForRoot(0);
+		TestEqual(FString::Printf(TEXT("N=%d only real child is a SyncBone target"), SubdivisionCount),
+		          TargetRoot.ChildTargets.Num(), 1);
+		A.ApplySyncTargetsForRootSplit(TargetRoot, FVector(0.0f, 10.0f, 0.0f),
+		                               FVector(0.0f, 5.0f, 0.0f));
+		const float Distance = FVector::Dist(A.Bone(0).PoseLocation, A.Bone(ChildIndex).PoseLocation);
+		TestTrue(FString::Printf(TEXT("N=%d non-rigid SyncBone keeps real segment length: %.4f"),
+		                         SubdivisionCount, Distance),
+		         FMath::IsNearlyEqual(Distance, SegmentLength, Tol));
+	}
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsBridgeDummyCollisionFeedbackTest,
+                                 "KawaiiPhysics.Simulation.BridgeDummyCollisionFeedback",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsBridgeDummyCollisionFeedbackTest::RunTest(const FString& Parameters)
+{
+	constexpr float Tol = 0.001f;
+	for (int32 Mode = 0; Mode < 2; ++Mode)
+	{
+		const bool bCollisionOnly = (Mode == 0);
+		FKawaiiPhysicsTestAccessor A;
+		A.BuildSyncBoneSubdivisionFixture();
+		A.Node.bBoneSubdivisionCollisionOnly = bCollisionOnly;
+		A.Node.BoneConstraintSubdivisionCount = 1;
+		A.Node.BoneConstraintSubdivisionFeedbackScale = 1.0f;
+
+		auto AddBridge = [&A](int32 FirstEndpoint, int32 SecondEndpoint, float Alpha, float PushY)
+		{
+			FKawaiiPhysicsModifyBone Bridge;
+			Bridge.bDummy = true;
+			Bridge.bBridgeDummy = true;
+			Bridge.InterBoneRealParentIndex = FirstEndpoint;
+			Bridge.InterBoneRealChildIndex = SecondEndpoint;
+			Bridge.InterBoneAlpha = Alpha;
+			Bridge.PoseLocation = FVector::ZeroVector;
+			Bridge.Location = FVector(0.0f, PushY, 0.0f);
+			A.Node.ModifyBones.Add(Bridge);
+		};
+
+		// 縦ダミーを端点に持つ橋と、実rootへ重なる別の橋で重みの除数も検証する。
+		AddBridge(1, 5, 0.25f, 4.0f);
+		AddBridge(0, 5, 0.0f, 8.0f);
+		A.CallApplyBridgeDummyCollisionFeedback();
+
+		const float ExpectedRootY = bCollisionOnly ? 9.5f / 1.375f : 8.0f;
+		TestTrue(TEXT("real root receives weighted feedback"),
+		         FMath::IsNearlyEqual(A.Bone(0).Location.Y, ExpectedRootY, Tol));
+		TestTrue(TEXT("real child receives routed feedback only in collision-only mode"),
+		         FMath::IsNearlyEqual(A.Bone(2).Location.Y, bCollisionOnly ? 1.5f : 0.0f, Tol));
+		TestTrue(TEXT("inter-bone dummy receives feedback only in simulated mode"),
+		         FMath::IsNearlyEqual(A.Bone(1).Location.Y, bCollisionOnly ? 0.0f : 3.0f, Tol));
+		TestTrue(TEXT("other bridge endpoint keeps its feedback"),
+		         FMath::IsNearlyEqual(A.Bone(5).Location.Y, 5.0f, Tol));
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSubdivisionCollisionOnlyRestoreTest,
+                                 "KawaiiPhysics.Simulation.SubdivisionCollisionOnlyRestore",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSubdivisionCollisionOnlyRestoreTest::RunTest(const FString& Parameters)
+{
+	constexpr float SegmentLength = 12.0f;
+	constexpr float TipLength = 6.0f;
+	constexpr float Tol = 0.001f;
+
+	for (int32 SubdivisionCount = 1; SubdivisionCount <= 2; ++SubdivisionCount)
+	{
+		for (int32 Mode = 0; Mode < 2; ++Mode)
+		{
+			const bool bCollisionOnly = (Mode == 0);
+			FKawaiiPhysicsTestAccessor A;
+			const int32 ChildIndex = A.BuildSyncBoneSubdivisionLengthFixture(
+				SubdivisionCount, SegmentLength, TipLength);
+			const int32 TipIndex = A.Num() - 1;
+			A.Node.bBoneSubdivisionCollisionOnly = bCollisionOnly;
+			A.Bone(0).bSkipSimulate = true;
+			A.Bone(ChildIndex).Location = FVector(SegmentLength * 0.1f, 0.0f, 0.0f);
+			A.Bone(TipIndex).Location = FVector((SegmentLength + TipLength) * 0.1f, 0.0f, 0.0f);
+			for (int32 BoneIndex = 0; BoneIndex < A.Num(); ++BoneIndex)
+			{
+				FKawaiiPhysicsModifyBone& Bone = A.Bone(BoneIndex);
+				if (Bone.bInterBoneDummy)
+				{
+					Bone.Location = FMath::Lerp(A.Bone(Bone.InterBoneRealParentIndex).Location,
+					                            A.Bone(Bone.InterBoneRealChildIndex).Location, Bone.InterBoneAlpha);
+				}
+			}
+
+			A.CallRestoreBoneLengthsAndLimits();
+
+			if (bCollisionOnly)
+			{
+				TestTrue(FString::Printf(TEXT("N=%d child returns to full root distance"), SubdivisionCount),
+				         A.Bone(ChildIndex).Location.Equals(FVector(SegmentLength, 0.0f, 0.0f), Tol));
+				TestTrue(FString::Printf(TEXT("N=%d tip returns to full child distance"), SubdivisionCount),
+				         FMath::IsNearlyEqual(FVector::Dist(A.Bone(TipIndex).Location,
+				                                          A.Bone(ChildIndex).Location), TipLength, Tol));
+				for (int32 BoneIndex = 0; BoneIndex < A.Num(); ++BoneIndex)
+				{
+					const FKawaiiPhysicsModifyBone& Bone = A.Bone(BoneIndex);
+					if (Bone.bInterBoneDummy)
+					{
+						const FVector Expected = FMath::Lerp(A.Bone(Bone.InterBoneRealParentIndex).Location,
+						                                      A.Bone(Bone.InterBoneRealChildIndex).Location, Bone.InterBoneAlpha);
+						TestTrue(FString::Printf(TEXT("N=%d dummy %d follows final endpoints"), SubdivisionCount, BoneIndex),
+						         Bone.Location.Equals(Expected, Tol));
+					}
+				}
+			}
+			else
+			{
+				const float ExpectedChildX = (SubdivisionCount == 1) ? 0.0f : SegmentLength / 3.0f;
+				TestTrue(FString::Printf(TEXT("N=%d simulated dummy retains per-parent child restore"), SubdivisionCount),
+				         A.Bone(ChildIndex).Location.Equals(FVector(ExpectedChildX, 0.0f, 0.0f), Tol));
+				TestTrue(FString::Printf(TEXT("N=%d simulated dummy retains per-parent tip restore"), SubdivisionCount),
+				         A.Bone(TipIndex).Location.Equals(
+					 FVector((SubdivisionCount == 1) ? 0.0f : TipLength / 3.0f, 0.0f, 0.0f), Tol));
+			}
+		}
+	}
+
+	return true;
+}
+
 // ---------------------------------------------------------------------------
 //  パラメータ応答
 // ---------------------------------------------------------------------------

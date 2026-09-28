@@ -1725,6 +1725,13 @@ protected:
 	                  const FSceneInterface* Scene, const USkeletalMeshComponent* SkelComp);
 
 	/**
+	 * Restores bone lengths and limits, then places collision-only subdivision dummies between real endpoints.
+	 * ボーン長と制限を復元し、コリジョン専用の分割ダミーを実端点間に再配置する。
+	 */
+	void RestoreBoneLengthsAndLimits();
+	void ApplyBridgeDummyCollisionFeedback();
+
+	/**
 	 * Simulates the physics for a single bone.
 	 *
 	 * @param Bone The bone to simulate.
