@@ -133,6 +133,7 @@ SKIRTS: SET UP, CHECK AND TUNE
                         "skirt_08_01_r", "skirt_07_01_r", "skirt_06_01_r", "skirt_05_01_r",
                         "skirt_04_01_r", "skirt_03_01_r", "skirt_02_01_r", "skirt_01_01_r"],
        frames=700, filter_tag_names=[], min_depth=1, threshold=1.0, warmup_frames=40,
+       extra_actor_labels=["Ex5_5_A"],
        record_path="<absolute path>.jsonl",
        record_extra_bones=["calf_l", "calf_r", "thigh_l", "thigh_r"])
      The column roots go around the waist in order. While sampling, game time advances at
@@ -140,6 +141,9 @@ SKIRTS: SET UP, CHECK AND TUNE
      choose frames as loop length x fixed_frame_rate or more (one 18.3 s loop at 30 is 549
      frames; 700 adds margin). The editor itself runs slower in real time while sampling;
      do not take screenshots meanwhile (they stall the mesh update).
+     Measure the collision-only baseline in the same run: actors share the animation
+     phase and it takes about half the time. Read each actor under result["actors"];
+     each gets its own record_path (the baseline path ends in __Ex5_5_A.jsonl).
      Poll get_collision_penetration_sampler_result() while status is "running"; it is
      finished at "ok", "penetration", "nothing_checked" or "error" ("stopped" means
      stop_collision_penetration_sampler ended it early; do not compare it). Compare per
@@ -156,6 +160,8 @@ SKIRTS: SET UP, CHECK AND TUNE
      stretches) compare with the baseline using a ratio and an absolute floor; they are hints,
      so look at the recording before acting. status "stale" means the mesh stopped updating
      for more than 10% of the frames: measure again.
+     In spins, higher flare.p90 means the hem opens; higher rise.p50 with low flare
+     means the tips ride up together. Both describe motion and set no fault flag.
   6. Change one thing, compile, restart PIE (stop PIE before saving: a save during PIE fails
      silently) and measure again with the same motion, frames, warm-up, fixed_frame_rate and
      ring_root_bones. Keep the change only when penetration improves and the motion does not

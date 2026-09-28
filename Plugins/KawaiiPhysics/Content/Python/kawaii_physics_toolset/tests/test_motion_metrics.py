@@ -35,7 +35,68 @@ def recording(positions, poses=None, angles=None, second=None, extra=None):
     return {'header': header, 'frames': frames}
 
 
+def ring_recording(radii, heights=None):
+    heights = heights or [0] * len(radii)
+    sample = recording([0] * len(radii))
+    node = sample['header']['nodes'][0]
+    node['columns'] = [['root_a', 'tip_a'], ['root_b', 'tip_b'],
+                       ['root_c', 'tip_c'], ['root_d', 'tip_d']]
+    node['bones'] = [{'key': key, 'bone_name': key, 'dummy_type': 'None',
+                      'parent_key': None, 'depth': 0}
+                     for key in ('root_a', 'root_b', 'root_c', 'root_d')]
+    node['rest'] = {}
+    for frame in sample['frames']:
+        frame['nodes'][0]['bones'] = {}
+    for root, tip, x, y in [('root_a', 'tip_a', 1, 0),
+                            ('root_b', 'tip_b', 0, 1),
+                            ('root_c', 'tip_c', -1, 0),
+                            ('root_d', 'tip_d', 0, -1)]:
+        node['bones'].append({'key': tip, 'bone_name': tip, 'dummy_type': 'None',
+                              'parent_key': root, 'depth': 1})
+        node['rest'][root] = [x, y, 0]
+        node['rest'][tip] = [10 * x, 10 * y, 0]
+        for frame, radius, height in zip(sample['frames'], radii, heights):
+            frame['nodes'][0]['bones'][root] = [x, y, 0, x, y, 0]
+            frame['nodes'][0]['bones'][tip] = [radius * x, radius * y, height,
+                                                10 * x, 10 * y, 0]
+    return sample
+
+
 class MotionMetricsTests(unittest.TestCase):
+    def test_flare_grows_when_ring_tips_move_outward(self):
+        sample = ring_recording([10, 12, 14])
+        result = compute_motion_metrics(sample)['overall']
+        self.assertAlmostEqual(result['flare']['p10'], 1.04)
+        self.assertAlmostEqual(result['flare']['p50'], 1.2)
+        self.assertAlmostEqual(result['flare']['p90'], 1.36)
+        self.assertAlmostEqual(result['flare']['max'], 1.4)
+        self.assertEqual(result['rise']['p50'], 0)
+        baseline = compute_motion_metrics(ring_recording([10, 10, 10]))
+        comparison = compare_motion_metrics(compute_motion_metrics(sample), baseline)
+        self.assertAlmostEqual(comparison['ratios']['flare_p90'], 1.36)
+        self.assertIsNone(comparison['ratios']['rise_p50'])
+
+    def test_rise_grows_without_flare_when_tips_move_up(self):
+        sample = ring_recording([10, 10, 10], [0, 2, 4])
+        result = compute_motion_metrics(sample)['overall']
+        self.assertAlmostEqual(result['flare']['p90'], 1)
+        self.assertAlmostEqual(result['rise']['p50'], 2)
+        self.assertAlmostEqual(result['rise']['p90'], 3.6)
+        baseline = compute_motion_metrics(ring_recording([10] * 3, [1] * 3))
+        comparison = compare_motion_metrics(compute_motion_metrics(sample), baseline)
+        self.assertAlmostEqual(comparison['ratios']['rise_p50'], 2)
+
+    def test_stale_ring_frame_is_excluded_and_empty_columns_are_null(self):
+        sample = ring_recording([10, 100, 12], [0, 100, 2])
+        sample['frames'][1]['stale'] = True
+        result = compute_motion_metrics(sample)['overall']
+        self.assertAlmostEqual(result['flare']['max'], 1.2)
+        self.assertAlmostEqual(result['rise']['p50'], 1)
+        sample['header']['nodes'][0]['columns'] = []
+        result = compute_motion_metrics(sample)['overall']
+        self.assertIsNone(result['flare']['p90'])
+        self.assertIsNone(result['rise']['p50'])
+
     def test_smooth_swing_and_noise(self):
         smooth = [2 * math.sin(index * 0.15) for index in range(80)]
         noisy = [value + (0.5 if index % 2 else -0.5)

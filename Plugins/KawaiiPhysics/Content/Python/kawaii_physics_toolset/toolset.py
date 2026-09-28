@@ -1519,11 +1519,12 @@ def _runtime_sample_info(info, target, record=False):
     return positions, limits
 
 
-def _runtime_sample_nodes(state):
+def _runtime_sample_nodes(state, actor_state=None):
+    actor_state = actor_state if actor_state is not None else state
     if _runtime_world_info(_resolve_world(state['prefer_pie'])) != state['world']:
         raise RuntimeError('Sampling world changed, possibly because PIE ended.')
     by_id = {}
-    for component, component_name in state['components']:
+    for component, component_name in actor_state['components']:
         count, infos, error = unreal.KawaiiPhysicsLibrary.get_runtime_node_infos_on_component(
             component, state['filter_tags'], False)
         if count < 0:
@@ -1534,10 +1535,10 @@ def _runtime_sample_nodes(state):
             identity = (component_name, str(info.anim_instance_class_name),
                         int(info.node_index), str(info.root_bone),
                         str(info.tag.get_editor_property('tag_name')))
-            target = state['targets_by_id'].get(identity)
+            target = actor_state['targets_by_id'].get(identity)
             if target is not None:
                 by_id[identity] = (_runtime_sample_info(
-                    info, target, bool(state.get('record_path')) and
+                    info, target, bool(actor_state.get('record_path')) and
                     state['frames_seen'] >= state['warmup_frames'])
                                    if info.evaluated else None)
     if not by_id:
@@ -1921,14 +1922,16 @@ def _stop_collision_penetration_sampler_impl():
         state['error'] = state.get('error') or str(error)
     finally:
         _restore_sampler_fixed_frame_rate(state)
-        if state.get('record_path'):
-            try:
-                with open(state['record_path'], 'w', encoding='utf-8') as output:
-                    output.write(json.dumps(state['record_header'], ensure_ascii=False) + '\n')
-                    for frame in state['record_frames']:
-                        output.write(json.dumps(frame, ensure_ascii=False) + '\n')
-            except Exception as error:
-                state.setdefault('notes', []).append(f'Could not write recording: {error}')
+        for actor_state in state.get('actor_states', {state.get('actor'): state}).values():
+            if actor_state.get('record_path') and actor_state.get('record_header'):
+                try:
+                    with open(actor_state['record_path'], 'w', encoding='utf-8') as output:
+                        output.write(json.dumps(actor_state['record_header'], ensure_ascii=False) + '\n')
+                        for frame in actor_state['record_frames']:
+                            output.write(json.dumps(frame, ensure_ascii=False) + '\n')
+                except Exception as error:
+                    actor_state.setdefault('notes', []).append(
+                        f'Could not write recording: {error}')
         state['done'] = True
 
 
@@ -1954,9 +1957,10 @@ def _record_extra_bone_names(value):
     return names
 
 
-def _record_penetration_frame(state, by_id):
+def _record_penetration_frame(state, by_id, actor_state=None):
+    actor_state = actor_state if actor_state is not None else state
     nodes, limits = [], []
-    for target in state['targets']:
+    for target in actor_state['targets']:
         sample = by_id.get(target['node_id'])
         if sample is None:
             nodes.append({'bones': None, 'final': {}})
@@ -1980,16 +1984,16 @@ def _record_penetration_frame(state, by_id):
                 if field in shape:
                     item[field] = [round(x, 4) for x in shape[field]]
             limits.append(item)
-    extra = {name: _record_transform(state['extra_components'][name], name)
-             for name in state['record_extra_bones']}
+    extra = {name: _record_transform(actor_state['extra_components'][name], name)
+             for name in actor_state['record_extra_bones']}
     positions = {(index, key): value[:3]
                  for index, node in enumerate(nodes) if node['bones'] is not None
                  for key, value in node['bones'].items()}
     positions.update({('extra', key): value[:3] for key, value in extra.items()})
-    previous = state.get('record_positions')
+    previous = actor_state.get('record_positions')
     stale = bool(positions and previous is not None and positions == previous)
-    state['record_positions'] = positions
-    state['record_frames'].append({'type': 'frame', 'frame': state['frames_seen'],
+    actor_state['record_positions'] = positions
+    actor_state['record_frames'].append({'type': 'frame', 'frame': state['frames_seen'],
                                    'time': state['frame_time'], 'stale': stale,
                                    'nodes': nodes, 'extra': extra, 'limits': limits})
 
@@ -1998,36 +2002,51 @@ def _sampler_world_time_seconds(prefer_pie: bool) -> float:
     return float(unreal.GameplayStatics.get_time_seconds(_resolve_world(prefer_pie)))
 
 
+def _accumulate_penetration_actor_tick(state, actor_state, by_id, game_time):
+    """Accumulate one actor using the shared frame number and game time."""
+    any_valid, all_unchanged = False, True
+    for target in actor_state['targets']:
+        sample = by_id.get(target['node_id'])
+        positions, limits = sample[:2] if sample is not None else ({}, [])
+        previous_unchanged = target['unchanged_frames']
+        valid = _accumulate_penetration_frame(
+            target, positions, limits, actor_state['stats'], state['threshold'],
+            state['frames_seen'], game_time)
+        any_valid |= valid
+        all_unchanged &= valid and target['unchanged_frames'] > previous_unchanged
+    if any_valid:
+        actor_state['frames_collected'] += 1
+        if actor_state.get('record_path'):
+            _record_penetration_frame(state, by_id, actor_state)
+    if all_unchanged:
+        actor_state['unchanged_frames'] += 1
+    return any_valid
+
+
 def _collision_penetration_sampler_tick(delta_seconds):
     state = _COLLISION_PENETRATION_SAMPLER
     if state is None or state['done']:
         return
     started = time.perf_counter()
     try:
-        by_id = _runtime_sample_nodes(state)
+        actor_states = state.get('actor_states', {state.get('actor'): state})
+        primary = actor_states[state['actor']]
+        by_id = _runtime_sample_nodes(state, primary)
         state['frames_seen'] += 1
         if state['frames_seen'] <= state['warmup_frames']:
             return
-        any_valid = False
-        all_unchanged = True
         game_time = _sampler_world_time_seconds(state['prefer_pie'])
         state['frame_time'] = game_time
-        for target in state['targets']:
-            sample = by_id.get(target['node_id'])
-            positions, limits = sample[:2] if sample is not None else ({}, [])
-            previous_unchanged = target['unchanged_frames']
-            valid = _accumulate_penetration_frame(
-                target, positions, limits, state['stats'], state['threshold'],
-                state['frames_seen'], game_time)
-            any_valid |= valid
-            all_unchanged &= valid and target['unchanged_frames'] > previous_unchanged
-        if any_valid:
-            state['frames_collected'] += 1
-            if state.get('record_path'):
-                _record_penetration_frame(state, by_id)
-        if all_unchanged:
-            state['unchanged_frames'] += 1
-        if state['frames_collected'] >= state['frames']:
+        _accumulate_penetration_actor_tick(state, primary, by_id, game_time)
+        for label, actor_state in actor_states.items():
+            if label == state['actor'] or not actor_state.get('targets') or actor_state['error']:
+                continue
+            try:
+                extra_samples = _runtime_sample_nodes(state, actor_state)
+                _accumulate_penetration_actor_tick(state, actor_state, extra_samples, game_time)
+            except Exception as error:
+                actor_state['error'] = str(error)
+        if primary['frames_collected'] >= state['frames']:
             _stop_collision_penetration_sampler_impl()
     except Exception as error:
         state['error'] = str(error)
@@ -2039,16 +2058,16 @@ def _collision_penetration_sampler_tick(delta_seconds):
         state['cost_samples'] += 1
 
 
-def _penetration_sampler_result(state):
+def _penetration_actor_result(state, actor_state):
     rows = []
-    for target in state['targets']:
+    for target in actor_state['targets']:
         for segment in target['segments']:
             key = (segment['bone1'], segment['bone2'])
             rows.append({'node': target['identity'], **segment,
                          'max': target['maxima'].get(key, 0.0)})
     rows.sort(key=lambda row: row['max'], reverse=True)
-    stats = _penetration_stats_result(state['stats'])
-    events = sorted(state['stats']['all'].get('events', []),
+    stats = _penetration_stats_result(actor_state['stats'])
+    events = sorted(actor_state['stats']['all'].get('events', []),
                     key=lambda event: event['value'], reverse=True)
     top_events = []
     for event in events:
@@ -2057,16 +2076,16 @@ def _penetration_sampler_result(state):
             top_events.append(event)
             if len(top_events) == 10:
                 break
-    status = ('error' if state['error'] else
+    status = ('error' if actor_state['error'] or state['error'] else
               'running' if not state['done'] else
-              'stopped' if state['frames_collected'] < state['frames'] else
+              'stopped' if actor_state['frames_collected'] < state['frames'] else
               'penetration' if stats['all']['samples_over_threshold'] else
               'ok' if stats['all']['samples'] else 'nothing_checked')
     result = {'status': status, 'checked': stats['all']['samples'],
-              'excluded': state['excluded'], 'reasons': state['reasons'],
-              'world': state['world'], 'done': state['done'],
-              'frames_collected': state['frames_collected'],
-              'unchanged_frames': state['unchanged_frames'],
+              'excluded': actor_state['excluded'], 'reasons': actor_state['reasons'],
+              'world': actor_state['world'], 'done': state['done'],
+              'frames_collected': actor_state['frames_collected'],
+              'unchanged_frames': actor_state['unchanged_frames'],
               'frames_seen': state['frames_seen'], 'frames_requested': state['frames'],
               'threshold': state['threshold'], 'statistics': stats,
               'top_segments': rows[:10], 'top_events': top_events,
@@ -2081,13 +2100,141 @@ def _penetration_sampler_result(state):
                   'A physics-settings radius multiplier during sampling can change the comparison.',
                   'The 1.0 cm threshold is a guide, not a pass criterion.',
                   'For Off/On comparison, use the same motion, start phase, duration and warmup.',
-                  *state['notes']]}
-    if state['error']:
-        result['error'] = state['error']
-    if state.get('record_path'):
-        result['record_path'] = state['record_path']
-        result['recorded_frames'] = len(state['record_frames'])
+                  *state['notes'],
+                  *(actor_state.get('notes', []) if actor_state is not state else [])]}
+    if actor_state['error'] or state['error']:
+        result['error'] = actor_state['error'] or state['error']
+    if actor_state.get('record_path'):
+        result['record_path'] = actor_state['record_path']
+        result['recorded_frames'] = len(actor_state['record_frames'])
     return result
+
+
+def _penetration_sampler_result(state):
+    actor_states = state.get('actor_states')
+    if not actor_states:
+        return _penetration_actor_result(state, state)
+    def entry(actor_state):
+        if actor_state.get('targets'):
+            return _penetration_actor_result(state, actor_state)
+        result = dict(actor_state['start_result'])
+        result.update(done=state.get('done', True), frames_collected=0,
+                      unchanged_frames=0, frames_seen=state.get('frames_seen', 0),
+                      frames_requested=state.get('frames'),
+                      threshold=state.get('threshold'),
+                      fixed_frame_rate=state.get('fixed_frame_rate'),
+                      statistics=_penetration_stats_result(
+                          actor_state.get('stats', _new_penetration_stats())),
+                      top_segments=[], top_events=[],
+                      cost_ms={'mean': (state['cost_total_ms'] / state['cost_samples']
+                                        if state.get('cost_samples') else 0.0),
+                               'max': state.get('cost_max_ms', 0.0)},
+                      notes=[*state.get('notes', []), *actor_state.get('notes', [])])
+        if actor_state.get('record_path'):
+            result['record_path'] = actor_state['record_path']
+            result['recorded_frames'] = len(actor_state['record_frames'])
+        return result
+    result = entry(actor_states[state['actor']])
+    result['actors'] = {label: entry(actor_state)
+                        for label, actor_state in actor_states.items()}
+    return result
+
+
+def _prepare_penetration_actor(actor_label, prefer_pie, filter_tag_names, root_bone,
+                               ring_root_bones, min_depth, max_depth, closed,
+                               record_path, record_extra_bones, warmup_frames):
+    """Build independent targets, statistics, and recording data for one actor."""
+    snapshot = _runtime_snapshot(actor_label, prefer_pie, filter_tag_names, root_bone)
+    result = {key: snapshot[key] for key in ('status', 'checked', 'excluded', 'reasons', 'world')}
+    result['fixed_frame_rate'] = None
+    actor_state = {'actor': actor_label, 'world': result['world'], 'targets': [],
+                   'stats': _new_penetration_stats(), 'frames_collected': 0,
+                   'unchanged_frames': 0, 'checked': 0, 'excluded': result['excluded'],
+                   'reasons': result['reasons'], 'error': '', 'notes': [],
+                   'start_result': result}
+    if record_path:
+        actor_state.update(record_path=record_path, record_extra_bones=record_extra_bones,
+                           record_header={'type': 'header', 'version': 1,
+                                          'actor': actor_label, 'world': result['world'],
+                                          'fixed_frame_rate': None,
+                                          'warmup_frames': warmup_frames,
+                                          'ring_root_bones': ring_root_bones,
+                                          'nodes': [], 'extra_bones': record_extra_bones},
+                           record_frames=[], extra_components={})
+        result['record_path'] = record_path
+        result['recorded_frames'] = 0
+    if snapshot['status'] in ('not_found', 'no_nodes', 'not_evaluated'):
+        return actor_state
+    nodes = [node for node in _runtime_nodes(snapshot) if node['evaluated']]
+    targets, checked, excluded, reasons, start_status = _build_penetration_targets(
+        nodes, ring_root_bones, min_depth, max_depth, closed)
+    result['checked'] = checked
+    result['excluded'] += excluded
+    result['reasons'].extend(reasons)
+    result['reasons'].extend(_runtime_limit_reasons(nodes))
+    if result['excluded']:
+        result['reasons'].append('Disabled limits were excluded.')
+    actor_state.update(targets=targets, checked=checked, excluded=result['excluded'])
+    if start_status == 'nothing_checked':
+        result['status'] = start_status
+        result['reasons'].append('No eligible centerlines and active limits were available.')
+        return actor_state
+    components = [(component, str(component.get_name())) for component in
+                  _find_skeletal_mesh_components_by_label(actor_label, prefer_pie)]
+    actor_state.update(components=components,
+                       targets_by_id={target['node_id']: target for target in targets})
+    components_by_name = {name: component for component, name in components}
+    target_component_names = {target['identity']['component'] for target in targets}
+    component_sockets = [(component, {str(socket) for socket in
+                                      component.get_all_socket_names()})
+                         for component, name in components
+                         if name in target_component_names] if record_extra_bones else []
+    extra_components = {}
+    for name in record_extra_bones:
+        component = next((component for component, sockets in component_sockets
+                          if name in sockets), None)
+        if component is None:
+            raise ValueError(f'record_extra_bones bone not found: {name}')
+        extra_components[name] = component
+    if record_path:
+        nodes_by_id = {tuple(_runtime_node_id(node).values()): node for node in nodes}
+        for target in targets:
+            node = nodes_by_id[target['node_id']]
+            target['component'] = components_by_name[target['identity']['component']]
+            target['real_bones'] = tuple(dict.fromkeys(
+                bone['bone_name'] for bone in node['bones']
+                if bone['dummy_type'] == 'None'))
+            target['record_keys_by_index'] = {
+                bone['index']: bone['key'] for bone in node['bones']
+                if bone['dummy_type'] in ('None', 'Tip')}
+        record_header = {'type': 'header', 'version': 1, 'actor': actor_label,
+                         'world': result['world'], 'fixed_frame_rate': None,
+                         'warmup_frames': warmup_frames,
+                         'ring_root_bones': ring_root_bones,
+                         'nodes': [_record_node_header(nodes_by_id[target['node_id']],
+                                                       ring_root_bones)
+                                   for target in targets],
+                         'extra_bones': record_extra_bones}
+        for target, header_node in zip(targets, record_header['nodes']):
+            target['record_header_node'] = header_node
+            target['ring_root_bones'] = ring_root_bones
+        actor_state.update(record_path=record_path, record_extra_bones=record_extra_bones,
+                           record_header=record_header, record_frames=[],
+                           extra_components=extra_components)
+    result['status'] = start_status
+    return actor_state
+
+
+def _extra_record_path(record_path, label, used_paths):
+    stem, extension = os.path.splitext(record_path)
+    safe_label = re.sub(r'[^A-Za-z0-9_-]+', '_', label).strip('_') or 'actor'
+    path = f'{stem}__{safe_label}{extension}'
+    suffix = 2
+    while os.path.normcase(path) in used_paths:
+        path = f'{stem}__{safe_label}__{suffix}{extension}'
+        suffix += 1
+    used_paths.add(os.path.normcase(path))
+    return path
 
 
 # UE 5.8 の MCP は省略可能なリスト引数（list[...] | None）に値を渡すと変換に失敗するため、リスト引数は省略不可の list にする（指定しないときは [] を渡す）
@@ -3747,7 +3894,8 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             min_depth: int = 0, max_depth: int = -1, closed: bool = True, threshold: float = 1.0,
             warmup_frames: int = 0, fixed_frame_rate: float = 30.0,
             record_path: str | None = None,
-            record_extra_bones: list[str] = []) -> str:
+            record_extra_bones: list[str] = [],
+            extra_actor_labels: list[str] = []) -> str:
         """Sample fixed skirt centerlines after Slate ticks in component space.
 
         Pass [] for ring_root_bones to use the default segment set.
@@ -3757,6 +3905,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         FPS may fall, making the scene appear slower.
         record_path writes a JSONL rest header and frames with game time and stale
         markers. record_extra_bones adds final component-space leg or body transforms.
+        extra_actor_labels samples other actors in the same ticks and records each separately.
         """
         global _COLLISION_PENETRATION_SAMPLER
         # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
@@ -3786,84 +3935,60 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
                     not os.path.isdir(os.path.dirname(record_path))):
                 raise ValueError('record_path must be an absolute .jsonl path in an existing directory.')
         record_extra_bones = _record_extra_bone_names(record_extra_bones)
+        # ufunction 経由では unreal.Array で届くため、型ではなく中身で検証する
+        try:
+            extra_actor_labels = list(extra_actor_labels or [])
+        except TypeError as error:
+            raise ValueError('extra_actor_labels must be a list of actor labels.') from error
+        if (any(not isinstance(label, str) or not label for label in extra_actor_labels) or
+                len(set(extra_actor_labels)) != len(extra_actor_labels) or
+                actor_label in extra_actor_labels):
+            raise ValueError('extra_actor_labels must contain unique nonempty labels other than actor_label.')
         _stop_collision_penetration_sampler_impl()
-        snapshot = _runtime_snapshot(actor_label, prefer_pie, filter_tag_names, root_bone)
-        result = {key: snapshot[key] for key in ('status', 'checked', 'excluded', 'reasons', 'world')}
-        result['fixed_frame_rate'] = None
-        if snapshot['status'] in ('not_found', 'no_nodes', 'not_evaluated'):
+        used_paths = {os.path.normcase(record_path)} if record_path else set()
+        actor_states = {}
+        for label in [actor_label, *extra_actor_labels]:
+            path = (record_path if label == actor_label else
+                    _extra_record_path(record_path, label, used_paths) if record_path else None)
+            try:
+                actor_states[label] = _prepare_penetration_actor(
+                    label, prefer_pie, filter_tag_names, root_bone, ring_root_bones,
+                    min_depth, max_depth, closed, path, record_extra_bones, warmup_frames)
+            except Exception as error:
+                if label == actor_label:
+                    raise
+                actor_states[label] = {'targets': [], 'error': str(error),
+                                       'start_result': {'status': 'error', 'error': str(error),
+                                                        'checked': 0, 'excluded': 0,
+                                                        'reasons': [], 'fixed_frame_rate': None}}
+                if path:
+                    actor_states[label].update(
+                        record_path=path, record_frames=[],
+                        record_header={'type': 'header', 'version': 1,
+                                       'actor': label, 'world': actor_states[actor_label]['world'],
+                                       'fixed_frame_rate': None, 'warmup_frames': warmup_frames,
+                                       'ring_root_bones': ring_root_bones, 'nodes': [],
+                                       'extra_bones': record_extra_bones})
+        primary = actor_states[actor_label]
+        result = primary['start_result']
+        if not primary['targets']:
+            result['actors'] = {label: dict(actor['start_result'])
+                                for label, actor in actor_states.items()}
             return json.dumps(result)
-        nodes = [n for n in _runtime_nodes(snapshot) if n['evaluated']]
-        targets, checked, excluded, reasons, start_status = _build_penetration_targets(
-            nodes, ring_root_bones, min_depth, max_depth, closed)
-        result['checked'] = checked
-        result['excluded'] += excluded
-        result['reasons'].extend(reasons)
-        result['reasons'].extend(_runtime_limit_reasons(nodes))
-        if result['excluded']:
-            result['reasons'].append('Disabled limits were excluded.')
-        if start_status == 'nothing_checked':
-            result['status'] = start_status
-            result['reasons'].append('No eligible centerlines and active limits were available.')
-            return json.dumps(result)
-        components = [(component, str(component.get_name())) for component in
-                      _find_skeletal_mesh_components_by_label(actor_label, prefer_pie)]
-        components_by_name = {name: component for component, name in components}
-        target_component_names = {target['identity']['component'] for target in targets}
-        component_sockets = [(component, {str(socket) for socket in
-                                          component.get_all_socket_names()})
-                             for component, name in components
-                             if name in target_component_names] if record_extra_bones else []
-        extra_components = {}
-        for name in record_extra_bones:
-            component = next((component for component, sockets in component_sockets
-                              if name in sockets), None)
-            if component is None:
-                raise ValueError(f'record_extra_bones bone not found: {name}')
-            extra_components[name] = component
-        if record_path:
-            nodes_by_id = {tuple(_runtime_node_id(node).values()): node for node in nodes}
-            for target in targets:
-                node = nodes_by_id[target['node_id']]
-                target['component'] = components_by_name[target['identity']['component']]
-                target['real_bones'] = tuple(dict.fromkeys(
-                    bone['bone_name'] for bone in node['bones']
-                    if bone['dummy_type'] == 'None'))
-                target['record_keys_by_index'] = {
-                    bone['index']: bone['key'] for bone in node['bones']
-                    if bone['dummy_type'] in ('None', 'Tip')}
-            record_header = {'type': 'header', 'version': 1, 'actor': actor_label,
-                             'world': result['world'], 'fixed_frame_rate': None,
-                             'warmup_frames': warmup_frames,
-                             'ring_root_bones': ring_root_bones,
-                             'nodes': [_record_node_header(nodes_by_id[target['node_id']],
-                                                           ring_root_bones)
-                                       for target in targets],
-                             'extra_bones': record_extra_bones}
-            for target, header_node in zip(targets, record_header['nodes']):
-                target['record_header_node'] = header_node
-                target['ring_root_bones'] = ring_root_bones
         _COLLISION_PENETRATION_SAMPLER = {
-            'actor': actor_label, 'prefer_pie': prefer_pie, 'filter_tag_names': list(filter_tag_names),
-            'root_bone': root_bone, 'world': result['world'], 'targets': targets,
-            'targets_by_id': {target['node_id']: target for target in targets},
-            'components': components,
+            'actor': actor_label, 'prefer_pie': prefer_pie,
+            'root_bone': root_bone, 'world': primary['world'],
             'filter_tags': _make_tag_container(filter_tag_names),
-            'frames': frames, 'frames_seen': 0, 'frames_collected': 0,
-            'unchanged_frames': 0,
+            'actor_states': actor_states, 'frames': frames, 'frames_seen': 0,
             'warmup_frames': warmup_frames, 'threshold': threshold,
-            'stats': _new_penetration_stats(), 'checked': result['checked'],
-            'excluded': result['excluded'], 'reasons': result['reasons'],
             'done': False, 'error': '', 'tick_handle': None,
             'fixed_frame_rate': None, 'notes': [],
             'cost_total_ms': 0.0, 'cost_max_ms': 0.0, 'cost_samples': 0}
         state = _COLLISION_PENETRATION_SAMPLER
-        if record_path:
-            state.update(record_path=record_path, record_extra_bones=record_extra_bones,
-                         record_header=record_header, record_frames=[],
-                         extra_components=extra_components)
         _enable_sampler_fixed_frame_rate(state, fixed_frame_rate)
-        if record_path:
-            record_header['fixed_frame_rate'] = state['fixed_frame_rate']
+        for actor in actor_states.values():
+            if actor.get('record_header'):
+                actor['record_header']['fixed_frame_rate'] = state['fixed_frame_rate']
         # TODO(verify): Slate post-tick callback availability and timing after component evaluation.
         try:
             state['tick_handle'] = unreal.register_slate_post_tick_callback(
@@ -3871,20 +3996,19 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         except Exception as error:
             state['error'] = str(error)
             _stop_collision_penetration_sampler_impl()
-            result['status'] = 'error'
-            result['error'] = state['error']
-            result['fixed_frame_rate'] = state['fixed_frame_rate']
-            result['notes'] = state['notes']
-            if record_path:
-                result['record_path'] = record_path
-                result['recorded_frames'] = len(state['record_frames'])
-            return json.dumps(result)
-        result['status'] = start_status
+            return json.dumps(_penetration_sampler_result(state))
         result['fixed_frame_rate'] = state['fixed_frame_rate']
         result['notes'] = state['notes']
         if record_path:
             result['record_path'] = record_path
             result['recorded_frames'] = 0
+        result['actors'] = {label: ({**actor['start_result'],
+                                    'fixed_frame_rate': state['fixed_frame_rate'],
+                                    'notes': state['notes'],
+                                    **({'record_path': actor['record_path'], 'recorded_frames': 0}
+                                       if actor.get('record_path') else {})}
+                            if actor.get('targets') else actor['start_result'])
+                            for label, actor in actor_states.items()}
         return json.dumps(result)
 
     @toolset_registry.tool_call
@@ -3896,6 +4020,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         largest samples at least five frames apart, with game time in seconds.
         cost_ms is mean/max sampling cost per tick, unchanged_frames counts frames
         with unchanged target positions, and fixed_frame_rate is the applied game-time rate.
+        actors maps each label to its own statistics, events, status, and recording path.
         """
         state = _COLLISION_PENETRATION_SAMPLER
         if state is None:
@@ -3917,6 +4042,8 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
 
         Deviation measures swing from pose; lift includes per-frame tip maxima.
         The lifts flag uses lift.p50 only; lift.p90 and lift.max remain in the output.
+        In spins, higher flare.p90 means the hem opens; higher rise.p50 with low
+        flare means the tips ride up together. These values do not set flags.
         Stretch uses start rest spacing, collapse counts short vertical segments,
         and flips count rotations above 90 degrees. Stale frames are excluded;
         status is stale when they exceed 10 percent. Comparison flags are hints.

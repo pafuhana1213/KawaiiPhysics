@@ -66,7 +66,8 @@ def _pearson(a, b):
 
 def _empty_accumulator():
     return {'deviation': [], 'lift': [], 'jitter': [], 'acceleration': [],
-            'lift_frames': [], 'angles': [], 'spikes': 0, 'flips': 0,
+            'lift_frames': [], 'flare_frames': [], 'rise_frames': [],
+            'angles': [], 'spikes': 0, 'flips': 0,
             'worst_flip': None, 'horizontal': [], 'vertical': [],
             'constraint': [], 'collapse_count': 0, 'collapse_samples': 0}
 
@@ -87,6 +88,12 @@ def _summary(data, rate):
             'lift': {'max': max(data['lift_frames']) if data['lift_frames'] else None,
                      'p50': _percentile(data['lift_frames'], 50),
                      'p90': _percentile(data['lift_frames'], 90)},
+            'flare': {'p10': _percentile(data['flare_frames'], 10),
+                      'p50': _percentile(data['flare_frames'], 50),
+                      'p90': _percentile(data['flare_frames'], 90),
+                      'max': max(data['flare_frames']) if data['flare_frames'] else None},
+            'rise': {'p50': _percentile(data['rise_frames'], 50),
+                     'p90': _percentile(data['rise_frames'], 90)},
             'jitter': {'mean': jitter_mean, 'worst_bone': worst,
                        'per_second3': jitter_mean * rate ** 3 if jitter_mean is not None and rate else None},
             'acceleration': {'mean': acceleration_mean,
@@ -166,6 +173,8 @@ def compute_motion_metrics(recording: dict, spike_degrees: float = 25.0,
     valid_frames = [frame for frame in frames if not frame.get('stale')]
     stale_frames = len(frames) - len(valid_frames)
     overall_tip_lifts = defaultdict(list)
+    overall_flare = defaultdict(list)
+    overall_rise = defaultdict(list)
     nodes = []
     for index, node in enumerate(header['nodes']):
         samples = [{'frame': frame['frame'], 'bones': frame['nodes'][index]['bones'],
@@ -196,11 +205,33 @@ def compute_motion_metrics(recording: dict, spike_degrees: float = 25.0,
                               meta[child]['parent_key'] == parent and
                               meta[child]['depth'] >= 0]}
         tips = [column[-1] for column in columns if column]
+        tip_columns = [(column[0], column[-1]) for column in columns
+                       if column and column[0] in rest and column[-1] in rest]
+        rest_radius = None
+        if tip_columns:
+            center = [_mean([rest[root][axis] for root, _ in tip_columns])
+                      for axis in (0, 1)]
+            rest_radius = _mean([math.dist(rest[tip][:2], center)
+                                 for _, tip in tip_columns])
         for sample in samples:
             if sample['bones'] is None:
                 continue
+            current_columns = [(root, tip) for root, tip in tip_columns
+                               if root in sample['bones'] and tip in sample['bones']]
+            if current_columns:
+                center = [_mean([sample['bones'][root][axis]
+                                 for root, _ in current_columns]) for axis in (0, 1)]
+                if rest_radius:
+                    flare = _mean([math.dist(sample['bones'][tip][:2], center)
+                                   for _, tip in current_columns]) / rest_radius
+                    data['overall']['flare_frames'].append(flare)
+                    overall_flare[sample['frame']].append(flare)
+                rise = _mean([sample['bones'][tip][2] - rest[tip][2]
+                              for _, tip in current_columns])
+                data['overall']['rise_frames'].append(rise)
+                overall_rise[sample['frame']].append(rise)
             for key, values in sample['bones'].items():
-                depth = meta[key].get('depth', -1)
+                depth = meta.get(key, {}).get('depth', -1)
                 _add(data, depth, 'deviation', _distance(values[:3], values[3:6]))
                 _add(data, depth, 'lift', values[2] - values[5])
             tip_lifts = [sample['bones'][key][2] - sample['bones'][key][5]
@@ -316,6 +347,8 @@ def compute_motion_metrics(recording: dict, spike_degrees: float = 25.0,
                        if tips and header.get('extra_bones') else {})
         nodes.append(summary)
     combined['overall']['lift_frames'] = [max(lifts) for lifts in overall_tip_lifts.values()]
+    combined['overall']['flare_frames'] = [_mean(values) for values in overall_flare.values()]
+    combined['overall']['rise_frames'] = [_mean(values) for values in overall_rise.values()]
     overall = _summary(combined['overall'], rate)
     all_tips = [(index, column[-1])
                 for index, node in enumerate(header['nodes'])
@@ -364,7 +397,8 @@ def compare_motion_metrics(candidate: dict, baseline: dict,
              'stretch_horizontal_p95': ('stretch', 'horizontal', 'p95'),
              'stretch_vertical_p95': ('stretch', 'vertical', 'p95'),
              'collapse_fraction': ('collapse_fraction',),
-             'lift_p50': ('lift', 'p50'), 'lift_max': ('lift', 'max')}
+             'lift_p50': ('lift', 'p50'), 'lift_max': ('lift', 'max'),
+             'flare_p90': ('flare', 'p90'), 'rise_p50': ('rise', 'p50')}
     def scalar(metrics, path):
         result = metrics['overall']
         for key in path:

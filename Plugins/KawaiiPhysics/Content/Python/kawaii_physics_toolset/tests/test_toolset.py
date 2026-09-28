@@ -401,6 +401,61 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         self.assertFalse(sample(target, {}, [], stats, 1.0, 4))
         self.assertEqual(stats['all']['stale_or_unknown'], 1)
 
+    def test_multiple_actor_accumulation_and_result_pure(self):
+        def actor(label):
+            segment = {'bone1': 'a', 'bone2': 'b', 'category': 'vertical'}
+            target = {'identity': {'component': label}, 'segments': [segment],
+                      'endpoint_order': ('a', 'b'), 'previous': None,
+                      'unchanged_frames': 0, 'maxima': {},
+                      'segment_specs': [('a', 'b', 'vertical', ('a', 'b'))]}
+            return {'targets': [target], 'stats': toolset_module._new_penetration_stats(),
+                    'frames_collected': 0, 'unchanged_frames': 0, 'excluded': 0,
+                    'reasons': [], 'world': {}, 'error': '', 'notes': []}
+
+        primary, extra = actor('Candidate'), actor('Baseline')
+        state = {'actor': 'Candidate', 'actor_states': {'Candidate': primary,
+                 'Baseline': extra}, 'threshold': 1.0, 'frames_seen': 1,
+                 'frames': 2, 'done': False, 'error': '', 'world': {},
+                 'fixed_frame_rate': 30.0, 'cost_total_ms': 0.0,
+                 'cost_samples': 0, 'cost_max_ms': 0.0, 'notes': []}
+        positions = {'a': [0, 0, 0], 'b': [1, 0, 0]}
+        def sample(radius):
+            return {'node': (positions, [{
+                'limit_type': 'Spherical', 'inner_sphere': False,
+                'location': [0, 0, 0], 'radius0': radius,
+                'source_type': 'AnimNode', 'source_array': 'SphericalLimits',
+                'source_index': 0, 'driving_bone': 'a'}])}
+        for actor_state in (primary, extra):
+            actor_state['targets'][0]['node_id'] = 'node'
+        toolset_module._accumulate_penetration_actor_tick(state, primary, sample(2), 0.1)
+        toolset_module._accumulate_penetration_actor_tick(state, extra, sample(0.5), 0.1)
+        state['frames_seen'] = 2
+        toolset_module._accumulate_penetration_actor_tick(state, primary, sample(2), 0.2)
+        toolset_module._accumulate_penetration_actor_tick(state, extra, sample(0.5), 0.2)
+        state['done'] = True
+        result = toolset_module._penetration_sampler_result(state)
+        self.assertEqual(result['frames_collected'], 2)
+        self.assertEqual(result['status'], 'penetration')
+        self.assertEqual(result['actors']['Candidate']['statistics'], result['statistics'])
+        self.assertEqual(result['actors']['Baseline']['status'], 'ok')
+        self.assertEqual(result['actors']['Baseline']['frames_collected'], 2)
+        self.assertEqual(result['actors']['Baseline']['unchanged_frames'], 1)
+        self.assertEqual(result['actors']['Candidate']['top_events'][0]['time'], 0.1)
+
+    def test_multiple_actor_record_paths_and_missing_result_pure(self):
+        used = {os.path.normcase('C:/records/run.jsonl')}
+        path = toolset_module._extra_record_path('C:/records/run.jsonl', 'Base / A', used)
+        self.assertEqual(path, 'C:/records/run__Base_A.jsonl')
+        self.assertEqual(toolset_module._extra_record_path(
+            'C:/records/run.jsonl', 'Base / A', used),
+            'C:/records/run__Base_A__2.jsonl')
+        primary = {'targets': [], 'start_result': {'status': 'not_found'}}
+        missing = {'targets': [], 'start_result': {'status': 'no_nodes'}}
+        state = {'actor': 'Candidate', 'actor_states': {'Candidate': primary,
+                 'Baseline': missing}}
+        self.assertEqual(toolset_module._penetration_sampler_result(state)['actors']
+                         ['Baseline']['status'], 'no_nodes')
+
     def test_penetration_error_overrides_statistics_pure(self):
         stats = toolset_module._new_penetration_stats()
         toolset_module._accumulate_penetration_sample(
@@ -643,6 +698,14 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
                 with self.subTest(path=path), self.assertToolRaisesRuntimeError():
                     KawaiiPhysicsToolset.start_collision_penetration_sampler(
                         UNKNOWN_ACTOR_LABEL, [], record_path=path)
+
+    def test_penetration_extra_actor_labels_validation(self):
+        # 文字列以外の要素は ufunction の型変換で弾かれツールまで届かないので扱わない
+        for labels in (['Baseline', 'Baseline'], [UNKNOWN_ACTOR_LABEL],
+                       [''], ['Baseline', '']):
+            with self.subTest(labels=labels), self.assertToolRaisesRuntimeError():
+                KawaiiPhysicsToolset.start_collision_penetration_sampler(
+                    UNKNOWN_ACTOR_LABEL, [], extra_actor_labels=labels)
 
     def test_penetration_record_extra_bones_arguments(self):
         class ArrayLike:
