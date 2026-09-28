@@ -137,7 +137,7 @@ C++ビルド環境がない方は、以下のリンクからプラグインを�
 プロジェクト内にサンプルレベルとキャラクターが含まれています。
 - **エンジンバージョン**: UE 5.8
 - **サンプルレベル**: `Content/KawaiiPhysicsSample/L_KawaiiPhysicsSample`
-- **機能別サンプル**: `Content/KawaiiPhysicsSample/Examples/` にテーマごとのレベルがあります。各展示は 1 つの機能だけを専用の AnimBlueprint で紹介し、段階的に学べるようにしています。
+- **機能別サンプル**: `Content/KawaiiPhysicsSample/Examples/` にテーマごとのレベルがあります。各展示は 1 つの機能だけを専用の AnimBlueprint で紹介し、段階的に学べるようにしています。`Content/KawaiiPhysicsSample/L_KPS_AllExamples` ではテーマごとのレベルをすべて並べて読み込み、全機能を 1 か所で見て回れます。
   - `01_BoneChain`（RootBone / DummyBoneLength / ExcludeBones / AdditionalRootBones / 複数ノードとタグ）
   - `02_PhysicsSettings`（Damping / Stiffness / WorldDamping / LimitAngle / カーブ / テレポートしきい値 / ウォームアップ / SkelCompMoveScale）
   - `03_Collision`（球 / カプセル / テーパードカプセル / 箱 / 平面 / LimitsDataAsset / PhysicsAsset / ワールドコリジョン）

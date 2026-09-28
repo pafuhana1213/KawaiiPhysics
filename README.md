@@ -142,7 +142,7 @@ If you do not have a C++ build environment, please download the plugin from the 
 The sample project on GitHub includes a sample level and characters.
 - **Engine Version**: UE 5.8
 - **Sample Level**: `Content/KawaiiPhysicsSample/L_KawaiiPhysicsSample`
-- **Feature Samples**: `Content/KawaiiPhysicsSample/Examples/` has one level per topic. Each exhibit shows a single feature with its own AnimBlueprint, step by step.
+- **Feature Samples**: `Content/KawaiiPhysicsSample/Examples/` has one level per topic. Each exhibit shows a single feature with its own AnimBlueprint, step by step. `Content/KawaiiPhysicsSample/L_KPS_AllExamples` loads every topic level side by side so you can browse all features in one place.
   - `01_BoneChain` (RootBone / DummyBoneLength / ExcludeBones / AdditionalRootBones / multiple nodes and tags)
   - `02_PhysicsSettings` (Damping / Stiffness / WorldDamping / LimitAngle / curves / teleport thresholds / warm-up / SkelCompMoveScale)
   - `03_Collision` (sphere / capsule / tapered capsule / box / planar / LimitsDataAsset / PhysicsAsset / world collision)
