@@ -3,7 +3,6 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
-#include "KawaiiPhysicsMemoryTraceRegion.h"
 #include "AnimNode_KawaiiPhysics.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimInstanceProxy.h"
@@ -11,15 +10,12 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
-#include "HAL/PlatformTime.h"
 #include "Misc/MemStack.h"
 #include "UObject/StrongObjectPtr.h"
 
 namespace
 {
-	constexpr int32 GEvaluationPerfWarmup = 100;
-	constexpr int32 GEvaluationPerfFrames = 2000;
-	constexpr int32 GEvaluationPerfTrials = 5;
+	constexpr int32 GEvaluationCheckFrames = 32;
 	constexpr int32 GEvaluationPerfBones = 64;
 	constexpr float GEvaluationPerfDt = 1.0f / 60.0f;
 
@@ -29,8 +25,7 @@ namespace
 		using FAnimInstanceProxy::PreUpdate;
 	};
 
-	// Uses only baseline public APIs. The real pose and animation proxy drive the production
-	// evaluator, including limits, request consumption, simulation and output bone transforms.
+	// 実際のポーズとアニメーションプロキシで評価し、出力ボーンを確認する。
 	struct FNodeEvaluationFixture
 	{
 		TStrongObjectPtr<USkeleton> Skeleton{NewObject<USkeleton>()};
@@ -88,7 +83,7 @@ namespace
 			World->DestroyWorld(false);
 		}
 
-		double Evaluate(FComponentSpacePoseContext& Context, bool bPushEveryFrame)
+		void Evaluate(FComponentSpacePoseContext& Context, bool bPushEveryFrame)
 		{
 			Context.Pose.InitPose(&Proxy->GetRequiredBones());
 			Node.UpdateInternal(FAnimationUpdateContext(Proxy.Get(), GEvaluationPerfDt));
@@ -99,96 +94,37 @@ namespace
 				Scale.Damping = 1.25f;
 				Node.RequestPushPhysicsSettingsMultiplier(Scale, 0.75f, 101);
 			}
-			const double Start = FPlatformTime::Seconds();
 			Node.EvaluateSkeletalControl_AnyThread(Context, OutTransforms);
-			return FPlatformTime::Seconds() - Start;
 		}
 	};
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProductionNodeEvaluationPerfTest,
-	"KawaiiPhysics.Perf.ProductionNodeEvaluation",
+// リクエストの有無それぞれで、本番のノード評価が全ボーンを有限値で出力する。
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProductionNodeEvaluationTest,
+	"KawaiiPhysics.Simulation.ProductionNodeEvaluation",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FKawaiiPhysicsProductionNodeEvaluationPerfTest::RunTest(const FString& Parameters)
+bool FKawaiiPhysicsProductionNodeEvaluationTest::RunTest(const FString& Parameters)
 {
 	bool bOk = true;
 	for (const bool bPushEveryFrame : {false, true})
 	{
-		for (int32 Trial = 0; Trial < GEvaluationPerfTrials; ++Trial)
+		FMemMark MemMark(FMemStack::Get());
+		FNodeEvaluationFixture Fixture;
+		FComponentSpacePoseContext Context(Fixture.Proxy.Get());
+		for (int32 Frame = 0; Frame < GEvaluationCheckFrames; ++Frame)
 		{
-			FKawaiiPhysicsMemoryTraceRegion MemoryRegion(bPushEveryFrame ? TEXT("NodeEvaluation.PushEveryFrame")
-				: TEXT("NodeEvaluation.NoRequests"), Trial + 1);
-			FMemMark MemMark(FMemStack::Get());
-			FNodeEvaluationFixture Fixture;
-			FComponentSpacePoseContext Context(Fixture.Proxy.Get());
-			for (int32 Frame = 0; Frame < GEvaluationPerfWarmup; ++Frame)
-			{
-				Fixture.Evaluate(Context, bPushEveryFrame);
-			}
-			double Seconds = 0.0;
-			MemoryRegion.Warmup();
-			for (int32 Frame = 0; Frame < GEvaluationPerfFrames; ++Frame)
-			{
-				Seconds += Fixture.Evaluate(Context, bPushEveryFrame);
-			}
-			MemoryRegion.End();
-			bOk &= TestEqual(TEXT("Production evaluation outputs all simulated bones"),
-				Fixture.OutTransforms.Num(), GEvaluationPerfBones);
-			bool bFinite = true;
-			for (const FBoneTransform& Bone : Fixture.OutTransforms)
-			{
-				bFinite &= !Bone.Transform.ContainsNaN();
-			}
-			bOk &= TestTrue(TEXT("Production evaluation output remains finite"), bFinite);
-			AddInfo(FString::Printf(TEXT("PRODUCTION_EVAL scenario=%s trial=%d frames=%d bones=%d eval_us=%.6f output_bones=%d node_bytes=%d"),
-				bPushEveryFrame ? TEXT("PushEveryFrame") : TEXT("NoRequests"), Trial + 1,
-				GEvaluationPerfFrames, GEvaluationPerfBones, Seconds * 1000000.0 / GEvaluationPerfFrames,
-				Fixture.OutTransforms.Num(), static_cast<int32>(sizeof(FAnimNode_KawaiiPhysics))));
+			Fixture.Evaluate(Context, bPushEveryFrame);
 		}
-	}
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProductionRequestQueuePerfTest,
-	"KawaiiPhysics.Perf.ProductionRequestQueue",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsProductionRequestQueuePerfTest::RunTest(const FString& Parameters)
-{
-	bool bOk = true;
-	for (int32 Trial = 0; Trial < GEvaluationPerfTrials; ++Trial)
-	{
-		FKawaiiPhysicsMemoryTraceRegion MemoryRegion(TEXT("RequestQueue.PushEveryFrame"), Trial + 1);
-		FAnimNode_KawaiiPhysics Node;
-		FKawaiiPhysicsSettingsMultiplier Scale;
-		Scale.Damping = 1.25f;
-		const auto Step = [&]()
+		const TCHAR* Scenario = bPushEveryFrame ? TEXT("PushEveryFrame") : TEXT("NoRequests");
+		bOk &= TestEqual(FString::Printf(TEXT("%s: production evaluation outputs all simulated bones"), Scenario),
+			Fixture.OutTransforms.Num(), GEvaluationPerfBones);
+		bool bFinite = true;
+		for (const FBoneTransform& Bone : Fixture.OutTransforms)
 		{
-			Node.RequestPushPhysicsSettingsMultiplier(Scale, 0.75f, 101);
-			Node.ConsumeAndAdvancePhysicsSettingsMultipliers(GEvaluationPerfDt);
-		};
-		for (int32 Frame = 0; Frame < GEvaluationPerfWarmup; ++Frame)
-		{
-			Step();
+			bFinite &= !Bone.Transform.ContainsNaN();
 		}
-		int32 QueueCapacityGrowths = 0;
-		MemoryRegion.Warmup();
-		const double Start = FPlatformTime::Seconds();
-		for (int32 Frame = 0; Frame < GEvaluationPerfFrames; ++Frame)
-		{
-			// This node has one producer on this thread. One queued push with no capacity
-			// requires one array allocation; do not substitute process-wide allocator stats.
-			QueueCapacityGrowths += Node.TransientForceStore.Queue->PendingSettingsMultiplierPushes.Max() == 0 ? 1 : 0;
-			Step();
-		}
-		const double Seconds = FPlatformTime::Seconds() - Start;
-		MemoryRegion.End();
-		bOk &= TestEqual(TEXT("Repeated pushes update one active handle"), Node.TransientForceStore.SettingsMultiplierItems.Num(), 1);
-		AddInfo(FString::Printf(TEXT("PRODUCTION_QUEUE trial=%d frames=%d request_consume_us=%.6f producer_array_allocations=%d producer_retained_bytes=%llu store_bytes=%d"),
-			Trial + 1, GEvaluationPerfFrames, Seconds * 1000000.0 / GEvaluationPerfFrames,
-			QueueCapacityGrowths, static_cast<uint64>(Node.TransientForceStore.Queue->PendingSettingsMultiplierPushes.GetAllocatedSize()),
-			static_cast<int32>(sizeof(FKawaiiPhysicsTransientForceStore))));
+		bOk &= TestTrue(FString::Printf(TEXT("%s: production evaluation output remains finite"), Scenario), bFinite);
 	}
 	return bOk;
 }

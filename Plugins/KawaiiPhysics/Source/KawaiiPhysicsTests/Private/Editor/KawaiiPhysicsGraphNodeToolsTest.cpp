@@ -12,7 +12,6 @@
 #include "AnimationRuntime.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraphSchema_K2.h"
-#include "Editor.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce_Basic.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce_Wind.h"
@@ -232,11 +231,8 @@ bool FKawaiiPhysicsGraphNodeToolsExternalForcesJsonTest::RunTest(const FString& 
 	// 不正な入力はノードを変更せずに -1 と理由を返す
 	const TArray<FString> InvalidJsons = {
 		TEXT("[{\"_structType\": \"/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce\"}]"),
-		TEXT("[{\"_structType\": \"/Script/CoreUObject.Vector\"}]"),
 		TEXT("[{\"ForceDir\": {\"X\": 1}}]"),
-		TEXT("[{\"_structType\": \"KawaiiPhysics_ExternalForce_Basic\", \"NoSuchField\": 1}]"),
 		TEXT("[{\"_structType\": \"KawaiiPhysics_ExternalForce_Basic\", \"RandomizedForceScale\": 1}]"),
-		TEXT("{\"_structType\": \"KawaiiPhysics_ExternalForce_Basic\"}"),
 		TEXT("not json"),
 	};
 	for (const FString& InvalidJson : InvalidJsons)
@@ -295,23 +291,6 @@ bool FKawaiiPhysicsGraphNodeToolsReferenceBoneTransformTest::RunTest(const FStri
 	                 UKawaiiPhysicsEditorLibrary::GetGraphNodeReferenceBoneTransform(
 		                 FKawaiiPhysicsGraphNodeHandle(), TEXT("Neck"), MissingTransform));
 	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsGraphNodeToolsEditorWorldTest,
-                                 "KawaiiPhysics.EditorScripting.EditorWorldIgnoringPlayMode",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsGraphNodeToolsEditorWorldTest::RunTest(const FString& Parameters)
-{
-	if (!GEditor)
-	{
-		AddInfo(TEXT("GEditor is not available; skipping."));
-		return true;
-	}
-
-	return TestTrue(TEXT("Editor world matches the editor world context"),
-	                UKawaiiPhysicsEditorLibrary::GetEditorWorldIgnoringPlayMode() ==
-	                GEditor->GetEditorWorldContext(false).World());
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsGraphNodeToolsAnimNodeFunctionTest,

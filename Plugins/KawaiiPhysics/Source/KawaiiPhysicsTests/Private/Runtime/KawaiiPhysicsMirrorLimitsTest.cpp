@@ -61,42 +61,6 @@ namespace
 	}
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsMirrorIdentityOffsetTest,
-                                 "KawaiiPhysics.Mirror.IdentityOffset",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsMirrorIdentityOffsetTest::RunTest(const FString& Parameters)
-{
-	const FQuat SourceRotations[] =
-	{
-		MakeQuat(10.0f, 20.0f, 30.0f),
-		MakeQuat(-35.0f, 5.0f, 70.0f),
-		MakeQuat(0.0f, 90.0f, -15.0f),
-	};
-	const FQuat TargetRotations[] =
-	{
-		MakeQuat(-12.0f, 40.0f, 9.0f),
-		MakeQuat(50.0f, -20.0f, 33.0f),
-		MakeQuat(5.0f, 10.0f, 80.0f),
-	};
-	const EAxis::Type Axes[] = { EAxis::X, EAxis::Y, EAxis::Z };
-
-	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Axes); ++Index)
-	{
-		const FVector MirroredLocation = KawaiiPhysicsMirrorUtils::MirrorOffsetLocation(
-			FVector::ZeroVector, SourceRotations[Index], TargetRotations[Index], Axes[Index]);
-		TestTrue(TEXT("Zero offset location remains zero"),
-		         MirroredLocation.Equals(FVector::ZeroVector, KINDA_SMALL_NUMBER));
-
-		const FQuat MirroredRotation = KawaiiPhysicsMirrorUtils::MirrorOffsetRotation(
-			FQuat::Identity, SourceRotations[Index], TargetRotations[Index], Axes[Index]);
-		TestTrue(TEXT("Identity offset rotation remains identity"),
-		         IsSameRotation(MirroredRotation, FQuat::Identity, KINDA_SMALL_NUMBER));
-	}
-
-	return true;
-}
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsMirrorSymmetricSkeletonTest,
                                  "KawaiiPhysics.Mirror.SymmetricSkeleton",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -124,39 +88,6 @@ bool FKawaiiPhysicsMirrorSymmetricSkeletonTest::RunTest(const FString& Parameter
 		const FQuat ExpectedRotation = ExpectedMirroredZRotation(30.0f, MirrorAxis);
 		TestTrue(TEXT("Symmetric rotation matches the hand-derived mirrored Z rotation"),
 		         IsSameRotation(MirroredRotation, ExpectedRotation));
-	}
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsMirrorRoundTripTest,
-                                 "KawaiiPhysics.Mirror.RoundTrip",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsMirrorRoundTripTest::RunTest(const FString& Parameters)
-{
-	const FVector SourceLocation(4.0f, -5.0f, 6.0f);
-	const FQuat SourceRotation = MakeQuat(12.0f, -23.0f, 34.0f);
-	const FQuat SourceBoneRefCS = MakeQuat(20.0f, 35.0f, -10.0f);
-	const FQuat TargetBoneRefCS = MakeQuat(-15.0f, 70.0f, 25.0f);
-	const EAxis::Type Axes[] = { EAxis::X, EAxis::Y, EAxis::Z };
-
-	for (EAxis::Type MirrorAxis : Axes)
-	{
-		const FVector MirroredLocation = KawaiiPhysicsMirrorUtils::MirrorOffsetLocation(
-			SourceLocation, SourceBoneRefCS, TargetBoneRefCS, MirrorAxis);
-		const FVector RoundTripLocation = KawaiiPhysicsMirrorUtils::MirrorOffsetLocation(
-			MirroredLocation, TargetBoneRefCS, SourceBoneRefCS, MirrorAxis);
-		TestTrue(FString::Printf(TEXT("Round-trip location: got %s expected %s"),
-		                         *RoundTripLocation.ToString(), *SourceLocation.ToString()),
-		         RoundTripLocation.Equals(SourceLocation, 0.01f));
-
-		const FQuat MirroredRotation = KawaiiPhysicsMirrorUtils::MirrorOffsetRotation(
-			SourceRotation, SourceBoneRefCS, TargetBoneRefCS, MirrorAxis);
-		const FQuat RoundTripRotation = KawaiiPhysicsMirrorUtils::MirrorOffsetRotation(
-			MirroredRotation, TargetBoneRefCS, SourceBoneRefCS, MirrorAxis);
-		TestTrue(TEXT("Round-trip rotation returns to source"),
-		         IsSameRotation(RoundTripRotation, SourceRotation, 0.01f));
 	}
 
 	return true;

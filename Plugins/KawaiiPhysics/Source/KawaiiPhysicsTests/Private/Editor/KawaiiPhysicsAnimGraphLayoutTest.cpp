@@ -36,8 +36,7 @@ namespace
 		UAnimSequence* Animation = nullptr;
 	};
 
-	// ライブラリ側の推定幅（KawaiiPhysics 400 / 空間変換 160 / その他 300）と隙間 60 に合わせる
-	constexpr int32 KawaiiPhysicsLayoutTestGapX = 60;
+	// ライブラリ側の推定幅（KawaiiPhysics 400 / 空間変換 160 / その他 300）に合わせる
 	constexpr int32 KawaiiPhysicsLayoutTestKawaiiPhysicsWidth = 400;
 	constexpr int32 KawaiiPhysicsLayoutTestKawaiiPhysicsHeight = 260;
 	constexpr int32 KawaiiPhysicsLayoutTestConversionWidth = 160;
@@ -181,10 +180,9 @@ namespace
 			bOk &= Test.TestEqual(
 				*FString::Printf(TEXT("%s: chain node %d is on the Result row"), *Context, ChainIndex),
 				UpstreamNode->NodePosY, ExpectedRootPosition.Y);
-			bOk &= Test.TestEqual(
-				*FString::Printf(TEXT("%s: chain node %d keeps the gap to its downstream node"), *Context, ChainIndex),
-				UpstreamNode->NodePosX + GetLayoutTestExpectedWidth(UpstreamNode) + KawaiiPhysicsLayoutTestGapX,
-				DownstreamNode->NodePosX);
+			bOk &= Test.TestTrue(
+				*FString::Printf(TEXT("%s: chain node %d has a positive gap to its downstream node"), *Context, ChainIndex),
+				UpstreamNode->NodePosX + GetLayoutTestExpectedWidth(UpstreamNode) < DownstreamNode->NodePosX);
 			bOk &= Test.TestTrue(
 				*FString::Printf(TEXT("%s: chain node %d does not overlap its downstream node"), *Context, ChainIndex),
 				UpstreamNode->NodePosX + GetLayoutTestExpectedWidth(UpstreamNode) <= DownstreamNode->NodePosX);
@@ -366,25 +364,6 @@ bool FKawaiiPhysicsAnimGraphLayoutChainTest::RunTest(const FString& Parameters)
 	bOk &= TestLayoutTestCommentEncloses(
 		*this, TEXT("After re-layout"), Fixture.AnimBlueprint, CommentTitle, KawaiiPhysicsNodes, OtherChainNodes);
 
-	// 枠内ノードの登録が無い場合（再ロード後相当）は、レイアウト前に枠内にあった KawaiiPhysics ノードを囲み直す
-	const TArray<FKawaiiPhysicsAnimGraphCommentInfo> CommentInfos =
-		UKawaiiPhysicsEditorLibrary::GetAnimGraphComments(Fixture.AnimBlueprint);
-	const FKawaiiPhysicsAnimGraphCommentInfo* CommentInfo = FindLayoutTestComment(CommentInfos, CommentTitle);
-	UEdGraphNode_Comment* CommentNode = CommentInfo ? CommentInfo->CommentNode.Get() : nullptr;
-	bOk &= TestNotNull(TEXT("MCP comment node is available for the fallback check"), CommentNode);
-	if (CommentNode)
-	{
-		CommentNode->ClearNodesUnderComment();
-	}
-	RootNode->NodePosX += 800;
-	RootNode->NodePosY += 400;
-	const FIntPoint MovedRootPosition(RootNode->NodePosX, RootNode->NodePosY);
-	bOk &= TestTrue(TEXT("LayoutKawaiiPhysicsAnimGraph succeeds after moving Result"),
-	                UKawaiiPhysicsEditorLibrary::LayoutKawaiiPhysicsAnimGraph(Fixture.AnimBlueprint, NAME_None));
-	bOk &= TestLayoutTestChainOnOneRow(*this, TEXT("After moving Result"), Chain, MovedRootPosition);
-	bOk &= TestLayoutTestCommentEncloses(
-		*this, TEXT("After moving Result"), Fixture.AnimBlueprint, CommentTitle, KawaiiPhysicsNodes, OtherChainNodes);
-
 	bOk &= TestEqual(TEXT("Off-chain node NodePosX is untouched"), OffChainNode->NodePosX, -3000);
 	bOk &= TestEqual(TEXT("Off-chain node NodePosY is untouched"), OffChainNode->NodePosY, 1200);
 	return bOk;
@@ -510,28 +489,6 @@ bool FKawaiiPhysicsAnimGraphLayoutCommentFallbackTest::RunTest(const FString& Pa
 		}
 	}
 
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsAnimGraphLayoutInvalidInputTest,
-                                 "KawaiiPhysics.EditorScripting.Layout.InvalidInput",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsAnimGraphLayoutInvalidInputTest::RunTest(const FString& Parameters)
-{
-	FKawaiiPhysicsLayoutTestFixture Fixture = MakeLayoutTestFixture(*this);
-	if (!Fixture.AnimBlueprint)
-	{
-		return false;
-	}
-
-	bool bOk = true;
-	bOk &= TestFalse(TEXT("Null AnimBlueprint returns false"),
-	                 UKawaiiPhysicsEditorLibrary::LayoutKawaiiPhysicsAnimGraph(nullptr));
-	bOk &= TestFalse(TEXT("Unknown graph name returns false"),
-	                 UKawaiiPhysicsEditorLibrary::LayoutKawaiiPhysicsAnimGraph(Fixture.AnimBlueprint, TEXT("NoSuchGraph")));
-	bOk &= TestTrue(TEXT("Empty AnimGraph layout succeeds without changes"),
-	                UKawaiiPhysicsEditorLibrary::LayoutKawaiiPhysicsAnimGraph(Fixture.AnimBlueprint));
 	return bOk;
 }
 

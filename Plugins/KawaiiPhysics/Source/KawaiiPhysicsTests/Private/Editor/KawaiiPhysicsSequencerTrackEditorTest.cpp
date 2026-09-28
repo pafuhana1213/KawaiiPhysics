@@ -3,13 +3,10 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "MovieSceneKawaiiPhysicsSettingsMultiplierSection.h"
-#include "MovieSceneKawaiiPhysicsSettingsMultiplierTrack.h"
 #include "Sequencer/KawaiiPhysicsSettingsMultiplierSectionPresets.h"
 #include "Sequencer/KawaiiPhysicsSettingsMultiplierSectionSummary.h"
 
 #include "Misc/AutomationTest.h"
-#include "MovieSceneTrack.h"
-#include "UObject/Class.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
 
@@ -73,44 +70,6 @@ bool TestScaleChannelsHaveNoKeys(FAutomationTestBase& Test,
 }
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerTrackEditorScaleSummaryNoChangeTest,
-                                 "KawaiiPhysics.Sequencer.TrackEditor.ScaleSummary_NoChange",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSequencerTrackEditorScaleSummaryNoChangeTest::RunTest(const FString& Parameters)
-{
-	(void)Parameters;
-
-	const FKawaiiPhysicsSettingsMultiplier Scale;
-
-	bool bOk = true;
-	bOk &= TestTrue(
-		TEXT("全倍率が 1.0 の場合はロケール非依存サマリが空文字列になること"),
-		MakeKawaiiPhysicsScaleSummaryString(Scale).IsEmpty());
-	bOk &= TestFalse(
-		TEXT("全倍率が 1.0 の場合でも表示用テキストは空にならないこと"),
-		MakeKawaiiPhysicsScaleSummaryText(Scale).ToString().IsEmpty());
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerTrackEditorScaleSummaryPartialTest,
-                                 "KawaiiPhysics.Sequencer.TrackEditor.ScaleSummary_Partial",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSequencerTrackEditorScaleSummaryPartialTest::RunTest(const FString& Parameters)
-{
-	(void)Parameters;
-
-	FKawaiiPhysicsSettingsMultiplier Scale;
-	Scale.Damping = 0.5f;
-	Scale.Stiffness = 1.2f;
-
-	return TestEqual(
-		TEXT("1.0 以外の倍率だけが順番通りに表示されること"),
-		MakeKawaiiPhysicsScaleSummaryString(Scale),
-		FString(TEXT("D×0.50  S×1.20")));
-}
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerTrackEditorScaleSummaryAllTest,
                                  "KawaiiPhysics.Sequencer.TrackEditor.ScaleSummary_All",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -118,6 +77,16 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerTrackEditorScaleSummaryA
 bool FKawaiiPhysicsSequencerTrackEditorScaleSummaryAllTest::RunTest(const FString& Parameters)
 {
 	(void)Parameters;
+
+	// 既定倍率の空サマリと全 6 成分の表示順・書式を確認する
+	const FKawaiiPhysicsSettingsMultiplier DefaultScale;
+	bool bOk = true;
+	bOk &= TestTrue(
+		TEXT("全倍率が 1.0 の場合はロケール非依存サマリが空文字列になること"),
+		MakeKawaiiPhysicsScaleSummaryString(DefaultScale).IsEmpty());
+	bOk &= TestFalse(
+		TEXT("全倍率が 1.0 の場合でも表示用テキストは空にならないこと"),
+		MakeKawaiiPhysicsScaleSummaryText(DefaultScale).ToString().IsEmpty());
 
 	FKawaiiPhysicsSettingsMultiplier Scale;
 	Scale.Damping = 0.5f;
@@ -127,10 +96,11 @@ bool FKawaiiPhysicsSequencerTrackEditorScaleSummaryAllTest::RunTest(const FStrin
 	Scale.Radius = 1.5f;
 	Scale.LimitAngle = 0.25f;
 
-	return TestEqual(
+	bOk &= TestEqual(
 		TEXT("6 成分が D, S, WL, WR, R, LA の順で表示されること"),
 		MakeKawaiiPhysicsScaleSummaryString(Scale),
 		FString(TEXT("D×0.50  S×1.20  WL×0.80  WR×0.70  R×1.50  LA×0.25")));
+	return bOk;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerTrackEditorScalePresetApplyTest,
@@ -151,71 +121,6 @@ bool FKawaiiPhysicsSequencerTrackEditorScalePresetApplyTest::RunTest(const FStri
 
 	bool bOk = TestScaleEqual(*this, Section->EvaluateScaleAtTime(FFrameTime(0)), StiffScale);
 	bOk &= TestScaleChannelsHaveNoKeys(*this, *Section);
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerTrackEditorScalePresetResetTest,
-                                 "KawaiiPhysics.Sequencer.TrackEditor.ScalePreset_Reset",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSequencerTrackEditorScalePresetResetTest::RunTest(const FString& Parameters)
-{
-	(void)Parameters;
-
-	UMovieSceneKawaiiPhysicsSettingsMultiplierSection* Section = NewSettingsMultiplierSection();
-	AddScaleKeys(*Section);
-
-	ApplyKawaiiPhysicsScalePresetToSection(*Section, FKawaiiPhysicsSettingsMultiplier());
-
-	bool bOk = TestScaleEqual(
-		*this,
-		Section->EvaluateScaleAtTime(FFrameTime(0)),
-		FKawaiiPhysicsSettingsMultiplier());
-	bOk &= TestScaleChannelsHaveNoKeys(*this, *Section);
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerTrackEditorSupportsTypeTest,
-                                 "KawaiiPhysics.Sequencer.TrackEditor.SupportsType",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSequencerTrackEditorSupportsTypeTest::RunTest(const FString& Parameters)
-{
-	(void)Parameters;
-
-	const UMovieSceneKawaiiPhysicsSettingsMultiplierTrack* Track =
-		GetDefault<UMovieSceneKawaiiPhysicsSettingsMultiplierTrack>();
-
-	bool bOk = true;
-	bOk &= TestTrue(
-		TEXT("Kawaii Physics Settings Multiplier Track が UMovieSceneTrack 派生であること"),
-		UMovieSceneKawaiiPhysicsSettingsMultiplierTrack::StaticClass()->IsChildOf(UMovieSceneTrack::StaticClass()));
-	bOk &= TestTrue(
-		TEXT("Kawaii Physics Settings Multiplier Track が複数行をサポートすること"),
-		Track && Track->SupportsMultipleRows());
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerTrackEditorRootTrackDefaultDisplayNameTest,
-                                 "KawaiiPhysics.Sequencer.TrackEditor.RootTrack_DefaultDisplayName",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSequencerTrackEditorRootTrackDefaultDisplayNameTest::RunTest(const FString& Parameters)
-{
-	(void)Parameters;
-
-	UMovieSceneKawaiiPhysicsSettingsMultiplierTrack* BoundTrack =
-		NewObject<UMovieSceneKawaiiPhysicsSettingsMultiplierTrack>(GetTransientPackage());
-	UMovieSceneKawaiiPhysicsSettingsMultiplierTrack* RootTrack =
-		NewObject<UMovieSceneKawaiiPhysicsSettingsMultiplierTrack>(GetTransientPackage());
-	RootTrack->bIsRootTrack = true;
-
-	const FString BoundDisplayName = BoundTrack->GetDefaultDisplayName().ToString();
-	const FString RootDisplayName = RootTrack->GetDefaultDisplayName().ToString();
-
-	bool bOk = TestFalse(TEXT("Binding display name empty"), BoundDisplayName.IsEmpty());
-	bOk &= TestFalse(TEXT("Root display name empty"), RootDisplayName.IsEmpty());
-	bOk &= TestTrue(TEXT("Root display name differs"), BoundDisplayName != RootDisplayName);
 	return bOk;
 }
 

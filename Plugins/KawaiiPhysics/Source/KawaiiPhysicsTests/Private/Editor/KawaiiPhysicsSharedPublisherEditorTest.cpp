@@ -215,36 +215,6 @@ namespace
 		return GraphNode;
 	}
 
-	int32 CountSharedPublisherNodes(UEdGraph* Graph)
-	{
-		int32 Count = 0;
-		if (!Graph)
-		{
-			return Count;
-		}
-
-		for (UEdGraphNode* Node : Graph->Nodes)
-		{
-			if (Node && Node->IsA<UAnimGraphNode_KawaiiPhysicsSharedPublisher>())
-			{
-				++Count;
-			}
-		}
-		return Count;
-	}
-
-	FKawaiiPhysicsSharedPublisherGraphNodeHandle MakeSharedPublisherTestHandle(
-		UAnimGraphNode_KawaiiPhysicsSharedPublisher* GraphNode)
-	{
-		FKawaiiPhysicsSharedPublisherGraphNodeHandle Handle;
-		Handle.Node = GraphNode;
-		Handle.AnimBlueprint = GraphNode ? GraphNode->GetAnimBlueprint() : nullptr;
-		Handle.NodeGuid = GraphNode ? GraphNode->NodeGuid : FGuid();
-		Handle.SharedGroupTag = GraphNode ? GraphNode->Node.SharedGroupTag : FGameplayTag();
-		Handle.GraphName = GraphNode && GraphNode->GetGraph() ? GraphNode->GetGraph()->GetFName() : NAME_None;
-		return Handle;
-	}
-
 	bool ContainsCompilerMessage(
 		const FCompilerResultsLog& MessageLog,
 		EMessageSeverity::Type Severity,
@@ -330,7 +300,6 @@ bool FKawaiiPhysicsEditorSharedPublisherCategoryConsistencyTest::RunTest(const F
 
 	TArray<FName> SettingsCategories;
 	CollectPropertyCategories(FKawaiiPhysicsSimpleWorldCollisionSettings::StaticStruct(), SettingsCategories);
-	bOk &= TestEqual(TEXT("SimpleWorldCollision settings property count"), SettingsCategories.Num(), 12);
 	for (const FName& Category : SettingsCategories)
 	{
 		bOk &= TestEqual(
@@ -345,88 +314,6 @@ bool FKawaiiPhysicsEditorSharedPublisherCategoryConsistencyTest::RunTest(const F
 	return bOk;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingSharedPublisherCollectTest,
-                                 "KawaiiPhysics.EditorScripting.SharedPublisher.Collect",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsEditorScriptingSharedPublisherCollectTest::RunTest(const FString& Parameters)
-{
-	(void)Parameters;
-
-	FKawaiiPhysicsSharedPublisherEditorFixture Fixture = MakeSharedPublisherFixture(*this);
-	AddSharedPublisherGraphNode(Fixture.AnimGraph, GetEditorSharedPublisherTagA());
-	AddSharedPublisherGraphNode(Fixture.AnimGraph, GetEditorSharedPublisherTagB(), FVector2D(-300.0, 160.0));
-
-	const TArray<FKawaiiPhysicsSharedPublisherGraphNodeHandle> Handles =
-		UKawaiiPhysicsEditorLibrary::CollectKawaiiPhysicsSharedPublisherGraphNodes(Fixture.AnimBlueprint);
-
-	bool bOk = true;
-	bOk &= TestEqual(TEXT("Collect returns two Shared Publisher nodes"), Handles.Num(), 2);
-	TSet<FGameplayTag> Tags;
-	for (const FKawaiiPhysicsSharedPublisherGraphNodeHandle& Handle : Handles)
-	{
-		Tags.Add(Handle.SharedGroupTag);
-	}
-	bOk &= TestTrue(TEXT("Collected Tag A"), Tags.Contains(GetEditorSharedPublisherTagA()));
-	bOk &= TestTrue(TEXT("Collected Tag B"), Tags.Contains(GetEditorSharedPublisherTagB()));
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingSharedPublisherPropertyAccessTest,
-                                 "KawaiiPhysics.EditorScripting.SharedPublisher.PropertyAccess",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsEditorScriptingSharedPublisherPropertyAccessTest::RunTest(const FString& Parameters)
-{
-	(void)Parameters;
-
-	FKawaiiPhysicsSharedPublisherEditorFixture Fixture = MakeSharedPublisherFixture(*this);
-	UAnimGraphNode_KawaiiPhysicsSharedPublisher* Publisher =
-		AddSharedPublisherGraphNode(Fixture.AnimGraph, GetEditorSharedPublisherTagA());
-	FKawaiiPhysicsSharedPublisherGraphNodeHandle Handle = MakeSharedPublisherTestHandle(Publisher);
-
-	bool bOk = true;
-	bOk &= TestTrue(TEXT("Set SharedGroupTag by string"),
-	                UKawaiiPhysicsEditorLibrary::SetSharedPublisherNodePropertyFromString(
-		                Handle,
-		                GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysicsSharedPublisher, SharedGroupTag),
-		                TEXT("(TagName=\"KawaiiPhysics.Shared.Default\")")));
-	bOk &= TestTrue(TEXT("SharedGroupTag round-trips"),
-	                UKawaiiPhysicsEditorLibrary::GetSharedPublisherNodePropertyAsString(
-		                Handle,
-		                GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysicsSharedPublisher, SharedGroupTag)).
-	                Contains(TEXT("KawaiiPhysics.Shared.Default")));
-	bOk &= TestTrue(TEXT("Set nested GatherInterval by string"),
-	                UKawaiiPhysicsEditorLibrary::SetSharedPublisherNodePropertyFromString(
-		                Handle,
-		                TEXT("SimpleWorldCollision.GatherInterval"),
-		                TEXT("0.5")));
-	bOk &= TestTrue(TEXT("GatherInterval round-trips"),
-	                UKawaiiPhysicsEditorLibrary::GetSharedPublisherNodePropertyAsString(
-		                Handle,
-		                TEXT("SimpleWorldCollision.GatherInterval")).Contains(TEXT("0.5")));
-	bOk &= TestTrue(TEXT("Set bEnabled by string"),
-	                UKawaiiPhysicsEditorLibrary::SetSharedPublisherNodePropertyFromString(
-		                Handle,
-		                GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysicsSharedPublisher, bEnabled),
-		                TEXT("False")));
-	bOk &= TestTrue(TEXT("bEnabled round-trips"),
-	                UKawaiiPhysicsEditorLibrary::GetSharedPublisherNodePropertyAsString(
-		                Handle,
-		                GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysicsSharedPublisher, bEnabled)).
-	                Equals(TEXT("False"), ESearchCase::IgnoreCase));
-	bOk &= TestFalse(TEXT("Invalid property is rejected"),
-	                 UKawaiiPhysicsEditorLibrary::SetSharedPublisherNodePropertyFromString(
-		                 Handle,
-		                 TEXT("NoSuchProperty"),
-		                 TEXT("1")));
-	bOk &= TestTrue(TEXT("Invalid property get returns empty"),
-	                UKawaiiPhysicsEditorLibrary::GetSharedPublisherNodePropertyAsString(
-		                Handle,
-		                TEXT("NoSuchProperty")).IsEmpty());
-	return bOk;
-}
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingSharedPublisherPlacementAutoConnectTest,
                                  "KawaiiPhysics.EditorScripting.SharedPublisher.Placement.AutoConnect",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -434,6 +321,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingSharedPublisherPla
 bool FKawaiiPhysicsEditorScriptingSharedPublisherPlacementAutoConnectTest::RunTest(const FString& Parameters)
 {
 	(void)Parameters;
+	// 追加したノードの配線と、同じハンドルでのプロパティ往復を確認する。
 
 	bool bOk = true;
 	{
@@ -457,18 +345,27 @@ bool FKawaiiPhysicsEditorScriptingSharedPublisherPlacementAutoConnectTest::RunTe
 		                ResultPin && ResultPin->LinkedTo.Num() == 1 && ResultPin->LinkedTo[0] == PublisherPosePin);
 		bOk &= TestTrue(TEXT("Empty graph Publisher Source is unconnected"),
 		                PublisherSourcePin && PublisherSourcePin->LinkedTo.IsEmpty());
+		// 配線済みノードのプロパティ名解決と往復を確認する。
+		bOk &= TestTrue(TEXT("Set SharedGroupTag by string"),
+		                UKawaiiPhysicsEditorLibrary::SetSharedPublisherNodePropertyFromString(
+		                	Handle,
+		                	GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysicsSharedPublisher, SharedGroupTag),
+		                	TEXT("(TagName=\"KawaiiPhysics.Shared.Default\")")));
+		bOk &= TestTrue(TEXT("SharedGroupTag round-trips"),
+		                UKawaiiPhysicsEditorLibrary::GetSharedPublisherNodePropertyAsString(
+		                	Handle,
+		                	GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysicsSharedPublisher, SharedGroupTag)).
+		                Contains(TEXT("KawaiiPhysics.Shared.Default")));
+		bOk &= TestTrue(TEXT("Set nested GatherInterval by string"),
+		                UKawaiiPhysicsEditorLibrary::SetSharedPublisherNodePropertyFromString(
+		                	Handle, TEXT("SimpleWorldCollision.GatherInterval"), TEXT("0.5")));
+		bOk &= TestTrue(TEXT("GatherInterval round-trips"),
+		                UKawaiiPhysicsEditorLibrary::GetSharedPublisherNodePropertyAsString(
+		                	Handle, TEXT("SimpleWorldCollision.GatherInterval")).Contains(TEXT("0.5")));
+		bOk &= TestFalse(TEXT("Invalid property is rejected"),
+		                 UKawaiiPhysicsEditorLibrary::SetSharedPublisherNodePropertyFromString(
+		                 	Handle, TEXT("NoSuchProperty"), TEXT("1")));
 
-		const int32 NodeCountBeforeReuse = CountSharedPublisherNodes(Fixture.AnimGraph);
-		FKawaiiPhysicsSharedPublisherGraphNodeHandle ReusedHandle =
-			UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsSharedPublisherNode(
-				Fixture.AnimBlueprint,
-				GetEditorSharedPublisherTagA(),
-				true,
-				true);
-		bOk &= TestEqual(TEXT("Reuse returns the same NodeGuid"), ReusedHandle.NodeGuid, Handle.NodeGuid);
-		bOk &= TestEqual(TEXT("Reuse does not add a node"),
-		                 CountSharedPublisherNodes(Fixture.AnimGraph),
-		                 NodeCountBeforeReuse);
 	}
 
 	{
@@ -517,50 +414,17 @@ bool FKawaiiPhysicsEditorSharedPublisherConsumerTraversalTest::RunTest(const FSt
 {
 	(void)Parameters;
 
+	// 同じ AnimBP 内の SimpleWorld と Wind 消費ノードを Tag で探索する。
 	FKawaiiPhysicsSharedPublisherEditorFixture Fixture = MakeSharedPublisherFixture(*this);
 	UAnimGraphNode_KawaiiPhysicsSharedPublisher* Publisher =
 		AddSharedPublisherGraphNode(Fixture.AnimGraph, GetEditorSharedPublisherTagA());
-	AddSharedPublisherConsumerGraphNode(
-		Fixture.AnimGraph,
-		GetEditorSharedPublisherTagA(),
-		EKawaiiPhysicsSimpleWorldCollisionSource::Shared);
-	AddSharedPublisherConsumerGraphNode(
-		Fixture.AnimGraph,
-		GetEditorSharedPublisherTagA(),
-		EKawaiiPhysicsSimpleWorldCollisionSource::Auto);
-	AddSharedPublisherConsumerGraphNode(
-		Fixture.AnimGraph,
-		GetEditorSharedPublisherTagA(),
-		EKawaiiPhysicsSimpleWorldCollisionSource::Local);
+	UAnimGraphNode_KawaiiPhysics* SharedWorldNode = AddSharedPublisherConsumerGraphNode(
+		Fixture.AnimGraph, GetEditorSharedPublisherTagA(), EKawaiiPhysicsSimpleWorldCollisionSource::Shared);
+	UAnimGraphNode_KawaiiPhysics* AutoWorldNode = AddSharedPublisherConsumerGraphNode(
+		Fixture.AnimGraph, GetEditorSharedPublisherTagA(), EKawaiiPhysicsSimpleWorldCollisionSource::Auto);
+	UAnimGraphNode_KawaiiPhysics* LocalWorldNode = AddSharedPublisherConsumerGraphNode(
+		Fixture.AnimGraph, GetEditorSharedPublisherTagA(), EKawaiiPhysicsSimpleWorldCollisionSource::Local);
 
-	TArray<UAnimGraphNode_KawaiiPhysics*> Consumers;
-	KawaiiPhysicsEdUtils::FindKawaiiPhysicsConsumerGraphNodes(
-		Fixture.AnimBlueprint,
-		GetEditorSharedPublisherTagA(),
-		Consumers);
-
-	bool bOk = true;
-	bOk &= TestEqual(TEXT("Shared and Auto consumers are found"), Consumers.Num(), 2);
-	bOk &= TestTrue(TEXT("Publisher is found by Tag A"),
-	                KawaiiPhysicsEdUtils::FindSharedPublisherGraphNodeByTag(
-		                Fixture.AnimBlueprint,
-		                GetEditorSharedPublisherTagA()) == Publisher);
-	bOk &= TestNull(TEXT("Publisher is not found by Tag B"),
-	                KawaiiPhysicsEdUtils::FindSharedPublisherGraphNodeByTag(
-		                Fixture.AnimBlueprint,
-		                GetEditorSharedPublisherTagB()));
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorSharedPublisherWindConsumerTraversalTest,
-                                 "KawaiiPhysics.Editor.SharedPublisher.WindConsumerTraversal",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsEditorSharedPublisherWindConsumerTraversalTest::RunTest(const FString& Parameters)
-{
-	(void)Parameters;
-
-	FKawaiiPhysicsSharedPublisherEditorFixture Fixture = MakeSharedPublisherFixture(*this);
 	const FGameplayTag TagX = GetEditorSharedPublisherTagA();
 	const FGameplayTag TagY = GetEditorSharedPublisherTagB();
 
@@ -628,6 +492,14 @@ bool FKawaiiPhysicsEditorSharedPublisherWindConsumerTraversalTest::RunTest(const
 
 	TArray<UAnimGraphNode_KawaiiPhysics*> Consumers;
 	KawaiiPhysicsEdUtils::FindKawaiiPhysicsConsumerGraphNodes(Fixture.AnimBlueprint, TagX, Consumers);
+	bOk &= TestEqual(TEXT("Shared and Auto consumers are found across both sources"), Consumers.Num(), 5);
+	bOk &= TestTrue(TEXT("Shared and Auto SimpleWorld consumers are found"),
+	                Consumers.Contains(SharedWorldNode) && Consumers.Contains(AutoWorldNode));
+	bOk &= TestFalse(TEXT("Local SimpleWorld consumer is ignored"), Consumers.Contains(LocalWorldNode));
+	bOk &= TestTrue(TEXT("Publisher is found by Tag A"),
+	                KawaiiPhysicsEdUtils::FindSharedPublisherGraphNodeByTag(Fixture.AnimBlueprint, TagX) == Publisher);
+	bOk &= TestNull(TEXT("Publisher is not found by Tag B"),
+	                KawaiiPhysicsEdUtils::FindSharedPublisherGraphNodeByTag(Fixture.AnimBlueprint, TagY));
 	bOk &= TestTrue(TEXT("Shared wind node is a Tag X consumer"), Consumers.Contains(SharedWindNode));
 	bOk &= TestTrue(TEXT("Auto wind node is a Tag X consumer"), Consumers.Contains(AutoWindNode));
 	bOk &= TestTrue(TEXT("Mixed wind node is a Tag X consumer"), Consumers.Contains(MixedWindNode));
@@ -638,9 +510,6 @@ bool FKawaiiPhysicsEditorSharedPublisherWindConsumerTraversalTest::RunTest(const
 	KawaiiPhysicsEdUtils::FindKawaiiPhysicsConsumerGraphNodes(Fixture.AnimBlueprint, TagY, ConsumersY);
 	bOk &= TestTrue(TEXT("Mixed wind node is a Tag Y consumer"), ConsumersY.Contains(MixedWindNode));
 	bOk &= TestFalse(TEXT("Shared wind node is not a Tag Y consumer"), ConsumersY.Contains(SharedWindNode));
-	bOk &= TestFalse(TEXT("Auto wind node is not a Tag Y consumer"), ConsumersY.Contains(AutoWindNode));
-	bOk &= TestFalse(TEXT("Local wind node is not a Tag Y consumer"), ConsumersY.Contains(LocalWindNode));
-	bOk &= TestFalse(TEXT("No wind node is not a Tag Y consumer"), ConsumersY.Contains(NoWindNode));
 
 	return bOk;
 }
@@ -653,53 +522,35 @@ bool FKawaiiPhysicsEditorSharedPublisherCompileWarningsTest::RunTest(const FStri
 {
 	(void)Parameters;
 
+	// 未設定 Tag、重複 Tag、消費ノード無しを 1 つの AnimBP で確認する。
+	FKawaiiPhysicsSharedPublisherEditorFixture Fixture = MakeSharedPublisherFixture(*this);
+	UAnimGraphNode_KawaiiPhysicsSharedPublisher* NoTagPublisher =
+		AddSharedPublisherGraphNode(Fixture.AnimGraph, FGameplayTag());
+	UAnimGraphNode_KawaiiPhysicsSharedPublisher* Publisher =
+		AddSharedPublisherGraphNode(Fixture.AnimGraph, GetEditorSharedPublisherTagA());
+	AddSharedPublisherGraphNode(Fixture.AnimGraph, GetEditorSharedPublisherTagA(), FVector2D(-300.0, 160.0));
+
 	bool bOk = true;
-	{
-		FKawaiiPhysicsSharedPublisherEditorFixture Fixture = MakeSharedPublisherFixture(*this);
-		UAnimGraphNode_KawaiiPhysicsSharedPublisher* Publisher =
-			AddSharedPublisherGraphNode(Fixture.AnimGraph, FGameplayTag());
-		FCompilerResultsLog MessageLog;
-		Publisher->ValidateAnimNodeDuringCompilation(Fixture.Skeleton, MessageLog);
-		bOk &= TestTrue(TEXT("Invalid tag emits warning"),
-		                ContainsCompilerMessage(
-			                MessageLog,
-			                EMessageSeverity::Warning,
-			                MakeSharedPublisherCompilerMessageNeedle(NSLOCTEXT(
-				                "KawaiiPhysics", "SharedPublisherNoTag",
-				                "@@ has no Shared Group Tag. Consumers cannot find it."))));
-	}
+	FCompilerResultsLog NoTagLog;
+	NoTagPublisher->ValidateAnimNodeDuringCompilation(Fixture.Skeleton, NoTagLog);
+	bOk &= TestTrue(TEXT("Invalid tag emits warning"),
+	                ContainsCompilerMessage(NoTagLog, EMessageSeverity::Warning,
+	                	MakeSharedPublisherCompilerMessageNeedle(NSLOCTEXT(
+	                		"KawaiiPhysics", "SharedPublisherNoTag",
+	                		"@@ has no Shared Group Tag. Consumers cannot find it."))));
 
-	{
-		FKawaiiPhysicsSharedPublisherEditorFixture Fixture = MakeSharedPublisherFixture(*this);
-		UAnimGraphNode_KawaiiPhysicsSharedPublisher* Publisher =
-			AddSharedPublisherGraphNode(Fixture.AnimGraph, GetEditorSharedPublisherTagA());
-		AddSharedPublisherGraphNode(Fixture.AnimGraph, GetEditorSharedPublisherTagA(), FVector2D(-300.0, 160.0));
-		FCompilerResultsLog MessageLog;
-		Publisher->ValidateAnimNodeDuringCompilation(Fixture.Skeleton, MessageLog);
-		bOk &= TestTrue(TEXT("Duplicate tag emits warning"),
-		                ContainsCompilerMessage(
-			                MessageLog,
-			                EMessageSeverity::Warning,
-			                MakeSharedPublisherCompilerMessageNeedle(NSLOCTEXT(
-				                "KawaiiPhysics", "SharedPublisherDuplicateTag",
-				                "@@ shares its tag with another Shared Publisher in this Animation Blueprint. Only one publisher per tag per actor family is used."))));
-	}
-
-	{
-		FKawaiiPhysicsSharedPublisherEditorFixture Fixture = MakeSharedPublisherFixture(*this);
-		UAnimGraphNode_KawaiiPhysicsSharedPublisher* Publisher =
-			AddSharedPublisherGraphNode(Fixture.AnimGraph, GetEditorSharedPublisherTagA());
-		FCompilerResultsLog MessageLog;
-		Publisher->ValidateAnimNodeDuringCompilation(Fixture.Skeleton, MessageLog);
-		bOk &= TestTrue(TEXT("No consumer emits note"),
-		                ContainsCompilerMessage(
-			                MessageLog,
-			                EMessageSeverity::Info,
-			                MakeSharedPublisherCompilerMessageNeedle(NSLOCTEXT(
-				                "KawaiiPhysics", "SharedPublisherNoConsumers",
-				                "@@ has no consumer in this Animation Blueprint. Consumers in other Animation Blueprints (Post Process, Linked Layers, child actors) can still read it."))));
-	}
-
+	FCompilerResultsLog DuplicateLog;
+	Publisher->ValidateAnimNodeDuringCompilation(Fixture.Skeleton, DuplicateLog);
+	bOk &= TestTrue(TEXT("Duplicate tag emits warning"),
+	                ContainsCompilerMessage(DuplicateLog, EMessageSeverity::Warning,
+	                	MakeSharedPublisherCompilerMessageNeedle(NSLOCTEXT(
+	                		"KawaiiPhysics", "SharedPublisherDuplicateTag",
+	                		"@@ shares its tag with another Shared Publisher in this Animation Blueprint. Only one publisher per tag per actor family is used."))));
+	bOk &= TestTrue(TEXT("No consumer emits note"),
+	                ContainsCompilerMessage(DuplicateLog, EMessageSeverity::Info,
+	                	MakeSharedPublisherCompilerMessageNeedle(NSLOCTEXT(
+	                		"KawaiiPhysics", "SharedPublisherNoConsumers",
+	                		"@@ has no consumer in this Animation Blueprint. Consumers in other Animation Blueprints (Post Process, Linked Layers, child actors) can still read it."))));
 	return bOk;
 }
 

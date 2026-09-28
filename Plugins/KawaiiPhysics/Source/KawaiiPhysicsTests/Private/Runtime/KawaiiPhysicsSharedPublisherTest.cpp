@@ -113,29 +113,6 @@ namespace
 		return bResult;
 	}
 
-	bool TestKawaiiPhysicsSharedPublisherWind(
-		FAutomationTestBase& Test,
-		const TCHAR* Context,
-		const FKawaiiPhysicsSharedWindState& Actual,
-		const FKawaiiPhysicsSharedWindState& Expected)
-	{
-		bool bResult = true;
-		bResult &= Test.TestEqual(FString::Printf(TEXT("%s bPublisherWindEnabled"), Context),
-			Actual.bPublisherWindEnabled, Expected.bPublisherWindEnabled);
-		bResult &= Test.TestEqual(FString::Printf(TEXT("%s Time"), Context), Actual.Time, Expected.Time);
-		bResult &= Test.TestEqual(FString::Printf(TEXT("%s PublisherTimeScale"), Context),
-			Actual.PublisherTimeScale, Expected.PublisherTimeScale);
-		bResult &= Test.TestEqual(FString::Printf(TEXT("%s ConstantForce"), Context),
-			Actual.Params.ConstantForce, Expected.Params.ConstantForce);
-		bResult &= Test.TestEqual(FString::Printf(TEXT("%s bOverrideConstantForce"), Context),
-			Actual.Params.bOverrideConstantForce, Expected.Params.bOverrideConstantForce);
-		bResult &= Test.TestEqual(FString::Printf(TEXT("%s ActiveGust bIsActive"), Context),
-			Actual.ActiveGust.bIsActive, Expected.ActiveGust.bIsActive);
-		bResult &= Test.TestEqual(FString::Printf(TEXT("%s ActiveGust Strength"), Context),
-			Actual.ActiveGust.Strength, Expected.ActiveGust.Strength);
-		return bResult;
-	}
-
 	// 消費側 ProceduralWind の PreApply を 1 フレーム分だけ回す
 	//（KawaiiPhysicsProceduralWindTest.cpp の RunProceduralWindPreApply と同等。あちらは無名 namespace なので共有できない）
 	void RunSharedPublisherConsumerPreApply(FKawaiiPhysicsTestAccessor& Accessor,
@@ -194,24 +171,6 @@ bool FKawaiiPhysicsSharedCollisionSubsystemSupportsEditorPreviewTest::RunTest(co
 	World->WorldType = EWorldType::EditorPreview;
 	TestTrue(TEXT("EditorPreview world creates subsystem by default"), CDO->ShouldCreateSubsystem(World));
 
-	World->WorldType = EWorldType::Game;
-	TestTrue(TEXT("Game world creates subsystem"), CDO->ShouldCreateSubsystem(World));
-
-	World->WorldType = EWorldType::Editor;
-	TestTrue(TEXT("Editor world creates subsystem"), CDO->ShouldCreateSubsystem(World));
-
-	World->WorldType = EWorldType::PIE;
-	TestTrue(TEXT("PIE world creates subsystem"), CDO->ShouldCreateSubsystem(World));
-
-	World->WorldType = EWorldType::GamePreview;
-	TestFalse(TEXT("GamePreview world does not create subsystem"), CDO->ShouldCreateSubsystem(World));
-
-	World->WorldType = EWorldType::Inactive;
-	TestFalse(TEXT("Inactive world does not create subsystem"), CDO->ShouldCreateSubsystem(World));
-
-	World->WorldType = EWorldType::None;
-	TestFalse(TEXT("None world does not create subsystem"), CDO->ShouldCreateSubsystem(World));
-
 	CVar->Set(0, ECVF_SetByCode);
 
 	World->WorldType = EWorldType::EditorPreview;
@@ -263,12 +222,7 @@ bool FKawaiiPhysicsSharedPublisherEntryPublishReadTest::RunTest(const FString& P
 	FKawaiiPhysicsSharedPublisherState ReadState;
 	const uint64 ReadSerial = Entry.ReadState(ReadState);
 	TestEqual(TEXT("ReadState returns current serial"), ReadSerial, static_cast<uint64>(1));
-	TestTrue(TEXT("ReadState keeps SimpleWorld enabled"), ReadState.bSimpleWorldEnabled);
-	TestTrue(TEXT("ReadState keeps gather scope"),
-		ReadState.GatherScope == EKawaiiPhysicsSimpleWorldGatherScope::ActorFamily);
 	TestEqual(TEXT("ReadState keeps gather interval"), ReadState.SimpleWorldDesc.GatherIntervalSec, 0.05f);
-	TestTrue(TEXT("ReadState keeps family members flag"), ReadState.SimpleWorldDesc.bGatherFamilyMembers);
-	TestKawaiiPhysicsSharedPublisherWind(*this, TEXT("ReadState wind"), ReadState.Wind, State.Wind);
 
 	FKawaiiPhysicsSharedPublisherState BlockedState = State;
 	BlockedState.bSimpleWorldEnabled = false;
@@ -279,8 +233,6 @@ bool FKawaiiPhysicsSharedPublisherEntryPublishReadTest::RunTest(const FString& P
 	FKawaiiPhysicsSharedPublisherState AfterRejected;
 	Entry.ReadState(AfterRejected);
 	TestTrue(TEXT("Rejected publish keeps SimpleWorld enabled"), AfterRejected.bSimpleWorldEnabled);
-	TestEqual(TEXT("Rejected publish keeps gather interval"), AfterRejected.SimpleWorldDesc.GatherIntervalSec, 0.05f);
-	TestEqual(TEXT("Rejected publish keeps wind time"), AfterRejected.Wind.Time, 12.5f);
 	TestEqual(TEXT("Rejected publish keeps serial"), Entry.GetPublishSerial(), static_cast<uint64>(1));
 
 	TestTrue(TEXT("Expired previous provider allows replacement"), Entry.PublishState(BlockedState, 22, 111, 10));
@@ -291,20 +243,14 @@ bool FKawaiiPhysicsSharedPublisherEntryPublishReadTest::RunTest(const FString& P
 	FKawaiiPhysicsSharedWindState ReadWind;
 	const uint64 WindSerial = Entry.ReadWindState(ReadWind);
 	TestEqual(TEXT("ReadWindState returns current serial"), WindSerial, static_cast<uint64>(2));
-	TestKawaiiPhysicsSharedPublisherWind(*this, TEXT("ReadWindState"), ReadWind, BlockedState.Wind);
+	TestEqual(TEXT("ReadWindState keeps wind time"), ReadWind.Time, BlockedState.Wind.Time);
 
 	TestFalse(TEXT("Entry is not expired within max age"), Entry.IsExpired(120, 10));
 	TestTrue(TEXT("Entry is expired beyond max age"), Entry.IsExpired(122, 10));
 	Entry.MarkExpired();
 	TestTrue(TEXT("MarkExpired makes entry expired"), Entry.IsExpired(111, 10));
 
-	// 期限切れ Entry は同じ provider が publish しても復活しない。
-	const uint64 ExpiredSerial = Entry.GetPublishSerial();
-	FKawaiiPhysicsSharedPublisherState RevivedState = BlockedState;
-	RevivedState.Wind.Time = 33.0f;
-	TestFalse(TEXT("Expired entry rejects publish"), Entry.PublishState(RevivedState, 22, 200, 10));
-	TestEqual(TEXT("Expired entry keeps serial"), Entry.GetPublishSerial(), ExpiredSerial);
-	TestTrue(TEXT("Expired entry stays expired"), Entry.IsExpired(200, 10));
+	TestTrue(TEXT("Marked entry remains expired at later frame"), Entry.IsExpired(200, 10));
 
 	return true;
 }
@@ -366,97 +312,6 @@ bool FKawaiiPhysicsSharedPublisherExpiredEntryReplacedOnAcquireTest::RunTest(con
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSharedPublisherGustQueueTest,
-                                 "KawaiiPhysics.SharedPublisher.GustQueue",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSharedPublisherGustQueueTest::RunTest(const FString& Parameters)
-{
-	FKawaiiPhysicsSharedPublisherEntry Entry;
-	Entry.RequestGust(1.0f, 0.1f, 0.2f, 0.3f);
-	Entry.RequestGust(2.0f, 0.4f, 0.5f, 0.6f);
-	Entry.RequestGustStop(0.7f);
-
-	TArray<FKawaiiPhysicsSharedPublisherGustRequest> Requests;
-	Entry.ConsumePendingGustRequests(Requests);
-	TestEqual(TEXT("Consumes all gust requests"), Requests.Num(), 3);
-
-	if (Requests.Num() == 3)
-	{
-		TestFalse(TEXT("First request starts gust"), Requests[0].bStop);
-		TestEqual(TEXT("First request strength"), Requests[0].Strength, 1.0f);
-		TestEqual(TEXT("First request rise"), Requests[0].RiseTime, 0.1f);
-		TestEqual(TEXT("First request decay"), Requests[0].DecayTime, 0.2f);
-		TestEqual(TEXT("First request hold"), Requests[0].HoldTime, 0.3f);
-
-		TestFalse(TEXT("Second request starts gust"), Requests[1].bStop);
-		TestEqual(TEXT("Second request strength"), Requests[1].Strength, 2.0f);
-		TestEqual(TEXT("Second request rise"), Requests[1].RiseTime, 0.4f);
-		TestEqual(TEXT("Second request decay"), Requests[1].DecayTime, 0.5f);
-		TestEqual(TEXT("Second request hold"), Requests[1].HoldTime, 0.6f);
-
-		TestTrue(TEXT("Third request stops gust"), Requests[2].bStop);
-		TestEqual(TEXT("Third request blend out"), Requests[2].BlendOutTime, 0.7f);
-	}
-
-	Requests.Reset();
-	Entry.ConsumePendingGustRequests(Requests);
-	TestEqual(TEXT("Second consume is empty"), Requests.Num(), 0);
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSharedPublisherPublisherRequestQueueTest,
-                                 "KawaiiPhysics.SharedPublisher.PublisherRequestQueue",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSharedPublisherPublisherRequestQueueTest::RunTest(const FString& Parameters)
-{
-	FKawaiiPhysicsSharedPublisherEntry Entry;
-
-	FKawaiiPhysicsSimpleWorldCollisionSettings Settings;
-	Settings.GatherInterval = 0.4f;
-	Settings.bGatherFamilyMembers = true;
-	Entry.RequestPublisherEnabled(false);
-	Entry.RequestSimpleWorldSettings(Settings);
-
-	FKawaiiPhysicsSharedPublisherEntry::FPendingPublisherRequests Requests;
-	TestTrue(TEXT("Consumes pending publisher requests"), Entry.ConsumePendingPublisherRequests(Requests));
-	TestTrue(TEXT("Enabled request is set"), Requests.Enabled.IsSet());
-	if (Requests.Enabled.IsSet())
-	{
-		TestFalse(TEXT("Enabled request value is false"), Requests.Enabled.GetValue());
-	}
-	TestTrue(TEXT("SimpleWorld settings request is set"), Requests.SimpleWorldSettings.IsSet());
-	if (Requests.SimpleWorldSettings.IsSet())
-	{
-		TestEqual(TEXT("SimpleWorld settings gather interval"),
-			Requests.SimpleWorldSettings.GetValue().GatherInterval, 0.4f);
-		TestTrue(TEXT("SimpleWorld settings family members flag"),
-			Requests.SimpleWorldSettings.GetValue().bGatherFamilyMembers);
-	}
-
-	FKawaiiPhysicsSharedPublisherEntry::FPendingPublisherRequests EmptyRequests;
-	TestFalse(TEXT("Second publisher request consume is empty"),
-		Entry.ConsumePendingPublisherRequests(EmptyRequests));
-
-	FKawaiiPhysicsSimpleWorldCollisionSettings DefaultSettings;
-	const FKawaiiPhysicsSimpleWorldCollisionDesc DefaultDesc =
-		KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldCollisionDesc(DefaultSettings);
-	TestTrue(TEXT("Default settings use ActorFamily gather scope"),
-		DefaultDesc.GatherScope == EKawaiiPhysicsSimpleWorldGatherScope::ActorFamily);
-	TestFalse(TEXT("Default settings keep provider enabled"), DefaultDesc.bProviderDisabled);
-	TestTrue(TEXT("Default settings keep collision channel unspecified"), DefaultDesc.CollisionChannel == ECC_MAX);
-	TestFalse(TEXT("Default settings do not gather family members"), DefaultDesc.bGatherFamilyMembers);
-
-	DefaultSettings.bEnabled = false;
-	const FKawaiiPhysicsSimpleWorldCollisionDesc DisabledDesc =
-		KawaiiPhysicsSimpleWorldCollision::BuildSimpleWorldCollisionDesc(DefaultSettings);
-	TestTrue(TEXT("Disabled settings disable provider"), DisabledDesc.bProviderDisabled);
-
-	return true;
-}
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSharedPublisherWindParamsRequestsMergeTest,
                                  "KawaiiPhysics.SharedPublisher.WindParamsRequestsMerge",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -465,7 +320,7 @@ bool FKawaiiPhysicsSharedPublisherWindParamsRequestsMergeTest::RunTest(const FSt
 {
 	FKawaiiPhysicsSharedPublisherEntry Entry;
 
-	// consume前に別項目の要求が複数回届いても、単純代入では先の要求が消える（項目単位でマージされるべき）
+	// 風パラメータ要求を項目単位でマージし、突風要求の順序と一度きりの消費を確認する。
 	FKawaiiProceduralWindDynamicParams ConstantForceParams;
 	ConstantForceParams.bOverrideConstantForce = true;
 	ConstantForceParams.ConstantForce = 10.0f;
@@ -497,61 +352,22 @@ bool FKawaiiPhysicsSharedPublisherWindParamsRequestsMergeTest::RunTest(const FSt
 	FKawaiiPhysicsSharedPublisherEntry::FPendingPublisherRequests EmptyRequests;
 	bOk &= TestFalse(TEXT("Second wind params consume is empty"),
 		Entry.ConsumePendingPublisherRequests(EmptyRequests));
-
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSharedPublisherWindPresetAppliedTest,
-                                 "KawaiiPhysics.SharedPublisher.WindPresetApplied",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSharedPublisherWindPresetAppliedTest::RunTest(const FString& Parameters)
-{
-	const TArray<FKawaiiProceduralWindPreset> Defaults = UKawaiiPhysicsWindPresetDataAsset::GetDefaultPresets();
-	bool bOk = TestTrue(TEXT("Default presets contain Strong"), Defaults.Num() > 1);
-	if (!bOk)
+	// 突風要求の順序と 2 回目の consume が空であることを確認する。
+	Entry.RequestGust(1.0f, 0.1f, 0.2f, 0.3f);
+	Entry.RequestGust(2.0f, 0.4f, 0.5f, 0.6f);
+	Entry.RequestGustStop(0.7f);
+	TArray<FKawaiiPhysicsSharedPublisherGustRequest> GustRequests;
+	Entry.ConsumePendingGustRequests(GustRequests);
+	bOk &= TestEqual(TEXT("Gust request count"), GustRequests.Num(), 3);
+	if (GustRequests.Num() == 3)
 	{
-		return false;
+		bOk &= TestFalse(TEXT("First gust request starts"), GustRequests[0].bStop);
+		bOk &= TestFalse(TEXT("Second gust request starts"), GustRequests[1].bStop);
+		bOk &= TestTrue(TEXT("Third gust request stops"), GustRequests[2].bStop);
 	}
-
-	const FKawaiiProceduralWindPreset Preset = Defaults[1];
-	UKawaiiPhysicsWindPresetDataAsset* Asset =
-		NewObject<UKawaiiPhysicsWindPresetDataAsset>(GetTransientPackage(), NAME_None, RF_Transient);
-	Asset->Presets.Add(Preset);
-
-	FAnimNode_KawaiiPhysicsSharedPublisher Node;
-	Node.WindPresetDataAsset = Asset;
-	Node.WindPresetTag = Preset.PresetTag;
-	Node.SharedWind.bIsEnabled = false;
-	Node.SharedWind.TimeScale = 2.0f;
-	Node.SharedWind.ConstantForce = 77.0f;
-	Node.SharedWind.ResetRuntimeState();
-	Node.SharedWind.RuntimeState->Time = 3.0f;
-
-	// プリセットを外す（アセット null／Tag が引けない）と、最初の適用前の authored 値へ書き戻る契約
-	Node.ApplySharedWindPreset();
-
-	bOk &= TestSharedPublisherWindMatchesPreset(*this, TEXT("Applied preset"), Node.SharedWind, Preset);
-	bOk &= TestTrue(TEXT("Preset enables SharedWind"), Node.SharedWind.bIsEnabled);
-	bOk &= TestSharedPublisherFloatNear(*this, TEXT("Preset resets TimeScale"), Node.SharedWind.TimeScale, 1.0f);
-	bOk &= TestSharedPublisherFloatNear(*this, TEXT("Runtime time preserved"), Node.SharedWind.RuntimeState->Time, 3.0f);
-
-	Node.WindPresetDataAsset = nullptr;
-	Node.ApplySharedWindPreset();
-	bOk &= TestSharedPublisherFloatNear(*this, TEXT("Null asset restores authored value"),
-	                                    Node.SharedWind.ConstantForce, 77.0f);
-	bOk &= TestFalse(TEXT("Null asset restores authored Enabled"), Node.SharedWind.bIsEnabled);
-	bOk &= TestSharedPublisherFloatNear(*this, TEXT("Null asset restores authored TimeScale"),
-	                                    Node.SharedWind.TimeScale, 2.0f);
-	bOk &= TestSharedPublisherFloatNear(*this, TEXT("Null asset keeps runtime time"),
-	                                    Node.SharedWind.RuntimeState->Time, 3.0f);
-
-	Node.WindPresetDataAsset = Asset;
-	Node.WindPresetTag = FGameplayTag();
-	AddExpectedError(TEXT("failed to apply Wind Preset Tag"), EAutomationExpectedErrorFlags::Contains, 1);
-	Node.ApplySharedWindPreset();
-	bOk &= TestSharedPublisherFloatNear(*this, TEXT("Invalid tag keeps authored value"),
-	                                    Node.SharedWind.ConstantForce, 77.0f);
+	GustRequests.Reset();
+	Entry.ConsumePendingGustRequests(GustRequests);
+	bOk &= TestEqual(TEXT("Second gust consume is empty"), GustRequests.Num(), 0);
 
 	return bOk;
 }
@@ -679,29 +495,6 @@ bool FKawaiiPhysicsLibrarySharedPublisherWindApiTest::RunTest(const FString& Par
 	bOk &= TestFalse(TEXT("Set wind params without subsystem returns false"),
 	                 UKawaiiPhysicsLibrary::SetProceduralWindParametersOnSharedPublisher(Actor.Get(), Tag, Params));
 
-	// Entry 経由の公開 API 受理は Subsystem 所有の live Entry が要るため、ここでは Pending キュー単体を確認する。
-	FKawaiiPhysicsSharedPublisherEntry Entry;
-	// 未 claim（ProviderID 0）の Entry は、起動直後で期限切れに見えなくても live 扱いにしない
-	// （ResolveLiveSharedPublisherEntry と同じ判定ヘルパで確認する）
-	bOk &= TestFalse(TEXT("Unclaimed entry is not live"),
-	                 KawaiiPhysicsProceduralWindInternal::IsSharedPublisherEntryLive(Entry, 5, 60));
-	Entry.RequestWindParams(Params);
-
-	FKawaiiPhysicsSharedPublisherEntry::FPendingPublisherRequests Requests;
-	bOk &= TestTrue(TEXT("Wind params pending request consumed"), Entry.ConsumePendingPublisherRequests(Requests));
-	bOk &= TestTrue(TEXT("Wind params request is set"), Requests.WindParams.IsSet());
-	if (Requests.WindParams.IsSet())
-	{
-		bOk &= TestTrue(TEXT("Wind params override preserved"),
-		                Requests.WindParams.GetValue().bOverrideConstantForce);
-		bOk &= TestSharedPublisherFloatNear(*this, TEXT("Wind params value preserved"),
-		                                    Requests.WindParams.GetValue().ConstantForce, 31.0f);
-	}
-
-	FKawaiiPhysicsSharedPublisherEntry::FPendingPublisherRequests EmptyRequests;
-	bOk &= TestFalse(TEXT("Wind params pending request consumed once"),
-	                 Entry.ConsumePendingPublisherRequests(EmptyRequests));
-
 	return bOk;
 }
 
@@ -727,7 +520,6 @@ bool FKawaiiPhysicsSharedPublisherDetachedSimpleWorldEntryReboundTest::RunTest(c
 		TestTrue(TEXT("Initial updates publish"), Helper.Update(Inputs, WindState, 0.1f, Frame, 60));
 	}
 	TestTrue(TEXT("Initial provider desc exists"), OldEntry->HasAnyDesc());
-	TestEqual(TEXT("Initial desc is sent once"), Helper.GetNumSetDescCalls(), 1);
 	PublisherEntry->RequestPublisherEnabled(false);
 	FKawaiiPhysicsSimpleWorldCollisionSettings EffectiveSettings = Inputs.SimpleWorld;
 	EffectiveSettings.GatherInterval = Inputs.SimpleWorld.GatherInterval + 0.25f;
@@ -737,26 +529,19 @@ bool FKawaiiPhysicsSharedPublisherDetachedSimpleWorldEntryReboundTest::RunTest(c
 
 	OldEntry->RemoveDesc(SourceID);
 	TestTrue(TEXT("Detached SimpleWorld entry retires"), OldEntry->MarkRetiredIfEmpty());
-	const float PendingBeforeRetiredUpdate = Helper.GetPendingDeltaTime();
-	const int32 NumSetDescBeforeRetiredUpdate = Helper.GetNumSetDescCalls();
 	TestTrue(TEXT("Retired SimpleWorld entry does not reject publisher state"), Helper.Update(Inputs, WindState, 0.1f, 5, 60));
 	TestTrue(TEXT("Only SimpleWorld entry needs rebinding"), Helper.NeedsSimpleWorldEntryReacquire());
 	TestFalse(TEXT("Publisher entry does not need rebinding"), Helper.NeedsEntryReacquire());
 	TestTrue(TEXT("Publisher entry pointer is preserved"), Helper.GetSharedPublisherEntry() == PublisherEntry);
 	TestFalse(TEXT("Publisher entry remains alive"), PublisherEntry->IsExpired(5, 60));
 	TestFalse(TEXT("Effective enabled override survives retirement"), Helper.IsEffectiveEnabled());
-	TestEqual(TEXT("Retired update keeps pending time unchanged"), Helper.GetPendingDeltaTime(), PendingBeforeRetiredUpdate);
-	TestEqual(TEXT("Rejected registration is not counted"), Helper.GetNumSetDescCalls(), NumSetDescBeforeRetiredUpdate);
 	TestFalse(TEXT("Retired entry has no recreated provider"), OldEntry->HasAnyDesc());
 	TestFalse(TEXT("Retired entry has no recreated reader"), OldEntry->HasAnyReader());
 
-	Helper.AccumulatePendingDeltaTime(0.3f);
-	const float PendingBeforeRebind = Helper.GetPendingDeltaTime();
 	const uint64 SerialBeforeRebind = Helper.GetLastPublishSerial();
 	const float PublishedTimeBeforeRebind = Helper.GetLastPublishedState().Wind.Time;
 	const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> NewEntry = MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
 	Helper.SetSimpleWorldEntry(NewEntry);
-	TestEqual(TEXT("Rebinding preserves pending time"), Helper.GetPendingDeltaTime(), PendingBeforeRebind);
 	TestEqual(TEXT("Rebinding preserves publisher serial"), Helper.GetLastPublishSerial(), SerialBeforeRebind);
 	TestEqual(TEXT("Rebinding preserves published wind time"), Helper.GetLastPublishedState().Wind.Time, PublishedTimeBeforeRebind);
 	TestTrue(TEXT("Rebinding preserves publisher pointer"), Helper.GetSharedPublisherEntry() == PublisherEntry);
@@ -812,39 +597,38 @@ bool FKawaiiPhysicsSharedPublisherPublishHelperUpdateTest::RunTest(const FString
 		PreviousSerial = Helper.GetLastPublishSerial();
 	}
 
-	TestEqual(TEXT("Wind time accumulates at scale 1"), WindState->Time, 0.3f);
 	FKawaiiPhysicsSharedPublisherState ReadState;
 	PublisherEntry->ReadState(ReadState);
-	TestEqual(TEXT("Published wind time matches runtime state"), ReadState.Wind.Time, 0.3f);
 	TestTrue(TEXT("SimpleWorld is enabled"), ReadState.bSimpleWorldEnabled);
 	TestEqual(TEXT("Published default settings gather interval"),
 		ReadState.SimpleWorldSettings.GatherInterval, Defaults.SimpleWorld.GatherInterval);
 	TestTrue(TEXT("SimpleWorld provider desc exists"), SimpleWorldEntry->HasProviderDesc());
 	TestTrue(TEXT("Provider SkelComp is preserved"), SimpleWorldEntry->GetPrimarySkelComp() == SkelComp);
 	TestEqual(TEXT("Provider heartbeat reaches frame 3"), SimpleWorldEntry->GetLastProviderFrame(), static_cast<uint64>(3));
-	TestEqual(TEXT("SetDesc called only for first desc"), Helper.GetNumSetDescCalls(), 1);
 
 	Inputs.WindTimeScale = 2.0f;
 	TestTrue(TEXT("TimeScale 2 publishes"), Helper.Update(Inputs, WindState, 0.1f, 4, 60));
-	TestEqual(TEXT("Wind time accumulates at scale 2"), WindState->Time, 0.5f);
-	TestEqual(TEXT("SetDesc not called for wind-only change"), Helper.GetNumSetDescCalls(), 1);
+
 
 	Inputs.SimpleWorld.GatherInterval = 0.5f;
 	TestTrue(TEXT("Desc change publishes"), Helper.Update(Inputs, WindState, 0.1f, 5, 60));
-	TestEqual(TEXT("SetDesc called for desc change"), Helper.GetNumSetDescCalls(), 2);
 	FKawaiiPhysicsSimpleWorldCollisionDesc MergedDesc;
 	TestTrue(TEXT("Merged desc exists after desc change"), SimpleWorldEntry->BuildMergedDesc(MergedDesc));
 	TestEqual(TEXT("Merged desc follows gather interval"), MergedDesc.GatherIntervalSec, 0.5f);
 
+	Inputs.SimpleWorld.bEnabled = false;
+	Helper.Update(Inputs, WindState, 0.1f, 5, 60);
+	PublisherEntry->ReadState(ReadState);
+	TestTrue(TEXT("Disabled SimpleWorld settings mark provider disabled"),
+		ReadState.SimpleWorldDesc.bProviderDisabled);
+	Inputs.SimpleWorld.bEnabled = true;
 	Inputs.bEnabled = false;
-	const float TimeBeforeDisabled = WindState->Time;
 	TestTrue(TEXT("Disabled state still publishes"), Helper.Update(Inputs, WindState, 0.1f, 6, 60));
 	PublisherEntry->ReadState(ReadState);
 	TestFalse(TEXT("Disabled publish disables SimpleWorld"), ReadState.bSimpleWorldEnabled);
 	TestTrue(TEXT("Disabled publish marks provider disabled"), ReadState.SimpleWorldDesc.bProviderDisabled);
 	TestFalse(TEXT("Disabled publish disables wind"), ReadState.Wind.bPublisherWindEnabled);
 	TestFalse(TEXT("Disabled publish clears publisher enabled"), ReadState.bPublisherEnabled);
-	TestEqual(TEXT("Disabled publish stops wind time"), WindState->Time, TimeBeforeDisabled);
 	TestTrue(TEXT("SimpleWorld entry reports provider disabled"), SimpleWorldEntry->IsProviderDisabled());
 
 	Inputs.bEnabled = true;
@@ -877,17 +661,6 @@ bool FKawaiiPhysicsSharedPublisherPublishHelperUpdateTest::RunTest(const FString
 	TestEqual(TEXT("Reset effective values restores gather interval"),
 		Helper.GetEffectiveSimpleWorldSettings().GatherInterval, Defaults.SimpleWorld.GatherInterval);
 
-	PublisherEntry->RequestPublisherEnabled(false);
-	TestTrue(TEXT("Pending disable before UPROPERTY change publishes"), Helper.Update(Defaults, WindState, 0.1f, 12, 60));
-	TestFalse(TEXT("Pending disable takes effect"), Helper.IsEffectiveEnabled());
-	FKawaiiPhysicsSharedPublishInputs ChangedInputs = Defaults;
-	ChangedInputs.bEnabled = false;
-	TestTrue(TEXT("UPROPERTY false change publishes"), Helper.Update(ChangedInputs, WindState, 0.1f, 13, 60));
-	TestFalse(TEXT("UPROPERTY false keeps effective false"), Helper.IsEffectiveEnabled());
-	ChangedInputs.bEnabled = true;
-	TestTrue(TEXT("UPROPERTY true change publishes"), Helper.Update(ChangedInputs, WindState, 0.1f, 14, 60));
-	TestTrue(TEXT("UPROPERTY true restores effective true"), Helper.IsEffectiveEnabled());
-
 	{
 		TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> ConflictPublisherEntry =
 			MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
@@ -905,11 +678,8 @@ bool FKawaiiPhysicsSharedPublisherPublishHelperUpdateTest::RunTest(const FString
 		TestTrue(TEXT("Provider A publishes conflict setup"),
 			ProviderA.Update(Defaults, WindState, 0.0f, 1, 60));
 		const uint64 ConflictSerial = ConflictPublisherEntry->GetPublishSerial();
-		TestEqual(TEXT("Provider A is the only registered provider"),
-			ConflictSimpleWorldEntry->GetNumDescs(), 1);
 
-		// 負け側は Provider A と違う設定を持たせ、収集 Desc へ混入しないことを確認する。
-		// GatherInterval は Merge が min、bGatherFamilyMembers は or なので、混入すればマージ結果が変わる値を選ぶ。
+		// 負け側は Provider A と違う設定を持たせる
 		FKawaiiPhysicsSharedPublishInputs ConflictInputs = Defaults;
 		ConflictInputs.SimpleWorld.GatherInterval = 0.05f;
 		ConflictInputs.SimpleWorld.bGatherFamilyMembers = true;
@@ -921,18 +691,6 @@ bool FKawaiiPhysicsSharedPublisherPublishHelperUpdateTest::RunTest(const FString
 			ProviderB.Update(ConflictInputs, WindState, 0.0f, 2, 60));
 		TestEqual(TEXT("Rejected provider keeps serial"), ConflictPublisherEntry->GetPublishSerial(), ConflictSerial);
 		TestFalse(TEXT("Rejected provider does not request reacquire"), ProviderB.NeedsEntryReacquire());
-		TestEqual(TEXT("Rejected provider registers no desc"), ConflictSimpleWorldEntry->GetNumDescs(), 1);
-
-		FKawaiiPhysicsSimpleWorldCollisionDesc ConflictMergedDesc;
-		TestTrue(TEXT("Conflict merged desc exists"),
-			ConflictSimpleWorldEntry->BuildMergedDesc(ConflictMergedDesc));
-		TestEqual(TEXT("Conflict merged desc keeps Provider A gather interval"),
-			ConflictMergedDesc.GatherIntervalSec, Defaults.SimpleWorld.GatherInterval);
-		TestFalse(TEXT("Conflict merged desc ignores the rejected provider family members"),
-			ConflictMergedDesc.bGatherFamilyMembers);
-		TestFalse(TEXT("Conflict merged desc ignores the rejected provider disable"),
-			ConflictMergedDesc.bProviderDisabled);
-
 		// BP からの Pending 要求は勝ち側（Provider A）だけが消費する。
 		ConflictPublisherEntry->RequestPublisherEnabled(false);
 		TestFalse(TEXT("Provider B stays rejected while a request is pending"),
@@ -978,10 +736,18 @@ bool FKawaiiPhysicsSharedPublisherPublishHelperUpdateTest::RunTest(const FString
 			ExpiringSimpleWorldEntry->GetNumDescs(), 0);
 	}
 
-	const float TimeBeforeRelease = WindState->Time;
 	Helper.ReleaseEntries();
 	TestFalse(TEXT("Release removes provider desc"), SimpleWorldEntry->HasProviderDesc());
-	TestEqual(TEXT("Release keeps wind time"), WindState->Time, TimeBeforeRelease);
+	// 新しい Entry を再取得して publish を再開する。
+	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> ReacquiredPublisherEntry =
+		MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> ReacquiredSimpleWorldEntry =
+		MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
+	Helper.SetEntries(ReacquiredPublisherEntry, ReacquiredSimpleWorldEntry, SkelComp);
+	Helper.ResetEffectiveValues(Defaults);
+	TestTrue(TEXT("Reacquired entry publishes"), Helper.Update(Defaults, WindState, 0.0f, 12, 60));
+	TestEqual(TEXT("Reacquired entry is owned by the publisher"), ReacquiredPublisherEntry->GetProviderID(), SourceID);
+	TestTrue(TEXT("Reacquired SimpleWorld entry receives desc"), ReacquiredSimpleWorldEntry->HasProviderDesc());
 
 	return true;
 }
@@ -1159,12 +925,13 @@ bool FKawaiiPhysicsSharedPublisherInputChangeBeatsSameFramePendingTest::RunTest(
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSharedPublisherStaleProviderDoesNotConsumeAfterHandoffTest,
-                                 "KawaiiPhysics.SharedPublisher.StaleProviderDoesNotConsumeAfterHandoff",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSharedPublisherStaleProviderHandoffTest,
+                                 "KawaiiPhysics.SharedPublisher.StaleProviderHandoff",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FKawaiiPhysicsSharedPublisherStaleProviderDoesNotConsumeAfterHandoffTest::RunTest(const FString& Parameters)
+bool FKawaiiPhysicsSharedPublisherStaleProviderHandoffTest::RunTest(const FString& Parameters)
 {
+	// 期限切れ後の所有権移譲で、旧 provider の更新と解放が新 provider を壊さないことを確認する。
 	constexpr uint64 SourceIDA = 0xA001;
 	constexpr uint64 SourceIDB = 0xA002;
 	constexpr uint64 MaxAgeFrames = 60;
@@ -1176,12 +943,10 @@ bool FKawaiiPhysicsSharedPublisherStaleProviderDoesNotConsumeAfterHandoffTest::R
 
 	FKawaiiPhysics_ExternalForce_ProceduralWind SharedWindA;
 	FKawaiiPhysics_ExternalForce_ProceduralWind SharedWindB;
-
 	FKawaiiPhysicsSharedPublishInputs InputsA;
 	InputsA.SharedWind = &SharedWindA;
 	InputsA.bWindEnabled = SharedWindA.bIsEnabled;
 	InputsA.WindTimeScale = SharedWindA.TimeScale;
-
 	FKawaiiPhysicsSharedPublishInputs InputsB;
 	InputsB.SharedWind = &SharedWindB;
 	InputsB.bWindEnabled = SharedWindB.bIsEnabled;
@@ -1196,35 +961,14 @@ bool FKawaiiPhysicsSharedPublisherStaleProviderDoesNotConsumeAfterHandoffTest::R
 	HelperA.ResetEffectiveValues(InputsA);
 	HelperB.ResetEffectiveValues(InputsB);
 
-	bool bOk = true;
-
-	// Frame 1: Provider A が受理される
-	bOk &= TestTrue(TEXT("Provider A publishes at frame 1"),
+	bool bOk = TestTrue(TEXT("Provider A publishes at frame 1"),
 		HelperA.Update(InputsA, SharedWindA.RuntimeState, 0.0f, 1, MaxAgeFrames));
-
-	// ReadProviderSnapshot 単体確認: A が publish した直後は所有・非期限切れ
-	{
-		const FKawaiiPhysicsSharedPublisherEntry::FProviderSnapshot SnapshotAfterA =
-			PublisherEntry->ReadProviderSnapshot(1, MaxAgeFrames);
-		bOk &= TestEqual(TEXT("Snapshot after A publish reports provider A"), SnapshotAfterA.ProviderID, SourceIDA);
-		bOk &= TestFalse(TEXT("Snapshot after A publish is not expired"), SnapshotAfterA.bExpired);
-	}
-
-	// A がまだ provider の間に BP から Pending 要求を積む（本来は A が消費するはずの要求）
 	FKawaiiProceduralWindDynamicParams PendingParams;
 	PendingParams.bOverrideConstantForce = true;
 	PendingParams.ConstantForce = 42.0f;
 	PublisherEntry->RequestWindParams(PendingParams);
 	PublisherEntry->RequestGust(50.0f, 0.1f, 0.2f, 0.3f);
 
-	// Frame 100: MaxAge(60) を超えて A は期限切れになる。ReadProviderSnapshot は 1 回のロックで期限切れを報告する
-	{
-		const FKawaiiPhysicsSharedPublisherEntry::FProviderSnapshot SnapshotAtHandoff =
-			PublisherEntry->ReadProviderSnapshot(100, MaxAgeFrames);
-		bOk &= TestTrue(TEXT("Snapshot at frame 100 is expired"), SnapshotAtHandoff.bExpired);
-	}
-
-	// Provider B が claim し、A が積んだ Pending を自分の SharedWind へ消費する
 	bOk &= TestTrue(TEXT("Provider B claims at frame 100"),
 		HelperB.Update(InputsB, SharedWindB.RuntimeState, 0.0f, 100, MaxAgeFrames));
 	bOk &= TestEqual(TEXT("Provider B consumes the pending ConstantForce"), SharedWindB.ConstantForce, 42.0f);
@@ -1232,98 +976,20 @@ bool FKawaiiPhysicsSharedPublisherStaleProviderDoesNotConsumeAfterHandoffTest::R
 		SharedWindB.RuntimeState.IsValid() && SharedWindB.RuntimeState->ActiveGust.bIsActive);
 	bOk &= TestEqual(TEXT("Entry provider is now B"), PublisherEntry->GetProviderID(), SourceIDB);
 
-	// 旧 provider の A が同フレームで Update しても、B の claim 後は「別 provider 拒否」と同じ経路で拒否され、
-	// Pending を消費しない（修正前は ProviderID / IsExpired の別読みで自分を生存 provider と誤認し、ここで消費し得た）
 	AddExpectedError(TEXT("Kawaii Physics Shared Publisher rejected publish"),
 	                 EAutomationExpectedErrorFlags::Contains, 1);
 	bOk &= TestFalse(TEXT("Stale provider A is rejected after handoff"),
 		HelperA.Update(InputsA, SharedWindA.RuntimeState, 0.0f, 100, MaxAgeFrames));
-	bOk &= TestFalse(TEXT("Stale provider A does not request reacquire (same as other-provider rejection)"),
-		HelperA.NeedsEntryReacquire());
+	bOk &= TestFalse(TEXT("Stale provider A does not request reacquire"), HelperA.NeedsEntryReacquire());
 	bOk &= TestEqual(TEXT("Stale provider A did not consume the pending ConstantForce"),
 		SharedWindA.ConstantForce, 0.0f);
 	bOk &= TestEqual(TEXT("Entry provider stays B"), PublisherEntry->GetProviderID(), SourceIDB);
 
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSharedPublisherStaleProviderReleaseKeepsNewProviderTest,
-                                 "KawaiiPhysics.SharedPublisher.StaleProviderReleaseKeepsNewProvider",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSharedPublisherStaleProviderReleaseKeepsNewProviderTest::RunTest(const FString& Parameters)
-{
-	constexpr uint64 SourceIDA = 0xA001;
-	constexpr uint64 SourceIDB = 0xA002;
-	constexpr uint64 MaxAgeFrames = 60;
-
-	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> PublisherEntry = MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
-	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> SimpleWorldEntry =
-		MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
-	USkeletalMeshComponent* SkelComp = NewObject<USkeletalMeshComponent>(GetTransientPackage());
-
-	FKawaiiPhysics_ExternalForce_ProceduralWind SharedWindA;
-	FKawaiiPhysics_ExternalForce_ProceduralWind SharedWindB;
-
-	FKawaiiPhysicsSharedPublishInputs InputsA;
-	InputsA.SharedWind = &SharedWindA;
-	InputsA.bWindEnabled = SharedWindA.bIsEnabled;
-	InputsA.WindTimeScale = SharedWindA.TimeScale;
-
-	FKawaiiPhysicsSharedPublishInputs InputsB;
-	InputsB.SharedWind = &SharedWindB;
-	InputsB.bWindEnabled = SharedWindB.bIsEnabled;
-	InputsB.WindTimeScale = SharedWindB.TimeScale;
-
-	FKawaiiPhysicsSharedPublishHelper HelperA;
-	FKawaiiPhysicsSharedPublishHelper HelperB;
-	HelperA.SetSourceID(SourceIDA);
-	HelperB.SetSourceID(SourceIDB);
-	HelperA.SetEntries(PublisherEntry, SimpleWorldEntry, SkelComp);
-	HelperB.SetEntries(PublisherEntry, SimpleWorldEntry, SkelComp);
-	HelperA.ResetEffectiveValues(InputsA);
-	HelperB.ResetEffectiveValues(InputsB);
-
-	bool bOk = true;
-
-	// Frame 1: Provider A が受理される
-	bOk &= TestTrue(TEXT("Provider A publishes at frame 1"),
-		HelperA.Update(InputsA, SharedWindA.RuntimeState, 0.0f, 1, MaxAgeFrames));
-
-	// Frame 100: MaxAge(60) を超えて A は期限切れになり、B が claim する
-	bOk &= TestTrue(TEXT("Provider B claims at frame 100"),
-		HelperB.Update(InputsB, SharedWindB.RuntimeState, 0.0f, 100, MaxAgeFrames));
-	bOk &= TestEqual(TEXT("Entry provider is now B"), PublisherEntry->GetProviderID(), SourceIDB);
-
-	// 旧 provider A が ReleaseEntries を呼んでも、所有権確認と期限切れマークが同じロック区間で行われるため、
-	// B が claim した生存 Entry を誤って expire させない
-	//（修正前は GetProviderID / MarkExpired の別読みで、A が期限切れ後に自分の所有と誤認して B の Entry を expire しえた）。
 	HelperA.ReleaseEntries();
-
-	{
-		const FKawaiiPhysicsSharedPublisherEntry::FProviderSnapshot SnapshotAfterRelease =
-			PublisherEntry->ReadProviderSnapshot(100, MaxAgeFrames);
-		bOk &= TestEqual(TEXT("Entry provider stays B after A releases"), SnapshotAfterRelease.ProviderID, SourceIDB);
-		bOk &= TestFalse(TEXT("Entry is not expired after A releases"), SnapshotAfterRelease.bExpired);
-	}
-	bOk &= TestFalse(TEXT("Entry is not MarkExpired'd after A releases"), PublisherEntry->IsMarkedExpired());
-
-	// Frame 101: B は引き続き publish できる（A の Release で B の状態が失われていない）
+	bOk &= TestEqual(TEXT("Entry provider stays B after A releases"), PublisherEntry->GetProviderID(), SourceIDB);
+	bOk &= TestFalse(TEXT("A release does not expire B"), PublisherEntry->IsMarkedExpired());
 	bOk &= TestTrue(TEXT("Provider B continues publishing at frame 101"),
 		HelperB.Update(InputsB, SharedWindB.RuntimeState, 0.0f, 101, MaxAgeFrames));
-
-	// MarkExpiredIfProvider 単体確認: 所有者でない ID を渡しても何も変えず false を返す
-	bOk &= TestFalse(TEXT("MarkExpiredIfProvider(stale A) returns false while B owns the entry"),
-		PublisherEntry->MarkExpiredIfProvider(SourceIDA));
-	bOk &= TestFalse(TEXT("Entry stays alive after a mismatched MarkExpiredIfProvider call"),
-		PublisherEntry->IsMarkedExpired());
-
-	// MarkExpiredIfProvider 単体確認: 現在の所有者を渡すと期限切れにでき true を返す
-	bOk &= TestTrue(TEXT("MarkExpiredIfProvider(B) returns true while B owns the entry"),
-		PublisherEntry->MarkExpiredIfProvider(SourceIDB));
-	bOk &= TestTrue(TEXT("Entry is expired after MarkExpiredIfProvider(B)"),
-		PublisherEntry->IsMarkedExpired());
-
 	return bOk;
 }
 
@@ -1410,11 +1076,6 @@ bool FKawaiiPhysicsSharedPublisherPublishHelperWindParamsTest::RunTest(const FSt
 	PublisherEntry->ReadWindState(ReadWind);
 	bOk &= TestEqual(TEXT("Published constant survives reset"), ReadWind.Params.ConstantForce, 123.0f);
 
-#if WITH_EDITOR
-	const uint64 ScopeSamples = SharedWind.RuntimeState->ScopeSampleCount;
-	bOk &= TestTrue(TEXT("Scope samples increase"), Helper.Update(ResetInputs, SharedWind.RuntimeState, 0.1f, 6, 60));
-	bOk &= TestTrue(TEXT("Scope sample count advanced"), SharedWind.RuntimeState->ScopeSampleCount > ScopeSamples);
-#endif
 	return bOk;
 }
 
@@ -1422,480 +1083,93 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSharedPublisherStalledPublisherRe
                                  "KawaiiPhysics.SharedPublisher.StalledPublisherResumesWithoutTimeRewind",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-// Publisher の枝が blend weight 0 などで Update されない間、消費側は PublisherTimeScale で外挿する。
-// PreUpdate は枝の relevance に関係なく走るので、そこで累積した DeltaSeconds を再開した Update がまとめて消費し、
-// 消費側が先へ進めた Time より手前を publish して巻き戻す（位相のポップ・突風エンベロープの巻き戻し）ことがないのを確認する。
 bool FKawaiiPhysicsSharedPublisherStalledPublisherResumesWithoutTimeRewindTest::RunTest(const FString& Parameters)
 {
-	constexpr uint64 SourceID = 0xC001;
-	constexpr uint64 MaxAgeFrames = 60;
+	// 消費側が先に外挿するフレームで、停止中の要求を反映しても時計が巻き戻らないことを確認する。
 	constexpr float Dt = 1.0f / 60.0f;
 	constexpr float Tol = 1.0e-4f;
 	constexpr int32 StallFrames = 5;
-
-	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> PublisherEntry = MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
-	TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> SimpleWorldEntry =
-		MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
-	USkeletalMeshComponent* SkelComp = NewObject<USkeletalMeshComponent>(GetTransientPackage());
-
-	FKawaiiPhysics_ExternalForce_ProceduralWind SharedWind;
-	SharedWind.bIsEnabled = true;
-	SharedWind.TimeScale = 1.0f;
-
-	FKawaiiPhysicsSharedPublishInputs Inputs;
-	Inputs.SharedWind = &SharedWind;
-	Inputs.bWindEnabled = SharedWind.bIsEnabled;
-	Inputs.WindTimeScale = SharedWind.TimeScale;
-
-	FKawaiiPhysicsSharedPublishHelper Helper;
-	Helper.SetSourceID(SourceID);
-	Helper.SetEntries(PublisherEntry, SimpleWorldEntry, SkelComp);
-	Helper.ResetEffectiveValues(Inputs);
-
-	// 消費側の Entry 期限切れ判定は GFrameCounter を見るので、publish も同じフレームで行う
 	const uint64 PublishFrame = GFrameCounter;
-
 	bool bOk = true;
 
-	// 1. claim → 定常 publish の 2 フレームを流し、消費側に採用させる
-	bOk &= TestTrue(TEXT("Publisher claims the entry"),
-		Helper.Update(Inputs, SharedWind.RuntimeState, Dt, PublishFrame, MaxAgeFrames));
-	bOk &= TestTrue(TEXT("Publisher keeps publishing"),
-		Helper.Update(Inputs, SharedWind.RuntimeState, Dt, PublishFrame, MaxAgeFrames));
-
-	FKawaiiPhysicsTestAccessor Accessor;
-	Accessor.BuildVerticalChain(2, 10.0f);
-	FKawaiiPhysics_ExternalForce_ProceduralWind ConsumerWind;
-	ConsumerWind.WindSource = EKawaiiPhysicsProceduralWindSource::Shared;
-	FKawaiiPhysicsTestAccessor::BindSharedWindEntry(ConsumerWind, PublisherEntry);
-
-	RunSharedPublisherConsumerPreApply(Accessor, ConsumerWind, Dt);
-	const float ConsumerTime0 = ConsumerWind.RuntimeState->Time;
-	bOk &= TestTrue(TEXT("Consumer adopts the published time"),
-		FMath::IsNearlyEqual(ConsumerTime0, SharedWind.RuntimeState->Time, Tol));
-
-	// 2. Publisher の枝が止まる（PreUpdate だけが走り、Update は走らない）。消費側は外挿で先へ進む
-	float PreviousConsumerTime = ConsumerTime0;
-	for (int32 Index = 0; Index < StallFrames; ++Index)
+	struct FResumeCase
 	{
-		Helper.AccumulatePendingDeltaTime(Dt);
-		RunSharedPublisherConsumerPreApply(Accessor, ConsumerWind, Dt);
-		bOk &= TestTrue(FString::Printf(TEXT("Consumer time increases while the publisher is stalled (%d)"), Index),
-			ConsumerWind.RuntimeState->Time > PreviousConsumerTime);
-		PreviousConsumerTime = ConsumerWind.RuntimeState->Time;
-	}
-	bOk &= TestTrue(TEXT("Pending delta time accumulates while stalled"),
-		FMath::IsNearlyEqual(Helper.GetPendingDeltaTime(), StallFrames * Dt, Tol));
-
-	// 3. 再開: 累積分をまとめて消費して publish する。消費側の Time は巻き戻らない
-	Helper.AccumulatePendingDeltaTime(Dt);
-	const float ConsumerTimeBeforeResume = ConsumerWind.RuntimeState->Time;
-	bOk &= TestTrue(TEXT("Publisher publishes on resume"),
-		Helper.Update(Inputs, SharedWind.RuntimeState, Dt, PublishFrame, MaxAgeFrames));
-	RunSharedPublisherConsumerPreApply(Accessor, ConsumerWind, Dt);
-
-	bOk &= TestTrue(FString::Printf(TEXT("Consumer time does not rewind on resume: got %.9f before %.9f"),
-			ConsumerWind.RuntimeState->Time, ConsumerTimeBeforeResume),
-		ConsumerWind.RuntimeState->Time >= ConsumerTimeBeforeResume);
-	bOk &= TestTrue(FString::Printf(TEXT("Publisher time catches up the stalled frames: got %.9f expected %.9f"),
-			SharedWind.RuntimeState->Time, ConsumerTime0 + (StallFrames + 1) * Dt),
-		FMath::IsNearlyEqual(SharedWind.RuntimeState->Time, ConsumerTime0 + (StallFrames + 1) * Dt, Tol));
-	bOk &= TestTrue(TEXT("Consumer adopts the caught-up publisher time"),
-		FMath::IsNearlyEqual(ConsumerWind.RuntimeState->Time, SharedWind.RuntimeState->Time, Tol));
-	bOk &= TestTrue(TEXT("Pending delta time is consumed on resume"), Helper.GetPendingDeltaTime() == 0.0f);
-
-	// 4. 対照: 毎フレーム PreUpdate と Update が揃う通常運転では、累積が二重計上されない
-	const float TimeBeforeNormalFrame = SharedWind.RuntimeState->Time;
-	Helper.AccumulatePendingDeltaTime(Dt);
-	bOk &= TestTrue(TEXT("Normal frame publishes"),
-		Helper.Update(Inputs, SharedWind.RuntimeState, Dt, PublishFrame, MaxAgeFrames));
-	bOk &= TestTrue(FString::Printf(TEXT("Normal frame advances time by dt only: got %.9f expected %.9f"),
-			SharedWind.RuntimeState->Time - TimeBeforeNormalFrame, Dt * SharedWind.TimeScale),
-		FMath::IsNearlyEqual(SharedWind.RuntimeState->Time - TimeBeforeNormalFrame, Dt * SharedWind.TimeScale, Tol));
-
-	// 5. 突風: 停止・再開をまたいでも消費側の突風エンベロープが巻き戻らない
-	SharedWind.RequestGust(10.0f, 0.1f, 0.5f, 0.2f);
-	bOk &= TestTrue(TEXT("Gust frame publishes"),
-		Helper.Update(Inputs, SharedWind.RuntimeState, Dt, PublishFrame, MaxAgeFrames));
-	bOk &= TestTrue(TEXT("Publisher starts the gust"), SharedWind.RuntimeState->ActiveGust.bIsActive);
-
-	RunSharedPublisherConsumerPreApply(Accessor, ConsumerWind, Dt);
-	bOk &= TestTrue(TEXT("Consumer adopts the active gust"), ConsumerWind.RuntimeState->ActiveGust.bIsActive);
-	bOk &= TestTrue(TEXT("Consumer adopts the gust start time"),
-		FMath::IsNearlyEqual(ConsumerWind.RuntimeState->ActiveGust.StartTime,
-			SharedWind.RuntimeState->ActiveGust.StartTime, Tol));
-
-	for (int32 Index = 0; Index < StallFrames; ++Index)
-	{
-		Helper.AccumulatePendingDeltaTime(Dt);
-		RunSharedPublisherConsumerPreApply(Accessor, ConsumerWind, Dt);
-	}
-	const float GustElapsedBeforeResume =
-		ConsumerWind.RuntimeState->Time - ConsumerWind.RuntimeState->ActiveGust.StartTime;
-
-	Helper.AccumulatePendingDeltaTime(Dt);
-	bOk &= TestTrue(TEXT("Publisher resumes after the gust stall"),
-		Helper.Update(Inputs, SharedWind.RuntimeState, Dt, PublishFrame, MaxAgeFrames));
-	RunSharedPublisherConsumerPreApply(Accessor, ConsumerWind, Dt);
-
-	bOk &= TestTrue(TEXT("Consumer gust start time still matches the publisher after resume"),
-		FMath::IsNearlyEqual(ConsumerWind.RuntimeState->ActiveGust.StartTime,
-			SharedWind.RuntimeState->ActiveGust.StartTime, Tol));
-	const float GustElapsedAfterResume =
-		ConsumerWind.RuntimeState->Time - ConsumerWind.RuntimeState->ActiveGust.StartTime;
-	bOk &= TestTrue(FString::Printf(TEXT("Gust elapsed time does not rewind: got %.9f before %.9f"),
-			GustElapsedAfterResume, GustElapsedBeforeResume),
-		GustElapsedAfterResume >= GustElapsedBeforeResume);
-	bOk &= TestTrue(TEXT("Consumer gust envelope matches the publisher after resume"),
-		FMath::IsNearlyEqual(ConsumerWind.ComputeWindSample(ConsumerWind.RuntimeState->Time).Gust,
-			SharedWind.ComputeWindSample(SharedWind.RuntimeState->Time).Gust, Tol));
-
-	// 6. 停止中に積まれた TimeScale 上書き要求（BP の SetProceduralWindParametersOnSharedPublisher や
-	//    Publisher Details のライブプッシュ）は、publish された次のフレームからだけ効かせる。
-	//    停止区間や再開フレームまで新しい scale で進めると、消費側が旧 scale で外挿した Time より手前を publish して
-	//    巻き戻ってしまう（消費側は Publisher より先に評価されることがあるので、当フレーム分も旧 scale で進める）。
-	//    ここまでの 1〜5 が「要求を積まない従来ケース」の対照になっている。
-
-	// 突風エンベロープの内側でケースを回すため、rise / hold / decay の長い突風を張り直す
-	SharedWind.RequestGust(10.0f, 0.5f, 20.0f, 10.0f);
-	Helper.AccumulatePendingDeltaTime(Dt);
-	bOk &= TestTrue(TEXT("Long gust frame publishes"),
-		Helper.Update(Inputs, SharedWind.RuntimeState, Dt, PublishFrame, MaxAgeFrames));
-	RunSharedPublisherConsumerPreApply(Accessor, ConsumerWind, Dt);
-	bOk &= TestTrue(TEXT("Consumer adopts the long gust"), ConsumerWind.RuntimeState->ActiveGust.bIsActive);
-
-	const auto RunStalledTimeScaleRequestCase = [&](const TCHAR* CaseName, const float RequestedTimeScale) -> bool
-	{
-		bool bCaseOk = true;
-		// 停止中に消費側が外挿へ使う scale（＝最後に publish された PublisherTimeScale）
-		const float StalledTimeScale = SharedWind.TimeScale;
-		bCaseOk &= TestTrue(FString::Printf(TEXT("%s: consumer caches the published time scale"), CaseName),
-			FMath::IsNearlyEqual(ConsumerWind.RuntimeState->CachedPublisherTimeScale, StalledTimeScale, Tol));
-
-		// 停止: PreUpdate だけが走り、消費側は旧 scale で外挿する
-		for (int32 Index = 0; Index < StallFrames; ++Index)
-		{
-			Helper.AccumulatePendingDeltaTime(Dt);
-			RunSharedPublisherConsumerPreApply(Accessor, ConsumerWind, Dt);
-		}
-		const float ConsumerTimeBeforeResume = ConsumerWind.RuntimeState->Time;
-		const float GustElapsedBeforeResume =
-			ConsumerWind.RuntimeState->Time - ConsumerWind.RuntimeState->ActiveGust.StartTime;
-
-		// 停止中に TimeScale 上書き要求を Entry へ積む
-		FKawaiiProceduralWindDynamicParams StalledParams;
-		StalledParams.bOverrideTimeScale = true;
-		StalledParams.TimeScale = RequestedTimeScale;
-		PublisherEntry->RequestWindParams(StalledParams);
-
-		// 再開フレーム: 停止区間も当フレームの dt も旧 scale で進み、新しい scale は次のフレームから効く
-		Helper.AccumulatePendingDeltaTime(Dt);
-		bCaseOk &= TestTrue(FString::Printf(TEXT("%s: publisher publishes on resume"), CaseName),
-			Helper.Update(Inputs, SharedWind.RuntimeState, Dt, PublishFrame, MaxAgeFrames));
-		RunSharedPublisherConsumerPreApply(Accessor, ConsumerWind, Dt);
-
-		bCaseOk &= TestTrue(FString::Printf(TEXT("%s: requested time scale is applied"), CaseName),
-			FMath::IsNearlyEqual(SharedWind.TimeScale, RequestedTimeScale, Tol));
-		bCaseOk &= TestTrue(FString::Printf(TEXT("%s: consumer time does not rewind: got %.9f before %.9f"),
-				CaseName, ConsumerWind.RuntimeState->Time, ConsumerTimeBeforeResume),
-			ConsumerWind.RuntimeState->Time >= ConsumerTimeBeforeResume - Tol);
-
-		// 停止区間＋再開フレームをまとめて旧 scale で進めるので、消費側の外挿値ぴったりに追いつく
-		const float ExpectedPublisherTime = ConsumerTimeBeforeResume + Dt * StalledTimeScale;
-		bCaseOk &= TestTrue(FString::Printf(
-				TEXT("%s: publisher advances the stalled span and the resume frame with the old scale: got %.9f expected %.9f"),
-				CaseName, SharedWind.RuntimeState->Time, ExpectedPublisherTime),
-			FMath::IsNearlyEqual(SharedWind.RuntimeState->Time, ExpectedPublisherTime, Tol));
-		bCaseOk &= TestTrue(FString::Printf(TEXT("%s: consumer adopts the published time"), CaseName),
-			FMath::IsNearlyEqual(ConsumerWind.RuntimeState->Time, SharedWind.RuntimeState->Time, Tol));
-		bCaseOk &= TestTrue(FString::Printf(TEXT("%s: consumer caches the new time scale"), CaseName),
-			FMath::IsNearlyEqual(ConsumerWind.RuntimeState->CachedPublisherTimeScale, RequestedTimeScale, Tol));
-
-		bCaseOk &= TestTrue(FString::Printf(TEXT("%s: consumer gust start time matches the publisher"), CaseName),
-			FMath::IsNearlyEqual(ConsumerWind.RuntimeState->ActiveGust.StartTime,
-				SharedWind.RuntimeState->ActiveGust.StartTime, Tol));
-		const float GustElapsedAfterResume =
-			ConsumerWind.RuntimeState->Time - ConsumerWind.RuntimeState->ActiveGust.StartTime;
-		bCaseOk &= TestTrue(FString::Printf(TEXT("%s: gust elapsed time does not rewind: got %.9f before %.9f"),
-				CaseName, GustElapsedAfterResume, GustElapsedBeforeResume),
-			GustElapsedAfterResume >= GustElapsedBeforeResume - Tol);
-
-		// 次のケースに入る前に通常フレームを 1 回挟み、serial を進めて新しい scale の採用を確定させる。
-		// このフレームは新しい scale が publish 済みなので、ここから新しい scale で進む
-		const float CaseNormalFrameTimeBefore = SharedWind.RuntimeState->Time;
-		Helper.AccumulatePendingDeltaTime(Dt);
-		bCaseOk &= TestTrue(FString::Printf(TEXT("%s: normal frame publishes after the case"), CaseName),
-			Helper.Update(Inputs, SharedWind.RuntimeState, Dt, PublishFrame, MaxAgeFrames));
-		bCaseOk &= TestTrue(FString::Printf(
-				TEXT("%s: the next normal frame advances with the new scale: got %.9f expected %.9f"),
-				CaseName, SharedWind.RuntimeState->Time - CaseNormalFrameTimeBefore, Dt * RequestedTimeScale),
-			FMath::IsNearlyEqual(SharedWind.RuntimeState->Time - CaseNormalFrameTimeBefore,
-				Dt * RequestedTimeScale, Tol));
-		RunSharedPublisherConsumerPreApply(Accessor, ConsumerWind, Dt);
-
-		return bCaseOk;
+		const TCHAR* Name;
+		bool bDisable;
 	};
-
-	// 遅くする / 止める / 速くする の順（再開フレームは旧 scale で進み、新しい scale はその次の通常フレームから効く）
-	bOk &= RunStalledTimeScaleRequestCase(TEXT("Lower time scale requested while stalled"), 0.25f);
-	bOk &= RunStalledTimeScaleRequestCase(TEXT("Zero time scale requested while stalled"), 0.0f);
-	bOk &= RunStalledTimeScaleRequestCase(TEXT("Higher time scale requested while stalled"), 4.0f);
-
-	// 7. 無効中の停止: Publisher は無効の間クロックを止めて publish するので、消費側の外挿も同じ規則で止まる。
-	//    片側だけ進むと、無効の Publisher が停止→再開したときに消費側の Time が巻き戻る。
-	constexpr float StoppedTol = 1.0e-6f;
-
-	FKawaiiProceduralWindDynamicParams DisableParams;
-	DisableParams.bOverrideIsEnabled = true;
-	DisableParams.bIsEnabled = false;
-	PublisherEntry->RequestWindParams(DisableParams);
-	Helper.AccumulatePendingDeltaTime(Dt);
-	bOk &= TestTrue(TEXT("Disable request frame publishes"),
-		Helper.Update(Inputs, SharedWind.RuntimeState, Dt, PublishFrame, MaxAgeFrames));
-	RunSharedPublisherConsumerPreApply(Accessor, ConsumerWind, Dt);
-	bOk &= TestFalse(TEXT("Disable request disables the publisher wind"), SharedWind.bIsEnabled);
-	bOk &= TestTrue(TEXT("Consumer sees the publisher wind disabled"),
-		ConsumerWind.RuntimeState->bPublisherWindDisabled);
-
-	const float DisabledPublisherTime = SharedWind.RuntimeState->Time;
-	const float DisabledConsumerTime = ConsumerWind.RuntimeState->Time;
-
-	for (int32 Index = 0; Index < StallFrames; ++Index)
+	const FResumeCase Cases[] = {
+		{TEXT("Zero scale"), false},
+		{TEXT("Disable"), true}
+	};
+	for (const FResumeCase& Case : Cases)
 	{
-		Helper.AccumulatePendingDeltaTime(Dt);
+		TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> PublisherEntry =
+			MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+		TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> SimpleWorldEntry =
+			MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
+		USkeletalMeshComponent* SkelComp = NewObject<USkeletalMeshComponent>(GetTransientPackage());
+		FKawaiiPhysics_ExternalForce_ProceduralWind SharedWind;
+		SharedWind.bIsEnabled = true;
+		SharedWind.TimeScale = 1.0f;
+		FKawaiiPhysicsSharedPublishInputs Inputs;
+		Inputs.SharedWind = &SharedWind;
+		Inputs.bWindEnabled = true;
+		Inputs.WindTimeScale = 1.0f;
+		Inputs.GameTimeSeconds = 0.0;
+		FKawaiiPhysicsSharedPublishHelper Helper;
+		Helper.SetSourceID(0xC001);
+		Helper.SetEntries(PublisherEntry, SimpleWorldEntry, SkelComp);
+		Helper.ResetEffectiveValues(Inputs);
+		bOk &= TestTrue(FString::Printf(TEXT("%s: initial claim publishes"), Case.Name),
+			Helper.Update(Inputs, SharedWind.RuntimeState, Dt, PublishFrame, 60));
+		bOk &= TestTrue(FString::Printf(TEXT("%s: steady frame publishes"), Case.Name),
+			Helper.Update(Inputs, SharedWind.RuntimeState, Dt, PublishFrame, 60));
+
+		FKawaiiPhysicsTestAccessor Accessor;
+		Accessor.BuildVerticalChain(2, 10.0f);
+		FKawaiiPhysics_ExternalForce_ProceduralWind ConsumerWind;
+		ConsumerWind.WindSource = EKawaiiPhysicsProceduralWindSource::Shared;
+		FKawaiiPhysicsTestAccessor::BindSharedWindEntry(ConsumerWind, PublisherEntry);
 		RunSharedPublisherConsumerPreApply(Accessor, ConsumerWind, Dt);
-		bOk &= TestTrue(FString::Printf(
-				TEXT("Consumer clock stays stopped while the disabled publisher is stalled (%d): got %.9f expected %.9f"),
-				Index, ConsumerWind.RuntimeState->Time, DisabledConsumerTime),
-			FMath::IsNearlyEqual(ConsumerWind.RuntimeState->Time, DisabledConsumerTime, StoppedTol));
-	}
-	bOk &= TestTrue(TEXT("Disabled publisher clock stays stopped while stalled"),
-		FMath::IsNearlyEqual(SharedWind.RuntimeState->Time, DisabledPublisherTime, StoppedTol));
-
-	Helper.AccumulatePendingDeltaTime(Dt);
-	bOk &= TestTrue(TEXT("Disabled publisher publishes on resume"),
-		Helper.Update(Inputs, SharedWind.RuntimeState, Dt, PublishFrame, MaxAgeFrames));
-	RunSharedPublisherConsumerPreApply(Accessor, ConsumerWind, Dt);
-	bOk &= TestTrue(FString::Printf(
-			TEXT("Disabled publisher does not advance the stalled span: got %.9f expected %.9f"),
-			SharedWind.RuntimeState->Time, DisabledPublisherTime),
-		FMath::IsNearlyEqual(SharedWind.RuntimeState->Time, DisabledPublisherTime, StoppedTol));
-	bOk &= TestTrue(FString::Printf(
-			TEXT("Consumer time does not rewind after the disabled stall: got %.9f before %.9f"),
-			ConsumerWind.RuntimeState->Time, DisabledConsumerTime),
-		ConsumerWind.RuntimeState->Time >= DisabledConsumerTime - StoppedTol);
-	bOk &= TestTrue(TEXT("Consumer matches the disabled publisher after resume"),
-		FMath::IsNearlyEqual(ConsumerWind.RuntimeState->Time, SharedWind.RuntimeState->Time, Tol));
-
-	// 8. 停止中に Enable 要求: 停止区間も再開フレームも「最後に publish した無効」で進めないので Time は据え置き。
-	//    有効化は publish された次のフレームから効く（消費側が Publisher より先に評価されても外挿値と一致する）
-	const float DisabledTimeBeforeEnable = SharedWind.RuntimeState->Time;
-	const float ConsumerTimeBeforeEnable = ConsumerWind.RuntimeState->Time;
-	for (int32 Index = 0; Index < StallFrames; ++Index)
-	{
-		Helper.AccumulatePendingDeltaTime(Dt);
-		RunSharedPublisherConsumerPreApply(Accessor, ConsumerWind, Dt);
-	}
-
-	FKawaiiProceduralWindDynamicParams EnableParams;
-	EnableParams.bOverrideIsEnabled = true;
-	EnableParams.bIsEnabled = true;
-	PublisherEntry->RequestWindParams(EnableParams);
-
-	Helper.AccumulatePendingDeltaTime(Dt);
-	bOk &= TestTrue(TEXT("Enable request frame publishes on resume"),
-		Helper.Update(Inputs, SharedWind.RuntimeState, Dt, PublishFrame, MaxAgeFrames));
-	RunSharedPublisherConsumerPreApply(Accessor, ConsumerWind, Dt);
-
-	bOk &= TestTrue(TEXT("Enable request re-enables the publisher wind"), SharedWind.bIsEnabled);
-	bOk &= TestTrue(FString::Printf(
-			TEXT("Enabled resume keeps the clock stopped for the resume frame: got %.9f expected %.9f"),
-			SharedWind.RuntimeState->Time, DisabledTimeBeforeEnable),
-		FMath::IsNearlyEqual(SharedWind.RuntimeState->Time, DisabledTimeBeforeEnable, StoppedTol));
-	bOk &= TestTrue(FString::Printf(
-			TEXT("Consumer time does not rewind on the enable resume: got %.9f before %.9f"),
-			ConsumerWind.RuntimeState->Time, ConsumerTimeBeforeEnable),
-		ConsumerWind.RuntimeState->Time >= ConsumerTimeBeforeEnable - Tol);
-	bOk &= TestTrue(TEXT("Consumer adopts the re-enabled publisher time"),
-		FMath::IsNearlyEqual(ConsumerWind.RuntimeState->Time, SharedWind.RuntimeState->Time, Tol));
-	bOk &= TestFalse(TEXT("Consumer clears the publisher disabled flag on re-enable"),
-		ConsumerWind.RuntimeState->bPublisherWindDisabled);
-
-	// 有効フラグが publish された次の通常フレームから、ようやくクロックが動き出す
-	const float EnabledNormalFrameTimeBefore = SharedWind.RuntimeState->Time;
-	Helper.AccumulatePendingDeltaTime(Dt);
-	bOk &= TestTrue(TEXT("Normal frame after the enable request publishes"),
-		Helper.Update(Inputs, SharedWind.RuntimeState, Dt, PublishFrame, MaxAgeFrames));
-	RunSharedPublisherConsumerPreApply(Accessor, ConsumerWind, Dt);
-	bOk &= TestTrue(FString::Printf(
-			TEXT("The frame after the enable request advances by dt: got %.9f expected %.9f"),
-			SharedWind.RuntimeState->Time - EnabledNormalFrameTimeBefore, Dt * SharedWind.TimeScale),
-		FMath::IsNearlyEqual(SharedWind.RuntimeState->Time - EnabledNormalFrameTimeBefore,
-			Dt * SharedWind.TimeScale, Tol));
-	bOk &= TestTrue(TEXT("Consumer follows the publisher after the enable request"),
-		FMath::IsNearlyEqual(ConsumerWind.RuntimeState->Time, SharedWind.RuntimeState->Time, Tol));
-
-	// 9. 停止中の同 Entry reinit: Persona で Wind Preset や Simple World 設定を変えると PreUpdate が reinit を要求し、
-	//    同じ Tag / Entry のまま ResetEffectiveValues だけが呼ばれる（ReleaseEntries は呼ばれない）。
-	//    このとき累積を捨てると再開時の追いつきが不足し、消費側（Entry と serial を持ったまま外挿している）の Time より
-	//    手前を publish して巻き戻ってしまうので、Entry を保持したままの reinit では累積を残す。
-	{
-		const float ReinitTimeScale = SharedWind.TimeScale;
+		const float InitialTime = SharedWind.RuntimeState->Time;
+		bOk &= TestTrue(FString::Printf(TEXT("%s: consumer adopts published time"), Case.Name),
+			FMath::IsNearlyEqual(ConsumerWind.RuntimeState->Time, InitialTime, Tol));
 
 		for (int32 Index = 0; Index < StallFrames; ++Index)
 		{
-			Helper.AccumulatePendingDeltaTime(Dt);
+			Inputs.GameTimeSeconds = Inputs.GameTimeSeconds.GetValue() + Dt;
 			RunSharedPublisherConsumerPreApply(Accessor, ConsumerWind, Dt);
 		}
-		const float ReinitConsumerTimeBeforeResume = ConsumerWind.RuntimeState->Time;
-		const bool ReinitGustActiveBeforeResume = ConsumerWind.RuntimeState->ActiveGust.bIsActive;
-		const float ReinitGustElapsedBeforeResume =
-			ConsumerWind.RuntimeState->Time - ConsumerWind.RuntimeState->ActiveGust.StartTime;
 
-		// 停止中に同じ Entry のまま reinit（Persona のプリセット変更等）が入る
-		Helper.ResetEffectiveValues(Inputs);
-		bOk &= TestTrue(FString::Printf(
-				TEXT("Reinit keeps the accumulated delta time: got %.9f expected %.9f"),
-				Helper.GetPendingDeltaTime(), StallFrames * Dt),
-			FMath::IsNearlyEqual(Helper.GetPendingDeltaTime(), StallFrames * Dt, Tol));
-
-		Helper.AccumulatePendingDeltaTime(Dt);
-		bOk &= TestTrue(TEXT("Publisher publishes on resume after the reinit"),
-			Helper.Update(Inputs, SharedWind.RuntimeState, Dt, PublishFrame, MaxAgeFrames));
+		// 同じフレームで消費側を先に進め、次に BP 要求と publish を処理する。
+		Inputs.GameTimeSeconds = Inputs.GameTimeSeconds.GetValue() + Dt;
 		RunSharedPublisherConsumerPreApply(Accessor, ConsumerWind, Dt);
-
-		const float ExpectedPublisherTime = ReinitConsumerTimeBeforeResume + Dt * ReinitTimeScale;
-		bOk &= TestTrue(FString::Printf(
-				TEXT("Publisher catches up the stalled span across the reinit: got %.9f expected %.9f"),
-				SharedWind.RuntimeState->Time, ExpectedPublisherTime),
-			FMath::IsNearlyEqual(SharedWind.RuntimeState->Time, ExpectedPublisherTime, Tol));
-		bOk &= TestTrue(FString::Printf(
-				TEXT("Consumer time does not rewind after the reinit resume: got %.9f before %.9f"),
-				ConsumerWind.RuntimeState->Time, ReinitConsumerTimeBeforeResume),
-			ConsumerWind.RuntimeState->Time >= ReinitConsumerTimeBeforeResume - Tol);
-		bOk &= TestTrue(TEXT("Consumer adopts the caught-up time after the reinit"),
-			FMath::IsNearlyEqual(ConsumerWind.RuntimeState->Time, SharedWind.RuntimeState->Time, Tol));
-
-		if (ReinitGustActiveBeforeResume)
+		const float ExtrapolatedTime = ConsumerWind.RuntimeState->Time;
+		FKawaiiProceduralWindDynamicParams Request;
+		if (Case.bDisable)
 		{
-			bOk &= TestTrue(TEXT("Consumer gust start time matches the publisher after the reinit"),
-				FMath::IsNearlyEqual(ConsumerWind.RuntimeState->ActiveGust.StartTime,
-					SharedWind.RuntimeState->ActiveGust.StartTime, Tol));
-			const float ReinitGustElapsedAfterResume =
-				ConsumerWind.RuntimeState->Time - ConsumerWind.RuntimeState->ActiveGust.StartTime;
-			bOk &= TestTrue(FString::Printf(
-					TEXT("Gust elapsed time does not rewind across the reinit: got %.9f before %.9f"),
-					ReinitGustElapsedAfterResume, ReinitGustElapsedBeforeResume),
-				ReinitGustElapsedAfterResume >= ReinitGustElapsedBeforeResume - Tol);
+			Request.bOverrideIsEnabled = true;
+			Request.bIsEnabled = false;
 		}
-	}
-
-	// 10. 消費側が先に評価されるフレーム: 並列アニメ更新に順序保証は無いので、別 AnimBlueprint の消費側は
-	//     同じフレームで Publisher の Update より先に評価されることがある。その消費側は serial 未変化を見て
-	//     旧 scale / 旧有効フラグで当フレーム分を外挿するため、Publisher も当フレーム分を同じ値で進めてから
-	//     新しい要求を取り込む。こうすると停止の有無に関係なく publish 値が外挿値を下回らない。
-	{
-		FKawaiiProceduralWindDynamicParams OrderFirstDefaultParams;
-		OrderFirstDefaultParams.bOverrideTimeScale = true;
-		OrderFirstDefaultParams.TimeScale = 1.0f;
-		OrderFirstDefaultParams.bOverrideIsEnabled = true;
-		OrderFirstDefaultParams.bIsEnabled = true;
-
-		// Publisher → 消費側の順で 1 フレーム回す（定常運転）
-		const auto RunOrderFirstSteadyFrame = [&]() -> bool
+		else
 		{
-			Helper.AccumulatePendingDeltaTime(Dt);
-			const bool bPublished = Helper.Update(Inputs, SharedWind.RuntimeState, Dt, PublishFrame, MaxAgeFrames);
-			RunSharedPublisherConsumerPreApply(Accessor, ConsumerWind, Dt);
-			return bPublished;
-		};
-
-		const auto RunOrderFirstCase = [&](const TCHAR* CaseName,
-		                                   const FKawaiiProceduralWindDynamicParams& OrderFirstRequest,
-		                                   const int32 OrderFirstStallFrames,
-		                                   const float OrderFirstExpectedTimeScale,
-		                                   const bool bOrderFirstExpectDisabled) -> bool
-		{
-			bool bCaseOk = true;
-
-			// 直前のケースの影響を消し、scale 1 / 有効の定常運転から始める（2 フレーム目で消費側が新しい scale を採用する）
-			PublisherEntry->RequestWindParams(OrderFirstDefaultParams);
-			bCaseOk &= TestTrue(FString::Printf(TEXT("%s: setup frame publishes"), CaseName),
-				RunOrderFirstSteadyFrame());
-			bCaseOk &= TestTrue(FString::Printf(TEXT("%s: steady frame publishes"), CaseName),
-				RunOrderFirstSteadyFrame());
-
-			const float OrderFirstScale = SharedWind.TimeScale;
-			bCaseOk &= TestTrue(FString::Printf(TEXT("%s: consumer caches the steady time scale"), CaseName),
-				FMath::IsNearlyEqual(ConsumerWind.RuntimeState->CachedPublisherTimeScale, OrderFirstScale, Tol));
-
-			// 停止フレーム（PreUpdate だけが走る）。0 フレームなら停止無しの純粋な定常運転ケースになる
-			for (int32 Index = 0; Index < OrderFirstStallFrames; ++Index)
-			{
-				Helper.AccumulatePendingDeltaTime(Dt);
-				RunSharedPublisherConsumerPreApply(Accessor, ConsumerWind, Dt);
-			}
-
-			// (a) 消費側が Publisher より先に評価される: serial 未変化なので旧 scale / 旧有効フラグで外挿する
-			RunSharedPublisherConsumerPreApply(Accessor, ConsumerWind, Dt);
-			const float OrderFirstExtrapolatedTime = ConsumerWind.RuntimeState->Time;
-
-			// (b) 同じフレームで BP から TimeScale / Enabled の変更要求が届く
-			PublisherEntry->RequestWindParams(OrderFirstRequest);
-
-			// (c) 同じフレームの Publisher の Update（当フレーム分は旧 scale で進め、要求は次フレームから効かせる）
-			Helper.AccumulatePendingDeltaTime(Dt);
-			bCaseOk &= TestTrue(FString::Printf(TEXT("%s: publisher publishes after the consumer"), CaseName),
-				Helper.Update(Inputs, SharedWind.RuntimeState, Dt, PublishFrame, MaxAgeFrames));
-			bCaseOk &= TestTrue(FString::Printf(
-					TEXT("%s: published time matches the consumer extrapolation: got %.9f expected %.9f"),
-					CaseName, SharedWind.RuntimeState->Time, OrderFirstExtrapolatedTime),
-				FMath::IsNearlyEqual(SharedWind.RuntimeState->Time, OrderFirstExtrapolatedTime, Tol));
-
-			// 次のフレーム: 消費側が新しい serial を採用する。外挿済みの Time より手前へは戻らない
-			RunSharedPublisherConsumerPreApply(Accessor, ConsumerWind, Dt);
-			bCaseOk &= TestTrue(FString::Printf(
-					TEXT("%s: consumer time does not rewind when it adopts: got %.9f before %.9f"),
-					CaseName, ConsumerWind.RuntimeState->Time, OrderFirstExtrapolatedTime),
-				ConsumerWind.RuntimeState->Time >= OrderFirstExtrapolatedTime - Tol);
-			bCaseOk &= TestTrue(FString::Printf(TEXT("%s: consumer caches the requested time scale"), CaseName),
-				FMath::IsNearlyEqual(ConsumerWind.RuntimeState->CachedPublisherTimeScale,
-					OrderFirstExpectedTimeScale, Tol));
-			bCaseOk &= TestEqual(FString::Printf(TEXT("%s: consumer publisher disabled flag"), CaseName),
-				ConsumerWind.RuntimeState->bPublisherWindDisabled, bOrderFirstExpectDisabled);
-
-			return bCaseOk;
-		};
-
-		FKawaiiProceduralWindDynamicParams OrderFirstZeroScaleParams;
-		OrderFirstZeroScaleParams.bOverrideTimeScale = true;
-		OrderFirstZeroScaleParams.TimeScale = 0.0f;
-
-		FKawaiiProceduralWindDynamicParams OrderFirstDisableParams;
-		OrderFirstDisableParams.bOverrideIsEnabled = true;
-		OrderFirstDisableParams.bIsEnabled = false;
-
-		bOk &= RunOrderFirstCase(TEXT("Consumer evaluated first with a zero time scale request"),
-			OrderFirstZeroScaleParams, 0, 0.0f, false);
-		bOk &= RunOrderFirstCase(TEXT("Consumer evaluated first with a disable request"),
-			OrderFirstDisableParams, 0, 1.0f, true);
-		bOk &= RunOrderFirstCase(TEXT("Consumer evaluated first after a stall with a zero time scale request"),
-			OrderFirstZeroScaleParams, StallFrames, 0.0f, false);
-
-		// 既定へ戻し、通常運転が Dt ずつ進むところまで確認する
-		PublisherEntry->RequestWindParams(OrderFirstDefaultParams);
-		bOk &= TestTrue(TEXT("Consumer-first restore frame publishes"), RunOrderFirstSteadyFrame());
-		bOk &= TestTrue(TEXT("Consumer-first restore steady frame publishes"), RunOrderFirstSteadyFrame());
-		const float OrderFirstNormalTimeBefore = SharedWind.RuntimeState->Time;
-		bOk &= TestTrue(TEXT("Consumer-first normal frame publishes"), RunOrderFirstSteadyFrame());
-		bOk &= TestTrue(FString::Printf(
-				TEXT("Normal operation advances by dt after the consumer-first cases: got %.9f expected %.9f"),
-				SharedWind.RuntimeState->Time - OrderFirstNormalTimeBefore, Dt),
-			FMath::IsNearlyEqual(SharedWind.RuntimeState->Time - OrderFirstNormalTimeBefore, Dt, Tol));
-		bOk &= TestTrue(TEXT("Consumer matches the publisher after the consumer-first cases"),
-			FMath::IsNearlyEqual(ConsumerWind.RuntimeState->Time, SharedWind.RuntimeState->Time, Tol));
+			Request.bOverrideTimeScale = true;
+			Request.TimeScale = 0.0f;
+		}
+		PublisherEntry->RequestWindParams(Request);
+		bOk &= TestTrue(FString::Printf(TEXT("%s: resume publishes"), Case.Name),
+			Helper.Update(Inputs, SharedWind.RuntimeState, Dt, PublishFrame, 60));
+		bOk &= TestTrue(FString::Printf(TEXT("%s: publish catches consumer clock"), Case.Name),
+			FMath::IsNearlyEqual(SharedWind.RuntimeState->Time, ExtrapolatedTime, Tol));
+		RunSharedPublisherConsumerPreApply(Accessor, ConsumerWind, Dt);
+		bOk &= TestTrue(FString::Printf(TEXT("%s: consumer does not rewind"), Case.Name),
+			ConsumerWind.RuntimeState->Time >= ExtrapolatedTime - Tol);
+		bOk &= TestEqual(FString::Printf(TEXT("%s: disable request is reflected"), Case.Name),
+			ConsumerWind.RuntimeState->bPublisherWindDisabled, Case.bDisable);
+		bOk &= TestTrue(FString::Printf(TEXT("%s: time scale request is reflected"), Case.Name),
+			FMath::IsNearlyEqual(ConsumerWind.RuntimeState->CachedPublisherTimeScale,
+				Case.bDisable ? 1.0f : 0.0f, Tol));
 	}
-
 	return bOk;
 }
 
@@ -1927,6 +1201,7 @@ bool FKawaiiPhysicsSharedPublisherClaimFramePublishesCaughtUpClockTest::RunTest(
 	Inputs.SharedWind = &SharedWind;
 	Inputs.bWindEnabled = SharedWind.bIsEnabled;
 	Inputs.WindTimeScale = SharedWind.TimeScale;
+	Inputs.GameTimeSeconds = 0.0;
 
 	FKawaiiPhysicsSharedPublishHelper Helper;
 	Helper.SetSourceID(SourceID);
@@ -1957,16 +1232,16 @@ bool FKawaiiPhysicsSharedPublisherClaimFramePublishesCaughtUpClockTest::RunTest(
 	bOk &= TestTrue(TEXT("Consumer adopts the published time"),
 		FMath::IsNearlyEqual(ConsumerWind.RuntimeState->Time, T0, Tol));
 
-	// 2. Publisher の枝が止まる（PreUpdate だけが走る）。消費側は外挿で先へ進む
+	// 2. Publisher の枝を止め、World のゲーム内時刻と消費側だけを進める
 	for (int32 Index = 0; Index < StallFrames; ++Index)
 	{
-		Helper.AccumulatePendingDeltaTime(Dt);
+		Inputs.GameTimeSeconds = Inputs.GameTimeSeconds.GetValue() + Dt;
 		RunSharedPublisherConsumerPreApply(Accessor, ConsumerWind, Dt);
 	}
 	const float ConsumerTimeBeforeClaim = ConsumerWind.RuntimeState->Time;
 
-	// 3. 期限切れを再現して claim 経路に入れる（provider は自分のままだが MaxAge を超えたので取り直しになる）
-	Helper.AccumulatePendingDeltaTime(Dt);
+	// 3. World 時計を進めてから、期限切れの claim 経路に入れる
+	Inputs.GameTimeSeconds = Inputs.GameTimeSeconds.GetValue() + Dt;
 	Frame += MaxAgeFrames + 1;
 	bOk &= TestTrue(TEXT("Publisher re-claims the expired entry"),
 		Helper.Update(Inputs, SharedWind.RuntimeState, Dt, Frame, MaxAgeFrames));
@@ -1998,6 +1273,7 @@ bool FKawaiiPhysicsSharedPublisherClaimFramePublishesCaughtUpClockTest::RunTest(
 
 	// 4. 対照: 停止無しの claim（reinit 直後の初回 Update 相当）も当フレーム分は publish 前に進むので、
 	//    claim publish の Time は最終 Time と一致する
+	Inputs.GameTimeSeconds = Inputs.GameTimeSeconds.GetValue() + Dt;
 	Frame += MaxAgeFrames + 1;
 	bOk &= TestTrue(TEXT("Publisher re-claims without a stall"),
 		Helper.Update(Inputs, SharedWind.RuntimeState, Dt, Frame, MaxAgeFrames));

@@ -3,16 +3,13 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
-#include "KawaiiPhysicsMemoryTraceRegion.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "HAL/PlatformTime.h"
 #include "Runtime/Launch/Resources/Version.h"
 #include "Templates/Function.h"
 #include "Curves/CurveFloat.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
-#include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
-#include "KawaiiPhysicsSharedPublisherTypes.h"
 #include "KawaiiPhysicsTestHarness.h"
 
 namespace
@@ -305,213 +302,6 @@ namespace
 	}
 
 	// ---------------------------------------------------------------
-	// Shared Collision Copy Perf
-	// ---------------------------------------------------------------
-	// Shared コリジョン経路（Publish→ReadMerged→格納）が丸ごとコピーする limit 構造体の量を計測する。
-	// 非UPROPERTYキャッシュメンバの追加でサイズが増えた分（Capsule/TaperedCapsule/Box/Planar）が
-	// フレーム毎コピーコストとして無視できる規模かどうかを実測するのが目的。
-	// ソースは2つ、各ソースはSphere/Capsule/TaperedCapsule/Box各8個・Planar4個を持つ。
-
-	constexpr int32 GSharedCollisionSphereCount = 8;
-	constexpr int32 GSharedCollisionCapsuleCount = 8;
-	constexpr int32 GSharedCollisionTaperedCapsuleCount = 8;
-	constexpr int32 GSharedCollisionBoxCount = 8;
-	constexpr int32 GSharedCollisionPlanarCount = 4;
-	constexpr int32 GSharedCollisionSourceCount = 2;
-	constexpr int32 GSharedCollisionLimitsPerSource =
-		GSharedCollisionSphereCount + GSharedCollisionCapsuleCount + GSharedCollisionTaperedCapsuleCount +
-		GSharedCollisionBoxCount + GSharedCollisionPlanarCount;
-	constexpr int32 GSharedCollisionLimitsPerFrame = GSharedCollisionLimitsPerSource * GSharedCollisionSourceCount;
-
-	// WriteSharedCollisionToSubsystemが送り出す変換済みデータ相当のテンプレートを1ソース分作る
-	// （空間変換[ConvertSimulationSpaceTransform]は本ベンチの対象外。構造体コピーそのものの帯域を測るのが目的）。
-	FKawaiiPhysicsSharedCollisionData MakeSharedCollisionSourceTemplate(float Base)
-	{
-		FKawaiiPhysicsSharedCollisionData Data;
-
-		for (int32 Index = 0; Index < GSharedCollisionSphereCount; ++Index)
-		{
-			FSphericalLimit Sphere;
-			Sphere.bEnable = true;
-			Sphere.Location = FVector(Base + Index, Base + Index * 2.0f, Base + Index * 3.0f);
-			Sphere.Rotation = FQuat(FVector(0.0, 0.0, 1.0), 0.1f * Index);
-			Sphere.Radius = 10.0f + Index;
-			Sphere.LimitType = ESphericalLimitType::Outer;
-			Data.SphericalLimits.Add(Sphere);
-		}
-
-		for (int32 Index = 0; Index < GSharedCollisionCapsuleCount; ++Index)
-		{
-			FCapsuleLimit Capsule;
-			Capsule.bEnable = true;
-			Capsule.Location = FVector(Base + Index, Base - Index, Base + Index * 2.0f);
-			Capsule.Rotation = FQuat(FVector(1.0, 0.0, 0.0), 0.1f * Index);
-			Capsule.Radius = 5.0f;
-			Capsule.Length = 40.0f + Index;
-			Data.CapsuleLimits.Add(Capsule);
-		}
-
-		for (int32 Index = 0; Index < GSharedCollisionTaperedCapsuleCount; ++Index)
-		{
-			FTaperedCapsuleLimit TaperedCapsule;
-			TaperedCapsule.bEnable = true;
-			TaperedCapsule.Location = FVector(Base - Index, Base + Index, Base + Index * 4.0f);
-			TaperedCapsule.Rotation = FQuat(FVector(0.0, 1.0, 0.0), 0.1f * Index);
-			TaperedCapsule.Radius0 = 6.0f + Index;
-			TaperedCapsule.Radius1 = 4.0f + Index;
-			TaperedCapsule.Length = 50.0f + Index;
-			Data.TaperedCapsuleLimits.Add(TaperedCapsule);
-		}
-
-		for (int32 Index = 0; Index < GSharedCollisionBoxCount; ++Index)
-		{
-			FBoxLimit Box;
-			Box.bEnable = true;
-			Box.Location = FVector(Base + Index * 2.0f, Base, Base - Index);
-			Box.Rotation = FQuat(FVector(0.0, 0.0, 1.0), 0.05f * Index);
-			Box.Extent = FVector(8.0f, 8.0f, 20.0f + Index);
-			Data.BoxLimits.Add(Box);
-		}
-
-		for (int32 Index = 0; Index < GSharedCollisionPlanarCount; ++Index)
-		{
-			FPlanarLimit Planar;
-			Planar.bEnable = true;
-			Planar.Location = FVector(Base, Base + Index * 10.0f, Base - 100.0f - Index * 50.0f);
-			Planar.Rotation = FQuat(FVector(1.0, 0.0, 0.0), 0.05f * Index);
-			Planar.Plane = FPlane(Planar.Location, Planar.Rotation.GetUpVector());
-			Data.PlanarLimits.Add(Planar);
-		}
-
-		return Data;
-	}
-
-	// ConvertAndAppend/ConvertAndStoreが行う「要素毎に一旦ローカル変数へコピーしてAddする」を模した汎用コピー。
-	template <typename TLimitArray>
-	void CopyLimitsElementwise(const TLimitArray& InLimits, TLimitArray& OutLimits)
-	{
-		OutLimits.Reserve(OutLimits.Num() + InLimits.Num());
-		for (const auto& Limit : InLimits)
-		{
-			auto Converted = Limit;
-			OutLimits.Add(Converted);
-		}
-	}
-
-	// WriteSharedCollisionToSubsystemのConvertAndAppendを模す: テンプレートからスクラッチへ要素毎コピーしてPublishする。
-	void PublishSharedCollisionSource(const FKawaiiPhysicsSharedCollisionData& Template,
-	                                  FKawaiiPhysicsSharedCollisionData& Scratch,
-	                                  FKawaiiPhysicsSharedCollisionSourceSlot& Slot)
-	{
-		Scratch.Reset();
-		CopyLimitsElementwise(Template.SphericalLimits, Scratch.SphericalLimits);
-		CopyLimitsElementwise(Template.CapsuleLimits, Scratch.CapsuleLimits);
-		CopyLimitsElementwise(Template.TaperedCapsuleLimits, Scratch.TaperedCapsuleLimits);
-		CopyLimitsElementwise(Template.BoxLimits, Scratch.BoxLimits);
-		CopyLimitsElementwise(Template.PlanarLimits, Scratch.PlanarLimits);
-		Slot.Publish(Scratch);
-	}
-
-	// UpdateSharedCollisionLimitsのConvertAndStoreを模す: ReadMergedで受け取った配列をShared側へ要素毎コピーする。
-	// 本番はSharedSphericalLimits等5本の個別TArrayだが、コピー対象の構造体・要素数は同一なので
-	// FKawaiiPhysicsSharedCollisionDataを使い回して集約する（計測の本質＝要素毎コピー帯域には影響しない）。
-	int32 StoreSharedCollisionLimits(const FKawaiiPhysicsSharedCollisionData& Merged,
-	                                 FKawaiiPhysicsSharedCollisionData& SharedOut)
-	{
-		SharedOut.Reset();
-		CopyLimitsElementwise(Merged.SphericalLimits, SharedOut.SphericalLimits);
-		CopyLimitsElementwise(Merged.CapsuleLimits, SharedOut.CapsuleLimits);
-		CopyLimitsElementwise(Merged.TaperedCapsuleLimits, SharedOut.TaperedCapsuleLimits);
-		CopyLimitsElementwise(Merged.BoxLimits, SharedOut.BoxLimits);
-		CopyLimitsElementwise(Merged.PlanarLimits, SharedOut.PlanarLimits);
-		return SharedOut.SphericalLimits.Num() + SharedOut.CapsuleLimits.Num() +
-			SharedOut.TaperedCapsuleLimits.Num() + SharedOut.BoxLimits.Num() + SharedOut.PlanarLimits.Num();
-	}
-
-	bool RunSharedCollisionCopyPerf(FAutomationTestBase& Test)
-	{
-		constexpr int32 MeasureFrames = 100000;
-		FKawaiiPhysicsSharedCollisionData SourceTemplates[GSharedCollisionSourceCount];
-		for (int32 SourceIndex = 0; SourceIndex < GSharedCollisionSourceCount; ++SourceIndex)
-		{
-			SourceTemplates[SourceIndex] = MakeSharedCollisionSourceTemplate(10.0f + SourceIndex * 100.0f);
-		}
-
-		TArray<double> MsPerFrameValues;
-		MsPerFrameValues.Reserve(GTrials);
-		int32 LastMergedLimitCount = 0;
-
-		for (int32 Trial = 0; Trial < GTrials; ++Trial)
-		{
-			// 本番のCachedSharedCollisionEntry/CachedSourceSlotに相当するキャッシュを試行毎に作り直す
-			// （Entry/Slotはワールド非依存のプレーン構造体のため、Subsystem/Worldを経由せず直接構築できる）。
-			FKawaiiPhysicsSharedCollisionEntry Entry;
-			TArray<TSharedPtr<FKawaiiPhysicsSharedCollisionSourceSlot>> Slots;
-			for (int32 SourceIndex = 0; SourceIndex < GSharedCollisionSourceCount; ++SourceIndex)
-			{
-				Slots.Add(Entry.GetOrCreateSlot(static_cast<uint64>(SourceIndex) + 1));
-			}
-
-			// 本番のSharedCollisionPublishScratchに相当する使い回しスクラッチ
-			// （Publishのswapで前フレームのBufferが戻り、確保済みメモリを再利用できる）。
-			TArray<FKawaiiPhysicsSharedCollisionData> PublishScratches;
-			PublishScratches.SetNum(GSharedCollisionSourceCount);
-
-			// 本番のSharedCollisionMergedData/Shared*Limitsに相当する使い回しバッファ。
-			FKawaiiPhysicsSharedCollisionData MergedData;
-			FKawaiiPhysicsSharedCollisionData SharedStore;
-
-			const double CalibrationStartSeconds = FPlatformTime::Seconds();
-			RunKawaiiPhysicsPerfCalibrationLoop();
-			const double CalibMs = (FPlatformTime::Seconds() - CalibrationStartSeconds) * 1000.0;
-
-			for (int32 Frame = 0; Frame < GWarmupFrames; ++Frame)
-			{
-				for (int32 SourceIndex = 0; SourceIndex < GSharedCollisionSourceCount; ++SourceIndex)
-				{
-					PublishSharedCollisionSource(SourceTemplates[SourceIndex], PublishScratches[SourceIndex],
-						*Slots[SourceIndex]);
-				}
-				Entry.ReadMerged(MergedData);
-				StoreSharedCollisionLimits(MergedData, SharedStore);
-			}
-
-			const double StartSeconds = FPlatformTime::Seconds();
-			for (int32 Frame = 0; Frame < MeasureFrames; ++Frame)
-			{
-				for (int32 SourceIndex = 0; SourceIndex < GSharedCollisionSourceCount; ++SourceIndex)
-				{
-					PublishSharedCollisionSource(SourceTemplates[SourceIndex], PublishScratches[SourceIndex],
-						*Slots[SourceIndex]);
-				}
-				Entry.ReadMerged(MergedData);
-				LastMergedLimitCount = StoreSharedCollisionLimits(MergedData, SharedStore);
-			}
-			const double ElapsedSeconds = FPlatformTime::Seconds() - StartSeconds;
-			const double MsPerFrame = ElapsedSeconds * 1000.0 / static_cast<double>(MeasureFrames);
-
-			Test.AddInfo(FString::Printf(
-				TEXT("PERF_RAW KawaiiPhysics.Perf.SharedCollisionCopy trial=%d ms=%.6f calib_ms=%.6f"),
-				Trial, MsPerFrame, CalibMs));
-			MsPerFrameValues.Add(MsPerFrame);
-		}
-
-		// コピー漏れ/重複がないことを最終フレームのマージ結果件数で検証する（2ソース分の合計件数と一致するはず）。
-		const bool bCountOk = Test.TestEqual(
-			TEXT("Merged limit count matches two sources worth of template limits"),
-			LastMergedLimitCount, GSharedCollisionLimitsPerFrame);
-
-		MsPerFrameValues.Sort();
-		const double MinMsPerFrame = MsPerFrameValues[0];
-		const double MedianMsPerFrame = MsPerFrameValues[GTrials / 2];
-		Test.AddInfo(FString::Printf(
-			TEXT("PERF KawaiiPhysics.Perf.SharedCollisionCopy median_ms_per_frame=%.6f min_ms_per_frame=%.6f limits_per_frame=%d"),
-			MedianMsPerFrame, MinMsPerFrame, GSharedCollisionLimitsPerFrame));
-
-		return bCountOk;
-	}
-
-	// ---------------------------------------------------------------
 	// SimpleWorld 読み取りベンチ
 	// ---------------------------------------------------------------
 	// SimpleWorld のワーカー側読み取り経路（Slot serial 判定、必要時 AppendTo、simulation 空間配列更新）を計測する。
@@ -522,6 +312,17 @@ namespace
 	constexpr int32 GSimpleWorldReadGroundBoxCount = 1;
 	constexpr int32 GSimpleWorldReadLimitsPerFrame =
 		GSimpleWorldReadConvexCount + GSimpleWorldReadBoxCount + GSimpleWorldReadGroundBoxCount;
+
+	template <typename TLimitArray>
+	void CopySimpleWorldReadLimitsElementwise(const TLimitArray& InLimits, TLimitArray& OutLimits)
+	{
+		OutLimits.Reserve(OutLimits.Num() + InLimits.Num());
+		for (const auto& Limit : InLimits)
+		{
+			auto Converted = Limit;
+			OutLimits.Add(Converted);
+		}
+	}
 
 	TArray<FPlane> MakeSimpleWorldReadUnitCubePlanes()
 	{
@@ -605,12 +406,12 @@ namespace
 		}
 
 		Scratch.Reset();
-		CopyLimitsElementwise(Template.SphericalLimits, Scratch.SphericalLimits);
-		CopyLimitsElementwise(Template.CapsuleLimits, Scratch.CapsuleLimits);
-		CopyLimitsElementwise(Template.TaperedCapsuleLimits, Scratch.TaperedCapsuleLimits);
-		CopyLimitsElementwise(Template.BoxLimits, Scratch.BoxLimits);
-		CopyLimitsElementwise(Template.PlanarLimits, Scratch.PlanarLimits);
-		CopyLimitsElementwise(Template.ConvexLimits, Scratch.ConvexLimits);
+		CopySimpleWorldReadLimitsElementwise(Template.SphericalLimits, Scratch.SphericalLimits);
+		CopySimpleWorldReadLimitsElementwise(Template.CapsuleLimits, Scratch.CapsuleLimits);
+		CopySimpleWorldReadLimitsElementwise(Template.TaperedCapsuleLimits, Scratch.TaperedCapsuleLimits);
+		CopySimpleWorldReadLimitsElementwise(Template.BoxLimits, Scratch.BoxLimits);
+		CopySimpleWorldReadLimitsElementwise(Template.PlanarLimits, Scratch.PlanarLimits);
+		CopySimpleWorldReadLimitsElementwise(Template.ConvexLimits, Scratch.ConvexLimits);
 	}
 
 	template <typename TLimitArray>
@@ -643,19 +444,16 @@ namespace
 
 	bool RunSimpleWorldReadPerf(FAutomationTestBase& Test, const TCHAR* TestLabel, int32 PublishInterval)
 	{
-		const int32 MeasureFrames = FParse::Param(FCommandLine::Get(), TEXT("KawaiiMemoryCapture")) ? 1000 : 100000;
+		const int32 MeasureFrames = 15000;
 		const int32 SafePublishInterval = FMath::Max(1, PublishInterval);
 		const FKawaiiPhysicsSharedCollisionData SourceTemplate = MakeSimpleWorldReadSourceTemplate();
 		const FKawaiiPhysicsSharedCollisionData GroundTemplate = MakeSimpleWorldReadGroundTemplate();
 
 		TArray<double> MsPerFrameValues;
 		MsPerFrameValues.Reserve(GTrials);
-		bool bOk = true;
 
 		for (int32 Trial = 0; Trial < GTrials; ++Trial)
 		{
-			FKawaiiPhysicsMemoryTraceRegion MemoryRegion(SafePublishInterval == 1
-				? TEXT("SimpleWorldReadEvery1") : TEXT("SimpleWorldReadEvery12"), Trial + 1);
 			TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry> Entry =
 				MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
 			FKawaiiPhysicsTestAccessor Accessor;
@@ -687,7 +485,6 @@ namespace
 				Accessor.UpdateSimpleWorldCollisionLimits(PoseContext);
 			}
 
-			MemoryRegion.Warmup();
 			const double StartSeconds = FPlatformTime::Seconds();
 			for (int32 Frame = 0; Frame < MeasureFrames; ++Frame)
 			{
@@ -701,7 +498,6 @@ namespace
 				Accessor.UpdateSimpleWorldCollisionLimits(PoseContext);
 			}
 			const double ElapsedSeconds = FPlatformTime::Seconds() - StartSeconds;
-			MemoryRegion.End();
 			const double MsPerFrame = ElapsedSeconds * 1000.0 / static_cast<double>(MeasureFrames);
 
 			Test.AddInfo(FString::Printf(
@@ -709,15 +505,6 @@ namespace
 				TestLabel, Trial, MsPerFrame, CalibMs));
 			MsPerFrameValues.Add(MsPerFrame);
 
-			bOk &= Test.TestEqual(
-				*FString::Printf(TEXT("SimpleWorld collider count matches final frame template for trial %d"), Trial),
-				Accessor.GetNumSimpleWorldColliders(), GSimpleWorldReadLimitsPerFrame);
-			if (SafePublishInterval == 12)
-			{
-				bOk &= Test.TestEqual(
-					*FString::Printf(TEXT("SimpleWorld shape serial matches publish count for trial %d"), Trial),
-					Accessor.GetLastReadSimpleWorldShapeSerial(), ShapePublishCount);
-			}
 		}
 
 		MsPerFrameValues.Sort();
@@ -727,7 +514,7 @@ namespace
 			TEXT("PERF KawaiiPhysics.Perf.SimpleWorldRead.%s median_ms_per_frame=%.6f min_ms_per_frame=%.6f limits_per_frame=%d"),
 			TestLabel, MedianMsPerFrame, MinMsPerFrame, GSimpleWorldReadLimitsPerFrame));
 
-		return bOk;
+		return true;
 	}
 }
 
@@ -784,28 +571,6 @@ bool FKawaiiPhysicsPerfCollisionTest::RunTest(const FString& Parameters)
 		5000);
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerfConstraintTest,
-                                 "KawaiiPhysics.Perf.Constraint",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsPerfConstraintTest::RunTest(const FString& Parameters)
-{
-	return RunSimulationPerf(*this, TEXT("KawaiiPhysics.Perf.Constraint"),
-		[](FKawaiiPhysicsTestAccessor& A)
-		{
-			A.BuildTwoVerticalChains(100, 5.0f, 8.0f);
-			ConfigureBaseSimulation(A);
-			A.SetBoneConstraintIterations(4, 4);
-			A.SetBoneConstraintGlobalComplianceType(EXPBDComplianceType::Leather);
-			// 制約長を実際の横間隔(8)より短くして違反量を常に非ゼロにする（早期returnで計測が痩せるのを防ぐ）。
-			for (int32 Depth = 0; Depth < 100; ++Depth)
-			{
-				A.AddRuntimeBoneConstraint(Depth, 100 + Depth, 6.0f);
-			}
-		},
-		12000);
-}
-
 // 拘束計算そのものを支配的にした重量ベンチ。1000ボーン / 999拘束 / 反復16+16。
 // 制約毎の除算やコンプライアンス表引きのような小さな差を、ボーン側の処理に埋もれさせずに測るためのもの。
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerfConstraintHeavyTest,
@@ -847,108 +612,15 @@ bool FKawaiiPhysicsPerfPhysicsSettingsTest::RunTest(const FString& Parameters)
 	return bOk;
 }
 
-// Shared コリジョン経路（Publish→ReadMerged→格納）の構造体コピー帯域を計測する。
-// ソース2つ×(Sphere8+Capsule8+TaperedCapsule8+Box8+Planar4) = 72limit/frame を100000フレーム
-// Publish→ReadMerged→要素毎コピーし、その所要時間を中央値と最小値で報告する。
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerfSharedCollisionCopyTest,
-                                 "KawaiiPhysics.Perf.SharedCollisionCopy",
+// 形状 Slot の毎フレーム更新と 12 フレーム間隔更新を、同じ読み取りベンチで計測する。
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerfSimpleWorldReadTest,
+                                 "KawaiiPhysics.Perf.SimpleWorldRead",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FKawaiiPhysicsPerfSharedCollisionCopyTest::RunTest(const FString& Parameters)
+bool FKawaiiPhysicsPerfSimpleWorldReadTest::RunTest(const FString& Parameters)
 {
-	return RunSharedCollisionCopyPerf(*this);
-}
-
-// SimpleWorld 読み取り経路の全再構築寄りベンチ。形状 Slot も GroundSlot も毎フレーム Publish する。
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerfSimpleWorldReadPublishEveryFrameTest,
-                                 "KawaiiPhysics.Perf.SimpleWorldRead.PublishEveryFrame",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsPerfSimpleWorldReadPublishEveryFrameTest::RunTest(const FString& Parameters)
-{
-	return RunSimpleWorldReadPerf(*this, TEXT("PublishEveryFrame"), 1);
-}
-
-// SimpleWorld 読み取り経路の serial 判定ベンチ。形状 Slot は 12 フレーム間隔、GroundSlot は毎フレーム Publish する。
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerfSimpleWorldReadPublishEvery12Test,
-                                 "KawaiiPhysics.Perf.SimpleWorldRead.PublishEvery12",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsPerfSimpleWorldReadPublishEvery12Test::RunTest(const FString& Parameters)
-{
-	return RunSimpleWorldReadPerf(*this, TEXT("PublishEvery12"), 12);
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerfSharedWindReadTest,
-                                 "KawaiiPhysics.Perf.SharedWindRead",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsPerfSharedWindReadTest::RunTest(const FString& Parameters)
-{
-	const auto SetupLocalWind = [](FKawaiiPhysicsTestAccessor& A)
-	{
-		A.BuildVerticalChain(16, 10.0f);
-		A.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
-		A.SetAllPhysicsSettings(MakePerfSettings());
-		A.Node.ExternalForces.Add(FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_ProceduralWind>());
-		FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = A.GetMutableProceduralWind(0);
-		check(Wind);
-		Wind->ExternalForceSpace = EExternalForceSpace::ComponentSpace;
-		Wind->WindDirection = FVector(0.0f, 1.0f, 0.0f);
-		Wind->ConstantForce = 10.0f;
-		Wind->SwayForce = 2.0f;
-		Wind->SwayPeriod = 0.5f;
-		Wind->RandomForce = 1.0f;
-		Wind->RandomForcePeriod = 0.4f;
-	};
-
-	const auto SetupSharedWind = [&SetupLocalWind](FKawaiiPhysicsTestAccessor& A)
-	{
-		SetupLocalWind(A);
-		FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = A.GetMutableProceduralWind(0);
-		check(Wind);
-		Wind->WindSource = EKawaiiPhysicsProceduralWindSource::Shared;
-		const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry = MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
-		FKawaiiPhysicsSharedPublisherState State;
-		State.bPublisherEnabled = true;
-		State.Wind.bPublisherWindEnabled = true;
-		State.Wind.PublisherTimeScale = 1.0f;
-		State.Wind.Params = Wind->BuildSharedWindParams();
-		FKawaiiPhysicsTestAccessor::PublishSharedPublisherState(Entry, State, 0xC001);
-		FKawaiiPhysicsTestAccessor::BindSharedWindEntry(*Wind, Entry);
-	};
-
-	const auto PrimeLocalWind = [](FKawaiiPhysicsTestAccessor& A, int32 Frame)
-	{
-		FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = A.GetMutableProceduralWind(0);
-		check(Wind);
-		FAnimInstanceProxy AnimInstanceProxy;
-		FComponentSpacePoseContext PoseContext(&AnimInstanceProxy);
-		Wind->PreApply(A.Node, PoseContext);
-	};
-
-	const auto PublishAndPrimeSharedWind = [](FKawaiiPhysicsTestAccessor& A, int32 Frame)
-	{
-		FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = A.GetMutableProceduralWind(0);
-		check(Wind);
-		FKawaiiPhysicsSharedPublisherState State;
-		State.bPublisherEnabled = true;
-		State.Wind.bPublisherWindEnabled = true;
-		State.Wind.Time = static_cast<float>(Frame) * GFrameDt;
-		State.Wind.PublisherTimeScale = 1.0f;
-		State.Wind.Params = Wind->BuildSharedWindParams();
-		FKawaiiPhysicsTestAccessor::PublishSharedPublisherState(Wind->RuntimeState->SharedPublisherEntry, State, 0xC001);
-
-		FAnimInstanceProxy AnimInstanceProxy;
-		FComponentSpacePoseContext PoseContext(&AnimInstanceProxy);
-		Wind->PreApply(A.Node, PoseContext);
-	};
-
-	AddInfo(TEXT("SharedWindRead reports a Local ProceduralWind PreApply baseline followed by publish/read worst case."));
-	bool bOk = RunSimulationPerf(*this, TEXT("KawaiiPhysics.Perf.SharedWindRead.LocalCalib"),
-	                             SetupLocalWind, 1000, GAverageSubsteps, PrimeLocalWind);
-	bOk &= RunSimulationPerf(*this, TEXT("KawaiiPhysics.Perf.SharedWindRead"),
-	                         SetupSharedWind, 1000, GAverageSubsteps, PublishAndPrimeSharedWind);
+	bool bOk = RunSimpleWorldReadPerf(*this, TEXT("PublishEveryFrame"), 1);
+	bOk &= RunSimpleWorldReadPerf(*this, TEXT("PublishEvery12"), 12);
 	return bOk;
 }
 

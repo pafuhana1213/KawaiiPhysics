@@ -3,32 +3,14 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
-#include "KawaiiPhysicsMemoryTraceRegion.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
-#include "HAL/PlatformTime.h"
 #include "Misc/AutomationTest.h"
 #include "UObject/StrongObjectPtr.h"
 
 namespace
 {
-	// Intentionally uses only the pre-optimization public API so this exact test can run against a baseline.
-	SIZE_T GetTickPerfDataBytes(const FKawaiiPhysicsSharedCollisionData& Data)
-	{
-		SIZE_T Bytes = Data.SphericalLimits.GetAllocatedSize() + Data.CapsuleLimits.GetAllocatedSize()
-			+ Data.TaperedCapsuleLimits.GetAllocatedSize() + Data.BoxLimits.GetAllocatedSize()
-			+ Data.PlanarLimits.GetAllocatedSize() + Data.ConvexLimits.GetAllocatedSize();
-		for (const FKawaiiPhysicsConvexLimit& Convex : Data.ConvexLimits)
-		{
-			Bytes += Convex.LocalPlanes.GetAllocatedSize();
-#if !UE_BUILD_SHIPPING
-			Bytes += Convex.LocalVertices.GetAllocatedSize() + Convex.LocalEdges.GetAllocatedSize();
-#endif
-		}
-		return Bytes;
-	}
-
 	struct FSubsystemTickPerfFixture
 	{
 		UWorld* World = nullptr;
@@ -59,8 +41,7 @@ namespace
 			Entry->bHasGatheredOnce = true;
 			Entry->TimeSinceLastGather = 0;
 			Entry->bGroundBoxDirty = false;
-			// A zero-radius synthetic reader prevents scene queries. Gather is deliberately excluded;
-			// transform changes independently exercise the production update + Publish path every 1/12 ticks.
+			// 半径ゼロの reader でシーンクエリを避け、変換更新から Publish までを確認する。
 			Reader->Bounds = FBoxSphereBounds(FVector::ZeroVector, FVector::ZeroVector, 0);
 			auto& Gathered = Entry->GatheredComponents.AddDefaulted_GetRef();
 			Gathered.Component = Collider.Get();
@@ -113,79 +94,45 @@ namespace
 		}
 	};
 
-	bool RunSubsystemTickPerf(FAutomationTestBase& Test, const TCHAR* Label, int32 PublishInterval, bool bChangeDesc)
+	bool RunSubsystemTickPublishCase(FAutomationTestBase& Test, const TCHAR* Label, int32 PublishInterval, bool bChangeDesc)
 	{
-		constexpr int32 WarmupFrames = 120;
-		constexpr int32 MeasureFrames = 2400;
+		constexpr int32 CheckFrames = 24;
 		constexpr float DeltaTime = 1.0f / 60.0f;
-		TArray<double> FrameTrials;
-		TArray<double> TickTrials;
-		for (int32 Trial = 0; Trial < 5; ++Trial)
+		FSubsystemTickPerfFixture Fixture;
+		const uint64 SerialBefore = Fixture.Entry->Slot.GetPublishSerial();
+		for (int32 Frame = 0; Frame < CheckFrames; ++Frame)
 		{
-			FKawaiiPhysicsMemoryTraceRegion MemoryRegion(Label, Trial + 1);
-			FSubsystemTickPerfFixture Fixture;
-			for (int32 Frame = 0; Frame < WarmupFrames; ++Frame)
-			{
-				Fixture.Update(Frame, PublishInterval, bChangeDesc);
-				Fixture.Subsystem->Tick(DeltaTime);
-			}
-			const uint64 SerialBefore = Fixture.Entry->Slot.GetPublishSerial();
-			double TickSeconds = 0;
-			MemoryRegion.Warmup();
-			const double FrameStart = FPlatformTime::Seconds();
-			for (int32 Frame = WarmupFrames; Frame < WarmupFrames + MeasureFrames; ++Frame)
-			{
-				Fixture.Update(Frame, PublishInterval, bChangeDesc);
-				const double TickStart = FPlatformTime::Seconds();
-				Fixture.Subsystem->Tick(DeltaTime);
-				TickSeconds += FPlatformTime::Seconds() - TickStart;
-			}
-			const double FrameMs = (FPlatformTime::Seconds() - FrameStart) * 1000 / MeasureFrames;
-			MemoryRegion.End();
-			const double TickMs = TickSeconds * 1000 / MeasureFrames;
-			FrameTrials.Add(FrameMs);
-			TickTrials.Add(TickMs);
-			const uint64 Publishes = Fixture.Entry->Slot.GetPublishSerial() - SerialBefore;
-			Test.TestEqual(TEXT("Publish cadence follows transform changes, independently of gather"),
-				Publishes, static_cast<uint64>(MeasureFrames / PublishInterval));
-			FKawaiiPhysicsSharedCollisionData Published;
-			Fixture.Entry->Slot.AppendTo(Published);
-			Test.TestEqual(TEXT("Real Tick publishes all seeded convexes"), Published.ConvexLimits.Num(), 32);
-			Test.TestEqual(TEXT("Real Tick publishes all seeded boxes"), Published.BoxLimits.Num(), 16);
-			Test.TestEqual(TEXT("Seeded gathered component survives the benchmark"), Fixture.Entry->GatheredComponents.Num(), 1);
-			Test.TestTrue(TEXT("No gather was run during the benchmark"), Fixture.Entry->TimeSinceLastGather > 1);
-			const SIZE_T ScratchBytes = GetTickPerfDataBytes(Fixture.Entry->PublishScratch);
-			Test.AddInfo(FString::Printf(
-				TEXT("SUBSYSTEM_TICK_PERF case=%s trial=%d frame_ms=%.6f tick_ms=%.6f publishes=%llu scratch_bytes=%llu published_copy_bytes=%llu allocation_calls=unavailable"),
-				Label, Trial + 1, FrameMs, TickMs, Publishes, static_cast<uint64>(ScratchBytes),
-				static_cast<uint64>(GetTickPerfDataBytes(Published))));
+			Fixture.Update(Frame, PublishInterval, bChangeDesc);
+			Fixture.Subsystem->Tick(DeltaTime);
 		}
-		FrameTrials.Sort();
-		TickTrials.Sort();
-		Test.AddInfo(FString::Printf(TEXT("SUBSYSTEM_TICK_PERF_MEDIAN case=%s frame_ms=%.6f tick_ms=%.6f providers=16 convexes=32 boxes=16"),
-			Label, FrameTrials[2], TickTrials[2]));
-		return true;
+		bool bOk = true;
+		const uint64 Publishes = Fixture.Entry->Slot.GetPublishSerial() - SerialBefore;
+		bOk &= Test.TestEqual(FString::Printf(TEXT("%s: Publish cadence follows transform changes"), Label),
+			Publishes, static_cast<uint64>(CheckFrames / PublishInterval));
+		FKawaiiPhysicsSharedCollisionData Published;
+		Fixture.Entry->Slot.AppendTo(Published);
+		bOk &= Test.TestEqual(FString::Printf(TEXT("%s: Tick publishes all seeded convexes"), Label), Published.ConvexLimits.Num(), 32);
+		bOk &= Test.TestEqual(FString::Printf(TEXT("%s: Tick publishes all seeded boxes"), Label), Published.BoxLimits.Num(), 16);
+		bOk &= Test.TestEqual(FString::Printf(TEXT("%s: gathered component survives"), Label), Fixture.Entry->GatheredComponents.Num(), 1);
+		bOk &= Test.TestTrue(FString::Printf(TEXT("%s: no gather was run"), Label),
+			FMath::IsNearlyEqual(Fixture.Entry->TimeSinceLastGather, CheckFrames * DeltaTime, 1.0e-3f));
+		return bOk;
 	}
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSubsystemTickStablePerfTest,
-	"KawaiiPhysics.Perf.SubsystemTick.StableProviders",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::PerfFilter)
+// provider の設定が安定する場合と変化する場合に、移動に応じた Publish と gather 状態を守る。
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSubsystemTickPublishTest,
+	"KawaiiPhysics.SimpleWorld.SubsystemTickPublish",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FKawaiiPhysicsSubsystemTickStablePerfTest::RunTest(const FString& Parameters)
+bool FKawaiiPhysicsSubsystemTickPublishTest::RunTest(const FString& Parameters)
 {
-	RunSubsystemTickPerf(*this, TEXT("Stable.PublishEveryFrame"), 1, false);
-	return RunSubsystemTickPerf(*this, TEXT("Stable.PublishEvery12"), 12, false);
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSubsystemTickChangingPerfTest,
-	"KawaiiPhysics.Perf.SubsystemTick.ChangingProvider",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::PerfFilter)
-
-bool FKawaiiPhysicsSubsystemTickChangingPerfTest::RunTest(const FString& Parameters)
-{
-	RunSubsystemTickPerf(*this, TEXT("Changing.PublishEveryFrame"), 1, true);
-	return RunSubsystemTickPerf(*this, TEXT("Changing.PublishEvery12"), 12, true);
+	bool bOk = true;
+	bOk &= RunSubsystemTickPublishCase(*this, TEXT("Stable.PublishEveryFrame"), 1, false);
+	bOk &= RunSubsystemTickPublishCase(*this, TEXT("Stable.PublishEvery12"), 12, false);
+	bOk &= RunSubsystemTickPublishCase(*this, TEXT("Changing.PublishEveryFrame"), 1, true);
+	bOk &= RunSubsystemTickPublishCase(*this, TEXT("Changing.PublishEvery12"), 12, true);
+	return bOk;
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
