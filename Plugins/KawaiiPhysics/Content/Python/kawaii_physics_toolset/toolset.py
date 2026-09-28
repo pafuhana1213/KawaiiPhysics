@@ -29,6 +29,52 @@ _COLLISION_LIMIT_SHAPES = {
     'planar': ('Planar', 'PlanarLimits'),
 }
 
+_ANIM_NODE_FUNCTION_EVENTS = {
+    'initial_update': unreal.KawaiiPhysicsAnimNodeFunctionEvent.INITIAL_UPDATE,
+    'become_relevant': unreal.KawaiiPhysicsAnimNodeFunctionEvent.BECOME_RELEVANT,
+    'update': unreal.KawaiiPhysicsAnimNodeFunctionEvent.UPDATE,
+}
+
+# FAnimNode_KawaiiPhysics の編集可能な主要 UPROPERTY。ExternalForces は専用 JSON API で取得する。
+_GRAPH_NODE_SETTINGS_PROPERTIES = (
+    'RootBone', 'ExcludeBones', 'AdditionalRootBones', 'DummyBoneLength',
+    'BoneSubdivisionCount', 'bBoneSubdivisionCollisionOnly',
+    'bBoneSubdivisionDensifyByRadius', 'BoneConstraintSubdivisionCount',
+    'BoneConstraintSubdivisionFeedbackScale', 'BoneForwardAxis',
+    'PhysicsSettings', 'SimulationSpace', 'SimulationBaseBone',
+    'TargetFramerate', 'bNeedWarmUp', 'WarmUpFrames',
+    'bUseWarmUpWhenResetDynamics', 'TeleportDistanceThreshold',
+    'TeleportRotationThreshold', 'PlanarConstraint', 'SkelCompMoveScale',
+    'bUpdatePhysicsSettingsInGame', 'ResetBoneTransformWhenBoneNotFound',
+    'DampingCurveData', 'StiffnessCurveData',
+    'WorldDampingLocationCurveData', 'WorldDampingRotationCurveData',
+    'RadiusCurveData', 'LimitAngleCurveData', 'SphericalLimits',
+    'CapsuleLimits', 'TaperedCapsuleLimits', 'BoxLimits', 'PlanarLimits',
+    'LimitsDataAsset', 'PhysicsAssetForLimits', 'MirrorDataTableForLimits',
+    'bSkipMirroredBoneWithExistingCollision', 'bSharedCollisionSource',
+    'bUseSharedCollision', 'SharedCollisionGroupTag',
+    'BoneConstraintGlobalComplianceType',
+    'BoneConstraintIterationCountBeforeCollision',
+    'BoneConstraintIterationCountAfterCollision',
+    'bAutoAddChildDummyBoneConstraint', 'BoneConstraints',
+    'BoneConstraintsDataAsset', 'SyncBones', 'Gravity', 'bUseLegacyGravity',
+    'bUseDefaultGravityZProjectSetting', 'bUseWorldSpaceGravity',
+    'bEnableWind', 'WindScale', 'WindDirectionNoiseAngle',
+    'SimpleExternalForce', 'bUseWorldSpaceSimpleExternalForce',
+    'CustomExternalForces', 'bAllowWorldCollision',
+    'bOverrideCollisionParams', 'CollisionChannelSettings',
+    'bIgnoreSelfComponent', 'IgnoreBones', 'IgnoreBoneNamePrefix',
+    'bUseSimpleWorldCollision', 'SimpleWorldCollisionGatherInterval',
+    'SimpleWorldCollisionObjectTypes',
+    'SimpleWorldCollisionConvexFallbackShape',
+    'bOverrideSimpleWorldCollisionGatherRadius',
+    'SimpleWorldCollisionGatherRadius',
+    'bSimpleWorldCollisionGroundCollision',
+    'SimpleWorldCollisionSkeletalMeshCollision',
+    'SimpleWorldCollisionSource', 'SimpleWorldCollisionSharedTag',
+    'KawaiiPhysicsTag',
+)
+
 # ESphericalLimitType の値（小文字） -> ImportText の列挙子名
 _SPHERICAL_LIMIT_TYPES = {
     'outer': 'Outer',
@@ -787,6 +833,62 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
 
     @toolset_registry.tool_call
     @staticmethod
+    def create_post_process_anim_blueprint(
+            skeleton: unreal.Skeleton,
+            package_path: str,
+            asset_name: str) -> unreal.AnimBlueprint:
+        """Creates an AnimBlueprint whose AnimGraph starts with an Input Pose.
+
+        Add KawaiiPhysics with add_kawaii_physics_node, call
+        compile_anim_blueprint, then use set_post_process_anim_blueprint to
+        assign it to a SkeletalMesh.
+        """
+        _raise_for_invalid_object(skeleton, 'skeleton')
+        asset = KawaiiPhysicsToolset.create_anim_blueprint(
+            package_path, asset_name, skeleton)
+        count, error = _unpack_count_and_out(
+            unreal.KawaiiPhysicsEditorLibrary.set_anim_graph_input_pose(asset))
+        if count < 0:
+            raise ValueError(f'Unable to set AnimGraph Input Pose: {error}')
+        return asset
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def set_post_process_anim_blueprint(
+            skeletal_mesh: unreal.SkeletalMesh,
+            anim_blueprint: unreal.AnimBlueprint | None = None) -> bool:
+        """Assigns the generated class to a SkeletalMesh post process slot and returns true.
+
+        Pass None to clear the slot. The value is the AnimBlueprint generated
+        class, not the AnimBlueprint asset. This does not save the mesh.
+        Raises ValueError without changing the mesh unless the AnimBlueprint
+        targets the mesh skeleton and its AnimGraph input is an Input Pose
+        named InPose (as made by create_post_process_anim_blueprint).
+        """
+        _raise_for_invalid_object(skeletal_mesh, 'skeletal_mesh')
+        # MCP スキーマで任意引数にするため None を受け、未指定は解除として扱う
+        if anim_blueprint is not None:
+            _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
+            # 互換スケルトン判定は Python に公開されていないため、同一スケルトンだけを受け付ける
+            mesh_skeleton = skeletal_mesh.get_editor_property('skeleton')
+            target_skeleton = anim_blueprint.get_editor_property('target_skeleton')
+            if mesh_skeleton is None or target_skeleton != mesh_skeleton:
+                raise ValueError(
+                    f'AnimBlueprint target skeleton {target_skeleton} does not match '
+                    f'the SkeletalMesh skeleton {mesh_skeleton}.')
+            # InPose が無いと Post Process インスタンスがメッシュのポーズを受け取れない
+            if not unreal.KawaiiPhysicsEditorLibrary.is_anim_graph_input_pose_connected(
+                    anim_blueprint):
+                raise ValueError(
+                    'AnimGraph input is not connected to an Input Pose named InPose. '
+                    'Use create_post_process_anim_blueprint to make a post process AnimBlueprint.')
+        skeletal_mesh.set_editor_property(
+            'post_process_anim_blueprint',
+            anim_blueprint.generated_class() if anim_blueprint else None)
+        return True
+
+    @toolset_registry.tool_call
+    @staticmethod
     def set_anim_graph_input_animation(
             anim_blueprint: unreal.AnimBlueprint,
             animation: unreal.AnimSequenceBase,
@@ -1383,6 +1485,79 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
 
     @toolset_registry.tool_call
     @staticmethod
+    def describe_graph_node_settings(
+            anim_blueprint: unreal.AnimBlueprint,
+            filter_tag_names: list[str] | None = None,
+            filter_exact_match: bool = False) -> str:
+        """Returns a JSON array of KawaiiPhysics nodes with their FAnimNode_KawaiiPhysics settings and external forces.
+
+        settings holds ImportText values of the properties specific to the
+        KawaiiPhysics node (FAnimNode_KawaiiPhysics); base class properties
+        such as Alpha, AlphaInputType and LODThreshold are not included. Use
+        describe_kawaii_physics_runtime_on_actor for the runtime Alpha.
+        Unreadable settings are null; external_forces is a JSON array.
+        """
+        # MCP スキーマで任意引数にするため None を受け、未指定は空フィルタとして扱う
+        filter_tag_names = filter_tag_names or []
+        handles = _collect_graph_nodes_impl(
+            anim_blueprint, filter_tag_names, filter_exact_match)
+        descriptions = []
+        for index, handle in enumerate(handles):
+            root_bone = unreal.KawaiiPhysicsEditorLibrary.get_graph_node_root_bone_name(
+                handle)
+            tag = unreal.KawaiiPhysicsEditorLibrary.get_graph_node_tag(handle)
+            settings = {}
+            for name in _GRAPH_NODE_SETTINGS_PROPERTIES:
+                try:
+                    settings[name] = _graph_node_property_or_none(handle, name)
+                except Exception:
+                    settings[name] = None
+            forces_text = _unpack_bool_out(
+                unreal.KawaiiPhysicsEditorLibrary.get_graph_node_external_forces_as_json(
+                    handle), None)
+            if forces_text is None:
+                raise RuntimeError('Unable to get KawaiiPhysics graph node ExternalForces.')
+            descriptions.append({
+                'index': index,
+                'key': _graph_node_key(handle, index),
+                'root_bone': None if root_bone is None else str(root_bone),
+                'tag': None if tag is None else str(
+                    tag.get_editor_property('tag_name')),
+                'settings': settings,
+                'external_forces': json.loads(str(forces_text)),
+            })
+        return json.dumps(descriptions)
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def bind_graph_node_function(
+            handle: unreal.KawaiiPhysicsGraphNodeHandle,
+            event: str,
+            function_name: str) -> str:
+        """Binds an AnimNode event and returns JSON with function_name and created.
+
+        A new function graph is thread safe, has const reference (Context, Node)
+        arguments, and starts with an empty body. In its body, convert the Node
+        pin with ConvertToKawaiiPhysics and call KawaiiPhysicsLibrary Set*
+        functions such as SetPhysicsSettings. Call compile_anim_blueprint after
+        binding. Existing function graphs are never deleted or replaced;
+        an empty function_name only clears the binding.
+        """
+        _raise_for_invalid_handle(handle, 'handle')
+        event_value = _ANIM_NODE_FUNCTION_EVENTS.get(str(event or '').lower())
+        if event_value is None:
+            raise ValueError(f'Unknown AnimNode function event: {event}')
+        if function_name is None:
+            raise ValueError('function_name must not be None.')
+        count, error = _unpack_count_and_out(
+            unreal.KawaiiPhysicsEditorLibrary.bind_graph_node_anim_node_function(
+                handle, event_value, unreal.Name(function_name)))
+        if count < 0:
+            raise ValueError(f'Unable to bind AnimNode function: {error}')
+        return json.dumps({'function_name': function_name, 'created': count == 1})
+
+    @toolset_registry.tool_call
+    @staticmethod
     def set_preset_node_property(
             preset: unreal.KawaiiPhysicsPresetDataAsset,
             property_name: str,
@@ -1766,6 +1941,83 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
 
     @toolset_registry.tool_call
     @staticmethod
+    def describe_kawaii_physics_runtime_on_actor(
+            actor_label: str,
+            prefer_pie: bool = True) -> str:
+        """Returns runtime anim_instance_class and configured anim_class, node counts and alpha per component.
+
+        alpha is the current Alpha of the first KawaiiPhysics node found in the
+        component (null when none is found), not a per-node or combined value.
+        """
+        components = _find_skeletal_mesh_components_by_label(actor_label, prefer_pie)
+        filter_tags = unreal.GameplayTagContainer()
+        descriptions = []
+        for component in components:
+            anim_instance = component.get_anim_instance()
+            post_instance = component.get_post_process_instance()
+            main_nodes = (_unpack_bool_out(
+                unreal.KawaiiPhysicsLibrary.collect_kawaii_physics_nodes_from_anim_instance(
+                    anim_instance, filter_tags, False), [])
+                if anim_instance is not None else [])
+            post_nodes = (_unpack_bool_out(
+                unreal.KawaiiPhysicsLibrary.collect_kawaii_physics_nodes_from_anim_instance(
+                    post_instance, filter_tags, False), [])
+                if post_instance is not None else [])
+            all_nodes = _unpack_bool_out(
+                unreal.KawaiiPhysicsLibrary.collect_kawaii_physics_nodes_from_component(
+                    component, filter_tags, False), [])
+            main_count = len(main_nodes)
+            post_count = len(post_nodes)
+            total_count = len(all_nodes)
+            mode = component.get_animation_mode()
+            descriptions.append({
+                'actor': _actor_label(component.get_owner()),
+                'component': str(component.get_name()),
+                'animation_mode': str(mode.name) if hasattr(mode, 'name') else str(mode),
+                'anim_instance_class': (
+                    str(anim_instance.get_class().get_name())
+                    if anim_instance is not None else None),
+                'anim_class': _anim_class_name(component) or None,
+                'is_sequencer_instance': isinstance(
+                    anim_instance, unreal.AnimSequencerInstance),
+                'post_process_instance_class': (
+                    str(post_instance.get_class().get_name())
+                    if post_instance is not None else None),
+                'node_count': {
+                    'main': main_count,
+                    'linked': max(0, total_count - main_count - post_count),
+                    'post_process': post_count,
+                    'total': total_count,
+                },
+                'alpha': _get_alpha_on_component(component, filter_tags, False),
+            })
+        return json.dumps(descriptions)
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def reset_dynamics_on_actor(actor_label: str, prefer_pie: bool = True) -> int:
+        """Resets dynamics on matching components and returns their count.
+
+        Use this to check bNeedWarmUp and bUseWarmUpWhenResetDynamics.
+        """
+        components = _find_skeletal_mesh_components_by_label(actor_label, prefer_pie)
+        for component in components:
+            component.reset_anim_instance_dynamics(unreal.TeleportType.RESET_PHYSICS)
+        return len(components)
+
+    @toolset_registry.tool_call
+    @staticmethod
+    def set_background_cpu_throttle(enabled: bool) -> bool:
+        """Sets editor background CPU throttling and returns its previous value.
+
+        SaveConfig is not called, so the ini is not changed; saving Editor
+        Preferences makes it persistent. Set False before measuring PIE without
+        focus, then restore the previous value afterward.
+        """
+        return unreal.KawaiiPhysicsEditorLibrary.set_background_cpu_throttle_enabled(enabled)
+
+    @toolset_registry.tool_call
+    @staticmethod
     def start_bone_sampler(
             actor_label: str,
             bone_pattern: str,
@@ -1778,6 +2030,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         names; a running sampler is stopped first. space is "world" or
         "component" (relative to the SkeletalMeshComponent, so component
         movement does not show up).
+        When the editor is not focused, call set_background_cpu_throttle(False) first.
         """
         global _BONE_SAMPLER
 

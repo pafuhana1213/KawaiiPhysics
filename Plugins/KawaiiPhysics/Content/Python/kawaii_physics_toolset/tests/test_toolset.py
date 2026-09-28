@@ -1823,6 +1823,157 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
             toolset_module._BONE_SAMPLER = None
             actor_subsystem.destroy_actor(actor)
 
+    # ===== AnimNode Function / post process / runtime inspection =====
+
+    def test_bind_graph_node_function_creates_reuses_and_clears(self):
+        anim_blueprint = self._create_anim_blueprint()
+        handle = KawaiiPhysicsToolset.add_kawaii_physics_node(
+            anim_blueprint, 'TwintailA_L')
+        created = json.loads(KawaiiPhysicsToolset.bind_graph_node_function(
+            handle, 'UpDaTe', 'UpdateKawaiiPhysicsTest'))
+        self.assertEqual(created, {
+            'function_name': 'UpdateKawaiiPhysicsTest', 'created': True})
+        reused = json.loads(KawaiiPhysicsToolset.bind_graph_node_function(
+            handle, 'update', 'UpdateKawaiiPhysicsTest'))
+        self.assertEqual(reused, {
+            'function_name': 'UpdateKawaiiPhysicsTest', 'created': False})
+        self._assert_compiles_without_errors(anim_blueprint)
+        cleared = json.loads(KawaiiPhysicsToolset.bind_graph_node_function(
+            handle, 'update', ''))
+        self.assertEqual(cleared, {'function_name': '', 'created': False})
+        with self.assertToolRaisesRuntimeError():
+            KawaiiPhysicsToolset.bind_graph_node_function(handle, 'missing', 'Other')
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.bind_graph_node_function(handle, 'update', 'AnimGraph')
+        self.assertIn('already in use', str(cm.exception))
+
+    def test_describe_graph_node_settings_reports_properties_and_forces(self):
+        anim_blueprint = self._create_anim_blueprint()
+        first = self._place_test_node(anim_blueprint, _make_request('TwintailA_L'))
+        self._place_test_node(anim_blueprint, _make_request('TwintailB_L'))
+        KawaiiPhysicsToolset.set_graph_node_properties(
+            first, json.dumps({'PhysicsSettings': PHYSICS_SETTINGS_VALUE}))
+
+        descriptions = json.loads(
+            KawaiiPhysicsToolset.describe_graph_node_settings(anim_blueprint))
+        self.assertEqual(len(descriptions), 2)
+        by_bone = {entry['root_bone']: entry for entry in descriptions}
+        self.assertIn('Damping=0.3',
+                      by_bone['TwintailA_L']['settings']['PhysicsSettings'])
+        self.assertIsInstance(by_bone['TwintailA_L']['external_forces'], list)
+        self.assertNotIn('ExternalForces', by_bone['TwintailA_L']['settings'])
+        self.assertEqual(set(by_bone), {'TwintailA_L', 'TwintailB_L'})
+
+    def test_create_post_process_anim_blueprint_compiles(self):
+        anim_blueprint = KawaiiPhysicsToolset.create_post_process_anim_blueprint(
+            self.skeleton, TEST_FOLDER, 'ABP_PostProcessTest')
+        self.assertIsInstance(anim_blueprint, unreal.AnimBlueprint)
+        KawaiiPhysicsToolset.add_kawaii_physics_node(anim_blueprint, 'TwintailA_L')
+        self._assert_compiles_without_errors(anim_blueprint)
+
+    def test_set_post_process_anim_blueprint_on_mesh_copy(self):
+        mesh = unreal.EditorAssetLibrary.duplicate_asset(
+            GRAYCHAN_MESH_PATH, TEST_FOLDER + 'GrayChan_PostProcessTest')
+        self.assertIsInstance(mesh, unreal.SkeletalMesh)
+        anim_blueprint = KawaiiPhysicsToolset.create_post_process_anim_blueprint(
+            self.skeleton, TEST_FOLDER, 'ABP_PostProcessAssignmentTest')
+        self._assert_compiles_without_errors(anim_blueprint)
+        self.assertTrue(KawaiiPhysicsToolset.set_post_process_anim_blueprint(
+            mesh, anim_blueprint))
+        self.assertEqual(mesh.get_editor_property('post_process_anim_blueprint'),
+                         anim_blueprint.generated_class())
+        self.assertTrue(KawaiiPhysicsToolset.set_post_process_anim_blueprint(mesh))
+        self.assertIsNone(mesh.get_editor_property('post_process_anim_blueprint'))
+
+    def test_set_post_process_anim_blueprint_rejects_invalid_blueprint(self):
+        mesh = unreal.EditorAssetLibrary.duplicate_asset(
+            GRAYCHAN_MESH_PATH, TEST_FOLDER + 'GrayChan_PostProcessRejectTest')
+        self.assertIsInstance(mesh, unreal.SkeletalMesh)
+        original = mesh.get_editor_property('post_process_anim_blueprint')
+
+        # SequencePlayer 入力の通常 ABP は InPose を持たないため拒否される
+        animation = _load_asset_checked(GRAYCHAN_IDLE_ANIMATION_PATH)
+        player_blueprint = KawaiiPhysicsToolset.create_anim_blueprint(
+            TEST_FOLDER, 'ABP_PostProcessPlayerInputTest', self.skeleton, animation)
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.set_post_process_anim_blueprint(mesh, player_blueprint)
+        self.assertIn('Input Pose named InPose', str(cm.exception))
+        self.assertEqual(mesh.get_editor_property('post_process_anim_blueprint'), original)
+
+        # 別スケルトン向けの Post Process ABP も拒否される
+        chain_skeleton = unreal.EditorAssetLibrary.load_asset(CHAIN_SKELETON_PATH)
+        if chain_skeleton is None:
+            self.skipTest(f'Mismatch skeleton fixture is unavailable: {CHAIN_SKELETON_PATH}')
+        chain_blueprint = KawaiiPhysicsToolset.create_post_process_anim_blueprint(
+            chain_skeleton, TEST_FOLDER, 'ABP_PostProcessSkeletonMismatchTest')
+        with self.assertToolRaisesRuntimeError() as cm:
+            KawaiiPhysicsToolset.set_post_process_anim_blueprint(mesh, chain_blueprint)
+        self.assertIn('does not match', str(cm.exception))
+        self.assertEqual(mesh.get_editor_property('post_process_anim_blueprint'), original)
+
+    def test_set_background_cpu_throttle_restores_previous_value(self):
+        original = unreal.KawaiiPhysicsEditorLibrary.is_background_cpu_throttle_enabled()
+        try:
+            previous = KawaiiPhysicsToolset.set_background_cpu_throttle(not original)
+            self.assertEqual(previous, original)
+            self.assertEqual(
+                unreal.KawaiiPhysicsEditorLibrary.is_background_cpu_throttle_enabled(),
+                not original)
+        finally:
+            restored_previous = KawaiiPhysicsToolset.set_background_cpu_throttle(original)
+        self.assertEqual(restored_previous, not original)
+        self.assertEqual(
+            unreal.KawaiiPhysicsEditorLibrary.is_background_cpu_throttle_enabled(),
+            original)
+
+    def test_runtime_description_and_reset_unknown_actor(self):
+        self.assertEqual(json.loads(
+            KawaiiPhysicsToolset.describe_kawaii_physics_runtime_on_actor(
+                UNKNOWN_ACTOR_LABEL)), [])
+        self.assertEqual(KawaiiPhysicsToolset.reset_dynamics_on_actor(
+            UNKNOWN_ACTOR_LABEL), 0)
+
+    def test_runtime_description_and_reset_on_skeletal_mesh_actor(self):
+        self._require_world()
+        mesh = _load_asset_checked(GRAYCHAN_MESH_PATH)
+        anim_blueprint = self._create_anim_blueprint()
+        KawaiiPhysicsToolset.add_kawaii_physics_node(anim_blueprint, 'TwintailA_L')
+        self._assert_compiles_without_errors(anim_blueprint)
+        actor_subsystem = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+        actor = actor_subsystem.spawn_actor_from_class(
+            unreal.SkeletalMeshActor, unreal.Vector(5000.0, 0.0, 0.0))
+        if actor is None:
+            self.skipTest('Unable to spawn a SkeletalMeshActor in the editor world.')
+        try:
+            actor.set_actor_label('KP_PyToolsetRuntimeTest')
+            component = actor.get_editor_property('skeletal_mesh_component')
+            if hasattr(component, 'set_skeletal_mesh_asset'):
+                component.set_skeletal_mesh_asset(mesh)
+            else:
+                component.set_skeletal_mesh(mesh)
+            component.set_anim_instance_class(anim_blueprint.generated_class())
+            descriptions = json.loads(
+                KawaiiPhysicsToolset.describe_kawaii_physics_runtime_on_actor(
+                    'KP_PyToolsetRuntimeTest', False))
+            self.assertEqual(len(descriptions), 1)
+            self.assertEqual(set(descriptions[0]), {
+                'actor', 'component', 'animation_mode', 'anim_instance_class', 'anim_class',
+                'is_sequencer_instance', 'post_process_instance_class',
+                'node_count', 'alpha'})
+            anim_instance = component.get_anim_instance()
+            self.assertEqual(
+                descriptions[0]['anim_instance_class'],
+                str(anim_instance.get_class().get_name()) if anim_instance is not None else None)
+            self.assertEqual(
+                descriptions[0]['anim_class'],
+                str(anim_blueprint.generated_class().get_name()))
+            self.assertEqual(set(descriptions[0]['node_count']), {
+                'main', 'linked', 'post_process', 'total'})
+            self.assertEqual(KawaiiPhysicsToolset.reset_dynamics_on_actor(
+                'KP_PyToolsetRuntimeTest', False), 1)
+        finally:
+            actor_subsystem.destroy_actor(actor)
+
     # ===== Task F: alpha return shape =====
 
     def test_unpack_float_out_handles_return_shapes(self):
