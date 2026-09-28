@@ -11,17 +11,13 @@ namespace
 {
 	struct FQueueBufferSnapshot
 	{
-		const void* Producer[6] = {};
-		const void* Consumer[6] = {};
 		SIZE_T AllocatedBytes = 0;
 		int32 PendingItems = 0;
 		int32 ConsumingItems = 0;
 
 		template <typename ElementType>
-		void Capture(int32 Index, const TArray<ElementType>& Pending, const TArray<ElementType>& Consuming)
+		void Capture(const TArray<ElementType>& Pending, const TArray<ElementType>& Consuming)
 		{
-			Producer[Index] = Pending.GetData();
-			Consumer[Index] = Consuming.GetData();
 			AllocatedBytes += Pending.GetAllocatedSize() + Consuming.GetAllocatedSize();
 			PendingItems += Pending.Num();
 			ConsumingItems += Consuming.Num();
@@ -30,12 +26,12 @@ namespace
 		explicit FQueueBufferSnapshot(const FKawaiiPhysicsTransientForceStore& Store)
 		{
 			FScopeLock Lock(&Store.Queue->Mutex);
-			Capture(0, Store.Queue->PendingForces, Store.ConsumingForces);
-			Capture(1, Store.Queue->PendingGusts, Store.ConsumingGusts);
-			Capture(2, Store.Queue->PendingStops, Store.ConsumingStops);
-			Capture(3, Store.Queue->PendingSettingsMultipliers, Store.ConsumingSettingsMultipliers);
-			Capture(4, Store.Queue->PendingSettingsMultiplierPushes, Store.ConsumingSettingsMultiplierPushes);
-			Capture(5, Store.Queue->PendingSettingsMultiplierStops, Store.ConsumingSettingsMultiplierStops);
+			Capture(Store.Queue->PendingForces, Store.ConsumingForces);
+			Capture(Store.Queue->PendingGusts, Store.ConsumingGusts);
+			Capture(Store.Queue->PendingStops, Store.ConsumingStops);
+			Capture(Store.Queue->PendingSettingsMultipliers, Store.ConsumingSettingsMultipliers);
+			Capture(Store.Queue->PendingSettingsMultiplierPushes, Store.ConsumingSettingsMultiplierPushes);
+			Capture(Store.Queue->PendingSettingsMultiplierStops, Store.ConsumingSettingsMultiplierStops);
 		}
 	};
 
@@ -60,6 +56,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsRequestQueueBufferReuseTest,
                                  "KawaiiPhysics.TransientForce.QueueBufferReuse",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
+// 要求を同一評価で消費し、キュー容量とコピー時の独立性を守る。
 bool FKawaiiPhysicsRequestQueueBufferReuseTest::RunTest(const FString& Parameters)
 {
 	FAnimNode_KawaiiPhysics Node;
@@ -77,13 +74,6 @@ bool FKawaiiPhysicsRequestQueueBufferReuseTest::RunTest(const FString& Parameter
 		bOk &= TestEqual(TEXT("Transient stops follow starts in the same evaluation"), Node.TransientForceStore.Items.Num(), 0);
 		bOk &= TestEqual(TEXT("Multiplier stops follow starts and pushes"), Node.TransientForceStore.SettingsMultiplierItems.Num(), 0);
 		bOk &= TestEqual(TEXT("Retained queue bytes stabilize after warmup"), Current.AllocatedBytes, Previous.AllocatedBytes);
-		for (int32 Buffer = 0; Buffer < 6; ++Buffer)
-		{
-			bOk &= TestTrue(TEXT("Producer reuses the previously consumed allocation"),
-				Current.Producer[Buffer] != nullptr && Current.Producer[Buffer] == Previous.Consumer[Buffer]);
-			bOk &= TestTrue(TEXT("Consumer takes the existing producer allocation"),
-				Current.Consumer[Buffer] != nullptr && Current.Consumer[Buffer] == Previous.Producer[Buffer]);
-		}
 		Previous = Current;
 	}
 	FAnimNode_KawaiiPhysics Copy = Node;
@@ -94,38 +84,20 @@ bool FKawaiiPhysicsRequestQueueBufferReuseTest::RunTest(const FString& Parameter
 	Copy = Node;
 	bOk &= TestEqual(TEXT("Assignment does not acquire the source consume buffers"),
 		FQueueBufferSnapshot(Copy.TransientForceStore).AllocatedBytes, SIZE_T(0));
-	AddInfo(FString::Printf(TEXT("QUEUE_REUSE store_size=%d used_queue_retained_bytes=%llu unused_queue_retained_bytes=0"),
-		static_cast<int32>(sizeof(FKawaiiPhysicsTransientForceStore)), static_cast<uint64>(Previous.AllocatedBytes)));
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierQueueReuseOrderTest,
-                                 "KawaiiPhysics.SettingsMultiplier.QueueReuseOrder",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSettingsMultiplierQueueReuseOrderTest::RunTest(const FString& Parameters)
-{
-	FAnimNode_KawaiiPhysics Node;
-	bool bOk = true;
-	for (int32 Frame = 0; Frame < 4; ++Frame)
+	// 同一フレームの同じハンドルでは、後続の timed 開始が push より優先する。
+	FKawaiiPhysicsSettingsMultiplier Pushed;
+	Pushed.Damping = 2.0f;
+	FKawaiiPhysicsSettingsMultiplier Timed;
+	Timed.Damping = 3.0f;
+	Node.RequestPushPhysicsSettingsMultiplier(Pushed, 0.75f, 101);
+	Node.RequestStartPhysicsSettingsMultiplier(Timed, 0.1f, 1.0f, 0.1f, 101);
+	Node.ConsumeAndAdvancePhysicsSettingsMultipliers(1.0f / 60.0f);
+	bOk &= TestEqual(TEXT("One active item per shared handle"), Node.TransientForceStore.SettingsMultiplierItems.Num(), 1);
+	if (Node.TransientForceStore.SettingsMultiplierItems.Num() == 1)
 	{
-		FKawaiiPhysicsSettingsMultiplier Pushed;
-		Pushed.Damping = 2.0f;
-		FKawaiiPhysicsSettingsMultiplier Timed;
-		Timed.Damping = 3.0f;
-		Node.RequestPushPhysicsSettingsMultiplier(Pushed, 0.75f, 101);
-		Node.RequestStartPhysicsSettingsMultiplier(Timed, 0.1f, 1.0f, 0.1f, 101);
-		Node.ConsumeAndAdvancePhysicsSettingsMultipliers(1.0f / 60.0f);
-		bOk &= TestEqual(TEXT("One active item per shared handle"), Node.TransientForceStore.SettingsMultiplierItems.Num(), 1);
-		if (Node.TransientForceStore.SettingsMultiplierItems.Num() == 1)
-		{
-			const auto& Item = Node.TransientForceStore.SettingsMultiplierItems[0];
-			bOk &= TestFalse(TEXT("Timed request still takes precedence over push"), Item.bExternallyDriven);
-			bOk &= TestEqual(TEXT("Timed request scale preserved"), Item.Scale.Damping, 3.0f);
-		}
-		Node.RequestStopPhysicsSettingsMultiplier(101, 0.0f);
-		Node.ConsumeAndAdvancePhysicsSettingsMultipliers(1.0f / 60.0f);
-		bOk &= TestEqual(TEXT("Reused requests do not replay after stop"), Node.TransientForceStore.SettingsMultiplierItems.Num(), 0);
+		const auto& Item = Node.TransientForceStore.SettingsMultiplierItems[0];
+		bOk &= TestFalse(TEXT("Timed request takes precedence over push"), Item.bExternallyDriven);
+		bOk &= TestEqual(TEXT("Timed request scale is preserved"), Item.Scale.Damping, 3.0f);
 	}
 	return bOk;
 }

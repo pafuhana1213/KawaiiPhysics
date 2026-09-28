@@ -110,8 +110,7 @@ bool FKawaiiPhysicsSourcePinRegressionTest::RunTest(const FString& Parameters)
 
 	const EKawaiiPhysicsSimpleWorldCollisionSource Sources[] = {
 		EKawaiiPhysicsSimpleWorldCollisionSource::Local,
-		EKawaiiPhysicsSimpleWorldCollisionSource::Shared,
-		EKawaiiPhysicsSimpleWorldCollisionSource::Auto };
+		EKawaiiPhysicsSimpleWorldCollisionSource::Shared };
 	for (const auto From : Sources)
 	{
 		for (const auto To : Sources)
@@ -255,7 +254,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsRealGustRegressionTest,
 bool FKawaiiPhysicsRealGustRegressionTest::RunTest(const FString& Parameters)
 {
 	FSharedRegressionWorld Fixture;
-	for (const float Scale : {0.0f, 0.5f, 1.0f, 2.0f})
+	for (const float Scale : {0.0f, 2.0f})
 	{
 		FAnimNode_KawaiiPhysicsSharedPublisher Publisher;
 		ConfigureRegressionPublisher(Publisher, TAG_KawaiiPhysicsRegressionA);

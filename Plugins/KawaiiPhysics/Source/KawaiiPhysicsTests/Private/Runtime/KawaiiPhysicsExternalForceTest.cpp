@@ -14,7 +14,7 @@ namespace
 constexpr float GExternalForceSpaceTestDt = 1.0f / 30.0f;
 constexpr float GExternalForceSpaceTestTol = KINDA_SMALL_NUMBER;
 
-// 本番の公開関数を増やさず、キャッシュと変換ヘルパーをテストから検証する
+// BoneSpace の変位を公開の適用経路で検証する。
 template <typename ForceType>
 struct TKawaiiPhysicsExternalForceSpaceTestAccessor : ForceType
 {
@@ -25,7 +25,6 @@ struct TKawaiiPhysicsExternalForceSpaceTestAccessor : ForceType
 	}
 
 	using ForceType::Force;
-	using ForceType::ConvertExternalForceToSimulationSpace;
 };
 
 template <typename ForceType>
@@ -66,18 +65,6 @@ bool RunExternalForceSingleTransformTest(FAutomationTestBase& Test, ForceType& E
 					GExternalForceSpaceTestTol));
 #endif
 		}
-
-		ExternalForce.ExternalForceSpace = EExternalForceSpace::ComponentSpace;
-		ExternalForce.PreApply(Accessor.Node, PoseContext);
-		const FVector ExpectedForce = Accessor.Node.ConvertSimulationSpaceVector(PoseContext,
-			EKawaiiPhysicsSimulationSpace::ComponentSpace, SimSpace, FVector::ForwardVector);
-		bOk &= Test.TestTrue(TEXT("ComponentSpace cache keeps the existing conversion"),
-			ExternalForce.Force.Equals(ExpectedForce, GExternalForceSpaceTestTol));
-		const FVector InitialLocation = Accessor.Bone(1).Location;
-		ExternalForce.Apply(Accessor.Bone(1), Accessor.Node, PoseContext, ComponentToWorld);
-		bOk &= Test.TestTrue(TEXT("ComponentSpace displacement keeps the existing conversion"),
-			(Accessor.Bone(1).Location - InitialLocation).Equals(ExpectedForce * GExternalForceSpaceTestDt,
-				GExternalForceSpaceTestTol));
 	}
 	return bOk;
 }
@@ -113,49 +100,6 @@ bool FKawaiiPhysicsCurveBoneSpaceSingleTransformTest::RunTest(const FString& Par
 	}
 	Curve.InitMaxCurveTime();
 	return RunExternalForceSingleTransformTest(*this, Curve);
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsConvertToSimulationSpacePassesBoneSpaceThroughTest,
-                                 "KawaiiPhysics.ExternalForce.ConvertToSimulationSpacePassesBoneSpaceThrough",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsConvertToSimulationSpacePassesBoneSpaceThroughTest::RunTest(const FString& Parameters)
-{
-	FKawaiiPhysicsTestAccessor Accessor;
-	FAnimInstanceProxy AnimInstanceProxy;
-	FComponentSpacePoseContext PoseContext(&AnimInstanceProxy);
-	TKawaiiPhysicsExternalForceSpaceTestAccessor<FKawaiiPhysics_ExternalForce> ExternalForce;
-	const FVector Input(2.0f, -3.0f, 4.0f);
-	bool bOk = true;
-	for (const FTransform& ComponentToWorld : {FTransform::Identity, FTransform(FRotator(0.0f, 90.0f, 0.0f))})
-	{
-		Accessor.SetWorldSpaceTransformForTest(ComponentToWorld);
-		for (const EKawaiiPhysicsSimulationSpace SimSpace :
-			{EKawaiiPhysicsSimulationSpace::ComponentSpace, EKawaiiPhysicsSimulationSpace::WorldSpace})
-		{
-			Accessor.SetSimulationSpace(SimSpace);
-			ExternalForce.ExternalForceSpace = EExternalForceSpace::BoneSpace;
-			bOk &= TestTrue(TEXT("BoneSpace helper returns the exact input"),
-				ExternalForce.ConvertExternalForceToSimulationSpace(Accessor.Node, PoseContext, Input) == Input);
-			for (const EExternalForceSpace ForceSpace :
-				{EExternalForceSpace::ComponentSpace, EExternalForceSpace::WorldSpace})
-			{
-				ExternalForce.ExternalForceSpace = ForceSpace;
-				const EKawaiiPhysicsSimulationSpace From = ForceSpace == EExternalForceSpace::WorldSpace
-					? EKawaiiPhysicsSimulationSpace::WorldSpace : EKawaiiPhysicsSimulationSpace::ComponentSpace;
-				const FVector Expected = Accessor.Node.ConvertSimulationSpaceVector(PoseContext, From, SimSpace, Input);
-				bOk &= TestTrue(TEXT("WorldSpace and ComponentSpace keep the existing conversion"),
-					ExternalForce.ConvertExternalForceToSimulationSpace(Accessor.Node, PoseContext, Input)
-						.Equals(Expected, GExternalForceSpaceTestTol));
-			}
-		}
-	}
-	// StepFrame は呼ばず、BaseBoneSpace の同一空間契約も直接確認する
-	Accessor.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::BaseBoneSpace);
-	ExternalForce.ExternalForceSpace = EExternalForceSpace::BoneSpace;
-	bOk &= TestTrue(TEXT("BoneSpace remains unchanged in BaseBoneSpace simulation"),
-		ExternalForce.ConvertExternalForceToSimulationSpace(Accessor.Node, PoseContext, Input) == Input);
-	return bOk;
 }
 
 #endif

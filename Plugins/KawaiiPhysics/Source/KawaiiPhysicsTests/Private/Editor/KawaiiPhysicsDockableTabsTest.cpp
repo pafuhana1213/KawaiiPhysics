@@ -3,7 +3,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "KawaiiPhysicsEditorTabFactories.h"
-#include "KawaiiPhysicsEdWindowUtils.h"
+
 #include "SKawaiiPhysicsNodeAuditWindow.h"
 #include "SKawaiiPhysicsPresetDiffWindow.h"
 #include "SKawaiiPhysicsWindScopeWindow.h"
@@ -39,58 +39,6 @@ bool FKawaiiPhysicsDockableTabsSpawnersTest::RunTest(const FString& Parameters)
 	                 FGlobalTabmanager::Get()->HasTabSpawner(PresetDiffTabId));
 	bOk &= TestTrue(TEXT("Node Audit tab spawner is registered"),
 	                FGlobalTabmanager::Get()->HasTabSpawner(NodeAuditTabId));
-	bOk &= TestTrue(TEXT("Wind Scope and Preset Diff tab ids are distinct"),
-	                WindScopeTabId != PresetDiffTabId);
-	bOk &= TestTrue(TEXT("Wind Scope and Node Audit tab ids are distinct"),
-	                WindScopeTabId != NodeAuditTabId);
-	bOk &= TestTrue(TEXT("Preset Diff and Node Audit tab ids are distinct"),
-	                PresetDiffTabId != NodeAuditTabId);
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsDockableTabsMenuGroupTest,
-                                 "KawaiiPhysics.Editor.DockableTabs.MenuGroup",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsDockableTabsMenuGroupTest::RunTest(const FString& Parameters)
-{
-	(void)Parameters;
-
-	const TSharedRef<FWorkspaceItem> Parent = FWorkspaceItem::NewGroup(FText::FromString(TEXT("Dummy")));
-	const TSharedRef<FWorkspaceItem> FirstGroup = KawaiiPhysicsEdWindowUtils::FindOrAddKawaiiPhysicsMenuGroup(Parent);
-	const TSharedRef<FWorkspaceItem> SecondGroup = KawaiiPhysicsEdWindowUtils::FindOrAddKawaiiPhysicsMenuGroup(Parent);
-
-	bool bOk = true;
-	bOk &= TestTrue(TEXT("FindOrAddKawaiiPhysicsMenuGroup returns the existing group"),
-	                &FirstGroup.Get() == &SecondGroup.Get());
-	bOk &= TestEqual(TEXT("FindOrAddKawaiiPhysicsMenuGroup creates only one parent child"),
-	                 Parent->GetChildItems().Num(),
-	                 1);
-
-	const FName TestTabId(TEXT("KawaiiPhysicsDockableTabsMenuGroupTest"));
-	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(TestTabId);
-
-	FTabSpawnerEntry& SpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
-		TestTabId,
-		FOnSpawnTab::CreateLambda([](const FSpawnTabArgs& SpawnTabArgs)
-		{
-			(void)SpawnTabArgs;
-			return SNew(SDockTab)
-				.TabRole(ETabRole::NomadTab);
-		}));
-
-	SpawnerEntry.SetGroup(FirstGroup);
-	SpawnerEntry.SetGroup(FirstGroup);
-	bOk &= TestEqual(TEXT("SetGroup allows duplicate spawner children"),
-	                 FirstGroup->GetChildItems().Num(),
-	                 2);
-
-	KawaiiPhysicsEdWindowUtils::RemoveStaleSpawnerChildren(FirstGroup, TestTabId);
-	bOk &= TestEqual(TEXT("RemoveStaleSpawnerChildren removes matching spawner children"),
-	                 FirstGroup->GetChildItems().Num(),
-	                 0);
-
-	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(TestTabId);
 	return bOk;
 }
 

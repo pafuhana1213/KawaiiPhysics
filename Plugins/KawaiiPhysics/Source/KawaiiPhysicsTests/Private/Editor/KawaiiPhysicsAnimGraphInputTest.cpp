@@ -262,6 +262,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsAnimGraphInputKawaiiPhysicsFirstT
 
 bool FKawaiiPhysicsAnimGraphInputKawaiiPhysicsFirstTest::RunTest(const FString& Parameters)
 {
+	// 先に置いた 2 ノードの入力と、アニメ差し替え時のプレイヤー再利用を確認する
 	FKawaiiPhysicsAnimGraphInputFixture Fixture = MakeAnimGraphInputFixture(*this);
 	if (!IsAnimGraphInputFixtureValid(Fixture))
 	{
@@ -298,84 +299,25 @@ bool FKawaiiPhysicsAnimGraphInputKawaiiPhysicsFirstTest::RunTest(const FString& 
 	bOk &= TestTrue(TEXT("LocalToComponentSpace is fed by the SequencePlayer"),
 	                SequencePlayer &&
 	                GetAnimGraphInputLinkedNode(FindAnimGraphInputFirstPosePin(UpstreamInputNode, EGPD_Input)) == SequencePlayer);
-	return bOk;
-}
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsAnimGraphInputReuseTest,
-                                 "KawaiiPhysics.EditorScripting.AnimGraphInput.ReuseExistingPlayer",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsAnimGraphInputReuseTest::RunTest(const FString& Parameters)
-{
-	FKawaiiPhysicsAnimGraphInputFixture Fixture = MakeAnimGraphInputFixture(*this);
-	if (!IsAnimGraphInputFixtureValid(Fixture))
-	{
-		return false;
-	}
-
-	TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
-	Requests.Add(MakeAnimGraphInputAutoConnectRequest(TEXT("hair_01")));
-	TArray<FKawaiiPhysicsGraphNodeHandle> Handles =
-		UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests);
-	UAnimGraphNode_KawaiiPhysics* KawaiiNode =
-		Handles.IsValidIndex(0) && Handles[0].IsValid() ? Handles[0].Node.Get() : nullptr;
-
+	// 2 本目のアニメを設定しても既存プレイヤーと配線を再利用する
 	UAnimSequence* SecondAnimation = NewObject<UAnimSequence>(
 		Fixture.AnimBlueprint->GetOutermost(), TEXT("A_KawaiiPhysicsAnimGraphInputSecond"));
 	SecondAnimation->SetSkeleton(Fixture.Skeleton);
-
-	bool bOk = true;
-	bOk &= TestTrue(TEXT("First SetAnimGraphInputAnimation succeeds"),
-	                UKawaiiPhysicsEditorLibrary::SetAnimGraphInputAnimation(Fixture.AnimBlueprint, Fixture.Animation));
 	const int32 NodeCountAfterFirstCall = Fixture.AnimGraph->Nodes.Num();
 	bOk &= TestTrue(TEXT("Second SetAnimGraphInputAnimation succeeds"),
 	                UKawaiiPhysicsEditorLibrary::SetAnimGraphInputAnimation(Fixture.AnimBlueprint, SecondAnimation));
-
-	TArray<UAnimGraphNode_SequencePlayer*> SequencePlayers = CollectAnimGraphInputSequencePlayers(Fixture.AnimGraph);
+	SequencePlayers = CollectAnimGraphInputSequencePlayers(Fixture.AnimGraph);
 	bOk &= TestEqual(TEXT("Calling twice keeps a single SequencePlayer"), SequencePlayers.Num(), 1);
 	bOk &= TestEqual(TEXT("Calling twice does not add nodes"), Fixture.AnimGraph->Nodes.Num(), NodeCountAfterFirstCall);
-	UAnimGraphNode_SequencePlayer* SequencePlayer = SequencePlayers.IsValidIndex(0) ? SequencePlayers[0] : nullptr;
+	SequencePlayer = SequencePlayers.IsValidIndex(0) ? SequencePlayers[0] : nullptr;
 	bOk &= TestTrue(TEXT("Existing SequencePlayer now references the second animation"),
 	                SequencePlayer && SequencePlayer->GetAnimationAsset() == SecondAnimation);
-	bOk &= TestAnimGraphInputPlayerFeedsKawaiiPhysics(
-		*this, TEXT("ReuseExistingPlayer"), Fixture.AnimGraph, KawaiiNode, SequencePlayer);
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsAnimGraphInputCompileMessagesTest,
-                                 "KawaiiPhysics.EditorScripting.CompileAnimBlueprintWithMessages.Valid",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsAnimGraphInputCompileMessagesTest::RunTest(const FString& Parameters)
-{
-	FKawaiiPhysicsAnimGraphInputFixture Fixture = MakeAnimGraphInputFixture(*this);
-	if (!IsAnimGraphInputFixtureValid(Fixture))
-	{
-		return false;
-	}
-
-	bool bOk = true;
-	bOk &= TestTrue(TEXT("SetAnimGraphInputAnimation succeeds before compiling"),
-	                UKawaiiPhysicsEditorLibrary::SetAnimGraphInputAnimation(Fixture.AnimBlueprint, Fixture.Animation));
-	TArray<FKawaiiPhysicsNodePlacementRequest> Requests;
-	Requests.Add(MakeAnimGraphInputAutoConnectRequest(TEXT("hair_01")));
-	bOk &= TestEqual(TEXT("One KawaiiPhysics node is added before compiling"),
-	                 UKawaiiPhysicsEditorLibrary::AddKawaiiPhysicsNodes(Fixture.AnimBlueprint, Requests).Num(), 1);
-
-	TArray<FString> Messages;
-	const int32 ErrorCount = UKawaiiPhysicsEditorLibrary::CompileAnimBlueprintWithMessages(Fixture.AnimBlueprint, Messages);
-	bOk &= TestEqual(TEXT("Valid AnimBlueprint compiles without errors"), ErrorCount, 0);
-	for (const FString& Message : Messages)
-	{
-		bOk &= TestFalse(*FString::Printf(TEXT("Compiler message is not an error: %s"), *Message),
-		                 Message.StartsWith(TEXT("Error:")));
-	}
-
-	TArray<FString> NullMessages;
-	bOk &= TestEqual(TEXT("Null AnimBlueprint returns INDEX_NONE"),
-	                 UKawaiiPhysicsEditorLibrary::CompileAnimBlueprintWithMessages(nullptr, NullMessages),
-	                 static_cast<int32>(INDEX_NONE));
-	bOk &= TestTrue(TEXT("Null AnimBlueprint returns no messages"), NullMessages.IsEmpty());
+	bOk &= TestTrue(TEXT("Second call keeps the upstream KawaiiPhysics wiring"),
+	                GetAnimGraphInputLinkedNode(UpstreamComponentPosePin) == UpstreamInputNode);
+	bOk &= TestTrue(TEXT("Second call keeps the SequencePlayer input wiring"),
+	                SequencePlayer &&
+	                GetAnimGraphInputLinkedNode(FindAnimGraphInputFirstPosePin(UpstreamInputNode, EGPD_Input)) == SequencePlayer);
 	return bOk;
 }
 

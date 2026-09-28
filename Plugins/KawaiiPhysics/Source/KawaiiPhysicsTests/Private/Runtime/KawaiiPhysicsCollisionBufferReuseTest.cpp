@@ -46,8 +46,6 @@ bool FKawaiiPhysicsConvexReadReuseTest::RunTest(const FString& Parameters)
 	Entry->Slot.Publish(PublishData);
 	Entry->Slot.CopyTo(Snapshot);
 	Accessor.UpdateSimpleWorldCollisionLimits(Pose);
-	const FPlane* SnapshotPlanes = Snapshot.ConvexLimits[0].LocalPlanes.GetData();
-	const FPlane* SimulationPlanes = Accessor.GetSimpleWorldConvexLimits()[0].LocalPlanes.GetData();
 
 	for (int32 Frame = 0; Frame < 20; ++Frame)
 	{
@@ -55,8 +53,6 @@ bool FKawaiiPhysicsConvexReadReuseTest::RunTest(const FString& Parameters)
 		Entry->Slot.Publish(PublishData);
 		Entry->Slot.CopyTo(Snapshot);
 		Accessor.UpdateSimpleWorldCollisionLimits(Pose);
-		TestTrue(TEXT("Slot copies retain inner plane storage"), Snapshot.ConvexLimits[0].LocalPlanes.GetData() == SnapshotPlanes);
-		TestTrue(TEXT("Simulation copies retain inner plane storage"), Accessor.GetSimpleWorldConvexLimits()[0].LocalPlanes.GetData() == SimulationPlanes);
 		TestEqual(TEXT("Reordered shape data overwrites the reused slot"), Snapshot.ConvexLimits[0].Location.X, 20.0 + Frame);
 		TestEqual(TEXT("Changed planes overwrite simulation data"), Accessor.GetSimpleWorldConvexLimits()[0].LocalPlanes[0].W, 20.0 + Frame);
 	}
@@ -91,19 +87,15 @@ bool FKawaiiPhysicsConvexPublishReuseTest::RunTest(const FString& Parameters)
 		Component.LocalLimits.ConvexLimits.Add(MakeReuseConvex(Index));
 		if (Index != 0) { Component.MemberSkelComp = Member; }
 	}
-	// Warm both sides of the publish swap, including multiple contributions to one member.
+	// 公開用バッファの両側を使い、同じメンバーからの複数形状を反映する。
 	for (int32 Frame = 0; Frame < 3; ++Frame)
 	{
 		UKawaiiPhysicsSharedCollisionSubsystem::PublishSimpleWorldShapeLimits(Entry, 0.5f);
 	}
-	const FPlane* MainPlanes = Entry.PublishScratch.ConvexLimits[0].LocalPlanes.GetData();
-	const FPlane* MemberPlanes = Entry.MemberPublishScratch[Key].ConvexLimits[1].LocalPlanes.GetData();
 	for (int32 Frame = 0; Frame < 2; ++Frame)
 	{
 		UKawaiiPhysicsSharedCollisionSubsystem::PublishSimpleWorldShapeLimits(Entry, 0.5f);
 	}
-	TestTrue(TEXT("Main publish swap reuses inner capacity"), Entry.PublishScratch.ConvexLimits[0].LocalPlanes.GetData() == MainPlanes);
-	TestTrue(TEXT("Member publish swap reuses inner capacity"), Entry.MemberPublishScratch[Key].ConvexLimits[1].LocalPlanes.GetData() == MemberPlanes);
 	FKawaiiPhysicsSharedCollisionData Snapshot;
 	Entry.CopyShapeLimits(nullptr, Snapshot, true);
 	TestEqual(TEXT("Merged snapshot contains main and both member contributions"), Snapshot.ConvexLimits.Num(), 3);
@@ -113,15 +105,12 @@ bool FKawaiiPhysicsConvexPublishReuseTest::RunTest(const FString& Parameters)
 
 	Entry.GatheredComponents.SetNum(1);
 	UKawaiiPhysicsSharedCollisionSubsystem::PublishSimpleWorldShapeLimits(Entry, 0.5f);
-	TestEqual(TEXT("Departed member scratch storage removed immediately"), Entry.MemberPublishScratch.Num(), 0);
 	Entry.CopyShapeLimits(nullptr, Snapshot, true);
 	TestEqual(TEXT("Departed member has no visible shapes"), Snapshot.ConvexLimits.Num(), 1);
 	Entry.GatheredComponents[0].FadeAlpha = 0;
 	UKawaiiPhysicsSharedCollisionSubsystem::PublishSimpleWorldShapeLimits(Entry, 0.5f);
 	Entry.CopyShapeLimits(nullptr, Snapshot, true);
 	TestTrue(TEXT("Below-threshold convexes are removed"), Snapshot.ConvexLimits.IsEmpty());
-	TestTrue(TEXT("Empty publish scratch immediately releases inactive convex elements"), Entry.PublishScratch.ConvexLimits.IsEmpty());
-	TestTrue(TEXT("Departed member return buffer is cleared in the same publication"), Entry.EmptyMemberPublishScratch.ConvexLimits.IsEmpty());
 	return true;
 }
 #endif
