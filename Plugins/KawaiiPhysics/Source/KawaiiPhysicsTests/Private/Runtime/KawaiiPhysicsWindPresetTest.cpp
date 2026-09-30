@@ -5,12 +5,12 @@
 #include "Misc/AutomationTest.h"
 #include "KawaiiPhysicsWindPresetDataAsset.h"
 #include "KawaiiPhysicsWindPresetTags.h"
-#include "NativeGameplayTags.h"
+#include "KawaiiPhysicsTestGameplayTags.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
 
-UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysics_WindPreset_TestUnregistered,
-                              "KawaiiPhysics.WindPreset.TestUnregistered");
+KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysics_WindPreset_TestUnregistered,
+                                   "KawaiiPhysics.WindPreset.TestUnregistered");
 
 namespace
 {
