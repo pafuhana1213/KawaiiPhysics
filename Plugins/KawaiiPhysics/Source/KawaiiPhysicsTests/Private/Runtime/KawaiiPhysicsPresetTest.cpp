@@ -5,12 +5,12 @@
 #include "Misc/AutomationTest.h"
 #include "GameplayTagsManager.h"
 #include "KawaiiPhysicsPresetDataAsset.h"
-#include "NativeGameplayTags.h"
+#include "KawaiiPhysicsTestGameplayTags.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/UnrealType.h"
 
-UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsPresetSource, "KawaiiPhysics.Test.PresetSource");
-UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsPresetTarget, "KawaiiPhysics.Test.PresetTarget");
+KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsPresetSource, "KawaiiPhysics.Test.PresetSource");
+KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsPresetTarget, "KawaiiPhysics.Test.PresetTarget");
 
 namespace
 {

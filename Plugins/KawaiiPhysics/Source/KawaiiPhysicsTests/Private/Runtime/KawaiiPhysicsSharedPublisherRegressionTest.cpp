@@ -13,10 +13,10 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
-#include "NativeGameplayTags.h"
+#include "KawaiiPhysicsTestGameplayTags.h"
 
-UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsRegressionA, "KawaiiPhysics.Test.Regression.A");
-UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsRegressionB, "KawaiiPhysics.Test.Regression.B");
+KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsRegressionA, "KawaiiPhysics.Test.Regression.A");
+KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsRegressionB, "KawaiiPhysics.Test.Regression.B");
 
 namespace
 {

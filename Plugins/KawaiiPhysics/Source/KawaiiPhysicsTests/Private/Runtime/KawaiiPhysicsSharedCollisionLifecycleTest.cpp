@@ -11,9 +11,9 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "HAL/IConsoleManager.h"
-#include "NativeGameplayTags.h"
+#include "KawaiiPhysicsTestGameplayTags.h"
 
-UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsLifecycle, "KawaiiPhysics.Test.Lifecycle");
+KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsLifecycle, "KawaiiPhysics.Test.Lifecycle");
 
 namespace
 {
