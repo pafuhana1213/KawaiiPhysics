@@ -4,10 +4,10 @@
 
 #include "Misc/AutomationTest.h"
 #include "KawaiiPhysicsLibrary.h"
-#include "NativeGameplayTags.h"
+#include "KawaiiPhysicsTestGameplayTags.h"
 #include "UObject/UnrealType.h"
 
-UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsPropertyAccess, "KawaiiPhysics.Test.PropertyAccess");
+KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsPropertyAccess, "KawaiiPhysics.Test.PropertyAccess");
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPropertyAccessRoundTripTest,
                                  "KawaiiPhysics.PropertyAccess.RoundTrip",

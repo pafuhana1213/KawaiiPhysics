@@ -19,12 +19,12 @@
 #include "Animation/AnimNodeBase.h"
 #include "AnimNodes/AnimNode_CurveSource.h"
 #include "Curves/CurveFloat.h"
-#include "NativeGameplayTags.h"
+#include "KawaiiPhysicsTestGameplayTags.h"
 #include "UObject/Package.h"
 #include "UObject/UnrealType.h"
 
-UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsTransientForceMatch, "KawaiiPhysics.Test.TransientForce.Match");
-UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsTransientForceOther, "KawaiiPhysics.Test.TransientForce.Other");
+KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsTransientForceMatch, "KawaiiPhysics.Test.TransientForce.Match");
+KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsTransientForceOther, "KawaiiPhysics.Test.TransientForce.Other");
 
 namespace
 {
