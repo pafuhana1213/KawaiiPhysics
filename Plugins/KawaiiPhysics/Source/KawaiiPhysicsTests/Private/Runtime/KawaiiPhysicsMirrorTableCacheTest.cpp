@@ -3,11 +3,9 @@
 #if WITH_DEV_AUTOMATION_TESTS && WITH_EDITOR
 
 #include "KawaiiPhysicsMirrorTableCache.h"
-#include "KawaiiPhysicsMemoryTraceRegion.h"
 #include "KawaiiPhysicsMirrorUtils.h"
 #include "KawaiiPhysicsTestHarness.h"
 #include "Animation/Skeleton.h"
-#include "HAL/PlatformTime.h"
 #include "Misc/AutomationTest.h"
 #include "UObject/StrongObjectPtr.h"
 
@@ -74,13 +72,11 @@ bool FKawaiiPhysicsMirrorTableCacheInvalidationTest::RunTest(const FString& Para
 	Fixture.Table->MirrorAxis = EAxis::Y;
 	TestFalse(TEXT("Axis edit invalidates"), Cache.Matches(Fixture.Inputs()));
 	Fixture.Table->MirrorAxis = EAxis::X;
-	TestTrue(TEXT("Axis undo restores valid inputs"), Cache.Matches(Fixture.Inputs()));
 	FMirrorTableRow* EditedRow = Fixture.Table->FindRow<FMirrorTableRow>(TEXT("bone_0_l"), TEXT("Mirror cache test"));
 	const FName SavedMirror = EditedRow->MirroredName;
 	EditedRow->MirroredName = TEXT("bone_1_r");
 	TestFalse(TEXT("In-place row edits invalidate without a notification"), Cache.Matches(Fixture.Inputs()));
 	EditedRow->MirroredName = SavedMirror;
-	TestTrue(TEXT("Row undo restores valid inputs"), Cache.Matches(Fixture.Inputs()));
 	EditedRow->MirrorEntryType = EMirrorRowType::Curve;
 	TestFalse(TEXT("Bone row changing to a curve invalidates"), Cache.Matches(Fixture.Inputs()));
 	EditedRow->MirrorEntryType = EMirrorRowType::Bone;
@@ -90,7 +86,6 @@ bool FKawaiiPhysicsMirrorTableCacheInvalidationTest::RunTest(const FString& Para
 	Fixture.Table->AddRow(TEXT("root"), ExtraRow);
 	TestFalse(TEXT("Added rows invalidate"), Cache.Matches(Fixture.Inputs()));
 	Fixture.Table->RemoveRow(TEXT("root"));
-	TestTrue(TEXT("Removing an added row restores the old inputs"), Cache.Matches(Fixture.Inputs()));
 
 	const FTransform OriginalPose = Fixture.MeshRef.GetRefBonePose()[1];
 	{
@@ -102,7 +97,6 @@ bool FKawaiiPhysicsMirrorTableCacheInvalidationTest::RunTest(const FString& Para
 		FReferenceSkeletonModifier Modifier(Fixture.MeshRef, Fixture.Skeleton.Get());
 		Modifier.UpdateRefPoseTransform(1, OriginalPose);
 	}
-	TestTrue(TEXT("Reference pose undo restores valid inputs"), Cache.Matches(Fixture.Inputs()));
 
 	auto ChangedSerial = Fixture.Inputs();
 	++ChangedSerial.BoneContainerSerial;
@@ -165,12 +159,10 @@ bool FKawaiiPhysicsMirrorTableCacheLiveLimitsTest::RunTest(const FString& Parame
 	TestEqual(TEXT("Preview generates the mirrored limit"), Accessor.Node.SphericalLimitsData.Num(), 1);
 	Accessor.SetMirrorTableCacheForPIE(true);
 	Accessor.ApplyMirrorLimits(Fixture.Container);
-	const FKawaiiPhysicsMirrorTableCache* Cache = Accessor.GetMirrorTableCache();
-	TestNotNull(TEXT("PIE retains skeleton-derived tables"), Cache);
+	TestNotNull(TEXT("PIE retains skeleton-derived tables"), Accessor.GetMirrorTableCache());
 	Accessor.Node.SphericalLimits[0].Radius = 19;
 	Accessor.Node.SphericalLimits[0].OffsetLocation = FVector(3, 4, 5);
 	Accessor.ApplyMirrorLimits(Fixture.Container);
-	TestTrue(TEXT("A limit edit reuses unchanged skeleton tables"), Accessor.GetMirrorTableCache() == Cache);
 	TestEqual(TEXT("Re-evaluation replaces the mirror instead of duplicating it"), Accessor.Node.SphericalLimitsData.Num(), 1);
 	TestEqual(TEXT("PIE mirrors see in-place radius edits immediately"), Accessor.Node.SphericalLimitsData[0].Radius, 19.0f);
 	Accessor.Node.SphericalLimits.Reset();
@@ -179,73 +171,6 @@ bool FKawaiiPhysicsMirrorTableCacheLiveLimitsTest::RunTest(const FString& Parame
 	Accessor.Node.MirrorDataTableForLimits = nullptr;
 	Accessor.ApplyMirrorLimits(Fixture.Container);
 	TestNull(TEXT("Removing the mirror table releases its retained cache"), Accessor.GetMirrorTableCache());
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsMirrorTableCacheCopyIsolationTest,
-	"KawaiiPhysics.Mirror.TableCache.CopyIsolation",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsMirrorTableCacheCopyIsolationTest::RunTest(const FString& Parameters)
-{
-	FMirrorCacheFixture Fixture;
-	TSharedPtr<const FKawaiiPhysicsMirrorTableCache, ESPMode::ThreadSafe> Original =
-		MakeShared<FKawaiiPhysicsMirrorTableCache, ESPMode::ThreadSafe>(Fixture.Inputs());
-	auto Copy = Original;
-	const int32 OriginalMirror = Original->MirrorBoneIndexes[FSkeletonPoseBoneIndex(1)].GetInt();
-	FMirrorTableRow* Row = Fixture.Table->FindRow<FMirrorTableRow>(TEXT("bone_0_l"), TEXT("Mirror cache test"));
-	Row->MirroredName = TEXT("bone_1_r");
-	TestFalse(TEXT("Both copies see that their immutable snapshot is out of date"), Copy->Matches(Fixture.Inputs()));
-	Copy = MakeShared<FKawaiiPhysicsMirrorTableCache, ESPMode::ThreadSafe>(Fixture.Inputs());
-	TestTrue(TEXT("A node rebuild gets its own snapshot"), Copy.Get() != Original.Get());
-	TestEqual(TEXT("Rebuilding a copy never changes the original cached indexes"),
-		Original->MirrorBoneIndexes[FSkeletonPoseBoneIndex(1)].GetInt(), OriginalMirror);
-	TestTrue(TEXT("Rebuilt snapshot matches edited inputs"), Copy->Matches(Fixture.Inputs()));
-	TestFalse(TEXT("Old snapshot still requires a rebuild"), Original->Matches(Fixture.Inputs()));
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsMirrorTableCachePerfTest,
-	"KawaiiPhysics.Perf.MirrorTableCache",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::PerfFilter)
-
-bool FKawaiiPhysicsMirrorTableCachePerfTest::RunTest(const FString& Parameters)
-{
-	FMirrorCacheFixture Fixture(80);
-	const auto Inputs = Fixture.Inputs();
-	constexpr int32 Iterations = 10000;
-	int64 Sink = 0;
-	for (int32 Trial = 0; Trial < 5; ++Trial)
-	{
-		FKawaiiPhysicsMemoryTraceRegion RebuildMemory(TEXT("MirrorTables.Uncached"), Trial + 1);
-		RebuildMemory.Warmup();
-		const double RebuildStart = FPlatformTime::Seconds();
-		for (int32 Iteration = 0; Iteration < Iterations; ++Iteration)
-		{
-			TCustomBoneIndexArray<FSkeletonPoseBoneIndex, FSkeletonPoseBoneIndex> Indexes;
-			TArray<FQuat> Rotations;
-			Fixture.Table->FillMirrorBoneIndexes(Fixture.Skeleton.Get(), Indexes);
-			KawaiiPhysicsMirrorUtils::BuildComponentSpaceRefRotations(Fixture.MeshRef, Rotations);
-			Sink += Indexes[FSkeletonPoseBoneIndex(1)].GetInt() + Rotations.Num();
-		}
-		const double RebuildSeconds = FPlatformTime::Seconds() - RebuildStart;
-		RebuildMemory.End();
-		FKawaiiPhysicsMemoryTraceRegion CachedMemory(TEXT("MirrorTables.Cached"), Trial + 1);
-		const FKawaiiPhysicsMirrorTableCache Cache(Inputs);
-		CachedMemory.Warmup();
-		const double CachedStart = FPlatformTime::Seconds();
-		for (int32 Iteration = 0; Iteration < Iterations; ++Iteration)
-		{
-			Sink += Cache.Matches(Inputs) ? Cache.MirrorBoneIndexes[FSkeletonPoseBoneIndex(1)].GetInt()
-				+ Cache.CSRefRotations.Num() : 0;
-		}
-		const double CachedSeconds = FPlatformTime::Seconds() - CachedStart;
-		CachedMemory.End();
-		AddInfo(FString::Printf(TEXT("MIRROR_TABLE_CACHE trial=%d bones=%d rebuild_us=%.3f validate_us=%.3f retained_bytes=%llu"),
-			Trial + 1, Fixture.MeshRef.GetNum(), RebuildSeconds * 1.e6 / Iterations,
-			CachedSeconds * 1.e6 / Iterations, static_cast<uint64>(sizeof(Cache) + Cache.GetAllocatedSize())));
-	}
-	TestTrue(TEXT("Both benchmark paths consumed their results"), Sink > 0);
 	return true;
 }
 

@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: KawaiiPhysics\n"
-"POT-Creation-Date: 2026-09-06 01:25\n"
-"PO-Revision-Date: 2026-09-06 01:25\n"
+"POT-Creation-Date: 2026-09-28 12:06\n"
+"PO-Revision-Date: 2026-09-28 12:06\n"
 "Language-Team: \n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
@@ -3247,6 +3247,650 @@ msgctxt "UObjectToolTips,KawaiiPhysicsRootBoneSetting:RootBone"
 msgid "指定ボーンとそれ以下のボーンを制御対象に\nControl the specified bone and the bones below it"
 msgstr "指定ボーンとそれ以下のボーンを制御対象に\nControl the specified bone and the bones below it"
 
+#. Key:	KawaiiPhysicsRuntimeBoneInfo
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo [ScriptStruct DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo [ScriptStruct DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeBoneInfo"
+msgid "Kawaii Physics Runtime Bone Info"
+msgstr "Kawaii Physics Runtime Bone Info"
+
+#. Key:	KawaiiPhysicsRuntimeBoneInfo
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo [ScriptStruct ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo [ScriptStruct ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeBoneInfo"
+msgid "直近の評価でシミュレーションに使われた 1 本のボーン。位置と寸法はコンポーネント空間\nOne bone used by the simulation in the latest evaluation. Locations and sizes are in component space."
+msgstr "直近の評価でシミュレーションに使われた 1 本のボーン。位置と寸法はコンポーネント空間\nOne bone used by the simulation in the latest evaluation. Locations and sizes are in component space."
+
+#. Key:	KawaiiPhysicsRuntimeBoneInfo:BoneName
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:BoneName [NameProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:BoneName [NameProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeBoneInfo:BoneName"
+msgid "Bone Name"
+msgstr "Bone Name"
+
+#. Key:	KawaiiPhysicsRuntimeBoneInfo:BoneName
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:BoneName [NameProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:BoneName [NameProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeBoneInfo:BoneName"
+msgid "ボーン名。ダミーボーンは None / Bone name. None for dummy bones"
+msgstr "ボーン名。ダミーボーンは None / Bone name. None for dummy bones"
+
+#. Key:	KawaiiPhysicsRuntimeBoneInfo:bSkipSimulate
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:bSkipSimulate [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:bSkipSimulate [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeBoneInfo:bSkipSimulate"
+msgid "Skip Simulate"
+msgstr "Skip Simulate"
+
+#. Key:	KawaiiPhysicsRuntimeBoneInfo:bSkipSimulate
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:bSkipSimulate [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:bSkipSimulate [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeBoneInfo:bSkipSimulate"
+msgid "シミュレーションと衝突処理から外れて入力ポーズに固定されているか（チェーンのルートなど） / Whether the bone is pinned to the input pose and skipped by simulation and collision (such as a chain root)"
+msgstr "シミュレーションと衝突処理から外れて入力ポーズに固定されているか（チェーンのルートなど） / Whether the bone is pinned to the input pose and skipped by simulation and collision (such as a chain root)"
+
+#. Key:	KawaiiPhysicsRuntimeBoneInfo:DummyType
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:DummyType [EnumProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:DummyType [EnumProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeBoneInfo:DummyType"
+msgid "Dummy Type"
+msgstr "Dummy Type"
+
+#. Key:	KawaiiPhysicsRuntimeBoneInfo:DummyType
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:DummyType [EnumProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:DummyType [EnumProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeBoneInfo:DummyType"
+msgid "ダミーボーンの種別 / Kind of dummy bone"
+msgstr "ダミーボーンの種別 / Kind of dummy bone"
+
+#. Key:	KawaiiPhysicsRuntimeBoneInfo:Index
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:Index [IntProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:Index [IntProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeBoneInfo:Index"
+msgid "Index"
+msgstr "Index"
+
+#. Key:	KawaiiPhysicsRuntimeBoneInfo:Index
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:Index [IntProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:Index [IntProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeBoneInfo:Index"
+msgid "Bones 配列での自分の要素番号 / Index of this bone in the Bones array"
+msgstr "Bones 配列での自分の要素番号 / Index of this bone in the Bones array"
+
+#. Key:	KawaiiPhysicsRuntimeBoneInfo:LengthRateFromRoot
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:LengthRateFromRoot [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:LengthRateFromRoot [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeBoneInfo:LengthRateFromRoot"
+msgid "Length Rate from Root"
+msgstr "Length Rate from Root"
+
+#. Key:	KawaiiPhysicsRuntimeBoneInfo:LengthRateFromRoot
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:LengthRateFromRoot [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:LengthRateFromRoot [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeBoneInfo:LengthRateFromRoot"
+msgid "ルートからの長さの比率（0〜1） / Length rate from the root (0 to 1)"
+msgstr "ルートからの長さの比率（0〜1） / Length rate from the root (0 to 1)"
+
+#. Key:	KawaiiPhysicsRuntimeBoneInfo:Location
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:Location [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:Location [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeBoneInfo:Location"
+msgid "Location"
+msgstr "Location"
+
+#. Key:	KawaiiPhysicsRuntimeBoneInfo:Location
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:Location [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:Location [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeBoneInfo:Location"
+msgid "衝突解決後の位置（cm） / Location after collision resolution (cm)"
+msgstr "衝突解決後の位置（cm） / Location after collision resolution (cm)"
+
+#. Key:	KawaiiPhysicsRuntimeBoneInfo:ParentIndex
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:ParentIndex [IntProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:ParentIndex [IntProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeBoneInfo:ParentIndex"
+msgid "Parent Index"
+msgstr "Parent Index"
+
+#. Key:	KawaiiPhysicsRuntimeBoneInfo:ParentIndex
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:ParentIndex [IntProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:ParentIndex [IntProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeBoneInfo:ParentIndex"
+msgid "Bones 配列での親の要素番号。親が無ければ -1 / Index of the parent in the Bones array, or -1 when there is none"
+msgstr "Bones 配列での親の要素番号。親が無ければ -1 / Index of the parent in the Bones array, or -1 when there is none"
+
+#. Key:	KawaiiPhysicsRuntimeBoneInfo:PoseLocation
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:PoseLocation [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:PoseLocation [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeBoneInfo:PoseLocation"
+msgid "Pose Location"
+msgstr "Pose Location"
+
+#. Key:	KawaiiPhysicsRuntimeBoneInfo:PoseLocation
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:PoseLocation [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:PoseLocation [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeBoneInfo:PoseLocation"
+msgid "物理適用前の入力ポーズでの位置（cm） / Location in the input pose before physics (cm)"
+msgstr "物理適用前の入力ポーズでの位置（cm） / Location in the input pose before physics (cm)"
+
+#. Key:	KawaiiPhysicsRuntimeBoneInfo:Radius
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:Radius [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:Radius [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeBoneInfo:Radius"
+msgid "Radius"
+msgstr "Radius"
+
+#. Key:	KawaiiPhysicsRuntimeBoneInfo:Radius
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:Radius [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeBoneInfo:Radius [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeBoneInfo:Radius"
+msgid "当たり半径（cm）。一時的な物理設定倍率を掛けた後の値 / Collision radius (cm), after temporary physics settings multipliers"
+msgstr "当たり半径（cm）。一時的な物理設定倍率を掛けた後の値 / Collision radius (cm), after temporary physics settings multipliers"
+
+#. Key:	KawaiiPhysicsRuntimeConstraintInfo
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeConstraintInfo [ScriptStruct DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeConstraintInfo [ScriptStruct DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeConstraintInfo"
+msgid "Kawaii Physics Runtime Constraint Info"
+msgstr "Kawaii Physics Runtime Constraint Info"
+
+#. Key:	KawaiiPhysicsRuntimeConstraintInfo
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeConstraintInfo [ScriptStruct ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeConstraintInfo [ScriptStruct ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeConstraintInfo"
+msgid "直近の評価で使われた 1 つの BoneConstraint\nOne bone constraint used in the latest evaluation"
+msgstr "直近の評価で使われた 1 つの BoneConstraint\nOne bone constraint used in the latest evaluation"
+
+#. Key:	KawaiiPhysicsRuntimeConstraintInfo:BoneIndex1
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeConstraintInfo:BoneIndex1 [IntProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeConstraintInfo:BoneIndex1 [IntProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeConstraintInfo:BoneIndex1"
+msgid "Bone Index 1"
+msgstr "Bone Index 1"
+
+#. Key:	KawaiiPhysicsRuntimeConstraintInfo:BoneIndex1
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeConstraintInfo:BoneIndex1 [IntProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeConstraintInfo:BoneIndex1 [IntProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeConstraintInfo:BoneIndex1"
+msgid "1 本目の Bones 配列での要素番号 / Index of the first bone in the Bones array"
+msgstr "1 本目の Bones 配列での要素番号 / Index of the first bone in the Bones array"
+
+#. Key:	KawaiiPhysicsRuntimeConstraintInfo:BoneIndex2
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeConstraintInfo:BoneIndex2 [IntProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeConstraintInfo:BoneIndex2 [IntProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeConstraintInfo:BoneIndex2"
+msgid "Bone Index 2"
+msgstr "Bone Index 2"
+
+#. Key:	KawaiiPhysicsRuntimeConstraintInfo:BoneIndex2
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeConstraintInfo:BoneIndex2 [IntProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeConstraintInfo:BoneIndex2 [IntProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeConstraintInfo:BoneIndex2"
+msgid "2 本目の Bones 配列での要素番号 / Index of the second bone in the Bones array"
+msgstr "2 本目の Bones 配列での要素番号 / Index of the second bone in the Bones array"
+
+#. Key:	KawaiiPhysicsRuntimeConstraintInfo:BoneName1
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeConstraintInfo:BoneName1 [NameProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeConstraintInfo:BoneName1 [NameProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeConstraintInfo:BoneName1"
+msgid "Bone Name 1"
+msgstr "Bone Name 1"
+
+#. Key:	KawaiiPhysicsRuntimeConstraintInfo:BoneName1
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeConstraintInfo:BoneName1 [NameProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeConstraintInfo:BoneName1 [NameProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeConstraintInfo:BoneName1"
+msgid "1 本目のボーン名。ダミーボーンは None / Name of the first bone. None for dummy bones"
+msgstr "1 本目のボーン名。ダミーボーンは None / Name of the first bone. None for dummy bones"
+
+#. Key:	KawaiiPhysicsRuntimeConstraintInfo:BoneName2
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeConstraintInfo:BoneName2 [NameProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeConstraintInfo:BoneName2 [NameProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeConstraintInfo:BoneName2"
+msgid "Bone Name 2"
+msgstr "Bone Name 2"
+
+#. Key:	KawaiiPhysicsRuntimeConstraintInfo:BoneName2
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeConstraintInfo:BoneName2 [NameProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeConstraintInfo:BoneName2 [NameProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeConstraintInfo:BoneName2"
+msgid "2 本目のボーン名。ダミーボーンは None / Name of the second bone. None for dummy bones"
+msgstr "2 本目のボーン名。ダミーボーンは None / Name of the second bone. None for dummy bones"
+
+#. Key:	KawaiiPhysicsRuntimeConstraintInfo:SourceType
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeConstraintInfo:SourceType [EnumProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeConstraintInfo:SourceType [EnumProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeConstraintInfo:SourceType"
+msgid "Source Type"
+msgstr "Source Type"
+
+#. Key:	KawaiiPhysicsRuntimeConstraintInfo:SourceType
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeConstraintInfo:SourceType [EnumProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeConstraintInfo:SourceType [EnumProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeConstraintInfo:SourceType"
+msgid "出どころ / Source"
+msgstr "出どころ / Source"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo [ScriptStruct DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo [ScriptStruct DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeLimitInfo"
+msgid "Kawaii Physics Runtime Limit Info"
+msgstr "Kawaii Physics Runtime Limit Info"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo [ScriptStruct ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo [ScriptStruct ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeLimitInfo"
+msgid "直近の評価で使われた 1 つのコリジョン。位置と寸法はコンポーネント空間\nOne collision limit used in the latest evaluation. Locations and sizes are in component space."
+msgstr "直近の評価で使われた 1 つのコリジョン。位置と寸法はコンポーネント空間\nOne collision limit used in the latest evaluation. Locations and sizes are in component space."
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:bEnabled
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:bEnabled [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:bEnabled [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeLimitInfo:bEnabled"
+msgid "Enabled"
+msgstr "Enabled"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:bEnabled
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:bEnabled [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:bEnabled [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeLimitInfo:bEnabled"
+msgid "直近の評価で衝突処理に使われたか（bEnable が偽、または衝突処理がスキップする寸法・設定のものは偽） / Whether the collision step used the limit in the latest evaluation (false when bEnable is false or when its size or settings make the collision step skip it)"
+msgstr "直近の評価で衝突処理に使われたか（bEnable が偽、または衝突処理がスキップする寸法・設定のものは偽） / Whether the collision step used the limit in the latest evaluation (false when bEnable is false or when its size or settings make the collision step skip it)"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:bInnerSphere
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:bInnerSphere [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:bInnerSphere [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeLimitInfo:bInnerSphere"
+msgid "Inner Sphere"
+msgstr "Inner Sphere"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:bInnerSphere
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:bInnerSphere [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:bInnerSphere [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeLimitInfo:bInnerSphere"
+msgid "球の内側に閉じ込めるか（Inner） / Whether the sphere keeps bones inside (Inner)"
+msgstr "球の内側に閉じ込めるか（Inner） / Whether the sphere keeps bones inside (Inner)"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:DrivingBone
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:DrivingBone [NameProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:DrivingBone [NameProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeLimitInfo:DrivingBone"
+msgid "Driving Bone"
+msgstr "Driving Bone"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:DrivingBone
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:DrivingBone [NameProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:DrivingBone [NameProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeLimitInfo:DrivingBone"
+msgid "追従するボーン。共有コリジョンとシンプルワールドコリジョンは None / Driving bone. None for shared and simple world collision"
+msgstr "追従するボーン。共有コリジョンとシンプルワールドコリジョンは None / Driving bone. None for shared and simple world collision"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:End
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:End [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:End [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeLimitInfo:End"
+msgid "End"
+msgstr "End"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:End
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:End [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:End [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeLimitInfo:End"
+msgid "カプセルの -Z 端（Radius1 側）。それ以外の形状は Location と同じ / Capsule -Z end (Radius1 side). Same as Location for other shapes"
+msgstr "カプセルの -Z 端（Radius1 側）。それ以外の形状は Location と同じ / Capsule -Z end (Radius1 side). Same as Location for other shapes"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:Extent
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:Extent [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:Extent [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeLimitInfo:Extent"
+msgid "Extent"
+msgstr "Extent"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:Extent
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:Extent [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:Extent [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeLimitInfo:Extent"
+msgid "ボックスの半分の大きさ（cm） / Half size of the box (cm)"
+msgstr "ボックスの半分の大きさ（cm） / Half size of the box (cm)"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:LimitType
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:LimitType [EnumProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:LimitType [EnumProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeLimitInfo:LimitType"
+msgid "Limit Type"
+msgstr "Limit Type"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:LimitType
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:LimitType [EnumProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:LimitType [EnumProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeLimitInfo:LimitType"
+msgid "形状 / Shape"
+msgstr "形状 / Shape"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:Location
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:Location [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:Location [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeLimitInfo:Location"
+msgid "Location"
+msgstr "Location"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:Location
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:Location [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:Location [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeLimitInfo:Location"
+msgid "中心の位置（cm） / Center location (cm)"
+msgstr "中心の位置（cm） / Center location (cm)"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:PlaneNormal
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:PlaneNormal [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:PlaneNormal [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeLimitInfo:PlaneNormal"
+msgid "Plane Normal"
+msgstr "Plane Normal"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:PlaneNormal
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:PlaneNormal [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:PlaneNormal [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeLimitInfo:PlaneNormal"
+msgid "平面の法線。ボーンはこの向きの側へ押し出される / Plane normal. Bones are pushed out to this side"
+msgstr "平面の法線。ボーンはこの向きの側へ押し出される / Plane normal. Bones are pushed out to this side"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:Radius0
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:Radius0 [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:Radius0 [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeLimitInfo:Radius0"
+msgid "Radius 0"
+msgstr "Radius 0"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:Radius0
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:Radius0 [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:Radius0 [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeLimitInfo:Radius0"
+msgid "球・カプセルの半径、テーパードカプセルの Start 側の半径（cm） / Sphere or capsule radius, or the Start-side radius of a tapered capsule (cm)"
+msgstr "球・カプセルの半径、テーパードカプセルの Start 側の半径（cm） / Sphere or capsule radius, or the Start-side radius of a tapered capsule (cm)"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:Radius1
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:Radius1 [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:Radius1 [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeLimitInfo:Radius1"
+msgid "Radius 1"
+msgstr "Radius 1"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:Radius1
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:Radius1 [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:Radius1 [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeLimitInfo:Radius1"
+msgid "テーパードカプセルの End 側の半径（cm）。球・カプセルは Radius0 と同じ / End-side radius of a tapered capsule (cm). Same as Radius0 for spheres and capsules"
+msgstr "テーパードカプセルの End 側の半径（cm）。球・カプセルは Radius0 と同じ / End-side radius of a tapered capsule (cm). Same as Radius0 for spheres and capsules"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:Rotation
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:Rotation [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:Rotation [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeLimitInfo:Rotation"
+msgid "Rotation"
+msgstr "Rotation"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:Rotation
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:Rotation [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:Rotation [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeLimitInfo:Rotation"
+msgid "回転 / Rotation"
+msgstr "回転 / Rotation"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:SourceArrayName
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:SourceArrayName [NameProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:SourceArrayName [NameProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeLimitInfo:SourceArrayName"
+msgid "Source Array Name"
+msgstr "Source Array Name"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:SourceArrayName
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:SourceArrayName [NameProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:SourceArrayName [NameProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeLimitInfo:SourceArrayName"
+msgid "元の配列の名前（例: SphericalLimits、SharedCapsuleLimits） / Name of the source array (e.g. SphericalLimits, SharedCapsuleLimits)"
+msgstr "元の配列の名前（例: SphericalLimits、SharedCapsuleLimits） / Name of the source array (e.g. SphericalLimits, SharedCapsuleLimits)"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:SourceIndex
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:SourceIndex [IntProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:SourceIndex [IntProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeLimitInfo:SourceIndex"
+msgid "Source Index"
+msgstr "Source Index"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:SourceIndex
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:SourceIndex [IntProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:SourceIndex [IntProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeLimitInfo:SourceIndex"
+msgid "元の配列での要素番号 / Index in the source array"
+msgstr "元の配列での要素番号 / Index in the source array"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:SourceType
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:SourceType [EnumProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:SourceType [EnumProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeLimitInfo:SourceType"
+msgid "Source Type"
+msgstr "Source Type"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:SourceType
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:SourceType [EnumProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:SourceType [EnumProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeLimitInfo:SourceType"
+msgid "出どころ / Source"
+msgstr "出どころ / Source"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:Start
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:Start [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:Start [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeLimitInfo:Start"
+msgid "Start"
+msgstr "Start"
+
+#. Key:	KawaiiPhysicsRuntimeLimitInfo:Start
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:Start [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeLimitInfo:Start [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeLimitInfo:Start"
+msgid "カプセルの +Z 端（Radius0 側）。それ以外の形状は Location と同じ / Capsule +Z end (Radius0 side). Same as Location for other shapes"
+msgstr "カプセルの +Z 端（Radius0 側）。それ以外の形状は Location と同じ / Capsule +Z end (Radius0 side). Same as Location for other shapes"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo [ScriptStruct DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo [ScriptStruct DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeNodeInfo"
+msgid "Kawaii Physics Runtime Node Info"
+msgstr "Kawaii Physics Runtime Node Info"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo [ScriptStruct ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo [ScriptStruct ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeNodeInfo"
+msgid "1 つの KawaiiPhysics ノードのランタイム情報。調整ツール向けの診断用\nRuntime info of one KawaiiPhysics node, for diagnostics in tuning tools"
+msgstr "1 つの KawaiiPhysics ノードのランタイム情報。調整ツール向けの診断用\nRuntime info of one KawaiiPhysics node, for diagnostics in tuning tools"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:AnimInstanceClassName
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:AnimInstanceClassName [NameProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:AnimInstanceClassName [NameProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeNodeInfo:AnimInstanceClassName"
+msgid "Anim Instance Class Name"
+msgstr "Anim Instance Class Name"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:AnimInstanceClassName
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:AnimInstanceClassName [NameProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:AnimInstanceClassName [NameProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeNodeInfo:AnimInstanceClassName"
+msgid "ノードを持つ AnimInstance のクラス名 / Class name of the AnimInstance that owns the node"
+msgstr "ノードを持つ AnimInstance のクラス名 / Class name of the AnimInstance that owns the node"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:bEvaluated
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:bEvaluated [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:bEvaluated [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeNodeInfo:bEvaluated"
+msgid "Evaluated"
+msgstr "Evaluated"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:bEvaluated
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:bEvaluated [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:bEvaluated [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeNodeInfo:bEvaluated"
+msgid "一度でも評価されたか。偽なら Bones と Limits の位置は意味を持たない / Whether the node has been evaluated. When false, locations in Bones and Limits are meaningless"
+msgstr "一度でも評価されたか。偽なら Bones と Limits の位置は意味を持たない / Whether the node has been evaluated. When false, locations in Bones and Limits are meaningless"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:bNonUniformScale
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:bNonUniformScale [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:bNonUniformScale [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeNodeInfo:bNonUniformScale"
+msgid "Non Uniform Scale"
+msgstr "Non Uniform Scale"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:bNonUniformScale
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:bNonUniformScale [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:bNonUniformScale [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeNodeInfo:bNonUniformScale"
+msgid "シミュレーション空間からの変換が非一様スケールを含むか。真なら半径と寸法は近似 / Whether the transform from simulation space has non-uniform scale. When true, radii and sizes are approximations"
+msgstr "シミュレーション空間からの変換が非一様スケールを含むか。真なら半径と寸法は近似 / Whether the transform from simulation space has non-uniform scale. When true, radii and sizes are approximations"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:Bones
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:Bones [ArrayProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:Bones [ArrayProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeNodeInfo:Bones"
+msgid "Bones"
+msgstr "Bones"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:Bones
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:Bones [ArrayProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:Bones [ArrayProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeNodeInfo:Bones"
+msgid "シミュレーションされたボーン（ダミーを含む） / Simulated bones, including dummies"
+msgstr "シミュレーションされたボーン（ダミーを含む） / Simulated bones, including dummies"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:Constraints
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:Constraints [ArrayProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:Constraints [ArrayProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeNodeInfo:Constraints"
+msgid "Constraints"
+msgstr "Constraints"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:Constraints
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:Constraints [ArrayProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:Constraints [ArrayProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeNodeInfo:Constraints"
+msgid "統合後の BoneConstraint / Merged bone constraints"
+msgstr "統合後の BoneConstraint / Merged bone constraints"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:ConvexFallbackShape
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:ConvexFallbackShape [EnumProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:ConvexFallbackShape [EnumProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeNodeInfo:ConvexFallbackShape"
+msgid "Convex Fallback Shape"
+msgstr "Convex Fallback Shape"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:ConvexFallbackShape
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:ConvexFallbackShape [EnumProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:ConvexFallbackShape [EnumProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeNodeInfo:ConvexFallbackShape"
+msgid "Convex の代替形状の設定 / Convex fallback shape setting"
+msgstr "Convex の代替形状の設定 / Convex fallback shape setting"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:Limits
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:Limits [ArrayProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:Limits [ArrayProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeNodeInfo:Limits"
+msgid "Limits"
+msgstr "Limits"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:Limits
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:Limits [ArrayProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:Limits [ArrayProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeNodeInfo:Limits"
+msgid "コリジョン（Convex を除く） / Collision limits, excluding convex"
+msgstr "コリジョン（Convex を除く） / Collision limits, excluding convex"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:NodeIndex
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:NodeIndex [IntProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:NodeIndex [IntProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeNodeInfo:NodeIndex"
+msgid "Node Index"
+msgstr "Node Index"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:NodeIndex
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:NodeIndex [IntProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:NodeIndex [IntProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeNodeInfo:NodeIndex"
+msgid "AnimInstance のクラス内でのノード番号 / Node index within the AnimInstance class"
+msgstr "AnimInstance のクラス内でのノード番号 / Node index within the AnimInstance class"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:NumConvexLimits
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:NumConvexLimits [IntProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:NumConvexLimits [IntProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeNodeInfo:NumConvexLimits"
+msgid "Num Convex Limits"
+msgstr "Num Convex Limits"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:NumConvexLimits
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:NumConvexLimits [IntProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:NumConvexLimits [IntProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeNodeInfo:NumConvexLimits"
+msgid "シンプルワールドコリジョンの Convex の件数（形状は Limits に含めない） / Number of simple world convex limits (their shapes are not in Limits)"
+msgstr "シンプルワールドコリジョンの Convex の件数（形状は Limits に含めない） / Number of simple world convex limits (their shapes are not in Limits)"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:RootBone
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:RootBone [NameProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:RootBone [NameProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeNodeInfo:RootBone"
+msgid "Root Bone"
+msgstr "Root Bone"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:RootBone
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:RootBone [NameProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:RootBone [NameProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeNodeInfo:RootBone"
+msgid "RootBone"
+msgstr "RootBone"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:SimulationSpace
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:SimulationSpace [EnumProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:SimulationSpace [EnumProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeNodeInfo:SimulationSpace"
+msgid "Simulation Space"
+msgstr "Simulation Space"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:SimulationSpace
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:SimulationSpace [EnumProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:SimulationSpace [EnumProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeNodeInfo:SimulationSpace"
+msgid "シミュレーション空間 / Simulation space"
+msgstr "シミュレーション空間 / Simulation space"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:SimulationToComponent
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:SimulationToComponent [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:SimulationToComponent [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeNodeInfo:SimulationToComponent"
+msgid "Simulation to Component"
+msgstr "Simulation to Component"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:SimulationToComponent
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:SimulationToComponent [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:SimulationToComponent [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeNodeInfo:SimulationToComponent"
+msgid "シミュレーション空間からコンポーネント空間への変換 / Transform from simulation space to component space"
+msgstr "シミュレーション空間からコンポーネント空間への変換 / Transform from simulation space to component space"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:Tag
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:Tag [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:Tag [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsRuntimeNodeInfo:Tag"
+msgid "Tag"
+msgstr "Tag"
+
+#. Key:	KawaiiPhysicsRuntimeNodeInfo:Tag
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:Tag [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsRuntimeNodeInfo:Tag [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsRuntimeNodeInfo:Tag"
+msgid "ノードのタグ / Tag of the node"
+msgstr "ノードのタグ / Tag of the node"
+
 #. Key:	KawaiiPhysicsSettings
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettings [ScriptStruct DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSettings [ScriptStruct DisplayName meta-data]
@@ -3737,13 +4381,6 @@ msgctxt "UObjectToolTips,KawaiiPhysicsSyncBone:bEnableDistanceAttenuation"
 msgid "SyncBoneとの距離に応じてTargetへの適用量(Alpha)を減衰させる設定\nAttenuation of application amount(Alpha) based on distance from SyncBone to each Target"
 msgstr "SyncBoneとの距離に応じてTargetへの適用量(Alpha)を減衰させる設定\nAttenuation of application amount(Alpha) based on distance from SyncBone to each Target"
 
-#. Key:	Sync Bone
-#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty Category meta-data]
-#: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty Category meta-data]
-msgctxt "UObjectCategory,Sync Bone"
-msgid "Sync Bone"
-msgstr "Sync Bone"
-
 #. Key:	KawaiiPhysicsSyncBone:Bone
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty DisplayName meta-data]
@@ -4002,6 +4639,13 @@ msgstr "ChildTargets(Preview)"
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncTargetRoot:ChildTargets"
 msgid "適用対象である子ボーン\nChild bones that are targets for application"
 msgstr "適用対象である子ボーン\nChild bones that are targets for application"
+
+#. Key:	Sync Bone
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty Category meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty Category meta-data]
+msgctxt "UObjectCategory,Sync Bone"
+msgid "Sync Bone"
+msgstr "Sync Bone"
 
 #. Key:	KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty DisplayName meta-data]
@@ -5239,8 +5883,8 @@ msgstr "Length"
 #. SourceLocation:	/Script/KawaiiPhysics.TaperedCapsuleLimit:Length [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.TaperedCapsuleLimit:Length [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,TaperedCapsuleLimit:Length"
-msgid "カプセルの長さ / Length of the capsule"
-msgstr "カプセルの長さ / Length of the capsule"
+msgid "端球中心間の長さ。Length <= |Radius0 - Radius1| の場合は大きい端球として扱う。\nDistance between endpoint sphere centers. If Length <= |Radius0 - Radius1|, the larger endpoint sphere is used."
+msgstr "端球中心間の長さ。Length <= |Radius0 - Radius1| の場合は大きい端球として扱う。\nDistance between endpoint sphere centers. If Length <= |Radius0 - Radius1|, the larger endpoint sphere is used."
 
 #. Key:	Tapered Capsule Limit
 #. SourceLocation:	/Script/KawaiiPhysics.TaperedCapsuleLimit:Radius0 [FloatProperty Category meta-data]
@@ -6069,99 +6713,99 @@ msgid "@@ has no consumer in this Animation Blueprint. Consumers in other Animat
 msgstr "@@ has no consumer in this Animation Blueprint. Consumers in other Animation Blueprints (Post Process, Linked Layers, child actors) can still read it."
 
 #. Key:	Category_SharedPublisher
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(338)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(338)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(347)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(347)
 msgctxt "KawaiiPhysics,Category_SharedPublisher"
 msgid "Shared Publisher"
 msgstr "Shared Publisher"
 
 #. Key:	Category_SharedPublisher_SimpleWorldCollision
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(342)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(342)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(351)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(351)
 msgctxt "KawaiiPhysics,Category_SharedPublisher_SimpleWorldCollision"
 msgid "Shared Publisher > Simple World Collision"
 msgstr "Shared Publisher > Simple World Collision"
 
 #. Key:	Category_SharedPublisher_Wind
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(346)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(346)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(355)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(355)
 msgctxt "KawaiiPhysics,Category_SharedPublisher_Wind"
 msgid "Shared Publisher > Wind"
 msgstr "Shared Publisher > Wind"
 
 #. Key:	SharedPublisherWindScope
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(349)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(349)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(358)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(358)
 msgctxt "KawaiiPhysics,SharedPublisherWindScope"
 msgid "Wind Scope"
 msgstr "Wind Scope"
 
 #. Key:	SharedPublisherWindScopeToolTip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(355)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(355)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(364)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(364)
 msgctxt "KawaiiPhysics,SharedPublisherWindScopeToolTip"
 msgid "Opens the waveform preview tab for Shared Wind."
 msgstr "Opens the waveform preview tab for Shared Wind."
 
 #. Key:	SharedPublisherPreviewStatus
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(372)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(372)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(381)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(381)
 msgctxt "KawaiiPhysics,SharedPublisherPreviewStatus"
 msgid "Preview Status"
 msgstr "Preview Status"
 
 #. Key:	SharedPublisherFindConsumers
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(390)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(390)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(399)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(399)
 msgctxt "KawaiiPhysics,SharedPublisherFindConsumers"
 msgid "Find Consumers"
 msgstr "Find Consumers"
 
 #. Key:	SharedPublisherFindConsumersTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(396)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(396)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(405)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(405)
 msgctxt "KawaiiPhysics,SharedPublisherFindConsumersTooltip"
 msgid "Selects Kawaii Physics consumer nodes with the same Shared Group Tag in this Animation Blueprint."
 msgstr "Selects Kawaii Physics consumer nodes with the same Shared Group Tag in this Animation Blueprint."
 
 #. Key:	SharedPublisherNoConsumerNotification
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(435)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(435)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(444)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(444)
 msgctxt "KawaiiPhysics,SharedPublisherNoConsumerNotification"
 msgid "No consumer in this Animation Blueprint"
 msgstr "No consumer in this Animation Blueprint"
 
 #. Key:	SharedPublisherContextMenuSection
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(479)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(479)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(488)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(488)
 msgctxt "KawaiiPhysics,SharedPublisherContextMenuSection"
 msgid "Kawaii Physics Shared Publisher"
 msgstr "Kawaii Physics Shared Publisher"
 
 #. Key:	SharedPublisherWindScopeMenuLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(485)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(485)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(494)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(494)
 msgctxt "KawaiiPhysics,SharedPublisherWindScopeMenuLabel"
 msgid "Wind Scope"
 msgstr "Wind Scope"
 
 #. Key:	SharedPublisherWindScopeMenuToolTip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(486)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(486)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(495)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(495)
 msgctxt "KawaiiPhysics,SharedPublisherWindScopeMenuToolTip"
 msgid "Opens the waveform preview tab for Shared Wind."
 msgstr "Opens the waveform preview tab for Shared Wind."
 
 #. Key:	SharedPublisherFindConsumersMenuLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(495)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(495)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(504)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(504)
 msgctxt "KawaiiPhysics,SharedPublisherFindConsumersMenuLabel"
 msgid "Find Consumers"
 msgstr "Find Consumers"
 
 #. Key:	SharedPublisherFindConsumersMenuToolTip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(496)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(496)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(505)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysicsSharedPublisher.cpp(505)
 msgctxt "KawaiiPhysics,SharedPublisherFindConsumersMenuToolTip"
 msgid "Selects Kawaii Physics consumer nodes with the same Shared Group Tag in this Animation Blueprint."
 msgstr "Selects Kawaii Physics consumer nodes with the same Shared Group Tag in this Animation Blueprint."
@@ -6174,78 +6818,113 @@ msgid "Kawaii Physics"
 msgstr "Kawaii Physics"
 
 #. Key:	DeleteKawaiiCollision
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(830)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(830)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(972)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(972)
 msgctxt "KawaiiPhysicsEditMode,DeleteKawaiiCollision"
 msgid "Delete KawaiiPhysics Collision"
 msgstr "Delete KawaiiPhysics Collision"
 
 #. Key:	AddKawaiiPhysicsNodes
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(1926)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(1926)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2416)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2416)
 msgctxt "KawaiiPhysicsEditorLibrary,AddKawaiiPhysicsNodes"
 msgid "Add Kawaii Physics Nodes"
 msgstr "Add Kawaii Physics Nodes"
 
 #. Key:	AddKawaiiPhysicsSharedPublisherNode
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2130)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2130)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2626)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2626)
 msgctxt "KawaiiPhysicsEditorLibrary,AddKawaiiPhysicsSharedPublisherNode"
 msgid "Add Kawaii Physics Shared Publisher Node"
 msgstr "Add Kawaii Physics Shared Publisher Node"
 
+#. Key:	SetAnimGraphInputAnimation
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2707)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2707)
+msgctxt "KawaiiPhysicsEditorLibrary,SetAnimGraphInputAnimation"
+msgid "Set Anim Graph Input Animation"
+msgstr "Set Anim Graph Input Animation"
+
+#. Key:	SetAnimGraphInputPose
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2845)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2845)
+msgctxt "KawaiiPhysicsEditorLibrary,SetAnimGraphInputPose"
+msgid "Set Anim Graph Input Pose"
+msgstr "Set Anim Graph Input Pose"
+
+#. Key:	LayoutKawaiiPhysicsAnimGraph
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2959)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2959)
+msgctxt "KawaiiPhysicsEditorLibrary,LayoutKawaiiPhysicsAnimGraph"
+msgid "Layout Kawaii Physics Anim Graph"
+msgstr "Layout Kawaii Physics Anim Graph"
+
+#. Key:	BindGraphNodeAnimNodeFunction
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3180)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3180)
+msgctxt "KawaiiPhysicsEditorLibrary,BindGraphNodeAnimNodeFunction"
+msgid "Bind AnimNode Function"
+msgstr "Bind AnimNode Function"
+
 #. Key:	SetGraphNodePropertyFromString
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2286)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2286)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3312)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3312)
 msgctxt "KawaiiPhysicsEditorLibrary,SetGraphNodePropertyFromString"
 msgid "Set Kawaii Physics Graph Node Property"
 msgstr "Set Kawaii Physics Graph Node Property"
 
+#. Key:	SetGraphNodeExternalForcesFromJson
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3537)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3537)
+msgctxt "KawaiiPhysicsEditorLibrary,SetGraphNodeExternalForcesFromJson"
+msgid "Set Kawaii Physics External Forces"
+msgstr "Set Kawaii Physics External Forces"
+
 #. Key:	SetSharedPublisherNodePropertyFromString
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2325)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2325)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3604)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3604)
 msgctxt "KawaiiPhysicsEditorLibrary,SetSharedPublisherNodePropertyFromString"
 msgid "Set Kawaii Physics Shared Publisher Node Property"
 msgstr "Set Kawaii Physics Shared Publisher Node Property"
 
 #. Key:	SetGraphNodeTag
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2456)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2456)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3735)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3735)
 msgctxt "KawaiiPhysicsEditorLibrary,SetGraphNodeTag"
 msgid "Set Kawaii Physics Graph Node Tag"
 msgstr "Set Kawaii Physics Graph Node Tag"
 
 #. Key:	SetGraphNodeRootBoneName
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2485)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2485)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3764)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3764)
 msgctxt "KawaiiPhysicsEditorLibrary,SetGraphNodeRootBoneName"
 msgid "Set Kawaii Physics Graph Node Root Bone"
 msgstr "Set Kawaii Physics Graph Node Root Bone"
 
 #. Key:	ApplyPresetToGraphNode
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2520)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2520)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3799)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3799)
 msgctxt "KawaiiPhysicsEditorLibrary,ApplyPresetToGraphNode"
 msgid "Apply Kawaii Physics Preset"
 msgstr "Apply Kawaii Physics Preset"
 
 #. Key:	ExportGraphNodeToPreset
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2607)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2607)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3886)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3886)
 msgctxt "KawaiiPhysicsEditorLibrary,ExportGraphNodeToPreset"
 msgid "Export Kawaii Physics Graph Node To Preset"
 msgstr "Export Kawaii Physics Graph Node To Preset"
 
 #. Key:	ApplyPresetToProjectProgress
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2648)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2648)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3927)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3927)
 msgctxt "KawaiiPhysicsEditorLibrary,ApplyPresetToProjectProgress"
 msgid "Applying Kawaii Physics preset to AnimBlueprints..."
 msgstr "Applying Kawaii Physics preset to AnimBlueprints..."
 
 #. Key:	SetGraphNodeWildcardProperty
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2812)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2812)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(4091)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(4091)
 msgctxt "KawaiiPhysicsEditorLibrary,SetGraphNodeWildcardProperty"
 msgid "Set Kawaii Physics Graph Node Wildcard Property"
 msgstr "Set Kawaii Physics Graph Node Wildcard Property"
@@ -6328,57 +7007,57 @@ msgid "Kawaii Physics"
 msgstr "Kawaii Physics"
 
 #. Key:	FindTargetNodesWindowTitle
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(146)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(146)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(147)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(147)
 msgctxt "KawaiiPhysicsPresetDataAssetDetails,FindTargetNodesWindowTitle"
 msgid "Find Target Nodes: {0}"
 msgstr "Find Target Nodes: {0}"
 
 #. Key:	FindTargetNodesResult
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(149)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(149)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(150)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(150)
 msgctxt "KawaiiPhysicsPresetDataAssetDetails,FindTargetNodesResult"
 msgid "{0} nodes in {1} AnimBlueprints match TargetTags."
 msgstr "{0} nodes in {1} AnimBlueprints match TargetTags."
 
 #. Key:	ApplyToProjectDryRunWindowTitle
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(187)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(187)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(188)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(188)
 msgctxt "KawaiiPhysicsPresetDataAssetDetails,ApplyToProjectDryRunWindowTitle"
 msgid "Apply To Project (Dry Run): {0}"
 msgstr "Apply To Project (Dry Run): {0}"
 
 #. Key:	ApplyToProjectDryRunResult
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(190)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(190)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(191)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(191)
 msgctxt "KawaiiPhysicsPresetDataAssetDetails,ApplyToProjectDryRunResult"
 msgid "Dry run: {0} nodes matched, {1} differ from preset."
 msgstr "Dry run: {0} nodes matched, {1} differ from preset."
 
 #. Key:	KawaiiPhysicsPresetTargetTools
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(228)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(228)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(229)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(229)
 msgctxt "KawaiiPhysicsPresetDataAssetDetails,KawaiiPhysicsPresetTargetTools"
 msgid "KawaiiPhysicsPresetTargetTools"
 msgstr "KawaiiPhysicsPresetTargetTools"
 
 #. Key:	FindTargetNodesToolTip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(243)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(243)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(244)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(244)
 msgctxt "KawaiiPhysicsPresetDataAssetDetails,FindTargetNodesToolTip"
 msgid "TargetTags に一致する KawaiiPhysics ノードをプロジェクト内の全 AnimBlueprint から検索し、結果をタブで一覧表示します（詳細は Output Log にも出力） / Searches all AnimBlueprints in the project for KawaiiPhysics nodes matching TargetTags and lists the results in a tab (details are also logged to the Output Log)."
 msgstr "TargetTags に一致する KawaiiPhysics ノードをプロジェクト内の全 AnimBlueprint から検索し、結果をタブで一覧表示します（詳細は Output Log にも出力） / Searches all AnimBlueprints in the project for KawaiiPhysics nodes matching TargetTags and lists the results in a tab (details are also logged to the Output Log)."
 
 #. Key:	TargetTagsEmpty
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(63)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(63)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(64)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(64)
 msgctxt "KawaiiPhysicsPresetDataAssetDetails,TargetTagsEmpty"
 msgid "TargetTags is empty - no nodes will be targeted."
 msgstr "TargetTags is empty - no nodes will be targeted."
 
 #. Key:	FindTargetNodesProgress
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(80)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(80)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(81)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(81)
 msgctxt "KawaiiPhysicsPresetDataAssetDetails,FindTargetNodesProgress"
 msgid "Searching AnimBlueprints for KawaiiPhysics nodes..."
 msgstr "Searching AnimBlueprints for KawaiiPhysics nodes..."
@@ -6433,36 +7112,36 @@ msgid "Gust"
 msgstr "Gust"
 
 #. Key:	KawaiiPhysicsNodeTitleFormat
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeTarget.h(149)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeTarget.h(149)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeTarget.h(173)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeTarget.h(173)
 msgctxt "KawaiiPhysicsWindScopeTarget,KawaiiPhysicsNodeTitleFormat"
 msgid "{0} - External Force [{1}]"
 msgstr "{0} - External Force [{1}]"
 
 #. Key:	UnknownKawaiiPhysicsNodeTitle
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeTarget.h(153)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeTarget.h(153)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeTarget.h(177)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeTarget.h(177)
 msgctxt "KawaiiPhysicsWindScopeTarget,UnknownKawaiiPhysicsNodeTitle"
 msgid "KawaiiPhysics Node"
 msgstr "KawaiiPhysics Node"
 
 #. Key:	SharedPublisherNoTagTitle
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeTarget.h(159)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeTarget.h(159)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeTarget.h(183)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeTarget.h(183)
 msgctxt "KawaiiPhysicsWindScopeTarget,SharedPublisherNoTagTitle"
 msgid "No Tag"
 msgstr "No Tag"
 
 #. Key:	SharedPublisherTitleFormat
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeTarget.h(161)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeTarget.h(161)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeTarget.h(185)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeTarget.h(185)
 msgctxt "KawaiiPhysicsWindScopeTarget,SharedPublisherTitleFormat"
 msgid "Kawaii Physics Shared Publisher ({0})"
 msgstr "Kawaii Physics Shared Publisher ({0})"
 
 #. Key:	UnknownSharedPublisherTitle
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeTarget.h(164)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeTarget.h(164)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeTarget.h(188)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsWindScopeTarget.h(188)
 msgctxt "KawaiiPhysicsWindScopeTarget,UnknownSharedPublisherTitle"
 msgid "Kawaii Physics Shared Publisher"
 msgstr "Kawaii Physics Shared Publisher"
@@ -7567,638 +8246,638 @@ msgid "Advanced"
 msgstr "Advanced"
 
 #. Key:	InitialMode
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1678)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1678)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1672)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1672)
 msgctxt "KawaiiPhysicsWindScopeWindow,InitialMode"
 msgid "Preview"
 msgstr "Preview"
 
 #. Key:	PresetRowLabelTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1711)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1711)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1705)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1705)
 msgctxt "KawaiiPhysicsWindScopeWindow,PresetRowLabelTooltip"
 msgid "Click a preset to apply it to the current wind parameters. Hover to preview it on the graph."
 msgstr "Click a preset to apply it to the current wind parameters. Hover to preview it on the graph."
 
 #. Key:	PresetToolbarButton
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1731)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1731)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1725)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1725)
 msgctxt "KawaiiPhysicsWindScopeWindow,PresetToolbarButton"
 msgid "Presets"
 msgstr "Presets"
 
 #. Key:	GustButton
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1743)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1743)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1737)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1737)
 msgctxt "KawaiiPhysicsWindScopeWindow,GustButton"
 msgid "Test Gust"
 msgstr "Test Gust"
 
 #. Key:	GustNoLiveTarget
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1756)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1756)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1750)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1750)
 msgctxt "KawaiiPhysicsWindScopeWindow,GustNoLiveTarget"
 msgid "Skipped wind gust. (no live target)"
 msgstr "Skipped wind gust. (no live target)"
 
 #. Key:	GustSettingsTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1769)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1769)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1763)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1763)
 msgctxt "KawaiiPhysicsWindScopeWindow,GustSettingsTooltip"
 msgid "Adjust the test gust settings."
 msgstr "Adjust the test gust settings."
 
 #. Key:	CopyWindParametersTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1791)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1791)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1785)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1785)
 msgctxt "KawaiiPhysicsWindScopeWindow,CopyWindParametersTooltip"
 msgid "Copy current ProceduralWind parameters."
 msgstr "Copy current ProceduralWind parameters."
 
 #. Key:	CopyWindParametersButton
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1809)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1809)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1803)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1803)
 msgctxt "KawaiiPhysicsWindScopeWindow,CopyWindParametersButton"
 msgid "Copy"
 msgstr "Copy"
 
 #. Key:	PasteWindParametersButton
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1840)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1840)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1834)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1834)
 msgctxt "KawaiiPhysicsWindScopeWindow,PasteWindParametersButton"
 msgid "Paste"
 msgstr "Paste"
 
 #. Key:	ExternalForceLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1855)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1855)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1849)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1849)
 msgctxt "KawaiiPhysicsWindScopeWindow,ExternalForceLabel"
 msgid "Force"
 msgstr "Force"
 
 #. Key:	ToggleEditPanelTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1911)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1911)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1905)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(1905)
 msgctxt "KawaiiPhysicsWindScopeWindow,ToggleEditPanelTooltip"
 msgid "Toggle the parameter edit panel."
 msgstr "Toggle the parameter edit panel."
 
 #. Key:	DisplayWindowLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2037)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2037)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2031)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2031)
 msgctxt "KawaiiPhysicsWindScopeWindow,DisplayWindowLabel"
 msgid "Window"
 msgstr "Window"
 
 #. Key:	PauseLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2062)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2062)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2056)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2056)
 msgctxt "KawaiiPhysicsWindScopeWindow,PauseLabel"
 msgid "Pause"
 msgstr "Pause"
 
 #. Key:	WindScopeOpenEditorFailed
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2142)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2142)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2136)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2136)
 msgctxt "KawaiiPhysicsWindScopeWindow,WindScopeOpenEditorFailed"
 msgid "Failed to open the Animation Blueprint editor for Wind Scope."
 msgstr "Failed to open the Animation Blueprint editor for Wind Scope."
 
 #. Key:	WindScopeTabContentInvalid
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2165)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2165)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2159)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2159)
 msgctxt "KawaiiPhysicsWindScopeWindow,WindScopeTabContentInvalid"
 msgid "Failed to update the Wind Scope tab content."
 msgstr "Failed to update the Wind Scope tab content."
 
 #. Key:	PreviewMode
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2217)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2217)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2211)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2211)
 msgctxt "KawaiiPhysicsWindScopeWindow,PreviewMode"
 msgid "Preview"
 msgstr "Preview"
 
 #. Key:	SharedWindExternalForceItem
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2245)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2245)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2239)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2239)
 msgctxt "KawaiiPhysicsWindScopeWindow,SharedWindExternalForceItem"
 msgid "Shared Wind"
 msgstr "Shared Wind"
 
 #. Key:	ExternalForceItemFormat
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2247)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2247)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2241)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2241)
 msgctxt "KawaiiPhysicsWindScopeWindow,ExternalForceItemFormat"
 msgid "#{0} ProceduralWind"
 msgstr "#{0} ProceduralWind"
 
 #. Key:	NoExternalForceItem
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2248)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2248)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2242)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2242)
 msgctxt "KawaiiPhysicsWindScopeWindow,NoExternalForceItem"
 msgid "None"
 msgstr "None"
 
 #. Key:	SelectedSharedWind
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2285)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2285)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2279)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2279)
 msgctxt "KawaiiPhysicsWindScopeWindow,SelectedSharedWind"
 msgid "Shared Wind"
 msgstr "Shared Wind"
 
 #. Key:	SelectedExternalForceFormat
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2289)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2289)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2283)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2283)
 msgctxt "KawaiiPhysicsWindScopeWindow,SelectedExternalForceFormat"
 msgid "#{0} ProceduralWind"
 msgstr "#{0} ProceduralWind"
 
 #. Key:	NoExternalForceSelected
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2290)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2290)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2284)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2284)
 msgctxt "KawaiiPhysicsWindScopeWindow,NoExternalForceSelected"
 msgid "No ProceduralWind"
 msgstr "No ProceduralWind"
 
 #. Key:	NoTargetNodeGuidance
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2297)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2297)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2291)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2291)
 msgctxt "KawaiiPhysicsWindScopeWindow,NoTargetNodeGuidance"
 msgid "No node selected: open from [Wind Scope] on a KawaiiPhysics node."
 msgstr "No node selected: open from [Wind Scope] on a KawaiiPhysics node."
 
 #. Key:	RedirectedPublisherBanner
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2312)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2312)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2306)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2306)
 msgctxt "KawaiiPhysicsWindScopeWindow,RedirectedPublisherBanner"
 msgid "Opened from {0} [External Force {1}]: wind parameters are shared from this publisher ({2})."
 msgstr "Opened from {0} [External Force {1}]: wind parameters are shared from this publisher ({2})."
 
 #. Key:	RedirectedPublisherUnknownOrigin
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2316)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2316)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2310)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2310)
 msgctxt "KawaiiPhysicsWindScopeWindow,RedirectedPublisherUnknownOrigin"
 msgid "Kawaii Physics Node"
 msgstr "Kawaii Physics Node"
 
 #. Key:	RedirectedConsumerPublisherFoundBanner
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2327)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2327)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2321)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2321)
 msgctxt "KawaiiPhysicsWindScopeWindow,RedirectedConsumerPublisherFoundBanner"
 msgid "Shared ({0}) -> Kawaii Physics Shared Publisher. The 13 shared parameters are overwritten by the publisher every frame."
 msgstr "Shared ({0}) -> Kawaii Physics Shared Publisher. The 13 shared parameters are overwritten by the publisher every frame."
 
 #. Key:	RedirectedConsumerPublisherMissingBanner
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2333)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2333)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2327)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2327)
 msgctxt "KawaiiPhysicsWindScopeWindow,RedirectedConsumerPublisherMissingBanner"
 msgid "Shared ({0}) -> publisher not found in this Animation Blueprint. Edits here are overwritten while a publisher is active."
 msgstr "Shared ({0}) -> publisher not found in this Animation Blueprint. Edits here are overwritten while a publisher is active."
 
 #. Key:	ShowLocalWindButton
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2346)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2346)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2340)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2340)
 msgctxt "KawaiiPhysicsWindScopeWindow,ShowLocalWindButton"
 msgid "Show local wind"
 msgstr "Show local wind"
 
 #. Key:	OpenPublisherButton
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2352)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2352)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2346)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2346)
 msgctxt "KawaiiPhysicsWindScopeWindow,OpenPublisherButton"
 msgid "Open publisher"
 msgstr "Open publisher"
 
 #. Key:	ShowLocalWindTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2362)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2362)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2356)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2356)
 msgctxt "KawaiiPhysicsWindScopeWindow,ShowLocalWindTooltip"
 msgid "Show this Kawaii Physics node's local ProceduralWind values."
 msgstr "Show this Kawaii Physics node's local ProceduralWind values."
 
 #. Key:	OpenPublisherTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2364)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2364)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2358)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2358)
 msgctxt "KawaiiPhysicsWindScopeWindow,OpenPublisherTooltip"
 msgid "Open the Shared Publisher that provides these wind parameters."
 msgstr "Open the Shared Publisher that provides these wind parameters."
 
 #. Key:	SharedRedirectEditTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2371)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2371)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2365)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2365)
 msgctxt "KawaiiPhysicsWindScopeWindow,SharedRedirectEditTooltip"
 msgid "Provided by Shared Publisher ({0}). Edit it on the publisher."
 msgstr "Provided by Shared Publisher ({0}). Edit it on the publisher."
 
 #. Key:	PasteSharedConsumerRedirectTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2378)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2378)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2372)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2372)
 msgctxt "KawaiiPhysicsWindScopeWindow,PasteSharedConsumerRedirectTooltip"
 msgid "Apply on the publisher"
 msgstr "Apply on the publisher"
 
 #. Key:	PasteWindParametersTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2379)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2379)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2373)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2373)
 msgctxt "KawaiiPhysicsWindScopeWindow,PasteWindParametersTooltip"
 msgid "Paste ProceduralWind parameters from the clipboard."
 msgstr "Paste ProceduralWind parameters from the clipboard."
 
 #. Key:	GustButtonSharedTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2387)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2387)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2381)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2381)
 msgctxt "KawaiiPhysicsWindScopeWindow,GustButtonSharedTooltip"
 msgid "Sends a one-shot test gust to the live target. Does not change any parameters. Delivered through the Shared Publisher."
 msgstr "Sends a one-shot test gust to the live target. Does not change any parameters. Delivered through the Shared Publisher."
 
 #. Key:	GustButtonTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2390)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2390)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2384)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2384)
 msgctxt "KawaiiPhysicsWindScopeWindow,GustButtonTooltip"
 msgid "Sends a one-shot test gust to the live target. Does not change any parameters."
 msgstr "Sends a one-shot test gust to the live target. Does not change any parameters."
 
 #. Key:	ApplyPresetSharedConsumerRedirectTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2617)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2617)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2611)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2611)
 msgctxt "KawaiiPhysicsWindScopeWindow,ApplyPresetSharedConsumerRedirectTooltip"
 msgid "Apply on the publisher"
 msgstr "Apply on the publisher"
 
 #. Key:	PresetButtonTooltipFormat
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2620)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2620)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2614)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2614)
 msgctxt "KawaiiPhysicsWindScopeWindow,PresetButtonTooltipFormat"
 msgid "Apply the \"{0}\" wind preset to the current parameters.\nHover to preview it on the graph."
 msgstr "Apply the \"{0}\" wind preset to the current parameters.\nHover to preview it on the graph."
 
 #. Key:	NoPresetsMenuInfo
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2648)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2648)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2642)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2642)
 msgctxt "KawaiiPhysicsWindScopeWindow,NoPresetsMenuInfo"
 msgid "No wind presets found."
 msgstr "No wind presets found."
 
 #. Key:	SavePresetButton
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2671)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2671)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2665)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2665)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetButton"
 msgid "Save as Preset"
 msgstr "Save as Preset"
 
 #. Key:	ReloadPresetsButton
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2680)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2680)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2674)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2674)
 msgctxt "KawaiiPhysicsWindScopeWindow,ReloadPresetsButton"
 msgid "Reload"
 msgstr "Reload"
 
 #. Key:	ReloadPresetsTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2683)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2683)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2677)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2677)
 msgctxt "KawaiiPhysicsWindScopeWindow,ReloadPresetsTooltip"
 msgid "Reload the preset DataAsset."
 msgstr "Reload the preset DataAsset."
 
 #. Key:	GustStrengthLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2737)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2737)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2731)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2731)
 msgctxt "KawaiiPhysicsWindScopeWindow,GustStrengthLabel"
 msgid "Strength"
 msgstr "Strength"
 
 #. Key:	GustStrengthTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2738)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2738)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2732)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2732)
 msgctxt "KawaiiPhysicsWindScopeWindow,GustStrengthTooltip"
 msgid "Gust strength."
 msgstr "Gust strength."
 
 #. Key:	GustStrengthSpinTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2766)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2766)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2760)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2760)
 msgctxt "KawaiiPhysicsWindScopeWindow,GustStrengthSpinTooltip"
 msgid "Gust strength."
 msgstr "Gust strength."
 
 #. Key:	GustRiseLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2783)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2783)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2777)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2777)
 msgctxt "KawaiiPhysicsWindScopeWindow,GustRiseLabel"
 msgid "Rise"
 msgstr "Rise"
 
 #. Key:	GustRiseTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2784)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2784)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2778)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2778)
 msgctxt "KawaiiPhysicsWindScopeWindow,GustRiseTooltip"
 msgid "Gust rise time."
 msgstr "Gust rise time."
 
 #. Key:	GustRiseSpinTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2812)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2812)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2806)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2806)
 msgctxt "KawaiiPhysicsWindScopeWindow,GustRiseSpinTooltip"
 msgid "Gust rise time."
 msgstr "Gust rise time."
 
 #. Key:	GustDecayLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2828)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2828)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2822)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2822)
 msgctxt "KawaiiPhysicsWindScopeWindow,GustDecayLabel"
 msgid "Decay"
 msgstr "Decay"
 
 #. Key:	GustDecayTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2829)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2829)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2823)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2823)
 msgctxt "KawaiiPhysicsWindScopeWindow,GustDecayTooltip"
 msgid "Gust decay time."
 msgstr "Gust decay time."
 
 #. Key:	GustDecaySpinTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2857)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2857)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2851)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2851)
 msgctxt "KawaiiPhysicsWindScopeWindow,GustDecaySpinTooltip"
 msgid "Gust decay time."
 msgstr "Gust decay time."
 
 #. Key:	ApplyWindPresetTransaction
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2955)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2955)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2949)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2949)
 msgctxt "KawaiiPhysicsWindScopeWindow,ApplyWindPresetTransaction"
 msgid "Apply Kawaii Physics Wind Preset"
 msgstr "Apply Kawaii Physics Wind Preset"
 
 #. Key:	ApplyPresetSucceededLive
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2978)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2978)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2972)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2972)
 msgctxt "KawaiiPhysicsWindScopeWindow,ApplyPresetSucceededLive"
 msgid "Applied {0} wind preset. (live)"
 msgstr "Applied {0} wind preset. (live)"
 
 #. Key:	ApplyPresetSucceededNodeOnly
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2979)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2979)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2973)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2973)
 msgctxt "KawaiiPhysicsWindScopeWindow,ApplyPresetSucceededNodeOnly"
 msgid "Applied {0} wind preset. (node only — no live target)"
 msgstr "Applied {0} wind preset. (node only — no live target)"
 
 #. Key:	SavePresetNoDataAssetMenuInfo
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2991)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2991)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2985)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2985)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetNoDataAssetMenuInfo"
 msgid "Set the Wind Scope Preset Data Asset in Project Settings to save presets."
 msgstr "Set the Wind Scope Preset Data Asset in Project Settings to save presets."
 
 #. Key:	OpenProjectSettingsMenu
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3004)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3004)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2998)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2998)
 msgctxt "KawaiiPhysicsWindScopeWindow,OpenProjectSettingsMenu"
 msgid "Open Project Settings"
 msgstr "Open Project Settings"
 
 #. Key:	OpenProjectSettingsTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3005)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3005)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2999)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(2999)
 msgctxt "KawaiiPhysicsWindScopeWindow,OpenProjectSettingsTooltip"
 msgid "Open Project Settings > Plugins > Kawaii Physics."
 msgstr "Open Project Settings > Plugins > Kawaii Physics."
 
 #. Key:	SavePresetAddNewMenu
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3022)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3022)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3016)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3016)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetAddNewMenu"
 msgid "Add New Preset"
 msgstr "Add New Preset"
 
 #. Key:	SavePresetAddNewTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3023)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3023)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3017)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3017)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetAddNewTooltip"
 msgid "Add current parameters as a new preset."
 msgstr "Add current parameters as a new preset."
 
 #. Key:	SavePresetOverwriteSection
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3030)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3030)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3024)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3024)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetOverwriteSection"
 msgid "Overwrite:"
 msgstr "Overwrite:"
 
 #. Key:	SavePresetOverwriteTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3036)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3036)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3030)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3030)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetOverwriteTooltip"
 msgid "Overwrite this preset with current parameters."
 msgstr "Overwrite this preset with current parameters."
 
 #. Key:	SavePresetNoDataAssetTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3064)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3064)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3058)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3058)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetNoDataAssetTooltip"
 msgid "Set the Wind Scope Preset Data Asset in Project Settings to save presets."
 msgstr "Set the Wind Scope Preset Data Asset in Project Settings to save presets."
 
 #. Key:	SavePresetTooltip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3067)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3067)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3061)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3061)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetTooltip"
 msgid "Save current parameters to the preset DataAsset."
 msgstr "Save current parameters to the preset DataAsset."
 
 #. Key:	SavePresetNoDataAsset
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3079)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3079)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3073)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3073)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetNoDataAsset"
 msgid "Set the Wind Scope Preset Data Asset in Project Settings first."
 msgstr "Set the Wind Scope Preset Data Asset in Project Settings first."
 
 #. Key:	SavePresetLoadDataAssetFailed
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3089)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3089)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3083)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3083)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetLoadDataAssetFailed"
 msgid "Failed to load the Wind Scope Preset Data Asset."
 msgstr "Failed to load the Wind Scope Preset Data Asset."
 
 #. Key:	SavePresetInvalidOverwriteTarget
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3115)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3115)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3109)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3109)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetInvalidOverwriteTarget"
 msgid "Failed to resolve the wind preset to overwrite."
 msgstr "Failed to resolve the wind preset to overwrite."
 
 #. Key:	SavePresetListChanged
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3127)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3127)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3121)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3121)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetListChanged"
 msgid "Preset list has changed. Reload first."
 msgstr "Preset list has changed. Reload first."
 
 #. Key:	SaveWindPresetTransaction
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3135)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3135)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3129)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3129)
 msgctxt "KawaiiPhysicsWindScopeWindow,SaveWindPresetTransaction"
 msgid "Save Kawaii Physics Wind Preset"
 msgstr "Save Kawaii Physics Wind Preset"
 
 #. Key:	SavePresetCustomNameFormat
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3140)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3140)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3134)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3134)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetCustomNameFormat"
 msgid "Custom {0}"
 msgstr "Custom {0}"
 
 #. Key:	SavePresetSucceededAdd
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3160)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3160)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3154)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3154)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetSucceededAdd"
 msgid "Saved {0} wind preset."
 msgstr "Saved {0} wind preset."
 
 #. Key:	SavePresetSucceededOverwrite
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3161)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3161)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3155)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3155)
 msgctxt "KawaiiPhysicsWindScopeWindow,SavePresetSucceededOverwrite"
 msgid "Overwrote {0} wind preset."
 msgstr "Overwrote {0} wind preset."
 
 #. Key:	CopyWindParametersSucceeded
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3189)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3189)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3183)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3183)
 msgctxt "KawaiiPhysicsWindScopeWindow,CopyWindParametersSucceeded"
 msgid "Copied ProceduralWind parameters to clipboard."
 msgstr "Copied ProceduralWind parameters to clipboard."
 
 #. Key:	PasteWindParametersInvalidClipboard
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3206)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3206)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3200)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3200)
 msgctxt "KawaiiPhysicsWindScopeWindow,PasteWindParametersInvalidClipboard"
 msgid "Clipboard does not contain ProceduralWind parameters."
 msgstr "Clipboard does not contain ProceduralWind parameters."
 
 #. Key:	PasteWindParametersTransaction
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3239)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3239)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3233)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3233)
 msgctxt "KawaiiPhysicsWindScopeWindow,PasteWindParametersTransaction"
 msgid "Paste Kawaii Physics Wind Parameters"
 msgstr "Paste Kawaii Physics Wind Parameters"
 
 #. Key:	PasteWindParametersSucceededLive
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3249)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3249)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3243)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3243)
 msgctxt "KawaiiPhysicsWindScopeWindow,PasteWindParametersSucceededLive"
 msgid "Pasted ProceduralWind parameters. (live)"
 msgstr "Pasted ProceduralWind parameters. (live)"
 
 #. Key:	PasteWindParametersSucceededNodeOnly
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3250)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3250)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3244)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3244)
 msgctxt "KawaiiPhysicsWindScopeWindow,PasteWindParametersSucceededNodeOnly"
 msgid "Pasted ProceduralWind parameters. (node only — no live target)"
 msgstr "Pasted ProceduralWind parameters. (node only — no live target)"
 
 #. Key:	ApplyPresetNoNode
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3270)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3270)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3264)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3264)
 msgctxt "KawaiiPhysicsWindScopeWindow,ApplyPresetNoNode"
 msgid "Failed to resolve the Wind Scope target node."
 msgstr "Failed to resolve the Wind Scope target node."
 
 #. Key:	ApplyPresetInvalidWind
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3291)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3291)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3285)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3285)
 msgctxt "KawaiiPhysicsWindScopeWindow,ApplyPresetInvalidWind"
 msgid "The selected external force is not ProceduralWind."
 msgstr "The selected external force is not ProceduralWind."
 
 #. Key:	EditWindParamPropertyMissing
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3376)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3376)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3370)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3370)
 msgctxt "KawaiiPhysicsWindScopeWindow,EditWindParamPropertyMissing"
 msgid "Failed to resolve the wind parameter property."
 msgstr "Failed to resolve the wind parameter property."
 
 #. Key:	EditWindParameterTransaction
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3442)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3442)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3436)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3436)
 msgctxt "KawaiiPhysicsWindScopeWindow,EditWindParameterTransaction"
 msgid "Edit Kawaii Physics Wind Parameter"
 msgstr "Edit Kawaii Physics Wind Parameter"
 
 #. Key:	EditWindParamSetFailed
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3448)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3448)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3442)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3442)
 msgctxt "KawaiiPhysicsWindScopeWindow,EditWindParamSetFailed"
 msgid "Failed to update the wind parameter."
 msgstr "Failed to update the wind parameter."
 
 #. Key:	ResetWindParamPropertyMissing
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3557)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3557)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3551)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3551)
 msgctxt "KawaiiPhysicsWindScopeWindow,ResetWindParamPropertyMissing"
 msgid "Failed to resolve the wind parameter property."
 msgstr "Failed to resolve the wind parameter property."
 
 #. Key:	LiveModeTick
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3621)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3621)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3615)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3615)
 msgctxt "KawaiiPhysicsWindScopeWindow,LiveModeTick"
 msgid "Live"
 msgstr "Live"
 
 #. Key:	PreviewModeTick
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3638)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3638)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3632)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(3632)
 msgctxt "KawaiiPhysicsWindScopeWindow,PreviewModeTick"
 msgid "Preview"
 msgstr "Preview"
 
 #. Key:	WindPresetFallbackNameFormat
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(467)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(467)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(461)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(461)
 msgctxt "KawaiiPhysicsWindScopeWindow,WindPresetFallbackNameFormat"
 msgid "Preset {0}"
 msgstr "Preset {0}"
 
 #. Key:	FormulaHeaderEquals
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(942)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(942)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(936)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(936)
 msgctxt "KawaiiPhysicsWindScopeWindow,FormulaHeaderEquals"
 msgid " = ("
 msgstr " = ("
 
 #. Key:	FormulaHeaderPlusSway
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(944)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(944)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(938)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(938)
 msgctxt "KawaiiPhysicsWindScopeWindow,FormulaHeaderPlusSway"
 msgid " + "
 msgstr " + "
 
 #. Key:	FormulaHeaderPlusRipple
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(946)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(946)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(940)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(940)
 msgctxt "KawaiiPhysicsWindScopeWindow,FormulaHeaderPlusRipple"
 msgid " + "
 msgstr " + "
 
 #. Key:	FormulaHeaderStrengthCyclePrefix
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(948)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(948)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(942)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(942)
 msgctxt "KawaiiPhysicsWindScopeWindow,FormulaHeaderStrengthCyclePrefix"
 msgid ") × "
 msgstr ") × "
 
 #. Key:	FormulaHeaderPlusRandom
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(950)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(950)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(944)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(944)
 msgctxt "KawaiiPhysicsWindScopeWindow,FormulaHeaderPlusRandom"
 msgid " + "
 msgstr " + "
 
 #. Key:	FormulaHeaderPlusGust
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(952)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(952)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(946)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/SKawaiiPhysicsWindScopeWindow.cpp(946)
 msgctxt "KawaiiPhysicsWindScopeWindow,FormulaHeaderPlusGust"
 msgid " + "
 msgstr " + "

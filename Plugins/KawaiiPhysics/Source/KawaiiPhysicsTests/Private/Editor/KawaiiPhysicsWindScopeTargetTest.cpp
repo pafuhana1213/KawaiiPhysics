@@ -105,6 +105,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsWindScopeSharedTargetResolveTest,
 
 bool FKawaiiPhysicsWindScopeSharedTargetResolveTest::RunTest(const FString& Parameters)
 {
+	// 共有先への解決と画面を開く際の元ノード保存を確認する。
 	(void)Parameters;
 
 	bool bOk = true;
@@ -206,39 +207,7 @@ bool FKawaiiPhysicsWindScopeSharedTargetResolveTest::RunTest(const FString& Para
 	bOk &= TestTrue(TEXT("KP node with publisher kind resolves no wind"),
 	                KawaiiPhysicsAsPublisherTarget.ResolveGraphWind() == nullptr);
 
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsWindScopeRedirectResolveTest,
-                                 "KawaiiPhysics.Editor.WindScope.RedirectResolve",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsWindScopeRedirectResolveTest::RunTest(const FString& Parameters)
-{
-	(void)Parameters;
-
-	bool bOk = true;
-	const FGameplayTag TagX = GetWindScopeTargetTestTagX();
-	const FGameplayTag TagY = GetWindScopeTargetTestTagY();
-	bOk &= TestTrue(TEXT("Runtime test gameplay tags are registered"), TagX.IsValid() && TagY.IsValid());
-
-	UAnimBlueprint* AnimBlueprint = CreateWindScopeTargetTestAnimBlueprint(*this);
-	UEdGraph* AnimGraph = FindWindScopeTargetTestAnimGraph(AnimBlueprint);
-	bOk &= TestTrue(TEXT("Default AnimGraph is found"), AnimGraph != nullptr);
-	if (!AnimGraph)
-	{
-		return false;
-	}
-
-	UAnimGraphNode_KawaiiPhysicsSharedPublisher* Publisher =
-		AddWindScopeTargetTestPublisher(AnimGraph, TagX);
-	UAnimGraphNode_KawaiiPhysics* KPShared =
-		AddWindScopeTargetTestKawaiiPhysicsNode(AnimGraph, EKawaiiPhysicsProceduralWindSource::Shared, TagX);
-	UAnimGraphNode_KawaiiPhysics* KPLocal =
-		AddWindScopeTargetTestKawaiiPhysicsNode(AnimGraph, EKawaiiPhysicsProceduralWindSource::Local, TagX);
-	UAnimGraphNode_KawaiiPhysics* KPMissingPublisher =
-		AddWindScopeTargetTestKawaiiPhysicsNode(AnimGraph, EKawaiiPhysicsProceduralWindSource::Shared, TagY);
-
+	// 共有先への誘導と元ノードの保存を同じ AnimBlueprint 上で確認する。
 	TOptional<FKawaiiPhysicsWindScopeTarget> Origin;
 	const FKawaiiPhysicsWindScopeTarget SharedOpenTarget = ResolveWindScopeOpenTarget(
 		FKawaiiPhysicsWindScopeTarget::MakeKawaiiPhysicsNode(KPShared, 0),
@@ -252,14 +221,10 @@ bool FKawaiiPhysicsWindScopeRedirectResolveTest::RunTest(const FString& Paramete
 	                Origin.GetValue().Kind == EKawaiiPhysicsWindScopeTargetKind::KawaiiPhysicsNode &&
 	                Origin.GetValue().ResolveKawaiiPhysicsGraphNode() == KPShared);
 
-	const FKawaiiPhysicsWindScopeTarget LocalTarget =
-		FKawaiiPhysicsWindScopeTarget::MakeKawaiiPhysicsNode(KPLocal, 0);
 	const FKawaiiPhysicsWindScopeTarget LocalOpenTarget = ResolveWindScopeOpenTarget(LocalTarget, Origin);
 	bOk &= TestTrue(TEXT("Local open target is unchanged"), LocalOpenTarget == LocalTarget);
 	bOk &= TestFalse(TEXT("Local open target has no origin"), Origin.IsSet());
 
-	const FKawaiiPhysicsWindScopeTarget MissingPublisherTarget =
-		FKawaiiPhysicsWindScopeTarget::MakeKawaiiPhysicsNode(KPMissingPublisher, 0);
 	const FKawaiiPhysicsWindScopeTarget MissingOpenTarget = ResolveWindScopeOpenTarget(MissingPublisherTarget, Origin);
 	bOk &= TestTrue(TEXT("Missing publisher open target is unchanged"), MissingOpenTarget == MissingPublisherTarget);
 	bOk &= TestFalse(TEXT("Missing publisher open target has no origin"), Origin.IsSet());

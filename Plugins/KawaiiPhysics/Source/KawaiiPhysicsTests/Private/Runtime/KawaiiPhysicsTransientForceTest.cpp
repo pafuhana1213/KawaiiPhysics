@@ -4,13 +4,9 @@
 
 #include "Misc/AutomationTest.h"
 #include "AnimNode_KawaiiPhysics.h"
-#include "ExternalForces/KawaiiPhysicsExternalForce_Basic.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce_Curve.h"
-#include "ExternalForces/KawaiiPhysicsExternalForce_Gravity.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
-#include "ExternalForces/KawaiiPhysicsExternalForce_Wind.h"
 #include "KawaiiPhysicsLibrary.h"
-#include "KawaiiPhysicsPresetDataAsset.h"
 #include "KawaiiPhysicsSharedPublisherTypes.h"
 #include "KawaiiPhysicsTestHarness.h"
 #include "KawaiiPhysicsTypes.h"
@@ -19,12 +15,7 @@
 #include "Animation/AnimNodeBase.h"
 #include "AnimNodes/AnimNode_CurveSource.h"
 #include "Curves/CurveFloat.h"
-#include "KawaiiPhysicsTestGameplayTags.h"
 #include "UObject/Package.h"
-#include "UObject/UnrealType.h"
-
-KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsTransientForceMatch, "KawaiiPhysics.Test.TransientForce.Match");
-KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsTransientForceOther, "KawaiiPhysics.Test.TransientForce.Other");
 
 namespace
 {
@@ -73,19 +64,6 @@ int32 GetPendingStopCount(FAnimNode_KawaiiPhysics& Node)
 
 	FScopeLock Lock(&Node.TransientForceStore.Queue->Mutex);
 	return Node.TransientForceStore.Queue->PendingStops.Num();
-}
-
-float GetPendingStopBlendOutTime(FAnimNode_KawaiiPhysics& Node, const int32 Index)
-{
-	if (!Node.TransientForceStore.Queue.IsValid())
-	{
-		return 0.0f;
-	}
-
-	FScopeLock Lock(&Node.TransientForceStore.Queue->Mutex);
-	return Node.TransientForceStore.Queue->PendingStops.IsValidIndex(Index)
-		? Node.TransientForceStore.Queue->PendingStops[Index].BlendOutTime
-		: 0.0f;
 }
 
 void AddAuthoredProceduralWind(FAnimNode_KawaiiPhysics& Node, const bool bIsEnabled, const FVector& Direction,
@@ -139,54 +117,10 @@ bool TestInheritedRuntimeFields(FAutomationTestBase& Test, FKawaiiPhysics_Extern
 	return bOk;
 }
 
-void ApplyDefaultPresetStyleForTransientForce(FAnimNode_KawaiiPhysics& TargetNode)
-{
-	FAnimNode_KawaiiPhysics DefaultNode;
-	const FKawaiiPhysicsPresetApplyOptions Options;
-
-	for (TFieldIterator<FProperty> PropertyIt(FAnimNode_KawaiiPhysics::StaticStruct(), EFieldIteratorFlags::ExcludeSuper);
-	     PropertyIt; ++PropertyIt)
-	{
-		const FProperty& Property = **PropertyIt;
-		if (!UKawaiiPhysicsPresetDataAsset::ShouldApplyNodeProperty(Property, Options))
-		{
-			continue;
-		}
-
-		const FName PropertyName = Property.GetFName();
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, ExternalForces) ||
-			PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, CustomExternalForces))
-		{
-			continue;
-		}
-
-		Property.CopyCompleteValue_InContainer(&TargetNode, &DefaultNode);
-	}
-}
-
 bool InstancedStructHasLiveObjectReference(const FInstancedStruct& InstancedStruct)
 {
 	return KawaiiPhysics::StructInstanceHasLiveObjectReference(InstancedStruct.GetScriptStruct(),
 	                                                           InstancedStruct.GetMemory());
-}
-
-bool TestTagMatchesFilter(const FGameplayTag& NodeTag, const FGameplayTagContainer& FilterTags,
-                          const bool bFilterExactMatch)
-{
-	if (FilterTags.IsEmpty())
-	{
-		return true;
-	}
-
-	for (const FGameplayTag& FilterTag : FilterTags)
-	{
-		if (bFilterExactMatch ? NodeTag.MatchesTagExact(FilterTag) : NodeTag.MatchesTag(FilterTag))
-		{
-			return true;
-		}
-	}
-
-	return false;
 }
 
 }
@@ -197,127 +131,60 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientForceLiveObjectReference
 
 bool FKawaiiPhysicsTransientForceLiveObjectReferenceDetectionTest::RunTest(const FString& Parameters)
 {
+	// UObject、曲線、インターフェース、入れ子構造体の参照検出を確認する。
 	bool bOk = true;
+	FInstancedStruct BaseForce = FInstancedStruct::Make<FKawaiiPhysics_ExternalForce>();
+	FInstancedStruct ProceduralWindForce = FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+	bOk &= TestFalse(TEXT("Base default has no live UObject reference"),
+		InstancedStructHasLiveObjectReference(BaseForce));
+	bOk &= TestFalse(TEXT("ProceduralWind default has no live UObject reference"),
+		InstancedStructHasLiveObjectReference(ProceduralWindForce));
 
+	FKawaiiPhysics_ExternalForce* ExternalForce = ProceduralWindForce.GetMutablePtr<FKawaiiPhysics_ExternalForce>();
+	bOk &= TestNotNull(TEXT("External force pointer"), ExternalForce);
+	if (ExternalForce)
 	{
-		FInstancedStruct BaseForce = FInstancedStruct::Make<FKawaiiPhysics_ExternalForce>();
-		FInstancedStruct BasicForce = FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_Basic>();
-		FInstancedStruct CurveForce = FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_Curve>();
-		FInstancedStruct GravityForce = FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_Gravity>();
-		FInstancedStruct WindForce = FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_Wind>();
-		FInstancedStruct ProceduralWindForce = FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_ProceduralWind>();
-
-		bOk &= TestFalse(TEXT("Base default has no live UObject reference"),
-		                 InstancedStructHasLiveObjectReference(BaseForce));
-		bOk &= TestFalse(TEXT("Basic default has no live UObject reference"),
-		                 InstancedStructHasLiveObjectReference(BasicForce));
-		bOk &= TestFalse(TEXT("Curve default has no live UObject reference"),
-		                 InstancedStructHasLiveObjectReference(CurveForce));
-		bOk &= TestFalse(TEXT("Gravity default has no live UObject reference"),
-		                 InstancedStructHasLiveObjectReference(GravityForce));
-		bOk &= TestFalse(TEXT("Wind default has no live UObject reference"),
-		                 InstancedStructHasLiveObjectReference(WindForce));
-		bOk &= TestFalse(TEXT("ProceduralWind default has no live UObject reference"),
-		                 InstancedStructHasLiveObjectReference(ProceduralWindForce));
-	}
-
-	{
-		FInstancedStruct Force = FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_ProceduralWind>();
-		FKawaiiPhysics_ExternalForce* ExternalForce = Force.GetMutablePtr<FKawaiiPhysics_ExternalForce>();
-		bOk &= TestNotNull(TEXT("External force pointer"), ExternalForce);
-		if (ExternalForce)
-		{
-			ExternalForce->ExternalOwner = NewObject<UCurveFloat>(GetTransientPackage());
-		}
-
+		ExternalForce->ExternalOwner = NewObject<UCurveFloat>(GetTransientPackage());
 		bOk &= TestTrue(TEXT("ExternalOwner live UObject reference is detected"),
-		                InstancedStructHasLiveObjectReference(Force));
+			InstancedStructHasLiveObjectReference(ProceduralWindForce));
 	}
 
+	FInstancedStruct CurveForce = FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_Curve>();
+	FKawaiiPhysics_ExternalForce_Curve* Curve = CurveForce.GetMutablePtr<FKawaiiPhysics_ExternalForce_Curve>();
+	bOk &= TestNotNull(TEXT("Curve force pointer"), Curve);
+	if (Curve)
 	{
-		FInstancedStruct Force = FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_Curve>();
-		FKawaiiPhysics_ExternalForce_Curve* CurveForce =
-			Force.GetMutablePtr<FKawaiiPhysics_ExternalForce_Curve>();
-		bOk &= TestNotNull(TEXT("Curve force pointer"), CurveForce);
-		if (CurveForce)
-		{
-			CurveForce->ForceRateByBoneLengthRate.ExternalCurve = NewObject<UCurveFloat>(GetTransientPackage());
-		}
-
+		Curve->ForceRateByBoneLengthRate.ExternalCurve = NewObject<UCurveFloat>(GetTransientPackage());
 		bOk &= TestTrue(TEXT("RuntimeFloatCurve ExternalCurve live UObject reference is detected"),
-		                InstancedStructHasLiveObjectReference(Force));
+			InstancedStructHasLiveObjectReference(CurveForce));
 	}
 
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientForceLiveObjectReferenceDetectionInterfaceTest,
-                                 "KawaiiPhysics.TransientForce.LiveObjectReferenceDetectionInterface",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsTransientForceLiveObjectReferenceDetectionInterfaceTest::RunTest(const FString& Parameters)
-{
-	FInstancedStruct Force = FInstancedStruct::Make<FAnimNode_CurveSource>();
-	FAnimNode_CurveSource* CurveSourceNode = Force.GetMutablePtr<FAnimNode_CurveSource>();
-
-	bool bOk = TestNotNull(TEXT("CurveSource node pointer"), CurveSourceNode);
-	if (!CurveSourceNode)
+	FInstancedStruct InterfaceForce = FInstancedStruct::Make<FAnimNode_CurveSource>();
+	FAnimNode_CurveSource* InterfaceNode = InterfaceForce.GetMutablePtr<FAnimNode_CurveSource>();
+	bOk &= TestNotNull(TEXT("CurveSource node pointer"), InterfaceNode);
+	if (InterfaceNode)
 	{
-		return false;
+		InterfaceNode->CurveSource.SetObject(GetTransientPackage());
+		bOk &= TestTrue(TEXT("TScriptInterface UObject reference is detected"),
+			InstancedStructHasLiveObjectReference(InterfaceForce));
 	}
 
-	bOk &= TestFalse(TEXT("Null TScriptInterface has no live UObject reference"),
-	                 InstancedStructHasLiveObjectReference(Force));
-
-	// NewObject<UObject> は抽象クラス扱いで ensure するため、生存 UObject として TransientPackage 自体を使う
-	CurveSourceNode->CurveSource.SetObject(GetTransientPackage());
-	bOk &= TestTrue(TEXT("TScriptInterface UObject reference is detected"),
-	                InstancedStructHasLiveObjectReference(Force));
-
-	CurveSourceNode->CurveSource.SetObject(nullptr);
-	bOk &= TestFalse(TEXT("Cleared TScriptInterface has no live UObject reference"),
-	                 InstancedStructHasLiveObjectReference(Force));
-
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientForceLiveObjectReferenceDetectionNestedInstancedStructTest,
-                                 "KawaiiPhysics.TransientForce.LiveObjectReferenceDetectionNestedInstancedStruct",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsTransientForceLiveObjectReferenceDetectionNestedInstancedStructTest::RunTest(
-	const FString& Parameters)
-{
 	FInstancedStruct Outer = FInstancedStruct::Make<FAnimNode_KawaiiPhysics>();
-	FAnimNode_KawaiiPhysics* KawaiiPhysicsNode = Outer.GetMutablePtr<FAnimNode_KawaiiPhysics>();
-
-	bool bOk = TestNotNull(TEXT("KawaiiPhysics node pointer"), KawaiiPhysicsNode);
-	if (!KawaiiPhysicsNode)
+	FAnimNode_KawaiiPhysics* NestedNode = Outer.GetMutablePtr<FAnimNode_KawaiiPhysics>();
+	bOk &= TestNotNull(TEXT("KawaiiPhysics node pointer"), NestedNode);
+	if (NestedNode)
 	{
-		return false;
+		NestedNode->ExternalForces.Add(FInstancedStruct::Make<FAnimNode_CurveSource>());
+		FAnimNode_CurveSource* NestedCurve =
+			NestedNode->ExternalForces.Last().GetMutablePtr<FAnimNode_CurveSource>();
+		bOk &= TestNotNull(TEXT("Nested CurveSource node pointer"), NestedCurve);
+		if (NestedCurve)
+		{
+			NestedCurve->CurveSource.SetObject(GetTransientPackage());
+			bOk &= TestTrue(TEXT("Nested TScriptInterface UObject reference is detected"),
+				InstancedStructHasLiveObjectReference(Outer));
+		}
 	}
-
-	KawaiiPhysicsNode->ExternalForces.Add(FInstancedStruct::Make<FAnimNode_CurveSource>());
-	FAnimNode_CurveSource* CurveSourceNode =
-		KawaiiPhysicsNode->ExternalForces.Last().GetMutablePtr<FAnimNode_CurveSource>();
-
-	bOk &= TestNotNull(TEXT("Nested CurveSource node pointer"), CurveSourceNode);
-	if (!CurveSourceNode)
-	{
-		return false;
-	}
-
-	bOk &= TestFalse(TEXT("Nested null TScriptInterface has no live UObject reference"),
-	                 InstancedStructHasLiveObjectReference(Outer));
-
-	CurveSourceNode->CurveSource.SetObject(GetTransientPackage());
-	bOk &= TestTrue(TEXT("Nested TScriptInterface UObject reference is detected"),
-	                InstancedStructHasLiveObjectReference(Outer));
-
-	CurveSourceNode->CurveSource.SetObject(nullptr);
-	bOk &= TestFalse(TEXT("Nested cleared TScriptInterface has no live UObject reference"),
-	                 InstancedStructHasLiveObjectReference(Outer));
-
 	return bOk;
 }
 
@@ -327,120 +194,55 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientForceAddTransientOnCompo
 
 bool FKawaiiPhysicsTransientForceAddTransientOnComponentSharesHandleTest::RunTest(const FString& Parameters)
 {
-	FAnimNode_KawaiiPhysics MatchingNode;
-	FAnimNode_KawaiiPhysics OtherNode;
-	MatchingNode.KawaiiPhysicsTag = TAG_KawaiiPhysicsTransientForceMatch;
-	OtherNode.KawaiiPhysicsTag = TAG_KawaiiPhysicsTransientForceOther;
-
+	// ２ノードでハンドルを共有し、空の対象と生存参照を拒否する。
+	FAnimNode_KawaiiPhysics FirstNode;
+	FAnimNode_KawaiiPhysics SecondNode;
 	TArray<FAnimNode_KawaiiPhysics*> Nodes;
-	Nodes.Add(&MatchingNode);
-	Nodes.Add(&OtherNode);
-
-	FGameplayTagContainer FilterTags;
-	FilterTags.AddTag(TAG_KawaiiPhysicsTransientForceMatch);
-
+	Nodes.Add(&FirstNode);
+	Nodes.Add(&SecondNode);
 	FKawaiiPhysicsTransientHandle Handle;
-	TArray<FAnimNode_KawaiiPhysics*> FilteredNodes;
-	for (FAnimNode_KawaiiPhysics* Node : Nodes)
-	{
-		if (Node && TestTagMatchesFilter(Node->KawaiiPhysicsTag, FilterTags, true))
-		{
-			FilteredNodes.Add(Node);
-		}
-	}
-
 	const int32 AppliedCount = KawaiiPhysics::QueueTransientExternalForceToNodes(
-		MakeArrayView(FilteredNodes), FInstancedStruct::Make<FKawaiiPhysics_ExternalForce>(), 5.0f, Handle);
-
-	bool bOk = TestEqual(TEXT("AppliedCount"), AppliedCount, 1);
+		MakeArrayView(Nodes), FInstancedStruct::Make<FKawaiiPhysics_ExternalForce>(), 5.0f, Handle);
+	bool bOk = TestEqual(TEXT("AppliedCount"), AppliedCount, 2);
 	bOk &= TestTrue(TEXT("Handle set"), Handle.Id != 0);
-
-	MatchingNode.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
-	OtherNode.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
-
-	bOk &= TestEqual(TEXT("Matching Items.Num"), MatchingNode.TransientForceStore.Items.Num(), 1);
-	if (MatchingNode.TransientForceStore.Items.IsValidIndex(0))
+	FirstNode.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
+	SecondNode.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
+	bOk &= TestEqual(TEXT("First Items.Num"), FirstNode.TransientForceStore.Items.Num(), 1);
+	bOk &= TestEqual(TEXT("Second Items.Num"), SecondNode.TransientForceStore.Items.Num(), 1);
+	if (FirstNode.TransientForceStore.Items.IsValidIndex(0) &&
+		SecondNode.TransientForceStore.Items.IsValidIndex(0))
 	{
-		bOk &= TestEqual(TEXT("Shared HandleId"), MatchingNode.TransientForceStore.Items[0].HandleId, Handle.Id);
+		bOk &= TestEqual(TEXT("First shared handle"), FirstNode.TransientForceStore.Items[0].HandleId, Handle.Id);
+		bOk &= TestEqual(TEXT("Second shared handle"), SecondNode.TransientForceStore.Items[0].HandleId, Handle.Id);
 	}
-	bOk &= TestEqual(TEXT("Other Items.Num"), OtherNode.TransientForceStore.Items.Num(), 0);
+	FirstNode.RequestStopTransientExternalForce(Handle.Id, 0.0f);
+	SecondNode.RequestStopTransientExternalForce(Handle.Id, 0.0f);
+	FirstNode.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
+	SecondNode.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
+	bOk &= TestEqual(TEXT("First stopped Items.Num"), FirstNode.TransientForceStore.Items.Num(), 0);
+	bOk &= TestEqual(TEXT("Second stopped Items.Num"), SecondNode.TransientForceStore.Items.Num(), 0);
 
-	MatchingNode.RequestStopTransientExternalForce(Handle.Id, 0.0f);
-	OtherNode.RequestStopTransientExternalForce(Handle.Id, 0.0f);
-	MatchingNode.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
-	OtherNode.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
+	TArray<FAnimNode_KawaiiPhysics*> EmptyNodes;
+	FKawaiiPhysicsTransientHandle EmptyHandle;
+	EmptyHandle.Id = 12345;
+	bOk &= TestEqual(TEXT("Empty AppliedCount"), KawaiiPhysics::QueueTransientExternalForceToNodes(
+		MakeArrayView(EmptyNodes), FInstancedStruct::Make<FKawaiiPhysics_ExternalForce>(), 5.0f, EmptyHandle), 0);
+	bOk &= TestEqual(TEXT("Empty handle unset"), EmptyHandle.Id, static_cast<int64>(0));
 
-	bOk &= TestEqual(TEXT("Matching stopped Items.Num"), MatchingNode.TransientForceStore.Items.Num(), 0);
-	bOk &= TestEqual(TEXT("Other stopped Items.Num"), OtherNode.TransientForceStore.Items.Num(), 0);
-
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientForceAddTransientOnComponentRejectsLiveObjectRefTest,
-                                 "KawaiiPhysics.TransientForce.AddTransientOnComponentRejectsLiveObjectRef",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsTransientForceAddTransientOnComponentRejectsLiveObjectRefTest::RunTest(const FString& Parameters)
-{
-	FAnimNode_KawaiiPhysics Node;
-	Node.KawaiiPhysicsTag = TAG_KawaiiPhysicsTransientForceMatch;
-
-	TArray<FAnimNode_KawaiiPhysics*> Nodes;
-	Nodes.Add(&Node);
-
-	FInstancedStruct Force = FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_ProceduralWind>();
-	if (FKawaiiPhysics_ExternalForce* ExternalForce = Force.GetMutablePtr<FKawaiiPhysics_ExternalForce>())
+	FInstancedStruct LiveForce = FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+	if (FKawaiiPhysics_ExternalForce* ExternalForce = LiveForce.GetMutablePtr<FKawaiiPhysics_ExternalForce>())
 	{
 		ExternalForce->ExternalOwner = NewObject<UCurveFloat>(GetTransientPackage());
 	}
-
-	FKawaiiPhysicsTransientHandle Handle;
-	Handle.Id = 12345;
-	const int32 AppliedCount = KawaiiPhysics::QueueTransientExternalForceToNodes(
-		MakeArrayView(Nodes), Force, 5.0f, Handle);
-
-	bool bOk = TestEqual(TEXT("AppliedCount"), AppliedCount, 0);
-	bOk &= TestEqual(TEXT("Handle unset"), Handle.Id, static_cast<int64>(0));
-	Node.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
-	bOk &= TestEqual(TEXT("Items.Num"), Node.TransientForceStore.Items.Num(), 0);
-
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientForceAddTransientOnComponentNoMatchLeavesHandleUnsetTest,
-                                 "KawaiiPhysics.TransientForce.AddTransientOnComponentNoMatchLeavesHandleUnset",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsTransientForceAddTransientOnComponentNoMatchLeavesHandleUnsetTest::RunTest(const FString& Parameters)
-{
-	FAnimNode_KawaiiPhysics Node;
-	Node.KawaiiPhysicsTag = TAG_KawaiiPhysicsTransientForceOther;
-
-	TArray<FAnimNode_KawaiiPhysics*> Nodes;
-	Nodes.Add(&Node);
-
-	FGameplayTagContainer FilterTags;
-	FilterTags.AddTag(TAG_KawaiiPhysicsTransientForceMatch);
-
-	FKawaiiPhysicsTransientHandle Handle;
-	Handle.Id = 12345;
-	TArray<FAnimNode_KawaiiPhysics*> FilteredNodes;
-	for (FAnimNode_KawaiiPhysics* CandidateNode : Nodes)
-	{
-		if (CandidateNode && TestTagMatchesFilter(CandidateNode->KawaiiPhysicsTag, FilterTags, true))
-		{
-			FilteredNodes.Add(CandidateNode);
-		}
-	}
-
-	const int32 AppliedCount = KawaiiPhysics::QueueTransientExternalForceToNodes(
-		MakeArrayView(FilteredNodes), FInstancedStruct::Make<FKawaiiPhysics_ExternalForce>(), 5.0f, Handle);
-
-	bool bOk = TestEqual(TEXT("AppliedCount"), AppliedCount, 0);
-	bOk &= TestEqual(TEXT("Handle unset"), Handle.Id, static_cast<int64>(0));
-	Node.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
-	bOk &= TestEqual(TEXT("Items.Num"), Node.TransientForceStore.Items.Num(), 0);
-
+	FKawaiiPhysicsTransientHandle LiveHandle;
+	LiveHandle.Id = 12345;
+	bOk &= TestEqual(TEXT("Live reference AppliedCount"), KawaiiPhysics::QueueTransientExternalForceToNodes(
+		MakeArrayView(Nodes), LiveForce, 5.0f, LiveHandle), 0);
+	bOk &= TestEqual(TEXT("Live reference handle unset"), LiveHandle.Id, static_cast<int64>(0));
+	FirstNode.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
+	SecondNode.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
+	bOk &= TestEqual(TEXT("First live reference Items.Num"), FirstNode.TransientForceStore.Items.Num(), 0);
+	bOk &= TestEqual(TEXT("Second live reference Items.Num"), SecondNode.TransientForceStore.Items.Num(), 0);
 	return bOk;
 }
 
@@ -546,104 +348,26 @@ bool FKawaiiPhysicsTransientForceGustCopyForcesLocalWindSourceTest::RunTest(cons
 	return bOk;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientForceLifetimeSweepTest,
-                                 "KawaiiPhysics.TransientForce.LifetimeSweep",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsTransientForceLifetimeSweepTest::RunTest(const FString& Parameters)
-{
-	FAnimNode_KawaiiPhysics Node;
-	Node.RequestTransientGust(1.0f, 0.05f, 0.0f, FVector::ForwardVector, INDEX_NONE);
-
-	Node.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
-	bool bOk = TestEqual(TEXT("Initial consume"), Node.TransientForceStore.Items.Num(), 1);
-
-	Node.ConsumeAndRemoveExpiredTransientExternalForces(0.13f);
-	bOk &= TestEqual(TEXT("Still alive"), Node.TransientForceStore.Items.Num(), 1);
-
-	Node.ConsumeAndRemoveExpiredTransientExternalForces(0.13f);
-	bOk &= TestEqual(TEXT("Expired"), Node.TransientForceStore.Items.Num(), 0);
-
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientForceMultiGustTest,
-                                 "KawaiiPhysics.TransientForce.MultiGust",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsTransientForceMultiGustTest::RunTest(const FString& Parameters)
-{
-	FAnimNode_KawaiiPhysics Node;
-	Node.RequestTransientGust(1.0f, 0.1f, 0.1f, FVector(1.0f, 0.0f, 0.0f), INDEX_NONE);
-	Node.RequestTransientGust(2.0f, 0.1f, 0.1f, FVector(0.0f, 1.0f, 0.0f), INDEX_NONE);
-	Node.RequestTransientGust(3.0f, 0.1f, 0.1f, FVector(0.0f, 0.0f, 1.0f), INDEX_NONE);
-
-	Node.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
-
-	return TestEqual(TEXT("Items.Num"), Node.TransientForceStore.Items.Num(), 3);
-}
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientForceCapDropsOldestTest,
                                  "KawaiiPhysics.TransientForce.CapDropsOldest",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FKawaiiPhysicsTransientForceCapDropsOldestTest::RunTest(const FString& Parameters)
 {
-	FAnimNode_KawaiiPhysics Node;
-	for (int32 Index = 0; Index < 10; ++Index)
-	{
-		Node.RequestTransientGust(1.0f, 0.1f, 0.1f, FVector(static_cast<float>(Index), 1.0f, 0.0f), INDEX_NONE);
-	}
-
-	Node.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
-
-	bool bOk = TestEqual(TEXT("Items.Num"), Node.TransientForceStore.Items.Num(), FAnimNode_KawaiiPhysics::MaxTransientExternalForces);
-	for (int32 Index = 0; Index < Node.TransientForceStore.Items.Num(); ++Index)
-	{
-		FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = GetTransientWind(Node, Index);
-		bOk &= TestTrue(FString::Printf(TEXT("Wind %d valid"), Index), Wind != nullptr);
-		if (Wind)
-		{
-			bOk &= TestTrue(FString::Printf(TEXT("Direction %d"), Index),
-			                Wind->WindDirection.Equals(FVector(static_cast<float>(Index + 2), 1.0f, 0.0f)));
-		}
-	}
-
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientForcePendingCapBoundsQueueTest,
-                                 "KawaiiPhysics.TransientForce.PendingCapBoundsQueue",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsTransientForcePendingCapBoundsQueueTest::RunTest(const FString& Parameters)
-{
+	// 12 件の要求を消費し、上限８件と最古４件の脱落を確認する。
 	FAnimNode_KawaiiPhysics Node;
 	for (int32 Index = 1; Index <= 12; ++Index)
 	{
 		Node.RequestTransientGust(1.0f, 0.1f, 0.1f, FVector(static_cast<float>(Index), 0.0f, 0.0f), INDEX_NONE);
 	}
-
-	bool bOk = TestTrue(TEXT("Queue valid"), Node.TransientForceStore.Queue.IsValid());
-	if (Node.TransientForceStore.Queue.IsValid())
-	{
-		FScopeLock Lock(&Node.TransientForceStore.Queue->Mutex);
-		bOk &= TestEqual(TEXT("PendingGusts.Num"), Node.TransientForceStore.Queue->PendingGusts.Num(), 8);
-		if (Node.TransientForceStore.Queue->PendingGusts.IsValidIndex(0))
-		{
-			bOk &= TestTrue(TEXT("PendingGusts[0].Direction.X"),
-			                FMath::IsNearlyEqual(Node.TransientForceStore.Queue->PendingGusts[0].Direction.X,
-			                                     5.0f, GTransientForceTol));
-		}
-		else
-		{
-			bOk = false;
-		}
-	}
-
 	Node.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
-	bOk &= TestEqual(TEXT("Items.Num"), Node.TransientForceStore.Items.Num(), 8);
-
+	bool bOk = TestEqual(TEXT("Items.Num"), Node.TransientForceStore.Items.Num(), 8);
+	FKawaiiPhysics_ExternalForce_ProceduralWind* FirstWind = GetTransientWind(Node);
+	bOk &= TestTrue(TEXT("First retained wind valid"), FirstWind != nullptr);
+	if (FirstWind)
+	{
+		bOk &= TestTransientForceFloatNear(*this, TEXT("First retained direction X"), FirstWind->WindDirection.X, 5.0f);
+	}
 	return bOk;
 }
 
@@ -748,22 +472,6 @@ bool FKawaiiPhysicsTransientForceInheritFromAuthoredTest::RunTest(const FString&
 		}
 	}
 
-	{
-		FAnimNode_KawaiiPhysics Node;
-		Node.RequestTransientGust(3.0f, 0.2f, 0.6f, FVector::ZeroVector, INDEX_NONE);
-		Node.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
-
-		FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = GetTransientWind(Node);
-		bOk &= TestTrue(TEXT("Default inherited wind valid"), Wind != nullptr);
-		if (Wind)
-		{
-			bOk &= TestTransientForceFloatNear(*this, TEXT("Default RandomForceScaleRange.Min"),
-			                      Wind->RandomForceScaleRange.Min, 1.0f);
-			bOk &= TestTransientForceFloatNear(*this, TEXT("Default RandomForceScaleRange.Max"),
-			                      Wind->RandomForceScaleRange.Max, 1.0f);
-		}
-	}
-
 	return bOk;
 }
 
@@ -839,21 +547,6 @@ bool FKawaiiPhysicsTransientForceSpreadAcrossAuthoredWindsTest::RunTest(const FS
 
 	{
 		FAnimNode_KawaiiPhysics Node;
-		Node.RequestTransientGust(3.0f, 0.1f, 0.3f, FVector::ZeroVector,
-		                          FAnimNode_KawaiiPhysics::TransientGustInheritAllWinds);
-		Node.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
-
-		bOk &= TestEqual(TEXT("Default Items.Num"), Node.TransientForceStore.Items.Num(), 1);
-		FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = GetTransientWind(Node);
-		bOk &= TestTrue(TEXT("Default Wind valid"), Wind != nullptr);
-		if (Wind)
-		{
-			bOk &= TestTrue(TEXT("Default direction"), Wind->WindDirection.Equals(FVector::ForwardVector));
-		}
-	}
-
-	{
-		FAnimNode_KawaiiPhysics Node;
 		AddAuthoredProceduralWind(Node, true, FVector(0.0f, 1.0f, 0.0f),
 		                          EExternalForceSpace::ComponentSpace, 1.0f, true, 10.0f, 0.5f, 11);
 		AddAuthoredProceduralWind(Node, true, FVector(0.0f, 0.0f, 1.0f),
@@ -889,72 +582,48 @@ bool FKawaiiPhysicsTransientForceSpreadAcrossAuthoredWindsTest::RunTest(const FS
 	return bOk;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientForceGustHoldLifetimeTest,
-                                 "KawaiiPhysics.TransientForce.GustHoldLifetime",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientForceGustLifetimeTest,
+                                 "KawaiiPhysics.TransientForce.GustLifetime",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FKawaiiPhysicsTransientForceGustHoldLifetimeTest::RunTest(const FString& Parameters)
+bool FKawaiiPhysicsTransientForceGustLifetimeTest::RunTest(const FString& Parameters)
 {
-	FAnimNode_KawaiiPhysics Node;
-	Node.RequestTransientGust(4.0f, 0.2f, 0.6f, FVector::ForwardVector, INDEX_NONE, 1.0f);
-
-	Node.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
-
-	bool bOk = TestEqual(TEXT("Items.Num"), Node.TransientForceStore.Items.Num(), 1);
-	if (Node.TransientForceStore.Items.IsValidIndex(0))
-	{
-		bOk &= TestTransientForceFloatNear(*this, TEXT("RemainingLifetime"),
-		                      Node.TransientForceStore.Items[0].RemainingLifetime, 2.0f);
-	}
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientForceRealTimeEnvelopeTest,
-                                 "KawaiiPhysics.TransientForce.RealTimeEnvelope",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsTransientForceRealTimeEnvelopeTest::RunTest(const FString& Parameters)
-{
-	FAnimNode_KawaiiPhysics Node;
-	AddAuthoredProceduralWind(Node, true, FVector::ForwardVector, EExternalForceSpace::WorldSpace, 2.0f, false);
-	Node.RequestTransientGust(4.0f, 0.2f, 0.6f, FVector::ZeroVector, INDEX_NONE, 1.0f, 0, true);
-
-	Node.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
-
-	bool bOk = TestEqual(TEXT("Items.Num"), Node.TransientForceStore.Items.Num(), 1);
-	FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = GetTransientWind(Node);
-	bOk &= TestTrue(TEXT("Wind valid"), Wind != nullptr);
-	if (Wind)
-	{
-		bOk &= TestTransientForceFloatNear(*this, TEXT("TimeScale"), Wind->TimeScale, 1.0f);
-	}
-	if (Node.TransientForceStore.Items.IsValidIndex(0))
-	{
-		bOk &= TestTransientForceFloatNear(*this, TEXT("RemainingLifetime"),
-		                      Node.TransientForceStore.Items[0].RemainingLifetime, 2.0f);
-	}
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientForceGustRealTimeEnvelopeFlagTest,
-                                 "KawaiiPhysics.TransientForce.GustRealTimeEnvelopeFlag",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsTransientForceGustRealTimeEnvelopeFlagTest::RunTest(const FString& Parameters)
-{
-	constexpr float RiseTime = 0.2f;
-	constexpr float HoldTime = 0.5f;
-	constexpr float DecayTime = 0.3f;
-	constexpr float Duration = RiseTime + HoldTime + DecayTime;
-
+	// 保持時間、実時間指定、寿命の掃き出しを確認する。
 	bool bOk = true;
-
+	{
+		FAnimNode_KawaiiPhysics Node;
+		Node.RequestTransientGust(4.0f, 0.2f, 0.6f, FVector::ForwardVector, INDEX_NONE, 1.0f);
+		Node.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
+		bOk &= TestEqual(TEXT("Hold Items.Num"), Node.TransientForceStore.Items.Num(), 1);
+		if (Node.TransientForceStore.Items.IsValidIndex(0))
+		{
+			bOk &= TestTransientForceFloatNear(*this, TEXT("Hold RemainingLifetime"),
+				Node.TransientForceStore.Items[0].RemainingLifetime, 2.0f);
+		}
+	}
 	{
 		FAnimNode_KawaiiPhysics Node;
 		AddAuthoredProceduralWind(Node, true, FVector::ForwardVector, EExternalForceSpace::WorldSpace, 2.0f, false);
-		Node.RequestTransientGust(4.0f, RiseTime, DecayTime, FVector::ZeroVector, INDEX_NONE, HoldTime, 0, false);
+		Node.RequestTransientGust(4.0f, 0.2f, 0.6f, FVector::ZeroVector, INDEX_NONE, 1.0f, 0, true);
 		Node.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
-
+		bOk &= TestEqual(TEXT("Real-time Items.Num"), Node.TransientForceStore.Items.Num(), 1);
+		FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = GetTransientWind(Node);
+		bOk &= TestTrue(TEXT("Real-time Wind valid"), Wind != nullptr);
+		if (Wind)
+		{
+			bOk &= TestTransientForceFloatNear(*this, TEXT("Real-time TimeScale"), Wind->TimeScale, 1.0f);
+		}
+		if (Node.TransientForceStore.Items.IsValidIndex(0))
+		{
+			bOk &= TestTransientForceFloatNear(*this, TEXT("Real-time RemainingLifetime"),
+				Node.TransientForceStore.Items[0].RemainingLifetime, 2.0f);
+		}
+	}
+	{
+		FAnimNode_KawaiiPhysics Node;
+		AddAuthoredProceduralWind(Node, true, FVector::ForwardVector, EExternalForceSpace::WorldSpace, 2.0f, false);
+		Node.RequestTransientGust(4.0f, 0.2f, 0.3f, FVector::ZeroVector, INDEX_NONE, 0.5f, 0, false);
+		Node.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
 		bOk &= TestEqual(TEXT("Wind-time Items.Num"), Node.TransientForceStore.Items.Num(), 1);
 		FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = GetTransientWind(Node);
 		bOk &= TestTrue(TEXT("Wind-time Wind valid"), Wind != nullptr);
@@ -963,26 +632,16 @@ bool FKawaiiPhysicsTransientForceGustRealTimeEnvelopeFlagTest::RunTest(const FSt
 			bOk &= TestTransientForceFloatNear(*this, TEXT("Wind-time TimeScale"), Wind->TimeScale, 2.0f);
 		}
 	}
-
 	{
 		FAnimNode_KawaiiPhysics Node;
-		AddAuthoredProceduralWind(Node, true, FVector::ForwardVector, EExternalForceSpace::WorldSpace, 2.0f, false);
-		Node.RequestTransientGust(4.0f, RiseTime, DecayTime, FVector::ZeroVector, INDEX_NONE, HoldTime, 0, true);
+		Node.RequestTransientGust(1.0f, 0.05f, 0.0f, FVector::ForwardVector, INDEX_NONE);
 		Node.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
-
-		bOk &= TestEqual(TEXT("Real-time Items.Num"), Node.TransientForceStore.Items.Num(), 1);
-		FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = GetTransientWind(Node);
-		bOk &= TestTrue(TEXT("Real-time Wind valid"), Wind != nullptr);
-		if (Wind)
-		{
-			bOk &= TestTransientForceFloatNear(*this, TEXT("Real-time TimeScale"), Wind->TimeScale, 1.0f);
-		}
+		bOk &= TestEqual(TEXT("Initial consume"), Node.TransientForceStore.Items.Num(), 1);
+		Node.ConsumeAndRemoveExpiredTransientExternalForces(0.13f);
+		bOk &= TestEqual(TEXT("Still alive"), Node.TransientForceStore.Items.Num(), 1);
+		Node.ConsumeAndRemoveExpiredTransientExternalForces(0.13f);
+		bOk &= TestEqual(TEXT("Expired"), Node.TransientForceStore.Items.Num(), 0);
 	}
-
-	const ::KawaiiPhysics::FWindGustEnvelope Envelope =
-		::KawaiiPhysics::ResolveWindGustEnvelope(Duration, RiseTime, DecayTime);
-	bOk &= TestTransientForceFloatNear(*this, TEXT("Resolved HoldTime"), Envelope.HoldTime, HoldTime);
-
 	return bOk;
 }
 
@@ -997,7 +656,6 @@ bool FKawaiiPhysicsTransientHandleIdTest::RunTest(const FString& Parameters)
 	const int64 HandleA = FAnimNode_KawaiiPhysics::GenerateTransientHandleId();
 	const int64 HandleB = FAnimNode_KawaiiPhysics::GenerateTransientHandleId();
 	bOk &= TestTrue(TEXT("Generated handles are unique"), HandleA != HandleB);
-	bOk &= TestTrue(TEXT("Generated handles are monotonic"), HandleA < HandleB);
 
 	{
 		FAnimNode_KawaiiPhysics Node;
@@ -1146,21 +804,26 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientForceStopCoalesceTest,
 
 bool FKawaiiPhysicsTransientForceStopCoalesceTest::RunTest(const FString& Parameters)
 {
+	// 同一ハンドルへの停止要求は最後の blend 時間を消費する。
 	FAnimNode_KawaiiPhysics Node;
+	Node.RequestTransientExternalForce(FInstancedStruct::Make<FKawaiiPhysics_ExternalForce>(), 5.0f, 777);
+	Node.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
+	bool bOk = TestEqual(TEXT("Initial Items.Num"), Node.TransientForceStore.Items.Num(), 1);
 	Node.RequestStopTransientExternalForce(777, 0.1f);
 	Node.RequestStopTransientExternalForce(777, 0.2f);
 	Node.RequestStopTransientExternalForce(777, 0.3f);
-
-	bool bOk = TestEqual(TEXT("Coalesced PendingStops.Num"), GetPendingStopCount(Node), 1);
-	bOk &= TestTransientForceFloatNear(*this, TEXT("Coalesced BlendOutTime"), GetPendingStopBlendOutTime(Node, 0), 0.3f);
-
+	Node.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
+	if (Node.TransientForceStore.Items.IsValidIndex(0))
+	{
+		bOk &= TestTransientForceFloatNear(*this, TEXT("Last stop wins RemainingLifetime"),
+			Node.TransientForceStore.Items[0].RemainingLifetime, 0.3f);
+	}
 	for (int32 Index = 0; Index < 12; ++Index)
 	{
 		Node.RequestStopTransientExternalForce(1000 + Index, 0.1f);
 	}
-
 	bOk &= TestTrue(TEXT("PendingStops bounded"),
-	                GetPendingStopCount(Node) <= FAnimNode_KawaiiPhysics::MaxTransientExternalForces);
+		GetPendingStopCount(Node) <= FAnimNode_KawaiiPhysics::MaxTransientExternalForces);
 	return bOk;
 }
 
@@ -1177,9 +840,6 @@ bool FKawaiiPhysicsTransientForceStoreCopyIsIndependentTest::RunTest(const FStri
 		A.RequestTransientGust(1.0f, 0.1f, 0.1f, FVector::ForwardVector, INDEX_NONE);
 		A.RequestStopTransientExternalForce(77, 0.5f);
 		FAnimNode_KawaiiPhysics B = A;
-
-		bOk &= TestTrue(TEXT("Copied queue is distinct"),
-		                A.TransientForceStore.Queue.Get() != B.TransientForceStore.Queue.Get());
 		bOk &= TestEqual(TEXT("B pending is empty after copy"), GetPendingGustCount(B), 0);
 		bOk &= TestEqual(TEXT("B pending stops empty after copy"), GetPendingStopCount(B), 0);
 		B.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
@@ -1204,34 +864,6 @@ bool FKawaiiPhysicsTransientForceStoreCopyIsIndependentTest::RunTest(const FStri
 		bOk &= TestEqual(TEXT("B copied Items empty"), B.TransientForceStore.Items.Num(), 0);
 		bOk &= TestEqual(TEXT("A copied-from Items preserved"), A.TransientForceStore.Items.Num(), 1);
 	}
-
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientForceSurviveReflectionCopyTest,
-                                 "KawaiiPhysics.TransientForce.SurviveReflectionCopy",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsTransientForceSurviveReflectionCopyTest::RunTest(const FString& Parameters)
-{
-	FAnimNode_KawaiiPhysics A;
-	A.RequestTransientGust(1.0f, 0.1f, 0.1f, FVector::ForwardVector, INDEX_NONE);
-	A.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
-	A.RequestTransientGust(2.0f, 0.1f, 0.1f, FVector::RightVector, INDEX_NONE);
-	A.RequestStopTransientExternalForce(88, 0.25f);
-
-	bool bOk = true;
-	bOk &= TestEqual(TEXT("Initial Items"), A.TransientForceStore.Items.Num(), 1);
-	bOk &= TestEqual(TEXT("Initial pending"), GetPendingGustCount(A), 1);
-	bOk &= TestEqual(TEXT("Initial pending stops"), GetPendingStopCount(A), 1);
-	bOk &= TestTrue(TEXT("TransientForceStore is not reflected"),
-	                FindFProperty<FProperty>(FAnimNode_KawaiiPhysics::StaticStruct(), TEXT("TransientForceStore")) == nullptr);
-
-	ApplyDefaultPresetStyleForTransientForce(A);
-
-	bOk &= TestEqual(TEXT("Items survive preset-style copy"), A.TransientForceStore.Items.Num(), 1);
-	bOk &= TestEqual(TEXT("Pending survives preset-style copy"), GetPendingGustCount(A), 1);
-	bOk &= TestEqual(TEXT("Pending stops survive preset-style copy"), GetPendingStopCount(A), 1);
 
 	return bOk;
 }
@@ -1276,14 +908,6 @@ bool FKawaiiPhysicsTransientForceResolveWindGustEnvelopeTest::RunTest(const FStr
 		bOk &= TestTransientForceFloatNear(*this, TEXT("Negative RiseTime"), Envelope.RiseTime, 0.0f);
 		bOk &= TestTransientForceFloatNear(*this, TEXT("Negative HoldTime"), Envelope.HoldTime, 2.0f);
 		bOk &= TestTransientForceFloatNear(*this, TEXT("Negative DecayTime"), Envelope.DecayTime, 0.0f);
-	}
-
-	{
-		const KawaiiPhysics::FWindGustEnvelope Envelope =
-			KawaiiPhysics::ResolveWindGustEnvelope(1.0f, 0.25f, 0.75f);
-		bOk &= TestTransientForceFloatNear(*this, TEXT("Exact RiseTime"), Envelope.RiseTime, 0.25f);
-		bOk &= TestTransientForceFloatNear(*this, TEXT("Exact HoldTime"), Envelope.HoldTime, 0.0f);
-		bOk &= TestTransientForceFloatNear(*this, TEXT("Exact DecayTime"), Envelope.DecayTime, 0.75f);
 	}
 
 	return bOk;

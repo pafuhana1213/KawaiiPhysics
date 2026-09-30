@@ -6,9 +6,14 @@
 #include "AnimGraphNode_ComponentToLocalSpace.h"
 #include "AnimGraphNode_KawaiiPhysics.h"
 #include "AnimGraphNode_KawaiiPhysicsSharedPublisher.h"
+#include "AnimGraphNode_LinkedInputPose.h"
+#include "AnimGraphNode_LocalToComponentSpace.h"
 #include "AnimGraphNode_Root.h"
+#include "AnimGraphNode_SequencePlayer.h"
 #include "AnimationGraph.h"
 #include "Animation/AnimNode_Root.h"
+#include "Animation/AnimNode_LinkedInputPose.h"
+#include "Animation/AnimSequenceBase.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "EdGraphSchema_K2.h"
 #include "KawaiiPhysics.h"
@@ -19,18 +24,34 @@
 #include "AssetRegistry/AssetIdentifier.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
+#include "AnimationRuntime.h"
 #include "BlueprintGameplayTagLibrary.h"
+#include "Dom/JsonObject.h"
+#include "Dom/JsonValue.h"
 #include "EdGraphNode_Comment.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphPin.h"
+#include "Editor.h"
+#include "Editor/EditorPerformanceSettings.h"
+#include "ExternalForces/KawaiiPhysicsExternalForce.h"
+#include "JsonObjectConverter.h"
+#include "Policies/CondensedJsonPrintPolicy.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
+#include "Serialization/JsonWriter.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GameplayTagsManager.h"
 #include "GameplayTagsSettings.h"
 #include "Internationalization/Regex.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/Kismet2NameValidators.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "Kismet2/KismetEditorUtilities.h"
 #include "KawaiiPhysicsDeveloperSettings.h"
+#include "Logging/TokenizedMessage.h"
 #include "KawaiiPhysicsMcpCommentNode.h"
 #include "KawaiiPhysicsPresetDiffSnapshot.h"
+#include "K2Node_FunctionEntry.h"
 #include "Misc/App.h"
 #include "Misc/EngineVersionComparison.h"
 #include "Misc/PackageName.h"
@@ -54,8 +75,8 @@ namespace
 	constexpr int32 KawaiiPhysicsMcpCommentTopPaddingY = 80;
 	constexpr int32 KawaiiPhysicsPlacementExpectedNodeWidth = 400;
 	constexpr int32 KawaiiPhysicsPlacementExpectedNodeHeight = 260;
-	constexpr int32 KawaiiPhysicsMcpCommentExpectedNodeWidthWithPadding = 450;
-	constexpr int32 KawaiiPhysicsMcpCommentExpectedNodeHeightWithPadding = 310;
+	// コメント枠の右端・下端に対象ノードの外側へ足す余白
+	constexpr int32 KawaiiPhysicsMcpCommentTrailingPadding = 50;
 	constexpr int32 KawaiiPhysicsPlacementMaxOverlapResolutionAttempts = 100;
 	// AutoConnectが生成するComponentToLocalSpace変換ノード用に確保する横幅
 	constexpr int32 KawaiiPhysicsPlacementConversionNodeReserveX = 220;
@@ -65,6 +86,44 @@ namespace
 	// KawaiiPhysics/MCPコメント以外のノード（変換ノード等）の推定サイズ
 	constexpr int32 KawaiiPhysicsPlacementEstimatedOtherNodeWidth = 250;
 	constexpr int32 KawaiiPhysicsPlacementEstimatedOtherNodeHeight = 120;
+	// AnimGraphレイアウトでチェーン上の隣接ノード間に空ける横方向の隙間。
+	// 空間変換ノードの推定幅160と合わせて、Result直前の変換ノードを従来どおりResultの220左へ置く
+	constexpr int32 KawaiiPhysicsLayoutNodeGapX = 60;
+	// グラフノードに幅が記録されていない場合に使う推定幅（KawaiiPhysicsノードは配置用の推定幅400を使う）
+	constexpr int32 KawaiiPhysicsLayoutConversionNodeWidth = 160;
+	constexpr int32 KawaiiPhysicsLayoutOtherNodeWidth = 300;
+
+	// グラフノードの幅と高さ。ウィジェットが記録した値があれば優先し、なければノード種別ごとの推定値を使う
+	FIntPoint GetLayoutNodeSize(const UEdGraphNode* Node)
+	{
+		const bool bKawaiiPhysicsNode = Node && Node->IsA<UAnimGraphNode_KawaiiPhysics>();
+		int32 Width = Node ? Node->NodeWidth : 0;
+		if (Width <= 0)
+		{
+			if (bKawaiiPhysicsNode)
+			{
+				Width = KawaiiPhysicsPlacementExpectedNodeWidth;
+			}
+			else if (Node &&
+				(Node->IsA<UAnimGraphNode_ComponentToLocalSpace>() || Node->IsA<UAnimGraphNode_LocalToComponentSpace>()))
+			{
+				Width = KawaiiPhysicsLayoutConversionNodeWidth;
+			}
+			else
+			{
+				Width = KawaiiPhysicsLayoutOtherNodeWidth;
+			}
+		}
+
+		int32 Height = Node ? Node->NodeHeight : 0;
+		if (Height <= 0)
+		{
+			Height = bKawaiiPhysicsNode
+				         ? KawaiiPhysicsPlacementExpectedNodeHeight
+				         : KawaiiPhysicsPlacementEstimatedOtherNodeHeight;
+		}
+		return FIntPoint(Width, Height);
+	}
 
 	UAnimGraphNode_KawaiiPhysics* GetGraphNode(const FKawaiiPhysicsGraphNodeHandle& Handle)
 	{
@@ -726,15 +785,56 @@ namespace
 		}
 	}
 
-	TArray<FName> CollectResolvedRootBoneNames(
+	// 解決済みRootと、そのRootのチェーン走査で使われるExcludeBones（Bone自身と子孫が対象外）の組
+	struct FResolvedRootBoneEntry
+	{
+		FName RootBoneName;
+		TArray<FName> ExcludeBoneNames;
+	};
+
+	void AddResolvedRootBoneEntries(const FResolvedKawaiiPhysicsNodePlacementRequest& ResolvedRequest,
+	                                TArray<FResolvedRootBoneEntry>& OutEntries)
+	{
+		if (!ResolvedRequest.RootBoneName.IsNone())
+		{
+			FResolvedRootBoneEntry& Entry = OutEntries.AddDefaulted_GetRef();
+			Entry.RootBoneName = ResolvedRequest.RootBoneName;
+			Entry.ExcludeBoneNames = ResolvedRequest.ExcludeBoneNames;
+		}
+
+		// ランタイムの InitModifyBones と同じく、AdditionalRootBone は Override 指定時だけ専用の ExcludeBones を使う
+		for (const FKawaiiPhysicsRootBoneSetting& AdditionalRootBone : ResolvedRequest.AdditionalRootBones)
+		{
+			if (AdditionalRootBone.RootBone.BoneName.IsNone())
+			{
+				continue;
+			}
+
+			FResolvedRootBoneEntry& Entry = OutEntries.AddDefaulted_GetRef();
+			Entry.RootBoneName = AdditionalRootBone.RootBone.BoneName;
+			if (AdditionalRootBone.bUseOverrideExcludeBones)
+			{
+				for (const FBoneReference& ExcludeBone : AdditionalRootBone.OverrideExcludeBones)
+				{
+					AddUniqueBoneName(Entry.ExcludeBoneNames, ExcludeBone.BoneName);
+				}
+			}
+			else
+			{
+				Entry.ExcludeBoneNames = ResolvedRequest.ExcludeBoneNames;
+			}
+		}
+	}
+
+	TArray<FResolvedRootBoneEntry> CollectResolvedRootBoneEntries(
 		const TArray<FResolvedKawaiiPhysicsNodePlacementRequest>& ResolvedRequests)
 	{
-		TArray<FName> RootBoneNames;
+		TArray<FResolvedRootBoneEntry> RootBoneEntries;
 		for (const FResolvedKawaiiPhysicsNodePlacementRequest& ResolvedRequest : ResolvedRequests)
 		{
-			AddResolvedRootBoneNames(ResolvedRequest, RootBoneNames);
+			AddResolvedRootBoneEntries(ResolvedRequest, RootBoneEntries);
 		}
-		return RootBoneNames;
+		return RootBoneEntries;
 	}
 
 	bool AnyResolvedRequestHasAutoConnect(
@@ -777,10 +877,39 @@ namespace
 		return false;
 	}
 
+	bool IsBoneInResolvedRootChain(
+		const FReferenceSkeleton& RefSkeleton,
+		FName BoneName,
+		const FResolvedRootBoneEntry& RootBoneEntry)
+	{
+		if (!IsBoneDescendantOf(RefSkeleton, BoneName, RootBoneEntry.RootBoneName))
+		{
+			return false;
+		}
+
+		// ExcludeBones は Bone 自身と子孫を除外するため、Bone から Root までの経路に除外 Bone があればチェーン外とみなす
+		const int32 RootBoneIndex = RefSkeleton.FindBoneIndex(RootBoneEntry.RootBoneName);
+		for (int32 BoneIndex = RefSkeleton.FindBoneIndex(BoneName);
+		     BoneIndex != INDEX_NONE;
+		     BoneIndex = RefSkeleton.GetParentIndex(BoneIndex))
+		{
+			if (RootBoneEntry.ExcludeBoneNames.Contains(RefSkeleton.GetBoneName(BoneIndex)))
+			{
+				return false;
+			}
+			if (BoneIndex == RootBoneIndex)
+			{
+				break;
+			}
+		}
+
+		return true;
+	}
+
 	void AddNestedResolvedRootWarnings(
 		USkeleton* Skeleton,
 		const FResolvedKawaiiPhysicsNodePlacementRequest& ResolvedRequest,
-		const TArray<FName>& AllResolvedRootBoneNames,
+		const TArray<FResolvedRootBoneEntry>& AllResolvedRootBoneEntries,
 		int32 RequestIndex,
 		TArray<FString>& OutErrors)
 	{
@@ -793,12 +922,12 @@ namespace
 		AddResolvedRootBoneNames(ResolvedRequest, RequestRootBoneNames);
 
 		const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
-		// 解決済みRoot同士が親子関係にある場合、Patternがチェーン途中のBoneまで拾った兆候として警告する。
+		// 解決済みRootが別Rootのチェーン内（ExcludeBonesで外れた枝を除く）にある場合、Patternがチェーン途中のBoneまで拾った兆候として警告する。
 		for (const FName RootBoneName : RequestRootBoneNames)
 		{
-			for (const FName AncestorRootBoneName : AllResolvedRootBoneNames)
+			for (const FResolvedRootBoneEntry& AncestorRootBoneEntry : AllResolvedRootBoneEntries)
 			{
-				if (!IsBoneDescendantOf(RefSkeleton, RootBoneName, AncestorRootBoneName))
+				if (!IsBoneInResolvedRootChain(RefSkeleton, RootBoneName, AncestorRootBoneEntry))
 				{
 					continue;
 				}
@@ -809,7 +938,7 @@ namespace
 					FString::Printf(
 						TEXT("Warning: Resolved root '%s' is a descendant of another resolved root '%s'. Pattern should match only chain start bones."),
 						*RootBoneName.ToString(),
-						*AncestorRootBoneName.ToString()));
+						*AncestorRootBoneEntry.RootBoneName.ToString()));
 				break;
 			}
 		}
@@ -819,7 +948,7 @@ namespace
 		UAnimBlueprint* AnimBlueprint,
 		const FKawaiiPhysicsNodePlacementRequest& SourceRequest,
 		const FResolvedKawaiiPhysicsNodePlacementRequest& ResolvedRequest,
-		const TArray<FName>& AllResolvedRootBoneNames,
+		const TArray<FResolvedRootBoneEntry>& AllResolvedRootBoneEntries,
 		int32 RequestIndex,
 		TArray<FString>& OutErrors)
 	{
@@ -904,7 +1033,7 @@ namespace
 		AddNestedResolvedRootWarnings(
 			TargetSkeleton,
 			ResolvedRequest,
-			AllResolvedRootBoneNames,
+			AllResolvedRootBoneEntries,
 			RequestIndex,
 			OutErrors);
 
@@ -936,11 +1065,11 @@ namespace
 		return nullptr;
 	}
 
-	bool ComputeMcpCommentBounds(const TArray<FKawaiiPhysicsGraphNodeHandle>& Handles,
-	                             int32& OutNodePosX,
-	                             int32& OutNodePosY,
-	                             int32& OutNodeWidth,
-	                             int32& OutNodeHeight)
+	bool ComputeMcpCommentBoundsForNodes(const TArray<const UEdGraphNode*>& Nodes,
+	                                     int32& OutNodePosX,
+	                                     int32& OutNodePosY,
+	                                     int32& OutNodeWidth,
+	                                     int32& OutNodeHeight)
 	{
 		int32 MinX = TNumericLimits<int32>::Max();
 		int32 MinY = TNumericLimits<int32>::Max();
@@ -948,18 +1077,18 @@ namespace
 		int32 MaxY = TNumericLimits<int32>::Lowest();
 		bool bHasNode = false;
 
-		for (const FKawaiiPhysicsGraphNodeHandle& Handle : Handles)
+		for (const UEdGraphNode* Node : Nodes)
 		{
-			const UAnimGraphNode_KawaiiPhysics* GraphNode = GetGraphNode(Handle);
-			if (!GraphNode)
+			if (!Node)
 			{
 				continue;
 			}
 
-			MinX = FMath::Min(MinX, GraphNode->NodePosX);
-			MinY = FMath::Min(MinY, GraphNode->NodePosY);
-			MaxX = FMath::Max(MaxX, GraphNode->NodePosX);
-			MaxY = FMath::Max(MaxY, GraphNode->NodePosY);
+			const FIntPoint NodeSize = GetLayoutNodeSize(Node);
+			MinX = FMath::Min(MinX, Node->NodePosX);
+			MinY = FMath::Min(MinY, Node->NodePosY);
+			MaxX = FMath::Max(MaxX, Node->NodePosX + NodeSize.X);
+			MaxY = FMath::Max(MaxY, Node->NodePosY + NodeSize.Y);
 			bHasNode = true;
 		}
 
@@ -968,14 +1097,27 @@ namespace
 			return false;
 		}
 
+		// 対象ノード群の外接矩形に余白を足してコメント枠サイズを決める。上側はタイトル分を広めに空ける
 		OutNodePosX = MinX - KawaiiPhysicsMcpCommentPaddingX;
 		OutNodePosY = MinY - KawaiiPhysicsMcpCommentTopPaddingY;
-		// 対象ノード群の外接矩形に余白を足してコメント枠サイズを決める。
-		const int32 BoundsMaxX = MaxX + KawaiiPhysicsMcpCommentExpectedNodeWidthWithPadding;
-		const int32 BoundsMaxY = MaxY + KawaiiPhysicsMcpCommentExpectedNodeHeightWithPadding;
-		OutNodeWidth = BoundsMaxX - OutNodePosX;
-		OutNodeHeight = BoundsMaxY - OutNodePosY;
+		OutNodeWidth = MaxX + KawaiiPhysicsMcpCommentTrailingPadding - OutNodePosX;
+		OutNodeHeight = MaxY + KawaiiPhysicsMcpCommentTrailingPadding - OutNodePosY;
 		return true;
+	}
+
+	bool ComputeMcpCommentBounds(const TArray<FKawaiiPhysicsGraphNodeHandle>& Handles,
+	                             int32& OutNodePosX,
+	                             int32& OutNodePosY,
+	                             int32& OutNodeWidth,
+	                             int32& OutNodeHeight)
+	{
+		TArray<const UEdGraphNode*> Nodes;
+		Nodes.Reserve(Handles.Num());
+		for (const FKawaiiPhysicsGraphNodeHandle& Handle : Handles)
+		{
+			Nodes.Add(GetGraphNode(Handle));
+		}
+		return ComputeMcpCommentBoundsForNodes(Nodes, OutNodePosX, OutNodePosY, OutNodeWidth, OutNodeHeight);
 	}
 
 	// UE5.5未満ではUEdGraphNode_Comment継承クラスがリンクできないため、素のコメント枠を使う
@@ -1690,6 +1832,323 @@ namespace
 
 		return true;
 	}
+
+	// Result から上流へ接続済みのポーズ入力を辿り、既存の SequencePlayer か未接続のポーズ入力ピンを探す。
+	// どちらにも到達しない（ポーズ入力を持たないノードで途切れる・循環する）場合は false を返す。
+	bool FindAnimGraphInputPoseTarget(UAnimGraphNode_Root* RootNode,
+	                                  UAnimGraphNode_SequencePlayer*& OutSequencePlayer,
+	                                  UEdGraphPin*& OutUnlinkedPosePin)
+	{
+		OutSequencePlayer = nullptr;
+		OutUnlinkedPosePin = nullptr;
+
+		UEdGraphPin* CurrentPin =
+			RootNode ? RootNode->FindPin(GET_MEMBER_NAME_CHECKED(FAnimNode_Root, Result), EGPD_Input) : nullptr;
+		TSet<const UEdGraphNode*> VisitedNodes;
+		while (CurrentPin)
+		{
+			if (CurrentPin->LinkedTo.IsEmpty())
+			{
+				OutUnlinkedPosePin = CurrentPin;
+				return true;
+			}
+
+			const UEdGraphPin* SourcePin = CurrentPin->LinkedTo[0];
+			UEdGraphNode* SourceNode = SourcePin ? SourcePin->GetOwningNode() : nullptr;
+			if (!SourceNode || VisitedNodes.Contains(SourceNode))
+			{
+				return false;
+			}
+			VisitedNodes.Add(SourceNode);
+
+			if (UAnimGraphNode_SequencePlayer* SequencePlayer = Cast<UAnimGraphNode_SequencePlayer>(SourceNode))
+			{
+				OutSequencePlayer = SequencePlayer;
+				return true;
+			}
+
+			// KawaiiPhysics ノードや空間変換ノードを含め、複数のポーズ入力を持つノードは先頭のポーズ入力を辿る
+			CurrentPin = FindFirstPosePinForEditorLibrary(SourceNode, EGPD_Input);
+		}
+
+		return false;
+	}
+
+	bool IsMcpCommentNodeForLayout(const UEdGraphNode* Node)
+	{
+#if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
+		return Node && Node->IsA<UKawaiiPhysicsMcpCommentNode>();
+#else
+		// 5.5未満ではMCPコメント枠も素のコメントノードのため、設定の接頭辞で始まるタイトルで見分ける
+		const UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node);
+		const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
+		return CommentNode &&
+			CommentNode->GetClass() == UEdGraphNode_Comment::StaticClass() &&
+			Settings &&
+			!Settings->McpCommentPrefix.IsEmpty() &&
+			CommentNode->NodeComment.StartsWith(Settings->McpCommentPrefix);
+#endif
+	}
+
+	UEdGraphPin* FindFirstLinkedPoseInputPinForLayout(UEdGraphNode* Node)
+	{
+		if (!Node)
+		{
+			return nullptr;
+		}
+
+		for (UEdGraphPin* Pin : Node->Pins)
+		{
+			if (Pin &&
+				Pin->Direction == EGPD_Input &&
+				UAnimationGraphSchema::IsPosePin(Pin->PinType) &&
+				!Pin->LinkedTo.IsEmpty() &&
+				Pin->LinkedTo[0])
+			{
+				return Pin;
+			}
+		}
+
+		return nullptr;
+	}
+
+	// Result から各ノードの先頭の接続済みポーズ入力を上流へ辿ったチェーン。先頭が Result で、下流から上流の順に並ぶ
+	TArray<UEdGraphNode*> CollectResultPoseChainForLayout(UAnimGraphNode_Root* RootNode)
+	{
+		TArray<UEdGraphNode*> Chain;
+		if (!RootNode)
+		{
+			return Chain;
+		}
+
+		Chain.Add(RootNode);
+		UEdGraphPin* CurrentPin = FindFirstLinkedPoseInputPinForLayout(RootNode);
+		while (CurrentPin)
+		{
+			UEdGraphNode* SourceNode = CurrentPin->LinkedTo[0]->GetOwningNode();
+			// 循環していたらそこで打ち切る
+			if (!SourceNode || Chain.Contains(SourceNode))
+			{
+				break;
+			}
+
+			Chain.Add(SourceNode);
+			CurrentPin = FindFirstLinkedPoseInputPinForLayout(SourceNode);
+		}
+
+		return Chain;
+	}
+
+	struct FMcpCommentLayoutTarget
+	{
+		UEdGraphNode_Comment* CommentNode = nullptr;
+		TArray<UEdGraphNode*> KawaiiPhysicsNodes;
+	};
+
+	// MCPコメント枠ごとに囲む KawaiiPhysics ノードを決める。ノード移動前に呼ぶこと
+	TArray<FMcpCommentLayoutTarget> CollectMcpCommentLayoutTargets(UEdGraph* Graph)
+	{
+		TArray<FMcpCommentLayoutTarget> Targets;
+		if (!Graph)
+		{
+			return Targets;
+		}
+
+		for (UEdGraphNode* Node : Graph->Nodes)
+		{
+			if (!IsMcpCommentNodeForLayout(Node))
+			{
+				continue;
+			}
+
+			FMcpCommentLayoutTarget& Target = Targets.AddDefaulted_GetRef();
+			Target.CommentNode = CastChecked<UEdGraphNode_Comment>(Node);
+
+			// AddKawaiiPhysicsNodes が登録した枠内ノード（エディタ上で枠を動かした場合はウィジェットが更新した枠内ノード）を優先する
+			for (UObject* UnderCommentObject : Target.CommentNode->GetNodesUnderComment())
+			{
+				UEdGraphNode* KawaiiPhysicsNode = Cast<UAnimGraphNode_KawaiiPhysics>(UnderCommentObject);
+				if (KawaiiPhysicsNode && Graph->Nodes.Contains(KawaiiPhysicsNode))
+				{
+					Target.KawaiiPhysicsNodes.AddUnique(KawaiiPhysicsNode);
+				}
+			}
+
+			if (!Target.KawaiiPhysicsNodes.IsEmpty())
+			{
+				continue;
+			}
+
+			// 枠内ノードは保存されないため、再ロード後などで空なら、現在の枠と矩形が重なる KawaiiPhysics ノードを対象にする
+			const FIntRect CommentRect = MakePlacementRect(
+				Target.CommentNode->NodePosX,
+				Target.CommentNode->NodePosY,
+				Target.CommentNode->NodeWidth,
+				Target.CommentNode->NodeHeight);
+			for (UEdGraphNode* CandidateNode : Graph->Nodes)
+			{
+				if (!CandidateNode || !CandidateNode->IsA<UAnimGraphNode_KawaiiPhysics>())
+				{
+					continue;
+				}
+
+				const FIntPoint CandidateSize = GetLayoutNodeSize(CandidateNode);
+				if (DoPlacementRectsOverlap(
+					CommentRect,
+					MakePlacementRect(CandidateNode->NodePosX, CandidateNode->NodePosY, CandidateSize.X, CandidateSize.Y)))
+				{
+					Target.KawaiiPhysicsNodes.Add(CandidateNode);
+				}
+			}
+		}
+
+		// 過去のセッションで枠だけ離れて置かれ、どの方法でも対象が見つからない場合、
+		// グラフ内の MCP コメント枠が1つだけならグラフ内の全 KawaiiPhysics ノードをその枠の対象とみなす
+		if (Targets.Num() == 1 && Targets[0].KawaiiPhysicsNodes.IsEmpty())
+		{
+			for (UEdGraphNode* CandidateNode : Graph->Nodes)
+			{
+				if (CandidateNode && CandidateNode->IsA<UAnimGraphNode_KawaiiPhysics>())
+				{
+					Targets[0].KawaiiPhysicsNodes.Add(CandidateNode);
+				}
+			}
+		}
+
+		return Targets;
+	}
+
+	// Result 上流のポーズチェーンを Result の行へ並べ、MCPコメント枠を対象ノードに合わせる。何か変更したら true
+	bool ApplyAnimGraphLayout(UEdGraph* Graph)
+	{
+		UAnimGraphNode_Root* RootNode = FindResultRootNodeForEditorLibrary(Graph);
+		if (!RootNode)
+		{
+			return false;
+		}
+
+		const TArray<FMcpCommentLayoutTarget> CommentTargets = CollectMcpCommentLayoutTargets(Graph);
+		const TArray<UEdGraphNode*> Chain = CollectResultPoseChainForLayout(RootNode);
+
+		bool bChanged = false;
+		// Result は動かさず、下流側のノードの左端から隙間と自身の幅だけ左へ順に詰めて置く
+		int32 DownstreamNodePosX = RootNode->NodePosX;
+		const int32 RowNodePosY = RootNode->NodePosY;
+		for (int32 ChainIndex = 1; ChainIndex < Chain.Num(); ++ChainIndex)
+		{
+			UEdGraphNode* ChainNode = Chain[ChainIndex];
+			const int32 NewNodePosX = DownstreamNodePosX - KawaiiPhysicsLayoutNodeGapX - GetLayoutNodeSize(ChainNode).X;
+			if (ChainNode->NodePosX != NewNodePosX || ChainNode->NodePosY != RowNodePosY)
+			{
+				ChainNode->Modify();
+				ChainNode->NodePosX = NewNodePosX;
+				ChainNode->NodePosY = RowNodePosY;
+				bChanged = true;
+			}
+			DownstreamNodePosX = NewNodePosX;
+		}
+
+		for (const FMcpCommentLayoutTarget& Target : CommentTargets)
+		{
+			UEdGraphNode_Comment* CommentNode = Target.CommentNode;
+			TArray<const UEdGraphNode*> TargetNodes(Target.KawaiiPhysicsNodes);
+			int32 NodePosX = 0;
+			int32 NodePosY = 0;
+			int32 NodeWidth = 0;
+			int32 NodeHeight = 0;
+			if (!CommentNode || !ComputeMcpCommentBoundsForNodes(TargetNodes, NodePosX, NodePosY, NodeWidth, NodeHeight))
+			{
+				continue;
+			}
+
+			if (CommentNode->NodePosX != NodePosX ||
+				CommentNode->NodePosY != NodePosY ||
+				CommentNode->NodeWidth != NodeWidth ||
+				CommentNode->NodeHeight != NodeHeight)
+			{
+				CommentNode->Modify();
+				CommentNode->NodePosX = NodePosX;
+				CommentNode->NodePosY = NodePosY;
+				CommentNode->NodeWidth = NodeWidth;
+				CommentNode->NodeHeight = NodeHeight;
+				bChanged = true;
+			}
+
+			// 枠内ノードの登録は保存されない一時状態のため、Modify せずに対象ノードで登録し直す
+			CommentNode->ClearNodesUnderComment();
+			for (UEdGraphNode* KawaiiPhysicsNode : Target.KawaiiPhysicsNodes)
+			{
+				CommentNode->AddNodeUnderComment(KawaiiPhysicsNode);
+			}
+		}
+
+		if (bChanged)
+		{
+			Graph->NotifyGraphChanged();
+		}
+		return bChanged;
+	}
+
+	// AnimGraph の Result から上流のポーズ入力を辿った結果
+	struct FAnimGraphInputPoseTraceForEditorLibrary
+	{
+		UEdGraph* Graph = nullptr;
+		UAnimGraphNode_Root* RootNode = nullptr;
+		// 探索が止まったポーズ入力ピン。辿れる入力が無くなった場合は null
+		UEdGraphPin* TargetPin = nullptr;
+		UAnimGraphNode_LinkedInputPose* ConnectedInputPose = nullptr;
+		UAnimGraphNode_SequencePlayer* ExistingSequencePlayer = nullptr;
+	};
+
+	// Result から先頭のポーズ入力を上流へ辿り、接続済みの Input Pose か SequencePlayer で止まる。
+	// グラフや Result が無い、または連鎖が壊れている・循環している場合は false と理由を返す
+	bool TraceAnimGraphInputPoseForEditorLibrary(
+		UAnimBlueprint* AnimBlueprint,
+		FAnimGraphInputPoseTraceForEditorLibrary& OutTrace,
+		FString& OutError)
+	{
+		OutTrace = FAnimGraphInputPoseTraceForEditorLibrary();
+		OutTrace.Graph = FindPlacementAnimGraph(AnimBlueprint, UEdGraphSchema_K2::GN_AnimGraph);
+		if (!OutTrace.Graph)
+		{
+			OutError = TEXT("AnimGraph was not found.");
+			return false;
+		}
+		OutTrace.RootNode = FindResultRootNodeForEditorLibrary(OutTrace.Graph);
+		if (!OutTrace.RootNode)
+		{
+			OutError = TEXT("Result node was not found in AnimGraph.");
+			return false;
+		}
+
+		UEdGraphPin* TargetPin =
+			OutTrace.RootNode->FindPin(GET_MEMBER_NAME_CHECKED(FAnimNode_Root, Result), EGPD_Input);
+		TSet<const UEdGraphNode*> VisitedNodes;
+		while (TargetPin && !TargetPin->LinkedTo.IsEmpty())
+		{
+			UEdGraphPin* SourcePin = TargetPin->LinkedTo[0];
+			UEdGraphNode* SourceNode = SourcePin ? SourcePin->GetOwningNode() : nullptr;
+			if (!SourceNode || VisitedNodes.Contains(SourceNode))
+			{
+				OutError = TEXT("The pose chain from Result is invalid or cyclic.");
+				return false;
+			}
+			VisitedNodes.Add(SourceNode);
+			if (UAnimGraphNode_LinkedInputPose* InputPose = Cast<UAnimGraphNode_LinkedInputPose>(SourceNode))
+			{
+				OutTrace.ConnectedInputPose = InputPose;
+				break;
+			}
+			if (UAnimGraphNode_SequencePlayer* SequencePlayer = Cast<UAnimGraphNode_SequencePlayer>(SourceNode))
+			{
+				OutTrace.ExistingSequencePlayer = SequencePlayer;
+				break;
+			}
+			TargetPin = FindFirstPosePinForEditorLibrary(SourceNode, EGPD_Input);
+		}
+		OutTrace.TargetPin = TargetPin;
+		return true;
+	}
 }
 
 void UKawaiiPhysicsEditorLibrary::FindAnimBlueprintAssetData(const TArray<FString>& ContentPaths, TArray<FAssetData>& OutAssets)
@@ -1964,7 +2423,7 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 	{
 		ResolvedRequests.Add(ResolvePlacementRequest(TargetSkeleton, Request));
 	}
-	const TArray<FName> AllResolvedRootBoneNames = CollectResolvedRootBoneNames(ResolvedRequests);
+	const TArray<FResolvedRootBoneEntry> AllResolvedRootBoneEntries = CollectResolvedRootBoneEntries(ResolvedRequests);
 
 	const FVector2D AutoPlacementBasePosition =
 		GetAutoPlacementBasePosition(Graph, AnyResolvedRequestHasAutoConnect(ResolvedRequests));
@@ -1983,7 +2442,7 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 			AnimBlueprint,
 			Requests[RequestIndex],
 			ResolvedRequest,
-			AllResolvedRootBoneNames,
+			AllResolvedRootBoneEntries,
 			RequestIndex,
 			ValidationMessages);
 
@@ -2005,6 +2464,7 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 	bool bConnectedNode = false;
 	bool bSpawnedConversionNode = false;
 	bool bAddedCommentNode = false;
+	bool bNeedsChainLayout = false;
 
 	for (int32 RequestIndex = 0; RequestIndex < Requests.Num(); ++RequestIndex)
 	{
@@ -2014,6 +2474,8 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 		}
 
 		const FResolvedKawaiiPhysicsNodePlacementRequest& ResolvedRequest = ResolvedRequests[RequestIndex];
+		// 自動配置かつ自動接続のノードは Result 上流のチェーンに入るため、最後にチェーン全体を並べ直す
+		bNeedsChainLayout |= ResolvedRequest.bAutoPosition && ResolvedRequest.bAutoConnect;
 
 		const FVector2D NodePosition = ResolveNodePosition(
 			Graph,
@@ -2104,12 +2566,15 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 		bAddedCommentNode = FindOrAddMcpCommentNode(Graph, Result, CommentPrefix + TrimmedComment, Prompt);
 	}
 
+	// コメント枠の登録後にレイアウトし、移動したノードに合わせて枠も整える
+	const bool bLaidOutGraph = !Result.IsEmpty() && bNeedsChainLayout && ApplyAnimGraphLayout(Graph);
+
 	// 構造変更、軽微な変更、変更なしを分けてBlueprintの変更状態とTransactionを確定する。
 	if (bAddedNode || bSpawnedConversionNode || bAddedCommentNode)
 	{
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(AnimBlueprint);
 	}
-	else if (bUpdatedNode || bConnectedNode)
+	else if (bUpdatedNode || bConnectedNode || bLaidOutGraph)
 	{
 		FBlueprintEditorUtils::MarkBlueprintAsModified(AnimBlueprint);
 	}
@@ -2183,6 +2648,367 @@ FKawaiiPhysicsSharedPublisherGraphNodeHandle UKawaiiPhysicsEditorLibrary::AddKaw
 	return MakeSharedPublisherHandle(NewGraphNode);
 }
 
+bool UKawaiiPhysicsEditorLibrary::SetAnimGraphInputAnimation(
+	UAnimBlueprint* AnimBlueprint,
+	UAnimSequenceBase* Animation,
+	FName GraphName)
+{
+	if (!AnimBlueprint || !Animation)
+	{
+		UE_LOG(LogKawaiiPhysics, Warning,
+		       TEXT("SetAnimGraphInputAnimation: AnimBlueprint and Animation must not be null."));
+		return false;
+	}
+
+	// アニメーションの Skeleton が AnimBlueprint の TargetSkeleton と互換でなければ設定しない。
+	USkeleton* TargetSkeleton = AnimBlueprint->TargetSkeleton;
+	USkeleton* AnimationSkeleton = Animation->GetSkeleton();
+	if (!TargetSkeleton || !AnimationSkeleton || !TargetSkeleton->IsCompatibleForEditor(AnimationSkeleton))
+	{
+		UE_LOG(LogKawaiiPhysics, Warning,
+		       TEXT("SetAnimGraphInputAnimation: Skeleton of Animation '%s' (%s) does not match the target skeleton of AnimBlueprint '%s' (%s)."),
+		       *Animation->GetName(),
+		       AnimationSkeleton ? *AnimationSkeleton->GetName() : TEXT("None"),
+		       *AnimBlueprint->GetName(),
+		       TargetSkeleton ? *TargetSkeleton->GetName() : TEXT("None"));
+		return false;
+	}
+
+	UEdGraph* Graph = FindPlacementAnimGraph(AnimBlueprint, GraphName);
+	if (!Graph)
+	{
+		UE_LOG(LogKawaiiPhysics, Warning,
+		       TEXT("SetAnimGraphInputAnimation: AnimGraph '%s' was not found in AnimBlueprint '%s'."),
+		       *(GraphName.IsNone() ? UEdGraphSchema_K2::GN_AnimGraph : GraphName).ToString(),
+		       *AnimBlueprint->GetName());
+		return false;
+	}
+
+	UAnimGraphNode_Root* RootNode = FindResultRootNodeForEditorLibrary(Graph);
+	if (!RootNode)
+	{
+		UE_LOG(LogKawaiiPhysics, Warning,
+		       TEXT("SetAnimGraphInputAnimation: Result node was not found in AnimGraph '%s'."),
+		       *Graph->GetName());
+		return false;
+	}
+
+	UAnimGraphNode_SequencePlayer* ExistingSequencePlayer = nullptr;
+	UEdGraphPin* UnlinkedPosePin = nullptr;
+	if (!FindAnimGraphInputPoseTarget(RootNode, ExistingSequencePlayer, UnlinkedPosePin))
+	{
+		UE_LOG(LogKawaiiPhysics, Warning,
+		       TEXT("SetAnimGraphInputAnimation: The pose chain from Result in AnimGraph '%s' reaches neither a SequencePlayer nor an unlinked pose input."),
+		       *Graph->GetName());
+		return false;
+	}
+
+	FScopedTransaction Transaction(
+		NSLOCTEXT("KawaiiPhysicsEditorLibrary", "SetAnimGraphInputAnimation", "Set Anim Graph Input Animation"));
+
+	if (ExistingSequencePlayer)
+	{
+		// 既存の SequencePlayer はシーケンスだけを差し替え、2 つ目のプレイヤーは追加しない。
+		ExistingSequencePlayer->Modify();
+		ExistingSequencePlayer->SetAnimationAsset(Animation);
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(AnimBlueprint);
+		return true;
+	}
+
+	UEdGraphNode* PinOwnerNode = UnlinkedPosePin->GetOwningNode();
+	Graph->Modify();
+	if (PinOwnerNode)
+	{
+		PinOwnerNode->Modify();
+	}
+
+	FGraphNodeCreator<UAnimGraphNode_SequencePlayer> NodeCreator(*Graph);
+	UAnimGraphNode_SequencePlayer* NewSequencePlayer = NodeCreator.CreateNode(false);
+	NewSequencePlayer->SetAnimationAsset(Animation);
+	NodeCreator.Finalize();
+
+	// 接続の前後でノード集合を比較し、スキーマが自動挿入した空間変換ノードを検出する。
+	TSet<UEdGraphNode*> NodesBeforeConnection;
+	for (UEdGraphNode* Node : Graph->Nodes)
+	{
+		NodesBeforeConnection.Add(Node);
+	}
+
+	const UAnimationGraphSchema* Schema = CastChecked<UAnimationGraphSchema>(Graph->GetSchema());
+	UEdGraphPin* SequencePlayerPosePin = FindFirstPosePinForEditorLibrary(NewSequencePlayer, EGPD_Output);
+	if (!SequencePlayerPosePin || !Schema->TryCreateConnection(SequencePlayerPosePin, UnlinkedPosePin))
+	{
+		// 接続できなければ追加したプレイヤーを取り除いてグラフを元の構成へ戻す。
+		FBlueprintEditorUtils::RemoveNode(AnimBlueprint, NewSequencePlayer, true);
+		UE_LOG(LogKawaiiPhysics, Warning,
+		       TEXT("SetAnimGraphInputAnimation: Failed to connect the SequencePlayer to pin '%s' in AnimGraph '%s'."),
+		       *UnlinkedPosePin->PinName.ToString(),
+		       *Graph->GetName());
+		return false;
+	}
+
+	// プレイヤーはポーズ入力を持つノードの左隣へ置く。Result 直結の場合は、後から AutoConnect で
+	// Result 直前へ挿入される KawaiiPhysics ノードの配置枠を空けるため、さらに 1 枠分左へずらす。
+	const int32 SpacingX = GetAutoPlacementSpacingX();
+	const int32 OwnerPosX = PinOwnerNode ? PinOwnerNode->NodePosX : RootNode->NodePosX;
+	const int32 OwnerPosY = PinOwnerNode ? PinOwnerNode->NodePosY : RootNode->NodePosY;
+	int32 SequencePlayerPosX = OwnerPosX - SpacingX;
+	if (PinOwnerNode == RootNode)
+	{
+		SequencePlayerPosX -= SpacingX + KawaiiPhysicsPlacementAutoConnectBaseReserveX;
+	}
+
+	// コンポーネント空間の入力へ接続すると変換ノードが挿入されるため、所有ノードの左隣へ置き直してプレイヤーをその分左へずらす。
+	bool bSpawnedConversionNode = false;
+	for (UEdGraphNode* Node : Graph->Nodes)
+	{
+		if (Node && !NodesBeforeConnection.Contains(Node))
+		{
+			Node->Modify();
+			Node->NodePosX = OwnerPosX - KawaiiPhysicsPlacementConversionNodeReserveX;
+			Node->NodePosY = OwnerPosY;
+			bSpawnedConversionNode = true;
+		}
+	}
+	if (bSpawnedConversionNode)
+	{
+		SequencePlayerPosX -= KawaiiPhysicsPlacementConversionNodeReserveX;
+	}
+
+	NewSequencePlayer->NodePosX = SequencePlayerPosX;
+	NewSequencePlayer->NodePosY = OwnerPosY;
+
+	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(AnimBlueprint);
+	return true;
+}
+
+int32 UKawaiiPhysicsEditorLibrary::SetAnimGraphInputPose(UAnimBlueprint* AnimBlueprint, FString& OutError)
+{
+	OutError.Reset();
+	if (!AnimBlueprint)
+	{
+		OutError = TEXT("AnimBlueprint is null.");
+		return -1;
+	}
+
+	// Result から入力側を辿り、接続済みの Input Pose はそのまま使う。
+	FAnimGraphInputPoseTraceForEditorLibrary Trace;
+	if (!TraceAnimGraphInputPoseForEditorLibrary(AnimBlueprint, Trace, OutError))
+	{
+		return -1;
+	}
+	if (Trace.ConnectedInputPose)
+	{
+		if (Trace.ConnectedInputPose->Node.Name != FAnimNode_LinkedInputPose::DefaultInputPoseName)
+		{
+			OutError = TEXT("The connected Input Pose is not named InPose, so a post process instance will not use it.");
+			return -1;
+		}
+		return 0;
+	}
+	UEdGraph* Graph = Trace.Graph;
+	UAnimGraphNode_Root* RootNode = Trace.RootNode;
+	UEdGraphPin* TargetPin = Trace.TargetPin;
+	UAnimGraphNode_SequencePlayer* ExistingSequencePlayer = Trace.ExistingSequencePlayer;
+	if (!TargetPin)
+	{
+		OutError = TEXT("The pose chain from Result has no replaceable pose input.");
+		return -1;
+	}
+
+	// 同じ AnimGraph 内の未接続 InPose を再利用し、他グラフとの名前衝突は拒否する。
+	UAnimGraphNode_LinkedInputPose* ReusableInputPose = nullptr;
+	for (UEdGraph* FunctionGraph : AnimBlueprint->FunctionGraphs)
+	{
+		if (!FunctionGraph || !FunctionGraph->Schema || !FunctionGraph->Schema->IsChildOf(UAnimationGraphSchema::StaticClass()))
+		{
+			continue;
+		}
+		TArray<UAnimGraphNode_LinkedInputPose*> InputPoses;
+		FunctionGraph->GetNodesOfClass(InputPoses);
+		for (UAnimGraphNode_LinkedInputPose* InputPose : InputPoses)
+		{
+			if (InputPose && InputPose->Node.Name == FAnimNode_LinkedInputPose::DefaultInputPoseName)
+			{
+				UEdGraphPin* OutputPin = FindFirstPosePinForEditorLibrary(InputPose, EGPD_Output);
+				if (FunctionGraph != Graph || ReusableInputPose || !OutputPin || !OutputPin->LinkedTo.IsEmpty())
+				{
+					OutError = TEXT("An Input Pose named InPose already exists and cannot be reused.");
+					return -1;
+				}
+				ReusableInputPose = InputPose;
+			}
+		}
+	}
+
+	FScopedTransaction Transaction(
+		NSLOCTEXT("KawaiiPhysicsEditorLibrary", "SetAnimGraphInputPose", "Set Anim Graph Input Pose"));
+	Graph->Modify();
+	UEdGraphNode* PinOwnerNode = TargetPin->GetOwningNode();
+	if (PinOwnerNode)
+	{
+		PinOwnerNode->Modify();
+	}
+	UAnimGraphNode_LinkedInputPose* InputPose = ReusableInputPose;
+	if (!InputPose)
+	{
+		FGraphNodeCreator<UAnimGraphNode_LinkedInputPose> NodeCreator(*Graph);
+		InputPose = NodeCreator.CreateNode(false);
+		NodeCreator.Finalize();
+		if (InputPose->Node.Name != FAnimNode_LinkedInputPose::DefaultInputPoseName)
+		{
+			FBlueprintEditorUtils::RemoveNode(AnimBlueprint, InputPose, true);
+			OutError = TEXT("Input Pose was renamed because InPose is already in use.");
+			return -1;
+		}
+	}
+
+	TSet<UEdGraphNode*> NodesBeforeConnection;
+	for (UEdGraphNode* Node : Graph->Nodes)
+	{
+		NodesBeforeConnection.Add(Node);
+	}
+	const UAnimationGraphSchema* Schema = CastChecked<UAnimationGraphSchema>(Graph->GetSchema());
+	UEdGraphPin* OutputPin = FindFirstPosePinForEditorLibrary(InputPose, EGPD_Output);
+	if (!OutputPin || !Schema->TryCreateConnection(OutputPin, TargetPin))
+	{
+		if (!ReusableInputPose)
+		{
+			FBlueprintEditorUtils::RemoveNode(AnimBlueprint, InputPose, true);
+		}
+		OutError = TEXT("Failed to connect Input Pose to the AnimGraph pose input.");
+		return -1;
+	}
+
+	// 既存プレイヤーの位置を引き継ぎ、不要になったプレイヤーを取り除く。
+	const int32 OwnerPosX = PinOwnerNode ? PinOwnerNode->NodePosX : RootNode->NodePosX;
+	const int32 OwnerPosY = PinOwnerNode ? PinOwnerNode->NodePosY : RootNode->NodePosY;
+	int32 InputPosePosX = OwnerPosX - GetAutoPlacementSpacingX();
+	if (PinOwnerNode == RootNode)
+	{
+		InputPosePosX -= GetAutoPlacementSpacingX() + KawaiiPhysicsPlacementAutoConnectBaseReserveX;
+	}
+	if (ExistingSequencePlayer)
+	{
+		InputPosePosX = ExistingSequencePlayer->NodePosX;
+		InputPose->NodePosY = ExistingSequencePlayer->NodePosY;
+		FBlueprintEditorUtils::RemoveNode(AnimBlueprint, ExistingSequencePlayer, true);
+	}
+	else
+	{
+		InputPose->NodePosY = OwnerPosY;
+	}
+	for (UEdGraphNode* Node : Graph->Nodes)
+	{
+		if (Node && !NodesBeforeConnection.Contains(Node))
+		{
+			Node->Modify();
+			Node->NodePosX = OwnerPosX - KawaiiPhysicsPlacementConversionNodeReserveX;
+			Node->NodePosY = OwnerPosY;
+			InputPosePosX -= KawaiiPhysicsPlacementConversionNodeReserveX;
+		}
+	}
+	InputPose->Modify();
+	InputPose->NodePosX = InputPosePosX;
+	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(AnimBlueprint);
+	return ReusableInputPose ? 0 : 1;
+}
+
+bool UKawaiiPhysicsEditorLibrary::IsAnimGraphInputPoseConnected(UAnimBlueprint* AnimBlueprint)
+{
+	if (!AnimBlueprint)
+	{
+		return false;
+	}
+	FAnimGraphInputPoseTraceForEditorLibrary Trace;
+	FString IgnoredError;
+	return TraceAnimGraphInputPoseForEditorLibrary(AnimBlueprint, Trace, IgnoredError) &&
+		Trace.ConnectedInputPose &&
+		Trace.ConnectedInputPose->Node.Name == FAnimNode_LinkedInputPose::DefaultInputPoseName;
+}
+
+bool UKawaiiPhysicsEditorLibrary::LayoutKawaiiPhysicsAnimGraph(
+	UAnimBlueprint* AnimBlueprint,
+	FName GraphName)
+{
+	if (!AnimBlueprint)
+	{
+		UE_LOG(LogKawaiiPhysics, Warning, TEXT("LayoutKawaiiPhysicsAnimGraph: AnimBlueprint must not be null."));
+		return false;
+	}
+
+	UEdGraph* Graph = FindPlacementAnimGraph(AnimBlueprint, GraphName);
+	if (!Graph)
+	{
+		UE_LOG(LogKawaiiPhysics, Warning,
+		       TEXT("LayoutKawaiiPhysicsAnimGraph: AnimGraph '%s' was not found in AnimBlueprint '%s'."),
+		       *(GraphName.IsNone() ? UEdGraphSchema_K2::GN_AnimGraph : GraphName).ToString(),
+		       *AnimBlueprint->GetName());
+		return false;
+	}
+
+	if (!FindResultRootNodeForEditorLibrary(Graph))
+	{
+		UE_LOG(LogKawaiiPhysics, Warning,
+		       TEXT("LayoutKawaiiPhysicsAnimGraph: Result node was not found in AnimGraph '%s'."),
+		       *Graph->GetName());
+		return false;
+	}
+
+	FScopedTransaction Transaction(
+		NSLOCTEXT("KawaiiPhysicsEditorLibrary", "LayoutKawaiiPhysicsAnimGraph", "Layout Kawaii Physics Anim Graph"));
+	if (ApplyAnimGraphLayout(Graph))
+	{
+		FBlueprintEditorUtils::MarkBlueprintAsModified(AnimBlueprint);
+	}
+	else
+	{
+		// 既に整っていれば Undo 履歴を残さない
+		Transaction.Cancel();
+	}
+	return true;
+}
+
+int32 UKawaiiPhysicsEditorLibrary::CompileAnimBlueprintWithMessages(
+	UAnimBlueprint* AnimBlueprint,
+	TArray<FString>& OutMessages)
+{
+	OutMessages.Reset();
+	if (!AnimBlueprint)
+	{
+		UE_LOG(LogKawaiiPhysics, Warning, TEXT("CompileAnimBlueprintWithMessages: AnimBlueprint is null."));
+		return INDEX_NONE;
+	}
+
+	// 呼び出し側へメッセージを返すため、専用のログへコンパイル結果を集める。
+	FCompilerResultsLog Results;
+	Results.SetSourcePath(AnimBlueprint->GetPathName());
+	Results.BeginEvent(TEXT("Compile"));
+	FKismetEditorUtilities::CompileBlueprint(AnimBlueprint, EBlueprintCompileOptions::None, &Results);
+	Results.EndEvent();
+
+	int32 ErrorCount = 0;
+	OutMessages.Reserve(Results.Messages.Num());
+	for (const TSharedRef<FTokenizedMessage>& Message : Results.Messages)
+	{
+		// 重大度は Error 以下（旧 CriticalError を含む）をエラー、Warning 以下（PerformanceWarning を含む）を警告として扱う。
+		const EMessageSeverity::Type Severity = Message->GetSeverity();
+		const TCHAR* SeverityPrefix = TEXT("Note");
+		if (Severity <= EMessageSeverity::Error)
+		{
+			SeverityPrefix = TEXT("Error");
+			++ErrorCount;
+		}
+		else if (Severity <= EMessageSeverity::Warning)
+		{
+			SeverityPrefix = TEXT("Warning");
+		}
+		OutMessages.Add(FString::Printf(TEXT("%s: %s"), SeverityPrefix, *Message->ToText().ToString()));
+	}
+
+	return FMath::Max(ErrorCount, Results.NumErrors);
+}
+
 TArray<FKawaiiPhysicsAnimGraphCommentInfo> UKawaiiPhysicsEditorLibrary::GetAnimGraphComments(
 	UAnimBlueprint* AnimBlueprint,
 	FName GraphName)
@@ -2204,6 +3030,13 @@ TArray<FKawaiiPhysicsAnimGraphCommentInfo> UKawaiiPhysicsEditorLibrary::GetAnimG
 
 		FKawaiiPhysicsAnimGraphCommentInfo Info;
 		Info.Title = CommentNode->NodeComment;
+		Info.CommentNode = CommentNode;
+		Info.NodePosition = FVector2D(
+			static_cast<double>(CommentNode->NodePosX),
+			static_cast<double>(CommentNode->NodePosY));
+		Info.NodeSize = FVector2D(
+			static_cast<double>(CommentNode->NodeWidth),
+			static_cast<double>(CommentNode->NodeHeight));
 #if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
 		if (const UKawaiiPhysicsMcpCommentNode* McpCommentNode = Cast<UKawaiiPhysicsMcpCommentNode>(CommentNode))
 		{
@@ -2232,7 +3065,7 @@ TArray<FString> UKawaiiPhysicsEditorLibrary::ValidatePlacementRequests(
 	{
 		ResolvedRequests.Add(ResolvePlacementRequest(TargetSkeleton, Request));
 	}
-	const TArray<FName> AllResolvedRootBoneNames = CollectResolvedRootBoneNames(ResolvedRequests);
+	const TArray<FResolvedRootBoneEntry> AllResolvedRootBoneEntries = CollectResolvedRootBoneEntries(ResolvedRequests);
 
 	for (int32 RequestIndex = 0; RequestIndex < Requests.Num(); ++RequestIndex)
 	{
@@ -2240,7 +3073,7 @@ TArray<FString> UKawaiiPhysicsEditorLibrary::ValidatePlacementRequests(
 			AnimBlueprint,
 			Requests[RequestIndex],
 			ResolvedRequests[RequestIndex],
-			AllResolvedRootBoneNames,
+			AllResolvedRootBoneEntries,
 			RequestIndex,
 			Errors);
 	}
@@ -2300,6 +3133,168 @@ bool UKawaiiPhysicsEditorLibrary::IsGraphNodeHandleValid(const FKawaiiPhysicsGra
 	return Handle.IsValid();
 }
 
+int32 UKawaiiPhysicsEditorLibrary::BindGraphNodeAnimNodeFunction(
+	const FKawaiiPhysicsGraphNodeHandle& Handle,
+	EKawaiiPhysicsAnimNodeFunctionEvent Event,
+	FName FunctionName,
+	FString& OutError)
+{
+	OutError.Reset();
+	UAnimGraphNode_KawaiiPhysics* GraphNode = GetGraphNode(Handle);
+	if (!GraphNode || !GraphNode->GetGraph())
+	{
+		OutError = TEXT("Graph node handle is invalid.");
+		return -1;
+	}
+	UAnimBlueprint* AnimBlueprint = GraphNode->GetAnimBlueprint();
+	if (!AnimBlueprint)
+	{
+		OutError = TEXT("AnimBlueprint is null.");
+		return -1;
+	}
+
+	FName PropertyName;
+	FMemberReference* Reference = nullptr;
+	switch (Event)
+	{
+	case EKawaiiPhysicsAnimNodeFunctionEvent::InitialUpdate:
+		PropertyName = GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, InitialUpdateFunction);
+		Reference = &GraphNode->InitialUpdateFunction;
+		break;
+	case EKawaiiPhysicsAnimNodeFunctionEvent::BecomeRelevant:
+		PropertyName = GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, BecomeRelevantFunction);
+		Reference = &GraphNode->BecomeRelevantFunction;
+		break;
+	case EKawaiiPhysicsAnimNodeFunctionEvent::Update:
+		PropertyName = GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, UpdateFunction);
+		Reference = &GraphNode->UpdateFunction;
+		break;
+	default:
+		OutError = TEXT("AnimNode Function event is invalid.");
+		return -1;
+	}
+
+	if (FunctionName.IsNone())
+	{
+		FScopedTransaction Transaction(
+			NSLOCTEXT("KawaiiPhysicsEditorLibrary", "BindGraphNodeAnimNodeFunction", "Bind AnimNode Function"));
+		GraphNode->Modify();
+		*Reference = FMemberReference();
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(AnimBlueprint);
+		return 0;
+	}
+	if (!AnimBlueprint->SkeletonGeneratedClass)
+	{
+		OutError = TEXT("AnimBlueprint skeleton generated class is null.");
+		return -1;
+	}
+	const FProperty* Property = UAnimGraphNode_Base::StaticClass()->FindPropertyByName(PropertyName);
+	const FString PrototypeName = Property ? Property->GetMetaData(TEXT("PrototypeFunction")) : FString();
+	const UFunction* PrototypeFunction = PrototypeName.IsEmpty()
+		? nullptr : FindObject<UFunction>(nullptr, *PrototypeName);
+	if (!PrototypeFunction)
+	{
+		OutError = TEXT("AnimNode Function prototype was not found.");
+		return -1;
+	}
+
+	UFunction* Function = AnimBlueprint->SkeletonGeneratedClass->FindFunctionByName(FunctionName);
+	if (Function)
+	{
+		// AnimGraph・レイヤー・親クラスの関数は束縛先にしない。この ABP のユーザー関数グラフだけ検証へ進める
+		const bool bIsUserFunctionGraph = AnimBlueprint->FunctionGraphs.ContainsByPredicate(
+			[FunctionName](const UEdGraph* Graph)
+			{
+				const UClass* SchemaClass = Graph ? Graph->Schema.Get() : nullptr;
+				return Graph && Graph->GetFName() == FunctionName && SchemaClass &&
+					SchemaClass->IsChildOf<UEdGraphSchema_K2>() &&
+					!SchemaClass->IsChildOf<UAnimationGraphSchema>();
+			});
+		if (!bIsUserFunctionGraph)
+		{
+			OutError = TEXT("Function name is already in use by something other than a function graph in the AnimBlueprint.");
+			return -1;
+		}
+		if (!FBlueprintEditorUtils::HasFunctionBlueprintThreadSafeMetaData(Function))
+		{
+			OutError = TEXT("Function is not Blueprint thread safe.");
+			return -1;
+		}
+		if (!PrototypeFunction->IsSignatureCompatibleWith(Function))
+		{
+			OutError = TEXT("Function signature is incompatible with the AnimNode Function prototype.");
+			return -1;
+		}
+	}
+	else
+	{
+		if (FKismetNameValidator(AnimBlueprint).IsValid(FunctionName.ToString()) != EValidatorResult::Ok)
+		{
+			OutError = TEXT("Function name is already in use or invalid in the AnimBlueprint.");
+			return -1;
+		}
+	}
+
+	FScopedTransaction Transaction(
+		NSLOCTEXT("KawaiiPhysicsEditorLibrary", "BindGraphNodeAnimNodeFunction", "Bind AnimNode Function"));
+	const bool bCreateGraph = !Function;
+	if (bCreateGraph)
+	{
+		// FunctionGraphs への追加を Undo に載せるため、エンジンのバインド作成と同じくグラフ生成前に記録する
+		AnimBlueprint->Modify();
+		UEdGraph* FunctionGraph = FBlueprintEditorUtils::CreateNewGraph(
+			AnimBlueprint, FunctionName, UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
+		if (!FunctionGraph)
+		{
+			OutError = TEXT("Failed to create the function graph.");
+			return -1;
+		}
+		FBlueprintEditorUtils::AddFunctionGraph(AnimBlueprint, FunctionGraph, true, PrototypeFunction);
+
+		// 以降の失敗ではグラフを残すため、作成済みであることと再バインド手順をエラーに含める
+		const FString CreatedGraphNote = FString::Printf(
+			TEXT("Function graph '%s' was created but could not be bound. Check the graph, compile the AnimBlueprint, and bind again with the same name."),
+			*FunctionName.ToString());
+		TArray<UK2Node_FunctionEntry*> EntryNodes;
+		FunctionGraph->GetNodesOfClass(EntryNodes);
+		if (EntryNodes.IsEmpty())
+		{
+			OutError = FString::Printf(
+				TEXT("%s The graph has no entry node, so it was not marked thread safe."), *CreatedGraphNote);
+			return -1;
+		}
+		EntryNodes[0]->Modify();
+		EntryNodes[0]->MetaData.bThreadSafe = true;
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(AnimBlueprint);
+		Function = AnimBlueprint->SkeletonGeneratedClass
+			? AnimBlueprint->SkeletonGeneratedClass->FindFunctionByName(FunctionName) : nullptr;
+		if (!Function)
+		{
+			OutError = FString::Printf(
+				TEXT("%s The function was not found in the skeleton generated class."), *CreatedGraphNote);
+			return -1;
+		}
+	}
+
+	GraphNode->Modify();
+	Reference->SetFromField<UFunction>(Function, true);
+	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(AnimBlueprint);
+	return bCreateGraph ? 1 : 0;
+}
+
+bool UKawaiiPhysicsEditorLibrary::SetBackgroundCPUThrottleEnabled(bool bEnabled)
+{
+	UEditorPerformanceSettings* Settings = GetMutableDefault<UEditorPerformanceSettings>();
+	const bool bPrevious = Settings->bThrottleCPUWhenNotForeground;
+	Settings->bThrottleCPUWhenNotForeground = bEnabled;
+	return bPrevious;
+}
+
+bool UKawaiiPhysicsEditorLibrary::IsBackgroundCPUThrottleEnabled()
+{
+	return GetDefault<UEditorPerformanceSettings>()->bThrottleCPUWhenNotForeground;
+}
+
 bool UKawaiiPhysicsEditorLibrary::IsSharedPublisherGraphNodeHandleValid(
 	const FKawaiiPhysicsSharedPublisherGraphNodeHandle& Handle)
 {
@@ -2329,6 +3324,259 @@ bool UKawaiiPhysicsEditorLibrary::GetGraphNodePropertyAsString(
 	UAnimGraphNode_KawaiiPhysics* GraphNode = GetGraphNode(Handle);
 	return GraphNode &&
 		UKawaiiPhysicsLibrary::GetNodePropertyValueAsString(GraphNode->Node, PropertyName, OutValue);
+}
+
+namespace
+{
+	const TCHAR* const KawaiiPhysicsExternalForceStructTypeField = TEXT("_structType");
+
+	// "_structType" の値（構造体パス、名前、F 接頭辞付きの C++ 名）から構造体を解決する
+	const UScriptStruct* ResolveKawaiiPhysicsExternalForceStruct(const FString& TypeName)
+	{
+		if (TypeName.IsEmpty())
+		{
+			return nullptr;
+		}
+
+		if (TypeName.Contains(TEXT("/")))
+		{
+			return FindObject<UScriptStruct>(nullptr, *TypeName);
+		}
+
+		if (const UScriptStruct* ScriptStruct =
+			FindFirstObject<UScriptStruct>(*TypeName, EFindFirstObjectOptions::NativeFirst))
+		{
+			return ScriptStruct;
+		}
+
+		if (TypeName.Len() > 1 && TypeName[0] == TEXT('F'))
+		{
+			return FindFirstObject<UScriptStruct>(*TypeName.RightChop(1), EFindFirstObjectOptions::NativeFirst);
+		}
+		return nullptr;
+	}
+
+	bool IsKawaiiPhysicsExternalForceJsonField(const FProperty* Property)
+	{
+		// 実行時状態（UPROPERTY() のみのフィールド）を JSON に含めず、編集可能なフィールドだけを対象にする
+		return Property &&
+			Property->HasAnyPropertyFlags(CPF_Edit) &&
+			!Property->HasAnyPropertyFlags(CPF_Transient | CPF_Deprecated);
+	}
+
+	TSharedPtr<FJsonValue> ConvertKawaiiPhysicsExternalForceToJsonValue(const FInstancedStruct& Force)
+	{
+		const UScriptStruct* ScriptStruct = Force.GetScriptStruct();
+		const uint8* Memory = Force.GetMemory();
+		if (!ScriptStruct || !Memory)
+		{
+			return MakeShared<FJsonValueNull>();
+		}
+
+		TSharedRef<FJsonObject> JsonObject = MakeShared<FJsonObject>();
+		JsonObject->SetStringField(KawaiiPhysicsExternalForceStructTypeField, ScriptStruct->GetPathName());
+		for (TFieldIterator<FProperty> PropertyIt(ScriptStruct); PropertyIt; ++PropertyIt)
+		{
+			FProperty* Property = *PropertyIt;
+			if (!IsKawaiiPhysicsExternalForceJsonField(Property))
+			{
+				continue;
+			}
+
+			// ネストした構造体はカーブ等のデータを失わないようフラグで絞らずに変換する
+			const TSharedPtr<FJsonValue> JsonValue = FJsonObjectConverter::UPropertyToJsonValue(
+				Property,
+				Property->ContainerPtrToValuePtr<void>(Memory),
+				0,
+				0,
+				nullptr,
+				nullptr,
+				EJsonObjectConversionFlags::SkipStandardizeCase);
+			if (JsonValue.IsValid())
+			{
+				JsonObject->SetField(Property->GetName(), JsonValue);
+			}
+		}
+		return MakeShared<FJsonValueObject>(JsonObject);
+	}
+
+	bool ConvertJsonValueToKawaiiPhysicsExternalForce(
+		const TSharedPtr<FJsonValue>& JsonValue,
+		int32 Index,
+		FInstancedStruct& OutForce,
+		FString& OutError)
+	{
+		if (!JsonValue.IsValid() || JsonValue->IsNull())
+		{
+			OutForce.Reset();
+			return true;
+		}
+
+		const TSharedPtr<FJsonObject>* JsonObjectPtr = nullptr;
+		if (!JsonValue->TryGetObject(JsonObjectPtr) || !JsonObjectPtr || !JsonObjectPtr->IsValid())
+		{
+			OutError = FString::Printf(TEXT("Element %d must be a JSON object or null."), Index);
+			return false;
+		}
+		const TSharedPtr<FJsonObject>& JsonObject = *JsonObjectPtr;
+
+		FString TypeName;
+		if (!JsonObject->TryGetStringField(KawaiiPhysicsExternalForceStructTypeField, TypeName) || TypeName.IsEmpty())
+		{
+			OutError = FString::Printf(TEXT("Element %d is missing \"_structType\"."), Index);
+			return false;
+		}
+
+		const UScriptStruct* BaseStruct = FKawaiiPhysics_ExternalForce::StaticStruct();
+		const UScriptStruct* ScriptStruct = ResolveKawaiiPhysicsExternalForceStruct(TypeName);
+		if (!ScriptStruct || ScriptStruct == BaseStruct || !ScriptStruct->IsChildOf(BaseStruct))
+		{
+			OutError = FString::Printf(
+				TEXT("Element %d: _structType '%s' is not a struct derived from FKawaiiPhysics_ExternalForce."),
+				Index,
+				*TypeName);
+			return false;
+		}
+
+		// 省略したフィールドは構造体の既定値のまま残す
+		OutForce.InitializeAs(ScriptStruct);
+		uint8* Memory = OutForce.GetMutableMemory();
+		for (const auto& Field : JsonObject->Values)
+		{
+			const FString FieldName(*Field.Key);
+			if (FieldName == KawaiiPhysicsExternalForceStructTypeField)
+			{
+				continue;
+			}
+
+			const FName PropertyName = FieldName.Len() < NAME_SIZE ? FName(*FieldName, FNAME_Find) : NAME_None;
+			FProperty* Property = PropertyName.IsNone() ? nullptr : ScriptStruct->FindPropertyByName(PropertyName);
+			if (!IsKawaiiPhysicsExternalForceJsonField(Property))
+			{
+				OutError = FString::Printf(
+					TEXT("Element %d: '%s' is not an editable field of %s."),
+					Index,
+					*FieldName,
+					*ScriptStruct->GetName());
+				return false;
+			}
+
+			if (!FJsonObjectConverter::JsonValueToUProperty(
+				Field.Value,
+				Property,
+				Property->ContainerPtrToValuePtr<void>(Memory),
+				0,
+				0))
+			{
+				OutError = FString::Printf(TEXT("Element %d: unable to convert field '%s'."), Index, *FieldName);
+				return false;
+			}
+		}
+		return true;
+	}
+}
+
+bool UKawaiiPhysicsEditorLibrary::GetGraphNodeExternalForcesAsJson(
+	const FKawaiiPhysicsGraphNodeHandle& Handle,
+	FString& OutJson)
+{
+	OutJson.Reset();
+	const UAnimGraphNode_KawaiiPhysics* GraphNode = GetGraphNode(Handle);
+	if (!GraphNode)
+	{
+		return false;
+	}
+
+	TArray<TSharedPtr<FJsonValue>> JsonValues;
+	JsonValues.Reserve(GraphNode->Node.ExternalForces.Num());
+	for (const FInstancedStruct& Force : GraphNode->Node.ExternalForces)
+	{
+		JsonValues.Add(ConvertKawaiiPhysicsExternalForceToJsonValue(Force));
+	}
+
+	const TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> Writer =
+		TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&OutJson);
+	return FJsonSerializer::Serialize(JsonValues, Writer);
+}
+
+int32 UKawaiiPhysicsEditorLibrary::SetGraphNodeExternalForcesFromJson(
+	const FKawaiiPhysicsGraphNodeHandle& Handle,
+	const FString& ForcesJson,
+	FString& OutError)
+{
+	OutError.Reset();
+	if (!GetGraphNode(Handle))
+	{
+		OutError = TEXT("Handle is not a valid KawaiiPhysics graph node handle.");
+		return -1;
+	}
+
+	TArray<TSharedPtr<FJsonValue>> JsonValues;
+	const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(ForcesJson);
+	if (!FJsonSerializer::Deserialize(Reader, JsonValues))
+	{
+		OutError = FString::Printf(TEXT("ForcesJson is not a valid JSON array: %s"), *Reader->GetErrorMessage());
+		return -1;
+	}
+
+	// 全要素を変換できてからノードへ反映し、途中で失敗してもノードを変更しない
+	TArray<FInstancedStruct> NewForces;
+	NewForces.SetNum(JsonValues.Num());
+	for (int32 Index = 0; Index < JsonValues.Num(); ++Index)
+	{
+		if (!ConvertJsonValueToKawaiiPhysicsExternalForce(JsonValues[Index], Index, NewForces[Index], OutError))
+		{
+			return -1;
+		}
+	}
+
+	const int32 ForceCount = NewForces.Num();
+	const bool bModified = ModifyGraphNodeProperty(
+		Handle,
+		GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, ExternalForces),
+		NSLOCTEXT("KawaiiPhysicsEditorLibrary", "SetGraphNodeExternalForcesFromJson", "Set Kawaii Physics External Forces"),
+		[&NewForces](UAnimGraphNode_KawaiiPhysics& GraphNode)
+		{
+			GraphNode.Node.ExternalForces = MoveTemp(NewForces);
+			return true;
+		});
+	if (!bModified)
+	{
+		OutError = TEXT("Unable to modify ExternalForces on the graph node.");
+		return -1;
+	}
+	return ForceCount;
+}
+
+bool UKawaiiPhysicsEditorLibrary::GetGraphNodeReferenceBoneTransform(
+	const FKawaiiPhysicsGraphNodeHandle& Handle,
+	FName BoneName,
+	FTransform& OutComponentTransform)
+{
+	OutComponentTransform = FTransform::Identity;
+	UAnimGraphNode_KawaiiPhysics* GraphNode = GetGraphNode(Handle);
+	UAnimBlueprint* AnimBlueprint = GraphNode ? GraphNode->GetAnimBlueprint() : nullptr;
+	const USkeleton* Skeleton = AnimBlueprint ? AnimBlueprint->TargetSkeleton.Get() : nullptr;
+	if (!Skeleton || BoneName.IsNone())
+	{
+		return false;
+	}
+
+	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
+	const int32 BoneIndex = RefSkeleton.FindBoneIndex(BoneName);
+	if (BoneIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	OutComponentTransform = FAnimationRuntime::GetComponentSpaceTransformRefPose(RefSkeleton, BoneIndex);
+	return true;
+}
+
+UWorld* UKawaiiPhysicsEditorLibrary::GetEditorWorldIgnoringPlayMode()
+{
+	// UnrealEditorSubsystem::GetEditorWorld は PIE 中にエラーを出して null を返すため、エディタのワールドコンテキストを直接参照する
+	return GEditor ? GEditor->GetEditorWorldContext(false).World() : nullptr;
 }
 
 bool UKawaiiPhysicsEditorLibrary::SetSharedPublisherNodePropertyFromString(

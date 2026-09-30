@@ -14,15 +14,30 @@
 #include "KawaiiPhysicsEditorLibrary.generated.h"
 
 class UAnimBlueprint;
+class UAnimSequenceBase;
 class UAnimGraphNode_KawaiiPhysics;
 class UAnimGraphNode_KawaiiPhysicsSharedPublisher;
+class UEdGraphNode_Comment;
 class USkeleton;
+class UWorld;
 
 UENUM(BlueprintType)
 enum class EKawaiiPhysicsEditorAccessResult : uint8
 {
 	Valid,
 	NotValid,
+};
+
+/** AnimNode Function のイベント / AnimNode Function event. */
+UENUM(BlueprintType)
+enum class EKawaiiPhysicsAnimNodeFunctionEvent : uint8
+{
+	/** 初回更新時 / On Initial Update. */
+	InitialUpdate,
+	/** 有効になった時 / On Become Relevant. */
+	BecomeRelevant,
+	/** 更新時 / On Update. */
+	Update,
 };
 
 /** 自動配置方向のリクエスト単位上書き。Default はプロジェクト設定に従う / Per-request override for automatic placement direction. Default follows project settings. */
@@ -117,6 +132,18 @@ struct KAWAIIPHYSICSED_API FKawaiiPhysicsAnimGraphCommentInfo
 	/** MCPコメント枠か / Whether this is an MCP comment frame. */
 	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
 	bool bMcpComment = false;
+
+	/** コメントノード本体 / The comment node itself. */
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
+	TObjectPtr<UEdGraphNode_Comment> CommentNode = nullptr;
+
+	/** コメント枠の左上位置（グラフ座標） / Top-left position of the comment frame in graph coordinates. */
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
+	FVector2D NodePosition = FVector2D::ZeroVector;
+
+	/** コメント枠の幅と高さ / Width and height of the comment frame. */
+	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
+	FVector2D NodeSize = FVector2D::ZeroVector;
 };
 
 /**
@@ -385,8 +412,8 @@ public:
 		const TArray<FString>& ContentPaths);
 
 	/**
-	 * AnimGraph に KawaiiPhysics ノードを追加または更新する。bAutoConnect 指定時は Result ノード直前へ直列に接続する。Comment 指定時は MCP コメント枠を追加する。
-	 * Add or update KawaiiPhysics nodes into an AnimGraph. When bAutoConnect is set, nodes are connected in series just before the Result node. A non-empty Comment adds an MCP comment frame.
+	 * AnimGraph に KawaiiPhysics ノードを追加または更新する。bAutoConnect 指定時は Result ノード直前へ直列に接続する。Comment 指定時は MCP コメント枠を追加する。bAutoPosition と bAutoConnect を両方指定したリクエストがあれば、最後に LayoutKawaiiPhysicsAnimGraph と同じレイアウトで Result 上流のチェーンを1行に並べ直す。
+	 * Add or update KawaiiPhysics nodes into an AnimGraph. When bAutoConnect is set, nodes are connected in series just before the Result node. A non-empty Comment adds an MCP comment frame. When any request sets both bAutoPosition and bAutoConnect, the pose chain upstream of Result is finally laid out on one row, as LayoutKawaiiPhysicsAnimGraph does.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor",
 		meta=(AutoCreateRefTerm = "Requests,Comment,Prompt"))
@@ -408,6 +435,48 @@ public:
 		FGameplayTag SharedGroupTag,
 		bool bReuseExisting = true,
 		bool bAutoConnect = true);
+
+	/**
+	 * AnimGraph の入力ポーズとしてアニメーションを設定する。Result から上流のポーズ入力を辿り、既存の SequencePlayer があればそのシーケンスを差し替え、未接続のポーズ入力に達したら SequencePlayer を追加して接続する（コンポーネント空間の入力には変換ノードを自動挿入）。コンパイルは行わない。
+	 * Set an animation as the input pose of the AnimGraph. Follows the pose inputs upstream from Result; replaces the sequence of an existing SequencePlayer, or adds and connects a SequencePlayer at the first unlinked pose input (a space conversion node is inserted automatically for component-space inputs). Does not compile.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static bool SetAnimGraphInputAnimation(
+		UAnimBlueprint* AnimBlueprint,
+		UAnimSequenceBase* Animation,
+		FName GraphName = NAME_None);
+
+	/**
+	 * AnimGraph の入力に InPose という Input Pose を追加する。既存の SequencePlayer は置き換え、接続済み Input Pose は変更しない。コンパイルは行わない。戻り値は新規ノード数（0 または 1）、失敗時は -1 で理由を OutError に返す。
+	 * Add an Input Pose named InPose to the AnimGraph input, replacing an existing SequencePlayer. An already connected Input Pose is unchanged. Does not compile. Returns the number of new nodes (0 or 1), or -1 on failure with the reason in OutError.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static int32 SetAnimGraphInputPose(UAnimBlueprint* AnimBlueprint, FString& OutError);
+
+	/**
+	 * AnimGraph の入力に InPose という Input Pose が接続されているかを返す。SetAnimGraphInputPose と同じく Result から上流のポーズ入力を辿って判定する。AnimBlueprint は変更しない。
+	 * Return whether an Input Pose named InPose is connected to the AnimGraph input. Follows the pose inputs upstream from Result, as SetAnimGraphInputPose does. Does not modify the AnimBlueprint.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static bool IsAnimGraphInputPoseConnected(UAnimBlueprint* AnimBlueprint);
+
+	/**
+	 * AnimGraph のノード配置を整える。Result から各ノードの先頭の接続済みポーズ入力を上流へ辿り、そのチェーンを Result の行へ上流から下流の順に左から右へ並べる（Result は動かさず、間隔はノード幅に基づく）。チェーン外のノードは動かさない。MCP コメント枠は、紐付いた KawaiiPhysics ノード（紐付けが無ければレイアウト前に枠と重なっていた KawaiiPhysics ノード、それも無く MCP コメント枠が1つだけならグラフ内の全 KawaiiPhysics ノード）を囲むよう再調整する。コンパイルは行わない。入力が不正なら false。
+	 * Tidy the node layout of an AnimGraph. Follows the first linked pose input of each node upstream from Result and places that chain on Result's row, left to right from upstream to downstream (Result stays in place; spacing is based on node widths). Nodes off the chain are left in place. Each MCP comment frame is refit around its associated KawaiiPhysics nodes (or, without an association, the KawaiiPhysics nodes that overlapped it before the layout; failing that, all KawaiiPhysics nodes in the graph when it is the only MCP comment frame). Does not compile. Returns false for invalid input.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static bool LayoutKawaiiPhysicsAnimGraph(
+		UAnimBlueprint* AnimBlueprint,
+		FName GraphName = NAME_None);
+
+	/**
+	 * AnimBlueprint をコンパイルし、コンパイラメッセージを "Error: " / "Warning: " / "Note: " 付きの文字列で返す。戻り値はエラー数（0 なら成功、AnimBlueprint が null なら -1）。
+	 * Compile an AnimBlueprint and return compiler messages prefixed with "Error: ", "Warning: " or "Note: ". Returns the error count (0 means success, -1 when AnimBlueprint is null).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static int32 CompileAnimBlueprintWithMessages(
+		UAnimBlueprint* AnimBlueprint,
+		TArray<FString>& OutMessages);
 
 	/**
 	 * AnimGraph 上のコメントノード一覧を返す。
@@ -438,6 +507,25 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Kawaii Physics|Editor")
 	static bool IsGraphNodeHandleValid(const FKawaiiPhysicsGraphNodeHandle& Handle);
 
+	/**
+	 * AnimNode Function を作成またはバインドする。None はバインドのみ解除し、関数グラフを残す。コンパイルは行わない。戻り値は新規関数グラフ数（0 または 1）、失敗時は -1 で理由を OutError に返す。
+	 * Create or bind an AnimNode Function. None clears only the binding and keeps the function graph. Does not compile. Returns the number of new function graphs (0 or 1), or -1 on failure with the reason in OutError.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static int32 BindGraphNodeAnimNodeFunction(
+		const FKawaiiPhysicsGraphNodeHandle& Handle,
+		EKawaiiPhysicsAnimNodeFunctionEvent Event,
+		FName FunctionName,
+		FString& OutError);
+
+	/** エディタが非アクティブなときの CPU スロットリングを設定し、変更前の値を返す。設定ファイルには保存しない。 / Set editor background CPU throttling and return its previous value without saving configuration. */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static bool SetBackgroundCPUThrottleEnabled(bool bEnabled);
+
+	/** エディタが非アクティブなときの CPU スロットリングの現在値を返す。 / Return whether editor background CPU throttling is currently enabled. */
+	UFUNCTION(BlueprintPure, Category = "Kawaii Physics|Editor")
+	static bool IsBackgroundCPUThrottleEnabled();
+
 	/** Shared Publisher グラフノードハンドルが有効か / Check whether a Shared Publisher graph node handle is valid. */
 	UFUNCTION(BlueprintPure, Category = "Kawaii Physics|Editor")
 	static bool IsSharedPublisherGraphNodeHandleValid(const FKawaiiPhysicsSharedPublisherGraphNodeHandle& Handle);
@@ -455,6 +543,42 @@ public:
 		const FKawaiiPhysicsGraphNodeHandle& Handle,
 		FName PropertyName,
 		FString& OutValue);
+
+	/**
+	 * ノードの ExternalForces を JSON 配列で取得する。各要素は "_structType"（構造体パス）と編集可能なフィールドを持つオブジェクト（空スロットは null）。
+	 * Get the node's ExternalForces as a JSON array. Each element is an object with "_structType" (struct path) and the editable fields (an empty slot is null).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static bool GetGraphNodeExternalForcesAsJson(
+		const FKawaiiPhysicsGraphNodeHandle& Handle,
+		FString& OutJson);
+
+	/**
+	 * ノードの ExternalForces を GetGraphNodeExternalForcesAsJson と同じ形式の JSON 配列で置き換える。"_structType" は FKawaiiPhysics_ExternalForce の派生構造体（パスまたは名前）であること。省略したフィールドは既定値。戻り値は設定した要素数（失敗時は -1 で OutError に理由、ノードは変更しない）。
+	 * Replace the node's ExternalForces from a JSON array in the GetGraphNodeExternalForcesAsJson format. "_structType" must name a struct derived from FKawaiiPhysics_ExternalForce (path or name). Omitted fields keep their defaults. Returns the element count (-1 on failure with the reason in OutError; the node is left unchanged).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static int32 SetGraphNodeExternalForcesFromJson(
+		const FKawaiiPhysicsGraphNodeHandle& Handle,
+		const FString& ForcesJson,
+		FString& OutError);
+
+	/**
+	 * ノードを含む AnimBlueprint のターゲットスケルトンについて、ボーンの参照ポーズのコンポーネント空間トランスフォームを取得する。
+	 * Get the component-space reference pose transform of a bone in the target skeleton of the AnimBlueprint that owns the node.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static bool GetGraphNodeReferenceBoneTransform(
+		const FKawaiiPhysicsGraphNodeHandle& Handle,
+		FName BoneName,
+		FTransform& OutComponentTransform);
+
+	/**
+	 * エディタワールド（PIE ではない側）を返す。PIE 実行中でもプレイモードのエラーを出さずに返す（取得できなければ null）。
+	 * Return the editor (non-PIE) world. Works while PIE runs without logging the play-mode error (null when unavailable).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")
+	static UWorld* GetEditorWorldIgnoringPlayMode();
 
 	/** Shared Publisher ノードプロパティを文字列で設定 / Set a Shared Publisher node property from string. */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor")

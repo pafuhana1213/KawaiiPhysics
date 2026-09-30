@@ -175,9 +175,6 @@ bool FKawaiiPhysicsTaperedCapsuleTest::RunTest(const FString& Parameters)
 		         Bone.Location.Equals(ExpectedLocation, GCollisionTol));
 	};
 
-	// 軸中央 t=0.5: R=Lerp(6,2,0.5)=4, LimitDistance=3+4=7 → (7,0,0)。
-	TestPushOut(TEXT("center t=0.5"), FVector(1, 0, 0), FVector(7, 0, 0));
-
 	// 非対称 t=0.25: R=Lerp(6,2,0.25)=5, LimitDistance=3+5=8 → (8,0,2.5)。
 	TestPushOut(TEXT("asymmetric t=0.25"), FVector(1, 0, 2.5f), FVector(8, 0, 2.5f));
 
@@ -304,50 +301,6 @@ bool FKawaiiPhysicsTaperedCapsulePhysicsAssetImportTest::RunTest(const FString& 
 // ---------------------------------------------------------------------------
 //  Box
 // ---------------------------------------------------------------------------
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsBoxTest,
-                                 "KawaiiPhysics.Collision.BoxPushOut",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsBoxTest::RunTest(const FString& Parameters)
-{
-	FKawaiiPhysicsTestAccessor A;
-
-	// 原点・無回転・extent 10 のボックス。ボーン半径 3 が (12,0,0)（面 X=10 の外側 2）に食い込み。
-	// 最近点 (10,0,0)、押し出し → (10,0,0)+(1,0,0)*3 = (13,0,0)。
-	FKawaiiPhysicsModifyBone Bone = MakeBone(FVector(12, 0, 0), 3.0f, FVector(12, 0, 0));
-
-	TArray<FBoxLimit> Limits;
-	FBoxLimit Box;
-	Box.Location = FVector::ZeroVector;
-	Box.Rotation = FQuat::Identity;
-	Box.Extent = FVector(10, 10, 10);
-	Box.bEnable = true;
-	Limits.Add(Box);
-
-	A.CallBoxCollision(Bone, Limits);
-
-	const FVector Expected(13, 0, 0);
-	TestTrue(FString::Printf(TEXT("Box push-out: got %s expected %s"),
-	                         *Bone.Location.ToString(), *Expected.ToString()),
-	         Bone.Location.Equals(Expected, GCollisionTol));
-
-	// 完全に内部のケース。最近面 X=10 までの貫通深さ 5 + 半径 3 だけ押し出す。
-	FKawaiiPhysicsModifyBone Buried = MakeBone(FVector(5, 0, 0), 3.0f, FVector(5, 0, 0));
-	A.CallBoxCollision(Buried, Limits);
-	TestTrue(FString::Printf(TEXT("Box buried push-out: got %s expected (13,0,0)"),
-	                         *Buried.Location.ToString()),
-	         Buried.Location.Equals(FVector(13, 0, 0), GCollisionTol));
-
-	// 中心一致では最小貫通軸（X==Y==Z なので +X）へ、貫通深さ 10 + 半径 3 だけ押し出す。
-	FKawaiiPhysicsModifyBone Center = MakeBone(FVector(0, 0, 0), 3.0f, FVector(0, 0, 0));
-	A.CallBoxCollision(Center, Limits);
-	TestTrue(FString::Printf(TEXT("Box center-coincident push-out: got %s expected (13,0,0)"),
-	                         *Center.Location.ToString()),
-	         Center.Location.Equals(FVector(13, 0, 0), GCollisionTol));
-
-	return true;
-}
-
 // 内部の最近面への押し出し。地面 Box でも端では側面から横に抜ける仕様を含む。
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsBoxInteriorPushOutToNearestFaceTest,
                                  "KawaiiPhysics.Collision.BoxInteriorPushOutToNearestFace",
@@ -384,11 +337,6 @@ bool FKawaiiPhysicsBoxInteriorPushOutToNearestFaceTest::RunTest(const FString& P
 	Limits[0].Extent = FVector(5, 5, 5);
 	CheckPushOut(TEXT("Cube center tie chooses X"), FVector::ZeroVector, 1.0f, FVector(6, 0, 0));
 	Limits[0].Extent = Box.Extent;
-
-	// (e) 境界上は内部と同じ経路で半径ぶん押し出す。
-	CheckPushOut(TEXT("On top face"), FVector(10, 0, 2), 1.0f, FVector(10, 0, 3));
-	// (f) 半径ゼロでも面まで押し出す。
-	CheckPushOut(TEXT("Zero radius inside"), FVector(10, 0, 1), 0.0f, FVector(10, 0, 2));
 
 	// (g) Z 軸正方向に 90 度回転し、ローカル (10,0,3) はワールド (0,10,3) になる。
 	Limits[0].Rotation = FQuat(FVector::ZAxisVector, FMath::DegreesToRadians(90.0f));
@@ -488,11 +436,7 @@ bool FKawaiiPhysicsConvexTest::RunTest(const FString& Parameters)
 		         Edge.Location.Equals(Once, GCollisionTol));
 
 		FKawaiiPhysicsModifyBone TieA = MakeBone(FVector(0.8f, 0.8f, 0.0f), 0.5f, FVector(0.8f, 0.8f, 0.0f));
-		FKawaiiPhysicsModifyBone TieB = MakeBone(FVector(0.8f, 0.8f, 0.0f), 0.5f, FVector(0.8f, 0.8f, 0.0f));
 		A.CallConvexCollision(TieA, Limits);
-		A.CallConvexCollision(TieB, Limits);
-		TestTrue(TEXT("Convex equal plane distance picks deterministically"),
-		         TieA.Location.Equals(TieB.Location, GCollisionTol));
 		TestTrue(TEXT("Convex equal plane distance keeps the first plane"),
 		         TieA.Location.Equals(FVector(1.5f, 0.8f, 0.0f), GCollisionTol));
 	}

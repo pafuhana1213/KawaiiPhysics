@@ -154,6 +154,73 @@ struct FKawaiiPhysicsTestAccessor
 		Node.ModifyBones[3].ChildIndices = {4};
 	}
 
+	int32 BuildSyncBoneSubdivisionLengthFixture(int32 SubdivisionCount, float SegmentLength, float TipLength)
+	{
+		Node.ModifyBones.Reset();
+		Node.BoneSubdivisionCount = SubdivisionCount;
+		Node.bBoneSubdivisionDensifyByRadius = false;
+		Node.DummyBoneLength = TipLength;
+
+		FKawaiiPhysicsModifyBone Root;
+		Root.Index = 0;
+		Root.BoneRef.BoneName = FName(TEXT("Root"));
+		Root.BoneRef.BoneIndex = 0;
+		Root.BoneRef.CachedCompactPoseIndex = FCompactPoseBoneIndex(0);
+		Node.ModifyBones.Add(Root);
+
+		const FVector ChildLocation(SegmentLength, 0.0f, 0.0f);
+		TArray<int32> InsertedIndices;
+		const int32 ChildParentIndex = Node.InsertInterBoneDummyBonesCore(
+			Node.ModifyBones, 0, ChildLocation, FQuat::Identity, FVector::OneVector,
+			SegmentLength, InsertedIndices);
+
+		FKawaiiPhysicsModifyBone Child;
+		Child.Index = Node.ModifyBones.Num();
+		Child.ParentIndex = ChildParentIndex;
+		Child.BoneRef.BoneName = FName(TEXT("Child"));
+		Child.BoneRef.BoneIndex = 1;
+		Child.BoneRef.CachedCompactPoseIndex = FCompactPoseBoneIndex(1);
+		Child.Location = ChildLocation;
+		Child.PrevLocation = ChildLocation;
+		Child.PoseLocation = ChildLocation;
+		const int32 ChildIndex = Node.ModifyBones.Add(Child);
+		Node.ModifyBones[ChildParentIndex].ChildIndices.Add(ChildIndex);
+		Node.FinalizeInterBoneDummyBones(Node.ModifyBones, InsertedIndices, ChildIndex);
+
+		const FVector TipLocation = ChildLocation + FVector(TipLength, 0.0f, 0.0f);
+		const int32 TipParentIndex = Node.InsertInterBoneDummyBonesCore(
+			Node.ModifyBones, ChildIndex, TipLocation, FQuat::Identity, FVector::OneVector,
+			TipLength, InsertedIndices);
+
+		FKawaiiPhysicsModifyBone Tip;
+		Tip.Index = Node.ModifyBones.Num();
+		Tip.ParentIndex = TipParentIndex;
+		Tip.bDummy = true;
+		Tip.InterBoneRealParentIndex = ChildIndex;
+		Tip.BoneLength = TipLength / (InsertedIndices.Num() + 1);
+		Tip.Location = TipLocation;
+		Tip.PrevLocation = TipLocation;
+		Tip.PoseLocation = TipLocation;
+		const int32 TipIndex = Node.ModifyBones.Add(Tip);
+		Node.ModifyBones[TipParentIndex].ChildIndices.Add(TipIndex);
+		Node.FinalizeInterBoneDummyBones(Node.ModifyBones, InsertedIndices, TipIndex);
+
+		TArray<FTransform> RefBonePose;
+		RefBonePose.Add(FTransform::Identity);
+		RefBonePose.Add(FTransform(FQuat::Identity, ChildLocation));
+		float TotalBoneLength = 0.0f;
+		Node.CalcBoneLength(Node.ModifyBones[0], Node.ModifyBones, RefBonePose, TotalBoneLength);
+		for (FKawaiiPhysicsModifyBone& Bone : Node.ModifyBones)
+		{
+			if (Bone.LengthFromRoot > 0.0f)
+			{
+				Bone.LengthRateFromRoot = Bone.LengthFromRoot / TotalBoneLength;
+			}
+		}
+
+		return ChildIndex;
+	}
+
 	/** 全ボーンに同一の PhysicsSettings を適用 */
 	void SetAllPhysicsSettings(const FKawaiiPhysicsSettings& Settings)
 	{
@@ -218,6 +285,11 @@ struct FKawaiiPhysicsTestAccessor
 	const TArray<FSphericalLimit>& GetSharedSphericalLimits() const
 	{
 		return Node.SharedSphericalLimits;
+	}
+
+	void SetSharedCapsuleLimits(const TArray<FCapsuleLimit>& Limits)
+	{
+		Node.SharedCapsuleLimits = Limits;
 	}
 
 	void SetUseLegacyGravity(bool bUse) { Node.bUseLegacyGravity = bUse; }
@@ -651,6 +723,7 @@ struct FKawaiiPhysicsTestAccessor
 			}
 			StepOnce();
 			Node.DeltaTimeOld = FrameDt;
+			Node.PreSkelCompTransformConsumeFraction = 1.0f;
 		}
 		else
 		{
@@ -658,9 +731,13 @@ struct FKawaiiPhysicsTestAccessor
 			const float FixedDt = 1.0f / Node.GetEffectiveTargetFramerate();
 			const float RawElapsed = FMath::Max(Node.SubstepAccumulator + Node.FrameDeltaTime, KINDA_SMALL_NUMBER);
 			Node.SubstepAccumulator = FMath::Min(RawElapsed, Node.MaxSubstepsCached * FixedDt);
+			const float DroppedTime = RawElapsed - Node.SubstepAccumulator;
 			const int32 NumSteps = FMath::FloorToInt(Node.SubstepAccumulator / FixedDt);
 			Node.SubstepAccumulator -= NumSteps * FixedDt;
 			const float MoveFrac = FixedDt / RawElapsed;
+			// 本番と同じく PreSkelCompTransform の前進割合（消費＋破棄）を記録する（StepFrameWithComponentTransform が使う）
+			Node.PreSkelCompTransformConsumeFraction =
+				FMath::Clamp((NumSteps * FixedDt + DroppedTime) / RawElapsed, 0.0f, 1.0f);
 			const FVector FullSkelCompMove = Node.SkelCompMoveVector;
 			const FQuat FullSkelCompRot = Node.SkelCompMoveRotation;
 
@@ -697,6 +774,36 @@ struct FKawaiiPhysicsTestAccessor
 			Bone.PrevPoseRotation = Bone.CurrentPoseRotation;
 		}
 	}
+
+	/**
+	 * コンポーネント変換から world 移動を求めて1フレーム進める（EvaluateSkeletalControl_AnyThread の
+	 * UpdateSkelCompMove → SimulateModifyBones → TeleportType リセット → AdvancePreSkelCompTransform の順序を複製）。
+	 * テレポート判定・閾値・PreSkelCompTransform の繰り越しは本番と同一関数を呼ぶ。
+	 * WorldSpace のテレポート時シミュレーションスキップは Output 依存のため非対応（ComponentSpace のみ）。
+	 * Steps one frame deriving the world move from a component transform, duplicating the Evaluate order
+	 * (UpdateSkelCompMove -> SimulateModifyBones -> TeleportType reset -> AdvancePreSkelCompTransform).
+	 * Teleport detection, thresholds and the PreSkelCompTransform carry-over call the production functions.
+	 * The WorldSpace teleport simulation skip needs Output and is not supported (ComponentSpace only).
+	 */
+	void StepFrameWithComponentTransform(FComponentSpacePoseContext& Output, float FrameDt,
+	                                     const FTransform& ComponentTransform)
+	{
+		if (!ensureMsgf(Node.SimulationSpace == EKawaiiPhysicsSimulationSpace::ComponentSpace,
+		                TEXT("FKawaiiPhysicsTestAccessor: StepFrameWithComponentTransform supports ComponentSpace only.")))
+		{
+			return;
+		}
+		Node.UpdateSkelCompMove(Output, ComponentTransform);
+		StepFrame(FrameDt);
+		const bool bTeleportedThisFrame = (Node.TeleportType == ETeleportType::TeleportPhysics);
+		Node.TeleportType = ETeleportType::None;
+		Node.AdvancePreSkelCompTransform(ComponentTransform, bTeleportedThisFrame);
+	}
+
+	/** 前フレームのコンポーネント変換を設定する / Sets the previous-frame component transform. */
+	void SetPreSkelCompTransform(const FTransform& Transform) { Node.PreSkelCompTransform = Transform; }
+	const FTransform& GetPreSkelCompTransform() const { return Node.PreSkelCompTransform; }
+	float GetSubstepAccumulator() const { return Node.SubstepAccumulator; }
 
 	/** 固定フレーム dt で N フレーム進める */
 	void StepFrames(int32 NumFrames, float FrameDt)
@@ -858,6 +965,9 @@ struct FKawaiiPhysicsTestAccessor
 		FBoneContainer EmptyContainer;
 		Node.UpdateSubdivisionDummyPoseAfterSyncBones(EmptyContainer);
 	}
+
+	void CallRestoreBoneLengthsAndLimits() { Node.RestoreBoneLengthsAndLimits(); }
+	void CallApplyBridgeDummyCollisionFeedback() { Node.ApplyBridgeDummyCollisionFeedback(); }
 
 	// 直接呼び出しテスト用の時間状態（bInSubstep=false なので GetStepDeltaTime()==Dt）。
 	void SetTimeState(float Dt, float DtOld)
@@ -1042,19 +1152,7 @@ private:
 			}
 		}
 
-		// 角度制限 + 平面拘束 + ボーン長復元（SimulateOnce 528-555）
-		for (FKawaiiPhysicsModifyBone& Bone : Node.ModifyBones)
-		{
-			if (Bone.bSkipSimulate)
-			{
-				continue;
-			}
-			FKawaiiPhysicsModifyBone& ParentBone = Node.ModifyBones[Bone.ParentIndex];
-			Node.AdjustByAngleLimit(Bone, ParentBone);
-			Node.AdjustByPlanarConstraint(Bone, ParentBone);
-			const float BoneLength = (Bone.PoseLocation - ParentBone.PoseLocation).Size();
-			Bone.Location = (Bone.Location - ParentBone.Location).GetSafeNormal() * BoneLength + ParentBone.Location;
-		}
+		Node.RestoreBoneLengthsAndLimits();
 	}
 };
 

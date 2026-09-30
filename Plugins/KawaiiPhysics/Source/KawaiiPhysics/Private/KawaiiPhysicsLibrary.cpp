@@ -17,6 +17,7 @@
 #include "GameFramework/Actor.h"
 #include "HAL/IConsoleManager.h"
 #include "KawaiiPhysics.h"
+#include "KawaiiPhysicsRuntimeInfoTypes.h"
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
 #include "KawaiiPhysicsWindPresetDataAsset.h"
 #include "UObject/ScriptInterface.h"
@@ -27,8 +28,115 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogKawaiiPhysicsLibrary, Verbose, All);
 
+// AnimNode_KawaiiPhysics.cpp で定義
+extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionEnable;
+
 namespace
 {
+	// AnimNode_KawaiiPhysicsCollision.cpp の AdjustBySphereCollision は無効設定と半径 0 以下をスキップする。
+	bool IsRuntimeLimitEnabled(const FSphericalLimit& Limit, bool bSourceEnabled)
+	{
+		return bSourceEnabled && Limit.bEnable && Limit.Radius > 0.0f;
+	}
+
+	// AnimNode_KawaiiPhysicsCollision.cpp の AdjustByCapsuleCollision は無効設定、半径または長さ 0 以下をスキップする。
+	bool IsRuntimeLimitEnabled(const FCapsuleLimit& Limit, bool bSourceEnabled)
+	{
+		return bSourceEnabled && Limit.bEnable && Limit.Radius > 0.0f && Limit.Length > 0.0f;
+	}
+
+	// AnimNode_KawaiiPhysicsCollision.cpp の AdjustByTaperedCapsuleCollision は無効設定と両端の半径が 0 以下の形状をスキップする。
+	bool IsRuntimeLimitEnabled(const FTaperedCapsuleLimit& Limit, bool bSourceEnabled)
+	{
+		return bSourceEnabled && Limit.bEnable && (Limit.Radius0 > 0.0f || Limit.Radius1 > 0.0f);
+	}
+
+	// AnimNode_KawaiiPhysicsCollision.cpp の AdjustByBoxCollision と AdjustByPlanarCollision は無効設定だけをスキップする。
+	bool IsRuntimeLimitEnabled(const FCollisionLimitBase& Limit, bool bSourceEnabled)
+	{
+		return bSourceEnabled && Limit.bEnable;
+	}
+
+	void SetRuntimeLimitShape(const FSphericalLimit& Limit, const FTransform&,
+	                          float SizeScale, FKawaiiPhysicsRuntimeLimitInfo& OutInfo)
+	{
+		OutInfo.LimitType = ECollisionLimitType::Spherical;
+		OutInfo.Radius0 = Limit.Radius * SizeScale;
+		OutInfo.Radius1 = OutInfo.Radius0;
+		OutInfo.bInnerSphere = Limit.LimitType == ESphericalLimitType::Inner;
+	}
+
+	void SetRuntimeLimitShape(const FCapsuleLimit& Limit, const FTransform& SimulationToComponent,
+	                          float SizeScale, FKawaiiPhysicsRuntimeLimitInfo& OutInfo)
+	{
+		OutInfo.LimitType = ECollisionLimitType::Capsule;
+		const FVector HalfAxis = Limit.Rotation.GetAxisZ() * Limit.Length * 0.5f;
+		OutInfo.Start = SimulationToComponent.TransformPosition(Limit.Location + HalfAxis);
+		OutInfo.End = SimulationToComponent.TransformPosition(Limit.Location - HalfAxis);
+		OutInfo.Radius0 = Limit.Radius * SizeScale;
+		OutInfo.Radius1 = OutInfo.Radius0;
+	}
+
+	void SetRuntimeLimitShape(const FTaperedCapsuleLimit& Limit, const FTransform& SimulationToComponent,
+	                          float SizeScale, FKawaiiPhysicsRuntimeLimitInfo& OutInfo)
+	{
+		OutInfo.LimitType = ECollisionLimitType::TaperedCapsule;
+		if (Limit.UsesSphereFallback())
+		{
+			OutInfo.Start = SimulationToComponent.TransformPosition(Limit.GetFallbackSphereCenter());
+			OutInfo.End = OutInfo.Start;
+			OutInfo.Radius0 = Limit.GetFallbackSphereRadius() * SizeScale;
+			OutInfo.Radius1 = OutInfo.Radius0;
+		}
+		else
+		{
+			const FVector HalfAxis = Limit.Rotation.GetAxisZ() * Limit.GetEffectiveLength() * 0.5f;
+			OutInfo.Start = SimulationToComponent.TransformPosition(Limit.Location + HalfAxis);
+			OutInfo.End = SimulationToComponent.TransformPosition(Limit.Location - HalfAxis);
+			OutInfo.Radius0 = Limit.GetClampedRadius0() * SizeScale;
+			OutInfo.Radius1 = Limit.GetClampedRadius1() * SizeScale;
+		}
+	}
+
+	void SetRuntimeLimitShape(const FBoxLimit& Limit, const FTransform&,
+	                          float SizeScale, FKawaiiPhysicsRuntimeLimitInfo& OutInfo)
+	{
+		OutInfo.LimitType = ECollisionLimitType::Box;
+		OutInfo.Extent = Limit.Extent * SizeScale;
+	}
+
+	void SetRuntimeLimitShape(const FPlanarLimit& Limit, const FTransform& SimulationToComponent,
+	                          float, FKawaiiPhysicsRuntimeLimitInfo& OutInfo)
+	{
+		OutInfo.LimitType = ECollisionLimitType::Planar;
+		OutInfo.PlaneNormal = SimulationToComponent.TransformVectorNoScale(Limit.Rotation.GetUpVector()).GetSafeNormal();
+	}
+
+	template <typename LimitType>
+	void AppendRuntimeLimits(const TArray<LimitType>& Limits, const TCHAR* SourceArrayName,
+	                         const FTransform& SimulationToComponent, float SizeScale,
+	                         TArray<FKawaiiPhysicsRuntimeLimitInfo>& OutLimits,
+	                         ECollisionSourceType SourceOverride = ECollisionSourceType::AnimNode,
+	                         bool bSourceEnabled = true)
+	{
+		const bool bOverrideSource = SourceOverride != ECollisionSourceType::AnimNode;
+		for (int32 SourceIndex = 0; SourceIndex < Limits.Num(); ++SourceIndex)
+		{
+			const LimitType& Limit = Limits[SourceIndex];
+			FKawaiiPhysicsRuntimeLimitInfo& Info = OutLimits.AddDefaulted_GetRef();
+			Info.SourceType = bOverrideSource ? SourceOverride : Limit.SourceType;
+			Info.SourceArrayName = FName(SourceArrayName);
+			Info.SourceIndex = SourceIndex;
+			Info.DrivingBone = bOverrideSource ? NAME_None : Limit.DrivingBone.BoneName;
+			Info.bEnabled = IsRuntimeLimitEnabled(Limit, bSourceEnabled);
+			Info.Location = SimulationToComponent.TransformPosition(Limit.Location);
+			Info.Rotation = SimulationToComponent.TransformRotation(Limit.Rotation);
+			Info.Start = Info.Location;
+			Info.End = Info.Location;
+			SetRuntimeLimitShape(Limit, SimulationToComponent, SizeScale, Info);
+		}
+	}
+
 	const TSet<FName>& GetNodeModifyBonesReinitPropertyNames()
 	{
 		static const TSet<FName> Names = {
@@ -439,6 +547,90 @@ bool UKawaiiPhysicsLibrary::BuildSettingsMultiplierStartRequest(const FKawaiiPhy
 	OutRequest.HoldTime = Envelope.HoldTime;
 	OutRequest.DecayTime = Envelope.DecayTime;
 	return true;
+}
+
+void KawaiiPhysics::BuildRuntimeNodeInfo(const FAnimNode_KawaiiPhysics& Node, FKawaiiPhysicsRuntimeNodeInfo& OutInfo)
+{
+	OutInfo = FKawaiiPhysicsRuntimeNodeInfo();
+
+	bool bEvaluated = false;
+	const FTransform SimulationToComponent = Node.GetSimulationSpace2ComponentSpace(bEvaluated);
+	const FVector Scale = SimulationToComponent.GetScale3D().GetAbs();
+	const float SizeScale = Scale.GetMax();
+	OutInfo.SimulationToComponent = SimulationToComponent;
+	OutInfo.bEvaluated = bEvaluated;
+	OutInfo.bNonUniformScale = !FMath::IsNearlyEqual(Scale.X, Scale.Y, 1e-3f) ||
+		!FMath::IsNearlyEqual(Scale.X, Scale.Z, 1e-3f);
+	OutInfo.SimulationSpace = Node.SimulationSpace;
+	OutInfo.RootBone = Node.RootBone.BoneName;
+	OutInfo.Tag = Node.KawaiiPhysicsTag;
+	OutInfo.ConvexFallbackShape = Node.SimpleWorldCollisionConvexFallbackShape;
+	OutInfo.NumConvexLimits = Node.GetSimpleWorldConvexLimits().Num();
+
+	OutInfo.Bones.Reserve(Node.ModifyBones.Num());
+	for (int32 BoneIndex = 0; BoneIndex < Node.ModifyBones.Num(); ++BoneIndex)
+	{
+		const FKawaiiPhysicsModifyBone& Bone = Node.ModifyBones[BoneIndex];
+		FKawaiiPhysicsRuntimeBoneInfo& Info = OutInfo.Bones.AddDefaulted_GetRef();
+		Info.Index = BoneIndex;
+		Info.ParentIndex = Bone.ParentIndex;
+		Info.BoneName = Bone.bDummy ? NAME_None : Bone.BoneRef.BoneName;
+		Info.DummyType = Bone.bBridgeDummy ? EKawaiiPhysicsDummyBoneType::Bridge :
+			Bone.bInterBoneDummy ? EKawaiiPhysicsDummyBoneType::InterBone :
+			Bone.bDummy ? EKawaiiPhysicsDummyBoneType::Tip : EKawaiiPhysicsDummyBoneType::None;
+		Info.Location = SimulationToComponent.TransformPosition(Bone.Location);
+		Info.PoseLocation = SimulationToComponent.TransformPosition(Bone.PoseLocation);
+		Info.Radius = Bone.PhysicsSettings.Radius * SizeScale;
+		Info.LengthRateFromRoot = Bone.LengthRateFromRoot;
+		Info.bSkipSimulate = Bone.bSkipSimulate;
+	}
+
+	// AnimNode_KawaiiPhysicsSimulation.cpp の SimulateOnce は共有ソース側と共有利用無効時に Shared 配列を使わない。
+	const bool bUseSharedLimits = Node.bUseSharedCollision && !Node.bSharedCollisionSource;
+	// AnimNode_KawaiiPhysicsSimulation.cpp の SimulateOnce は設定または全体 CVar が無効なら SimpleWorld 配列を使わない。
+	const bool bUseSimpleWorldLimits = Node.bUseSimpleWorldCollision && CVarSimpleWorldCollisionEnable.GetValueOnAnyThread();
+
+	AppendRuntimeLimits(Node.SphericalLimits, TEXT("SphericalLimits"), SimulationToComponent, SizeScale, OutInfo.Limits);
+	AppendRuntimeLimits(Node.CapsuleLimits, TEXT("CapsuleLimits"), SimulationToComponent, SizeScale, OutInfo.Limits);
+	AppendRuntimeLimits(Node.TaperedCapsuleLimits, TEXT("TaperedCapsuleLimits"), SimulationToComponent, SizeScale, OutInfo.Limits);
+	AppendRuntimeLimits(Node.BoxLimits, TEXT("BoxLimits"), SimulationToComponent, SizeScale, OutInfo.Limits);
+	AppendRuntimeLimits(Node.PlanarLimits, TEXT("PlanarLimits"), SimulationToComponent, SizeScale, OutInfo.Limits);
+	AppendRuntimeLimits(Node.SphericalLimitsData, TEXT("SphericalLimitsData"), SimulationToComponent, SizeScale, OutInfo.Limits);
+	AppendRuntimeLimits(Node.CapsuleLimitsData, TEXT("CapsuleLimitsData"), SimulationToComponent, SizeScale, OutInfo.Limits);
+	AppendRuntimeLimits(Node.TaperedCapsuleLimitsData, TEXT("TaperedCapsuleLimitsData"), SimulationToComponent, SizeScale, OutInfo.Limits);
+	AppendRuntimeLimits(Node.BoxLimitsData, TEXT("BoxLimitsData"), SimulationToComponent, SizeScale, OutInfo.Limits);
+	AppendRuntimeLimits(Node.PlanarLimitsData, TEXT("PlanarLimitsData"), SimulationToComponent, SizeScale, OutInfo.Limits);
+	AppendRuntimeLimits(Node.GetSharedSphericalLimits(), TEXT("SharedSphericalLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::Shared, bUseSharedLimits);
+	AppendRuntimeLimits(Node.GetSharedCapsuleLimits(), TEXT("SharedCapsuleLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::Shared, bUseSharedLimits);
+	AppendRuntimeLimits(Node.GetSharedTaperedCapsuleLimits(), TEXT("SharedTaperedCapsuleLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::Shared, bUseSharedLimits);
+	AppendRuntimeLimits(Node.GetSharedBoxLimits(), TEXT("SharedBoxLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::Shared, bUseSharedLimits);
+	AppendRuntimeLimits(Node.GetSharedPlanarLimits(), TEXT("SharedPlanarLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::Shared, bUseSharedLimits);
+	AppendRuntimeLimits(Node.GetSimpleWorldSphericalLimits(), TEXT("SimpleWorldSphericalLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::SimpleWorld, bUseSimpleWorldLimits);
+	AppendRuntimeLimits(Node.GetSimpleWorldCapsuleLimits(), TEXT("SimpleWorldCapsuleLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::SimpleWorld, bUseSimpleWorldLimits);
+	AppendRuntimeLimits(Node.GetSimpleWorldTaperedCapsuleLimits(), TEXT("SimpleWorldTaperedCapsuleLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::SimpleWorld, bUseSimpleWorldLimits);
+	AppendRuntimeLimits(Node.GetSimpleWorldBoxLimits(), TEXT("SimpleWorldBoxLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::SimpleWorld, bUseSimpleWorldLimits);
+	AppendRuntimeLimits(Node.GetSimpleWorldGroundBoxLimits(), TEXT("SimpleWorldGroundBoxLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::SimpleWorld, bUseSimpleWorldLimits);
+
+	const TArray<FModifyBoneConstraint>& MergedConstraints = Node.GetMergedBoneConstraints();
+	for (int32 ConstraintIndex = 0; ConstraintIndex < MergedConstraints.Num(); ++ConstraintIndex)
+	{
+		const FModifyBoneConstraint& Constraint = MergedConstraints[ConstraintIndex];
+		if (!Constraint.IsValid() ||
+			!Node.ModifyBones.IsValidIndex(Constraint.ModifyBoneIndex1) ||
+			!Node.ModifyBones.IsValidIndex(Constraint.ModifyBoneIndex2))
+		{
+			continue;
+		}
+
+		FKawaiiPhysicsRuntimeConstraintInfo& Info = OutInfo.Constraints.AddDefaulted_GetRef();
+		Info.BoneIndex1 = Constraint.ModifyBoneIndex1;
+		Info.BoneIndex2 = Constraint.ModifyBoneIndex2;
+		Info.BoneName1 = OutInfo.Bones[Info.BoneIndex1].BoneName;
+		Info.BoneName2 = OutInfo.Bones[Info.BoneIndex2].BoneName;
+		Info.SourceType = Constraint.bIsDummy ? EKawaiiPhysicsConstraintSourceType::AutoDummy :
+			ConstraintIndex < Node.BoneConstraints.Num() ? EKawaiiPhysicsConstraintSourceType::AnimNode :
+			EKawaiiPhysicsConstraintSourceType::DataAsset;
+	}
 }
 
 // transientストアはGC追跡外のため、UObject参照を保持する外力はここで拒否する
@@ -868,6 +1060,72 @@ int32 UKawaiiPhysicsLibrary::GetSimpleWorldColliderCountOnComponent(
 	}
 
 	return Count;
+}
+
+int32 UKawaiiPhysicsLibrary::GetRuntimeNodeInfosOnComponent(
+	USkeletalMeshComponent* MeshComp, const FGameplayTagContainer& FilterTags,
+	bool bFilterExactMatch, TArray<FKawaiiPhysicsRuntimeNodeInfo>& OutInfos, FString& OutError)
+{
+	OutInfos.Reset();
+	OutError.Reset();
+	if (!MeshComp)
+	{
+		OutError = TEXT("Skeletal mesh component is null.");
+		return -1;
+	}
+
+	const auto CollectFromAnimInstance = [&](UAnimInstance* AnimInstance)
+	{
+		if (!AnimInstance || !AnimInstance->GetClass())
+		{
+			return;
+		}
+		const IAnimClassInterface* AnimClassInterface = IAnimClassInterface::GetFromClass(AnimInstance->GetClass());
+		if (!AnimClassInterface)
+		{
+			return;
+		}
+
+		const TArray<FStructProperty*>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
+		for (int32 NodeIndex = 0; NodeIndex < AnimNodeProperties.Num(); ++NodeIndex)
+		{
+			if (!AnimNodeProperties[NodeIndex]->Struct->IsChildOf(FKawaiiPhysicsReference::FInternalNodeType::StaticStruct()))
+			{
+				continue;
+			}
+			EAnimNodeReferenceConversionResult Result;
+			FKawaiiPhysicsReference Reference = ConvertToKawaiiPhysics(FAnimNodeReference(AnimInstance, NodeIndex), Result);
+			if (Result != EAnimNodeReferenceConversionResult::Succeeded)
+			{
+				continue;
+			}
+			const FGameplayTag& Tag = Reference.GetAnimNode<FAnimNode_KawaiiPhysics>().KawaiiPhysicsTag;
+			if (!FilterTags.IsEmpty() && !UBlueprintGameplayTagLibrary::MatchesAnyTags(Tag, FilterTags, bFilterExactMatch))
+			{
+				continue;
+			}
+
+			Reference.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
+				TEXT("GetRuntimeNodeInfosOnComponent"),
+				[&OutInfos, AnimInstance, NodeIndex](FAnimNode_KawaiiPhysics& Node)
+				{
+					FKawaiiPhysicsRuntimeNodeInfo& Info = OutInfos.AddDefaulted_GetRef();
+					KawaiiPhysics::BuildRuntimeNodeInfo(Node, Info);
+					Info.AnimInstanceClassName = AnimInstance->GetClass()->GetFName();
+					Info.NodeIndex = NodeIndex;
+				});
+		}
+	};
+
+	CollectFromAnimInstance(MeshComp->GetAnimInstance());
+	const TArray<UAnimInstance*>& LinkedInstances =
+		const_cast<const USkeletalMeshComponent*>(MeshComp)->GetLinkedAnimInstances();
+	for (UAnimInstance* LinkedInstance : LinkedInstances)
+	{
+		CollectFromAnimInstance(LinkedInstance);
+	}
+	CollectFromAnimInstance(MeshComp->GetPostProcessInstance());
+	return OutInfos.Num();
 }
 
 bool UKawaiiPhysicsLibrary::IsNodePropertyAccessible(const FProperty* Property)

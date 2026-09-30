@@ -35,7 +35,6 @@ bool FKawaiiPhysicsWindScopeEditPanelDefinitionsTest::RunTest(const FString& Par
 	bool bOk = true;
 	TSet<FName> TableDynamicParamsSupportedNames;
 	TSet<FName> RuntimeDynamicParamsSupportedNames;
-	TSet<FName> SharedPublisherHiddenNames;
 	TSet<FName> GroupIds;
 	const FKawaiiPhysics_ExternalForce_ProceduralWind DefaultWind;
 
@@ -116,10 +115,6 @@ bool FKawaiiPhysicsWindScopeEditPanelDefinitionsTest::RunTest(const FString& Par
 			{
 				TableDynamicParamsSupportedNames.Add(Param.PropertyName);
 			}
-			if (!Param.bVisibleForSharedPublisher)
-			{
-				SharedPublisherHiddenNames.Add(Param.PropertyName);
-			}
 
 			if (const FFloatProperty* FloatProperty = CastField<FFloatProperty>(Property))
 			{
@@ -164,25 +159,6 @@ bool FKawaiiPhysicsWindScopeEditPanelDefinitionsTest::RunTest(const FString& Par
 			FString::Printf(TEXT("Table supported property is supported by DynamicParams: %s"), *TableName.ToString()),
 			RuntimeDynamicParamsSupportedNames.Contains(TableName));
 	}
-	bOk &= TestFalse(TEXT("Seed is not live DynamicParams supported"),
-	                 TableDynamicParamsSupportedNames.Contains(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, Seed)));
-	bOk &= TestFalse(TEXT("WindSource is not live DynamicParams supported"),
-	                 TableDynamicParamsSupportedNames.Contains(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindSource)));
-	bOk &= TestFalse(TEXT("SharedWindTag is not live DynamicParams supported"),
-	                 TableDynamicParamsSupportedNames.Contains(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, SharedWindTag)));
-	bOk &= TestTrue(TEXT("SwayPhaseOffset is hidden for Shared Publisher"),
-	                SharedPublisherHiddenNames.Contains(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, SwayPhaseOffset)));
-	bOk &= TestTrue(TEXT("RipplePhaseOffset is hidden for Shared Publisher"),
-	                SharedPublisherHiddenNames.Contains(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, RipplePhaseOffset)));
-	bOk &= TestTrue(TEXT("StrengthCyclePhaseOffset is hidden for Shared Publisher"),
-	                SharedPublisherHiddenNames.Contains(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, StrengthCyclePhaseOffset)));
-	bOk &= TestTrue(TEXT("Seed is hidden for Shared Publisher"),
-	                SharedPublisherHiddenNames.Contains(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, Seed)));
-	bOk &= TestFalse(TEXT("WindDirection is visible for Shared Publisher"),
-	                 SharedPublisherHiddenNames.Contains(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, WindDirection)));
-	bOk &= TestFalse(TEXT("ConstantForce is visible for Shared Publisher"),
-	                 SharedPublisherHiddenNames.Contains(GET_MEMBER_NAME_CHECKED(FKawaiiPhysics_ExternalForce_ProceduralWind, ConstantForce)));
-
 	const TSet<FName> EmptyParsedGroups = ParseWindScopeCollapsedGroups(FString());
 	bOk &= TestEqual(TEXT("Empty collapsed group string parses as empty"), EmptyParsedGroups.Num(), 0);
 

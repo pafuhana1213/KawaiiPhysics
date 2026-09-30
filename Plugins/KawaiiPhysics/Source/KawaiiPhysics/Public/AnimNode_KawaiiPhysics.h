@@ -1322,6 +1322,35 @@ public:
 		return FTransform::Identity;
 	}
 
+	/**
+	 * 直近の評価で使ったシミュレーション空間→コンポーネント空間の変換を返す。まだ評価されていなければ Identity を返し bOutEvaluated を偽にする。
+	 * Returns the simulation-space-to-component-space transform used by the latest evaluation. Returns Identity and sets bOutEvaluated to false when the node has not been evaluated yet.
+	 */
+	FTransform GetSimulationSpace2ComponentSpace(bool& bOutEvaluated) const
+	{
+		bOutEvaluated = bHasCurrentEvalSimSpaceCache;
+		return bHasCurrentEvalSimSpaceCache ? CurrentEvalSimSpaceCache.TargetSpaceToComponent : FTransform::Identity;
+	}
+
+	// 共有コリジョンとシンプルワールドコリジョンの作業配列（シミュレーション空間）。診断用 / Shared and simple world collision working arrays (simulation space), for diagnostics
+	const TArray<FSphericalLimit>& GetSharedSphericalLimits() const { return SharedSphericalLimits; }
+	const TArray<FCapsuleLimit>& GetSharedCapsuleLimits() const { return SharedCapsuleLimits; }
+	const TArray<FTaperedCapsuleLimit>& GetSharedTaperedCapsuleLimits() const { return SharedTaperedCapsuleLimits; }
+	const TArray<FBoxLimit>& GetSharedBoxLimits() const { return SharedBoxLimits; }
+	const TArray<FPlanarLimit>& GetSharedPlanarLimits() const { return SharedPlanarLimits; }
+	const TArray<FSphericalLimit>& GetSimpleWorldSphericalLimits() const { return SimpleWorldSphericalLimits; }
+	const TArray<FCapsuleLimit>& GetSimpleWorldCapsuleLimits() const { return SimpleWorldCapsuleLimits; }
+	const TArray<FTaperedCapsuleLimit>& GetSimpleWorldTaperedCapsuleLimits() const { return SimpleWorldTaperedCapsuleLimits; }
+	const TArray<FBoxLimit>& GetSimpleWorldBoxLimits() const { return SimpleWorldBoxLimits; }
+	const TArray<FBoxLimit>& GetSimpleWorldGroundBoxLimits() const { return SimpleWorldGroundBoxLimits; }
+	const TArray<FKawaiiPhysicsConvexLimit>& GetSimpleWorldConvexLimits() const { return SimpleWorldConvexLimits; }
+
+	/**
+	 * 統合後の BoneConstraint（BoneConstraints＋DataAsset＋自動ダミー拘束。InitBoneConstraints の結果）を返す。
+	 * Returns the merged bone constraints (BoneConstraints + data asset + automatic dummy constraints, as built by InitBoneConstraints).
+	 */
+	const TArray<FModifyBoneConstraint>& GetMergedBoneConstraints() const { return MergedBoneConstraints; }
+
 	// Given a bone index, get the transform in the currently selected simulation space
 	FTransform GetBoneTransformInSimSpace(FComponentSpacePoseContext& Output,
 	                                      const FCompactPoseBoneIndex& BoneIndex) const;
@@ -1666,6 +1695,17 @@ protected:
 	void UpdateSkelCompMove(FComponentSpacePoseContext& Output, const FTransform& ComponentTransform);
 
 	/**
+	 * 評価の最後に PreSkelCompTransform を今回消費した割合だけ前進させる。テレポートしたフレームは全量前進させ、
+	 * テレポート分の移動を次フレームへ繰り越さない。
+	 * Advances PreSkelCompTransform by the fraction consumed this evaluation. On a teleport frame it advances fully so
+	 * no part of the teleport movement carries over to the next frame.
+	 *
+	 * @param ComponentTransform 現在のコンポーネント変換 / The current component transform.
+	 * @param bTeleportedThisFrame このフレームでテレポートを検出したか / Whether a teleport was detected this frame.
+	 */
+	void AdvancePreSkelCompTransform(const FTransform& ComponentTransform, bool bTeleportedThisFrame);
+
+	/**
 	 * Simulates the physics for all modified bones.
 	 *
 	 * @param Output The pose context.
@@ -1683,6 +1723,13 @@ protected:
 	 */
 	void SimulateOnce(FComponentSpacePoseContext& Output, const FTransform& ComponentTransform,
 	                  const FSceneInterface* Scene, const USkeletalMeshComponent* SkelComp);
+
+	/**
+	 * Restores bone lengths and limits, then places collision-only subdivision dummies between real endpoints.
+	 * ボーン長と制限を復元し、コリジョン専用の分割ダミーを実端点間に再配置する。
+	 */
+	void RestoreBoneLengthsAndLimits();
+	void ApplyBridgeDummyCollisionFeedback();
 
 	/**
 	 * Simulates the physics for a single bone.

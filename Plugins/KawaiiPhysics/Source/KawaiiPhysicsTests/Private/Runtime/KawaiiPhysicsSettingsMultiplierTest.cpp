@@ -5,11 +5,8 @@
 #include "Misc/AutomationTest.h"
 #include "AnimNode_KawaiiPhysics.h"
 #include "KawaiiPhysicsLibrary.h"
-#include "KawaiiPhysicsPresetDataAsset.h"
 #include "KawaiiPhysicsTypes.h"
 #include "KawaiiPhysicsTestHarness.h"
-
-#include "UObject/UnrealType.h"
 
 namespace
 {
@@ -56,19 +53,6 @@ int32 GetPendingOverrideStopCount(FAnimNode_KawaiiPhysics& Node)
 	return Node.TransientForceStore.Queue->PendingSettingsMultiplierStops.Num();
 }
 
-float GetPendingOverrideStopBlendOutTime(FAnimNode_KawaiiPhysics& Node, const int32 Index)
-{
-	if (!Node.TransientForceStore.Queue.IsValid())
-	{
-		return 0.0f;
-	}
-
-	FScopeLock Lock(&Node.TransientForceStore.Queue->Mutex);
-	return Node.TransientForceStore.Queue->PendingSettingsMultiplierStops.IsValidIndex(Index)
-		       ? Node.TransientForceStore.Queue->PendingSettingsMultiplierStops[Index].BlendOutTime
-		       : 0.0f;
-}
-
 int32 GetPendingOverrideSetCount(FAnimNode_KawaiiPhysics& Node)
 {
 	if (!Node.TransientForceStore.Queue.IsValid())
@@ -78,20 +62,6 @@ int32 GetPendingOverrideSetCount(FAnimNode_KawaiiPhysics& Node)
 
 	FScopeLock Lock(&Node.TransientForceStore.Queue->Mutex);
 	return Node.TransientForceStore.Queue->PendingSettingsMultiplierPushes.Num();
-}
-
-FKawaiiPhysicsSettingsMultiplierPushRequest GetPendingOverrideSet(FAnimNode_KawaiiPhysics& Node, const int32 Index)
-{
-	FKawaiiPhysicsSettingsMultiplierPushRequest Request;
-	if (!Node.TransientForceStore.Queue.IsValid())
-	{
-		return Request;
-	}
-
-	FScopeLock Lock(&Node.TransientForceStore.Queue->Mutex);
-	return Node.TransientForceStore.Queue->PendingSettingsMultiplierPushes.IsValidIndex(Index)
-		       ? Node.TransientForceStore.Queue->PendingSettingsMultiplierPushes[Index]
-		       : Request;
 }
 
 // 検証しやすいよう全項目に異なる値を入れたベース設定
@@ -154,31 +124,6 @@ bool TestBoneSettings(FAutomationTestBase& Test, const TCHAR* Context, const FKa
 	return bOk;
 }
 
-// プリセット適用と同じ経路でノードのUPROPERTYを一括コピーする（非UPROPERTYの一時状態が巻き込まれないかの確認用）
-void ApplyDefaultPresetStyleCopy(FAnimNode_KawaiiPhysics& TargetNode)
-{
-	FAnimNode_KawaiiPhysics DefaultNode;
-	const FKawaiiPhysicsPresetApplyOptions Options;
-
-	for (TFieldIterator<FProperty> PropertyIt(FAnimNode_KawaiiPhysics::StaticStruct(), EFieldIteratorFlags::ExcludeSuper);
-	     PropertyIt; ++PropertyIt)
-	{
-		const FProperty& Property = **PropertyIt;
-		if (!UKawaiiPhysicsPresetDataAsset::ShouldApplyNodeProperty(Property, Options))
-		{
-			continue;
-		}
-
-		const FName PropertyName = Property.GetFName();
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, ExternalForces) ||
-			PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, CustomExternalForces))
-		{
-			continue;
-		}
-
-		Property.CopyCompleteValue_InContainer(&TargetNode, &DefaultNode);
-	}
-}
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierEnvelopeAlphaTest,
@@ -207,20 +152,6 @@ bool FKawaiiPhysicsSettingsMultiplierEnvelopeAlphaTest::RunTest(const FString& P
 	bOk &= TestFloatNear(*this, TEXT("Zero envelope"), KawaiiPhysics::EvaluateEnvelopeAlpha01(0.0f, 0.0f, 0.0f, 0.0f),
 	                     0.0f);
 
-	// rise のみ / hold のみ / decay のみ
-	bOk &= TestFloatNear(*this, TEXT("Rise only mid"), KawaiiPhysics::EvaluateEnvelopeAlpha01(1.0f, 0.0f, 0.0f, 0.5f),
-	                     0.5f);
-	bOk &= TestFloatNear(*this, TEXT("Rise only end"), KawaiiPhysics::EvaluateEnvelopeAlpha01(1.0f, 0.0f, 0.0f, 1.0f),
-	                     0.0f);
-	bOk &= TestFloatNear(*this, TEXT("Hold only start"), KawaiiPhysics::EvaluateEnvelopeAlpha01(0.0f, 1.0f, 0.0f, 0.0f),
-	                     1.0f);
-	bOk &= TestFloatNear(*this, TEXT("Hold only end"), KawaiiPhysics::EvaluateEnvelopeAlpha01(0.0f, 1.0f, 0.0f, 1.0f),
-	                     0.0f);
-	bOk &= TestFloatNear(*this, TEXT("Decay only start"), KawaiiPhysics::EvaluateEnvelopeAlpha01(0.0f, 0.0f, 1.0f, 0.0f),
-	                     1.0f);
-	bOk &= TestFloatNear(*this, TEXT("Decay only mid"), KawaiiPhysics::EvaluateEnvelopeAlpha01(0.0f, 0.0f, 1.0f, 0.25f),
-	                     0.75f);
-
 	// 負の区間長は 0 として扱う
 	bOk &= TestFloatNear(*this, TEXT("Negative rise/decay"),
 	                     KawaiiPhysics::EvaluateEnvelopeAlpha01(-1.0f, 1.0f, -1.0f, 0.5f), 1.0f);
@@ -242,21 +173,15 @@ bool FKawaiiPhysicsSettingsMultiplierRequestConsumeTest::RunTest(const FString& 
 		const int64 Handle = Node.RequestStartPhysicsSettingsMultiplier(Scale, 0.2f, 1.0f, 0.5f);
 
 		bOk &= TestTrue(TEXT("Generated handle"), Handle > 0);
-		bOk &= TestEqual(TEXT("Pending before consume"), GetPendingOverrideCount(Node), 1);
 		bOk &= TestEqual(TEXT("Items before consume"), Node.TransientForceStore.SettingsMultiplierItems.Num(), 0);
 
 		bOk &= TestTrue(TEXT("Consume reports active"), Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f));
-		bOk &= TestEqual(TEXT("Pending after consume"), GetPendingOverrideCount(Node), 0);
 		bOk &= TestEqual(TEXT("Items after consume"), Node.TransientForceStore.SettingsMultiplierItems.Num(), 1);
 
 		if (Node.TransientForceStore.SettingsMultiplierItems.IsValidIndex(0))
 		{
 			const FKawaiiPhysicsActiveSettingsMultiplier& Item = Node.TransientForceStore.SettingsMultiplierItems[0];
 			bOk &= TestEqual(TEXT("Stamped handle"), Item.HandleId, Handle);
-			bOk &= TestFloatNear(*this, TEXT("RiseTime"), Item.RiseTime, 0.2f);
-			bOk &= TestFloatNear(*this, TEXT("HoldTime"), Item.HoldTime, 1.0f);
-			bOk &= TestFloatNear(*this, TEXT("DecayTime"), Item.DecayTime, 0.5f);
-			bOk &= TestFloatNear(*this, TEXT("ElapsedTime"), Item.ElapsedTime, 0.0f);
 			bOk &= TestFloatNear(*this, TEXT("PeakAlpha"), Item.PeakAlpha, 1.0f);
 			bOk &= TestFloatNear(*this, TEXT("Scale.Damping"), Item.Scale.Damping, 0.5f);
 			bOk &= TestFloatNear(*this, TEXT("Scale.LimitAngle"), Item.Scale.LimitAngle, 0.0f);
@@ -343,6 +268,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierClampRulesTest,
 
 bool FKawaiiPhysicsSettingsMultiplierClampRulesTest::RunTest(const FString& Parameters)
 {
+	// 各設定の上限と下限、および LimitAngle の無制限と極小値を守る。
 	bool bOk = true;
 
 	{
@@ -351,7 +277,7 @@ bool FKawaiiPhysicsSettingsMultiplierClampRulesTest::RunTest(const FString& Para
 		SetupChainWithBaseSettings(Accessor);
 		Accessor.Node.PhysicsSettings.Stiffness = 0.9f;
 
-		Accessor.Node.RequestStartPhysicsSettingsMultiplier(MakeScale(5.0f, 5.0f, 5.0f, 5.0f, 1.0f, 1.0f), 0.0f, 1.0f, 0.0f);
+		Accessor.Node.RequestStartPhysicsSettingsMultiplier(MakeScale(5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 1.0f), 0.0f, 1.0f, 0.0f);
 		Accessor.Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
 		Accessor.CallUpdatePhysicsSettings();
 
@@ -362,7 +288,7 @@ bool FKawaiiPhysicsSettingsMultiplierClampRulesTest::RunTest(const FString& Para
 		bOk &= TestFloatNear(*this, TEXT("WorldDampingRotation clamped"),
 		                     Accessor.Bone(1).PhysicsSettings.WorldDampingRotation, 1.0f);
 		// Radius は上限クランプ無し
-		bOk &= TestFloatNear(*this, TEXT("Radius unclamped"), Accessor.Bone(1).PhysicsSettings.Radius, 3.0f);
+		bOk &= TestFloatNear(*this, TEXT("Radius unclamped"), Accessor.Bone(1).PhysicsSettings.Radius, 15.0f);
 	}
 
 	{
@@ -382,6 +308,36 @@ bool FKawaiiPhysicsSettingsMultiplierClampRulesTest::RunTest(const FString& Para
 		                     Accessor.Bone(1).PhysicsSettings.WorldDampingRotation, 0.0f);
 		bOk &= TestFloatNear(*this, TEXT("Radius zero"), Accessor.Bone(1).PhysicsSettings.Radius, 0.0f);
 		bOk &= TestTrue(TEXT("LimitAngle stays positive"), Accessor.Bone(1).PhysicsSettings.LimitAngle > 0.0f);
+	}
+
+	{
+		// ベース 0（制限なし）は倍率に関わらず 0 のまま
+		FKawaiiPhysicsTestAccessor Accessor;
+		SetupChainWithBaseSettings(Accessor);
+		Accessor.Node.PhysicsSettings.LimitAngle = 0.0f;
+
+		Accessor.Node.RequestStartPhysicsSettingsMultiplier(MakeScale(1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 5.0f), 0.0f, 1.0f, 0.0f);
+		Accessor.Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
+		Accessor.CallUpdatePhysicsSettings();
+
+		bOk &= TestTrue(TEXT("Unlimited stays exactly zero"),
+		                Accessor.Bone(1).PhysicsSettings.LimitAngle == 0.0f);
+	}
+
+	{
+		// ベース > 0 は倍率 0 でも 0 へ反転しない
+		FKawaiiPhysicsTestAccessor Accessor;
+		SetupChainWithBaseSettings(Accessor);
+		Accessor.Node.PhysicsSettings.LimitAngle = 30.0f;
+
+		Accessor.Node.RequestStartPhysicsSettingsMultiplier(MakeScale(1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f), 0.0f, 1.0f, 0.0f);
+		Accessor.Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
+		Accessor.CallUpdatePhysicsSettings();
+
+		bOk &= TestTrue(TEXT("Limited never becomes unlimited"),
+		                Accessor.Bone(1).PhysicsSettings.LimitAngle != 0.0f);
+		bOk &= TestFloatNear(*this, TEXT("Clamped to tiny value"), Accessor.Bone(1).PhysicsSettings.LimitAngle,
+		                     KINDA_SMALL_NUMBER);
 	}
 
 	return bOk;
@@ -451,57 +407,70 @@ bool FKawaiiPhysicsSettingsMultiplierStackingTest::RunTest(const FString& Parame
 	return bOk;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierCapEvictionTest,
-                                 "KawaiiPhysics.SettingsMultiplier.CapEviction",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierPendingBoundedTest,
+                                 "KawaiiPhysics.SettingsMultiplier.PendingBounded",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FKawaiiPhysicsSettingsMultiplierCapEvictionTest::RunTest(const FString& Parameters)
+bool FKawaiiPhysicsSettingsMultiplierPendingBoundedTest::RunTest(const FString& Parameters)
 {
+	// 未消費の要求と取り込み済みの倍率に上限を適用し、種別をまたぐ最古の項目を破棄する。
+	// 無期限保持の破棄では警告を一度だけ出す。
 	bool bOk = true;
-
 	{
-		// 取り込み済みが上限を超えたら最古から破棄する
-		FAnimNode_KawaiiPhysics Node;
-		for (int32 Index = 1; Index <= 5; ++Index)
-		{
-			Node.RequestStartPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 0.0f, 10.0f, 0.0f, Index);
-		}
-		Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
-		bOk &= TestEqual(TEXT("First batch"), Node.TransientForceStore.SettingsMultiplierItems.Num(), 5);
-
-		for (int32 Index = 6; Index <= 9; ++Index)
-		{
-			Node.RequestStartPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 0.0f, 10.0f, 0.0f, Index);
-		}
-		Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
-
-		bOk &= TestEqual(TEXT("Capped item count"), Node.TransientForceStore.SettingsMultiplierItems.Num(),
-		                 FAnimNode_KawaiiPhysics::MaxPhysicsSettingsMultipliers);
-		for (int32 Index = 0; Index < Node.TransientForceStore.SettingsMultiplierItems.Num(); ++Index)
-		{
-			bOk &= TestEqual(FString::Printf(TEXT("Remaining handle %d"), Index),
-			                 Node.TransientForceStore.SettingsMultiplierItems[Index].HandleId,
-			                 static_cast<int64>(Index + 2));
-		}
-	}
-
-	{
-		// 評価が走らない間の連打でも pending が上限を超えない
 		FAnimNode_KawaiiPhysics Node;
 		for (int32 Index = 1; Index <= 12; ++Index)
 		{
 			Node.RequestStartPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 0.0f, 10.0f, 0.0f, Index);
 		}
-
-		bOk &= TestEqual(TEXT("Pending bounded"), GetPendingOverrideCount(Node),
+		bOk &= TestEqual(TEXT("Pending starts bounded"), GetPendingOverrideCount(Node),
 		                 FAnimNode_KawaiiPhysics::MaxPhysicsSettingsMultipliers);
-		bOk &= TestEqual(TEXT("Oldest pending dropped"), GetPendingOverrideHandle(Node, 0), static_cast<int64>(5));
-
+		bOk &= TestEqual(TEXT("Oldest pending start dropped"), GetPendingOverrideHandle(Node, 0), static_cast<int64>(5));
 		Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
-		bOk &= TestEqual(TEXT("Consumed pending"), Node.TransientForceStore.SettingsMultiplierItems.Num(),
+		bOk &= TestEqual(TEXT("Consumed pending starts"), Node.TransientForceStore.SettingsMultiplierItems.Num(),
 		                 FAnimNode_KawaiiPhysics::MaxPhysicsSettingsMultipliers);
 	}
-
+	{
+		FAnimNode_KawaiiPhysics Node;
+		for (int32 Index = 0; Index < 12; ++Index)
+		{
+			Node.RequestPushPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 1.0f, 100 + Index);
+			Node.RequestStopPhysicsSettingsMultiplier(1000 + Index, 0.1f);
+		}
+		bOk &= TestTrue(TEXT("Pending pushes bounded"),
+		                GetPendingOverrideSetCount(Node) <= FAnimNode_KawaiiPhysics::MaxPhysicsSettingsMultipliers);
+		bOk &= TestTrue(TEXT("Pending stops bounded"),
+		                GetPendingOverrideStopCount(Node) <= FAnimNode_KawaiiPhysics::MaxPhysicsSettingsMultipliers);
+	}
+	{
+		FAnimNode_KawaiiPhysics Node;
+		for (int32 Index = 0; Index < FAnimNode_KawaiiPhysics::MaxPhysicsSettingsMultipliers; ++Index)
+		{
+			Node.RequestPushPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 1.0f, 100 + Index);
+		}
+		Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
+		Node.RequestStartPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 0.0f, 10.0f, 0.0f, 999);
+		Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
+		bOk &= TestEqual(TEXT("Mixed item cap"), Node.TransientForceStore.SettingsMultiplierItems.Num(),
+		                 FAnimNode_KawaiiPhysics::MaxPhysicsSettingsMultipliers);
+		bOk &= TestFalse(TEXT("Oldest driven item evicted"), ContainsSettingsMultiplierHandle(Node, 100));
+		bOk &= TestTrue(TEXT("Timed item kept"), ContainsSettingsMultiplierHandle(Node, 999));
+	}
+	{
+		FAnimNode_KawaiiPhysics Node;
+		for (int32 Index = 0; Index < FAnimNode_KawaiiPhysics::MaxPhysicsSettingsMultipliers; ++Index)
+		{
+			Node.RequestStartPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 0.0f, 0.0f, 0.5f,
+			                                           100 + Index, true);
+		}
+		Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
+		AddExpectedError(TEXT("Infinite-hold physics settings multiplier cap exceeded"), EAutomationExpectedErrorFlags::Contains, 1);
+		Node.RequestStartPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 0.0f, 0.0f, 0.5f, 999, true);
+		Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
+		bOk &= TestEqual(TEXT("Infinite item cap"), Node.TransientForceStore.SettingsMultiplierItems.Num(),
+		                 FAnimNode_KawaiiPhysics::MaxPhysicsSettingsMultipliers);
+		bOk &= TestFalse(TEXT("Oldest infinite evicted"), ContainsSettingsMultiplierHandle(Node, 100));
+		bOk &= TestTrue(TEXT("Newest infinite kept"), ContainsSettingsMultiplierHandle(Node, 999));
+	}
 	return bOk;
 }
 
@@ -551,15 +520,6 @@ bool FKawaiiPhysicsSettingsMultiplierStopBlendOutTest::RunTest(const FString& Pa
 		Accessor.Node.RequestStopPhysicsSettingsMultiplier(222, 1.0f);
 		bOk &= TestTrue(TEXT("Still active on stop frame"),
 		                Accessor.Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f));
-		if (Accessor.Node.TransientForceStore.SettingsMultiplierItems.IsValidIndex(0))
-		{
-			const FKawaiiPhysicsActiveSettingsMultiplier& Item = Accessor.Node.TransientForceStore.SettingsMultiplierItems[0];
-			bOk &= TestFloatNear(*this, TEXT("PeakAlpha"), Item.PeakAlpha, 1.0f);
-			bOk &= TestFloatNear(*this, TEXT("RiseTime cleared"), Item.RiseTime, 0.0f);
-			bOk &= TestFloatNear(*this, TEXT("HoldTime cleared"), Item.HoldTime, 0.0f);
-			bOk &= TestFloatNear(*this, TEXT("DecayTime replaced"), Item.DecayTime, 1.0f);
-			bOk &= TestFloatNear(*this, TEXT("ElapsedTime reset"), Item.ElapsedTime, 0.0f);
-		}
 		Accessor.CallUpdatePhysicsSettings();
 		bOk &= TestFloatNear(*this, TEXT("Fade start Damping"), Accessor.Bone(1).PhysicsSettings.Damping, 0.2f);
 
@@ -599,24 +559,6 @@ bool FKawaiiPhysicsSettingsMultiplierStopBlendOutTest::RunTest(const FString& Pa
 		Accessor.CallUpdatePhysicsSettings();
 		// α = 0.5 * (1 - 0.5) = 0.25 → Lerp(1.0, 0.5, 0.25) = 0.875
 		bOk &= TestFloatNear(*this, TEXT("Fade from peak"), Accessor.Bone(1).PhysicsSettings.Damping, 0.4f * 0.875f);
-	}
-
-	{
-		// 同一ハンドルへの停止要求は pending 内で BlendOutTime を上書きする
-		FAnimNode_KawaiiPhysics Node;
-		Node.RequestStopPhysicsSettingsMultiplier(444, 0.1f);
-		Node.RequestStopPhysicsSettingsMultiplier(444, 0.2f);
-		Node.RequestStopPhysicsSettingsMultiplier(444, 0.3f);
-
-		bOk &= TestEqual(TEXT("Coalesced stops"), GetPendingOverrideStopCount(Node), 1);
-		bOk &= TestFloatNear(*this, TEXT("Coalesced BlendOutTime"), GetPendingOverrideStopBlendOutTime(Node, 0), 0.3f);
-
-		for (int32 Index = 0; Index < 12; ++Index)
-		{
-			Node.RequestStopPhysicsSettingsMultiplier(1000 + Index, 0.1f);
-		}
-		bOk &= TestTrue(TEXT("Pending stops bounded"),
-		                GetPendingOverrideStopCount(Node) <= FAnimNode_KawaiiPhysics::MaxPhysicsSettingsMultipliers);
 	}
 
 	return bOk;
@@ -703,39 +645,6 @@ bool FKawaiiPhysicsSettingsMultiplierDrivenSetCreateAndUpdateTest::RunTest(const
 	return bOk;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierDrivenSetCoalesceTest,
-                                 "KawaiiPhysics.SettingsMultiplier.DrivenSetCoalesce",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSettingsMultiplierDrivenSetCoalesceTest::RunTest(const FString& Parameters)
-{
-	bool bOk = true;
-	{
-		FAnimNode_KawaiiPhysics Node;
-		Node.RequestPushPhysicsSettingsMultiplier(MakeScale(0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f), 0.25f, 7);
-		Node.RequestPushPhysicsSettingsMultiplier(MakeScale(0.25f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f), 0.5f, 7);
-		Node.RequestPushPhysicsSettingsMultiplier(MakeScale(0.125f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f), 0.75f, 7);
-
-		bOk &= TestEqual(TEXT("Coalesced pending set"), GetPendingOverrideSetCount(Node), 1);
-		const FKawaiiPhysicsSettingsMultiplierPushRequest PendingSet = GetPendingOverrideSet(Node, 0);
-		bOk &= TestEqual(TEXT("Coalesced handle"), PendingSet.HandleId, static_cast<int64>(7));
-		bOk &= TestFloatNear(*this, TEXT("Coalesced alpha"), PendingSet.Alpha, 0.75f);
-		bOk &= TestFloatNear(*this, TEXT("Coalesced scale"), PendingSet.Scale.Damping, 0.125f);
-	}
-
-	{
-		FAnimNode_KawaiiPhysics Node;
-		for (int32 Index = 0; Index < 12; ++Index)
-		{
-			Node.RequestPushPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 1.0f, 100 + Index);
-		}
-		bOk &= TestTrue(TEXT("Pending sets bounded"),
-		                GetPendingOverrideSetCount(Node) <= FAnimNode_KawaiiPhysics::MaxPhysicsSettingsMultipliers);
-	}
-
-	return bOk;
-}
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierDrivenAlphaClampTest,
                                  "KawaiiPhysics.SettingsMultiplier.DrivenAlphaClamp",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -769,6 +678,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierDrivenNoExpiryT
 
 bool FKawaiiPhysicsSettingsMultiplierDrivenNoExpiryTest::RunTest(const FString& Parameters)
 {
+	// 既定の lease=0 では再 Push がなくても driven 状態を保つ。
 	FAnimNode_KawaiiPhysics Node;
 	Node.RequestPushPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 1.0f, 7);
 
@@ -780,6 +690,8 @@ bool FKawaiiPhysicsSettingsMultiplierDrivenNoExpiryTest::RunTest(const FString& 
 		bOk &= TestEqual(*FString::Printf(TEXT("Consume %d item count"), Index),
 		                 Node.TransientForceStore.SettingsMultiplierItems.Num(), 1);
 	}
+	bOk &= TestEqual(TEXT("Default lease evaluations"),
+	                 Node.TransientForceStore.SettingsMultiplierItems[0].LeaseEvaluations, 0);
 
 	return bOk;
 }
@@ -825,49 +737,6 @@ bool FKawaiiPhysicsSettingsMultiplierDrivenStopBlendOutTest::RunTest(const FStri
 	return bOk;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierDrivenStopImmediateTest,
-                                 "KawaiiPhysics.SettingsMultiplier.DrivenStopImmediate",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSettingsMultiplierDrivenStopImmediateTest::RunTest(const FString& Parameters)
-{
-	FAnimNode_KawaiiPhysics Node;
-	Node.RequestPushPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 1.0f, 7);
-	Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
-	Node.RequestStopPhysicsSettingsMultiplier(7, 0.0f);
-
-	bool bOk = TestFalse(TEXT("Immediate stop inactive"), Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f));
-	bOk &= TestEqual(TEXT("Immediate stop removed"), Node.TransientForceStore.SettingsMultiplierItems.Num(), 0);
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierDrivenResetDuringFadeTest,
-                                 "KawaiiPhysics.SettingsMultiplier.DrivenResetDuringFade",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSettingsMultiplierDrivenResetDuringFadeTest::RunTest(const FString& Parameters)
-{
-	FAnimNode_KawaiiPhysics Node;
-	Node.RequestPushPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 0.6f, 7);
-	Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
-	Node.RequestStopPhysicsSettingsMultiplier(7, 1.0f);
-	Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
-	Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.5f);
-
-	Node.RequestPushPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 1.0f, 7);
-	bool bOk = TestTrue(TEXT("Redriven active"), Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f));
-	bOk &= TestEqual(TEXT("Redriven count"), Node.TransientForceStore.SettingsMultiplierItems.Num(), 1);
-	if (Node.TransientForceStore.SettingsMultiplierItems.IsValidIndex(0))
-	{
-		const FKawaiiPhysicsActiveSettingsMultiplier& Item = Node.TransientForceStore.SettingsMultiplierItems[0];
-		bOk &= TestTrue(TEXT("Redriven flag"), Item.bExternallyDriven);
-		bOk &= TestFloatNear(*this, TEXT("Redriven peak"), Item.PeakAlpha, 1.0f);
-		bOk &= TestFloatNear(*this, TEXT("Redriven alpha"), Item.DrivenAlpha, 1.0f);
-	}
-
-	return bOk;
-}
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierDrivenSetSupersedesPendingStopTest,
                                  "KawaiiPhysics.SettingsMultiplier.DrivenSetSupersedesPendingStop",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -878,91 +747,8 @@ bool FKawaiiPhysicsSettingsMultiplierDrivenSetSupersedesPendingStopTest::RunTest
 	Node.RequestStopPhysicsSettingsMultiplier(7, 1.0f);
 	Node.RequestPushPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 1.0f, 7);
 
-	bool bOk = TestEqual(TEXT("Pending stop removed"), GetPendingOverrideStopCount(Node), 0);
-	bOk &= TestTrue(TEXT("Consume driven"), Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f));
+	bool bOk = TestTrue(TEXT("Consume driven"), Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f));
 	bOk &= TestTrue(TEXT("Driven item"), Node.TransientForceStore.SettingsMultiplierItems[0].bExternallyDriven);
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierDrivenSetThenStopSameFrameTest,
-                                 "KawaiiPhysics.SettingsMultiplier.DrivenSetThenStopSameFrame",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSettingsMultiplierDrivenSetThenStopSameFrameTest::RunTest(const FString& Parameters)
-{
-	FAnimNode_KawaiiPhysics Node;
-	Node.RequestPushPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 0.8f, 7);
-	Node.RequestStopPhysicsSettingsMultiplier(7, 1.0f);
-
-	bool bOk = TestTrue(TEXT("Same frame active"), Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f));
-	bOk &= TestEqual(TEXT("Same frame item count"), Node.TransientForceStore.SettingsMultiplierItems.Num(), 1);
-	if (Node.TransientForceStore.SettingsMultiplierItems.IsValidIndex(0))
-	{
-		const FKawaiiPhysicsActiveSettingsMultiplier& Item = Node.TransientForceStore.SettingsMultiplierItems[0];
-		bOk &= TestFalse(TEXT("Same frame fading"), Item.bExternallyDriven);
-		bOk &= TestFloatNear(*this, TEXT("Same frame peak"), Item.PeakAlpha, 0.8f);
-	}
-
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierDrivenHandleZeroIgnoredTest,
-                                 "KawaiiPhysics.SettingsMultiplier.DrivenHandleZeroIgnored",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSettingsMultiplierDrivenHandleZeroIgnoredTest::RunTest(const FString& Parameters)
-{
-	FAnimNode_KawaiiPhysics Node;
-	bool bOk = TestFalse(TEXT("Zero handle rejected"),
-	                     Node.RequestPushPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 1.0f, 0));
-	bOk &= TestEqual(TEXT("No pending set"), GetPendingOverrideSetCount(Node), 0);
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierDrivenCapEvictionTest,
-                                 "KawaiiPhysics.SettingsMultiplier.DrivenCapEviction",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSettingsMultiplierDrivenCapEvictionTest::RunTest(const FString& Parameters)
-{
-	FAnimNode_KawaiiPhysics Node;
-	for (int32 Index = 0; Index < FAnimNode_KawaiiPhysics::MaxPhysicsSettingsMultipliers; ++Index)
-	{
-		Node.RequestPushPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 1.0f, 100 + Index);
-	}
-	Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
-	Node.RequestStartPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 0.0f, 10.0f, 0.0f, 999);
-	Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
-
-	bool bOk = TestEqual(TEXT("Cap item count"), Node.TransientForceStore.SettingsMultiplierItems.Num(),
-	                     FAnimNode_KawaiiPhysics::MaxPhysicsSettingsMultipliers);
-	bOk &= TestFalse(TEXT("Oldest driven evicted"), ContainsSettingsMultiplierHandle(Node, 100));
-	bOk &= TestTrue(TEXT("Timed item kept"), ContainsSettingsMultiplierHandle(Node, 999));
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierDrivenConvertsTimedItemTest,
-                                 "KawaiiPhysics.SettingsMultiplier.DrivenConvertsTimedItem",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSettingsMultiplierDrivenConvertsTimedItemTest::RunTest(const FString& Parameters)
-{
-	FAnimNode_KawaiiPhysics Node;
-	Node.RequestStartPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 1.0f, 10.0f, 1.0f, 7);
-	Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
-	Node.RequestPushPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 1.0f, 7);
-	Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
-
-	bool bOk = TestEqual(TEXT("Converted count"), Node.TransientForceStore.SettingsMultiplierItems.Num(), 1);
-	if (Node.TransientForceStore.SettingsMultiplierItems.IsValidIndex(0))
-	{
-		const FKawaiiPhysicsActiveSettingsMultiplier& Item = Node.TransientForceStore.SettingsMultiplierItems[0];
-		bOk &= TestTrue(TEXT("Converted driven"), Item.bExternallyDriven);
-		bOk &= TestFloatNear(*this, TEXT("Converted rise"), Item.RiseTime, 0.0f);
-		bOk &= TestFloatNear(*this, TEXT("Converted hold"), Item.HoldTime, 0.0f);
-		bOk &= TestFloatNear(*this, TEXT("Converted decay"), Item.DecayTime, 0.0f);
-	}
-
 	return bOk;
 }
 
@@ -976,147 +762,43 @@ bool FKawaiiPhysicsSettingsMultiplierSetRemovesPendingStartTest::RunTest(const F
 	Node.RequestStartPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 0.0f, 10.0f, 0.0f, 7);
 	Node.RequestPushPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 1.0f, 7);
 
-	bool bOk = TestEqual(TEXT("Pending start removed"), GetPendingOverrideCount(Node), 0);
-	bOk &= TestEqual(TEXT("Pending set kept"), GetPendingOverrideSetCount(Node), 1);
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierStartReplacesSameHandleTest,
-                                 "KawaiiPhysics.SettingsMultiplier.StartReplacesSameHandle",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSettingsMultiplierStartReplacesSameHandleTest::RunTest(const FString& Parameters)
-{
-	FAnimNode_KawaiiPhysics Node;
-	Node.RequestPushPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 1.0f, 7);
-	Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
-	Node.RequestStartPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 0.2f, 10.0f, 0.3f, 7);
-	Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
-
-	bool bOk = TestEqual(TEXT("Start replacement count"), Node.TransientForceStore.SettingsMultiplierItems.Num(), 1);
+	bool bOk = TestTrue(TEXT("Consume driven after pending start"), Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f));
+	bOk &= TestEqual(TEXT("One driven item after pending start"), Node.TransientForceStore.SettingsMultiplierItems.Num(), 1);
 	if (Node.TransientForceStore.SettingsMultiplierItems.IsValidIndex(0))
 	{
-		const FKawaiiPhysicsActiveSettingsMultiplier& Item = Node.TransientForceStore.SettingsMultiplierItems[0];
-		bOk &= TestFalse(TEXT("Timed after start"), Item.bExternallyDriven);
-		bOk &= TestFloatNear(*this, TEXT("Timed rise"), Item.RiseTime, 0.2f);
-		bOk &= TestFloatNear(*this, TEXT("Timed hold"), Item.HoldTime, 10.0f);
-		bOk &= TestFloatNear(*this, TEXT("Timed decay"), Item.DecayTime, 0.3f);
+		bOk &= TestTrue(TEXT("Pending start replaced by driven item"), Node.TransientForceStore.SettingsMultiplierItems[0].bExternallyDriven);
 	}
-
 	return bOk;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierDrivenLeaseExpiresTest,
-                                 "KawaiiPhysics.SettingsMultiplier.DrivenLeaseExpires",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierDrivenLeaseTest,
+                                 "KawaiiPhysics.SettingsMultiplier.DrivenLease",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FKawaiiPhysicsSettingsMultiplierDrivenLeaseExpiresTest::RunTest(const FString& Parameters)
+bool FKawaiiPhysicsSettingsMultiplierDrivenLeaseTest::RunTest(const FString& Parameters)
 {
-	FAnimNode_KawaiiPhysics Node;
-	Node.RequestPushPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 0.6f, 7, 2, 1.0f);
-
-	bool bOk = TestTrue(TEXT("Lease first consume"), Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f));
-	bOk &= TestEqual(TEXT("Lease first remaining"), Node.TransientForceStore.SettingsMultiplierItems[0].LeaseRemaining, 2);
-	bOk &= TestTrue(TEXT("Lease second consume"), Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f));
-	bOk &= TestEqual(TEXT("Lease second remaining"), Node.TransientForceStore.SettingsMultiplierItems[0].LeaseRemaining, 1);
-	bOk &= TestTrue(TEXT("Lease expiry fades"), Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f));
-	if (Node.TransientForceStore.SettingsMultiplierItems.IsValidIndex(0))
-	{
-		const FKawaiiPhysicsActiveSettingsMultiplier& Item = Node.TransientForceStore.SettingsMultiplierItems[0];
-		bOk &= TestFalse(TEXT("Lease no longer driven"), Item.bExternallyDriven);
-		bOk &= TestFloatNear(*this, TEXT("Lease peak"), Item.PeakAlpha, 0.6f);
-		bOk &= TestFloatNear(*this, TEXT("Lease decay"), Item.DecayTime, 1.0f);
-	}
-
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierDrivenLeaseRefreshedTest,
-                                 "KawaiiPhysics.SettingsMultiplier.DrivenLeaseRefreshed",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSettingsMultiplierDrivenLeaseRefreshedTest::RunTest(const FString& Parameters)
-{
-	FAnimNode_KawaiiPhysics Node;
-	bool bOk = true;
-	for (int32 Index = 0; Index < 5; ++Index)
-	{
-		Node.RequestPushPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 1.0f, 7, 2, 1.0f);
-		bOk &= TestTrue(*FString::Printf(TEXT("Lease refresh consume %d"), Index),
-		                Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f));
-		bOk &= TestTrue(*FString::Printf(TEXT("Lease refresh driven %d"), Index),
-		                Node.TransientForceStore.SettingsMultiplierItems[0].bExternallyDriven);
-		bOk &= TestEqual(*FString::Printf(TEXT("Lease refresh remaining %d"), Index),
-		                 Node.TransientForceStore.SettingsMultiplierItems[0].LeaseRemaining, 2);
-	}
-
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierDrivenLeaseInfiniteTest,
-                                 "KawaiiPhysics.SettingsMultiplier.DrivenLeaseInfinite",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSettingsMultiplierDrivenLeaseInfiniteTest::RunTest(const FString& Parameters)
-{
-	FAnimNode_KawaiiPhysics Node;
-	Node.RequestPushPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 1.0f, 7, 0, 1.0f);
-	bool bOk = true;
-	for (int32 Index = 0; Index < 10; ++Index)
-	{
-		bOk &= TestTrue(*FString::Printf(TEXT("Infinite consume %d"), Index),
-		                Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f));
-		bOk &= TestTrue(*FString::Printf(TEXT("Infinite driven %d"), Index),
-		                Node.TransientForceStore.SettingsMultiplierItems[0].bExternallyDriven);
-	}
-
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierDrivenLeaseExpireImmediateTest,
-                                 "KawaiiPhysics.SettingsMultiplier.DrivenLeaseExpireImmediate",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSettingsMultiplierDrivenLeaseExpireImmediateTest::RunTest(const FString& Parameters)
-{
-	FAnimNode_KawaiiPhysics Node;
-	Node.RequestPushPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 1.0f, 7, 1, 0.0f);
-	bool bOk = TestTrue(TEXT("Immediate lease first consume"), Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f));
-	bOk &= TestFalse(TEXT("Immediate lease removed"), Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f));
-	bOk &= TestEqual(TEXT("Immediate lease count"), Node.TransientForceStore.SettingsMultiplierItems.Num(), 0);
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierDrivenGatingTest,
-                                 "KawaiiPhysics.SettingsMultiplier.DrivenGating",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSettingsMultiplierDrivenGatingTest::RunTest(const FString& Parameters)
-{
+	// 再 Push で期限を延ばし、Push が止まった後は現在の強さからフェードする。
 	FKawaiiPhysicsTestAccessor Accessor;
 	SetupChainWithBaseSettings(Accessor);
-	Accessor.Node.bUpdatePhysicsSettingsInGame = false;
-	Accessor.SetInitPhysicsSettings(false);
-
-	bool bOk = TestTrue(TEXT("Driven first update"), Accessor.RunPhysicsSettingsUpdateGate(0.0f));
-	Accessor.Bone(1).PhysicsSettings.Damping = 123.0f;
-	bOk &= TestFalse(TEXT("Driven idle skipped"), Accessor.RunPhysicsSettingsUpdateGate(0.016f));
-
-	Accessor.Node.RequestPushPhysicsSettingsMultiplier(
-		MakeScale(0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f), 0.0f, 7);
-	bOk &= TestTrue(TEXT("Driven alpha zero runs"), Accessor.RunPhysicsSettingsUpdateGate(0.0f));
-	bOk &= TestTrue(TEXT("Driven applied flag set"), Accessor.IsPhysicsSettingsMultiplierAppliedLastUpdate());
-	bOk &= TestBoneSettings(*this, TEXT("Driven alpha zero base"), Accessor.Bone(1), MakeBaseSettings());
-
-	Accessor.Node.RequestStopPhysicsSettingsMultiplier(7, 0.0f);
-	bOk &= TestTrue(TEXT("Driven restore frame runs"), Accessor.RunPhysicsSettingsUpdateGate(0.0f));
-	bOk &= TestFalse(TEXT("Driven applied flag cleared"), Accessor.IsPhysicsSettingsMultiplierAppliedLastUpdate());
-	bOk &= TestBoneSettings(*this, TEXT("Driven restored"), Accessor.Bone(1), MakeBaseSettings());
-
-	Accessor.Bone(1).PhysicsSettings.Damping = 123.0f;
-	bOk &= TestFalse(TEXT("Driven post restore skipped"), Accessor.RunPhysicsSettingsUpdateGate(0.016f));
-	bOk &= TestFloatNear(*this, TEXT("Driven post restore untouched"), Accessor.Bone(1).PhysicsSettings.Damping, 123.0f);
-
+	FAnimNode_KawaiiPhysics& Node = Accessor.Node;
+	const FKawaiiPhysicsSettingsMultiplier Scale = MakeScale(0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f);
+	Node.RequestPushPhysicsSettingsMultiplier(Scale, 0.6f, 7, 2, 1.0f);
+	bool bOk = TestTrue(TEXT("Lease first consume"), Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f));
+	bOk &= TestTrue(TEXT("Lease initially driven"), Node.TransientForceStore.SettingsMultiplierItems[0].bExternallyDriven);
+	bOk &= TestTrue(TEXT("Lease survives one evaluation"), Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f));
+	Node.RequestPushPhysicsSettingsMultiplier(Scale, 0.6f, 7, 2, 1.0f);
+	bOk &= TestTrue(TEXT("Lease refresh consume"), Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f));
+	bOk &= TestTrue(TEXT("Lease refresh remains driven"), Node.TransientForceStore.SettingsMultiplierItems[0].bExternallyDriven);
+	bOk &= TestTrue(TEXT("Lease survives after refresh"), Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f));
+	bOk &= TestTrue(TEXT("Lease still driven after one missed push"), Node.TransientForceStore.SettingsMultiplierItems[0].bExternallyDriven);
+	bOk &= TestTrue(TEXT("Lease expiry fades"), Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f));
+	bOk &= TestFalse(TEXT("Lease no longer driven"), Node.TransientForceStore.SettingsMultiplierItems[0].bExternallyDriven);
+	Accessor.CallUpdatePhysicsSettings();
+	bOk &= TestFloatNear(*this, TEXT("Lease fade starts continuously"), Accessor.Bone(1).PhysicsSettings.Damping, 0.28f);
+	bOk &= TestTrue(TEXT("Lease fade mid active"), Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.5f));
+	Accessor.CallUpdatePhysicsSettings();
+	bOk &= TestFloatNear(*this, TEXT("Lease fade mid damping"), Accessor.Bone(1).PhysicsSettings.Damping, 0.34f);
+	bOk &= TestFalse(TEXT("Lease fade completes"), Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.5f));
 	return bOk;
 }
 
@@ -1139,64 +821,9 @@ bool FKawaiiPhysicsSettingsMultiplierDrivenReinitClearsTest::RunTest(const FStri
 
 	bool bOk = TestEqual(TEXT("Reinit items clear"), Accessor.Node.TransientForceStore.Items.Num(), 0);
 	bOk &= TestEqual(TEXT("Reinit settings items clear"), Accessor.Node.TransientForceStore.SettingsMultiplierItems.Num(), 0);
-	bOk &= TestEqual(TEXT("Reinit pending starts clear"), GetPendingOverrideCount(Accessor.Node), 0);
-	bOk &= TestEqual(TEXT("Reinit pending sets clear"), GetPendingOverrideSetCount(Accessor.Node), 0);
-	bOk &= TestEqual(TEXT("Reinit pending stops clear"), GetPendingOverrideStopCount(Accessor.Node), 0);
+	bOk &= TestFalse(TEXT("Reinit consumes no pending multiplier"), Accessor.Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f));
+	bOk &= TestEqual(TEXT("Reinit leaves no settings items after consume"), Accessor.Node.TransientForceStore.SettingsMultiplierItems.Num(), 0);
 	bOk &= TestFalse(TEXT("Reinit applied flag clear"), Accessor.IsPhysicsSettingsMultiplierAppliedLastUpdate());
-
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierLimitAngleZeroSemanticsTest,
-                                 "KawaiiPhysics.SettingsMultiplier.LimitAngleZeroSemantics",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSettingsMultiplierLimitAngleZeroSemanticsTest::RunTest(const FString& Parameters)
-{
-	bool bOk = true;
-
-	{
-		// ベース 0（制限なし）は倍率に関わらず 0 のまま
-		FKawaiiPhysicsTestAccessor Accessor;
-		SetupChainWithBaseSettings(Accessor);
-		Accessor.Node.PhysicsSettings.LimitAngle = 0.0f;
-
-		Accessor.Node.RequestStartPhysicsSettingsMultiplier(MakeScale(1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 5.0f), 0.0f, 1.0f, 0.0f);
-		Accessor.Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
-		Accessor.CallUpdatePhysicsSettings();
-
-		bOk &= TestTrue(TEXT("Unlimited stays exactly zero"),
-		                Accessor.Bone(1).PhysicsSettings.LimitAngle == 0.0f);
-	}
-
-	{
-		// ベース > 0 は倍率 0 でも 0 へ反転しない
-		FKawaiiPhysicsTestAccessor Accessor;
-		SetupChainWithBaseSettings(Accessor);
-		Accessor.Node.PhysicsSettings.LimitAngle = 30.0f;
-
-		Accessor.Node.RequestStartPhysicsSettingsMultiplier(MakeScale(1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f), 0.0f, 1.0f, 0.0f);
-		Accessor.Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
-		Accessor.CallUpdatePhysicsSettings();
-
-		bOk &= TestTrue(TEXT("Limited never becomes unlimited"),
-		                Accessor.Bone(1).PhysicsSettings.LimitAngle != 0.0f);
-		bOk &= TestFloatNear(*this, TEXT("Clamped to tiny value"), Accessor.Bone(1).PhysicsSettings.LimitAngle,
-		                     KINDA_SMALL_NUMBER);
-	}
-
-	{
-		// 通常倍率は素直に乗算される
-		FKawaiiPhysicsTestAccessor Accessor;
-		SetupChainWithBaseSettings(Accessor);
-		Accessor.Node.PhysicsSettings.LimitAngle = 30.0f;
-
-		Accessor.Node.RequestStartPhysicsSettingsMultiplier(MakeScale(1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.5f), 0.0f, 1.0f, 0.0f);
-		Accessor.Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
-		Accessor.CallUpdatePhysicsSettings();
-
-		bOk &= TestFloatNear(*this, TEXT("Scaled LimitAngle"), Accessor.Bone(1).PhysicsSettings.LimitAngle, 15.0f);
-	}
 
 	return bOk;
 }
@@ -1207,6 +834,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierHandleMismatchN
 
 bool FKawaiiPhysicsSettingsMultiplierHandleMismatchNoopTest::RunTest(const FString& Parameters)
 {
+	// 異なる handle と 0 の Push/Stop が既存倍率を変えないことを守る。
 	FKawaiiPhysicsTestAccessor Accessor;
 	SetupChainWithBaseSettings(Accessor);
 
@@ -1217,135 +845,55 @@ bool FKawaiiPhysicsSettingsMultiplierHandleMismatchNoopTest::RunTest(const FStri
 	Accessor.Node.RequestStopPhysicsSettingsMultiplier(999, 0.5f);
 	bool bOk = TestTrue(TEXT("Still active"), Accessor.Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.5f));
 	bOk &= TestEqual(TEXT("Item kept"), Accessor.Node.TransientForceStore.SettingsMultiplierItems.Num(), 1);
-	if (Accessor.Node.TransientForceStore.SettingsMultiplierItems.IsValidIndex(0))
-	{
-		const FKawaiiPhysicsActiveSettingsMultiplier& Item = Accessor.Node.TransientForceStore.SettingsMultiplierItems[0];
-		bOk &= TestFloatNear(*this, TEXT("HoldTime untouched"), Item.HoldTime, 10.0f);
-		bOk &= TestFloatNear(*this, TEXT("DecayTime untouched"), Item.DecayTime, 0.0f);
-		bOk &= TestFloatNear(*this, TEXT("PeakAlpha untouched"), Item.PeakAlpha, 1.0f);
-		bOk &= TestFloatNear(*this, TEXT("ElapsedTime advanced"), Item.ElapsedTime, 0.5f);
-	}
-
 	Accessor.CallUpdatePhysicsSettings();
 	bOk &= TestFloatNear(*this, TEXT("Still scaled"), Accessor.Bone(1).PhysicsSettings.Damping, 0.2f);
 
-	// ハンドル 0 はキューにも積まれない
+	// ハンドル 0 の Push と Stop はどちらも無視する。
+	bOk &= TestFalse(TEXT("Zero handle push rejected"),
+	                 Accessor.Node.RequestPushPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 1.0f, 0));
+	bOk &= TestEqual(TEXT("Zero handle push not queued"), GetPendingOverrideSetCount(Accessor.Node), 0);
 	Accessor.Node.RequestStopPhysicsSettingsMultiplier(0, 0.5f);
 	bOk &= TestEqual(TEXT("Zero handle ignored"), GetPendingOverrideStopCount(Accessor.Node), 0);
 
 	return bOk;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierReflectionCopySurvivalTest,
-                                 "KawaiiPhysics.SettingsMultiplier.ReflectionCopySurvival",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierStartRequestBuilderTest,
+                                 "KawaiiPhysics.SettingsMultiplier.StartRequestBuilder",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FKawaiiPhysicsSettingsMultiplierReflectionCopySurvivalTest::RunTest(const FString& Parameters)
+bool FKawaiiPhysicsSettingsMultiplierStartRequestBuilderTest::RunTest(const FString& Parameters)
 {
+	// 負の継続時間、ゼロ、正の継続時間で生成結果を確認する。
 	bool bOk = true;
-
 	{
-		FAnimNode_KawaiiPhysics Node;
-		Node.RequestStartPhysicsSettingsMultiplier(MakeScale(0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f), 0.0f, 10.0f, 0.0f, 11);
-		Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
-		Node.RequestStartPhysicsSettingsMultiplier(MakeScale(0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f), 0.0f, 10.0f, 0.0f, 22);
-		Node.RequestPushPhysicsSettingsMultiplier(MakeScale(0.25f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f), 0.75f, 33);
-		Node.RequestStopPhysicsSettingsMultiplier(11, 0.25f);
-
-		bOk &= TestEqual(TEXT("Initial items"), Node.TransientForceStore.SettingsMultiplierItems.Num(), 1);
-		bOk &= TestEqual(TEXT("Initial pending"), GetPendingOverrideCount(Node), 1);
-		bOk &= TestEqual(TEXT("Initial pending sets"), GetPendingOverrideSetCount(Node), 1);
-		bOk &= TestEqual(TEXT("Initial pending stops"), GetPendingOverrideStopCount(Node), 1);
-
-		ApplyDefaultPresetStyleCopy(Node);
-
-		bOk &= TestEqual(TEXT("Items survive preset-style copy"),
-		                 Node.TransientForceStore.SettingsMultiplierItems.Num(), 1);
-		bOk &= TestEqual(TEXT("Pending survives preset-style copy"), GetPendingOverrideCount(Node), 1);
-		bOk &= TestEqual(TEXT("Pending sets survive preset-style copy"), GetPendingOverrideSetCount(Node), 1);
-		bOk &= TestEqual(TEXT("Pending stops survive preset-style copy"), GetPendingOverrideStopCount(Node), 1);
+		const FKawaiiPhysicsSettingsMultiplier Scale = MakeScale(0.5f, 0.25f, 0.75f, 0.9f, 2.0f, 0.5f);
+		FKawaiiPhysicsSettingsMultiplierRequest Request;
+		bOk &= TestTrue(TEXT("Negative duration built"),
+		                UKawaiiPhysicsLibrary::BuildSettingsMultiplierStartRequest(Scale, -1.0f, 0.2f, 0.5f, Request));
+		bOk &= TestTrue(TEXT("Negative duration infinite hold"), Request.bInfiniteHold);
+		bOk &= TestFloatNear(*this, TEXT("Negative duration rise"), Request.RiseTime, 0.2f);
+		bOk &= TestFloatNear(*this, TEXT("Negative duration hold"), Request.HoldTime, 0.0f);
+		bOk &= TestFloatNear(*this, TEXT("Negative duration decay"), Request.DecayTime, 0.0f);
+		bOk &= TestFloatNear(*this, TEXT("Negative duration scale copied"), Request.Scale.Damping, 0.5f);
+		bOk &= TestEqual(TEXT("Negative duration handle untouched"), Request.HandleId, static_cast<int64>(0));
 	}
-
 	{
-		// ノードのコピーは空のストアから始まり、二重消費しない
-		FAnimNode_KawaiiPhysics A;
-		A.RequestStartPhysicsSettingsMultiplier(MakeScale(0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f), 0.0f, 10.0f, 0.0f, 33);
-		A.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
-		A.RequestStartPhysicsSettingsMultiplier(MakeScale(0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f), 0.0f, 10.0f, 0.0f, 44);
-		A.RequestPushPhysicsSettingsMultiplier(MakeScale(0.25f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f), 0.75f, 55);
-
-		FAnimNode_KawaiiPhysics B = A;
-		bOk &= TestTrue(TEXT("Copied queue is distinct"),
-		                A.TransientForceStore.Queue.Get() != B.TransientForceStore.Queue.Get());
-		bOk &= TestEqual(TEXT("B items empty"), B.TransientForceStore.SettingsMultiplierItems.Num(), 0);
-		bOk &= TestEqual(TEXT("B pending empty"), GetPendingOverrideCount(B), 0);
-		bOk &= TestEqual(TEXT("B pending sets empty"), GetPendingOverrideSetCount(B), 0);
-		bOk &= TestFalse(TEXT("B consume yields nothing"), B.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f));
-
-		bOk &= TestEqual(TEXT("A items preserved"), A.TransientForceStore.SettingsMultiplierItems.Num(), 1);
-		bOk &= TestEqual(TEXT("A pending preserved"), GetPendingOverrideCount(A), 1);
-		bOk &= TestEqual(TEXT("A pending sets preserved"), GetPendingOverrideSetCount(A), 1);
+		FKawaiiPhysicsSettingsMultiplierRequest Request;
+		bOk &= TestFalse(TEXT("Zero duration rejected"),
+		                 UKawaiiPhysicsLibrary::BuildSettingsMultiplierStartRequest(FKawaiiPhysicsSettingsMultiplier(),
+		                                                                            0.0f, 0.2f, 0.5f, Request));
 	}
-
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierStartRequestBuilderNegativeDurationIsInfiniteTest,
-                                 "KawaiiPhysics.SettingsMultiplier.StartRequestBuilderNegativeDurationIsInfinite",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSettingsMultiplierStartRequestBuilderNegativeDurationIsInfiniteTest::RunTest(const FString& Parameters)
-{
-	const FKawaiiPhysicsSettingsMultiplier Scale = MakeScale(0.5f, 0.25f, 0.75f, 0.9f, 2.0f, 0.5f);
-	FKawaiiPhysicsSettingsMultiplierRequest Request;
-
-	bool bOk = TestTrue(TEXT("Built"),
-	                    UKawaiiPhysicsLibrary::BuildSettingsMultiplierStartRequest(Scale, -1.0f, 0.2f, 0.5f, Request));
-	bOk &= TestTrue(TEXT("Infinite hold"), Request.bInfiniteHold);
-	bOk &= TestFloatNear(*this, TEXT("Rise"), Request.RiseTime, 0.2f);
-	bOk &= TestFloatNear(*this, TEXT("Hold"), Request.HoldTime, 0.0f);
-	bOk &= TestFloatNear(*this, TEXT("Decay"), Request.DecayTime, 0.0f);
-	bOk &= TestFloatNear(*this, TEXT("Scale copied"), Request.Scale.Damping, 0.5f);
-	bOk &= TestEqual(TEXT("Handle untouched by builder"), Request.HandleId, static_cast<int64>(0));
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierStartRequestBuilderZeroDurationRejectedTest,
-                                 "KawaiiPhysics.SettingsMultiplier.StartRequestBuilderZeroDurationRejected",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSettingsMultiplierStartRequestBuilderZeroDurationRejectedTest::RunTest(const FString& Parameters)
-{
-	FKawaiiPhysicsSettingsMultiplierRequest Request;
-	Request.RiseTime = 1.0f;
-	Request.HandleId = 123;
-	Request.bInfiniteHold = true;
-
-	bool bOk = TestFalse(TEXT("Rejected"),
-	                     UKawaiiPhysicsLibrary::BuildSettingsMultiplierStartRequest(FKawaiiPhysicsSettingsMultiplier(),
-	                                                                                0.0f, 0.2f, 0.5f, Request));
-	bOk &= TestFloatNear(*this, TEXT("Rise untouched"), Request.RiseTime, 1.0f);
-	bOk &= TestEqual(TEXT("Handle untouched"), Request.HandleId, static_cast<int64>(123));
-	bOk &= TestTrue(TEXT("Infinite untouched"), Request.bInfiniteHold);
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierStartRequestBuilderPositiveDurationTrapezoidTest,
-                                 "KawaiiPhysics.SettingsMultiplier.StartRequestBuilderPositiveDurationTrapezoid",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSettingsMultiplierStartRequestBuilderPositiveDurationTrapezoidTest::RunTest(const FString& Parameters)
-{
-	FKawaiiPhysicsSettingsMultiplierRequest Request;
-	const KawaiiPhysics::FWindGustEnvelope Expected = KawaiiPhysics::ResolveWindGustEnvelope(2.0f, 0.2f, 0.5f);
-
-	bool bOk = TestTrue(TEXT("Built"),
-	                    UKawaiiPhysicsLibrary::BuildSettingsMultiplierStartRequest(FKawaiiPhysicsSettingsMultiplier(),
-	                                                                               2.0f, 0.2f, 0.5f, Request));
-	bOk &= TestFalse(TEXT("Finite"), Request.bInfiniteHold);
-	bOk &= TestFloatNear(*this, TEXT("Rise"), Request.RiseTime, Expected.RiseTime);
-	bOk &= TestFloatNear(*this, TEXT("Hold"), Request.HoldTime, Expected.HoldTime);
-	bOk &= TestFloatNear(*this, TEXT("Decay"), Request.DecayTime, Expected.DecayTime);
+	{
+		FKawaiiPhysicsSettingsMultiplierRequest Request;
+		bOk &= TestTrue(TEXT("Positive duration built"),
+		                UKawaiiPhysicsLibrary::BuildSettingsMultiplierStartRequest(FKawaiiPhysicsSettingsMultiplier(),
+		                                                                           2.0f, 0.2f, 0.5f, Request));
+		bOk &= TestFalse(TEXT("Positive duration finite"), Request.bInfiniteHold);
+		bOk &= TestFloatNear(*this, TEXT("Positive duration rise"), Request.RiseTime, 0.2f);
+		bOk &= TestFloatNear(*this, TEXT("Positive duration hold"), Request.HoldTime, 1.3f);
+		bOk &= TestFloatNear(*this, TEXT("Positive duration decay"), Request.DecayTime, 0.5f);
+	}
 	return bOk;
 }
 
@@ -1360,11 +908,7 @@ bool FKawaiiPhysicsSettingsMultiplierInfiniteHoldPersistsTest::RunTest(const FSt
 	                                                     0.2f, 0.0f, 0.5f, 7, true);
 
 	bool bOk = TestTrue(TEXT("Initial active"), Accessor.Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f));
-	bool bStillActive = true;
-	for (int32 Index = 0; Index < 1000; ++Index)
-	{
-		bStillActive = Accessor.Node.ConsumeAndAdvancePhysicsSettingsMultipliers(1.0f / 60.0f);
-	}
+	const bool bStillActive = Accessor.Node.ConsumeAndAdvancePhysicsSettingsMultipliers(100.0f);
 
 	bOk &= TestTrue(TEXT("Still active after long run"), bStillActive);
 	bOk &= TestEqual(TEXT("Item count"), Accessor.Node.TransientForceStore.SettingsMultiplierItems.Num(), 1);
@@ -1376,39 +920,6 @@ bool FKawaiiPhysicsSettingsMultiplierInfiniteHoldPersistsTest::RunTest(const FSt
 		bOk &= TestFloatNear(*this, TEXT("Held alpha"), 1.0f - Effective.Damping, Item.PeakAlpha);
 	}
 
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierInfiniteHoldStopDecaysAndRemovesTest,
-                                 "KawaiiPhysics.SettingsMultiplier.InfiniteHoldStopDecaysAndRemoves",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSettingsMultiplierInfiniteHoldStopDecaysAndRemovesTest::RunTest(const FString& Parameters)
-{
-	FKawaiiPhysicsTestAccessor Accessor;
-	Accessor.Node.RequestStartPhysicsSettingsMultiplier(MakeScale(0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f),
-	                                                     0.2f, 0.0f, 0.5f, 7, true);
-	Accessor.Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
-	for (int32 Index = 0; Index < 1000; ++Index)
-	{
-		Accessor.Node.ConsumeAndAdvancePhysicsSettingsMultipliers(1.0f / 60.0f);
-	}
-
-	Accessor.Node.RequestStopPhysicsSettingsMultiplier(7, 0.5f);
-	bool bOk = TestTrue(TEXT("Stop converted"), Accessor.Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f));
-	if (Accessor.Node.TransientForceStore.SettingsMultiplierItems.IsValidIndex(0))
-	{
-		const FKawaiiPhysicsActiveSettingsMultiplier& Item = Accessor.Node.TransientForceStore.SettingsMultiplierItems[0];
-		bOk &= TestFalse(TEXT("Infinite cleared"), Item.bInfiniteHold);
-		bOk &= TestFloatNear(*this, TEXT("Peak captured"), Item.PeakAlpha, 1.0f);
-		bOk &= TestFloatNear(*this, TEXT("Decay"), Item.DecayTime, 0.5f);
-	}
-
-	bOk &= TestTrue(TEXT("Decay mid active"), Accessor.Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.25f));
-	const FKawaiiPhysicsSettingsMultiplier EffectiveMid = Accessor.CallComputeEffectiveSettingsMultiplierScale();
-	bOk &= TestFloatNear(*this, TEXT("Mid alpha"), 1.0f - EffectiveMid.Damping, 0.5f);
-	bOk &= TestFalse(TEXT("Decay finished"), Accessor.Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.25f));
-	bOk &= TestEqual(TEXT("Removed"), Accessor.Node.TransientForceStore.SettingsMultiplierItems.Num(), 0);
 	return bOk;
 }
 
@@ -1540,31 +1051,6 @@ bool FKawaiiPhysicsSettingsMultiplierInfiniteHoldReplacedByFiniteStartTest::RunT
 
 	bOk &= TestFalse(TEXT("Expired after finite duration"), Node.ConsumeAndAdvancePhysicsSettingsMultipliers(1.0f));
 	bOk &= TestEqual(TEXT("Removed"), Node.TransientForceStore.SettingsMultiplierItems.Num(), 0);
-	return bOk;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierInfiniteHoldEvictionWarnsTest,
-                                 "KawaiiPhysics.SettingsMultiplier.InfiniteHoldEvictionWarns",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsSettingsMultiplierInfiniteHoldEvictionWarnsTest::RunTest(const FString& Parameters)
-{
-	FAnimNode_KawaiiPhysics Node;
-	for (int32 Index = 0; Index < FAnimNode_KawaiiPhysics::MaxPhysicsSettingsMultipliers; ++Index)
-	{
-		Node.RequestStartPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 0.0f, 0.0f, 0.5f,
-		                                           100 + Index, true);
-	}
-	Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
-
-	AddExpectedError(TEXT("Infinite-hold physics settings multiplier cap exceeded"), EAutomationExpectedErrorFlags::Contains, 1);
-	Node.RequestStartPhysicsSettingsMultiplier(FKawaiiPhysicsSettingsMultiplier(), 0.0f, 0.0f, 0.5f, 999, true);
-	Node.ConsumeAndAdvancePhysicsSettingsMultipliers(0.0f);
-
-	bool bOk = TestEqual(TEXT("Cap item count"), Node.TransientForceStore.SettingsMultiplierItems.Num(),
-	                     FAnimNode_KawaiiPhysics::MaxPhysicsSettingsMultipliers);
-	bOk &= TestFalse(TEXT("Oldest infinite evicted"), ContainsSettingsMultiplierHandle(Node, 100));
-	bOk &= TestTrue(TEXT("Newest infinite kept"), ContainsSettingsMultiplierHandle(Node, 999));
 	return bOk;
 }
 

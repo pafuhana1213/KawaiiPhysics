@@ -11,7 +11,7 @@
 /**
  * Enum representing the type of collision limit in KawaiiPhysics.
  */
-UENUM()
+UENUM(BlueprintType)
 enum class ECollisionLimitType : uint8
 {
 	None,
@@ -26,7 +26,7 @@ enum class ECollisionLimitType : uint8
 /**
  * Enum representing the source type of the collision limit in KawaiiPhysics.
  */
-UENUM()
+UENUM(BlueprintType)
 enum class ECollisionSourceType : uint8
 {
 	/** Use the value set in the AnimNode */
@@ -39,6 +39,8 @@ enum class ECollisionSourceType : uint8
 	Mirror,
 	/** シンプルワールドコリジョンから生成 / Generated from simple world collision */
 	SimpleWorld,
+	/** 共有コリジョン（Shared Publisher）から読み込み / Read from shared collision (Shared Publisher) */
+	Shared,
 };
 
 /**

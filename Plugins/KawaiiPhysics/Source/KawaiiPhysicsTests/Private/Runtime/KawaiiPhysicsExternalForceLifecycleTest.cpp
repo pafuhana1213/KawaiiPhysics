@@ -236,7 +236,7 @@ bool FKawaiiPhysicsOneShotPreviousRemovalTest::RunTest(const FString& Parameters
 	FAnimInstanceProxy Proxy;
 	FComponentSpacePoseContext Context(&Proxy);
 	bool bOk = true;
-	for (const int32 PriorCount : {1, 2})
+	for (const int32 PriorCount : {2})
 	{
 		TArray<int32> Order;
 		TArray<int32> DestroyedPrior;

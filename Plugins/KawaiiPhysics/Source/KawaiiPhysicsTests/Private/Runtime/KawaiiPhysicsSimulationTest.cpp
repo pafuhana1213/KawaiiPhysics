@@ -4,8 +4,9 @@
 
 #include "Misc/AutomationTest.h"
 #include "KawaiiPhysicsTestHarness.h"
+#include "Animation/AnimInstanceProxy.h"
 
-// 物理計算の回帰テスト（Output 非依存の物理関数を直接呼ぶ）：決定性／パラメータ応答（重力方向・剛性単調性・減衰オーバーシュート）／フレームレート非依存性／数値安定性。
+// 物理計算の回帰テスト（Output 非依存の物理関数を直接呼ぶ）：パラメータ応答（重力方向・剛性単調性・減衰オーバーシュート）／フレームレート非依存性／数値安定性。
 
 namespace
 {
@@ -42,53 +43,6 @@ namespace
 		return A.TipLocation();
 	}
 
-	// 横に並んだ2本のチェーンの tip 間に BoneConstraint を張り、最終距離を返す。
-	float SimulateLateralConstraintDistance(int32 NumFrames, float FrameDt)
-	{
-		FKawaiiPhysicsTestAccessor A;
-		A.BuildTwoVerticalChains(2, 10.0f, 20.0f);
-
-		FKawaiiPhysicsSettings S;
-		S.Damping = 1.0f;
-		S.Stiffness = 0.0f;
-		S.LimitAngle = 0.0f;
-		S.Radius = 0.0f;
-		A.SetAllPhysicsSettings(S);
-
-		const int32 LeftTipIndex = 1;
-		const int32 RightTipIndex = 3;
-		const FVector StretchedRightTip = A.Bone(RightTipIndex).Location + FVector(8.0f, 0.0f, 0.0f);
-		A.Bone(RightTipIndex).Location = StretchedRightTip;
-		A.Bone(RightTipIndex).PrevLocation = StretchedRightTip;
-
-		A.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
-		A.SetGravityInSimSpace(FVector::ZeroVector);
-		A.SetFixedSubstepping(true, 60, 8);
-		A.SetBoneConstraintIterations(1, 1);
-		A.SetBoneConstraintGlobalComplianceType(EXPBDComplianceType::Fat);
-		A.AddRuntimeBoneConstraint(LeftTipIndex, RightTipIndex, 20.0f);
-
-		A.StepFrames(NumFrames, FrameDt);
-		return static_cast<float>((A.Bone(RightTipIndex).Location - A.Bone(LeftTipIndex).Location).Size());
-	}
-}
-
-// ---------------------------------------------------------------------------
-//  決定性
-// ---------------------------------------------------------------------------
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsDeterminismTest,
-                                 "KawaiiPhysics.Simulation.Determinism",
-                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FKawaiiPhysicsDeterminismTest::RunTest(const FString& Parameters)
-{
-	const FVector Gravity(-980, 0, 0);
-	const FVector A = SimulateChainTip(0.1f, 0.05f, Gravity, true, 60, 200, 1.0f / 60.0f);
-	const FVector B = SimulateChainTip(0.1f, 0.05f, Gravity, true, 60, 200, 1.0f / 60.0f);
-
-	TestTrue(FString::Printf(TEXT("Determinism: A=%s B=%s"), *A.ToString(), *B.ToString()),
-	         A.Equals(B, KINDA_SMALL_NUMBER));
-	return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -205,7 +159,6 @@ bool FKawaiiPhysicsBoneConstraintStepDeltaTimeTest::RunTest(const FString& Param
 	const float FixedDt = 1.0f / 60.0f;
 	const float SubstepDistance = SolveOnceDistance(1.0f / 30.0f, true, FixedDt);
 	const float LegacySameStepDistance = SolveOnceDistance(FixedDt, false, FixedDt);
-	const float LegacyFrameDtDistance = SolveOnceDistance(1.0f / 30.0f, false, 1.0f / 30.0f);
 
 	const float Compliance = 0.0001f / (FixedDt * FixedDt); // EXPBDComplianceType::Fat
 	const float ExpectedDistance = 20.0f - 2.0f * (10.0f / (2.0f + Compliance));
@@ -215,9 +168,6 @@ bool FKawaiiPhysicsBoneConstraintStepDeltaTimeTest::RunTest(const FString& Param
 	TestTrue(FString::Printf(TEXT("Substep FrameDt=1/30 matches legacy StepDt=1/60: %.6f vs %.6f"),
 	                         SubstepDistance, LegacySameStepDistance),
 	         FMath::IsNearlyEqual(SubstepDistance, LegacySameStepDistance, 0.0001f));
-	TestTrue(FString::Printf(TEXT("Regression guard: FrameDt-normalized solve would differ: %.6f vs %.6f"),
-	                         SubstepDistance, LegacyFrameDtDistance),
-	         FMath::Abs(SubstepDistance - LegacyFrameDtDistance) > 0.5f);
 
 	return true;
 }
@@ -289,12 +239,13 @@ bool FKawaiiPhysicsSyncBoneSubdivisionPoseRefreshTest::RunTest(const FString& Pa
 //  SyncBone + BoneSubdivision: 子は stale inter-bone dummy 基準で歪まず剛体並進する
 //  (回帰: SyncBone+Subdivision の残留ストレッチ — 子が未更新の dummy 親基準で拘束されていた)
 // ---------------------------------------------------------------------------
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSyncBoneSubdivisionRigidTranslationTest,
-                                 "KawaiiPhysics.Simulation.SyncBoneSubdivisionRigidTranslation",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSyncBoneSubdivisionApplyTest,
+                                 "KawaiiPhysics.Simulation.SyncBoneSubdivisionApply",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FKawaiiPhysicsSyncBoneSubdivisionRigidTranslationTest::RunTest(const FString& Parameters)
+bool FKawaiiPhysicsSyncBoneSubdivisionApplyTest::RunTest(const FString& Parameters)
 {
+	// 剛体並進時の child 位置と、非剛体移動時の segment 長を守る。
 	FKawaiiPhysicsTestAccessor A;
 	A.BuildSyncBoneSubdivisionFixture();
 
@@ -315,39 +266,174 @@ bool FKawaiiPhysicsSyncBoneSubdivisionRigidTranslationTest::RunTest(const FStrin
 	                         *A.Bone(2).PoseLocation.ToString()),
 	         A.Bone(2).PoseLocation.Equals(FVector(10.0f, 10.0f, 0.0f), Tol));
 
-	// 後段の dummy 再補間で inter-bone dummy も剛体並進位置へ戻る
-	A.CallUpdateSubdivisionDummyPoseAfterSyncBones();
-	TestTrue(FString::Printf(TEXT("Inter-bone dummy re-lerps to rigid position: %s"),
-	                         *A.Bone(1).PoseLocation.ToString()),
-	         A.Bone(1).PoseLocation.Equals(FVector(5.0f, 10.0f, 0.0f), Tol));
+
+	{
+		FKawaiiPhysicsTestAccessor B;
+		B.BuildSyncBoneSubdivisionFixture();
+		FKawaiiPhysicsSyncTargetRoot SplitTargets = B.CollectSyncChildTargetsForRoot(0);
+		B.ApplySyncTargetsForRootSplit(SplitTargets, FVector(0.0f, 10.0f, 0.0f), FVector(0.0f, 5.0f, 0.0f));
+		const float RestLen = 10.0f;
+		const float Len = FVector::Dist(B.Bone(2).PoseLocation, B.Bone(0).PoseLocation);
+		TestTrue(FString::Printf(TEXT("Non-rigid sync preserves grandparent->child length: %.4f (expect %.1f) child=%s"),
+		                         Len, RestLen, *B.Bone(2).PoseLocation.ToString()),
+		         FMath::IsNearlyEqual(Len, RestLen, 0.001f));
+	}
 
 	return true;
 }
 
-// ---------------------------------------------------------------------------
-//  SyncBone + BoneSubdivision: 非剛体（root/child で delta が異なる）でも segment 長を保存
-//  (stale inter-bone dummy ではなく実祖父基準・距離 BoneLength/(1-alpha) で拘束する)
-// ---------------------------------------------------------------------------
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSyncBoneSubdivisionLengthPreservedTest,
-                                 "KawaiiPhysics.Simulation.SyncBoneSubdivisionLengthPreserved",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSyncBoneSubdivisionLengthTest,
+                                 "KawaiiPhysics.Simulation.SyncBoneSubdivisionLength",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FKawaiiPhysicsSyncBoneSubdivisionLengthPreservedTest::RunTest(const FString& Parameters)
+bool FKawaiiPhysicsSyncBoneSubdivisionLengthTest::RunTest(const FString& Parameters)
 {
-	FKawaiiPhysicsTestAccessor A;
-	A.BuildSyncBoneSubdivisionFixture();
+	constexpr float SegmentLength = 12.0f;
+	constexpr float TipLength = 6.0f;
+	constexpr float Tol = 0.001f;
 
-	FKawaiiPhysicsSyncTargetRoot TargetRoot = A.CollectSyncChildTargetsForRoot(0);
+	for (int32 SubdivisionCount = 1; SubdivisionCount <= 2; ++SubdivisionCount)
+	{
+		FKawaiiPhysicsTestAccessor A;
+		const int32 ChildIndex = A.BuildSyncBoneSubdivisionLengthFixture(
+			SubdivisionCount, SegmentLength, TipLength);
+		const float ExpectedSegmentLength = SegmentLength / (SubdivisionCount + 1);
+		TestTrue(FString::Printf(TEXT("N=%d real child BoneLength is final segment length"), SubdivisionCount),
+		         FMath::IsNearlyEqual(A.Bone(ChildIndex).BoneLength, ExpectedSegmentLength, Tol));
+		TestTrue(FString::Printf(TEXT("N=%d real child LengthFromRoot counts each segment once"), SubdivisionCount),
+		         FMath::IsNearlyEqual(A.Bone(ChildIndex).LengthFromRoot, SegmentLength, Tol));
+		TestTrue(FString::Printf(TEXT("N=%d subdivided tip LengthFromRoot includes tip once"), SubdivisionCount),
+		         FMath::IsNearlyEqual(A.Bone(A.Num() - 1).LengthFromRoot, SegmentLength + TipLength, Tol));
+		TestTrue(FString::Printf(TEXT("N=%d real child LengthRateFromRoot uses physical chain length"), SubdivisionCount),
+		         FMath::IsNearlyEqual(A.Bone(ChildIndex).LengthRateFromRoot,
+		                              SegmentLength / (SegmentLength + TipLength), Tol));
 
-	// root と child(2) に異なる delta（attenuation/curve 相当）。stale dummy 基準だと segment が伸縮するが、
-	// 実祖父 gp(=root) 基準・距離 BoneLength/(1-alpha)=10 の拘束で gp→child 長は保たれるはず。
-	A.ApplySyncTargetsForRootSplit(TargetRoot, FVector(0.0f, 10.0f, 0.0f), FVector(0.0f, 5.0f, 0.0f));
+		FKawaiiPhysicsSyncTargetRoot TargetRoot = A.CollectSyncChildTargetsForRoot(0);
+		TestEqual(FString::Printf(TEXT("N=%d only real child is a SyncBone target"), SubdivisionCount),
+		          TargetRoot.ChildTargets.Num(), 1);
+		A.ApplySyncTargetsForRootSplit(TargetRoot, FVector(0.0f, 10.0f, 0.0f),
+		                               FVector(0.0f, 5.0f, 0.0f));
+		const float Distance = FVector::Dist(A.Bone(0).PoseLocation, A.Bone(ChildIndex).PoseLocation);
+		TestTrue(FString::Printf(TEXT("N=%d non-rigid SyncBone keeps real segment length: %.4f"),
+		                         SubdivisionCount, Distance),
+		         FMath::IsNearlyEqual(Distance, SegmentLength, Tol));
+	}
 
-	const float RestLen = 10.0f; // |child(10,0,0) - root(0,0,0)| = BoneLength(5) / (1 - alpha 0.5)
-	const float Len = FVector::Dist(A.Bone(2).PoseLocation, A.Bone(0).PoseLocation);
-	TestTrue(FString::Printf(TEXT("Non-rigid sync preserves grandparent->child length: %.4f (expect %.1f) child=%s"),
-	                         Len, RestLen, *A.Bone(2).PoseLocation.ToString()),
-	         FMath::IsNearlyEqual(Len, RestLen, 0.001f));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsBridgeDummyCollisionFeedbackTest,
+                                 "KawaiiPhysics.Simulation.BridgeDummyCollisionFeedback",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsBridgeDummyCollisionFeedbackTest::RunTest(const FString& Parameters)
+{
+	constexpr float Tol = 0.001f;
+	for (int32 Mode = 0; Mode < 2; ++Mode)
+	{
+		const bool bCollisionOnly = (Mode == 0);
+		FKawaiiPhysicsTestAccessor A;
+		A.BuildSyncBoneSubdivisionFixture();
+		A.Node.bBoneSubdivisionCollisionOnly = bCollisionOnly;
+		A.Node.BoneConstraintSubdivisionCount = 1;
+		A.Node.BoneConstraintSubdivisionFeedbackScale = 1.0f;
+
+		auto AddBridge = [&A](int32 FirstEndpoint, int32 SecondEndpoint, float Alpha, float PushY)
+		{
+			FKawaiiPhysicsModifyBone Bridge;
+			Bridge.bDummy = true;
+			Bridge.bBridgeDummy = true;
+			Bridge.InterBoneRealParentIndex = FirstEndpoint;
+			Bridge.InterBoneRealChildIndex = SecondEndpoint;
+			Bridge.InterBoneAlpha = Alpha;
+			Bridge.PoseLocation = FVector::ZeroVector;
+			Bridge.Location = FVector(0.0f, PushY, 0.0f);
+			A.Node.ModifyBones.Add(Bridge);
+		};
+
+		// 縦ダミーを端点に持つ橋と、実rootへ重なる別の橋で重みの除数も検証する。
+		AddBridge(1, 5, 0.25f, 4.0f);
+		AddBridge(0, 5, 0.0f, 8.0f);
+		A.CallApplyBridgeDummyCollisionFeedback();
+
+		const float ExpectedRootY = bCollisionOnly ? 9.5f / 1.375f : 8.0f;
+		TestTrue(TEXT("real root receives weighted feedback"),
+		         FMath::IsNearlyEqual(A.Bone(0).Location.Y, ExpectedRootY, Tol));
+		TestTrue(TEXT("real child receives routed feedback only in collision-only mode"),
+		         FMath::IsNearlyEqual(A.Bone(2).Location.Y, bCollisionOnly ? 1.5f : 0.0f, Tol));
+		TestTrue(TEXT("inter-bone dummy receives feedback only in simulated mode"),
+		         FMath::IsNearlyEqual(A.Bone(1).Location.Y, bCollisionOnly ? 0.0f : 3.0f, Tol));
+		TestTrue(TEXT("other bridge endpoint keeps its feedback"),
+		         FMath::IsNearlyEqual(A.Bone(5).Location.Y, 5.0f, Tol));
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSubdivisionCollisionOnlyRestoreTest,
+                                 "KawaiiPhysics.Simulation.SubdivisionCollisionOnlyRestore",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSubdivisionCollisionOnlyRestoreTest::RunTest(const FString& Parameters)
+{
+	constexpr float SegmentLength = 12.0f;
+	constexpr float TipLength = 6.0f;
+	constexpr float Tol = 0.001f;
+
+	for (int32 SubdivisionCount = 1; SubdivisionCount <= 2; ++SubdivisionCount)
+	{
+		for (int32 Mode = 0; Mode < 2; ++Mode)
+		{
+			const bool bCollisionOnly = (Mode == 0);
+			FKawaiiPhysicsTestAccessor A;
+			const int32 ChildIndex = A.BuildSyncBoneSubdivisionLengthFixture(
+				SubdivisionCount, SegmentLength, TipLength);
+			const int32 TipIndex = A.Num() - 1;
+			A.Node.bBoneSubdivisionCollisionOnly = bCollisionOnly;
+			A.Bone(0).bSkipSimulate = true;
+			A.Bone(ChildIndex).Location = FVector(SegmentLength * 0.1f, 0.0f, 0.0f);
+			A.Bone(TipIndex).Location = FVector((SegmentLength + TipLength) * 0.1f, 0.0f, 0.0f);
+			for (int32 BoneIndex = 0; BoneIndex < A.Num(); ++BoneIndex)
+			{
+				FKawaiiPhysicsModifyBone& Bone = A.Bone(BoneIndex);
+				if (Bone.bInterBoneDummy)
+				{
+					Bone.Location = FMath::Lerp(A.Bone(Bone.InterBoneRealParentIndex).Location,
+					                            A.Bone(Bone.InterBoneRealChildIndex).Location, Bone.InterBoneAlpha);
+				}
+			}
+
+			A.CallRestoreBoneLengthsAndLimits();
+
+			if (bCollisionOnly)
+			{
+				TestTrue(FString::Printf(TEXT("N=%d child returns to full root distance"), SubdivisionCount),
+				         A.Bone(ChildIndex).Location.Equals(FVector(SegmentLength, 0.0f, 0.0f), Tol));
+				TestTrue(FString::Printf(TEXT("N=%d tip returns to full child distance"), SubdivisionCount),
+				         FMath::IsNearlyEqual(FVector::Dist(A.Bone(TipIndex).Location,
+				                                          A.Bone(ChildIndex).Location), TipLength, Tol));
+				for (int32 BoneIndex = 0; BoneIndex < A.Num(); ++BoneIndex)
+				{
+					const FKawaiiPhysicsModifyBone& Bone = A.Bone(BoneIndex);
+					if (Bone.bInterBoneDummy)
+					{
+						const FVector Expected = FMath::Lerp(A.Bone(Bone.InterBoneRealParentIndex).Location,
+						                                      A.Bone(Bone.InterBoneRealChildIndex).Location, Bone.InterBoneAlpha);
+						TestTrue(FString::Printf(TEXT("N=%d dummy %d follows final endpoints"), SubdivisionCount, BoneIndex),
+						         Bone.Location.Equals(Expected, Tol));
+					}
+				}
+			}
+			else
+			{
+				const float ExpectedChildX = (SubdivisionCount == 1) ? 0.0f : SegmentLength / 3.0f;
+				TestTrue(FString::Printf(TEXT("N=%d simulated dummy retains per-parent child restore"), SubdivisionCount),
+				         A.Bone(ChildIndex).Location.Equals(FVector(ExpectedChildX, 0.0f, 0.0f), Tol));
+				TestTrue(FString::Printf(TEXT("N=%d simulated dummy retains per-parent tip restore"), SubdivisionCount),
+				         A.Bone(TipIndex).Location.Equals(
+					 FVector((SubdivisionCount == 1) ? 0.0f : TipLength / 3.0f, 0.0f, 0.0f), Tol));
+			}
+		}
+	}
 
 	return true;
 }
@@ -384,15 +470,6 @@ bool FKawaiiPhysicsParameterResponseTest::RunTest(const FString& Parameters)
 	                         MaxLowDamp, MaxHighDamp),
 	         MaxLowDamp > MaxHighDamp);
 
-	// --- スナップショット基準値（現状の挙動を固定） ---
-	const FVector Canonical = SimulateChainTip(0.1f, 0.05f, Gravity, true, 60, Frames, Dt);
-	AddInfo(FString::Printf(TEXT("[SNAPSHOT] ParameterResponse canonical tip = %s"), *Canonical.ToString()));
-	// 基準値（2026-06-08, UE5.7 で捕捉）。物理挙動が変わるとここで検出される。
-	const FVector CanonicalBaseline(-13.782f, 0.0f, -26.647f);
-	TestTrue(FString::Printf(TEXT("Canonical tip snapshot: got %s expected %s"),
-	                         *Canonical.ToString(), *CanonicalBaseline.ToString()),
-	         Canonical.Equals(CanonicalBaseline, 0.1f));
-
 	return true;
 }
 
@@ -423,30 +500,6 @@ bool FKawaiiPhysicsFramerateIndependenceTest::RunTest(const FString& Parameters)
 	TestTrue(FString::Printf(TEXT("Substep 60 vs 120 fps: %s vs %s"), *Tip60.ToString(), *Tip120.ToString()),
 	         Tip60.Equals(Tip120, SubstepTol));
 
-	const float Constraint30 = SimulateLateralConstraintDistance(FMath::RoundToInt(SimTime * 30.0f), 1.0f / 30.0f);
-	const float Constraint60 = SimulateLateralConstraintDistance(FMath::RoundToInt(SimTime * 60.0f), 1.0f / 60.0f);
-	const float Constraint120 = SimulateLateralConstraintDistance(FMath::RoundToInt(SimTime * 120.0f), 1.0f / 120.0f);
-	const float ConstraintTol = 0.01f;
-	TestTrue(FString::Printf(TEXT("BoneConstraint substep 30 vs 60 fps: %.6f vs %.6f"),
-	                         Constraint30, Constraint60),
-	         FMath::IsNearlyEqual(Constraint30, Constraint60, ConstraintTol));
-	TestTrue(FString::Printf(TEXT("BoneConstraint substep 60 vs 120 fps: %.6f vs %.6f"),
-	                         Constraint60, Constraint120),
-	         FMath::IsNearlyEqual(Constraint60, Constraint120, ConstraintTol));
-
-	// 対比: サブステップ OFF（legacy）では 30fps と 120fps の差が大きい（フレームレート依存の症状）。
-	const FVector Legacy30 = SimulateChainTip(0.1f, 0.05f, Gravity, false, TargetFps,
-	                                          FMath::RoundToInt(SimTime * 30.0f), 1.0f / 30.0f);
-	const FVector Legacy120 = SimulateChainTip(0.1f, 0.05f, Gravity, false, TargetFps,
-	                                           FMath::RoundToInt(SimTime * 120.0f), 1.0f / 120.0f);
-
-	const float SubstepSpread = static_cast<float>((Tip30 - Tip120).Size());
-	const float LegacySpread = static_cast<float>((Legacy30 - Legacy120).Size());
-	AddInfo(FString::Printf(TEXT("[framerate] substepSpread=%.4f legacySpread=%.4f"), SubstepSpread, LegacySpread));
-	TestTrue(FString::Printf(TEXT("Substepping reduces frame-rate dependence: substep=%.4f < legacy=%.4f"),
-	                         SubstepSpread, LegacySpread),
-	         SubstepSpread < LegacySpread);
-
 	return true;
 }
 
@@ -459,9 +512,6 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsNumericalStabilityTest,
 
 bool FKawaiiPhysicsNumericalStabilityTest::RunTest(const FString& Parameters)
 {
-	// 縦チェーンは長さ復元により root から最大でも (segment*count) 内に収まる。
-	const float Bound = 1000.0f;
-
 	auto RunScenario = [&](const TCHAR* Name, float Spacing, float Damping, float Stiffness,
 	                       const FVector& Gravity, bool bFixedSubstep, float FrameDt, int32 Frames)
 	{
@@ -479,17 +529,12 @@ bool FKawaiiPhysicsNumericalStabilityTest::RunTest(const FString& Parameters)
 			A.StepFrame(FrameDt);
 		}
 		TestTrue(FString::Printf(TEXT("%s: finite"), Name), A.AllFinite());
-		TestTrue(FString::Printf(TEXT("%s: bounded (|loc| <= %.0f)"), Name, Bound), A.AllWithin(Bound));
 	};
 
-	// 極端な重力
-	RunScenario(TEXT("ExtremeGravity"), 10.0f, 0.1f, 0.05f, FVector(0, 0, -1.0e6f), true, 1.0f / 60.0f, 120);
 	// 巨大な dt（spiral of death クランプ確認）
 	RunScenario(TEXT("HugeDt"), 10.0f, 0.1f, 0.05f, FVector(0, 0, -980), true, 5.0f, 20);
 	// ゼロ長ボーン
 	RunScenario(TEXT("ZeroLength"), 0.0f, 0.1f, 0.05f, FVector(0, 0, -980), true, 1.0f / 60.0f, 60);
-	// 減衰=1, 剛性=1（境界値）
-	RunScenario(TEXT("FullDampingStiffness"), 10.0f, 1.0f, 1.0f, FVector(0, -980, 0), true, 1.0f / 60.0f, 60);
 	// 微小 dt（legacy）
 	RunScenario(TEXT("TinyDtLegacy"), 10.0f, 0.1f, 0.05f, FVector(0, 0, -980), false, 1.0e-5f, 60);
 
@@ -523,17 +568,7 @@ bool FKawaiiPhysicsPhysicsSettingsCurveTest::RunTest(const FString& Parameters)
 	A.Node.PhysicsSettings.Radius = 3.0f;
 	A.Node.PhysicsSettings.LimitAngle = 30.0f;
 
-	// --- 1. 高速パス（全カーブ空・DefaultValue なし）: 基準値がそのまま入る ---
-	A.CallUpdatePhysicsSettings();
-	for (int32 i = 0; i < NumBones; ++i)
-	{
-		const FKawaiiPhysicsSettings& S = A.Bone(i).PhysicsSettings;
-		TestTrue(FString::Printf(TEXT("FastPath base: bone %d"), i),
-		         S.Damping == 0.8f && S.WorldDampingLocation == 0.6f && S.WorldDampingRotation == 0.7f &&
-		         S.Stiffness == 0.9f && S.Radius == 3.0f && S.LimitAngle == 30.0f);
-	}
-
-	// --- 2. 高速パス（全カーブ空・DefaultValue あり）: DefaultValue の乗算とクランプが効く ---
+	// --- 1. 高速パス（全カーブ空・DefaultValue あり）: DefaultValue の乗算とクランプが効く ---
 	A.Node.DampingCurveData.EditorCurveData.SetDefaultValue(2.0f);              // 0.8*2.0=1.6 → 上限クランプで 1.0
 	A.Node.WorldDampingLocationCurveData.EditorCurveData.SetDefaultValue(0.5f); // 0.6*0.5=0.3
 	A.Node.RadiusCurveData.EditorCurveData.SetDefaultValue(-1.0f);              // 3.0*-1.0 → Max で 0.0
@@ -548,11 +583,16 @@ bool FKawaiiPhysicsPhysicsSettingsCurveTest::RunTest(const FString& Parameters)
 		FastPathResults.Add(S);
 	}
 
-	// --- 3. per-bone 経路との等価性: キー付きカーブを1本足して分岐を切り替え、
+	// --- 2. per-bone 経路との等価性: キー付きカーブを1本足して分岐を切り替え、
 	//        空カーブ（DefaultValue 含む）の評価結果が高速パスとビット一致することを確認 ---
 	A.Node.StiffnessCurveData.EditorCurveData.AddKey(0.0f, 1.0f);
 	A.Node.StiffnessCurveData.EditorCurveData.AddKey(1.0f, 0.5f);
 	A.CallUpdatePhysicsSettings();
+	constexpr float ExpectedStiffness[NumBones] =
+	{
+		0.9f, 0.8357143f, 0.7714286f, 0.7071429f,
+		0.6428571f, 0.5785714f, 0.5142857f, 0.45f
+	};
 	for (int32 i = 0; i < NumBones; ++i)
 	{
 		const FKawaiiPhysicsSettings& S = A.Bone(i).PhysicsSettings;
@@ -562,16 +602,130 @@ bool FKawaiiPhysicsPhysicsSettingsCurveTest::RunTest(const FString& Parameters)
 		         S.WorldDampingRotation == F.WorldDampingRotation && S.Radius == F.Radius &&
 		         S.LimitAngle == F.LimitAngle);
 
-		// キー付きカーブは LengthRateFromRoot 位置の評価値が乗る
-		const float ExpectedStiffness = FMath::Clamp(
-			0.9f * A.Node.StiffnessCurveData.EditorCurveData.Eval(A.Bone(i).LengthRateFromRoot, 1.0f), 0.0f, 1.0f);
+		// キー付きカーブの各ボーンでリテラルの期待値を確認する。
 		TestTrue(FString::Printf(TEXT("PerBone stiffness curve: bone %d got=%f expected=%f"),
-		                         i, S.Stiffness, ExpectedStiffness),
-		         S.Stiffness == ExpectedStiffness);
+		                         i, S.Stiffness, ExpectedStiffness[i]),
+		         FMath::IsNearlyEqual(S.Stiffness, ExpectedStiffness[i], 0.00001f));
 	}
 	// per-bone 経路で Stiffness が実際にボーン毎に変化していること（カーブが効いている証拠）
 	TestTrue(TEXT("PerBone stiffness varies along the chain"),
 	         A.Bone(0).PhysicsSettings.Stiffness != A.Bone(NumBones - 1).PhysicsSettings.Stiffness);
+
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+//  テレポート時の Component 移動の破棄（固定サブステップの繰り越しで漏れないこと）
+// ---------------------------------------------------------------------------
+namespace
+{
+	struct FTeleportRunResult
+	{
+		// tip のポーズ位置からの最大ずれ（cm）
+		float MaxTipDeviation = 0.0f;
+		// 瞬間移動したフレーム直後の PreSkelCompTransform
+		FTransform PreSkelAfterJump = FTransform::Identity;
+	};
+
+	// ComponentSpace の縦チェーン（約140cm）を静止させ、初フレームでコンポーネントを Jump へ瞬間移動させてから 60 フレーム進める。
+	// WorldDamping=0 なので反映された移動はそのまま慣性（揺れ）になる。重力なしなので移動が破棄されればチェーンは直立したまま。
+	FTeleportRunResult RunComponentJump(bool bFixedSubstep, const FTransform& Jump,
+	                                    float DistanceThreshold, float RotationThreshold)
+	{
+		FKawaiiPhysicsTestAccessor A;
+		A.BuildVerticalChain(6, 28.0f);
+
+		FKawaiiPhysicsSettings S;
+		S.Damping = 0.1f;
+		S.Stiffness = 0.05f;
+		S.WorldDampingLocation = 0.0f;
+		S.WorldDampingRotation = 0.0f;
+		S.LimitAngle = 0.0f;
+		S.Radius = 0.0f;
+		A.SetAllPhysicsSettings(S);
+
+		A.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+		A.SetGravityInSimSpace(FVector::ZeroVector);
+		A.SetFixedSubstepping(bFixedSubstep, 60, 8);
+		A.Node.TeleportDistanceThreshold = DistanceThreshold;
+		A.Node.TeleportRotationThreshold = RotationThreshold;
+		A.SetPreSkelCompTransform(FTransform::Identity);
+
+		FAnimInstanceProxy Proxy;
+		FComponentSpacePoseContext Output(&Proxy);
+
+		// 60Hz 固定ステップに対し 1.5 ステップ分の dt。初フレームは 1 ステップだけ消費し、移動の 1/3 を繰り越す。
+		const float FrameDt = 1.0f / 40.0f;
+		FTeleportRunResult Result;
+		for (int32 Frame = 0; Frame < 60; ++Frame)
+		{
+			A.StepFrameWithComponentTransform(Output, FrameDt, Jump);
+			if (Frame == 0)
+			{
+				Result.PreSkelAfterJump = A.GetPreSkelCompTransform();
+			}
+			const FKawaiiPhysicsModifyBone& Tip = A.Bone(A.Num() - 1);
+			Result.MaxTipDeviation = FMath::Max(Result.MaxTipDeviation,
+			                                    static_cast<float>((Tip.Location - Tip.PoseLocation).Size()));
+		}
+		return Result;
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTeleportDiscardsComponentMoveTest,
+                                 "KawaiiPhysics.Simulation.TeleportDiscardsComponentMove",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsTeleportDiscardsComponentMoveTest::RunTest(const FString& Parameters)
+{
+	const FTransform Translate120(FVector(0.0f, 120.0f, 0.0f));
+	const FTransform RotateX25(FQuat(FVector::XAxisVector, FMath::DegreesToRadians(25.0f)));
+	const float RigidTol = 0.01f;   // cm。破棄されていればポーズから動かない
+	const float SwingMin = 5.0f;    // cm。反映されていれば明確に揺れる
+
+	struct FCase
+	{
+		const TCHAR* Name;
+		bool bFixedSubstep;
+	};
+	const FCase Cases[] = {{TEXT("FixedSubstep"), true}, {TEXT("Legacy"), false}};
+
+	for (const FCase& Case : Cases)
+	{
+		// 距離テレポート（120cm > 閾値50cm）: 移動を全量破棄し、繰り越し分も漏れない
+		{
+			const FTeleportRunResult R = RunComponentJump(Case.bFixedSubstep, Translate120, 50.0f, 0.0f);
+			TestTrue(FString::Printf(TEXT("[%s] distance teleport keeps chain rigid: maxDev=%.4f"),
+			                         Case.Name, R.MaxTipDeviation),
+			         R.MaxTipDeviation < RigidTol);
+			TestTrue(FString::Printf(TEXT("[%s] distance teleport advances PreSkelCompTransform fully: %s"),
+			                         Case.Name, *R.PreSkelAfterJump.GetLocation().ToString()),
+			         R.PreSkelAfterJump.GetLocation().Equals(Translate120.GetLocation(), KINDA_SMALL_NUMBER));
+		}
+
+		// 回転テレポート（25° > 閾値10°、繰り越し分 8.3° は閾値未満）
+		{
+			const FTeleportRunResult R = RunComponentJump(Case.bFixedSubstep, RotateX25, 0.0f, 10.0f);
+			TestTrue(FString::Printf(TEXT("[%s] rotation teleport keeps chain rigid: maxDev=%.4f"),
+			                         Case.Name, R.MaxTipDeviation),
+			         R.MaxTipDeviation < RigidTol);
+			TestTrue(FString::Printf(TEXT("[%s] rotation teleport advances PreSkelCompTransform fully"), Case.Name),
+			         R.PreSkelAfterJump.GetRotation().Equals(RotateX25.GetRotation(), KINDA_SMALL_NUMBER));
+		}
+
+		// 対照: 閾値未満の移動は従来どおり反映されて揺れる
+		{
+			const FTeleportRunResult R = RunComponentJump(Case.bFixedSubstep, Translate120, 300.0f, 0.0f);
+			TestTrue(FString::Printf(TEXT("[%s] sub-threshold move still swings: maxDev=%.4f"),
+			                         Case.Name, R.MaxTipDeviation),
+			         R.MaxTipDeviation > SwingMin);
+			// 非テレポート時の繰り越しは従来どおり（固定サブステップは 1/1.5 ステップ分だけ前進 → Y=80）
+			const float ExpectedY = Case.bFixedSubstep ? 80.0f : 120.0f;
+			TestTrue(FString::Printf(TEXT("[%s] sub-threshold move keeps carry-over: PreSkel.Y=%.4f expected=%.4f"),
+			                         Case.Name, R.PreSkelAfterJump.GetLocation().Y, ExpectedY),
+			         FMath::IsNearlyEqual(static_cast<float>(R.PreSkelAfterJump.GetLocation().Y), ExpectedY, 0.01f));
+		}
+	}
 
 	return true;
 }

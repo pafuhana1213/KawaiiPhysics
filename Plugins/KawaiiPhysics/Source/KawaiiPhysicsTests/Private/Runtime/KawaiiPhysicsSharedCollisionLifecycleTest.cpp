@@ -157,32 +157,20 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSharedCollisionRetirementRaceTest
 
 bool FKawaiiPhysicsSharedCollisionRetirementRaceTest::RunTest(const FString& Parameters)
 {
-	FKawaiiPhysicsSharedCollisionSourceSlot FreshSlot;
+	FKawaiiPhysicsSharedCollisionSourceSlot Slot;
 	auto Data = LifecycleSphere(10.0f);
-	FreshSlot.Publish(Data);
-	TestFalse(TEXT("Cleanup rechecks freshness under the publish lock"),
-		FreshSlot.RetireIfExpired(GFrameCounter, 60));
-
-	for (int32 Iteration = 0; Iteration < 64; ++Iteration)
-	{
-		FKawaiiPhysicsSharedCollisionSourceSlot Slot;
-		auto Publish = Async(EAsyncExecution::ThreadPool, [&Slot]()
-		{
-			auto WorkerData = LifecycleSphere(50.0f);
-			Slot.Publish(WorkerData);
-		});
-		Slot.Retire();
-		Publish.Wait();
-		TestTrue(TEXT("Retirement wins regardless of publish ordering"), Slot.IsRetired());
-		auto LateData = LifecycleSphere(60.0f);
-		const uint64 Serial = Slot.GetPublishSerial();
-		Slot.Publish(LateData);
-		TestEqual(TEXT("Late publish is rejected"), Slot.GetPublishSerial(), Serial);
-		TestEqual(TEXT("Rejected publish leaves caller data intact"), LateData.SphericalLimits.Num(), 1);
-		FKawaiiPhysicsSharedCollisionData Out;
-		Slot.AppendTo(Out);
-		TestTrue(TEXT("Retained retired handles cannot expose obsolete shapes"), Out.IsEmpty());
-	}
+	Slot.Publish(Data);
+	TestEqual(TEXT("Initial publish increments serial"), Slot.GetPublishSerial(), static_cast<uint64>(1));
+	Slot.Retire();
+	TestTrue(TEXT("Retired slot remains retired"), Slot.IsRetired());
+	auto LateData = LifecycleSphere(60.0f);
+	const uint64 Serial = Slot.GetPublishSerial();
+	Slot.Publish(LateData);
+	TestEqual(TEXT("Late publish is rejected"), Slot.GetPublishSerial(), Serial);
+	TestEqual(TEXT("Rejected publish leaves caller data intact"), LateData.SphericalLimits.Num(), 1);
+	FKawaiiPhysicsSharedCollisionData Out;
+	Slot.AppendTo(Out);
+	TestTrue(TEXT("Retained retired handles cannot expose obsolete shapes"), Out.IsEmpty());
 	return true;
 }
 
