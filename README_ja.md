@@ -137,7 +137,7 @@ C++ビルド環境がない方は、以下のリンクからプラグインを�
 プロジェクト内にサンプルレベルとキャラクターが含まれています。
 - **エンジンバージョン**: UE 5.8
 - **サンプルレベル**: `Content/KawaiiPhysicsSample/L_KawaiiPhysicsSample`
-- **機能別サンプル**: `Content/KawaiiPhysicsSample/Examples/` にテーマごとのレベルがあります。各展示は 1 つの機能だけを専用の AnimBlueprint で紹介し、段階的に学べるようにしています。`Content/KawaiiPhysicsSample/L_KPS_AllExamples` ではテーマごとのレベルをすべて並べて読み込み、全機能を 1 か所で見て回れます。PIE 中は Z / X で同じテーマ内の前 / 次の展示へ、PageUp / PageDown で前 / 次のテーマへジャンプできます。
+- **機能別サンプル**: `Content/KawaiiPhysicsSample/Examples/` にテーマごとのレベルがあります。各展示は 1 つの機能だけを専用の AnimBlueprint で紹介し、段階的に学べるようにしています。`Content/KawaiiPhysicsSample/L_KPS_AllExamples` ではテーマごとのレベルをすべて並べて読み込み、全機能を 1 か所で見て回れます。PIE 中は Z / X で同じテーマ内の前 / 次の展示へ、PageUp / PageDown で前 / 次のテーマへジャンプできます。H で、いま見ている展示の説明ページを [KawaiiPhysics Portal](https://pafuhana1213.github.io/KawaiiPhysics-Portal/docs) で開きます。B では、その展示で使っている AnimBlueprint をエディタで開きます。エディタでは看板アクタの Details にある **Open Docs** / **Open AnimBP** ボタンからも開けます。
   - `01_BoneChain`（RootBone / DummyBoneLength / ExcludeBones / AdditionalRootBones / 複数ノードとタグ）
   - `02_PhysicsSettings`（Damping / Stiffness / WorldDamping / LimitAngle / カーブ / テレポートしきい値 / ウォームアップ / SkelCompMoveScale）
   - `03_Collision`（球 / カプセル / テーパードカプセル / 箱 / 平面 / LimitsDataAsset / PhysicsAsset / ワールドコリジョン）
