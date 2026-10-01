@@ -4,6 +4,7 @@ import ast
 import inspect
 import json
 import os
+import runpy
 import tempfile
 import time
 from types import SimpleNamespace
@@ -270,6 +271,29 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         self.assertTrue(any('unequal bone counts' in w for w in warnings))
         self.assertEqual(len(bones), 5)
 
+    def test_radius_keys_tip_dummy_uses_its_own_depth_pure(self):
+        children = {f'{root}{depth}': [f'{root}{depth + 1}'] if depth < 3 else []
+                    for root in ('a', 'b') for depth in range(4)}
+        lengths = {f'{root}{depth}': 1.0 for root in ('a', 'b')
+                   for depth in range(1, 4)}
+        chains = toolset_module._radius_chain_rates(
+            children, lengths, [('a0', set()), ('b0', set())], 10.0)
+        _, keys, _, warnings = toolset_module._radius_keys_and_bones(
+            chains, [1, 2, 3, 4, 5, 6], 10.0)
+        self.assertAlmostEqual(keys[-1]['value'], 5 / 6)
+        self.assertIn('radius_by_depth has 1 unused entries (depth > 4).', warnings)
+
+    def test_constraint_data_to_pair_uses_enum_name_pure(self):
+        class Data:
+            def get_editor_property(self, name):
+                if name.startswith('bone_reference'):
+                    return SimpleNamespace(get_editor_property=lambda _: name)
+                return {'exclude_from_subdivision': False,
+                        'override_compliance': True,
+                        'compliance_type': SimpleNamespace(name='LEATHER')}[name]
+        self.assertEqual(toolset_module._constraint_data_to_pair(Data())['compliance_type'],
+                         'Leather')
+
     def test_bone_constraints_data_asset_pairs(self):
         factory = unreal.DataAssetFactory()
         factory.set_editor_property('data_asset_class',
@@ -470,6 +494,112 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         self.assertEqual(result['error'], 'PIE ended')
         self.assertEqual(result['statistics']['all']['samples'], 1)
 
+    def test_penetration_error_status_with_empty_exception_message_pure(self):
+        state = {'targets': [], 'stats': toolset_module._new_penetration_stats(),
+                 'error': 'RuntimeError: ', 'done': True, 'excluded': 0,
+                 'reasons': [], 'world': {}, 'frames_collected': 0,
+                 'unchanged_frames': 0, 'frames_seen': 0, 'frames': 1,
+                 'threshold': 1.0, 'fixed_frame_rate': None,
+                 'cost_total_ms': 0.0, 'cost_samples': 0,
+                 'cost_max_ms': 0.0, 'notes': []}
+        result = toolset_module._penetration_sampler_result(state)
+        self.assertEqual(result['status'], 'error')
+        self.assertEqual(result['error'], 'RuntimeError: ')
+
+    def test_penetration_failed_start_hides_previous_result_pure(self):
+        toolset_module._COLLISION_PENETRATION_SAMPLER = {
+            'done': True, 'failed_start': {'status': 'ok'}}
+        prepared = {'targets': [], 'start_result': {'status': 'not_found',
+                    'checked': 0, 'excluded': 0, 'reasons': [],
+                    'fixed_frame_rate': None}}
+        try:
+            with mock.patch.object(toolset_module, '_prepare_penetration_actor',
+                                   return_value=prepared):
+                started = json.loads(KawaiiPhysicsToolset.start_collision_penetration_sampler(
+                    'Missing', [], 1, True, [], None, 0, -1, True, 1.0, 0,
+                    30.0, None, [], []))
+            current = json.loads(KawaiiPhysicsToolset.get_collision_penetration_sampler_result())
+            self.assertEqual(current['status'], started['status'])
+            self.assertNotEqual(current['status'], 'ok')
+        finally:
+            toolset_module._COLLISION_PENETRATION_SAMPLER = None
+
+    def test_record_header_contains_closed_pure(self):
+        make = toolset_module._make_record_header
+        self.assertFalse(make('Actor', {}, 0, [], [], False)['closed'])
+        self.assertTrue(make('Actor', {}, 0, [], [], True)['closed'])
+
+    def test_bone_sample_nan_frame_breaks_step_and_all_nan_reports_null_pure(self):
+        accumulator = toolset_module._make_bone_sample_accumulator()
+        for sample in ([0, 0, 0], [float('nan'), 0, 0], [3, 0, 0]):
+            toolset_module._accumulate_bone_sample(accumulator, sample)
+        self.assertEqual(accumulator['step_count'], 0)
+        self.assertEqual(accumulator['count'], 2)
+        self.assertTrue(accumulator['nan'])
+        empty = toolset_module._make_bone_sample_accumulator()
+        toolset_module._accumulate_bone_sample(empty, [float('nan'), 0, 0])
+        try:
+            toolset_module._BONE_SAMPLER = {
+                'bones': {'all_nan': empty}, 'done': True, 'frames_collected': 1,
+                'space': 'component', 'error': ''}
+            result = json.loads(KawaiiPhysicsToolset.get_bone_sampler_result())
+            for field in ('min', 'max', 'mean'):
+                self.assertIsNone(result['bones']['all_nan'][field])
+            self.assertEqual(result['bones']['all_nan']['rms_step'], 0.0)
+        finally:
+            toolset_module._BONE_SAMPLER = None
+
+    def test_bone_sampler_targets_qualify_duplicate_component_names_pure(self):
+        components = [SimpleNamespace(get_all_socket_names=lambda: ['bone'],
+                                      get_name=lambda: 'CharacterMesh0',
+                                      get_owner=lambda label=label: SimpleNamespace(label=label))
+                      for label in ('A', 'B')]
+        with mock.patch.object(toolset_module, '_actor_label',
+                               side_effect=lambda owner: owner.label):
+            targets = toolset_module._make_bone_sampler_targets(components, 'bone')
+        self.assertEqual([key for key, _, _ in targets],
+                         ['A.CharacterMesh0.bone', 'B.CharacterMesh0.bone'])
+
+    def test_simple_world_collider_count_calls_library_directly_pure(self):
+        component = object()
+        library = SimpleNamespace(get_simple_world_collider_count_on_component=
+                                  mock.Mock(return_value=3))
+        fake_unreal = SimpleNamespace(KawaiiPhysicsLibrary=library)
+        with mock.patch.object(toolset_module, 'unreal', fake_unreal), \
+                mock.patch.object(toolset_module, '_find_skeletal_mesh_components_by_label',
+                                  return_value=[component]), \
+                mock.patch.object(toolset_module, '_make_tag_container', return_value='tags'):
+            count = KawaiiPhysicsToolset.get_simple_world_collider_count_on_actor(
+                'Actor', [], False, True)
+        self.assertEqual(count, 3)
+        library.get_simple_world_collider_count_on_component.assert_called_once_with(
+            component, 'tags', False)
+
+    def test_init_unreal_logs_skills_import_error_pure(self):
+        import builtins
+        real_import = builtins.__import__
+        registration = SimpleNamespace(register_toolsets=mock.Mock())
+        warning = mock.Mock()
+        fake_unreal = SimpleNamespace(log_warning=warning)
+
+        def import_module(name, globals=None, locals=None, fromlist=(), level=0):
+            fromlist = fromlist or ()
+            if name == 'kawaii_physics_toolset' and 'registration' in fromlist:
+                return SimpleNamespace(registration=registration)
+            if name == 'kawaii_physics_toolset' and 'skills' in fromlist:
+                raise ImportError('skills unavailable')
+            if name == 'unreal':
+                return fake_unreal
+            return real_import(name, globals, locals, fromlist, level)
+
+        path = os.path.normpath(os.path.join(
+            os.path.dirname(toolset_module.__file__), '..', 'init_unreal.py'))
+        with mock.patch('builtins.__import__', side_effect=import_module):
+            runpy.run_path(path)
+        registration.register_toolsets.assert_called_once_with()
+        warning.assert_called_once_with(
+            'KawaiiPhysics Toolset registration failed: skills unavailable')
+
     def test_penetration_stopped_before_requested_frames_pure(self):
         stats = toolset_module._new_penetration_stats()
         toolset_module._accumulate_penetration_sample(
@@ -668,8 +798,9 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
             self.assertEqual(result['status'], 'not_found')
             self.assertEqual(result['checked'], 0)
             self.assertIn('world', result)
+        # 失敗した start の後は前回の結果ではなく、その start と同じ status を返す
         self.assertEqual(json.loads(KawaiiPhysicsToolset.get_collision_penetration_sampler_result())['status'],
-                         'not_started')
+                         'not_found')
         self.assertTrue(KawaiiPhysicsToolset.stop_collision_penetration_sampler())
         with self.assertToolRaisesRuntimeError():
             KawaiiPhysicsToolset.check_collision_clearance_on_actor(
@@ -1325,6 +1456,13 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
             1.5,
         )
 
+    def test_set_graph_node_properties_reapply_same_values_does_not_raise(self):
+        handle = self._place_test_node()
+        values = '{"PhysicsSettings": "(Damping=0.3)", "DummyBoneLength": 2.1234567}'
+        KawaiiPhysicsToolset.set_graph_node_properties(handle, values)
+        result = KawaiiPhysicsToolset.set_graph_node_properties(handle, values)
+        self.assertEqual(list(result), ['PhysicsSettings', 'DummyBoneLength'])
+
     def test_graph_node_settings_diff_and_restore(self):
         anim_blueprint = self._create_anim_blueprint()
         handle = self._place_test_node(anim_blueprint, _make_request('TwintailA_L'))
@@ -1399,6 +1537,42 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
                          normalize('( Radius = 1.000000 ,Damping=1 )'))
         self.assertNotEqual(normalize('(BoneName="A B")'),
                             normalize('(BoneName="AB")'))
+
+    def test_import_bone_names_handles_special_names_pure(self):
+        cases = [
+            ('(BoneName="Bip001-Skirt01")', ['Bip001-Skirt01']),
+            ('(BoneName="skirt.01 L")', ['skirt.01 L']),
+            ('(BoneName="スカート_0")', ['スカート_0']),
+            ('(BoneName=None)', ['None']),
+            ('((BoneName="a\\"b"),(BoneName="c"))', ['a"b', 'c']),
+            ('', []),
+        ]
+        for source, expected in cases:
+            with self.subTest(source=source):
+                self.assertEqual(toolset_module._import_bone_names(source), expected)
+
+    def test_import_text_satisfies_partial_struct_and_rounding_pure(self):
+        check = toolset_module._import_text_satisfies
+        cases = [
+            ('(Damping=0.300000,Stiffness=0.050000)', '(Damping=0.3)', True),
+            ('(Damping=0.300000,Stiffness=0.050000)', '(Damping=0.31)', False),
+            ('2.123457', '2.1234567', True),
+            ('X_Positive', 'EBoneForwardAxis::X_Positive', True),
+            ('((A=1),(A=2))', '((A=1),(A=2))', True),
+            ('((A=1),(A=2))', '((A=1))', False),
+            ('(Bone=(BoneName="Leg"))', '(Bone=(BoneName="Leg"))', True),
+            ('(Bone=(BoneName="Leg"))', '(Bone=(BoneName="Arm"))', False),
+        ]
+        for actual, requested, expected in cases:
+            with self.subTest(actual=actual, requested=requested):
+                self.assertEqual(check(actual, requested), expected)
+        self.assertTrue(check('(Bone=(BoneName="Leg"),PreviewBone=(BoneName="A"))',
+                              '(Bone=(BoneName="Leg"),PreviewBone=(BoneName="B"))',
+                              'SyncBones'))
+
+    def test_normalize_import_text_treats_negative_zero_as_zero_pure(self):
+        normalize = toolset_module._normalize_import_text
+        self.assertEqual(normalize('(X=-0.000000)'), normalize('(X=0)'))
 
     def test_sync_bones_import_text_ignores_runtime_and_preview_fields(self):
         normalize = toolset_module._normalize_import_text

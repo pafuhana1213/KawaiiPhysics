@@ -151,6 +151,25 @@ class MotionMetricsTests(unittest.TestCase):
         self.assertGreater(horizontal['p95'], 0)
         self.assertIsNone(compute_motion_metrics(sample)['overall']['stretch']['constraint']['p95'])
 
+    def test_open_ring_three_columns_has_no_wrap_pair(self):
+        sample = recording([0])
+        node = sample['header']['nodes'][0]
+        node['columns'] = [['a'], ['b'], ['c']]
+        node['constraints'] = []
+        node['bones'] = [{'key': key, 'bone_name': key, 'dummy_type': 'None',
+                          'parent_key': None, 'depth': 0} for key in ('a', 'b', 'c')]
+        node['rest'] = {'a': [0, 0, 0], 'b': [10, 0, 0], 'c': [20, 0, 0]}
+        sample['frames'][0]['nodes'][0]['bones'] = {
+            'a': [0, 0, 0, 0, 0, 0], 'b': [15, 0, 0, 10, 0, 0],
+            'c': [20, 0, 0, 20, 0, 0]}
+        sample['frames'][0]['nodes'][0]['final'] = {}
+        sample['header']['closed'] = False
+        open_mean = compute_motion_metrics(sample)['overall']['stretch']['horizontal']['mean_abs']
+        sample['header']['closed'] = True
+        closed_mean = compute_motion_metrics(sample)['overall']['stretch']['horizontal']['mean_abs']
+        self.assertAlmostEqual(open_mean, 0.5)
+        self.assertAlmostEqual(closed_mean, 1 / 3)
+
     def test_collapse_fraction_for_stuck_segment(self):
         sample = recording([0] * 4, second=[10, 10 / 3, 10 / 3, 10 / 3])
         result = compute_motion_metrics(sample)['overall']

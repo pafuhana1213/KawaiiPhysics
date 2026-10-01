@@ -192,7 +192,8 @@ def compute_motion_metrics(recording: dict, spike_degrees: float = 25.0,
                     break
         columns = node.get('columns', [])
         horizontal = []
-        for left in range(len(columns) if len(columns) >= 3 else len(columns) - 1):
+        for left in range(len(columns) if len(columns) >= 3 and header.get('closed', True)
+                          else len(columns) - 1):
             right = (left + 1) % len(columns)
             for depth in range(min(len(columns[left]), len(columns[right]))):
                 horizontal.append((columns[left][depth], columns[right][depth]))

@@ -309,12 +309,11 @@ def _constraint_data_to_pair(data):
     result = {'bone1': a, 'bone2': b,
               'exclude_from_subdivision': bool(data.get_editor_property('exclude_from_subdivision'))}
     if data.get_editor_property('override_compliance'):
-        result['compliance_type'] = str(data.get_editor_property('compliance_type')).split('.')[-1].title()
+        result['compliance_type'] = data.get_editor_property('compliance_type').name.title()
     return result
 
 
 def _constraint_pair_to_data(pair):
-    # TODO(verify): reflected FModifyBoneConstraintData field names in target UE.
     item = unreal.ModifyBoneConstraintData()
     for field, name in (('bone_reference1', pair['bone1']),
                         ('bone_reference2', pair['bone2'])):
@@ -383,8 +382,14 @@ def _radius_keys_and_bones(chains, radius_by_depth, dummy_length):
             warnings.append(f'Depth {depth} exceeds radius_by_depth; last radius is used.')
         mean = sum(rates) / len(rates)
         key_values[mean].append(radius_by_depth[min(depth, len(radius_by_depth)-1)] / radius)
-    if dummy_length > 0:
-        key_values[1.0].append(radius_by_depth[-1] / radius)
+    dummy_depths = [record['depth'] for chain in chains for record in chain['records']
+                    if record['bone'] is None]
+    if dummy_depths:
+        key_values[1.0].append(radius_by_depth[min(max(dummy_depths), len(radius_by_depth)-1)] / radius)
+    max_depth = max(record['depth'] for chain in chains for record in chain['records'])
+    unused = len(radius_by_depth) - max_depth - 1
+    if unused > 0:
+        warnings.append(f'radius_by_depth has {unused} unused entries (depth > {max_depth}).')
     keys = []
     for rate, values in sorted(key_values.items()):
         if len(values) > 1:
@@ -427,7 +432,27 @@ def _import_field(text, field):
 
 
 def _import_bone_names(text):
-    return re.findall(r'BoneName\s*=\s*"?([A-Za-z0-9_]+)', text or '')
+    names = []
+    for match in re.finditer(r'BoneName\s*=\s*', text or ''):
+        start = match.end()
+        if start < len(text) and text[start] == '"':
+            chars = []
+            index = start + 1
+            while index < len(text):
+                char = text[index]
+                if char == '"':
+                    break
+                if char == '\\' and index + 1 < len(text) and text[index + 1] in ('"', '\\'):
+                    index += 1
+                    char = text[index]
+                chars.append(char)
+                index += 1
+            name = ''.join(chars)
+        else:
+            name = re.split(r'[,\s)]', text[start:], maxsplit=1)[0]
+        if name:
+            names.append(name)
+    return names
 
 
 def _import_struct_items(text):
@@ -643,6 +668,8 @@ def _normalize_import_text(value: str | None, property_name: str | None = None):
         try:
             number = Decimal(token)
             if number.is_finite():
+                if number == 0:
+                    number = Decimal(0)
                 token = str(number.normalize())
         except InvalidOperation:
             if token.lower() in ('true', 'false'):
@@ -706,6 +733,68 @@ def _normalize_import_text(value: str | None, property_name: str | None = None):
     return tuple(filtered)
 
 
+def _import_text_satisfies(actual: str, requested: str,
+                           property_name: str | None = None) -> bool:
+    """Compare ImportText values, allowing requested struct fields to be partial."""
+    def split_top_level(value, delimiter):
+        parts, start, depth, quoted, escaped = [], 0, 0, False, False
+        for index, char in enumerate(value):
+            if escaped:
+                escaped = False
+            elif quoted and char == '\\':
+                escaped = True
+            elif char == '"':
+                quoted = not quoted
+            elif not quoted:
+                if char == '(':
+                    depth += 1
+                elif char == ')':
+                    depth -= 1
+                elif char == delimiter and depth == 0:
+                    parts.append(value[start:index].strip())
+                    start = index + 1
+        parts.append(value[start:].strip())
+        return parts
+
+    def parse(value):
+        value = value.strip()
+        if value.startswith('(') and value.endswith(')'):
+            items = split_top_level(value[1:-1], ',')
+            if items == ['']:
+                return []
+            fields = [split_top_level(item, '=') for item in items]
+            if any(len(field) > 1 for field in fields):
+                return {field[0]: parse('='.join(field[1:])) for field in fields}
+            return [parse(item) for item in items]
+        if len(value) >= 2 and value[0] == value[-1] == '"':
+            return re.sub(r'\\(["\\])', r'\1', value[1:-1])
+        return value
+
+    ignored = _IGNORED_IMPORT_TEXT_FIELDS.get(property_name, ())
+
+    def satisfies(left, right):
+        if isinstance(left, dict) or isinstance(right, dict):
+            return (isinstance(left, dict) and isinstance(right, dict) and
+                    all(key in left and satisfies(left[key], value)
+                        for key, value in right.items() if key not in ignored))
+        if isinstance(left, list) or isinstance(right, list):
+            return (isinstance(left, list) and isinstance(right, list) and
+                    len(left) == len(right) and
+                    all(satisfies(a, b) for a, b in zip(left, right)))
+        try:
+            a, b = Decimal(left), Decimal(right)
+            if a.is_finite() and b.is_finite():
+                quantum = Decimal('0.000001')
+                return a.quantize(quantum) == b.quantize(quantum)
+        except InvalidOperation:
+            pass
+        if left.lower() in ('true', 'false') and right.lower() in ('true', 'false'):
+            return left.lower() == right.lower()
+        return left.split('::')[-1] == right.split('::')[-1]
+
+    return satisfies(parse(actual), parse(requested))
+
+
 def _set_graph_node_property_verified(handle, name: str, text: str) -> None:
     before = _graph_node_property_or_none(handle, name)
     if before is None:
@@ -718,7 +807,7 @@ def _set_graph_node_property_verified(handle, name: str, text: str) -> None:
     if after is None:
         raise RuntimeError(f'Unable to read back KawaiiPhysics graph node property: {name}')
     if (_normalize_import_text(after, name) == _normalize_import_text(before, name)
-            and _normalize_import_text(text, name) != _normalize_import_text(before, name)):
+            and not _import_text_satisfies(after, text, name)):
         raise RuntimeError(
             f'KawaiiPhysics graph node property {name} was not applied; '
             f'read-back value: {after}')
@@ -1285,9 +1374,18 @@ def _make_bone_sampler_targets(
     name_counts: dict[str, int] = {}
     for _component, bone_name in matches:
         name_counts[bone_name] = name_counts.get(bone_name, 0) + 1
+    component_counts: dict[tuple[str, str], int] = {}
+    for component, bone_name in matches:
+        identity = (str(component.get_name()), bone_name)
+        component_counts[identity] = component_counts.get(identity, 0) + 1
     targets = []
     for component, bone_name in matches:
-        key = bone_name if name_counts[bone_name] == 1 else f'{component.get_name()}.{bone_name}'
+        if name_counts[bone_name] == 1:
+            key = bone_name
+        elif component_counts[(str(component.get_name()), bone_name)] == 1:
+            key = f'{component.get_name()}.{bone_name}'
+        else:
+            key = f'{_actor_label(component.get_owner())}.{component.get_name()}.{bone_name}'
         targets.append((key, component, bone_name))
     return targets
 
@@ -1308,6 +1406,7 @@ def _make_bone_sample_accumulator() -> dict:
 def _accumulate_bone_sample(accumulator: dict, location: list[float]) -> None:
     if any(not math.isfinite(value) for value in location):
         accumulator['nan'] = True
+        accumulator['prev'] = None
         return
 
     if accumulator['count'] == 0:
@@ -1357,7 +1456,7 @@ def _bone_sampler_tick(delta_seconds: float) -> None:
         state['frames_collected'] += 1
     except Exception as error:
         # PIE 終了などでコンポーネントが失効した場合は採取を止めて理由を残す
-        state['error'] = str(error)
+        state['error'] = f'{type(error).__name__}: {error}'
         state['done'] = True
 
     if state['frames_collected'] >= state['frames']:
@@ -1378,7 +1477,6 @@ def _runtime_vector(value):
 
 def _runtime_info_to_dict(info, component_name):
     """Contain all reflected runtime struct reads in one place."""
-    # TODO(verify): UE Python field and enum spellings derived from FKawaiiPhysicsRuntime*Info.
     bones = [{
         'index': int(bone.index), 'bone_name': str(bone.bone_name),
         'dummy_type': _runtime_enum(bone.dummy_type),
@@ -1574,7 +1672,6 @@ def _runtime_snapshot(actor_label, prefer_pie, filter_tag_names, root_bone):
     tags = _make_tag_container(filter_tag_names)
     nodes = []
     for component in components:
-        # TODO(verify): reflected tuple return shape and method name in the target editor.
         count, infos, error = unreal.KawaiiPhysicsLibrary.get_runtime_node_infos_on_component(
             component, tags, False)
         if count < 0:
@@ -2045,11 +2142,11 @@ def _collision_penetration_sampler_tick(delta_seconds):
                 extra_samples = _runtime_sample_nodes(state, actor_state)
                 _accumulate_penetration_actor_tick(state, actor_state, extra_samples, game_time)
             except Exception as error:
-                actor_state['error'] = str(error)
+                actor_state['error'] = f'{type(error).__name__}: {error}'
         if primary['frames_collected'] >= state['frames']:
             _stop_collision_penetration_sampler_impl()
     except Exception as error:
-        state['error'] = str(error)
+        state['error'] = f'{type(error).__name__}: {error}'
         _stop_collision_penetration_sampler_impl()
     finally:
         elapsed_ms = (time.perf_counter() - started) * 1000.0
@@ -2111,6 +2208,8 @@ def _penetration_actor_result(state, actor_state):
 
 
 def _penetration_sampler_result(state):
+    if 'failed_start' in state:
+        return state['failed_start']
     actor_states = state.get('actor_states')
     if not actor_states:
         return _penetration_actor_result(state, state)
@@ -2140,6 +2239,15 @@ def _penetration_sampler_result(state):
     return result
 
 
+def _make_record_header(actor_label, world, warmup_frames, ring_root_bones,
+                        record_extra_bones, closed):
+    """Build a version-one motion recording header."""
+    return {'type': 'header', 'version': 1, 'actor': actor_label, 'world': world,
+            'fixed_frame_rate': None, 'warmup_frames': warmup_frames,
+            'ring_root_bones': ring_root_bones, 'nodes': [],
+            'extra_bones': record_extra_bones, 'closed': closed}
+
+
 def _prepare_penetration_actor(actor_label, prefer_pie, filter_tag_names, root_bone,
                                ring_root_bones, min_depth, max_depth, closed,
                                record_path, record_extra_bones, warmup_frames):
@@ -2154,12 +2262,9 @@ def _prepare_penetration_actor(actor_label, prefer_pie, filter_tag_names, root_b
                    'start_result': result}
     if record_path:
         actor_state.update(record_path=record_path, record_extra_bones=record_extra_bones,
-                           record_header={'type': 'header', 'version': 1,
-                                          'actor': actor_label, 'world': result['world'],
-                                          'fixed_frame_rate': None,
-                                          'warmup_frames': warmup_frames,
-                                          'ring_root_bones': ring_root_bones,
-                                          'nodes': [], 'extra_bones': record_extra_bones},
+                           record_header=_make_record_header(
+                               actor_label, result['world'], warmup_frames,
+                               ring_root_bones, record_extra_bones, closed),
                            record_frames=[], extra_components={})
         result['record_path'] = record_path
         result['recorded_frames'] = 0
@@ -2207,14 +2312,12 @@ def _prepare_penetration_actor(actor_label, prefer_pie, filter_tag_names, root_b
             target['record_keys_by_index'] = {
                 bone['index']: bone['key'] for bone in node['bones']
                 if bone['dummy_type'] in ('None', 'Tip')}
-        record_header = {'type': 'header', 'version': 1, 'actor': actor_label,
-                         'world': result['world'], 'fixed_frame_rate': None,
-                         'warmup_frames': warmup_frames,
-                         'ring_root_bones': ring_root_bones,
-                         'nodes': [_record_node_header(nodes_by_id[target['node_id']],
-                                                       ring_root_bones)
-                                   for target in targets],
-                         'extra_bones': record_extra_bones}
+        record_header = _make_record_header(
+            actor_label, result['world'], warmup_frames, ring_root_bones,
+            record_extra_bones, closed)
+        record_header['nodes'] = [
+            _record_node_header(nodes_by_id[target['node_id']], ring_root_bones)
+            for target in targets]
         for target, header_node in zip(targets, record_header['nodes']):
             target['record_header_node'] = header_node
             target['ring_root_bones'] = ring_root_bones
@@ -2370,12 +2473,9 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         if unknown:
             raise ValueError(f'Root bones not found in skeleton: {unknown}')
         children = _collect_children(modifier, [root for root, _ in roots_and_excludes])
-        skeleton = skeletal_mesh.get_editor_property('skeleton')
-        pose = unreal.AnimPoseExtensions.get_reference_pose(skeleton)
         local_lengths = {}
         for bone in children:
-            transform = unreal.AnimPoseExtensions.get_ref_bone_pose(
-                pose, unreal.Name(bone), unreal.AnimPoseSpaces.LOCAL)
+            transform = modifier.get_bone_transform(unreal.Name(bone), False)
             translation = transform.get_editor_property('translation')
             local_lengths[bone] = math.sqrt(sum(float(getattr(translation, axis))**2
                                                 for axis in ('x', 'y', 'z')))
@@ -3964,16 +4064,17 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
                 if path:
                     actor_states[label].update(
                         record_path=path, record_frames=[],
-                        record_header={'type': 'header', 'version': 1,
-                                       'actor': label, 'world': actor_states[actor_label]['world'],
-                                       'fixed_frame_rate': None, 'warmup_frames': warmup_frames,
-                                       'ring_root_bones': ring_root_bones, 'nodes': [],
-                                       'extra_bones': record_extra_bones})
+                        record_header=_make_record_header(
+                            label, actor_states[actor_label]['world'], warmup_frames,
+                            ring_root_bones, record_extra_bones, closed))
         primary = actor_states[actor_label]
         result = primary['start_result']
         if not primary['targets']:
             result['actors'] = {label: dict(actor['start_result'])
                                 for label, actor in actor_states.items()}
+            _COLLISION_PENETRATION_SAMPLER = {
+                'done': True, 'failed_start': result,
+                'tick_handle': None, 'fixed_frame_rate': None}
             return json.dumps(result)
         _COLLISION_PENETRATION_SAMPLER = {
             'actor': actor_label, 'prefer_pie': prefer_pie,
@@ -3989,7 +4090,6 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         for actor in actor_states.values():
             if actor.get('record_header'):
                 actor['record_header']['fixed_frame_rate'] = state['fixed_frame_rate']
-        # TODO(verify): Slate post-tick callback availability and timing after component evaluation.
         try:
             state['tick_handle'] = unreal.register_slate_post_tick_callback(
                 _collision_penetration_sampler_tick)
@@ -4159,12 +4259,12 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
 
         bones = {}
         for key, accumulator in state['bones'].items():
-            sample_count = max(accumulator['count'], 1)
             step_count = max(accumulator['step_count'], 1)
             bones[key] = {
-                'min': accumulator['min'],
-                'max': accumulator['max'],
-                'mean': [value / sample_count for value in accumulator['sum']],
+                'min': accumulator['min'] if accumulator['count'] else None,
+                'max': accumulator['max'] if accumulator['count'] else None,
+                'mean': ([value / accumulator['count'] for value in accumulator['sum']]
+                         if accumulator['count'] else None),
                 'rms_step': math.sqrt(accumulator['step_square_sum'] / step_count),
                 'nan': accumulator['nan'],
             }
@@ -4444,16 +4544,7 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
 
         collider_count = 0
         for component in components:
-            get_collider_count = getattr(
-                unreal.KawaiiPhysicsLibrary,
-                'get_simple_world_collider_count_on_component',
-                None,
-            )
-            if get_collider_count is None:
-                raise RuntimeError(
-                    'GetSimpleWorldColliderCountOnComponent is not available '
-                    'in this build.')
-            collider_count += int(get_collider_count(
+            collider_count += int(unreal.KawaiiPhysicsLibrary.get_simple_world_collider_count_on_component(
                 component,
                 filter_tags,
                 filter_exact_match,
