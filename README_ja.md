@@ -155,14 +155,14 @@ C++ビルド環境がない方は、以下のリンクからプラグインを�
 
 ### MCP（Experimental）
 
-サンプルプロジェクトでは UE 5.8 の Experimental プラグイン **Unreal MCP** を有効にしており、MCP クライアントからエディタを操作できます。Kawaii Physics は専用の Toolset（`KawaiiPhysicsToolset`）を同梱しており、KawaiiPhysics ノードの作成・プリセットの適用・設定の監査を行えます。
+サンプルプロジェクトでは UE 5.8 の Experimental プラグイン **Unreal MCP** を有効にしており、MCP クライアントからエディタを操作できます。Kawaii Physics は専用の Toolset（`KawaiiPhysicsToolset`）を同梱しており、ノードの作成・編集（KawaiiPhysics / Shared Publisher ノード、コリジョン、外力）、プリセットの適用と監査、PIE での検証（ランタイム情報、ボーンとコリジョンの確認、ボーン／貫通サンプラー、一時的な設定倍率とウィンドガスト）、スカートの確認・調整（リング状のボーン拘束、深さ別の半径、モーションの記録と解析）を行えます。
 
 1. 次のどちらかで MCP サーバーを起動します
    - コンソールコマンド `ModelContextProtocol.StartServer` を実行する（すぐに起動）
    - **Editor Preferences > General > Model Context Protocol** で **Auto Start Server** を有効にする（次回起動から有効。設定はユーザーごとに保存）
 2. MCP クライアントから `http://127.0.0.1:8000/mcp` に接続します。プロジェクト直下の `.mcp.json` にこの設定が入っています。
 
-Toolset は Agent Skill（`KawaiiPhysicsSetupSkill`）も登録し、MCP で KawaiiPhysics ノードを設定・確認するときの注意点を提供します。サンプルプロジェクトには、機能別サンプルの作り方をまとめたプロジェクト用スキル（`Examples/Skills/KawaiiPhysicsSampleAuthoring`）もあります。
+Toolset は Agent Skill（`KawaiiPhysicsSetupSkill`）も登録し、MCP で KawaiiPhysics ノードを設定・調整・確認するときの注意点を提供します。
 
 サーバーはクライアントからのエディタ操作を受け付けます。必要なときだけ起動してください。
 

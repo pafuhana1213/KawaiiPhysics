@@ -160,14 +160,14 @@ The sample project on GitHub includes a sample level and characters.
 
 ### MCP (Experimental)
 
-The sample project enables UE 5.8's experimental **Unreal MCP** plugin, so MCP clients can operate the editor. Kawaii Physics bundles its own toolset (`KawaiiPhysicsToolset`) for creating KawaiiPhysics nodes, applying presets, and auditing settings.
+The sample project enables UE 5.8's experimental **Unreal MCP** plugin, so MCP clients can operate the editor. Kawaii Physics bundles its own toolset (`KawaiiPhysicsToolset`) that covers authoring (adding and editing KawaiiPhysics and Shared Publisher nodes, collision limits and external forces), presets and audits, verification in Play In Editor (runtime node info, bone and collision checks, bone and penetration samplers, temporary settings multipliers and wind gusts), and skirt check-and-tune helpers (ring bone constraints, radius by depth, motion recording and analysis).
 
 1. Start the MCP server with either of the following:
    - Run the console command `ModelContextProtocol.StartServer` (starts immediately)
    - Enable **Auto Start Server** under **Editor Preferences > General > Model Context Protocol** (applies from the next launch; saved per user)
 2. Connect your MCP client to `http://127.0.0.1:8000/mcp`. The `.mcp.json` in the project root already contains this setting.
 
-The toolset also registers an Agent Skill (`KawaiiPhysicsSetupSkill`) with tips for setting up and verifying KawaiiPhysics nodes through MCP. The sample project adds a project skill (`Examples/Skills/KawaiiPhysicsSampleAuthoring`) describing how the feature samples are built.
+The toolset also registers an Agent Skill (`KawaiiPhysicsSetupSkill`) with tips for setting up, tuning and verifying KawaiiPhysics nodes through MCP.
 
 The server lets clients control the editor. Start it only when you need it.
 
