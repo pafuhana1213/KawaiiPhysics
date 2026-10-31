@@ -71,6 +71,7 @@ It allows you to easily and cutely animate things that sway, such as hair, skirt
 - Uses a simple, PhysX-free algorithm, so it stays light at runtime
 - Apply not just wind and gravity, but also custom forces for artistic effect
 - Save and reuse your settings through `DataAsset` and `PhysicsAsset`
+- Limit the bending angle with a cone, or per local axis of the parent bone to build hinges and one-way bends (Per Axis)
 - Constrain the distance between bones to keep skirts from clipping through the legs (BoneConstraint)
 - Sync animation-driven bones (e.g. legs) into the simulation so cloth follows the body and avoids penetration (SyncBone)
 - Drive parameters and external forces at runtime from Blueprint or C++

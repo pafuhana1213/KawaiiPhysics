@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: KawaiiPhysics\n"
-"POT-Creation-Date: 2026-09-28 12:06\n"
-"PO-Revision-Date: 2026-09-28 12:06\n"
+"POT-Creation-Date: 2026-10-31 20:27\n"
+"PO-Revision-Date: 2026-10-31 20:27\n"
 "Language-Team: \n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
@@ -2603,6 +2603,48 @@ msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_Wind:World"
 msgid "World"
 msgstr "World"
 
+#. Key:	KawaiiPhysicsAxisAngleRange
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsAxisAngleRange [ScriptStruct DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsAxisAngleRange [ScriptStruct DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsAxisAngleRange"
+msgid "Kawaii Physics Axis Angle Range"
+msgstr "Kawaii Physics Axis Angle Range"
+
+#. Key:	KawaiiPhysicsAxisAngleRange
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsAxisAngleRange [ScriptStruct ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsAxisAngleRange [ScriptStruct ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsAxisAngleRange"
+msgid "1軸まわりの許容回転範囲。Min と Max をともに0にするとその軸をロック、±180で制限なし\nAllowed rotation range around one axis. Setting both Min and Max to 0 locks the axis; ±180 leaves it free."
+msgstr "1軸まわりの許容回転範囲。Min と Max をともに0にするとその軸をロック、±180で制限なし\nAllowed rotation range around one axis. Setting both Min and Max to 0 locks the axis; ±180 leaves it free."
+
+#. Key:	KawaiiPhysicsAxisAngleRange:Max
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsAxisAngleRange:Max [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsAxisAngleRange:Max [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsAxisAngleRange:Max"
+msgid "Max"
+msgstr "Max"
+
+#. Key:	KawaiiPhysicsAxisAngleRange:Max
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsAxisAngleRange:Max [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsAxisAngleRange:Max [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsAxisAngleRange:Max"
+msgid "正方向の許容角度\nAllowed angle in the positive direction"
+msgstr "正方向の許容角度\nAllowed angle in the positive direction"
+
+#. Key:	KawaiiPhysicsAxisAngleRange:Min
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsAxisAngleRange:Min [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsAxisAngleRange:Min [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsAxisAngleRange:Min"
+msgid "Min"
+msgstr "Min"
+
+#. Key:	KawaiiPhysicsAxisAngleRange:Min
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsAxisAngleRange:Min [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsAxisAngleRange:Min [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsAxisAngleRange:Min"
+msgid "負方向の許容角度\nAllowed angle in the negative direction"
+msgstr "負方向の許容角度\nAllowed angle in the negative direction"
+
 #. Key:	KawaiiPhysicsBoneConstraintsDataAsset
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset [Class DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsBoneConstraintsDataAsset [Class DisplayName meta-data]
@@ -3183,6 +3225,62 @@ msgstr "Prev Rotation"
 msgctxt "UObjectToolTips,KawaiiPhysicsModifyBone:PrevRotation"
 msgid "Previous rotation of the bone"
 msgstr "Previous rotation of the bone"
+
+#. Key:	KawaiiPhysicsPerAxisLimitAngle
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsPerAxisLimitAngle [ScriptStruct DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsPerAxisLimitAngle [ScriptStruct DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsPerAxisLimitAngle"
+msgid "Kawaii Physics Per Axis Limit Angle"
+msgstr "Kawaii Physics Per Axis Limit Angle"
+
+#. Key:	KawaiiPhysicsPerAxisLimitAngle
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsPerAxisLimitAngle [ScriptStruct ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsPerAxisLimitAngle [ScriptStruct ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsPerAxisLimitAngle"
+msgid "親ボーンのローカル軸ごとの角度制限。BoneForwardAxis と同じ軸はツイストにあたり、KawaiiPhysics はツイストを生成しないため無視される。\n有効な2軸の値は楕円状につながり、値が等しければ円錐と一致する\nAngle limit per local axis of the parent bone. The axis matching BoneForwardAxis is the twist axis; KawaiiPhysics never produces twist, so it is ignored.\nThe two active axes form an elliptical boundary that matches a cone when their values are equal."
+msgstr "親ボーンのローカル軸ごとの角度制限。BoneForwardAxis と同じ軸はツイストにあたり、KawaiiPhysics はツイストを生成しないため無視される。\n有効な2軸の値は楕円状につながり、値が等しければ円錐と一致する\nAngle limit per local axis of the parent bone. The axis matching BoneForwardAxis is the twist axis; KawaiiPhysics never produces twist, so it is ignored.\nThe two active axes form an elliptical boundary that matches a cone when their values are equal."
+
+#. Key:	KawaiiPhysicsPerAxisLimitAngle:X
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsPerAxisLimitAngle:X [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsPerAxisLimitAngle:X [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsPerAxisLimitAngle:X"
+msgid "X"
+msgstr "X"
+
+#. Key:	KawaiiPhysicsPerAxisLimitAngle:X
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsPerAxisLimitAngle:X [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsPerAxisLimitAngle:X [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsPerAxisLimitAngle:X"
+msgid "X軸まわりの許容範囲\nAllowed range around the X axis"
+msgstr "X軸まわりの許容範囲\nAllowed range around the X axis"
+
+#. Key:	KawaiiPhysicsPerAxisLimitAngle:Y
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsPerAxisLimitAngle:Y [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsPerAxisLimitAngle:Y [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsPerAxisLimitAngle:Y"
+msgid "Y"
+msgstr "Y"
+
+#. Key:	KawaiiPhysicsPerAxisLimitAngle:Y
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsPerAxisLimitAngle:Y [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsPerAxisLimitAngle:Y [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsPerAxisLimitAngle:Y"
+msgid "Y軸まわりの許容範囲\nAllowed range around the Y axis"
+msgstr "Y軸まわりの許容範囲\nAllowed range around the Y axis"
+
+#. Key:	KawaiiPhysicsPerAxisLimitAngle:Z
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsPerAxisLimitAngle:Z [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsPerAxisLimitAngle:Z [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsPerAxisLimitAngle:Z"
+msgid "Z"
+msgstr "Z"
+
+#. Key:	KawaiiPhysicsPerAxisLimitAngle:Z
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsPerAxisLimitAngle:Z [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsPerAxisLimitAngle:Z [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsPerAxisLimitAngle:Z"
+msgid "Z軸まわりの許容範囲\nAllowed range around the Z axis"
+msgstr "Z軸まわりの許容範囲\nAllowed range around the Z axis"
 
 #. Key:	KawaiiPhysicsRootBoneSetting
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsRootBoneSetting [ScriptStruct DisplayName meta-data]
@@ -3930,8 +4028,36 @@ msgstr "Limit Angle"
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettings:LimitAngle [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSettings:LimitAngle [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSettings:LimitAngle"
-msgid "物理挙動による回転制限。適切に設定することで荒ぶりを抑制\nRotational limitations in physical behavior. Setting the value properly can suppress excessive shaking"
-msgstr "物理挙動による回転制限。適切に設定することで荒ぶりを抑制\nRotational limitations in physical behavior. Setting the value properly can suppress excessive shaking"
+msgid "物理挙動による回転制限。適切に設定することで荒ぶりを抑制。0で制限なし\nRotational limitations in physical behavior. Setting the value properly can suppress excessive shaking. 0 means no limit"
+msgstr "物理挙動による回転制限。適切に設定することで荒ぶりを抑制。0で制限なし\nRotational limitations in physical behavior. Setting the value properly can suppress excessive shaking. 0 means no limit"
+
+#. Key:	KawaiiPhysicsSettings:LimitAngleMode
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettings:LimitAngleMode [EnumProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSettings:LimitAngleMode [EnumProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsSettings:LimitAngleMode"
+msgid "Limit Angle Mode"
+msgstr "Limit Angle Mode"
+
+#. Key:	KawaiiPhysicsSettings:LimitAngleMode
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettings:LimitAngleMode [EnumProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSettings:LimitAngleMode [EnumProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsSettings:LimitAngleMode"
+msgid "角度制限の形状。Per Axis ではヒンジのように特定の軸だけ曲げることが可能\nShape of the angle limit. Per Axis can restrict bending to specific axes, such as a hinge"
+msgstr "角度制限の形状。Per Axis ではヒンジのように特定の軸だけ曲げることが可能\nShape of the angle limit. Per Axis can restrict bending to specific axes, such as a hinge"
+
+#. Key:	KawaiiPhysicsSettings:PerAxisLimitAngle
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettings:PerAxisLimitAngle [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSettings:PerAxisLimitAngle [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsSettings:PerAxisLimitAngle"
+msgid "Per Axis Limit Angle"
+msgstr "Per Axis Limit Angle"
+
+#. Key:	KawaiiPhysicsSettings:PerAxisLimitAngle
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettings:PerAxisLimitAngle [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSettings:PerAxisLimitAngle [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsSettings:PerAxisLimitAngle"
+msgid "親ボーンのローカル軸ごとの回転制限。0はその方向をロックし、ポーズ方向を基準に判定する\nRotational limit per local axis of the parent bone. 0 locks that direction; angles are measured from the pose direction"
+msgstr "親ボーンのローカル軸ごとの回転制限。0はその方向をロックし、ポーズ方向を基準に判定する\nRotational limit per local axis of the parent bone. 0 locks that direction; angles are measured from the pose direction"
 
 #. Key:	KawaiiPhysicsSettings:Radius
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettings:Radius [FloatProperty DisplayName meta-data]
@@ -4028,8 +4154,8 @@ msgstr "Limit Angle"
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettingsMultiplier:LimitAngle [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSettingsMultiplier:LimitAngle [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysicsSettingsMultiplier:LimitAngle"
-msgid "LimitAngleへの倍率。ベースが0（無制限）のボーンは倍率に関わらず無制限のまま。ベースが0より大きいボーンは\n極小値で下限クランプされ、倍率0でも無制限へは反転せず、ほぼ完全にポーズへ追従する\nMultiplier for LimitAngle. Bones whose base value is 0 (unlimited) stay unlimited whatever the multiplier is.\nBones with a base above 0 are clamped to a tiny positive minimum, so even a multiplier of 0 never flips them back to\nunlimited; they follow the pose almost exactly instead."
-msgstr "LimitAngleへの倍率。ベースが0（無制限）のボーンは倍率に関わらず無制限のまま。ベースが0より大きいボーンは\n極小値で下限クランプされ、倍率0でも無制限へは反転せず、ほぼ完全にポーズへ追従する\nMultiplier for LimitAngle. Bones whose base value is 0 (unlimited) stay unlimited whatever the multiplier is.\nBones with a base above 0 are clamped to a tiny positive minimum, so even a multiplier of 0 never flips them back to\nunlimited; they follow the pose almost exactly instead."
+msgid "LimitAngleへの倍率。ベースが0（無制限）のボーンは倍率に関わらず無制限のまま。ベースが0より大きいボーンは\n極小値で下限クランプされ、倍率0でも無制限へは反転せず、ほぼ完全にポーズへ追従する。Per Axis モードでは全軸の Min/Max に掛かり、倍率0で全軸ロックになる\nMultiplier for LimitAngle. Bones whose base value is 0 (unlimited) stay unlimited whatever the multiplier is.\nBones with a base above 0 are clamped to a tiny positive minimum, so even a multiplier of 0 never flips them back to\nunlimited; they follow the pose almost exactly instead. In Per Axis mode it scales Min/Max of every axis, and a multiplier of 0 locks them all."
+msgstr "LimitAngleへの倍率。ベースが0（無制限）のボーンは倍率に関わらず無制限のまま。ベースが0より大きいボーンは\n極小値で下限クランプされ、倍率0でも無制限へは反転せず、ほぼ完全にポーズへ追従する。Per Axis モードでは全軸の Min/Max に掛かり、倍率0で全軸ロックになる\nMultiplier for LimitAngle. Bones whose base value is 0 (unlimited) stay unlimited whatever the multiplier is.\nBones with a base above 0 are clamped to a tiny positive minimum, so even a multiplier of 0 never flips them back to\nunlimited; they follow the pose almost exactly instead. In Per Axis mode it scales Min/Max of every axis, and a multiplier of 0 locks them all."
 
 #. Key:	KawaiiPhysicsSettingsMultiplier:Radius
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSettingsMultiplier:Radius [FloatProperty DisplayName meta-data]
@@ -6002,8 +6128,8 @@ msgstr "Limit Angle"
 #. SourceLocation:	/Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsMultiplierSection:LimitAngle [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsMultiplierSection:LimitAngle [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,MovieSceneKawaiiPhysicsSettingsMultiplierSection:LimitAngle"
-msgid "LimitAngleへの倍率。ベースが0（無制限）のボーンは倍率に関わらず無制限のまま。ベースが0より大きいボーンは\n極小値で下限クランプされ、倍率0でも無制限へは反転せず、ほぼ完全にポーズへ追従する\nMultiplier for LimitAngle. Bones whose base value is 0 (unlimited) stay unlimited whatever the multiplier is.\nBones with a base above 0 are clamped to a tiny positive minimum, so even a multiplier of 0 never flips them back to\nunlimited; they follow the pose almost exactly instead."
-msgstr "LimitAngleへの倍率。ベースが0（無制限）のボーンは倍率に関わらず無制限のまま。ベースが0より大きいボーンは\n極小値で下限クランプされ、倍率0でも無制限へは反転せず、ほぼ完全にポーズへ追従する\nMultiplier for LimitAngle. Bones whose base value is 0 (unlimited) stay unlimited whatever the multiplier is.\nBones with a base above 0 are clamped to a tiny positive minimum, so even a multiplier of 0 never flips them back to\nunlimited; they follow the pose almost exactly instead."
+msgid "LimitAngleへの倍率。ベースが0（無制限）のボーンは倍率に関わらず無制限のまま。ベースが0より大きいボーンは\n極小値で下限クランプされ、倍率0でも無制限へは反転せず、ほぼ完全にポーズへ追従する。Per Axis モードでは全軸の Min/Max に掛かり、倍率0で全軸ロックになる\nMultiplier for LimitAngle. Bones whose base value is 0 (unlimited) stay unlimited whatever the multiplier is.\nBones with a base above 0 are clamped to a tiny positive minimum, so even a multiplier of 0 never flips them back to\nunlimited; they follow the pose almost exactly instead. In Per Axis mode it scales Min/Max of every axis, and a multiplier of 0 locks them all."
+msgstr "LimitAngleへの倍率。ベースが0（無制限）のボーンは倍率に関わらず無制限のまま。ベースが0より大きいボーンは\n極小値で下限クランプされ、倍率0でも無制限へは反転せず、ほぼ完全にポーズへ追従する。Per Axis モードでは全軸の Min/Max に掛かり、倍率0で全軸ロックになる\nMultiplier for LimitAngle. Bones whose base value is 0 (unlimited) stay unlimited whatever the multiplier is.\nBones with a base above 0 are clamped to a tiny positive minimum, so even a multiplier of 0 never flips them back to\nunlimited; they follow the pose almost exactly instead. In Per Axis mode it scales Min/Max of every axis, and a multiplier of 0 locks them all."
 
 #. Key:	MovieSceneKawaiiPhysicsSettingsMultiplierSection:Radius
 #. SourceLocation:	/Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsMultiplierSection:Radius [StructProperty DisplayName meta-data]
@@ -6811,18 +6937,25 @@ msgid "Selects Kawaii Physics consumer nodes with the same Shared Group Tag in t
 msgstr "Selects Kawaii Physics consumer nodes with the same Shared Group Tag in this Animation Blueprint."
 
 #. Key:	FKawaiiPhysicsEditMode
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEd.cpp(43)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEd.cpp(43)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEd.cpp(44)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEd.cpp(44)
 msgctxt "FKawaiiPhysicsModuleEd,FKawaiiPhysicsEditMode"
 msgid "Kawaii Physics"
 msgstr "Kawaii Physics"
 
 #. Key:	DeleteKawaiiCollision
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(972)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(972)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1074)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1074)
 msgctxt "KawaiiPhysicsEditMode,DeleteKawaiiCollision"
 msgid "Delete KawaiiPhysics Collision"
 msgstr "Delete KawaiiPhysics Collision"
+
+#. Key:	PerAxisLimitForwardAxisMismatch
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1675)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1675)
+msgctxt "KawaiiPhysicsEditMode,PerAxisLimitForwardAxisMismatch"
+msgid "Per Axis Limit: Bone Forward Axis does not follow {0} bone(s)"
+msgstr "Per Axis Limit: Bone Forward Axis does not follow {0} bone(s)"
 
 #. Key:	AddKawaiiPhysicsNodes
 #. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2416)
@@ -7005,6 +7138,97 @@ msgstr "KawaiiPhysics のツール群 / KawaiiPhysics tools"
 msgctxt "KawaiiPhysicsEdWindowUtils,KawaiiPhysicsMenuGroup"
 msgid "Kawaii Physics"
 msgstr "Kawaii Physics"
+
+#. Key:	TwistAxisLabel
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(100)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(100)
+msgctxt "KawaiiPhysicsPerAxisLimitAngleCustomization,TwistAxisLabel"
+msgid "{0} (Twist: unused)"
+msgstr "{0} (Twist: unused)"
+
+#. Key:	TwistAxisToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(106)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(106)
+msgctxt "KawaiiPhysicsPerAxisLimitAngleCustomization,TwistAxisToolTip"
+msgid "This axis matches Bone Forward Axis. KawaiiPhysics never twists bones, so it is ignored."
+msgstr "This axis matches Bone Forward Axis. KawaiiPhysics never twists bones, so it is ignored."
+
+#. Key:	SwingAxisToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(108)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(108)
+msgctxt "KawaiiPhysicsPerAxisLimitAngleCustomization,SwingAxisToolTip"
+msgid "Allowed rotation around this local axis of the parent bone. Min and Max of 0 lock the axis."
+msgstr "Allowed rotation around this local axis of the parent bone. Min and Max of 0 lock the axis."
+
+#. Key:	LockAxis
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(147)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(147)
+msgctxt "KawaiiPhysicsPerAxisLimitAngleCustomization,LockAxis"
+msgid "Lock"
+msgstr "Lock"
+
+#. Key:	LockAxisToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(148)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(148)
+msgctxt "KawaiiPhysicsPerAxisLimitAngleCustomization,LockAxisToolTip"
+msgid "Lock this axis (Min and Max to 0)."
+msgstr "Lock this axis (Min and Max to 0)."
+
+#. Key:	LockAxisTransaction
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(152)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(152)
+msgctxt "KawaiiPhysicsPerAxisLimitAngleCustomization,LockAxisTransaction"
+msgid "Lock Limit Angle Axis"
+msgstr "Lock Limit Angle Axis"
+
+#. Key:	FreeAxis
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(161)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(161)
+msgctxt "KawaiiPhysicsPerAxisLimitAngleCustomization,FreeAxis"
+msgid "Free"
+msgstr "Free"
+
+#. Key:	FreeAxisToolTip
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(162)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(162)
+msgctxt "KawaiiPhysicsPerAxisLimitAngleCustomization,FreeAxisToolTip"
+msgid "Free this axis (Min -180, Max 180)."
+msgstr "Free this axis (Min -180, Max 180)."
+
+#. Key:	FreeAxisTransaction
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(166)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(166)
+msgctxt "KawaiiPhysicsPerAxisLimitAngleCustomization,FreeAxisTransaction"
+msgid "Free Limit Angle Axis"
+msgstr "Free Limit Angle Axis"
+
+#. Key:	HeaderHint
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(58)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(58)
+msgctxt "KawaiiPhysicsPerAxisLimitAngleCustomization,HeaderHint"
+msgid "Min / Max around each local axis of the parent bone"
+msgstr "Min / Max around each local axis of the parent bone"
+
+#. Key:	AxisX
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(75)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(75)
+msgctxt "KawaiiPhysicsPerAxisLimitAngleCustomization,AxisX"
+msgid "X"
+msgstr "X"
+
+#. Key:	AxisY
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(76)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(76)
+msgctxt "KawaiiPhysicsPerAxisLimitAngleCustomization,AxisY"
+msgid "Y"
+msgstr "Y"
+
+#. Key:	AxisZ
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(77)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPerAxisLimitAngleCustomization.cpp(77)
+msgctxt "KawaiiPhysicsPerAxisLimitAngleCustomization,AxisZ"
+msgid "Z"
+msgstr "Z"
 
 #. Key:	FindTargetNodesWindowTitle
 #. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsPresetDataAssetDetails.cpp(147)
