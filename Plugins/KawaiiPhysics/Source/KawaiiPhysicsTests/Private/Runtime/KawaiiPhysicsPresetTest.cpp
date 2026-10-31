@@ -56,6 +56,9 @@ namespace
 		Node.SkelCompMoveScale = FVector(0.5f, 0.75f, 1.25f);
 		Node.PhysicsSettings.Damping = 0.42f;
 		Node.PhysicsSettings.Stiffness = 0.73f;
+		Node.PhysicsSettings.LimitAngleMode = EKawaiiPhysicsLimitAngleMode::PerAxis;
+		Node.PhysicsSettings.PerAxisLimitAngle.Z.Min = -12.0f;
+		Node.PhysicsSettings.PerAxisLimitAngle.Z.Max = 34.0f;
 		Node.SphericalLimits.Add(MakeSphereLimit());
 		Node.bSharedCollisionSource = true;
 		Node.BoneConstraintIterationCountBeforeCollision = 2;

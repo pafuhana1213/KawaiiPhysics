@@ -3,6 +3,7 @@
 #include "AnimNode_KawaiiPhysics.h"
 
 #include "AnimationRuntime.h"
+#include "KawaiiPhysicsAngleLimit.h"
 #include "KawaiiPhysicsBoneConstraintsDataAsset.h"
 #include "KawaiiPhysicsCustomExternalForce.h"
 #include "KawaiiPhysicsDeveloperSettings.h"
@@ -213,6 +214,7 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 	const FRichCurve* StiffnessCurve = StiffnessCurveData.GetRichCurveConst();
 	const FRichCurve* RadiusCurve = RadiusCurveData.GetRichCurveConst();
 	const FRichCurve* LimitAngleCurve = LimitAngleCurveData.GetRichCurveConst();
+	const bool bPerAxisLimitAngle = PhysicsSettings.LimitAngleMode == EKawaiiPhysicsLimitAngleMode::PerAxis;
 
 	if (DampingCurve->IsEmpty() && WorldDampingLocationCurve->IsEmpty() && WorldDampingRotationCurve->IsEmpty() &&
 		StiffnessCurve->IsEmpty() && RadiusCurve->IsEmpty() && LimitAngleCurve->IsEmpty())
@@ -242,6 +244,10 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 		const float LimitAngle = BaseLimitAngle > 0.0f
 			                         ? FMath::Max(BaseLimitAngle * OverrideScale.LimitAngle, KINDA_SMALL_NUMBER)
 			                         : 0.0f;
+		const FKawaiiPhysicsPerAxisLimitAngle PerAxisLimitAngle = bPerAxisLimitAngle
+			? KawaiiPhysics::AngleLimit::ScalePerAxisLimitAngle(
+				PhysicsSettings.PerAxisLimitAngle, LimitAngleCurveScale * OverrideScale.LimitAngle)
+			: FKawaiiPhysicsPerAxisLimitAngle();
 
 		for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 		{
@@ -251,6 +257,8 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 			Bone.PhysicsSettings.Stiffness = Stiffness;
 			Bone.PhysicsSettings.Radius = Radius;
 			Bone.PhysicsSettings.LimitAngle = LimitAngle;
+			Bone.PhysicsSettings.LimitAngleMode = PhysicsSettings.LimitAngleMode;
+			Bone.PhysicsSettings.PerAxisLimitAngle = PerAxisLimitAngle;
 		}
 
 		return;
@@ -286,14 +294,21 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 				LengthRate, 1.0f) * OverrideScale.Radius, 0.0f);
 
 		// LimitAngle
-		const float BaseLimitAngle = FMath::Max(
-			PhysicsSettings.LimitAngle * LimitAngleCurve->Eval(
-				LengthRate, 1.0f), 0.0f);
+		const float LimitAngleCurveScale = LimitAngleCurve->Eval(LengthRate, 1.0f);
+		const float BaseLimitAngle = FMath::Max(PhysicsSettings.LimitAngle * LimitAngleCurveScale, 0.0f);
 		// LimitAngle==0 は「制限なし」を意味するため、制限ありのボーンが倍率で0へ落ちて反転しないよう極小値で止める
 		Bone.PhysicsSettings.LimitAngle = BaseLimitAngle > 0.0f
 			                                  ? FMath::Max(BaseLimitAngle * OverrideScale.LimitAngle,
 			                                               KINDA_SMALL_NUMBER)
 			                                  : 0.0f;
+
+		// PerAxis の 0 はロックを意味するため、円錐のような下限クランプは不要
+		Bone.PhysicsSettings.LimitAngleMode = PhysicsSettings.LimitAngleMode;
+		if (bPerAxisLimitAngle)
+		{
+			Bone.PhysicsSettings.PerAxisLimitAngle = KawaiiPhysics::AngleLimit::ScalePerAxisLimitAngle(
+				PhysicsSettings.PerAxisLimitAngle, LimitAngleCurveScale * OverrideScale.LimitAngle);
+		}
 	}
 }
 
@@ -1084,22 +1099,12 @@ void FAnimNode_KawaiiPhysics::RestoreBoneLengthsAndLimits()
 {
 	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 	{
-		if (Bone.bSkipSimulate || Bone.bBridgeDummy ||
-			(bBoneSubdivisionCollisionOnly && Bone.bInterBoneDummy))
+		if (!IsAngleLimitTargetBone(Bone))
 		{
 			continue;
 		}
 
-		int32 ParentIndex = Bone.ParentIndex;
-		if (bBoneSubdivisionCollisionOnly)
-		{
-			// コリジョン専用 dummy の位置は実端点から決まるため、実親を拘束の基準にする。
-			while (ModifyBones.IsValidIndex(ParentIndex) && ModifyBones[ParentIndex].bInterBoneDummy)
-			{
-				ParentIndex = ModifyBones[ParentIndex].ParentIndex;
-			}
-		}
-		const FKawaiiPhysicsModifyBone& ParentBone = ModifyBones[ParentIndex];
+		const FKawaiiPhysicsModifyBone& ParentBone = ModifyBones[GetAngleLimitParentIndex(Bone)];
 		AdjustByAngleLimit(Bone, ParentBone);
 		AdjustByPlanarConstraint(Bone, ParentBone);
 		const float BoneLength = (Bone.PoseLocation - ParentBone.PoseLocation).Size();

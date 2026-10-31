@@ -3,6 +3,7 @@
 #include "AnimNode_KawaiiPhysics.h"
 
 #include "AnimationRuntime.h"
+#include "KawaiiPhysicsAngleLimit.h"
 #include "KawaiiPhysicsBoneConstraintsDataAsset.h"
 #include "KawaiiPhysicsCustomExternalForce.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
@@ -74,6 +75,33 @@ void FAnimNode_KawaiiPhysics::InitializeBoneReferences(const FBoneContainer& Req
 			Target.Bone.Initialize(RequiredBones);
 		}
 	}
+}
+
+int32 FAnimNode_KawaiiPhysics::CountAngleLimitForwardAxisMismatches() const
+{
+	if (PhysicsSettings.LimitAngleMode != EKawaiiPhysicsLimitAngleMode::PerAxis)
+	{
+		return 0;
+	}
+
+	int32 MismatchCount = 0;
+	for (const FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+	{
+		// ダミーのポーズは前方軸から作られるため判定の意味がない
+		if (Bone.bDummy || !Bone.HasParent() || !IsAngleLimitTargetBone(Bone))
+		{
+			continue;
+		}
+
+		const FKawaiiPhysicsModifyBone& ParentBone = ModifyBones[GetAngleLimitParentIndex(Bone)];
+		const FVector PoseDirection = (Bone.PoseLocation - ParentBone.PoseLocation).GetSafeNormal();
+		if (!PoseDirection.IsNearlyZero() &&
+			!KawaiiPhysics::AngleLimit::IsForwardAxisAligned(ParentBone.PoseRotation, BoneForwardAxis, PoseDirection))
+		{
+			++MismatchCount;
+		}
+	}
+	return MismatchCount;
 }
 
 void FAnimNode_KawaiiPhysics::InitModifyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer)

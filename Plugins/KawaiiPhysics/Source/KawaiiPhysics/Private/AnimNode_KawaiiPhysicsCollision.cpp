@@ -4,6 +4,7 @@
 
 #include "Animation/MirrorDataTable.h"
 #include "AnimationRuntime.h"
+#include "KawaiiPhysicsAngleLimit.h"
 #include "KawaiiPhysicsMirrorUtils.h"
 #include "KawaiiPhysicsMirrorTableCache.h"
 #include "KawaiiPhysicsCollisionBuffer.h"
@@ -1361,6 +1362,12 @@ void FAnimNode_KawaiiPhysics::AdjustByAngleLimit(
 	FKawaiiPhysicsModifyBone& Bone,
 	const FKawaiiPhysicsModifyBone& ParentBone)
 {
+	if (Bone.PhysicsSettings.LimitAngleMode == EKawaiiPhysicsLimitAngleMode::PerAxis)
+	{
+		AdjustByPerAxisAngleLimit(Bone, ParentBone);
+		return;
+	}
+
 	if (Bone.PhysicsSettings.LimitAngle == 0.0f)
 	{
 		return;
@@ -1383,6 +1390,30 @@ void FAnimNode_KawaiiPhysics::AdjustByAngleLimit(
 		BoneDir = BoneDir.RotateAngleAxis(-AngleOverLimit, RotationAxis);
 		Bone.Location = BoneDir * (Bone.Location - ParentBone.Location).Size() + ParentBone.Location;
 	}
+}
+
+void FAnimNode_KawaiiPhysics::AdjustByPerAxisAngleLimit(
+	FKawaiiPhysicsModifyBone& Bone,
+	const FKawaiiPhysicsModifyBone& ParentBone)
+{
+	const FVector BoneOffset = Bone.Location - ParentBone.Location;
+	const FVector BoneDirection = BoneOffset.GetSafeNormal();
+	const FVector PoseDirection = (Bone.PoseLocation - ParentBone.PoseLocation).GetSafeNormal();
+	if (BoneDirection.IsNearlyZero() || PoseDirection.IsNearlyZero())
+	{
+		return;
+	}
+
+	using namespace KawaiiPhysics::AngleLimit;
+	const FSwingFrame Frame = MakeSwingFrame(ParentBone.PoseRotation, BoneForwardAxis, PoseDirection);
+	const FVector2f Swing = DecomposeSwing(Frame, PoseDirection, BoneDirection);
+	const FVector2f ClampedSwing = ClampSwing(Swing, MakeSwingLimit(Bone.PhysicsSettings.PerAxisLimitAngle, BoneForwardAxis));
+	if (ClampedSwing == Swing)
+	{
+		return;
+	}
+
+	Bone.Location = ParentBone.Location + ComposeSwing(Frame, PoseDirection, ClampedSwing) * BoneOffset.Size();
 }
 
 void FAnimNode_KawaiiPhysics::AdjustByPlanarConstraint(FKawaiiPhysicsModifyBone& Bone,

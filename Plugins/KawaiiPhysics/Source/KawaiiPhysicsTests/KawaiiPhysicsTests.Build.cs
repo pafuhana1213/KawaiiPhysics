@@ -23,6 +23,7 @@ public class KawaiiPhysicsTests : ModuleRules
 			"MovieScene",
 			"Slate",
 			"SlateCore",
+			"PropertyEditor",
 			"AssetRegistry",
 			"GameplayTags",
 			"DeveloperSettings",

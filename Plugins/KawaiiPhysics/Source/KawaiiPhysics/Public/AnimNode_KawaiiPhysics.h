@@ -1030,6 +1030,8 @@ private:
 	bool bSimBaseBoneInvalidWarned = false;
 	// MirrorDataTable用Skeleton欠落警告をノードごと1回だけ出すためのガード / Guard to log the missing Skeleton warning for MirrorDataTable once per node
 	bool bMirrorSkeletonMissingWarned = false;
+	// BoneForwardAxis不一致警告をノードごと1回だけ出すためのガード / Guard to log the BoneForwardAxis mismatch warning once per node
+	bool bAngleLimitForwardAxisWarned = false;
 #endif
 
 	// PIE caches only skeleton-derived mirror tables. Immutable snapshots are safe across copied nodes.
@@ -1350,6 +1352,38 @@ public:
 	 * Returns the merged bone constraints (BoneConstraints + data asset + automatic dummy constraints, as built by InitBoneConstraints).
 	 */
 	const TArray<FModifyBoneConstraint>& GetMergedBoneConstraints() const { return MergedBoneConstraints; }
+
+	/**
+	 * 角度制限とボーン長復元の対象か。ソルバーとプレビューで同じ判定を使う
+	 * Whether the bone receives the angle limit and bone length restore. Shared by the solver and the preview.
+	 */
+	bool IsAngleLimitTargetBone(const FKawaiiPhysicsModifyBone& Bone) const
+	{
+		return !Bone.bSkipSimulate && !Bone.bBridgeDummy && !(bBoneSubdivisionCollisionOnly && Bone.bInterBoneDummy);
+	}
+
+	/**
+	 * 角度制限の基準になる親のインデックスを返す。コリジョン専用 dummy の位置は実端点から決まるため、実親までたどる
+	 * Returns the index of the parent used as the angle limit reference. Collision-only dummies are placed from the real endpoints, so this walks up to the real parent.
+	 */
+	int32 GetAngleLimitParentIndex(const FKawaiiPhysicsModifyBone& Bone) const
+	{
+		int32 ParentIndex = Bone.ParentIndex;
+		if (bBoneSubdivisionCollisionOnly)
+		{
+			while (ModifyBones.IsValidIndex(ParentIndex) && ModifyBones[ParentIndex].bInterBoneDummy)
+			{
+				ParentIndex = ModifyBones[ParentIndex].ParentIndex;
+			}
+		}
+		return ParentIndex;
+	}
+
+	/**
+	 * Per Axis の角度制限で、BoneForwardAxis がポーズ方向と揃っていない実ボーンの数を返す
+	 * Returns how many real bones have a BoneForwardAxis that does not follow the pose direction under the per-axis angle limit.
+	 */
+	int32 CountAngleLimitForwardAxisMismatches() const;
 
 	// Given a bone index, get the transform in the currently selected simulation space
 	FTransform GetBoneTransformInSimSpace(FComponentSpacePoseContext& Output,
@@ -1848,6 +1882,17 @@ protected:
 	 * @param ParentBone The parent bone.
 	 */
 	void AdjustByAngleLimit(
+		FKawaiiPhysicsModifyBone& Bone,
+		const FKawaiiPhysicsModifyBone& ParentBone);
+
+	/**
+	 * 親ボーンのローカル軸ごとの角度制限に合わせてボーン位置を補正する。
+	 * Adjusts the bone position based on the per-axis angle limit of the parent bone's local axes.
+	 *
+	 * @param Bone The bone to adjust.
+	 * @param ParentBone The parent bone.
+	 */
+	void AdjustByPerAxisAngleLimit(
 		FKawaiiPhysicsModifyBone& Bone,
 		const FKawaiiPhysicsModifyBone& ParentBone);
 

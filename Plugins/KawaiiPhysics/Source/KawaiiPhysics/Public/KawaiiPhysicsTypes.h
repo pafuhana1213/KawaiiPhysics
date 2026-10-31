@@ -101,10 +101,10 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSettingsMultiplier
 
 	/**
 	* LimitAngleへの倍率。ベースが0（無制限）のボーンは倍率に関わらず無制限のまま。ベースが0より大きいボーンは
-	* 極小値で下限クランプされ、倍率0でも無制限へは反転せず、ほぼ完全にポーズへ追従する
+	* 極小値で下限クランプされ、倍率0でも無制限へは反転せず、ほぼ完全にポーズへ追従する。Per Axis モードでは全軸の Min/Max に掛かり、倍率0で全軸ロックになる
 	* Multiplier for LimitAngle. Bones whose base value is 0 (unlimited) stay unlimited whatever the multiplier is.
 	* Bones with a base above 0 are clamped to a tiny positive minimum, so even a multiplier of 0 never flips them back to
-	* unlimited; they follow the pose almost exactly instead.
+	* unlimited; they follow the pose almost exactly instead. In Per Axis mode it scales Min/Max of every axis, and a multiplier of 0 locks them all.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), Category = "Kawaii Physics")
 	float LimitAngle = 1.0f;
@@ -173,6 +173,78 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsRootBoneSetting
 
 
 /**
+ * 角度制限の形状。
+ * Shape of the angle limit.
+ */
+UENUM(BlueprintType)
+enum class EKawaiiPhysicsLimitAngleMode : uint8
+{
+	/** ポーズ方向を中心とする円錐で制限。LimitAngle を使用 / Limit with a cone around the pose direction. Uses LimitAngle */
+	Cone,
+	/** 親ボーンのローカル軸ごとに制限。PerAxisLimitAngle を使用 / Limit per local axis of the parent bone. Uses PerAxisLimitAngle */
+	PerAxis UMETA(DisplayName = "Per Axis"),
+};
+
+/**
+ * 1軸まわりの許容回転範囲。Min と Max をともに0にするとその軸をロック、±180で制限なし
+ * Allowed rotation range around one axis. Setting both Min and Max to 0 locks the axis; ±180 leaves it free.
+ */
+USTRUCT(BlueprintType)
+struct KAWAIIPHYSICS_API FKawaiiPhysicsAxisAngleRange
+{
+	GENERATED_BODY()
+
+	/**
+	* 負方向の許容角度
+	* Allowed angle in the negative direction
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kawaii Physics",
+		meta = (ClampMin = "-180", ClampMax = "0", UIMin = "-180", UIMax = "0", Units = "Degrees"))
+	float Min = -30.0f;
+
+	/**
+	* 正方向の許容角度
+	* Allowed angle in the positive direction
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kawaii Physics",
+		meta = (ClampMin = "0", ClampMax = "180", UIMin = "0", UIMax = "180", Units = "Degrees"))
+	float Max = 30.0f;
+};
+
+/**
+ * 親ボーンのローカル軸ごとの角度制限。BoneForwardAxis と同じ軸はツイストにあたり、KawaiiPhysics はツイストを生成しないため無視される。
+ * 有効な2軸の値は楕円状につながり、値が等しければ円錐と一致する
+ * Angle limit per local axis of the parent bone. The axis matching BoneForwardAxis is the twist axis; KawaiiPhysics never produces twist, so it is ignored.
+ * The two active axes form an elliptical boundary that matches a cone when their values are equal.
+ */
+USTRUCT(BlueprintType)
+struct KAWAIIPHYSICS_API FKawaiiPhysicsPerAxisLimitAngle
+{
+	GENERATED_BODY()
+
+	/**
+	* X軸まわりの許容範囲
+	* Allowed range around the X axis
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kawaii Physics")
+	FKawaiiPhysicsAxisAngleRange X;
+
+	/**
+	* Y軸まわりの許容範囲
+	* Allowed range around the Y axis
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kawaii Physics")
+	FKawaiiPhysicsAxisAngleRange Y;
+
+	/**
+	* Z軸まわりの許容範囲
+	* Allowed range around the Z axis
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kawaii Physics")
+	FKawaiiPhysicsAxisAngleRange Z;
+};
+
+/**
  * 物理制御の設定を表す構造体。
  * Structure representing the settings for KawaiiPhysics.
  */
@@ -221,12 +293,31 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSettings
 		Category = "Kawaii Physics")
 	float Radius = 3.0f;
 
-	/** 
-	* 物理挙動による回転制限。適切に設定することで荒ぶりを抑制
-	* Rotational limitations in physical behavior. Setting the value properly can suppress excessive shaking
+	/**
+	* 角度制限の形状。Per Axis ではヒンジのように特定の軸だけ曲げることが可能
+	* Shape of the angle limit. Per Axis can restrict bending to specific axes, such as a hinge
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", Units = "Degrees"), Category = "Kawaii Physics")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kawaii Physics")
+	EKawaiiPhysicsLimitAngleMode LimitAngleMode = EKawaiiPhysicsLimitAngleMode::Cone;
+
+	/**
+	* 物理挙動による回転制限。適切に設定することで荒ぶりを抑制。0で制限なし
+	* Rotational limitations in physical behavior. Setting the value properly can suppress excessive shaking. 0 means no limit
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,
+		meta = (ClampMin = "0", Units = "Degrees", EditCondition = "LimitAngleMode == EKawaiiPhysicsLimitAngleMode::Cone",
+			EditConditionHides),
+		Category = "Kawaii Physics")
 	float LimitAngle = 0.0f;
+
+	/**
+	* 親ボーンのローカル軸ごとの回転制限。0はその方向をロックし、ポーズ方向を基準に判定する
+	* Rotational limit per local axis of the parent bone. 0 locks that direction; angles are measured from the pose direction
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,
+		meta = (EditCondition = "LimitAngleMode == EKawaiiPhysicsLimitAngleMode::PerAxis", EditConditionHides),
+		Category = "Kawaii Physics")
+	FKawaiiPhysicsPerAxisLimitAngle PerAxisLimitAngle;
 };
 
 /**
