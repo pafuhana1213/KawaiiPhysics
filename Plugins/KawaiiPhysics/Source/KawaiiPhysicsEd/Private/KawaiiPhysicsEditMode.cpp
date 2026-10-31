@@ -103,7 +103,8 @@ namespace
 	}
 
 	// solver と同じ境界計算から扇形を組む。ヒンジでは境界が線になり、平らな扇形として描かれる
-	// 回転軸は UE の軸色で描き、許容範囲の + 側の端に同じ色の点を置いて回転の向きを示す
+	// 回転軸は UE の軸色で描き、許容範囲の端に同じ色の点を置く。+ 側は大きな点、- 側は小さな点で回転の向きを示す
+	// 全方向へ動ける設定は境界が真逆の1点へ潰れるため、扇形の代わりに球で示す
 	void DrawPerAxisLimitShape(FPrimitiveDrawInterface* PDI, const FTransform& ApexToPreview,
 	                           const FQuat& ParentPoseRotation, const FVector& PoseDirection, const float Length,
 	                           const FKawaiiPhysicsPerAxisLimitAngle& Limit, const EBoneForwardAxis ForwardAxis)
@@ -113,41 +114,50 @@ namespace
 		constexpr int32 NumSegments = 48;
 		constexpr float AxisLineLengthRate = 0.5f;
 		constexpr float AxisLineThickness = 0.2f;
-		constexpr float LimitPointSize = 8.0f;
+		constexpr float MaxLimitPointSize = 8.0f;
+		constexpr float MinLimitPointSize = 4.0f;
 
 		const FSwingFrame Frame = MakeSwingFrame(ParentPoseRotation, ForwardAxis, PoseDirection);
 		const FSwingLimit SwingLimit = MakeSwingLimit(Limit, ForwardAxis);
-		const FVector3f TangentX(Frame.AxisA);
-		const FVector3f TangentY(Frame.AxisB);
 
-		FDynamicMeshBuilder MeshBuilder(PDI->View->GetFeatureLevel());
-		MeshBuilder.ReserveVertices(NumSegments + 1);
-		MeshBuilder.ReserveTriangles(NumSegments);
-		MeshBuilder.AddVertex(FVector3f::ZeroVector, FVector2f::ZeroVector, TangentX, TangentY,
-		                      FVector3f(PoseDirection), FColor::White);
-
-		TArray<FVector, TInlineAllocator<NumSegments>> Boundary;
-		for (int32 Index = 0; Index < NumSegments; ++Index)
+		if (IsUnlimited(SwingLimit))
 		{
-			const FVector2f Swing = EvaluateLimitBoundary(SwingLimit, static_cast<float>(Index) / NumSegments);
-			const FVector Direction = ComposeSwing(Frame, PoseDirection, Swing);
-			Boundary.Add(Direction * Length);
-			MeshBuilder.AddVertex(FVector3f(Boundary.Last()), FVector2f::UnitVector, TangentX, TangentY,
-			                      FVector3f(Direction), FColor::White);
+			DrawWireSphere(PDI, ApexToPreview.GetLocation(), FLinearColor::White, Length, NumSegments, SDPG_Foreground);
 		}
-
-		for (int32 Index = 0; Index < NumSegments; ++Index)
+		else
 		{
-			MeshBuilder.AddTriangle(0, Index + 1, (Index + 1) % NumSegments + 1);
-		}
-		MeshBuilder.Draw(PDI, ApexToPreview.ToMatrixWithScale(), GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy(),
-		                 SDPG_World, true, false);
+			const FVector3f TangentX(Frame.AxisA);
+			const FVector3f TangentY(Frame.AxisB);
 
-		for (int32 Index = 0; Index < NumSegments; ++Index)
-		{
-			PDI->DrawLine(ApexToPreview.TransformPosition(Boundary[Index]),
-			              ApexToPreview.TransformPosition(Boundary[(Index + 1) % NumSegments]),
-			              FLinearColor::White, SDPG_Foreground);
+			FDynamicMeshBuilder MeshBuilder(PDI->View->GetFeatureLevel());
+			MeshBuilder.ReserveVertices(NumSegments + 1);
+			MeshBuilder.ReserveTriangles(NumSegments);
+			MeshBuilder.AddVertex(FVector3f::ZeroVector, FVector2f::ZeroVector, TangentX, TangentY,
+			                      FVector3f(PoseDirection), FColor::White);
+
+			TArray<FVector, TInlineAllocator<NumSegments>> Boundary;
+			for (int32 Index = 0; Index < NumSegments; ++Index)
+			{
+				const FVector2f Swing = EvaluateLimitBoundary(SwingLimit, static_cast<float>(Index) / NumSegments);
+				const FVector Direction = ComposeSwing(Frame, PoseDirection, Swing);
+				Boundary.Add(Direction * Length);
+				MeshBuilder.AddVertex(FVector3f(Boundary.Last()), FVector2f::UnitVector, TangentX, TangentY,
+				                      FVector3f(Direction), FColor::White);
+			}
+
+			for (int32 Index = 0; Index < NumSegments; ++Index)
+			{
+				MeshBuilder.AddTriangle(0, Index + 1, (Index + 1) % NumSegments + 1);
+			}
+			MeshBuilder.Draw(PDI, ApexToPreview.ToMatrixWithScale(),
+			                 GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy(), SDPG_World, true, false);
+
+			for (int32 Index = 0; Index < NumSegments; ++Index)
+			{
+				PDI->DrawLine(ApexToPreview.TransformPosition(Boundary[Index]),
+				              ApexToPreview.TransformPosition(Boundary[(Index + 1) % NumSegments]),
+				              FLinearColor::White, SDPG_Foreground);
+			}
 		}
 
 		const auto DrawActiveAxis = [&](const EAxis::Type Axis, const FVector& RotationAxis, const float Min,
@@ -163,11 +173,19 @@ namespace
 			PDI->DrawLine(ApexToPreview.TransformPosition(-AxisOffset), ApexToPreview.TransformPosition(AxisOffset),
 			              Color, SDPG_Foreground, AxisLineThickness);
 
+			const auto DrawLimitPoint = [&](const float Angle, const float PointSize)
+			{
+				const FVector Direction = ComposeSwing(Frame, PoseDirection, SwingDirection * Angle);
+				PDI->DrawPoint(ApexToPreview.TransformPosition(Direction * Length), Color, PointSize, SDPG_Foreground);
+			};
+
 			if (Max > 0.0f)
 			{
-				const FVector Direction = ComposeSwing(Frame, PoseDirection, SwingDirection * Max);
-				PDI->DrawPoint(ApexToPreview.TransformPosition(Direction * Length), Color, LimitPointSize,
-				               SDPG_Foreground);
+				DrawLimitPoint(Max, MaxLimitPointSize);
+			}
+			if (Min < 0.0f)
+			{
+				DrawLimitPoint(Min, MinLimitPointSize);
 			}
 		};
 
@@ -1673,7 +1691,7 @@ void FKawaiiPhysicsEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FVie
 	{
 		DrawTextItem(
 			FText::Format(LOCTEXT("PerAxisLimitForwardAxisMismatch",
-			                      "Per Axis Limit: Bone Forward Axis does not follow {0} bone(s)"),
+			                      "Per Axis Limit: {0} bone(s) are more than 45 degrees off Bone Forward Axis. X/Y/Z may not match the parent bone's local axes"),
 			              ForwardAxisMismatchCount),
 			Canvas, XOffset, DrawPositionY, FontHeight);
 	}

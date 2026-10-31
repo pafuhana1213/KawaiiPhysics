@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: KawaiiPhysics\n"
-"POT-Creation-Date: 2026-10-31 20:27\n"
-"PO-Revision-Date: 2026-10-31 20:27\n"
+"POT-Creation-Date: 2026-10-31 22:52\n"
+"PO-Revision-Date: 2026-10-31 22:52\n"
 "Language-Team: \n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
@@ -724,8 +724,8 @@ msgstr "ボーン長割合によるLimitAngle Rate補正"
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:LimitAngleCurveData [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:LimitAngleCurveData [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:LimitAngleCurveData"
-msgid "各ボーンに適用するPhysics Settings/ LimitAngle パラメータを補正。\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値を各パラメータに乗算\nCorrects the Physics Settings/LimitAngle parameters applied to each bone.\nMultiplies each parameter by the curve value for \"Length from RootBone to specific bone / Length from RootBone to end bone\" (0.0~1.0)."
-msgstr "各ボーンに適用するPhysics Settings/ LimitAngle パラメータを補正。\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値を各パラメータに乗算"
+msgid "各ボーンに適用するPhysics Settings/ LimitAngle パラメータを補正。Per Axis モードでは全軸の Min/Max に乗算\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値を各パラメータに乗算\nCorrects the Physics Settings/LimitAngle parameters applied to each bone. In Per Axis mode it scales Min/Max of every axis.\nMultiplies each parameter by the curve value for \"Length from RootBone to specific bone / Length from RootBone to end bone\" (0.0~1.0)."
+msgstr "各ボーンに適用するPhysics Settings/ LimitAngle パラメータを補正。Per Axis モードでは全軸の Min/Max に乗算\n「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値を各パラメータに乗算"
 
 #. Key:	AnimNode_KawaiiPhysics:LimitsDataAsset
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:LimitsDataAsset [ObjectProperty DisplayName meta-data]
@@ -6944,18 +6944,18 @@ msgid "Kawaii Physics"
 msgstr ""
 
 #. Key:	DeleteKawaiiCollision
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1074)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1074)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1092)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1092)
 msgctxt "KawaiiPhysicsEditMode,DeleteKawaiiCollision"
 msgid "Delete KawaiiPhysics Collision"
 msgstr ""
 
 #. Key:	PerAxisLimitForwardAxisMismatch
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1675)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1675)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1693)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1693)
 msgctxt "KawaiiPhysicsEditMode,PerAxisLimitForwardAxisMismatch"
-msgid "Per Axis Limit: Bone Forward Axis does not follow {0} bone(s)"
-msgstr "軸ごとの角度制限: {0} 本のボーンで Bone Forward Axis がボーンの向きと合っていません"
+msgid "Per Axis Limit: {0} bone(s) are more than 45 degrees off Bone Forward Axis. X/Y/Z may not match the parent bone's local axes"
+msgstr "軸ごとの角度制限: {0} 本のボーンが Bone Forward Axis から45度以上ずれています。X/Y/Z が親ボーンのローカル軸と一致しない場合があります"
 
 #. Key:	AddKawaiiPhysicsNodes
 #. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2416)

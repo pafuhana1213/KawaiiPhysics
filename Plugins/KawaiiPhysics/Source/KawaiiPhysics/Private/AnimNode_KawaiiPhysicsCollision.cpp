@@ -1406,14 +1406,12 @@ void FAnimNode_KawaiiPhysics::AdjustByPerAxisAngleLimit(
 
 	using namespace KawaiiPhysics::AngleLimit;
 	const FSwingFrame Frame = MakeSwingFrame(ParentBone.PoseRotation, BoneForwardAxis, PoseDirection);
-	const FVector2f Swing = DecomposeSwing(Frame, PoseDirection, BoneDirection);
-	const FVector2f ClampedSwing = ClampSwing(Swing, MakeSwingLimit(Bone.PhysicsSettings.PerAxisLimitAngle, BoneForwardAxis));
-	if (ClampedSwing == Swing)
+	FVector ClampedDirection = BoneDirection;
+	if (ClampDirection(Frame, PoseDirection, MakeSwingLimit(Bone.PhysicsSettings.PerAxisLimitAngle, BoneForwardAxis),
+	                   ClampedDirection))
 	{
-		return;
+		Bone.Location = ParentBone.Location + ClampedDirection * BoneOffset.Size();
 	}
-
-	Bone.Location = ParentBone.Location + ComposeSwing(Frame, PoseDirection, ClampedSwing) * BoneOffset.Size();
 }
 
 void FAnimNode_KawaiiPhysics::AdjustByPlanarConstraint(FKawaiiPhysicsModifyBone& Bone,

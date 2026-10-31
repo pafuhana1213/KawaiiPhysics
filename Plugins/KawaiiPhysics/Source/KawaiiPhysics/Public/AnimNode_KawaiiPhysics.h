@@ -407,9 +407,9 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	FRuntimeFloatCurve RadiusCurveData;
 
 	/** 
-	* 各ボーンに適用するPhysics Settings/ LimitAngle パラメータを補正。
+	* 各ボーンに適用するPhysics Settings/ LimitAngle パラメータを補正。Per Axis モードでは全軸の Min/Max に乗算
 	* 「RootBoneから特定のボーンまでの長さ / RootBoneから末端のボーンまでの長さ」(0.0~1.0)の値におけるカーブの値を各パラメータに乗算
-	* Corrects the Physics Settings/LimitAngle parameters applied to each bone.
+	* Corrects the Physics Settings/LimitAngle parameters applied to each bone. In Per Axis mode it scales Min/Max of every axis.
 	* Multiplies each parameter by the curve value for "Length from RootBone to specific bone / Length from RootBone to end bone" (0.0~1.0).
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings|Curves",

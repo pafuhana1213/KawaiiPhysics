@@ -66,9 +66,12 @@ namespace KawaiiPhysics::AngleLimit
 	KAWAIIPHYSICS_API bool IsForwardAxisAligned(const FQuat& ParentPoseRotation, EBoneForwardAxis ForwardAxis,
 	                                            const FVector& PoseDirection);
 
-	/** 現在方向を回転角 (A, B) へ分解する / Decomposes the current direction into rotation angles (A, B) */
+	/**
+	 * 現在方向を回転角 (A, B) へ分解する。ポーズの真逆は回転軸が定まらないため、制限で最も広く動ける向きとして扱う
+	 * Decomposes the current direction into rotation angles (A, B). The opposite of the pose has no defined rotation axis, so it uses the direction the limit allows most.
+	 */
 	KAWAIIPHYSICS_API FVector2f DecomposeSwing(const FSwingFrame& Frame, const FVector& PoseDirection,
-	                                           const FVector& BoneDirection);
+	                                           const FVector& BoneDirection, const FSwingLimit& Limit);
 
 	/** 回転角 (A, B) から方向を求める / Builds a direction from rotation angles (A, B) */
 	KAWAIIPHYSICS_API FVector ComposeSwing(const FSwingFrame& Frame, const FVector& PoseDirection,
@@ -79,6 +82,16 @@ namespace KawaiiPhysics::AngleLimit
 	 * Pulls rotation angles inside the limit shape. Returns the closest point on the shape when outside, or the input when inside
 	 */
 	KAWAIIPHYSICS_API FVector2f ClampSwing(const FVector2f& Swing, const FSwingLimit& Limit);
+
+	/**
+	 * 方向を制限の内側へ戻し、変更したら true を返す。片方の軸だけがロックされたヒンジは、方向をヒンジ面へ投影して面内の角度で判定する
+	 * Pulls a direction inside the limit and returns true when it changed. A hinge, where exactly one axis is locked, projects the direction onto the hinge plane and works on the in-plane angle.
+	 */
+	KAWAIIPHYSICS_API bool ClampDirection(const FSwingFrame& Frame, const FVector& PoseDirection,
+	                                      const FSwingLimit& Limit, FVector& InOutBoneDirection);
+
+	/** 全方向へ動ける設定か / Whether the limit allows every direction */
+	KAWAIIPHYSICS_API bool IsUnlimited(const FSwingLimit& Limit);
 
 	/**
 	 * 制限形状の境界上の点を返す。Alpha は 0-1 で一周する

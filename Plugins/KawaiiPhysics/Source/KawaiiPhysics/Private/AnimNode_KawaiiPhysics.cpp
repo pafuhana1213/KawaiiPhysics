@@ -718,7 +718,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		if (const int32 ForwardAxisMismatchCount = CountAngleLimitForwardAxisMismatches())
 		{
 			KAWAII_LOG_NODE_WARNING_ONCE(bAngleLimitForwardAxisWarned, LogKawaiiPhysics,
-				TEXT("Per Axis angle limit: BoneForwardAxis does not follow the bone direction on %d bone(s). Check BoneForwardAxis, or the axes will not map as intended."),
+				TEXT("Per Axis angle limit: BoneForwardAxis is more than 45 degrees off the bone direction on %d bone(s). The limit axes are aligned to the bone direction, so X/Y/Z may not match the parent bone's local axes. Check BoneForwardAxis if every bone is reported."),
 				ForwardAxisMismatchCount);
 		}
 

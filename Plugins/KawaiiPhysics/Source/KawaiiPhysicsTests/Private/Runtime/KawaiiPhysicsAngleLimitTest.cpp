@@ -74,11 +74,11 @@ bool FKawaiiPhysicsPerAxisLimitHingeTest::RunTest(const FString& Parameters)
 	TestTrue(FString::Printf(TEXT("Hinge clamps to its range: %s"), *Over.Location.ToString()),
 	         Over.Location.Equals(DirectionFromDegrees(60.0f, 0.0f) * 10.0, GAngleLimitTolerance));
 
-	// +Z へ曲げる動きは Y まわりの回転なので、ロックされて平面へ戻る
+	// +Z へ曲げる動きは Y まわりの回転なので、ロックされて平面へ戻る。面内の角度はそのまま保たれる
 	FKawaiiPhysicsModifyBone OffPlane = MakePerAxisBone(DirectionFromDegrees(20.0f, 35.0f) * 10.0, Limit);
 	A.CallAngleLimit(OffPlane, Parent);
 	TestTrue(FString::Printf(TEXT("Hinge removes the locked axis: %s"), *OffPlane.Location.ToString()),
-	         FMath::IsNearlyZero(OffPlane.Location.Z, GAngleLimitTolerance));
+	         OffPlane.Location.Equals(DirectionFromDegrees(20.0f, 0.0f) * 10.0, GAngleLimitTolerance));
 	TestTrue(TEXT("Hinge preserves bone length"),
 	         FMath::IsNearlyEqual(static_cast<float>(OffPlane.Location.Size()), 10.0f, GAngleLimitTolerance));
 
@@ -241,8 +241,13 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerAxisLimitFrameTest,
 bool FKawaiiPhysicsPerAxisLimitFrameTest::RunTest(const FString& Parameters)
 {
 	// +X から +Y への回転は +Z まわり
+	FSwingLimit Limit;
+	Limit.MinA = -180.0f;
+	Limit.MaxA = 180.0f;
+	Limit.MinB = -180.0f;
+	Limit.MaxB = 180.0f;
 	const FSwingFrame FrameX = MakeSwingFrame(FQuat::Identity, EBoneForwardAxis::X_Positive, FVector::XAxisVector);
-	const FVector2f SwingZ = DecomposeSwing(FrameX, FVector::XAxisVector, FVector::YAxisVector);
+	const FVector2f SwingZ = DecomposeSwing(FrameX, FVector::XAxisVector, FVector::YAxisVector, Limit);
 	TestTrue(FString::Printf(TEXT("Rotation sense about local Z: %s"), *SwingZ.ToString()),
 	         SwingZ.Equals(FVector2f(0.0f, 90.0f), GAngleLimitTolerance));
 	TestTrue(TEXT("Compose inverts decompose"),
@@ -325,6 +330,192 @@ bool FKawaiiPhysicsPerAxisLimitAntiParallelTest::RunTest(const FString& Paramete
 }
 
 // ---------------------------------------------------------------------------
+//  軸すれすれの回転でも NaN にならず、最近傍点へ収束する
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerAxisLimitNearAxisTest,
+                                 "KawaiiPhysics.AngleLimit.PerAxis.NearAxis",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsPerAxisLimitNearAxisTest::RunTest(const FString& Parameters)
+{
+	const auto MakeLimit = [](const float ExtentA, const float ExtentB)
+	{
+		FSwingLimit Limit;
+		Limit.MinA = -ExtentA;
+		Limit.MaxA = ExtentA;
+		Limit.MinB = -ExtentB;
+		Limit.MaxB = ExtentB;
+		return Limit;
+	};
+
+	const FSwingLimit Limits[] = {
+		MakeLimit(30.0f, 30.0f), MakeLimit(60.0f, 2.0f), MakeLimit(2.0f, 60.0f),
+		MakeLimit(180.0f, 0.1f), MakeLimit(0.1f, 180.0f), MakeLimit(45.0f, 44.0f)
+	};
+	const float Offsets[] = {0.0f, 1.0e-12f, 1.0e-8f, 1.0e-7f, 1.0e-6f, 1.0e-5f, 1.0e-3f, 0.05f};
+
+	for (const FSwingLimit& Limit : Limits)
+	{
+		for (const float Offset : Offsets)
+		{
+			// A 軸すれすれ（A が範囲外）と B 軸すれすれ（B が範囲外）の両方を見る
+			const FVector2f Inputs[] = {
+				{Limit.MaxA + 20.0f, Offset}, {-(Limit.MaxA + 20.0f), -Offset},
+				{Offset, Limit.MaxB + 20.0f}, {-Offset, -(Limit.MaxB + 20.0f)}
+			};
+			for (const FVector2f& Input : Inputs)
+			{
+				const FVector2f Clamped = ClampSwing(Input, Limit);
+				const float Boundary = FMath::Square(Clamped.X / Limit.MaxA) + FMath::Square(Clamped.Y / Limit.MaxB);
+				if (!TestFalse(FString::Printf(TEXT("Clamp of %s is finite"), *Input.ToString()), Clamped.ContainsNaN()) ||
+					!TestTrue(FString::Printf(TEXT("Clamp of %s is on the boundary: %s"), *Input.ToString(), *Clamped.ToString()),
+					          FMath::IsNearlyEqual(Boundary, 1.0f, 0.001f)))
+				{
+					return false;
+				}
+
+				// 軸すれすれの点の最近傍は軸の端の近くにあり、符号も保たれる
+				const bool bOnAxisA = FMath::Abs(Input.X) > FMath::Abs(Input.Y);
+				const float MainValue = bOnAxisA ? Clamped.X : Clamped.Y;
+				const float MainExtent = bOnAxisA ? Limit.MaxA : Limit.MaxB;
+				const float MainInput = bOnAxisA ? Input.X : Input.Y;
+				TestTrue(FString::Printf(TEXT("Clamp of %s stays at the axis end: %s"), *Input.ToString(), *Clamped.ToString()),
+				         FMath::IsNearlyEqual(MainValue, FMath::Sign(MainInput) * MainExtent, MainExtent * 0.01f));
+			}
+		}
+	}
+
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+//  ポーズの真逆まで許容するヒンジは、真逆やその付近でも跳ね戻らない
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerAxisLimitFreeHingeTest,
+                                 "KawaiiPhysics.AngleLimit.PerAxis.FreeHinge",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsPerAxisLimitFreeHingeTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor A;
+	const FKawaiiPhysicsModifyBone Parent = MakeParent();
+
+	const auto RunHinge = [&](const FVector& Location, const float Min, const float Max)
+	{
+		FKawaiiPhysicsPerAxisLimitAngle Limit;
+		Limit.Y = MakeRange(0.0f, 0.0f);
+		Limit.Z = MakeRange(Min, Max);
+		FKawaiiPhysicsModifyBone Bone = MakePerAxisBone(Location, Limit);
+		A.CallAngleLimit(Bone, Parent);
+		return Bone.Location;
+	};
+
+	const FVector Opposite(-10, 0, 0);
+	TestTrue(TEXT("Free hinge keeps the opposite direction"),
+	         RunHinge(Opposite, -180.0f, 180.0f).Equals(Opposite, GAngleLimitTolerance));
+	TestTrue(TEXT("Positive hinge keeps the opposite direction"),
+	         RunHinge(Opposite, 0.0f, 180.0f).Equals(Opposite, GAngleLimitTolerance));
+	TestTrue(TEXT("Negative hinge keeps the opposite direction"),
+	         RunHinge(Opposite, -180.0f, 0.0f).Equals(Opposite, GAngleLimitTolerance));
+
+	// 範囲外は円周上で近いほうの端へ戻す。±180 の境目をまたいでも跳ばない
+	TestTrue(TEXT("Negative hinge keeps its end across the wrap"),
+	         RunHinge(DirectionFromDegrees(179.0f, 0.0f) * 10.0, -180.0f, 0.0f)
+	         .Equals(Opposite, GAngleLimitTolerance));
+	TestTrue(TEXT("Positive hinge keeps its end across the wrap"),
+	         RunHinge(DirectionFromDegrees(-179.0f, 0.0f) * 10.0, 0.0f, 180.0f)
+	         .Equals(Opposite, GAngleLimitTolerance));
+	TestTrue(TEXT("Out of range returns to the nearer end"),
+	         RunHinge(DirectionFromDegrees(-170.0f, 0.0f) * 10.0, 0.0f, 60.0f)
+	         .Equals(DirectionFromDegrees(60.0f, 0.0f) * 10.0, GAngleLimitTolerance));
+
+	// 真逆の直前で面外へわずかにずれても、面内の角度が保たれる
+	for (const float Yaw : {170.0f, 179.0f, 179.5f, 179.9f, -179.9f})
+	{
+		const FVector Result = RunHinge(DirectionFromDegrees(Yaw, 0.3f) * 10.0, -180.0f, 180.0f);
+		TestTrue(FString::Printf(TEXT("Hinge at yaw %f stays in place: %s"), Yaw, *Result.ToString()),
+		         Result.Equals(DirectionFromDegrees(Yaw, 0.0f) * 10.0, GAngleLimitTolerance));
+	}
+
+	// ロックしていない形でも、真逆へ届く軸があれば維持する
+	FKawaiiPhysicsPerAxisLimitAngle Wide;
+	Wide.Y = MakeRange(-10.0f, 10.0f);
+	Wide.Z = MakeRange(-180.0f, 180.0f);
+	FKawaiiPhysicsModifyBone WideBone = MakePerAxisBone(Opposite, Wide);
+	A.CallAngleLimit(WideBone, Parent);
+	TestTrue(FString::Printf(TEXT("Widest axis keeps the opposite direction: %s"), *WideBone.Location.ToString()),
+	         WideBone.Location.Equals(Opposite, GAngleLimitTolerance));
+
+	// 届かない範囲なら、最も広い方向の端へ戻す
+	FKawaiiPhysicsPerAxisLimitAngle Narrow;
+	Narrow.Y = MakeRange(-10.0f, 10.0f);
+	Narrow.Z = MakeRange(-60.0f, 30.0f);
+	FKawaiiPhysicsModifyBone NarrowBone = MakePerAxisBone(Opposite, Narrow);
+	A.CallAngleLimit(NarrowBone, Parent);
+	TestTrue(FString::Printf(TEXT("Opposite direction returns to the widest end: %s"), *NarrowBone.Location.ToString()),
+	         NarrowBone.Location.Equals(DirectionFromDegrees(-60.0f, 0.0f) * 10.0, GAngleLimitTolerance));
+
+	// 全方向へ動ける設定の判定（プレビューの表示切り替えに使う）
+	FSwingLimit Free;
+	Free.MinA = -180.0f;
+	Free.MaxA = 180.0f;
+	Free.MinB = -180.0f;
+	Free.MaxB = 180.0f;
+	TestTrue(TEXT("Both axes free is unlimited"), IsUnlimited(Free));
+	Free.MaxB = 170.0f;
+	TestFalse(TEXT("A narrower side is limited"), IsUnlimited(Free));
+
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+//  チェーン全体の経路: ボーン間ダミーを飛ばして実親を基準に制限する
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerAxisLimitChainTest,
+                                 "KawaiiPhysics.AngleLimit.PerAxis.Chain",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsPerAxisLimitChainTest::RunTest(const FString& Parameters)
+{
+	// Root(0) -> ボーン間ダミー(1) -> Child(2) -> ボーン間ダミー(3) -> 末端ダミー(4)、Root -> 末端ダミー(5)
+	FKawaiiPhysicsTestAccessor A;
+	A.BuildSyncBoneSubdivisionFixture();
+	A.Node.bBoneSubdivisionCollisionOnly = true;
+
+	FKawaiiPhysicsPerAxisLimitAngle Limit;
+	Limit.Y = MakeRange(0.0f, 0.0f);
+	Limit.Z = MakeRange(-60.0f, 60.0f);
+	for (FKawaiiPhysicsModifyBone& Bone : A.Node.ModifyBones)
+	{
+		Bone.PhysicsSettings.LimitAngleMode = EKawaiiPhysicsLimitAngleMode::PerAxis;
+		Bone.PhysicsSettings.PerAxisLimitAngle = Limit;
+	}
+	A.Node.ModifyBones[0].bSkipSimulate = true;
+
+	// 実親 Root から見て面外へ振れた Child。親がダミー(1)のままだと別の方向へ補正される
+	A.Node.ModifyBones[2].Location = DirectionFromDegrees(30.0f, 40.0f) * 10.0;
+	A.CallRestoreBoneLengthsAndLimits();
+
+	const FVector ExpectedChild = DirectionFromDegrees(30.0f, 0.0f) * 10.0;
+	const FVector Child = A.Node.ModifyBones[2].Location;
+	TestTrue(FString::Printf(TEXT("Child is limited against the real parent: %s"), *Child.ToString()),
+	         Child.Equals(ExpectedChild, GAngleLimitTolerance));
+
+	// コリジョン専用ダミーは実端点の間へ置き直される
+	TestTrue(TEXT("Collision-only dummy follows the limited endpoints"),
+	         A.Node.ModifyBones[1].Location.Equals(ExpectedChild * 0.5, GAngleLimitTolerance));
+
+	// 末端ダミーも同じ制限を受け、Child から見て面内に収まる
+	const FVector TipOffset = A.Node.ModifyBones[4].Location - Child;
+	TestTrue(FString::Printf(TEXT("Tip dummy stays in the hinge plane: %s"), *TipOffset.ToString()),
+	         FMath::IsNearlyZero(static_cast<float>(TipOffset.Z), GAngleLimitTolerance));
+	TestTrue(TEXT("Tip dummy keeps its length"),
+	         FMath::IsNearlyEqual(static_cast<float>(TipOffset.Size()), 4.0f, GAngleLimitTolerance));
+
+	return true;
+}
+
+// ---------------------------------------------------------------------------
 //  カーブと倍率
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerAxisLimitScaleTest,
@@ -383,9 +574,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerAxisLimitForwardMismatchTest,
 
 bool FKawaiiPhysicsPerAxisLimitForwardMismatchTest::RunTest(const FString& Parameters)
 {
-	// 回転 Identity のチェーンが -Z へ伸びるので、前方軸 X はずれ、Z なら揃う
+	// 回転 Identity のチェーンが -Z へ伸びるので、前方軸 X はずれ、Z なら揃う。
+	// root 直下のボーンは放射状に伸びるのが普通なので数えない（4本のうち2本が対象）
 	FKawaiiPhysicsTestAccessor A;
-	A.BuildVerticalChain(3, 10.0f);
+	A.BuildVerticalChain(4, 10.0f);
 
 	A.Node.BoneForwardAxis = EBoneForwardAxis::X_Positive;
 	TestEqual(TEXT("Cone mode never reports a mismatch"), A.Node.CountAngleLimitForwardAxisMismatches(), 0);
@@ -400,7 +592,7 @@ bool FKawaiiPhysicsPerAxisLimitForwardMismatchTest::RunTest(const FString& Param
 }
 
 // ---------------------------------------------------------------------------
-//  親のポーズ回転に追従したチェーン全体のヒンジ（解法の経路）
+//  ヒンジの軸は親のポーズ回転に追従する
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerAxisLimitParentRotationTest,
                                  "KawaiiPhysics.AngleLimit.PerAxis.ParentRotation",

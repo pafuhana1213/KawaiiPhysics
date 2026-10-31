@@ -94,6 +94,12 @@ int32 FAnimNode_KawaiiPhysics::CountAngleLimitForwardAxisMismatches() const
 		}
 
 		const FKawaiiPhysicsModifyBone& ParentBone = ModifyBones[GetAngleLimitParentIndex(Bone)];
+		// スカートや髪のように root から放射状に伸びる構成では、root 直下は前方軸と揃わないのが普通なので数えない
+		if (!ParentBone.HasParent())
+		{
+			continue;
+		}
+
 		const FVector PoseDirection = (Bone.PoseLocation - ParentBone.PoseLocation).GetSafeNormal();
 		if (!PoseDirection.IsNearlyZero() &&
 			!KawaiiPhysics::AngleLimit::IsForwardAxisAligned(ParentBone.PoseRotation, BoneForwardAxis, PoseDirection))
