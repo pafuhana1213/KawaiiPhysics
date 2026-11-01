@@ -83,3 +83,4 @@ __pycache__/
 .idea/
 docs
 *.bak
+.vscode

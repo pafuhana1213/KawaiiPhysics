@@ -517,6 +517,134 @@ namespace KawaiiPhysicsPerfTestPrivate
 		return true;
 	}
 
+	constexpr int32 GExternalForceFilterBoneCount = 600;
+	constexpr int32 GExternalForceFilterBonesPerChain = 4;
+	constexpr int32 GExternalForceFilterSubsteps = 2;
+	constexpr float GExternalForceFilterStepDt = 1.0f / 120.0f;
+
+	bool RunExternalForceFilterPerf(FAutomationTestBase& Test, const TCHAR* TestName,
+	                                const int32 NumForces, const bool bUseBoneFilter)
+	{
+		TArray<double> MsPerFrameValues;
+		MsPerFrameValues.Reserve(GTrials);
+		double Checksum = 0.0;
+		bool bFinite = true;
+
+		for (int32 Trial = 0; Trial < GTrials; ++Trial)
+		{
+			FKawaiiPhysicsTestAccessor A;
+			A.BuildVerticalChain(GExternalForceFilterBoneCount, 5.0f);
+			A.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+			A.SetAllPhysicsSettings(MakePerfSettings());
+			FillLengthRate(A);
+			for (int32 Index = 0; Index < A.Num(); ++Index)
+			{
+				A.Bone(Index).BoneRef.BoneName = FName(TEXT("PerfBone"), Index + 1);
+			}
+
+			for (int32 ForceIndex = 0; ForceIndex < NumForces; ++ForceIndex)
+			{
+				A.Node.ExternalForces.Add(FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_ProceduralWind>());
+			}
+			TArray<FKawaiiPhysics_ExternalForce_ProceduralWind*> Winds;
+			Winds.Reserve(NumForces);
+			for (int32 ForceIndex = 0; ForceIndex < NumForces; ++ForceIndex)
+			{
+				FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = A.GetMutableProceduralWind(ForceIndex);
+				check(Wind);
+				Wind->ExternalForceSpace = EExternalForceSpace::ComponentSpace;
+				Wind->WindDirection = FVector(0.0f, 1.0f, 0.0f);
+				Wind->ConstantForce = 10.0f;
+				Wind->SwayForce = 2.0f;
+				Wind->SwayPeriod = 0.5f;
+				Wind->RandomForce = 1.0f;
+				Wind->RandomForcePeriod = 0.4f;
+				Wind->RipplePhaseOffset = 360.0f / static_cast<float>(NumForces) * static_cast<float>(ForceIndex);
+				if (bUseBoneFilter)
+				{
+					for (int32 Index = 0; Index < A.Num(); ++Index)
+					{
+						if ((Index / GExternalForceFilterBonesPerChain) % NumForces == ForceIndex)
+						{
+							FBoneReference BoneRef;
+							BoneRef.BoneName = A.Bone(Index).BoneRef.BoneName;
+							Wind->ApplyBoneFilter.Add(BoneRef);
+						}
+					}
+				}
+				Winds.Add(Wind);
+			}
+
+			FAnimInstanceProxy AnimInstanceProxy;
+			FComponentSpacePoseContext PoseContext(&AnimInstanceProxy);
+			A.SetSubstepTimeState(GExternalForceFilterStepDt * GExternalForceFilterSubsteps,
+				GExternalForceFilterStepDt);
+			const auto ApplyFrame = [&A, &PoseContext, &Winds]()
+			{
+				for (FKawaiiPhysics_ExternalForce_ProceduralWind* Wind : Winds)
+				{
+					if (Wind->bIsEnabled)
+					{
+						Wind->PreApply(A.Node, PoseContext);
+					}
+				}
+				for (int32 Substep = 0; Substep < GExternalForceFilterSubsteps; ++Substep)
+				{
+					for (int32 Index = 1; Index < A.Num(); ++Index)
+					{
+						for (FKawaiiPhysics_ExternalForce_ProceduralWind* Wind : Winds)
+						{
+							if (Wind->bIsEnabled)
+							{
+								Wind->Apply(A.Bone(Index), A.Node, PoseContext);
+							}
+						}
+					}
+				}
+			};
+
+			const double CalibrationStartSeconds = FPlatformTime::Seconds();
+			RunKawaiiPhysicsPerfCalibrationLoop();
+			const double CalibMs = (FPlatformTime::Seconds() - CalibrationStartSeconds) * 1000.0;
+			for (int32 Frame = 0; Frame < GWarmupFrames; ++Frame)
+			{
+				ApplyFrame();
+			}
+			const double StartSeconds = FPlatformTime::Seconds();
+			for (int32 Frame = 0; Frame < GMeasureFrames; ++Frame)
+			{
+				ApplyFrame();
+			}
+			const double ElapsedSeconds = FPlatformTime::Seconds() - StartSeconds;
+			const double MsPerFrame = ElapsedSeconds * 1000.0 / static_cast<double>(GMeasureFrames);
+
+			Test.AddInfo(FString::Printf(
+				TEXT("PERF_RAW %s trial=%d ms=%.6f calib_ms=%.6f"),
+				TestName, Trial, MsPerFrame, CalibMs));
+			MsPerFrameValues.Add(MsPerFrame);
+			for (int32 Index = 0; Index < A.Num(); ++Index)
+			{
+				const FVector Location = A.Bone(Index).Location;
+				Checksum += Location.X + Location.Y + Location.Z;
+			}
+			if (!A.AllFinite())
+			{
+				Test.AddError(FString::Printf(TEXT("PERF %s produced NaN or Inf"), TestName));
+				bFinite = false;
+			}
+		}
+
+		MsPerFrameValues.Sort();
+		const double MinMsPerFrame = MsPerFrameValues[0];
+		const double MedianMsPerFrame = MsPerFrameValues[GTrials / 2];
+		const double NsPerBoneStep = MedianMsPerFrame * 1000000.0 /
+			(static_cast<double>(GExternalForceFilterBoneCount) * GExternalForceFilterSubsteps);
+		Test.AddInfo(FString::Printf(
+			TEXT("PERF %s median_ms_per_frame=%.6f min_ms_per_frame=%.6f ns_per_bone_step=%.3f checksum=%.6f"),
+			TestName, MedianMsPerFrame, MinMsPerFrame, NsPerBoneStep, Checksum));
+		return bFinite;
+	}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerfChainTest,
                                  "KawaiiPhysics.Perf.Chain",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -620,6 +748,20 @@ bool FKawaiiPhysicsPerfSimpleWorldReadTest::RunTest(const FString& Parameters)
 {
 	bool bOk = RunSimpleWorldReadPerf(*this, TEXT("PublishEveryFrame"), 1);
 	bOk &= RunSimpleWorldReadPerf(*this, TEXT("PublishEvery12"), 12);
+	return bOk;
+}
+
+// フィルタ付き ProceduralWind の PreApply と Apply を、複数外力と固定 substep で計測する。
+// 4 ボーンずつのグループを外力へ振り分け、フィルタ無しとフィルタ有りを比較する。
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerfExternalForceFilterTest,
+                                 "KawaiiPhysics.Perf.ExternalForceFilter",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsPerfExternalForceFilterTest::RunTest(const FString& Parameters)
+{
+	bool bOk = RunExternalForceFilterPerf(*this, TEXT("KawaiiPhysics.Perf.ExternalForceFilter.Unfiltered1"), 1, false);
+	bOk &= RunExternalForceFilterPerf(*this, TEXT("KawaiiPhysics.Perf.ExternalForceFilter.Filtered4"), 4, true);
+	bOk &= RunExternalForceFilterPerf(*this, TEXT("KawaiiPhysics.Perf.ExternalForceFilter.Filtered8"), 8, true);
 	return bOk;
 }
 
