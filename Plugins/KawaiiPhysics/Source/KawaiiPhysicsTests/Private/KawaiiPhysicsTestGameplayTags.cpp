@@ -1,10 +1,8 @@
 // Copyright 2019-2026 pafuhana1213. All Rights Reserved.
 
-#include "CoreMinimal.h"
+#include "KawaiiPhysicsTestGameplayTags.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
-
-#include "KawaiiPhysicsTestGameplayTags.h"
 
 #include "Containers/Array.h"
 #include "GameplayTagsManager.h"

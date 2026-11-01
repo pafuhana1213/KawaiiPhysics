@@ -151,7 +151,7 @@ bool FKawaiiPhysicsLibraryRuntimeNodeInfoSharedAndGroundSourcesTest::RunTest(con
 		bOk &= TestTrue(TEXT("Root skips simulation and collision"), Info.Bones[0].bSkipSimulate);
 		bOk &= TestFalse(TEXT("Tip is simulated"), Info.Bones[1].bSkipSimulate);
 		bOk &= TestTrue(TEXT("Tip dummy kind"), Info.Bones[1].DummyType == EKawaiiPhysicsDummyBoneType::Tip);
-		bOk &= TestEqual(TEXT("Tip dummy name"), Info.Bones[1].BoneName, NAME_None);
+		bOk &= TestEqual(TEXT("Tip dummy name"), Info.Bones[1].BoneName, FName(NAME_None));
 		bOk &= TestTrue(TEXT("Component-space bone location"), Info.Bones[0].Location.Equals(FVector(10.0f, 0.0f, 0.0f)));
 	}
 	if (Info.Limits.Num() == 5)
@@ -164,7 +164,7 @@ bool FKawaiiPhysicsLibraryRuntimeNodeInfoSharedAndGroundSourcesTest::RunTest(con
 		bOk &= TestTrue(TEXT("Tapered fallback center"), Info.Limits[2].Start.Equals(FVector(0.0f, 0.0f, 22.0f)));
 		bOk &= TestTrue(TEXT("Shared source"), Info.Limits[3].SourceType == ECollisionSourceType::Shared);
 		bOk &= TestEqual(TEXT("Shared array"), Info.Limits[3].SourceArrayName, FName(TEXT("SharedCapsuleLimits")));
-		bOk &= TestEqual(TEXT("Shared driving bone"), Info.Limits[3].DrivingBone, NAME_None);
+		bOk &= TestEqual(TEXT("Shared driving bone"), Info.Limits[3].DrivingBone, FName(NAME_None));
 		bOk &= TestTrue(TEXT("Shared capsule enabled"), Info.Limits[3].bEnabled);
 		bOk &= TestEqual(TEXT("Ground box array"), Info.Limits[4].SourceArrayName, FName(TEXT("SimpleWorldGroundBoxLimits")));
 		bOk &= TestTrue(TEXT("Ground box source"), Info.Limits[4].SourceType == ECollisionSourceType::SimpleWorld);

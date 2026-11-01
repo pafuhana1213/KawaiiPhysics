@@ -3384,6 +3384,12 @@ namespace KawaiiPhysicsEditorLibraryPrivate
 			}
 
 			// ネストした構造体はカーブ等のデータを失わないようフラグで絞らずに変換する
+#if UE_VERSION_OLDER_THAN(5, 4, 0)
+			// 5.3 には変換フラグが無い。ネストしたキーの先頭は小文字になるが、読み込みは大文字小文字を区別しない
+			const TSharedPtr<FJsonValue> JsonValue = FJsonObjectConverter::UPropertyToJsonValue(
+				Property,
+				Property->ContainerPtrToValuePtr<void>(Memory));
+#else
 			const TSharedPtr<FJsonValue> JsonValue = FJsonObjectConverter::UPropertyToJsonValue(
 				Property,
 				Property->ContainerPtrToValuePtr<void>(Memory),
@@ -3392,6 +3398,7 @@ namespace KawaiiPhysicsEditorLibraryPrivate
 				nullptr,
 				nullptr,
 				EJsonObjectConversionFlags::SkipStandardizeCase);
+#endif
 			if (JsonValue.IsValid())
 			{
 				JsonObject->SetField(Property->GetName(), JsonValue);
