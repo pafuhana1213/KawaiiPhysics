@@ -10,6 +10,7 @@
 #include "IPersonaPreviewScene.h"
 #include "KawaiiPhysics.h"
 #include "KawaiiPhysicsAngleLimit.h"
+#include "KawaiiPhysicsEditorSettings.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
 #include "ScopedTransaction.h"
@@ -48,6 +49,13 @@ IMPLEMENT_HIT_PROXY(HKawaiiPhysicsHitProxy, HHitProxy);
 
 namespace
 {
+	// 色と不透明度の両方をパラメータで変えられるエンジンのマテリアル
+	const TCHAR* CollisionMaterialPath = TEXT("/Engine/EditorMaterials/PhAT_ElemSelectedMaterial.PhAT_ElemSelectedMaterial");
+	const FName CollisionMaterialColorName(TEXT("SelectionColor"));
+	const FName CollisionMaterialOpacityName(TEXT("Opacity"));
+
+	constexpr float PlanarLimitHalfSize = 200.0f;
+
 	// 回転体の断面点。NormalRadius / NormalZ は断面内の法線（半径方向・Z 成分）
 	struct FTaperedCapsuleProfilePoint
 	{
@@ -200,7 +208,8 @@ namespace
 	// Edit Mode の表示を実際の衝突形状と一致させるため、solver と同じプロファイルから独自メッシュを組む
 	void DrawTaperedCapsuleSolverShape(FPrimitiveDrawInterface* PDI, FVector Location,
 	                                   const FQuat& Rotation, float Radius0, float Radius1, float Length,
-	                                   const FMaterialRenderProxy* MaterialProxy, const FHitProxyId HitProxyId)
+	                                   const FMaterialRenderProxy* MaterialProxy, const FHitProxyId HitProxyId,
+	                                   const FKawaiiPhysicsCollisionDrawStyle& Style)
 	{
 		// solver と同じく負値は 0 に丸める
 		Radius0 = FMath::Max(Radius0, 0.0f);
@@ -264,6 +273,11 @@ namespace
 		MeshBuilder.Draw(PDI, ShapeTransform.ToMatrixWithScale(), MaterialProxy, SDPG_World,
 		                 false, true, HitProxyId);
 
+		if (!Style.bDrawBorder)
+		{
+			return;
+		}
+
 		// ワイヤ: 緯線リング
 		for (int32 ProfileIndex = 0; ProfileIndex < Profile.Num(); ++ProfileIndex)
 		{
@@ -276,7 +290,7 @@ namespace
 				const FVector Local0(Point.Radius * FMath::Cos(Angle0), Point.Radius * FMath::Sin(Angle0), Point.Z);
 				const FVector Local1(Point.Radius * FMath::Cos(Angle1), Point.Radius * FMath::Sin(Angle1), Point.Z);
 				PDI->DrawLine(ShapeTransform.TransformPosition(Local0), ShapeTransform.TransformPosition(Local1),
-				              FLinearColor::Black, SDPG_World);
+				              Style.BorderColor, SDPG_World, Style.BorderThickness);
 			}
 		}
 
@@ -291,9 +305,42 @@ namespace
 				const FVector Local0(Point0.Radius * FMath::Cos(Angle), Point0.Radius * FMath::Sin(Angle), Point0.Z);
 				const FVector Local1(Point1.Radius * FMath::Cos(Angle), Point1.Radius * FMath::Sin(Angle), Point1.Z);
 				PDI->DrawLine(ShapeTransform.TransformPosition(Local0), ShapeTransform.TransformPosition(Local1),
-				              FLinearColor::Black, SDPG_World);
+				              Style.BorderColor, SDPG_World, Style.BorderThickness);
 			}
 		}
+	}
+
+	void DrawPlanarLimitShape(FPrimitiveDrawInterface* PDI, const FMatrix& PlaneToWorld,
+	                          const FMaterialRenderProxy* MaterialProxy)
+	{
+		// ヒットテストは GetCollisionMaterialProxy と同じ理由で従来の描画のままにする
+		if (PDI->IsHitTesting())
+		{
+			DrawPlane10x10(PDI, PlaneToWorld, PlanarLimitHalfSize, FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f),
+			               MaterialProxy, SDPG_World);
+			return;
+		}
+
+		// コリジョンのマテリアルは片面なので、裏からも見えるようカリングを切った板で描く
+		// 法線をカメラ側へ向け、両面マテリアルと同じく裏から見ても同じ陰影にする
+		const bool bViewFromBack = FVector::DotProduct(PDI->View->ViewLocation - PlaneToWorld.GetOrigin(),
+		                                               PlaneToWorld.GetUnitAxis(EAxis::Z)) < 0.0;
+		const FVector3f TangentX(1.0f, 0.0f, 0.0f);
+		const FVector3f TangentY(0.0f, 1.0f, 0.0f);
+		const FVector3f Normal(0.0f, 0.0f, bViewFromBack ? -1.0f : 1.0f);
+
+		FDynamicMeshBuilder MeshBuilder(PDI->View->GetFeatureLevel());
+		MeshBuilder.AddVertex(FVector3f(-PlanarLimitHalfSize, -PlanarLimitHalfSize, 0.0f), FVector2f(0.0f, 0.0f),
+		                      TangentX, TangentY, Normal, FColor::White);
+		MeshBuilder.AddVertex(FVector3f(-PlanarLimitHalfSize, PlanarLimitHalfSize, 0.0f), FVector2f(0.0f, 1.0f),
+		                      TangentX, TangentY, Normal, FColor::White);
+		MeshBuilder.AddVertex(FVector3f(PlanarLimitHalfSize, PlanarLimitHalfSize, 0.0f), FVector2f(1.0f, 1.0f),
+		                      TangentX, TangentY, Normal, FColor::White);
+		MeshBuilder.AddVertex(FVector3f(PlanarLimitHalfSize, -PlanarLimitHalfSize, 0.0f), FVector2f(1.0f, 0.0f),
+		                      TangentX, TangentY, Normal, FColor::White);
+		MeshBuilder.AddTriangle(0, 1, 2);
+		MeshBuilder.AddTriangle(0, 2, 3);
+		MeshBuilder.Draw(PDI, PlaneToWorld, MaterialProxy, SDPG_World, true, false);
 	}
 }
 
@@ -334,12 +381,23 @@ void FKawaiiPhysicsEditMode::EnterMode(UAnimGraphNode_Base* InEditorNode, FAnimN
 		BoundLimitsDataAsset = RuntimeNode->LimitsDataAsset;
 	}
 
-	UMaterialInterface* BaseElemSelectedMaterial = LoadObject<UMaterialInterface>(
-		nullptr, TEXT("/Engine/EditorMaterials/PhAT_UnselectedMaterial.PhAT_UnselectedMaterial"), nullptr,
-		LOAD_None, nullptr);
-	PhysicsAssetBodyMaterial = UMaterialInstanceDynamic::Create(
-		BaseElemSelectedMaterial, GetTransientPackage());
-	PhysicsAssetBodyMaterial->SetScalarParameterValue(TEXT("Opacity"), 0.2f);
+	UMaterialInterface* BaseCollisionMaterial = LoadObject<UMaterialInterface>(
+		nullptr, CollisionMaterialPath, nullptr, LOAD_None, nullptr);
+	CollisionMaterials.Reset();
+	for (const ECollisionLimitType LimitType : {
+		     ECollisionLimitType::Spherical, ECollisionLimitType::Capsule, ECollisionLimitType::TaperedCapsule,
+		     ECollisionLimitType::Box, ECollisionLimitType::Planar
+	     })
+	{
+		for (const ECollisionSourceType SourceType : {
+			     ECollisionSourceType::AnimNode, ECollisionSourceType::DataAsset, ECollisionSourceType::PhysicsAsset,
+			     ECollisionSourceType::Mirror
+		     })
+		{
+			CollisionMaterials.Add(FCollisionMaterialKey(LimitType, SourceType),
+			                       UMaterialInstanceDynamic::Create(BaseCollisionMaterial, GetTransientPackage()));
+		}
+	}
 
 	FAnimNodeEditMode::EnterMode(InEditorNode, InRuntimeNode);
 }
@@ -357,8 +415,19 @@ void FKawaiiPhysicsEditMode::ExitMode()
 
 	GraphNode = nullptr;
 	RuntimeNode = nullptr;
+	CollisionMaterials.Reset();
 
 	FAnimNodeEditMode::ExitMode();
+}
+
+void FKawaiiPhysicsEditMode::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	FAnimNodeEditMode::AddReferencedObjects(Collector);
+
+	for (TPair<FCollisionMaterialKey, TObjectPtr<UMaterialInstanceDynamic>>& Pair : CollisionMaterials)
+	{
+		Collector.AddReferencedObject(Pair.Value);
+	}
 }
 
 void FKawaiiPhysicsEditMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
@@ -374,6 +443,8 @@ void FKawaiiPhysicsEditMode::Render(const FSceneView* View, FViewport* Viewport,
 	if (SkelMeshComp && SkelMeshComp->GetSkeletalMeshAsset() && SkelMeshComp->GetSkeletalMeshAsset()->GetSkeleton() &&
 		FAnimWeight::IsRelevant(RuntimeNode->GetAlpha()) && RuntimeNode->IsRecentlyEvaluated())
 	{
+		UpdateCollisionMaterials();
+
 		RenderModifyBones(PDI);
 		RenderLimitAngle(PDI);
 		RenderSyncBone(PDI);
@@ -583,12 +654,64 @@ void FKawaiiPhysicsEditMode::RenderSyncBone(FPrimitiveDrawInterface* PDI) const
 	}
 }
 
+void FKawaiiPhysicsEditMode::UpdateCollisionMaterials()
+{
+	const UKawaiiPhysicsEditorSettings* Settings = GetDefault<UKawaiiPhysicsEditorSettings>();
+	for (const TPair<FCollisionMaterialKey, TObjectPtr<UMaterialInstanceDynamic>>& Pair : CollisionMaterials)
+	{
+		const FLinearColor& Color = Settings->GetCollisionDrawStyle(Pair.Key.Key).GetColor(Pair.Key.Value);
+		Pair.Value->SetVectorParameterValue(CollisionMaterialColorName, Color);
+		Pair.Value->SetScalarParameterValue(CollisionMaterialOpacityName, Color.A);
+	}
+}
+
+const FMaterialRenderProxy* FKawaiiPhysicsEditMode::GetCollisionMaterialProxy(FPrimitiveDrawInterface* PDI,
+                                                                              const ECollisionLimitType LimitType,
+                                                                              const ECollisionSourceType SourceType) const
+{
+	// ヒットテストには色も不透明度も関係しない。クリック判定が変わらないよう従来のマテリアルで描く
+	// （ConstraintLimitMaterial はカメラ側へ押し出す WPO を持つ）。不透明度 0 でもクリックで選択できる
+	if (PDI->IsHitTesting() && SourceType != ECollisionSourceType::PhysicsAsset)
+	{
+		return GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy();
+	}
+
+	const TObjectPtr<UMaterialInstanceDynamic>* Material =
+		CollisionMaterials.Find(FCollisionMaterialKey(LimitType, SourceType));
+	return Material ? (*Material)->GetRenderProxy() : nullptr;
+}
+
+template <typename TLimit, typename TDrawLimit>
+void FKawaiiPhysicsEditMode::RenderLimitsPerSource(FPrimitiveDrawInterface* PDI, const ECollisionLimitType LimitType,
+                                                   const TArray<TLimit>& NodeLimits, const TArray<TLimit>& DataLimits,
+                                                   const TDrawLimit& DrawLimit) const
+{
+	for (int32 i = 0; i < NodeLimits.Num(); i++)
+	{
+		DrawLimit(NodeLimits[i], i, GetCollisionMaterialProxy(PDI, LimitType, ECollisionSourceType::AnimNode), true);
+	}
+
+	for (int32 i = 0; i < DataLimits.Num(); i++)
+	{
+		const ECollisionSourceType SourceType = DataLimits[i].SourceType;
+		if (SourceType == ECollisionSourceType::DataAsset || SourceType == ECollisionSourceType::PhysicsAsset ||
+			SourceType == ECollisionSourceType::Mirror)
+		{
+			// 直接編集できる DataAsset 由来だけクリックで選択でき、PhysicsAsset / Mirror 由来は表示のみ
+			DrawLimit(DataLimits[i], i, GetCollisionMaterialProxy(PDI, LimitType, SourceType),
+			          SourceType == ECollisionSourceType::DataAsset);
+		}
+	}
+}
+
 void FKawaiiPhysicsEditMode::RenderSphericalLimits(FPrimitiveDrawInterface* PDI) const
 {
 	if (!GraphNode->bEnableDebugDrawSphereLimit)
 	{
 		return;
 	}
+
+	const FKawaiiPhysicsCollisionDrawStyle& Style = GetDefault<UKawaiiPhysicsEditorSettings>()->Sphere;
 
 	auto DrawSphereLimit = [&](const auto& Sphere, int32 Index, const FMaterialRenderProxy* MaterialProxy, bool bUseHit)
 	{
@@ -608,39 +731,17 @@ void FKawaiiPhysicsEditMode::RenderSphericalLimits(FPrimitiveDrawInterface* PDI)
 				                 : nullptr);
 			DrawSphere(PDI, Location, FRotator::ZeroRotator, FVector(Sphere.Radius), 24, 6, MaterialProxy,
 			           SDPG_World);
-			DrawWireSphere(PDI, Location, FLinearColor::Black, Sphere.Radius, 24, SDPG_World);
+			if (Style.bDrawBorder)
+			{
+				DrawWireSphere(PDI, Location, Style.BorderColor, Sphere.Radius, 24, SDPG_World, Style.BorderThickness);
+			}
 			DrawCoordinateSystem(PDI, Location, Rotation.Rotator(), Sphere.Radius, SDPG_World + 1);
 			PDI->SetHitProxy(nullptr);
 		}
 	};
 
-	for (int32 i = 0; i < RuntimeNode->SphericalLimits.Num(); i++)
-	{
-		DrawSphereLimit(RuntimeNode->SphericalLimits[i], i,
-		                GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy(), true);
-	}
-
-	for (int32 i = 0; i < RuntimeNode->SphericalLimitsData.Num(); i++)
-	{
-		if (RuntimeNode->SphericalLimitsData[i].SourceType == ECollisionSourceType::DataAsset)
-		{
-			DrawSphereLimit(RuntimeNode->SphericalLimitsData[i], i,
-			                GEngine->ConstraintLimitMaterialZ->GetRenderProxy(), true);
-		}
-		else if (RuntimeNode->SphericalLimitsData[i].SourceType == ECollisionSourceType::PhysicsAsset)
-		{
-			if (PhysicsAssetBodyMaterial->IsValidLowLevel())
-			{
-				DrawSphereLimit(RuntimeNode->SphericalLimitsData[i], i, PhysicsAssetBodyMaterial->GetRenderProxy(),
-				                false);
-			}
-		}
-		else if (RuntimeNode->SphericalLimitsData[i].SourceType == ECollisionSourceType::Mirror)
-		{
-			DrawSphereLimit(RuntimeNode->SphericalLimitsData[i], i,
-			                GEngine->ConstraintLimitMaterialX->GetRenderProxy(), false);
-		}
-	}
+	RenderLimitsPerSource(PDI, ECollisionLimitType::Spherical, RuntimeNode->SphericalLimits,
+	                      RuntimeNode->SphericalLimitsData, DrawSphereLimit);
 }
 
 void FKawaiiPhysicsEditMode::RenderCapsuleLimit(FPrimitiveDrawInterface* PDI) const
@@ -649,6 +750,8 @@ void FKawaiiPhysicsEditMode::RenderCapsuleLimit(FPrimitiveDrawInterface* PDI) co
 	{
 		return;
 	}
+
+	const FKawaiiPhysicsCollisionDrawStyle& Style = GetDefault<UKawaiiPhysicsEditorSettings>()->Capsule;
 
 	auto DrawCapsule = [&](const auto& Capsule, int32 Index, const FMaterialRenderProxy* MaterialProxy,
 	                       bool bUseHit)
@@ -678,39 +781,18 @@ void FKawaiiPhysicsEditMode::RenderCapsuleLimit(FPrimitiveDrawInterface* PDI) co
 			           FVector(Capsule.Radius), 24, 6, MaterialProxy, SDPG_World);
 			DrawSphere(PDI, Location - ZAxis * Capsule.Length * 0.5f, Rotation.Rotator(),
 			           FVector(Capsule.Radius), 24, 6, MaterialProxy, SDPG_World);
-			DrawWireCapsule(PDI, Location, XAxis, YAxis, ZAxis, FLinearColor::Black, Capsule.Radius,
-			                0.5f * Capsule.Length + Capsule.Radius, 25, SDPG_World);
+			if (Style.bDrawBorder)
+			{
+				DrawWireCapsule(PDI, Location, XAxis, YAxis, ZAxis, Style.BorderColor, Capsule.Radius,
+				                0.5f * Capsule.Length + Capsule.Radius, 25, SDPG_World, Style.BorderThickness);
+			}
 			DrawCoordinateSystem(PDI, Location, Rotation.Rotator(), Capsule.Radius, SDPG_World + 1);
 			PDI->SetHitProxy(nullptr);
 		}
 	};
 
-	for (int32 i = 0; i < RuntimeNode->CapsuleLimits.Num(); i++)
-	{
-		DrawCapsule(RuntimeNode->CapsuleLimits[i], i, GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy(),
-		            true);
-	}
-
-	for (int32 i = 0; i < RuntimeNode->CapsuleLimitsData.Num(); i++)
-	{
-		if (RuntimeNode->CapsuleLimitsData[i].SourceType == ECollisionSourceType::DataAsset)
-		{
-			DrawCapsule(RuntimeNode->CapsuleLimitsData[i], i,
-			            GEngine->ConstraintLimitMaterialZ->GetRenderProxy(), true);
-		}
-		else if (RuntimeNode->CapsuleLimitsData[i].SourceType == ECollisionSourceType::PhysicsAsset)
-		{
-			if (PhysicsAssetBodyMaterial->IsValidLowLevel())
-			{
-				DrawCapsule(RuntimeNode->CapsuleLimitsData[i], i, PhysicsAssetBodyMaterial->GetRenderProxy(), false);
-			}
-		}
-		else if (RuntimeNode->CapsuleLimitsData[i].SourceType == ECollisionSourceType::Mirror)
-		{
-			DrawCapsule(RuntimeNode->CapsuleLimitsData[i], i,
-			            GEngine->ConstraintLimitMaterialX->GetRenderProxy(), false);
-		}
-	}
+	RenderLimitsPerSource(PDI, ECollisionLimitType::Capsule, RuntimeNode->CapsuleLimits,
+	                      RuntimeNode->CapsuleLimitsData, DrawCapsule);
 }
 
 void FKawaiiPhysicsEditMode::RenderTaperedCapsuleLimit(FPrimitiveDrawInterface* PDI) const
@@ -719,6 +801,8 @@ void FKawaiiPhysicsEditMode::RenderTaperedCapsuleLimit(FPrimitiveDrawInterface* 
 	{
 		return;
 	}
+
+	const FKawaiiPhysicsCollisionDrawStyle& Style = GetDefault<UKawaiiPhysicsEditorSettings>()->TaperedCapsule;
 
 	auto DrawTaperedCapsule = [&](const auto& TaperedCapsule, int32 Index, const FMaterialRenderProxy* MaterialProxy,
 	                              bool bUseHit)
@@ -744,40 +828,15 @@ void FKawaiiPhysicsEditMode::RenderTaperedCapsuleLimit(FPrimitiveDrawInterface* 
 
 			DrawTaperedCapsuleSolverShape(PDI, Location, Rotation, TaperedCapsule.Radius0,
 			                               TaperedCapsule.Radius1, TaperedCapsule.Length, MaterialProxy,
-			                               HitProxy ? HitProxy->Id : FHitProxyId());
+			                               HitProxy ? HitProxy->Id : FHitProxyId(), Style);
 			DrawCoordinateSystem(PDI, Location, Rotation.Rotator(),
 			                     FMath::Max(TaperedCapsule.Radius0, TaperedCapsule.Radius1), SDPG_World + 1);
 			PDI->SetHitProxy(nullptr);
 		}
 	};
 
-	for (int32 i = 0; i < RuntimeNode->TaperedCapsuleLimits.Num(); i++)
-	{
-		DrawTaperedCapsule(RuntimeNode->TaperedCapsuleLimits[i], i,
-		                   GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy(), true);
-	}
-
-	for (int32 i = 0; i < RuntimeNode->TaperedCapsuleLimitsData.Num(); i++)
-	{
-		if (RuntimeNode->TaperedCapsuleLimitsData[i].SourceType == ECollisionSourceType::DataAsset)
-		{
-			DrawTaperedCapsule(RuntimeNode->TaperedCapsuleLimitsData[i], i,
-			                   GEngine->ConstraintLimitMaterialZ->GetRenderProxy(), true);
-		}
-		else if (RuntimeNode->TaperedCapsuleLimitsData[i].SourceType == ECollisionSourceType::PhysicsAsset)
-		{
-			if (PhysicsAssetBodyMaterial->IsValidLowLevel())
-			{
-				DrawTaperedCapsule(RuntimeNode->TaperedCapsuleLimitsData[i], i,
-				                   PhysicsAssetBodyMaterial->GetRenderProxy(), false);
-			}
-		}
-		else if (RuntimeNode->TaperedCapsuleLimitsData[i].SourceType == ECollisionSourceType::Mirror)
-		{
-			DrawTaperedCapsule(RuntimeNode->TaperedCapsuleLimitsData[i], i,
-			                   GEngine->ConstraintLimitMaterialX->GetRenderProxy(), false);
-		}
-	}
+	RenderLimitsPerSource(PDI, ECollisionLimitType::TaperedCapsule, RuntimeNode->TaperedCapsuleLimits,
+	                      RuntimeNode->TaperedCapsuleLimitsData, DrawTaperedCapsule);
 }
 
 void FKawaiiPhysicsEditMode::RenderBoxLimit(FPrimitiveDrawInterface* PDI) const
@@ -787,8 +846,9 @@ void FKawaiiPhysicsEditMode::RenderBoxLimit(FPrimitiveDrawInterface* PDI) const
 		return;
 	}
 
-	auto DrawBoxLimit = [&](const auto& Box, int32 Index, const FMaterialRenderProxy* MaterialProxy,
-	                        bool bUseHit = true)
+	const FKawaiiPhysicsCollisionDrawStyle& Style = GetDefault<UKawaiiPhysicsEditorSettings>()->Box;
+
+	auto DrawBoxLimit = [&](const auto& Box, int32 Index, const FMaterialRenderProxy* MaterialProxy, bool bUseHit)
 	{
 		if (Box.bEnable && Box.Extent.Size() > 0)
 		{
@@ -804,96 +864,59 @@ void FKawaiiPhysicsEditMode::RenderBoxLimit(FPrimitiveDrawInterface* PDI) const
 				                 : nullptr);
 
 			DrawBox(PDI, BoxTransform.ToMatrixWithScale(), Box.Extent, MaterialProxy, SDPG_World);
-			DrawWireBox(PDI, BoxTransform.ToMatrixWithScale(), FBox(-Box.Extent, Box.Extent), FLinearColor::Black,
-			            SDPG_World);
+			if (Style.bDrawBorder)
+			{
+				DrawWireBox(PDI, BoxTransform.ToMatrixWithScale(), FBox(-Box.Extent, Box.Extent), Style.BorderColor,
+				            SDPG_World, Style.BorderThickness);
+			}
 			DrawCoordinateSystem(PDI, BoxTransform.GetLocation(), BoxTransform.Rotator(), Box.Extent.Size(),
 			                     SDPG_World + 1);
 			PDI->SetHitProxy(nullptr);
 		}
 	};
 
-	for (int32 i = 0; i < RuntimeNode->BoxLimits.Num(); i++)
-	{
-		DrawBoxLimit(RuntimeNode->BoxLimits[i], i,
-		             GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy());
-	}
-
-	for (int32 i = 0; i < RuntimeNode->BoxLimitsData.Num(); i++)
-	{
-		if (RuntimeNode->BoxLimitsData[i].SourceType == ECollisionSourceType::DataAsset)
-		{
-			DrawBoxLimit(RuntimeNode->BoxLimitsData[i], i,
-			             GEngine->ConstraintLimitMaterialZ->GetRenderProxy());
-		}
-		else if (RuntimeNode->BoxLimitsData[i].SourceType == ECollisionSourceType::PhysicsAsset)
-		{
-			if (PhysicsAssetBodyMaterial->IsValidLowLevel())
-			{
-				DrawBoxLimit(RuntimeNode->BoxLimitsData[i], i, PhysicsAssetBodyMaterial->GetRenderProxy(), false);
-			}
-		}
-		else if (RuntimeNode->BoxLimitsData[i].SourceType == ECollisionSourceType::Mirror)
-		{
-			DrawBoxLimit(RuntimeNode->BoxLimitsData[i], i,
-			             GEngine->ConstraintLimitMaterialX->GetRenderProxy(), false);
-		}
-	}
+	RenderLimitsPerSource(PDI, ECollisionLimitType::Box, RuntimeNode->BoxLimits, RuntimeNode->BoxLimitsData,
+	                      DrawBoxLimit);
 }
 
 void FKawaiiPhysicsEditMode::RenderPlanarLimit(FPrimitiveDrawInterface* PDI) const
 {
-	if (GraphNode->bEnableDebugDrawPlanarLimit)
+	if (!GraphNode->bEnableDebugDrawPlanarLimit)
 	{
-		auto DrawPlanarLimit = [&](const auto& Plane, int32 Index, const FMaterialRenderProxy* MaterialProxy,
-		                           bool bUseHit = true)
-		{
-			FTransform PlaneTransform(Plane.Rotation, Plane.Location);
-			if (RuntimeNode->SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
-			{
-				const FTransform& BaseBoneSpace2ComponentSpace = RuntimeNode->GetBaseBoneSpace2ComponentSpace();
-				PlaneTransform = PlaneTransform * BaseBoneSpace2ComponentSpace;
-			}
-			PlaneTransform.NormalizeRotation();
-
-			PDI->SetHitProxy(bUseHit
-				                 ? new HKawaiiPhysicsHitProxy(ECollisionLimitType::Planar, Index, Plane.SourceType)
-				                 : nullptr);
-
-			DrawPlane10x10(PDI, PlaneTransform.ToMatrixWithScale(), 200.0f, FVector2D(0.0f, 0.0f),
-			               FVector2D(1.0f, 1.0f), MaterialProxy, SDPG_World);
-			DrawDirectionalArrow(PDI, FRotationMatrix(FRotator(90.0f, 0.0f, 0.0f)) * PlaneTransform.ToMatrixWithScale(),
-			                     FLinearColor::Blue, 50.0f, 20.0f, SDPG_Foreground, 0.5f);
-			PDI->SetHitProxy(nullptr);
-		};
-
-		for (int32 i = 0; i < RuntimeNode->PlanarLimits.Num(); i++)
-		{
-			DrawPlanarLimit(RuntimeNode->PlanarLimits[i], i,
-			                GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy());
-		}
-
-		for (int32 i = 0; i < RuntimeNode->PlanarLimitsData.Num(); i++)
-		{
-			if (RuntimeNode->PlanarLimitsData[i].SourceType == ECollisionSourceType::DataAsset)
-			{
-				DrawPlanarLimit(RuntimeNode->PlanarLimitsData[i], i,
-				                GEngine->ConstraintLimitMaterialZ->GetRenderProxy());
-			}
-			else if (RuntimeNode->PlanarLimitsData[i].SourceType == ECollisionSourceType::PhysicsAsset)
-			{
-				if (PhysicsAssetBodyMaterial->IsValidLowLevel())
-				{
-					DrawPlanarLimit(RuntimeNode->PlanarLimitsData[i], i,
-					                PhysicsAssetBodyMaterial->GetRenderProxy(), false);
-				}
-			}
-			else if (RuntimeNode->PlanarLimitsData[i].SourceType == ECollisionSourceType::Mirror)
-			{
-				DrawPlanarLimit(RuntimeNode->PlanarLimitsData[i], i,
-				                GEngine->ConstraintLimitMaterialX->GetRenderProxy(), false);
-			}
-		}
+		return;
 	}
+
+	const FKawaiiPhysicsCollisionDrawStyle& Style = GetDefault<UKawaiiPhysicsEditorSettings>()->Planar;
+
+	auto DrawPlanarLimit = [&](const auto& Plane, int32 Index, const FMaterialRenderProxy* MaterialProxy, bool bUseHit)
+	{
+		FTransform PlaneTransform(Plane.Rotation, Plane.Location);
+		if (RuntimeNode->SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
+		{
+			const FTransform& BaseBoneSpace2ComponentSpace = RuntimeNode->GetBaseBoneSpace2ComponentSpace();
+			PlaneTransform = PlaneTransform * BaseBoneSpace2ComponentSpace;
+		}
+		PlaneTransform.NormalizeRotation();
+
+		PDI->SetHitProxy(bUseHit
+			                 ? new HKawaiiPhysicsHitProxy(ECollisionLimitType::Planar, Index, Plane.SourceType)
+			                 : nullptr);
+
+		const FMatrix PlaneToWorld = PlaneTransform.ToMatrixWithScale();
+		DrawPlanarLimitShape(PDI, PlaneToWorld, MaterialProxy);
+		if (Style.bDrawBorder)
+		{
+			const FVector HalfSize(PlanarLimitHalfSize, PlanarLimitHalfSize, 0.0f);
+			DrawWireBox(PDI, PlaneToWorld, FBox(-HalfSize, HalfSize), Style.BorderColor, SDPG_World,
+			            Style.BorderThickness);
+		}
+		DrawDirectionalArrow(PDI, FRotationMatrix(FRotator(90.0f, 0.0f, 0.0f)) * PlaneToWorld,
+		                     FLinearColor::Blue, 50.0f, 20.0f, SDPG_Foreground, 0.5f);
+		PDI->SetHitProxy(nullptr);
+	};
+
+	RenderLimitsPerSource(PDI, ECollisionLimitType::Planar, RuntimeNode->PlanarLimits, RuntimeNode->PlanarLimitsData,
+	                      DrawPlanarLimit);
 }
 
 void FKawaiiPhysicsEditMode::RenderBoneConstraint(FPrimitiveDrawInterface* PDI) const

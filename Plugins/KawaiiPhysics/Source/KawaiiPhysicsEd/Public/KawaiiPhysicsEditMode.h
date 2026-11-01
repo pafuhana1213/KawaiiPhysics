@@ -40,6 +40,9 @@ public:
 	virtual void DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View,
 	                     FCanvas* Canvas) override;
 
+	/** FGCObject interface */
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+
 protected:
 	void OnExternalNodePropertyChange(FPropertyChangedEvent& InPropertyEvent);
 	FDelegateHandle NodePropertyDelegateHandle;
@@ -61,6 +64,17 @@ private:
 	void RenderTaperedCapsuleLimit(FPrimitiveDrawInterface* PDI) const;
 	void RenderBoxLimit(FPrimitiveDrawInterface* PDI) const;
 	void RenderPlanarLimit(FPrimitiveDrawInterface* PDI) const;
+
+	/** AnimNode 直下と DataAsset / PhysicsAsset / Mirror 由来のコリジョンを、由来ごとのマテリアルで描く */
+	template <typename TLimit, typename TDrawLimit>
+	void RenderLimitsPerSource(FPrimitiveDrawInterface* PDI, ECollisionLimitType LimitType,
+	                           const TArray<TLimit>& NodeLimits, const TArray<TLimit>& DataLimits,
+	                           const TDrawLimit& DrawLimit) const;
+
+	/** Editor Preferences の色と不透明度をコリジョンのマテリアルへ反映する */
+	void UpdateCollisionMaterials();
+	const FMaterialRenderProxy* GetCollisionMaterialProxy(FPrimitiveDrawInterface* PDI, ECollisionLimitType LimitType,
+	                                                      ECollisionSourceType SourceType) const;
 
 	void RenderBoneConstraint(FPrimitiveDrawInterface* PDI) const;
 	void RenderExternalForces(FPrimitiveDrawInterface* PDI) const;
@@ -97,6 +111,7 @@ private:
 	// storing current widget mode 
 	mutable UE_WIDGET::EWidgetMode CurWidgetMode;
 
-	// physics asset body material
-	TObjectPtr<UMaterialInstanceDynamic> PhysicsAssetBodyMaterial;
+	// コリジョンの種類と由来の組み合わせごとのマテリアル
+	using FCollisionMaterialKey = TPair<ECollisionLimitType, ECollisionSourceType>;
+	TMap<FCollisionMaterialKey, TObjectPtr<UMaterialInstanceDynamic>> CollisionMaterials;
 };
