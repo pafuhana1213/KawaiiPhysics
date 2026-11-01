@@ -9,6 +9,7 @@
 #include "Engine/Engine.h"
 #include "IPersonaPreviewScene.h"
 #include "KawaiiPhysics.h"
+#include "KawaiiPhysicsAngleLimit.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
 #include "ScopedTransaction.h"
@@ -86,6 +87,113 @@ namespace
 			OutProfile.Add({Radius1 * FMath::Sin(Angle), -HalfLength + Radius1 * FMath::Cos(Angle),
 			                FMath::Sin(Angle), FMath::Cos(Angle)});
 		}
+	}
+
+	FLinearColor GetLimitAxisColor(const EAxis::Type Axis)
+	{
+		switch (Axis)
+		{
+		case EAxis::Y:
+			return FLinearColor::Green;
+		case EAxis::Z:
+			return FLinearColor::Blue;
+		default:
+			return FLinearColor::Red;
+		}
+	}
+
+	// solver と同じ境界計算から扇形を組む。ヒンジでは境界が線になり、平らな扇形として描かれる
+	// 回転軸は UE の軸色で描き、許容範囲の端に同じ色の点を置く。+ 側は大きな点、- 側は小さな点で回転の向きを示す
+	// 全方向へ動ける設定は境界が真逆の1点へ潰れるため、扇形の代わりに球で示す
+	void DrawPerAxisLimitShape(FPrimitiveDrawInterface* PDI, const FTransform& ApexToPreview,
+	                           const FQuat& ParentPoseRotation, const FVector& PoseDirection, const float Length,
+	                           const FKawaiiPhysicsPerAxisLimitAngle& Limit, const EBoneForwardAxis ForwardAxis)
+	{
+		using namespace KawaiiPhysics::AngleLimit;
+
+		constexpr int32 NumSegments = 48;
+		constexpr float AxisLineLengthRate = 0.5f;
+		constexpr float AxisLineThickness = 0.2f;
+		constexpr float MaxLimitPointSize = 8.0f;
+		constexpr float MinLimitPointSize = 4.0f;
+
+		const FSwingFrame Frame = MakeSwingFrame(ParentPoseRotation, ForwardAxis, PoseDirection);
+		const FSwingLimit SwingLimit = MakeSwingLimit(Limit, ForwardAxis);
+
+		if (IsUnlimited(SwingLimit))
+		{
+			DrawWireSphere(PDI, ApexToPreview.GetLocation(), FLinearColor::White, Length, NumSegments, SDPG_Foreground);
+		}
+		else
+		{
+			const FVector3f TangentX(Frame.AxisA);
+			const FVector3f TangentY(Frame.AxisB);
+
+			FDynamicMeshBuilder MeshBuilder(PDI->View->GetFeatureLevel());
+			MeshBuilder.ReserveVertices(NumSegments + 1);
+			MeshBuilder.ReserveTriangles(NumSegments);
+			MeshBuilder.AddVertex(FVector3f::ZeroVector, FVector2f::ZeroVector, TangentX, TangentY,
+			                      FVector3f(PoseDirection), FColor::White);
+
+			TArray<FVector, TInlineAllocator<NumSegments>> Boundary;
+			for (int32 Index = 0; Index < NumSegments; ++Index)
+			{
+				const FVector2f Swing = EvaluateLimitBoundary(SwingLimit, static_cast<float>(Index) / NumSegments);
+				const FVector Direction = ComposeSwing(Frame, PoseDirection, Swing);
+				Boundary.Add(Direction * Length);
+				MeshBuilder.AddVertex(FVector3f(Boundary.Last()), FVector2f::UnitVector, TangentX, TangentY,
+				                      FVector3f(Direction), FColor::White);
+			}
+
+			for (int32 Index = 0; Index < NumSegments; ++Index)
+			{
+				MeshBuilder.AddTriangle(0, Index + 1, (Index + 1) % NumSegments + 1);
+			}
+			MeshBuilder.Draw(PDI, ApexToPreview.ToMatrixWithScale(),
+			                 GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy(), SDPG_World, true, false);
+
+			for (int32 Index = 0; Index < NumSegments; ++Index)
+			{
+				PDI->DrawLine(ApexToPreview.TransformPosition(Boundary[Index]),
+				              ApexToPreview.TransformPosition(Boundary[(Index + 1) % NumSegments]),
+				              FLinearColor::White, SDPG_Foreground);
+			}
+		}
+
+		const auto DrawActiveAxis = [&](const EAxis::Type Axis, const FVector& RotationAxis, const float Min,
+		                                const float Max, const FVector2f& SwingDirection)
+		{
+			if (Max <= Min)
+			{
+				return; // ロックされた軸は回らないので描かない
+			}
+
+			const FLinearColor Color = GetLimitAxisColor(Axis);
+			const FVector AxisOffset = RotationAxis * Length * AxisLineLengthRate;
+			PDI->DrawLine(ApexToPreview.TransformPosition(-AxisOffset), ApexToPreview.TransformPosition(AxisOffset),
+			              Color, SDPG_Foreground, AxisLineThickness);
+
+			const auto DrawLimitPoint = [&](const float Angle, const float PointSize)
+			{
+				const FVector Direction = ComposeSwing(Frame, PoseDirection, SwingDirection * Angle);
+				PDI->DrawPoint(ApexToPreview.TransformPosition(Direction * Length), Color, PointSize, SDPG_Foreground);
+			};
+
+			if (Max > 0.0f)
+			{
+				DrawLimitPoint(Max, MaxLimitPointSize);
+			}
+			if (Min < 0.0f)
+			{
+				DrawLimitPoint(Min, MinLimitPointSize);
+			}
+		};
+
+		EAxis::Type AxisA;
+		EAxis::Type AxisB;
+		GetSwingAxes(ForwardAxis, AxisA, AxisB);
+		DrawActiveAxis(AxisA, Frame.AxisA, SwingLimit.MinA, SwingLimit.MaxA, FVector2f(1.0f, 0.0f));
+		DrawActiveAxis(AxisB, Frame.AxisB, SwingLimit.MinB, SwingLimit.MaxB, FVector2f(0.0f, 1.0f));
 	}
 
 	// FKTaperedCapsuleElem の描画は 2 球の接線 hull で、solver の LERP 近似より側面が太く見える。
@@ -355,25 +463,37 @@ void FKawaiiPhysicsEditMode::RenderLimitAngle(FPrimitiveDrawInterface* PDI) cons
 {
 	if (GraphNode->bEnableDebugDrawLimitAngle)
 	{
+		const FTransform SimToPreview = RuntimeNode->GetBaseBoneSpace2ComponentSpace();
+
 		for (auto& Bone : RuntimeNode->ModifyBones)
 		{
-			if (!Bone.bSkipSimulate && Bone.PhysicsSettings.LimitAngle > 0.0f && Bone.HasParent())
+			if (!Bone.HasParent() || !RuntimeNode->IsAngleLimitTargetBone(Bone))
 			{
-				FTransform BoneTransform = FTransform(Bone.PrevRotation, Bone.PrevLocation);
-				FTransform ParentBoneTransform = FTransform(RuntimeNode->ModifyBones[Bone.ParentIndex].PrevRotation,
-				                                            RuntimeNode->ModifyBones[Bone.ParentIndex].PrevLocation);
+				continue;
+			}
 
-				if (RuntimeNode->SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
-				{
-					const FTransform& BaseBoneSpace2ComponentSpace = RuntimeNode->GetBaseBoneSpace2ComponentSpace();
-					BoneTransform = BoneTransform * BaseBoneSpace2ComponentSpace;
-					ParentBoneTransform = ParentBoneTransform * BaseBoneSpace2ComponentSpace;
-				}
+			const FKawaiiPhysicsModifyBone& ParentBone =
+				RuntimeNode->ModifyBones[RuntimeNode->GetAngleLimitParentIndex(Bone)];
+			const FVector PoseOffset = Bone.PoseLocation - ParentBone.PoseLocation;
+			const FVector PoseDirection = PoseOffset.GetSafeNormal();
+			if (PoseDirection.IsNearlyZero())
+			{
+				continue;
+			}
 
+			// 制限はポーズ方向を基準に判定されるので、シミュレーション後の方向ではなくポーズ方向へ描く
+			if (Bone.PhysicsSettings.LimitAngleMode == EKawaiiPhysicsLimitAngleMode::PerAxis)
+			{
+				DrawPerAxisLimitShape(PDI, FTransform(ParentBone.Location) * SimToPreview, ParentBone.PoseRotation,
+				                      PoseDirection, PoseOffset.Size(), Bone.PhysicsSettings.PerAxisLimitAngle,
+				                      RuntimeNode->BoneForwardAxis);
+			}
+			else if (Bone.PhysicsSettings.LimitAngle > 0.0f)
+			{
+				const FTransform ConeTransform =
+					FTransform(PoseDirection.Rotation(), ParentBone.Location) * SimToPreview;
 				const float Angle = FMath::DegreesToRadians(Bone.PhysicsSettings.LimitAngle);
-				DrawCone(PDI, FScaleMatrix(5.0f) * FTransform(
-					         (BoneTransform.GetLocation() - ParentBoneTransform.GetLocation()).Rotation(),
-					         ParentBoneTransform.GetLocation()).ToMatrixNoScale(),
+				DrawCone(PDI, FScaleMatrix(5.0f) * ConeTransform.ToMatrixNoScale(),
 				         Angle,
 				         Angle, 24, true, FLinearColor::White,
 				         GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy(), SDPG_World);
@@ -1566,6 +1686,15 @@ void FKawaiiPhysicsEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FVie
 		CollisionDebugInfo.Append(FString(TEXT("]")));
 	}
 	DrawTextItem(FText::FromString(CollisionDebugInfo), Canvas, XOffset, DrawPositionY, FontHeight);
+
+	if (const int32 ForwardAxisMismatchCount = RuntimeNode->CountAngleLimitForwardAxisMismatches())
+	{
+		DrawTextItem(
+			FText::Format(LOCTEXT("PerAxisLimitForwardAxisMismatch",
+			                      "Per Axis Limit: {0} bone(s) are more than 45 degrees off Bone Forward Axis. X/Y/Z may not match the parent bone's local axes"),
+			              ForwardAxisMismatchCount),
+			Canvas, XOffset, DrawPositionY, FontHeight);
+	}
 
 	const UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene().GetPreviewMeshComponent();
 	if (GraphNode->bEnableDebugBoneLengthRate)

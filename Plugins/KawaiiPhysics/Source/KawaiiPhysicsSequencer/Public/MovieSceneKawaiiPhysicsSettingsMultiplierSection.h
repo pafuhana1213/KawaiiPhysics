@@ -45,10 +45,10 @@ public:
 
 	/**
 	 * LimitAngleへの倍率。ベースが0（無制限）のボーンは倍率に関わらず無制限のまま。ベースが0より大きいボーンは
-	 * 極小値で下限クランプされ、倍率0でも無制限へは反転せず、ほぼ完全にポーズへ追従する
+	 * 極小値で下限クランプされ、倍率0でも無制限へは反転せず、ほぼ完全にポーズへ追従する。Per Axis モードでは全軸の Min/Max に掛かり、倍率0で全軸ロックになる
 	 * Multiplier for LimitAngle. Bones whose base value is 0 (unlimited) stay unlimited whatever the multiplier is.
 	 * Bones with a base above 0 are clamped to a tiny positive minimum, so even a multiplier of 0 never flips them back to
-	 * unlimited; they follow the pose almost exactly instead.
+	 * unlimited; they follow the pose almost exactly instead. In Per Axis mode it scales Min/Max of every axis, and a multiplier of 0 locks them all.
 	 */
 	UPROPERTY()
 	FMovieSceneFloatChannel LimitAngle;

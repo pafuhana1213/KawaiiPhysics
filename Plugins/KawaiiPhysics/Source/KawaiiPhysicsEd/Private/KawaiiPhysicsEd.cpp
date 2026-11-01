@@ -8,6 +8,7 @@
 #include "KawaiiPhysicsEdStyle.h"
 #include "KawaiiPhysicsEditorTabFactories.h"
 #include "KawaiiPhysicsEditMode.h"
+#include "KawaiiPhysicsPerAxisLimitAngleCustomization.h"
 #include "KawaiiPhysicsPresetDataAssetDetails.h"
 #include "ISequencerModule.h"
 #include "Misc/App.h"
@@ -48,6 +49,9 @@ void FKawaiiPhysicsEdModule::StartupModule()
 	PropertyEditorModule.RegisterCustomClassLayout(
 		"KawaiiPhysicsPresetDataAsset",
 		FOnGetDetailCustomizationInstance::CreateStatic(&FKawaiiPhysicsPresetDataAssetDetails::MakeInstance));
+	PropertyEditorModule.RegisterCustomPropertyTypeLayout(
+		"KawaiiPhysicsPerAxisLimitAngle",
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FKawaiiPhysicsPerAxisLimitAngleCustomization::MakeInstance));
 	PropertyEditorModule.NotifyCustomizationModuleChanged();
 
 	if (GIsEditor && !IsRunningCommandlet())
@@ -109,6 +113,7 @@ void FKawaiiPhysicsEdModule::ShutdownModule()
 		"PropertyEditor"))
 	{
 		PropertyEditorModule->UnregisterCustomClassLayout("KawaiiPhysicsPresetDataAsset");
+		PropertyEditorModule->UnregisterCustomPropertyTypeLayout("KawaiiPhysicsPerAxisLimitAngle");
 		PropertyEditorModule->NotifyCustomizationModuleChanged();
 	}
 

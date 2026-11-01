@@ -671,6 +671,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		// 再初期化（設定変更）時はノード警告を再通知できるようガードを戻す
 		KAWAII_RESET_NODE_WARNING_ONCE(bSimBaseBoneInvalidWarned);
 		KAWAII_RESET_NODE_WARNING_ONCE(bMirrorSkeletonMissingWarned);
+		KAWAII_RESET_NODE_WARNING_ONCE(bAngleLimitForwardAxisWarned);
 	}
 
 #if WITH_EDITOR
@@ -714,6 +715,13 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		PreSkelCompTransform = ComponentTransform;
 
 #if !UE_BUILD_SHIPPING
+		if (const int32 ForwardAxisMismatchCount = CountAngleLimitForwardAxisMismatches())
+		{
+			KAWAII_LOG_NODE_WARNING_ONCE(bAngleLimitForwardAxisWarned, LogKawaiiPhysics,
+				TEXT("Per Axis angle limit: BoneForwardAxis is more than 45 degrees off the bone direction on %d bone(s). The limit axes are aligned to the bone direction, so X/Y/Z may not match the parent bone's local axes. Check BoneForwardAxis if every bone is reported."),
+				ForwardAxisMismatchCount);
+		}
+
 		// STAT更新 & パフォーマンス警告
 		SET_DWORD_STAT(STAT_KawaiiPhysics_NumModifyBones, ModifyBones.Num());
 		int32 InterBoneDummyCount = 0;

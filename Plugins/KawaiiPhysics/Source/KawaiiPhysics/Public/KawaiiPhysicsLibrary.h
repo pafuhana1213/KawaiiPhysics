@@ -751,7 +751,7 @@ public:
 	 * 同一ハンドルの既存の倍率がある場合は置換される。Stop は外部駆動倍率にも有効で、現在の Alpha から BlendOutTime で 0 へフェードする。
 	 * 同時に保持できる倍率はノードあたり8件までで、超過時は最古が破棄される。破棄された倍率のハンドルは失効し Stop は no-op。ノード再初期化や BP 再コンパイルでも失われる。
 	 * 複数の倍率は各成分ごとに乗算で合成される。
-	 * エッジケース: LimitAngle はベースが0（無制限）なら倍率に関わらず無制限のまま、ベースが0より大きいボーンは倍率0でも無制限へは反転しない。
+	 * エッジケース: LimitAngle はベースが0（無制限）なら倍率に関わらず無制限のまま、ベースが0より大きいボーンは倍率0でも無制限へは反転しない。Per Axis モードでは全軸の Min/Max に掛かり、倍率0で全軸ロックになる。
 	 * WorldDampingLocation/Rotation は実際の反映率が (1 - 値) のため意味が反転し、倍率1未満では揺れが増える。Radius の倍率0はワールドコリジョンのスイープと押し出しを実質無効にする。
 	 * Start a temporary multiplier for the physics settings. The base settings are never rewritten: the multipliers are applied to each bone's effective values, which are recomputed every frame, so the original behavior always comes back once the multiplier ends.
 	 * Duration is the total seconds including BlendInTime/BlendOutTime, and the envelope is a BlendIn-Hold-BlendOut trapezoid (Hold=max(0,Duration-BlendIn-BlendOut); BlendIn+BlendOut>Duration is scaled proportionally). Duration < 0: hold until Stop. The release fade is taken from StopPhysicsSettingsMultiplier's BlendOutTime; this call's BlendOutTime is ignored. Duration == 0: no-op.
@@ -759,7 +759,7 @@ public:
 	 * An existing multiplier with the same handle is replaced. Stop also works on externally driven multipliers and fades from the current Alpha to 0 over BlendOutTime.
 	 * Multipliers are capped at 8 per node; beyond the cap, the oldest entry is evicted. Handles for evicted multipliers become stale and Stop is a no-op. They are also lost on node re-initialization or BP recompile.
 	 * Multiple multipliers are composed by multiplying each component.
-	 * Edge cases: LimitAngle stays unlimited whatever the multiplier is when the base value is 0 (unlimited), and bones with a base above 0 never flip back to unlimited even with a multiplier of 0.
+	 * Edge cases: LimitAngle stays unlimited whatever the multiplier is when the base value is 0 (unlimited), and bones with a base above 0 never flip back to unlimited even with a multiplier of 0. In Per Axis mode it scales Min/Max of every axis, and a multiplier of 0 locks them all.
 	 * WorldDampingLocation/Rotation have inverted semantics because the actual reflection factor is (1 - value): a multiplier below 1 increases the sway. A Radius multiplier of 0 effectively disables the world collision sweep and push-out.
 	 * @param ExecResult ノード参照の解決結果 / Result of resolving the node reference.
 	 * @param OutHandle 停止に使うハンドル / Handle used to stop the multiplier.
@@ -807,7 +807,7 @@ public:
 	 * 同一ハンドルの既存の倍率がある場合は置換される。Stop は外部駆動倍率にも有効で、現在の Alpha から BlendOutTime で 0 へフェードする。
 	 * 同時に保持できる倍率はノードあたり8件までで、超過時は最古が破棄される。破棄された倍率のハンドルは失効し Stop は no-op。ノード再初期化や BP 再コンパイルでも失われる。
 	 * 複数の倍率は各成分ごとに乗算で合成される。
-	 * エッジケース: LimitAngle はベースが0（無制限）なら倍率に関わらず無制限のまま、ベースが0より大きいボーンは倍率0でも無制限へは反転しない。
+	 * エッジケース: LimitAngle はベースが0（無制限）なら倍率に関わらず無制限のまま、ベースが0より大きいボーンは倍率0でも無制限へは反転しない。Per Axis モードでは全軸の Min/Max に掛かり、倍率0で全軸ロックになる。
 	 * WorldDampingLocation/Rotation は実際の反映率が (1 - 値) のため意味が反転し、倍率1未満では揺れが増える。Radius の倍率0はワールドコリジョンのスイープと押し出しを実質無効にする。
 	 * Component / Linked AnimInstance / PostProcess から KawaiiPhysics ノード参照を収集する（FilterTags が空なら全件）。
 	 * AnimGraph の BlueprintThreadSafe 文脈から呼ぶ場合、対象は呼び出し元（呼び出しノード自身）の Component に限ります。
@@ -818,7 +818,7 @@ public:
 	 * An existing multiplier with the same handle is replaced. Stop also works on externally driven multipliers and fades from the current Alpha to 0 over BlendOutTime.
 	 * Multipliers are capped at 8 per node; beyond the cap, the oldest entry is evicted. Handles for evicted multipliers become stale and Stop is a no-op. They are also lost on node re-initialization or BP recompile.
 	 * Multiple multipliers are composed by multiplying each component.
-	 * Edge cases: LimitAngle stays unlimited whatever the multiplier is when the base value is 0 (unlimited), and bones with a base above 0 never flip back to unlimited even with a multiplier of 0.
+	 * Edge cases: LimitAngle stays unlimited whatever the multiplier is when the base value is 0 (unlimited), and bones with a base above 0 never flip back to unlimited even with a multiplier of 0. In Per Axis mode it scales Min/Max of every axis, and a multiplier of 0 locks them all.
 	 * WorldDampingLocation/Rotation have inverted semantics because the actual reflection factor is (1 - value): a multiplier below 1 increases the sway. A Radius multiplier of 0 effectively disables the world collision sweep and push-out.
 	 * When called from an AnimGraph BlueprintThreadSafe context, the target must be the caller's (the calling node's) own Component. Collecting from any other object must be done from the GameThread while that object is not being evaluated.
 	 * @param MeshComp 対象の SkeletalMeshComponent / Target SkeletalMeshComponent.
@@ -888,7 +888,7 @@ public:
 	 * 同時に保持できる倍率はノードあたり8件までで、時間型 Start と共有される。超過時は最古が破棄される。破棄・ノード再初期化・BP再コンパイルで失われ、その後の Push は新規作成、Stop は no-op になる。
 	 * Alpha は 0..1 にクランプされる。Alpha=0 は「項目は存在するが効果なし」で、毎フレーム設定更新コストは掛かるため不要なら Stop する。
 	 * C++ 専用（Blueprint 非公開）。Blueprint からは Duration < 0 の Start を使う。
-	 * エッジケース: LimitAngle はベースが0（無制限）なら倍率に関わらず無制限のまま、ベースが0より大きいボーンは倍率0でも無制限へは反転しない。
+	 * エッジケース: LimitAngle はベースが0（無制限）なら倍率に関わらず無制限のまま、ベースが0より大きいボーンは倍率0でも無制限へは反転しない。Per Axis モードでは全軸の Min/Max に掛かり、倍率0で全軸ロックになる。
 	 * WorldDampingLocation/Rotation は実際の反映率が (1 - 値) のため意味が反転し、倍率1未満では揺れが増える。Radius の倍率0はワールドコリジョンのスイープと押し出しを実質無効にする。
 	 * Set an externally driven multiplier for the physics settings. Intended for AnimNotifyState, Sequencer, and similar callers that push Alpha every frame or when the value changes.
 	 * It does not disappear by internal time, so always release it with StopPhysicsSettingsMultiplier when it is no longer needed. Stop fades from the current Alpha to 0 over BlendOutTime, or removes immediately when BlendOutTime=0.
@@ -897,7 +897,7 @@ public:
 	 * Multipliers are capped at 8 per node and share the cap with timed Starts. Beyond the cap, the oldest entry is evicted. Entries are lost on eviction, node re-initialization, or BP recompile; a later Set recreates the entry and Stop is a no-op until then.
 	 * Alpha is clamped to 0..1. Alpha=0 means the entry exists but has no effect; it still costs a settings update every frame, so Stop it when unnecessary.
 	 * C++ only (not exposed to Blueprint); Blueprint uses Start with Duration < 0.
-	 * Edge cases: LimitAngle stays unlimited whatever the multiplier is when the base value is 0 (unlimited), and bones with a base above 0 never flip back to unlimited even with a multiplier of 0.
+	 * Edge cases: LimitAngle stays unlimited whatever the multiplier is when the base value is 0 (unlimited), and bones with a base above 0 never flip back to unlimited even with a multiplier of 0. In Per Axis mode it scales Min/Max of every axis, and a multiplier of 0 locks them all.
 	 * WorldDampingLocation/Rotation have inverted semantics because the actual reflection factor is (1 - value): a multiplier below 1 increases the sway. A Radius multiplier of 0 effectively disables the world collision sweep and push-out.
 	 * @param ExecResult ノード参照の解決結果 / Result of resolving the node reference.
 	 * @param KawaiiPhysics 対象の KawaiiPhysics ノード参照 / Target KawaiiPhysics node reference.
@@ -920,7 +920,7 @@ public:
 	 * 同時に保持できる倍率はノードあたり8件までで、時間型 Start と共有される。超過時は最古が破棄される。破棄・ノード再初期化・BP再コンパイルで失われ、その後の Push は新規作成、Stop は no-op になる。
 	 * Alpha は 0..1 にクランプされる。Alpha=0 は「項目は存在するが効果なし」で、毎フレーム設定更新コストは掛かるため不要なら Stop する。
 	 * C++ 専用（Blueprint 非公開）。Blueprint からは Duration < 0 の Start を使う。
-	 * エッジケース: LimitAngle はベースが0（無制限）なら倍率に関わらず無制限のまま、ベースが0より大きいボーンは倍率0でも無制限へは反転しない。
+	 * エッジケース: LimitAngle はベースが0（無制限）なら倍率に関わらず無制限のまま、ベースが0より大きいボーンは倍率0でも無制限へは反転しない。Per Axis モードでは全軸の Min/Max に掛かり、倍率0で全軸ロックになる。
 	 * WorldDampingLocation/Rotation は実際の反映率が (1 - 値) のため意味が反転し、倍率1未満では揺れが増える。Radius の倍率0はワールドコリジョンのスイープと押し出しを実質無効にする。
 	 * Component / Linked AnimInstance / PostProcess から KawaiiPhysics ノード参照を収集する（FilterTags が空なら全件）。
 	 * AnimGraph の BlueprintThreadSafe 文脈から呼ぶ場合、対象は呼び出し元（呼び出しノード自身）の Component に限ります。
@@ -932,7 +932,7 @@ public:
 	 * Multipliers are capped at 8 per node and share the cap with timed Starts. Beyond the cap, the oldest entry is evicted. Entries are lost on eviction, node re-initialization, or BP recompile; a later Set recreates the entry and Stop is a no-op until then.
 	 * Alpha is clamped to 0..1. Alpha=0 means the entry exists but has no effect; it still costs a settings update every frame, so Stop it when unnecessary.
 	 * C++ only (not exposed to Blueprint); Blueprint uses Start with Duration < 0.
-	 * Edge cases: LimitAngle stays unlimited whatever the multiplier is when the base value is 0 (unlimited), and bones with a base above 0 never flip back to unlimited even with a multiplier of 0.
+	 * Edge cases: LimitAngle stays unlimited whatever the multiplier is when the base value is 0 (unlimited), and bones with a base above 0 never flip back to unlimited even with a multiplier of 0. In Per Axis mode it scales Min/Max of every axis, and a multiplier of 0 locks them all.
 	 * WorldDampingLocation/Rotation have inverted semantics because the actual reflection factor is (1 - value): a multiplier below 1 increases the sway. A Radius multiplier of 0 effectively disables the world collision sweep and push-out.
 	 * When called from an AnimGraph BlueprintThreadSafe context, the target must be the caller's (the calling node's) own Component. Collecting from any other object must be done from the GameThread while that object is not being evaluated.
 	 * @param MeshComp 対象の SkeletalMeshComponent / Target SkeletalMeshComponent.
