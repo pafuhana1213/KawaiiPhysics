@@ -118,7 +118,7 @@ namespace KawaiiPhysicsPerAxisLimitAngleDetailsTestPrivate
 		Test.TestFalse(TEXT("Z becomes the twist axis after changing forward"), IsRowEnabled(Rows[2]));
 	}
 
-	UEdGraph* FindPerAxisLimitAnimGraph(UAnimBlueprint* AnimBlueprint)
+	UEdGraph* FindPerAxisLimitTestAnimGraph(UAnimBlueprint* AnimBlueprint)
 	{
 		TArray<UEdGraph*> Graphs;
 		AnimBlueprint->GetAllGraphs(Graphs);
@@ -201,7 +201,7 @@ bool FKawaiiPhysicsPerAxisLimitGraphNodeDetailsTest::RunTest(const FString& Para
 		return false;
 	}
 
-	UEdGraph* AnimGraph = FindPerAxisLimitAnimGraph(AnimBlueprint);
+	UEdGraph* AnimGraph = FindPerAxisLimitTestAnimGraph(AnimBlueprint);
 	if (!TestNotNull(TEXT("AnimGraph is found"), AnimGraph))
 	{
 		return false;
