@@ -23,14 +23,14 @@
 
 #include <limits>
 
+namespace KawaiiPhysicsSimpleWorldCollisionTestPrivate
+{
 KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsSimpleWorldRegistryX, "KawaiiPhysics.Test.SimpleWorld.Registry.X");
 KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsSimpleWorldRegistryY, "KawaiiPhysics.Test.SimpleWorld.Registry.Y");
 
 // シンプルワールドコリジョン（KawaiiPhysicsSimpleWorldCollision namespace / SharedCollisionSubsystem の関連構造体）の単体テスト。
 // AggGeom→Limit変換、ローカル→ワールド変換、フェード、Desc Merge、Entryのライフサイクル、ハーネス経由のpush-out統合を検証する。
 
-namespace
-{
 	constexpr float GSimpleWorldTol = 0.001f;
 	constexpr float GSimpleWorldPushOutTol = 0.01f; // 0.1mm スケール（他コリジョンテストと同じ粒度）
 
@@ -255,7 +255,6 @@ namespace
 			(*MemberBSlot)->Publish(MemberBData);
 		}
 	}
-}
 
 // ---------------------------------------------------------------------------
 //  BuildGroundBox
@@ -1947,8 +1946,6 @@ bool FKawaiiPhysicsSimpleWorldScaledConsumerKeepsWorldDimensionsTest::RunTest(co
 	return true;
 }
 
-namespace
-{
 	FVector ConvertSimpleWorldScaleLocation(FKawaiiPhysicsTestAccessor& Accessor,
 		FComponentSpacePoseContext& Output, EKawaiiPhysicsSimulationSpace TargetSpace, const FVector& Position)
 	{
@@ -1990,7 +1987,6 @@ namespace
 	{
 		return Sphere.Radius + Tolerance >= FMath::Max3(AxisLengths.X, AxisLengths.Y, AxisLengths.Z);
 	}
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldNonUniformScaleMappingIsConservativeTest,
                                  "KawaiiPhysics.SimpleWorld.NonUniformScaleMappingIsConservative",
@@ -3906,5 +3902,7 @@ bool FKawaiiPhysicsSimpleWorldAppendPhysicsAssetLocalLimitsTest::RunTest(const F
 
 	return true;
 }
+
+} // namespace KawaiiPhysicsSimpleWorldCollisionTestPrivate
 
 #endif // WITH_DEV_AUTOMATION_TESTS

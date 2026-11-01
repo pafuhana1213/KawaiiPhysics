@@ -8,7 +8,7 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Components/SkeletalMeshComponent.h"
 
-namespace
+namespace KawaiiPhysicsCollisionBufferReuseTestPrivate
 {
 	FKawaiiPhysicsConvexLimit MakeReuseConvex(double X, int32 Planes = 6)
 	{
@@ -26,7 +26,6 @@ namespace
 #endif
 		return Result;
 	}
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsConvexReadReuseTest,
 	"KawaiiPhysics.SimpleWorld.ConvexBuffer.ReadReuse",
@@ -113,4 +112,7 @@ bool FKawaiiPhysicsConvexPublishReuseTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Below-threshold convexes are removed"), Snapshot.ConvexLimits.IsEmpty());
 	return true;
 }
+
+} // namespace KawaiiPhysicsCollisionBufferReuseTestPrivate
+
 #endif

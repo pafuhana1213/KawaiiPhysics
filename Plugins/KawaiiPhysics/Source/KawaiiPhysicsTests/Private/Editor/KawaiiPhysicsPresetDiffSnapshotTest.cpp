@@ -4,7 +4,7 @@
 
 #include "Misc/AutomationTest.h"
 
-namespace
+namespace KawaiiPhysicsPresetDiffSnapshotTestPrivate
 {
 	UKawaiiPhysicsPresetDataAsset* MakeCopiedPreset(const FAnimNode_KawaiiPhysics& Node)
 	{
@@ -57,7 +57,6 @@ namespace
 		const FKawaiiPhysicsPresetApplyOptions Options;
 		return KawaiiPhysicsPresetDiff::BuildSnapshot(OutNode, *OutPreset, Options);
 	}
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPresetDiffSnapshotMatchesTest,
                                  "KawaiiPhysics.Editor.PresetDiffSnapshot.Matches",
@@ -208,5 +207,7 @@ bool FKawaiiPhysicsPresetDiffSnapshotPhysicsSettingsDiffTest::RunTest(const FStr
 	}
 	return bOk;
 }
+
+} // namespace KawaiiPhysicsPresetDiffSnapshotTestPrivate
 
 #endif

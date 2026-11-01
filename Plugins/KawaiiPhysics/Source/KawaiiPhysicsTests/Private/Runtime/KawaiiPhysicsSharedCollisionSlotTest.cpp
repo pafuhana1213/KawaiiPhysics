@@ -5,7 +5,7 @@
 #include "Misc/AutomationTest.h"
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
 
-namespace
+namespace KawaiiPhysicsSharedCollisionSlotTestPrivate
 {
 	FKawaiiPhysicsSharedCollisionData MakeSharedCollisionSlotSphericalData(int32 Count = 1)
 	{
@@ -23,7 +23,6 @@ namespace
 		Data.PlanarLimits.AddDefaulted();
 		return Data;
 	}
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSharedCollisionSourceSlotTest,
                                  "KawaiiPhysics.SharedCollision.SourceSlot",
@@ -88,5 +87,7 @@ bool FKawaiiPhysicsSharedCollisionSourceSlotTest::RunTest(const FString& Paramet
 	}
 	return true;
 }
+
+} // namespace KawaiiPhysicsSharedCollisionSlotTestPrivate
 
 #endif // WITH_DEV_AUTOMATION_TESTS

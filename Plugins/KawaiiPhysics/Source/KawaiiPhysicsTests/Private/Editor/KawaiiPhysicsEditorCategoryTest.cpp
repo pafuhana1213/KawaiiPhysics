@@ -9,7 +9,7 @@
 #include "UObject/FieldIterator.h"
 #include "UObject/UnrealType.h"
 
-namespace
+namespace KawaiiPhysicsEditorCategoryTestPrivate
 {
 	void CollectCategoryMetadata(const UStruct* Struct, TSet<FName>& OutCategories)
 	{
@@ -23,7 +23,6 @@ namespace
 			}
 		}
 	}
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorCategoryConsistencyTest,
                                  "KawaiiPhysics.Editor.CategoryConsistency",
@@ -67,5 +66,7 @@ bool FKawaiiPhysicsEditorCategoryConsistencyTest::RunTest(const FString& Paramet
 	return true;
 #endif
 }
+
+} // namespace KawaiiPhysicsEditorCategoryTestPrivate
 
 #endif

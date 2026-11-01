@@ -6,10 +6,10 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+namespace KawaiiPhysicsAngleLimitTestPrivate
+{
 using namespace KawaiiPhysics::AngleLimit;
 
-namespace
-{
 	constexpr float GAngleLimitTolerance = 0.01f;
 
 	FKawaiiPhysicsAxisAngleRange MakeRange(const float Min, const float Max)
@@ -44,7 +44,6 @@ namespace
 	{
 		return FRotator(PitchDegrees, YawDegrees, 0.0f).Vector();
 	}
-}
 
 // ---------------------------------------------------------------------------
 //  ヒンジ: Z まわりだけ曲がり、Y まわりの成分は消える
@@ -622,5 +621,7 @@ bool FKawaiiPhysicsPerAxisLimitParentRotationTest::RunTest(const FString& Parame
 
 	return true;
 }
+
+} // namespace KawaiiPhysicsAngleLimitTestPrivate
 
 #endif // WITH_DEV_AUTOMATION_TESTS

@@ -29,7 +29,7 @@
 #include "ReferenceSkeleton.h"
 #include "UObject/NameTypes.h"
 
-namespace
+namespace KawaiiPhysicsEditorScriptingTestPrivate
 {
 	const FGameplayTag& GetKawaiiPhysicsEditorScriptingTagA()
 	{
@@ -509,7 +509,6 @@ namespace
 		NodeCreator.Finalize();
 		return KnotNode;
 	}
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorScriptingCollectTest,
                                  "KawaiiPhysics.EditorScripting.Collect",
@@ -2052,5 +2051,7 @@ bool FKawaiiPhysicsEditorScriptingPlacementLimitsPinRegressionTest::RunTest(cons
 	}
 	return bOk;
 }
+
+} // namespace KawaiiPhysicsEditorScriptingTestPrivate
 
 #endif // WITH_DEV_AUTOMATION_TESTS

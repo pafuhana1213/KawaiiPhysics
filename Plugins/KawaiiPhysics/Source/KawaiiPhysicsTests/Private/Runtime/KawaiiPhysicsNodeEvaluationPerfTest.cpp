@@ -13,7 +13,7 @@
 #include "Misc/MemStack.h"
 #include "UObject/StrongObjectPtr.h"
 
-namespace
+namespace KawaiiPhysicsNodeEvaluationPerfTestPrivate
 {
 	constexpr int32 GEvaluationCheckFrames = 32;
 	constexpr int32 GEvaluationPerfBones = 64;
@@ -97,7 +97,6 @@ namespace
 			Node.EvaluateSkeletalControl_AnyThread(Context, OutTransforms);
 		}
 	};
-}
 
 // リクエストの有無それぞれで、本番のノード評価が全ボーンを有限値で出力する。
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProductionNodeEvaluationTest,
@@ -128,5 +127,7 @@ bool FKawaiiPhysicsProductionNodeEvaluationTest::RunTest(const FString& Paramete
 	}
 	return bOk;
 }
+
+} // namespace KawaiiPhysicsNodeEvaluationPerfTestPrivate
 
 #endif

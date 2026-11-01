@@ -31,7 +31,7 @@
 #include "UObject/NameTypes.h"
 #include "UObject/UnrealType.h"
 
-namespace
+namespace KawaiiPhysicsSharedPublisherEditorTestPrivate
 {
 	// UncookedOnly モジュールでは Native Gameplay Tag を定義できない（エンジンが起動時に Error を出す）ため、
 	// Runtime 側のテスト（KawaiiPhysicsSimpleWorldCollisionTest.cpp）が登録しているテスト用タグを名前で借りる。
@@ -268,7 +268,6 @@ namespace
 			}
 		}
 	}
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsEditorSharedPublisherCategoryConsistencyTest,
                                  "KawaiiPhysics.Editor.SharedPublisher.CategoryConsistency",
@@ -640,5 +639,7 @@ bool FKawaiiPhysicsEditorSharedPublisherPreviewSyncKeepsWindPresetTest::RunTest(
 
 	return bOk;
 }
+
+} // namespace KawaiiPhysicsSharedPublisherEditorTestPrivate
 
 #endif

@@ -6,7 +6,7 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "KawaiiPhysicsExternalForcePostApply.h"
 
-namespace
+namespace KawaiiPhysicsExternalForceLifecycleTestPrivate
 {
 	using FOwnedForces = TArray<TUniquePtr<FKawaiiPhysics_ExternalForce>>;
 
@@ -65,7 +65,6 @@ namespace
 		FKawaiiPhysicsExternalForcePostApply::Apply(Forces, Node, Context,
 			[](const TUniquePtr<FKawaiiPhysics_ExternalForce>& Force) { return Force.Get(); });
 	}
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsOneShotAdjacentInstancesTest,
                                  "KawaiiPhysics.ExternalForce.OneShot.AdjacentInstances",
@@ -290,5 +289,7 @@ bool FKawaiiPhysicsOneShotPreviousRemovalTest::RunTest(const FString& Parameters
 	}
 	return bOk;
 }
+
+} // namespace KawaiiPhysicsExternalForceLifecycleTestPrivate
 
 #endif

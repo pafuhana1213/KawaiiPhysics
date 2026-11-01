@@ -26,7 +26,7 @@
 #include "Misc/AutomationTest.h"
 #include "ReferenceSkeleton.h"
 
-namespace
+namespace KawaiiPhysicsAnimGraphInputTestPrivate
 {
 	// 同一モジュールの他テストとユニティビルドで衝突しないよう、ヘルパー名に AnimGraphInput を付ける
 	struct FKawaiiPhysicsAnimGraphInputFixture
@@ -214,7 +214,6 @@ namespace
 			SequencePlayer && GetAnimGraphInputLinkedNode(LocalToComponentInputPin) == SequencePlayer);
 		return bOk;
 	}
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsAnimGraphInputPlayerFirstTest,
                                  "KawaiiPhysics.EditorScripting.AnimGraphInput.PlayerFirst",
@@ -399,5 +398,7 @@ bool FKawaiiPhysicsAnimGraphInputPoseTest::RunTest(const FString& Parameters)
 	bOk &= TestFalse(TEXT("Null AnimBlueprint reports a reason"), Error.IsEmpty());
 	return bOk;
 }
+
+} // namespace KawaiiPhysicsAnimGraphInputTestPrivate
 
 #endif // WITH_DEV_AUTOMATION_TESTS

@@ -9,11 +9,11 @@
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
 
+namespace KawaiiPhysicsWindPresetTestPrivate
+{
 KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysics_WindPreset_TestUnregistered,
                                    "KawaiiPhysics.WindPreset.TestUnregistered");
 
-namespace
-{
 // 既存の手続き風テストと同じく、浮動小数点の丸め程度を既定許容誤差にする
 constexpr float GWindPresetTol = KINDA_SMALL_NUMBER;
 
@@ -155,7 +155,6 @@ bool TestWindValuesMatchPreset(FAutomationTestBase& Test, const FString& Prefix,
 	                        Preset.StrengthCycleRange);
 	return bOk;
 }
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsWindPresetApplyRoundTripTest,
                                  "KawaiiPhysics.WindPreset.ApplyRoundTrip",
@@ -272,5 +271,7 @@ bool FKawaiiPhysicsWindPresetResolvePresetParamsByTagTest::RunTest(const FString
 		DuplicateAsset->FindPresetByTag(TAG_KawaiiPhysics_WindPreset_TestUnregistered) == nullptr);
 	return bOk;
 }
+
+} // namespace KawaiiPhysicsWindPresetTestPrivate
 
 #endif

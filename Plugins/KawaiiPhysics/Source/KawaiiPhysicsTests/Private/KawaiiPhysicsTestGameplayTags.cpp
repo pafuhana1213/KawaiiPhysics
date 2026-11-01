@@ -9,19 +9,20 @@
 #include "Containers/Array.h"
 #include "GameplayTagsManager.h"
 
-namespace
+namespace KawaiiPhysicsTestGameplayTagsPrivate
 {
 	TArray<const TCHAR*>& GetTestTagNames()
 	{
 		static TArray<const TCHAR*> TagNames;
 		return TagNames;
 	}
-}
+
+} // namespace KawaiiPhysicsTestGameplayTagsPrivate
 
 FKawaiiPhysicsTestGameplayTag::FKawaiiPhysicsTestGameplayTag(const TCHAR* InTagName)
 	: TagName(InTagName)
 {
-	GetTestTagNames().Add(TagName);
+	KawaiiPhysicsTestGameplayTagsPrivate::GetTestTagNames().Add(TagName);
 }
 
 FGameplayTag FKawaiiPhysicsTestGameplayTag::GetTag() const
@@ -32,7 +33,7 @@ FGameplayTag FKawaiiPhysicsTestGameplayTag::GetTag() const
 void FKawaiiPhysicsTestGameplayTag::RegisterAllTestTags()
 {
 	UGameplayTagsManager& TagsManager = UGameplayTagsManager::Get();
-	for (const TCHAR* Name : GetTestTagNames())
+	for (const TCHAR* Name : KawaiiPhysicsTestGameplayTagsPrivate::GetTestTagNames())
 	{
 		const FName TagNameToRegister(Name);
 		// ホットリロードで StartupModule が再実行されたときは初回登録分が残っている。

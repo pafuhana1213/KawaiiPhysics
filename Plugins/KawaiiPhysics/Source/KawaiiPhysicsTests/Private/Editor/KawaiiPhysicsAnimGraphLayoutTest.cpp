@@ -25,7 +25,7 @@
 #include "Misc/AutomationTest.h"
 #include "ReferenceSkeleton.h"
 
-namespace
+namespace KawaiiPhysicsAnimGraphLayoutTestPrivate
 {
 	// 同一モジュールの他テストとユニティビルドで衝突しないよう、ヘルパー名に Layout を付ける
 	struct FKawaiiPhysicsLayoutTestFixture
@@ -282,7 +282,6 @@ namespace
 			}
 		}
 	}
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsAnimGraphLayoutChainTest,
                                  "KawaiiPhysics.EditorScripting.Layout.Chain",
@@ -491,5 +490,7 @@ bool FKawaiiPhysicsAnimGraphLayoutCommentFallbackTest::RunTest(const FString& Pa
 
 	return bOk;
 }
+
+} // namespace KawaiiPhysicsAnimGraphLayoutTestPrivate
 
 #endif
