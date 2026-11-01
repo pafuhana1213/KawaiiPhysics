@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: KawaiiPhysics\n"
-"POT-Creation-Date: 2026-10-31 22:52\n"
-"PO-Revision-Date: 2026-10-31 22:52\n"
+"POT-Creation-Date: 2026-11-01 02:46\n"
+"PO-Revision-Date: 2026-11-01 02:46\n"
 "Language-Team: \n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
@@ -4507,6 +4507,13 @@ msgctxt "UObjectToolTips,KawaiiPhysicsSyncBone:bEnableDistanceAttenuation"
 msgid "SyncBoneとの距離に応じてTargetへの適用量(Alpha)を減衰させる設定\nAttenuation of application amount(Alpha) based on distance from SyncBone to each Target"
 msgstr "SyncBoneとの距離に応じてTargetへの適用量(Alpha)を減衰させる設定\nAttenuation of application amount(Alpha) based on distance from SyncBone to each Target"
 
+#. Key:	Sync Bone
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty Category meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty Category meta-data]
+msgctxt "UObjectCategory,Sync Bone"
+msgid "Sync Bone"
+msgstr "Sync Bone"
+
 #. Key:	KawaiiPhysicsSyncBone:Bone
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty DisplayName meta-data]
@@ -4765,13 +4772,6 @@ msgstr "ChildTargets(Preview)"
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncTargetRoot:ChildTargets"
 msgid "適用対象である子ボーン\nChild bones that are targets for application"
 msgstr "適用対象である子ボーン\nChild bones that are targets for application"
-
-#. Key:	Sync Bone
-#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty Category meta-data]
-#: /Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty Category meta-data]
-msgctxt "UObjectCategory,Sync Bone"
-msgid "Sync Bone"
-msgstr "Sync Bone"
 
 #. Key:	KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty DisplayName meta-data]
@@ -6047,6 +6047,209 @@ msgctxt "UObjectToolTips,TaperedCapsuleLimit:Radius1"
 msgid "-Z端の半径 / Radius at the -Z end"
 msgstr "-Z端の半径 / Radius at the -Z end"
 
+#. Key:	KawaiiPhysicsCollisionDrawStyle
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle [ScriptStruct DisplayName meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle [ScriptStruct DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsCollisionDrawStyle"
+msgid "Kawaii Physics Collision Draw Style"
+msgstr "Kawaii Physics Collision Draw Style"
+
+#. Key:	KawaiiPhysicsCollisionDrawStyle
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle [ScriptStruct ToolTip meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle [ScriptStruct ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsCollisionDrawStyle"
+msgid "Edit Mode でのコリジョン形状の描画スタイル。色のアルファ値が不透明度になる。\nDraw style of a collision shape in the Edit Mode. The alpha of each color is its opacity."
+msgstr "Edit Mode でのコリジョン形状の描画スタイル。色のアルファ値が不透明度になる。\nDraw style of a collision shape in the Edit Mode. The alpha of each color is its opacity."
+
+#. Key:	Collision Draw
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:AnimNodeColor [StructProperty Category meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:AnimNodeColor [StructProperty Category meta-data]
+msgctxt "UObjectCategory,Collision Draw"
+msgid "Collision Draw"
+msgstr "Collision Draw"
+
+#. Key:	KawaiiPhysicsCollisionDrawStyle:AnimNodeColor
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:AnimNodeColor [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:AnimNodeColor [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsCollisionDrawStyle:AnimNodeColor"
+msgid "AnimNode Color"
+msgstr "AnimNode Color"
+
+#. Key:	KawaiiPhysicsCollisionDrawStyle:AnimNodeColor
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:AnimNodeColor [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:AnimNodeColor [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsCollisionDrawStyle:AnimNodeColor"
+msgid "AnimNode で設定したコリジョンの色。アルファ値が不透明度になる。\nColor of collisions set in the AnimNode. Alpha is the opacity."
+msgstr "AnimNode で設定したコリジョンの色。アルファ値が不透明度になる。\nColor of collisions set in the AnimNode. Alpha is the opacity."
+
+#. Key:	KawaiiPhysicsCollisionDrawStyle:bDrawBorder
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:bDrawBorder [BoolProperty DisplayName meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:bDrawBorder [BoolProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsCollisionDrawStyle:bDrawBorder"
+msgid "Draw Border"
+msgstr "Draw Border"
+
+#. Key:	KawaiiPhysicsCollisionDrawStyle:bDrawBorder
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:bDrawBorder [BoolProperty ToolTip meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:bDrawBorder [BoolProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsCollisionDrawStyle:bDrawBorder"
+msgid "形状の境界線を描画する。\nDraw the outline of the shape."
+msgstr "形状の境界線を描画する。\nDraw the outline of the shape."
+
+#. Key:	KawaiiPhysicsCollisionDrawStyle:BorderColor
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:BorderColor [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:BorderColor [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsCollisionDrawStyle:BorderColor"
+msgid "Border Color"
+msgstr "Border Color"
+
+#. Key:	KawaiiPhysicsCollisionDrawStyle:BorderColor
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:BorderColor [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:BorderColor [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsCollisionDrawStyle:BorderColor"
+msgid "境界線の色。\nColor of the outline."
+msgstr "境界線の色。\nColor of the outline."
+
+#. Key:	KawaiiPhysicsCollisionDrawStyle:BorderThickness
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:BorderThickness [FloatProperty DisplayName meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:BorderThickness [FloatProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsCollisionDrawStyle:BorderThickness"
+msgid "Border Thickness"
+msgstr "Border Thickness"
+
+#. Key:	KawaiiPhysicsCollisionDrawStyle:BorderThickness
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:BorderThickness [FloatProperty ToolTip meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:BorderThickness [FloatProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsCollisionDrawStyle:BorderThickness"
+msgid "境界線の太さ。0で最も細い線（1ピクセル）になる。\nThickness of the outline. 0 draws the thinnest line (1 pixel)."
+msgstr "境界線の太さ。0で最も細い線（1ピクセル）になる。\nThickness of the outline. 0 draws the thinnest line (1 pixel)."
+
+#. Key:	KawaiiPhysicsCollisionDrawStyle:DataAssetColor
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:DataAssetColor [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:DataAssetColor [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsCollisionDrawStyle:DataAssetColor"
+msgid "DataAsset Color"
+msgstr "DataAsset Color"
+
+#. Key:	KawaiiPhysicsCollisionDrawStyle:DataAssetColor
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:DataAssetColor [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:DataAssetColor [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsCollisionDrawStyle:DataAssetColor"
+msgid "LimitsDataAsset 由来のコリジョンの色。アルファ値が不透明度になる。\nColor of collisions from a LimitsDataAsset. Alpha is the opacity."
+msgstr "LimitsDataAsset 由来のコリジョンの色。アルファ値が不透明度になる。\nColor of collisions from a LimitsDataAsset. Alpha is the opacity."
+
+#. Key:	KawaiiPhysicsCollisionDrawStyle:MirrorColor
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:MirrorColor [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:MirrorColor [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsCollisionDrawStyle:MirrorColor"
+msgid "Mirror Color"
+msgstr "Mirror Color"
+
+#. Key:	KawaiiPhysicsCollisionDrawStyle:MirrorColor
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:MirrorColor [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:MirrorColor [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsCollisionDrawStyle:MirrorColor"
+msgid "ミラーで自動生成されたコリジョンの色。アルファ値が不透明度になる。\nColor of collisions generated by mirroring. Alpha is the opacity."
+msgstr "ミラーで自動生成されたコリジョンの色。アルファ値が不透明度になる。\nColor of collisions generated by mirroring. Alpha is the opacity."
+
+#. Key:	KawaiiPhysicsCollisionDrawStyle:PhysicsAssetColor
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:PhysicsAssetColor [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:PhysicsAssetColor [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsCollisionDrawStyle:PhysicsAssetColor"
+msgid "PhysicsAsset Color"
+msgstr "PhysicsAsset Color"
+
+#. Key:	KawaiiPhysicsCollisionDrawStyle:PhysicsAssetColor
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:PhysicsAssetColor [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsCollisionDrawStyle:PhysicsAssetColor [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsCollisionDrawStyle:PhysicsAssetColor"
+msgid "PhysicsAsset 由来のコリジョンの色。アルファ値が不透明度になる。\nColor of collisions from a PhysicsAsset. Alpha is the opacity."
+msgstr "PhysicsAsset 由来のコリジョンの色。アルファ値が不透明度になる。\nColor of collisions from a PhysicsAsset. Alpha is the opacity."
+
+#. Key:	KawaiiPhysicsEditorSettings
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsEditorSettings [Class DisplayName meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsEditorSettings [Class DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsEditorSettings"
+msgid "Kawaii Physics"
+msgstr "Kawaii Physics"
+
+#. Key:	KawaiiPhysicsEditorSettings
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsEditorSettings [Class ToolTip meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsEditorSettings [Class ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsEditorSettings"
+msgid "Edit Mode でのコリジョンの表示を変更する。設定はユーザーごとに保存される。\nChanges how collisions are drawn in the Edit Mode. Saved per user."
+msgstr "Edit Mode でのコリジョンの表示を変更する。設定はユーザーごとに保存される。\nChanges how collisions are drawn in the Edit Mode. Saved per user."
+
+#. Key:	KawaiiPhysicsEditorSettings:Box
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsEditorSettings:Box [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsEditorSettings:Box [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsEditorSettings:Box"
+msgid "Box"
+msgstr "Box"
+
+#. Key:	KawaiiPhysicsEditorSettings:Box
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsEditorSettings:Box [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsEditorSettings:Box [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsEditorSettings:Box"
+msgid "Edit Mode で描画するボックスコリジョンのスタイル。\nDraw style of box collisions in the Edit Mode."
+msgstr "Edit Mode で描画するボックスコリジョンのスタイル。\nDraw style of box collisions in the Edit Mode."
+
+#. Key:	KawaiiPhysicsEditorSettings:Capsule
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsEditorSettings:Capsule [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsEditorSettings:Capsule [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsEditorSettings:Capsule"
+msgid "Capsule"
+msgstr "Capsule"
+
+#. Key:	KawaiiPhysicsEditorSettings:Capsule
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsEditorSettings:Capsule [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsEditorSettings:Capsule [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsEditorSettings:Capsule"
+msgid "Edit Mode で描画するカプセルコリジョンのスタイル。\nDraw style of capsule collisions in the Edit Mode."
+msgstr "Edit Mode で描画するカプセルコリジョンのスタイル。\nDraw style of capsule collisions in the Edit Mode."
+
+#. Key:	KawaiiPhysicsEditorSettings:Planar
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsEditorSettings:Planar [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsEditorSettings:Planar [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsEditorSettings:Planar"
+msgid "Planar"
+msgstr "Planar"
+
+#. Key:	KawaiiPhysicsEditorSettings:Planar
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsEditorSettings:Planar [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsEditorSettings:Planar [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsEditorSettings:Planar"
+msgid "Edit Mode で描画する平面コリジョンのスタイル。\nDraw style of planar collisions in the Edit Mode."
+msgstr "Edit Mode で描画する平面コリジョンのスタイル。\nDraw style of planar collisions in the Edit Mode."
+
+#. Key:	KawaiiPhysicsEditorSettings:Sphere
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsEditorSettings:Sphere [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsEditorSettings:Sphere [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsEditorSettings:Sphere"
+msgid "Sphere"
+msgstr "Sphere"
+
+#. Key:	KawaiiPhysicsEditorSettings:Sphere
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsEditorSettings:Sphere [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsEditorSettings:Sphere [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsEditorSettings:Sphere"
+msgid "Edit Mode で描画する球コリジョンのスタイル。\nDraw style of sphere collisions in the Edit Mode."
+msgstr "Edit Mode で描画する球コリジョンのスタイル。\nDraw style of sphere collisions in the Edit Mode."
+
+#. Key:	KawaiiPhysicsEditorSettings:TaperedCapsule
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsEditorSettings:TaperedCapsule [StructProperty DisplayName meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsEditorSettings:TaperedCapsule [StructProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,KawaiiPhysicsEditorSettings:TaperedCapsule"
+msgid "Tapered Capsule"
+msgstr "Tapered Capsule"
+
+#. Key:	KawaiiPhysicsEditorSettings:TaperedCapsule
+#. SourceLocation:	/Script/KawaiiPhysicsEd.KawaiiPhysicsEditorSettings:TaperedCapsule [StructProperty ToolTip meta-data]
+#: /Script/KawaiiPhysicsEd.KawaiiPhysicsEditorSettings:TaperedCapsule [StructProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,KawaiiPhysicsEditorSettings:TaperedCapsule"
+msgid "Edit Mode で描画するテーパードカプセルコリジョンのスタイル。\nDraw style of tapered capsule collisions in the Edit Mode."
+msgstr "Edit Mode で描画するテーパードカプセルコリジョンのスタイル。\nDraw style of tapered capsule collisions in the Edit Mode."
+
 #. Key:	MovieSceneKawaiiPhysicsSettingsMultiplierSection
 #. SourceLocation:	/Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsMultiplierSection [Class DisplayName meta-data]
 #: /Script/KawaiiPhysicsSequencer.MovieSceneKawaiiPhysicsSettingsMultiplierSection [Class DisplayName meta-data]
@@ -6944,15 +7147,15 @@ msgid "Kawaii Physics"
 msgstr "Kawaii Physics"
 
 #. Key:	DeleteKawaiiCollision
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1092)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1092)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1115)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1115)
 msgctxt "KawaiiPhysicsEditMode,DeleteKawaiiCollision"
 msgid "Delete KawaiiPhysics Collision"
 msgstr "Delete KawaiiPhysics Collision"
 
 #. Key:	PerAxisLimitForwardAxisMismatch
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1693)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1693)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1716)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1716)
 msgctxt "KawaiiPhysicsEditMode,PerAxisLimitForwardAxisMismatch"
 msgid "Per Axis Limit: {0} bone(s) are more than 45 degrees off Bone Forward Axis. X/Y/Z may not match the parent bone's local axes"
 msgstr "Per Axis Limit: {0} bone(s) are more than 45 degrees off Bone Forward Axis. X/Y/Z may not match the parent bone's local axes"

@@ -67,6 +67,7 @@ It allows you to easily and cutely animate things that sway, such as hair, skirt
 - Drives your sway bones from the character's animation and movement
 - Just drop a single `KawaiiPhysics` node into your AnimGraph and you're set
 - Supports sphere, capsule, and plane collisions, all adjustable right in the viewport
+- Change the color, opacity, and outline of each collision type in the viewport from Editor Preferences
 - Keeps bone lengths fixed, so bones never stretch or collapse even if the simulation breaks down
 - Uses a simple, PhysX-free algorithm, so it stays light at runtime
 - Apply not just wind and gravity, but also custom forces for artistic effect
