@@ -17,50 +17,50 @@
 
 #include "ReferenceSkeleton.h"
 
-namespace
+namespace KawaiiPhysicsSimpleWorldCollisionPrivate
 {
-	void InitializeSimpleWorldLimit(FCollisionLimitBase& Limit)
+	static void InitializeSimpleWorldLimit(FCollisionLimitBase& Limit)
 	{
 		Limit.bEnable = true;
 		Limit.SourceType = ECollisionSourceType::SimpleWorld;
 	}
 
-	bool HasUsableExtent(const FVector& Extent)
+	static bool HasUsableExtent(const FVector& Extent)
 	{
 		return Extent.GetAbsMax() > KINDA_SMALL_NUMBER;
 	}
 
-	void ApplyRadiusScale(FSphericalLimit& Limit, float RadiusScale)
+	static void ApplyRadiusScale(FSphericalLimit& Limit, float RadiusScale)
 	{
 		Limit.Radius *= RadiusScale;
 	}
 
-	void ApplyRadiusScale(FCapsuleLimit& Limit, float RadiusScale)
+	static void ApplyRadiusScale(FCapsuleLimit& Limit, float RadiusScale)
 	{
 		Limit.Radius *= RadiusScale;
 	}
 
-	void ApplyRadiusScale(FTaperedCapsuleLimit& Limit, float RadiusScale)
+	static void ApplyRadiusScale(FTaperedCapsuleLimit& Limit, float RadiusScale)
 	{
 		Limit.Radius0 *= RadiusScale;
 		Limit.Radius1 *= RadiusScale;
 	}
 
-	void ApplyRadiusScale(FBoxLimit&, float)
+	static void ApplyRadiusScale(FBoxLimit&, float)
 	{
 	}
 
-	void ApplyRadiusScale(FKawaiiPhysicsConvexLimit&, float)
+	static void ApplyRadiusScale(FKawaiiPhysicsConvexLimit&, float)
 	{
 	}
 
-	bool IsFiniteVector(const FVector& Vector)
+	static bool IsFiniteVector(const FVector& Vector)
 	{
 		return FMath::IsFinite(Vector.X) && FMath::IsFinite(Vector.Y) && FMath::IsFinite(Vector.Z);
 	}
 
 	template <typename LimitType>
-	void AppendTransformedLimits(
+	static void AppendTransformedLimits(
 		TArrayView<const LimitType> LocalLimits,
 		const FTransform& ComponentTM,
 		TArray<LimitType>& OutWorldLimits,
@@ -79,7 +79,7 @@ namespace
 		}
 	}
 
-	void AppendTransformedConvexLimits(TArrayView<const FKawaiiPhysicsConvexLimit> Limits,
+	static void AppendTransformedConvexLimits(TArrayView<const FKawaiiPhysicsConvexLimit> Limits,
 		const FTransform& ComponentTM, FKawaiiPhysicsSharedCollisionData& OutData,
 		FKawaiiPhysicsCollisionBufferWriter* Writer)
 	{
@@ -95,7 +95,7 @@ namespace
 	}
 
 	template <typename LimitType>
-	TArrayView<const LimitType> MakeKawaiiPhysicsSimpleWorldLimitView(
+	static TArrayView<const LimitType> MakeKawaiiPhysicsSimpleWorldLimitView(
 		const TArray<LimitType>& Limits,
 		int32 Offset,
 		int32 Num)
@@ -106,7 +106,7 @@ namespace
 			: TArrayView<const LimitType>();
 	}
 
-	void AppendTransformedPlanarLimits(
+	static void AppendTransformedPlanarLimits(
 		const TArray<FPlanarLimit>& LocalLimits,
 		const FTransform& ComponentTM,
 		TArray<FPlanarLimit>& OutWorldLimits)
@@ -123,7 +123,7 @@ namespace
 		}
 	}
 
-	bool IsKawaiiPhysicsSimpleWorldCollisionAggGeomEmpty(const FKAggregateGeom& AggGeom)
+	static bool IsKawaiiPhysicsSimpleWorldCollisionAggGeomEmpty(const FKAggregateGeom& AggGeom)
 	{
 		return AggGeom.SphereElems.IsEmpty()
 			&& AggGeom.SphylElems.IsEmpty()
@@ -138,7 +138,7 @@ namespace
 		int32 BoneIndex = INDEX_NONE;
 		int32 BodyIndex = INDEX_NONE;
 	};
-}
+} // namespace KawaiiPhysicsSimpleWorldCollisionPrivate
 
 namespace KawaiiPhysicsSimpleWorldCollision
 {
@@ -222,7 +222,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		{
 			// Bounds にはハルの平面情報が無いため、ConvexHull 指定でも BoundingBox として扱う。
 			FBoxLimit NewLimit;
-			InitializeSimpleWorldLimit(NewLimit);
+			KawaiiPhysicsSimpleWorldCollisionPrivate::InitializeSimpleWorldLimit(NewLimit);
 			NewLimit.Location = LocalCenter;
 			NewLimit.Rotation = ComponentTM.GetRotation().Inverse();
 			NewLimit.Extent = Bounds.BoxExtent;
@@ -231,7 +231,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		else if (BoundsShape == EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingSphere)
 		{
 			FSphericalLimit NewLimit;
-			InitializeSimpleWorldLimit(NewLimit);
+			KawaiiPhysicsSimpleWorldCollisionPrivate::InitializeSimpleWorldLimit(NewLimit);
 			NewLimit.Location = LocalCenter;
 			NewLimit.Rotation = FQuat::Identity;
 			NewLimit.Radius = Bounds.SphereRadius;
@@ -263,7 +263,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		for (const FPlane& BodySpacePlane : BodySpacePlanes)
 		{
 			const FVector PlaneNormal(BodySpacePlane.X, BodySpacePlane.Y, BodySpacePlane.Z);
-			if (!IsFiniteVector(PlaneNormal)
+			if (!KawaiiPhysicsSimpleWorldCollisionPrivate::IsFiniteVector(PlaneNormal)
 				|| !FMath::IsFinite(BodySpacePlane.W)
 				|| PlaneNormal.SizeSquared() <= FMath::Square(KINDA_SMALL_NUMBER))
 			{
@@ -277,13 +277,13 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		FBox ScaledBounds(ForceInit);
 		for (const FVector& ElemLocalVertex : ElemLocalVertices)
 		{
-			if (!IsFiniteVector(ElemLocalVertex))
+			if (!KawaiiPhysicsSimpleWorldCollisionPrivate::IsFiniteVector(ElemLocalVertex))
 			{
 				return false;
 			}
 
 			const FVector ScaledVertex = ElemTM.TransformPosition(ElemLocalVertex) * Scale3D;
-			if (!IsFiniteVector(ScaledVertex))
+			if (!KawaiiPhysicsSimpleWorldCollisionPrivate::IsFiniteVector(ScaledVertex))
 			{
 				return false;
 			}
@@ -300,7 +300,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		const FVector LocalCenter = ScaledBounds.GetCenter();
 
 		FKawaiiPhysicsConvexLimit NewLimit;
-		InitializeSimpleWorldLimit(NewLimit);
+		KawaiiPhysicsSimpleWorldCollisionPrivate::InitializeSimpleWorldLimit(NewLimit);
 		NewLimit.Location = LocalCenter;
 		NewLimit.Rotation = FQuat::Identity;
 		NewLimit.LocalBounds = FBox(ScaledBounds.Min - LocalCenter, ScaledBounds.Max - LocalCenter);
@@ -316,8 +316,8 @@ namespace KawaiiPhysicsSimpleWorldCollision
 				PlaneNormal.X / Scale3D.X,
 				PlaneNormal.Y / Scale3D.Y,
 				PlaneNormal.Z / Scale3D.Z).GetSafeNormal();
-			if (!IsFiniteVector(ScaledPoint)
-				|| !IsFiniteVector(ScaledNormal)
+			if (!KawaiiPhysicsSimpleWorldCollisionPrivate::IsFiniteVector(ScaledPoint)
+				|| !KawaiiPhysicsSimpleWorldCollisionPrivate::IsFiniteVector(ScaledNormal)
 				|| ScaledNormal.IsNearlyZero(KINDA_SMALL_NUMBER))
 			{
 				return false;
@@ -450,7 +450,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		const float ClampedRadius = FMath::Max(0.0f, Radius);
 
 		FBoxLimit NewBox;
-		InitializeSimpleWorldLimit(NewBox);
+		KawaiiPhysicsSimpleWorldCollisionPrivate::InitializeSimpleWorldLimit(NewBox);
 		NewBox.Location = ImpactPoint - Normal * GroundBoxHalfThickness;
 		NewBox.Rotation = FQuat::FindBetweenNormals(FVector::UpVector, Normal);
 		NewBox.Extent = FVector(ClampedRadius, ClampedRadius, GroundBoxHalfThickness);
@@ -496,7 +496,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 			const FKSphereElem ScaledElem = SphereElem.GetFinalScaled(Scale3D, FTransform::Identity);
 
 			FSphericalLimit NewLimit;
-			InitializeSimpleWorldLimit(NewLimit);
+			KawaiiPhysicsSimpleWorldCollisionPrivate::InitializeSimpleWorldLimit(NewLimit);
 			NewLimit.Location = ScaledElem.Center;
 			NewLimit.Rotation = FQuat::Identity;
 			NewLimit.Radius = ScaledElem.Radius;
@@ -515,7 +515,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 			const FKSphylElem ScaledElem = CapsuleElem.GetFinalScaled(Scale3D, FTransform::Identity);
 
 			FCapsuleLimit NewLimit;
-			InitializeSimpleWorldLimit(NewLimit);
+			KawaiiPhysicsSimpleWorldCollisionPrivate::InitializeSimpleWorldLimit(NewLimit);
 			NewLimit.Location = ScaledElem.Center;
 			NewLimit.Rotation = ScaledElem.Rotation.Quaternion();
 			NewLimit.Radius = ScaledElem.Radius;
@@ -534,7 +534,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 			const FKTaperedCapsuleElem ScaledElem = TaperedCapsuleElem.GetFinalScaled(Scale3D, FTransform::Identity);
 
 			FTaperedCapsuleLimit NewLimit;
-			InitializeSimpleWorldLimit(NewLimit);
+			KawaiiPhysicsSimpleWorldCollisionPrivate::InitializeSimpleWorldLimit(NewLimit);
 			NewLimit.Location = ScaledElem.Center;
 			NewLimit.Rotation = ScaledElem.Rotation.Quaternion();
 			NewLimit.Radius0 = ScaledElem.Radius0;
@@ -556,7 +556,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 			const FKBoxElem ScaledElem = BoxElem.GetFinalScaled(Scale3D, FTransform::Identity);
 
 			FBoxLimit NewLimit;
-			InitializeSimpleWorldLimit(NewLimit);
+			KawaiiPhysicsSimpleWorldCollisionPrivate::InitializeSimpleWorldLimit(NewLimit);
 			NewLimit.Location = ScaledElem.Center;
 			NewLimit.Rotation = ScaledElem.Rotation.Quaternion();
 			NewLimit.Extent = FVector(ScaledElem.X, ScaledElem.Y, ScaledElem.Z) * 0.5f;
@@ -605,7 +605,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 			const FVector Location = ElemTM.TransformPosition(BoxCenter) * Scale3D;
 			// ConvexのBounds近似。非一様スケールとElem回転の組み合わせは厳密には歪むが、近似として成分ごとに半サイズへスケールを適用する。
 			const FVector Extent = BoxHalfSize * ScaleAbs;
-			if (!HasUsableExtent(Extent))
+			if (!KawaiiPhysicsSimpleWorldCollisionPrivate::HasUsableExtent(Extent))
 			{
 				continue;
 			}
@@ -614,7 +614,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 				|| ConvexFallbackShape == EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingBox)
 			{
 				FBoxLimit NewLimit;
-				InitializeSimpleWorldLimit(NewLimit);
+				KawaiiPhysicsSimpleWorldCollisionPrivate::InitializeSimpleWorldLimit(NewLimit);
 				NewLimit.Location = Location;
 				NewLimit.Rotation = ElemTM.GetRotation();
 				NewLimit.Extent = Extent;
@@ -623,7 +623,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 			else if (ConvexFallbackShape == EKawaiiPhysicsSimpleWorldConvexFallbackShape::BoundingSphere)
 			{
 				FSphericalLimit NewLimit;
-				InitializeSimpleWorldLimit(NewLimit);
+				KawaiiPhysicsSimpleWorldCollisionPrivate::InitializeSimpleWorldLimit(NewLimit);
 				NewLimit.Location = Location;
 				NewLimit.Rotation = FQuat::Identity;
 				NewLimit.Radius = Extent.Size();
@@ -641,23 +641,23 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		FKawaiiPhysicsSharedCollisionData& OutWorldLimits,
 		float RadiusScale)
 	{
-		AppendTransformedLimits(
-			MakeKawaiiPhysicsSimpleWorldLimitView(LocalLimits.SphericalLimits, 0, LocalLimits.SphericalLimits.Num()),
+		KawaiiPhysicsSimpleWorldCollisionPrivate::AppendTransformedLimits(
+			KawaiiPhysicsSimpleWorldCollisionPrivate::MakeKawaiiPhysicsSimpleWorldLimitView(LocalLimits.SphericalLimits, 0, LocalLimits.SphericalLimits.Num()),
 			ComponentTM, OutWorldLimits.SphericalLimits, RadiusScale);
-		AppendTransformedLimits(
-			MakeKawaiiPhysicsSimpleWorldLimitView(LocalLimits.CapsuleLimits, 0, LocalLimits.CapsuleLimits.Num()),
+		KawaiiPhysicsSimpleWorldCollisionPrivate::AppendTransformedLimits(
+			KawaiiPhysicsSimpleWorldCollisionPrivate::MakeKawaiiPhysicsSimpleWorldLimitView(LocalLimits.CapsuleLimits, 0, LocalLimits.CapsuleLimits.Num()),
 			ComponentTM, OutWorldLimits.CapsuleLimits, RadiusScale);
-		AppendTransformedLimits(
-			MakeKawaiiPhysicsSimpleWorldLimitView(
+		KawaiiPhysicsSimpleWorldCollisionPrivate::AppendTransformedLimits(
+			KawaiiPhysicsSimpleWorldCollisionPrivate::MakeKawaiiPhysicsSimpleWorldLimitView(
 				LocalLimits.TaperedCapsuleLimits, 0, LocalLimits.TaperedCapsuleLimits.Num()),
 			ComponentTM, OutWorldLimits.TaperedCapsuleLimits, RadiusScale);
-		AppendTransformedLimits(
-			MakeKawaiiPhysicsSimpleWorldLimitView(LocalLimits.BoxLimits, 0, LocalLimits.BoxLimits.Num()),
+		KawaiiPhysicsSimpleWorldCollisionPrivate::AppendTransformedLimits(
+			KawaiiPhysicsSimpleWorldCollisionPrivate::MakeKawaiiPhysicsSimpleWorldLimitView(LocalLimits.BoxLimits, 0, LocalLimits.BoxLimits.Num()),
 			ComponentTM, OutWorldLimits.BoxLimits);
-		AppendTransformedLimits(
-			MakeKawaiiPhysicsSimpleWorldLimitView(LocalLimits.ConvexLimits, 0, LocalLimits.ConvexLimits.Num()),
+		KawaiiPhysicsSimpleWorldCollisionPrivate::AppendTransformedLimits(
+			KawaiiPhysicsSimpleWorldCollisionPrivate::MakeKawaiiPhysicsSimpleWorldLimitView(LocalLimits.ConvexLimits, 0, LocalLimits.ConvexLimits.Num()),
 			ComponentTM, OutWorldLimits.ConvexLimits);
-		AppendTransformedPlanarLimits(LocalLimits.PlanarLimits, ComponentTM, OutWorldLimits.PlanarLimits);
+		KawaiiPhysicsSimpleWorldCollisionPrivate::AppendTransformedPlanarLimits(LocalLimits.PlanarLimits, ComponentTM, OutWorldLimits.PlanarLimits);
 	}
 
 	bool AppendBodyLocalLimits(
@@ -672,7 +672,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		TArray<FKawaiiPhysicsSimpleWorldBodyBinding>& OutBindings)
 	{
 		if (BoneIndex == INDEX_NONE || MaxBodies <= 0 || OutBindings.Num() >= MaxBodies
-			|| IsKawaiiPhysicsSimpleWorldCollisionAggGeomEmpty(AggGeom))
+			|| KawaiiPhysicsSimpleWorldCollisionPrivate::IsKawaiiPhysicsSimpleWorldCollisionAggGeomEmpty(AggGeom))
 		{
 			return false;
 		}
@@ -729,7 +729,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 			return 0;
 		}
 
-		TArray<FKawaiiPhysicsSimpleWorldPhysicsAssetBodyCandidate> Candidates;
+		TArray<KawaiiPhysicsSimpleWorldCollisionPrivate::FKawaiiPhysicsSimpleWorldPhysicsAssetBodyCandidate> Candidates;
 		Candidates.Reserve(PhysicsAsset.SkeletalBodySetups.Num());
 
 		for (int32 BodyIndex = 0; BodyIndex < PhysicsAsset.SkeletalBodySetups.Num(); ++BodyIndex)
@@ -737,7 +737,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 			const USkeletalBodySetup* BodySetup = PhysicsAsset.SkeletalBodySetups[BodyIndex];
 			if (!BodySetup
 				|| BodySetup->CollisionReponse == EBodyCollisionResponse::BodyCollision_Disabled
-				|| IsKawaiiPhysicsSimpleWorldCollisionAggGeomEmpty(BodySetup->AggGeom))
+				|| KawaiiPhysicsSimpleWorldCollisionPrivate::IsKawaiiPhysicsSimpleWorldCollisionAggGeomEmpty(BodySetup->AggGeom))
 			{
 				continue;
 			}
@@ -748,7 +748,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 				continue;
 			}
 
-			FKawaiiPhysicsSimpleWorldPhysicsAssetBodyCandidate Candidate;
+			KawaiiPhysicsSimpleWorldCollisionPrivate::FKawaiiPhysicsSimpleWorldPhysicsAssetBodyCandidate Candidate;
 			Candidate.BodySetup = BodySetup;
 			Candidate.BoneIndex = BoneIndex;
 			Candidate.BodyIndex = BodyIndex;
@@ -756,8 +756,8 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		}
 
 		Candidates.Sort([](
-			const FKawaiiPhysicsSimpleWorldPhysicsAssetBodyCandidate& Lhs,
-			const FKawaiiPhysicsSimpleWorldPhysicsAssetBodyCandidate& Rhs)
+			const KawaiiPhysicsSimpleWorldCollisionPrivate::FKawaiiPhysicsSimpleWorldPhysicsAssetBodyCandidate& Lhs,
+			const KawaiiPhysicsSimpleWorldCollisionPrivate::FKawaiiPhysicsSimpleWorldPhysicsAssetBodyCandidate& Rhs)
 		{
 			if (Lhs.BoneIndex != Rhs.BoneIndex)
 			{
@@ -767,7 +767,7 @@ namespace KawaiiPhysicsSimpleWorldCollision
 		});
 
 		const int32 InitialBindingCount = OutBindings.Num();
-		for (const FKawaiiPhysicsSimpleWorldPhysicsAssetBodyCandidate& Candidate : Candidates)
+		for (const KawaiiPhysicsSimpleWorldCollisionPrivate::FKawaiiPhysicsSimpleWorldPhysicsAssetBodyCandidate& Candidate : Candidates)
 		{
 			if (OutBindings.Num() >= MaxBodies)
 			{
@@ -838,34 +838,34 @@ namespace KawaiiPhysicsSimpleWorldCollision
 			const FKawaiiPhysicsSimpleWorldBodyBinding& Binding = Bindings[BodyIndex];
 			const FTransform& BodyWorldTM = BodyWorldTMs[BodyIndex];
 
-			AppendTransformedLimits(
-				MakeKawaiiPhysicsSimpleWorldLimitView(
+			KawaiiPhysicsSimpleWorldCollisionPrivate::AppendTransformedLimits(
+				KawaiiPhysicsSimpleWorldCollisionPrivate::MakeKawaiiPhysicsSimpleWorldLimitView(
 					LocalLimits.SphericalLimits, SphereOffset, Binding.NumSphericalLimits),
 				BodyWorldTM,
 				OutWorldLimits.SphericalLimits,
 				FadeAlpha);
-			AppendTransformedLimits(
-				MakeKawaiiPhysicsSimpleWorldLimitView(
+			KawaiiPhysicsSimpleWorldCollisionPrivate::AppendTransformedLimits(
+				KawaiiPhysicsSimpleWorldCollisionPrivate::MakeKawaiiPhysicsSimpleWorldLimitView(
 					LocalLimits.CapsuleLimits, CapsuleOffset, Binding.NumCapsuleLimits),
 				BodyWorldTM,
 				OutWorldLimits.CapsuleLimits,
 				FadeAlpha);
-			AppendTransformedLimits(
-				MakeKawaiiPhysicsSimpleWorldLimitView(
+			KawaiiPhysicsSimpleWorldCollisionPrivate::AppendTransformedLimits(
+				KawaiiPhysicsSimpleWorldCollisionPrivate::MakeKawaiiPhysicsSimpleWorldLimitView(
 					LocalLimits.TaperedCapsuleLimits, TaperedCapsuleOffset, Binding.NumTaperedCapsuleLimits),
 				BodyWorldTM,
 				OutWorldLimits.TaperedCapsuleLimits,
 				FadeAlpha);
 			if (FadeAlpha >= BoxEnableThreshold)
 			{
-				AppendTransformedLimits(
-					MakeKawaiiPhysicsSimpleWorldLimitView(
+				KawaiiPhysicsSimpleWorldCollisionPrivate::AppendTransformedLimits(
+					KawaiiPhysicsSimpleWorldCollisionPrivate::MakeKawaiiPhysicsSimpleWorldLimitView(
 						LocalLimits.BoxLimits, BoxOffset, Binding.NumBoxLimits),
 					BodyWorldTM,
 					OutWorldLimits.BoxLimits);
 				// Convex は半径縮小できないため、Box と同じしきい値ゲートを共用する。
-				AppendTransformedConvexLimits(
-					MakeKawaiiPhysicsSimpleWorldLimitView(
+				KawaiiPhysicsSimpleWorldCollisionPrivate::AppendTransformedConvexLimits(
+					KawaiiPhysicsSimpleWorldCollisionPrivate::MakeKawaiiPhysicsSimpleWorldLimitView(
 						LocalLimits.ConvexLimits, ConvexOffset, Binding.NumConvexLimits),
 					BodyWorldTM, OutWorldLimits, Writer);
 			}
@@ -887,27 +887,27 @@ namespace KawaiiPhysicsSimpleWorldCollision
 	{
 		// フェード係数はワールドLimitへの追記時に適用し、ローカルLimit全体のコピーを避ける。
 		// Spheres/Capsules/TaperedCapsules は半径のみ縮小し、Boxes は一定Alphaまでpublishしない。
-		AppendTransformedLimits(
-			MakeKawaiiPhysicsSimpleWorldLimitView(LocalLimits.SphericalLimits, 0, LocalLimits.SphericalLimits.Num()),
+		KawaiiPhysicsSimpleWorldCollisionPrivate::AppendTransformedLimits(
+			KawaiiPhysicsSimpleWorldCollisionPrivate::MakeKawaiiPhysicsSimpleWorldLimitView(LocalLimits.SphericalLimits, 0, LocalLimits.SphericalLimits.Num()),
 			ComponentTM, OutWorldLimits.SphericalLimits, FadeAlpha);
-		AppendTransformedLimits(
-			MakeKawaiiPhysicsSimpleWorldLimitView(LocalLimits.CapsuleLimits, 0, LocalLimits.CapsuleLimits.Num()),
+		KawaiiPhysicsSimpleWorldCollisionPrivate::AppendTransformedLimits(
+			KawaiiPhysicsSimpleWorldCollisionPrivate::MakeKawaiiPhysicsSimpleWorldLimitView(LocalLimits.CapsuleLimits, 0, LocalLimits.CapsuleLimits.Num()),
 			ComponentTM, OutWorldLimits.CapsuleLimits, FadeAlpha);
-		AppendTransformedLimits(
-			MakeKawaiiPhysicsSimpleWorldLimitView(
+		KawaiiPhysicsSimpleWorldCollisionPrivate::AppendTransformedLimits(
+			KawaiiPhysicsSimpleWorldCollisionPrivate::MakeKawaiiPhysicsSimpleWorldLimitView(
 				LocalLimits.TaperedCapsuleLimits, 0, LocalLimits.TaperedCapsuleLimits.Num()),
 			ComponentTM, OutWorldLimits.TaperedCapsuleLimits, FadeAlpha);
 		if (FadeAlpha >= BoxEnableThreshold)
 		{
-			AppendTransformedLimits(
-				MakeKawaiiPhysicsSimpleWorldLimitView(LocalLimits.BoxLimits, 0, LocalLimits.BoxLimits.Num()),
+			KawaiiPhysicsSimpleWorldCollisionPrivate::AppendTransformedLimits(
+				KawaiiPhysicsSimpleWorldCollisionPrivate::MakeKawaiiPhysicsSimpleWorldLimitView(LocalLimits.BoxLimits, 0, LocalLimits.BoxLimits.Num()),
 				ComponentTM, OutWorldLimits.BoxLimits);
 			// Convex は半径縮小できないため、Box と同じしきい値ゲートを共用する。
-			AppendTransformedConvexLimits(
-				MakeKawaiiPhysicsSimpleWorldLimitView(LocalLimits.ConvexLimits, 0, LocalLimits.ConvexLimits.Num()),
+			KawaiiPhysicsSimpleWorldCollisionPrivate::AppendTransformedConvexLimits(
+				KawaiiPhysicsSimpleWorldCollisionPrivate::MakeKawaiiPhysicsSimpleWorldLimitView(LocalLimits.ConvexLimits, 0, LocalLimits.ConvexLimits.Num()),
 				ComponentTM, OutWorldLimits, Writer);
 		}
-		AppendTransformedPlanarLimits(LocalLimits.PlanarLimits, ComponentTM, OutWorldLimits.PlanarLimits);
+		KawaiiPhysicsSimpleWorldCollisionPrivate::AppendTransformedPlanarLimits(LocalLimits.PlanarLimits, ComponentTM, OutWorldLimits.PlanarLimits);
 	}
 
 	void AppendFadedSkeletalLocalLimits(const FKawaiiPhysicsSharedCollisionData& LocalLimits,

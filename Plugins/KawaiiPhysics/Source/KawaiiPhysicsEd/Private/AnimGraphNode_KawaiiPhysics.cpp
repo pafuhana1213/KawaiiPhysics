@@ -54,7 +54,7 @@
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysics"
 
-namespace
+namespace AnimGraphNodeKawaiiPhysicsPrivate
 {
 	const TCHAR* const CategoryFilterConfigSection = TEXT("KawaiiPhysicsEd");
 	const TCHAR* const CategoryFilterConfigKey = TEXT("NodeDetailsCategoryFilter");
@@ -316,7 +316,7 @@ namespace
 			OwnerStruct != FKawaiiPhysics_ExternalForce::StaticStruct() &&
 			OwnerStruct != FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct();
 	}
-}
+} // namespace AnimGraphNodeKawaiiPhysicsPrivate
 
 // ----------------------------------------------------------------------------
 UAnimGraphNode_KawaiiPhysics::UAnimGraphNode_KawaiiPhysics(const FObjectInitializer& ObjectInitializer)
@@ -417,7 +417,7 @@ void UAnimGraphNode_KawaiiPhysics::PostEditChangeChainProperty(FPropertyChangedC
 void UAnimGraphNode_KawaiiPhysics::PushProceduralWindEditToLiveInstance(
 	const FPropertyChangedChainEvent& PropertyChangedEvent)
 {
-	if (!IsProceduralWindExternalForcesEdit(PropertyChangedEvent))
+	if (!AnimGraphNodeKawaiiPhysicsPrivate::IsProceduralWindExternalForcesEdit(PropertyChangedEvent))
 	{
 		return;
 	}
@@ -471,7 +471,7 @@ void UAnimGraphNode_KawaiiPhysics::PushProceduralWindEditToLiveInstance(
 		return;
 	}
 
-	if (IsOtherExternalForceStructProperty(PropertyChangedEvent.Property))
+	if (AnimGraphNodeKawaiiPhysicsPrivate::IsOtherExternalForceStructProperty(PropertyChangedEvent.Property))
 	{
 		return;
 	}
@@ -582,7 +582,7 @@ void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* Ani
 	for (const FName PropertyName : SimpleWorldCollisionPreviewProperties)
 	{
 		if (UKawaiiPhysicsLibrary::DoesNodePropertyRequireSimpleWorldCollisionReinit(PropertyName) &&
-			IsAnimNodePropertyDifferent(*KawaiiPhysics, Node, PropertyName))
+			AnimGraphNodeKawaiiPhysicsPrivate::IsAnimNodePropertyDifferent(*KawaiiPhysics, Node, PropertyName))
 		{
 			KawaiiPhysics->RequestSimpleWorldCollisionReinit();
 			break;
@@ -657,7 +657,7 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 	IDetailCategoryBuilder& ViewportCategory = DetailBuilder.EditCategory(
 		KawaiiPhysicsEditorCategoryNames::KawaiiPhysicsTools,
 		LOCTEXT("KawaiiPhysicsToolsCategory", "Kawaii Physics Tools"));
-	const FName SelectedFilterGroupId = ReadKawaiiPhysicsCategoryFilter();
+	const FName SelectedFilterGroupId = AnimGraphNodeKawaiiPhysicsPrivate::ReadKawaiiPhysicsCategoryFilter();
 	IDetailLayoutBuilder* LayoutBuilder = &DetailBuilder;
 
 	// カテゴリの表示範囲をワンクリックで切り替えるため、独立したカテゴリにフィルタチップを置く。
@@ -671,13 +671,13 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetailTools(IDetailLayoutBuilder& De
 		.Value(SelectedFilterGroupId)
 		.OnValueChanged_Lambda([LayoutBuilder](const FName NewFilterGroupId)
 		{
-			const FName NormalizedFilterGroupId = NormalizeCategoryFilterGroupId(NewFilterGroupId);
+			const FName NormalizedFilterGroupId = AnimGraphNodeKawaiiPhysicsPrivate::NormalizeCategoryFilterGroupId(NewFilterGroupId);
 			const FString SavedFilterValue = NormalizedFilterGroupId.IsNone()
 				                                 ? FString()
 				                                 : NormalizedFilterGroupId.ToString();
 			if (GConfig)
 			{
-				GConfig->SetString(CategoryFilterConfigSection, CategoryFilterConfigKey, *SavedFilterValue,
+				GConfig->SetString(AnimGraphNodeKawaiiPhysicsPrivate::CategoryFilterConfigSection, AnimGraphNodeKawaiiPhysicsPrivate::CategoryFilterConfigKey, *SavedFilterValue,
 				                   GEditorPerProjectIni);
 				GConfig->Flush(false, GEditorPerProjectIni);
 			}
@@ -957,7 +957,7 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 {
 	Super::CustomizeDetails(DetailBuilder);
 
-	const FName SelectedFilterGroupId = ReadKawaiiPhysicsCategoryFilter();
+	const FName SelectedFilterGroupId = AnimGraphNodeKawaiiPhysicsPrivate::ReadKawaiiPhysicsCategoryFilter();
 
 	CustomizeDetailTools(DetailBuilder);
 	CustomizeDetailDebugVisualizations(DetailBuilder);
@@ -1005,7 +1005,7 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 				}));
 	}
 
-	if (IsUsingSharedSimpleWorldCollisionPublisher(Node))
+	if (AnimGraphNodeKawaiiPhysicsPrivate::IsUsingSharedSimpleWorldCollisionPublisher(Node))
 	{
 		IDetailCategoryBuilder& SimpleWorldCategory = DetailBuilder.EditCategory(
 			KawaiiPhysicsEditorCategoryNames::CollisionSimpleWorldCollision);
@@ -1020,7 +1020,7 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 					        "Gather settings are provided by Shared Publisher ({0})"),
 					FText::FromString(Node.SimpleWorldCollisionSharedTag.ToString()));
 
-		AddGoToSharedPublisherRow(
+		AnimGraphNodeKawaiiPhysicsPrivate::AddGoToSharedPublisherRow(
 			SimpleWorldCategory,
 			DetailBuilder,
 			this,
@@ -1037,7 +1037,7 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 	if (KawaiiPhysicsEdUtils::IsUsingSharedWindPublisher(Node, SharedWindTag, bSharedWindAuto))
 	{
 		TArray<FGameplayTag> SharedWindTags;
-		CollectSharedWindPublisherTags(Node, SharedWindTags);
+		AnimGraphNodeKawaiiPhysicsPrivate::CollectSharedWindPublisherTags(Node, SharedWindTags);
 		const FText MixedTagSuffix = SharedWindTags.Num() >= 2
 			                             ? FText::Format(
 				                             LOCTEXT("SharedWindFirstOfSuffix", " (first of {0})"),
@@ -1056,7 +1056,7 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 					FText::FromString(SharedWindTag.ToString()),
 					MixedTagSuffix);
 
-		AddGoToSharedPublisherRow(
+		AnimGraphNodeKawaiiPhysicsPrivate::AddGoToSharedPublisherRow(
 			ExternalForceCategory,
 			DetailBuilder,
 			this,
@@ -1088,7 +1088,7 @@ void UAnimGraphNode_KawaiiPhysics::CustomizeDetails(IDetailLayoutBuilder& Detail
 		]
 	];
 
-	HideCategoriesOutsideFilter(DetailBuilder, SelectedFilterGroupId);
+	AnimGraphNodeKawaiiPhysicsPrivate::HideCategoriesOutsideFilter(DetailBuilder, SelectedFilterGroupId);
 
 	// 編集したカテゴリは自動で上に移動するため、すべてのカテゴリ順を固定する。
 	auto CategorySorter = [](const TMap<FName, IDetailCategoryBuilder*>& Categories)
@@ -1214,7 +1214,7 @@ UPackage* UAnimGraphNode_KawaiiPhysics::CreateDataAssetPackage(const FText& Dial
 void UAnimGraphNode_KawaiiPhysics::ShowExportAssetNotification(UObject* NewAsset,
                                                                FText NotificationText)
 {
-	ShowKawaiiPhysicsAssetNotification(NewAsset, NotificationText, LOCTEXT("OpenCreatedAsset", "Open Created Asset"),
+	AnimGraphNodeKawaiiPhysicsPrivate::ShowKawaiiPhysicsAssetNotification(NewAsset, NotificationText, LOCTEXT("OpenCreatedAsset", "Open Created Asset"),
 	                                   SNotificationItem::CS_Success);
 }
 
@@ -1398,7 +1398,7 @@ void UAnimGraphNode_KawaiiPhysics::ApplyPresetDataAsset()
 	UKawaiiPhysicsPresetDataAsset* Preset = Cast<UKawaiiPhysicsPresetDataAsset>(SelectedAssets[0].GetAsset());
 	if (!Preset)
 	{
-		ShowKawaiiPhysicsNotification(
+		AnimGraphNodeKawaiiPhysicsPrivate::ShowKawaiiPhysicsNotification(
 			LOCTEXT("ApplyPresetLoadFailed", "Failed to load selected Kawaii Physics preset."),
 			SNotificationItem::CS_Fail);
 		return;
@@ -1426,7 +1426,7 @@ void UAnimGraphNode_KawaiiPhysics::ApplyPresetDataAsset()
 	// PresetをGraphNodeへ適用し、失敗時は対象Presetを開ける通知で中断する。
 	if (!UKawaiiPhysicsEditorLibrary::ApplyPresetToGraphNode(Handle, Preset, Options))
 	{
-		ShowKawaiiPhysicsAssetNotification(
+		AnimGraphNodeKawaiiPhysicsPrivate::ShowKawaiiPhysicsAssetNotification(
 			Preset,
 			FText::Format(LOCTEXT("ApplyPresetFailed", "Failed to apply Preset: {0}"),
 			              FText::FromString(Preset->GetName())),
@@ -1455,7 +1455,7 @@ void UAnimGraphNode_KawaiiPhysics::ApplyPresetDataAsset()
 
 	// 警告を含む成功は見落とし防止のためCS_Failスタイルで表示する。
 	const bool bHasWarning = bSkeletonMismatch || !Preset->TargetsNodeTag(Node.KawaiiPhysicsTag);
-	ShowKawaiiPhysicsAssetNotification(
+	AnimGraphNodeKawaiiPhysicsPrivate::ShowKawaiiPhysicsAssetNotification(
 		Preset,
 		FText::FromString(NotificationMessage),
 		LOCTEXT("OpenAppliedPresetAsset", "Open Preset"),
@@ -1469,7 +1469,7 @@ void UAnimGraphNode_KawaiiPhysics::CheckPresetDiff()
 
 	if (Snapshots.IsEmpty())
 	{
-		ShowKawaiiPhysicsNotification(
+		AnimGraphNodeKawaiiPhysicsPrivate::ShowKawaiiPhysicsNotification(
 			LOCTEXT("NoPresetTargetsNodeTag", "No preset targets this node's tag."),
 			SNotificationItem::CS_Fail);
 		return;
@@ -1498,7 +1498,7 @@ void UAnimGraphNode_KawaiiPhysics::CheckPresetDiff()
 		       *Node.KawaiiPhysicsTag.ToString(),
 		       *Snapshot->PresetPath.ToString(),
 		       Snapshot->DiffCount,
-		       *JoinPropertyNames(DiffProperties));
+		       *AnimGraphNodeKawaiiPhysicsPrivate::JoinPropertyNames(DiffProperties));
 	}
 
 	// 差分タブのコンテキストラベル（ノードタイトル＋AnimBlueprint名＋Tag）を組み立てる。
@@ -1527,7 +1527,7 @@ void UAnimGraphNode_KawaiiPhysics::OpenWindScopeWindow(int32 ExternalForceIndex)
 		// ExternalForcesから最初のProceduralWindを探す
 		for (int32 Index = 0; Index < Node.ExternalForces.Num(); ++Index)
 		{
-			if (IsProceduralWindExternalForce(Node.ExternalForces[Index]))
+			if (AnimGraphNodeKawaiiPhysicsPrivate::IsProceduralWindExternalForce(Node.ExternalForces[Index]))
 			{
 				ExternalForceIndex = Index;
 				break;
@@ -1589,7 +1589,7 @@ void UAnimGraphNode_KawaiiPhysics::GetNodeContextMenuActions(UToolMenu* Menu, UG
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateUObject(MutableThis, &UAnimGraphNode_KawaiiPhysics::ApplyPresetDataAsset)));
 
-	if (IsUsingSharedSimpleWorldCollisionPublisher(Node))
+	if (AnimGraphNodeKawaiiPhysicsPrivate::IsUsingSharedSimpleWorldCollisionPublisher(Node))
 	{
 		Section.AddMenuEntry(
 			"KawaiiPhysicsGoToSharedPublisher",
@@ -1601,7 +1601,7 @@ void UAnimGraphNode_KawaiiPhysics::GetNodeContextMenuActions(UToolMenu* Menu, UG
 			{
 				if (UAnimGraphNode_KawaiiPhysics* GraphNode = WeakThis.Get())
 				{
-					FocusSharedPublisherGraphNodeByTag(GraphNode, GraphNode->Node.SimpleWorldCollisionSharedTag);
+					AnimGraphNodeKawaiiPhysicsPrivate::FocusSharedPublisherGraphNodeByTag(GraphNode, GraphNode->Node.SimpleWorldCollisionSharedTag);
 				}
 			})));
 	}
@@ -1622,7 +1622,7 @@ void UAnimGraphNode_KawaiiPhysics::GetNodeContextMenuActions(UToolMenu* Menu, UG
 				{
 					if (UAnimGraphNode_KawaiiPhysics* GraphNode = WeakThis.Get())
 					{
-						FocusSharedPublisherGraphNodeByTag(GraphNode, SharedWindTag);
+						AnimGraphNodeKawaiiPhysicsPrivate::FocusSharedPublisherGraphNodeByTag(GraphNode, SharedWindTag);
 					}
 				})));
 	}
@@ -1630,7 +1630,7 @@ void UAnimGraphNode_KawaiiPhysics::GetNodeContextMenuActions(UToolMenu* Menu, UG
 	TArray<int32> ProceduralWindExternalForceIndices;
 	for (int32 Index = 0; Index < Node.ExternalForces.Num(); ++Index)
 	{
-		if (IsProceduralWindExternalForce(Node.ExternalForces[Index]))
+		if (AnimGraphNodeKawaiiPhysicsPrivate::IsProceduralWindExternalForce(Node.ExternalForces[Index]))
 		{
 			ProceduralWindExternalForceIndices.Add(Index);
 		}

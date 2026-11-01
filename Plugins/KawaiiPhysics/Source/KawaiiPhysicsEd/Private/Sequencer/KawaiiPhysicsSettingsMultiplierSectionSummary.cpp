@@ -7,7 +7,7 @@
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysicsSettingsMultiplierSectionSummary"
 
-namespace
+namespace KawaiiPhysicsSettingsMultiplierSectionSummaryPrivate
 {
 	bool ShouldShowScaleValue(const float Value)
 	{
@@ -22,17 +22,17 @@ namespace
 			Entries.Add(FString::Printf(TEXT("%s×%.2f"), Abbreviation, Value));
 		}
 	}
-}
+} // namespace KawaiiPhysicsSettingsMultiplierSectionSummaryPrivate
 
 FString MakeKawaiiPhysicsScaleSummaryString(const FKawaiiPhysicsSettingsMultiplier& Scale)
 {
 	TArray<FString> Entries;
-	AddScaleEntry(Entries, TEXT("D"), Scale.Damping);
-	AddScaleEntry(Entries, TEXT("S"), Scale.Stiffness);
-	AddScaleEntry(Entries, TEXT("WL"), Scale.WorldDampingLocation);
-	AddScaleEntry(Entries, TEXT("WR"), Scale.WorldDampingRotation);
-	AddScaleEntry(Entries, TEXT("R"), Scale.Radius);
-	AddScaleEntry(Entries, TEXT("LA"), Scale.LimitAngle);
+	KawaiiPhysicsSettingsMultiplierSectionSummaryPrivate::AddScaleEntry(Entries, TEXT("D"), Scale.Damping);
+	KawaiiPhysicsSettingsMultiplierSectionSummaryPrivate::AddScaleEntry(Entries, TEXT("S"), Scale.Stiffness);
+	KawaiiPhysicsSettingsMultiplierSectionSummaryPrivate::AddScaleEntry(Entries, TEXT("WL"), Scale.WorldDampingLocation);
+	KawaiiPhysicsSettingsMultiplierSectionSummaryPrivate::AddScaleEntry(Entries, TEXT("WR"), Scale.WorldDampingRotation);
+	KawaiiPhysicsSettingsMultiplierSectionSummaryPrivate::AddScaleEntry(Entries, TEXT("R"), Scale.Radius);
+	KawaiiPhysicsSettingsMultiplierSectionSummaryPrivate::AddScaleEntry(Entries, TEXT("LA"), Scale.LimitAngle);
 
 	return FString::Join(Entries, TEXT("  "));
 }

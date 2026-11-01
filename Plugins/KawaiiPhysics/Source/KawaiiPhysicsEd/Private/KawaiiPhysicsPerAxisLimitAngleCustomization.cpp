@@ -17,7 +17,7 @@
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysicsPerAxisLimitAngleCustomization"
 
-namespace
+namespace KawaiiPhysicsPerAxisLimitAngleCustomizationPrivate
 {
 	void SetAxisRange(const TSharedRef<IPropertyHandle>& MinHandle, const TSharedRef<IPropertyHandle>& MaxHandle,
 	                  const float Min, const float Max, const FText& TransactionText)
@@ -26,7 +26,7 @@ namespace
 		MinHandle->SetValue(Min);
 		MaxHandle->SetValue(Max);
 	}
-}
+} // namespace KawaiiPhysicsPerAxisLimitAngleCustomizationPrivate
 
 TSharedRef<IPropertyTypeCustomization> FKawaiiPhysicsPerAxisLimitAngleCustomization::MakeInstance()
 {
@@ -148,7 +148,7 @@ void FKawaiiPhysicsPerAxisLimitAngleCustomization::AddAxisRow(
 				.ToolTipText(LOCTEXT("LockAxisToolTip", "Lock this axis (Min and Max to 0)."))
 				.OnClicked_Lambda([MinHandleRef, MaxHandleRef]()
 				{
-					SetAxisRange(MinHandleRef, MaxHandleRef, 0.0f, 0.0f,
+					KawaiiPhysicsPerAxisLimitAngleCustomizationPrivate::SetAxisRange(MinHandleRef, MaxHandleRef, 0.0f, 0.0f,
 					             LOCTEXT("LockAxisTransaction", "Lock Limit Angle Axis"));
 					return FReply::Handled();
 				})
@@ -162,7 +162,7 @@ void FKawaiiPhysicsPerAxisLimitAngleCustomization::AddAxisRow(
 				.ToolTipText(LOCTEXT("FreeAxisToolTip", "Free this axis (Min -180, Max 180)."))
 				.OnClicked_Lambda([MinHandleRef, MaxHandleRef]()
 				{
-					SetAxisRange(MinHandleRef, MaxHandleRef, -180.0f, 180.0f,
+					KawaiiPhysicsPerAxisLimitAngleCustomizationPrivate::SetAxisRange(MinHandleRef, MaxHandleRef, -180.0f, 180.0f,
 					             LOCTEXT("FreeAxisTransaction", "Free Limit Angle Axis"));
 					return FReply::Handled();
 				})

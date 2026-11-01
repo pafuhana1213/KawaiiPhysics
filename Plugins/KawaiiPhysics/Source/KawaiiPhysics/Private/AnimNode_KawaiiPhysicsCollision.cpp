@@ -43,7 +43,7 @@
 extern TAutoConsoleVariable<int32> CVarSharedCollisionInitRetryThreshold;
 extern TAutoConsoleVariable<int32> CVarSharedCollisionInitRetryThrottleInterval;
 
-namespace
+namespace AnimNodeKawaiiPhysicsCollisionPrivate
 {
 	// 相似変換と判定する相対許容。double の FTransform / FQuat 合成の丸め誤差は 1e-15 程度なので十分な余裕がある。
 	// 高速経路は元の寸法をそのまま保つため、許容内の残差 ε は「ε × 写像の倍率 × 形状の寸法の和」のオーダーの包含不足に化ける
@@ -58,7 +58,7 @@ namespace
 		FVector AxisImages[3];
 	};
 
-	FLimitDimensionMapping ComputeLimitDimensionMapping(
+	static FLimitDimensionMapping ComputeLimitDimensionMapping(
 		const FAnimNode_KawaiiPhysics& Node, FComponentSpacePoseContext& Output,
 		EKawaiiPhysicsSimulationSpace From, EKawaiiPhysicsSimulationSpace To)
 	{
@@ -112,14 +112,14 @@ namespace
 		return Map;
 	}
 
-	void ApplyScaledSphereDimensions(
+	static void ApplyScaledSphereDimensions(
 		FSphericalLimit& Target, const FSphericalLimit& Source, const FLimitDimensionMapping& Map)
 	{
 		Target.Radius = Source.Radius * (Map.bUniform ? Map.UniformScale : Map.ConservativeScale);
 	}
 
 	template <typename LimitType, typename ConvertLocationType>
-	void ApplyScaledCapsuleAxis(
+	static void ApplyScaledCapsuleAxis(
 		LimitType& Target, const LimitType& Source, const FLimitDimensionMapping& Map,
 		ConvertLocationType ConvertLocation)
 	{
@@ -146,7 +146,7 @@ namespace
 	}
 
 	template <typename ConvertLocationType>
-	void ApplyScaledCapsuleDimensions(
+	static void ApplyScaledCapsuleDimensions(
 		FCapsuleLimit& Target, const FCapsuleLimit& Source, const FLimitDimensionMapping& Map,
 		ConvertLocationType ConvertLocation)
 	{
@@ -155,7 +155,7 @@ namespace
 	}
 
 	template <typename ConvertLocationType>
-	void ApplyScaledTaperedCapsuleDimensions(
+	static void ApplyScaledTaperedCapsuleDimensions(
 		FTaperedCapsuleLimit& Target, const FTaperedCapsuleLimit& Source, const FLimitDimensionMapping& Map,
 		ConvertLocationType ConvertLocation)
 	{
@@ -176,7 +176,7 @@ namespace
 	}
 
 	template <typename ConvertLocationType>
-	void ApplyScaledBoxDimensions(
+	static void ApplyScaledBoxDimensions(
 		FBoxLimit& Target, const FBoxLimit& Source, const FLimitDimensionMapping& Map, ConvertLocationType ConvertLocation)
 	{
 		if (Map.bUniform)
@@ -201,7 +201,7 @@ namespace
 		Target.Extent = Extent;
 	}
 
-	void ApplyScaledConvexDimensions(
+	static void ApplyScaledConvexDimensions(
 		FKawaiiPhysicsConvexLimit& Target, const FKawaiiPhysicsConvexLimit& Source, const FLimitDimensionMapping& Map)
 	{
 		// 非一様スケールの凸は線形写像の σ_max 上界（ConservativeScale）による保守的な一様拡縮で近似する。
@@ -242,47 +242,47 @@ namespace
 	}
 
 	template <typename ConvertLocationType>
-	void ApplyScaledLimitDimensions(
+	static void ApplyScaledLimitDimensions(
 		FSphericalLimit& Target, const FSphericalLimit& Source, const FLimitDimensionMapping& Map, ConvertLocationType)
 	{
 		ApplyScaledSphereDimensions(Target, Source, Map);
 	}
 
 	template <typename ConvertLocationType>
-	void ApplyScaledLimitDimensions(
+	static void ApplyScaledLimitDimensions(
 		FCapsuleLimit& Target, const FCapsuleLimit& Source, const FLimitDimensionMapping& Map, ConvertLocationType ConvertLocation)
 	{
 		ApplyScaledCapsuleDimensions(Target, Source, Map, ConvertLocation);
 	}
 
 	template <typename ConvertLocationType>
-	void ApplyScaledLimitDimensions(
+	static void ApplyScaledLimitDimensions(
 		FTaperedCapsuleLimit& Target, const FTaperedCapsuleLimit& Source, const FLimitDimensionMapping& Map, ConvertLocationType ConvertLocation)
 	{
 		ApplyScaledTaperedCapsuleDimensions(Target, Source, Map, ConvertLocation);
 	}
 
 	template <typename ConvertLocationType>
-	void ApplyScaledLimitDimensions(
+	static void ApplyScaledLimitDimensions(
 		FBoxLimit& Target, const FBoxLimit& Source, const FLimitDimensionMapping& Map, ConvertLocationType ConvertLocation)
 	{
 		ApplyScaledBoxDimensions(Target, Source, Map, ConvertLocation);
 	}
 
 	template <typename ConvertLocationType>
-	void ApplyScaledLimitDimensions(
+	static void ApplyScaledLimitDimensions(
 		FKawaiiPhysicsConvexLimit& Target, const FKawaiiPhysicsConvexLimit& Source, const FLimitDimensionMapping& Map, ConvertLocationType)
 	{
 		ApplyScaledConvexDimensions(Target, Source, Map);
 	}
 
 	template <typename ConvertLocationType>
-	void ApplyScaledLimitDimensions(FPlanarLimit&, const FPlanarLimit&, const FLimitDimensionMapping&, ConvertLocationType)
+	static void ApplyScaledLimitDimensions(FPlanarLimit&, const FPlanarLimit&, const FLimitDimensionMapping&, ConvertLocationType)
 	{
 	}
 
 	template <typename LimitType, typename PostConvertType>
-	void AppendWorldLimitsToSimulationSpace(
+	static void AppendWorldLimitsToSimulationSpace(
 		const FAnimNode_KawaiiPhysics& Node,
 		FComponentSpacePoseContext& Output,
 		EKawaiiPhysicsSimulationSpace TargetSpace,
@@ -316,7 +316,7 @@ namespace
 	}
 
 	template <typename LimitType, typename PostConvertType>
-	bool RefreshWorldLimitsToSimulationSpaceInPlace(
+	static bool RefreshWorldLimitsToSimulationSpaceInPlace(
 		const FAnimNode_KawaiiPhysics& Node,
 		FComponentSpacePoseContext& Output,
 		EKawaiiPhysicsSimulationSpace TargetSpace,
@@ -355,7 +355,7 @@ namespace
 
 		return true;
 	}
-}
+} // namespace AnimNodeKawaiiPhysicsCollisionPrivate
 
 void KawaiiPhysicsSimpleWorldReadPath::AppendSharedCollisionDataToSimulationSpace(
 		const FAnimNode_KawaiiPhysics& Node,
@@ -379,24 +379,24 @@ void KawaiiPhysicsSimpleWorldReadPath::AppendSharedCollisionDataToSimulationSpac
 		Limit.UpdateRuntimeCache();
 	};
 
-	AppendWorldLimitsToSimulationSpace(Node, Output, TargetSpace, InData.SphericalLimits,
+	AnimNodeKawaiiPhysicsCollisionPrivate::AppendWorldLimitsToSimulationSpace(Node, Output, TargetSpace, InData.SphericalLimits,
 		OutSphericalLimits, NoOp);
-	AppendWorldLimitsToSimulationSpace(Node, Output, TargetSpace, InData.CapsuleLimits,
+	AnimNodeKawaiiPhysicsCollisionPrivate::AppendWorldLimitsToSimulationSpace(Node, Output, TargetSpace, InData.CapsuleLimits,
 		OutCapsuleLimits, NoOp);
-	AppendWorldLimitsToSimulationSpace(Node, Output, TargetSpace, InData.TaperedCapsuleLimits,
+	AnimNodeKawaiiPhysicsCollisionPrivate::AppendWorldLimitsToSimulationSpace(Node, Output, TargetSpace, InData.TaperedCapsuleLimits,
 		OutTaperedCapsuleLimits, NoOp);
-	AppendWorldLimitsToSimulationSpace(Node, Output, TargetSpace, InData.BoxLimits,
+	AnimNodeKawaiiPhysicsCollisionPrivate::AppendWorldLimitsToSimulationSpace(Node, Output, TargetSpace, InData.BoxLimits,
 		OutBoxLimits, NoOp);
 
 	if (OutPlanarLimits)
 	{
-		AppendWorldLimitsToSimulationSpace(Node, Output, TargetSpace, InData.PlanarLimits,
+		AnimNodeKawaiiPhysicsCollisionPrivate::AppendWorldLimitsToSimulationSpace(Node, Output, TargetSpace, InData.PlanarLimits,
 			*OutPlanarLimits, RecomputePlane);
 	}
 
 	if (OutConvexLimits)
 	{
-		AppendWorldLimitsToSimulationSpace(Node, Output, TargetSpace, InData.ConvexLimits,
+		AnimNodeKawaiiPhysicsCollisionPrivate::AppendWorldLimitsToSimulationSpace(Node, Output, TargetSpace, InData.ConvexLimits,
 			*OutConvexLimits, RecomputeConvexCache);
 	}
 }
@@ -427,15 +427,15 @@ bool KawaiiPhysicsSimpleWorldReadPath::RefreshSimulationSpaceLimitsInPlace(
 		return false;
 	}
 
-	RefreshWorldLimitsToSimulationSpaceInPlace(Node, Output, TargetSpace, InData.SphericalLimits,
+	AnimNodeKawaiiPhysicsCollisionPrivate::RefreshWorldLimitsToSimulationSpaceInPlace(Node, Output, TargetSpace, InData.SphericalLimits,
 		OutSphericalLimits, NoOp);
-	RefreshWorldLimitsToSimulationSpaceInPlace(Node, Output, TargetSpace, InData.CapsuleLimits,
+	AnimNodeKawaiiPhysicsCollisionPrivate::RefreshWorldLimitsToSimulationSpaceInPlace(Node, Output, TargetSpace, InData.CapsuleLimits,
 		OutCapsuleLimits, NoOp);
-	RefreshWorldLimitsToSimulationSpaceInPlace(Node, Output, TargetSpace, InData.TaperedCapsuleLimits,
+	AnimNodeKawaiiPhysicsCollisionPrivate::RefreshWorldLimitsToSimulationSpaceInPlace(Node, Output, TargetSpace, InData.TaperedCapsuleLimits,
 		OutTaperedCapsuleLimits, NoOp);
-	RefreshWorldLimitsToSimulationSpaceInPlace(Node, Output, TargetSpace, InData.BoxLimits,
+	AnimNodeKawaiiPhysicsCollisionPrivate::RefreshWorldLimitsToSimulationSpaceInPlace(Node, Output, TargetSpace, InData.BoxLimits,
 		OutBoxLimits, NoOp);
-	RefreshWorldLimitsToSimulationSpaceInPlace(Node, Output, TargetSpace, InData.ConvexLimits,
+	AnimNodeKawaiiPhysicsCollisionPrivate::RefreshWorldLimitsToSimulationSpaceInPlace(Node, Output, TargetSpace, InData.ConvexLimits,
 		OutConvexLimits, RecomputeConvexCache);
 	return true;
 }
@@ -452,7 +452,7 @@ bool KawaiiPhysicsSimpleWorldReadPath::RefreshSimulationSpaceLimitsInPlace(
 	{
 		return false;
 	}
-	return RefreshWorldLimitsToSimulationSpaceInPlace(Node, Output, TargetSpace, InBoxLimits, OutBoxLimits, NoOp);
+	return AnimNodeKawaiiPhysicsCollisionPrivate::RefreshWorldLimitsToSimulationSpaceInPlace(Node, Output, TargetSpace, InBoxLimits, OutBoxLimits, NoOp);
 }
 
 void FAnimNode_KawaiiPhysics::ApplyLimitsDataAsset(const FBoneContainer& RequiredBones)
@@ -1777,7 +1777,7 @@ void FAnimNode_KawaiiPhysics::WriteSharedCollisionToSubsystem(
 	FKawaiiPhysicsSharedCollisionData& Data = SharedCollisionPublishScratch;
 	Data.Reset();
 
-	const FLimitDimensionMapping Map = ComputeLimitDimensionMapping(
+	const AnimNodeKawaiiPhysicsCollisionPrivate::FLimitDimensionMapping Map = AnimNodeKawaiiPhysicsCollisionPrivate::ComputeLimitDimensionMapping(
 		*this, Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::WorldSpace);
 
 	// ヘルパー: 有効なコリジョンを SimulationSpace→WorldSpace に変換して収集
@@ -1795,7 +1795,7 @@ void FAnimNode_KawaiiPhysics::WriteSharedCollisionToSubsystem(
 				Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::WorldSpace, SimTransform);
 			Converted.Location = WorldTransform.GetLocation();
 			Converted.Rotation = WorldTransform.GetRotation();
-			ApplyScaledLimitDimensions(Converted, Limit, Map, [&](const FVector& Position)
+			AnimNodeKawaiiPhysicsCollisionPrivate::ApplyScaledLimitDimensions(Converted, Limit, Map, [&](const FVector& Position)
 			{
 				return ConvertSimulationSpaceLocation(
 					Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::WorldSpace, Position);
@@ -2085,9 +2085,9 @@ void FAnimNode_KawaiiPhysics::InitializeSimpleWorldCollision()
 	}
 }
 
-namespace
+namespace AnimNodeKawaiiPhysicsCollisionPrivate
 {
-	void CopySimpleWorldLimitsToSimulationSpace(
+	static void CopySimpleWorldLimitsToSimulationSpace(
 		const FAnimNode_KawaiiPhysics& Node, FComponentSpacePoseContext& Output,
 		EKawaiiPhysicsSimulationSpace TargetSpace, const FKawaiiPhysicsSharedCollisionData& Source,
 		TArray<FSphericalLimit>& Spheres, TArray<FCapsuleLimit>& Capsules,
@@ -2126,7 +2126,7 @@ namespace
 			Target.UpdateRuntimeCache();
 		}
 	}
-}
+} // namespace AnimNodeKawaiiPhysicsCollisionPrivate
 
 void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePoseContext& Output,
                                                               bool bInitializeAlreadyAttempted)
@@ -2259,7 +2259,7 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 			LastReadSimpleWorldShapeSerial = ShapeSerial;
 			LastReadSimpleWorldMemberSerialSum = MemberSerialSum;
 
-			CopySimpleWorldLimitsToSimulationSpace(
+			AnimNodeKawaiiPhysicsCollisionPrivate::CopySimpleWorldLimitsToSimulationSpace(
 				*this, Output, SimulationSpace, SimpleWorldMergedScratch,
 				SimpleWorldSphericalLimits, SimpleWorldCapsuleLimits, SimpleWorldTaperedCapsuleLimits,
 				SimpleWorldBoxLimits, SimpleWorldConvexLimits);
@@ -2270,7 +2270,7 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 			SimpleWorldBoxLimits, SimpleWorldConvexLimits))
 		{
 			// 配列数がずれた場合は、前回配列が外部テスト注入や将来の形状追加で変わった可能性があるため全再構築へ戻す。
-			CopySimpleWorldLimitsToSimulationSpace(
+			AnimNodeKawaiiPhysicsCollisionPrivate::CopySimpleWorldLimitsToSimulationSpace(
 				*this, Output, SimulationSpace, SimpleWorldMergedScratch,
 				SimpleWorldSphericalLimits, SimpleWorldCapsuleLimits, SimpleWorldTaperedCapsuleLimits,
 				SimpleWorldBoxLimits, SimpleWorldConvexLimits);
@@ -2285,7 +2285,7 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 
 			SimpleWorldGroundBoxLimits.Reset();
 			auto NoOp = [](FBoxLimit&, const FTransform&) {};
-			AppendWorldLimitsToSimulationSpace(*this, Output, SimulationSpace, SimpleWorldGroundScratch.BoxLimits,
+			AnimNodeKawaiiPhysicsCollisionPrivate::AppendWorldLimitsToSimulationSpace(*this, Output, SimulationSpace, SimpleWorldGroundScratch.BoxLimits,
 				SimpleWorldGroundBoxLimits, NoOp);
 		}
 		else if (!KawaiiPhysicsSimpleWorldReadPath::RefreshSimulationSpaceLimitsInPlace(
@@ -2294,7 +2294,7 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 			// 配列数がずれた場合は、地面 Box の有無が外部から変わった可能性があるため全再構築へ戻す。
 			SimpleWorldGroundBoxLimits.Reset();
 			auto NoOp = [](FBoxLimit&, const FTransform&) {};
-			AppendWorldLimitsToSimulationSpace(*this, Output, SimulationSpace, SimpleWorldGroundScratch.BoxLimits,
+			AnimNodeKawaiiPhysicsCollisionPrivate::AppendWorldLimitsToSimulationSpace(*this, Output, SimulationSpace, SimpleWorldGroundScratch.BoxLimits,
 				SimpleWorldGroundBoxLimits, NoOp);
 		}
 
@@ -2373,7 +2373,7 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 			CachedSimpleWorldCollisionSkelComp, SimpleWorldMergedScratch, false);
 		LastReadSimpleWorldShapeSerial = ShapeSerial;
 
-		CopySimpleWorldLimitsToSimulationSpace(
+		AnimNodeKawaiiPhysicsCollisionPrivate::CopySimpleWorldLimitsToSimulationSpace(
 			*this, Output, SimulationSpace, SimpleWorldMergedScratch,
 			SimpleWorldSphericalLimits, SimpleWorldCapsuleLimits, SimpleWorldTaperedCapsuleLimits,
 			SimpleWorldBoxLimits, SimpleWorldConvexLimits);
@@ -2384,7 +2384,7 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 		SimpleWorldBoxLimits, SimpleWorldConvexLimits))
 	{
 		// 配列数がずれた場合は、前回配列が外部テスト注入や将来の形状追加で変わった可能性があるため全再構築へ戻す。
-		CopySimpleWorldLimitsToSimulationSpace(
+		AnimNodeKawaiiPhysicsCollisionPrivate::CopySimpleWorldLimitsToSimulationSpace(
 			*this, Output, SimulationSpace, SimpleWorldMergedScratch,
 			SimpleWorldSphericalLimits, SimpleWorldCapsuleLimits, SimpleWorldTaperedCapsuleLimits,
 			SimpleWorldBoxLimits, SimpleWorldConvexLimits);
@@ -2399,7 +2399,7 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 
 		SimpleWorldGroundBoxLimits.Reset();
 		auto NoOp = [](FBoxLimit&, const FTransform&) {};
-		AppendWorldLimitsToSimulationSpace(*this, Output, SimulationSpace, SimpleWorldGroundScratch.BoxLimits,
+		AnimNodeKawaiiPhysicsCollisionPrivate::AppendWorldLimitsToSimulationSpace(*this, Output, SimulationSpace, SimpleWorldGroundScratch.BoxLimits,
 			SimpleWorldGroundBoxLimits, NoOp);
 	}
 	else if (!KawaiiPhysicsSimpleWorldReadPath::RefreshSimulationSpaceLimitsInPlace(
@@ -2408,7 +2408,7 @@ void FAnimNode_KawaiiPhysics::UpdateSimpleWorldCollisionLimits(FComponentSpacePo
 		// 配列数がずれた場合は、地面 Box の有無が外部から変わった可能性があるため全再構築へ戻す。
 		SimpleWorldGroundBoxLimits.Reset();
 		auto NoOp = [](FBoxLimit&, const FTransform&) {};
-		AppendWorldLimitsToSimulationSpace(*this, Output, SimulationSpace, SimpleWorldGroundScratch.BoxLimits,
+		AnimNodeKawaiiPhysicsCollisionPrivate::AppendWorldLimitsToSimulationSpace(*this, Output, SimulationSpace, SimpleWorldGroundScratch.BoxLimits,
 			SimpleWorldGroundBoxLimits, NoOp);
 	}
 

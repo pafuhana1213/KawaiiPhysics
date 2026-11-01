@@ -25,7 +25,7 @@
 
 #define LOCTEXT_NAMESPACE "FKawaiiPhysicsSettingsMultiplierTrackEditor"
 
-namespace
+namespace KawaiiPhysicsSettingsMultiplierTrackEditorPrivate
 {
 struct FScalePreset
 {
@@ -183,7 +183,7 @@ void KawaiiPhysicsApplyScaleToSectionWithTransaction(
 		Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
 	}
 }
-}
+} // namespace KawaiiPhysicsSettingsMultiplierTrackEditorPrivate
 
 TSharedRef<ISequencerTrackEditor> FKawaiiPhysicsSettingsMultiplierTrackEditor::CreateTrackEditor(
 	TSharedRef<ISequencer> InSequencer)
@@ -240,18 +240,18 @@ void FKawaiiPhysicsSettingsMultiplierTrackEditor::BuildObjectBindingTrackMenu(
 
 	UMovieScene* MovieScene = GetSequencer().IsValid() ? GetFocusedMovieScene() : nullptr;
 	if (ObjectClass->IsChildOf(USkeletalMeshComponent::StaticClass()) &&
-		KawaiiPhysicsAnyParentBindingHasSettingsMultiplierTrack(MovieScene, ObjectBindings))
+		KawaiiPhysicsSettingsMultiplierTrackEditorPrivate::KawaiiPhysicsAnyParentBindingHasSettingsMultiplierTrack(MovieScene, ObjectBindings))
 	{
-		ToolTip = KawaiiPhysicsAppendTrackWarning(
+		ToolTip = KawaiiPhysicsSettingsMultiplierTrackEditorPrivate::KawaiiPhysicsAppendTrackWarning(
 			ToolTip,
 			LOCTEXT(
 				"AddKawaiiPhysicsSettingsMultiplierTrackParentWarning",
 				"\nNote: the parent actor binding already has this track. Overlapping sections on the actor and this component multiply together."));
 	}
 	else if (ObjectClass->IsChildOf(AActor::StaticClass()) &&
-	         KawaiiPhysicsAnyChildComponentBindingHasSettingsMultiplierTrack(MovieScene, ObjectBindings))
+	         KawaiiPhysicsSettingsMultiplierTrackEditorPrivate::KawaiiPhysicsAnyChildComponentBindingHasSettingsMultiplierTrack(MovieScene, ObjectBindings))
 	{
-		ToolTip = KawaiiPhysicsAppendTrackWarning(
+		ToolTip = KawaiiPhysicsSettingsMultiplierTrackEditorPrivate::KawaiiPhysicsAppendTrackWarning(
 			ToolTip,
 			LOCTEXT(
 				"AddKawaiiPhysicsSettingsMultiplierTrackChildWarning",
@@ -488,7 +488,7 @@ FText FKawaiiPhysicsSettingsMultiplierSectionInterface::GetSectionTitle() const
 			{
 				return AddRootFilterWarning(FText::Format(
 					LOCTEXT("SectionTitleWithTags", "{0} {1}"),
-					KawaiiPhysicsMakeFilterTagsText(Section->FilterTags),
+					KawaiiPhysicsSettingsMultiplierTrackEditorPrivate::KawaiiPhysicsMakeFilterTagsText(Section->FilterTags),
 					SummaryWithSuffix));
 			}
 			return AddRootFilterWarning(SummaryWithSuffix);
@@ -498,7 +498,7 @@ FText FKawaiiPhysicsSettingsMultiplierSectionInterface::GetSectionTitle() const
 		{
 			return AddRootFilterWarning(FText::Format(
 				LOCTEXT("SectionTitleWithTags", "{0} {1}"),
-				KawaiiPhysicsMakeFilterTagsText(Section->FilterTags),
+				KawaiiPhysicsSettingsMultiplierTrackEditorPrivate::KawaiiPhysicsMakeFilterTagsText(Section->FilterTags),
 				Summary));
 		}
 
@@ -585,7 +585,7 @@ void FKawaiiPhysicsSettingsMultiplierSectionInterface::BuildSectionContextMenu(
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateLambda([WeakSectionObj, WeakSequencerCopy]()
 		{
-			KawaiiPhysicsApplyScaleToSectionWithTransaction(
+			KawaiiPhysicsSettingsMultiplierTrackEditorPrivate::KawaiiPhysicsApplyScaleToSectionWithTransaction(
 				WeakSectionObj,
 				WeakSequencerCopy,
 				LOCTEXT("ResetScaleTransaction", "Reset Kawaii Physics Scale"),
@@ -598,17 +598,17 @@ void FKawaiiPhysicsSettingsMultiplierSectionInterface::BuildSectionContextMenu(
 		FNewMenuDelegate::CreateLambda([WeakSectionObj, WeakSequencerCopy](FMenuBuilder& SubMenuBuilder)
 		{
 			int32 NumPresets = 0;
-			const FScalePreset* ScalePresets = GetKawaiiPhysicsScalePresets(NumPresets);
+			const KawaiiPhysicsSettingsMultiplierTrackEditorPrivate::FScalePreset* ScalePresets = KawaiiPhysicsSettingsMultiplierTrackEditorPrivate::GetKawaiiPhysicsScalePresets(NumPresets);
 			for (int32 PresetIndex = 0; PresetIndex < NumPresets; ++PresetIndex)
 			{
-				const FScalePreset Preset = ScalePresets[PresetIndex];
+				const KawaiiPhysicsSettingsMultiplierTrackEditorPrivate::FScalePreset Preset = ScalePresets[PresetIndex];
 				SubMenuBuilder.AddMenuEntry(
 					Preset.Label,
 					FText::GetEmpty(),
 					FSlateIcon(),
 					FUIAction(FExecuteAction::CreateLambda([WeakSectionObj, WeakSequencerCopy, Preset]()
 					{
-						KawaiiPhysicsApplyScaleToSectionWithTransaction(
+						KawaiiPhysicsSettingsMultiplierTrackEditorPrivate::KawaiiPhysicsApplyScaleToSectionWithTransaction(
 							WeakSectionObj,
 							WeakSequencerCopy,
 							LOCTEXT("ApplyPresetTransaction", "Apply Kawaii Physics Scale Preset"),

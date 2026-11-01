@@ -43,7 +43,7 @@ void SKawaiiPhysicsPresetDiffWindow::PrivateRegisterAttributes(FSlateAttributeIn
 	(void)AttributeInitializer;
 }
 
-namespace
+namespace SKawaiiPhysicsPresetDiffWindowPrivate
 {
 	const FName SelectionColumnName(TEXT("Selection"));
 	const FName CategoryColumnName(TEXT("Category"));
@@ -301,7 +301,7 @@ namespace
 		TSharedPtr<FKawaiiPhysicsPresetDiffPropertyRow> Row;
 		TSet<FName>* SelectedPropertyNames = nullptr;
 	};
-}
+} // namespace SKawaiiPhysicsPresetDiffWindowPrivate
 
 const FName SKawaiiPhysicsPresetDiffWindow::PresetDiffTabId(TEXT("KawaiiPhysicsPresetDiff"));
 
@@ -440,23 +440,23 @@ void SKawaiiPhysicsPresetDiffWindow::Construct(const FArguments& InArgs, FKawaii
 			.HeaderRow
 			(
 				SNew(SHeaderRow)
-				+ SHeaderRow::Column(SelectionColumnName)
+				+ SHeaderRow::Column(SKawaiiPhysicsPresetDiffWindowPrivate::SelectionColumnName)
 				.FixedWidth(32.0f)
 				.DefaultLabel(FText::GetEmpty())
 				.DefaultTooltip(LOCTEXT("SelectionColumnToolTip", "プロパティを操作対象として選択します / Selects a property for operations."))
-				+ SHeaderRow::Column(CategoryColumnName)
+				+ SHeaderRow::Column(SKawaiiPhysicsPresetDiffWindowPrivate::CategoryColumnName)
 				.FillWidth(0.18f)
 				.DefaultLabel(LOCTEXT("CategoryColumnLabel", "Category"))
 				.DefaultTooltip(LOCTEXT("CategoryColumnToolTip", "プロパティカテゴリを表示します / Shows the property category."))
-				+ SHeaderRow::Column(PropertyColumnName)
+				+ SHeaderRow::Column(SKawaiiPhysicsPresetDiffWindowPrivate::PropertyColumnName)
 				.FillWidth(0.22f)
 				.DefaultLabel(LOCTEXT("PropertyColumnLabel", "Property"))
 				.DefaultTooltip(LOCTEXT("PropertyColumnToolTip", "表示名を表示し、ツールチップで内部名を表示します / Shows the display name, with the internal name in the tooltip."))
-				+ SHeaderRow::Column(NodeValueColumnName)
+				+ SHeaderRow::Column(SKawaiiPhysicsPresetDiffWindowPrivate::NodeValueColumnName)
 				.FillWidth(0.30f)
 				.DefaultLabel(LOCTEXT("NodeValueColumnLabel", "Node Value"))
 				.DefaultTooltip(LOCTEXT("NodeValueColumnToolTip", "現在のノード側の値を表示します / Shows the current value on the node."))
-				+ SHeaderRow::Column(PresetValueColumnName)
+				+ SHeaderRow::Column(SKawaiiPhysicsPresetDiffWindowPrivate::PresetValueColumnName)
 				.FillWidth(0.30f)
 				.DefaultLabel(LOCTEXT("PresetValueColumnLabel", "Preset Value"))
 				.DefaultTooltip(LOCTEXT("PresetValueColumnToolTip", "プリセット側の値を表示します / Shows the value stored in the preset."))
@@ -542,7 +542,7 @@ void SKawaiiPhysicsPresetDiffWindow::OpenWindow(FKawaiiPhysicsPresetDiffWindowAr
 void SKawaiiPhysicsPresetDiffWindow::CloseAllWindows()
 {
 	TArray<TSharedPtr<SDockTab>> TabsToClose;
-	for (const TWeakPtr<SKawaiiPhysicsPresetDiffWindow>& WeakWindow : LivePresetDiffWindows)
+	for (const TWeakPtr<SKawaiiPhysicsPresetDiffWindow>& WeakWindow : SKawaiiPhysicsPresetDiffWindowPrivate::LivePresetDiffWindows)
 	{
 		if (TSharedPtr<SKawaiiPhysicsPresetDiffWindow> Window = WeakWindow.Pin())
 		{
@@ -557,13 +557,13 @@ void SKawaiiPhysicsPresetDiffWindow::CloseAllWindows()
 	{
 		Tab->RequestCloseTab();
 	}
-	LivePresetDiffWindows.Reset();
+	SKawaiiPhysicsPresetDiffWindowPrivate::LivePresetDiffWindows.Reset();
 }
 
 void SKawaiiPhysicsPresetDiffWindow::SetOwnerTab(TSharedRef<SDockTab> InOwnerTab)
 {
 	OwnerTabWeak = InOwnerTab;
-	RegisterLiveWindow(StaticCastSharedRef<SKawaiiPhysicsPresetDiffWindow>(AsShared()));
+	SKawaiiPhysicsPresetDiffWindowPrivate::RegisterLiveWindow(StaticCastSharedRef<SKawaiiPhysicsPresetDiffWindow>(AsShared()));
 }
 
 void SKawaiiPhysicsPresetDiffWindow::SetArgs(FKawaiiPhysicsPresetDiffWindowArgs Args)
@@ -593,7 +593,7 @@ TSharedRef<ITableRow> SKawaiiPhysicsPresetDiffWindow::GenerateDiffRow(
 	FRowPtr Row,
 	const TSharedRef<STableViewBase>& OwnerTable)
 {
-	return SNew(SKawaiiPhysicsPresetDiffRow, OwnerTable)
+	return SNew(SKawaiiPhysicsPresetDiffWindowPrivate::SKawaiiPhysicsPresetDiffRow, OwnerTable)
 		.Row(Row)
 		.SelectedPropertyNames(&SelectedPropertyNames);
 }
@@ -779,7 +779,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnApplySelectedClicked()
 	const FKawaiiPhysicsPresetApplyOptions Options;
 	TSharedRef<FKawaiiPhysicsPresetDiffSnapshot> FreshSnapshot =
 		KawaiiPhysicsPresetDiff::BuildSnapshot(GraphNode->Node, *Preset, Options);
-	if (!SnapshotRowsMatch(*SelectedSnapshot, *FreshSnapshot, &SelectedPropertyNames))
+	if (!SKawaiiPhysicsPresetDiffWindowPrivate::SnapshotRowsMatch(*SelectedSnapshot, *FreshSnapshot, &SelectedPropertyNames))
 	{
 		ReplaceSelectedSnapshot(FreshSnapshot);
 		KawaiiPhysicsEdWindowUtils::ShowNotification(
@@ -792,7 +792,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnApplySelectedClicked()
 	FScopedTransaction Transaction(
 		LOCTEXT("ApplySelectedTransaction", "Apply Selected Kawaii Physics Preset Properties"));
 	GraphNode->Modify();
-	if (!CopyPropertiesByName(Names, true, GraphNode->Node, *Preset, GraphNode))
+	if (!SKawaiiPhysicsPresetDiffWindowPrivate::CopyPropertiesByName(Names, true, GraphNode->Node, *Preset, GraphNode))
 	{
 		Transaction.Cancel();
 		KawaiiPhysicsEdWindowUtils::ShowNotification(
@@ -803,7 +803,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnApplySelectedClicked()
 
 	GraphNode->Node.ModifyBones.Empty();
 	GraphNode->ReconstructNode();
-	MarkPresetDiffGraphNodeBlueprintModified(GraphNode);
+	SKawaiiPhysicsPresetDiffWindowPrivate::MarkPresetDiffGraphNodeBlueprintModified(GraphNode);
 
 	ReplaceSelectedSnapshot(KawaiiPhysicsPresetDiff::BuildSnapshot(GraphNode->Node, *Preset, Options));
 	SelectedPropertyNames.Reset();
@@ -843,7 +843,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnApplyPresetToNodeClicked()
 	const FKawaiiPhysicsPresetApplyOptions Options;
 	TSharedRef<FKawaiiPhysicsPresetDiffSnapshot> FreshSnapshot =
 		KawaiiPhysicsPresetDiff::BuildSnapshot(GraphNode->Node, *Preset, Options);
-	if (!SnapshotRowsMatch(*SelectedSnapshot, *FreshSnapshot, nullptr))
+	if (!SKawaiiPhysicsPresetDiffWindowPrivate::SnapshotRowsMatch(*SelectedSnapshot, *FreshSnapshot, nullptr))
 	{
 		ReplaceSelectedSnapshot(FreshSnapshot);
 		KawaiiPhysicsEdWindowUtils::ShowNotification(
@@ -852,7 +852,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnApplyPresetToNodeClicked()
 		return FReply::Handled();
 	}
 
-	if (!UKawaiiPhysicsEditorLibrary::ApplyPresetToGraphNode(MakePresetDiffHandle(GraphNode), Preset, Options))
+	if (!UKawaiiPhysicsEditorLibrary::ApplyPresetToGraphNode(SKawaiiPhysicsPresetDiffWindowPrivate::MakePresetDiffHandle(GraphNode), Preset, Options))
 	{
 		KawaiiPhysicsEdWindowUtils::ShowNotification(
 			LOCTEXT("ApplyPresetFailed", "Failed to apply the preset to the node."),
@@ -877,7 +877,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnUpdatePresetFromNodeClicked()
 
 	TArray<FName> Names = SelectedPropertyNames.Num() > 0
 		                      ? SelectedPropertyNames.Array()
-		                      : GetDifferingPropertyNames(*SelectedSnapshot);
+		                      : SKawaiiPhysicsPresetDiffWindowPrivate::GetDifferingPropertyNames(*SelectedSnapshot);
 	if (Names.IsEmpty())
 	{
 		KawaiiPhysicsEdWindowUtils::ShowNotification(
@@ -920,7 +920,7 @@ FReply SKawaiiPhysicsPresetDiffWindow::OnUpdatePresetFromNodeClicked()
 	FScopedTransaction Transaction(
 		LOCTEXT("UpdatePresetTransaction", "Update Kawaii Physics Preset From Node"));
 	Preset->Modify();
-	if (!CopyPropertiesByName(Names, false, GraphNode->Node, *Preset, Preset))
+	if (!SKawaiiPhysicsPresetDiffWindowPrivate::CopyPropertiesByName(Names, false, GraphNode->Node, *Preset, Preset))
 	{
 		Transaction.Cancel();
 		KawaiiPhysicsEdWindowUtils::ShowNotification(

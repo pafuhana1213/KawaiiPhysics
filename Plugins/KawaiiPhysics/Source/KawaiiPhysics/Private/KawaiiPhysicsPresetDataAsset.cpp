@@ -34,11 +34,11 @@ FCustomVersionRegistration GRegisterKawaiiPhysicsPresetVersion(FKawaiiPhysicsPre
                                                                FKawaiiPhysicsPresetVersion::LatestVersion,
                                                                TEXT("KawaiiPhysicsPreset"));
 
-namespace
+namespace KawaiiPhysicsPresetDataAssetPrivate
 {
 	constexpr uint32 KawaiiPhysicsPresetIdenticalPortFlags = PPF_DeepComparison | PPF_DeepCompareInstances;
 
-	const TSet<FName>& GetBoneAssignmentPropertyNames()
+	static const TSet<FName>& GetBoneAssignmentPropertyNames()
 	{
 		static const TSet<FName> Names = {
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, RootBone),
@@ -48,7 +48,7 @@ namespace
 		return Names;
 	}
 
-	const TSet<FName>& GetDeniedPropertyNames()
+	static const TSet<FName>& GetDeniedPropertyNames()
 	{
 		static const TSet<FName> Names = {
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, DeltaTime),
@@ -56,7 +56,7 @@ namespace
 		return Names;
 	}
 
-	const TSet<FName>& GetCopyTargetPropertyNames()
+	static const TSet<FName>& GetCopyTargetPropertyNames()
 	{
 		static const TSet<FName> Names = {
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, DummyBoneLength),
@@ -135,7 +135,7 @@ namespace
 		return Names;
 	}
 
-	void CopyNodeProperty(const FProperty& Property,
+	static void CopyNodeProperty(const FProperty& Property,
 	                      const FAnimNode_KawaiiPhysics& SourceNode,
 	                      FAnimNode_KawaiiPhysics& DestinationNode,
 	                      UObject* CustomExternalForceOuter)
@@ -152,18 +152,18 @@ namespace
 		Property.CopyCompleteValue_InContainer(&DestinationNode, &SourceNode);
 	}
 
-}
+} // namespace KawaiiPhysicsPresetDataAssetPrivate
 
 EKawaiiPhysicsPresetPropertyClass UKawaiiPhysicsPresetDataAsset::ClassifyNodeProperty(const FProperty& Property)
 {
 	const FName PropertyName = Property.GetFName();
 	if (Property.HasAnyPropertyFlags(CPF_Transient | CPF_EditorOnly) ||
-		GetDeniedPropertyNames().Contains(PropertyName))
+		KawaiiPhysicsPresetDataAssetPrivate::GetDeniedPropertyNames().Contains(PropertyName))
 	{
 		return EKawaiiPhysicsPresetPropertyClass::Deny;
 	}
 
-	if (GetBoneAssignmentPropertyNames().Contains(PropertyName))
+	if (KawaiiPhysicsPresetDataAssetPrivate::GetBoneAssignmentPropertyNames().Contains(PropertyName))
 	{
 		return EKawaiiPhysicsPresetPropertyClass::BoneAssignment;
 	}
@@ -173,7 +173,7 @@ EKawaiiPhysicsPresetPropertyClass UKawaiiPhysicsPresetDataAsset::ClassifyNodePro
 		return EKawaiiPhysicsPresetPropertyClass::Tag;
 	}
 
-	if (GetCopyTargetPropertyNames().Contains(PropertyName))
+	if (KawaiiPhysicsPresetDataAssetPrivate::GetCopyTargetPropertyNames().Contains(PropertyName))
 	{
 		return EKawaiiPhysicsPresetPropertyClass::CopyTarget;
 	}
@@ -224,7 +224,7 @@ void UKawaiiPhysicsPresetDataAsset::CopyFromNode(const FAnimNode_KawaiiPhysics& 
 			PropertyClass == EKawaiiPhysicsPresetPropertyClass::BoneAssignment ||
 			PropertyClass == EKawaiiPhysicsPresetPropertyClass::Tag)
 		{
-			CopyNodeProperty(Property, SourceNode, Node, this);
+			KawaiiPhysicsPresetDataAssetPrivate::CopyNodeProperty(Property, SourceNode, Node, this);
 		}
 	}
 
@@ -255,7 +255,7 @@ void UKawaiiPhysicsPresetDataAsset::ApplyToNode(FAnimNode_KawaiiPhysics& TargetN
 			continue;
 		}
 
-		CopyNodeProperty(Property, Node, TargetNode, TargetOuter);
+		KawaiiPhysicsPresetDataAssetPrivate::CopyNodeProperty(Property, Node, TargetNode, TargetOuter);
 	}
 }
 
@@ -285,7 +285,7 @@ bool UKawaiiPhysicsPresetDataAsset::MatchesNode(const FAnimNode_KawaiiPhysics& T
 			OutComparedProperties->Add(PropertyName);
 		}
 
-		if (!Property.Identical_InContainer(&Node, &TargetNode, 0, KawaiiPhysicsPresetIdenticalPortFlags))
+		if (!Property.Identical_InContainer(&Node, &TargetNode, 0, KawaiiPhysicsPresetDataAssetPrivate::KawaiiPhysicsPresetIdenticalPortFlags))
 		{
 			OutDiffProperties.Add(PropertyName);
 		}

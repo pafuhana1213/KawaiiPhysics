@@ -15,9 +15,9 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_KawaiiPhysicsSharedPublisher)
 
-namespace
+namespace AnimNodeKawaiiPhysicsSharedPublisherPrivate
 {
-	bool AreSimpleWorldSettingsEqual(
+	static bool AreSimpleWorldSettingsEqual(
 		const FKawaiiPhysicsSimpleWorldCollisionSettings& Lhs,
 		const FKawaiiPhysicsSimpleWorldCollisionSettings& Rhs)
 	{
@@ -35,7 +35,7 @@ namespace
 			&& Lhs.bGatherFamilyMembers == Rhs.bGatherFamilyMembers;
 	}
 
-	FKawaiiPhysicsSharedPublishInputs MakePublishInputs(
+	static FKawaiiPhysicsSharedPublishInputs MakePublishInputs(
 		bool bEnabled,
 		const FKawaiiPhysicsSimpleWorldCollisionSettings& SimpleWorld,
 		bool bWindEnabled,
@@ -50,7 +50,7 @@ namespace
 		Inputs.SharedWind = SharedWind;
 		return Inputs;
 	}
-}
+} // namespace AnimNodeKawaiiPhysicsSharedPublisherPrivate
 
 void FKawaiiPhysicsSharedPublishHelper::SetSourceID(uint64 InSourceID)
 {
@@ -160,7 +160,7 @@ FKawaiiPhysicsSharedPublishHelper::FInputChangeFlags FKawaiiPhysicsSharedPublish
 		bEffectiveEnabled = Inputs.bEnabled;
 		Changes.bEnabledChanged = true;
 	}
-	if (!AreSimpleWorldSettingsEqual(Previous.SimpleWorld, Inputs.SimpleWorld))
+	if (!AnimNodeKawaiiPhysicsSharedPublisherPrivate::AreSimpleWorldSettingsEqual(Previous.SimpleWorld, Inputs.SimpleWorld))
 	{
 		EffectiveSimpleWorldSettings = Inputs.SimpleWorld;
 		Changes.bSimpleWorldSettingsChanged = true;
@@ -565,7 +565,7 @@ void FAnimNode_KawaiiPhysicsSharedPublisher::Initialize_AnyThread(const FAnimati
 	bReinitRequested.store(true, std::memory_order_release);
 	InitializeHelper();
 	Helper->ResetEffectiveValues(
-		MakePublishInputs(bEnabled, SimpleWorldCollision, SharedWind.bIsEnabled, SharedWind.TimeScale, &SharedWind));
+		AnimNodeKawaiiPhysicsSharedPublisherPrivate::MakePublishInputs(bEnabled, SimpleWorldCollision, SharedWind.bIsEnabled, SharedWind.TimeScale, &SharedWind));
 }
 
 void FAnimNode_KawaiiPhysicsSharedPublisher::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
@@ -676,7 +676,7 @@ void FAnimNode_KawaiiPhysicsSharedPublisher::PreUpdate(const UAnimInstance* InAn
 			if (bReinit)
 			{
 				Helper->ResetEffectiveValues(
-					MakePublishInputs(bEnabled, SimpleWorldCollision, SharedWind.bIsEnabled, SharedWind.TimeScale, &SharedWind));
+					AnimNodeKawaiiPhysicsSharedPublisherPrivate::MakePublishInputs(bEnabled, SimpleWorldCollision, SharedWind.bIsEnabled, SharedWind.TimeScale, &SharedWind));
 			}
 			if (Helper->NeedsSimpleWorldEntryReacquire())
 			{
@@ -761,7 +761,7 @@ void FAnimNode_KawaiiPhysicsSharedPublisher::PreUpdate(const UAnimInstance* InAn
 	Helper->SetEntries(PublisherEntry, SimpleWorldEntry, TWeakObjectPtr<const USkeletalMeshComponent>(SkelComp),
 	                   !bOwnedByOther);
 	Helper->ResetEffectiveValues(
-		MakePublishInputs(bEnabled, SimpleWorldCollision, SharedWind.bIsEnabled, SharedWind.TimeScale, &SharedWind));
+		AnimNodeKawaiiPhysicsSharedPublisherPrivate::MakePublishInputs(bEnabled, SimpleWorldCollision, SharedWind.bIsEnabled, SharedWind.TimeScale, &SharedWind));
 }
 
 void FAnimNode_KawaiiPhysicsSharedPublisher::Update_AnyThread(const FAnimationUpdateContext& Context)
@@ -770,7 +770,7 @@ void FAnimNode_KawaiiPhysicsSharedPublisher::Update_AnyThread(const FAnimationUp
 	Source.Update(Context);
 
 	FKawaiiPhysicsSharedPublishInputs Inputs =
-		MakePublishInputs(bEnabled, SimpleWorldCollision, SharedWind.bIsEnabled, SharedWind.TimeScale, &SharedWind);
+		AnimNodeKawaiiPhysicsSharedPublisherPrivate::MakePublishInputs(bEnabled, SimpleWorldCollision, SharedWind.bIsEnabled, SharedWind.TimeScale, &SharedWind);
 	Inputs.GameTimeSeconds = CachedWindGameTimeSeconds;
 	Helper->Update(
 		Inputs,

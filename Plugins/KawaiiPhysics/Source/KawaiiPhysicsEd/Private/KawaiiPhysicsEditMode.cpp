@@ -46,7 +46,7 @@ struct HKawaiiPhysicsHitProxy : HHitProxy
 
 IMPLEMENT_HIT_PROXY(HKawaiiPhysicsHitProxy, HHitProxy);
 
-namespace
+namespace KawaiiPhysicsEditModePrivate
 {
 	// 回転体の断面点。NormalRadius / NormalZ は断面内の法線（半径方向・Z 成分）
 	struct FTaperedCapsuleProfilePoint
@@ -295,7 +295,7 @@ namespace
 			}
 		}
 	}
-}
+} // namespace KawaiiPhysicsEditModePrivate
 
 
 FKawaiiPhysicsEditMode::FKawaiiPhysicsEditMode()
@@ -484,7 +484,7 @@ void FKawaiiPhysicsEditMode::RenderLimitAngle(FPrimitiveDrawInterface* PDI) cons
 			// 制限はポーズ方向を基準に判定されるので、シミュレーション後の方向ではなくポーズ方向へ描く
 			if (Bone.PhysicsSettings.LimitAngleMode == EKawaiiPhysicsLimitAngleMode::PerAxis)
 			{
-				DrawPerAxisLimitShape(PDI, FTransform(ParentBone.Location) * SimToPreview, ParentBone.PoseRotation,
+				KawaiiPhysicsEditModePrivate::DrawPerAxisLimitShape(PDI, FTransform(ParentBone.Location) * SimToPreview, ParentBone.PoseRotation,
 				                      PoseDirection, PoseOffset.Size(), Bone.PhysicsSettings.PerAxisLimitAngle,
 				                      RuntimeNode->BoneForwardAxis);
 			}
@@ -742,7 +742,7 @@ void FKawaiiPhysicsEditMode::RenderTaperedCapsuleLimit(FPrimitiveDrawInterface* 
 				                                      : nullptr;
 			PDI->SetHitProxy(HitProxy);
 
-			DrawTaperedCapsuleSolverShape(PDI, Location, Rotation, TaperedCapsule.Radius0,
+			KawaiiPhysicsEditModePrivate::DrawTaperedCapsuleSolverShape(PDI, Location, Rotation, TaperedCapsule.Radius0,
 			                               TaperedCapsule.Radius1, TaperedCapsule.Length, MaterialProxy,
 			                               HitProxy ? HitProxy->Id : FHitProxyId());
 			DrawCoordinateSystem(PDI, Location, Rotation.Rotator(),

@@ -26,7 +26,7 @@
 
 #define LOCTEXT_NAMESPACE "FKawaiiPhysicsModuleEd"
 
-namespace
+namespace KawaiiPhysicsEdPrivate
 {
 	FSimpleMulticastDelegate& GetKawaiiPhysicsPostEngineInitDelegate()
 	{
@@ -36,7 +36,7 @@ namespace
 		return FCoreDelegates::GetOnPostEngineInit();
 #endif
 	}
-}
+} // namespace KawaiiPhysicsEdPrivate
 
 void FKawaiiPhysicsEdModule::StartupModule()
 {
@@ -66,7 +66,7 @@ void FKawaiiPhysicsEdModule::StartupModule()
 		}
 		else
 		{
-			PostEngineInitHandle = GetKawaiiPhysicsPostEngineInitDelegate().AddRaw(
+			PostEngineInitHandle = KawaiiPhysicsEdPrivate::GetKawaiiPhysicsPostEngineInitDelegate().AddRaw(
 				this,
 				&FKawaiiPhysicsEdModule::RegisterTabSpawners);
 		}
@@ -82,7 +82,7 @@ void FKawaiiPhysicsEdModule::ShutdownModule()
 
 	if (PostEngineInitHandle.IsValid())
 	{
-		GetKawaiiPhysicsPostEngineInitDelegate().Remove(PostEngineInitHandle);
+		KawaiiPhysicsEdPrivate::GetKawaiiPhysicsPostEngineInitDelegate().Remove(PostEngineInitHandle);
 		PostEngineInitHandle.Reset();
 	}
 

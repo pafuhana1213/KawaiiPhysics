@@ -39,12 +39,12 @@
 // SimpleWorldCollision CVar（AnimNode_KawaiiPhysics.cpp で定義）
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionEnable;
 
-namespace
+namespace AnimNodeKawaiiPhysicsSimulationPrivate
 {
 	constexpr float TransientGustLifetimeMargin = 0.2f;
 
 	// InstancedStructがProceduralWindであれば可変ポインタを返す（型不一致・無効ならnullptr）
-	FKawaiiPhysics_ExternalForce_ProceduralWind* GetMutableProceduralWindInNode(FInstancedStruct& InstancedStruct)
+	static FKawaiiPhysics_ExternalForce_ProceduralWind* GetMutableProceduralWindInNode(FInstancedStruct& InstancedStruct)
 	{
 		if (!InstancedStruct.IsValid() ||
 			InstancedStruct.GetScriptStruct() != FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct())
@@ -56,7 +56,7 @@ namespace
 	}
 
 	// worker上で突風用ProceduralWindを構築する
-	void BuildTransientGustForceFromSource(FAnimNode_KawaiiPhysics& Node,
+	static void BuildTransientGustForceFromSource(FAnimNode_KawaiiPhysics& Node,
 	                                       const FKawaiiPhysicsTransientGustRequest& Request,
 	                                       FKawaiiPhysics_ExternalForce_ProceduralWind* Source)
 	{
@@ -113,7 +113,7 @@ namespace
 	}
 
 	// worker上で突風用ProceduralWindを構築する
-	void BuildTransientGustForce(FAnimNode_KawaiiPhysics& Node, const FKawaiiPhysicsTransientGustRequest& Request)
+	static void BuildTransientGustForce(FAnimNode_KawaiiPhysics& Node, const FKawaiiPhysicsTransientGustRequest& Request)
 	{
 		if (Request.InheritForceIndex == FAnimNode_KawaiiPhysics::TransientGustInheritAllWinds)
 		{
@@ -164,7 +164,7 @@ namespace
 
 		BuildTransientGustForceFromSource(Node, Request, Source);
 	}
-}
+} // namespace AnimNodeKawaiiPhysicsSimulationPrivate
 
 FKawaiiPhysicsSettingsMultiplier FAnimNode_KawaiiPhysics::ComputeEffectivePhysicsSettingsMultiplierScale() const
 {
@@ -346,7 +346,7 @@ void FAnimNode_KawaiiPhysics::ConsumeAndRemoveExpiredTransientExternalForces(con
 
 	for (const FKawaiiPhysicsTransientGustRequest& PendingGust : PendingGusts)
 	{
-		BuildTransientGustForce(*this, PendingGust);
+		AnimNodeKawaiiPhysicsSimulationPrivate::BuildTransientGustForce(*this, PendingGust);
 	}
 
 	for (const FKawaiiPhysicsTransientForceStopRequest& PendingStop : PendingStops)
@@ -375,14 +375,14 @@ void FAnimNode_KawaiiPhysics::ConsumeAndRemoveExpiredTransientExternalForces(con
 				continue;
 			}
 
-			if (FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = GetMutableProceduralWindInNode(Item.Force))
+			if (FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = AnimNodeKawaiiPhysicsSimulationPrivate::GetMutableProceduralWindInNode(Item.Force))
 			{
 				Wind->RequestGustStop(PendingStop.BlendOutTime);
 				// RequestGustStopはエンベロープを現在値からのフェードへ完全に置き換えるため、
 				// 寿命も新フェードに合わせて再設定する（Minで旧残寿命を採用するとフェード途中で掃除されポップが出る）
 				Item.RemainingLifetime =
 					PendingStop.BlendOutTime / FMath::Max(Wind->TimeScale, KINDA_SMALL_NUMBER) +
-					TransientGustLifetimeMargin;
+					AnimNodeKawaiiPhysicsSimulationPrivate::TransientGustLifetimeMargin;
 			}
 			else
 			{
