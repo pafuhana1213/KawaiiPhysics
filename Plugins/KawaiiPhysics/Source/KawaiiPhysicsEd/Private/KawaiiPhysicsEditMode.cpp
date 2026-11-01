@@ -382,7 +382,7 @@ void FKawaiiPhysicsEditMode::EnterMode(UAnimGraphNode_Base* InEditorNode, FAnimN
 	}
 
 	UMaterialInterface* BaseCollisionMaterial = LoadObject<UMaterialInterface>(
-		nullptr, CollisionMaterialPath, nullptr, LOAD_None, nullptr);
+		nullptr, KawaiiPhysicsEditModePrivate::CollisionMaterialPath, nullptr, LOAD_None, nullptr);
 	CollisionMaterials.Reset();
 	for (const ECollisionLimitType LimitType : {
 		     ECollisionLimitType::Spherical, ECollisionLimitType::Capsule, ECollisionLimitType::TaperedCapsule,
@@ -660,8 +660,8 @@ void FKawaiiPhysicsEditMode::UpdateCollisionMaterials()
 	for (const TPair<FCollisionMaterialKey, TObjectPtr<UMaterialInstanceDynamic>>& Pair : CollisionMaterials)
 	{
 		const FLinearColor& Color = Settings->GetCollisionDrawStyle(Pair.Key.Key).GetColor(Pair.Key.Value);
-		Pair.Value->SetVectorParameterValue(CollisionMaterialColorName, Color);
-		Pair.Value->SetScalarParameterValue(CollisionMaterialOpacityName, Color.A);
+		Pair.Value->SetVectorParameterValue(KawaiiPhysicsEditModePrivate::CollisionMaterialColorName, Color);
+		Pair.Value->SetScalarParameterValue(KawaiiPhysicsEditModePrivate::CollisionMaterialOpacityName, Color.A);
 	}
 }
 
@@ -906,7 +906,8 @@ void FKawaiiPhysicsEditMode::RenderPlanarLimit(FPrimitiveDrawInterface* PDI) con
 		KawaiiPhysicsEditModePrivate::DrawPlanarLimitShape(PDI, PlaneToWorld, MaterialProxy);
 		if (Style.bDrawBorder)
 		{
-			const FVector HalfSize(PlanarLimitHalfSize, PlanarLimitHalfSize, 0.0f);
+			const FVector HalfSize(KawaiiPhysicsEditModePrivate::PlanarLimitHalfSize,
+			                       KawaiiPhysicsEditModePrivate::PlanarLimitHalfSize, 0.0f);
 			DrawWireBox(PDI, PlaneToWorld, FBox(-HalfSize, HalfSize), Style.BorderColor, SDPG_World,
 			            Style.BorderThickness);
 		}
