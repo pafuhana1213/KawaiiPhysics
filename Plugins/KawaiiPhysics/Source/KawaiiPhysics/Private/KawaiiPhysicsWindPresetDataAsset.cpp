@@ -96,9 +96,9 @@ bool UKawaiiPhysicsWindPresetDataAsset::ResolvePresetParamsByTag(
 	return false;
 }
 
-namespace
+namespace KawaiiPhysicsWindPresetDataAssetPrivate
 {
-	FKawaiiProceduralWindPreset MakeWindPreset(
+	static FKawaiiProceduralWindPreset MakeWindPreset(
 		const FGameplayTag& PresetTag,
 		const FText& PresetName,
 		float ConstantForce,
@@ -131,7 +131,7 @@ namespace
 	}
 
 #if WITH_EDITOR
-	void ForEachWindPresetValidationWarning(
+	static void ForEachWindPresetValidationWarning(
 		const TArray<FKawaiiProceduralWindPreset>& Presets,
 		const TFunctionRef<void(const FText&)>& AddWarning)
 	{
@@ -160,13 +160,13 @@ namespace
 		}
 	}
 #endif
-}
+} // namespace KawaiiPhysicsWindPresetDataAssetPrivate
 
 #if WITH_EDITOR
 #if UE_VERSION_OLDER_THAN(5, 3, 0)
 EDataValidationResult UKawaiiPhysicsWindPresetDataAsset::IsDataValid(TArray<FText>& ValidationErrors)
 {
-	ForEachWindPresetValidationWarning(Presets, [&ValidationErrors](const FText& Warning)
+	KawaiiPhysicsWindPresetDataAssetPrivate::ForEachWindPresetValidationWarning(Presets, [&ValidationErrors](const FText& Warning)
 	{
 		ValidationErrors.Add(Warning);
 	});
@@ -176,7 +176,7 @@ EDataValidationResult UKawaiiPhysicsWindPresetDataAsset::IsDataValid(TArray<FTex
 #else
 EDataValidationResult UKawaiiPhysicsWindPresetDataAsset::IsDataValid(FDataValidationContext& Context) const
 {
-	ForEachWindPresetValidationWarning(Presets, [&Context](const FText& Warning)
+	KawaiiPhysicsWindPresetDataAssetPrivate::ForEachWindPresetValidationWarning(Presets, [&Context](const FText& Warning)
 	{
 		Context.AddWarning(Warning);
 	});
@@ -191,7 +191,7 @@ TArray<FKawaiiProceduralWindPreset> UKawaiiPhysicsWindPresetDataAsset::GetDefaul
 	TArray<FKawaiiProceduralWindPreset> DefaultPresets;
 	DefaultPresets.Reserve(3);
 
-	DefaultPresets.Add(MakeWindPreset(
+	DefaultPresets.Add(KawaiiPhysicsWindPresetDataAssetPrivate::MakeWindPreset(
 		TAG_KawaiiPhysics_WindPreset_Breeze,
 		NSLOCTEXT("KawaiiPhysicsWindPresetDataAsset", "BreezePresetName", "Breeze"),
 		2.0f,
@@ -206,7 +206,7 @@ TArray<FKawaiiProceduralWindPreset> UKawaiiPhysicsWindPresetDataAsset::GetDefaul
 		0.8f,
 		5.0f));
 
-	DefaultPresets.Add(MakeWindPreset(
+	DefaultPresets.Add(KawaiiPhysicsWindPresetDataAssetPrivate::MakeWindPreset(
 		TAG_KawaiiPhysics_WindPreset_Strong,
 		NSLOCTEXT("KawaiiPhysicsWindPresetDataAsset", "StrongPresetName", "Strong"),
 		8.0f,
@@ -221,7 +221,7 @@ TArray<FKawaiiProceduralWindPreset> UKawaiiPhysicsWindPresetDataAsset::GetDefaul
 		0.5f,
 		10.0f));
 
-	DefaultPresets.Add(MakeWindPreset(
+	DefaultPresets.Add(KawaiiPhysicsWindPresetDataAssetPrivate::MakeWindPreset(
 		TAG_KawaiiPhysics_WindPreset_Storm,
 		NSLOCTEXT("KawaiiPhysicsWindPresetDataAsset", "StormPresetName", "Storm"),
 		15.0f,

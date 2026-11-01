@@ -47,7 +47,7 @@ struct HKawaiiPhysicsHitProxy : HHitProxy
 
 IMPLEMENT_HIT_PROXY(HKawaiiPhysicsHitProxy, HHitProxy);
 
-namespace
+namespace KawaiiPhysicsEditModePrivate
 {
 	// 色と不透明度の両方をパラメータで変えられるエンジンのマテリアル
 	const TCHAR* CollisionMaterialPath = TEXT("/Engine/EditorMaterials/PhAT_ElemSelectedMaterial.PhAT_ElemSelectedMaterial");
@@ -342,7 +342,7 @@ namespace
 		MeshBuilder.AddTriangle(0, 2, 3);
 		MeshBuilder.Draw(PDI, PlaneToWorld, MaterialProxy, SDPG_World, true, false);
 	}
-}
+} // namespace KawaiiPhysicsEditModePrivate
 
 
 FKawaiiPhysicsEditMode::FKawaiiPhysicsEditMode()
@@ -382,7 +382,7 @@ void FKawaiiPhysicsEditMode::EnterMode(UAnimGraphNode_Base* InEditorNode, FAnimN
 	}
 
 	UMaterialInterface* BaseCollisionMaterial = LoadObject<UMaterialInterface>(
-		nullptr, CollisionMaterialPath, nullptr, LOAD_None, nullptr);
+		nullptr, KawaiiPhysicsEditModePrivate::CollisionMaterialPath, nullptr, LOAD_None, nullptr);
 	CollisionMaterials.Reset();
 	for (const ECollisionLimitType LimitType : {
 		     ECollisionLimitType::Spherical, ECollisionLimitType::Capsule, ECollisionLimitType::TaperedCapsule,
@@ -555,7 +555,7 @@ void FKawaiiPhysicsEditMode::RenderLimitAngle(FPrimitiveDrawInterface* PDI) cons
 			// 制限はポーズ方向を基準に判定されるので、シミュレーション後の方向ではなくポーズ方向へ描く
 			if (Bone.PhysicsSettings.LimitAngleMode == EKawaiiPhysicsLimitAngleMode::PerAxis)
 			{
-				DrawPerAxisLimitShape(PDI, FTransform(ParentBone.Location) * SimToPreview, ParentBone.PoseRotation,
+				KawaiiPhysicsEditModePrivate::DrawPerAxisLimitShape(PDI, FTransform(ParentBone.Location) * SimToPreview, ParentBone.PoseRotation,
 				                      PoseDirection, PoseOffset.Size(), Bone.PhysicsSettings.PerAxisLimitAngle,
 				                      RuntimeNode->BoneForwardAxis);
 			}
@@ -660,8 +660,8 @@ void FKawaiiPhysicsEditMode::UpdateCollisionMaterials()
 	for (const TPair<FCollisionMaterialKey, TObjectPtr<UMaterialInstanceDynamic>>& Pair : CollisionMaterials)
 	{
 		const FLinearColor& Color = Settings->GetCollisionDrawStyle(Pair.Key.Key).GetColor(Pair.Key.Value);
-		Pair.Value->SetVectorParameterValue(CollisionMaterialColorName, Color);
-		Pair.Value->SetScalarParameterValue(CollisionMaterialOpacityName, Color.A);
+		Pair.Value->SetVectorParameterValue(KawaiiPhysicsEditModePrivate::CollisionMaterialColorName, Color);
+		Pair.Value->SetScalarParameterValue(KawaiiPhysicsEditModePrivate::CollisionMaterialOpacityName, Color.A);
 	}
 }
 
@@ -826,7 +826,7 @@ void FKawaiiPhysicsEditMode::RenderTaperedCapsuleLimit(FPrimitiveDrawInterface* 
 				                                      : nullptr;
 			PDI->SetHitProxy(HitProxy);
 
-			DrawTaperedCapsuleSolverShape(PDI, Location, Rotation, TaperedCapsule.Radius0,
+			KawaiiPhysicsEditModePrivate::DrawTaperedCapsuleSolverShape(PDI, Location, Rotation, TaperedCapsule.Radius0,
 			                               TaperedCapsule.Radius1, TaperedCapsule.Length, MaterialProxy,
 			                               HitProxy ? HitProxy->Id : FHitProxyId(), Style);
 			DrawCoordinateSystem(PDI, Location, Rotation.Rotator(),
@@ -903,10 +903,11 @@ void FKawaiiPhysicsEditMode::RenderPlanarLimit(FPrimitiveDrawInterface* PDI) con
 			                 : nullptr);
 
 		const FMatrix PlaneToWorld = PlaneTransform.ToMatrixWithScale();
-		DrawPlanarLimitShape(PDI, PlaneToWorld, MaterialProxy);
+		KawaiiPhysicsEditModePrivate::DrawPlanarLimitShape(PDI, PlaneToWorld, MaterialProxy);
 		if (Style.bDrawBorder)
 		{
-			const FVector HalfSize(PlanarLimitHalfSize, PlanarLimitHalfSize, 0.0f);
+			const FVector HalfSize(KawaiiPhysicsEditModePrivate::PlanarLimitHalfSize,
+			                       KawaiiPhysicsEditModePrivate::PlanarLimitHalfSize, 0.0f);
 			DrawWireBox(PDI, PlaneToWorld, FBox(-HalfSize, HalfSize), Style.BorderColor, SDPG_World,
 			            Style.BorderThickness);
 		}

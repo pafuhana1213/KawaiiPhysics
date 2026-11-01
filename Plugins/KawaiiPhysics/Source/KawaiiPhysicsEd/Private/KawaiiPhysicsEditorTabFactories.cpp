@@ -13,7 +13,7 @@
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysicsEditorTabFactories"
 
-namespace
+namespace KawaiiPhysicsEditorTabFactoriesPrivate
 {
 	FSlateIcon MakeKawaiiPhysicsTabIcon()
 	{
@@ -21,7 +21,7 @@ namespace
 			FKawaiiPhysicsEdStyle::GetStyleSetName(),
 			TEXT("KawaiiPhysics.TabIcon"));
 	}
-}
+} // namespace KawaiiPhysicsEditorTabFactoriesPrivate
 
 FKawaiiPhysicsTabFactoryBase::FKawaiiPhysicsTabFactoryBase(FName TabId, TSharedPtr<FAssetEditorToolkit> InHostingApp)
 	: FWorkflowTabFactory(TabId, InHostingApp)
@@ -54,7 +54,7 @@ FKawaiiPhysicsWindScopeTabFactory::FKawaiiPhysicsWindScopeTabFactory(TSharedPtr<
 	: FKawaiiPhysicsTabFactoryBase(SKawaiiPhysicsWindScopeWindow::WindScopeTabId, InHostingApp)
 {
 	TabLabel = LOCTEXT("WindScopeTabLabel", "Kawaii Wind Scope");
-	TabIcon = MakeKawaiiPhysicsTabIcon();
+	TabIcon = KawaiiPhysicsEditorTabFactoriesPrivate::MakeKawaiiPhysicsTabIcon();
 	ViewMenuDescription = LOCTEXT("WindScopeViewMenuDescription", "Wind Scope");
 	ViewMenuTooltip = LOCTEXT("WindScopeMenuTooltip", "KawaiiPhysics の風プレビュータブを開きます / Opens the KawaiiPhysics wind preview tab.");
 	bIsSingleton = true;
@@ -87,7 +87,7 @@ FKawaiiPhysicsPresetDiffTabFactory::FKawaiiPhysicsPresetDiffTabFactory(TSharedPt
 	: FKawaiiPhysicsTabFactoryBase(SKawaiiPhysicsPresetDiffWindow::PresetDiffTabId, InHostingApp)
 {
 	TabLabel = LOCTEXT("PresetDiffTabLabel", "Kawaii Preset Diff");
-	TabIcon = MakeKawaiiPhysicsTabIcon();
+	TabIcon = KawaiiPhysicsEditorTabFactoriesPrivate::MakeKawaiiPhysicsTabIcon();
 	ViewMenuDescription = LOCTEXT("PresetDiffViewMenuDescription", "Preset Diff");
 	ViewMenuTooltip = LOCTEXT("PresetDiffMenuTooltip", "KawaiiPhysics のプリセット差分タブを開きます / Opens the KawaiiPhysics preset diff tab.");
 	bIsSingleton = true;
@@ -114,7 +114,7 @@ FKawaiiPhysicsNodeAuditTabFactory::FKawaiiPhysicsNodeAuditTabFactory(TSharedPtr<
 	: FKawaiiPhysicsTabFactoryBase(SKawaiiPhysicsNodeAuditWindow::NodeAuditTabId, InHostingApp)
 {
 	TabLabel = LOCTEXT("NodeAuditTabLabel", "Kawaii Node Audit");
-	TabIcon = MakeKawaiiPhysicsTabIcon();
+	TabIcon = KawaiiPhysicsEditorTabFactoriesPrivate::MakeKawaiiPhysicsTabIcon();
 	ViewMenuDescription = LOCTEXT("NodeAuditViewMenuDescription", "Node Audit");
 	ViewMenuTooltip = LOCTEXT("NodeAuditMenuTooltip", "KawaiiPhysics のノード監査タブを開きます / Opens the KawaiiPhysics node audit tab.");
 	bIsSingleton = true;

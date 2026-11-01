@@ -19,7 +19,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(KawaiiPhysicsAuditCommandlet)
 
-namespace
+namespace KawaiiPhysicsAuditCommandletPrivate
 {
 	void ParseCommaSeparatedParam(const FString& Value, TArray<FString>& OutValues)
 	{
@@ -173,7 +173,7 @@ namespace
 			       Entry.WarmUpFrames);
 		}
 	}
-}
+} // namespace KawaiiPhysicsAuditCommandletPrivate
 
 namespace KawaiiPhysicsAuditJson
 {
@@ -181,7 +181,7 @@ namespace KawaiiPhysicsAuditJson
 		const TArray<FKawaiiPhysicsNodeAuditEntry>& Entries,
 		int32 TotalAnimBlueprints)
 	{
-		const int32 PresetDriftCount = CountPresetDriftEntries(Entries);
+		const int32 PresetDriftCount = KawaiiPhysicsAuditCommandletPrivate::CountPresetDriftEntries(Entries);
 
 		TSharedPtr<FJsonObject> SummaryObject = MakeShared<FJsonObject>();
 		SummaryObject->SetNumberField(TEXT("TotalAnimBlueprints"), TotalAnimBlueprints);
@@ -219,14 +219,14 @@ int32 UKawaiiPhysicsAuditCommandlet::Main(const FString& Params)
 	TArray<FString> ContentPaths;
 	if (FParse::Value(*Params, TEXT("ContentPaths="), ContentPathsParam))
 	{
-		ParseCommaSeparatedParam(ContentPathsParam, ContentPaths);
+		KawaiiPhysicsAuditCommandletPrivate::ParseCommaSeparatedParam(ContentPathsParam, ContentPaths);
 	}
 
 	FString FilterTagsParam;
 	FGameplayTagContainer FilterTags;
 	if (FParse::Value(*Params, TEXT("FilterTags="), FilterTagsParam))
 	{
-		FilterTags = ParseFilterTags(FilterTagsParam);
+		FilterTags = KawaiiPhysicsAuditCommandletPrivate::ParseFilterTags(FilterTagsParam);
 	}
 
 	const bool bFilterExactMatch =
@@ -239,7 +239,7 @@ int32 UKawaiiPhysicsAuditCommandlet::Main(const FString& Params)
 		FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	AssetRegistryModule.Get().SearchAllAssets(true);
 
-	const int32 TotalAnimBlueprints = CountAnimBlueprintAssets(ContentPaths);
+	const int32 TotalAnimBlueprints = KawaiiPhysicsAuditCommandletPrivate::CountAnimBlueprintAssets(ContentPaths);
 
 	TArray<FKawaiiPhysicsNodeAuditEntry> Entries;
 	if (!UKawaiiPhysicsEditorLibrary::AuditKawaiiPhysicsNodes(
@@ -253,7 +253,7 @@ int32 UKawaiiPhysicsAuditCommandlet::Main(const FString& Params)
 		return 2;
 	}
 
-	const int32 PresetDriftCount = CountPresetDriftEntries(Entries);
+	const int32 PresetDriftCount = KawaiiPhysicsAuditCommandletPrivate::CountPresetDriftEntries(Entries);
 	UE_LOG(LogKawaiiPhysics, Display,
 	       TEXT("KawaiiPhysicsAudit: AnimBlueprints=%d Nodes=%d PresetDrifts=%d"),
 	       TotalAnimBlueprints,
@@ -263,7 +263,7 @@ int32 UKawaiiPhysicsAuditCommandlet::Main(const FString& Params)
 	FString OutputPath;
 	if (FParse::Value(*Params, TEXT("Output="), OutputPath) && !OutputPath.IsEmpty())
 	{
-		if (!WriteAuditJsonFile(OutputPath, Entries, TotalAnimBlueprints))
+		if (!KawaiiPhysicsAuditCommandletPrivate::WriteAuditJsonFile(OutputPath, Entries, TotalAnimBlueprints))
 		{
 			UE_LOG(LogKawaiiPhysics, Error,
 			       TEXT("KawaiiPhysicsAudit: Failed to write JSON file '%s'."),
@@ -277,7 +277,7 @@ int32 UKawaiiPhysicsAuditCommandlet::Main(const FString& Params)
 	}
 	else
 	{
-		LogAuditEntries(Entries);
+		KawaiiPhysicsAuditCommandletPrivate::LogAuditEntries(Entries);
 	}
 
 	if (PresetDriftCount > 0)

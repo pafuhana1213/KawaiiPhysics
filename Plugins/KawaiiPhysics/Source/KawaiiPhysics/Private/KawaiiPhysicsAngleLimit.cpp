@@ -4,7 +4,7 @@
 
 namespace KawaiiPhysics::AngleLimit
 {
-	namespace
+	namespace KawaiiPhysicsAngleLimitPrivate
 	{
 		// これ以下の範囲はロック扱い。極端に細い楕円での数値不安定を避ける
 		constexpr float LockedExtentDegrees = 0.01f;
@@ -19,17 +19,17 @@ namespace KawaiiPhysics::AngleLimit
 		// 反平行の付近では外積の向きが丸め誤差で決まるため、回転軸を信用しない範囲（sin）
 		constexpr double AntiParallelSine = 1.0e-4;
 
-		bool IsLockedAxis(const float Min, const float Max)
+		static bool IsLockedAxis(const float Min, const float Max)
 		{
 			return Max <= LockedExtentDegrees && -Min <= LockedExtentDegrees;
 		}
 
-		bool IsFreeExtent(const float Extent)
+		static bool IsFreeExtent(const float Extent)
 		{
 			return Extent >= 180.0f - LockedExtentDegrees;
 		}
 
-		FVector GetRotationAxis(const FQuat& Rotation, const EAxis::Type Axis)
+		static FVector GetRotationAxis(const FQuat& Rotation, const EAxis::Type Axis)
 		{
 			switch (Axis)
 			{
@@ -42,7 +42,7 @@ namespace KawaiiPhysics::AngleLimit
 			}
 		}
 
-		const FKawaiiPhysicsAxisAngleRange& GetAxisRange(const FKawaiiPhysicsPerAxisLimitAngle& Limit,
+		static const FKawaiiPhysicsAxisAngleRange& GetAxisRange(const FKawaiiPhysicsPerAxisLimitAngle& Limit,
 		                                                 const EAxis::Type Axis)
 		{
 			switch (Axis)
@@ -56,7 +56,7 @@ namespace KawaiiPhysics::AngleLimit
 			}
 		}
 
-		FKawaiiPhysicsAxisAngleRange ScaleAxisRange(const FKawaiiPhysicsAxisAngleRange& Range, const float Scale)
+		static FKawaiiPhysicsAxisAngleRange ScaleAxisRange(const FKawaiiPhysicsAxisAngleRange& Range, const float Scale)
 		{
 			FKawaiiPhysicsAxisAngleRange Scaled;
 			Scaled.Min = FMath::Clamp(Range.Min * Scale, -180.0f, 0.0f);
@@ -71,7 +71,7 @@ namespace KawaiiPhysics::AngleLimit
 		 * The root of an outside point is positive and the start is a lower bound of it, so the denominators stay away from 0.
 		 * The function is convex, so it approaches monotonically without overshooting.
 		 */
-		FVector2f FindClosestPointOnEllipse(const float InPointX, const float InPointY,
+		static FVector2f FindClosestPointOnEllipse(const float InPointX, const float InPointY,
 		                                    const float InExtentX, const float InExtentY)
 		{
 			// 単精度だと軸すれすれの点で桁落ちするため倍精度で解く
@@ -143,7 +143,7 @@ namespace KawaiiPhysics::AngleLimit
 		 * Limit for a hinge that rotates around a single axis. Projects the direction onto the hinge plane and works on the in-plane angle.
 		 * It avoids the rotation vector, so the angle holds near the opposite of the pose, where the rotation axis is unreliable.
 		 */
-		bool ClampHingeDirection(const FVector& HingeAxis, const FVector& PoseDirection, const float Min, const float Max,
+		static bool ClampHingeDirection(const FVector& HingeAxis, const FVector& PoseDirection, const float Min, const float Max,
 		                         FVector& InOutBoneDirection)
 		{
 			const FVector Tangent = FVector::CrossProduct(HingeAxis, PoseDirection);
@@ -170,7 +170,7 @@ namespace KawaiiPhysics::AngleLimit
 			InOutBoneDirection = Clamped;
 			return true;
 		}
-	}
+	} // namespace KawaiiPhysicsAngleLimitPrivate
 
 	EAxis::Type GetTwistAxis(const EBoneForwardAxis ForwardAxis)
 	{
@@ -212,8 +212,8 @@ namespace KawaiiPhysics::AngleLimit
 		EAxis::Type AxisB;
 		GetSwingAxes(ForwardAxis, AxisA, AxisB);
 
-		const FKawaiiPhysicsAxisAngleRange& RangeA = GetAxisRange(Limit, AxisA);
-		const FKawaiiPhysicsAxisAngleRange& RangeB = GetAxisRange(Limit, AxisB);
+		const FKawaiiPhysicsAxisAngleRange& RangeA = KawaiiPhysicsAngleLimitPrivate::GetAxisRange(Limit, AxisA);
+		const FKawaiiPhysicsAxisAngleRange& RangeB = KawaiiPhysicsAngleLimitPrivate::GetAxisRange(Limit, AxisB);
 
 		FSwingLimit SwingLimit;
 		SwingLimit.MinA = RangeA.Min;
@@ -229,16 +229,16 @@ namespace KawaiiPhysics::AngleLimit
 		const float ClampedScale = FMath::Max(Scale, 0.0f);
 
 		FKawaiiPhysicsPerAxisLimitAngle Scaled;
-		Scaled.X = ScaleAxisRange(Limit.X, ClampedScale);
-		Scaled.Y = ScaleAxisRange(Limit.Y, ClampedScale);
-		Scaled.Z = ScaleAxisRange(Limit.Z, ClampedScale);
+		Scaled.X = KawaiiPhysicsAngleLimitPrivate::ScaleAxisRange(Limit.X, ClampedScale);
+		Scaled.Y = KawaiiPhysicsAngleLimitPrivate::ScaleAxisRange(Limit.Y, ClampedScale);
+		Scaled.Z = KawaiiPhysicsAngleLimitPrivate::ScaleAxisRange(Limit.Z, ClampedScale);
 		return Scaled;
 	}
 
 	FSwingFrame MakeSwingFrame(const FQuat& ParentPoseRotation, const EBoneForwardAxis ForwardAxis,
 	                           const FVector& PoseDirection)
 	{
-		FVector Forward = GetRotationAxis(ParentPoseRotation, GetTwistAxis(ForwardAxis));
+		FVector Forward = KawaiiPhysicsAngleLimitPrivate::GetRotationAxis(ParentPoseRotation, GetTwistAxis(ForwardAxis));
 		if (FVector::DotProduct(Forward, PoseDirection) < 0.0)
 		{
 			// 反平行だと FindBetween の回転軸が定まらないため、近い側の向きを使う
@@ -252,16 +252,16 @@ namespace KawaiiPhysics::AngleLimit
 		GetSwingAxes(ForwardAxis, AxisA, AxisB);
 
 		FSwingFrame Frame;
-		Frame.AxisA = Alignment.RotateVector(GetRotationAxis(ParentPoseRotation, AxisA));
-		Frame.AxisB = Alignment.RotateVector(GetRotationAxis(ParentPoseRotation, AxisB));
+		Frame.AxisA = Alignment.RotateVector(KawaiiPhysicsAngleLimitPrivate::GetRotationAxis(ParentPoseRotation, AxisA));
+		Frame.AxisB = Alignment.RotateVector(KawaiiPhysicsAngleLimitPrivate::GetRotationAxis(ParentPoseRotation, AxisB));
 		return Frame;
 	}
 
 	bool IsForwardAxisAligned(const FQuat& ParentPoseRotation, const EBoneForwardAxis ForwardAxis,
 	                          const FVector& PoseDirection)
 	{
-		const FVector Forward = GetRotationAxis(ParentPoseRotation, GetTwistAxis(ForwardAxis));
-		return FMath::Abs(FVector::DotProduct(Forward, PoseDirection)) >= MinForwardAxisAlignment;
+		const FVector Forward = KawaiiPhysicsAngleLimitPrivate::GetRotationAxis(ParentPoseRotation, GetTwistAxis(ForwardAxis));
+		return FMath::Abs(FVector::DotProduct(Forward, PoseDirection)) >= KawaiiPhysicsAngleLimitPrivate::MinForwardAxisAlignment;
 	}
 
 	FVector2f DecomposeSwing(const FSwingFrame& Frame, const FVector& PoseDirection, const FVector& BoneDirection,
@@ -278,7 +278,7 @@ namespace KawaiiPhysics::AngleLimit
 
 		const double AngleDegrees = FMath::RadiansToDegrees(FMath::Atan2(SinAngle, CosAngle));
 
-		if (CosAngle < 0.0 && SinAngle <= AntiParallelSine)
+		if (CosAngle < 0.0 && SinAngle <= KawaiiPhysicsAngleLimitPrivate::AntiParallelSine)
 		{
 			// 真逆へはどの回転軸でも届くため、制限で最も広く動ける向きとして扱う
 			const float Angle = static_cast<float>(AngleDegrees);
@@ -324,11 +324,11 @@ namespace KawaiiPhysics::AngleLimit
 		const float AbsB = FMath::Abs(Swing.Y);
 
 		FVector2f Clamped;
-		if (ExtentA <= LockedExtentDegrees)
+		if (ExtentA <= KawaiiPhysicsAngleLimitPrivate::LockedExtentDegrees)
 		{
 			Clamped = FVector2f(0.0f, FMath::Min(AbsB, ExtentB));
 		}
-		else if (ExtentB <= LockedExtentDegrees)
+		else if (ExtentB <= KawaiiPhysicsAngleLimitPrivate::LockedExtentDegrees)
 		{
 			Clamped = FVector2f(FMath::Min(AbsA, ExtentA), 0.0f);
 		}
@@ -340,7 +340,7 @@ namespace KawaiiPhysics::AngleLimit
 			}
 
 			// 中心へ縮めると細い楕円で大きく引き戻されるため、最近傍点を使う
-			Clamped = FindClosestPointOnEllipse(AbsA, AbsB, ExtentA, ExtentB);
+			Clamped = KawaiiPhysicsAngleLimitPrivate::FindClosestPointOnEllipse(AbsA, AbsB, ExtentA, ExtentB);
 		}
 
 		return FVector2f(FMath::Sign(Swing.X) * Clamped.X, FMath::Sign(Swing.Y) * Clamped.Y);
@@ -349,13 +349,13 @@ namespace KawaiiPhysics::AngleLimit
 	bool ClampDirection(const FSwingFrame& Frame, const FVector& PoseDirection, const FSwingLimit& Limit,
 	                    FVector& InOutBoneDirection)
 	{
-		const bool bLockedA = IsLockedAxis(Limit.MinA, Limit.MaxA);
-		const bool bLockedB = IsLockedAxis(Limit.MinB, Limit.MaxB);
+		const bool bLockedA = KawaiiPhysicsAngleLimitPrivate::IsLockedAxis(Limit.MinA, Limit.MaxA);
+		const bool bLockedB = KawaiiPhysicsAngleLimitPrivate::IsLockedAxis(Limit.MinB, Limit.MaxB);
 		if (bLockedA != bLockedB)
 		{
 			return bLockedA
-				       ? ClampHingeDirection(Frame.AxisB, PoseDirection, Limit.MinB, Limit.MaxB, InOutBoneDirection)
-				       : ClampHingeDirection(Frame.AxisA, PoseDirection, Limit.MinA, Limit.MaxA, InOutBoneDirection);
+				       ? KawaiiPhysicsAngleLimitPrivate::ClampHingeDirection(Frame.AxisB, PoseDirection, Limit.MinB, Limit.MaxB, InOutBoneDirection)
+				       : KawaiiPhysicsAngleLimitPrivate::ClampHingeDirection(Frame.AxisA, PoseDirection, Limit.MinA, Limit.MaxA, InOutBoneDirection);
 		}
 
 		const FVector2f Swing = DecomposeSwing(Frame, PoseDirection, InOutBoneDirection, Limit);
@@ -371,8 +371,8 @@ namespace KawaiiPhysics::AngleLimit
 
 	bool IsUnlimited(const FSwingLimit& Limit)
 	{
-		return IsFreeExtent(Limit.MaxA) && IsFreeExtent(-Limit.MinA) &&
-			IsFreeExtent(Limit.MaxB) && IsFreeExtent(-Limit.MinB);
+		return KawaiiPhysicsAngleLimitPrivate::IsFreeExtent(Limit.MaxA) && KawaiiPhysicsAngleLimitPrivate::IsFreeExtent(-Limit.MinA) &&
+			KawaiiPhysicsAngleLimitPrivate::IsFreeExtent(Limit.MaxB) && KawaiiPhysicsAngleLimitPrivate::IsFreeExtent(-Limit.MinB);
 	}
 
 	FVector2f EvaluateLimitBoundary(const FSwingLimit& Limit, const float Alpha)

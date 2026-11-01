@@ -7,7 +7,7 @@
 #include "UObject/StrongObjectPtr.h"
 #include "UObject/UnrealType.h"
 
-namespace
+namespace KawaiiPhysicsPresetDiffSnapshotPrivate
 {
 	static FString GetNodePropertyValueAsString(const FProperty* Property, const FAnimNode_KawaiiPhysics& Container)
 	{
@@ -50,7 +50,7 @@ namespace
 		Value.ReplaceInline(TEXT("\t"), TEXT(" "));
 		return Value;
 	}
-}
+} // namespace KawaiiPhysicsPresetDiffSnapshotPrivate
 
 namespace KawaiiPhysicsPresetDiff
 {
@@ -86,9 +86,9 @@ namespace KawaiiPhysicsPresetDiff
 			TSharedRef<FKawaiiPhysicsPresetDiffPropertyRow> Row = MakeShared<FKawaiiPhysicsPresetDiffPropertyRow>();
 			Row->PropertyName = PropertyName;
 			Row->DisplayName = Property->GetDisplayNameText();
-			Row->Category = GetPropertyCategory(Property);
-			Row->NodeValue = GetNodePropertyValueAsString(Property, Node);
-			Row->PresetValue = GetNodePropertyValueAsString(Property, Preset.Node);
+			Row->Category = KawaiiPhysicsPresetDiffSnapshotPrivate::GetPropertyCategory(Property);
+			Row->NodeValue = KawaiiPhysicsPresetDiffSnapshotPrivate::GetNodePropertyValueAsString(Property, Node);
+			Row->PresetValue = KawaiiPhysicsPresetDiffSnapshotPrivate::GetNodePropertyValueAsString(Property, Preset.Node);
 			Row->bDiffers = DiffPropertySet.Contains(PropertyName);
 			if (Row->bDiffers)
 			{
@@ -124,9 +124,9 @@ namespace KawaiiPhysicsPresetDiff
 		TArray<FString> Lines;
 		Lines.Add(TEXT("Context\tPreset\tPresetPath\tPropertyName\tDisplayName\tCategory\tNodeValue\tPresetValue"));
 
-		const FString ContextText = MakeClipboardCell(ContextLabel.ToString());
-		const FString PresetText = MakeClipboardCell(Snapshot.PresetDisplayName.ToString());
-		const FString PresetPathText = MakeClipboardCell(Snapshot.PresetPath.ToString());
+		const FString ContextText = KawaiiPhysicsPresetDiffSnapshotPrivate::MakeClipboardCell(ContextLabel.ToString());
+		const FString PresetText = KawaiiPhysicsPresetDiffSnapshotPrivate::MakeClipboardCell(Snapshot.PresetDisplayName.ToString());
+		const FString PresetPathText = KawaiiPhysicsPresetDiffSnapshotPrivate::MakeClipboardCell(Snapshot.PresetPath.ToString());
 		for (const TSharedPtr<FKawaiiPhysicsPresetDiffPropertyRow>& Row : Snapshot.Rows)
 		{
 			if (!Row.IsValid() || !Row->bDiffers)
@@ -139,11 +139,11 @@ namespace KawaiiPhysicsPresetDiff
 				*ContextText,
 				*PresetText,
 				*PresetPathText,
-				*MakeClipboardCell(Row->PropertyName.ToString()),
-				*MakeClipboardCell(Row->DisplayName.ToString()),
-				*MakeClipboardCell(Row->Category),
-				*MakeClipboardCell(Row->NodeValue),
-				*MakeClipboardCell(Row->PresetValue)));
+				*KawaiiPhysicsPresetDiffSnapshotPrivate::MakeClipboardCell(Row->PropertyName.ToString()),
+				*KawaiiPhysicsPresetDiffSnapshotPrivate::MakeClipboardCell(Row->DisplayName.ToString()),
+				*KawaiiPhysicsPresetDiffSnapshotPrivate::MakeClipboardCell(Row->Category),
+				*KawaiiPhysicsPresetDiffSnapshotPrivate::MakeClipboardCell(Row->NodeValue),
+				*KawaiiPhysicsPresetDiffSnapshotPrivate::MakeClipboardCell(Row->PresetValue)));
 		}
 
 		return FString::Join(Lines, TEXT("\n"));
@@ -168,8 +168,8 @@ namespace KawaiiPhysicsPresetDiff
 
 			FKawaiiPhysicsPresetDiffValue DiffValue;
 			DiffValue.PropertyName = PropertyName;
-			DiffValue.NodeValue = GetNodePropertyValueAsString(Property, Node);
-			DiffValue.PresetValue = GetNodePropertyValueAsString(Property, Preset.Node);
+			DiffValue.NodeValue = KawaiiPhysicsPresetDiffSnapshotPrivate::GetNodePropertyValueAsString(Property, Node);
+			DiffValue.PresetValue = KawaiiPhysicsPresetDiffSnapshotPrivate::GetNodePropertyValueAsString(Property, Preset.Node);
 			DiffValues.Add(MoveTemp(DiffValue));
 		}
 

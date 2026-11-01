@@ -31,33 +31,33 @@ DEFINE_LOG_CATEGORY_STATIC(LogKawaiiPhysicsLibrary, Verbose, All);
 // AnimNode_KawaiiPhysics.cpp で定義
 extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionEnable;
 
-namespace
+namespace KawaiiPhysicsLibraryPrivate
 {
 	// AnimNode_KawaiiPhysicsCollision.cpp の AdjustBySphereCollision は無効設定と半径 0 以下をスキップする。
-	bool IsRuntimeLimitEnabled(const FSphericalLimit& Limit, bool bSourceEnabled)
+	static bool IsRuntimeLimitEnabled(const FSphericalLimit& Limit, bool bSourceEnabled)
 	{
 		return bSourceEnabled && Limit.bEnable && Limit.Radius > 0.0f;
 	}
 
 	// AnimNode_KawaiiPhysicsCollision.cpp の AdjustByCapsuleCollision は無効設定、半径または長さ 0 以下をスキップする。
-	bool IsRuntimeLimitEnabled(const FCapsuleLimit& Limit, bool bSourceEnabled)
+	static bool IsRuntimeLimitEnabled(const FCapsuleLimit& Limit, bool bSourceEnabled)
 	{
 		return bSourceEnabled && Limit.bEnable && Limit.Radius > 0.0f && Limit.Length > 0.0f;
 	}
 
 	// AnimNode_KawaiiPhysicsCollision.cpp の AdjustByTaperedCapsuleCollision は無効設定と両端の半径が 0 以下の形状をスキップする。
-	bool IsRuntimeLimitEnabled(const FTaperedCapsuleLimit& Limit, bool bSourceEnabled)
+	static bool IsRuntimeLimitEnabled(const FTaperedCapsuleLimit& Limit, bool bSourceEnabled)
 	{
 		return bSourceEnabled && Limit.bEnable && (Limit.Radius0 > 0.0f || Limit.Radius1 > 0.0f);
 	}
 
 	// AnimNode_KawaiiPhysicsCollision.cpp の AdjustByBoxCollision と AdjustByPlanarCollision は無効設定だけをスキップする。
-	bool IsRuntimeLimitEnabled(const FCollisionLimitBase& Limit, bool bSourceEnabled)
+	static bool IsRuntimeLimitEnabled(const FCollisionLimitBase& Limit, bool bSourceEnabled)
 	{
 		return bSourceEnabled && Limit.bEnable;
 	}
 
-	void SetRuntimeLimitShape(const FSphericalLimit& Limit, const FTransform&,
+	static void SetRuntimeLimitShape(const FSphericalLimit& Limit, const FTransform&,
 	                          float SizeScale, FKawaiiPhysicsRuntimeLimitInfo& OutInfo)
 	{
 		OutInfo.LimitType = ECollisionLimitType::Spherical;
@@ -66,7 +66,7 @@ namespace
 		OutInfo.bInnerSphere = Limit.LimitType == ESphericalLimitType::Inner;
 	}
 
-	void SetRuntimeLimitShape(const FCapsuleLimit& Limit, const FTransform& SimulationToComponent,
+	static void SetRuntimeLimitShape(const FCapsuleLimit& Limit, const FTransform& SimulationToComponent,
 	                          float SizeScale, FKawaiiPhysicsRuntimeLimitInfo& OutInfo)
 	{
 		OutInfo.LimitType = ECollisionLimitType::Capsule;
@@ -77,7 +77,7 @@ namespace
 		OutInfo.Radius1 = OutInfo.Radius0;
 	}
 
-	void SetRuntimeLimitShape(const FTaperedCapsuleLimit& Limit, const FTransform& SimulationToComponent,
+	static void SetRuntimeLimitShape(const FTaperedCapsuleLimit& Limit, const FTransform& SimulationToComponent,
 	                          float SizeScale, FKawaiiPhysicsRuntimeLimitInfo& OutInfo)
 	{
 		OutInfo.LimitType = ECollisionLimitType::TaperedCapsule;
@@ -98,14 +98,14 @@ namespace
 		}
 	}
 
-	void SetRuntimeLimitShape(const FBoxLimit& Limit, const FTransform&,
+	static void SetRuntimeLimitShape(const FBoxLimit& Limit, const FTransform&,
 	                          float SizeScale, FKawaiiPhysicsRuntimeLimitInfo& OutInfo)
 	{
 		OutInfo.LimitType = ECollisionLimitType::Box;
 		OutInfo.Extent = Limit.Extent * SizeScale;
 	}
 
-	void SetRuntimeLimitShape(const FPlanarLimit& Limit, const FTransform& SimulationToComponent,
+	static void SetRuntimeLimitShape(const FPlanarLimit& Limit, const FTransform& SimulationToComponent,
 	                          float, FKawaiiPhysicsRuntimeLimitInfo& OutInfo)
 	{
 		OutInfo.LimitType = ECollisionLimitType::Planar;
@@ -113,7 +113,7 @@ namespace
 	}
 
 	template <typename LimitType>
-	void AppendRuntimeLimits(const TArray<LimitType>& Limits, const TCHAR* SourceArrayName,
+	static void AppendRuntimeLimits(const TArray<LimitType>& Limits, const TCHAR* SourceArrayName,
 	                         const FTransform& SimulationToComponent, float SizeScale,
 	                         TArray<FKawaiiPhysicsRuntimeLimitInfo>& OutLimits,
 	                         ECollisionSourceType SourceOverride = ECollisionSourceType::AnimNode,
@@ -137,7 +137,7 @@ namespace
 		}
 	}
 
-	const TSet<FName>& GetNodeModifyBonesReinitPropertyNames()
+	static const TSet<FName>& GetNodeModifyBonesReinitPropertyNames()
 	{
 		static const TSet<FName> Names = {
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, RootBone),
@@ -160,7 +160,7 @@ namespace
 		return Names;
 	}
 
-	const TSet<FName>& GetNodeSharedCollisionReinitPropertyNames()
+	static const TSet<FName>& GetNodeSharedCollisionReinitPropertyNames()
 	{
 		static const TSet<FName> Names = {
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, bSharedCollisionSource),
@@ -177,7 +177,7 @@ namespace
 	// 同じDesc差分検知でコリジョンチャンネルへ追従するため対象外。
 	// Source / SharedTag はキー種別が変わるため Desc 差分では追従できず、Entry の取り直しが必要。
 	// 有効/無効の切り替えのみEntryの取得・解放が必要なため対象に含める。
-	const TSet<FName>& GetNodeSimpleWorldCollisionReinitPropertyNames()
+	static const TSet<FName>& GetNodeSimpleWorldCollisionReinitPropertyNames()
 	{
 		static const TSet<FName> Names = {
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, bUseSimpleWorldCollision),
@@ -187,15 +187,15 @@ namespace
 		return Names;
 	}
 
-	bool IsDeniedRuntimeNodePropertyName(FName PropertyName)
+	static bool IsDeniedRuntimeNodePropertyName(FName PropertyName)
 	{
 		return PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, ExternalForces) ||
 			PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, CustomExternalForces);
 	}
 
-	bool PropertyValueHasLiveObjectReference(const FProperty* Property, const void* ValuePtr);
+	static bool PropertyValueHasLiveObjectReference(const FProperty* Property, const void* ValuePtr);
 
-	bool StructMemoryHasLiveObjectReference(const UScriptStruct* Struct, const void* StructMemory)
+	static bool StructMemoryHasLiveObjectReference(const UScriptStruct* Struct, const void* StructMemory)
 	{
 		if (!Struct || !StructMemory)
 		{
@@ -223,7 +223,7 @@ namespace
 		return false;
 	}
 
-	bool PropertyValueHasLiveObjectReference(const FProperty* Property, const void* ValuePtr)
+	static bool PropertyValueHasLiveObjectReference(const FProperty* Property, const void* ValuePtr)
 	{
 		if (!Property || !ValuePtr)
 		{
@@ -316,7 +316,7 @@ namespace
 	}
 
 	// InstancedStructがProceduralWindであれば可変ポインタを返す（型不一致・無効ならnullptr）
-	FKawaiiPhysics_ExternalForce_ProceduralWind* GetMutableProceduralWind(FInstancedStruct& InstancedStruct)
+	static FKawaiiPhysics_ExternalForce_ProceduralWind* GetMutableProceduralWind(FInstancedStruct& InstancedStruct)
 	{
 		if (!InstancedStruct.IsValid() ||
 			InstancedStruct.GetScriptStruct() != FKawaiiPhysics_ExternalForce_ProceduralWind::StaticStruct())
@@ -328,14 +328,14 @@ namespace
 	}
 
 	// 動的パラメータ更新も同様にMutex経由でキューイングする
-	bool QueueProceduralWindParams(FKawaiiPhysics_ExternalForce_ProceduralWind& ProceduralWind,
+	static bool QueueProceduralWindParams(FKawaiiPhysics_ExternalForce_ProceduralWind& ProceduralWind,
 	                               const FKawaiiProceduralWindDynamicParams& Params)
 	{
 		ProceduralWind.RequestDynamicParams(Params);
 		return true;
 	}
 
-	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> ResolveLiveSharedPublisherEntry(
+	static TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> ResolveLiveSharedPublisherEntry(
 		AActor* Actor,
 		const FGameplayTag SharedGroupTag)
 	{
@@ -368,7 +368,7 @@ namespace
 	}
 
 	// 検証済み前提の単一ノードキュー。公開 API は必ず CanQueueTransientExternalForce を通した後にこれを呼ぶ
-	bool QueueTransientExternalForceToNodeUnchecked(FAnimNode_KawaiiPhysics& Node,
+	static bool QueueTransientExternalForceToNodeUnchecked(FAnimNode_KawaiiPhysics& Node,
 	                                                const FInstancedStruct& ExternalForce,
 	                                                const float LifetimeSeconds,
 	                                                const int64 HandleId)
@@ -379,7 +379,7 @@ namespace
 	}
 
 #if !UE_BUILD_SHIPPING
-	void DumpKawaiiPhysicsNodes()
+	static void DumpKawaiiPhysicsNodes()
 	{
 		if (!IsInGameThread())
 		{
@@ -444,7 +444,7 @@ namespace
 		TEXT("Dump runtime KawaiiPhysics nodes in all valid skeletal mesh components."),
 		FConsoleCommandDelegate::CreateStatic(&DumpKawaiiPhysicsNodes));
 #endif
-}
+} // namespace KawaiiPhysicsLibraryPrivate
 
 KawaiiPhysics::FWindGustEnvelope KawaiiPhysics::ResolveWindGustEnvelope(const float Duration, const float RiseTime,
                                                                         const float DecayTime)
@@ -514,7 +514,7 @@ float KawaiiPhysics::EvaluateEnvelopeAlpha01(const float RiseTime, const float H
 
 bool KawaiiPhysics::StructInstanceHasLiveObjectReference(const UScriptStruct* Struct, const void* StructMemory)
 {
-	return StructMemoryHasLiveObjectReference(Struct, StructMemory);
+	return KawaiiPhysicsLibraryPrivate::StructMemoryHasLiveObjectReference(Struct, StructMemory);
 }
 
 bool UKawaiiPhysicsLibrary::BuildSettingsMultiplierStartRequest(const FKawaiiPhysicsSettingsMultiplier& Scale,
@@ -590,26 +590,26 @@ void KawaiiPhysics::BuildRuntimeNodeInfo(const FAnimNode_KawaiiPhysics& Node, FK
 	// AnimNode_KawaiiPhysicsSimulation.cpp の SimulateOnce は設定または全体 CVar が無効なら SimpleWorld 配列を使わない。
 	const bool bUseSimpleWorldLimits = Node.bUseSimpleWorldCollision && CVarSimpleWorldCollisionEnable.GetValueOnAnyThread();
 
-	AppendRuntimeLimits(Node.SphericalLimits, TEXT("SphericalLimits"), SimulationToComponent, SizeScale, OutInfo.Limits);
-	AppendRuntimeLimits(Node.CapsuleLimits, TEXT("CapsuleLimits"), SimulationToComponent, SizeScale, OutInfo.Limits);
-	AppendRuntimeLimits(Node.TaperedCapsuleLimits, TEXT("TaperedCapsuleLimits"), SimulationToComponent, SizeScale, OutInfo.Limits);
-	AppendRuntimeLimits(Node.BoxLimits, TEXT("BoxLimits"), SimulationToComponent, SizeScale, OutInfo.Limits);
-	AppendRuntimeLimits(Node.PlanarLimits, TEXT("PlanarLimits"), SimulationToComponent, SizeScale, OutInfo.Limits);
-	AppendRuntimeLimits(Node.SphericalLimitsData, TEXT("SphericalLimitsData"), SimulationToComponent, SizeScale, OutInfo.Limits);
-	AppendRuntimeLimits(Node.CapsuleLimitsData, TEXT("CapsuleLimitsData"), SimulationToComponent, SizeScale, OutInfo.Limits);
-	AppendRuntimeLimits(Node.TaperedCapsuleLimitsData, TEXT("TaperedCapsuleLimitsData"), SimulationToComponent, SizeScale, OutInfo.Limits);
-	AppendRuntimeLimits(Node.BoxLimitsData, TEXT("BoxLimitsData"), SimulationToComponent, SizeScale, OutInfo.Limits);
-	AppendRuntimeLimits(Node.PlanarLimitsData, TEXT("PlanarLimitsData"), SimulationToComponent, SizeScale, OutInfo.Limits);
-	AppendRuntimeLimits(Node.GetSharedSphericalLimits(), TEXT("SharedSphericalLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::Shared, bUseSharedLimits);
-	AppendRuntimeLimits(Node.GetSharedCapsuleLimits(), TEXT("SharedCapsuleLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::Shared, bUseSharedLimits);
-	AppendRuntimeLimits(Node.GetSharedTaperedCapsuleLimits(), TEXT("SharedTaperedCapsuleLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::Shared, bUseSharedLimits);
-	AppendRuntimeLimits(Node.GetSharedBoxLimits(), TEXT("SharedBoxLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::Shared, bUseSharedLimits);
-	AppendRuntimeLimits(Node.GetSharedPlanarLimits(), TEXT("SharedPlanarLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::Shared, bUseSharedLimits);
-	AppendRuntimeLimits(Node.GetSimpleWorldSphericalLimits(), TEXT("SimpleWorldSphericalLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::SimpleWorld, bUseSimpleWorldLimits);
-	AppendRuntimeLimits(Node.GetSimpleWorldCapsuleLimits(), TEXT("SimpleWorldCapsuleLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::SimpleWorld, bUseSimpleWorldLimits);
-	AppendRuntimeLimits(Node.GetSimpleWorldTaperedCapsuleLimits(), TEXT("SimpleWorldTaperedCapsuleLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::SimpleWorld, bUseSimpleWorldLimits);
-	AppendRuntimeLimits(Node.GetSimpleWorldBoxLimits(), TEXT("SimpleWorldBoxLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::SimpleWorld, bUseSimpleWorldLimits);
-	AppendRuntimeLimits(Node.GetSimpleWorldGroundBoxLimits(), TEXT("SimpleWorldGroundBoxLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::SimpleWorld, bUseSimpleWorldLimits);
+	KawaiiPhysicsLibraryPrivate::AppendRuntimeLimits(Node.SphericalLimits, TEXT("SphericalLimits"), SimulationToComponent, SizeScale, OutInfo.Limits);
+	KawaiiPhysicsLibraryPrivate::AppendRuntimeLimits(Node.CapsuleLimits, TEXT("CapsuleLimits"), SimulationToComponent, SizeScale, OutInfo.Limits);
+	KawaiiPhysicsLibraryPrivate::AppendRuntimeLimits(Node.TaperedCapsuleLimits, TEXT("TaperedCapsuleLimits"), SimulationToComponent, SizeScale, OutInfo.Limits);
+	KawaiiPhysicsLibraryPrivate::AppendRuntimeLimits(Node.BoxLimits, TEXT("BoxLimits"), SimulationToComponent, SizeScale, OutInfo.Limits);
+	KawaiiPhysicsLibraryPrivate::AppendRuntimeLimits(Node.PlanarLimits, TEXT("PlanarLimits"), SimulationToComponent, SizeScale, OutInfo.Limits);
+	KawaiiPhysicsLibraryPrivate::AppendRuntimeLimits(Node.SphericalLimitsData, TEXT("SphericalLimitsData"), SimulationToComponent, SizeScale, OutInfo.Limits);
+	KawaiiPhysicsLibraryPrivate::AppendRuntimeLimits(Node.CapsuleLimitsData, TEXT("CapsuleLimitsData"), SimulationToComponent, SizeScale, OutInfo.Limits);
+	KawaiiPhysicsLibraryPrivate::AppendRuntimeLimits(Node.TaperedCapsuleLimitsData, TEXT("TaperedCapsuleLimitsData"), SimulationToComponent, SizeScale, OutInfo.Limits);
+	KawaiiPhysicsLibraryPrivate::AppendRuntimeLimits(Node.BoxLimitsData, TEXT("BoxLimitsData"), SimulationToComponent, SizeScale, OutInfo.Limits);
+	KawaiiPhysicsLibraryPrivate::AppendRuntimeLimits(Node.PlanarLimitsData, TEXT("PlanarLimitsData"), SimulationToComponent, SizeScale, OutInfo.Limits);
+	KawaiiPhysicsLibraryPrivate::AppendRuntimeLimits(Node.GetSharedSphericalLimits(), TEXT("SharedSphericalLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::Shared, bUseSharedLimits);
+	KawaiiPhysicsLibraryPrivate::AppendRuntimeLimits(Node.GetSharedCapsuleLimits(), TEXT("SharedCapsuleLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::Shared, bUseSharedLimits);
+	KawaiiPhysicsLibraryPrivate::AppendRuntimeLimits(Node.GetSharedTaperedCapsuleLimits(), TEXT("SharedTaperedCapsuleLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::Shared, bUseSharedLimits);
+	KawaiiPhysicsLibraryPrivate::AppendRuntimeLimits(Node.GetSharedBoxLimits(), TEXT("SharedBoxLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::Shared, bUseSharedLimits);
+	KawaiiPhysicsLibraryPrivate::AppendRuntimeLimits(Node.GetSharedPlanarLimits(), TEXT("SharedPlanarLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::Shared, bUseSharedLimits);
+	KawaiiPhysicsLibraryPrivate::AppendRuntimeLimits(Node.GetSimpleWorldSphericalLimits(), TEXT("SimpleWorldSphericalLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::SimpleWorld, bUseSimpleWorldLimits);
+	KawaiiPhysicsLibraryPrivate::AppendRuntimeLimits(Node.GetSimpleWorldCapsuleLimits(), TEXT("SimpleWorldCapsuleLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::SimpleWorld, bUseSimpleWorldLimits);
+	KawaiiPhysicsLibraryPrivate::AppendRuntimeLimits(Node.GetSimpleWorldTaperedCapsuleLimits(), TEXT("SimpleWorldTaperedCapsuleLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::SimpleWorld, bUseSimpleWorldLimits);
+	KawaiiPhysicsLibraryPrivate::AppendRuntimeLimits(Node.GetSimpleWorldBoxLimits(), TEXT("SimpleWorldBoxLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::SimpleWorld, bUseSimpleWorldLimits);
+	KawaiiPhysicsLibraryPrivate::AppendRuntimeLimits(Node.GetSimpleWorldGroundBoxLimits(), TEXT("SimpleWorldGroundBoxLimits"), SimulationToComponent, SizeScale, OutInfo.Limits, ECollisionSourceType::SimpleWorld, bUseSimpleWorldLimits);
 
 	const TArray<FModifyBoneConstraint>& MergedConstraints = Node.GetMergedBoneConstraints();
 	for (int32 ConstraintIndex = 0; ConstraintIndex < MergedConstraints.Num(); ++ConstraintIndex)
@@ -679,7 +679,7 @@ int32 KawaiiPhysics::QueueTransientExternalForceToNodes(TArrayView<FAnimNode_Kaw
 			continue;
 		}
 
-		if (QueueTransientExternalForceToNodeUnchecked(*Node, ExternalForce, LifetimeSeconds, HandleId))
+		if (KawaiiPhysicsLibraryPrivate::QueueTransientExternalForceToNodeUnchecked(*Node, ExternalForce, LifetimeSeconds, HandleId))
 		{
 			++AppliedNodeCount;
 		}
@@ -914,7 +914,7 @@ bool UKawaiiPhysicsLibrary::SetSharedPublisherEnabled(
 	bool bEnabled)
 {
 	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry =
-		ResolveLiveSharedPublisherEntry(Actor, SharedGroupTag);
+		KawaiiPhysicsLibraryPrivate::ResolveLiveSharedPublisherEntry(Actor, SharedGroupTag);
 	if (!Entry.IsValid())
 	{
 		return false;
@@ -930,7 +930,7 @@ bool UKawaiiPhysicsLibrary::SetSimpleWorldCollisionSettingsOnSharedPublisher(
 	const FKawaiiPhysicsSimpleWorldCollisionSettings& Settings)
 {
 	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry =
-		ResolveLiveSharedPublisherEntry(Actor, SharedGroupTag);
+		KawaiiPhysicsLibraryPrivate::ResolveLiveSharedPublisherEntry(Actor, SharedGroupTag);
 	if (!Entry.IsValid())
 	{
 		return false;
@@ -947,7 +947,7 @@ bool UKawaiiPhysicsLibrary::GetSimpleWorldCollisionSettingsOnSharedPublisher(
 {
 	OutSettings = FKawaiiPhysicsSimpleWorldCollisionSettings();
 	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry =
-		ResolveLiveSharedPublisherEntry(Actor, SharedGroupTag);
+		KawaiiPhysicsLibraryPrivate::ResolveLiveSharedPublisherEntry(Actor, SharedGroupTag);
 	if (!Entry.IsValid())
 	{
 		return false;
@@ -991,7 +991,7 @@ bool UKawaiiPhysicsLibrary::StartProceduralWindGustOnSharedPublisher(
 	const bool bRealTimeEnvelope)
 {
 	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry =
-		ResolveLiveSharedPublisherEntry(Actor, SharedGroupTag);
+		KawaiiPhysicsLibraryPrivate::ResolveLiveSharedPublisherEntry(Actor, SharedGroupTag);
 	if (!Entry.IsValid())
 	{
 		return false;
@@ -1009,7 +1009,7 @@ bool UKawaiiPhysicsLibrary::StopProceduralWindGustOnSharedPublisher(
 	const float BlendOutTime)
 {
 	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry =
-		ResolveLiveSharedPublisherEntry(Actor, SharedGroupTag);
+		KawaiiPhysicsLibraryPrivate::ResolveLiveSharedPublisherEntry(Actor, SharedGroupTag);
 	if (!Entry.IsValid())
 	{
 		return false;
@@ -1025,7 +1025,7 @@ bool UKawaiiPhysicsLibrary::SetProceduralWindParametersOnSharedPublisher(
 	const FKawaiiProceduralWindDynamicParams& Params)
 {
 	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry =
-		ResolveLiveSharedPublisherEntry(Actor, SharedGroupTag);
+		KawaiiPhysicsLibraryPrivate::ResolveLiveSharedPublisherEntry(Actor, SharedGroupTag);
 	if (!Entry.IsValid())
 	{
 		return false;
@@ -1145,7 +1145,7 @@ bool UKawaiiPhysicsLibrary::IsNodePropertyAccessible(const FProperty* Property)
 		return false;
 	}
 
-	if (IsDeniedRuntimeNodePropertyName(Property->GetFName()))
+	if (KawaiiPhysicsLibraryPrivate::IsDeniedRuntimeNodePropertyName(Property->GetFName()))
 	{
 		return false;
 	}
@@ -1163,17 +1163,17 @@ bool UKawaiiPhysicsLibrary::IsNodePropertyAccessible(FName PropertyName)
 
 bool UKawaiiPhysicsLibrary::DoesNodePropertyRequireModifyBonesReinit(FName PropertyName)
 {
-	return GetNodeModifyBonesReinitPropertyNames().Contains(PropertyName);
+	return KawaiiPhysicsLibraryPrivate::GetNodeModifyBonesReinitPropertyNames().Contains(PropertyName);
 }
 
 bool UKawaiiPhysicsLibrary::DoesNodePropertyRequireSharedCollisionReinit(FName PropertyName)
 {
-	return GetNodeSharedCollisionReinitPropertyNames().Contains(PropertyName);
+	return KawaiiPhysicsLibraryPrivate::GetNodeSharedCollisionReinitPropertyNames().Contains(PropertyName);
 }
 
 bool UKawaiiPhysicsLibrary::DoesNodePropertyRequireSimpleWorldCollisionReinit(FName PropertyName)
 {
-	return GetNodeSimpleWorldCollisionReinitPropertyNames().Contains(PropertyName);
+	return KawaiiPhysicsLibraryPrivate::GetNodeSimpleWorldCollisionReinitPropertyNames().Contains(PropertyName);
 }
 
 bool UKawaiiPhysicsLibrary::SetNodeWildcardPropertyValue(FAnimNode_KawaiiPhysics& Node, FName PropertyName,
@@ -1522,7 +1522,7 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::AddTransientExternalForce(
 		[&ExecResult, ExternalForce = MoveTemp(ExternalForce), LifetimeSeconds, HandleId](
 			FAnimNode_KawaiiPhysics& InKawaiiPhysics) mutable
 		{
-			if (QueueTransientExternalForceToNodeUnchecked(InKawaiiPhysics, ExternalForce, LifetimeSeconds,
+			if (KawaiiPhysicsLibraryPrivate::QueueTransientExternalForceToNodeUnchecked(InKawaiiPhysics, ExternalForce, LifetimeSeconds,
 			                                                HandleId))
 			{
 				ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
@@ -1564,7 +1564,7 @@ int32 UKawaiiPhysicsLibrary::AddTransientExternalForceOnComponent(
 			[&AppliedNodeCount, &ExternalForce, LifetimeSeconds, HandleId](
 				FAnimNode_KawaiiPhysics& InKawaiiPhysics) mutable
 			{
-				if (QueueTransientExternalForceToNodeUnchecked(InKawaiiPhysics, ExternalForce, LifetimeSeconds,
+				if (KawaiiPhysicsLibraryPrivate::QueueTransientExternalForceToNodeUnchecked(InKawaiiPhysics, ExternalForce, LifetimeSeconds,
 				                                                HandleId))
 				{
 					++AppliedNodeCount;
@@ -1638,9 +1638,9 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetProceduralWindParameters(
 			}
 
 			if (FKawaiiPhysics_ExternalForce_ProceduralWind* ProceduralWind =
-				GetMutableProceduralWind(InKawaiiPhysics.ExternalForces[ExternalForceIndex]))
+				KawaiiPhysicsLibraryPrivate::GetMutableProceduralWind(InKawaiiPhysics.ExternalForces[ExternalForceIndex]))
 			{
-				if (QueueProceduralWindParams(*ProceduralWind, Params))
+				if (KawaiiPhysicsLibraryPrivate::QueueProceduralWindParams(*ProceduralWind, Params))
 				{
 					ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
 				}
@@ -1669,7 +1669,7 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::GetProceduralWindParameters(
 			}
 
 			if (FKawaiiPhysics_ExternalForce_ProceduralWind* ProceduralWind =
-				GetMutableProceduralWind(InKawaiiPhysics.ExternalForces[ExternalForceIndex]))
+				KawaiiPhysicsLibraryPrivate::GetMutableProceduralWind(InKawaiiPhysics.ExternalForces[ExternalForceIndex]))
 			{
 				OutParams = ProceduralWind->BuildDynamicParamsSnapshot();
 				ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
@@ -2068,9 +2068,9 @@ int32 UKawaiiPhysicsLibrary::SetProceduralWindParametersOnComponent(
 				for (FInstancedStruct& InstancedStruct : InKawaiiPhysics.ExternalForces)
 				{
 					if (FKawaiiPhysics_ExternalForce_ProceduralWind* ProceduralWind =
-						GetMutableProceduralWind(InstancedStruct))
+						KawaiiPhysicsLibraryPrivate::GetMutableProceduralWind(InstancedStruct))
 					{
-						if (QueueProceduralWindParams(*ProceduralWind, Params))
+						if (KawaiiPhysicsLibraryPrivate::QueueProceduralWindParams(*ProceduralWind, Params))
 						{
 							++AppliedForceCount;
 						}
@@ -2108,9 +2108,9 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::ApplyProceduralWindPreset(
 			}
 
 			if (FKawaiiPhysics_ExternalForce_ProceduralWind* ProceduralWind =
-				GetMutableProceduralWind(InKawaiiPhysics.ExternalForces[ExternalForceIndex]))
+				KawaiiPhysicsLibraryPrivate::GetMutableProceduralWind(InKawaiiPhysics.ExternalForces[ExternalForceIndex]))
 			{
-				if (QueueProceduralWindParams(*ProceduralWind, Params))
+				if (KawaiiPhysicsLibraryPrivate::QueueProceduralWindParams(*ProceduralWind, Params))
 				{
 					ExecResult = EKawaiiPhysicsAccessExternalForceResult::Valid;
 				}
@@ -2147,9 +2147,9 @@ int32 UKawaiiPhysicsLibrary::ApplyProceduralWindPresetOnComponent(
 				for (FInstancedStruct& InstancedStruct : InKawaiiPhysics.ExternalForces)
 				{
 					if (FKawaiiPhysics_ExternalForce_ProceduralWind* ProceduralWind =
-						GetMutableProceduralWind(InstancedStruct))
+						KawaiiPhysicsLibraryPrivate::GetMutableProceduralWind(InstancedStruct))
 					{
-						if (QueueProceduralWindParams(*ProceduralWind, Params))
+						if (KawaiiPhysicsLibraryPrivate::QueueProceduralWindParams(*ProceduralWind, Params))
 						{
 							++AppliedForceCount;
 						}

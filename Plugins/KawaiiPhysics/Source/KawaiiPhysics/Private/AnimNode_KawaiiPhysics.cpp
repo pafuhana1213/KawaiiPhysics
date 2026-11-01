@@ -43,9 +43,9 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_KawaiiPhysics)
 
-namespace
+namespace AnimNodeKawaiiPhysicsPrivate
 {
-	void DropOldestPendingTransientForceIfFull(FKawaiiPhysicsTransientForceQueue& Queue, const bool bAppendingGust)
+	static void DropOldestPendingTransientForceIfFull(FKawaiiPhysicsTransientForceQueue& Queue, const bool bAppendingGust)
 	{
 		if (Queue.PendingForces.Num() + Queue.PendingGusts.Num() < FAnimNode_KawaiiPhysics::MaxTransientExternalForces)
 		{
@@ -76,7 +76,7 @@ namespace
 			}
 		}
 	}
-}
+} // namespace AnimNodeKawaiiPhysicsPrivate
 
 #if ENABLE_ANIM_DEBUG
 TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsEnable(
@@ -351,7 +351,7 @@ int64 FAnimNode_KawaiiPhysics::RequestTransientExternalForce(FInstancedStruct&& 
 	const int64 HandleId = InHandleId != 0 ? InHandleId : GenerateTransientHandleId();
 
 	FScopeLock Lock(&TransientForceStore.Queue->Mutex);
-	DropOldestPendingTransientForceIfFull(*TransientForceStore.Queue, false);
+	AnimNodeKawaiiPhysicsPrivate::DropOldestPendingTransientForceIfFull(*TransientForceStore.Queue, false);
 
 	FKawaiiPhysicsTransientExternalForce Entry;
 	Entry.Force = MoveTemp(InForce);
@@ -378,7 +378,7 @@ int64 FAnimNode_KawaiiPhysics::RequestTransientGust(const float Strength, const 
 	Request.bRealTimeEnvelope = bRealTimeEnvelope;
 
 	FScopeLock Lock(&TransientForceStore.Queue->Mutex);
-	DropOldestPendingTransientForceIfFull(*TransientForceStore.Queue, true);
+	AnimNodeKawaiiPhysicsPrivate::DropOldestPendingTransientForceIfFull(*TransientForceStore.Queue, true);
 	TransientForceStore.Queue->PendingGusts.Emplace(Request);
 	return InHandleId;
 }

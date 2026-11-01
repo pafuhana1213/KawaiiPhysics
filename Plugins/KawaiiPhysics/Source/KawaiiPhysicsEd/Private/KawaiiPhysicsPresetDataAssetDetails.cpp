@@ -24,7 +24,7 @@
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysicsPresetDataAssetDetails"
 
-namespace
+namespace KawaiiPhysicsPresetDataAssetDetailsPrivate
 {
 	void ShowPresetDetailsNotification(const FText& NotificationText,
 	                                   const SNotificationItem::ECompletionState CompletionState)
@@ -196,7 +196,7 @@ namespace
 		WindowArgs.PresetPath = FSoftObjectPath(Preset);
 		SKawaiiPhysicsNodeAuditWindow::OpenWindow(MoveTemp(WindowArgs));
 	}
-}
+} // namespace KawaiiPhysicsPresetDataAssetDetailsPrivate
 
 TSharedRef<IDetailCustomization> FKawaiiPhysicsPresetDataAssetDetails::MakeInstance()
 {
@@ -238,7 +238,7 @@ void FKawaiiPhysicsPresetDataAssetDetails::CustomizeDetails(IDetailLayoutBuilder
 			.VAlign(VAlign_Center)
 			.OnClicked_Lambda([WeakPreset]()
 			{
-				FindTargetNodes(WeakPreset.Get());
+				KawaiiPhysicsPresetDataAssetDetailsPrivate::FindTargetNodes(WeakPreset.Get());
 				return FReply::Handled();
 			})
 			.ToolTipText(LOCTEXT("FindTargetNodesToolTip", "TargetTags に一致する KawaiiPhysics ノードをプロジェクト内の全 AnimBlueprint から検索し、結果をタブで一覧表示します（詳細は Output Log にも出力） / Searches all AnimBlueprints in the project for KawaiiPhysics nodes matching TargetTags and lists the results in a tab (details are also logged to the Output Log)."))
@@ -256,7 +256,7 @@ void FKawaiiPhysicsPresetDataAssetDetails::CustomizeDetails(IDetailLayoutBuilder
 			.VAlign(VAlign_Center)
 			.OnClicked_Lambda([WeakPreset]()
 			{
-				ApplyToProjectDryRun(WeakPreset.Get());
+				KawaiiPhysicsPresetDataAssetDetailsPrivate::ApplyToProjectDryRun(WeakPreset.Get());
 				return FReply::Handled();
 			})
 			.Content()

@@ -43,7 +43,7 @@ void SKawaiiPhysicsNodeAuditWindow::PrivateRegisterAttributes(FSlateAttributeIni
 	(void)AttributeInitializer;
 }
 
-namespace
+namespace SKawaiiPhysicsNodeAuditWindowPrivate
 {
 	const FName AnimBlueprintColumnName(TEXT("AnimBlueprint"));
 	const FName GraphColumnName(TEXT("Graph"));
@@ -234,7 +234,7 @@ namespace
 		bool bShowDiffColumns = false;
 		FOnAuditViewDiffClicked OnViewDiffClicked;
 	};
-}
+} // namespace SKawaiiPhysicsNodeAuditWindowPrivate
 
 const FName SKawaiiPhysicsNodeAuditWindow::NodeAuditTabId(TEXT("KawaiiPhysicsNodeAudit"));
 
@@ -319,7 +319,7 @@ void SKawaiiPhysicsNodeAuditWindow::OpenWindow(FKawaiiPhysicsNodeAuditWindowArgs
 void SKawaiiPhysicsNodeAuditWindow::CloseAllWindows()
 {
 	TArray<TSharedPtr<SDockTab>> TabsToClose;
-	for (const TWeakPtr<SKawaiiPhysicsNodeAuditWindow>& WeakWindow : LiveNodeAuditWindows)
+	for (const TWeakPtr<SKawaiiPhysicsNodeAuditWindow>& WeakWindow : SKawaiiPhysicsNodeAuditWindowPrivate::LiveNodeAuditWindows)
 	{
 		if (TSharedPtr<SKawaiiPhysicsNodeAuditWindow> Window = WeakWindow.Pin())
 		{
@@ -334,13 +334,13 @@ void SKawaiiPhysicsNodeAuditWindow::CloseAllWindows()
 	{
 		Tab->RequestCloseTab();
 	}
-	LiveNodeAuditWindows.Reset();
+	SKawaiiPhysicsNodeAuditWindowPrivate::LiveNodeAuditWindows.Reset();
 }
 
 void SKawaiiPhysicsNodeAuditWindow::SetOwnerTab(TSharedRef<SDockTab> InOwnerTab)
 {
 	OwnerTabWeak = InOwnerTab;
-	RegisterLiveWindow(StaticCastSharedRef<SKawaiiPhysicsNodeAuditWindow>(AsShared()));
+	SKawaiiPhysicsNodeAuditWindowPrivate::RegisterLiveWindow(StaticCastSharedRef<SKawaiiPhysicsNodeAuditWindow>(AsShared()));
 }
 
 void SKawaiiPhysicsNodeAuditWindow::SetArgs(FKawaiiPhysicsNodeAuditWindowArgs Args)
@@ -365,7 +365,7 @@ void SKawaiiPhysicsNodeAuditWindow::SetArgs(FKawaiiPhysicsNodeAuditWindowArgs Ar
 	}
 	else
 	{
-		SummaryText = Args.SummaryText.IsEmpty() ? MakeAuditSummaryText(Entries) : Args.SummaryText;
+		SummaryText = Args.SummaryText.IsEmpty() ? SKawaiiPhysicsNodeAuditWindowPrivate::MakeAuditSummaryText(Entries) : Args.SummaryText;
 	}
 
 	RebuildWidget();
@@ -375,23 +375,23 @@ void SKawaiiPhysicsNodeAuditWindow::RebuildWidget()
 {
 	TSharedRef<SHeaderRow> HeaderRowWidget =
 		SNew(SHeaderRow)
-		+ SHeaderRow::Column(AnimBlueprintColumnName)
+		+ SHeaderRow::Column(SKawaiiPhysicsNodeAuditWindowPrivate::AnimBlueprintColumnName)
 		.FillWidth(0.22f)
 		.DefaultLabel(LOCTEXT("AnimBlueprintColumnLabel", "AnimBlueprint"))
 		.DefaultTooltip(LOCTEXT("AnimBlueprintColumnToolTip", "Anim Blueprint のアセット名を表示します。ツールチップにフルパスを表示します / Shows the Anim Blueprint asset name. The tooltip shows the full path."))
-		.SortMode(this, &SKawaiiPhysicsNodeAuditWindow::GetColumnSortMode, AnimBlueprintColumnName)
+		.SortMode(this, &SKawaiiPhysicsNodeAuditWindow::GetColumnSortMode, SKawaiiPhysicsNodeAuditWindowPrivate::AnimBlueprintColumnName)
 		.OnSort(this, &SKawaiiPhysicsNodeAuditWindow::OnColumnSort)
-		+ SHeaderRow::Column(GraphColumnName)
+		+ SHeaderRow::Column(SKawaiiPhysicsNodeAuditWindowPrivate::GraphColumnName)
 		.FillWidth(0.14f)
 		.DefaultLabel(LOCTEXT("GraphColumnLabel", "Graph"))
 		.DefaultTooltip(LOCTEXT("GraphColumnToolTip", "ノードを含むグラフ名を表示します / Shows the name of the graph that owns the node."))
-		+ SHeaderRow::Column(TagColumnName)
+		+ SHeaderRow::Column(SKawaiiPhysicsNodeAuditWindowPrivate::TagColumnName)
 		.FillWidth(0.16f)
 		.DefaultLabel(LOCTEXT("TagColumnLabel", "Tag"))
 		.DefaultTooltip(LOCTEXT("TagColumnToolTip", "KawaiiPhysicsTag を表示します / Shows the KawaiiPhysicsTag."))
-		.SortMode(this, &SKawaiiPhysicsNodeAuditWindow::GetColumnSortMode, TagColumnName)
+		.SortMode(this, &SKawaiiPhysicsNodeAuditWindow::GetColumnSortMode, SKawaiiPhysicsNodeAuditWindowPrivate::TagColumnName)
 		.OnSort(this, &SKawaiiPhysicsNodeAuditWindow::OnColumnSort)
-		+ SHeaderRow::Column(RootBoneColumnName)
+		+ SHeaderRow::Column(SKawaiiPhysicsNodeAuditWindowPrivate::RootBoneColumnName)
 		.FillWidth(0.14f)
 		.DefaultLabel(LOCTEXT("RootBoneColumnLabel", "RootBone"))
 		.DefaultTooltip(LOCTEXT("RootBoneColumnToolTip", "RootBone のボーン名を表示します / Shows the RootBone bone name."));
@@ -399,21 +399,21 @@ void SKawaiiPhysicsNodeAuditWindow::RebuildWidget()
 	if (bShowDiffColumns)
 	{
 		HeaderRowWidget->AddColumn(
-			SHeaderRow::Column(MatchesColumnName)
+			SHeaderRow::Column(SKawaiiPhysicsNodeAuditWindowPrivate::MatchesColumnName)
 			.FillWidth(0.10f)
 			.DefaultLabel(LOCTEXT("MatchesColumnLabel", "Matches"))
 			.DefaultTooltip(LOCTEXT("MatchesColumnToolTip", "プリセットと一致していればチェック、そうでなければ差分プロパティ数を表示します / Shows a check mark when the node matches the preset, otherwise the number of differing properties."))
-			.SortMode(this, &SKawaiiPhysicsNodeAuditWindow::GetColumnSortMode, MatchesColumnName)
+			.SortMode(this, &SKawaiiPhysicsNodeAuditWindow::GetColumnSortMode, SKawaiiPhysicsNodeAuditWindowPrivate::MatchesColumnName)
 			.OnSort(this, &SKawaiiPhysicsNodeAuditWindow::OnColumnSort));
 
 		HeaderRowWidget->AddColumn(
-			SHeaderRow::Column(DiffPropertiesColumnName)
+			SHeaderRow::Column(SKawaiiPhysicsNodeAuditWindowPrivate::DiffPropertiesColumnName)
 			.FillWidth(0.24f)
 			.DefaultLabel(LOCTEXT("DiffPropertiesColumnLabel", "DiffProperties"))
 			.DefaultTooltip(LOCTEXT("DiffPropertiesColumnToolTip", "差分のあるプロパティ名をカンマ区切りで表示します / Shows differing property names, comma-separated.")));
 
 		HeaderRowWidget->AddColumn(
-			SHeaderRow::Column(ViewDiffColumnName)
+			SHeaderRow::Column(SKawaiiPhysicsNodeAuditWindowPrivate::ViewDiffColumnName)
 			.FixedWidth(90.0f)
 			.DefaultLabel(FText::GetEmpty())
 			.DefaultTooltip(LOCTEXT("ViewDiffColumnToolTip", "ノードとマッチしたプリセットの差分をウィンドウで表示します / Shows the diff between the node and its matched preset in a window.")));
@@ -567,7 +567,7 @@ void SKawaiiPhysicsNodeAuditWindow::ReplaceEntriesFromReport(const TArray<FKawai
 	}
 
 	SortEntries();
-	SummaryText = MakeAuditSummaryText(Entries);
+	SummaryText = SKawaiiPhysicsNodeAuditWindowPrivate::MakeAuditSummaryText(Entries);
 	RefreshFilteredRows();
 }
 
@@ -580,7 +580,7 @@ void SKawaiiPhysicsNodeAuditWindow::SortEntries()
 
 	const bool bAscending = SortMode == EColumnSortMode::Ascending;
 
-	if (SortColumnId == AnimBlueprintColumnName)
+	if (SortColumnId == SKawaiiPhysicsNodeAuditWindowPrivate::AnimBlueprintColumnName)
 	{
 		Entries.Sort([bAscending](const FEntryPtr& A, const FEntryPtr& B)
 		{
@@ -589,7 +589,7 @@ void SKawaiiPhysicsNodeAuditWindow::SortEntries()
 			return bAscending ? (NameA < NameB) : (NameA > NameB);
 		});
 	}
-	else if (SortColumnId == TagColumnName)
+	else if (SortColumnId == SKawaiiPhysicsNodeAuditWindowPrivate::TagColumnName)
 	{
 		Entries.Sort([bAscending](const FEntryPtr& A, const FEntryPtr& B)
 		{
@@ -598,7 +598,7 @@ void SKawaiiPhysicsNodeAuditWindow::SortEntries()
 			return bAscending ? (TagA < TagB) : (TagA > TagB);
 		});
 	}
-	else if (SortColumnId == MatchesColumnName)
+	else if (SortColumnId == SKawaiiPhysicsNodeAuditWindowPrivate::MatchesColumnName)
 	{
 		Entries.Sort([bAscending](const FEntryPtr& A, const FEntryPtr& B)
 		{
@@ -613,7 +613,7 @@ TSharedRef<ITableRow> SKawaiiPhysicsNodeAuditWindow::GenerateRow(
 	FEntryPtr Entry,
 	const TSharedRef<STableViewBase>& OwnerTable)
 {
-	return SNew(SKawaiiPhysicsNodeAuditRow, OwnerTable)
+	return SNew(SKawaiiPhysicsNodeAuditWindowPrivate::SKawaiiPhysicsNodeAuditRow, OwnerTable)
 		.Entry(Entry)
 		.ShowDiffColumns(bShowDiffColumns)
 		.OnViewDiffClicked(this, &SKawaiiPhysicsNodeAuditWindow::OnViewDiffClicked);
@@ -840,7 +840,7 @@ FReply SKawaiiPhysicsNodeAuditWindow::OnExportClicked()
 		return FReply::Handled();
 	}
 
-	ShowAuditExportSucceededNotification(OutputPath);
+	SKawaiiPhysicsNodeAuditWindowPrivate::ShowAuditExportSucceededNotification(OutputPath);
 	return FReply::Handled();
 }
 
@@ -893,13 +893,13 @@ bool SKawaiiPhysicsNodeAuditWindow::ExportEntriesToCsv(const FString& OutputPath
 		const FKawaiiPhysicsNodeAuditEntry& Entry = *EntryPtr;
 		Lines.Add(FString::Printf(
 			TEXT("%s,%s,%s,%s,%s,%d,%s"),
-			*EscapeCsvField(Entry.AnimBlueprintPath.GetAssetName()),
-			*EscapeCsvField(Entry.GraphName.ToString()),
-			*EscapeCsvField(Entry.KawaiiPhysicsTag.ToString()),
-			*EscapeCsvField(Entry.RootBoneName.ToString()),
-			*EscapeCsvField(GetMatchesCellText(Entry).ToString()),
+			*SKawaiiPhysicsNodeAuditWindowPrivate::EscapeCsvField(Entry.AnimBlueprintPath.GetAssetName()),
+			*SKawaiiPhysicsNodeAuditWindowPrivate::EscapeCsvField(Entry.GraphName.ToString()),
+			*SKawaiiPhysicsNodeAuditWindowPrivate::EscapeCsvField(Entry.KawaiiPhysicsTag.ToString()),
+			*SKawaiiPhysicsNodeAuditWindowPrivate::EscapeCsvField(Entry.RootBoneName.ToString()),
+			*SKawaiiPhysicsNodeAuditWindowPrivate::EscapeCsvField(SKawaiiPhysicsNodeAuditWindowPrivate::GetMatchesCellText(Entry).ToString()),
 			Entry.DiffProperties.Num(),
-			*EscapeCsvField(JoinDiffPropertyNames(Entry))));
+			*SKawaiiPhysicsNodeAuditWindowPrivate::EscapeCsvField(SKawaiiPhysicsNodeAuditWindowPrivate::JoinDiffPropertyNames(Entry))));
 	}
 
 	const FString CsvString = FString::Join(Lines, TEXT("\r\n"));

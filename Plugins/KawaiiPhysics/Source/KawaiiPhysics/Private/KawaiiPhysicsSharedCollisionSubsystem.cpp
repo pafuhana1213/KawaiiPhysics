@@ -26,7 +26,7 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 
-namespace
+namespace KawaiiPhysicsSharedCollisionSubsystemPrivate
 {
 	// FadeBoxEnableThresholdは調整の必要性が薄いため意図的に定数のまま維持する。
 	// 他のチューニング値は a.AnimNode.KawaiiPhysics.SimpleWorldCollision.* CVar（AnimNode_KawaiiPhysics.cppで定義）
@@ -42,20 +42,20 @@ namespace
 		NoAcceptedBodies,
 	};
 
-	void InitializeGatheredSimpleWorldLimit(FCollisionLimitBase& Limit)
+	static void InitializeGatheredSimpleWorldLimit(FCollisionLimitBase& Limit)
 	{
 		Limit.bEnable = true;
 		Limit.SourceType = ECollisionSourceType::SimpleWorld;
 	}
 
-	FTransform GetScaleStrippedComponentTransform(const UPrimitiveComponent& Component)
+	static FTransform GetScaleStrippedComponentTransform(const UPrimitiveComponent& Component)
 	{
 		FTransform ComponentTM = Component.GetComponentTransform();
 		ComponentTM.SetScale3D(FVector::OneVector);
 		return ComponentTM;
 	}
 
-	FTransform GetScaleStrippedKawaiiPhysicsSimpleWorldInstanceTransform(const FTransform& InstanceTM)
+	static FTransform GetScaleStrippedKawaiiPhysicsSimpleWorldInstanceTransform(const FTransform& InstanceTM)
 	{
 		FTransform ScaleStrippedInstanceTM = InstanceTM;
 		ScaleStrippedInstanceTM.SetScale3D(FVector::OneVector);
@@ -81,13 +81,13 @@ namespace
 		}
 	};
 
-	uint32 GetTypeHash(const FKawaiiPhysicsSimpleWorldGatherKey& Key)
+	static uint32 GetTypeHash(const FKawaiiPhysicsSimpleWorldGatherKey& Key)
 	{
 		// 無名namespace内の同名GetTypeHashに隠されないよう、int32版はグローバルを明示する
 		return HashCombine(PointerHash(Key.Component), ::GetTypeHash(Key.InstanceIndex));
 	}
 
-	bool IsSimpleWorldAggGeomEmpty(const FKAggregateGeom& AggGeom)
+	static bool IsSimpleWorldAggGeomEmpty(const FKAggregateGeom& AggGeom)
 	{
 		return AggGeom.SphereElems.IsEmpty()
 			&& AggGeom.SphylElems.IsEmpty()
@@ -96,12 +96,12 @@ namespace
 			&& AggGeom.ConvexElems.IsEmpty();
 	}
 
-	bool IsKawaiiPhysicsFrameAgeExceeded(uint64 CurrentFrame, uint64 LastFrame, uint64 MaxAgeFrames)
+	static bool IsKawaiiPhysicsFrameAgeExceeded(uint64 CurrentFrame, uint64 LastFrame, uint64 MaxAgeFrames)
 	{
 		return CurrentFrame >= LastFrame && CurrentFrame - LastFrame > MaxAgeFrames;
 	}
 
-	bool BuildLocalLimitsForSimpleWorldComponent(
+	static bool BuildLocalLimitsForSimpleWorldComponent(
 		UPrimitiveComponent& Component,
 		const FTransform& ComponentTM,
 		const FVector& Scale3D,
@@ -112,7 +112,7 @@ namespace
 		FKawaiiPhysicsSharedCollisionData& OutLocalLimits,
 		TArray<KawaiiPhysicsSimpleWorldCollision::FKawaiiPhysicsSimpleWorldBodyBinding>& OutBodyBindings);
 
-	EKawaiiPhysicsSimpleWorldSkeletalBuildResult BuildSkeletalLocalLimitsForSimpleWorldComponent(
+	static EKawaiiPhysicsSimpleWorldSkeletalBuildResult BuildSkeletalLocalLimitsForSimpleWorldComponent(
 		const USkeletalMeshComponent& SkelComp,
 		const FVector& Scale3D,
 		const FKawaiiPhysicsSimpleWorldCollisionDesc& Desc,
@@ -148,7 +148,7 @@ namespace
 			: EKawaiiPhysicsSimpleWorldSkeletalBuildResult::NoAcceptedBodies;
 	}
 
-	bool BuildLocalLimitsForSimpleWorldComponent(
+	static bool BuildLocalLimitsForSimpleWorldComponent(
 		UPrimitiveComponent& Component,
 		const FTransform& ComponentTM,
 		const FVector& Scale3D,
@@ -226,14 +226,14 @@ namespace
 		return !OutLocalLimits.IsEmpty();
 	}
 
-	bool IsSimpleWorldGroundBoxNearlyEqual(const FBoxLimit& Lhs, const FBoxLimit& Rhs)
+	static bool IsSimpleWorldGroundBoxNearlyEqual(const FBoxLimit& Lhs, const FBoxLimit& Rhs)
 	{
 		return Lhs.Location.Equals(Rhs.Location, KINDA_SMALL_NUMBER)
 			&& Lhs.Rotation.Equals(Rhs.Rotation, KINDA_SMALL_NUMBER)
 			&& Lhs.Extent.Equals(Rhs.Extent, KINDA_SMALL_NUMBER);
 	}
 
-	bool IsSimpleWorldComponentStatic(const UPrimitiveComponent& Component)
+	static bool IsSimpleWorldComponentStatic(const UPrimitiveComponent& Component)
 	{
 		// USceneComponent::GetMobilityは5.6で追加されたため、それ以前は公開UPROPERTYのMobilityを直接読む。
 #if UE_VERSION_OLDER_THAN(5, 6, 0)
@@ -243,7 +243,7 @@ namespace
 #endif
 	}
 
-	bool TryGetSimpleWorldGroundFloorTransform(
+	static bool TryGetSimpleWorldGroundFloorTransform(
 		const UPrimitiveComponent& FloorComponent,
 		int32 InstanceIndex,
 		FTransform& OutFloorTM)
@@ -272,7 +272,7 @@ namespace
 		return true;
 	}
 
-	void InitializeSimpleWorldTraceGroundFloor(
+	static void InitializeSimpleWorldTraceGroundFloor(
 		const UPrimitiveComponent& FloorComponent,
 		int32 HitItem,
 		FTransform& OutFloorTM,
@@ -297,7 +297,7 @@ namespace
 		}
 	}
 
-	void ClearSimpleWorldGroundBox(FKawaiiPhysicsSimpleWorldCollisionEntry& Entry, bool& bOutChanged)
+	static void ClearSimpleWorldGroundBox(FKawaiiPhysicsSimpleWorldCollisionEntry& Entry, bool& bOutChanged)
 	{
 		bOutChanged = Entry.bHasGroundBox;
 		Entry.bHasGroundBox = false;
@@ -313,7 +313,7 @@ namespace
 		}
 	}
 
-	void ResolveSimpleWorldGroundSource(
+	static void ResolveSimpleWorldGroundSource(
 		FKawaiiPhysicsSimpleWorldCollisionEntry& Entry,
 		const USkeletalMeshComponent& SkelComp,
 		bool bUseMovementGround)
@@ -387,7 +387,7 @@ namespace
 		}
 	}
 
-	bool ApplySimpleWorldGroundBox(
+	static bool ApplySimpleWorldGroundBox(
 		FKawaiiPhysicsSimpleWorldCollisionEntry& Entry,
 		const FBoxLimit& NewBox,
 		const UPrimitiveComponent* NewGroundComponent,
@@ -418,7 +418,7 @@ namespace
 		return true;
 	}
 
-	bool TryUpdateSimpleWorldGroundBoxFromSource(
+	static bool TryUpdateSimpleWorldGroundBoxFromSource(
 		FKawaiiPhysicsSimpleWorldCollisionEntry& Entry,
 		const USkeletalMeshComponent& SkelComp,
 		float Radius,
@@ -495,7 +495,7 @@ namespace
 
 	// Trace 由来の地面 Box を Movable な床コンポーネントの Transform に追従させる。床が消えた／インスタンスが無効なら Box を外して次 Tick で再収集する。
 	// 戻り値は Publish の更新が必要か（Box の再変換またはクリアが起きたか）。
-	bool UpdateSimpleWorldTraceGroundBoxFromFloor(FKawaiiPhysicsSimpleWorldCollisionEntry& Entry)
+	static bool UpdateSimpleWorldTraceGroundBoxFromFloor(FKawaiiPhysicsSimpleWorldCollisionEntry& Entry)
 	{
 		// Trace ソースの地面 Box は床が Static なら次の収集まで使い回し、Movable なら床コンポーネントの Transform に追従する（エレベーター・動く足場）。
 		// Provider / CharacterMovement ソースの Box は毎 Tick 値を作り直しているので対象外。
@@ -539,7 +539,7 @@ namespace
 	}
 
 #if ENABLE_DRAW_DEBUG
-	FColor GetSimpleWorldGroundDebugColor(EKawaiiPhysicsSimpleWorldGroundSource GroundSource)
+	static FColor GetSimpleWorldGroundDebugColor(EKawaiiPhysicsSimpleWorldGroundSource GroundSource)
 	{
 		if (GroundSource == EKawaiiPhysicsSimpleWorldGroundSource::Provider)
 		{
@@ -552,7 +552,7 @@ namespace
 		return FColor::Green;
 	}
 
-	void DrawKawaiiPhysicsSimpleWorldLimitRange(
+	static void DrawKawaiiPhysicsSimpleWorldLimitRange(
 		const UWorld& World,
 		const FKawaiiPhysicsSharedCollisionData& LocalLimits,
 		int32 SphereOffset,
@@ -641,7 +641,7 @@ namespace
 	// シンプルワールドコリジョンのデバッグ描画（GameThread専用）。収集済み形状はComponentローカル形状+ComponentTMから
 	// 描画時に都度ワールド変換する。フェード中はFadeAlphaに応じて薄い色にする（PublishScratchは半径縮小済みで
 	// アルファ情報が失われるため使わない）。地面Boxのみ別途Green表示する。
-	void DrawSimpleWorldCollisionDebug(
+	static void DrawSimpleWorldCollisionDebug(
 		const UWorld& World,
 		const FVector& GatherCenter,
 		float GatherRadius,
@@ -724,7 +724,7 @@ namespace
 		}
 	}
 #endif
-}
+} // namespace KawaiiPhysicsSharedCollisionSubsystemPrivate
 
 // SharedCollision CVars（AnimNode_KawaiiPhysics.cpp で定義）
 extern TAutoConsoleVariable<int32> CVarSharedCollisionReadMaxAge;
@@ -1736,7 +1736,7 @@ bool FKawaiiPhysicsSharedPublisherEntry::PublishState(
 	const uint64 LastFrame = LastPublishFrame.load(std::memory_order_acquire);
 	const bool bCanPublish = ProviderID == 0
 		|| ProviderID == InProviderID
-		|| IsKawaiiPhysicsFrameAgeExceeded(CurrentFrame, LastFrame, ProviderMaxAgeFrames);
+		|| KawaiiPhysicsSharedCollisionSubsystemPrivate::IsKawaiiPhysicsFrameAgeExceeded(CurrentFrame, LastFrame, ProviderMaxAgeFrames);
 	if (!bCanPublish)
 	{
 		return false;
@@ -1784,7 +1784,7 @@ bool FKawaiiPhysicsSharedPublisherEntry::IsExpired(uint64 CurrentFrame, uint64 M
 {
 	FReadScopeLock ReadLock(StateLock);
 	return bExpired
-		|| IsKawaiiPhysicsFrameAgeExceeded(
+		|| KawaiiPhysicsSharedCollisionSubsystemPrivate::IsKawaiiPhysicsFrameAgeExceeded(
 			CurrentFrame,
 			LastPublishFrame.load(std::memory_order_acquire),
 			MaxAgeFrames);
@@ -1799,7 +1799,7 @@ FKawaiiPhysicsSharedPublisherEntry::FProviderSnapshot FKawaiiPhysicsSharedPublis
 	FProviderSnapshot Snapshot;
 	Snapshot.ProviderID = ProviderID;
 	Snapshot.bExpired = bExpired
-		|| IsKawaiiPhysicsFrameAgeExceeded(
+		|| KawaiiPhysicsSharedCollisionSubsystemPrivate::IsKawaiiPhysicsFrameAgeExceeded(
 			CurrentFrame,
 			LastPublishFrame.load(std::memory_order_acquire),
 			ProviderMaxAgeFrames);
@@ -2459,7 +2459,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::PublishSimpleWorldEmptyLimits(
 	const bool bShouldPublishGround = Entry.bHasGroundBox
 		|| (Entry.bGroundBoxDirty && Entry.GroundSlot.GetPublishSerial() > 0);
 	bool bGroundChanged = false;
-	ClearSimpleWorldGroundBox(Entry, bGroundChanged);
+	KawaiiPhysicsSharedCollisionSubsystemPrivate::ClearSimpleWorldGroundBox(Entry, bGroundChanged);
 	Entry.GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
 	Entry.GroundProvider.Reset();
 	Entry.GroundCharacterMovement.Reset();
@@ -2586,7 +2586,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::GatherSimpleWorldEntry(
 			Entry.GatherOrderScratch);
 	}
 
-	TSet<FKawaiiPhysicsSimpleWorldGatherKey> UniqueGatherKeys;
+	TSet<KawaiiPhysicsSharedCollisionSubsystemPrivate::FKawaiiPhysicsSimpleWorldGatherKey> UniqueGatherKeys;
 	TArray<FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent> NewGatheredComponents;
 	NewGatheredComponents.Reserve(
 		FMath::Max(0, FMath::Min(Entry.OverlapScratch.Num(), EffectiveMaxGatheredComponents)));
@@ -2614,8 +2614,8 @@ void UKawaiiPhysicsSharedCollisionSubsystem::GatherSimpleWorldEntry(
 		}
 
 		const AActor* ComponentOwner = Component->GetOwner();
-		if ((ComponentOwner && ComponentOwner->ActorHasTag(GSimpleWorldIgnoreTagName))
-			|| Component->ComponentHasTag(GSimpleWorldIgnoreTagName))
+		if ((ComponentOwner && ComponentOwner->ActorHasTag(KawaiiPhysicsSharedCollisionSubsystemPrivate::GSimpleWorldIgnoreTagName))
+			|| Component->ComponentHasTag(KawaiiPhysicsSharedCollisionSubsystemPrivate::GSimpleWorldIgnoreTagName))
 		{
 			continue;
 		}
@@ -2640,7 +2640,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::GatherSimpleWorldEntry(
 		}
 
 		int32 InstanceIndex = INDEX_NONE;
-		FTransform ComponentTM = GetScaleStrippedComponentTransform(*Component);
+		FTransform ComponentTM = KawaiiPhysicsSharedCollisionSubsystemPrivate::GetScaleStrippedComponentTransform(*Component);
 		FVector Scale3D = Component->GetComponentScale();
 		if (const UInstancedStaticMeshComponent* ISMComponent = Cast<UInstancedStaticMeshComponent>(Component))
 		{
@@ -2662,11 +2662,11 @@ void UKawaiiPhysicsSharedCollisionSubsystem::GatherSimpleWorldEntry(
 			}
 
 			InstanceIndex = OverlapItemIndex;
-			ComponentTM = GetScaleStrippedKawaiiPhysicsSimpleWorldInstanceTransform(InstanceTM);
+			ComponentTM = KawaiiPhysicsSharedCollisionSubsystemPrivate::GetScaleStrippedKawaiiPhysicsSimpleWorldInstanceTransform(InstanceTM);
 			Scale3D = InstanceTM.GetScale3D();
 		}
 
-		const FKawaiiPhysicsSimpleWorldGatherKey GatherKey(Component, InstanceIndex);
+		const KawaiiPhysicsSharedCollisionSubsystemPrivate::FKawaiiPhysicsSimpleWorldGatherKey GatherKey(Component, InstanceIndex);
 		if (UniqueGatherKeys.Contains(GatherKey))
 		{
 			continue;
@@ -2677,7 +2677,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::GatherSimpleWorldEntry(
 		NewComponent.Component = Component;
 		NewComponent.MemberSkelComp = MemberSkelComp;
 		NewComponent.InstanceIndex = InstanceIndex;
-		NewComponent.bStatic = IsSimpleWorldComponentStatic(*Component);
+		NewComponent.bStatic = KawaiiPhysicsSharedCollisionSubsystemPrivate::IsSimpleWorldComponentStatic(*Component);
 		NewComponent.FadeAlpha = Entry.bHasGatheredOnce ? 0.0f : 1.0f;
 		NewComponent.GatheredScale3D = Scale3D;
 
@@ -2693,7 +2693,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::GatherSimpleWorldEntry(
 		}
 
 		NewComponent.LastComponentTM = ComponentTM;
-		if (!BuildLocalLimitsForSimpleWorldComponent(
+		if (!KawaiiPhysicsSharedCollisionSubsystemPrivate::BuildLocalLimitsForSimpleWorldComponent(
 				*Component,
 				NewComponent.LastComponentTM,
 				Scale3D,
@@ -2720,13 +2720,13 @@ void UKawaiiPhysicsSharedCollisionSubsystem::GatherSimpleWorldEntry(
 	}
 
 	Entry.GatheredComponents = MoveTemp(NewGatheredComponents);
-	ResolveSimpleWorldGroundSource(Entry, SkelComp, bUseMovementGround);
+	KawaiiPhysicsSharedCollisionSubsystemPrivate::ResolveSimpleWorldGroundSource(Entry, SkelComp, bUseMovementGround);
 
 	if (Desc.bGroundCollision)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SimpleWorldCollision_Ground);
 		bool bGroundChanged = false;
-		if (!TryUpdateSimpleWorldGroundBoxFromSource(Entry, SkelComp, Radius, bGroundChanged))
+		if (!KawaiiPhysicsSharedCollisionSubsystemPrivate::TryUpdateSimpleWorldGroundBoxFromSource(Entry, SkelComp, Radius, bGroundChanged))
 		{
 			// 地面トレースはファミリー収集中でも自分と家族のメッシュに当たらないよう、Overlap とは別の無視設定を使う。
 			FCollisionQueryParams GroundQueryParams(SCENE_QUERY_STAT(KawaiiPhysicsSimpleWorldGround), false);
@@ -2768,7 +2768,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::GatherSimpleWorldEntry(
 
 				if (const UPrimitiveComponent* GroundHitComponent = Hit.GetComponent())
 				{
-					InitializeSimpleWorldTraceGroundFloor(
+					KawaiiPhysicsSharedCollisionSubsystemPrivate::InitializeSimpleWorldTraceGroundFloor(
 						*GroundHitComponent,
 						Hit.Item,
 						Entry.GroundComponentTM,
@@ -2782,14 +2782,14 @@ void UKawaiiPhysicsSharedCollisionSubsystem::GatherSimpleWorldEntry(
 			}
 			else
 			{
-				ClearSimpleWorldGroundBox(Entry, bGroundChanged);
+				KawaiiPhysicsSharedCollisionSubsystemPrivate::ClearSimpleWorldGroundBox(Entry, bGroundChanged);
 			}
 		}
 	}
 	else
 	{
 		bool bGroundChanged = false;
-		ClearSimpleWorldGroundBox(Entry, bGroundChanged);
+		KawaiiPhysicsSharedCollisionSubsystemPrivate::ClearSimpleWorldGroundBox(Entry, bGroundChanged);
 	}
 
 	Entry.bHasGatheredOnce = true;
@@ -2819,11 +2819,11 @@ void UKawaiiPhysicsSharedCollisionSubsystem::UpdateSimpleWorldGround(
 	{
 		bool bGroundChanged = false;
 		const bool bGroundBoxUpdated =
-			TryUpdateSimpleWorldGroundBoxFromSource(Entry, SkelComp, Radius, bGroundChanged);
+			KawaiiPhysicsSharedCollisionSubsystemPrivate::TryUpdateSimpleWorldGroundBoxFromSource(Entry, SkelComp, Radius, bGroundChanged);
 		if (!bGroundChanged && !bGroundBoxUpdated)
 		{
 			// Provider / CharacterMovement が床を返さない間（落下中など）は、収集フレームのトレースが作った Trace 由来の Box を動く床に追従させる。
-			if (UpdateSimpleWorldTraceGroundBoxFromFloor(Entry))
+			if (KawaiiPhysicsSharedCollisionSubsystemPrivate::UpdateSimpleWorldTraceGroundBoxFromFloor(Entry))
 			{
 				Entry.bGroundBoxDirty = true;
 			}
@@ -2831,7 +2831,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::UpdateSimpleWorldGround(
 		return;
 	}
 
-	if (UpdateSimpleWorldTraceGroundBoxFromFloor(Entry))
+	if (KawaiiPhysicsSharedCollisionSubsystemPrivate::UpdateSimpleWorldTraceGroundBoxFromFloor(Entry))
 	{
 		Entry.bGroundBoxDirty = true;
 	}
@@ -2926,7 +2926,7 @@ bool UKawaiiPhysicsSharedCollisionSubsystem::UpdateSimpleWorldTransforms(
 
 		if (!ComponentIt->bStatic)
 		{
-			FTransform CurrentComponentTM = GetScaleStrippedComponentTransform(*Component);
+			FTransform CurrentComponentTM = KawaiiPhysicsSharedCollisionSubsystemPrivate::GetScaleStrippedComponentTransform(*Component);
 			FVector CurrentScale3D = Component->GetComponentScale();
 			if (ComponentIt->InstanceIndex != INDEX_NONE)
 			{
@@ -2950,7 +2950,7 @@ bool UKawaiiPhysicsSharedCollisionSubsystem::UpdateSimpleWorldTransforms(
 					bDirty = true;
 					continue;
 				}
-				CurrentComponentTM = GetScaleStrippedKawaiiPhysicsSimpleWorldInstanceTransform(InstanceTM);
+				CurrentComponentTM = KawaiiPhysicsSharedCollisionSubsystemPrivate::GetScaleStrippedKawaiiPhysicsSimpleWorldInstanceTransform(InstanceTM);
 				CurrentScale3D = InstanceTM.GetScale3D();
 			}
 
@@ -3102,7 +3102,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 			{
 				Entry->GatheredComponents.Reset();
 				bool bGroundChanged = false;
-				ClearSimpleWorldGroundBox(*Entry, bGroundChanged);
+				KawaiiPhysicsSharedCollisionSubsystemPrivate::ClearSimpleWorldGroundBox(*Entry, bGroundChanged);
 				Entry->GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
 				Entry->GroundProvider.Reset();
 				Entry->GroundCharacterMovement.Reset();
@@ -3175,7 +3175,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 
 		if (Desc.bProviderDisabled)
 		{
-			PublishSimpleWorldEmptyLimits(*Entry, GSimpleWorldFadeBoxEnableThreshold);
+			PublishSimpleWorldEmptyLimits(*Entry, KawaiiPhysicsSharedCollisionSubsystemPrivate::GSimpleWorldFadeBoxEnableThreshold);
 			TotalMemberSlots += Entry->GetNumMemberSlots();
 #if ENABLE_DRAW_DEBUG
 			if (bDrawSharedPublisherDebug)
@@ -3190,7 +3190,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 		{
 			Entry->GatheredComponents.Reset();
 			bool bGroundChanged = false;
-			ClearSimpleWorldGroundBox(*Entry, bGroundChanged);
+			KawaiiPhysicsSharedCollisionSubsystemPrivate::ClearSimpleWorldGroundBox(*Entry, bGroundChanged);
 			Entry->GroundSource = EKawaiiPhysicsSimpleWorldGroundSource::None;
 			Entry->GroundProvider.Reset();
 			Entry->GroundCharacterMovement.Reset();
@@ -3260,7 +3260,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 
 		if (bDirty)
 		{
-			PublishSimpleWorldShapeLimits(*Entry, GSimpleWorldFadeBoxEnableThreshold);
+			PublishSimpleWorldShapeLimits(*Entry, KawaiiPhysicsSharedCollisionSubsystemPrivate::GSimpleWorldFadeBoxEnableThreshold);
 		}
 		if (Entry->bGroundBoxDirty)
 		{
@@ -3270,7 +3270,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 #if ENABLE_DRAW_DEBUG
 		if (bDrawSimpleWorldDebug)
 		{
-			DrawSimpleWorldCollisionDebug(*World, Center, Radius, *Entry);
+			KawaiiPhysicsSharedCollisionSubsystemPrivate::DrawSimpleWorldCollisionDebug(*World, Center, Radius, *Entry);
 		}
 		if (bDrawSharedPublisherDebug)
 		{

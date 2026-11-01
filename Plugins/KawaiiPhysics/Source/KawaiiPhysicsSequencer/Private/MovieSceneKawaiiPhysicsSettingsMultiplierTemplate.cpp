@@ -19,7 +19,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneKawaiiPhysicsSettingsMultiplierTemplate)
 
-namespace
+namespace MovieSceneKawaiiPhysicsSettingsMultiplierTemplatePrivate
 {
 struct FSectionData : IPersistentEvaluationData
 {
@@ -306,7 +306,7 @@ struct FExecutionToken : IMovieSceneExecutionToken
 	TWeakObjectPtr<const UMovieSceneSection> SourceSection;
 	bool bIsRootTrack = false;
 };
-}
+} // namespace MovieSceneKawaiiPhysicsSettingsMultiplierTemplatePrivate
 
 FMovieSceneKawaiiPhysicsSettingsMultiplierSectionTemplate::
 FMovieSceneKawaiiPhysicsSettingsMultiplierSectionTemplate(
@@ -353,7 +353,7 @@ void FMovieSceneKawaiiPhysicsSettingsMultiplierSectionTemplate::Evaluate(
 	const FKawaiiPhysicsSettingsMultiplier Scale =
 		KawaiiPhysicsSequencer::EvaluateKawaiiPhysicsScaleChannels(Channels, Context.GetTime());
 
-	ExecutionTokens.Add(FExecutionToken(Scale, Alpha, FilterTags, bFilterExactMatch, BlendOutTimeOnEnd, AnimTypeID,
+	ExecutionTokens.Add(MovieSceneKawaiiPhysicsSettingsMultiplierTemplatePrivate::FExecutionToken(Scale, Alpha, FilterTags, bFilterExactMatch, BlendOutTimeOnEnd, AnimTypeID,
 	                                    GetSourceSection(), bIsRootTrack));
 }
 
@@ -361,7 +361,7 @@ void FMovieSceneKawaiiPhysicsSettingsMultiplierSectionTemplate::TearDown(
 	FPersistentEvaluationData& PersistentData,
 	IMovieScenePlayer& Player) const
 {
-	if (FSectionData* Data = PersistentData.FindSectionData<FSectionData>())
+	if (MovieSceneKawaiiPhysicsSettingsMultiplierTemplatePrivate::FSectionData* Data = PersistentData.FindSectionData<MovieSceneKawaiiPhysicsSettingsMultiplierTemplatePrivate::FSectionData>())
 	{
 		for (const TPair<TWeakObjectPtr<USkeletalMeshComponent>, TSharedRef<FKawaiiPhysicsSequencerMultiplierEntry>>& Pair :
 		     Data->Entries)

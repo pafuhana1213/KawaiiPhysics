@@ -33,7 +33,7 @@
 
 #define LOCTEXT_NAMESPACE "KawaiiPhysics"
 
-namespace
+namespace AnimGraphNodeKawaiiPhysicsSharedPublisherPrivate
 {
 	void ShowSharedPublisherNotification(const FText& NotificationText)
 	{
@@ -160,7 +160,7 @@ namespace
 			FText::AsNumber(static_cast<int64>(PublishSerial)),
 			FText::AsNumber(NumReaders));
 	}
-}
+} // namespace AnimGraphNodeKawaiiPhysicsSharedPublisherPrivate
 
 FText UAnimGraphNode_KawaiiPhysicsSharedPublisher::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
@@ -224,7 +224,7 @@ void UAnimGraphNode_KawaiiPhysicsSharedPublisher::PostEditChangeChainProperty(
 void UAnimGraphNode_KawaiiPhysicsSharedPublisher::PushSharedWindEditToLiveInstance(
 	const FPropertyChangedChainEvent& PropertyChangedEvent)
 {
-	if (!IsSharedWindChainEdit(PropertyChangedEvent))
+	if (!AnimGraphNodeKawaiiPhysicsSharedPublisherPrivate::IsSharedWindChainEdit(PropertyChangedEvent))
 	{
 		return;
 	}
@@ -391,7 +391,7 @@ void UAnimGraphNode_KawaiiPhysicsSharedPublisher::CustomizeDetails(IDetailLayout
 		SNew(STextBlock)
 		.Text_Lambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_KawaiiPhysicsSharedPublisher>(this)]()
 		{
-			return MakePreviewStatusText(WeakThis);
+			return AnimGraphNodeKawaiiPhysicsSharedPublisherPrivate::MakePreviewStatusText(WeakThis);
 		})
 		.Font(DetailBuilder.GetDetailFont())
 	];
@@ -420,7 +420,7 @@ void UAnimGraphNode_KawaiiPhysicsSharedPublisher::CustomizeDetails(IDetailLayout
 		]
 	];
 
-	HideIgnoredSharedWindProperties(DetailBuilder);
+	AnimGraphNodeKawaiiPhysicsSharedPublisherPrivate::HideIgnoredSharedWindProperties(DetailBuilder);
 
 	DetailBuilder.SortCategories([](const TMap<FName, IDetailCategoryBuilder*>& Categories)
 	{
@@ -441,7 +441,7 @@ void UAnimGraphNode_KawaiiPhysicsSharedPublisher::FindConsumers()
 	KawaiiPhysicsEdUtils::FindKawaiiPhysicsConsumerGraphNodes(GetAnimBlueprint(), Node.SharedGroupTag, Consumers);
 	if (Consumers.IsEmpty())
 	{
-		ShowSharedPublisherNotification(LOCTEXT("SharedPublisherNoConsumerNotification",
+		AnimGraphNodeKawaiiPhysicsSharedPublisherPrivate::ShowSharedPublisherNotification(LOCTEXT("SharedPublisherNoConsumerNotification",
 		                                       "No consumer in this Animation Blueprint"));
 		return;
 	}
