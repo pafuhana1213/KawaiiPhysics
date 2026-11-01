@@ -14,11 +14,11 @@
 #include "PhysicsEngine/SkeletalBodySetup.h"
 #endif
 
+namespace KawaiiPhysicsCollisionTestPrivate
+{
 // コリジョン押し出しの正しさ（解析的基準値）。
 // 各形状: ボーン(半径r)が形状に食い込んだとき、表面+r へ正しく押し出されることを検証。
 
-namespace
-{
 	// ボーン1個を生成（位置・前フレーム位置・コリジョン半径）
 	FKawaiiPhysicsModifyBone MakeBone(const FVector& Location, float Radius,
 	                                  const FVector& PrevLocation)
@@ -58,7 +58,6 @@ namespace
 	}
 
 	constexpr float GCollisionTol = 0.01f; // 0.1mm スケール
-}
 
 // ---------------------------------------------------------------------------
 //  Sphere (Outer)
@@ -522,5 +521,7 @@ bool FKawaiiPhysicsAngleLimitTest::RunTest(const FString& Parameters)
 
 	return true;
 }
+
+} // namespace KawaiiPhysicsCollisionTestPrivate
 
 #endif // WITH_DEV_AUTOMATION_TESTS

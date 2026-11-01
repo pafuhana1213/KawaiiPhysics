@@ -6,7 +6,7 @@
 #include "Misc/AutomationTest.h"
 #include "ReferenceSkeleton.h"
 
-namespace
+namespace KawaiiPhysicsMirrorLimitsTestPrivate
 {
 	constexpr float GMirrorVectorTol = 0.0001f;
 	constexpr float GMirrorQuatTol = 0.0001f;
@@ -59,7 +59,6 @@ namespace
 		Limit.bEnable = true;
 		return Limit;
 	}
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsMirrorSymmetricSkeletonTest,
                                  "KawaiiPhysics.Mirror.SymmetricSkeleton",
@@ -257,5 +256,7 @@ bool FKawaiiPhysicsAppendMirroredLimitsTest::RunTest(const FString& Parameters)
 
 	return true;
 }
+
+} // namespace KawaiiPhysicsMirrorLimitsTestPrivate
 
 #endif // WITH_DEV_AUTOMATION_TESTS

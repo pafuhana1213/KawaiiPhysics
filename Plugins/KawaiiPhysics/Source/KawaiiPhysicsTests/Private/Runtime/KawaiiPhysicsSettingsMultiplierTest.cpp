@@ -8,7 +8,7 @@
 #include "KawaiiPhysicsTypes.h"
 #include "KawaiiPhysicsTestHarness.h"
 
-namespace
+namespace KawaiiPhysicsSettingsMultiplierTestPrivate
 {
 constexpr float GSettingsMultiplierTol = 0.000001f;
 
@@ -122,8 +122,6 @@ bool TestBoneSettings(FAutomationTestBase& Test, const TCHAR* Context, const FKa
 	bOk &= TestFloatNear(Test, *FString::Printf(TEXT("%s LimitAngle"), Context), Bone.PhysicsSettings.LimitAngle,
 	                     Expected.LimitAngle);
 	return bOk;
-}
-
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSettingsMultiplierEnvelopeAlphaTest,
@@ -1053,5 +1051,7 @@ bool FKawaiiPhysicsSettingsMultiplierInfiniteHoldReplacedByFiniteStartTest::RunT
 	bOk &= TestEqual(TEXT("Removed"), Node.TransientForceStore.SettingsMultiplierItems.Num(), 0);
 	return bOk;
 }
+
+} // namespace KawaiiPhysicsSettingsMultiplierTestPrivate
 
 #endif

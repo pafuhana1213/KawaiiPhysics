@@ -21,7 +21,7 @@
 #include "Misc/AutomationTest.h"
 #include "ReferenceSkeleton.h"
 
-namespace
+namespace KawaiiPhysicsGraphNodeToolsTestPrivate
 {
 	// 同一モジュールの他テストとユニティビルドで衝突しないよう、ヘルパー名に GraphNodeTools を付ける
 	USkeleton* CreateGraphNodeToolsTestSkeleton(UObject* Outer)
@@ -94,7 +94,6 @@ namespace
 					Message.Contains(FString::Printf(TEXT("'%s'"), RootBoneName));
 			});
 	}
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsGraphNodeToolsNestedRootExcludeBonesTest,
                                  "KawaiiPhysics.EditorScripting.Placement.Validation.NestedRootExcludeBones",
@@ -411,5 +410,7 @@ bool FKawaiiPhysicsGraphNodeToolsBackgroundCPUThrottleTest::RunTest(const FStrin
 	bOk &= TestEqual(TEXT("Original value is restored"), bRestored, bOriginal);
 	return bOk;
 }
+
+} // namespace KawaiiPhysicsGraphNodeToolsTestPrivate
 
 #endif

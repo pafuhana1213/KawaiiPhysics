@@ -7,7 +7,7 @@
 #include "AnimNode_KawaiiPhysics.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
 
-namespace
+namespace KawaiiPhysicsRequestQueueReuseTestPrivate
 {
 	struct FQueueBufferSnapshot
 	{
@@ -50,7 +50,6 @@ namespace
 		Node.RequestStopPhysicsSettingsMultiplier(102, 0.0f);
 		Node.ConsumeAndAdvancePhysicsSettingsMultipliers(1.0f / 60.0f);
 	}
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsRequestQueueBufferReuseTest,
                                  "KawaiiPhysics.TransientForce.QueueBufferReuse",
@@ -101,5 +100,7 @@ bool FKawaiiPhysicsRequestQueueBufferReuseTest::RunTest(const FString& Parameter
 	}
 	return bOk;
 }
+
+} // namespace KawaiiPhysicsRequestQueueReuseTestPrivate
 
 #endif

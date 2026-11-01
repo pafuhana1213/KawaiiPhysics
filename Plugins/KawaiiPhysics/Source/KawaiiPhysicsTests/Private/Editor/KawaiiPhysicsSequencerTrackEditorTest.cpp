@@ -10,7 +10,7 @@
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
 
-namespace
+namespace KawaiiPhysicsSequencerTrackEditorTestPrivate
 {
 constexpr float GSequencerTrackEditorTol = 0.000001f;
 
@@ -68,7 +68,6 @@ bool TestScaleChannelsHaveNoKeys(FAutomationTestBase& Test,
 	bOk &= Test.TestEqual(TEXT("LimitAngle keys removed"), Section.LimitAngle.GetNumKeys(), 0);
 	return bOk;
 }
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerTrackEditorScaleSummaryAllTest,
                                  "KawaiiPhysics.Sequencer.TrackEditor.ScaleSummary_All",
@@ -123,5 +122,7 @@ bool FKawaiiPhysicsSequencerTrackEditorScalePresetApplyTest::RunTest(const FStri
 	bOk &= TestScaleChannelsHaveNoKeys(*this, *Section);
 	return bOk;
 }
+
+} // namespace KawaiiPhysicsSequencerTrackEditorTestPrivate
 
 #endif

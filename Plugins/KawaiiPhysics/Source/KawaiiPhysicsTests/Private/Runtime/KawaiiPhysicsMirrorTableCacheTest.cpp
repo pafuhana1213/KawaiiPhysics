@@ -9,7 +9,7 @@
 #include "Misc/AutomationTest.h"
 #include "UObject/StrongObjectPtr.h"
 
-namespace
+namespace KawaiiPhysicsMirrorTableCacheTestPrivate
 {
 	struct FMirrorCacheFixture
 	{
@@ -45,7 +45,6 @@ namespace
 			return { *Table, *Skeleton, MeshRef, &Container, 1, Skeleton.Get() };
 		}
 	};
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsMirrorTableCacheInvalidationTest,
 	"KawaiiPhysics.Mirror.TableCache.Invalidation",
@@ -173,5 +172,7 @@ bool FKawaiiPhysicsMirrorTableCacheLiveLimitsTest::RunTest(const FString& Parame
 	TestNull(TEXT("Removing the mirror table releases its retained cache"), Accessor.GetMirrorTableCache());
 	return true;
 }
+
+} // namespace KawaiiPhysicsMirrorTableCacheTestPrivate
 
 #endif // WITH_DEV_AUTOMATION_TESTS && WITH_EDITOR

@@ -9,11 +9,11 @@
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/UnrealType.h"
 
+namespace KawaiiPhysicsPresetTestPrivate
+{
 KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsPresetSource, "KawaiiPhysics.Test.PresetSource");
 KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsPresetTarget, "KawaiiPhysics.Test.PresetTarget");
 
-namespace
-{
 	constexpr uint32 KawaiiPhysicsPresetTestIdenticalPortFlags = PPF_DeepComparison | PPF_DeepCompareInstances;
 
 	FKawaiiPhysicsRootBoneSetting MakeAdditionalRootBone(const FName RootBoneName, const FName ExcludeBoneName)
@@ -98,7 +98,6 @@ namespace
 	{
 		return UGameplayTagsManager::Get().RequestGameplayTag(FName(TagName), false);
 	}
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPresetRoundTripTest,
                                  "KawaiiPhysics.Preset.RoundTrip",
@@ -361,5 +360,7 @@ bool FKawaiiPhysicsPresetPropertyClassificationTest::RunTest(const FString& Para
 	         UnclassifiedProperties.IsEmpty());
 	return true;
 }
+
+} // namespace KawaiiPhysicsPresetTestPrivate
 
 #endif // WITH_DEV_AUTOMATION_TESTS

@@ -9,7 +9,7 @@
 #include "Misc/AutomationTest.h"
 #include "UObject/UnrealType.h"
 
-namespace
+namespace KawaiiPhysicsWindScopeEditPanelTestPrivate
 {
 	FProperty* FindWindScopeTestProperty(const FName PropertyName)
 	{
@@ -22,7 +22,6 @@ namespace
 		}
 		return nullptr;
 	}
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsWindScopeEditPanelDefinitionsTest,
                                  "KawaiiPhysics.Editor.WindScopeEditPanel.Definitions",
@@ -185,5 +184,7 @@ bool FKawaiiPhysicsWindScopeEditPanelDefinitionsTest::RunTest(const FString& Par
 
 	return bOk;
 }
+
+} // namespace KawaiiPhysicsWindScopeEditPanelTestPrivate
 
 #endif

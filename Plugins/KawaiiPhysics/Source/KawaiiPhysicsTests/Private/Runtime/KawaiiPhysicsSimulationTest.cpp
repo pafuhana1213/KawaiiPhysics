@@ -6,10 +6,10 @@
 #include "KawaiiPhysicsTestHarness.h"
 #include "Animation/AnimInstanceProxy.h"
 
+namespace KawaiiPhysicsSimulationTestPrivate
+{
 // 物理計算の回帰テスト（Output 非依存の物理関数を直接呼ぶ）：パラメータ応答（重力方向・剛性単調性・減衰オーバーシュート）／フレームレート非依存性／数値安定性。
 
-namespace
-{
 	// 標準の縦チェーン構成でシミュレーションし、最終 tip 位置を返す。
 	// OutMaxAbsX != null のとき、シミュレーション中の |tip.X| のピークを返す（オーバーシュート計測用）。
 	FVector SimulateChainTip(float Damping, float Stiffness, const FVector& Gravity,
@@ -43,7 +43,6 @@ namespace
 		return A.TipLocation();
 	}
 
-}
 
 // ---------------------------------------------------------------------------
 //  抽出した物理計算関数の検証（解析的）
@@ -617,8 +616,6 @@ bool FKawaiiPhysicsPhysicsSettingsCurveTest::RunTest(const FString& Parameters)
 // ---------------------------------------------------------------------------
 //  テレポート時の Component 移動の破棄（固定サブステップの繰り越しで漏れないこと）
 // ---------------------------------------------------------------------------
-namespace
-{
 	struct FTeleportRunResult
 	{
 		// tip のポーズ位置からの最大ずれ（cm）
@@ -670,7 +667,6 @@ namespace
 		}
 		return Result;
 	}
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTeleportDiscardsComponentMoveTest,
                                  "KawaiiPhysics.Simulation.TeleportDiscardsComponentMove",
@@ -729,5 +725,7 @@ bool FKawaiiPhysicsTeleportDiscardsComponentMoveTest::RunTest(const FString& Par
 
 	return true;
 }
+
+} // namespace KawaiiPhysicsSimulationTestPrivate
 
 #endif // WITH_DEV_AUTOMATION_TESTS

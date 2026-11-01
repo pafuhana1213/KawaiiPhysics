@@ -9,7 +9,7 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNodeBase.h"
 
-namespace
+namespace KawaiiPhysicsExternalForceTestPrivate
 {
 constexpr float GExternalForceSpaceTestDt = 1.0f / 30.0f;
 constexpr float GExternalForceSpaceTestTol = KINDA_SMALL_NUMBER;
@@ -68,7 +68,6 @@ bool RunExternalForceSingleTransformTest(FAutomationTestBase& Test, ForceType& E
 	}
 	return bOk;
 }
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsBasicBoneSpaceSingleTransformTest,
                                  "KawaiiPhysics.ExternalForce.BasicBoneSpaceSingleTransform",
@@ -101,5 +100,7 @@ bool FKawaiiPhysicsCurveBoneSpaceSingleTransformTest::RunTest(const FString& Par
 	Curve.InitMaxCurveTime();
 	return RunExternalForceSingleTransformTest(*this, Curve);
 }
+
+} // namespace KawaiiPhysicsExternalForceTestPrivate
 
 #endif

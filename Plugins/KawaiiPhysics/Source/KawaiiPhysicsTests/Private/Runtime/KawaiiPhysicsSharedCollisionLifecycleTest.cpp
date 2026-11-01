@@ -13,10 +13,10 @@
 #include "HAL/IConsoleManager.h"
 #include "KawaiiPhysicsTestGameplayTags.h"
 
+namespace KawaiiPhysicsSharedCollisionLifecycleTestPrivate
+{
 KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsLifecycle, "KawaiiPhysics.Test.Lifecycle");
 
-namespace
-{
 	FKawaiiPhysicsSharedCollisionData LifecycleSphere(float Radius)
 	{
 		FKawaiiPhysicsSharedCollisionData Data;
@@ -70,7 +70,6 @@ namespace
 			Subsystem->Tick(FMath::Max(0.0f, Interval->GetFloat()) + 1.0f);
 		}
 	};
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSharedCollisionLifecycleTest,
 	"KawaiiPhysics.SharedCollision.Lifecycle.Reconnect",
@@ -200,5 +199,7 @@ bool FKawaiiPhysicsSharedCollisionRetryThrottleTest::RunTest(const FString& Para
 		Target.IsSharedCollisionInitialized() && Target.GetSharedCollisionEntry() == Source.GetSharedCollisionEntry());
 	return true;
 }
+
+} // namespace KawaiiPhysicsSharedCollisionLifecycleTestPrivate
 
 #endif

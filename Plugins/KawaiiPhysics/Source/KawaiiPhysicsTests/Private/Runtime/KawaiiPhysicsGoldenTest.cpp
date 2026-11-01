@@ -5,7 +5,7 @@
 #include "Misc/AutomationTest.h"
 #include "KawaiiPhysicsTestHarness.h"
 
-namespace
+namespace KawaiiPhysicsGoldenTestPrivate
 {
 	static_assert(sizeof(double) == sizeof(uint64));
 
@@ -293,7 +293,6 @@ namespace
 
 		return WithLimits;
 	}
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsGoldenPositionsTest,
                                  "KawaiiPhysics.Simulation.GoldenPositions",
@@ -308,5 +307,7 @@ bool FKawaiiPhysicsGoldenPositionsTest::RunTest(const FString& Parameters)
 	bOk &= CheckOrCapture(*this, TEXT("Collision"), RunCollisionScenario(*this), Golden_Collision);
 	return bOk;
 }
+
+} // namespace KawaiiPhysicsGoldenTestPrivate
 
 #endif

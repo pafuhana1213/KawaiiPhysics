@@ -22,7 +22,7 @@
 #include "UObject/Package.h"
 #include "Widgets/Input/SButton.h"
 
-namespace
+namespace KawaiiPhysicsPerAxisLimitAngleDetailsTestPrivate
 {
 	TSharedPtr<IDetailTreeNode> FindPerAxisNode(const TArray<TSharedRef<IDetailTreeNode>>& Nodes)
 	{
@@ -131,7 +131,6 @@ namespace
 		}
 		return Graphs.IsEmpty() ? nullptr : Graphs[0];
 	}
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerAxisLimitDetailsTest,
                                  "KawaiiPhysics.AngleLimit.Editor.DetailsRows",
@@ -223,5 +222,7 @@ bool FKawaiiPhysicsPerAxisLimitGraphNodeDetailsTest::RunTest(const FString& Para
 	TestTwistRow(*this, Rows, GraphNode->Node.BoneForwardAxis);
 	return true;
 }
+
+} // namespace KawaiiPhysicsPerAxisLimitAngleDetailsTestPrivate
 
 #endif // WITH_DEV_AUTOMATION_TESTS

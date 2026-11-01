@@ -15,11 +15,11 @@
 #include "GameFramework/Actor.h"
 #include "KawaiiPhysicsTestGameplayTags.h"
 
+namespace KawaiiPhysicsSharedPublisherRegressionTestPrivate
+{
 KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsRegressionA, "KawaiiPhysics.Test.Regression.A");
 KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsRegressionB, "KawaiiPhysics.Test.Regression.B");
 
-namespace
-{
 	// 実際の PreUpdate を通し、World 時計だけを決定的に進める。
 	struct FSharedRegressionWorld
 	{
@@ -84,7 +84,6 @@ namespace
 		Publisher.SharedWind.EnsureRuntimeState();
 		Publisher.SharedWind.ConstantForce = 0.0f;
 	}
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSourcePinRegressionTest,
 	"KawaiiPhysics.SimpleWorld.Regression.DirectSourceAndTagChanges",
@@ -337,5 +336,7 @@ bool FKawaiiPhysicsRealGustRegressionTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Shared Notify preserves authored duration"), Consumer.RuntimeState->CachedGust, 50.0f);
 	return true;
 }
+
+} // namespace KawaiiPhysicsSharedPublisherRegressionTestPrivate
 
 #endif

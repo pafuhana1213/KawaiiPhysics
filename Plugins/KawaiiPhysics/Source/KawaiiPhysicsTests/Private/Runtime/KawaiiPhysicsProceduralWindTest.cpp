@@ -11,7 +11,7 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNodeBase.h"
 
-namespace
+namespace KawaiiPhysicsProceduralWindTestPrivate
 {
 // 本テストは積分の蓄積誤差を持たない解析式（sin等）を直接評価するため、既定許容誤差はfloatの丸め程度で足りる
 constexpr float GProceduralWindTol = KINDA_SMALL_NUMBER;
@@ -208,7 +208,6 @@ void RunProceduralWindPreApply(FKawaiiPhysicsTestAccessor& Accessor,
 	FAnimInstanceProxy AnimInstanceProxy;
 	FComponentSpacePoseContext PoseContext(&AnimInstanceProxy);
 	Wind.PreApply(Accessor.Node, PoseContext);
-}
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindPreApplyNoGlobalRandomTest,
@@ -1516,5 +1515,7 @@ bool FKawaiiPhysicsProceduralWindSharedTagClearedRestoresLocalWindTest::RunTest(
 
 	return bOk;
 }
+
+} // namespace KawaiiPhysicsProceduralWindTestPrivate
 
 #endif

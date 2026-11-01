@@ -17,7 +17,7 @@
 #include "Curves/CurveFloat.h"
 #include "UObject/Package.h"
 
-namespace
+namespace KawaiiPhysicsTransientForceTestPrivate
 {
 constexpr float GTransientForceTol = 0.000001f;
 
@@ -121,8 +121,6 @@ bool InstancedStructHasLiveObjectReference(const FInstancedStruct& InstancedStru
 {
 	return KawaiiPhysics::StructInstanceHasLiveObjectReference(InstancedStruct.GetScriptStruct(),
 	                                                           InstancedStruct.GetMemory());
-}
-
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientForceLiveObjectReferenceDetectionTest,
@@ -912,5 +910,7 @@ bool FKawaiiPhysicsTransientForceResolveWindGustEnvelopeTest::RunTest(const FStr
 
 	return bOk;
 }
+
+} // namespace KawaiiPhysicsTransientForceTestPrivate
 
 #endif

@@ -17,7 +17,7 @@
 #include "Misc/AutomationTest.h"
 #include "ReferenceSkeleton.h"
 
-namespace
+namespace KawaiiPhysicsWindScopeTargetTestPrivate
 {
 	FGameplayTag GetWindScopeTargetTestTagX()
 	{
@@ -97,7 +97,6 @@ namespace
 		NodeCreator.Finalize();
 		return GraphNode;
 	}
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsWindScopeSharedTargetResolveTest,
                                  "KawaiiPhysics.Editor.WindScope.SharedTargetResolve",
@@ -231,5 +230,7 @@ bool FKawaiiPhysicsWindScopeSharedTargetResolveTest::RunTest(const FString& Para
 
 	return bOk;
 }
+
+} // namespace KawaiiPhysicsWindScopeTargetTestPrivate
 
 #endif

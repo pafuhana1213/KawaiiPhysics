@@ -13,7 +13,7 @@
 #include "MovieSceneKawaiiPhysicsSettingsMultiplierTrack.h"
 #include "UObject/Package.h"
 
-namespace
+namespace KawaiiPhysicsSequencerSectionTestPrivate
 {
 constexpr float GSequencerSectionTol = 0.000001f;
 
@@ -73,7 +73,6 @@ bool TestChannelDefaultNear(FAutomationTestBase& Test, const TCHAR* Name, const 
 		bOk &= TestFloatNear(Test, Name, DefaultValue.GetValue(), Expected);
 	}
 	return bOk;
-}
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSequencerEvaluateWeightChannelDefaultTest,
@@ -467,5 +466,7 @@ bool FKawaiiPhysicsSequencerSectionDefaultsTest::RunTest(const FString& Paramete
 	bOk &= TestFalse(TEXT("Completion mode locked"), Section->EvalOptions.bCanEditCompletionMode);
 	return bOk;
 }
+
+} // namespace KawaiiPhysicsSequencerSectionTestPrivate
 
 #endif

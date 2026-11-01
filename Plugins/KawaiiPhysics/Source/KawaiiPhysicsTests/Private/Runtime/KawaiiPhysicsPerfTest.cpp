@@ -12,7 +12,7 @@
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
 #include "KawaiiPhysicsTestHarness.h"
 
-namespace
+namespace KawaiiPhysicsPerfTestPrivate
 {
 	constexpr int32 GWarmupFrames = 100;
 	constexpr int32 GMeasureFrames = 2000;
@@ -516,7 +516,6 @@ namespace
 
 		return true;
 	}
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerfChainTest,
                                  "KawaiiPhysics.Perf.Chain",
@@ -648,5 +647,7 @@ bool FKawaiiPhysicsPerfSizeofTest::RunTest(const FString& Parameters)
 	                        static_cast<int32>(sizeof(FKawaiiPhysics_ExternalForce))));
 	return true;
 }
+
+} // namespace KawaiiPhysicsPerfTestPrivate
 
 #endif

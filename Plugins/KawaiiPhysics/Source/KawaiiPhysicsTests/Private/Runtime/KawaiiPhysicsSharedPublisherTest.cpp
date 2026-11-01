@@ -22,7 +22,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Misc/ScopeExit.h"
 
-namespace
+namespace KawaiiPhysicsSharedPublisherTestPrivate
 {
 	constexpr float GSharedPublisherPresetTol = KINDA_SMALL_NUMBER;
 
@@ -142,7 +142,6 @@ namespace
 			(Params.bOverrideRandomForce ? 1 : 0) +
 			(Params.bOverrideRandomForcePeriod ? 1 : 0);
 	}
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSharedCollisionSubsystemSupportsEditorPreviewTest,
                                  "KawaiiPhysics.SharedCollision.SubsystemSupportsEditorPreview",
@@ -1286,5 +1285,7 @@ bool FKawaiiPhysicsSharedPublisherClaimFramePublishesCaughtUpClockTest::RunTest(
 
 	return bOk;
 }
+
+} // namespace KawaiiPhysicsSharedPublisherTestPrivate
 
 #endif

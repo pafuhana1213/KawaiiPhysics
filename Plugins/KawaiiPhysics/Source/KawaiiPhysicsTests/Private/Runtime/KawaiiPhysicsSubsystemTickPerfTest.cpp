@@ -9,7 +9,7 @@
 #include "Misc/AutomationTest.h"
 #include "UObject/StrongObjectPtr.h"
 
-namespace
+namespace KawaiiPhysicsSubsystemTickPerfTestPrivate
 {
 	struct FSubsystemTickPerfFixture
 	{
@@ -118,7 +118,6 @@ namespace
 			FMath::IsNearlyEqual(Fixture.Entry->TimeSinceLastGather, CheckFrames * DeltaTime, 1.0e-3f));
 		return bOk;
 	}
-}
 
 // provider の設定が安定する場合と変化する場合に、移動に応じた Publish と gather 状態を守る。
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSubsystemTickPublishTest,
@@ -134,5 +133,7 @@ bool FKawaiiPhysicsSubsystemTickPublishTest::RunTest(const FString& Parameters)
 	bOk &= RunSubsystemTickPublishCase(*this, TEXT("Changing.PublishEvery12"), 12, true);
 	return bOk;
 }
+
+} // namespace KawaiiPhysicsSubsystemTickPerfTestPrivate
 
 #endif // WITH_DEV_AUTOMATION_TESTS
