@@ -32,11 +32,13 @@ public class KawaiiPhysicsTests : ModuleRules
 			"KawaiiPhysicsSequencer"
 		});
 
+		// The tests reach into the shipped plugin's private headers, so both plugins must sit side by side.
+		string PluginSourceDirectory = Path.Combine(ModuleDirectory, "..", "..", "..", "KawaiiPhysics", "Source");
 		PrivateIncludePaths.AddRange(new[]
 		{
-			Path.Combine(ModuleDirectory, "..", "KawaiiPhysics", "Private"),
-			Path.Combine(ModuleDirectory, "..", "KawaiiPhysicsEd", "Private"),
-			Path.Combine(ModuleDirectory, "..", "KawaiiPhysicsSequencer", "Private")
+			Path.Combine(PluginSourceDirectory, "KawaiiPhysics", "Private"),
+			Path.Combine(PluginSourceDirectory, "KawaiiPhysicsEd", "Private"),
+			Path.Combine(PluginSourceDirectory, "KawaiiPhysicsSequencer", "Private")
 		});
 
 		// StructUtils plugin has been integrated into the engine starting from 5.5
