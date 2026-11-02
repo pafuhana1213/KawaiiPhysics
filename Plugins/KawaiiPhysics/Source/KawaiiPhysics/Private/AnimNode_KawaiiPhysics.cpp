@@ -655,6 +655,8 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	if (SimulationSpace != LastSimulationSpace)
 	{
 		ConvertSimulationSpace(Output, LastSimulationSpace, SimulationSpace);
+		// 変換後のボーン位置は現在の基準ボーン基準なので、旧空間の値のままだとFollow Rotationで全チェーンが跳ねる
+		PrevBaseBoneSpace2ComponentSpace = CurrentEvalSimSpaceCache.TargetSpaceToComponent;
 		// ポーズ補間の前フレーム値と出力補間のオフセットは旧空間の値なので、次の評価で現在値から取り直す
 		bSubstepPoseInitialized = false;
 	}
@@ -715,6 +717,8 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		LastInitializedDummyBoneLength = DummyBoneLength;
 		bModifyBonesNeedsReinit = false;
 		PreSkelCompTransform = ComponentTransform;
+		// 作り直したボーンに前フレームは無い。参照ポーズや前回の値を残すとFollow Rotationで全チェーンが跳ねる
+		PrevBaseBoneSpace2ComponentSpace = CurrentEvalSimSpaceCache.TargetSpaceToComponent;
 
 #if !UE_BUILD_SHIPPING
 		if (const int32 ForwardAxisMismatchCount = CountAngleLimitForwardAxisMismatches())
