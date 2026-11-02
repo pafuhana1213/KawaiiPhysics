@@ -65,13 +65,13 @@ void FKawaiiPhysics_ExternalForce_Wind::Apply(FKawaiiPhysicsModifyBone& Bone, FA
 {
 	// PreApply でキャッシュ済みの風入力を Bone.Index で参照（Scene には触らない / §7-E）。
 	// 負の風速＝このボーンには未適用（CanApply不可 / Scene無効）、または風速ゼロ → スキップ。
-	if (!CachedWindSpeed.IsValidIndex(Bone.Index))
-	{
-		return;
-	}
-	const float WindSpeed = CachedWindSpeed[Bone.Index];
+	const float WindSpeed = CachedWindSpeed.IsValidIndex(Bone.Index) ? CachedWindSpeed[Bone.Index] : 0.0f;
 	if (WindSpeed <= KINDA_SMALL_NUMBER)
 	{
+#if ENABLE_ANIM_DEBUG
+		// 風が止まった後に古い矢印を残さない
+		BoneForceMap.Remove(GetBoneForceKey(Bone));
+#endif
 		return;
 	}
 
@@ -89,7 +89,6 @@ void FKawaiiPhysics_ExternalForce_Wind::Apply(FKawaiiPhysicsModifyBone& Bone, FA
 	Bone.Location += WindDirection * ForceRate * RandomizedForceScale * Node.GetStepDeltaTime();
 
 #if ENABLE_ANIM_DEBUG
-	BoneForceMap.Add(Bone.BoneRef.BoneName, WindDirection * ForceRate * RandomizedForceScale);
-	AnimDrawDebug(Bone, Node, PoseContext);
+	BoneForceMap.Add(GetBoneForceKey(Bone), WindDirection * ForceRate * RandomizedForceScale);
 #endif
 }

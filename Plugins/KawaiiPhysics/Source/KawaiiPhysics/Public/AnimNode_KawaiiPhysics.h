@@ -1170,8 +1170,9 @@ private:
 	// サブステップ実行中フラグ＆固定dt（GetStepDeltaTime が参照） / Substep-in-progress flag & fixed dt (read by GetStepDeltaTime)
 	bool bInSubstep = false;
 	float StepDeltaTime = 0.0f;
-	// ポーズ補間用：前フレームのポーズ目標が有効か（初回/リセット後は現在値で初期化）
-	// Pose interpolation: whether the previous-frame pose target is valid (init to current on first frame / after reset)
+	// ポーズ補間・出力補間用：前フレームのポーズ目標と直近ステップのオフセットが有効か（初回/リセット後は現在値で初期化）
+	// Pose & output interpolation: whether the previous-frame pose target and latest step offsets are valid
+	// (init to current on first frame / after reset)
 	bool bSubstepPoseInitialized = false;
 	// このフレームで消費した実時間割合(0..1)。PreSkelCompTransform をこの割合だけ前進させ、未消費の
 	// component 移動を次にステップが走るフレームへ繰り越す（NumSteps==0 では0で据え置き）。legacy/teleport時は1。
@@ -1908,6 +1909,27 @@ protected:
 	 * Adjusts the bone positions based on bone constraints.
 	 */
 	void AdjustByBoneConstraints();
+
+	/**
+	 * 出力補間に使うオフセットを現在の状態で初期化する。
+	 * Initializes the offsets used by output interpolation from the current state.
+	 */
+	static void ResetSubstepPoseOffsets(FKawaiiPhysicsModifyBone& Bone);
+
+	/**
+	 * 固定ステップの完了時に呼び、出力補間に使う直近2ステップ分のポーズオフセットを更新する。
+	 * Called after each fixed step to update the two latest pose offsets used by output interpolation.
+	 */
+	void CaptureSubstepPoseOffsets();
+
+	/**
+	 * 出力に使う位置を求める。固定サブステップ時は直近2ステップのオフセットを未消費時間の割合で補間し、最新ポーズへ加える。
+	 * ステップが進まないフレーム（スローモーションや高fps）でも物理の見た目が滑らかに進む。シミュレーション状態は変更しない。
+	 * Computes the locations used for output. With fixed substepping, the two latest pose offsets are blended by the
+	 * unconsumed time and added to the latest pose, so the visible motion stays smooth on frames that run no step
+	 * (slow motion or high fps). Never modifies the simulation state.
+	 */
+	void UpdateOutputLocations();
 
 	/**
 	 * Applies the simulation results to the bone transforms.

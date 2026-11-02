@@ -105,7 +105,7 @@ void FKawaiiPhysicsSyncTarget::DebugDraw(FPrimitiveDrawInterface* PDI, const FAn
 	if (ModifyBoneIndex >= 0 && Node->ModifyBones.IsValidIndex(ModifyBoneIndex))
 	{
 		// ターゲットボーンの位置
-		FVector TargetBoneLocation = Node->ModifyBones[ModifyBoneIndex].Location;
+		FVector TargetBoneLocation = Node->ModifyBones[ModifyBoneIndex].OutputLocation;
 		if (Node->SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
 		{
 			const FTransform& BaseBoneSpace2ComponentSpace = Node->GetBaseBoneSpace2ComponentSpace();

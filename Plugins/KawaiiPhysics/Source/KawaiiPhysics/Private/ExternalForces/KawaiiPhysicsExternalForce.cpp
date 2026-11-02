@@ -42,6 +42,18 @@ void FKawaiiPhysics_ExternalForce::PostApply(FAnimNode_KawaiiPhysics& Node, FCom
 {
 	if (bIsOneShot)
 	{
+#if ENABLE_ANIM_DEBUG
+		// 1回限りの外力はノードの毎フレーム描画より前に取り除かれるため、ここで描く。
+		// このフレームの出力位置はまだ無いのでシミュレーション位置を使う（ApplySimulateResult で上書きされる）
+		if (IsDebugEnabled())
+		{
+			for (FKawaiiPhysicsModifyBone& Bone : Node.ModifyBones)
+			{
+				Bone.OutputLocation = Bone.Location;
+				AnimDrawDebug(Bone, Node, PoseContext);
+			}
+		}
+#endif
 		bRemovalRequestedAfterPostApply = true;
 	}
 }
@@ -86,25 +98,34 @@ FVector FKawaiiPhysics_ExternalForce::ConvertExternalForceToSimulationSpace(FAni
 }
 
 #if ENABLE_ANIM_DEBUG
+FName FKawaiiPhysics_ExternalForce::GetBoneForceKey(const FKawaiiPhysicsModifyBone& Bone)
+{
+	return Bone.bDummy ? FName(NAME_None, Bone.Index + 1) : Bone.BoneRef.BoneName;
+}
+
 void FKawaiiPhysics_ExternalForce::AnimDrawDebug(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
                                                  const FComponentSpacePoseContext& PoseContext)
 {
-	if (IsDebugEnabled() && !Force.IsZero())
+	if (IsDebugEnabled() && CanApply(Bone))
 	{
 		// BoneForceMapに該当ボーンが無い場合はnull参照を避ける（EditMode版と同様にガード）
-		const FVector* ForcePtr = BoneForceMap.Find(Bone.BoneRef.BoneName);
-		if (!ForcePtr)
+		// 風は基底の Force を使わないため、ボーンごとの値で判定する
+		const FVector* ForcePtr = BoneForceMap.Find(GetBoneForceKey(Bone));
+		if (!ForcePtr || ForcePtr->IsZero())
 		{
 			return;
 		}
 
 		const auto AnimInstanceProxy = PoseContext.AnimInstanceProxy;
-		const FVector ModifyRootBoneLocationWS = AnimInstanceProxy->GetComponentTransform().TransformPosition(
-			Bone.Location);
+		bool bEvaluated = false;
+		const FTransform SimulationToWorld =
+			Node.GetSimulationSpace2ComponentSpace(bEvaluated) * AnimInstanceProxy->GetComponentTransform();
+		// ボーンの表示と揃うよう、シミュレーション状態ではなく出力位置へ描く
+		const FVector ModifyRootBoneLocationWS = SimulationToWorld.TransformPosition(Bone.OutputLocation);
 
 		AnimInstanceProxy->AnimDrawDebugDirectionalArrow(
 			ModifyRootBoneLocationWS + DebugArrowOffset,
-			ModifyRootBoneLocationWS + DebugArrowOffset + ForcePtr->GetSafeNormal() *
+			ModifyRootBoneLocationWS + DebugArrowOffset + SimulationToWorld.TransformVectorNoScale(*ForcePtr).GetSafeNormal() *
 			DebugArrowLength,
 			DebugArrowSize, FColor::Red, false, 0.f, 2);
 	}
@@ -116,12 +137,21 @@ void FKawaiiPhysics_ExternalForce::AnimDrawDebugForEditMode(const FKawaiiPhysics
                                                             const FAnimNode_KawaiiPhysics& Node,
                                                             FPrimitiveDrawInterface* PDI)
 {
-	if (IsDebugEnabled(true) && CanApply(ModifyBone) && !Force.IsNearlyZero() &&
-		BoneForceMap.Contains(ModifyBone.BoneRef.BoneName))
+	if (IsDebugEnabled(true) && CanApply(ModifyBone))
 	{
-		const FTransform ArrowTransform = FTransform(
-			BoneForceMap.Find(ModifyBone.BoneRef.BoneName)->GetSafeNormal().ToOrientationRotator(),
-			ModifyBone.Location + DebugArrowOffset);
+		const FVector* ForcePtr = BoneForceMap.Find(GetBoneForceKey(ModifyBone));
+		if (!ForcePtr || ForcePtr->IsNearlyZero())
+		{
+			return;
+		}
+
+		FTransform ArrowTransform = FTransform(
+			ForcePtr->GetSafeNormal().ToOrientationRotator(),
+			ModifyBone.OutputLocation + DebugArrowOffset);
+		if (Node.SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
+		{
+			ArrowTransform = ArrowTransform * Node.GetBaseBoneSpace2ComponentSpace();
+		}
 		DrawDirectionalArrow(PDI, ArrowTransform.ToMatrixNoScale(), FColor::Red, DebugArrowLength, DebugArrowSize,
 		                     SDPG_Foreground, 1.0f);
 	}

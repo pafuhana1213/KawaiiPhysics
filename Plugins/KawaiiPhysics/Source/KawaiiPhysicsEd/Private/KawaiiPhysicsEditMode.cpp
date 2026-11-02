@@ -497,7 +497,8 @@ void FKawaiiPhysicsEditMode::RenderModifyBones(FPrimitiveDrawInterface* PDI) con
 	{
 		for (auto& Bone : RuntimeNode->ModifyBones)
 		{
-			FVector BoneLocation = Bone.Location;
+			// 固定サブステップ時も表示がメッシュと揃うよう、シミュレーション状態ではなく出力位置を描く
+			FVector BoneLocation = Bone.OutputLocation;
 			if (RuntimeNode->SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
 			{
 				const FTransform& BaseBoneSpace2ComponentSpace = RuntimeNode->GetBaseBoneSpace2ComponentSpace();
@@ -516,7 +517,7 @@ void FKawaiiPhysicsEditMode::RenderModifyBones(FPrimitiveDrawInterface* PDI) con
 
 			for (const int32 ChildIndex : Bone.ChildIndices)
 			{
-				FVector ChildBoneLocation = RuntimeNode->ModifyBones[ChildIndex].Location;
+				FVector ChildBoneLocation = RuntimeNode->ModifyBones[ChildIndex].OutputLocation;
 				if (RuntimeNode->SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
 				{
 					const FTransform& BaseBoneSpace2ComponentSpace = RuntimeNode->GetBaseBoneSpace2ComponentSpace();
@@ -555,14 +556,14 @@ void FKawaiiPhysicsEditMode::RenderLimitAngle(FPrimitiveDrawInterface* PDI) cons
 			// 制限はポーズ方向を基準に判定されるので、シミュレーション後の方向ではなくポーズ方向へ描く
 			if (Bone.PhysicsSettings.LimitAngleMode == EKawaiiPhysicsLimitAngleMode::PerAxis)
 			{
-				KawaiiPhysicsEditModePrivate::DrawPerAxisLimitShape(PDI, FTransform(ParentBone.Location) * SimToPreview, ParentBone.PoseRotation,
+				KawaiiPhysicsEditModePrivate::DrawPerAxisLimitShape(PDI, FTransform(ParentBone.OutputLocation) * SimToPreview, ParentBone.PoseRotation,
 				                      PoseDirection, PoseOffset.Size(), Bone.PhysicsSettings.PerAxisLimitAngle,
 				                      RuntimeNode->BoneForwardAxis);
 			}
 			else if (Bone.PhysicsSettings.LimitAngle > 0.0f)
 			{
 				const FTransform ConeTransform =
-					FTransform(PoseDirection.Rotation(), ParentBone.Location) * SimToPreview;
+					FTransform(PoseDirection.Rotation(), ParentBone.OutputLocation) * SimToPreview;
 				const float Angle = FMath::DegreesToRadians(Bone.PhysicsSettings.LimitAngle);
 				DrawCone(PDI, FScaleMatrix(5.0f) * ConeTransform.ToMatrixNoScale(),
 				         Angle,
@@ -932,10 +933,10 @@ void FKawaiiPhysicsEditMode::RenderBoneConstraint(FPrimitiveDrawInterface* PDI) 
 			{
 				FTransform BoneTransform1 = FTransform(
 					RuntimeNode->ModifyBones[BoneConstraint.ModifyBoneIndex1].PrevRotation,
-					RuntimeNode->ModifyBones[BoneConstraint.ModifyBoneIndex1].PrevLocation);
+					RuntimeNode->ModifyBones[BoneConstraint.ModifyBoneIndex1].OutputLocation);
 				FTransform BoneTransform2 = FTransform(
 					RuntimeNode->ModifyBones[BoneConstraint.ModifyBoneIndex2].PrevRotation,
-					RuntimeNode->ModifyBones[BoneConstraint.ModifyBoneIndex2].PrevLocation);
+					RuntimeNode->ModifyBones[BoneConstraint.ModifyBoneIndex2].OutputLocation);
 
 				if (RuntimeNode->SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
 				{
@@ -1727,7 +1728,7 @@ void FKawaiiPhysicsEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FVie
 		{
 			for (auto& Bone : RuntimeNode->ModifyBones)
 			{
-				FVector BoneLocation = Bone.Location;
+				FVector BoneLocation = Bone.OutputLocation;
 				if (RuntimeNode->SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
 				{
 					const FTransform& BaseBoneSpace2ComponentSpace = RuntimeNode->GetBaseBoneSpace2ComponentSpace();

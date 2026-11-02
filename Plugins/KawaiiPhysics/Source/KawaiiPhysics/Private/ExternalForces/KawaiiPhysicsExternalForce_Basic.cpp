@@ -59,7 +59,7 @@ void FKawaiiPhysics_ExternalForce_Basic::Apply(FKawaiiPhysicsModifyBone& Bone, F
 		Bone.Location += BoneForce * ForceRate * Node.GetStepDeltaTime();
 
 #if ENABLE_ANIM_DEBUG
-		BoneForceMap.Add(Bone.BoneRef.BoneName, BoneForce);
+		BoneForceMap.Add(GetBoneForceKey(Bone), BoneForce);
 #endif
 	}
 	else
@@ -67,7 +67,7 @@ void FKawaiiPhysics_ExternalForce_Basic::Apply(FKawaiiPhysicsModifyBone& Bone, F
 		Bone.Location += Force * ForceRate * Node.GetStepDeltaTime();
 
 #if ENABLE_ANIM_DEBUG
-		BoneForceMap.Add(Bone.BoneRef.BoneName, Force * ForceRate);
+		BoneForceMap.Add(GetBoneForceKey(Bone), Force * ForceRate);
 #endif
 	}
 }

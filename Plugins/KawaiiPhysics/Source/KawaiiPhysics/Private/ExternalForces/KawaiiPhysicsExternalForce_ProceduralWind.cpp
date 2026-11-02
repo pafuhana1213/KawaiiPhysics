@@ -1237,6 +1237,10 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::Apply(FKawaiiPhysicsModifyBone
 {
 	if (!CanApply(Bone) || !RuntimeState.IsValid() || RuntimeState->bPublisherWindDisabled)
 	{
+#if ENABLE_ANIM_DEBUG
+		// 風が止まった後に古い矢印を残さない
+		BoneForceMap.Remove(GetBoneForceKey(Bone));
+#endif
 		return;
 	}
 
@@ -1264,7 +1268,7 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::Apply(FKawaiiPhysicsModifyBone
 		Bone.Location += BoneForce * Total * ForceRate * Node.GetStepDeltaTime();
 
 #if ENABLE_ANIM_DEBUG
-		BoneForceMap.Add(Bone.BoneRef.BoneName, BoneForce * Total * ForceRate);
+		BoneForceMap.Add(GetBoneForceKey(Bone), BoneForce * Total * ForceRate);
 #endif
 	}
 	else
@@ -1273,14 +1277,10 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::Apply(FKawaiiPhysicsModifyBone
 			Node.GetStepDeltaTime();
 
 #if ENABLE_ANIM_DEBUG
-		BoneForceMap.Add(Bone.BoneRef.BoneName,
+		BoneForceMap.Add(GetBoneForceKey(Bone),
 		                 RuntimeState->CachedWindVector * Total * ForceRate);
 #endif
 	}
-
-#if ENABLE_ANIM_DEBUG
-	AnimDrawDebug(Bone, Node, PoseContext);
-#endif
 }
 
 #if WITH_EDITOR
@@ -1308,7 +1308,7 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::AnimDrawDebugForEditMode(
 	}
 
 	// 風向きの矢印を該当ボーン位置に描画。BaseBoneSpace の場合はコンポーネント空間へ変換してから配置する
-	FVector ArrowLocation = ModifyBone.Location + DebugArrowOffset;
+	FVector ArrowLocation = ModifyBone.OutputLocation + DebugArrowOffset;
 	// BoneSpace の風向きは sim 空間のボーン姿勢（PoseRotation）で回す。ArrowRotation は sim 空間なので、BaseBoneSpace のときは非 BoneSpace と同様にコンポーネント空間へ変換する
 	// Apply の BoneTM（ResolveExternalForceBoneTransform）と同じ変換用ボーンを選ぶ。dummy は実親（無効なら親）の回転を使う
 	const FKawaiiPhysicsModifyBone* TransformBone = &ModifyBone;
@@ -1344,7 +1344,7 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::AnimDrawDebugForEditMode(
 	// ルートボーンにはさらに大きめの矢印を重ねて風全体の向き・強さの目安を分かりやすくする
 	if (ModifyBone.Index == 0)
 	{
-		FVector RootArrowLocation = ModifyBone.Location + DebugArrowOffset * 2.0f;
+		FVector RootArrowLocation = ModifyBone.OutputLocation + DebugArrowOffset * 2.0f;
 		const FQuat RootArrowRotation = ArrowRotation;
 		if (Node.SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
 		{

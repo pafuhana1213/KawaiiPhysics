@@ -727,7 +727,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 	const FSceneInterface* Scene = World ? World->Scene : nullptr;
 
 	// 現フレームのポーズ目標をスナップショット（サブステップ中 PoseLocation を補間で上書きするため退避）。
-	// 初回/リセット後は前フレーム値を現在値で初期化（補間で飛ばないように）。
+	// 初回/リセット後は前フレーム値と出力補間のオフセットを現在値で初期化（補間で飛ばないように）。
 	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 	{
 		Bone.CurrentPoseLocation = Bone.PoseLocation;
@@ -736,6 +736,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		{
 			Bone.PrevPoseLocation = Bone.PoseLocation;
 			Bone.PrevPoseRotation = Bone.PoseRotation;
+			ResetSubstepPoseOffsets(Bone);
 		}
 	}
 	bSubstepPoseInitialized = true;
@@ -747,6 +748,8 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		SimulateOnce(Output, ComponentTransform, Scene, SkelComp);
 		DeltaTimeOld = DeltaTime;
 		PreSkelCompTransformConsumeFraction = 1.0f; // legacyは毎フレーム全消費
+		// legacyはオフセットを更新しないため、固定サブステップへ切り替えたら初期化し直す
+		bSubstepPoseInitialized = false;
 	}
 	else
 	{
@@ -788,6 +791,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 			SkelCompMoveRotation = FQuat::Slerp(FQuat::Identity, FullSkelCompRot, MoveFrac).GetNormalized();
 
 			SimulateOnce(Output, ComponentTransform, Scene, SkelComp);
+			CaptureSubstepPoseOffsets();
 		}
 		bInSubstep = false;
 
@@ -1436,11 +1440,91 @@ void FAnimNode_KawaiiPhysics::WarmUp(FComponentSpacePoseContext& Output, const F
 	}
 }
 
+void FAnimNode_KawaiiPhysics::ResetSubstepPoseOffsets(FKawaiiPhysicsModifyBone& Bone)
+{
+	// bridge の PoseLocation はステップ内でしか押し出しの基準にならないため、押し出しなしから始める
+	Bone.LastStepPoseOffset = Bone.bBridgeDummy ? FVector::ZeroVector : Bone.Location - Bone.PoseLocation;
+	Bone.PrevStepPoseOffset = Bone.LastStepPoseOffset;
+}
+
+void FAnimNode_KawaiiPhysics::CaptureSubstepPoseOffsets()
+{
+	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+	{
+		Bone.PrevStepPoseOffset = Bone.LastStepPoseOffset;
+		// LOD で端点がカルされた bridge はこのステップの基準位置を持たない
+		Bone.LastStepPoseOffset = (Bone.bBridgeDummy && Bone.bSkipSimulate)
+			                          ? FVector::ZeroVector
+			                          : Bone.Location - Bone.PoseLocation;
+	}
+}
+
+void FAnimNode_KawaiiPhysics::UpdateOutputLocations()
+{
+	// legacy とリセット直後はオフセットが有効でないため、シミュレーション結果をそのまま出力する
+	if (!bUseFixedSubsteppingCached || !bSubstepPoseInitialized)
+	{
+		for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+		{
+			Bone.OutputLocation = Bone.Location;
+		}
+		return;
+	}
+
+	// 絶対位置ではなくポーズからのオフセットを補間する。絶対位置だと最新ポーズへ追従する親に対して子が遅れ、ボーンが伸びるため。
+	const float OutputAlpha = FMath::Clamp(SubstepAccumulator * GetEffectiveTargetFramerate(), 0.0f, 1.0f);
+	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+	{
+		if (Bone.bBridgeDummy)
+		{
+			// bridge の PoseLocation は最新ポーズで更新されないため、下で端点の出力から求める
+			Bone.OutputLocation = Bone.Location;
+			continue;
+		}
+
+		Bone.OutputLocation = Bone.PoseLocation + FMath::Lerp(Bone.PrevStepPoseOffset, Bone.LastStepPoseOffset, OutputAlpha);
+
+		if (!IsAngleLimitTargetBone(Bone))
+		{
+			continue;
+		}
+
+		// 線形補間で縮む分のボーン長を、シミュレーションの長さ復元と同じ基準で戻す
+		const FKawaiiPhysicsModifyBone& ParentBone = ModifyBones[GetAngleLimitParentIndex(Bone)];
+		const float BoneLength = (Bone.PoseLocation - ParentBone.PoseLocation).Size();
+		Bone.OutputLocation = (Bone.OutputLocation - ParentBone.OutputLocation).GetSafeNormal() * BoneLength +
+			ParentBone.OutputLocation;
+	}
+
+	// 端点から決まるダミーを配置する。どちらも端点より後ろの index にある
+	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+	{
+		const bool bCollisionOnlyInterBone = bBoneSubdivisionCollisionOnly && Bone.bInterBoneDummy;
+		if ((!bCollisionOnlyInterBone && !Bone.bBridgeDummy) ||
+			!ModifyBones.IsValidIndex(Bone.InterBoneRealParentIndex) ||
+			!ModifyBones.IsValidIndex(Bone.InterBoneRealChildIndex))
+		{
+			continue;
+		}
+
+		Bone.OutputLocation = FMath::Lerp(ModifyBones[Bone.InterBoneRealParentIndex].OutputLocation,
+		                                  ModifyBones[Bone.InterBoneRealChildIndex].OutputLocation,
+		                                  Bone.InterBoneAlpha);
+		if (Bone.bBridgeDummy)
+		{
+			// bridge のオフセットは端点間の位置からのコリジョン押し出し量
+			Bone.OutputLocation += FMath::Lerp(Bone.PrevStepPoseOffset, Bone.LastStepPoseOffset, OutputAlpha);
+		}
+	}
+}
+
 void FAnimNode_KawaiiPhysics::ApplySimulateResult(FComponentSpacePoseContext& Output,
                                                   const FBoneContainer& BoneContainer,
                                                   TArray<FBoneTransform>& OutBoneTransforms)
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_ApplySimulateResult);
+
+	UpdateOutputLocations();
 
 	for (int32 i = 0; i < ModifyBones.Num(); ++i)
 	{
@@ -1468,7 +1552,7 @@ void FAnimNode_KawaiiPhysics::ApplySimulateResult(FComponentSpacePoseContext& Ou
 			if (ParentBone.BoneRef.BoneIndex >= 0)
 			{
 				FVector PoseVector = Bone.PoseLocation - ParentBone.PoseLocation;
-				FVector SimulateVector = Bone.Location - ParentBone.Location;
+				FVector SimulateVector = Bone.OutputLocation - ParentBone.OutputLocation;
 
 				if (PoseVector.GetSafeNormal() == SimulateVector.GetSafeNormal())
 				{
@@ -1497,7 +1581,7 @@ void FAnimNode_KawaiiPhysics::ApplySimulateResult(FComponentSpacePoseContext& Ou
 		{
 			OutBoneTransforms[i].Transform.SetLocation(
 				ConvertSimulationSpaceLocation(Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::ComponentSpace,
-				                               Bone.Location));
+				                               Bone.OutputLocation));
 		}
 	}
 

@@ -35,6 +35,33 @@
 #if ENABLE_ANIM_DEBUG
 void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 {
+	// External force。ステップが走らないフレームでも消えないよう、Apply ではなくここで毎フレーム描く
+	const auto DrawExternalForceDebug = [&](auto& ForceStruct)
+	{
+		if (!ForceStruct.IsValid())
+		{
+			return;
+		}
+
+		FKawaiiPhysics_ExternalForce* ExternalForce =
+			ForceStruct.template GetMutablePtr<FKawaiiPhysics_ExternalForce>();
+		if (ExternalForce && ExternalForce->IsDebugEnabled())
+		{
+			for (FKawaiiPhysicsModifyBone& ModifyBone : ModifyBones)
+			{
+				ExternalForce->AnimDrawDebug(ModifyBone, *this, Output);
+			}
+		}
+	};
+	for (int32 ForceIndex = 0; ForceIndex < ExternalForces.Num(); ++ForceIndex)
+	{
+		DrawExternalForceDebug(ExternalForces[ForceIndex]);
+	}
+	for (int32 ForceIndex = 0; ForceIndex < TransientForceStore.Items.Num(); ++ForceIndex)
+	{
+		DrawExternalForceDebug(TransientForceStore.Items[ForceIndex].Force);
+	}
+
 	if (const UWorld* World = Output.AnimInstanceProxy->GetSkelMeshComponent()->GetWorld(); !World->IsPreviewWorld())
 	{
 		if (Output.AnimInstanceProxy->GetSkelMeshComponent()->bRecentlyRendered)
@@ -48,9 +75,10 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 				// Modify Bones
 				for (const auto& ModifyBone : ModifyBones)
 				{
+					// 固定サブステップ時も表示がメッシュと揃うよう、シミュレーション状態ではなく出力位置を描く
 					const FVector LocationWS =
 						ConvertSimulationSpaceLocation(Output, SimulationSpace,
-						                               EKawaiiPhysicsSimulationSpace::WorldSpace, ModifyBone.Location);
+						                               EKawaiiPhysicsSimulationSpace::WorldSpace, ModifyBone.OutputLocation);
 
 					auto Color = ModifyBone.bBridgeDummy
 					             ? FColor::Green
@@ -58,9 +86,10 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 					AnimInstanceProxy->AnimDrawDebugSphere(LocationWS, ModifyBone.PhysicsSettings.Radius, 8,
 					                                       Color, false, -1, LineThickness, SDPG_Foreground);
 
+					// InWorldMessage の位置はワールド座標ではなく Actor 位置からのオフセットとして扱われる
 					AnimInstanceProxy->AnimDrawDebugInWorldMessage(
 						FString::Printf(TEXT("%.2f"), ModifyBone.LengthRateFromRoot),
-						ModifyBone.Location, FColor::White, 1.0f);
+						LocationWS - AnimInstanceProxy->GetActorTransform().GetLocation(), FColor::White, 1.0f);
 
 				}
 				// Sphere limit

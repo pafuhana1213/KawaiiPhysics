@@ -380,6 +380,15 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsModifyBone
 	/** 現フレームのポーズ目標回転のスナップショット / Snapshot of this frame's pose target rotation */
 	FQuat CurrentPoseRotation = FQuat::Identity;
 
+	// ===== 固定サブステップの出力補間用（Transient, 非シリアライズ） =====
+	// For fixed-substep output interpolation (Transient, not serialized)
+	/** 1つ前の固定ステップ完了時の Location - PoseLocation / Location - PoseLocation at the end of the previous fixed step */
+	FVector PrevStepPoseOffset = FVector::ZeroVector;
+	/** 直近の固定ステップ完了時の Location - PoseLocation / Location - PoseLocation at the end of the latest fixed step */
+	FVector LastStepPoseOffset = FVector::ZeroVector;
+	/** このフレームの出力に使う位置（シミュレーション状態の Location とは別） / Location written to the output pose this frame (separate from the simulated Location) */
+	FVector OutputLocation = FVector::ZeroVector;
+
 	/** Pose scale of the bone */
 	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|ModifyBone")
 	FVector PoseScale = FVector::OneVector;

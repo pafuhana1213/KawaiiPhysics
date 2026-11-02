@@ -503,6 +503,193 @@ bool FKawaiiPhysicsFramerateIndependenceTest::RunTest(const FString& Parameters)
 }
 
 // ---------------------------------------------------------------------------
+//  固定サブステップの出力補間（スローモーションでも出力が固定ステップ周期で止まらないこと）
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSubstepOutputInterpolationTest,
+                                 "KawaiiPhysics.Simulation.SubstepOutputInterpolation",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSubstepOutputInterpolationTest::RunTest(const FString& Parameters)
+{
+	constexpr float SlomoFrameDt = 1.0f / 600.0f; // 60fps × Slomo 0.1 = FixedDt の 1/10
+
+	auto MakeSwingingChain = [](FKawaiiPhysicsTestAccessor& A, bool bFixedSubstep)
+	{
+		A.BuildVerticalChain(4, 10.0f);
+		FKawaiiPhysicsSettings S;
+		S.Damping = 0.1f;
+		S.Stiffness = 0.05f;
+		A.SetAllPhysicsSettings(S);
+		A.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+		A.SetGravityInSimSpace(FVector(-980, 0, 0));
+		A.SetFixedSubstepping(bFixedSubstep, 60, 4);
+	};
+
+	// --- 1. 不具合の再現条件: シミュレーション状態は10フレームに1回しか進まないが、出力は毎フレーム進む ---
+	{
+		FKawaiiPhysicsTestAccessor A;
+		MakeSwingingChain(A, true);
+
+		constexpr int32 NumFrames = 200;
+		int32 SimStalledFrames = 0;
+		int32 OutputStalledFrames = 0;
+		double MaxSimDelta = 0.0;
+		double MaxOutputDelta = 0.0;
+		FVector PrevSim = A.TipLocation();
+		A.CallUpdateOutputLocations();
+		FVector PrevOutput = A.Bone(3).OutputLocation;
+		for (int32 Frame = 0; Frame < NumFrames; ++Frame)
+		{
+			A.StepFrame(SlomoFrameDt);
+			A.CallUpdateOutputLocations();
+
+			const double SimDelta = FVector::Dist(A.TipLocation(), PrevSim);
+			const double OutputDelta = FVector::Dist(A.Bone(3).OutputLocation, PrevOutput);
+			PrevSim = A.TipLocation();
+			PrevOutput = A.Bone(3).OutputLocation;
+
+			MaxSimDelta = FMath::Max(MaxSimDelta, SimDelta);
+			MaxOutputDelta = FMath::Max(MaxOutputDelta, OutputDelta);
+			// 最初の2ステップはオフセットの履歴が埋まるまで静止し得るため対象外
+			if (Frame >= 20)
+			{
+				SimStalledFrames += SimDelta <= UE_KINDA_SMALL_NUMBER ? 1 : 0;
+				OutputStalledFrames += OutputDelta <= UE_KINDA_SMALL_NUMBER ? 1 : 0;
+			}
+		}
+
+		TestTrue(FString::Printf(TEXT("Simulation only advances on fixed steps (stalled %d frames)"), SimStalledFrames),
+		         SimStalledFrames >= 150);
+		TestEqual(TEXT("Output advances every frame"), OutputStalledFrames, 0);
+		TestTrue(FString::Printf(TEXT("Output delta (%.4f) is spread over frames (sim delta %.4f)"),
+		                         MaxOutputDelta, MaxSimDelta),
+		         MaxOutputDelta < MaxSimDelta * 0.25);
+	}
+
+	// --- 2. ポーズが動いてもステップなしのフレームで親へ追従し、ボーン長を保つ ---
+	{
+		FKawaiiPhysicsTestAccessor A;
+		MakeSwingingChain(A, true);
+		A.StepFrames(120, SlomoFrameDt);
+
+		for (int32 Frame = 0; Frame < 15; ++Frame)
+		{
+			for (int32 i = 0; i < 4; ++i)
+			{
+				A.Bone(i).PoseLocation += FVector(0, 0.2, 0);
+			}
+			A.StepFrame(SlomoFrameDt);
+			A.CallUpdateOutputLocations();
+
+			TestTrue(TEXT("Root output follows the latest pose"),
+			         A.Bone(0).OutputLocation.Equals(A.Bone(0).PoseLocation, 0.001));
+			for (int32 i = 1; i < 4; ++i)
+			{
+				const double Length = FVector::Dist(A.Bone(i).OutputLocation, A.Bone(i - 1).OutputLocation);
+				TestTrue(FString::Printf(TEXT("Bone %d output length is preserved: %.5f"), i, Length),
+				         FMath::IsNearlyEqual(Length, 10.0, 0.001));
+			}
+		}
+	}
+
+	// --- 3. リセット直後は補間せず、シミュレーション状態をそのまま出力する ---
+	{
+		FKawaiiPhysicsTestAccessor A;
+		MakeSwingingChain(A, true);
+		A.StepFrames(120, SlomoFrameDt);
+		A.Node.ResetDynamics(ETeleportType::TeleportPhysics);
+		A.CallUpdateOutputLocations();
+		TestTrue(TEXT("Output equals the simulated location after a reset"),
+		         A.Bone(3).OutputLocation.Equals(A.TipLocation(), 0.0001));
+		A.StepFrame(SlomoFrameDt);
+		A.CallUpdateOutputLocations();
+		TestTrue(TEXT("Output restarts from the simulated location after a reset"),
+		         A.Bone(3).OutputLocation.Equals(A.TipLocation(), 0.0001));
+	}
+
+	// --- 4. legacy はシミュレーション状態をそのまま出力する ---
+	{
+		FKawaiiPhysicsTestAccessor A;
+		MakeSwingingChain(A, false);
+		A.StepFrames(120, SlomoFrameDt);
+		A.CallUpdateOutputLocations();
+		TestTrue(TEXT("Legacy output equals the simulated location"),
+		         A.Bone(3).OutputLocation.Equals(A.TipLocation(), 0.0001));
+	}
+
+	// --- 5. legacy から切り替えた直後は、古いオフセットを使わず現在の状態から始める ---
+	{
+		FKawaiiPhysicsTestAccessor A;
+		MakeSwingingChain(A, false);
+		A.StepFrames(60, 1.0f / 60.0f);
+		A.SetFixedSubstepping(true, 60, 4);
+		A.StepFrame(SlomoFrameDt);
+		A.CallUpdateOutputLocations();
+		TestTrue(TEXT("Output continues from the simulated location after switching from legacy"),
+		         A.Bone(3).OutputLocation.Equals(A.TipLocation(), 0.0001));
+	}
+
+	// --- 6. bridge dummy は生成時の PoseLocation ではなく端点の出力へ追従する ---
+	{
+		FKawaiiPhysicsTestAccessor A;
+		MakeSwingingChain(A, true);
+		A.StepFrames(120, SlomoFrameDt);
+
+		// 以降は bridge の ParentIndex が -1 のため、ハーネスの StepFrame は呼ばない
+		const FVector PushOffset(0.0f, 0.0f, 2.0f);
+		FKawaiiPhysicsModifyBone Bridge;
+		Bridge.bDummy = true;
+		Bridge.bBridgeDummy = true;
+		Bridge.InterBoneRealParentIndex = 1;
+		Bridge.InterBoneRealChildIndex = 2;
+		Bridge.InterBoneAlpha = 0.25f;
+		Bridge.PoseLocation = FVector(1000.0f, 0.0f, 0.0f);
+		Bridge.PrevStepPoseOffset = PushOffset;
+		Bridge.LastStepPoseOffset = PushOffset;
+		A.Node.ModifyBones.Add(Bridge);
+
+		A.CallUpdateOutputLocations();
+		const FVector Expected =
+			FMath::Lerp(A.Bone(1).OutputLocation, A.Bone(2).OutputLocation, 0.25f) + PushOffset;
+		TestTrue(TEXT("Bridge output follows the endpoints plus the collision push"),
+		         A.Bone(4).OutputLocation.Equals(Expected, 0.001));
+
+		// LOD でカルされたステップでは基準位置が無いため、押し出しを記録しない
+		A.Bone(4).bSkipSimulate = true;
+		A.CallCaptureSubstepPoseOffsets();
+		TestTrue(TEXT("A culled bridge records no push"), A.Bone(4).LastStepPoseOffset.IsZero());
+
+		// 再初期化時の PoseLocation は押し出しの基準ではない
+		A.Bone(4).Location = FVector(0.0f, 0.0f, 50.0f);
+		A.CallResetSubstepPoseOffsets(A.Bone(4));
+		TestTrue(TEXT("A reset bridge starts without a push"),
+		         A.Bone(4).LastStepPoseOffset.IsZero() && A.Bone(4).PrevStepPoseOffset.IsZero());
+	}
+
+	// --- 7. コリジョン専用の inter-bone dummy は実端点の出力の間に置き、実ボーンは実親からの長さを保つ ---
+	{
+		FKawaiiPhysicsTestAccessor A;
+		A.BuildSyncBoneSubdivisionFixture();
+		A.Node.bBoneSubdivisionCollisionOnly = true;
+		A.SetFixedSubstepping(true, 60, 4);
+		A.SetSubstepPoseInitialized(true);
+		A.Bone(0).bSkipSimulate = true;
+		A.Bone(2).PrevStepPoseOffset = FVector(0.0f, 3.0f, 0.0f);
+		A.Bone(2).LastStepPoseOffset = FVector(0.0f, 3.0f, 0.0f);
+
+		A.CallUpdateOutputLocations();
+		TestTrue(TEXT("Real child keeps its pose distance from the real parent"),
+		         FMath::IsNearlyEqual(FVector::Dist(A.Bone(2).OutputLocation, A.Bone(0).OutputLocation), 10.0, 0.001));
+		TestTrue(TEXT("Real child follows its offset"), A.Bone(2).OutputLocation.Y > 2.0);
+		TestTrue(TEXT("Collision-only dummy sits between the real endpoints"),
+		         A.Bone(1).OutputLocation.Equals(
+			         FMath::Lerp(A.Bone(0).OutputLocation, A.Bone(2).OutputLocation, 0.5f), 0.001));
+	}
+
+	return true;
+}
+
+// ---------------------------------------------------------------------------
 //  数値安定性（NaN や発散がないこと）
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsNumericalStabilityTest,
