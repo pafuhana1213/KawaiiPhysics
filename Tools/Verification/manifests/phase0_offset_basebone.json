@@ -1,0 +1,35 @@
+{
+	"frames": 300,
+	"cells": [
+		{
+			"id": "chain_cs",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/Chain/S_Chain.S_Chain",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/01_BoneChain/ABP_1_1_RootBone.ABP_1_1_RootBone_C",
+			"location": [0, 0, 500],
+			"motion": {"linear_amplitude": [80, 30, 0], "linear_period": 1.2, "yaw_amplitude_degrees": 30, "yaw_period": 1.7},
+			"overrides": {"RootBone": "(BoneName=\"Object009\")", "SimulationSpace": "ComponentSpace", "Gravity": "(X=400,Y=150,Z=-980)"}
+		},
+		{
+			"id": "chain_bb_offset",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/Chain/S_Chain.S_Chain",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/01_BoneChain/ABP_1_1_RootBone.ABP_1_1_RootBone_C",
+			"location": [500, 0, 500],
+			"motion": {"linear_amplitude": [80, 30, 0], "linear_period": 1.2, "yaw_amplitude_degrees": 30, "yaw_period": 1.7},
+			"overrides": {"RootBone": "(BoneName=\"Object009\")", "SimulationSpace": "BaseBoneSpace", "SimulationBaseBone": "(BoneName=\"Object008\")", "Gravity": "(X=400,Y=150,Z=-980)"}
+		},
+		{
+			"id": "chain_cs_static",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/Chain/S_Chain.S_Chain",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/01_BoneChain/ABP_1_1_RootBone.ABP_1_1_RootBone_C",
+			"location": [0, 500, 500],
+			"overrides": {"RootBone": "(BoneName=\"Object009\")", "SimulationSpace": "ComponentSpace", "Gravity": "(X=400,Y=150,Z=-980)"}
+		},
+		{
+			"id": "chain_bb_offset_static",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/Chain/S_Chain.S_Chain",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/01_BoneChain/ABP_1_1_RootBone.ABP_1_1_RootBone_C",
+			"location": [500, 500, 500],
+			"overrides": {"RootBone": "(BoneName=\"Object009\")", "SimulationSpace": "BaseBoneSpace", "SimulationBaseBone": "(BoneName=\"Object008\")", "Gravity": "(X=400,Y=150,Z=-980)"}
+		}
+	]
+}
