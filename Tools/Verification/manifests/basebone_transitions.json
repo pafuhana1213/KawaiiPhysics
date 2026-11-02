@@ -1,0 +1,57 @@
+{
+	"frames": 300,
+	"cells": [
+		{
+			"id": "kano_cs",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/TAStyleKano/Mesh/test_kano1.test_kano1",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/09_Showcase/ABP_9_Kano.ABP_9_Kano_C",
+			"location": [0, 2000, 500],
+			"clear_external_forces": true,
+			"overrides": {"SimulationSpace": "ComponentSpace"}
+		},
+		{
+			"id": "kano_bb_from_start",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/TAStyleKano/Mesh/test_kano1.test_kano1",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/09_Showcase/ABP_9_Kano.ABP_9_Kano_C",
+			"location": [1000, 2000, 500],
+			"clear_external_forces": true,
+			"overrides": {"SimulationSpace": "BaseBoneSpace", "SimulationBaseBone": "(BoneName=\"local\")"}
+		},
+		{
+			"id": "kano_cs_to_bb",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/TAStyleKano/Mesh/test_kano1.test_kano1",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/09_Showcase/ABP_9_Kano.ABP_9_Kano_C",
+			"location": [2000, 2000, 500],
+			"clear_external_forces": true,
+			"overrides": {"SimulationSpace": "ComponentSpace", "SimulationBaseBone": "(BoneName=\"local\")"},
+			"events": [{"frame": 150, "overrides": {"SimulationSpace": "BaseBoneSpace"}}]
+		},
+		{
+			"id": "kano_cs_to_ws_control",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/TAStyleKano/Mesh/test_kano1.test_kano1",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/09_Showcase/ABP_9_Kano.ABP_9_Kano_C",
+			"location": [5000, 2000, 500],
+			"clear_external_forces": true,
+			"overrides": {"SimulationSpace": "ComponentSpace"},
+			"events": [{"frame": 150, "overrides": {"SimulationSpace": "WorldSpace"}}]
+		},
+		{
+			"id": "kano_ws_to_bb",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/TAStyleKano/Mesh/test_kano1.test_kano1",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/09_Showcase/ABP_9_Kano.ABP_9_Kano_C",
+			"location": [3000, 2000, 500],
+			"clear_external_forces": true,
+			"overrides": {"SimulationSpace": "WorldSpace", "SimulationBaseBone": "(BoneName=\"local\")"},
+			"events": [{"frame": 150, "overrides": {"SimulationSpace": "BaseBoneSpace"}}]
+		},
+		{
+			"id": "kano_bb_pelvis_reset",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/TAStyleKano/Mesh/test_kano1.test_kano1",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/09_Showcase/ABP_9_Kano.ABP_9_Kano_C",
+			"location": [4000, 2000, 500],
+			"clear_external_forces": true,
+			"overrides": {"SimulationSpace": "BaseBoneSpace", "SimulationBaseBone": "(BoneName=\"pelvis\")", "WarmUpFrames": "30"},
+			"events": [{"frame": 150, "reset_dynamics": true}]
+		}
+	]
+}
