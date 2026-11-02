@@ -33,8 +33,11 @@ public:
 	/**
 	* シミュレーション全体を固定タイムステップ（FixedDt = 1/TargetFramerate）でサブステップ実行し、
 	* フレームレート依存の挙動を解消する。（低fps時はサブステップ数が増え負荷が上がる）。
+	* 出力は直近2ステップの結果を補間するため、スローモーションや高fpsでも滑らかに動く（物理の揺れは最大1固定ステップ分遅れる）。
 	* Run the whole simulation with fixed-timestep substepping (FixedDt = 1/TargetFramerate) for true
 	* frame-rate independence (CPU cost rises at low fps as substep count grows).
+	* The output blends the two latest steps, so motion stays smooth in slow motion and at high fps
+	* (the physics sway lags by up to one fixed step).
 	*/
 	UPROPERTY(EditAnywhere, config, Category = "Simulation",
 		meta = (DisplayName = "Use Fixed Substepping"))

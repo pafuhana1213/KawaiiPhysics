@@ -655,6 +655,8 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	if (SimulationSpace != LastSimulationSpace)
 	{
 		ConvertSimulationSpace(Output, LastSimulationSpace, SimulationSpace);
+		// ポーズ補間の前フレーム値と出力補間のオフセットは旧空間の値なので、次の評価で現在値から取り直す
+		bSubstepPoseInitialized = false;
 	}
 	LastSimulationSpace = SimulationSpace;
 

@@ -503,6 +503,124 @@ bool FKawaiiPhysicsFramerateIndependenceTest::RunTest(const FString& Parameters)
 }
 
 // ---------------------------------------------------------------------------
+//  固定サブステップの出力補間（スローモーションでも出力が固定ステップ周期で止まらないこと）
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSubstepOutputInterpolationTest,
+                                 "KawaiiPhysics.Simulation.SubstepOutputInterpolation",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSubstepOutputInterpolationTest::RunTest(const FString& Parameters)
+{
+	constexpr float SlomoFrameDt = 1.0f / 600.0f; // 60fps × Slomo 0.1 = FixedDt の 1/10
+
+	auto MakeSwingingChain = [](FKawaiiPhysicsTestAccessor& A, bool bFixedSubstep)
+	{
+		A.BuildVerticalChain(4, 10.0f);
+		FKawaiiPhysicsSettings S;
+		S.Damping = 0.1f;
+		S.Stiffness = 0.05f;
+		A.SetAllPhysicsSettings(S);
+		A.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+		A.SetGravityInSimSpace(FVector(-980, 0, 0));
+		A.SetFixedSubstepping(bFixedSubstep, 60, 4);
+	};
+
+	// --- 1. 不具合の再現条件: シミュレーション状態は10フレームに1回しか進まないが、出力は毎フレーム進む ---
+	{
+		FKawaiiPhysicsTestAccessor A;
+		MakeSwingingChain(A, true);
+
+		constexpr int32 NumFrames = 200;
+		int32 SimStalledFrames = 0;
+		int32 OutputStalledFrames = 0;
+		double MaxSimDelta = 0.0;
+		double MaxOutputDelta = 0.0;
+		FVector PrevSim = A.TipLocation();
+		A.CallUpdateOutputLocations();
+		FVector PrevOutput = A.Bone(3).OutputLocation;
+		for (int32 Frame = 0; Frame < NumFrames; ++Frame)
+		{
+			A.StepFrame(SlomoFrameDt);
+			A.CallUpdateOutputLocations();
+
+			const double SimDelta = FVector::Dist(A.TipLocation(), PrevSim);
+			const double OutputDelta = FVector::Dist(A.Bone(3).OutputLocation, PrevOutput);
+			PrevSim = A.TipLocation();
+			PrevOutput = A.Bone(3).OutputLocation;
+
+			MaxSimDelta = FMath::Max(MaxSimDelta, SimDelta);
+			MaxOutputDelta = FMath::Max(MaxOutputDelta, OutputDelta);
+			// 最初の2ステップはオフセットの履歴が埋まるまで静止し得るため対象外
+			if (Frame >= 20)
+			{
+				SimStalledFrames += SimDelta <= UE_KINDA_SMALL_NUMBER ? 1 : 0;
+				OutputStalledFrames += OutputDelta <= UE_KINDA_SMALL_NUMBER ? 1 : 0;
+			}
+		}
+
+		TestTrue(FString::Printf(TEXT("Simulation only advances on fixed steps (stalled %d frames)"), SimStalledFrames),
+		         SimStalledFrames >= 150);
+		TestEqual(TEXT("Output advances every frame"), OutputStalledFrames, 0);
+		TestTrue(FString::Printf(TEXT("Output delta (%.4f) is spread over frames (sim delta %.4f)"),
+		                         MaxOutputDelta, MaxSimDelta),
+		         MaxOutputDelta < MaxSimDelta * 0.25);
+	}
+
+	// --- 2. ポーズが動いてもステップなしのフレームで親へ追従し、ボーン長を保つ ---
+	{
+		FKawaiiPhysicsTestAccessor A;
+		MakeSwingingChain(A, true);
+		A.StepFrames(120, SlomoFrameDt);
+
+		for (int32 Frame = 0; Frame < 15; ++Frame)
+		{
+			for (int32 i = 0; i < 4; ++i)
+			{
+				A.Bone(i).PoseLocation += FVector(0, 0.2, 0);
+			}
+			A.StepFrame(SlomoFrameDt);
+			A.CallUpdateOutputLocations();
+
+			TestTrue(TEXT("Root output follows the latest pose"),
+			         A.Bone(0).OutputLocation.Equals(A.Bone(0).PoseLocation, 0.001));
+			for (int32 i = 1; i < 4; ++i)
+			{
+				const double Length = FVector::Dist(A.Bone(i).OutputLocation, A.Bone(i - 1).OutputLocation);
+				TestTrue(FString::Printf(TEXT("Bone %d output length is preserved: %.5f"), i, Length),
+				         FMath::IsNearlyEqual(Length, 10.0, 0.001));
+			}
+		}
+	}
+
+	// --- 3. リセット直後は補間せず、シミュレーション状態をそのまま出力する ---
+	{
+		FKawaiiPhysicsTestAccessor A;
+		MakeSwingingChain(A, true);
+		A.StepFrames(120, SlomoFrameDt);
+		A.Node.ResetDynamics(ETeleportType::TeleportPhysics);
+		A.CallUpdateOutputLocations();
+		TestTrue(TEXT("Output equals the simulated location after a reset"),
+		         A.Bone(3).OutputLocation.Equals(A.TipLocation(), 0.0001));
+		A.StepFrame(SlomoFrameDt);
+		A.CallUpdateOutputLocations();
+		TestTrue(TEXT("Output restarts from the simulated location after a reset"),
+		         A.Bone(3).OutputLocation.Equals(A.TipLocation(), 0.0001));
+	}
+
+	// --- 4. legacy はシミュレーション状態をそのまま出力する ---
+	{
+		FKawaiiPhysicsTestAccessor A;
+		MakeSwingingChain(A, false);
+		A.StepFrames(120, SlomoFrameDt);
+		A.CallUpdateOutputLocations();
+		TestTrue(TEXT("Legacy output equals the simulated location"),
+		         A.Bone(3).OutputLocation.Equals(A.TipLocation(), 0.0001));
+	}
+
+	return true;
+}
+
+// ---------------------------------------------------------------------------
 //  数値安定性（NaN や発散がないこと）
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsNumericalStabilityTest,

@@ -724,6 +724,7 @@ struct FKawaiiPhysicsTestAccessor
 			StepOnce();
 			Node.DeltaTimeOld = FrameDt;
 			Node.PreSkelCompTransformConsumeFraction = 1.0f;
+			Node.bSubstepPoseInitialized = false;
 		}
 		else
 		{
@@ -756,6 +757,7 @@ struct FKawaiiPhysicsTestAccessor
 				Node.SkelCompMoveVector = FullSkelCompMove * MoveFrac;
 				Node.SkelCompMoveRotation = FQuat::Slerp(FQuat::Identity, FullSkelCompRot, MoveFrac).GetNormalized();
 				StepOnce();
+				Node.CaptureSubstepPoseOffsets();
 			}
 			Node.bInSubstep = false;
 			Node.SkelCompMoveVector = FullSkelCompMove;
@@ -804,6 +806,9 @@ struct FKawaiiPhysicsTestAccessor
 	void SetPreSkelCompTransform(const FTransform& Transform) { Node.PreSkelCompTransform = Transform; }
 	const FTransform& GetPreSkelCompTransform() const { return Node.PreSkelCompTransform; }
 	float GetSubstepAccumulator() const { return Node.SubstepAccumulator; }
+
+	/** 本番の ApplySimulateResult が使う出力位置を計算する / Computes the output locations used by ApplySimulateResult. */
+	void CallUpdateOutputLocations() { Node.UpdateOutputLocations(); }
 
 	/** 固定フレーム dt で N フレーム進める */
 	void StepFrames(int32 NumFrames, float FrameDt)
@@ -1056,6 +1061,8 @@ private:
 			{
 				Bone.PrevPoseLocation = Bone.PoseLocation;
 				Bone.PrevPoseRotation = Bone.PoseRotation;
+				Bone.LastStepPoseOffset = Bone.Location - Bone.PoseLocation;
+				Bone.PrevStepPoseOffset = Bone.LastStepPoseOffset;
 			}
 		}
 		Node.bSubstepPoseInitialized = true;
