@@ -1911,6 +1911,12 @@ protected:
 	void AdjustByBoneConstraints();
 
 	/**
+	 * 出力補間に使うオフセットを現在の状態で初期化する。
+	 * Initializes the offsets used by output interpolation from the current state.
+	 */
+	static void ResetSubstepPoseOffsets(FKawaiiPhysicsModifyBone& Bone);
+
+	/**
 	 * 固定ステップの完了時に呼び、出力補間に使う直近2ステップ分のポーズオフセットを更新する。
 	 * Called after each fixed step to update the two latest pose offsets used by output interpolation.
 	 */

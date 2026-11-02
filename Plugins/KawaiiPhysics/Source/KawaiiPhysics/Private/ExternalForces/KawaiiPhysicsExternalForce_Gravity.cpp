@@ -71,8 +71,7 @@ void FKawaiiPhysics_ExternalForce_Gravity::ApplyToVelocity(FKawaiiPhysicsModifyB
 	InOutVelocity += Force * ForceRate * Node.GetStepDeltaTime();
 
 #if ENABLE_ANIM_DEBUG
-	BoneForceMap.Add(Bone.BoneRef.BoneName, Force * ForceRate);
-	AnimDrawDebug(Bone, Node, PoseContext);
+	BoneForceMap.Add(GetBoneForceKey(Bone), Force * ForceRate);
 #endif
 }
 

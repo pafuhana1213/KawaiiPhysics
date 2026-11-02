@@ -809,6 +809,9 @@ struct FKawaiiPhysicsTestAccessor
 
 	/** 本番の ApplySimulateResult が使う出力位置を計算する / Computes the output locations used by ApplySimulateResult. */
 	void CallUpdateOutputLocations() { Node.UpdateOutputLocations(); }
+	void SetSubstepPoseInitialized(bool bInitialized) { Node.bSubstepPoseInitialized = bInitialized; }
+	void CallResetSubstepPoseOffsets(FKawaiiPhysicsModifyBone& Bone) { FAnimNode_KawaiiPhysics::ResetSubstepPoseOffsets(Bone); }
+	void CallCaptureSubstepPoseOffsets() { Node.CaptureSubstepPoseOffsets(); }
 
 	/** 固定フレーム dt で N フレーム進める */
 	void StepFrames(int32 NumFrames, float FrameDt)
@@ -1061,8 +1064,7 @@ private:
 			{
 				Bone.PrevPoseLocation = Bone.PoseLocation;
 				Bone.PrevPoseRotation = Bone.PoseRotation;
-				Bone.LastStepPoseOffset = Bone.Location - Bone.PoseLocation;
-				Bone.PrevStepPoseOffset = Bone.LastStepPoseOffset;
+				FAnimNode_KawaiiPhysics::ResetSubstepPoseOffsets(Bone);
 			}
 		}
 		Node.bSubstepPoseInitialized = true;

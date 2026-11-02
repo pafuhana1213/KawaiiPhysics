@@ -736,8 +736,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		{
 			Bone.PrevPoseLocation = Bone.PoseLocation;
 			Bone.PrevPoseRotation = Bone.PoseRotation;
-			Bone.LastStepPoseOffset = Bone.Location - Bone.PoseLocation;
-			Bone.PrevStepPoseOffset = Bone.LastStepPoseOffset;
+			ResetSubstepPoseOffsets(Bone);
 		}
 	}
 	bSubstepPoseInitialized = true;
@@ -1441,12 +1440,22 @@ void FAnimNode_KawaiiPhysics::WarmUp(FComponentSpacePoseContext& Output, const F
 	}
 }
 
+void FAnimNode_KawaiiPhysics::ResetSubstepPoseOffsets(FKawaiiPhysicsModifyBone& Bone)
+{
+	// bridge の PoseLocation はステップ内でしか押し出しの基準にならないため、押し出しなしから始める
+	Bone.LastStepPoseOffset = Bone.bBridgeDummy ? FVector::ZeroVector : Bone.Location - Bone.PoseLocation;
+	Bone.PrevStepPoseOffset = Bone.LastStepPoseOffset;
+}
+
 void FAnimNode_KawaiiPhysics::CaptureSubstepPoseOffsets()
 {
 	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 	{
 		Bone.PrevStepPoseOffset = Bone.LastStepPoseOffset;
-		Bone.LastStepPoseOffset = Bone.Location - Bone.PoseLocation;
+		// LOD で端点がカルされた bridge はこのステップの基準位置を持たない
+		Bone.LastStepPoseOffset = (Bone.bBridgeDummy && Bone.bSkipSimulate)
+			                          ? FVector::ZeroVector
+			                          : Bone.Location - Bone.PoseLocation;
 	}
 }
 
@@ -1466,6 +1475,13 @@ void FAnimNode_KawaiiPhysics::UpdateOutputLocations()
 	const float OutputAlpha = FMath::Clamp(SubstepAccumulator * GetEffectiveTargetFramerate(), 0.0f, 1.0f);
 	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 	{
+		if (Bone.bBridgeDummy)
+		{
+			// bridge の PoseLocation は最新ポーズで更新されないため、下で端点の出力から求める
+			Bone.OutputLocation = Bone.Location;
+			continue;
+		}
+
 		Bone.OutputLocation = Bone.PoseLocation + FMath::Lerp(Bone.PrevStepPoseOffset, Bone.LastStepPoseOffset, OutputAlpha);
 
 		if (!IsAngleLimitTargetBone(Bone))
@@ -1480,18 +1496,24 @@ void FAnimNode_KawaiiPhysics::UpdateOutputLocations()
 			ParentBone.OutputLocation;
 	}
 
-	if (bBoneSubdivisionCollisionOnly)
+	// 端点から決まるダミーを配置する。どちらも端点より後ろの index にある
+	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 	{
-		for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+		const bool bCollisionOnlyInterBone = bBoneSubdivisionCollisionOnly && Bone.bInterBoneDummy;
+		if ((!bCollisionOnlyInterBone && !Bone.bBridgeDummy) ||
+			!ModifyBones.IsValidIndex(Bone.InterBoneRealParentIndex) ||
+			!ModifyBones.IsValidIndex(Bone.InterBoneRealChildIndex))
 		{
-			if (Bone.bInterBoneDummy &&
-				ModifyBones.IsValidIndex(Bone.InterBoneRealParentIndex) &&
-				ModifyBones.IsValidIndex(Bone.InterBoneRealChildIndex))
-			{
-				Bone.OutputLocation = FMath::Lerp(ModifyBones[Bone.InterBoneRealParentIndex].OutputLocation,
-				                                  ModifyBones[Bone.InterBoneRealChildIndex].OutputLocation,
-				                                  Bone.InterBoneAlpha);
-			}
+			continue;
+		}
+
+		Bone.OutputLocation = FMath::Lerp(ModifyBones[Bone.InterBoneRealParentIndex].OutputLocation,
+		                                  ModifyBones[Bone.InterBoneRealChildIndex].OutputLocation,
+		                                  Bone.InterBoneAlpha);
+		if (Bone.bBridgeDummy)
+		{
+			// bridge のオフセットは端点間の位置からのコリジョン押し出し量
+			Bone.OutputLocation += FMath::Lerp(Bone.PrevStepPoseOffset, Bone.LastStepPoseOffset, OutputAlpha);
 		}
 	}
 }

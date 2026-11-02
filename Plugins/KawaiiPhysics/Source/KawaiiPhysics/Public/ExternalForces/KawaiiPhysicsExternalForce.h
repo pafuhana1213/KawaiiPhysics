@@ -177,6 +177,14 @@ protected:
 	/** Checks if the external force can be applied to a bone */
 	bool CanApply(const FKawaiiPhysicsModifyBone& Bone) const;
 
+#if ENABLE_ANIM_DEBUG
+	/**
+	 * BoneForceMap のキーを返す。ダミーボーンは名前が無いため index で区別する。
+	 * Returns the BoneForceMap key. Dummy bones have no name, so they are told apart by index.
+	 */
+	static FName GetBoneForceKey(const FKawaiiPhysicsModifyBone& Bone);
+#endif
+
 private:
 	friend struct FKawaiiPhysicsExternalForcePostApply;
 

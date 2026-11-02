@@ -617,6 +617,75 @@ bool FKawaiiPhysicsSubstepOutputInterpolationTest::RunTest(const FString& Parame
 		         A.Bone(3).OutputLocation.Equals(A.TipLocation(), 0.0001));
 	}
 
+	// --- 5. legacy から切り替えた直後は、古いオフセットを使わず現在の状態から始める ---
+	{
+		FKawaiiPhysicsTestAccessor A;
+		MakeSwingingChain(A, false);
+		A.StepFrames(60, 1.0f / 60.0f);
+		A.SetFixedSubstepping(true, 60, 4);
+		A.StepFrame(SlomoFrameDt);
+		A.CallUpdateOutputLocations();
+		TestTrue(TEXT("Output continues from the simulated location after switching from legacy"),
+		         A.Bone(3).OutputLocation.Equals(A.TipLocation(), 0.0001));
+	}
+
+	// --- 6. bridge dummy は生成時の PoseLocation ではなく端点の出力へ追従する ---
+	{
+		FKawaiiPhysicsTestAccessor A;
+		MakeSwingingChain(A, true);
+		A.StepFrames(120, SlomoFrameDt);
+
+		// 以降は bridge の ParentIndex が -1 のため、ハーネスの StepFrame は呼ばない
+		const FVector PushOffset(0.0f, 0.0f, 2.0f);
+		FKawaiiPhysicsModifyBone Bridge;
+		Bridge.bDummy = true;
+		Bridge.bBridgeDummy = true;
+		Bridge.InterBoneRealParentIndex = 1;
+		Bridge.InterBoneRealChildIndex = 2;
+		Bridge.InterBoneAlpha = 0.25f;
+		Bridge.PoseLocation = FVector(1000.0f, 0.0f, 0.0f);
+		Bridge.PrevStepPoseOffset = PushOffset;
+		Bridge.LastStepPoseOffset = PushOffset;
+		A.Node.ModifyBones.Add(Bridge);
+
+		A.CallUpdateOutputLocations();
+		const FVector Expected =
+			FMath::Lerp(A.Bone(1).OutputLocation, A.Bone(2).OutputLocation, 0.25f) + PushOffset;
+		TestTrue(TEXT("Bridge output follows the endpoints plus the collision push"),
+		         A.Bone(4).OutputLocation.Equals(Expected, 0.001));
+
+		// LOD でカルされたステップでは基準位置が無いため、押し出しを記録しない
+		A.Bone(4).bSkipSimulate = true;
+		A.CallCaptureSubstepPoseOffsets();
+		TestTrue(TEXT("A culled bridge records no push"), A.Bone(4).LastStepPoseOffset.IsZero());
+
+		// 再初期化時の PoseLocation は押し出しの基準ではない
+		A.Bone(4).Location = FVector(0.0f, 0.0f, 50.0f);
+		A.CallResetSubstepPoseOffsets(A.Bone(4));
+		TestTrue(TEXT("A reset bridge starts without a push"),
+		         A.Bone(4).LastStepPoseOffset.IsZero() && A.Bone(4).PrevStepPoseOffset.IsZero());
+	}
+
+	// --- 7. コリジョン専用の inter-bone dummy は実端点の出力の間に置き、実ボーンは実親からの長さを保つ ---
+	{
+		FKawaiiPhysicsTestAccessor A;
+		A.BuildSyncBoneSubdivisionFixture();
+		A.Node.bBoneSubdivisionCollisionOnly = true;
+		A.SetFixedSubstepping(true, 60, 4);
+		A.SetSubstepPoseInitialized(true);
+		A.Bone(0).bSkipSimulate = true;
+		A.Bone(2).PrevStepPoseOffset = FVector(0.0f, 3.0f, 0.0f);
+		A.Bone(2).LastStepPoseOffset = FVector(0.0f, 3.0f, 0.0f);
+
+		A.CallUpdateOutputLocations();
+		TestTrue(TEXT("Real child keeps its pose distance from the real parent"),
+		         FMath::IsNearlyEqual(FVector::Dist(A.Bone(2).OutputLocation, A.Bone(0).OutputLocation), 10.0, 0.001));
+		TestTrue(TEXT("Real child follows its offset"), A.Bone(2).OutputLocation.Y > 2.0);
+		TestTrue(TEXT("Collision-only dummy sits between the real endpoints"),
+		         A.Bone(1).OutputLocation.Equals(
+			         FMath::Lerp(A.Bone(0).OutputLocation, A.Bone(2).OutputLocation, 0.5f), 0.001));
+	}
+
 	return true;
 }
 
