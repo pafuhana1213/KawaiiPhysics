@@ -292,6 +292,7 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 	// サブステップ状態をリセット
 	SubstepAccumulator = 0.0f;
 	bSubstepPoseInitialized = false;
+	bPreserveSubstepPoseOffsetsOnSpaceSwitch = false;
 
 	// ノード再初期化時は実行時専用の一時外力と物理設定倍率を破棄する
 	ResetTransientRuntimeState();
@@ -337,6 +338,7 @@ void FAnimNode_KawaiiPhysics::ResetDynamics(ETeleportType InTeleportType)
 	// サブステップ：未消費時間を破棄し、ポーズ補間の前フレーム値を次フレームで再初期化させる
 	SubstepAccumulator = 0.0f;
 	bSubstepPoseInitialized = false;
+	bPreserveSubstepPoseOffsetsOnSpaceSwitch = false;
 }
 
 int64 FAnimNode_KawaiiPhysics::GenerateTransientHandleId()
@@ -657,8 +659,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		ConvertSimulationSpace(Output, LastSimulationSpace, SimulationSpace);
 		// 変換後のボーン位置は現在の基準ボーン基準なので、旧空間の値のままだとFollow Rotationで全チェーンが跳ねる
 		PrevBaseBoneSpace2ComponentSpace = CurrentEvalSimSpaceCache.TargetSpaceToComponent;
-		// ポーズ補間の前フレーム値と出力補間のオフセットは旧空間の値なので、次の評価で現在値から取り直す
-		bSubstepPoseInitialized = false;
+		// 前フレームのポーズ目標は次の評価で取り直す。出力オフセットは変換済みの値を保持する
 	}
 	LastSimulationSpace = SimulationSpace;
 
@@ -671,6 +672,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		// 再構築で新規ボーンのPrevPoseLocationが0に戻りsubstep補間が原点へ引かれチラつくため、
 		// flagを戻し次フレーム冒頭で現在ポーズから再開させる
 		bSubstepPoseInitialized = false;
+		bPreserveSubstepPoseOffsetsOnSpaceSwitch = false;
 
 		// 再初期化（設定変更）時はノード警告を再通知できるようガードを戻す
 		KAWAII_RESET_NODE_WARNING_ONCE(bSimBaseBoneInvalidWarned);
