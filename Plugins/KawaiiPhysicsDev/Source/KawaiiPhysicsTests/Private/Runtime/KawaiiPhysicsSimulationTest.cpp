@@ -913,6 +913,69 @@ bool FKawaiiPhysicsTeleportDiscardsComponentMoveTest::RunTest(const FString& Par
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsWorldSpaceTeleportLengthTest,
+                                 "KawaiiPhysics.Simulation.WorldSpaceTeleportLength",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsWorldSpaceTeleportLengthTest::RunTest(const FString& Parameters)
+{
+	const float BoneLength = 10.0f;
+	const FTransform PreviousComponent(FVector(0.0f, 5.0f, 0.0f));
+	const FQuat QuarterTurn(FVector::XAxisVector, FMath::DegreesToRadians(90.0f));
+	const FTransform Teleports[] = {
+		FTransform(FVector(1000.0f, 7.0f, 0.0f)),
+		FTransform(QuarterTurn, FVector(0.0f, 7.0f, 0.0f))
+	};
+	const TCHAR* Names[] = {TEXT("Translation"), TEXT("Rotation")};
+
+	for (int32 CaseIndex = 0; CaseIndex < UE_ARRAY_COUNT(Teleports); ++CaseIndex)
+	{
+		FKawaiiPhysicsTestAccessor A;
+		A.BuildVerticalChain(3, BoneLength);
+		A.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::WorldSpace);
+		A.SetFixedSubstepping(true, 60);
+		A.SetPreSkelCompTransform(PreviousComponent);
+		for (int32 BoneIndex = 0; BoneIndex < A.Num(); ++BoneIndex)
+		{
+			FKawaiiPhysicsModifyBone& Bone = A.Bone(BoneIndex);
+			const FVector LocalLocation(0.0f, 0.0f, -BoneLength * BoneIndex);
+			Bone.Location = PreviousComponent.TransformPosition(LocalLocation);
+			Bone.PrevLocation = Bone.Location - FVector(0.0f, 6.0f, 0.0f);
+			Bone.PoseLocation = Teleports[CaseIndex].TransformPosition(LocalLocation);
+			Bone.bSkipSimulate = BoneIndex == 0;
+		}
+
+		A.CallWorldSpaceTeleport(Teleports[CaseIndex]);
+		A.CallUpdateOutputLocations();
+		for (int32 BoneIndex = 1; BoneIndex < A.Num(); ++BoneIndex)
+		{
+			const FVector ParentLocation = BoneIndex == 1 ? A.Bone(0).PoseLocation : A.Bone(BoneIndex - 1).OutputLocation;
+			const float Distance = (A.Bone(BoneIndex).OutputLocation - ParentLocation).Size();
+			TestTrue(FString::Printf(TEXT("[%s] teleport frame link %d keeps reference length"), Names[CaseIndex], BoneIndex),
+			         FMath::IsNearlyEqual(Distance, BoneLength, 0.01f));
+		}
+
+		const FVector FirstRelative = A.Bone(1).OutputLocation - A.Bone(0).PoseLocation;
+		for (int32 BoneIndex = 0; BoneIndex < A.Num(); ++BoneIndex)
+		{
+			const FVector LocalLocation(0.0f, 0.0f, -BoneLength * BoneIndex);
+			A.Bone(BoneIndex).PoseLocation = Teleports[CaseIndex].TransformPosition(LocalLocation) + FVector(0.0f, 9.0f, 0.0f);
+		}
+		A.StepFrame(1.0f / 60.0f);
+		A.CallUpdateOutputLocations();
+		for (int32 BoneIndex = 1; BoneIndex < A.Num(); ++BoneIndex)
+		{
+			const FVector ParentLocation = BoneIndex == 1 ? A.Bone(0).PoseLocation : A.Bone(BoneIndex - 1).OutputLocation;
+			const float Distance = (A.Bone(BoneIndex).OutputLocation - ParentLocation).Size();
+			TestTrue(FString::Printf(TEXT("[%s] following frame link %d keeps reference length"), Names[CaseIndex], BoneIndex),
+			         FMath::IsNearlyEqual(Distance, BoneLength, 0.01f));
+		}
+		TestTrue(FString::Printf(TEXT("[%s] teleport keeps the root-relative chain shape"), Names[CaseIndex]),
+		         FirstRelative.Equals(Teleports[CaseIndex].TransformVector(FVector(0.0f, 0.0f, -BoneLength)), 0.01f));
+	}
+	return true;
+}
+
 } // namespace KawaiiPhysicsSimulationTestPrivate
 
 #endif // WITH_DEV_AUTOMATION_TESTS
