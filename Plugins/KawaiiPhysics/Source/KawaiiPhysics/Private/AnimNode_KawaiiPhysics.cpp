@@ -898,18 +898,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	if (SimulationSpace == EKawaiiPhysicsSimulationSpace::WorldSpace &&
 		TeleportType == ETeleportType::TeleportPhysics)
 	{
-		for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
-		{
-			FVector PrevLocationCS = PreSkelCompTransform.InverseTransformPosition(Bone.PrevLocation);
-			Bone.Location = ConvertSimulationSpaceLocation(Output, EKawaiiPhysicsSimulationSpace::ComponentSpace,
-			                                               SimulationSpace, PrevLocationCS);
-			Bone.PrevLocation = Bone.Location;
-		}
-
-		// テレポート時はサブステップの未消費時間を破棄し、ポーズ補間を次フレームで再初期化
-		SubstepAccumulator = 0.0f;
-		bSubstepPoseInitialized = false;
-		PreSkelCompTransformConsumeFraction = 1.0f;
+		ApplyWorldSpaceTeleport(ComponentTransform);
 	}
 	else
 	{

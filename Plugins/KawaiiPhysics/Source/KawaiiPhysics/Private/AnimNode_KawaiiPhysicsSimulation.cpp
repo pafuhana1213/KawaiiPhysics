@@ -1447,6 +1447,44 @@ void FAnimNode_KawaiiPhysics::ResetSubstepPoseOffsets(FKawaiiPhysicsModifyBone& 
 	Bone.PrevStepPoseOffset = Bone.LastStepPoseOffset;
 }
 
+void FAnimNode_KawaiiPhysics::ApplyWorldSpaceTeleport(const FTransform& ComponentTransform)
+{
+	// 直前のシミュレーション位置を運び、各チェーンの根元を現在ポーズへ合わせる。
+	// PrevLocation は前ステップの位置なので、移動中のコンポーネントでは形がずれる。
+	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+	{
+		const FVector TransformedLocation = ComponentTransform.TransformPosition(
+			PreSkelCompTransform.InverseTransformPosition(Bone.Location));
+		if (ModifyBones.IsValidIndex(Bone.ParentIndex))
+		{
+			Bone.PrevStepPoseOffset = ModifyBones[Bone.ParentIndex].PrevStepPoseOffset;
+		}
+		else if (Bone.bBridgeDummy && ModifyBones.IsValidIndex(Bone.InterBoneRealParentIndex))
+		{
+			Bone.PrevStepPoseOffset = ModifyBones[Bone.InterBoneRealParentIndex].PrevStepPoseOffset;
+		}
+		else
+		{
+			Bone.PrevStepPoseOffset = Bone.PoseLocation - TransformedLocation;
+		}
+		Bone.Location = TransformedLocation + Bone.PrevStepPoseOffset;
+		Bone.PrevLocation = Bone.Location;
+	}
+
+	// 次フレームの出力補間がテレポート前のオフセットから始まるようにする。
+	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+	{
+		Bone.PrevPoseLocation = Bone.PoseLocation;
+		Bone.PrevPoseRotation = Bone.PoseRotation;
+		Bone.CurrentPoseLocation = Bone.PoseLocation;
+		Bone.CurrentPoseRotation = Bone.PoseRotation;
+		ResetSubstepPoseOffsets(Bone);
+	}
+	SubstepAccumulator = 0.0f;
+	bSubstepPoseInitialized = bUseFixedSubsteppingCached;
+	PreSkelCompTransformConsumeFraction = 1.0f;
+}
+
 void FAnimNode_KawaiiPhysics::CaptureSubstepPoseOffsets()
 {
 	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)

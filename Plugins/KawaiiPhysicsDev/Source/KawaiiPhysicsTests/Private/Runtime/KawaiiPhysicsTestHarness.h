@@ -809,6 +809,7 @@ struct FKawaiiPhysicsTestAccessor
 
 	/** 本番の ApplySimulateResult が使う出力位置を計算する / Computes the output locations used by ApplySimulateResult. */
 	void CallUpdateOutputLocations() { Node.UpdateOutputLocations(); }
+	void CallWorldSpaceTeleport(const FTransform& ComponentTransform) { Node.ApplyWorldSpaceTeleport(ComponentTransform); }
 	void SetSubstepPoseInitialized(bool bInitialized) { Node.bSubstepPoseInitialized = bInitialized; }
 	void CallResetSubstepPoseOffsets(FKawaiiPhysicsModifyBone& Bone) { FAnimNode_KawaiiPhysics::ResetSubstepPoseOffsets(Bone); }
 	void CallCaptureSubstepPoseOffsets() { Node.CaptureSubstepPoseOffsets(); }
