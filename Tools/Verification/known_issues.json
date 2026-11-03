@@ -51,10 +51,6 @@
 		{
 			"check": "cell:chain.*.subdivision_free.near:compressed",
 			"reason": "With bBoneSubdivisionCollisionOnly off the inter-bone dummies are free particles, so the polyline folds and real bones draw close (0.03 of rest length)."
-		},
-		{
-			"check": "relation:switch.cs_to_ws.fps30",
-			"reason": "Body bug, not fixed yet: when a frame runs two or more steps, the space switch overwrites the previous frame's pose target (PrevPoseLocation) with the current pose instead of converting it, so the first step solves against the end-of-frame pose. The output jumps 0.96 cm at the switch at 30 fps, the same before and after the offset fix of #315."
 		}
 	]
 }
