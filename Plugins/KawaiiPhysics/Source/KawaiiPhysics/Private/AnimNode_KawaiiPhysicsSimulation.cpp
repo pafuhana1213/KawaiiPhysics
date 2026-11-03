@@ -736,14 +736,10 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		{
 			Bone.PrevPoseLocation = Bone.PoseLocation;
 			Bone.PrevPoseRotation = Bone.PoseRotation;
-			if (!bPreserveSubstepPoseOffsetsOnSpaceSwitch)
-			{
-				ResetSubstepPoseOffsets(Bone);
-			}
+			ResetSubstepPoseOffsets(Bone);
 		}
 	}
 	bSubstepPoseInitialized = true;
-	bPreserveSubstepPoseOffsetsOnSpaceSwitch = false;
 
 	if (!bUseFixedSubsteppingCached)
 	{
@@ -1772,15 +1768,18 @@ void FAnimNode_KawaiiPhysics::ConvertSimulationSpaceCached(
 			CacheFrom.TargetSpaceToComponent.TransformRotation(Bone.PrevRotation));
 		if (bPreserveOffsets)
 		{
+			Bone.PrevPoseLocation = ConvertSimulationSpaceLocationCached(CacheFrom, CacheTo,
+				Bone.PrevPoseLocation);
+			Bone.PrevPoseRotation = ConvertSimulationSpaceRotationCached(CacheFrom, CacheTo,
+				Bone.PrevPoseRotation);
 			Bone.PrevStepPoseOffset = ConvertSimulationSpaceVectorCached(CacheFrom, CacheTo,
 				Bone.PrevStepPoseOffset);
 			Bone.LastStepPoseOffset = ConvertSimulationSpaceVectorCached(CacheFrom, CacheTo,
 				Bone.LastStepPoseOffset);
 		}
 	}
-	// 前フレームのポーズ目標だけを再初期化し、変換した出力履歴は保持する
-	bPreserveSubstepPoseOffsetsOnSpaceSwitch = bPreserveOffsets;
-	bSubstepPoseInitialized = false;
+	// 有効な前フレームのポーズ目標と出力履歴は新空間で保持する。無効なら次の評価で現在値から取り直す
+	bSubstepPoseInitialized = bPreserveOffsets;
 }
 
 FTransform FAnimNode_KawaiiPhysics::ConvertSimulationSpaceTransform(FComponentSpacePoseContext& Output,

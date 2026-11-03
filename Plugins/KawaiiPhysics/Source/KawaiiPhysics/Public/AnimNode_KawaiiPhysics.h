@@ -1178,7 +1178,6 @@ private:
 	// Pose & output interpolation: whether the previous-frame pose target and latest step offsets are valid
 	// (init to current on first frame / after reset)
 	bool bSubstepPoseInitialized = false;
-	bool bPreserveSubstepPoseOffsetsOnSpaceSwitch = false;
 	// このフレームで消費した実時間割合(0..1)。PreSkelCompTransform をこの割合だけ前進させ、未消費の
 	// component 移動を次にステップが走るフレームへ繰り越す（NumSteps==0 では0で据え置き）。legacy/teleport時は1。
 	// Fraction of elapsed real time consumed this frame (0..1). PreSkelCompTransform advances by this fraction so
