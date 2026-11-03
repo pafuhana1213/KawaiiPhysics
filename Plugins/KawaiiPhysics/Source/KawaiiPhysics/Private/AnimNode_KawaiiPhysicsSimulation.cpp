@@ -747,6 +747,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 
 	if (!bUseFixedSubsteppingCached)
 	{
+		bUseBaseBoneStepTransforms = false;
 		// ===== Legacy: 実フレーム時間で1ステップ（GetStepDeltaTime()==DeltaTime） =====
 		bInSubstep = false;
 		SimulateOnce(Output, ComponentTransform, Scene, SkelComp);
@@ -775,12 +776,24 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 			FMath::Clamp((NumSteps * FixedDt + DroppedTime) / RawElapsed, 0.0f, 1.0f);
 		const FVector FullSkelCompMove = SkelCompMoveVector;
 		const FQuat FullSkelCompRot = SkelCompMoveRotation;
+		bUseBaseBoneStepTransforms = SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace &&
+			(NumSteps > 1 || MoveFrac < 1.0f);
+		const FTransform BaseBoneStart = PrevBaseBoneSpace2ComponentSpace;
+		const FTransform& BaseBoneEnd = CurrentEvalSimSpaceCache.TargetSpaceToComponent;
 
 		bInSubstep = true;
 		StepDeltaTime = FixedDt;
 		DeltaTimeOld = FixedDt;
 		for (int32 SubstepIndex = 0; SubstepIndex < NumSteps; ++SubstepIndex)
 		{
+			if (bUseBaseBoneStepTransforms)
+			{
+				BaseBoneStepPrevToComponent = ComputeBaseBoneStepTransform(
+					BaseBoneStart, BaseBoneEnd, SubstepIndex * MoveFrac);
+				const FTransform StepCurrent = ComputeBaseBoneStepTransform(
+					BaseBoneStart, BaseBoneEnd, (SubstepIndex + 1) * MoveFrac);
+				BaseBoneStepComponentToCurrent = StepCurrent.Inverse();
+			}
 			// 注: ローカル名は基底クラスのメンバ Alpha（ブレンド係数）を隠さないよう SubstepAlpha とする
 			const float SubstepAlpha = static_cast<float>(SubstepIndex + 1) / static_cast<float>(NumSteps);
 
@@ -800,6 +813,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 			CaptureSubstepPoseOffsets();
 		}
 		bInSubstep = false;
+		bUseBaseBoneStepTransforms = false;
 
 		// world移動メンバを元へ（次フレームの UpdateSkelCompMove で再計算されるが安全のため）
 		SkelCompMoveVector = FullSkelCompMove;
@@ -1240,10 +1254,12 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 		Bone.Location += SkelCompMoveVectorBBS * (1.0f - Bone.PhysicsSettings.WorldDampingLocation);
 
 		// Follow Rotation
-		const FVector PrevLocationCS = PrevBaseBoneSpace2ComponentSpace.TransformPosition(Bone.PrevLocation);
+		const FVector PrevLocationCS = (bUseBaseBoneStepTransforms
+			? BaseBoneStepPrevToComponent : PrevBaseBoneSpace2ComponentSpace).TransformPosition(Bone.PrevLocation);
 		const FVector RotatedLocationCS = SkelCompMoveRotation.RotateVector(PrevLocationCS);
-		const FVector RotatedLocationBase = ConvertSimulationSpaceLocationCached(
-			FSimulationSpaceCache(), CurrentEvalSimSpaceCache, RotatedLocationCS);
+		const FVector RotatedLocationBase = bUseBaseBoneStepTransforms
+			? BaseBoneStepComponentToCurrent.TransformPosition(RotatedLocationCS)
+			: ConvertSimulationSpaceLocationCached(FSimulationSpaceCache(), CurrentEvalSimSpaceCache, RotatedLocationCS);
 		Bone.Location += (RotatedLocationBase - Bone.PrevLocation) * (1.0f - Bone.PhysicsSettings.WorldDampingRotation);
 	}
 	else
@@ -1441,6 +1457,10 @@ void FAnimNode_KawaiiPhysics::WarmUp(FComponentSpacePoseContext& Output, const F
 	const bool bSubstep = KawaiiSettings && KawaiiSettings->bUseFixedSubstepping;
 	const float SavedDeltaTime = DeltaTime;
 	const float SavedAccumulator = SubstepAccumulator;
+	if (SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
+	{
+		PrevBaseBoneSpace2ComponentSpace = CurrentEvalSimSpaceCache.TargetSpaceToComponent;
+	}
 	if (bSubstep)
 	{
 		DeltaTime = 1.0f / GetEffectiveTargetFramerate();

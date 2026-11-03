@@ -913,6 +913,19 @@ struct FKawaiiPhysicsTestAccessor
 	{
 		Node.ApplyWorldMoveFollowNonBaseBone(Bone);
 	}
+	FTransform CallComputeBaseBoneStepTransform(const FTransform& Previous, const FTransform& Current, float Fraction)
+	{
+		return Node.ComputeBaseBoneStepTransform(Previous, Current, Fraction);
+	}
+	void SetPreviousBaseBoneTransform(const FTransform& Previous)
+	{
+		Node.PrevBaseBoneSpace2ComponentSpace = Previous;
+	}
+	FTransform GetPreviousBaseBoneTransform() const { return Node.PrevBaseBoneSpace2ComponentSpace; }
+	void CallAdvanceBaseBoneConsumedTransform(const FTransform& Current, float Fraction, bool bDiscard = false)
+	{
+		Node.AdvanceBaseBoneConsumedTransform(Current, Fraction, bDiscard);
+	}
 	void CallStiffnessPull(FKawaiiPhysicsModifyBone& Bone, const FKawaiiPhysicsModifyBone& ParentBone, float Exponent)
 	{
 		Node.ApplyStiffnessPull(Bone, ParentBone, Exponent);

@@ -665,6 +665,36 @@ void FAnimNode_KawaiiPhysics::AdvancePreSkelCompTransform(const FTransform& Comp
 	}
 }
 
+FTransform FAnimNode_KawaiiPhysics::ComputeBaseBoneStepTransform(
+	const FTransform& Previous, const FTransform& Current, float Fraction)
+{
+	if (Fraction <= 0.0f)
+	{
+		return Previous;
+	}
+	if (Fraction >= 1.0f)
+	{
+		return Current;
+	}
+	FTransform Result;
+	Result.Blend(Previous, Current, Fraction);
+	return Result;
+}
+
+void FAnimNode_KawaiiPhysics::AdvanceBaseBoneConsumedTransform(
+	const FTransform& Current, float ConsumedFraction, bool bDiscard)
+{
+	if (bDiscard || ConsumedFraction >= 1.0f)
+	{
+		PrevBaseBoneSpace2ComponentSpace = Current;
+	}
+	else if (ConsumedFraction > 0.0f)
+	{
+		PrevBaseBoneSpace2ComponentSpace = ComputeBaseBoneStepTransform(
+			PrevBaseBoneSpace2ComponentSpace, Current, ConsumedFraction);
+	}
+}
+
 int32 FAnimNode_KawaiiPhysics::CalcInterBoneDummyCoverageCount(float Distance, float AvgRadius) const
 {
 	if (Distance <= KINDA_SMALL_NUMBER || AvgRadius <= KINDA_SMALL_NUMBER)

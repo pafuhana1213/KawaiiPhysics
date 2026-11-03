@@ -992,6 +992,52 @@ bool FKawaiiPhysicsTeleportDiscardsComponentMoveTest::RunTest(const FString& Par
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsBaseBoneFollowSubstepTest,
+	"KawaiiPhysics.Simulation.BaseBoneFollowSubstep",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsBaseBoneFollowSubstepTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor Accessor;
+	const FTransform Start = FTransform::Identity;
+	const FTransform End(FQuat(FVector::UpVector, PI / 2.0f));
+	const FVector InitialLocation(100.0f, 0.0f, 0.0f);
+	const FVector ExpectedLocation = End.InverseTransformPosition(InitialLocation);
+	const float Tolerance = 0.001f;
+
+	// 1ステップでは従来どおり前回と現在の変換を全量使用する。
+	const FVector OneStepLocation = End.InverseTransformPosition(Start.TransformPosition(InitialLocation));
+	TestTrue(TEXT("One step applies the full base bone rotation"),
+		OneStepLocation.Equals(ExpectedLocation, Tolerance));
+
+	// 2ステップでは半分ずつ適用して合計を1フレーム分にする。
+	const FTransform Half = Accessor.CallComputeBaseBoneStepTransform(Start, End, 0.5f);
+	const FVector FirstStepLocation = Half.InverseTransformPosition(Start.TransformPosition(InitialLocation));
+	const FVector TwoStepLocation = End.InverseTransformPosition(Half.TransformPosition(FirstStepLocation));
+	TestTrue(TEXT("First of two steps applies half the rotation"),
+		FirstStepLocation.Equals(FVector(70.710678f, -70.710678f, 0.0f), Tolerance));
+	TestTrue(TEXT("Two steps apply one full rotation"), TwoStepLocation.Equals(ExpectedLocation, Tolerance));
+
+	// 0ステップでは変換を据え置き、次の1ステップで両フレーム分を使用する。
+	Accessor.SetPreviousBaseBoneTransform(Start);
+	Accessor.CallAdvanceBaseBoneConsumedTransform(Half, 0.0f);
+	TestTrue(TEXT("Zero steps retain the previous base bone transform"),
+		Accessor.GetPreviousBaseBoneTransform().Equals(Start));
+	const FVector CarriedLocation = End.InverseTransformPosition(
+		Accessor.GetPreviousBaseBoneTransform().TransformPosition(InitialLocation));
+	TestTrue(TEXT("The next step consumes the carried rotation"),
+		CarriedLocation.Equals(ExpectedLocation, Tolerance));
+	Accessor.CallAdvanceBaseBoneConsumedTransform(End, 1.0f);
+	TestTrue(TEXT("Consumed rotation is not replayed"),
+		Accessor.GetPreviousBaseBoneTransform().Equals(End));
+
+	// テレポートや再初期化では未消費分を破棄する。
+	Accessor.SetPreviousBaseBoneTransform(Start);
+	Accessor.CallAdvanceBaseBoneConsumedTransform(End, 0.0f, true);
+	TestTrue(TEXT("Discard clears carried rotation"), Accessor.GetPreviousBaseBoneTransform().Equals(End));
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsWorldSpaceTeleportLengthTest,
                                  "KawaiiPhysics.Simulation.WorldSpaceTeleportLength",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
