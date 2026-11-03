@@ -477,6 +477,98 @@ bool FKawaiiPhysicsPlanarTest::RunTest(const FString& Parameters)
 }
 
 // ---------------------------------------------------------------------------
+//  移動する平面
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPlanarOvertakeTest,
+                                 "KawaiiPhysics.Collision.PlanarMovingPlaneOvertake",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsPlanarOvertakeTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor A;
+	A.Node.SimulationSpace = EKawaiiPhysicsSimulationSpace::WorldSpace;
+	A.SetSubstepTimeState(1.0f / 30.0f, 1.0f / 60.0f);
+
+	TArray<FPlanarLimit> Limits;
+	FPlanarLimit Planar;
+	Planar.Rotation = FQuat::Identity;
+	Planar.Location = FVector(0.0f, 0.0f, -5.0f);
+	Planar.Plane = FPlane(Planar.Location, FVector::UpVector);
+	Planar.bEnable = true;
+	Limits.Add(Planar);
+
+	// 最初のステップでは表側。次は骨を動かさず、平面だけが骨を追い越す。
+	FKawaiiPhysicsModifyBone Bone = MakeBone(FVector::ZeroVector, 1.0f, FVector::ZeroVector);
+	A.CallPlanarCollision(Bone, Limits);
+	TestTrue(TEXT("Moving plane: first step stays in front"), Bone.Location.IsNearlyZero(GCollisionTol));
+	Limits[0].Location = FVector(0.0f, 0.0f, 5.0f);
+	Limits[0].Plane = FPlane(Limits[0].Location, FVector::UpVector);
+	A.CallPlanarCollision(Bone, Limits);
+	TestTrue(TEXT("Moving plane overtakes stationary bone"),
+	         Bone.Location.Equals(FVector(0.0f, 0.0f, 6.0f), GCollisionTol));
+
+	// legacy でも前回ステップの表側にいた骨を押し出す。
+	A.SetTimeState(1.0f / 30.0f, 1.0f / 30.0f);
+	TArray<FPlanarLimit> LegacyLimits;
+	LegacyLimits.Add(Planar);
+	LegacyLimits[0].Location = FVector(0.0f, 0.0f, -5.0f);
+	LegacyLimits[0].Plane = FPlane(LegacyLimits[0].Location, FVector::UpVector);
+	FKawaiiPhysicsModifyBone LegacyBone = MakeBone(FVector::ZeroVector, 1.0f, FVector::ZeroVector);
+	A.CallPlanarCollision(LegacyBone, LegacyLimits);
+	LegacyLimits[0].Location = FVector(0.0f, 0.0f, 5.0f);
+	LegacyLimits[0].Plane = FPlane(LegacyLimits[0].Location, FVector::UpVector);
+	A.CallPlanarCollision(LegacyBone, LegacyLimits);
+	TestTrue(TEXT("Legacy moving plane overtakes stationary bone"),
+	         LegacyBone.Location.Equals(FVector(0.0f, 0.0f, 6.0f), GCollisionTol));
+
+	// 前回ステップでも裏側だった骨は、平面がさらに進んでも引き上げない。
+	TArray<FPlanarLimit> FloorLimits;
+	FPlanarLimit Floor;
+	Floor.Rotation = FQuat::Identity;
+	Floor.Location = FVector(0.0f, 0.0f, 5.0f);
+	Floor.Plane = FPlane(Floor.Location, FVector::UpVector);
+	Floor.bEnable = true;
+	FloorLimits.Add(Floor);
+	FKawaiiPhysicsModifyBone BehindBone = MakeBone(FVector::ZeroVector, 1.0f, FVector::ZeroVector);
+	A.CallPlanarCollision(BehindBone, FloorLimits);
+	FloorLimits[0].Location = FVector(0.0f, 0.0f, 8.0f);
+	FloorLimits[0].Plane = FPlane(FloorLimits[0].Location, FVector::UpVector);
+	A.CallPlanarCollision(BehindBone, FloorLimits);
+	TestTrue(TEXT("Initially behind bone is not lifted"), BehindBone.Location.IsNearlyZero(GCollisionTol));
+
+	// 120fps では二フレームに一度だけ物理ステップが走る。ステップのないフレームと
+	// 衝突後の長さ復元、およびステップ直後の出力補間をそれぞれ確認する。
+	FKawaiiPhysicsTestAccessor HalfRate;
+	HalfRate.Node.SimulationSpace = EKawaiiPhysicsSimulationSpace::WorldSpace;
+	HalfRate.SetFixedSubstepping(true, 60);
+	HalfRate.BuildVerticalChain(2, 10.0f, FVector::ZeroVector, FVector::UpVector);
+	HalfRate.Bone(1).PhysicsSettings.Radius = 1.0f;
+	FPlanarLimit MovingPlane;
+	MovingPlane.bEnable = true;
+	MovingPlane.Rotation = FQuat::Identity;
+	MovingPlane.Location = FVector(0.0f, 0.0f, 8.0f);
+	MovingPlane.Plane = FPlane(MovingPlane.Location, FVector::UpVector);
+	HalfRate.Node.PlanarLimits.Add(MovingPlane);
+	HalfRate.StepFrame(1.0f / 120.0f);
+	HalfRate.StepFrame(1.0f / 120.0f);
+	HalfRate.Node.PlanarLimits[0].Location.Z = 11.0f;
+	HalfRate.Node.PlanarLimits[0].Plane = FPlane(HalfRate.Node.PlanarLimits[0].Location, FVector::UpVector);
+	HalfRate.StepFrame(1.0f / 120.0f);
+	HalfRate.CallUpdateOutputLocations();
+	TestTrue(TEXT("120fps no-step frame output stays in front"),
+	         HalfRate.Bone(1).OutputLocation.Z >= 12.0f - GCollisionTol);
+	HalfRate.Node.PlanarLimits[0].Location.Z = 12.0f;
+	HalfRate.Node.PlanarLimits[0].Plane = FPlane(HalfRate.Node.PlanarLimits[0].Location, FVector::UpVector);
+	HalfRate.StepFrame(1.0f / 120.0f);
+	TestTrue(TEXT("120fps post-length simulated bone stays in front"),
+	         HalfRate.Bone(1).Location.Z >= 13.0f - GCollisionTol);
+	HalfRate.CallUpdateOutputLocations();
+	TestTrue(TEXT("120fps step-frame output stays in front"),
+	         HalfRate.Bone(1).OutputLocation.Z >= 13.0f - GCollisionTol);
+	return true;
+}
+
+// ---------------------------------------------------------------------------
 //  Angle Limit
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsAngleLimitTest,

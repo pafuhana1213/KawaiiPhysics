@@ -746,6 +746,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		// ===== Legacy: 実フレーム時間で1ステップ（GetStepDeltaTime()==DeltaTime） =====
 		bInSubstep = false;
 		SimulateOnce(Output, ComponentTransform, Scene, SkelComp);
+		CapturePlanarCollisionStep();
 		DeltaTimeOld = DeltaTime;
 		PreSkelCompTransformConsumeFraction = 1.0f; // legacyは毎フレーム全消費
 		// legacyはオフセットを更新しないため、固定サブステップへ切り替えたら初期化し直す
@@ -791,6 +792,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 			SkelCompMoveRotation = FQuat::Slerp(FQuat::Identity, FullSkelCompRot, MoveFrac).GetNormalized();
 
 			SimulateOnce(Output, ComponentTransform, Scene, SkelComp);
+			CapturePlanarCollisionStep();
 			CaptureSubstepPoseOffsets();
 		}
 		bInSubstep = false;
@@ -1024,6 +1026,23 @@ void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
 	{
 		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_AdjustByLimitsAndLength);
 		RestoreBoneLengthsAndLimits();
+	}
+	if (SimulationSpace == EKawaiiPhysicsSimulationSpace::WorldSpace)
+	{
+		// 衝突後の拘束と長さ復元で裏へ戻った骨だけ、平面の表側へ戻す。
+		for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+		{
+			if (Bone.bSkipSimulate)
+			{
+				continue;
+			}
+			AdjustByPlanarCollision(Bone, PlanarLimits, true);
+			AdjustByPlanarCollision(Bone, PlanarLimitsData, true);
+			if (bUseSharedCollision && !bSharedCollisionSource)
+			{
+				AdjustByPlanarCollision(Bone, SharedPlanarLimits, true);
+			}
+		}
 	}
 	// 注: DeltaTimeOld は呼び出し元 SimulateModifyBones（legacy=DeltaTime / substep=FixedDt）で設定
 }
@@ -1486,6 +1505,7 @@ void FAnimNode_KawaiiPhysics::UpdateOutputLocations()
 
 		if (!IsAngleLimitTargetBone(Bone))
 		{
+			AdjustPlanarCollisionOutput(Bone);
 			continue;
 		}
 
@@ -1494,6 +1514,7 @@ void FAnimNode_KawaiiPhysics::UpdateOutputLocations()
 		const float BoneLength = (Bone.PoseLocation - ParentBone.PoseLocation).Size();
 		Bone.OutputLocation = (Bone.OutputLocation - ParentBone.OutputLocation).GetSafeNormal() * BoneLength +
 			ParentBone.OutputLocation;
+		AdjustPlanarCollisionOutput(Bone);
 	}
 
 	// 端点から決まるダミーを配置する。どちらも端点より後ろの index にある
@@ -1515,6 +1536,7 @@ void FAnimNode_KawaiiPhysics::UpdateOutputLocations()
 			// bridge のオフセットは端点間の位置からのコリジョン押し出し量
 			Bone.OutputLocation += FMath::Lerp(Bone.PrevStepPoseOffset, Bone.LastStepPoseOffset, OutputAlpha);
 		}
+		AdjustPlanarCollisionOutput(Bone);
 	}
 }
 
