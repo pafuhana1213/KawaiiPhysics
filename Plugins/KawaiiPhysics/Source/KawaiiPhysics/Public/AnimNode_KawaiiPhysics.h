@@ -1178,6 +1178,7 @@ private:
 	// Pose & output interpolation: whether the previous-frame pose target and latest step offsets are valid
 	// (init to current on first frame / after reset)
 	bool bSubstepPoseInitialized = false;
+	bool bPreserveSubstepPoseOffsetsOnSpaceSwitch = false;
 	// このフレームで消費した実時間割合(0..1)。PreSkelCompTransform をこの割合だけ前進させ、未消費の
 	// component 移動を次にステップが走るフレームへ繰り越す（NumSteps==0 では0で据え置き）。legacy/teleport時は1。
 	// Fraction of elapsed real time consumed this frame (0..1). PreSkelCompTransform advances by this fraction so
@@ -1843,6 +1844,8 @@ protected:
 
 	// コリジョン形状の派生値キャッシュを再計算 / Recompute derived-value caches of collision shapes
 	void PrepareCollisionShapeCaches();
+	void CapturePlanarCollisionStep();
+	void AdjustPlanarCollisionOutput(FKawaiiPhysicsModifyBone& Bone);
 
 	/**
 	 * Adjusts the bone position based on capsule collision limits.
@@ -1882,7 +1885,8 @@ protected:
 	 * @param Bone The bone to adjust.
 	 * @param Limits An array of planar limits.
 	 */
-	void AdjustByPlanarCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FPlanarLimit>& Limits);
+	void AdjustByPlanarCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FPlanarLimit>& Limits,
+	                             bool bOnlyOvertake = false);
 
 	/**
 	 * Adjusts the bone position based on angle limits.
@@ -1938,6 +1942,12 @@ protected:
 	 * (slow motion or high fps). Never modifies the simulation state.
 	 */
 	void UpdateOutputLocations();
+
+	/**
+	 * WorldSpace のテレポート時にチェーンの現在位置と出力補間状態を移す。
+	 * Moves the current chain and output interpolation state on a WorldSpace teleport.
+	 */
+	void ApplyWorldSpaceTeleport(const FTransform& ComponentTransform);
 
 	/**
 	 * Applies the simulation results to the bone transforms.

@@ -722,6 +722,7 @@ struct FKawaiiPhysicsTestAccessor
 				Node.DeltaTimeOld = 1.0f / Node.GetEffectiveTargetFramerate();
 			}
 			StepOnce();
+			Node.CapturePlanarCollisionStep();
 			Node.DeltaTimeOld = FrameDt;
 			Node.PreSkelCompTransformConsumeFraction = 1.0f;
 			Node.bSubstepPoseInitialized = false;
@@ -757,6 +758,7 @@ struct FKawaiiPhysicsTestAccessor
 				Node.SkelCompMoveVector = FullSkelCompMove * MoveFrac;
 				Node.SkelCompMoveRotation = FQuat::Slerp(FQuat::Identity, FullSkelCompRot, MoveFrac).GetNormalized();
 				StepOnce();
+				Node.CapturePlanarCollisionStep();
 				Node.CaptureSubstepPoseOffsets();
 			}
 			Node.bInSubstep = false;
@@ -809,9 +811,23 @@ struct FKawaiiPhysicsTestAccessor
 
 	/** 本番の ApplySimulateResult が使う出力位置を計算する / Computes the output locations used by ApplySimulateResult. */
 	void CallUpdateOutputLocations() { Node.UpdateOutputLocations(); }
+	void CallWorldSpaceTeleport(const FTransform& ComponentTransform) { Node.ApplyWorldSpaceTeleport(ComponentTransform); }
 	void SetSubstepPoseInitialized(bool bInitialized) { Node.bSubstepPoseInitialized = bInitialized; }
 	void CallResetSubstepPoseOffsets(FKawaiiPhysicsModifyBone& Bone) { FAnimNode_KawaiiPhysics::ResetSubstepPoseOffsets(Bone); }
 	void CallCaptureSubstepPoseOffsets() { Node.CaptureSubstepPoseOffsets(); }
+	/** 空間切り替え時の本番変換を評価キャッシュで実行する。 / Runs the production space-switch conversion with evaluation caches. */
+	void ConvertSimulationSpaceForTest(const FTransform& FromToComponent, const FTransform& ToToComponent,
+	                                   EKawaiiPhysicsSimulationSpace From, EKawaiiPhysicsSimulationSpace To)
+	{
+		FAnimNode_KawaiiPhysics::FSimulationSpaceCache CacheFrom;
+		CacheFrom.TargetSpaceToComponent = FromToComponent;
+		CacheFrom.ComponentToTargetSpace = FromToComponent.Inverse();
+		FAnimNode_KawaiiPhysics::FSimulationSpaceCache CacheTo;
+		CacheTo.TargetSpaceToComponent = ToToComponent;
+		CacheTo.ComponentToTargetSpace = ToToComponent.Inverse();
+		Node.ConvertSimulationSpaceCached(CacheFrom, CacheTo, From, To);
+		Node.SimulationSpace = To;
+	}
 
 	/** 固定フレーム dt で N フレーム進める */
 	void StepFrames(int32 NumFrames, float FrameDt)
@@ -869,6 +885,11 @@ struct FKawaiiPhysicsTestAccessor
 			Limit.UpdateRuntimeCache();
 		}
 		Node.AdjustByPlanarCollision(Bone, Limits);
+		for (FPlanarLimit& Limit : Limits)
+		{
+			Limit.PreviousStepPlane = Limit.Plane;
+			Limit.bHasPreviousStepPlane = Limit.bEnable;
+		}
 	}
 	void CallAngleLimit(FKawaiiPhysicsModifyBone& Bone, const FKawaiiPhysicsModifyBone& ParentBone)
 	{
@@ -1077,10 +1098,14 @@ private:
 			{
 				Bone.PrevPoseLocation = Bone.PoseLocation;
 				Bone.PrevPoseRotation = Bone.PoseRotation;
-				FAnimNode_KawaiiPhysics::ResetSubstepPoseOffsets(Bone);
+				if (!Node.bPreserveSubstepPoseOffsetsOnSpaceSwitch)
+				{
+					FAnimNode_KawaiiPhysics::ResetSubstepPoseOffsets(Bone);
+				}
 			}
 		}
 		Node.bSubstepPoseInitialized = true;
+		Node.bPreserveSubstepPoseOffsetsOnSpaceSwitch = false;
 	}
 
 	/**
@@ -1175,6 +1200,18 @@ private:
 		}
 
 		Node.RestoreBoneLengthsAndLimits();
+		if (Node.SimulationSpace == EKawaiiPhysicsSimulationSpace::WorldSpace)
+		{
+			for (FKawaiiPhysicsModifyBone& Bone : Node.ModifyBones)
+			{
+				if (Bone.bSkipSimulate)
+				{
+					continue;
+				}
+				Node.AdjustByPlanarCollision(Bone, Node.PlanarLimits, true);
+				Node.AdjustByPlanarCollision(Bone, Node.PlanarLimitsData, true);
+			}
+		}
 	}
 };
 

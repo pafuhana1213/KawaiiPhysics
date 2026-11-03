@@ -690,6 +690,85 @@ bool FKawaiiPhysicsSubstepOutputInterpolationTest::RunTest(const FString& Parame
 }
 
 // ---------------------------------------------------------------------------
+//  空間切り替え時の出力履歴とボーン長
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimulationSpaceSwitchOutputTest,
+                                 "KawaiiPhysics.Simulation.SpaceSwitchOutput",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimulationSpaceSwitchOutputTest::RunTest(const FString& Parameters)
+{
+	const FTransform WorldTransform(FQuat(FVector::ZAxisVector, FMath::DegreesToRadians(90.0f)),
+	                                FVector(30.0f, -20.0f, 5.0f));
+	const EKawaiiPhysicsSimulationSpace Spaces[] = {
+		EKawaiiPhysicsSimulationSpace::ComponentSpace,
+		EKawaiiPhysicsSimulationSpace::WorldSpace
+	};
+	for (const EKawaiiPhysicsSimulationSpace From : Spaces)
+	{
+		for (const EKawaiiPhysicsSimulationSpace To : Spaces)
+		{
+			if (From == To)
+			{
+				continue;
+			}
+			FKawaiiPhysicsTestAccessor A;
+			A.BuildVerticalChain(2, 10.0f, FVector::ZeroVector, FVector::XAxisVector);
+			A.SetSimulationSpace(From);
+			A.SetFixedSubstepping(true, 60, 4);
+			A.SetSubstepPoseInitialized(true);
+			// 出力の長さはポーズの親子距離へ戻されるので、ポーズ長を 10 に保ち、オフセットは横方向に与える
+			const FVector SideOffset(0.0f, 2.0f, 0.0f);
+			A.Bone(1).PoseLocation = FVector(10.0f, 0.0f, 0.0f);
+			A.Bone(1).Location = A.Bone(1).PoseLocation + SideOffset;
+			A.Bone(1).PrevLocation = A.Bone(1).Location;
+			A.Bone(1).PrevStepPoseOffset = SideOffset;
+			A.Bone(1).LastStepPoseOffset = SideOffset;
+			const FTransform FromToComponent = From == EKawaiiPhysicsSimulationSpace::WorldSpace
+				? WorldTransform.Inverse() : FTransform::Identity;
+			const FTransform ToToComponent = To == EKawaiiPhysicsSimulationSpace::WorldSpace
+				? WorldTransform.Inverse() : FTransform::Identity;
+			const FVector ParentLocation = A.Bone(0).PoseLocation;
+			const FVector BeforeOutput = ParentLocation + (A.Bone(1).PoseLocation + SideOffset - ParentLocation).GetSafeNormal() * 10.0f;
+			const FVector ExpectedComponentOutput = FromToComponent.TransformPosition(BeforeOutput);
+			A.ConvertSimulationSpaceForTest(FromToComponent, ToToComponent, From, To);
+			for (int32 BoneIndex = 0; BoneIndex < A.Num(); ++BoneIndex)
+			{
+				A.Bone(BoneIndex).PoseLocation = ToToComponent.InverseTransformPosition(
+					FromToComponent.TransformPosition(A.Bone(BoneIndex).PoseLocation));
+			}
+			A.StepFrame(1.0f / 600.0f);
+			A.CallUpdateOutputLocations();
+			const FVector ActualComponentOutput = ToToComponent.TransformPosition(A.Bone(1).OutputLocation);
+			TestTrue(TEXT("Switch output remains continuous"),
+			         ActualComponentOutput.Equals(ExpectedComponentOutput, 0.001f));
+			const float Length = FVector::Dist(A.Bone(0).OutputLocation, A.Bone(1).OutputLocation);
+			TestTrue(TEXT("Switch output keeps the bone length"), FMath::IsNearlyEqual(Length, 10.0f, 0.001f));
+		}
+	}
+	// 基準ボーン空間は物理ステップを実行できないため、変換済みの出力履歴のみ確かめる
+	{
+		FKawaiiPhysicsTestAccessor A;
+		A.BuildVerticalChain(2, 10.0f);
+		A.SetSubstepPoseInitialized(true);
+		A.Bone(1).PrevStepPoseOffset = FVector(1.0f, 2.0f, 3.0f);
+		A.Bone(1).LastStepPoseOffset = FVector(4.0f, 5.0f, 6.0f);
+		const FTransform BaseToComponent(FQuat(FVector::ZAxisVector, FMath::DegreesToRadians(90.0f)),
+		                                 FVector(20.0f, 0.0f, 0.0f));
+		A.ConvertSimulationSpaceForTest(FTransform::Identity, BaseToComponent,
+		                                EKawaiiPhysicsSimulationSpace::ComponentSpace,
+		                                EKawaiiPhysicsSimulationSpace::BaseBoneSpace);
+		TestTrue(TEXT("Base space preserves previous output offset"),
+		         A.Bone(1).PrevStepPoseOffset.Equals(BaseToComponent.InverseTransformVector(FVector(1.0f, 2.0f, 3.0f)),
+		                                             0.001f));
+		TestTrue(TEXT("Base space preserves latest output offset"),
+		         A.Bone(1).LastStepPoseOffset.Equals(BaseToComponent.InverseTransformVector(FVector(4.0f, 5.0f, 6.0f)),
+		                                             0.001f));
+	}
+	return true;
+}
+
+// ---------------------------------------------------------------------------
 //  数値安定性（NaN や発散がないこと）
 // ---------------------------------------------------------------------------
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsNumericalStabilityTest,
@@ -956,6 +1035,69 @@ bool FKawaiiPhysicsBaseBoneFollowSubstepTest::RunTest(const FString& Parameters)
 	Accessor.SetPreviousBaseBoneTransform(Start);
 	Accessor.CallAdvanceBaseBoneConsumedTransform(End, 0.0f, true);
 	TestTrue(TEXT("Discard clears carried rotation"), Accessor.GetPreviousBaseBoneTransform().Equals(End));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsWorldSpaceTeleportLengthTest,
+                                 "KawaiiPhysics.Simulation.WorldSpaceTeleportLength",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsWorldSpaceTeleportLengthTest::RunTest(const FString& Parameters)
+{
+	const float BoneLength = 10.0f;
+	const FTransform PreviousComponent(FVector(0.0f, 5.0f, 0.0f));
+	const FQuat QuarterTurn(FVector::XAxisVector, FMath::DegreesToRadians(90.0f));
+	const FTransform Teleports[] = {
+		FTransform(FVector(1000.0f, 7.0f, 0.0f)),
+		FTransform(QuarterTurn, FVector(0.0f, 7.0f, 0.0f))
+	};
+	const TCHAR* Names[] = {TEXT("Translation"), TEXT("Rotation")};
+
+	for (int32 CaseIndex = 0; CaseIndex < UE_ARRAY_COUNT(Teleports); ++CaseIndex)
+	{
+		FKawaiiPhysicsTestAccessor A;
+		A.BuildVerticalChain(3, BoneLength);
+		A.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::WorldSpace);
+		A.SetFixedSubstepping(true, 60);
+		A.SetPreSkelCompTransform(PreviousComponent);
+		for (int32 BoneIndex = 0; BoneIndex < A.Num(); ++BoneIndex)
+		{
+			FKawaiiPhysicsModifyBone& Bone = A.Bone(BoneIndex);
+			const FVector LocalLocation(0.0f, 0.0f, -BoneLength * BoneIndex);
+			Bone.Location = PreviousComponent.TransformPosition(LocalLocation);
+			Bone.PrevLocation = Bone.Location - FVector(0.0f, 6.0f, 0.0f);
+			Bone.PoseLocation = Teleports[CaseIndex].TransformPosition(LocalLocation);
+			Bone.bSkipSimulate = BoneIndex == 0;
+		}
+
+		A.CallWorldSpaceTeleport(Teleports[CaseIndex]);
+		A.CallUpdateOutputLocations();
+		for (int32 BoneIndex = 1; BoneIndex < A.Num(); ++BoneIndex)
+		{
+			const FVector ParentLocation = BoneIndex == 1 ? A.Bone(0).PoseLocation : A.Bone(BoneIndex - 1).OutputLocation;
+			const float Distance = (A.Bone(BoneIndex).OutputLocation - ParentLocation).Size();
+			TestTrue(FString::Printf(TEXT("[%s] teleport frame link %d keeps reference length"), Names[CaseIndex], BoneIndex),
+			         FMath::IsNearlyEqual(Distance, BoneLength, 0.01f));
+		}
+
+		const FVector FirstRelative = A.Bone(1).OutputLocation - A.Bone(0).PoseLocation;
+		for (int32 BoneIndex = 0; BoneIndex < A.Num(); ++BoneIndex)
+		{
+			const FVector LocalLocation(0.0f, 0.0f, -BoneLength * BoneIndex);
+			A.Bone(BoneIndex).PoseLocation = Teleports[CaseIndex].TransformPosition(LocalLocation) + FVector(0.0f, 9.0f, 0.0f);
+		}
+		A.StepFrame(1.0f / 60.0f);
+		A.CallUpdateOutputLocations();
+		for (int32 BoneIndex = 1; BoneIndex < A.Num(); ++BoneIndex)
+		{
+			const FVector ParentLocation = BoneIndex == 1 ? A.Bone(0).PoseLocation : A.Bone(BoneIndex - 1).OutputLocation;
+			const float Distance = (A.Bone(BoneIndex).OutputLocation - ParentLocation).Size();
+			TestTrue(FString::Printf(TEXT("[%s] following frame link %d keeps reference length"), Names[CaseIndex], BoneIndex),
+			         FMath::IsNearlyEqual(Distance, BoneLength, 0.01f));
+		}
+		TestTrue(FString::Printf(TEXT("[%s] teleport keeps the root-relative chain shape"), Names[CaseIndex]),
+		         FirstRelative.Equals(Teleports[CaseIndex].TransformVector(FVector(0.0f, 0.0f, -BoneLength)), 0.01f));
+	}
 	return true;
 }
 

@@ -476,7 +476,7 @@ void FAnimNode_KawaiiPhysics::ApplyLimitsDataAsset(const FBoneContainer& Require
 	RemoveAllSourceDataAssets(CapsuleLimitsData);
 	RemoveAllSourceDataAssets(TaperedCapsuleLimitsData);
 	RemoveAllSourceDataAssets(BoxLimitsData);
-	RemoveAllSourceDataAssets(PlanarLimitsData);
+	const int32 OldPlanarCount = PlanarLimitsData.Num();
 
 	if (LimitsDataAsset)
 	{
@@ -485,12 +485,39 @@ void FAnimNode_KawaiiPhysics::ApplyLimitsDataAsset(const FBoneContainer& Require
 		TaperedCapsuleLimitsData.Append(LimitsDataAsset->TaperedCapsuleLimits);
 		BoxLimitsData.Append(LimitsDataAsset->BoxLimits);
 		PlanarLimitsData.Append(LimitsDataAsset->PlanarLimits);
+		// 編集中の DataAsset 再同期では同じ平面のステップ履歴を引き継ぐ。
+		for (int32 NewIndex = OldPlanarCount; NewIndex < PlanarLimitsData.Num(); ++NewIndex)
+		{
+			FPlanarLimit& NewLimit = PlanarLimitsData[NewIndex];
+			for (int32 OldIndex = 0; OldIndex < OldPlanarCount; ++OldIndex)
+			{
+				const FPlanarLimit& OldLimit = PlanarLimitsData[OldIndex];
+#if WITH_EDITORONLY_DATA
+				const bool bSameLimit = OldLimit.Guid == NewLimit.Guid;
+#else
+				const bool bSameLimit = false;
+#endif
+				if (OldLimit.SourceType == ECollisionSourceType::DataAsset && bSameLimit)
+				{
+					NewLimit.PreviousStepPlane = OldLimit.PreviousStepPlane;
+					NewLimit.bHasPreviousStepPlane = OldLimit.bHasPreviousStepPlane;
+					break;
+				}
+			}
+		}
 
 		Initialize(SphericalLimitsData);
 		Initialize(CapsuleLimitsData);
 		Initialize(TaperedCapsuleLimitsData);
 		Initialize(BoxLimitsData);
 		Initialize(PlanarLimitsData);
+	}
+	for (int32 Index = OldPlanarCount - 1; Index >= 0; --Index)
+	{
+		if (PlanarLimitsData[Index].SourceType == ECollisionSourceType::DataAsset)
+		{
+			PlanarLimitsData.RemoveAt(Index);
+		}
 	}
 }
 
@@ -1337,7 +1364,8 @@ void FAnimNode_KawaiiPhysics::AdjustByConvexCollision(FKawaiiPhysicsModifyBone& 
 	}
 }
 
-void FAnimNode_KawaiiPhysics::AdjustByPlanarCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FPlanarLimit>& Limits)
+void FAnimNode_KawaiiPhysics::AdjustByPlanarCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FPlanarLimit>& Limits,
+	                                                   bool bOnlyOvertake)
 {
 	for (auto& Planar : Limits)
 	{
@@ -1346,16 +1374,69 @@ void FAnimNode_KawaiiPhysics::AdjustByPlanarCollision(FKawaiiPhysicsModifyBone& 
 			continue;
 		}
 
+		const bool bOvertaken = SimulationSpace == EKawaiiPhysicsSimulationSpace::WorldSpace &&
+			Planar.bHasPreviousStepPlane &&
+			Planar.PreviousStepPlane.PlaneDot(Bone.PrevLocation) > 0.0f &&
+			Planar.Plane.PlaneDot(Bone.Location) < 0.0f;
+		if (bOnlyOvertake && !bOvertaken)
+		{
+			continue;
+		}
+
 		FVector PointOnPlane = FVector::PointPlaneProject(Bone.Location, Planar.Plane);
 		const float DistSquared = (Bone.Location - PointOnPlane).SizeSquared();
 
 		FVector IntersectionPoint;
-		if (DistSquared < Bone.PhysicsSettings.Radius * Bone.PhysicsSettings.Radius ||
-			FMath::SegmentPlaneIntersection(Bone.Location, Bone.PrevLocation, Planar.Plane, IntersectionPoint))
+		if (bOnlyOvertake || DistSquared < Bone.PhysicsSettings.Radius * Bone.PhysicsSettings.Radius ||
+			FMath::SegmentPlaneIntersection(Bone.Location, Bone.PrevLocation, Planar.Plane, IntersectionPoint) ||
+			bOvertaken)
 		{
 			Bone.Location = PointOnPlane + Planar.CachedNormal * Bone.PhysicsSettings.Radius;
 		}
 	}
+}
+
+void FAnimNode_KawaiiPhysics::AdjustPlanarCollisionOutput(FKawaiiPhysicsModifyBone& Bone)
+{
+	if (SimulationSpace != EKawaiiPhysicsSimulationSpace::WorldSpace || Bone.bSkipSimulate)
+	{
+		return;
+	}
+
+	auto ResolveOutput = [&Bone](const TArray<FPlanarLimit>& Limits)
+	{
+		for (const FPlanarLimit& Planar : Limits)
+		{
+			if (Planar.bEnable && Planar.bHasPreviousStepPlane &&
+				Planar.PreviousStepPlane.PlaneDot(Bone.Location) > 0.0f &&
+				Planar.Plane.PlaneDot(Bone.OutputLocation) < 0.0f)
+			{
+				Bone.OutputLocation = FVector::PointPlaneProject(Bone.OutputLocation, Planar.Plane) +
+					Planar.CachedNormal * Bone.PhysicsSettings.Radius;
+			}
+		}
+	};
+	ResolveOutput(PlanarLimits);
+	ResolveOutput(PlanarLimitsData);
+	if (bUseSharedCollision && !bSharedCollisionSource)
+	{
+		ResolveOutput(SharedPlanarLimits);
+	}
+}
+
+void FAnimNode_KawaiiPhysics::CapturePlanarCollisionStep()
+{
+	auto Capture = [](TArray<FPlanarLimit>& Limits)
+	{
+		for (FPlanarLimit& Planar : Limits)
+		{
+			Planar.PreviousStepPlane = Planar.Plane;
+			Planar.bHasPreviousStepPlane = Planar.bEnable;
+		}
+	};
+	Capture(PlanarLimits);
+	Capture(PlanarLimitsData);
+	Capture(SharedPlanarLimits);
 }
 
 void FAnimNode_KawaiiPhysics::AdjustByAngleLimit(
@@ -1841,10 +1922,9 @@ void FAnimNode_KawaiiPhysics::UpdateSharedCollisionLimits(
 	SharedCapsuleLimits.Reset();
 	SharedTaperedCapsuleLimits.Reset();
 	SharedBoxLimits.Reset();
-	SharedPlanarLimits.Reset();
-
 	if (!CachedSharedCollisionEntry.IsValid())
 	{
+		SharedPlanarLimits.Reset();
 		return;
 	}
 
@@ -1852,13 +1932,41 @@ void FAnimNode_KawaiiPhysics::UpdateSharedCollisionLimits(
 
 	if (SharedCollisionMergedData.IsEmpty())
 	{
+		SharedPlanarLimits.Reset();
 		return;
 	}
 
 	// source ノードは Convex を publish しない。SimpleWorld 経路が Planar を捨てるのと対称の扱い。
 	KawaiiPhysicsSimpleWorldReadPath::AppendSharedCollisionDataToSimulationSpace(*this, Output, SimulationSpace, SharedCollisionMergedData,
 		SharedSphericalLimits, SharedCapsuleLimits, SharedTaperedCapsuleLimits, SharedBoxLimits,
-		&SharedPlanarLimits, nullptr);
+		nullptr, nullptr);
+	auto RecomputePlane = [](FPlanarLimit& Limit, const FTransform& Transform)
+	{
+		Limit.Plane = FPlane(Limit.Location, Transform.GetRotation().GetUpVector());
+	};
+	bool bSamePlanarLimits = SharedPlanarLimits.Num() == SharedCollisionMergedData.PlanarLimits.Num();
+	for (int32 Index = 0; bSamePlanarLimits && Index < SharedPlanarLimits.Num(); ++Index)
+	{
+		const FPlanarLimit& OldLimit = SharedPlanarLimits[Index];
+		const FPlanarLimit& NewLimit = SharedCollisionMergedData.PlanarLimits[Index];
+		bSamePlanarLimits = OldLimit.DrivingBone.BoneName == NewLimit.DrivingBone.BoneName &&
+			OldLimit.OffsetLocation == NewLimit.OffsetLocation && OldLimit.OffsetRotation == NewLimit.OffsetRotation &&
+			OldLimit.SourceType == NewLimit.SourceType;
+#if WITH_EDITORONLY_DATA
+		bSamePlanarLimits = bSamePlanarLimits && OldLimit.Guid == NewLimit.Guid;
+#endif
+	}
+	if (bSamePlanarLimits)
+	{
+		AnimNodeKawaiiPhysicsCollisionPrivate::RefreshWorldLimitsToSimulationSpaceInPlace(
+			*this, Output, SimulationSpace, SharedCollisionMergedData.PlanarLimits, SharedPlanarLimits, RecomputePlane);
+	}
+	else
+	{
+		SharedPlanarLimits.Reset();
+		AnimNodeKawaiiPhysicsCollisionPrivate::AppendWorldLimitsToSimulationSpace(
+			*this, Output, SimulationSpace, SharedCollisionMergedData.PlanarLimits, SharedPlanarLimits, RecomputePlane);
+	}
 }
 
 FKawaiiPhysicsSimpleWorldCollisionDesc FAnimNode_KawaiiPhysics::BuildSimpleWorldCollisionDesc() const
