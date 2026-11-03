@@ -17,6 +17,11 @@
 #include "HAL/PlatformMisc.h"
 #include "HAL/PlatformTime.h"
 #include "KawaiiPhysicsLibrary.h"
+#include "KawaiiPhysicsRuntimeInfoTypes.h"
+#include "KawaiiPhysicsDeveloperSettings.h"
+#include "ExternalForces/KawaiiPhysicsExternalForce.h"
+#include "GameFramework/WorldSettings.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Parse.h"
@@ -25,6 +30,13 @@
 #include "Serialization/JsonSerializer.h"
 #include "UnrealClient.h"
 #include "UObject/UObjectIterator.h"
+#include "UObject/UObjectGlobals.h"
+
+#if !UE_VERSION_OLDER_THAN(5, 5, 0)
+#include "StructUtils/InstancedStruct.h"
+#else
+#include "InstancedStruct.h"
+#endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogKawaiiPhysicsVerification, Log, All);
 
@@ -220,6 +232,33 @@ bool UKawaiiPhysicsVerificationSubsystem::LoadManifest(const FString& ManifestPa
 		return false;
 	}
 	Root->TryGetBoolField(TEXT("record"), bRecordTransforms);
+	Root->TryGetBoolField(TEXT("record_nodes"), bRecordNodes);
+	bRecordNodes &= bRecordTransforms;
+	const TSharedPtr<FJsonObject>* SettingsObject = nullptr;
+	if (Root->TryGetObjectField(TEXT("settings"), SettingsObject))
+	{
+		UKawaiiPhysicsDeveloperSettings* Settings = GetMutableDefault<UKawaiiPhysicsDeveloperSettings>();
+		bool bFixedSubstepping = false;
+		if ((*SettingsObject)->TryGetBoolField(TEXT("fixed_substepping"), bFixedSubstepping))
+		{
+			Settings->bUseFixedSubstepping = bFixedSubstepping;
+		}
+		int32 MaxSubsteps = 0;
+		if ((*SettingsObject)->TryGetNumberField(TEXT("max_substeps"), MaxSubsteps))
+		{
+			Settings->MaxSubsteps = MaxSubsteps;
+		}
+		double TimeDilation = 1.0;
+		if ((*SettingsObject)->TryGetNumberField(TEXT("time_dilation"), TimeDilation))
+		{
+			GetWorld()->GetWorldSettings()->SetTimeDilation(static_cast<float>(TimeDilation));
+			if (!FMath::IsNearlyEqual(static_cast<double>(GetWorld()->GetWorldSettings()->GetEffectiveTimeDilation()), TimeDilation, 1e-6))
+			{
+				UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("Cannot apply time_dilation %g."), TimeDilation);
+				return false;
+			}
+		}
+	}
 
 	const TSharedPtr<FJsonObject>* CameraObject = nullptr;
 	if (Root->TryGetObjectField(TEXT("camera"), CameraObject))
@@ -328,6 +367,7 @@ bool UKawaiiPhysicsVerificationSubsystem::SpawnCell(UWorld& InWorld, const TShar
 
 	const TSharedPtr<FJsonObject>* MotionObject = nullptr;
 	Cell.Motion.BaseLocation = ReadVector(CellObject, TEXT("location"));
+	CellObject->TryGetNumberField(TEXT("base_yaw_degrees"), Cell.Motion.BaseYawDegrees);
 	if (CellObject->TryGetObjectField(TEXT("motion"), MotionObject))
 	{
 		Cell.Motion.LinearAmplitude = ReadVector(*MotionObject, TEXT("linear_amplitude"));
@@ -387,6 +427,40 @@ bool UKawaiiPhysicsVerificationSubsystem::SpawnCell(UWorld& InWorld, const TShar
 			Node.GetAnimNode<FAnimNode_KawaiiPhysics>().ExternalForces.Reset();
 		}
 	}
+	const TArray<TSharedPtr<FJsonValue>>* ExternalForces = nullptr;
+	const bool bHasExternalForces = CellObject->TryGetArrayField(TEXT("external_forces"), ExternalForces);
+	if (bHasExternalForces)
+	{
+		for (const TSharedPtr<FJsonValue>& ForceValue : *ExternalForces)
+		{
+			const TSharedPtr<FJsonObject> ForceObject = ForceValue->AsObject();
+			FString StructPath;
+			FString Text;
+			if (!ForceObject.IsValid() || !ForceObject->TryGetStringField(TEXT("struct"), StructPath) ||
+				!ForceObject->TryGetStringField(TEXT("text"), Text))
+			{
+				UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("Cell %s: invalid external force entry."), *Cell.Id);
+				return false;
+			}
+			UScriptStruct* ForceStruct = FindObject<UScriptStruct>(nullptr, *StructPath);
+			if (!ForceStruct || !ForceStruct->IsChildOf(FKawaiiPhysics_ExternalForce::StaticStruct()))
+			{
+				UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("Cell %s: invalid external force struct %s."), *Cell.Id, *StructPath);
+				return false;
+			}
+			FInstancedStruct Force;
+			Force.InitializeAs(ForceStruct);
+			if (!ForceStruct->ImportText(*Text, Force.GetMutableMemory(), nullptr, PPF_None, nullptr, ForceStruct->GetName()))
+			{
+				UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("Cell %s: cannot import external force %s."), *Cell.Id, *StructPath);
+				return false;
+			}
+			for (FKawaiiPhysicsReference& Node : Nodes)
+			{
+				Node.GetAnimNode<FAnimNode_KawaiiPhysics>().ExternalForces.Add(Force);
+			}
+		}
+	}
 
 	const TSharedPtr<FJsonObject>* Overrides = nullptr;
 	const bool bHasOverrides = CellObject->TryGetObjectField(TEXT("overrides"), Overrides);
@@ -401,7 +475,7 @@ bool UKawaiiPhysicsVerificationSubsystem::SpawnCell(UWorld& InWorld, const TShar
 		}
 	}
 
-	if (bHasOverrides || bClearExternalForces)
+	if (bHasOverrides || bClearExternalForces || bHasExternalForces)
 	{
 		// Initialize_AnyThread は SimulationSpace に応じて初期状態を作るため、ABP に保存した場合と揃えるには上書き後に初期化し直す。
 		AnimInstance->UninitializeAnimation();
@@ -445,6 +519,12 @@ bool UKawaiiPhysicsVerificationSubsystem::ReadCellEvents(const TSharedPtr<FJsonO
 		}
 
 		EventObject->TryGetBoolField(TEXT("reset_dynamics"), Event.bResetDynamics);
+		const TSharedPtr<FJsonObject>* Move = nullptr;
+		if (EventObject->TryGetObjectField(TEXT("move"), Move))
+		{
+			Event.LocationOffset = KawaiiPhysicsVerificationPrivate::ReadVector(*Move, TEXT("location_offset"));
+			(*Move)->TryGetNumberField(TEXT("yaw_offset_degrees"), Event.YawOffsetDegrees);
+		}
 		const TSharedPtr<FJsonObject>* Overrides = nullptr;
 		if (EventObject->TryGetObjectField(TEXT("overrides"), Overrides))
 		{
@@ -458,7 +538,7 @@ bool UKawaiiPhysicsVerificationSubsystem::ReadCellEvents(const TSharedPtr<FJsonO
 	return true;
 }
 
-bool UKawaiiPhysicsVerificationSubsystem::ApplyDueEvents(const FCell& Cell) const
+bool UKawaiiPhysicsVerificationSubsystem::ApplyDueEvents(FCell& Cell) const
 {
 	USkeletalMeshComponent* Component = Cell.Component.Get();
 	for (const FCellEvent& Event : Cell.Events)
@@ -467,6 +547,8 @@ bool UKawaiiPhysicsVerificationSubsystem::ApplyDueEvents(const FCell& Cell) cons
 		{
 			continue;
 		}
+		Cell.Motion.BaseLocation += Event.LocationOffset;
+		Cell.Motion.BaseYawDegrees += Event.YawOffsetDegrees;
 
 		TArray<FKawaiiPhysicsReference> Nodes;
 		UKawaiiPhysicsLibrary::CollectKawaiiPhysicsNodes(Nodes, Component, FGameplayTagContainer(), false);
@@ -535,7 +617,7 @@ void UKawaiiPhysicsVerificationSubsystem::ApplyMotion(const FCell& Cell, const d
 	const FCellMotion& Motion = Cell.Motion;
 	const FVector Location = Motion.BaseLocation +
 		Motion.LinearAmplitude * FMath::Sin(UE_DOUBLE_TWO_PI * Time / Motion.LinearPeriod);
-	const double Yaw = Motion.YawAmplitudeDegrees * FMath::Sin(UE_DOUBLE_TWO_PI * Time / Motion.YawPeriod);
+	const double Yaw = Motion.BaseYawDegrees + Motion.YawAmplitudeDegrees * FMath::Sin(UE_DOUBLE_TWO_PI * Time / Motion.YawPeriod);
 	Component->SetWorldLocationAndRotationNoPhysics(Location, FRotator(0.0, Yaw, 0.0));
 }
 
@@ -549,15 +631,15 @@ void UKawaiiPhysicsVerificationSubsystem::HandlePreActorTick(UWorld* InWorld, EL
 
 	SimulationTime += DeltaSeconds;
 	HoldCameraView();
-	for (const FCell& Cell : Cells)
+	for (FCell& Cell : Cells)
 	{
-		ApplyMotion(Cell, SimulationTime);
 		if (!ApplyDueEvents(Cell))
 		{
 			bRunning = false;
 			WriteRecordingAndExit(false);
 			return;
 		}
+		ApplyMotion(Cell, SimulationTime);
 	}
 }
 
@@ -594,6 +676,7 @@ void UKawaiiPhysicsVerificationSubsystem::Tick(const float DeltaTime)
 
 	const double NowSeconds = FPlatformTime::Seconds();
 	FrameMilliseconds.Add((NowSeconds - LastTickSeconds) * 1000.0);
+	FrameDeltaSeconds.Add(DeltaTime);
 
 	for (FCell& Cell : Cells)
 	{
@@ -606,6 +689,12 @@ void UKawaiiPhysicsVerificationSubsystem::Tick(const float DeltaTime)
 				const FQuat Rotation = BoneTransform.GetRotation();
 				Cell.Samples.Append({Location.X, Location.Y, Location.Z, Rotation.X, Rotation.Y, Rotation.Z, Rotation.W});
 			}
+		}
+		if (bRecordNodes && !RecordCellNodes(Cell))
+		{
+			bRunning = false;
+			WriteRecordingAndExit(false);
+			return;
 		}
 	}
 
@@ -620,14 +709,111 @@ void UKawaiiPhysicsVerificationSubsystem::Tick(const float DeltaTime)
 	LastTickSeconds = FPlatformTime::Seconds();
 }
 
+bool UKawaiiPhysicsVerificationSubsystem::RecordCellNodes(FCell& Cell) const
+{
+	using namespace KawaiiPhysicsVerificationPrivate;
+	USkeletalMeshComponent* Component = Cell.Component.Get();
+	TArray<FKawaiiPhysicsReference> Nodes;
+	if (!Component || !UKawaiiPhysicsLibrary::CollectKawaiiPhysicsNodes(Nodes, Component, FGameplayTagContainer(), false) ||
+		(!Cell.NodeRecords.IsEmpty() && Nodes.Num() != Cell.NodeRecords.Num()))
+	{
+		UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("Cell %s: node count changed during recording."), *Cell.Id);
+		return false;
+	}
+	// 初回評価までは ModifyBones が空なので、全ノードが揃ったフレームから記録を始める。
+	if (Cell.NodeRecords.IsEmpty())
+	{
+		for (FKawaiiPhysicsReference& Node : Nodes)
+		{
+			if (Node.GetAnimNode<FAnimNode_KawaiiPhysics>().ModifyBones.IsEmpty())
+			{
+				return true;
+			}
+		}
+	}
+	for (int32 NodeIndex = 0; NodeIndex < Nodes.Num(); ++NodeIndex)
+	{
+		const FAnimNode_KawaiiPhysics& Node = Nodes[NodeIndex].GetAnimNode<FAnimNode_KawaiiPhysics>();
+		FKawaiiPhysicsRuntimeNodeInfo Info;
+		KawaiiPhysics::BuildRuntimeNodeInfo(Node, Info);
+		if (Info.Bones.Num() != Node.ModifyBones.Num())
+		{
+			UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("Cell %s: runtime bone count differs from the node."), *Cell.Id);
+			return false;
+		}
+		if (Cell.NodeRecords.Num() == NodeIndex)
+		{
+			FCell::FNodeRecord& Record = Cell.NodeRecords.AddDefaulted_GetRef();
+			Record.Root = Node.RootBone.BoneName.ToString();
+			Record.FirstFrame = FrameIndex;
+			Record.BoneCount = Info.Bones.Num();
+			Record.BonesJson = TEXT("[");
+			for (int32 BoneIndex = 0; BoneIndex < Info.Bones.Num(); ++BoneIndex)
+			{
+				const FKawaiiPhysicsRuntimeBoneInfo& Bone = Info.Bones[BoneIndex];
+				const FKawaiiPhysicsModifyBone& ModifyBone = Node.ModifyBones[BoneIndex];
+				const bool bPerAxis = ModifyBone.PhysicsSettings.LimitAngleMode == EKawaiiPhysicsLimitAngleMode::PerAxis;
+				Record.BonesJson += FString::Printf(TEXT("%s{\"name\":\"%s\",\"dummy\":\"%s\",\"parent\":%d,\"skip\":%s,\"angle_parent\":%d,\"angle_mode\":\"%s\"}"),
+					BoneIndex ? TEXT(",") : TEXT(""), Bone.BoneName.IsNone() ? TEXT("") : *EscapeJson(Bone.BoneName.ToString()),
+					*UEnum::GetValueAsString(Bone.DummyType).RightChop(FString(TEXT("EKawaiiPhysicsDummyBoneType::")).Len()),
+					Bone.ParentIndex, Bone.bSkipSimulate ? TEXT("true") : TEXT("false"),
+					Node.IsAngleLimitTargetBone(ModifyBone) ? Node.GetAngleLimitParentIndex(ModifyBone) : INDEX_NONE,
+					bPerAxis ? TEXT("PerAxis") : TEXT("Cone"));
+			}
+			Record.BonesJson += TEXT("]");
+		}
+		FCell::FNodeRecord& Record = Cell.NodeRecords[NodeIndex];
+		if (Record.BoneCount != Info.Bones.Num() || Info.Bones.Num() != Node.ModifyBones.Num())
+		{
+			UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("Cell %s: bone count changed during recording."), *Cell.Id);
+			return false;
+		}
+		for (int32 BoneIndex = 0; BoneIndex < Info.Bones.Num(); ++BoneIndex)
+		{
+			const FKawaiiPhysicsRuntimeBoneInfo& Bone = Info.Bones[BoneIndex];
+			const FKawaiiPhysicsSettings& Settings = Node.ModifyBones[BoneIndex].PhysicsSettings;
+			const FKawaiiPhysicsPerAxisLimitAngle& Axis = Settings.PerAxisLimitAngle;
+			const double LimitAngle = Settings.LimitAngleMode == EKawaiiPhysicsLimitAngleMode::Cone ?
+				static_cast<double>(Settings.LimitAngle) :
+				FMath::Max(FMath::Max(FMath::Max(static_cast<double>(Axis.X.Min), static_cast<double>(Axis.X.Max)),
+					FMath::Max(static_cast<double>(Axis.Y.Min), static_cast<double>(Axis.Y.Max))),
+					FMath::Max(static_cast<double>(Axis.Z.Min), static_cast<double>(Axis.Z.Max)));
+			Record.BoneFrames.Append({Bone.Location.X, Bone.Location.Y, Bone.Location.Z,
+				Bone.PoseLocation.X, Bone.PoseLocation.Y, Bone.PoseLocation.Z, static_cast<double>(Bone.Radius), LimitAngle});
+		}
+		TArray<double>& Limits = Record.LimitFrames.AddDefaulted_GetRef();
+		for (const FKawaiiPhysicsRuntimeLimitInfo& Limit : Info.Limits)
+		{
+			Limits.Append({static_cast<double>(static_cast<uint8>(Limit.LimitType)), Limit.bEnabled ? 1.0 : 0.0,
+				Limit.bInnerSphere ? 1.0 : 0.0, Limit.Location.X, Limit.Location.Y, Limit.Location.Z,
+				Limit.Rotation.X, Limit.Rotation.Y, Limit.Rotation.Z, Limit.Rotation.W,
+				Limit.Start.X, Limit.Start.Y, Limit.Start.Z, Limit.End.X, Limit.End.Y, Limit.End.Z,
+				static_cast<double>(Limit.Radius0), static_cast<double>(Limit.Radius1),
+				Limit.Extent.X, Limit.Extent.Y, Limit.Extent.Z,
+				Limit.PlaneNormal.X, Limit.PlaneNormal.Y, Limit.PlaneNormal.Z});
+		}
+	}
+	return true;
+}
+
 void UKawaiiPhysicsVerificationSubsystem::WriteRecordingAndExit(const bool bSucceeded)
 {
 	using namespace KawaiiPhysicsVerificationPrivate;
 
-	FString Output = FString::Printf(TEXT("{\"type\":\"run\",\"version\":1,\"ok\":%s,\"frames\":%d,\"frame_ms\":["),
+	FString Output = FString::Printf(TEXT("{\"type\":\"run\",\"version\":2,\"ok\":%s,\"frames\":%d,\"frame_ms\":["),
 	                                 bSucceeded ? TEXT("true") : TEXT("false"), FrameIndex);
 	AppendNumbers(Output, FrameMilliseconds);
-	Output += TEXT("],\"calib_start_ms\":[");
+	Output += TEXT("],\"delta_seconds\":[");
+	AppendNumbers(Output, FrameDeltaSeconds);
+	const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
+	const IConsoleVariable* ParallelEvaluation = IConsoleManager::Get().FindConsoleVariable(TEXT("a.ParallelAnimEvaluation"));
+	const IConsoleVariable* ParallelUpdate = IConsoleManager::Get().FindConsoleVariable(TEXT("a.ParallelAnimUpdate"));
+	Output += FString::Printf(TEXT("],\"settings\":{\"fixed_substepping\":%s,\"max_substeps\":%d,\"time_dilation\":"),
+		Settings->bUseFixedSubstepping ? TEXT("true") : TEXT("false"), Settings->MaxSubsteps);
+	AppendNumber(Output, GetWorld()->GetWorldSettings()->GetEffectiveTimeDilation());
+	Output += FString::Printf(TEXT(",\"parallel_anim_evaluation\":%d,\"parallel_anim_update\":%d}"),
+		ParallelEvaluation ? ParallelEvaluation->GetInt() : 0, ParallelUpdate ? ParallelUpdate->GetInt() : 0);
+	Output += TEXT(",\"calib_start_ms\":[");
 	AppendNumbers(Output, CalibrationStartMilliseconds);
 	Output += TEXT("],\"calib_end_ms\":[");
 	AppendNumbers(Output, CalibrationEndMilliseconds);
@@ -696,10 +882,38 @@ void UKawaiiPhysicsVerificationSubsystem::WriteRecordingAndExit(const bool bSucc
 					bFirstBone = false;
 				}
 			}
-			Output += TEXT("]}");
+			Output += TEXT("],\"physics_settings\":{");
+			const FKawaiiPhysicsSettings& Physics = AnimNode.PhysicsSettings;
+			Output += TEXT("\"damping\":"); AppendNumber(Output, Physics.Damping);
+			Output += TEXT(",\"stiffness\":"); AppendNumber(Output, Physics.Stiffness);
+			Output += TEXT(",\"world_damping_location\":"); AppendNumber(Output, Physics.WorldDampingLocation);
+			Output += TEXT(",\"world_damping_rotation\":"); AppendNumber(Output, Physics.WorldDampingRotation);
+			Output += TEXT(",\"radius\":"); AppendNumber(Output, Physics.Radius);
+			Output += TEXT(",\"limit_angle\":"); AppendNumber(Output, Physics.LimitAngle);
+			Output += FString::Printf(TEXT(",\"limit_angle_mode\":\"%s\"}}"),
+				Physics.LimitAngleMode == EKawaiiPhysicsLimitAngleMode::Cone ? TEXT("Cone") : TEXT("PerAxis"));
 		}
 		Output += TEXT("],\"transforms\":[");
 		AppendNumbers(Output, Cell.Samples);
+		if (bRecordNodes)
+		{
+			Output += TEXT("],\"node_records\":[");
+			for (int32 NodeIndex = 0; NodeIndex < Cell.NodeRecords.Num(); ++NodeIndex)
+			{
+				const FCell::FNodeRecord& Record = Cell.NodeRecords[NodeIndex];
+				Output += FString::Printf(TEXT("%s{\"root\":\"%s\",\"first_frame\":%d,\"bones\":%s,\"bone_frames\":["),
+					NodeIndex ? TEXT(",") : TEXT(""), *EscapeJson(Record.Root), Record.FirstFrame, *Record.BonesJson);
+				AppendNumbers(Output, Record.BoneFrames);
+				Output += TEXT("],\"limit_frames\":[");
+				for (int32 Frame = 0; Frame < Record.LimitFrames.Num(); ++Frame)
+				{
+					Output += Frame ? TEXT(",[") : TEXT("[");
+					AppendNumbers(Output, Record.LimitFrames[Frame]);
+					Output += TEXT("]");
+				}
+				Output += TEXT("]}");
+			}
+		}
 		Output += TEXT("]}\n");
 	}
 

@@ -6,7 +6,7 @@
 	"Description": "Automated tests and the verification runner for developing KawaiiPhysics. Not shipped with the KawaiiPhysics plugin.",
 	"Category": "Testing",
 	"CreatedBy": "pafuhana1213",
-	"CanContainContent": false,
+	"CanContainContent": true,
 	"IsBetaVersion": false,
 	"IsExperimentalVersion": false,
 	"Installed": false,

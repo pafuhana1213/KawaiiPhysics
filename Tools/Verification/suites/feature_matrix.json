@@ -1,0 +1,184 @@
+{
+	"level": "/KawaiiPhysicsDev/Levels/L_KPV_FeatureMatrix",
+	"frames": 300,
+	"record_nodes": true,
+	"render": true,
+	"baseline_except": [".wind."],
+	"grid": {"origin": [0, 0, 500], "spacing": [600, 600], "columns": 20},
+	"profiles": {
+		"base": {"fps": 60},
+		"serial": {"fps": 60, "cvars": ["a.ParallelAnimEvaluation=0", "a.ParallelAnimUpdate=0"]},
+		"fps30": {"fps": 30},
+		"fps45": {"fps": 45},
+		"fps120": {"fps": 120, "thresholds": {"max_limit_angle_excess_degrees": 3.0}, "reason": "Above TargetFramerate some frames run no step: the pose advances but the bones keep the last solved location."},
+		"dilated": {"fps": 60, "settings": {"time_dilation": 0.5}, "thresholds": {"max_limit_angle_excess_degrees": 3.0}, "reason": "Half dilation gives the same 120 Hz steps as fps120."},
+		"fps30_no_substep": {"fps": 30, "settings": {"fixed_substepping": false}}
+	},
+	"axes": {
+		"fixture": {
+			"chain": {
+				"mesh": "/Game/KawaiiPhysicsSample/Model/Chain/S_Chain.S_Chain",
+				"anim_class": "/Game/KawaiiPhysicsSample/Examples/01_BoneChain/ABP_1_1_RootBone.ABP_1_1_RootBone_C",
+				"overrides": {"Gravity": "(X=400,Y=150,Z=-980)"}
+			},
+			"kano": {
+				"mesh": "/Game/KawaiiPhysicsSample/Model/TAStyleKano/Mesh/test_kano1.test_kano1",
+				"anim_class": "/Game/KawaiiPhysicsSample/Examples/09_Showcase/ABP_9_Kano.ABP_9_Kano_C",
+				"clear_external_forces": true
+			}
+		},
+		"space": {
+			"cs": {"overrides": {"SimulationSpace": "ComponentSpace"}},
+			"ws": {"overrides": {"SimulationSpace": "WorldSpace"}},
+			"bb": {
+				"by_fixture": {
+					"chain": {"overrides": {"SimulationSpace": "BaseBoneSpace", "SimulationBaseBone": "(BoneName=\"Torus001\")"}},
+					"kano": {"overrides": {"SimulationSpace": "BaseBoneSpace", "SimulationBaseBone": "(BoneName=\"local\")"}}
+				}
+			},
+			"bm": {"overrides": {"SimulationSpace": "BaseBoneSpace", "SimulationBaseBone": "(BoneName=\"pelvis\")"}}
+		},
+		"motion": {
+			"still": {},
+			"moving": {"motion": {"linear_amplitude": [80, 30, 0], "linear_period": 1.2, "yaw_amplitude_degrees": 30, "yaw_period": 1.7}},
+			"sway": {"motion": {"linear_amplitude": [15, 6, 0], "linear_period": 2.0, "yaw_amplitude_degrees": 8, "yaw_period": 2.6}}
+		},
+		"feature": {
+			"none": {},
+			"gravity_off": {"overrides": {"Gravity": "(X=0,Y=0,Z=0)"}},
+			"damping_high": {"overrides": {"PhysicsSettings": "(Damping=0.6)"}},
+			"stiffness_high": {"overrides": {"PhysicsSettings": "(Stiffness=0.5)"}},
+			"world_damping_zero": {"overrides": {"PhysicsSettings": "(WorldDampingLocation=0,WorldDampingRotation=0)"}},
+			"move_scale_zero": {"overrides": {"SkelCompMoveScale": "(X=0,Y=0,Z=0)"}},
+			"limit_angle": {"overrides": {"PhysicsSettings": "(LimitAngle=5)"}},
+			"planar": {"overrides": {"PlanarConstraint": "Y"}},
+			"dummy_off": {"overrides": {"DummyBoneLength": "0"}},
+			"subdivision": {"overrides": {"BoneSubdivisionCount": "2"}},
+			"subdivision_free": {"overrides": {"BoneSubdivisionCount": "2", "bBoneSubdivisionCollisionOnly": "False"}},
+			"constraint": {"overrides": {"BoneConstraints": "((Bone1=(BoneName=\"Object009\"),Bone2=(BoneName=\"Object011\")))"}},
+			"sphere": {"overrides": {"SphericalLimits": "((DrivingBone=(BoneName=\"Torus001\"),OffsetLocation=(X=100,Y=3,Z=8),Radius=10))"}},
+			"capsule": {"overrides": {"CapsuleLimits": "((DrivingBone=(BoneName=\"Torus001\"),OffsetLocation=(X=90,Y=3,Z=8),OffsetRotation=(Pitch=90,Yaw=0,Roll=0),Radius=6,Length=30))"}},
+			"tapered": {"overrides": {"TaperedCapsuleLimits": "((DrivingBone=(BoneName=\"Torus001\"),OffsetLocation=(X=90,Y=3,Z=8),OffsetRotation=(Pitch=90,Yaw=0,Roll=0),Radius0=8,Radius1=4,Length=30))"}},
+			"box": {"overrides": {"BoxLimits": "((DrivingBone=(BoneName=\"Torus001\"),OffsetLocation=(X=100,Y=3,Z=8),OffsetRotation=(Pitch=90,Yaw=0,Roll=0),Extent=(X=6,Y=6,Z=10)))"}},
+			"plane": {"overrides": {"PlanarLimits": "((DrivingBone=(BoneName=\"Torus001\"),OffsetLocation=(X=0,Y=0,Z=6),OffsetRotation=(Pitch=180,Yaw=0,Roll=0)))"}},
+			"force_world": {"external_forces": [{"struct": "/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Basic", "text": "(ExternalForceSpace=WorldSpace,ForceDir=(X=0,Y=800,Z=0))"}]},
+			"force_bone": {"external_forces": [{"struct": "/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Basic", "text": "(ExternalForceSpace=BoneSpace,ForceDir=(X=0,Y=800,Z=0))"}]},
+			"simple_force": {"overrides": {"SimpleExternalForce": "(X=0,Y=800,Z=0)"}},
+			"wind": {"overrides": {"bEnableWind": "True", "WindScale": "1.0"}},
+			"teleport_jump": {"events": [{"frame": 150, "move": {"location_offset": [1000, 0, 0]}}]},
+			"teleport_turn": {"events": [{"frame": 150, "move": {"yaw_offset_degrees": 90}}]},
+			"reset": {"events": [{"frame": 150, "reset_dynamics": true}]},
+			"floor_off": {"location_offset": [0, 0, -385], "motion": {"linear_amplitude": [0, 0, 15], "linear_period": 2.0}},
+			"world_floor": {"overrides": {"bAllowWorldCollision": "True"}, "location_offset": [0, 0, -385], "motion": {"linear_amplitude": [0, 0, 15], "linear_period": 2.0}},
+			"simple_floor": {"overrides": {"bUseSimpleWorldCollision": "True", "bSimpleWorldCollisionGroundCollision": "True"}, "location_offset": [0, 0, -385], "motion": {"linear_amplitude": [0, 0, 15], "linear_period": 2.0}}
+		},
+		"place": {
+			"near": {},
+			"far": {"location_offset": [20000, 7000, 3000]},
+			"yawed": {"base_yaw_degrees": 90}
+		}
+	},
+	"matrix": [
+		{"fixture": ["chain"], "space": ["cs", "ws", "bb"], "motion": ["still"], "place": ["near"], "feature": ["floor_off", "world_floor", "simple_floor"]},
+		{"fixture": ["chain"], "space": ["cs", "ws", "bb"], "motion": ["still", "moving"], "place": ["near"],
+		 "feature": ["none", "damping_high", "stiffness_high", "limit_angle", "planar", "dummy_off", "subdivision", "subdivision_free", "constraint", "sphere", "capsule", "tapered", "box", "plane", "force_world", "force_bone", "simple_force", "wind", "reset"]},
+		{"fixture": ["chain"], "space": ["cs", "ws", "bb"], "motion": ["moving"], "place": ["near"],
+		 "feature": ["gravity_off", "world_damping_zero", "move_scale_zero", "teleport_jump", "teleport_turn"]},
+		{"fixture": ["chain"], "space": ["cs", "ws", "bb"], "motion": ["still"], "place": ["near"],
+		 "feature": ["teleport_jump", "teleport_turn"]},
+		{"fixture": ["chain"], "space": ["cs", "ws", "bb"], "motion": ["sway"], "place": ["near"],
+		 "feature": ["none", "limit_angle", "sphere", "capsule", "tapered", "box", "plane"]},
+		{"fixture": ["chain"], "space": ["cs", "ws", "bb"], "motion": ["still", "moving"], "place": ["far", "yawed"], "feature": ["none", "force_bone"]},
+		{"fixture": ["kano"], "space": ["cs", "ws", "bb", "bm"], "motion": ["still", "moving"], "place": ["near"], "feature": ["none"]},
+		{"fixture": ["kano"], "space": ["cs", "bm"], "motion": ["still", "moving"], "place": ["near"], "feature": ["world_damping_zero"]}
+	],
+	"extra_cells": [
+		{"id": "reg.cs_to_bb", "tags": {"group": "regression"}, "cell": {
+			"mesh": "/Game/KawaiiPhysicsSample/Model/TAStyleKano/Mesh/test_kano1.test_kano1",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/09_Showcase/ABP_9_Kano.ABP_9_Kano_C",
+			"clear_external_forces": true,
+			"overrides": {"SimulationSpace": "ComponentSpace", "SimulationBaseBone": "(BoneName=\"local\")"},
+			"events": [{"frame": 150, "overrides": {"SimulationSpace": "BaseBoneSpace"}}]
+		}},
+		{"id": "reg.ws_to_bb", "tags": {"group": "regression"}, "cell": {
+			"mesh": "/Game/KawaiiPhysicsSample/Model/TAStyleKano/Mesh/test_kano1.test_kano1",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/09_Showcase/ABP_9_Kano.ABP_9_Kano_C",
+			"clear_external_forces": true,
+			"overrides": {"SimulationSpace": "WorldSpace", "SimulationBaseBone": "(BoneName=\"local\")"},
+			"events": [{"frame": 150, "overrides": {"SimulationSpace": "BaseBoneSpace"}}]
+		}},
+		{"id": "reg.cs_to_ws", "tags": {"group": "regression"}, "cell": {
+			"mesh": "/Game/KawaiiPhysicsSample/Model/TAStyleKano/Mesh/test_kano1.test_kano1",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/09_Showcase/ABP_9_Kano.ABP_9_Kano_C",
+			"clear_external_forces": true,
+			"overrides": {"SimulationSpace": "ComponentSpace"},
+			"events": [{"frame": 150, "overrides": {"SimulationSpace": "WorldSpace"}}]
+		}},
+		{"id": "reg.pelvis_reset", "tags": {"group": "regression"}, "cell": {
+			"mesh": "/Game/KawaiiPhysicsSample/Model/TAStyleKano/Mesh/test_kano1.test_kano1",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/09_Showcase/ABP_9_Kano.ABP_9_Kano_C",
+			"clear_external_forces": true,
+			"overrides": {"SimulationSpace": "BaseBoneSpace", "SimulationBaseBone": "(BoneName=\"pelvis\")", "WarmUpFrames": "30"},
+			"events": [{"frame": 150, "reset_dynamics": true}]
+		}}
+	],
+	"relations": [
+		{"kind": "equal", "vary": {"axis": "space", "a": "cs", "b": "bb"}, "where": {"fixture": ["chain"]}, "except": {"feature": ["wind", "subdivision_free", "sphere", "capsule", "tapered", "box", "plane", "world_floor", "simple_floor"]}, "max_cm": 0.01, "max_degrees": 0.05,
+		 "reason": "The chain's base bone never moves in component space, so BaseBoneSpace must match ComponentSpace."},
+		{"kind": "equal", "vary": {"axis": "space", "a": "cs", "b": "bb"}, "where": {"fixture": ["chain"], "feature": ["sphere", "capsule", "tapered", "box", "plane"]}, "max_cm": 0.5, "max_degrees": 1.0,
+		 "reason": "Contact amplifies rounding: moving a limit by 0.0001 cm separates the same cell by 0.21 cm, so exact agreement does not exist here."},
+		{"kind": "equal", "vary": {"axis": "space", "a": "cs", "b": "bb"}, "where": {"fixture": ["chain"], "feature": ["world_floor", "simple_floor"]}, "max_cm": 0.5,
+		 "reason": "Floor contact amplifies rounding the same way. The rotation is left out: the tip dummy touching the floor swings the last bone by tens of degrees between runs."},
+		{"kind": "equal", "vary": {"axis": "space", "a": "cs", "b": "bb"}, "where": {"fixture": ["chain"], "feature": ["subdivision_free"]}, "max_cm": 0.01, "max_degrees": 0.2,
+		 "reason": "Free inter-bone dummies fold and amplify rounding differences, which shows in the rotation before the location."},
+		{"kind": "equal", "vary": {"axis": "space", "a": "cs", "b": "ws"}, "where": {"fixture": ["chain"], "motion": ["still"]}, "except": {"feature": ["wind", "floor_off", "world_floor", "simple_floor", "teleport_jump", "teleport_turn"]}, "max_cm": 0.01, "max_degrees": 0.05,
+		 "reason": "With the actor at rest, WorldSpace must match ComponentSpace. The floor cells bob up and down and the teleport cells jump, so they do not count as at rest."},
+		{"kind": "equal", "vary": {"axis": "place", "a": "near", "b": "far"}, "where": {"fixture": ["chain"]}, "max_cm": 0.01, "max_degrees": 0.05,
+		 "reason": "Distance from the origin must not change the result."},
+		{"kind": "equal", "vary": {"axis": "space", "a": "cs", "b": "ws"}, "where": {"fixture": ["kano"], "motion": ["still"]}, "max_cm": 0.05, "max_degrees": 0.2,
+		 "reason": "With the actor at rest and forces cleared, WorldSpace must match ComponentSpace on the animated character."},
+		{"kind": "equal", "vary": {"axis": "space", "a": "cs", "b": "bb"}, "where": {"fixture": ["kano"]}, "max_cm": 0.05, "max_degrees": 0.2,
+		 "reason": "The local bone stays fixed in component space, so it must match ComponentSpace on the character too."},
+
+		{"kind": "equal", "vary": {"axis": "feature", "a": "none", "b": "teleport_jump"}, "where": {"fixture": ["chain"], "motion": ["still"], "space": ["cs", "bb"], "place": ["near"]}, "profiles": ["base", "fps45"], "max_cm": 0.01, "max_degrees": 0.05,
+		 "reason": "A teleport must discard the whole component move, including the part substepping has not consumed yet. 45 fps leaves such a remainder; 30, 60 and 120 do not."},
+
+		{"kind": "differ", "vary": {"axis": "space", "a": "cs", "b": "ws"}, "where": {"fixture": ["chain"], "motion": ["moving"], "feature": ["none"], "place": ["near"]}, "min_cm": 10.0,
+		 "reason": "Negative control: an actor in motion must separate WorldSpace from ComponentSpace, otherwise the equal relations prove nothing."},
+		{"kind": "differ", "vary": {"axis": "motion", "a": "still", "b": "moving"}, "where": {"feature": ["none"], "place": ["near"]}, "min_cm": 10.0,
+		 "reason": "Negative control: the moving cells must actually move."},
+		{"kind": "differ", "vary": {"axis": "space", "a": "cs", "b": "bm"}, "where": {"fixture": ["kano"]}, "min_cm": 0.5,
+		 "reason": "Negative control: a base bone that animates must separate BaseBoneSpace from ComponentSpace."},
+
+		{"kind": "differ", "vary": {"axis": "feature", "a": "none", "b": "gravity_off"}, "where": {"fixture": ["chain"]}, "min_cm": 1.0, "reason": "Gravity must change the motion."},
+		{"kind": "differ", "vary": {"axis": "feature", "a": "none", "b": "damping_high"}, "where": {"fixture": ["chain"]}, "min_cm": 1.0, "reason": "Damping must change the motion."},
+		{"kind": "differ", "vary": {"axis": "feature", "a": "none", "b": "stiffness_high"}, "where": {"fixture": ["chain"]}, "min_cm": 1.0, "reason": "Stiffness must change the motion."},
+		{"kind": "differ", "vary": {"axis": "feature", "a": "none", "b": "world_damping_zero"}, "where": {"fixture": ["chain"], "space": ["cs", "bb"]}, "min_cm": 1.0, "reason": "World damping must change how a moving component drags the chain."},
+		{"kind": "differ", "vary": {"axis": "feature", "a": "none", "b": "move_scale_zero"}, "where": {"fixture": ["chain"], "space": ["cs", "bb"]}, "min_cm": 1.0, "reason": "SkelCompMoveScale must change how a moving component drags the chain."},
+		{"kind": "differ", "vary": {"axis": "feature", "a": "none", "b": "limit_angle"}, "where": {"fixture": ["chain"]}, "min_cm": 1.0, "reason": "LimitAngle must change the motion."},
+		{"kind": "differ", "vary": {"axis": "feature", "a": "none", "b": "planar"}, "where": {"fixture": ["chain"]}, "min_cm": 1.0, "reason": "PlanarConstraint must change the motion."},
+		{"kind": "differ", "vary": {"axis": "feature", "a": "none", "b": "dummy_off"}, "where": {"fixture": ["chain"], "motion": ["moving"]}, "min_degrees": 5.0, "reason": "The tip dummy bone only steers the rotation of the last real bone."},
+		{"kind": "differ", "vary": {"axis": "feature", "a": "none", "b": "constraint"}, "where": {"fixture": ["chain"], "motion": ["moving"]}, "min_cm": 0.1, "reason": "A bone constraint must change the motion."},
+		{"kind": "differ", "vary": {"axis": "feature", "a": "none", "b": "force_world"}, "where": {"fixture": ["chain"]}, "min_cm": 1.0, "reason": "A world space external force must change the motion."},
+		{"kind": "differ", "vary": {"axis": "feature", "a": "none", "b": "force_bone"}, "where": {"fixture": ["chain"], "place": ["near"]}, "min_cm": 1.0, "reason": "A bone space external force must change the motion."},
+		{"kind": "differ", "vary": {"axis": "feature", "a": "none", "b": "simple_force"}, "where": {"fixture": ["chain"]}, "min_cm": 1.0, "reason": "SimpleExternalForce must change the motion."},
+		{"kind": "differ", "vary": {"axis": "feature", "a": "none", "b": "wind"}, "where": {"fixture": ["chain"]}, "min_cm": 0.5, "reason": "Wind must change the motion, which also proves the wind source is alive in this run."},
+		{"kind": "differ", "vary": {"axis": "feature", "a": "none", "b": "reset"}, "where": {"fixture": ["chain"]}, "min_cm": 0.1, "reason": "ResetDynamics must change the motion."},
+		{"kind": "differ", "vary": {"axis": "feature", "a": "floor_off", "b": "world_floor"}, "where": {"fixture": ["chain"], "place": ["near"]}, "min_cm": 1.0, "reason": "World collision must stop the chain on the floor."},
+		{"kind": "differ", "vary": {"axis": "feature", "a": "floor_off", "b": "simple_floor"}, "where": {"fixture": ["chain"], "place": ["near"]}, "min_cm": 1.0, "reason": "Simple world collision must stop the chain on the floor."},
+
+		{"kind": "penetration_reduced", "vary": {"axis": "feature", "a": "none", "b": "sphere"}, "where": {"fixture": ["chain"], "motion": ["still", "sway"]}, "min_reduction_cm": 0.5, "reason": "Spherical limits must push bones out at speeds that do not tunnel through them."},
+		{"kind": "penetration_reduced", "vary": {"axis": "feature", "a": "none", "b": "capsule"}, "where": {"fixture": ["chain"], "motion": ["still", "sway"]}, "min_reduction_cm": 1.0, "reason": "Capsule limits must push bones out at speeds that do not tunnel through them."},
+		{"kind": "penetration_reduced", "vary": {"axis": "feature", "a": "none", "b": "tapered"}, "where": {"fixture": ["chain"], "motion": ["still", "sway"]}, "min_reduction_cm": 1.0, "reason": "Tapered capsule limits must push bones out at speeds that do not tunnel through them."},
+		{"kind": "penetration_reduced", "vary": {"axis": "feature", "a": "none", "b": "box"}, "where": {"fixture": ["chain"], "motion": ["still", "sway"]}, "min_reduction_cm": 1.0, "reason": "Box limits must push bones out at speeds that do not tunnel through them."},
+		{"kind": "penetration_reduced", "vary": {"axis": "feature", "a": "none", "b": "plane"}, "where": {"fixture": ["chain"], "motion": ["still", "sway"]}, "min_reduction_cm": 1.0, "reason": "Planar limits must push bones out."},
+		{"kind": "limit_angle_reduced", "vary": {"axis": "feature", "a": "none", "b": "limit_angle"}, "where": {"fixture": ["chain"]}, "min_reduction_degrees": 2.0, "reason": "The free chain must pass the angle the limited chain keeps to, which also proves the angle check measures something."},
+
+		{"kind": "profile_equal", "a_profile": "base", "b_profile": "serial", "except": {"feature": ["wind"]}, "max_cm": 0.0001, "max_degrees": 0.001, "reason": "Parallel and serial evaluation must produce the same motion."},
+		{"kind": "profile_equal", "a_profile": "dilated", "b_profile": "fps120", "except": {"feature": ["wind"]}, "max_cm": 0.05, "max_degrees": 0.2, "reason": "Half time dilation at 60 fps advances the same steps as 120 fps."},
+		{"kind": "profile_equal", "a_profile": "base", "b_profile": "fps30", "a_stride": 2, "a_offset": 1, "skip_frames": 2, "where": {"feature": ["none", "world_damping_zero"], "place": ["near"], "motion": ["still", "moving"]}, "max_cm": 90.0, "reason": "Fixed substepping keeps 30 fps near 60 fps at the same simulation time. This is a budget above the measured 74 cm, to catch the difference growing."},
+		{"kind": "profile_equal", "a_profile": "fps120", "b_profile": "base", "a_stride": 2, "a_offset": 1, "skip_frames": 2, "where": {"feature": ["none", "world_damping_zero"], "place": ["near"], "motion": ["still", "moving"]}, "max_cm": 45.0, "reason": "Fixed substepping keeps 120 fps near 60 fps at the same simulation time. This is a budget above the measured 38 cm, to catch the difference growing."},
+		{"kind": "profile_differ", "a_profile": "base", "b_profile": "dilated", "where": {"feature": ["none"], "place": ["near"]}, "min_cm": 0.5, "reason": "Negative control: time dilation must take effect."},
+		{"kind": "profile_differ", "a_profile": "fps30", "b_profile": "fps30_no_substep", "where": {"fixture": ["chain"], "feature": ["none"], "motion": ["moving"], "place": ["near"]}, "min_cm": 0.01, "reason": "Negative control: turning fixed substepping off must take effect at a low frame rate."}
+	]
+}

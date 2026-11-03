@@ -12,11 +12,11 @@ import math
 
 
 def load_recording(path) -> dict:
-    """Load a version-one cell recording as {'run': header, 'cells': {id: cell}}."""
+    """Load a version-two cell recording as {'run': header, 'cells': {id: cell}}."""
     with open(path, encoding='utf-8') as source:
         lines = [json.loads(line) for line in source if line.strip()]
-    if not lines or lines[0].get('type') != 'run' or lines[0].get('version') != 1:
-        raise ValueError(f'{path} needs a version-one run header.')
+    if not lines or lines[0].get('type') != 'run' or lines[0].get('version') != 2:
+        raise ValueError(f'{path} needs a version-two run header.')
     return {'run': lines[0], 'cells': {line['id']: line for line in lines[1:]}}
 
 
@@ -28,8 +28,13 @@ def _percentile(values, percentile):
 
 
 def _quaternion_angle(a, b):
-    dot = abs(sum(x * y for x, y in zip(a, b)))
-    return math.degrees(2 * math.acos(min(1.0, dot)))
+    # acos は 1 付近で桁が落ち、同じ回転でも 0.03 度ほど出る。正規化して半角の atan2 で求める。
+    a_length = math.sqrt(sum(x * x for x in a))
+    b_length = math.sqrt(sum(x * x for x in b))
+    sign = 1.0 if sum(x * y for x, y in zip(a, b)) >= 0.0 else -1.0
+    apart = sum((x / a_length - sign * y / b_length) ** 2 for x, y in zip(a, b))
+    together = sum((x / a_length + sign * y / b_length) ** 2 for x, y in zip(a, b))
+    return math.degrees(4.0 * math.atan2(math.sqrt(apart), math.sqrt(together)))
 
 
 def compare_cells(first: dict, second: dict, skip_frames: int = 0) -> dict:

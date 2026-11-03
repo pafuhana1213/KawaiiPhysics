@@ -31,6 +31,7 @@ private:
 	struct FCellMotion
 	{
 		FVector BaseLocation = FVector::ZeroVector;
+		double BaseYawDegrees = 0.0;
 		FVector LinearAmplitude = FVector::ZeroVector;
 		double LinearPeriod = 1.0;
 		double YawAmplitudeDegrees = 0.0;
@@ -43,6 +44,8 @@ private:
 		int32 Frame = 0;
 		TArray<TPair<FName, FString>> Overrides;
 		bool bResetDynamics = false;
+		FVector LocationOffset = FVector::ZeroVector;
+		double YawOffsetDegrees = 0.0;
 	};
 
 	struct FCell
@@ -52,6 +55,16 @@ private:
 		TArray<FCellEvent> Events;
 		TWeakObjectPtr<USkeletalMeshComponent> Component;
 		TArray<double> Samples;
+		struct FNodeRecord
+		{
+			FString Root;
+			FString BonesJson;
+			int32 FirstFrame = 0;
+			int32 BoneCount = INDEX_NONE;
+			TArray<double> BoneFrames;
+			TArray<TArray<double>> LimitFrames;
+		};
+		TArray<FNodeRecord> NodeRecords;
 		bool bDriven = true;
 	};
 
@@ -66,7 +79,8 @@ private:
 	void HandlePreActorTick(UWorld* InWorld, ELevelTick TickType, float DeltaSeconds);
 	void ApplyMotion(const FCell& Cell, double Time) const;
 	bool ReadCellEvents(const TSharedPtr<class FJsonObject>& CellObject, FCell& Cell) const;
-	bool ApplyDueEvents(const FCell& Cell) const;
+	bool ApplyDueEvents(FCell& Cell) const;
+	bool RecordCellNodes(FCell& Cell) const;
 	void WriteRecordingAndExit(bool bSucceeded);
 
 	TArray<FCell> Cells;
@@ -80,10 +94,12 @@ private:
 	double SimulationTime = 0.0;
 	double LastTickSeconds = 0.0;
 	TArray<double> FrameMilliseconds;
+	TArray<double> FrameDeltaSeconds;
 	TArray<double> CalibrationStartMilliseconds;
 	TArray<double> CalibrationEndMilliseconds;
 	int32 ScanFramesRemaining = 0;
 	int32 StartDelayFramesRemaining = 0;
 	bool bRecordTransforms = true;
+	bool bRecordNodes = false;
 	bool bRunning = false;
 };

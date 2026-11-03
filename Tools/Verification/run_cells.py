@@ -4,20 +4,37 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+import json
+import os
 import pathlib
 import re
 import subprocess
 import sys
 import time
+import winreg
 from ctypes import wintypes
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 PROJECT = REPO_ROOT / 'KawaiiPhysicsSample.uproject'
-DEFAULT_ENGINE = pathlib.Path('D:/EpicGames/UE_5.8')
+
+
+def find_engine() -> pathlib.Path:
+    """Return KP_UE_ROOT, or the launcher install matching the project's engine version."""
+    override = os.environ.get('KP_UE_ROOT')
+    if override:
+        return pathlib.Path(override)
+    version = json.loads(PROJECT.read_text(encoding='utf-8'))['EngineAssociation']
+    key_path = rf'SOFTWARE\EpicGames\Unreal Engine\{version}'
+    with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path) as key:
+        return pathlib.Path(winreg.QueryValueEx(key, 'InstalledDirectory')[0])
+
+
+DEFAULT_ENGINE = find_engine()
 DEFAULT_MAP = '/Engine/Maps/Entry'
 SEVERE_LOG = re.compile(r'(Error:|Ensure condition failed|Fatal error|LogKawaiiPhysics: Warning)')
 # UE 5.8 experimental toolset plugins fail their Python imports under -game; unrelated to the run.
-IGNORED_LOG = re.compile(r'LogPython: Error:')
+# The engine's struct initialization test also flags FDataflowToolNodeSnapshot on some startups only.
+IGNORED_LOG = re.compile(r'LogPython: Error:|FDataflowToolNodeSnapshot::Date')
 
 
 def _set_affinity(process, mask):
@@ -30,7 +47,7 @@ def _set_affinity(process, mask):
 
 def run(manifest, output, engine=DEFAULT_ENGINE, level=DEFAULT_MAP, fps=60, timeout=600,
         extra_arguments=(), affinity_mask=None, render=False, resolution=(320, 180),
-        capture_directory=None):
+        capture_directory=None, cvars=()):
     """Launch one process and return its exit code, seconds, and severe log lines.
 
     render keeps the renderer alive off screen. Wind sources live in the renderer scene, so
@@ -49,7 +66,8 @@ def run(manifest, output, engine=DEFAULT_ENGINE, level=DEFAULT_MAP, fps=60, time
                  if capture_directory else []),
                '-unattended', '-nosplash', '-nosound',
                '-nopause', '-deterministic', f'-FPS={fps}', f'-KPVerify={manifest}',
-               f'-KPVerifyOut={output}', f'-abslog={log_path}', *extra_arguments]
+               f'-KPVerifyOut={output}', f'-abslog={log_path}',
+               *([f'-dpcvars={",".join(cvars)}'] if cvars else []), *extra_arguments]
     started = time.perf_counter()
     process = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:

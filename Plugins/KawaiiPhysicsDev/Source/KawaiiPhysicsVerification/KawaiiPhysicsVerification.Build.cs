@@ -22,5 +22,9 @@ public class KawaiiPhysicsVerification : ModuleRules
 			"Json",
 			"KawaiiPhysics"
 		});
+		if (Target.Version.MajorVersion == 5 && Target.Version.MinorVersion <= 4)
+		{
+			PrivateDependencyModuleNames.Add("StructUtils");
+		}
 	}
 }

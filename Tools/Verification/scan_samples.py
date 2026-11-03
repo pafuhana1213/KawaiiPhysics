@@ -61,7 +61,7 @@ def apply_known_issues(reports: list[dict], entries: list[dict]) -> list[dict]:
         unexplained, explained = [], []
         for line in report['severe_log']:
             matches = [index for index, entry in enumerate(entries)
-                       if 'log' in entry and entry['log'] in line]
+                       if 'check' not in entry and 'log' in entry and entry['log'] in line]
             used.update(matches)
             (explained if matches else unexplained).append(line)
         report['severe_log'], report['known_log'] = unexplained, explained
@@ -71,13 +71,15 @@ def apply_known_issues(reports: list[dict], entries: list[dict]) -> list[dict]:
             cell['known_violations'] = []
             for violation in list(cell['violations']):
                 matches = [index for index, entry in enumerate(entries)
-                           if entry.get('anim_class') == cell['anim_class'] and
+                           if 'check' not in entry and
+                           entry.get('anim_class') == cell['anim_class'] and
                            entry.get('violation') == violation]
                 if matches:
                     used.update(matches)
                     cell['violations'].remove(violation)
                     cell['known_violations'].append(violation)
-    return [entry for index, entry in enumerate(entries) if index not in used]
+    return [entry for index, entry in enumerate(entries)
+            if index not in used and 'check' not in entry]
 
 
 def main():
