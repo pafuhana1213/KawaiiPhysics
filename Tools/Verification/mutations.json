@@ -1,0 +1,86 @@
+{
+	"mutations": [
+		{
+			"id": "3a6e10a_follow_rotation",
+			"commit": "3a6e10a",
+			"summary": "Follow Rotation rotates the bone in base bone coordinates instead of component coordinates.",
+			"edits": [
+				{
+					"file": "Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/AnimNode_KawaiiPhysicsSimulation.cpp",
+					"old": "Bone.Location += (RotatedLocationBase - Bone.PrevLocation) * (1.0f - Bone.PhysicsSettings.WorldDampingRotation);",
+					"new": "Bone.Location += (SkelCompMoveRotation.RotateVector(Bone.PrevLocation) - Bone.PrevLocation) * (1.0f - Bone.PhysicsSettings.WorldDampingRotation);"
+				}
+			]
+		},
+		{
+			"id": "57a7bd9_space_order",
+			"commit": "57a7bd9",
+			"summary": "Space conversions apply the target space before the source space.",
+			"edits": [
+				{
+					"file": "Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/AnimNode_KawaiiPhysicsSimulation.cpp",
+					"old": "ResultLocation = CacheFrom.TargetSpaceToComponent.TransformPosition(ResultLocation);\r\n\tResultLocation = CacheTo.ComponentToTargetSpace.TransformPosition(ResultLocation);",
+					"new": "ResultLocation = CacheTo.ComponentToTargetSpace.TransformPosition(ResultLocation);\r\n\tResultLocation = CacheFrom.TargetSpaceToComponent.TransformPosition(ResultLocation);"
+				}
+			]
+		},
+		{
+			"id": "9f8de57_teleport_rotation",
+			"commit": "9f8de57",
+			"summary": "The teleport rotation check measures the rotation after conversion to simulation space.",
+			"edits": [
+				{
+					"file": "Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/AnimNode_KawaiiPhysicsModifyBones.cpp",
+					"old": "FMath::RadiansToDegrees(SkelCompMoveRotation.GetAngle()) > TeleportRotationThreshold",
+					"new": "FMath::RadiansToDegrees(ConvertSimulationSpaceRotation(Output, EKawaiiPhysicsSimulationSpace::ComponentSpace, SimulationSpace, SkelCompMoveRotation).GetAngle()) > TeleportRotationThreshold"
+				}
+			]
+		},
+		{
+			"id": "34f6d9d_bone_space_force",
+			"commit": "34f6d9d",
+			"summary": "BoneSpace external forces go through a base bone conversion as well as the bone transform.",
+			"edits": [
+				{
+					"file": "Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/ExternalForces/KawaiiPhysicsExternalForce.cpp",
+					"old": "\tif (ExternalForceSpace == EExternalForceSpace::BoneSpace)\r\n\t{\r\n\t\treturn InForce;\r\n\t}\r\n\r\n",
+					"new": ""
+				},
+				{
+					"file": "Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/ExternalForces/KawaiiPhysicsExternalForce.cpp",
+					"old": "\t\tFrom = EKawaiiPhysicsSimulationSpace::WorldSpace;\r\n\t}\r\n\r\n\t// 変換元からNode.SimulationSpaceへ変換して返す",
+					"new": "\t\tFrom = EKawaiiPhysicsSimulationSpace::WorldSpace;\r\n\t}\r\n\telse if (ExternalForceSpace == EExternalForceSpace::BoneSpace)\r\n\t{\r\n\t\tFrom = EKawaiiPhysicsSimulationSpace::BaseBoneSpace;\r\n\t}\r\n\r\n\t// 変換元からNode.SimulationSpaceへ変換して返す"
+				}
+			]
+		},
+		{
+			"id": "2b996de_teleport_move",
+			"commit": "2b996de",
+			"summary": "A teleport frame keeps the unconsumed part of the component move for the next frame.",
+			"edits": [
+				{
+					"file": "Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/AnimNode_KawaiiPhysicsModifyBones.cpp",
+					"old": "\tif (bTeleportedThisFrame)\r\n\t{\r\n\t\tPreSkelCompTransformConsumeFraction = 1.0f;\r\n\t}\r\n",
+					"new": "\t(void)bTeleportedThisFrame;\r\n"
+				}
+			]
+		},
+		{
+			"id": "8473c04_base_bone_restart",
+			"commit": "8473c04",
+			"summary": "The previous base bone transform survives a space switch and a bone rebuild.",
+			"edits": [
+				{
+					"file": "Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/AnimNode_KawaiiPhysics.cpp",
+					"old": "\t\tConvertSimulationSpace(Output, LastSimulationSpace, SimulationSpace);\r\n\t\t// 変換後のボーン位置は現在の基準ボーン基準なので、旧空間の値のままだとFollow Rotationで全チェーンが跳ねる\r\n\t\tPrevBaseBoneSpace2ComponentSpace = CurrentEvalSimSpaceCache.TargetSpaceToComponent;\r\n",
+					"new": "\t\tConvertSimulationSpace(Output, LastSimulationSpace, SimulationSpace);\r\n"
+				},
+				{
+					"file": "Plugins/KawaiiPhysics/Source/KawaiiPhysics/Private/AnimNode_KawaiiPhysics.cpp",
+					"old": "\t\t// 作り直したボーンに前フレームは無い。参照ポーズや前回の値を残すとFollow Rotationで全チェーンが跳ねる\r\n\t\tPrevBaseBoneSpace2ComponentSpace = CurrentEvalSimSpaceCache.TargetSpaceToComponent;\r\n",
+					"new": ""
+				}
+			]
+		}
+	]
+}

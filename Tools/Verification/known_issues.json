@@ -1,0 +1,60 @@
+{
+	"entries": [
+		{
+			"anim_class": "ABP_2_8_WarmUp_Off_C",
+			"violation": "jump",
+			"reason": "The exhibit resets dynamics to show the warm-up off case; the tip returns to its pose once (155.6 cm to 0 cm at the reset)."
+		},
+		{
+			"anim_class": "ABP_1_3_ExcludeBones_Off_C",
+			"violation": "stretched",
+			"reason": "The bad example of the pair: the whole body is simulated without exclusions, so the arm twist bones separate."
+		},
+		{
+			"anim_class": "ABP_1_3_ExcludeBones_Off_C",
+			"violation": "compressed",
+			"reason": "Same exhibit: the foot bones collapse when the whole body is simulated without exclusions."
+		},
+		{
+			"anim_class": "ABP_2_3_WorldDampingLocation_1_C",
+			"violation": "still",
+			"reason": "WorldDampingLocation 1 removes the sway from moving; staying still is the demonstrated result."
+		},
+		{
+			"anim_class": "ABP_2_4_WorldDampingRotation_1_C",
+			"violation": "still",
+			"reason": "WorldDampingRotation 1 removes the sway from turning; staying still is the demonstrated result."
+		},
+		{
+			"anim_class": "ABP_2_10_SkelCompMoveScale_0_C",
+			"violation": "still",
+			"reason": "SkelCompMoveScale 0 ignores component movement; staying still is the demonstrated result."
+		},
+		{
+			"anim_class": "ABP_2_7_Teleport_50_C",
+			"violation": "still",
+			"reason": "The mover exceeds the 50 cm teleport threshold, so the exhibit shows no sway on purpose."
+		},
+		{
+			"anim_class": "ABP_2_9_TeleportRotation_1_C",
+			"violation": "still",
+			"reason": "The mover exceeds the 1 degree teleport threshold, so the exhibit shows no sway on purpose."
+		},
+		{
+			"log": "GatherRadius 30.00 may be smaller than the physics chain reach",
+			"reason": "ABP_7_4_GatherRadius_30 shows an undersized gather radius on purpose."
+		},
+		{
+			"check": "cell:chain.*.moving.reset.near:jump",
+			"reason": "ResetDynamics returns the chain to its pose at once; the 122 cm step equals how far the fast cell had swung away."
+		},
+		{
+			"check": "cell:chain.*.subdivision_free.near:compressed",
+			"reason": "With bBoneSubdivisionCollisionOnly off the inter-bone dummies are free particles, so the polyline folds and real bones draw close (0.03 of rest length)."
+		},
+		{
+			"check": "relation:switch.cs_to_ws.fps30",
+			"reason": "Body bug, not fixed yet: when a frame runs two or more steps, the space switch overwrites the previous frame's pose target (PrevPoseLocation) with the current pose instead of converting it, so the first step solves against the end-of-frame pose. The output jumps 0.96 cm at the switch at 30 fps, the same before and after the offset fix of #315."
+		}
+	]
+}

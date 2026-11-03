@@ -1,0 +1,24 @@
+{
+	"frames": 300,
+	"start_delay_frames": 180,
+	"camera": {"location": [-1500, -470, 85], "rotation": [0, 90, 0], "fov": 40},
+	"cells": [
+		{
+			"id": "first_step",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/TAStyleKano/Mesh/test_kano1.test_kano1",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/09_Showcase/ABP_9_Kano.ABP_9_Kano_C",
+			"location": [-1565, 0, 0],
+			"clear_external_forces": true,
+			"overrides": {"SimulationSpace": "BaseBoneSpace", "SimulationBaseBone": "(BoneName=\"local\")"}
+		},
+		{
+			"id": "switch_at_150",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/TAStyleKano/Mesh/test_kano1.test_kano1",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/09_Showcase/ABP_9_Kano.ABP_9_Kano_C",
+			"location": [-1435, 0, 0],
+			"clear_external_forces": true,
+			"overrides": {"SimulationSpace": "ComponentSpace", "SimulationBaseBone": "(BoneName=\"local\")"},
+			"events": [{"frame": 150, "overrides": {"SimulationSpace": "BaseBoneSpace"}}]
+		}
+	]
+}

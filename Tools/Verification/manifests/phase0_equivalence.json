@@ -1,0 +1,72 @@
+{
+	"frames": 300,
+	"cells": [
+		{
+			"id": "chain_cs_moving",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/Chain/S_Chain.S_Chain",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/01_BoneChain/ABP_1_1_RootBone.ABP_1_1_RootBone_C",
+			"location": [0, 0, 500],
+			"motion": {"linear_amplitude": [80, 30, 0], "linear_period": 1.2, "yaw_amplitude_degrees": 30, "yaw_period": 1.7},
+			"overrides": {"SimulationSpace": "ComponentSpace", "Gravity": "(X=400,Y=150,Z=-980)"}
+		},
+		{
+			"id": "chain_bb_moving",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/Chain/S_Chain.S_Chain",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/01_BoneChain/ABP_1_1_RootBone.ABP_1_1_RootBone_C",
+			"location": [500, 0, 500],
+			"motion": {"linear_amplitude": [80, 30, 0], "linear_period": 1.2, "yaw_amplitude_degrees": 30, "yaw_period": 1.7},
+			"overrides": {"SimulationSpace": "BaseBoneSpace", "SimulationBaseBone": "(BoneName=\"Torus001\")", "Gravity": "(X=400,Y=150,Z=-980)"}
+		},
+		{
+			"id": "chain_ws_moving",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/Chain/S_Chain.S_Chain",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/01_BoneChain/ABP_1_1_RootBone.ABP_1_1_RootBone_C",
+			"location": [1000, 0, 500],
+			"motion": {"linear_amplitude": [80, 30, 0], "linear_period": 1.2, "yaw_amplitude_degrees": 30, "yaw_period": 1.7},
+			"overrides": {"SimulationSpace": "WorldSpace", "Gravity": "(X=400,Y=150,Z=-980)"}
+		},
+		{
+			"id": "chain_cs_moving_offset",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/Chain/S_Chain.S_Chain",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/01_BoneChain/ABP_1_1_RootBone.ABP_1_1_RootBone_C",
+			"location": [20000, 7000, 3000],
+			"motion": {"linear_amplitude": [80, 30, 0], "linear_period": 1.2, "yaw_amplitude_degrees": 30, "yaw_period": 1.7},
+			"overrides": {"SimulationSpace": "ComponentSpace", "Gravity": "(X=400,Y=150,Z=-980)"}
+		},
+		{
+			"id": "chain_cs_static",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/Chain/S_Chain.S_Chain",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/01_BoneChain/ABP_1_1_RootBone.ABP_1_1_RootBone_C",
+			"location": [0, 500, 500],
+			"overrides": {"SimulationSpace": "ComponentSpace", "Gravity": "(X=400,Y=150,Z=-980)"}
+		},
+		{
+			"id": "chain_ws_static",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/Chain/S_Chain.S_Chain",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/01_BoneChain/ABP_1_1_RootBone.ABP_1_1_RootBone_C",
+			"location": [500, 500, 500],
+			"overrides": {"SimulationSpace": "WorldSpace", "Gravity": "(X=400,Y=150,Z=-980)"}
+		},
+		{
+			"id": "chain_bb_static",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/Chain/S_Chain.S_Chain",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/01_BoneChain/ABP_1_1_RootBone.ABP_1_1_RootBone_C",
+			"location": [1000, 500, 500],
+			"overrides": {"SimulationSpace": "BaseBoneSpace", "SimulationBaseBone": "(BoneName=\"Torus001\")", "Gravity": "(X=400,Y=150,Z=-980)"}
+		},
+		{
+			"id": "kano_cs_static",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/TAStyleKano/Mesh/test_kano1.test_kano1",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/09_Showcase/ABP_9_Kano.ABP_9_Kano_C",
+			"location": [0, 2000, 500],
+			"overrides": {"SimulationSpace": "ComponentSpace"}
+		},
+		{
+			"id": "kano_ws_static",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/TAStyleKano/Mesh/test_kano1.test_kano1",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/09_Showcase/ABP_9_Kano.ABP_9_Kano_C",
+			"location": [1000, 2000, 500],
+			"overrides": {"SimulationSpace": "WorldSpace"}
+		}
+	]
+}

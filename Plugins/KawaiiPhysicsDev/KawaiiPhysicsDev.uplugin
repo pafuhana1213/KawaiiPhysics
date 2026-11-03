@@ -3,10 +3,10 @@
 	"Version": 1,
 	"VersionName": "0.1.0",
 	"FriendlyName": "KawaiiPhysics Dev",
-	"Description": "Automated tests for developing KawaiiPhysics. Not shipped with the KawaiiPhysics plugin.",
+	"Description": "Automated tests and the verification runner for developing KawaiiPhysics. Not shipped with the KawaiiPhysics plugin.",
 	"Category": "Testing",
 	"CreatedBy": "pafuhana1213",
-	"CanContainContent": false,
+	"CanContainContent": true,
 	"IsBetaVersion": false,
 	"IsExperimentalVersion": false,
 	"Installed": false,
@@ -22,6 +22,14 @@
 			],
 			"TargetAllowList": [
 				"Editor"
+			]
+		},
+		{
+			"Name": "KawaiiPhysicsVerification",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64"
 			]
 		}
 	],

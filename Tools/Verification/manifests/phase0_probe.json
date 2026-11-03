@@ -1,0 +1,22 @@
+{
+	"frames": 60,
+	"cells": [
+		{
+			"id": "chain_probe",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/Chain/S_Chain.S_Chain",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/01_BoneChain/ABP_1_1_RootBone.ABP_1_1_RootBone_C",
+			"location": [0, 0, 500],
+			"overrides": {
+				"SimulationSpace": "BaseBoneSpace",
+				"SimulationBaseBone": "(BoneName=\"Torus001\")",
+				"Gravity": "(X=0,Y=0,Z=-980)"
+			}
+		},
+		{
+			"id": "kano_probe",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/TAStyleKano/Mesh/test_kano1.test_kano1",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/09_Showcase/ABP_9_Kano.ABP_9_Kano_C",
+			"location": [1000, 0, 500]
+		}
+	]
+}

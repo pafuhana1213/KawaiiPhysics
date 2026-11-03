@@ -1,0 +1,21 @@
+{
+	"frames": 300,
+	"cells": [
+		{
+			"id": "kano_cs_noforce",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/TAStyleKano/Mesh/test_kano1.test_kano1",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/09_Showcase/ABP_9_Kano.ABP_9_Kano_C",
+			"location": [0, 2000, 500],
+			"clear_external_forces": true,
+			"overrides": {"SimulationSpace": "ComponentSpace"}
+		},
+		{
+			"id": "kano_ws_noforce",
+			"mesh": "/Game/KawaiiPhysicsSample/Model/TAStyleKano/Mesh/test_kano1.test_kano1",
+			"anim_class": "/Game/KawaiiPhysicsSample/Examples/09_Showcase/ABP_9_Kano.ABP_9_Kano_C",
+			"location": [1000, 2000, 500],
+			"clear_external_forces": true,
+			"overrides": {"SimulationSpace": "WorldSpace"}
+		}
+	]
+}
