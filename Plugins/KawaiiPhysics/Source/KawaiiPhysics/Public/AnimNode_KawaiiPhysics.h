@@ -1836,6 +1836,8 @@ protected:
 
 	// コリジョン形状の派生値キャッシュを再計算 / Recompute derived-value caches of collision shapes
 	void PrepareCollisionShapeCaches();
+	void CapturePlanarCollisionStep();
+	void AdjustPlanarCollisionOutput(FKawaiiPhysicsModifyBone& Bone);
 
 	/**
 	 * Adjusts the bone position based on capsule collision limits.
@@ -1875,7 +1877,8 @@ protected:
 	 * @param Bone The bone to adjust.
 	 * @param Limits An array of planar limits.
 	 */
-	void AdjustByPlanarCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FPlanarLimit>& Limits);
+	void AdjustByPlanarCollision(FKawaiiPhysicsModifyBone& Bone, TArray<FPlanarLimit>& Limits,
+	                             bool bOnlyOvertake = false);
 
 	/**
 	 * Adjusts the bone position based on angle limits.

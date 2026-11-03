@@ -360,6 +360,9 @@ struct FPlanarLimit : public FCollisionLimitBase
 
 	// 実行時キャッシュ（毎ステップ再計算、シリアライズ対象外） / Runtime cache (recomputed every step, not serialized)
 	FVector CachedNormal = FVector::ZeroVector;
+	// 前回の物理ステップで使った平面 / Plane used by the previous physics step
+	FPlane PreviousStepPlane = FPlane(0, 0, 0, 0);
+	bool bHasPreviousStepPlane = false;
 
 	void UpdateRuntimeCache()
 	{

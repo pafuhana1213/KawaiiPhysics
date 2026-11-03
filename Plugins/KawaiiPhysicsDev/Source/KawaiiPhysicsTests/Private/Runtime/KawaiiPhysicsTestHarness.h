@@ -722,6 +722,7 @@ struct FKawaiiPhysicsTestAccessor
 				Node.DeltaTimeOld = 1.0f / Node.GetEffectiveTargetFramerate();
 			}
 			StepOnce();
+			Node.CapturePlanarCollisionStep();
 			Node.DeltaTimeOld = FrameDt;
 			Node.PreSkelCompTransformConsumeFraction = 1.0f;
 			Node.bSubstepPoseInitialized = false;
@@ -757,6 +758,7 @@ struct FKawaiiPhysicsTestAccessor
 				Node.SkelCompMoveVector = FullSkelCompMove * MoveFrac;
 				Node.SkelCompMoveRotation = FQuat::Slerp(FQuat::Identity, FullSkelCompRot, MoveFrac).GetNormalized();
 				StepOnce();
+				Node.CapturePlanarCollisionStep();
 				Node.CaptureSubstepPoseOffsets();
 			}
 			Node.bInSubstep = false;
@@ -883,6 +885,11 @@ struct FKawaiiPhysicsTestAccessor
 			Limit.UpdateRuntimeCache();
 		}
 		Node.AdjustByPlanarCollision(Bone, Limits);
+		for (FPlanarLimit& Limit : Limits)
+		{
+			Limit.PreviousStepPlane = Limit.Plane;
+			Limit.bHasPreviousStepPlane = Limit.bEnable;
+		}
 	}
 	void CallAngleLimit(FKawaiiPhysicsModifyBone& Bone, const FKawaiiPhysicsModifyBone& ParentBone)
 	{
@@ -1180,6 +1187,18 @@ private:
 		}
 
 		Node.RestoreBoneLengthsAndLimits();
+		if (Node.SimulationSpace == EKawaiiPhysicsSimulationSpace::WorldSpace)
+		{
+			for (FKawaiiPhysicsModifyBone& Bone : Node.ModifyBones)
+			{
+				if (Bone.bSkipSimulate)
+				{
+					continue;
+				}
+				Node.AdjustByPlanarCollision(Bone, Node.PlanarLimits, true);
+				Node.AdjustByPlanarCollision(Bone, Node.PlanarLimitsData, true);
+			}
+		}
 	}
 };
 
