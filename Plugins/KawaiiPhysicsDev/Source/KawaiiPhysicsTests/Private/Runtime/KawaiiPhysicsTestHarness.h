@@ -812,6 +812,19 @@ struct FKawaiiPhysicsTestAccessor
 	void SetSubstepPoseInitialized(bool bInitialized) { Node.bSubstepPoseInitialized = bInitialized; }
 	void CallResetSubstepPoseOffsets(FKawaiiPhysicsModifyBone& Bone) { FAnimNode_KawaiiPhysics::ResetSubstepPoseOffsets(Bone); }
 	void CallCaptureSubstepPoseOffsets() { Node.CaptureSubstepPoseOffsets(); }
+	/** 空間切り替え時の本番変換を評価キャッシュで実行する。 / Runs the production space-switch conversion with evaluation caches. */
+	void ConvertSimulationSpaceForTest(const FTransform& FromToComponent, const FTransform& ToToComponent,
+	                                   EKawaiiPhysicsSimulationSpace From, EKawaiiPhysicsSimulationSpace To)
+	{
+		FAnimNode_KawaiiPhysics::FSimulationSpaceCache CacheFrom;
+		CacheFrom.TargetSpaceToComponent = FromToComponent;
+		CacheFrom.ComponentToTargetSpace = FromToComponent.Inverse();
+		FAnimNode_KawaiiPhysics::FSimulationSpaceCache CacheTo;
+		CacheTo.TargetSpaceToComponent = ToToComponent;
+		CacheTo.ComponentToTargetSpace = ToToComponent.Inverse();
+		Node.ConvertSimulationSpaceCached(CacheFrom, CacheTo, From, To);
+		Node.SimulationSpace = To;
+	}
 
 	/** 固定フレーム dt で N フレーム進める */
 	void StepFrames(int32 NumFrames, float FrameDt)
@@ -1064,10 +1077,14 @@ private:
 			{
 				Bone.PrevPoseLocation = Bone.PoseLocation;
 				Bone.PrevPoseRotation = Bone.PoseRotation;
-				FAnimNode_KawaiiPhysics::ResetSubstepPoseOffsets(Bone);
+				if (!Node.bPreserveSubstepPoseOffsetsOnSpaceSwitch)
+				{
+					FAnimNode_KawaiiPhysics::ResetSubstepPoseOffsets(Bone);
+				}
 			}
 		}
 		Node.bSubstepPoseInitialized = true;
+		Node.bPreserveSubstepPoseOffsetsOnSpaceSwitch = false;
 	}
 
 	/**
