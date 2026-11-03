@@ -1933,6 +1933,12 @@ protected:
 	void UpdateOutputLocations();
 
 	/**
+	 * WorldSpace のテレポート時にチェーンの現在位置と出力補間状態を移す。
+	 * Moves the current chain and output interpolation state on a WorldSpace teleport.
+	 */
+	void ApplyWorldSpaceTeleport(const FTransform& ComponentTransform);
+
+	/**
 	 * Applies the simulation results to the bone transforms.
 	 *
 	 * @param Output The pose context.
