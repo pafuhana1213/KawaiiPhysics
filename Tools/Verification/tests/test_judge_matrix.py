@@ -83,6 +83,17 @@ class JudgeTest(unittest.TestCase):
         expanded['relations'][0].update({'a_stride': 2, 'a_offset': 1})
         self.assertTrue(judge_matrix.judge(expanded, recordings)['relations'][0]['ok'])
 
+    def test_until_frame_ends_the_compared_window(self):
+        expanded, recordings = setup()
+        recordings['base']['cells']['b']['transforms'][2 * 14 + 7] += 3
+        self.assertEqual(judge_matrix.judge(expanded, recordings)['relations'][0]['failure'],
+                         'not_equal')
+        expanded['relations'][0]['until_frame'] = 2
+        self.assertTrue(judge_matrix.judge(expanded, recordings)['relations'][0]['ok'])
+        expanded['relations'][0]['skip_frames'] = 2
+        self.assertEqual(judge_matrix.judge(expanded, recordings)['relations'][0]['metrics'],
+                         {'error': 'The frame window is empty.'})
+
     def test_base_bone_override_is_read_from_the_bone_reference_text(self):
         expanded, recordings = setup()
         expanded['cells'][0]['overrides'] = {'SimulationSpace': 'BaseBoneSpace',

@@ -161,7 +161,8 @@ def judge(expanded: dict, recordings: dict, thresholds: dict | None = None) -> d
                 else:
                     aligned_first, aligned_second = _aligned_cells(first, second, relation)
                     metrics = compare_cells.compare_cells(aligned_first, aligned_second,
-                                                          relation.get('skip_frames', 0))
+                                                          relation.get('skip_frames', 0),
+                                                          relation.get('until_frame'))
                     if kind in ('equal', 'profile_equal'):
                         ok = (metrics['max_cm'] <= relation['max_cm'] and
                               metrics['max_degrees'] <= relation.get('max_degrees', float('inf')))

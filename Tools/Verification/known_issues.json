@@ -53,16 +53,8 @@
 			"reason": "With bBoneSubdivisionCollisionOnly off the inter-bone dummies are free particles, so the polyline folds and real bones draw close (0.03 of rest length)."
 		},
 		{
-			"check": "cell:chain.ws.moving.teleport_*.near:stretched",
-			"reason": "Body bug, not fixed yet: the WorldSpace teleport branch (AnimNode_KawaiiPhysics.cpp:903) moves bones by the older PrevLocation and skips the simulation, then UpdateOutputLocations outputs Location unrestored. The first link stretches up to 36% for two frames when the component is moving."
-		},
-		{
-			"check": "cell:chain.ws.moving.plane.near:penetrating",
-			"reason": "Body limitation, not fixed yet: with fixed substepping the bones interpolate between steps while limits stay at the frame's final transform, so in WorldSpace a moving plane overtakes bones and leaves them behind it; the plane only resolves bones near it or crossing it. 60 fps runs one step per frame and stays at 0."
-		},
-		{
-			"check": "cell:reg.*:compressed",
-			"reason": "Body bug, not fixed yet: switching SimulationSpace resets the substep pose offsets, so the output interpolation breaks for that one frame. R_ribbon2 drops to 0.83 of its length on every kind of switch, with or without a base bone."
+			"check": "relation:switch.cs_to_ws.fps30",
+			"reason": "Body bug, not fixed yet: when a frame runs two or more steps, the space switch overwrites the previous frame's pose target (PrevPoseLocation) with the current pose instead of converting it, so the first step solves against the end-of-frame pose. The output jumps 0.96 cm at the switch at 30 fps, the same before and after the offset fix of #315."
 		}
 	]
 }

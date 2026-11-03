@@ -37,8 +37,12 @@ def _quaternion_angle(a, b):
     return math.degrees(4.0 * math.atan2(math.sqrt(apart), math.sqrt(together)))
 
 
-def compare_cells(first: dict, second: dict, skip_frames: int = 0) -> dict:
-    """Return location and rotation differences between two cells with the same skeleton."""
+def compare_cells(first: dict, second: dict, skip_frames: int = 0,
+                  until_frame: int | None = None) -> dict:
+    """Return location and rotation differences between two cells with the same skeleton.
+
+    Only frames in [skip_frames, until_frame) count; until_frame defaults to the last frame.
+    """
     if [bone[0] for bone in first['bones']] != [bone[0] for bone in second['bones']]:
         raise ValueError('Cells need the same skeleton.')
     first_values, second_values = first['transforms'], second['transforms']
@@ -47,6 +51,10 @@ def compare_cells(first: dict, second: dict, skip_frames: int = 0) -> dict:
     names = [bone[0] for bone in first['bones']]
     bone_count = len(names)
     frames = len(first_values) // (7 * bone_count)
+    if until_frame is not None:
+        frames = min(frames, until_frame)
+    if frames <= skip_frames:
+        raise ValueError('The frame window is empty.')
     distances, angles = [], []
     worst = {'distance': -1.0, 'bone': None, 'frame': None}
     for frame in range(skip_frames, frames):
