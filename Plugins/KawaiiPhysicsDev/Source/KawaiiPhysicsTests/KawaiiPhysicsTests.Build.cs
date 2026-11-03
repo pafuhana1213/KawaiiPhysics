@@ -27,6 +27,7 @@ public class KawaiiPhysicsTests : ModuleRules
 			"AssetRegistry",
 			"GameplayTags",
 			"DeveloperSettings",
+			"TraceLog",
 			"KawaiiPhysics",
 			"KawaiiPhysicsEd",
 			"KawaiiPhysicsSequencer"

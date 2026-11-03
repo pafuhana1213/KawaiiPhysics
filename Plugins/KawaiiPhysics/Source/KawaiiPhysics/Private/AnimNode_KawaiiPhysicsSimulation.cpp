@@ -613,6 +613,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
                                                   const FTransform& ComponentTransform)
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_SimulateModifyBones);
+	KAWAIIPHYSICS_SCOPE_TIMING_WITH_STAT(SimulateModifyBones);
 
 	if (DeltaTime <= 0.0f)
 	{
@@ -657,6 +658,34 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 
 		Bone.bSkipSimulate = false;
 	}
+
+#if KAWAIIPHYSICS_CSV_STATS
+	if (bCsvCountersActive)
+	{
+		CsvNumSimulatedBones = 0;
+		CsvNumForceBones = 0;
+		CsvNumActiveConstraints = 0;
+		for (const FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+		{
+			if (!Bone.bSkipSimulate)
+			{
+				++CsvNumSimulatedBones;
+				if (!Bone.bBridgeDummy && !(Bone.bInterBoneDummy && bBoneSubdivisionCollisionOnly))
+				{
+					++CsvNumForceBones;
+				}
+			}
+		}
+		for (const FModifyBoneConstraint& Constraint : MergedBoneConstraints)
+		{
+			if (Constraint.IsValid() && ModifyBones.IsValidIndex(Constraint.ModifyBoneIndex1)
+				&& ModifyBones.IsValidIndex(Constraint.ModifyBoneIndex2))
+			{
+				++CsvNumActiveConstraints;
+			}
+		}
+	}
+#endif
 
 	// Gravity
 	GravityInSimSpace = ConvertSimulationSpaceVector(Output,
@@ -836,225 +865,309 @@ void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
                                            const FSceneInterface* Scene,
                                            const USkeletalMeshComponent* SkelComp)
 {
-	// root bone（ParentIndex<0）の kinematic follow: （補間済み）ポーズへ追従。
-	// 元の skip ループから移設。サブステップ毎に補間ポーズへ追従させる。
-	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+#if KAWAIIPHYSICS_CSV_STATS
+	if (bCsvCountersActive)
 	{
-		if (Bone.ParentIndex < 0 && !Bone.bBridgeDummy && !(Bone.BoneRef.BoneIndex < 0 && !Bone.bDummy))
+		++CsvNumSubsteps;
+		CsvNumConstraintIterations += CsvNumActiveConstraints *
+			(FMath::Max(0, BoneConstraintIterationCountBeforeCollision) + FMath::Max(0, BoneConstraintIterationCountAfterCollision));
+
+		// one-shot の外力は各ステップ末尾の PostApply で外れるため、外力の数はステップごとに数え直す
+		int32 NumActiveForces = 0;
+		for (const auto& Force : CustomExternalForces)
 		{
-			Bone.PrevLocation = Bone.Location;
-			Bone.Location = Bone.PoseLocation;
+			NumActiveForces += Force && Force->bIsEnabled ? 1 : 0;
 		}
+		for (auto& Force : ExternalForces)
+		{
+			if (Force.IsValid())
+			{
+				NumActiveForces += Force.GetMutablePtr<FKawaiiPhysics_ExternalForce>()->bIsEnabled ? 1 : 0;
+			}
+		}
+		for (FKawaiiPhysicsTransientExternalForce& Item : TransientForceStore.Items)
+		{
+			if (Item.Force.IsValid())
+			{
+				NumActiveForces += Item.Force.GetMutablePtr<FKawaiiPhysics_ExternalForce>()->bIsEnabled ? 1 : 0;
+			}
+		}
+		CsvNumExternalForces += NumActiveForces * CsvNumForceBones;
 	}
-
-	// Simulate（Exponent は GetStepDeltaTime ベース。サブステップ時は TargetFramerate*FixedDt=1）
-	const int32 EffectiveTargetFramerate = GetEffectiveTargetFramerate();
-	const float Exponent = EffectiveTargetFramerate * GetStepDeltaTime();
-	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+#endif
 	{
-		if (Bone.bSkipSimulate)
-		{
-			continue;
-		}
-
-		// コリジョン専用モード: 積分をスキップし、実端点から位置を決めてコリジョンに参加させる。
-		if (Bone.bInterBoneDummy && bBoneSubdivisionCollisionOnly)
-		{
-			continue;
-		}
-
-		// bridge dummyは常にSimulate()をスキップ（縦親が無くModifyBones[ParentIndex]参照でクラッシュする）
-		if (Bone.bBridgeDummy)
-		{
-			continue;
-		}
-
-		Simulate(Bone, Scene, ComponentTransform, Exponent, SkelComp, Output);
-	}
-
-	// コリジョン専用モード: 全実ボーンのシミュレーション完了後、シミュレーション済みのLocation間にダミーを配置
-	if (bBoneSubdivisionCollisionOnly)
-	{
+		KAWAIIPHYSICS_SCOPE_TIMING(Integrate);
+		// root bone（ParentIndex<0）の kinematic follow: （補間済み）ポーズへ追従。
+		// 元の skip ループから移設。サブステップ毎に補間ポーズへ追従させる。
 		for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 		{
-			if (Bone.bInterBoneDummy)
+			if (Bone.ParentIndex < 0 && !Bone.bBridgeDummy && !(Bone.BoneRef.BoneIndex < 0 && !Bone.bDummy))
 			{
-				if (!ensureMsgf(ModifyBones.IsValidIndex(Bone.InterBoneRealParentIndex) &&
-				                ModifyBones.IsValidIndex(Bone.InterBoneRealChildIndex),
-				                TEXT("KawaiiPhysics: invalid inter-bone dummy endpoint index.")))
-				{
-					continue;
-				}
-
 				Bone.PrevLocation = Bone.Location;
-				Bone.Location = FMath::Lerp(
-					ModifyBones[Bone.InterBoneRealParentIndex].Location,
-					ModifyBones[Bone.InterBoneRealChildIndex].Location,
-					Bone.InterBoneAlpha);
+				Bone.Location = Bone.PoseLocation;
 			}
 		}
-	}
 
-	// bridge dummy（横方向Constraintのコリジョン代理）を端点間で配置。
-	// bBoneSubdivisionCollisionOnlyに依らず常に実行。縦dummyの後（大きいindex）に走るため端点は配置済み。
-	{
-		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_BridgeDummy);
-		const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
-		for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
-		{
-			if (!Bone.bBridgeDummy)
-			{
-				continue;
-			}
-
-			if (!ensureMsgf(ModifyBones.IsValidIndex(Bone.InterBoneRealParentIndex) &&
-			                ModifyBones.IsValidIndex(Bone.InterBoneRealChildIndex),
-			                TEXT("KawaiiPhysics: invalid bridge dummy endpoint index.")))
-			{
-				continue;
-			}
-
-			const FKawaiiPhysicsModifyBone& EndA = ModifyBones[Bone.InterBoneRealParentIndex];
-			const FKawaiiPhysicsModifyBone& EndB = ModifyBones[Bone.InterBoneRealChildIndex];
-
-			// LOD安全: 実ボーン端点がLODでカルされていればproxyを無効化し後続コリジョンループからも除外（stale位置で誤判定しない）。
-			// 次フレーム冒頭のダミー配置ループで bSkipSimulate=false に戻り再評価される。
-			if ((!EndA.bDummy && EndA.BoneRef.BoneIndex >= 0 && EndA.BoneRef.GetCompactPoseIndex(BoneContainer) < 0) ||
-				(!EndB.bDummy && EndB.BoneRef.BoneIndex >= 0 && EndB.BoneRef.GetCompactPoseIndex(BoneContainer) < 0))
-			{
-				Bone.bSkipSimulate = true;
-				continue;
-			}
-
-			Bone.PrevLocation = Bone.Location;
-			Bone.Location = FMath::Lerp(EndA.Location, EndB.Location, Bone.InterBoneAlpha);
-			// LERP基準位置をPoseLocationに退避（押し出し量 = Location - PoseLocation を測るため。bridge dummyのPoseLocationは他で未使用）。
-			Bone.PoseLocation = Bone.Location;
-		}
-	}
-
-	// External Force : PostApply
-	FKawaiiPhysicsExternalForcePostApply::Apply(*this, Output);
-	for (int i = 0; i < TransientForceStore.Items.Num(); ++i)
-	{
-		if (TransientForceStore.Items[i].Force.IsValid())
-		{
-			if (auto* Force = TransientForceStore.Items[i].Force.GetMutablePtr<FKawaiiPhysics_ExternalForce>())
-			{
-				Force->PostApply(*this, Output);
-			}
-		}
-	}
-
-	// ExternalForce::PostApply が substep 毎にコリジョン limit を書き換え得るため、
-	// 形状派生値キャッシュは毎ステップ再計算する（コストは形状数オーダーで誤差級）
-	PrepareCollisionShapeCaches();
-
-	// Adjust by Bone Constraints Before Collision
-	if (BoneConstraintIterationCountBeforeCollision > 0)
-	{
-		for (FModifyBoneConstraint& BoneConstraint : MergedBoneConstraints)
-		{
-			BoneConstraint.Lambda = 0.0f;
-		}
-		for (int i = 0; i < BoneConstraintIterationCountBeforeCollision; ++i)
-		{
-			AdjustByBoneConstraints();
-		}
-	}
-
-	// Adjust by collisions
-	// NOTE: 形状ごとにループを分けると ModifyBones を複数回走査してキャッシュ効率が落ちるため
-	// （ボーン数が多いケースで負荷増）、従来どおりボーン外側の1パスで全形状を処理する。
-	// World判定の時間は関数内の既存STAT（STAT_KawaiiPhysics_WorldCollision）で計測する。
-	int32 NumWorldChecks = 0;
-	// CVarでの全体無効化を毎ボーンで再判定しないようループ外でキャッシュ（Updateブロックと同じ条件）
-	const bool bApplySimpleWorldCollision = bUseSimpleWorldCollision && CVarSimpleWorldCollisionEnable.GetValueOnAnyThread();
-	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
-	{
-		if (Bone.bSkipSimulate)
-		{
-			continue;
-		}
-
-		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_AdjustByCollision);
-
-		AdjustBySphereCollision(Bone, SphericalLimits);
-		AdjustBySphereCollision(Bone, SphericalLimitsData);
-		AdjustByCapsuleCollision(Bone, CapsuleLimits);
-		AdjustByCapsuleCollision(Bone, CapsuleLimitsData);
-		AdjustByTaperedCapsuleCollision(Bone, TaperedCapsuleLimits);
-		AdjustByTaperedCapsuleCollision(Bone, TaperedCapsuleLimitsData);
-		AdjustByBoxCollision(Bone, BoxLimits);
-		AdjustByBoxCollision(Bone, BoxLimitsData);
-		AdjustByPlanarCollision(Bone, PlanarLimits);
-		AdjustByPlanarCollision(Bone, PlanarLimitsData);
-
-		// 共有コリジョン（他の KawaiiPhysics ノードから）
-		if (bUseSharedCollision && !bSharedCollisionSource)
-		{
-			AdjustBySphereCollision(Bone, SharedSphericalLimits);
-			AdjustByCapsuleCollision(Bone, SharedCapsuleLimits);
-			AdjustByTaperedCapsuleCollision(Bone, SharedTaperedCapsuleLimits);
-			AdjustByBoxCollision(Bone, SharedBoxLimits);
-			AdjustByPlanarCollision(Bone, SharedPlanarLimits);
-		}
-
-		// シンプルワールドコリジョン（Subsystemが収集したレベル上のsimple collision）
-		if (bApplySimpleWorldCollision)
-		{
-			AdjustBySphereCollision(Bone, SimpleWorldSphericalLimits);
-			AdjustByCapsuleCollision(Bone, SimpleWorldCapsuleLimits);
-			AdjustByTaperedCapsuleCollision(Bone, SimpleWorldTaperedCapsuleLimits);
-			AdjustByBoxCollision(Bone, SimpleWorldBoxLimits);
-			AdjustByBoxCollision(Bone, SimpleWorldGroundBoxLimits);
-			AdjustByConvexCollision(Bone, SimpleWorldConvexLimits);
-		}
-
-		if (bAllowWorldCollision)
-		{
-			AdjustByWorldCollision(Output, Bone, SkelComp);
-			++NumWorldChecks; // 発行したワールドスイープ回数
-		}
-	}
-	SET_DWORD_STAT(STAT_KawaiiPhysics_NumWorldCollisionChecks, NumWorldChecks);
-
-	// bridge dummy のコリジョン変位を端点ボーンへ転送（実ボーンを押し出すフィードバック本体）。コリジョン後・Constraint/length復元前。
-	// Push = Location(押し出し後) - PoseLocation(LERP基準)。端点へ距離比 (1-α):α で配分し Scale で強さ調整。
-	ApplyBridgeDummyCollisionFeedback();
-
-	// Adjust by Bone Constraints After Collision
-	if (BoneConstraintIterationCountAfterCollision > 0)
-	{
-		for (FModifyBoneConstraint& BoneConstraint : MergedBoneConstraints)
-		{
-			BoneConstraint.Lambda = 0.0f;
-		}
-		for (int i = 0; i < BoneConstraintIterationCountAfterCollision; ++i)
-		{
-			AdjustByBoneConstraints();
-		}
-	}
-
-	// Adjust by Limits and Bone Length（角度制限 + 平面制約 + ボーン長復元のO(N)ループをまとめて計測）
-	{
-		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_AdjustByLimitsAndLength);
-		RestoreBoneLengthsAndLimits();
-	}
-	if (SimulationSpace == EKawaiiPhysicsSimulationSpace::WorldSpace)
-	{
-		// 衝突後の拘束と長さ復元で裏へ戻った骨だけ、平面の表側へ戻す。
+		// Simulate（Exponent は GetStepDeltaTime ベース。サブステップ時は TargetFramerate*FixedDt=1）
+		const int32 EffectiveTargetFramerate = GetEffectiveTargetFramerate();
+		const float Exponent = EffectiveTargetFramerate * GetStepDeltaTime();
 		for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 		{
 			if (Bone.bSkipSimulate)
 			{
 				continue;
 			}
-			AdjustByPlanarCollision(Bone, PlanarLimits, true);
-			AdjustByPlanarCollision(Bone, PlanarLimitsData, true);
+
+			// コリジョン専用モード: 積分をスキップし、実端点から位置を決めてコリジョンに参加させる。
+			if (Bone.bInterBoneDummy && bBoneSubdivisionCollisionOnly)
+			{
+				continue;
+			}
+
+			// bridge dummyは常にSimulate()をスキップ（縦親が無くModifyBones[ParentIndex]参照でクラッシュする）
+			if (Bone.bBridgeDummy)
+			{
+				continue;
+			}
+
+			Simulate(Bone, Scene, ComponentTransform, Exponent, SkelComp, Output);
+		}
+
+		// コリジョン専用モード: 全実ボーンのシミュレーション完了後、シミュレーション済みのLocation間にダミーを配置
+		if (bBoneSubdivisionCollisionOnly)
+		{
+			for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+			{
+				if (Bone.bInterBoneDummy)
+				{
+					if (!ensureMsgf(ModifyBones.IsValidIndex(Bone.InterBoneRealParentIndex) &&
+					                ModifyBones.IsValidIndex(Bone.InterBoneRealChildIndex),
+					                TEXT("KawaiiPhysics: invalid inter-bone dummy endpoint index.")))
+					{
+						continue;
+					}
+
+					Bone.PrevLocation = Bone.Location;
+					Bone.Location = FMath::Lerp(
+						ModifyBones[Bone.InterBoneRealParentIndex].Location,
+						ModifyBones[Bone.InterBoneRealChildIndex].Location,
+						Bone.InterBoneAlpha);
+				}
+			}
+		}
+
+		// bridge dummy（横方向Constraintのコリジョン代理）を端点間で配置。
+		// bBoneSubdivisionCollisionOnlyに依らず常に実行。縦dummyの後（大きいindex）に走るため端点は配置済み。
+		{
+			SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_BridgeDummy);
+			const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
+			for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+			{
+				if (!Bone.bBridgeDummy)
+				{
+					continue;
+				}
+
+				if (!ensureMsgf(ModifyBones.IsValidIndex(Bone.InterBoneRealParentIndex) &&
+				                ModifyBones.IsValidIndex(Bone.InterBoneRealChildIndex),
+				                TEXT("KawaiiPhysics: invalid bridge dummy endpoint index.")))
+				{
+					continue;
+				}
+
+				const FKawaiiPhysicsModifyBone& EndA = ModifyBones[Bone.InterBoneRealParentIndex];
+				const FKawaiiPhysicsModifyBone& EndB = ModifyBones[Bone.InterBoneRealChildIndex];
+
+				// LOD安全: 実ボーン端点がLODでカルされていればproxyを無効化し後続コリジョンループからも除外（stale位置で誤判定しない）。
+				// 次フレーム冒頭のダミー配置ループで bSkipSimulate=false に戻り再評価される。
+				if ((!EndA.bDummy && EndA.BoneRef.BoneIndex >= 0 && EndA.BoneRef.GetCompactPoseIndex(BoneContainer) < 0) ||
+					(!EndB.bDummy && EndB.BoneRef.BoneIndex >= 0 && EndB.BoneRef.GetCompactPoseIndex(BoneContainer) < 0))
+				{
+					Bone.bSkipSimulate = true;
+					continue;
+				}
+
+				Bone.PrevLocation = Bone.Location;
+				Bone.Location = FMath::Lerp(EndA.Location, EndB.Location, Bone.InterBoneAlpha);
+				// LERP基準位置をPoseLocationに退避（押し出し量 = Location - PoseLocation を測るため。bridge dummyのPoseLocationは他で未使用）。
+				Bone.PoseLocation = Bone.Location;
+			}
+		}
+
+		// 外力の PostApply
+		FKawaiiPhysicsExternalForcePostApply::Apply(*this, Output);
+		for (int i = 0; i < TransientForceStore.Items.Num(); ++i)
+		{
+			if (TransientForceStore.Items[i].Force.IsValid())
+			{
+				if (auto* Force = TransientForceStore.Items[i].Force.GetMutablePtr<FKawaiiPhysics_ExternalForce>())
+				{
+					Force->PostApply(*this, Output);
+				}
+			}
+		}
+	}
+
+	{
+		KAWAIIPHYSICS_SCOPE_TIMING(Collision);
+#if KAWAIIPHYSICS_CSV_STATS
+		if (bCsvCountersActive)
+		{
+			const auto CountEnabledShapes = [](const auto& Limits)
+			{
+				int32 Count = 0;
+				for (const auto& Limit : Limits)
+				{
+					Count += Limit.bEnable ? 1 : 0;
+				}
+				return Count;
+			};
+			if (CsvNumSimulatedBones > 0)
+			{
+				CsvNumCollisionShapes += CountEnabledShapes(SphericalLimits) + CountEnabledShapes(SphericalLimitsData)
+					+ CountEnabledShapes(CapsuleLimits) + CountEnabledShapes(CapsuleLimitsData)
+					+ CountEnabledShapes(TaperedCapsuleLimits) + CountEnabledShapes(TaperedCapsuleLimitsData)
+					+ CountEnabledShapes(BoxLimits) + CountEnabledShapes(BoxLimitsData)
+					+ CountEnabledShapes(PlanarLimits) + CountEnabledShapes(PlanarLimitsData);
+				if (bUseSharedCollision && !bSharedCollisionSource)
+				{
+					CsvNumCollisionShapes += CountEnabledShapes(SharedSphericalLimits) + CountEnabledShapes(SharedCapsuleLimits)
+						+ CountEnabledShapes(SharedTaperedCapsuleLimits) + CountEnabledShapes(SharedBoxLimits)
+						+ CountEnabledShapes(SharedPlanarLimits);
+				}
+				if (bUseSimpleWorldCollision && CVarSimpleWorldCollisionEnable.GetValueOnAnyThread())
+				{
+					CsvNumCollisionShapes += CountEnabledShapes(SimpleWorldSphericalLimits)
+						+ CountEnabledShapes(SimpleWorldCapsuleLimits) + CountEnabledShapes(SimpleWorldTaperedCapsuleLimits)
+						+ CountEnabledShapes(SimpleWorldBoxLimits) + CountEnabledShapes(SimpleWorldGroundBoxLimits)
+						+ CountEnabledShapes(SimpleWorldConvexLimits);
+				}
+			}
+		}
+#endif
+
+		// ExternalForce::PostApply が substep 毎にコリジョン limit を書き換え得るため、
+		// 形状派生値キャッシュは毎ステップ再計算する（コストは形状数オーダーで誤差級）
+		PrepareCollisionShapeCaches();
+	}
+
+	// コリジョン前の BoneConstraint 補正
+	{
+		KAWAIIPHYSICS_SCOPE_TIMING(BoneConstraint);
+		if (BoneConstraintIterationCountBeforeCollision > 0)
+		{
+			for (FModifyBoneConstraint& BoneConstraint : MergedBoneConstraints)
+			{
+				BoneConstraint.Lambda = 0.0f;
+			}
+			for (int i = 0; i < BoneConstraintIterationCountBeforeCollision; ++i)
+			{
+				AdjustByBoneConstraints();
+			}
+		}
+	}
+
+	// コリジョンによる補正
+	{
+		KAWAIIPHYSICS_SCOPE_TIMING(Collision);
+		// NOTE: 形状ごとにループを分けると ModifyBones を複数回走査してキャッシュ効率が落ちるため
+		// （ボーン数が多いケースで負荷増）、従来どおりボーン外側の1パスで全形状を処理する。
+		// World判定の時間は関数内の既存STAT（STAT_KawaiiPhysics_WorldCollision）で計測する。
+		int32 NumWorldChecks = 0;
+		// CVarでの全体無効化を毎ボーンで再判定しないようループ外でキャッシュ（Updateブロックと同じ条件）
+		const bool bApplySimpleWorldCollision = bUseSimpleWorldCollision && CVarSimpleWorldCollisionEnable.GetValueOnAnyThread();
+		for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+		{
+			if (Bone.bSkipSimulate)
+			{
+				continue;
+			}
+
+			SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_AdjustByCollision);
+
+			AdjustBySphereCollision(Bone, SphericalLimits);
+			AdjustBySphereCollision(Bone, SphericalLimitsData);
+			AdjustByCapsuleCollision(Bone, CapsuleLimits);
+			AdjustByCapsuleCollision(Bone, CapsuleLimitsData);
+			AdjustByTaperedCapsuleCollision(Bone, TaperedCapsuleLimits);
+			AdjustByTaperedCapsuleCollision(Bone, TaperedCapsuleLimitsData);
+			AdjustByBoxCollision(Bone, BoxLimits);
+			AdjustByBoxCollision(Bone, BoxLimitsData);
+			AdjustByPlanarCollision(Bone, PlanarLimits);
+			AdjustByPlanarCollision(Bone, PlanarLimitsData);
+
+			// 共有コリジョン（他の KawaiiPhysics ノードから）
 			if (bUseSharedCollision && !bSharedCollisionSource)
 			{
-				AdjustByPlanarCollision(Bone, SharedPlanarLimits, true);
+				AdjustBySphereCollision(Bone, SharedSphericalLimits);
+				AdjustByCapsuleCollision(Bone, SharedCapsuleLimits);
+				AdjustByTaperedCapsuleCollision(Bone, SharedTaperedCapsuleLimits);
+				AdjustByBoxCollision(Bone, SharedBoxLimits);
+				AdjustByPlanarCollision(Bone, SharedPlanarLimits);
+			}
+
+			// シンプルワールドコリジョン（Subsystemが収集したレベル上のsimple collision）
+			if (bApplySimpleWorldCollision)
+			{
+				AdjustBySphereCollision(Bone, SimpleWorldSphericalLimits);
+				AdjustByCapsuleCollision(Bone, SimpleWorldCapsuleLimits);
+				AdjustByTaperedCapsuleCollision(Bone, SimpleWorldTaperedCapsuleLimits);
+				AdjustByBoxCollision(Bone, SimpleWorldBoxLimits);
+				AdjustByBoxCollision(Bone, SimpleWorldGroundBoxLimits);
+				AdjustByConvexCollision(Bone, SimpleWorldConvexLimits);
+			}
+
+			if (bAllowWorldCollision)
+			{
+				AdjustByWorldCollision(Output, Bone, SkelComp);
+				++NumWorldChecks; // 発行したワールドスイープ回数
+			}
+		}
+		SET_DWORD_STAT(STAT_KawaiiPhysics_NumWorldCollisionChecks, NumWorldChecks);
+
+		// bridge dummy のコリジョン変位を端点ボーンへ転送（実ボーンを押し出すフィードバック本体）。コリジョン後・Constraint/length復元前。
+		// Push = Location(押し出し後) - PoseLocation(LERP基準)。端点へ距離比 (1-α):α で配分し Scale で強さ調整。
+		ApplyBridgeDummyCollisionFeedback();
+	}
+
+	// Adjust by Bone Constraints After Collision
+	{
+		KAWAIIPHYSICS_SCOPE_TIMING(BoneConstraint);
+		if (BoneConstraintIterationCountAfterCollision > 0)
+		{
+			for (FModifyBoneConstraint& BoneConstraint : MergedBoneConstraints)
+			{
+				BoneConstraint.Lambda = 0.0f;
+			}
+			for (int i = 0; i < BoneConstraintIterationCountAfterCollision; ++i)
+			{
+				AdjustByBoneConstraints();
+			}
+		}
+	}
+
+	// Adjust by Limits and Bone Length（角度制限 + 平面制約 + ボーン長復元のO(N)ループをまとめて計測）
+	{
+		KAWAIIPHYSICS_SCOPE_TIMING(LimitsAndLength);
+		{
+			SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_AdjustByLimitsAndLength);
+			RestoreBoneLengthsAndLimits();
+		}
+		if (SimulationSpace == EKawaiiPhysicsSimulationSpace::WorldSpace)
+		{
+			// 衝突後の拘束と長さ復元で裏へ戻った骨だけ、平面の表側へ戻す。
+			for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+			{
+				if (Bone.bSkipSimulate)
+				{
+					continue;
+				}
+				AdjustByPlanarCollision(Bone, PlanarLimits, true);
+				AdjustByPlanarCollision(Bone, PlanarLimitsData, true);
+				if (bUseSharedCollision && !bSharedCollisionSource)
+				{
+					AdjustByPlanarCollision(Bone, SharedPlanarLimits, true);
+				}
 			}
 		}
 	}

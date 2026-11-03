@@ -38,10 +38,17 @@
 #include "KawaiiPhysics.h"
 #include "AnimNode_KawaiiPhysicsInternal.h"
 #include "KawaiiPhysicsNodeWarning.h"
+#include "Misc/ScopeExit.h"
 
 #include <atomic>
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_KawaiiPhysics)
+
+CSV_DEFINE_CATEGORY_MODULE(KAWAIIPHYSICS_API, KawaiiPhysics, true);
+
+#if KAWAIIPHYSICS_CSV_STATS
+std::atomic<bool> GKawaiiPhysicsCsvCapturing{false};
+#endif
 
 namespace AnimNodeKawaiiPhysicsPrivate
 {
@@ -585,6 +592,35 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
                                                                 TArray<FBoneTransform>& OutBoneTransforms)
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_Eval);
+	KAWAIIPHYSICS_SCOPE_TIMING_WITH_STAT(Eval);
+
+#if KAWAIIPHYSICS_CSV_STATS
+	bCsvCountersActive = GKawaiiPhysicsCsvCapturing.load(std::memory_order_relaxed);
+	CsvNumSimulatedBones = 0;
+	CsvNumForceBones = 0;
+	CsvNumActiveConstraints = 0;
+	CsvNumSubsteps = 0;
+	CsvNumConstraintIterations = 0;
+	CsvNumCollisionShapes = 0;
+	CsvNumWorldCollisionSweeps = 0;
+	CsvNumExternalForces = 0;
+	int32 CsvNumSimpleWorldShapes = 0;
+	ON_SCOPE_EXIT
+	{
+		if (bCsvCountersActive)
+		{
+			KAWAIIPHYSICS_CSV_ACCUMULATE(NumNodes, 1);
+			// サブステップが 0 回のフレーム（固定ステップより高い fps 等）はシミュレーションしていないので 0 を出す
+			KAWAIIPHYSICS_CSV_ACCUMULATE(NumSimulatedBones, CsvNumSubsteps > 0 ? CsvNumSimulatedBones : 0);
+			KAWAIIPHYSICS_CSV_ACCUMULATE(NumSubsteps, CsvNumSubsteps);
+			KAWAIIPHYSICS_CSV_ACCUMULATE(NumConstraintIterations, CsvNumConstraintIterations);
+			KAWAIIPHYSICS_CSV_ACCUMULATE(NumCollisionShapes, CsvNumCollisionShapes);
+			KAWAIIPHYSICS_CSV_ACCUMULATE(NumWorldCollisionSweeps, CsvNumWorldCollisionSweeps);
+			KAWAIIPHYSICS_CSV_ACCUMULATE(NumSimpleWorldShapes, CsvNumSimpleWorldShapes);
+			KAWAIIPHYSICS_CSV_ACCUMULATE(NumExternalForces, CsvNumExternalForces);
+		}
+	};
+#endif
 
 	check(OutBoneTransforms.Num() == 0);
 
@@ -676,18 +712,22 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	}
 
 #if WITH_EDITOR
-	// 他のNodeでの編集を同期する
-	ApplyLimitsDataAsset(BoneContainer);
-	ApplyPhysicsAsset(BoneContainer);
-	ApplyMirrorLimits(BoneContainer);
-	ApplyBoneConstraintDataAsset(BoneContainer);
-
-	// ライブ編集用（コンパイル前に同期）
-	if (GUnrealEd && !GUnrealEd->IsPlayingSessionInEditor())
 	{
-		InitializeBoneReferences(BoneContainer);
-	}
+		// エディタ専用の同期。パッケージ版には無いコストなので、負荷計測では別の区間として切り分ける
+		KAWAIIPHYSICS_SCOPE_TIMING(EditorSync);
 
+		// 他のNodeでの編集を同期する
+		ApplyLimitsDataAsset(BoneContainer);
+		ApplyPhysicsAsset(BoneContainer);
+		ApplyMirrorLimits(BoneContainer);
+		ApplyBoneConstraintDataAsset(BoneContainer);
+
+		// ライブ編集用（コンパイル前に同期）
+		if (GUnrealEd && !GUnrealEd->IsPlayingSessionInEditor())
+		{
+			InitializeBoneReferences(BoneContainer);
+		}
+	}
 #endif
 
 	if (!RootBone.IsValidToEvaluate(BoneContainer))
@@ -776,6 +816,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	// 各パラメータとコリジョンを更新する
 	if (ShouldUpdatePhysicsSettings(bHasActiveSettingsMultiplier))
 	{
+		KAWAIIPHYSICS_SCOPE_TIMING(UpdatePhysicsSettings);
 		UpdatePhysicsSettingsOfModifyBones();
 		bPhysicsSettingsMultiplierAppliedLastUpdate = bHasActiveSettingsMultiplier;
 
@@ -788,74 +829,90 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	}
 
 	// 各コリジョンの更新
-	UpdateSphericalLimits(SphericalLimits, Output, BoneContainer, ComponentTransform);
-	UpdateSphericalLimits(SphericalLimitsData, Output, BoneContainer, ComponentTransform);
-	UpdateCapsuleLimits(CapsuleLimits, Output, BoneContainer, ComponentTransform);
-	UpdateCapsuleLimits(CapsuleLimitsData, Output, BoneContainer, ComponentTransform);
-	UpdateTaperedCapsuleLimits(TaperedCapsuleLimits, Output, BoneContainer, ComponentTransform);
-	UpdateTaperedCapsuleLimits(TaperedCapsuleLimitsData, Output, BoneContainer, ComponentTransform);
-	UpdateBoxLimits(BoxLimits, Output, BoneContainer, ComponentTransform);
-	UpdateBoxLimits(BoxLimitsData, Output, BoneContainer, ComponentTransform);
-	UpdatePlanarLimits(PlanarLimits, Output, BoneContainer, ComponentTransform);
-	UpdatePlanarLimits(PlanarLimitsData, Output, BoneContainer, ComponentTransform);
+	{
+		KAWAIIPHYSICS_SCOPE_TIMING(UpdateLimits);
+		UpdateSphericalLimits(SphericalLimits, Output, BoneContainer, ComponentTransform);
+		UpdateSphericalLimits(SphericalLimitsData, Output, BoneContainer, ComponentTransform);
+		UpdateCapsuleLimits(CapsuleLimits, Output, BoneContainer, ComponentTransform);
+		UpdateCapsuleLimits(CapsuleLimitsData, Output, BoneContainer, ComponentTransform);
+		UpdateTaperedCapsuleLimits(TaperedCapsuleLimits, Output, BoneContainer, ComponentTransform);
+		UpdateTaperedCapsuleLimits(TaperedCapsuleLimitsData, Output, BoneContainer, ComponentTransform);
+		UpdateBoxLimits(BoxLimits, Output, BoneContainer, ComponentTransform);
+		UpdateBoxLimits(BoxLimitsData, Output, BoneContainer, ComponentTransform);
+		UpdatePlanarLimits(PlanarLimits, Output, BoneContainer, ComponentTransform);
+		UpdatePlanarLimits(PlanarLimitsData, Output, BoneContainer, ComponentTransform);
+	}
 
 	// 共有コリジョンの初期化と更新（有効時のみ）。reinit処理は関数冒頭で実行済み。
 	// subsystemはロックでスレッドセーフ化済みのためWorker(AnyThread)で実行でき、PreUpdate(GameThread)を介さない。
 	// これによりランタイム有効化(BP setter)も全ビルド構成で正しく動作する。
-	if ((bSharedCollisionSource || bUseSharedCollision) && SharedCollisionGroupTag.IsValid())
 	{
-		UpdateSharedCollisionRegistration();
-
-		// Target: 全Sourceのコリジョンをマージして取得
-		if (bUseSharedCollision && !bSharedCollisionSource && CachedSharedCollisionEntry.IsValid())
+		KAWAIIPHYSICS_SCOPE_TIMING(SharedCollision);
+		if ((bSharedCollisionSource || bUseSharedCollision) && SharedCollisionGroupTag.IsValid())
 		{
-			UpdateSharedCollisionLimits(Output);
+			UpdateSharedCollisionRegistration();
+
+			// Target: 全Sourceのコリジョンをマージして取得
+			if (bUseSharedCollision && !bSharedCollisionSource && CachedSharedCollisionEntry.IsValid())
+			{
+				UpdateSharedCollisionLimits(Output);
+			}
 		}
 	}
 
 	// シンプルワールドコリジョン（Subsystemが収集したレベル上のsimple collisionをWorkerから読むだけ）
 	// CVarで全体無効化されている間はUpdateを行わず、else側でSimpleWorldXxxLimitsをResetして適用もスキップする
-	if (bUseSimpleWorldCollision && CVarSimpleWorldCollisionEnable.GetValueOnAnyThread())
 	{
-		// provider不在のreaderはEntryの作成→解放を毎評価繰り返すため、再試行だけUpdate側と同じスロットルに通す。
-		// 初回（RetryCount == 0）とRequestSimpleWorldCollisionReinit直後は従来どおり即時に初期化する。
-		const bool bShouldInitializeSimpleWorldCollision =
-			!bSimpleWorldCollisionInitialized
-			&& (!bSimpleWorldReaderMode
-				|| SimpleWorldReaderRetryCount == 0
-				|| ShouldRetrySimpleWorldReaderInitialize());
-		if (bShouldInitializeSimpleWorldCollision)
+		KAWAIIPHYSICS_SCOPE_TIMING(SimpleWorldCollision);
+		if (bUseSimpleWorldCollision && CVarSimpleWorldCollisionEnable.GetValueOnAnyThread())
 		{
-			InitializeSimpleWorldCollision();
-		}
-		if (CachedSimpleWorldEntry.IsValid() || bSimpleWorldReaderMode)
-		{
-			// ここで初期化を試みた評価かを伝え、Update側のreader再試行と二重にInitializeしない
-			UpdateSimpleWorldCollisionLimits(Output, bShouldInitializeSimpleWorldCollision);
-			if (TeleportType == ETeleportType::TeleportPhysics && CachedSimpleWorldEntry.IsValid())
+			// provider不在のreaderはEntryの作成→解放を毎評価繰り返すため、再試行だけUpdate側と同じスロットルに通す。
+			// 初回（RetryCount == 0）とRequestSimpleWorldCollisionReinit直後は従来どおり即時に初期化する。
+			const bool bShouldInitializeSimpleWorldCollision =
+				!bSimpleWorldCollisionInitialized
+				&& (!bSimpleWorldReaderMode
+					|| SimpleWorldReaderRetryCount == 0
+					|| ShouldRetrySimpleWorldReaderInitialize());
+			if (bShouldInitializeSimpleWorldCollision)
 			{
-				CachedSimpleWorldEntry->RequestRegather();
+				InitializeSimpleWorldCollision();
+			}
+			if (CachedSimpleWorldEntry.IsValid() || bSimpleWorldReaderMode)
+			{
+				// ここで初期化を試みた評価かを伝え、Update側のreader再試行と二重にInitializeしない
+				UpdateSimpleWorldCollisionLimits(Output, bShouldInitializeSimpleWorldCollision);
+				if (TeleportType == ETeleportType::TeleportPhysics && CachedSimpleWorldEntry.IsValid())
+				{
+					CachedSimpleWorldEntry->RequestRegather();
+				}
 			}
 		}
+		else if (bSimpleWorldCollisionInitialized || CachedSimpleWorldEntry.IsValid())
+		{
+			// ランタイム無効化時は自Descを即時解除し、古い押し出しを残さない
+			ReleaseSimpleWorldCollision();
+			SimpleWorldMergedScratch.Reset();
+			SimpleWorldGroundScratch.Reset();
+			SimpleWorldSphericalLimits.Reset();
+			SimpleWorldCapsuleLimits.Reset();
+			SimpleWorldTaperedCapsuleLimits.Reset();
+			SimpleWorldBoxLimits.Reset();
+			SimpleWorldGroundBoxLimits.Reset();
+			SimpleWorldConvexLimits.Reset();
+			LastReadSimpleWorldShapeSerial = 0;
+			LastReadSimpleWorldGroundSerial = 0;
+			LastReadSimpleWorldMemberSerialSum = 0;
+			SimpleWorldReaderRetryCount = 0;
+			bSimpleWorldReaderWarningLogged = false;
+		}
 	}
-	else if (bSimpleWorldCollisionInitialized || CachedSimpleWorldEntry.IsValid())
+#if KAWAIIPHYSICS_CSV_STATS
+	if (bCsvCountersActive)
 	{
-		// ランタイム無効化時は自Descを即時解除し、古い押し出しを残さない
-		ReleaseSimpleWorldCollision();
-		SimpleWorldMergedScratch.Reset();
-		SimpleWorldGroundScratch.Reset();
-		SimpleWorldSphericalLimits.Reset();
-		SimpleWorldCapsuleLimits.Reset();
-		SimpleWorldTaperedCapsuleLimits.Reset();
-		SimpleWorldBoxLimits.Reset();
-		SimpleWorldGroundBoxLimits.Reset();
-		SimpleWorldConvexLimits.Reset();
-		LastReadSimpleWorldShapeSerial = 0;
-		LastReadSimpleWorldGroundSerial = 0;
-		LastReadSimpleWorldMemberSerialSum = 0;
-		SimpleWorldReaderRetryCount = 0;
-		bSimpleWorldReaderWarningLogged = false;
+		CsvNumSimpleWorldShapes = bUseSimpleWorldCollision && CVarSimpleWorldCollisionEnable.GetValueOnAnyThread()
+			? GetNumSimpleWorldColliders() : 0;
 	}
+#endif
 
 	// 入力規模カウンタ & メモリの更新（毎フレーム。負荷=N×L等の相関とダミー膨張の可視化用）
 	SET_DWORD_STAT(STAT_KawaiiPhysics_NumSphereColliders, SphericalLimits.Num() + SphericalLimitsData.Num());
@@ -875,8 +932,11 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	SET_MEMORY_STAT(STAT_KawaiiPhysics_ModifyBonesMemory,
 	                ModifyBones.GetAllocatedSize() + MergedBoneConstraints.GetAllocatedSize());
 
-	UpdateModifyBonesPoseTransform(Output, BoneContainer);
-	ApplySyncBones(Output, BoneContainer);
+	{
+		KAWAIIPHYSICS_SCOPE_TIMING(PoseUpdate);
+		UpdateModifyBonesPoseTransform(Output, BoneContainer);
+		ApplySyncBones(Output, BoneContainer);
+	}
 
 	// World SpaceでのSkeletalMeshComponentの移動を更新する
 	UpdateSkelCompMove(Output, ComponentTransform);
@@ -908,12 +968,18 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	}
 
 	// 計算済みコリジョンをSubsystemに書き込み
-	if (bSharedCollisionSource && SharedCollisionGroupTag.IsValid() && CachedSourceSlot.IsValid())
 	{
-		WriteSharedCollisionToSubsystem(Output, ComponentTransform);
+		KAWAIIPHYSICS_SCOPE_TIMING(SharedCollision);
+		if (bSharedCollisionSource && SharedCollisionGroupTag.IsValid() && CachedSourceSlot.IsValid())
+		{
+			WriteSharedCollisionToSubsystem(Output, ComponentTransform);
+		}
 	}
 
-	ApplySimulateResult(Output, BoneContainer, OutBoneTransforms);
+	{
+		KAWAIIPHYSICS_SCOPE_TIMING_WITH_STAT(ApplySimulateResult);
+		ApplySimulateResult(Output, BoneContainer, OutBoneTransforms);
+	}
 
 	const bool bTeleportedThisFrame = (TeleportType == ETeleportType::TeleportPhysics);
 	TeleportType = ETeleportType::None;

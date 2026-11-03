@@ -13,6 +13,14 @@
 #include "Engine/HitResult.h"
 #include "HAL/CriticalSection.h"
 #include "Templates/SharedPointer.h"
+#include "ProfilingDebugging/CsvProfilerConfig.h"
+
+// CSV プロファイラの量の stat を数えるか。UE 5.4 以前には CSV_PROFILER_STATS が無いので CSV_PROFILER で代用する
+#if defined(CSV_PROFILER_STATS)
+#define KAWAIIPHYSICS_CSV_STATS CSV_PROFILER_STATS
+#else
+#define KAWAIIPHYSICS_CSV_STATS CSV_PROFILER
+#endif
 
 #if !UE_VERSION_OLDER_THAN(5, 5, 0)
 #include "StructUtils/InstancedStruct.h"
@@ -2062,6 +2070,19 @@ private:
 	                                  EKawaiiPhysicsSimulationSpace To);
 
 private:
+	// CSV プロファイラの量の stat 用カウンタ（Evaluate 中のみ有効。CSV を記録中のときだけ数える）
+	// bCsvCountersActive は Evaluate の冒頭でモジュール共通の記録中フラグから取る
+#if KAWAIIPHYSICS_CSV_STATS
+	bool bCsvCountersActive = false;
+	int32 CsvNumSimulatedBones = 0;
+	int32 CsvNumForceBones = 0;
+	int32 CsvNumActiveConstraints = 0;
+	int32 CsvNumSubsteps = 0;
+	int32 CsvNumConstraintIterations = 0;
+	int32 CsvNumCollisionShapes = 0;
+	int32 CsvNumWorldCollisionSweeps = 0;
+	int32 CsvNumExternalForces = 0;
+#endif
 	// Evaluate中のみ有効なキャッシュ（SimulationSpace<->Component）
 	// AnyThread評価なので「フレーム跨ぎで使い回さない」こと
 	FSimulationSpaceCache CurrentEvalSimSpaceCache;

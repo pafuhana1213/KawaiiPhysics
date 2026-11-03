@@ -11,6 +11,7 @@
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
 #include "KawaiiPhysicsTestHarness.h"
+#include "AnimNode_KawaiiPhysicsInternal.h"
 
 namespace KawaiiPhysicsPerfTestPrivate
 {
@@ -21,6 +22,7 @@ namespace KawaiiPhysicsPerfTestPrivate
 	constexpr double GAverageSubsteps = 60.0 / 90.0; // 1/90秒を1/60秒固定ステップへ蓄積する理論平均。
 	constexpr int32 GKawaiiPhysicsPerfCalibrationIterations = 47000; // 開発機 Ryzen 9 3950X / Development Editor で約30〜45ms。
 	static volatile double GKawaiiPhysicsPerfCalibrationSink = 0.0;
+	static volatile double GKawaiiPhysicsScopeOverheadSink = 0.0;
 #ifdef _MSC_FULL_VER
 	constexpr int32 KawaiiPerfMscFullVer = _MSC_FULL_VER;
 #else
@@ -65,6 +67,40 @@ namespace KawaiiPhysicsPerfTestPrivate
 
 		GKawaiiPhysicsPerfCalibrationSink = GKawaiiPhysicsPerfCalibrationSink + Sum;
 		return Sum;
+	}
+
+	bool RunScopeOverheadPerf(FAutomationTestBase& Test, const TCHAR* TestName)
+	{
+		constexpr int32 Iterations = 1000000;
+		TArray<double> TrialMs;
+		TrialMs.Reserve(GTrials);
+		for (int32 Trial = 0; Trial < GTrials; ++Trial)
+		{
+			const double CalibrationStartSeconds = FPlatformTime::Seconds();
+			RunKawaiiPhysicsPerfCalibrationLoop();
+			const double CalibMs = (FPlatformTime::Seconds() - CalibrationStartSeconds) * 1000.0;
+
+			const double StartSeconds = FPlatformTime::Seconds();
+			for (int32 Index = 0; Index < Iterations; ++Index)
+			{
+				{
+					KAWAIIPHYSICS_SCOPE_TIMING(ScopeOverhead);
+					GKawaiiPhysicsScopeOverheadSink = GKawaiiPhysicsScopeOverheadSink + 1.0;
+				}
+				KAWAIIPHYSICS_CSV_ACCUMULATE(NumScopeOverhead, 1);
+			}
+			const double Ms = (FPlatformTime::Seconds() - StartSeconds) * 1000.0;
+			Test.AddInfo(FString::Printf(TEXT("PERF_RAW %s trial=%d ms=%.6f calib_ms=%.6f"),
+				TestName, Trial, Ms, CalibMs));
+			TrialMs.Add(Ms);
+		}
+		TrialMs.Sort();
+		const double MedianMs = TrialMs[GTrials / 2];
+		Test.AddInfo(FString::Printf(
+			TEXT("PERF %s median_ms_per_frame=%.6f min_ms_per_frame=%.6f ns_per_scope=%.3f checksum=%.6f"),
+			TestName, MedianMs, TrialMs[0], MedianMs * 1000000.0 / Iterations,
+			static_cast<double>(GKawaiiPhysicsScopeOverheadSink)));
+		return FMath::IsFinite(MedianMs);
 	}
 
 	FKawaiiPhysicsSettings MakePerfSettings(const float Radius = 2.0f)
@@ -762,6 +798,36 @@ bool FKawaiiPhysicsPerfExternalForceFilterTest::RunTest(const FString& Parameter
 	bool bOk = RunExternalForceFilterPerf(*this, TEXT("KawaiiPhysics.Perf.ExternalForceFilter.Unfiltered1"), 1, false);
 	bOk &= RunExternalForceFilterPerf(*this, TEXT("KawaiiPhysics.Perf.ExternalForceFilter.Filtered4"), 4, true);
 	bOk &= RunExternalForceFilterPerf(*this, TEXT("KawaiiPhysics.Perf.ExternalForceFilter.Filtered8"), 8, true);
+	return bOk;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerfScopeOverheadTest,
+                                 "KawaiiPhysics.Perf.ScopeOverhead",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsPerfScopeOverheadTest::RunTest(const FString& Parameters)
+{
+	if (FCsvProfiler::IsCapturing())
+	{
+		AddError(TEXT("ScopeOverhead には CSV 記録停止中の実行が必要です。"));
+		return false;
+	}
+
+	const bool bWasCpuChannelEnabled = bool(CpuChannel);
+	UE::Trace::ToggleChannel(TEXT("cpu"), false);
+	bool bOk = KawaiiPhysicsPerfTestPrivate::RunScopeOverheadPerf(
+		*this, TEXT("KawaiiPhysics.Perf.ScopeOverhead.NoCapture"));
+	if (UE::Trace::ToggleChannel(TEXT("cpu"), true))
+	{
+		bOk &= KawaiiPhysicsPerfTestPrivate::RunScopeOverheadPerf(
+			*this, TEXT("KawaiiPhysics.Perf.ScopeOverhead.CpuTrace"));
+	}
+	else
+	{
+		AddError(TEXT("CPU trace channel を有効にできませんでした。"));
+		bOk = false;
+	}
+	UE::Trace::ToggleChannel(TEXT("cpu"), bWasCpuChannelEnabled);
 	return bOk;
 }
 
