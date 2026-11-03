@@ -1018,6 +1018,10 @@ private:
 	 * Previous frame's Base bone space to component space transform
 	 */
 	FTransform PrevBaseBoneSpace2ComponentSpace = FTransform::Identity;
+	// 固定サブステップ中の前後の基準ボーン変換 / Base bone transforms bracketing the current fixed substep
+	FTransform BaseBoneStepPrevToComponent = FTransform::Identity;
+	FTransform BaseBoneStepComponentToCurrent = FTransform::Identity;
+	bool bUseBaseBoneStepTransforms = false;
 
 #if !UE_BUILD_SHIPPING
 	// --- 警告ログ用診断 / Diagnostics for warning logs ---
@@ -1739,6 +1743,10 @@ protected:
 	 * @param bTeleportedThisFrame このフレームでテレポートを検出したか / Whether a teleport was detected this frame.
 	 */
 	void AdvancePreSkelCompTransform(const FTransform& ComponentTransform, bool bTeleportedThisFrame);
+
+	// 基準ボーンの未消費移動を時間割合で補間する / Interpolate unconsumed base bone movement by elapsed-time fraction
+	static FTransform ComputeBaseBoneStepTransform(const FTransform& Previous, const FTransform& Current, float Fraction);
+	void AdvanceBaseBoneConsumedTransform(const FTransform& Current, float ConsumedFraction, bool bDiscard);
 
 	/**
 	 * Simulates the physics for all modified bones.

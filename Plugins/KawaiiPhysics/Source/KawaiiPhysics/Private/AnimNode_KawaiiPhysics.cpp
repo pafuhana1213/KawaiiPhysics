@@ -617,14 +617,10 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 	FTransform ComponentTransform = Output.AnimInstanceProxy->GetComponentTransform();
 
-	// 前フレームの BaseBoneSpace2ComponentSpace を保存
+	// 固定サブステップの未消費分は前回の基準ボーン変換に残す
 	if (SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
 	{
-		if (SimulationBaseBone.IsValidToEvaluate(BoneContainer))
-		{
-			PrevBaseBoneSpace2ComponentSpace = CurrentEvalSimSpaceCache.TargetSpaceToComponent;
-		}
-		else
+		if (!SimulationBaseBone.IsValidToEvaluate(BoneContainer))
 		{
 			PrevBaseBoneSpace2ComponentSpace = FTransform::Identity;
 			KAWAII_LOG_NODE_WARNING_ONCE(bSimBaseBoneInvalidWarned, LogKawaiiPhysics,
@@ -646,6 +642,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 
 	if (TeleportType == ETeleportType::ResetPhysics)
 	{
+		PrevBaseBoneSpace2ComponentSpace = CurrentEvalSimSpaceCache.TargetSpaceToComponent;
 		ModifyBones.Empty(ModifyBones.Num());
 		TeleportType = ETeleportType::None;
 		bInitPhysicsSettings = false;
@@ -664,6 +661,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 
 	if (ModifyBones.Num() > 0 && ShouldReinitModifyBones())
 	{
+		PrevBaseBoneSpace2ComponentSpace = CurrentEvalSimSpaceCache.TargetSpaceToComponent;
 		ModifyBones.Empty(ModifyBones.Num());
 		bInitPhysicsSettings = false;
 		bModifyBonesNeedsReinit = false;
@@ -883,6 +881,11 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 
 	// World SpaceでのSkeletalMeshComponentの移動を更新する
 	UpdateSkelCompMove(Output, ComponentTransform);
+	if (SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace &&
+		TeleportType == ETeleportType::TeleportPhysics)
+	{
+		PrevBaseBoneSpace2ComponentSpace = CurrentEvalSimSpaceCache.TargetSpaceToComponent;
+	}
 
 	// 一時外力は評価ごとに1回だけ取り込み、WarmUpの反復やTeleport時のSimulateスキップに左右されないようにする
 	ConsumeAndRemoveExpiredTransientExternalForces(DeltaTime);
@@ -927,6 +930,11 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	const bool bTeleportedThisFrame = (TeleportType == ETeleportType::TeleportPhysics);
 	TeleportType = ETeleportType::None;
 	AdvancePreSkelCompTransform(ComponentTransform, bTeleportedThisFrame);
+	if (SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
+	{
+		AdvanceBaseBoneConsumedTransform(CurrentEvalSimSpaceCache.TargetSpaceToComponent,
+			PreSkelCompTransformConsumeFraction, bTeleportedThisFrame || !bUseFixedSubsteppingCached);
+	}
 
 #if ENABLE_ANIM_DEBUG
 
