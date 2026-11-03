@@ -746,6 +746,81 @@ bool FKawaiiPhysicsSimulationSpaceSwitchOutputTest::RunTest(const FString& Param
 			TestTrue(TEXT("Switch output keeps the bone length"), FMath::IsNearlyEqual(Length, 10.0f, 0.001f));
 		}
 	}
+	// 30fps の切り替えフレームで、前フレーム目標からの2ステップ補間を新空間の継続経路と比較する
+	for (const EKawaiiPhysicsSimulationSpace From : Spaces)
+	{
+		for (const EKawaiiPhysicsSimulationSpace To : Spaces)
+		{
+			if (From == To)
+			{
+				continue;
+			}
+			const FTransform FromToComponent = From == EKawaiiPhysicsSimulationSpace::WorldSpace
+				? WorldTransform.Inverse() : FTransform::Identity;
+			const FTransform ToToComponent = To == EKawaiiPhysicsSimulationSpace::WorldSpace
+				? WorldTransform.Inverse() : FTransform::Identity;
+			FKawaiiPhysicsTestAccessor Switched;
+			Switched.BuildVerticalChain(2, 10.0f, FVector::ZeroVector, FVector::XAxisVector);
+			Switched.SetSimulationSpace(From);
+			Switched.SetFixedSubstepping(true, 60, 4);
+			Switched.SetGravityInSimSpace(FVector::ZeroVector);
+			FKawaiiPhysicsSettings Settings;
+			Settings.Damping = 0.5f;
+			Settings.Stiffness = 0.5f;
+			Settings.LimitAngle = 0.0f;
+			Settings.Radius = 0.0f;
+			Switched.SetAllPhysicsSettings(Settings);
+			Switched.StepFrame(1.0f / 60.0f);
+
+			FVector PreviousLocations[2];
+			FQuat PreviousRotations[2];
+			for (int32 BoneIndex = 0; BoneIndex < Switched.Num(); ++BoneIndex)
+			{
+				PreviousLocations[BoneIndex] = Switched.Bone(BoneIndex).PrevPoseLocation;
+				PreviousRotations[BoneIndex] = Switched.Bone(BoneIndex).PrevPoseRotation;
+				Switched.Bone(BoneIndex).PoseLocation += FVector(0.0f, 4.0f, 0.0f);
+				Switched.Bone(BoneIndex).PoseRotation =
+					FQuat(FVector::ZAxisVector, FMath::DegreesToRadians(30.0f));
+			}
+			Switched.ConvertSimulationSpaceForTest(FromToComponent, ToToComponent, From, To);
+			for (int32 BoneIndex = 0; BoneIndex < Switched.Num(); ++BoneIndex)
+			{
+				Switched.Bone(BoneIndex).PoseLocation = ToToComponent.InverseTransformPosition(
+					FromToComponent.TransformPosition(Switched.Bone(BoneIndex).PoseLocation));
+				Switched.Bone(BoneIndex).PoseRotation = ToToComponent.InverseTransformRotation(
+					FromToComponent.TransformRotation(Switched.Bone(BoneIndex).PoseRotation));
+			}
+
+			FKawaiiPhysicsTestAccessor Unswitched;
+			Unswitched.BuildVerticalChain(2, 10.0f, FVector::ZeroVector, FVector::XAxisVector);
+			Unswitched.Node.ModifyBones = Switched.Node.ModifyBones;
+			Unswitched.SetSimulationSpace(To);
+			Unswitched.SetFixedSubstepping(true, 60, 4);
+			Unswitched.SetGravityInSimSpace(FVector::ZeroVector);
+			Unswitched.SetSubstepPoseInitialized(true);
+			for (int32 BoneIndex = 0; BoneIndex < Unswitched.Num(); ++BoneIndex)
+			{
+				const FVector ExpectedPreviousLocation = ToToComponent.InverseTransformPosition(
+					FromToComponent.TransformPosition(PreviousLocations[BoneIndex]));
+				const FQuat ExpectedPreviousRotation = ToToComponent.InverseTransformRotation(
+					FromToComponent.TransformRotation(PreviousRotations[BoneIndex]));
+				Unswitched.Bone(BoneIndex).PrevPoseLocation = ExpectedPreviousLocation;
+				Unswitched.Bone(BoneIndex).PrevPoseRotation = ExpectedPreviousRotation;
+				TestTrue(TEXT("Switch preserves the previous pose location for two steps"),
+				         Switched.Bone(BoneIndex).PrevPoseLocation.Equals(ExpectedPreviousLocation, 0.001f));
+				TestTrue(TEXT("Switch preserves the previous pose rotation for two steps"),
+				         Switched.Bone(BoneIndex).PrevPoseRotation.Equals(ExpectedPreviousRotation, 0.001f));
+			}
+			Switched.StepFrame(1.0f / 30.0f);
+			Unswitched.StepFrame(1.0f / 30.0f);
+			Switched.CallUpdateOutputLocations();
+			Unswitched.CallUpdateOutputLocations();
+			TestTrue(TEXT("Two-step switch matches the unswitched simulated location"),
+			         Switched.Bone(1).Location.Equals(Unswitched.Bone(1).Location, 0.001f));
+			TestTrue(TEXT("Two-step switch matches the unswitched output"),
+			         Switched.Bone(1).OutputLocation.Equals(Unswitched.Bone(1).OutputLocation, 0.001f));
+		}
+	}
 	// 基準ボーン空間は物理ステップを実行できないため、変換済みの出力履歴のみ確かめる
 	{
 		FKawaiiPhysicsTestAccessor A;

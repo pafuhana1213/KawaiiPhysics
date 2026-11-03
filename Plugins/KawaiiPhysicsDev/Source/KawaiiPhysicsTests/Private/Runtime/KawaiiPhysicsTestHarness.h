@@ -1098,14 +1098,10 @@ private:
 			{
 				Bone.PrevPoseLocation = Bone.PoseLocation;
 				Bone.PrevPoseRotation = Bone.PoseRotation;
-				if (!Node.bPreserveSubstepPoseOffsetsOnSpaceSwitch)
-				{
-					FAnimNode_KawaiiPhysics::ResetSubstepPoseOffsets(Bone);
-				}
+				FAnimNode_KawaiiPhysics::ResetSubstepPoseOffsets(Bone);
 			}
 		}
 		Node.bSubstepPoseInitialized = true;
-		Node.bPreserveSubstepPoseOffsetsOnSpaceSwitch = false;
 	}
 
 	/**
