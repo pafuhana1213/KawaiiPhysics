@@ -1,0 +1,38 @@
+{
+  "level": "/KawaiiPhysicsDev/Levels/L_KPV_Performance",
+  "fps": 60,
+  "frames": 900,
+  "capture": {"start_frame": 300, "frames": 600},
+  "audit": {"frames": 360, "capture": {"start_frame": 120, "frames": 240}},
+  "settings": {"fixed_substepping": true, "max_substeps": 4, "time_dilation": 1.0},
+  "runs_per_state": 5,
+  "profiles": {
+    "serial": {"cvars": ["a.ParallelAnimEvaluation=0", "a.ParallelAnimUpdate=0"]},
+    "parallel": {"cvars": ["a.ParallelAnimEvaluation=1", "a.ParallelAnimUpdate=1"]}
+  },
+  "grid": {"origin": [-900, -900, 200], "spacing": [180, 180, 0], "columns": 11},
+  "fixtures": {
+    "kano": {"mesh": "/Game/KawaiiPhysicsSample/Model/TAStyleKano/Mesh/test_kano1.test_kano1", "anim_class": "/Game/KawaiiPhysicsSample/Examples/09_Showcase/ABP_9_Kano.ABP_9_Kano_C", "expect": {"NumNodes": 1, "NumCollisionShapes": 1, "NumExternalForces": 1}},
+    "skirt": {"mesh": "/Game/KawaiiPhysicsSample/Model/Skirt/Meshs/SKM_Skirt.SKM_Skirt", "anim_class": "/Game/KawaiiPhysicsSample/Examples/05_Advanced/ABP_5_5_SkirtCombined_On.ABP_5_5_SkirtCombined_On_C", "expect": {"NumConstraintIterations": 1}},
+    "constraint_subdivision": {"mesh": "/Game/KawaiiPhysicsSample/Model/Skirt/Meshs/SKM_Skirt.SKM_Skirt", "anim_class": "/Game/KawaiiPhysicsSample/Examples/05_Advanced/ABP_5_1_BoneConstraint_Subdivision.ABP_5_1_BoneConstraint_Subdivision_C", "expect": {"NumConstraintIterations": 1}},
+    "world_collision": {"mesh": "/Game/KawaiiPhysicsSample/Model/Chain/S_Chain.S_Chain", "anim_class": "/Game/KawaiiPhysicsSample/Examples/03_Collision/ABP_3_8_WorldCollision_On.ABP_3_8_WorldCollision_On_C", "expect": {"NumWorldCollisionSweeps": 1}, "location_offset": [0, 0, -380]},
+    "simple_world": {"mesh": "/Game/KawaiiPhysicsSample/Model/Chain/S_Chain.S_Chain", "anim_class": "/Game/KawaiiPhysicsSample/Examples/07_SimpleWorldCollision/ABP_7_2_SWC_Shapes.ABP_7_2_SWC_Shapes_C", "expect": {"NumSimpleWorldShapes": 1}},
+    "physics_asset": {"mesh": "/Game/KawaiiPhysicsSample/Model/GrayChan/Mesh/GrayChan.GrayChan", "anim_class": "/Game/KawaiiPhysicsSample/Examples/03_Collision/ABP_3_7_PhysicsAsset_On.ABP_3_7_PhysicsAsset_On_C", "expect": {"NumCollisionShapes": 1}},
+    "limits_asset": {"mesh": "/Game/KawaiiPhysicsSample/Model/Chain/S_Chain.S_Chain", "anim_class": "/Game/KawaiiPhysicsSample/Examples/03_Collision/ABP_3_6_DataAsset_A.ABP_3_6_DataAsset_A_C", "expect": {"NumCollisionShapes": 1}},
+    "procedural_wind": {"mesh": "/Game/KawaiiPhysicsSample/Model/Chain/S_Chain.S_Chain", "anim_class": "/Game/KawaiiPhysicsSample/Examples/04_Forces/ABP_4_6_ProceduralWind.ABP_4_6_ProceduralWind_C", "expect": {"NumExternalForces": 1}},
+    "force_basic": {"mesh": "/Game/KawaiiPhysicsSample/Model/Chain/S_Chain.S_Chain", "anim_class": "/Game/KawaiiPhysicsSample/Examples/04_Forces/ABP_4_3_Basic.ABP_4_3_Basic_C", "expect": {"NumExternalForces": 1}},
+    "force_curve": {"mesh": "/Game/KawaiiPhysicsSample/Model/Chain/S_Chain.S_Chain", "anim_class": "/Game/KawaiiPhysicsSample/Examples/04_Forces/ABP_4_4_Curve.ABP_4_4_Curve_C", "expect": {"NumExternalForces": 1}}
+  },
+  "groups": [
+    {"fixture": "kano", "count": 55},
+    {"fixture": "skirt", "count": 5},
+    {"fixture": "constraint_subdivision", "count": 5},
+    {"fixture": "world_collision", "count": 5},
+    {"fixture": "physics_asset", "count": 5},
+    {"fixture": "limits_asset", "count": 5},
+    {"fixture": "procedural_wind", "count": 5},
+    {"fixture": "force_basic", "count": 5},
+    {"fixture": "force_curve", "count": 5},
+    {"fixture": "simple_world", "count": 5}
+  ]
+}

@@ -1,0 +1,381 @@
+"""Tests for performance result validation and comparison."""
+
+from __future__ import annotations
+
+import copy
+import json
+import pathlib
+import subprocess
+import sys
+import tempfile
+import unittest
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+import compare_perf  # noqa: E402
+
+
+def make_result() -> dict:
+    conditions = {'suite': 'performance', 'suite_sha256': 'suite', 'level': '/test',
+                  'level_sha256': 'level', 'assets_sha256': 'assets', 'asset_count': 3,
+                  'runner_sha256': 'runner', 'profile': 'serial', 'fps': 60,
+                  'frames': 200, 'capture': {'start_frame': 100, 'frames': 100},
+                  'settings': {'fixed_substepping': True, 'max_substeps': 4,
+                               'time_dilation': 1.0},
+                  'runs_per_state': 3, 'cvars': [], 'extra_arguments': [], 'affinity': None}
+    runs = [{'index': i, 'state': 'on' if i % 2 == 0 else 'off', 'exit_code': 0,
+             'seconds': 1.0, 'csv_path': 'capture.csv', 'capture_frames': 100,
+             'frame_ms_median': 20.0, 'calib_ms': 30.0, 'metrics': {}, 'amounts': {}}
+            for i in range(6)]
+    return {'schema': 'kpv-perf-result/1', 'created': '2026-11-04T00:00:00+09:00',
+            'machine': {'machine_id': 'test-cpu', 'cpu': 'Test CPU', 'logical_cpus': 8,
+                        'power_plan': 'plan'},
+            'engine': {'root': 'E:/UE', 'version': '5.8', 'build_config': 'Development'},
+            'conditions': conditions, 'condition_key': 'same', 'positive_control': None,
+            'audit': {'ok': True, 'fixtures': {}, 'problems': []},
+            'provenance': {'commit': 'one', 'dirty': False, 'plugin_diff_sha256': ''},
+            'runs': runs,
+            'summary': {'metrics': {
+                'kp_runtime_ms': {'unit': 'ms', 'gating': True, 'values': [10.0] * 3,
+                                  'median': 10.0},
+                'kp_eval_ms': {'unit': 'ms', 'gating': False, 'values': [12.0] * 3,
+                               'median': 12.0}},
+                        'amounts': {'NumSubsteps': 10.0, 'NumNodes': 20.0},
+                        'calib_ms': 30.0,
+                        'controls': {'negative_ok': True, 'amounts_ok': True,
+                                     'problems': []}}}
+
+
+def sync_runs(document: dict) -> dict:
+    """Copy the summary values into the ON runs so the summary stays consistent with them.
+
+    The tests edit the summary for brevity; the validator recomputes it from the runs."""
+    on = [run for run in sorted(document['runs'], key=lambda run: run['index'])
+          if run['state'] == 'on']
+    for name, metric in document['summary']['metrics'].items():
+        if name == 'frame_cost_ms' or not isinstance(metric.get('values'), list):
+            continue
+        for run, value in zip(on, metric['values']):
+            run['metrics'][name] = value
+    for run in on:
+        run['amounts'] = dict(document['summary']['amounts'])
+    return document
+
+
+def dump(document) -> str:
+    if isinstance(document, dict) and isinstance(document.get('runs'), list) \
+            and isinstance(document.get('summary'), dict):
+        document = sync_runs(copy.deepcopy(document))
+    return json.dumps(document)
+
+
+def set_runtime(result: dict, value: float) -> None:
+    metric = result['summary']['metrics']['kp_runtime_ms']
+    metric['values'] = [value] * 3
+    metric['median'] = value
+
+
+class ComparePerfTest(unittest.TestCase):
+    def setUp(self):
+        self.baseline = make_result()
+        self.current = copy.deepcopy(self.baseline)
+
+    def verdict(self) -> dict:
+        return compare_perf.compare(sync_runs(self.current), sync_runs(self.baseline))
+
+    def test_same_warn_improved_and_reference_metric(self):
+        self.assertEqual((self.verdict()['verdict'], self.verdict()['exit_code']), ('OK', 0))
+        set_runtime(self.current, 11.0)
+        self.assertEqual((self.verdict()['verdict'], self.verdict()['exit_code']), ('WARN', 1))
+        set_runtime(self.current, 9.0)
+        self.assertEqual((self.verdict()['verdict'], self.verdict()['exit_code']), ('IMPROVED', 0))
+        set_runtime(self.current, 10.0)
+        self.current['summary']['metrics']['kp_eval_ms']['values'] = [20.0] * 3
+        self.current['summary']['metrics']['kp_eval_ms']['values'] = [20.0] * 3
+        self.current['summary']['metrics']['kp_eval_ms']['median'] = 20.0
+        result = self.verdict()
+        self.assertEqual(result['exit_code'], 0)
+        self.assertIn('WARN', [row['verdict'] for row in result['metrics']])
+
+    def test_summary_must_match_runs(self):
+        # A summary that disagrees with its own runs (stale aggregation or an edited file) is
+        # rejected instead of being trusted; here the runs grew 30% but the median did not.
+        sync_runs(self.current)
+        for run in self.current['runs']:
+            if run['state'] == 'on':
+                run['metrics']['kp_runtime_ms'] = 13.0
+        self.current['summary']['metrics']['kp_runtime_ms']['values'] = [13.0] * 3
+        result = compare_perf.compare(self.current, sync_runs(self.baseline))
+        self.assertEqual((result['verdict'], result['exit_code']), ('INVALID', 5))
+        self.assertIn('中央値', compare_perf.render(result))
+        self.current = copy.deepcopy(self.baseline)
+        sync_runs(self.current)
+        self.current['runs'][0]['metrics']['kp_runtime_ms'] = 20.0
+        self.assertEqual(compare_perf.compare(self.current, self.baseline)['exit_code'], 5)
+        self.current = copy.deepcopy(self.baseline)
+        sync_runs(self.current)
+        self.current['summary']['amounts']['NumNodes'] = 25.0
+        self.assertEqual(compare_perf.compare(self.current, self.baseline)['exit_code'], 5)
+
+    def test_reference_metric_cannot_invalidate_baseline(self):
+        # A noisy or unused reference stage must not make the whole baseline unusable.
+        noisy = {'unit': 'ms', 'gating': False, 'values': [0.1, 0.5, 0.9], 'median': 0.5}
+        unused = {'unit': 'ms', 'gating': False, 'values': [0.0] * 3, 'median': 0.0}
+        for document in (self.baseline, self.current):
+            document['summary']['metrics']['kp_noisy_ms'] = copy.deepcopy(noisy)
+            document['summary']['metrics']['kp_unused_ms'] = copy.deepcopy(unused)
+        result = self.verdict()
+        self.assertEqual((result['verdict'], result['exit_code']), ('OK', 0))
+        rows = {row['name']: row for row in result['metrics']}
+        self.assertEqual(rows['kp_unused_ms']['verdict'], 'N/A')
+        self.assertIsNone(rows['kp_unused_ms']['delta_percent'])
+        self.assertIn('kp_unused_ms', compare_perf.render(result))
+
+    def test_noisy_gating_baseline_is_invalid(self):
+        self.baseline['summary']['metrics']['kp_runtime_ms']['values'] = [5.0, 10.0, 15.0]
+        self.assertEqual(self.verdict()['exit_code'], 5)
+
+    def test_noisy_and_unexplained_warning(self):
+        self.current['summary']['calib_ms'] = 36.0
+        set_runtime(self.current, 11.0)
+        self.assertEqual((self.verdict()['verdict'], self.verdict()['exit_code']), ('NOISY', 2))
+        set_runtime(self.current, 13.0)
+        self.assertEqual((self.verdict()['verdict'], self.verdict()['exit_code']), ('WARN', 1))
+
+    def test_stale_ignores_provenance_and_positive_control(self):
+        self.current['provenance']['commit'] = 'two'
+        self.assertEqual(self.verdict()['exit_code'], 0)
+        self.current['positive_control'] = {'overrides': {'TargetFramerate': '120'}}
+        self.current['summary']['amounts']['NumSubsteps'] = 15.0
+        self.assertEqual(self.verdict()['exit_code'], 0)
+        self.current['conditions']['fps'] = 120
+        self.current['condition_key'] = 'different'
+        result = self.verdict()
+        self.assertEqual((result['verdict'], result['exit_code']), ('STALE', 3))
+        self.assertIn('conditions.fps', compare_perf.render(result))
+
+    def test_machine_mismatch_fields(self):
+        for section, field, value in [('machine', 'machine_id', 'another'),
+                                      ('machine', 'power_plan', 'another'),
+                                      ('engine', 'version', '5.7')]:
+            with self.subTest(field=field):
+                self.current = copy.deepcopy(self.baseline)
+                self.current[section][field] = value
+                result = self.verdict()
+                self.assertEqual((result['verdict'], result['exit_code']),
+                                 ('MACHINE_MISMATCH', 4))
+                self.assertIn(field, compare_perf.render(result))
+
+    def test_invalid_inputs(self):
+        changes = [
+            lambda d: d['summary']['metrics'].pop('kp_runtime_ms'),
+            lambda d: d['summary']['metrics']['kp_runtime_ms'].update(median=float('nan')),
+            lambda d: d['runs'].pop(),
+            lambda d: d['runs'][0].update(capture_frames=89),
+            lambda d: d['runs'][0].update(exit_code=1),
+            lambda d: d['summary']['controls'].update(negative_ok=False),
+            lambda d: d['summary']['controls'].update(amounts_ok=False),
+            lambda d: d['summary']['amounts'].update(NumNodes='bad'),
+        ]
+        for change in changes:
+            with self.subTest(change=changes.index(change)):
+                self.current = copy.deepcopy(self.baseline)
+                change(self.current)
+                self.assertEqual(self.verdict()['exit_code'], 5)
+        self.current = copy.deepcopy(self.baseline)
+        self.baseline['summary']['metrics']['kp_runtime_ms']['median'] = 0
+        self.assertEqual(self.verdict()['exit_code'], 5)
+        self.baseline = make_result()
+        self.baseline['summary']['metrics']['kp_runtime_ms']['values'] = [1, 10, 100]
+        self.assertIn('基準値として採用できない', compare_perf.render(self.verdict()))
+        self.current = make_result()
+        self.baseline = make_result()
+        self.current['positive_control'] = {'overrides': {'TargetFramerate': '120'}}
+        self.assertEqual(self.verdict()['exit_code'], 5)
+        self.current = make_result()
+        self.current['summary']['metrics']['kp_eval_ms']['unit'] = 'seconds'
+        self.current['machine']['power_plan'] = 'other'
+        self.assertEqual(self.verdict()['exit_code'], 5)
+
+    def test_workload_changed_and_positive_control(self):
+        self.current['summary']['amounts']['NumNodes'] = 21.0
+        result = self.verdict()
+        self.assertEqual((result['verdict'], result['exit_code']), ('WORKLOAD_CHANGED', 3))
+        self.assertIn('量が変わった', compare_perf.render(result))
+        self.current['positive_control'] = {'overrides': {'TargetFramerate': '120'}}
+        self.current['summary']['amounts']['NumSubsteps'] = 15.0
+        self.assertEqual(self.verdict()['exit_code'], 0)
+        self.assertIn('WARN が出ることを期待', compare_perf.render(self.verdict()))
+
+    def test_workload_decrease_missing_amount_and_zero(self):
+        self.current['summary']['amounts']['NumNodes'] = 19.7
+        self.assertEqual((self.verdict()['verdict'], self.verdict()['exit_code']),
+                         ('WORKLOAD_CHANGED', 3))
+        self.current = copy.deepcopy(self.baseline)
+        self.current['summary']['amounts'].pop('NumNodes')
+        self.assertEqual(self.verdict()['exit_code'], 3)
+        self.current = copy.deepcopy(self.baseline)
+        for doc in (self.current, self.baseline):
+            doc['summary']['amounts']['NumZero'] = 0.0
+        self.assertEqual(self.verdict()['exit_code'], 0)
+
+    def test_baseline_requires_successful_audit(self):
+        for audit in (None, {'ok': False, 'fixtures': {}, 'problems': ['失敗']}):
+            with self.subTest(audit=audit):
+                self.baseline = make_result()
+                self.baseline['audit'] = audit
+                self.assertEqual((self.verdict()['verdict'], self.verdict()['exit_code']),
+                                 ('INVALID', 5))
+
+    def test_current_requires_successful_audit(self):
+        for audit in (None, {'ok': False, 'fixtures': {}, 'problems': ['失敗']}):
+            with self.subTest(audit=audit):
+                self.current = make_result()
+                self.current['audit'] = audit
+                result = self.verdict()
+                self.assertEqual((result['verdict'], result['exit_code']), ('INVALID', 5))
+                self.assertIn('現在の結果に --audit', compare_perf.render(result))
+
+    def test_fixture_amount_loss_below_total_one_percent(self):
+        for document in (self.baseline, self.current):
+            document['summary']['amounts']['NumExternalForces'] = 5645.0
+            document['audit']['fixtures'] = {
+                'force_curve': {'count': 5, 'expected': {'NumExternalForces': 5},
+                                'amounts': {'NumExternalForces': 30.0}, 'ok': True}}
+        self.current['summary']['amounts']['NumExternalForces'] = 5615.0
+        self.current['audit']['fixtures']['force_curve']['amounts']['NumExternalForces'] = 0.0
+        result = self.verdict()
+        self.assertEqual((result['verdict'], result['exit_code']), ('WORKLOAD_CHANGED', 3))
+        self.assertIn('force_curve.NumExternalForces', compare_perf.render(result))
+        # A positive control legitimately changes the workload (doubled substeps), so the audit
+        # amounts are not compared; only the substep increase is required.
+        self.current['positive_control'] = {'overrides': {'TargetFramerate': '120'}}
+        self.current['summary']['amounts']['NumSubsteps'] = 20.0
+        self.assertEqual((self.verdict()['verdict'], self.verdict()['exit_code']), ('OK', 0))
+
+    def test_fixture_set_and_amount_name_changes(self):
+        self.baseline['audit']['fixtures'] = {
+            'force_curve': {'amounts': {'NumExternalForces': 30.0, 'NumZero': 0.0}}}
+        self.current['audit']['fixtures'] = {
+            'force_basic': {'amounts': {'NumExternalForces': 30.0}}}
+        result = self.verdict()
+        self.assertEqual((result['verdict'], result['exit_code']), ('WORKLOAD_CHANGED', 3))
+        self.assertIn('force_curve', compare_perf.render(result))
+        self.current['audit']['fixtures'] = {
+            'force_curve': {'amounts': {'NumExternalForces': 30.0}}}
+        result = self.verdict()
+        self.assertEqual((result['verdict'], result['exit_code']), ('WORKLOAD_CHANGED', 3))
+        self.assertIn('force_curve.NumZero', compare_perf.render(result))
+
+    def test_positive_control_baseline_rejected_on_read_and_update(self):
+        self.baseline['positive_control'] = {'overrides': {'TargetFramerate': '120'}}
+        self.assertEqual((self.verdict()['verdict'], self.verdict()['exit_code']),
+                         ('INVALID', 5))
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            current = root / 'positive.json'
+            baseline = root / 'baseline.json'
+            current.write_text(dump(self.baseline), encoding='utf-8')
+            command = [sys.executable, str(pathlib.Path(compare_perf.__file__)), str(current),
+                       '--baseline', str(baseline)]
+            run = subprocess.run(command + ['--update-baseline', '--yes'], capture_output=True,
+                                 text=True, encoding='utf-8')
+            self.assertEqual(run.returncode, 5)
+            self.assertFalse(baseline.exists())
+            baseline.write_text(dump(self.baseline), encoding='utf-8')
+            current.write_text(dump(self.current), encoding='utf-8')
+            run = subprocess.run(command, capture_output=True, text=True, encoding='utf-8')
+            self.assertEqual(run.returncode, 5)
+
+    def test_update_replaces_unusable_old_baseline(self):
+        # A baseline written before a contract change (no audit) or a corrupt file must not block
+        # its replacement, while a plain comparison against it still fails.
+        old = copy.deepcopy(self.baseline)
+        old['audit'] = None
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            current = root / 'current.json'
+            baseline = root / 'baseline.json'
+            current.write_text(dump(self.current), encoding='utf-8')
+            command = [sys.executable, str(pathlib.Path(compare_perf.__file__)), str(current),
+                       '--baseline', str(baseline)]
+            for content in (dump(old), '{broken'):
+                with self.subTest(content=content[:10]):
+                    baseline.write_text(content, encoding='utf-8')
+                    run = subprocess.run(command, capture_output=True, text=True, encoding='utf-8')
+                    self.assertEqual(run.returncode, 5)
+                    run = subprocess.run(command + ['--update-baseline', '--yes'],
+                                         capture_output=True, text=True, encoding='utf-8')
+                    self.assertEqual(run.returncode, 0)
+                    self.assertIn('BASELINE_REPLACED', run.stdout)
+                    self.assertEqual(json.loads(baseline.read_text(encoding='utf-8'))['audit'],
+                                     self.current['audit'])
+
+    def test_update_over_stale_baseline_succeeds(self):
+        # Rebaselining after a deliberate condition change is a success; a plain comparison
+        # against the old baseline is still STALE.
+        old = copy.deepcopy(self.baseline)
+        old['condition_key'] = 'older'
+        old['conditions']['runner_sha256'] = 'older-runner'
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            current = root / 'current.json'
+            baseline = root / 'baseline.json'
+            current.write_text(dump(self.current), encoding='utf-8')
+            baseline.write_text(dump(old), encoding='utf-8')
+            command = [sys.executable, str(pathlib.Path(compare_perf.__file__)), str(current),
+                       '--baseline', str(baseline)]
+            run = subprocess.run(command, capture_output=True, text=True, encoding='utf-8')
+            self.assertEqual(run.returncode, 3)
+            run = subprocess.run(command + ['--update-baseline', '--yes'], capture_output=True,
+                                 text=True, encoding='utf-8')
+            self.assertEqual(run.returncode, 0)
+            self.assertIn('BASELINE_UPDATED', run.stdout)
+            self.assertIn('更新前の比較結果: STALE', run.stdout)
+            self.assertEqual(json.loads(baseline.read_text(encoding='utf-8'))['condition_key'],
+                             self.current['condition_key'])
+
+    def test_cli_missing_baseline_and_update(self):
+        script = pathlib.Path(compare_perf.__file__)
+        with tempfile.TemporaryDirectory() as directory:
+            directory = pathlib.Path(directory)
+            current = directory / 'current.json'
+            baseline = directory / 'sub' / 'baseline.json'
+            output = directory / 'report.json'
+            current.write_text(dump(self.current), encoding='utf-8')
+            command = [sys.executable, str(script), str(current), '--baseline', str(baseline),
+                       '--json-out', str(output)]
+            run = subprocess.run(command, capture_output=True, text=True, encoding='utf-8')
+            self.assertEqual(run.returncode, 6)
+            self.assertIn('基準値なし', run.stdout)
+            self.assertEqual(json.loads(output.read_text(encoding='utf-8'))['exit_code'], 6)
+            run = subprocess.run(command + ['--update-baseline'], capture_output=True,
+                                 text=True, encoding='utf-8')
+            self.assertFalse(baseline.exists())
+            self.assertIn('--yes', run.stdout)
+            # A noisy batch must not become the first baseline either.
+            noisy = copy.deepcopy(self.current)
+            noisy['summary']['metrics']['kp_runtime_ms']['values'] = [5.0, 10.0, 15.0]
+            current.write_text(dump(noisy), encoding='utf-8')
+            run = subprocess.run(command + ['--update-baseline', '--yes'], capture_output=True,
+                                 text=True, encoding='utf-8')
+            self.assertEqual(run.returncode, 5)
+            self.assertFalse(baseline.exists())
+            current.write_text(dump(self.current), encoding='utf-8')
+            run = subprocess.run(command + ['--update-baseline', '--yes'], capture_output=True,
+                                 text=True, encoding='utf-8')
+            self.assertEqual(run.returncode, 0)
+            self.assertIn('BASELINE_CREATED', run.stdout)
+            self.assertTrue(baseline.exists())
+            self.assertEqual(json.loads(baseline.read_text(encoding='utf-8'))['baseline']['source'],
+                             str(current))
+            self.current['summary']['controls']['negative_ok'] = False
+            current.write_text(dump(self.current), encoding='utf-8')
+            before = baseline.read_bytes()
+            run = subprocess.run(command + ['--update-baseline', '--yes'], capture_output=True,
+                                 text=True, encoding='utf-8')
+            self.assertEqual(run.returncode, 5)
+            self.assertEqual(baseline.read_bytes(), before)
+
+
+if __name__ == '__main__':
+    unittest.main()
