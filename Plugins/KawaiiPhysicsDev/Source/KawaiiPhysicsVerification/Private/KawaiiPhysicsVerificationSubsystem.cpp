@@ -26,6 +26,8 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
+#include "HAL/FileManager.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "UnrealClient.h"
@@ -85,6 +87,20 @@ namespace KawaiiPhysicsVerificationPrivate
 	FString EscapeJson(const FString& Text)
 	{
 		return Text.Replace(TEXT("\\"), TEXT("\\\\")).Replace(TEXT("\""), TEXT("\\\""));
+	}
+
+	FString ReadEffectiveCVarsJson()
+	{
+		FString Result = TEXT("{");
+		const TCHAR* Names[] = {TEXT("a.ParallelAnimEvaluation"), TEXT("a.ParallelAnimUpdate"),
+		                        TEXT("a.AnimNode.KawaiiPhysics.Enable")};
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(Names); ++Index)
+		{
+			const IConsoleVariable* Variable = IConsoleManager::Get().FindConsoleVariable(Names[Index]);
+			Result += FString::Printf(TEXT("%s\"%s\":"), Index ? TEXT(",") : TEXT(""), Names[Index]);
+			Result += Variable ? FString::Printf(TEXT("\"%s\""), *EscapeJson(Variable->GetString())) : TEXT("null");
+		}
+		return Result + TEXT("}");
 	}
 
 	bool ApplyOverride(TArray<FKawaiiPhysicsReference>& Nodes, const FName PropertyName, const FString& ValueText,
@@ -202,6 +218,8 @@ void UKawaiiPhysicsVerificationSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 		return;
 	}
 
+	// マニフェスト適用後、計測開始前の GameThread で実効 CVar を確定する。
+	EffectiveCVarsJson = KawaiiPhysicsVerificationPrivate::ReadEffectiveCVarsJson();
 	FParse::Value(FCommandLine::Get(), TEXT("-KPVerifyCapture="), CaptureDirectory);
 	KawaiiPhysicsVerificationPrivate::MeasureCalibration(CalibrationStartMilliseconds);
 	bRunning = true;
@@ -234,6 +252,22 @@ bool UKawaiiPhysicsVerificationSubsystem::LoadManifest(const FString& ManifestPa
 	Root->TryGetBoolField(TEXT("record"), bRecordTransforms);
 	Root->TryGetBoolField(TEXT("record_nodes"), bRecordNodes);
 	bRecordNodes &= bRecordTransforms;
+	const TSharedPtr<FJsonObject>* CsvObject = nullptr;
+	if (Root->TryGetObjectField(TEXT("csv_capture"), CsvObject))
+	{
+		if (!(*CsvObject)->TryGetNumberField(TEXT("start_frame"), CsvStartFrame) ||
+			!(*CsvObject)->TryGetNumberField(TEXT("frames"), CsvFrames) ||
+			!(*CsvObject)->TryGetStringField(TEXT("directory"), CsvDirectory) ||
+			!(*CsvObject)->TryGetStringField(TEXT("filename"), CsvFilename) ||
+			CsvStartFrame < 0 || CsvFrames <= 0 || CsvDirectory.IsEmpty() || CsvFilename.IsEmpty() ||
+			FPaths::GetCleanFilename(CsvFilename) != CsvFilename)
+		{
+			UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("Invalid csv_capture settings."));
+			return false;
+		}
+		CsvState = ECsvCaptureState::Waiting;
+		NumFrames = FMath::Max(NumFrames, CsvStartFrame + CsvFrames + 2);
+	}
 	const TSharedPtr<FJsonObject>* SettingsObject = nullptr;
 	if (Root->TryGetObjectField(TEXT("settings"), SettingsObject))
 	{
@@ -675,8 +709,18 @@ void UKawaiiPhysicsVerificationSubsystem::Tick(const float DeltaTime)
 	}
 
 	const double NowSeconds = FPlatformTime::Seconds();
-	FrameMilliseconds.Add((NowSeconds - LastTickSeconds) * 1000.0);
-	FrameDeltaSeconds.Add(DeltaTime);
+	const bool bCsvWaitingForWrite = CsvState == ECsvCaptureState::Writing || CsvState == ECsvCaptureState::Complete;
+	if (!AdvanceCsvCapture())
+	{
+		bRunning = false;
+		WriteRecordingAndExit(false);
+		return;
+	}
+	if (!bCsvWaitingForWrite)
+	{
+		FrameMilliseconds.Add((NowSeconds - LastTickSeconds) * 1000.0);
+		FrameDeltaSeconds.Add(DeltaTime);
+	}
 
 	for (FCell& Cell : Cells)
 	{
@@ -699,7 +743,8 @@ void UKawaiiPhysicsVerificationSubsystem::Tick(const float DeltaTime)
 	}
 
 	RequestFrameCapture();
-	if (++FrameIndex >= NumFrames)
+	++FrameIndex;
+	if (FrameIndex >= NumFrames && (CsvState == ECsvCaptureState::Disabled || CsvState == ECsvCaptureState::Complete))
 	{
 		bRunning = false;
 		KawaiiPhysicsVerificationPrivate::MeasureCalibration(CalibrationEndMilliseconds);
@@ -707,6 +752,85 @@ void UKawaiiPhysicsVerificationSubsystem::Tick(const float DeltaTime)
 		return;
 	}
 	LastTickSeconds = FPlatformTime::Seconds();
+}
+
+bool UKawaiiPhysicsVerificationSubsystem::AdvanceCsvCapture()
+{
+	FCsvProfiler* Profiler = FCsvProfiler::Get();
+	switch (CsvState)
+	{
+	case ECsvCaptureState::Disabled:
+	case ECsvCaptureState::Complete:
+		return true;
+	case ECsvCaptureState::Waiting:
+		if (FrameIndex < CsvStartFrame)
+		{
+			return true;
+		}
+		if (FCsvProfiler::IsCapturing() || !IFileManager::Get().MakeDirectory(*CsvDirectory, true))
+		{
+			UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("CSV capture is already active or its directory cannot be created."));
+			return false;
+		}
+		// csv.BlockOnCaptureEnd は既定の 1 のままにする。0 にして書き出しを非同期にすると、UE 5.8 では
+		// CSV の処理スレッドが FinalizeCsvFile 中の FCsvStreamWriter::GetAllocatedSize で落ちることがある。
+		// 既定では EndFrame の中で書き出しを終えるので、Writing 状態の Tick（frame_ms に含めない）で Future が準備完了になる。
+		// 開始は次の BeginFrame で処理されるため、後続の Tick で確認する。
+		Profiler->BeginCapture(-1, CsvDirectory, CsvFilename, ECsvProfilerFlags::None);
+		CsvState = ECsvCaptureState::Starting;
+		return true;
+	case ECsvCaptureState::Starting:
+		if (FCsvProfiler::IsCapturing())
+		{
+			CsvStartRunnerFrame = FrameIndex;
+			CsvStartCsvFrame = Profiler->GetCaptureFrameNumber() - 1;
+			CsvState = ECsvCaptureState::Capturing;
+			return true;
+		}
+		if (++CsvWaitTicks > 120)
+		{
+			UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("CSV capture did not start."));
+			return false;
+		}
+		return true;
+	case ECsvCaptureState::Capturing:
+		if (!FCsvProfiler::IsCapturing())
+		{
+			UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("CSV capture ended unexpectedly."));
+			return false;
+		}
+		if (Profiler->GetCaptureFrameNumber() - CsvStartCsvFrame >= CsvFrames)
+		{
+			// EndFrame が停止要求を遅延処理する。Future の Get は準備完了後だけ呼ぶ。
+			CsvWriteFuture = Profiler->EndCapture();
+			if (!CsvWriteFuture.IsValid())
+			{
+				return false;
+			}
+			CsvWriteStartSeconds = FPlatformTime::Seconds();
+			CsvState = ECsvCaptureState::Writing;
+		}
+		return true;
+	case ECsvCaptureState::Writing:
+		if (CsvWriteFuture.IsReady())
+		{
+			CsvWrittenPath = CsvWriteFuture.Get();
+			if (CsvWrittenPath.IsEmpty() || !IFileManager::Get().FileExists(*CsvWrittenPath))
+			{
+				UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("CSV capture did not write a file."));
+				return false;
+			}
+			CsvState = ECsvCaptureState::Complete;
+			return true;
+		}
+		if (FPlatformTime::Seconds() - CsvWriteStartSeconds > 120.0)
+		{
+			UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("CSV capture write timed out."));
+			return false;
+		}
+		return true;
+	}
+	return false;
 }
 
 bool UKawaiiPhysicsVerificationSubsystem::RecordCellNodes(FCell& Cell) const
@@ -813,11 +937,19 @@ void UKawaiiPhysicsVerificationSubsystem::WriteRecordingAndExit(const bool bSucc
 	AppendNumber(Output, GetWorld()->GetWorldSettings()->GetEffectiveTimeDilation());
 	Output += FString::Printf(TEXT(",\"parallel_anim_evaluation\":%d,\"parallel_anim_update\":%d}"),
 		ParallelEvaluation ? ParallelEvaluation->GetInt() : 0, ParallelUpdate ? ParallelUpdate->GetInt() : 0);
+	Output += TEXT(",\"effective_cvars\":");
+	Output += EffectiveCVarsJson;
 	Output += TEXT(",\"calib_start_ms\":[");
 	AppendNumbers(Output, CalibrationStartMilliseconds);
 	Output += TEXT("],\"calib_end_ms\":[");
 	AppendNumbers(Output, CalibrationEndMilliseconds);
-	Output += TEXT("]}\n");
+	Output += TEXT("]");
+	if (CsvState != ECsvCaptureState::Disabled)
+	{
+		Output += FString::Printf(TEXT(",\"csv\":{\"path\":\"%s\",\"start_runner_frame\":%d,\"start_csv_frame\":%d,\"frames\":%d}"),
+			*EscapeJson(CsvWrittenPath.Replace(TEXT("\\"), TEXT("/"))), CsvStartRunnerFrame, CsvStartCsvFrame, CsvFrames);
+	}
+	Output += TEXT("}\n");
 
 	for (const FCell& Cell : Cells)
 	{

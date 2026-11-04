@@ -20,6 +20,7 @@ import statistics
 import sys
 from ctypes import wintypes
 
+import compare_perf
 import run_cells
 
 MESH = '/Game/KawaiiPhysicsSample/Model/TAStyleKano/Mesh/test_kano1.test_kano1'
@@ -87,10 +88,100 @@ def summarize_cost(on_rows, off_rows, batch_size: int = 5, resamples: int = 2000
     return result
 
 
+def summarize_results(paths: list[pathlib.Path]) -> dict:
+    """Measure CSV metric noise and independent batch A/A comparisons."""
+    documents = []
+    resolved = set()
+    identities = set()
+    for path in paths:
+        canonical = path.resolve()
+        if canonical in resolved:
+            raise ValueError(f'重複した入力パス: {path}')
+        resolved.add(canonical)
+        with path.open(encoding='utf-8') as source:
+            document = json.load(source)
+        problems = compare_perf.validate(document, str(path))
+        if problems:
+            raise ValueError('; '.join(problems))
+        if document['positive_control'] is not None:
+            raise ValueError(f'{path}: 陽性対照は A/A 集計に使えません')
+        identity = (document['created'], json.dumps(document['runs'], sort_keys=True))
+        if identity in identities:
+            raise ValueError(f'{path}: created と runs が重複しています')
+        identities.add(identity)
+        if documents:
+            first = documents[0]
+            for section, fields in (('machine', ('machine_id', 'logical_cpus', 'power_plan')),
+                                    ('engine', ('version', 'build_config'))):
+                for field in fields:
+                    if document[section][field] != first[section][field]:
+                        raise ValueError(f'{path}: {section}.{field} が一致しません')
+            if document['condition_key'] != first['condition_key']:
+                raise ValueError(f'{path}: condition_key が一致しません')
+            for field in ('commit', 'plugin_diff_sha256'):
+                if document['provenance'][field] != first['provenance'][field]:
+                    raise ValueError(f'{path}: provenance.{field} が一致しません')
+        documents.append(document)
+    if len(documents) < 2:
+        raise ValueError('--from-results には 2 ファイル以上が必要です')
+    # "Within 1%" is not transitive, so every pair that the A/A analysis compares must itself be
+    # comparable: total amounts, and each fixture's audit amounts (a small fixture's change can
+    # hide inside the 1% total), checked the same way the regression comparison does.
+    for first_index in range(len(documents)):
+        for second_index in range(first_index + 1, len(documents)):
+            first, document = documents[first_index], documents[second_index]
+            pair = f'{paths[first_index]} と {paths[second_index]}'
+            old_amounts = first['summary']['amounts']
+            new_amounts = document['summary']['amounts']
+            for name in sorted(old_amounts.keys() | new_amounts.keys()):
+                if compare_perf._amount_changed(old_amounts.get(name), new_amounts.get(name)):
+                    raise ValueError(f'{pair}: summary.amounts.{name} が 1% 以内で一致しません'
+                                     f'（{old_amounts.get(name)} / {new_amounts.get(name)}）')
+            fixture_differences = compare_perf.fixture_workload_differences(first, document)
+            if fixture_differences:
+                raise ValueError(f'{pair}: fixture の量が違います: ' + '; '.join(fixture_differences))
+    shared = set.intersection(*(set(doc['summary']['metrics']) for doc in documents))
+    report = {'schema': 'kpv-perf-noise/1', 'files': [str(path) for path in paths], 'metrics': {}}
+    for name in sorted(shared):
+        entries = [doc['summary']['metrics'][name] for doc in documents]
+        values = [value for entry in entries for value in entry['values']]
+        mean = statistics.fmean(values)
+        cv = statistics.stdev(values) / mean * 100 if mean and len(values) > 1 else 0.0
+        three_sigma = []
+        for path, doc, entry in zip(paths, documents, entries):
+            n = doc['conditions']['runs_per_state']
+            sigma = compare_perf.bootstrap_sigma(entry['values'], batch_size=n)
+            three_sigma.append({'file': str(path), 'runs_per_state': n,
+                                'percent': 3 * sigma / entry['median'] * 100
+                                if entry['median'] > 0 else None})
+        pairs = []
+        for first in range(len(documents)):
+            for second in range(first + 1, len(documents)):
+                baseline = entries[first]
+                current = entries[second]
+                comparable = baseline['median'] > 0
+                delta = ((current['median'] / baseline['median'] - 1) * 100
+                         if comparable else None)
+                threshold = (compare_perf.threshold_percent(baseline['values'],
+                                                             baseline['median'], 2.0)
+                             if comparable else None)
+                pairs.append({'baseline': str(paths[first]), 'current': str(paths[second]),
+                              'delta_percent': delta, 'threshold_percent': threshold,
+                              'exceeds_threshold': abs(delta) > threshold if comparable else None})
+        report['metrics'][name] = {'cv_percent': cv,
+                                    'three_sigma_percent_by_file': three_sigma,
+                                    'aa_pairs': pairs,
+                                    'aa_false_positives': sum(pair['exceeds_threshold'] is True
+                                                              for pair in pairs)}
+    return report
+
+
 def main():
     sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('output_directory')
+    parser.add_argument('output_directory', nargs='?')
+    parser.add_argument('--from-results', nargs='+', type=pathlib.Path, metavar='RESULT')
+    parser.add_argument('--out', type=pathlib.Path)
     parser.add_argument('--runs', type=int, default=10)
     parser.add_argument('--instances', type=int, default=100)
     parser.add_argument('--frames', type=int, default=600)
@@ -99,6 +190,24 @@ def main():
                         help='Affinity mask for kp_on_pinned.')
     parser.add_argument('--timeout', type=int, default=300)
     arguments = parser.parse_args()
+
+    if arguments.from_results:
+        if arguments.output_directory:
+            parser.error('output_directory と --from-results は同時に指定できません')
+        try:
+            report = summarize_results(arguments.from_results)
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
+            parser.error(str(error))
+        output = json.dumps(report, indent=2, sort_keys=True, ensure_ascii=False) + '\n'
+        if arguments.out:
+            arguments.out.parent.mkdir(parents=True, exist_ok=True)
+            arguments.out.write_text(output, encoding='utf-8')
+        print(output, end='')
+        return
+    if arguments.output_directory is None:
+        parser.error('output_directory または --from-results が必要です')
+    if arguments.out:
+        parser.error('--out は --from-results と一緒に指定してください')
 
     directory = pathlib.Path(arguments.output_directory).resolve()
     directory.mkdir(parents=True, exist_ok=True)

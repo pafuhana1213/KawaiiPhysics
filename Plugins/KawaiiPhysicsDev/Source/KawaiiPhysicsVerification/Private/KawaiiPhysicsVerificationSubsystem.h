@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/EngineBaseTypes.h"
+#include "Async/Future.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "KawaiiPhysicsVerificationSubsystem.generated.h"
 
@@ -82,11 +83,26 @@ private:
 	bool ApplyDueEvents(FCell& Cell) const;
 	bool RecordCellNodes(FCell& Cell) const;
 	void WriteRecordingAndExit(bool bSucceeded);
+	bool AdvanceCsvCapture();
+
+	enum class ECsvCaptureState : uint8 { Disabled, Waiting, Starting, Capturing, Writing, Complete };
+	ECsvCaptureState CsvState = ECsvCaptureState::Disabled;
+	FString CsvDirectory;
+	FString CsvFilename;
+	FString CsvWrittenPath;
+	TSharedFuture<FString> CsvWriteFuture;
+	int32 CsvStartFrame = 0;
+	int32 CsvFrames = 0;
+	int32 CsvStartRunnerFrame = INDEX_NONE;
+	int32 CsvStartCsvFrame = INDEX_NONE;
+	int32 CsvWaitTicks = 0;
+	double CsvWriteStartSeconds = 0.0;
 
 	TArray<FCell> Cells;
 	TArray<TSharedPtr<class FJsonValue>> PendingCellValues;
 	TWeakObjectPtr<class ACameraActor> CameraActor;
 	FString OutputPath;
+	FString EffectiveCVarsJson = TEXT("{}");
 	FString CaptureDirectory;
 	FDelegateHandle PreActorTickHandle;
 	int32 NumFrames = 0;
