@@ -999,6 +999,12 @@ void FAnimNode_KawaiiPhysics::AdjustByWorldCollision(FComponentSpacePoseContext&
 	{
 		// sphere sweep
 		FHitResult Result;
+#if KAWAIIPHYSICS_CSV_STATS
+		if (bCsvCountersActive)
+		{
+			++CsvNumWorldCollisionSweeps;
+		}
+#endif
 		bool bHit = World->SweepSingleByChannel(
 			Result, TraceStartLocationWS, TraceEndLocationWS, FQuat::Identity,
 			WorldCollisionTraceChannelCache, FCollisionShape::MakeSphere(Bone.PhysicsSettings.Radius),
@@ -1023,6 +1029,12 @@ void FAnimNode_KawaiiPhysics::AdjustByWorldCollision(FComponentSpacePoseContext&
 	{
 		// sphere sweep（ヒット後に対象ボーンを除外）
 		WorldCollisionHitsScratch.Reset();
+#if KAWAIIPHYSICS_CSV_STATS
+		if (bCsvCountersActive)
+		{
+			++CsvNumWorldCollisionSweeps;
+		}
+#endif
 		bool bHit = World->SweepMultiByChannel(WorldCollisionHitsScratch, TraceStartLocationWS,
 		                                       TraceEndLocationWS, FQuat::Identity, WorldCollisionTraceChannelCache,
 		                                       FCollisionShape::MakeSphere(Bone.PhysicsSettings.Radius),

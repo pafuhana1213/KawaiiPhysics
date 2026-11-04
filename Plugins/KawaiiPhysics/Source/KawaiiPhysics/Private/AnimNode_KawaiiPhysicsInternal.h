@@ -7,6 +7,45 @@
 // NOTE: include this header AFTER "AnimNode_KawaiiPhysics.h" (relies on engine stat headers / STATGROUP_Anim).
 
 #include "Stats/Stats.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "AnimNode_KawaiiPhysics.h" // KAWAIIPHYSICS_CSV_STATS
+
+// PREPROCESSOR_JOIN は 5.8 で非推奨、UE_JOIN は 5.3 に無いため、版を問わない連結マクロを持つ
+#define KAWAIIPHYSICS_JOIN_INNER(A, B) A##B
+#define KAWAIIPHYSICS_JOIN(A, B) KAWAIIPHYSICS_JOIN_INNER(A, B)
+
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(KAWAIIPHYSICS_API, KawaiiPhysics);
+
+// 既存の SCOPE_CYCLE_COUNTER が同じ範囲の CPU trace を出すか。STATS も ENABLE_STATNAMEDEVENTS も無い構成（Test 等）では
+// -statnamedevents で GCycleStatsShouldEmitNamedEvents が立っても STAT はイベントを出さないので、独自イベントを抑止しない
+#if STATS || ENABLE_STATNAMEDEVENTS
+#define KAWAIIPHYSICS_STAT_EMITS_TRACE (GCycleStatsShouldEmitNamedEvents != 0)
+#else
+#define KAWAIIPHYSICS_STAT_EMITS_TRACE false
+#endif
+
+#if KAWAIIPHYSICS_CSV_STATS
+#include <atomic>
+
+// CSV を記録中か。CSV プロファイラの最初のフレーム・終了デリゲート（GameThread）で更新し、Evaluate（AnyThread）から読む。
+// FCsvProfiler::IsCapturing は GameThread 専用で、PreUpdate を通らない評価もあるため、モジュール共通の状態を持つ
+extern std::atomic<bool> GKawaiiPhysicsCsvCapturing;
+
+#define KAWAIIPHYSICS_SCOPE_TIMING(StatName) \
+	CSV_SCOPED_TIMING_STAT(KawaiiPhysics, StatName) \
+	TRACE_CPUPROFILER_EVENT_SCOPE(StatName)
+#define KAWAIIPHYSICS_SCOPE_TIMING_WITH_STAT(StatName) \
+	CSV_SCOPED_TIMING_STAT(KawaiiPhysics, StatName) \
+	TRACE_CPUPROFILER_EVENT_DECLARE(KAWAIIPHYSICS_JOIN(KAWAIIPHYSICS_JOIN(KawaiiPhysicsTraceDecl_, StatName), __LINE__)); \
+	TRACE_CPUPROFILER_EVENT_SCOPE_USE(KAWAIIPHYSICS_JOIN(KAWAIIPHYSICS_JOIN(KawaiiPhysicsTraceDecl_, StatName), __LINE__), TEXT(#StatName), KAWAIIPHYSICS_JOIN(KAWAIIPHYSICS_JOIN(KawaiiPhysicsTraceScope_, StatName), __LINE__), !KAWAIIPHYSICS_STAT_EMITS_TRACE)
+#define KAWAIIPHYSICS_CSV_ACCUMULATE(StatName, Value) \
+	CSV_CUSTOM_STAT(KawaiiPhysics, StatName, Value, ECsvCustomStatOp::Accumulate)
+#else
+#define KAWAIIPHYSICS_SCOPE_TIMING(StatName)
+#define KAWAIIPHYSICS_SCOPE_TIMING_WITH_STAT(StatName)
+#define KAWAIIPHYSICS_CSV_ACCUMULATE(StatName, Value)
+#endif
 
 DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_InitModifyBones"), STAT_KawaiiPhysics_InitModifyBones, STATGROUP_Anim, KAWAIIPHYSICS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("KawaiiPhysics_Eval"), STAT_KawaiiPhysics_Eval, STATGROUP_Anim, KAWAIIPHYSICS_API);

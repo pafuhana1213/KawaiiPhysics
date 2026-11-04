@@ -2975,6 +2975,7 @@ bool UKawaiiPhysicsSharedCollisionSubsystem::UpdateSimpleWorldTransforms(
 
 void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float DeltaTime)
 {
+	KAWAIIPHYSICS_SCOPE_TIMING(TickSimpleWorldCollision);
 	UWorld* World = GetWorld();
 	if (!World)
 	{
@@ -3081,6 +3082,11 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 	int32 TotalGatheredComponents = 0;
 	int32 TotalSkeletalBodies = 0;
 	int32 TotalMemberSlots = 0;
+#if KAWAIIPHYSICS_CSV_STATS
+	const bool bCsvCountersActive = GKawaiiPhysicsCsvCapturing.load(std::memory_order_relaxed);
+	int32 CsvNumSimpleWorldGathers = 0;
+	int32 CsvNumSimpleWorldGatheredShapes = 0;
+#endif
 	for (const FSimpleWorldTickEntry& TickEntry : Entries)
 	{
 		const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>& Entry = TickEntry.Entry;
@@ -3246,6 +3252,20 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 				Entry->MemberSkelCompScratch,
 				Entry->MemberSkelCompSetScratch,
 				Entry->MemberOwnerScratch);
+#if KAWAIIPHYSICS_CSV_STATS
+			if (bCsvCountersActive)
+			{
+				++CsvNumSimpleWorldGathers;
+				for (const FKawaiiPhysicsSimpleWorldCollisionEntry::FGatheredComponent& Component : Entry->GatheredComponents)
+				{
+					const FKawaiiPhysicsSharedCollisionData& Limits = Component.LocalLimits;
+					CsvNumSimpleWorldGatheredShapes += Limits.SphericalLimits.Num() + Limits.CapsuleLimits.Num()
+						+ Limits.TaperedCapsuleLimits.Num() + Limits.BoxLimits.Num() + Limits.PlanarLimits.Num()
+						+ Limits.ConvexLimits.Num();
+				}
+				CsvNumSimpleWorldGatheredShapes += Entry->bHasGroundBox ? 1 : 0;
+			}
+#endif
 		}
 		else if (bAllowGather)
 		{
@@ -3291,6 +3311,13 @@ void UKawaiiPhysicsSharedCollisionSubsystem::TickSimpleWorldCollision(float Delt
 	SET_DWORD_STAT(STAT_KawaiiPhysics_SimpleWorldCollision_NumGatheredComponents, TotalGatheredComponents);
 	SET_DWORD_STAT(STAT_KawaiiPhysics_SimpleWorldCollision_NumSkeletalBodies, TotalSkeletalBodies);
 	SET_DWORD_STAT(STAT_KawaiiPhysics_SimpleWorldCollision_NumMemberSlots, TotalMemberSlots);
+#if KAWAIIPHYSICS_CSV_STATS
+	if (bCsvCountersActive)
+	{
+		KAWAIIPHYSICS_CSV_ACCUMULATE(NumSimpleWorldGathers, CsvNumSimpleWorldGathers);
+		KAWAIIPHYSICS_CSV_ACCUMULATE(NumSimpleWorldGatheredShapes, CsvNumSimpleWorldGatheredShapes);
+	}
+#endif
 }
 
 bool UKawaiiPhysicsSharedCollisionSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
@@ -3342,6 +3369,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::Deinitialize()
 
 void UKawaiiPhysicsSharedCollisionSubsystem::Tick(float DeltaTime)
 {
+	KAWAIIPHYSICS_SCOPE_TIMING(SubsystemTick);
 	TickSimpleWorldCollision(DeltaTime);
 
 	CleanupAccumulator += DeltaTime;
