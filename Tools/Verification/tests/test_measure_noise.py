@@ -10,13 +10,56 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import measure_noise  # noqa: E402
+import run_perf  # noqa: E402
 from test_compare_perf import dump, make_result, set_runtime  # noqa: E402
 
 
 class MeasureNoiseResultsTest(unittest.TestCase):
+    def test_off_uses_flagged_manifest_without_enable_cvar(self):
+        calls = []
+
+        def run(manifest_path, output, **options):
+            manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+            state = output.stem.rsplit('_', 2)[1]
+            if state == 'off':
+                self.assertIs(manifest['disable_kawaii_physics'], True)
+            else:
+                self.assertNotIn('disable_kawaii_physics', manifest)
+            self.assertNotIn('a.AnimNode.KawaiiPhysics.Enable', json.dumps(options))
+            calls.append((state, manifest_path))
+            header = {'ok': True, 'kp_disabled_requested': state == 'off',
+                      'kp_nodes': 1, 'kp_disabled_nodes': 1 if state == 'off' else 0,
+                      'frame_ms': [10, 10] if state == 'on' else [7, 7],
+                      'calib_start_ms': [1], 'calib_end_ms': [1]}
+            output.write_text(json.dumps(header) + '\n', encoding='utf-8')
+            return {'exit_code': 0, 'recorded': True, 'severe_log': [], 'seconds': 1}
+
+        with tempfile.TemporaryDirectory() as directory:
+            argv = ['measure_noise.py', directory, '--runs', '2', '--instances', '1',
+                    '--frames', '2', '--warmup-frames', '0']
+            with patch.object(sys, 'argv', argv), patch.object(sys, 'stdout'), \
+                    patch.object(measure_noise, 'on_ac_power', return_value=True), \
+                    patch.object(measure_noise.run_cells, 'run', side_effect=run), \
+                    patch.object(run_perf, 'validate_disable', wraps=run_perf.validate_disable) as validate:
+                measure_noise.main()
+            self.assertEqual(len(calls), 12)
+            self.assertEqual(validate.call_count, 12)
+            self.assertEqual({state for state, _ in calls}, {'on', 'off'})
+            self.assertEqual({path.name for state, path in calls if state == 'on'}, {'manifest_on.json'})
+            self.assertEqual({path.name for state, path in calls if state == 'off'}, {'manifest_off.json'})
+
+    def test_summarize_run_rejects_ineffective_disable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / 'off.jsonl'
+            path.write_text(json.dumps({'kp_disabled_requested': True, 'kp_nodes': 2,
+                                        'kp_disabled_nodes': 1}) + '\n', encoding='utf-8')
+            with self.assertRaisesRegex(ValueError, 'kp_disabled_nodes'):
+                measure_noise.summarize_run(path, 0, 'off')
+
     def test_from_results_cv_bootstrap_and_aa(self):
         first = make_result()
         second = copy.deepcopy(first)

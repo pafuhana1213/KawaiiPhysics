@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import compare_perf  # noqa: E402
@@ -164,6 +165,33 @@ class ComparePerfTest(unittest.TestCase):
                 self.assertEqual((result['verdict'], result['exit_code']),
                                  ('MACHINE_MISMATCH', 4))
                 self.assertIn(field, compare_perf.render(result))
+
+    def test_runner_build_mismatch_is_machine_mismatch(self):
+        self.baseline['engine']['runner_build'] = 'editor'
+        self.current['engine']['runner_build'] = 'game_test'
+        result = self.verdict()
+        self.assertEqual((result['verdict'], result['exit_code']), ('MACHINE_MISMATCH', 4))
+        self.assertIn('engine.runner_build', compare_perf.render(result))
+
+    def test_missing_runner_build_only_warns_without_changing_verdict(self):
+        for missing in ('baseline', 'current'):
+            for runtime, calib, verdict, code in ((10.0, 30.0, 'OK', 0),
+                                                  (11.0, 30.0, 'WARN', 1),
+                                                  (9.0, 30.0, 'IMPROVED', 0),
+                                                  (11.0, 36.0, 'NOISY', 2)):
+                with self.subTest(missing=missing, verdict=verdict):
+                    self.baseline = make_result()
+                    self.current = copy.deepcopy(self.baseline)
+                    present = self.current if missing == 'baseline' else self.baseline
+                    present['engine']['runner_build'] = 'game_test'
+                    set_runtime(self.current, runtime)
+                    self.current['summary']['calib_ms'] = calib
+                    result = self.verdict()
+                    self.assertEqual((result['verdict'], result['exit_code']), (verdict, code))
+                    self.assertIn('runner_build が記録されていない（古い結果）', result['warnings'])
+                    self.assertEqual(result['differences'], [])
+        self.current['summary']['amounts']['NumNodes'] = 21.0
+        self.assertEqual(self.verdict()['verdict'], 'WORKLOAD_CHANGED')
 
     def test_invalid_inputs(self):
         changes = [
@@ -375,6 +403,44 @@ class ComparePerfTest(unittest.TestCase):
                                  text=True, encoding='utf-8')
             self.assertEqual(run.returncode, 5)
             self.assertEqual(baseline.read_bytes(), before)
+
+
+class BaselinePathTests(unittest.TestCase):
+    def test_default_path_uses_build_with_legacy_fallbacks(self):
+        current = make_result()
+        editor = 'perf__test-cpu__serial.json'
+        game = 'perf__test-cpu__serial__game_test.json'
+        self.assertEqual(compare_perf.default_baseline_path(current).name, editor)
+        current['engine']['runner_build'] = 'game_test'
+        self.assertEqual(compare_perf.default_baseline_path(current).name, game)
+        current['conditions']['build'] = 'editor'
+        self.assertEqual(compare_perf.default_baseline_path(current).name, editor)
+        current['conditions']['build'] = 'game_test'
+        self.assertEqual(compare_perf.default_baseline_path(current).name, game)
+        self.assertIsNone(compare_perf.default_baseline_path([]))
+
+    def test_build_difference_is_a_condition_difference(self):
+        baseline = sync_runs(make_result())
+        current = copy.deepcopy(baseline)
+        baseline['conditions']['build'] = 'editor'
+        current['conditions']['build'] = 'game_test'
+        current['condition_key'] = 'different'
+        result = compare_perf.compare(current, baseline)
+        self.assertEqual(result['verdict'], 'STALE')
+        self.assertTrue(any('conditions.build' in value for value in result['differences']))
+
+    def test_update_baseline_uses_same_default_path_for_both_builds(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            path = root / 'current.json'
+            for build, suffix in (('editor', ''), ('game_test', '__game_test')):
+                current = make_result()
+                current['conditions']['build'] = build
+                path.write_text(dump(current), encoding='utf-8')
+                with mock.patch.object(compare_perf, 'ROOT', root), mock.patch('sys.stdout'):
+                    self.assertEqual(compare_perf.main([str(path), '--update-baseline', '--yes']), 0)
+                self.assertTrue((root / 'docs/perf/verification' /
+                                 f'perf__test-cpu__serial{suffix}.json').is_file())
 
 
 if __name__ == '__main__':

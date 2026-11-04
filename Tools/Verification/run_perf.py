@@ -67,6 +67,24 @@ def expected_amounts(suite: dict) -> dict[str, float]:
     return expected
 
 
+def make_manifest(suite: dict, cells: list[dict], csv_path: pathlib.Path, state: str,
+                  audit: bool = False) -> dict:
+    settings = suite['audit'] if audit else suite
+    manifest = {'frames': settings['frames'], 'record': False,
+                'settings': suite['settings'], 'cells': cells,
+                'csv_capture': {**settings['capture'],
+                                'directory': str(csv_path.parent), 'filename': csv_path.name}}
+    if state == 'off':
+        manifest['disable_kawaii_physics'] = True
+    return manifest
+
+
+def make_cvars(cvars: list[str], state: str) -> list[str]:
+    if state not in ('on', 'off'):
+        raise ValueError('計測の state が on/off ではありません')
+    return list(cvars)
+
+
 def read_csv_capture(path: pathlib.Path) -> tuple[list[dict[str, float]], dict[str, str]]:
     """Read the data rows against the trailing header and return them with the metadata row."""
     csv.field_size_limit(min(sys.maxsize, 2**31 - 1))
@@ -233,6 +251,35 @@ def validate_settings(actual: object, expected: dict, cvars: list[str]) -> None:
             raise ValueError(f'ランナーの settings.{field} が要求値と違います')
 
 
+def validate_disable(runner: dict, state: str) -> None:
+    for field in ('kp_disabled_requested', 'kp_nodes', 'kp_disabled_nodes'):
+        if field not in runner:
+            raise ValueError(f'ランナーが古いため {field} がありません')
+    requested = runner['kp_disabled_requested']
+    if not isinstance(requested, bool) or requested != (state == 'off'):
+        raise ValueError('ランナーの kp_disabled_requested が要求値と違います')
+    nodes = runner['kp_nodes']
+    if isinstance(nodes, bool) or not isinstance(nodes, int) or nodes <= 0:
+        raise ValueError('ランナーの kp_nodes が正の整数ではありません')
+    disabled = runner['kp_disabled_nodes']
+    if isinstance(disabled, bool) or not isinstance(disabled, int):
+        raise ValueError('ランナーの kp_disabled_nodes が整数ではありません')
+    if disabled != (nodes if state == 'off' else 0):
+        raise ValueError('ランナーの kp_disabled_nodes が要求値と違います')
+
+
+def record_runner_build(engine: dict, runner: dict, expected: str | None = None) -> None:
+    build = runner.get('build')
+    if not isinstance(build, str) or not build:
+        raise ValueError('ランナーの build がありません（ランナーが古い可能性があります）')
+    if expected is not None and build != expected:
+        raise ValueError(f'ランナーの build が条件と違います: {build} / {expected}')
+    if engine['runner_build'] is None:
+        engine['runner_build'] = build
+    elif engine['runner_build'] != build:
+        raise ValueError('計測中にランナーの build が変わりました')
+
+
 def validate_effective_cvars(actual: object, requested: list[str]) -> None:
     if not isinstance(actual, dict):
         raise ValueError('ランナーの effective_cvars がありません')
@@ -277,24 +324,87 @@ def audit_fixture(suite: dict, group: dict, amounts: dict[str, float]) -> dict:
     return {'count': group['count'], 'expected': expected, 'amounts': amounts, 'ok': ok}
 
 
-def conditions_for(suite: dict, suite_path: pathlib.Path, profile: str, runs: int) -> dict:
-    level_package = suite['level'].split('/')[-1]
-    level_path = ROOT / 'Plugins/KawaiiPhysicsDev/Content/Levels' / (level_package + '.umap')
-    paths = collect_asset_files(suite)
-    runner = ROOT / 'Plugins/KawaiiPhysicsDev/Source/KawaiiPhysicsVerification/Private'
-    runner_paths = [runner / 'KawaiiPhysicsVerificationSubsystem.h',
-                    runner / 'KawaiiPhysicsVerificationSubsystem.cpp', pathlib.Path(__file__),
-                    pathlib.Path(run_cells.__file__)]
+def source_signatures(suite: dict, root: pathlib.Path = ROOT) -> dict:
+    paths = collect_asset_files(suite, root)
+    runner = root / 'Plugins/KawaiiPhysicsDev/Source/KawaiiPhysicsVerification/Private'
+    return {'level_sha256': digest_bytes([package_file(suite['level'], root).with_suffix('.umap').read_bytes()]),
+            'assets_sha256': asset_signature(paths, root), 'asset_count': len(paths),
+            'runner_cpp_sha256': digest_bytes((runner / name).read_bytes() for name in
+                ('KawaiiPhysicsVerificationSubsystem.h', 'KawaiiPhysicsVerificationSubsystem.cpp'))}
+
+
+PACKAGE_SCHEMA = 'kpv-package/1'
+PACKAGE_FIELDS = ('id', 'identity', 'created', 'source', 'executable', 'expected_build',
+                  'runner_cpp_sha256', 'level_sha256', 'assets_sha256', 'asset_count',
+                  'plugin_tree', 'toolchain', 'ddc', 'uat_log')
+IDENTITY_FIELDS = ('commit', 'dirty', 'dirty_sha256', 'engine_version', 'build_arguments',
+                   'suite_sha256', 'variant')
+
+
+def load_package(directory: pathlib.Path) -> dict:
+    package = json.loads((directory / 'package.json').read_text(encoding='utf-8'))
+    if not isinstance(package, dict) or package.get('schema') != PACKAGE_SCHEMA:
+        raise ValueError(f'package.json の schema が {PACKAGE_SCHEMA} ではありません')
+    for field in PACKAGE_FIELDS:
+        if field not in package:
+            raise ValueError(f'package.json に {field} がありません')
+    identity = package['identity']
+    if not isinstance(identity, dict) or any(field not in identity for field in IDENTITY_FIELDS):
+        raise ValueError('package.json の identity の必須キーがありません')
+    for field in ('id', 'executable', 'expected_build', 'runner_cpp_sha256', 'level_sha256',
+                  'assets_sha256'):
+        if not isinstance(package[field], str) or not package[field]:
+            raise ValueError(f'package.json の {field} が文字列ではありません')
+    if (not isinstance(identity['commit'], str) or not identity['commit'] or
+            not isinstance(identity['dirty'], bool) or
+            (identity['dirty_sha256'] is not None and not isinstance(identity['dirty_sha256'], str)) or
+            type(package['asset_count']) is not int or package['asset_count'] < 0):
+        raise ValueError('package.json の identity または asset_count が不正です')
+    executable = pathlib.Path(package['executable'])
+    if executable.is_absolute() or executable.drive or '..' in executable.parts:
+        raise ValueError('package.json の executable はパッケージ内の相対パスにしてください')
+    if not (directory / executable).is_file():
+        raise ValueError('package.json の executable がありません')
+    return package
+
+
+def package_provenance(package: dict, directory: pathlib.Path) -> dict:
+    identity = package['identity']
+    return {'commit': identity['commit'][:8], 'dirty': identity['dirty'],
+            'plugin_diff_sha256': identity['dirty_sha256'], 'package_id': package['id'],
+            'package_dir': str(directory)}
+
+
+def toolchain_version(text: str | None) -> str | None:
+    match = re.search(r'\d+\.\d+\.\d+', text or '')
+    return match.group() if match else None
+
+
+def conditions_for(suite: dict, suite_path: pathlib.Path, profile: str, runs: int,
+                   package: dict | None = None) -> dict:
+    scripts = [pathlib.Path(__file__), pathlib.Path(run_cells.__file__)]
+    if package is None:
+        signatures = source_signatures(suite)
+        runner = ROOT / 'Plugins/KawaiiPhysicsDev/Source/KawaiiPhysicsVerification/Private'
+        runner_hash = digest_bytes(path.read_bytes() for path in
+            [runner / 'KawaiiPhysicsVerificationSubsystem.h',
+             runner / 'KawaiiPhysicsVerificationSubsystem.cpp', *scripts])
+    else:
+        signatures = package
+        runner_hash = digest_bytes([package['runner_cpp_sha256'].encode('utf-8'),
+                                   *(path.read_bytes() for path in scripts)])
     return {'suite': suite_path.stem,
             'suite_sha256': digest_bytes([suite_path.read_bytes()]),
-            'level': suite['level'], 'level_sha256': digest_bytes([level_path.read_bytes()]),
-            'assets_sha256': asset_signature(paths), 'asset_count': len(paths),
-            'runner_sha256': digest_bytes(path.read_bytes() for path in runner_paths),
+            'level': suite['level'], 'level_sha256': signatures['level_sha256'],
+            'assets_sha256': signatures['assets_sha256'], 'asset_count': signatures['asset_count'],
+            'runner_sha256': runner_hash, 'build': package['expected_build'] if package else 'editor',
+            'toolchain': toolchain_version(package['toolchain']) if package else None,
             'profile': profile, 'fps': suite['fps'], 'frames': suite['frames'],
             'capture': suite['capture'], 'runs_per_state': runs,
             'settings': suite['settings'],
             'cvars': suite['profiles'][profile]['cvars'],
-            'extra_arguments': ['-game', '-nullrhi', '-unattended', '-nosplash', '-nosound',
+            'extra_arguments': [*(['-game'] if package is None else []),
+                                '-nullrhi', '-unattended', '-nosplash', '-nosound',
                                 '-nopause', '-deterministic', f"-FPS={suite['fps']}"],
             'affinity': None}
 
@@ -346,7 +456,7 @@ def summarize(runs: list[dict], expected: dict[str, float]) -> dict:
             'controls': check_controls(runs, expected)}
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('output_directory')
@@ -358,26 +468,44 @@ def main() -> int:
     parser.add_argument('--no-audit', dest='audit', action='store_false',
                         help='監査を省く。結果の audit は null になり、比較には使えません')
     parser.add_argument('--suite', type=pathlib.Path, default=DEFAULT_SUITE)
+    parser.add_argument('--package', type=pathlib.Path)
     parser.add_argument('--timeout', type=int, default=600)
-    arguments = parser.parse_args()
+    arguments = parser.parse_args(argv)
+    package_dir = arguments.package.resolve() if arguments.package is not None else None
+    try:
+        package = load_package(package_dir) if package_dir is not None else None
+    except (OSError, ValueError, TypeError) as error:
+        print(f'ERROR: パッケージを読めません: {error}', file=sys.stderr)
+        return 1
+    launch = {'executable': package_dir / package['executable']} if package is not None else {}
     suite_path = arguments.suite.resolve()
     suite = json.loads(suite_path.read_text(encoding='utf-8'))
+    # cook するディレクトリはパッケージ作成時の suite から決まるため、別の suite では fixture が欠け得る。
+    if package is not None and package['identity']['suite_sha256'] != digest_bytes([suite_path.read_bytes()]):
+        print('ERROR: パッケージを作った suite と今の suite が違います。パッケージを作り直してください',
+              file=sys.stderr)
+        return 1
+    # コンパイラの差を比較条件で見分けるため、版が読めないパッケージは計測しない（MSVC だけに対応）。
+    if package is not None and toolchain_version(package['toolchain']) is None:
+        print('ERROR: パッケージの toolchain から MSVC の版を読めません', file=sys.stderr)
+        return 1
     count = arguments.runs if arguments.runs is not None else suite['runs_per_state']
     if count < 1 or arguments.timeout < 1:
         parser.error('--runs and --timeout must be positive')
     directory = pathlib.Path(arguments.output_directory).resolve()
     directory.mkdir(parents=True, exist_ok=True)
-    conditions = conditions_for(suite, suite_path, arguments.profile, count)
+    conditions = conditions_for(suite, suite_path, arguments.profile, count, package)
     key = condition_key(conditions)
     result = {'schema': 'kpv-perf-result/1',
               'created': datetime.datetime.now().astimezone().isoformat(timespec='seconds'),
               'machine': machine_info(),
-              'engine': {'root': str(run_cells.DEFAULT_ENGINE).replace('\\', '/'),
-                         'version': None, 'build_config': None},
+              'engine': {'root': str(package_dir if package is not None else run_cells.DEFAULT_ENGINE).replace('\\', '/'),
+                         'version': None, 'build_config': None, 'runner_build': None},
               'conditions': conditions, 'condition_key': key,
               'positive_control': {'overrides': {'TargetFramerate': '120'}}
               if arguments.positive_control else None,
-              'provenance': provenance(), 'audit': None, 'runs': [], 'summary': None}
+              'provenance': package_provenance(package, package_dir) if package is not None else provenance(),
+              'audit': None, 'runs': [], 'summary': None}
     cells = expand_suite(suite, arguments.positive_control)
     failures = []
     if arguments.audit:
@@ -390,10 +518,8 @@ def main() -> int:
             offset += group['count']
             stem = f'audit_{fixture}'
             csv_path = directory / (stem + '.csv')
-            manifest = {'frames': suite['audit']['frames'], 'record': False,
-                        'settings': suite['settings'], 'cells': selected,
-                        'csv_capture': {**suite['audit']['capture'],
-                                        'directory': str(directory), 'filename': csv_path.name}}
+            manifest = make_manifest(suite, selected, csv_path, 'on', audit=True)
+            cvars = make_cvars(conditions['cvars'], 'on')
             manifest_path = directory / (stem + '.json')
             manifest_path.write_text(json.dumps(manifest, indent=2), encoding='utf-8')
             output = directory / (stem + '.jsonl')
@@ -401,14 +527,16 @@ def main() -> int:
                 if not on_ac_power():
                     raise ValueError('AC 電源から外れました')
                 outcome = run_cells.run(manifest_path, output, level=suite['level'], fps=suite['fps'],
-                                        timeout=arguments.timeout, cvars=conditions['cvars'])
+                                        timeout=arguments.timeout, cvars=cvars, **launch)
                 if outcome['exit_code'] or not outcome['recorded'] or outcome['severe_log']:
                     raise ValueError('ランナー失敗または重大ログ')
                 runner = json.loads(output.read_text(encoding='utf-8').splitlines()[0])
                 if not runner['ok'] or runner.get('csv', {}).get('frames') != suite['audit']['capture']['frames']:
                     raise ValueError('CSV 記録メタデータが不正です')
-                validate_settings(runner.get('settings'), suite['settings'], conditions['cvars'])
-                validate_effective_cvars(runner.get('effective_cvars'), conditions['cvars'])
+                validate_settings(runner.get('settings'), suite['settings'], cvars)
+                validate_disable(runner, 'on')
+                record_runner_build(result['engine'], runner, conditions['build'])
+                validate_effective_cvars(runner.get('effective_cvars'), cvars)
                 rows, _ = read_csv_capture(pathlib.Path(runner['csv']['path']))
                 capture_window(runner, suite['audit']['capture']['frames'], len(rows))
                 _, amounts = aggregate_csv(rows, arguments.profile, 'on')
@@ -429,21 +557,14 @@ def main() -> int:
             break
         stem = f'{arguments.profile}_{index:02d}_{state}'
         csv_path = directory / (stem + '.csv')
-        manifest = {'frames': suite['frames'], 'record': False,
-                    'settings': suite['settings'],
-                    'cells': cells,
-                    'csv_capture': {'start_frame': suite['capture']['start_frame'],
-                                    'frames': suite['capture']['frames'],
-                                    'directory': str(directory), 'filename': csv_path.name}}
+        manifest = make_manifest(suite, cells, csv_path, state)
         manifest_path = directory / (stem + '.json')
         manifest_path.write_text(json.dumps(manifest, indent=2), encoding='utf-8')
         output = directory / (stem + '.jsonl')
-        cvars = [*conditions['cvars']]
-        if state == 'off':
-            cvars.append('a.AnimNode.KawaiiPhysics.Enable=0')
+        cvars = make_cvars(conditions['cvars'], state)
         try:
             outcome = run_cells.run(manifest_path, output, level=suite['level'], fps=suite['fps'],
-                                    timeout=arguments.timeout, cvars=cvars)
+                                    timeout=arguments.timeout, cvars=cvars, **launch)
         except (OSError, subprocess.SubprocessError) as error:
             print(f'{index + 1}/{count * 2} {state.upper()}: failed')
             failures.append(f'{stem}: {error}')
@@ -458,6 +579,8 @@ def main() -> int:
             if not runner['ok'] or runner.get('csv', {}).get('frames') != suite['capture']['frames']:
                 raise ValueError('Runner capture metadata is missing or failed.')
             validate_settings(runner.get('settings'), suite['settings'], cvars)
+            validate_disable(runner, state)
+            record_runner_build(result['engine'], runner, conditions['build'])
             validate_effective_cvars(runner.get('effective_cvars'), cvars)
             actual_csv = pathlib.Path(runner['csv']['path'])
             rows, metadata = read_csv_capture(actual_csv)

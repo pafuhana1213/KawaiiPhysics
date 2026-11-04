@@ -45,9 +45,27 @@ def _set_affinity(process, mask):
         raise ctypes.WinError(ctypes.get_last_error())
 
 
+def build_command(manifest, output, engine=DEFAULT_ENGINE, level=DEFAULT_MAP, fps=60,
+                  extra_arguments=(), render=False, resolution=(320, 180),
+                  capture_directory=None, cvars=(), *, executable=None):
+    manifest, output = pathlib.Path(manifest).resolve(), pathlib.Path(output).resolve()
+    prefix = ([str(executable), level] if executable is not None else
+              [str(pathlib.Path(engine) / 'Engine/Binaries/Win64/UnrealEditor-Cmd.exe'),
+               str(PROJECT), level, '-game'])
+    return [*prefix,
+            *(['-RenderOffscreen', f'-ResX={resolution[0]}', f'-ResY={resolution[1]}']
+              if render else ['-nullrhi']),
+            *([f'-KPVerifyCapture={pathlib.Path(capture_directory).resolve()}']
+              if capture_directory else []),
+            '-unattended', '-nosplash', '-nosound', '-nopause', '-deterministic',
+            f'-FPS={fps}', f'-KPVerify={manifest}', f'-KPVerifyOut={output}',
+            f'-abslog={output.with_suffix(".log")}',
+            *([f'-dpcvars={",".join(cvars)}'] if cvars else []), *extra_arguments]
+
+
 def run(manifest, output, engine=DEFAULT_ENGINE, level=DEFAULT_MAP, fps=60, timeout=600,
         extra_arguments=(), affinity_mask=None, render=False, resolution=(320, 180),
-        capture_directory=None, cvars=()):
+        capture_directory=None, cvars=(), *, executable=None):
     """Launch one process and return its exit code, seconds, and severe log lines.
 
     render keeps the renderer alive off screen. Wind sources live in the renderer scene, so
@@ -58,16 +76,8 @@ def run(manifest, output, engine=DEFAULT_ENGINE, level=DEFAULT_MAP, fps=60, time
     output.parent.mkdir(parents=True, exist_ok=True)
     output.unlink(missing_ok=True)
     log_path = output.with_suffix('.log')
-    command = [str(pathlib.Path(engine) / 'Engine/Binaries/Win64/UnrealEditor-Cmd.exe'),
-               str(PROJECT), level, '-game',
-               *(['-RenderOffscreen', f'-ResX={resolution[0]}', f'-ResY={resolution[1]}']
-                 if render else ['-nullrhi']),
-               *([f'-KPVerifyCapture={pathlib.Path(capture_directory).resolve()}']
-                 if capture_directory else []),
-               '-unattended', '-nosplash', '-nosound',
-               '-nopause', '-deterministic', f'-FPS={fps}', f'-KPVerify={manifest}',
-               f'-KPVerifyOut={output}', f'-abslog={log_path}',
-               *([f'-dpcvars={",".join(cvars)}'] if cvars else []), *extra_arguments]
+    command = build_command(manifest, output, engine, level, fps, extra_arguments, render,
+                            resolution, capture_directory, cvars, executable=executable)
     started = time.perf_counter()
     process = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
@@ -92,6 +102,7 @@ def main():
     parser.add_argument('manifest')
     parser.add_argument('output', help='JSONL recording path; the log lands next to it.')
     parser.add_argument('--engine', default=str(DEFAULT_ENGINE))
+    parser.add_argument('--executable', type=pathlib.Path)
     parser.add_argument('--level', default=DEFAULT_MAP)
     parser.add_argument('--fps', type=int, default=60)
     parser.add_argument('--timeout', type=int, default=600)
@@ -100,7 +111,8 @@ def main():
     arguments, extra = parser.parse_known_args()
     outcome = run(arguments.manifest, arguments.output, arguments.engine, arguments.level,
                   arguments.fps, arguments.timeout, extra, render=bool(arguments.capture),
-                  resolution=arguments.resolution, capture_directory=arguments.capture)
+                  resolution=arguments.resolution, capture_directory=arguments.capture,
+                  executable=arguments.executable)
     print(f"exit={outcome['exit_code']} seconds={outcome['seconds']:.1f} "
           f"recorded={outcome['recorded']} severe={len(outcome['severe_log'])}")
     for line in outcome['severe_log'][:40]:

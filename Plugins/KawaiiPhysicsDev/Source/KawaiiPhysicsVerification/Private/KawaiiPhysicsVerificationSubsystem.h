@@ -117,5 +117,6 @@ private:
 	int32 StartDelayFramesRemaining = 0;
 	bool bRecordTransforms = true;
 	bool bRecordNodes = false;
+	bool bDisableKawaiiPhysics = false;
 	bool bRunning = false;
 };

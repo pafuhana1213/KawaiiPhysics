@@ -302,6 +302,12 @@ def compare(current: dict, baseline: dict | None, floor_percent: float = 2.0,
             if baseline[section][field] != current[section][field]:
                 result['differences'].append(f'{section}.{field}: 基準値={baseline[section][field]} / '
                                              f'現在={current[section][field]}')
+    if 'runner_build' in baseline['engine'] and 'runner_build' in current['engine']:
+        if baseline['engine']['runner_build'] != current['engine']['runner_build']:
+            result['differences'].append(f'engine.runner_build: 基準値={baseline["engine"]["runner_build"]} / '
+                                         f'現在={current["engine"]["runner_build"]}')
+    elif ('runner_build' in baseline['engine']) != ('runner_build' in current['engine']):
+        result['warnings'].append('runner_build が記録されていない（古い結果）')
     if result['differences']:
         result.update(verdict='MACHINE_MISMATCH', exit_code=4)
         return result
@@ -316,6 +322,7 @@ def compare(current: dict, baseline: dict | None, floor_percent: float = 2.0,
         result.update(verdict='STALE', exit_code=3)
         return result
     if current['positive_control'] is None:
+        warning_count = len(result['warnings'])
         result['warnings'].extend(fixture_workload_differences(baseline, current))
         old_amounts = baseline['summary']['amounts']
         new_amounts = current['summary']['amounts']
@@ -328,7 +335,7 @@ def compare(current: dict, baseline: dict | None, floor_percent: float = 2.0,
                                       'delta_percent': delta, 'changed': changed})
             if changed:
                 result['warnings'].append(f'{name}: 量が変わった（処理の中身が変わった可能性）')
-        if result['warnings']:
+        if len(result['warnings']) > warning_count:
             result.update(verdict='WORKLOAD_CHANGED', exit_code=3)
             return result
     calib_delta = (current['summary']['calib_ms'] /
@@ -389,6 +396,21 @@ def _read(path: pathlib.Path) -> object:
         return json.load(source)
 
 
+def default_baseline_path(current: object) -> pathlib.Path | None:
+    if not isinstance(current, dict):
+        return None
+    machine, conditions, engine = (current.get(name, {}) for name in ('machine', 'conditions', 'engine'))
+    machine_id = machine.get('machine_id') if isinstance(machine, dict) else None
+    profile = conditions.get('profile') if isinstance(conditions, dict) else None
+    build = conditions.get('build') if isinstance(conditions, dict) else None
+    if build is None:
+        build = engine.get('runner_build', 'editor') if isinstance(engine, dict) else 'editor'
+    if not all(isinstance(value, str) and value for value in (machine_id, profile, build)):
+        return None
+    suffix = '' if build == 'editor' else f'__{build}'
+    return ROOT / 'docs/perf/verification' / f'perf__{machine_id}__{profile}{suffix}.json'
+
+
 def main(argv: list[str] | None = None) -> int:
     sys.stdout.reconfigure(encoding='utf-8')
     parser = argparse.ArgumentParser(description=__doc__)
@@ -412,14 +434,7 @@ def main(argv: list[str] | None = None) -> int:
         current = None
     else:
         if args.baseline is None:
-            machine = current.get('machine', {}) if isinstance(current, dict) else {}
-            conditions = current.get('conditions', {}) if isinstance(current, dict) else {}
-            machine_id = machine.get('machine_id') if isinstance(machine, dict) else None
-            profile = conditions.get('profile') if isinstance(conditions, dict) else None
-            if not isinstance(machine_id, str) or not isinstance(profile, str) or not machine_id or not profile:
-                args.baseline = None
-            else:
-                args.baseline = ROOT / 'docs' / 'perf' / 'verification' / f'perf__{machine_id}__{profile}.json'
+            args.baseline = default_baseline_path(current)
         baseline_read_error = None
         try:
             baseline = _read(args.baseline) if args.baseline and args.baseline.exists() else None
