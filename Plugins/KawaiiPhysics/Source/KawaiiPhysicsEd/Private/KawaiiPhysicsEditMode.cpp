@@ -995,7 +995,8 @@ FVector FKawaiiPhysicsEditMode::GetWidgetLocation(ECollisionLimitType CollisionT
 
 	if (const FCollisionLimitBase* Collision = GetSelectCollisionLimitRuntime())
 	{
-		return Collision->Location;
+		// Location はシミュレーション空間の値なので、描画と同じく Component Space へ戻す（BaseBoneSpace 以外は Identity）
+		return RuntimeNode->GetBaseBoneSpace2ComponentSpace().TransformPosition(Collision->Location);
 	}
 
 	return GetAnimPreviewScene().GetPreviewMeshComponent()->GetComponentLocation();
@@ -1016,7 +1017,7 @@ bool FKawaiiPhysicsEditMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix,
 	FQuat Rotation = FQuat::Identity;
 	if (FCollisionLimitBase* Collision = GetSelectCollisionLimitRuntime())
 	{
-		Rotation = Collision->Rotation;
+		Rotation = RuntimeNode->GetBaseBoneSpace2ComponentSpace().TransformRotation(Collision->Rotation);
 	}
 
 	InMatrix = FTransform(Rotation).ToMatrixNoScale();
