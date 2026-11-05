@@ -18,7 +18,6 @@ import sys
 import winreg
 
 import run_cells
-from measure_noise import on_ac_power
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 DEFAULT_SUITE = pathlib.Path(__file__).resolve().parent / 'suites' / 'performance.json'
@@ -77,12 +76,6 @@ def make_manifest(suite: dict, cells: list[dict], csv_path: pathlib.Path, state:
     if state == 'off':
         manifest['disable_kawaii_physics'] = True
     return manifest
-
-
-def make_cvars(cvars: list[str], state: str) -> list[str]:
-    if state not in ('on', 'off'):
-        raise ValueError('計測の state が on/off ではありません')
-    return list(cvars)
 
 
 def read_csv_capture(path: pathlib.Path) -> tuple[list[dict[str, float]], dict[str, str]]:
@@ -252,32 +245,19 @@ def validate_settings(actual: object, expected: dict, cvars: list[str]) -> None:
 
 
 def validate_disable(runner: dict, state: str) -> None:
-    for field in ('kp_disabled_requested', 'kp_nodes', 'kp_disabled_nodes'):
-        if field not in runner:
-            raise ValueError(f'ランナーが古いため {field} がありません')
-    requested = runner['kp_disabled_requested']
-    if not isinstance(requested, bool) or requested != (state == 'off'):
-        raise ValueError('ランナーの kp_disabled_requested が要求値と違います')
     nodes = runner['kp_nodes']
-    if isinstance(nodes, bool) or not isinstance(nodes, int) or nodes <= 0:
-        raise ValueError('ランナーの kp_nodes が正の整数ではありません')
-    disabled = runner['kp_disabled_nodes']
-    if isinstance(disabled, bool) or not isinstance(disabled, int):
-        raise ValueError('ランナーの kp_disabled_nodes が整数ではありません')
-    if disabled != (nodes if state == 'off' else 0):
+    if nodes <= 0:
+        raise ValueError('ランナーの kp_nodes が正ではありません')
+    if runner['kp_disabled_requested'] != (state == 'off'):
+        raise ValueError('ランナーの kp_disabled_requested が要求値と違います')
+    if runner['kp_disabled_nodes'] != (nodes if state == 'off' else 0):
         raise ValueError('ランナーの kp_disabled_nodes が要求値と違います')
 
 
-def record_runner_build(engine: dict, runner: dict, expected: str | None = None) -> None:
-    build = runner.get('build')
-    if not isinstance(build, str) or not build:
-        raise ValueError('ランナーの build がありません（ランナーが古い可能性があります）')
-    if expected is not None and build != expected:
-        raise ValueError(f'ランナーの build が条件と違います: {build} / {expected}')
-    if engine['runner_build'] is None:
-        engine['runner_build'] = build
-    elif engine['runner_build'] != build:
-        raise ValueError('計測中にランナーの build が変わりました')
+def record_runner_build(engine: dict, runner: dict, expected: str) -> None:
+    if runner['build'] != expected:
+        raise ValueError(f"ランナーの build が条件と違います: {runner['build']} / {expected}")
+    engine['runner_build'] = runner['build']
 
 
 def validate_effective_cvars(actual: object, requested: list[str]) -> None:
@@ -333,46 +313,21 @@ def source_signatures(suite: dict, root: pathlib.Path = ROOT) -> dict:
                 ('KawaiiPhysicsVerificationSubsystem.h', 'KawaiiPhysicsVerificationSubsystem.cpp'))}
 
 
-PACKAGE_SCHEMA = 'kpv-package/1'
-PACKAGE_FIELDS = ('id', 'identity', 'created', 'source', 'executable', 'expected_build',
-                  'runner_cpp_sha256', 'level_sha256', 'assets_sha256', 'asset_count',
-                  'plugin_tree', 'toolchain', 'ddc', 'uat_log')
-IDENTITY_FIELDS = ('commit', 'dirty', 'dirty_sha256', 'engine_version', 'build_arguments',
-                   'suite_sha256', 'variant')
+PACKAGE_SCHEMA = 'kpv-package/2'
 
 
 def load_package(directory: pathlib.Path) -> dict:
     package = json.loads((directory / 'package.json').read_text(encoding='utf-8'))
-    if not isinstance(package, dict) or package.get('schema') != PACKAGE_SCHEMA:
+    if package['schema'] != PACKAGE_SCHEMA:
         raise ValueError(f'package.json の schema が {PACKAGE_SCHEMA} ではありません')
-    for field in PACKAGE_FIELDS:
-        if field not in package:
-            raise ValueError(f'package.json に {field} がありません')
-    identity = package['identity']
-    if not isinstance(identity, dict) or any(field not in identity for field in IDENTITY_FIELDS):
-        raise ValueError('package.json の identity の必須キーがありません')
-    for field in ('id', 'executable', 'expected_build', 'runner_cpp_sha256', 'level_sha256',
-                  'assets_sha256'):
-        if not isinstance(package[field], str) or not package[field]:
-            raise ValueError(f'package.json の {field} が文字列ではありません')
-    if (not isinstance(identity['commit'], str) or not identity['commit'] or
-            not isinstance(identity['dirty'], bool) or
-            (identity['dirty_sha256'] is not None and not isinstance(identity['dirty_sha256'], str)) or
-            type(package['asset_count']) is not int or package['asset_count'] < 0):
-        raise ValueError('package.json の identity または asset_count が不正です')
-    executable = pathlib.Path(package['executable'])
-    if executable.is_absolute() or executable.drive or '..' in executable.parts:
-        raise ValueError('package.json の executable はパッケージ内の相対パスにしてください')
-    if not (directory / executable).is_file():
+    if not (directory / package['executable']).is_file():
         raise ValueError('package.json の executable がありません')
     return package
 
 
 def package_provenance(package: dict, directory: pathlib.Path) -> dict:
-    identity = package['identity']
-    return {'commit': identity['commit'][:8], 'dirty': identity['dirty'],
-            'plugin_diff_sha256': identity['dirty_sha256'], 'package_id': package['id'],
-            'package_dir': str(directory)}
+    return {'commit': package['commit'][:8], 'dirty': package['dirty'],
+            'plugin_diff_sha256': None, 'package_dir': str(directory)}
 
 
 def toolchain_version(text: str | None) -> str | None:
@@ -456,57 +411,8 @@ def summarize(runs: list[dict], expected: dict[str, float]) -> dict:
             'controls': check_controls(runs, expected)}
 
 
-def main(argv: list[str] | None = None) -> int:
-    sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('output_directory')
-    parser.add_argument('--profile', choices=('serial', 'parallel'), default='serial')
-    parser.add_argument('--runs', type=int)
-    parser.add_argument('--positive-control', action='store_true')
-    parser.add_argument('--audit', dest='audit', action='store_true', default=True,
-                        help='fixture ごとの監査を行う（既定）')
-    parser.add_argument('--no-audit', dest='audit', action='store_false',
-                        help='監査を省く。結果の audit は null になり、比較には使えません')
-    parser.add_argument('--suite', type=pathlib.Path, default=DEFAULT_SUITE)
-    parser.add_argument('--package', type=pathlib.Path)
-    parser.add_argument('--timeout', type=int, default=600)
-    arguments = parser.parse_args(argv)
-    package_dir = arguments.package.resolve() if arguments.package is not None else None
-    try:
-        package = load_package(package_dir) if package_dir is not None else None
-    except (OSError, ValueError, TypeError) as error:
-        print(f'ERROR: パッケージを読めません: {error}', file=sys.stderr)
-        return 1
-    launch = {'executable': package_dir / package['executable']} if package is not None else {}
-    suite_path = arguments.suite.resolve()
-    suite = json.loads(suite_path.read_text(encoding='utf-8'))
-    # cook するディレクトリはパッケージ作成時の suite から決まるため、別の suite では fixture が欠け得る。
-    if package is not None and package['identity']['suite_sha256'] != digest_bytes([suite_path.read_bytes()]):
-        print('ERROR: パッケージを作った suite と今の suite が違います。パッケージを作り直してください',
-              file=sys.stderr)
-        return 1
-    # コンパイラの差を比較条件で見分けるため、版が読めないパッケージは計測しない（MSVC だけに対応）。
-    if package is not None and toolchain_version(package['toolchain']) is None:
-        print('ERROR: パッケージの toolchain から MSVC の版を読めません', file=sys.stderr)
-        return 1
-    count = arguments.runs if arguments.runs is not None else suite['runs_per_state']
-    if count < 1 or arguments.timeout < 1:
-        parser.error('--runs and --timeout must be positive')
-    directory = pathlib.Path(arguments.output_directory).resolve()
-    directory.mkdir(parents=True, exist_ok=True)
-    conditions = conditions_for(suite, suite_path, arguments.profile, count, package)
-    key = condition_key(conditions)
-    result = {'schema': 'kpv-perf-result/1',
-              'created': datetime.datetime.now().astimezone().isoformat(timespec='seconds'),
-              'machine': machine_info(),
-              'engine': {'root': str(package_dir if package is not None else run_cells.DEFAULT_ENGINE).replace('\\', '/'),
-                         'version': None, 'build_config': None, 'runner_build': None},
-              'conditions': conditions, 'condition_key': key,
-              'positive_control': {'overrides': {'TargetFramerate': '120'}}
-              if arguments.positive_control else None,
-              'provenance': package_provenance(package, package_dir) if package is not None else provenance(),
-              'audit': None, 'runs': [], 'summary': None}
-    cells = expand_suite(suite, arguments.positive_control)
+def run_audit(arguments, suite: dict, cells: list[dict], directory: pathlib.Path,
+              conditions: dict, result: dict, launch: dict) -> list[str]:
     failures = []
     if arguments.audit:
         audit = {'ok': True, 'fixtures': {}, 'problems': []}
@@ -519,13 +425,11 @@ def main(argv: list[str] | None = None) -> int:
             stem = f'audit_{fixture}'
             csv_path = directory / (stem + '.csv')
             manifest = make_manifest(suite, selected, csv_path, 'on', audit=True)
-            cvars = make_cvars(conditions['cvars'], 'on')
+            cvars = list(conditions['cvars'])
             manifest_path = directory / (stem + '.json')
             manifest_path.write_text(json.dumps(manifest, indent=2), encoding='utf-8')
             output = directory / (stem + '.jsonl')
             try:
-                if not on_ac_power():
-                    raise ValueError('AC 電源から外れました')
                 outcome = run_cells.run(manifest_path, output, level=suite['level'], fps=suite['fps'],
                                         timeout=arguments.timeout, cvars=cvars, **launch)
                 if outcome['exit_code'] or not outcome['recorded'] or outcome['severe_log']:
@@ -550,18 +454,214 @@ def main(argv: list[str] | None = None) -> int:
                 audit['problems'].append(f'{fixture}: {error}')
         audit['ok'] = not audit['problems']
         failures.extend(audit['problems'])
+    return failures
+
+
+def ab_arms(block: int) -> tuple[str, ...]:
+    return ('ref', 'cur', 'cur', 'ref') if block % 2 == 0 else ('cur', 'ref', 'ref', 'cur')
+
+
+def capture_ab(arguments, suite: dict, cells: list[dict], directory: pathlib.Path,
+               result: dict, launch: dict, entry: dict) -> dict:
+    state = entry['state']
+    stem = f"{arguments.profile}_{entry['sequence']:03d}_{state}"
+    manifest_path = directory / (stem + '.json')
+    manifest_path.write_text(json.dumps(make_manifest(suite, cells, directory / (stem + '.csv'),
+                                                     state), indent=2), encoding='utf-8')
+    output = directory / (stem + '.jsonl')
+    cvars = list(result['conditions']['cvars'])
+    outcome = run_cells.run(manifest_path, output, level=suite['level'], fps=suite['fps'],
+                            timeout=arguments.timeout, cvars=cvars, **launch)
+    entry['seconds'] = outcome['seconds']
+    print(f"[block {entry['block']}] {entry['arm']} {state.upper()}: "
+          f"exit={outcome['exit_code']} seconds={outcome['seconds']:.1f}")
+    if outcome['exit_code'] or not outcome['recorded'] or outcome['severe_log']:
+        raise ValueError('ランナー失敗または重大ログ')
+    runner = json.loads(output.read_text(encoding='utf-8').splitlines()[0])
+    if not runner['ok'] or runner.get('csv', {}).get('frames') != suite['capture']['frames']:
+        raise ValueError('CSV 記録メタデータが不正です')
+    validate_settings(runner.get('settings'), suite['settings'], cvars)
+    validate_disable(runner, state)
+    record_runner_build(result['engine'], runner, result['conditions']['build'])
+    validate_effective_cvars(runner.get('effective_cvars'), cvars)
+    actual_csv = pathlib.Path(runner['csv']['path'])
+    rows, metadata = read_csv_capture(actual_csv)
+    window = capture_window(runner, suite['capture']['frames'], len(rows))
+    engine = result['engine']
+    if engine['version'] is None:
+        engine.update(version=metadata['engineversion'], build_config=metadata['config'])
+    elif (engine['version'], engine['build_config']) != (metadata['engineversion'], metadata['config']):
+        raise ValueError('計測中に Engine メタデータが変わりました')
+    metrics, amounts = aggregate_csv(rows, arguments.profile, state)
+    calibration = [*runner['calib_start_ms'], *runner['calib_end_ms']]
+    if not calibration:
+        raise ValueError('ランナーの calibration が空です')
+    run = {'index': entry['index_in_arm'], 'state': state, 'exit_code': outcome['exit_code'],
+           'seconds': outcome['seconds'], 'csv_path': str(actual_csv).replace('\\', '/'),
+           'capture_frames': len(rows), 'frame_ms_median': statistics.median(window),
+           'calib_ms': statistics.median(calibration), 'metrics': metrics, 'amounts': amounts,
+           **{key: entry[key] for key in ('block', 'sequence', 'started')}}
+    problems = check_controls([run], expected_amounts(suite))['problems']
+    if problems:
+        raise ValueError('; '.join(problems))
+    return run
+
+
+def run_ab(arguments, suite: dict, suite_path: pathlib.Path, packages: dict,
+           package_dirs: dict) -> int:
+    directory = pathlib.Path(arguments.output_directory).resolve()
+    directory.mkdir(parents=True, exist_ok=True)
+    created = datetime.datetime.now().astimezone().isoformat(timespec='seconds')
+    machine = machine_info()
+    positive = {'overrides': {'TargetFramerate': '120'}} if arguments.positive_control else None
+    ab = {'schema': 'kpv-perf-ab/1', 'created': created, 'machine': machine,
+          'blocks': arguments.blocks, 'arms': {}, 'order': [],
+          'positive_control': positive}
+    results, cells, launches = {}, {}, {}
+    failures = []
+    for arm in ('ref', 'cur'):
+        target = directory / arm
+        target.mkdir(parents=True, exist_ok=True)
+        package, package_dir = packages[arm], package_dirs[arm]
+        conditions = conditions_for(suite, suite_path, arguments.profile,
+                                    arguments.blocks * 2, package)
+        result = {'schema': 'kpv-perf-result/1', 'created': created, 'machine': machine,
+                  'engine': {'root': str(package_dir).replace('\\', '/'), 'version': None,
+                             'build_config': None, 'runner_build': None},
+                  'conditions': conditions, 'condition_key': condition_key(conditions),
+                  'positive_control': positive if arm == 'cur' else None,
+                  'provenance': package_provenance(package, package_dir),
+                  'audit': None, 'runs': [], 'summary': None}
+        results[arm] = result
+        cells[arm] = expand_suite(suite, arm == 'cur' and arguments.positive_control)
+        launches[arm] = {'executable': package_dir / package['executable']}
+        ab['arms'][arm] = {'package_dir': str(package_dir), 'result': f'{arm}/result.json'}
+        failures.extend(run_audit(arguments, suite, cells[arm], target, conditions, result,
+                                   launches[arm]))
+    for block in range(arguments.blocks) if not failures else range(0):
+        for arm in ab_arms(block):
+            for state in ('on', 'off'):
+                entry = {'sequence': len(ab['order']), 'block': block, 'arm': arm,
+                         'state': state, 'index_in_arm': len(results[arm]['runs']),
+                         'started': datetime.datetime.now().astimezone().isoformat(),
+                         'seconds': 0.0, 'ok': False}
+                ab['order'].append(entry)
+                try:
+                    results[arm]['runs'].append(capture_ab(arguments, suite, cells[arm], directory / arm,
+                                                           results[arm], launches[arm], entry))
+                    entry['ok'] = True
+                except (OSError, subprocess.SubprocessError, KeyError, IndexError,
+                        TypeError, ValueError) as error:
+                    failures.append(f'block {block}: {error}')
+                    break
+            if failures:
+                break
+        if failures:
+            break
+    for arm, result in results.items():
+        if failures:
+            result['summary'] = {'metrics': {}, 'amounts': {}, 'calib_ms': 0.0,
+                                 'controls': {'negative_ok': False, 'amounts_ok': False,
+                                              'problems': failures[:]}}
+        else:
+            result['summary'] = summarize(result['runs'], expected_amounts(suite))
+        (directory / arm / 'result.json').write_text(
+            json.dumps(result, indent=2, sort_keys=True, allow_nan=False) + '\n', encoding='utf-8')
+    path = directory / 'ab.json'
+    path.write_text(json.dumps(ab, indent=2, sort_keys=True, allow_nan=False) + '\n', encoding='utf-8')
+    for failure in failures:
+        print(f'ERROR: {failure}', file=sys.stderr)
+    print(path)
+    return 1 if failures else 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('output_directory')
+    parser.add_argument('--profile', choices=('serial', 'parallel'), default='serial')
+    parser.add_argument('--runs', type=int)
+    parser.add_argument('--positive-control', action='store_true')
+    parser.add_argument('--audit', dest='audit', action='store_true', default=True,
+                        help='fixture ごとの監査を行う（既定）')
+    parser.add_argument('--no-audit', dest='audit', action='store_false',
+                        help='監査を省く。結果の audit は null になり、比較には使えません')
+    parser.add_argument('--suite', type=pathlib.Path, default=DEFAULT_SUITE)
+    parser.add_argument('--package', type=pathlib.Path)
+    parser.add_argument('--reference-package', type=pathlib.Path)
+    parser.add_argument('--blocks', type=int, help='A/B のブロック数（既定: 4、2 以上の偶数）')
+    parser.add_argument('--timeout', type=int, default=600)
+    arguments = parser.parse_args(argv)
+    if arguments.reference_package is not None:
+        if arguments.package is None:
+            parser.error('--reference-package には --package が必要です')
+        if arguments.runs is not None:
+            parser.error('A/B モードでは --runs ではなく --blocks を指定してください')
+        arguments.blocks = 4 if arguments.blocks is None else arguments.blocks
+        if arguments.blocks < 2 or arguments.blocks % 2:
+            parser.error('--blocks は 2 以上の偶数にしてください')
+    elif arguments.blocks is not None:
+        parser.error('--blocks は A/B モード専用です')
+    package_dir = arguments.package.resolve() if arguments.package is not None else None
+    try:
+        package = load_package(package_dir) if package_dir is not None else None
+    except (OSError, ValueError, TypeError, KeyError) as error:
+        print(f'ERROR: パッケージを読めません: {error}', file=sys.stderr)
+        return 1
+    launch = {'executable': package_dir / package['executable']} if package is not None else {}
+    suite_path = arguments.suite.resolve()
+    suite = json.loads(suite_path.read_text(encoding='utf-8'))
+    if arguments.reference_package is not None:
+        if arguments.timeout < 1:
+            parser.error('--timeout は正の整数にしてください')
+        reference_dir = arguments.reference_package.resolve()
+        try:
+            reference = load_package(reference_dir)
+            for arm in (reference, package):
+                if arm['suite_sha256'] != digest_bytes([suite_path.read_bytes()]):
+                    raise ValueError('パッケージを作った suite と今の suite が違います。パッケージを作り直してください')
+            if reference['expected_build'] != package['expected_build']:
+                raise ValueError('両方のパッケージの expected_build が違います')
+            if reference['runner_cpp_sha256'] != package['runner_cpp_sha256']:
+                raise ValueError('runner_cpp_sha256 が違います。両方を同じランナーで作り直してください')
+        except (OSError, ValueError, TypeError, KeyError) as error:
+            print(f'ERROR: {error}', file=sys.stderr)
+            return 1
+        return run_ab(arguments, suite, suite_path, {'ref': reference, 'cur': package},
+                      {'ref': reference_dir, 'cur': package_dir})
+    # cook するディレクトリはパッケージ作成時の suite から決まるため、別の suite では fixture が欠け得る。
+    if package is not None and package['suite_sha256'] != digest_bytes([suite_path.read_bytes()]):
+        print('ERROR: パッケージを作った suite と今の suite が違います。パッケージを作り直してください',
+              file=sys.stderr)
+        return 1
+    count = arguments.runs if arguments.runs is not None else suite['runs_per_state']
+    if count < 1 or arguments.timeout < 1:
+        parser.error('--runs and --timeout must be positive')
+    directory = pathlib.Path(arguments.output_directory).resolve()
+    directory.mkdir(parents=True, exist_ok=True)
+    conditions = conditions_for(suite, suite_path, arguments.profile, count, package)
+    key = condition_key(conditions)
+    result = {'schema': 'kpv-perf-result/1',
+              'created': datetime.datetime.now().astimezone().isoformat(timespec='seconds'),
+              'machine': machine_info(),
+              'engine': {'root': str(package_dir if package is not None else run_cells.DEFAULT_ENGINE).replace('\\', '/'),
+                         'version': None, 'build_config': None, 'runner_build': None},
+              'conditions': conditions, 'condition_key': key,
+              'positive_control': {'overrides': {'TargetFramerate': '120'}}
+              if arguments.positive_control else None,
+              'provenance': package_provenance(package, package_dir) if package is not None else provenance(),
+              'audit': None, 'runs': [], 'summary': None}
+    cells = expand_suite(suite, arguments.positive_control)
+    failures = run_audit(arguments, suite, cells, directory, conditions, result, launch)
     for index in range(count * 2) if not failures else range(0):
         state = 'on' if index % 2 == 0 else 'off'
-        if not on_ac_power():
-            failures.append('AC 電源から外れたため計測を停止')
-            break
         stem = f'{arguments.profile}_{index:02d}_{state}'
         csv_path = directory / (stem + '.csv')
         manifest = make_manifest(suite, cells, csv_path, state)
         manifest_path = directory / (stem + '.json')
         manifest_path.write_text(json.dumps(manifest, indent=2), encoding='utf-8')
         output = directory / (stem + '.jsonl')
-        cvars = make_cvars(conditions['cvars'], state)
+        cvars = list(conditions['cvars'])
         try:
             outcome = run_cells.run(manifest_path, output, level=suite['level'], fps=suite['fps'],
                                     timeout=arguments.timeout, cvars=cvars, **launch)

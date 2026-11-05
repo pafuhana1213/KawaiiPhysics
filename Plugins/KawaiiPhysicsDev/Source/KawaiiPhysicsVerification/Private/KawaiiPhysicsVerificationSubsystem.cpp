@@ -95,8 +95,7 @@ namespace KawaiiPhysicsVerificationPrivate
 	FString ReadEffectiveCVarsJson()
 	{
 		FString Result = TEXT("{");
-		const TCHAR* Names[] = {TEXT("a.ParallelAnimEvaluation"), TEXT("a.ParallelAnimUpdate"),
-		                        TEXT("a.AnimNode.KawaiiPhysics.Enable")};
+		const TCHAR* Names[] = {TEXT("a.ParallelAnimEvaluation"), TEXT("a.ParallelAnimUpdate")};
 		for (int32 Index = 0; Index < UE_ARRAY_COUNT(Names); ++Index)
 		{
 			const IConsoleVariable* Variable = IConsoleManager::Get().FindConsoleVariable(Names[Index]);
@@ -122,34 +121,15 @@ namespace KawaiiPhysicsVerificationPrivate
 		return true;
 	}
 
-	bool DisableKawaiiPhysicsNodes(TArray<FKawaiiPhysicsReference>& Nodes, const FString& CellId)
+	void DisableKawaiiPhysicsNodes(TArray<FKawaiiPhysicsReference>& Nodes)
 	{
-		for (int32 NodeIndex = 0; NodeIndex < Nodes.Num(); ++NodeIndex)
+		for (FKawaiiPhysicsReference& Reference : Nodes)
 		{
-			FAnimNode_KawaiiPhysics& Node = Nodes[NodeIndex].GetAnimNode<FAnimNode_KawaiiPhysics>();
-			if (Node.AlphaInputType != EAnimAlphaInputType::Float)
-			{
-				UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("Cell %s node %d: AlphaInputType must be Float."), *CellId, NodeIndex);
-				return false;
-			}
-			if (Node.AlphaScaleBiasClamp.bInterpResult)
-			{
-				UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("Cell %s node %d: AlphaScaleBiasClamp.bInterpResult must be false."), *CellId, NodeIndex);
-				return false;
-			}
-			// Update_AnyThread と同じ順序で変換し、補間状態を含むノードの値は変更しない。
-			FInputScaleBiasClamp ScaleBiasClamp = Node.AlphaScaleBiasClamp;
-			FInputScaleBias ScaleBias = Node.AlphaScaleBias;
-			const float ClampedAlpha = ScaleBiasClamp.ApplyTo(0.f, 0.f);
-			const float MappedAlpha = ScaleBias.ApplyTo(ClampedAlpha);
-			if (!FMath::IsFinite(ClampedAlpha) || !FMath::IsFinite(MappedAlpha) || MappedAlpha != 0.f)
-			{
-				UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("Cell %s node %d: AlphaScaleBias(AlphaScaleBiasClamp(0)) must be exactly 0 and finite."), *CellId, NodeIndex);
-				return false;
-			}
+			FAnimNode_KawaiiPhysics& Node = Reference.GetAnimNode<FAnimNode_KawaiiPhysics>();
+			// Alpha=0 で SkeletalControlBase が評価を飛ばす。
+			Node.AlphaInputType = EAnimAlphaInputType::Float;
 			Node.Alpha = 0.f;
 		}
-		return true;
 	}
 
 	const TCHAR* ReadRunnerBuild()
@@ -307,21 +287,6 @@ bool UKawaiiPhysicsVerificationSubsystem::LoadManifest(const FString& ManifestPa
 	{
 		UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("disable_kawaii_physics must be a bool."));
 		return false;
-	}
-	const TArray<TSharedPtr<FJsonValue>>* DisableCellValues = nullptr;
-	if (bDisableKawaiiPhysics && Root->TryGetArrayField(TEXT("cells"), DisableCellValues))
-	{
-		for (const TSharedPtr<FJsonValue>& CellValue : *DisableCellValues)
-		{
-			const TSharedPtr<FJsonObject> CellObject = CellValue->AsObject();
-			if (CellObject.IsValid() && CellObject->HasField(TEXT("events")))
-			{
-				FString CellId;
-				CellObject->TryGetStringField(TEXT("id"), CellId);
-				UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("Cell %s: events cannot be used with disable_kawaii_physics."), *CellId);
-				return false;
-			}
-		}
 	}
 #if CSV_PROFILER
 	const TSharedPtr<FJsonObject>* CsvObject = nullptr;
@@ -606,9 +571,9 @@ bool UKawaiiPhysicsVerificationSubsystem::SpawnCell(UWorld& InWorld, const TShar
 		}
 	}
 
-	if (bDisableKawaiiPhysics && !DisableKawaiiPhysicsNodes(Nodes, Cell.Id))
+	if (bDisableKawaiiPhysics)
 	{
-		return false;
+		DisableKawaiiPhysicsNodes(Nodes);
 	}
 
 	if (!ReadCellEvents(CellObject, Cell))

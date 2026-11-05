@@ -16,7 +16,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 SCHEMA = 'kpv-perf-result/1'
 EXIT_CODES = {'OK': 0, 'IMPROVED': 0, 'WARN': 1, 'NOISY': 2,
               'STALE': 3, 'WORKLOAD_CHANGED': 3, 'MACHINE_MISMATCH': 4,
-              'INVALID': 5, 'NO_BASELINE': 6}
+              'INVALID': 5, 'NO_BASELINE': 6, 'INCONCLUSIVE': 7}
 
 
 def bootstrap_sigma(values: list[float], batch_size: int | None = None,
@@ -369,7 +369,156 @@ def compare(current: dict, baseline: dict | None, floor_percent: float = 2.0,
     return result
 
 
+def t_critical(blocks: int) -> float:
+    # 両側 95% の t 値。31 ブロックを超えたら正規近似を使う。
+    table = (12.706, 4.303, 3.182, 2.776, 2.571, 2.447, 2.365, 2.306, 2.262, 2.228,
+             2.201, 2.179, 2.160, 2.145, 2.131, 2.120, 2.110, 2.101, 2.093, 2.086,
+             2.080, 2.074, 2.069, 2.064, 2.060, 2.056, 2.052, 2.048, 2.045, 2.042)
+    return table[blocks - 2] if blocks <= 31 else 1.96
+
+
+def read_ab(path: pathlib.Path) -> tuple[dict, dict]:
+    """Read both arms and verify their run counts and the ABBA / BAAB order."""
+    ab = _read(path)
+    if ab['schema'] != 'kpv-perf-ab/1':
+        raise ValueError('A/B.schema が kpv-perf-ab/1 ではありません')
+    blocks = ab['blocks']
+    if type(blocks) is not int or blocks < 2 or blocks % 2:
+        raise ValueError('A/B.blocks が 2 以上の偶数ではありません')
+    problems, results = [], {}
+    for arm in ('ref', 'cur'):
+        document = _read(path.parent / ab['arms'][arm]['result'])
+        problems.extend(validate(document, arm))
+        results[arm] = document
+    if problems:
+        raise ValueError('; '.join(problems))
+    order = ab['order']
+    if any(row['ok'] is False for row in order):
+        problems.append('A/B.order に失敗した実行があります')
+    expected_order = [(b, arm, state) for b in range(blocks)
+                      for arm in (('ref', 'cur', 'cur', 'ref') if b % 2 == 0
+                                  else ('cur', 'ref', 'ref', 'cur')) for state in ('on', 'off')]
+    if [(row['block'], row['arm'], row['state']) for row in order] != expected_order:
+        problems.append('A/B.order の有効な実行が ABBA / BAAB の並びと違います')
+    for arm, document in results.items():
+        if len(document['runs']) != sum(row['arm'] == arm for row in order):
+            problems.append(f'{arm} の runs が order と一致しません')
+    if problems:
+        raise ValueError('; '.join(problems))
+    return ab, results
+
+
+def ab_values(document: dict, name: str) -> list[tuple[dict, float]]:
+    runs = {run['index']: run for run in document['runs']}
+    return [(run, run['frame_ms_median'] - runs[run['index'] + 1]['frame_ms_median']
+             if name == 'frame_cost_ms' else run['metrics'][name])
+            for run in document['runs'] if run['state'] == 'on']
+
+
+def ab_quality(values: dict, floor: float, max_cv_ratio: float) -> dict:
+    cvs, problems = {}, []
+    for arm, rows in values.items():
+        samples = [value for _, value in rows]
+        mean = statistics.fmean(samples)
+        cvs[arm] = statistics.stdev(samples) / abs(mean) if mean else 0.0
+    low, high = min(cvs.values()), max(cvs.values())
+    ratio = high / low if low else None
+    if high > floor / 100 and (low == 0 or ratio > max_cv_ratio):
+        problems.append(f'アームの CV 比が {max_cv_ratio:g} を超える')
+    return {'cv': cvs, 'cv_ratio': ratio, 'problems': problems}
+
+
+def compare_ab(path: pathlib.Path, floor_percent: float = 2.0,
+               max_halfwidth_percent: float = 3.0, max_cv_ratio: float = 3.0) -> dict:
+    result = {'ab': True, 'verdict': 'OK', 'exit_code': 0, 'differences': [], 'metrics': [],
+              'amounts': [], 'quality': [], 'warnings': [], 'info': [], 'calib_ms': None}
+    try:
+        ab, documents = read_ab(path)
+    except (OSError, UnicodeError, ValueError, KeyError, TypeError, IndexError) as error:
+        result.update(verdict='INVALID', exit_code=5, warnings=[str(error)])
+        return result
+    ref, cur = documents['ref'], documents['cur']
+    result['calib_ms'] = {arm: statistics.median(run['calib_ms'] for run in doc['runs'])
+                          for arm, doc in documents.items()}
+    if any(ref['conditions'][key] != cur['conditions'][key] for key in ('level_sha256', 'assets_sha256')):
+        result['info'].append('アセットが変わった')
+    if cur['positive_control'] is None:
+        old, new = ref['summary']['amounts'], cur['summary']['amounts']
+        for name in sorted(old.keys() | new.keys()):
+            before, after = old.get(name), new.get(name)
+            changed = _amount_changed(before, after)
+            delta = ((after / before - 1) * 100 if before else (0.0 if after == 0 else None)) if (
+                before is not None and after is not None) else None
+            result['amounts'].append({'name': name, 'baseline': before, 'current': after,
+                                      'delta_percent': delta, 'changed': changed})
+        if any(row['changed'] for row in result['amounts']):
+            result.update(verdict='WORKLOAD_CHANGED', exit_code=3)
+            return result
+    else:
+        result['warnings'].append('陽性対照: 量を比較せず、WARN が出ることを期待します')
+    for name, metric in sorted(ref['summary']['metrics'].items()):
+        values = {arm: ab_values(doc, name) for arm, doc in documents.items()}
+        means = {arm: statistics.fmean(value for _, value in rows) for arm, rows in values.items()}
+        block_means = {arm: [statistics.fmean(value for run, value in rows if run['block'] == b)
+                             for b in range(ab['blocks'])] for arm, rows in values.items()}
+        row = {'name': name, 'baseline': means['ref'], 'current': means['cur'],
+               'unit': metric['unit'], 'gating': metric['gating'], 'block_deltas_percent': [],
+               'center_percent': None, 'halfwidth_percent': None, 'verdict': 'N/A'}
+        if means['ref'] > 0 and all(value > 0 for value in block_means['ref']):
+            deltas = [(new / old - 1) * 100 for old, new in zip(block_means['ref'], block_means['cur'])]
+            center = statistics.fmean(deltas)
+            half = t_critical(ab['blocks']) * statistics.stdev(deltas) / math.sqrt(ab['blocks'])
+            verdict = ('WARN' if center - half > floor_percent else
+                       'IMPROVED' if center + half < -floor_percent else
+                       'INCONCLUSIVE' if half > max_halfwidth_percent else
+                       'WARN' if center > floor_percent and center - half > 0 else
+                       'IMPROVED' if center < -floor_percent and center + half < 0 else 'OK')
+            if metric['gating']:
+                quality = {'name': name, **ab_quality(values, floor_percent, max_cv_ratio)}
+                result['quality'].append(quality)
+                result['warnings'].extend(f'{name}: {problem}' for problem in quality['problems'])
+                if quality['problems'] and verdict != 'WARN':
+                    verdict = 'NOISY'
+            row.update(block_deltas_percent=deltas, center_percent=center, halfwidth_percent=half,
+                       verdict=verdict)
+        result['metrics'].append(row)
+    gated = [row['verdict'] for row in result['metrics'] if row['gating']]
+    for verdict in ('WARN', 'NOISY', 'INCONCLUSIVE', 'IMPROVED'):
+        if verdict in gated:
+            result.update(verdict=verdict, exit_code=EXIT_CODES[verdict])
+            break
+    return result
+
+
+def render_ab(result: dict) -> str:
+    lines = [f'判定: {result["verdict"]}（終了コード {result["exit_code"]}）', '', '比較条件の違い:']
+    lines += [f'- {item}' for item in result['differences']] or ['- なし']
+    lines += [f'- {item}' for item in result['info']]
+    lines += ['', '| 指標 | ref 平均 | cur 平均 | center% | ±half% | 判定 | gating |',
+              '|---|---:|---:|---:|---:|---|---|']
+    for row in result['metrics']:
+        center = f'{row["center_percent"]:+.2f}' if row['center_percent'] is not None else '-'
+        half = f'{row["halfwidth_percent"]:.2f}' if row['halfwidth_percent'] is not None else '-'
+        lines.append(f'| {row["name"]} | {row["baseline"]:.4f} | {row["current"]:.4f} | '
+                     f'{center} | {half} | {row["verdict"]} | {str(row["gating"]).lower()} |')
+    # 量は通常比較と同じ表記にする。
+    shared = render({**result, 'ab': False, 'metrics': []})
+    lines += ['', shared[shared.index('| 量 |'):shared.index('警告:')].rstrip(), '', '品質の検査:']
+    for row in result['quality']:
+        lines.append(f'- {row["name"]}: ' + ('; '.join(row['problems']) or '問題なし') +
+                     f'（CV ref={row["cv"]["ref"] * 100:.2f}%, cur={row["cv"]["cur"] * 100:.2f}%）')
+    if not result['quality']:
+        lines.append('- なし')
+    if result['calib_ms']:
+        lines.append(f'- calib_ms 中央値: ref={result["calib_ms"]["ref"]:.4f}, cur={result["calib_ms"]["cur"]:.4f}')
+    lines += ['', '警告:']
+    lines += [f'- {item}' for item in result['warnings']] or ['- なし']
+    return '\n'.join(lines)
+
+
 def render(result: dict) -> str:
+    if result.get('ab'):
+        return render_ab(result)
     lines = [f'判定: {result["verdict"]}（終了コード {result["exit_code"]}）', '']
     lines += ['比較条件の違い:']
     lines += [f'- {item}' for item in result['differences']] or ['- なし']
@@ -414,7 +563,8 @@ def default_baseline_path(current: object) -> pathlib.Path | None:
 def main(argv: list[str] | None = None) -> int:
     sys.stdout.reconfigure(encoding='utf-8')
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('current', type=pathlib.Path)
+    parser.add_argument('current', type=pathlib.Path, nargs='?')
+    parser.add_argument('--ab', type=pathlib.Path)
     parser.add_argument('--baseline', type=pathlib.Path)
     parser.add_argument('--update-baseline', action='store_true')
     parser.add_argument('--yes', action='store_true')
@@ -422,10 +572,26 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument('--floor-percent', type=float, default=2.0)
     parser.add_argument('--max-threshold-percent', type=float, default=10.0)
     parser.add_argument('--calib-percent', type=float, default=5.0)
+    parser.add_argument('--max-halfwidth-percent', type=float, default=3.0)
+    parser.add_argument('--max-cv-ratio', type=float, default=3.0)
     args = parser.parse_args(argv)
+    if (args.current is None) == (args.ab is None):
+        parser.error('current と --ab はどちらか一方だけ指定してください')
+    if args.ab is not None and args.update_baseline:
+        parser.error('--ab と --update-baseline は同時に指定できません')
     if any(not math.isfinite(value) or value < 0 for value in
-           (args.floor_percent, args.max_threshold_percent, args.calib_percent)):
+           (args.floor_percent, args.max_threshold_percent, args.calib_percent,
+            args.max_halfwidth_percent, args.max_cv_ratio)):
         parser.error('閾値は 0 以上の有限値にしてください')
+    if args.ab is not None:
+        result = compare_ab(args.ab, args.floor_percent, args.max_halfwidth_percent,
+                            args.max_cv_ratio)
+        print(render(result))
+        if args.json_out:
+            args.json_out.parent.mkdir(parents=True, exist_ok=True)
+            args.json_out.write_text(json.dumps(result, indent=2, sort_keys=True,
+                                                ensure_ascii=False) + '\n', encoding='utf-8')
+        return result['exit_code']
     try:
         current = _read(args.current)
     except (OSError, UnicodeError, json.JSONDecodeError) as error:

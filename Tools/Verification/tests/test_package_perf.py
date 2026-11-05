@@ -1,4 +1,4 @@
-"""Tests for package identity, UAT commands, smoke checks, and cache publication."""
+"""Tests for package metadata, UAT commands, and smoke checks."""
 
 import copy
 import json
@@ -28,6 +28,7 @@ class PackageTests(unittest.TestCase):
                                    'two': {'mesh': '/Game/Mesh/A.A', 'anim_class': '/Game/ABP/C.C_C'}},
                       'groups': [{'fixture': 'one', 'count': 5}]}
         self.source.mkdir()
+        self.status = b''
         self.suite_path = self.source / 'suite.json'
         self.suite_path.write_text(json.dumps(self.suite), encoding='utf-8')
         version = self.engine / 'Engine/Build/Build.version'
@@ -40,18 +41,12 @@ class PackageTests(unittest.TestCase):
     def git_result(self, command, **kwargs):
         self.assertEqual(kwargs['cwd'], self.source)
         self.assertNotIn('shell', kwargs)
-        if command[1:3] == ['rev-parse', 'HEAD']:
+        if command[1:] == ['rev-parse', 'HEAD']:
             stdout = b'a' * 40 + b'\n'
-        elif command[1:3] == ['rev-parse', 'HEAD:Plugins/KawaiiPhysics']:
-            stdout = b'b' * 40 + b'\n'
         else:
-            self.assertEqual(command[-len(package_perf.TARGET_PATHS):], list(package_perf.TARGET_PATHS))
-            stdout = b''
+            self.assertEqual(command[1:], ['status', '--porcelain', '--', *package_perf.TARGET_PATHS])
+            stdout = self.status
         return subprocess.CompletedProcess(command, 0, stdout=stdout)
-
-    def identity(self):
-        with mock.patch.object(package_perf.subprocess, 'run', side_effect=self.git_result):
-            return package_perf.make_identity(self.source, self.engine, self.suite_path, self.suite)
 
     def test_cookdir_uses_absolute_mapped_sorted_unique_directories(self):
         directories = package_perf.cook_directories(self.suite, self.source)
@@ -69,50 +64,10 @@ class PackageTests(unittest.TestCase):
         self.assertEqual(command, [str(self.engine / 'Engine/Build/BatchFiles/RunUAT.bat'),
             'BuildCookRun', f'-project={self.source / "KawaiiPhysicsSample.uproject"}',
             '-noP4', '-platform=Win64', '-clientconfig=Development', '-build', '-cook', '-stage',
-            '-pak', '-archive', f'-archivedirectory={self.out / "archive"}',
+            '-pak', '-archive', f'-archivedirectory={self.out}',
             '-map=/KawaiiPhysicsDev/Levels/L_KPV_Performance',
             '-cookdir=' + '+'.join(map(str, package_perf.cook_directories(self.suite, self.source))),
             '-unattended', '-utf8output'])
-
-    def test_identity_variant_dirty_destination_and_opt_in(self):
-        identity = self.identity()
-        self.assertEqual(identity['commit'], 'a' * 40)
-        self.assertFalse(identity['dirty'])
-        self.assertIsNone(identity['dirty_sha256'])
-        self.assertEqual(set(identity['engine_version']), set(package_perf.ENGINE_FIELDS))
-        self.assertEqual(identity['build_arguments'], package_perf.build_arguments(self.suite))
-        self.assertEqual(identity['suite_sha256'], run_perf.digest_bytes([self.suite_path.read_bytes()]))
-        identifier = package_perf.package_id(identity)
-        self.assertEqual(identifier, 'a' * 12 + '-' + run_perf.condition_key(identity)[:8])
-        self.assertNotEqual(identifier, package_perf.package_id({**identity, 'variant': 'aa'}))
-        self.assertEqual(package_perf.destination(self.out, identity), self.out / identifier)
-        identity.update(dirty=True, dirty_sha256='changed')
-        with self.assertRaisesRegex(ValueError, 'allow-dirty'):
-            package_perf.destination(self.out, identity)
-        self.assertEqual(package_perf.destination(self.out, identity, True).parent, self.out / 'dirty')
-
-    def test_dirty_digest_tracks_binary_diff_untracked_names_and_contents(self):
-        tracked = self.source / 'Content'
-        tracked.mkdir()
-        untracked = tracked / 'new.uasset'
-        untracked.write_bytes(b'first')
-        def identity(diff, name=b'Content/new.uasset\0'):
-            with mock.patch.object(package_perf.subprocess, 'run', side_effect=[
-                subprocess.CompletedProcess([], 0, stdout=b'a' * 40),
-                subprocess.CompletedProcess([], 0, stdout=diff),
-                subprocess.CompletedProcess([], 0, stdout=name)]):
-                return package_perf.make_identity(self.source, self.engine, self.suite_path, self.suite)
-        first = identity(b'\x00binary\n')
-        self.assertTrue(first['dirty'])
-        self.assertNotEqual(first['dirty_sha256'], identity(b'\x00binary')['dirty_sha256'])
-        self.assertTrue(identity(b'')['dirty'])
-        untracked.write_bytes(b'second')
-        self.assertNotEqual(first['dirty_sha256'], identity(b'\x00binary\n')['dirty_sha256'])
-        other = tracked / 'other.uasset'
-        other.write_bytes(b'second')
-        self.assertNotEqual(identity(b'')['dirty_sha256'],
-                            identity(b'', b'Content/other.uasset\0')['dirty_sha256'])
-        self.assertTrue(identity(b'only diff', b'')['dirty'])
 
     def test_executable_requires_exactly_one_match(self):
         archive = self.out / 'archive'
@@ -183,66 +138,68 @@ class PackageTests(unittest.TestCase):
         output.write_text(json.dumps({'ok': True, 'build': 'game_development', 'kp_nodes': 2}))
         return {'exit_code': 0, 'recorded': True, 'severe_log': []}
 
-    def test_publish_metadata_cache_and_rebuild_preserves_previous(self):
-        identity = self.identity()
-        target = package_perf.destination(self.out, identity)
-        target.mkdir(parents=True)
-        old_package = json.dumps({'toolchain': 'Using Visual Studio 14.44.35214 toolchain'})
-        (target / 'package.json').write_text(old_package)
-        with mock.patch.object(package_perf.subprocess, 'run', side_effect=self.git_result) as process, \
-                mock.patch.object(package_perf.subprocess, 'Popen', side_effect=self.fake_uat), \
-                mock.patch.object(run_perf, 'source_signatures', return_value=self.signatures) as signatures, \
-                mock.patch.object(package_perf.run_cells, 'run', side_effect=self.fake_smoke) as runner:
-            self.assertEqual(package_perf.create_package(self.source, self.engine, self.suite_path,
-                                                        self.out), target)
-            signatures.assert_not_called()
-            runner.assert_not_called()
-            self.assertEqual(process.call_count, 3)
-            actual = package_perf.create_package(self.source, self.engine, self.suite_path,
-                                                   self.out, rebuild=True, timeout=42)
-        self.assertEqual(actual, target)
-        # ビルド前の取得と、公開前の再確認の 2 回。
-        self.assertEqual(signatures.call_args_list, [mock.call(self.suite, self.source)] * 2)
-        package = run_perf.load_package(target)
-        self.assertEqual(set(package), {'schema', *run_perf.PACKAGE_FIELDS})
-        self.assertEqual(package['identity'], identity)
-        self.assertEqual(package['plugin_tree'], 'b' * 40)
-        self.assertEqual(package['source'], str(self.source))
-        self.assertEqual(package['executable'], 'Windows/KawaiiPhysicsSample/Binaries/Win64/KawaiiPhysicsSample.exe')
-        self.assertIn('14.44.35214 toolchain', package['toolchain'])
-        self.assertTrue((target / package['uat_log']).is_file())
-        previous = list((self.out / '_work').glob('*/previous-package/package.json'))
-        self.assertEqual(len(previous), 1)
-        self.assertEqual(previous[0].read_text(), old_package)
-        self.assertEqual(set(package['ddc']), {'UE-SharedDataCachePath', 'UE-LocalDataCachePath'})
+    def test_package_metadata_and_dirty_status(self):
+        fields = {'schema', 'created', 'source', 'commit', 'dirty', 'config', 'expected_build',
+                  'executable', 'engine_version', 'suite_sha256', 'runner_cpp_sha256',
+                  'level_sha256', 'assets_sha256', 'asset_count', 'toolchain', 'uat_log'}
+        for dirty in (False, True):
+            self.status = b' M Config/DefaultEngine.ini\n' if dirty else b''
+            out = self.out / str(dirty)
+            with self.subTest(dirty=dirty), \
+                    mock.patch.object(package_perf.subprocess, 'run', side_effect=self.git_result) as git, \
+                    mock.patch.object(package_perf.subprocess, 'Popen', side_effect=self.fake_uat), \
+                    mock.patch.object(run_perf, 'source_signatures', return_value=self.signatures), \
+                    mock.patch.object(package_perf.run_cells, 'run', side_effect=self.fake_smoke):
+                actual = package_perf.create_package(self.source, self.engine, self.suite_path,
+                                                    out, timeout=42)
+            self.assertEqual(actual, out)
+            self.assertEqual(git.call_count, 2)
+            package = run_perf.load_package(out)
+            self.assertEqual(set(package), fields)
+            self.assertEqual(package['schema'], 'kpv-package/2')
+            self.assertEqual(package['commit'], 'a' * 40)
+            self.assertEqual(package['dirty'], dirty)
+            self.assertEqual(package['source'], str(self.source))
+            self.assertEqual(package['config'], 'Development')
+            self.assertEqual(package['expected_build'], 'game_development')
+            self.assertEqual(package['engine_version'], {
+                'MajorVersion': 5, 'MinorVersion': 8, 'PatchVersion': 4,
+                'Changelist': 123, 'BranchName': 'branch'})
+            self.assertEqual(package['suite_sha256'], run_perf.digest_bytes([self.suite_path.read_bytes()]))
+            self.assertTrue(package['created'])
+            for key, value in self.signatures.items():
+                self.assertEqual(package[key], value)
+            self.assertEqual(package['executable'],
+                             'Windows/KawaiiPhysicsSample/Binaries/Win64/KawaiiPhysicsSample.exe')
+            self.assertIn('14.44.35214 toolchain', package['toolchain'])
+            self.assertEqual(package['uat_log'], 'uat.log')
+            self.assertIn(b'(editor)', (out / package['uat_log']).read_bytes())
 
-    def test_cached_package_without_toolchain_requires_rebuild(self):
-        target = package_perf.destination(self.out, self.identity())
-        target.mkdir(parents=True)
-        (target / 'package.json').write_text(json.dumps({'toolchain': None}))
+    def test_package_accepts_missing_toolchain(self):
         with mock.patch.object(package_perf.subprocess, 'run', side_effect=self.git_result), \
-                mock.patch.object(package_perf.subprocess, 'Popen', side_effect=AssertionError('built')):
-            with self.assertRaisesRegex(ValueError, '--rebuild'):
-                package_perf.create_package(self.source, self.engine, self.suite_path, self.out)
+                mock.patch.object(package_perf.subprocess, 'Popen', side_effect=self.fake_uat), \
+                mock.patch.object(run_perf, 'source_signatures', return_value=self.signatures), \
+                mock.patch.object(package_perf.run_cells, 'run', side_effect=self.fake_smoke), \
+                mock.patch.object(package_perf, 'read_toolchain', return_value=None):
+            package_perf.create_package(self.source, self.engine, self.suite_path, self.out, timeout=42)
+        self.assertIsNone(run_perf.load_package(self.out)['toolchain'])
 
     def test_toolchain_comes_only_from_game_makefile(self):
-        with tempfile.TemporaryDirectory() as directory:
-            source = pathlib.Path(directory)
-            # Makefile が無ければ、ログに Editor の MSVC 行があっても使わない。
-            with self.assertRaisesRegex(ValueError, 'MSVC'):
-                package_perf.read_toolchain(source, 'Development')
-            makefile = source / 'Intermediate/Build/Win64/x64/KawaiiPhysicsSample/Development/Makefile.bin'
-            makefile.parent.mkdir(parents=True)
-            makefile.write_bytes(b'\x00Using Clang 18.1.8 toolchain\x00')
-            with self.assertRaisesRegex(ValueError, 'MSVC'):
-                package_perf.read_toolchain(source, 'Development')
-            makefile.write_bytes(b'\x00\x05Using Visual Studio 14.44.35222 toolchain\x00')
-            self.assertEqual(package_perf.read_toolchain(source, 'Development'),
-                             'Using Visual Studio 14.44.35222 toolchain')
-            with self.assertRaisesRegex(ValueError, 'MSVC'):
-                package_perf.read_toolchain(source, 'Test')
+        self.assertIsNone(package_perf.read_toolchain(self.source, 'Development'))
+        makefile = self.source / 'Intermediate/Build/Win64/x64/KawaiiPhysicsSample/Development/Makefile.bin'
+        makefile.parent.mkdir(parents=True)
+        for data in (b'\x00Using Clang 18.1.8 toolchain\x00',
+                     b'\x00Using Visual Studio toolchain\x00'):
+            makefile.write_bytes(data)
+            self.assertIsNone(package_perf.read_toolchain(self.source, 'Development'))
+        makefile.write_bytes(b'\x00\x05Using Visual Studio 14.44.35222 toolchain\x00')
+        self.assertEqual(package_perf.read_toolchain(self.source, 'Development'),
+                         'Using Visual Studio 14.44.35222 toolchain')
+        self.assertIsNone(package_perf.read_toolchain(self.source, 'Test'))
+        with mock.patch.object(pathlib.Path, 'read_bytes', side_effect=PermissionError('busy')):
+            self.assertIsNone(package_perf.read_toolchain(self.source, 'Development'))
 
-    def test_failed_uat_retains_work_and_never_runs_smoke(self):
+    def test_failed_uat_retains_out_and_never_runs_smoke(self):
         def fail(command, **kwargs):
             kwargs['stdout'].write(b'failure log')
             return mock.Mock(pid=1234, **{'wait.return_value': 7})
@@ -253,10 +210,8 @@ class PackageTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, '終了コード 7'):
                 package_perf.create_package(self.source, self.engine, self.suite_path, self.out)
             runner.assert_not_called()
-        logs = list((self.out / '_work').glob('*/uat.log'))
-        self.assertEqual(len(logs), 1)
-        self.assertEqual(logs[0].read_bytes(), b'failure log')
-        self.assertEqual(list(self.out.glob('*/package.json')), [])
+        self.assertEqual((self.out / 'uat.log').read_bytes(), b'failure log')
+        self.assertFalse((self.out / 'package.json').exists())
 
     def test_uat_timeout_kills_process_tree_and_raises(self):
         process = mock.Mock(pid=4321)
@@ -277,35 +232,49 @@ class PackageTests(unittest.TestCase):
         self.assertIn(['taskkill', '/T', '/F', '/PID', '4321'], commands)
         self.assertEqual(process.wait.call_count, 2)
 
-    def test_source_change_during_build_is_not_published(self):
-        identity = self.identity()
-        target = package_perf.destination(self.out, identity)
-        changed = {**identity, 'dirty_sha256': 'changed'}
+    def test_existing_out_is_rejected_without_overwrite(self):
+        for name in ('directory', 'file'):
+            out = self.out / name
+            out.parent.mkdir(parents=True, exist_ok=True)
+            if name == 'directory':
+                out.mkdir()
+                marker = out / 'keep.txt'
+            else:
+                marker = out
+            marker.write_text('keep', encoding='utf-8')
+            with self.subTest(name=name), \
+                    mock.patch.object(package_perf, 'run_uat') as uat, \
+                    mock.patch('sys.stdout'), mock.patch('sys.stderr') as stderr:
+                self.assertEqual(package_perf.main(['--out', str(out)]), 1)
+                uat.assert_not_called()
+                self.assertIn(str(out), ''.join(call.args[0] for call in stderr.write.call_args_list))
+            self.assertEqual(marker.read_text(encoding='utf-8'), 'keep')
+
+    def test_failed_smoke_keeps_archive_and_log(self):
         with mock.patch.object(package_perf.subprocess, 'run', side_effect=self.git_result), \
                 mock.patch.object(package_perf.subprocess, 'Popen', side_effect=self.fake_uat), \
-                mock.patch.object(package_perf, 'make_identity', side_effect=[identity, changed]), \
                 mock.patch.object(run_perf, 'source_signatures', return_value=self.signatures), \
-                mock.patch.object(package_perf.run_cells, 'run', side_effect=self.fake_smoke):
-            with self.assertRaisesRegex(ValueError, 'ビルド中にソースが変わりました'):
-                package_perf.create_package(self.source, self.engine, self.suite_path, self.out,
-                                            timeout=42)
-        self.assertFalse(target.exists())
-        self.assertEqual(len(list((self.out / '_work').glob('*/archive'))), 1)
+                mock.patch.object(package_perf, 'smoke', side_effect=ValueError('スモーク失敗')), \
+                mock.patch('sys.stdout'), mock.patch('sys.stderr') as stderr:
+            self.assertEqual(package_perf.main(['--out', str(self.out), '--source', str(self.source),
+                '--engine', str(self.engine), '--suite', str(self.suite_path), '--timeout', '42']), 1)
+            self.assertIn(str(self.out), ''.join(call.args[0] for call in stderr.write.call_args_list))
+        self.assertTrue(package_perf.find_executable(self.out).is_file())
+        self.assertTrue((self.out / 'uat.log').is_file())
+        self.assertFalse((self.out / 'package.json').exists())
 
-    def test_cli_out_root_environment_required_and_error_codes(self):
-        with mock.patch.dict(package_perf.os.environ, {}, clear=True), \
-                mock.patch('sys.stdout'), mock.patch('sys.stderr'):
-            with self.assertRaises(SystemExit) as error:
-                package_perf.main([])
-            self.assertEqual(error.exception.code, 2)
-        with mock.patch.dict(package_perf.os.environ, {'KPV_PACKAGE_ROOT': str(self.out)}), \
-                mock.patch.object(package_perf, 'create_package', return_value=self.out) as create, \
+    def test_cli_out_required_and_options(self):
+        with mock.patch('sys.stdout'), mock.patch('sys.stderr'):
+            for options in ([], ['--out', str(self.out), '--timeout', '0']):
+                with self.subTest(options=options), self.assertRaises(SystemExit) as error:
+                    package_perf.main(options)
+                self.assertEqual(error.exception.code, 2)
+        with mock.patch.object(package_perf, 'create_package', return_value=self.out) as create, \
                 mock.patch('sys.stdout'):
-            self.assertEqual(package_perf.main([]), 0)
-            self.assertEqual(create.call_args.args[3], self.out)
-        with mock.patch.object(package_perf, 'create_package', side_effect=ValueError('失敗')), \
-                mock.patch('sys.stdout'), mock.patch('sys.stderr'):
-            self.assertEqual(package_perf.main(['--out-root', str(self.out)]), 1)
+            self.assertEqual(package_perf.main(['--out', str(self.out), '--source', str(self.source),
+                '--engine', str(self.engine), '--suite', str(self.suite_path), '--timeout', '42',
+                '--config', 'Test']), 0)
+            create.assert_called_once_with(self.source, self.engine, self.suite_path, self.out, 42, 'Test')
 
 
 if __name__ == '__main__':
