@@ -41,19 +41,25 @@ def on_ac_power() -> bool:
     return status.ACLineStatus == 1
 
 
-def make_manifest(instances: int, frames: int) -> dict:
+def make_manifest(instances: int, frames: int, state: str = 'on') -> dict:
     columns = math.ceil(math.sqrt(instances))
-    return {'frames': frames, 'record': False, 'cells': [
+    manifest = {'frames': frames, 'record': False, 'cells': [
         {'id': f'kano_{index:03d}', 'mesh': MESH, 'anim_class': ANIM_CLASS,
          'location': [(index % columns) * GRID_SPACING, (index // columns) * GRID_SPACING, 200],
          'motion': {'linear_amplitude': [60, 30, 0], 'linear_period': 1.3 + (index % 7) * 0.1,
                     'yaw_amplitude_degrees': 30, 'yaw_period': 1.7 + (index % 5) * 0.1}}
         for index in range(instances)]}
+    if state == 'off':
+        manifest['disable_kawaii_physics'] = True
+    return manifest
 
 
-def summarize_run(path, warmup_frames: int) -> dict:
+def summarize_run(path, warmup_frames: int, state: str) -> dict:
+    from run_perf import validate_disable
+
     with open(path, encoding='utf-8') as source:
         header = json.loads(source.readline())
+    validate_disable(header, state)
     frames = sorted(header['frame_ms'][warmup_frames:])
     index = (len(frames) - 1) * 0.95
     return {'ok': header['ok'], 'median_ms': statistics.median(frames),
@@ -211,15 +217,17 @@ def main():
 
     directory = pathlib.Path(arguments.output_directory).resolve()
     directory.mkdir(parents=True, exist_ok=True)
-    manifest = directory / 'manifest.json'
-    manifest.write_text(json.dumps(make_manifest(arguments.instances, arguments.frames)),
-                        encoding='utf-8')
+    manifests = {}
+    for state in ('on', 'off'):
+        manifests[state] = directory / f'manifest_{state}.json'
+        manifests[state].write_text(json.dumps(make_manifest(arguments.instances, arguments.frames,
+                                                             state)), encoding='utf-8')
 
     conditions = {}
     for mode, serial_cvars in (('parallel', []),
                                ('serial', ['a.ParallelAnimEvaluation=0', 'a.ParallelAnimUpdate=0'])):
-        for state, state_cvars in (('on', []), ('off', ['a.AnimNode.KawaiiPhysics.Enable=0'])):
-            cvars = serial_cvars + state_cvars
+        for state in ('on', 'off'):
+            cvars = serial_cvars
             conditions[f'{mode}_{state}'] = {
                 'extra_arguments': [f"-dpcvars={','.join(cvars)}"] if cvars else []}
     for state in ('on', 'off'):
@@ -231,12 +239,13 @@ def main():
             if not on_ac_power():
                 raise SystemExit('Stopped: the machine left AC power.')
             output = directory / f'{name}_{run_index:02d}.jsonl'
-            outcome = run_cells.run(manifest, output, timeout=arguments.timeout, **options)
+            state = name.rsplit('_', 1)[1]
+            outcome = run_cells.run(manifests[state], output, timeout=arguments.timeout, **options)
             if outcome['exit_code'] != 0 or not outcome['recorded']:
                 raise SystemExit(f'{name} run {run_index} failed: {outcome}')
             row = {'condition': name, 'run': run_index, 'seconds': outcome['seconds'],
                    'severe_log': len(outcome['severe_log']),
-                   **summarize_run(output, arguments.warmup_frames)}
+                   **summarize_run(output, arguments.warmup_frames, state)}
             rows.append(row)
             print(f"{name} #{run_index}: median={row['median_ms']:.3f}ms "
                   f"p95={row['p95_ms']:.3f}ms calib={row['calib_start_ms']:.2f}/"

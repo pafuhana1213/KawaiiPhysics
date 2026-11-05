@@ -27,7 +27,10 @@
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"
+#include "ProfilingDebugging/CsvProfilerConfig.h"
+#if CSV_PROFILER
 #include "ProfilingDebugging/CsvProfiler.h"
+#endif
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "UnrealClient.h"
@@ -92,8 +95,7 @@ namespace KawaiiPhysicsVerificationPrivate
 	FString ReadEffectiveCVarsJson()
 	{
 		FString Result = TEXT("{");
-		const TCHAR* Names[] = {TEXT("a.ParallelAnimEvaluation"), TEXT("a.ParallelAnimUpdate"),
-		                        TEXT("a.AnimNode.KawaiiPhysics.Enable")};
+		const TCHAR* Names[] = {TEXT("a.ParallelAnimEvaluation"), TEXT("a.ParallelAnimUpdate")};
 		for (int32 Index = 0; Index < UE_ARRAY_COUNT(Names); ++Index)
 		{
 			const IConsoleVariable* Variable = IConsoleManager::Get().FindConsoleVariable(Names[Index]);
@@ -117,6 +119,34 @@ namespace KawaiiPhysicsVerificationPrivate
 			}
 		}
 		return true;
+	}
+
+	void DisableKawaiiPhysicsNodes(TArray<FKawaiiPhysicsReference>& Nodes)
+	{
+		for (FKawaiiPhysicsReference& Reference : Nodes)
+		{
+			FAnimNode_KawaiiPhysics& Node = Reference.GetAnimNode<FAnimNode_KawaiiPhysics>();
+			// Alpha=0 で SkeletalControlBase が評価を飛ばす。
+			Node.AlphaInputType = EAnimAlphaInputType::Float;
+			Node.Alpha = 0.f;
+		}
+	}
+
+	const TCHAR* ReadRunnerBuild()
+	{
+#if WITH_EDITOR
+		return TEXT("editor");
+#elif UE_BUILD_DEBUG
+		return TEXT("game_debug");
+#elif UE_BUILD_DEVELOPMENT
+		return TEXT("game_development");
+#elif UE_BUILD_TEST
+		return TEXT("game_test");
+#elif UE_BUILD_SHIPPING
+		return TEXT("game_shipping");
+#else
+		return TEXT("unknown");
+#endif
 	}
 
 	constexpr int32 GCalibrationTrials = 5;
@@ -252,6 +282,13 @@ bool UKawaiiPhysicsVerificationSubsystem::LoadManifest(const FString& ManifestPa
 	Root->TryGetBoolField(TEXT("record"), bRecordTransforms);
 	Root->TryGetBoolField(TEXT("record_nodes"), bRecordNodes);
 	bRecordNodes &= bRecordTransforms;
+	if (Root->HasField(TEXT("disable_kawaii_physics")) &&
+		!Root->TryGetBoolField(TEXT("disable_kawaii_physics"), bDisableKawaiiPhysics))
+	{
+		UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("disable_kawaii_physics must be a bool."));
+		return false;
+	}
+#if CSV_PROFILER
 	const TSharedPtr<FJsonObject>* CsvObject = nullptr;
 	if (Root->TryGetObjectField(TEXT("csv_capture"), CsvObject))
 	{
@@ -268,6 +305,13 @@ bool UKawaiiPhysicsVerificationSubsystem::LoadManifest(const FString& ManifestPa
 		CsvState = ECsvCaptureState::Waiting;
 		NumFrames = FMath::Max(NumFrames, CsvStartFrame + CsvFrames + 2);
 	}
+#else
+	if (Root->HasField(TEXT("csv_capture")))
+	{
+		UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("CSV capture is unavailable in this build."));
+		return false;
+	}
+#endif
 	const TSharedPtr<FJsonObject>* SettingsObject = nullptr;
 	if (Root->TryGetObjectField(TEXT("settings"), SettingsObject))
 	{
@@ -515,6 +559,21 @@ bool UKawaiiPhysicsVerificationSubsystem::SpawnCell(UWorld& InWorld, const TShar
 		AnimInstance->UninitializeAnimation();
 		AnimInstance->InitializeAnimation();
 		AnimInstance->RecalcRequiredBones();
+
+		// 再初期化で Linked Anim Graph のインスタンスが作り直されるため、ノードの参照を取り直す。
+		Nodes.Reset();
+		if (!UKawaiiPhysicsLibrary::CollectKawaiiPhysicsNodes(Nodes, Component, FGameplayTagContainer(), false) ||
+			Nodes.IsEmpty())
+		{
+			UE_LOG(LogKawaiiPhysicsVerification, Error,
+			       TEXT("Cell %s: cannot collect KawaiiPhysics nodes after reinitialization."), *Cell.Id);
+			return false;
+		}
+	}
+
+	if (bDisableKawaiiPhysics)
+	{
+		DisableKawaiiPhysicsNodes(Nodes);
 	}
 
 	if (!ReadCellEvents(CellObject, Cell))
@@ -756,6 +815,7 @@ void UKawaiiPhysicsVerificationSubsystem::Tick(const float DeltaTime)
 
 bool UKawaiiPhysicsVerificationSubsystem::AdvanceCsvCapture()
 {
+#if CSV_PROFILER
 	FCsvProfiler* Profiler = FCsvProfiler::Get();
 	switch (CsvState)
 	{
@@ -831,6 +891,9 @@ bool UKawaiiPhysicsVerificationSubsystem::AdvanceCsvCapture()
 		return true;
 	}
 	return false;
+#else
+	return true;
+#endif
 }
 
 bool UKawaiiPhysicsVerificationSubsystem::RecordCellNodes(FCell& Cell) const
@@ -924,8 +987,28 @@ void UKawaiiPhysicsVerificationSubsystem::WriteRecordingAndExit(const bool bSucc
 {
 	using namespace KawaiiPhysicsVerificationPrivate;
 
-	FString Output = FString::Printf(TEXT("{\"type\":\"run\",\"version\":2,\"ok\":%s,\"frames\":%d,\"frame_ms\":["),
-	                                 bSucceeded ? TEXT("true") : TEXT("false"), FrameIndex);
+	int32 NumKawaiiPhysicsNodes = 0;
+	int32 NumDisabledNodes = 0;
+	for (const FCell& Cell : Cells)
+	{
+		USkeletalMeshComponent* Component = Cell.Component.Get();
+		TArray<FKawaiiPhysicsReference> Nodes;
+		if (Component && UKawaiiPhysicsLibrary::CollectKawaiiPhysicsNodes(Nodes, Component, FGameplayTagContainer(), false))
+		{
+			NumKawaiiPhysicsNodes += Nodes.Num();
+			for (FKawaiiPhysicsReference& Node : Nodes)
+			{
+				if (bDisableKawaiiPhysics && Node.GetAnimNode<FAnimNode_KawaiiPhysics>().Alpha == 0.f)
+				{
+					++NumDisabledNodes;
+				}
+			}
+		}
+	}
+	FString Output = FString::Printf(TEXT("{\"type\":\"run\",\"version\":2,\"ok\":%s,\"build\":\"%s\","
+		"\"kp_disabled_requested\":%s,\"kp_nodes\":%d,\"kp_disabled_nodes\":%d,\"frames\":%d,\"frame_ms\":["),
+		bSucceeded ? TEXT("true") : TEXT("false"), ReadRunnerBuild(),
+		bDisableKawaiiPhysics ? TEXT("true") : TEXT("false"), NumKawaiiPhysicsNodes, NumDisabledNodes, FrameIndex);
 	AppendNumbers(Output, FrameMilliseconds);
 	Output += TEXT("],\"delta_seconds\":[");
 	AppendNumbers(Output, FrameDeltaSeconds);
