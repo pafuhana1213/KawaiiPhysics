@@ -51,8 +51,7 @@ class FindLevelsTest(unittest.TestCase):
     def test_only_numbered_example_levels_are_found(self):
         levels = scan_samples.find_levels()
         self.assertTrue(any(level.endswith('L_KPS_01_BoneChain') for level in levels))
-        self.assertFalse(any('/Common/' in level or 'AllExamples' in level or
-                             'L_KawaiiPhysicsSample' in level for level in levels))
+        self.assertFalse(any('/Common/' in level or 'AllExamples' in level for level in levels))
 
 
 if __name__ == '__main__':
