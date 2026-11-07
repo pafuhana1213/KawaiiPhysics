@@ -53,6 +53,7 @@ class FindLevelsTest(unittest.TestCase):
         self.assertTrue(any(level.endswith('L_KPS_01_BoneChain') for level in levels))
         self.assertFalse(any('/Common/' in level or 'AllExamples' in level or
                              'L_KawaiiPhysicsSample' in level for level in levels))
+        self.assertFalse(any(level.endswith('_Exhibits') for level in levels))
 
 
 if __name__ == '__main__':

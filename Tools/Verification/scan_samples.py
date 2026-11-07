@@ -23,13 +23,15 @@ SAMPLE_ROOT = CONTENT / 'KawaiiPhysicsSample' / 'Examples'
 KNOWN_ISSUES = pathlib.Path(__file__).with_name('known_issues.json')
 # Common holds the shared stage and lighting.
 SKIPPED_FOLDERS = {'Common'}
+# A topic level streams its _Exhibits level, so scanning that alone would repeat its cells without a stage.
+SKIPPED_SUFFIX = '_Exhibits'
 
 
 def find_levels() -> list[str]:
     """Return the package paths of the sample levels, so new levels join the scan by themselves."""
     levels = []
     for path in sorted(SAMPLE_ROOT.rglob('L_*.umap')):
-        if SKIPPED_FOLDERS & set(path.parts):
+        if SKIPPED_FOLDERS & set(path.parts) or path.stem.endswith(SKIPPED_SUFFIX):
             continue
         levels.append('/Game/' + path.relative_to(CONTENT).with_suffix('').as_posix())
     return levels
