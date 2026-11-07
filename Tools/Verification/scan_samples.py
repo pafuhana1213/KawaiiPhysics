@@ -18,7 +18,6 @@ import compare_cells
 import run_cells
 
 CONTENT = run_cells.REPO_ROOT / 'Content'
-# Examples only: the older Samples content and L_KawaiiPhysicsSample are being retired.
 SAMPLE_ROOT = CONTENT / 'KawaiiPhysicsSample' / 'Examples'
 KNOWN_ISSUES = pathlib.Path(__file__).with_name('known_issues.json')
 # Common holds the shared stage and lighting.
