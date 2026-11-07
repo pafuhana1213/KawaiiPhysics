@@ -1054,6 +1054,12 @@ struct FKawaiiPhysicsTestAccessor
 		return Node.ExternalForces[ExternalForceIndex].GetMutablePtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
 	}
 
+	/** 外力のボーンフィルタ判定表が有効か（キャッシュが実際に使われているかの確認用） */
+	static bool IsBoneFilterCacheValid(const FKawaiiPhysics_ExternalForce& Force)
+	{
+		return Force.bBoneFilterCacheValid;
+	}
+
 	/** 全ボーン位置が有限（NaN/Inf 無し）か */
 	bool AllFinite() const
 	{

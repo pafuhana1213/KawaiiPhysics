@@ -25,6 +25,76 @@ void FKawaiiPhysics_ExternalForce::PreApply(FAnimNode_KawaiiPhysics& Node,
 	RandomizedForceScale = bSupportsRandomForceScaleRange
 		                       ? FMath::RandRange(RandomForceScaleRange.Min, RandomForceScaleRange.Max)
 		                       : 1.0f;
+	// 派生の PreApply 内で CanApply を使う外力（Wind など）向けに、ここでも判定表を最新にしておく。
+	// ノードは PreApply の後にもう一度呼ぶので、派生側が Super の後でフィルタを変えても同じフレームから反映される
+	RefreshBoneFilterCache(Node);
+}
+
+namespace KawaiiPhysicsExternalForcePrivate
+{
+	bool FilterNamesMatch(const TArray<FName>& CachedNames, const TArray<FBoneReference>& Filter)
+	{
+		if (CachedNames.Num() != Filter.Num())
+		{
+			return false;
+		}
+		for (int32 Index = 0; Index < Filter.Num(); ++Index)
+		{
+			if (CachedNames[Index] != Filter[Index].BoneName)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	void CopyFilterNames(TArray<FName>& OutNames, const TArray<FBoneReference>& Filter)
+	{
+		OutNames.Reset(Filter.Num());
+		for (const FBoneReference& BoneRef : Filter)
+		{
+			OutNames.Add(BoneRef.BoneName);
+		}
+	}
+}
+
+void FKawaiiPhysics_ExternalForce::RefreshBoneFilterCache(const FAnimNode_KawaiiPhysics& Node)
+{
+	using namespace KawaiiPhysicsExternalForcePrivate;
+
+	// フィルタが空なら CanApply は探索せずに true を返すのでキャッシュは要らない
+	if (ApplyBoneFilter.IsEmpty() && IgnoreBoneFilter.IsEmpty())
+	{
+		bBoneFilterCacheValid = false;
+		return;
+	}
+
+	// 配列の確保先ではなく中身で比べる（同じ要素数の代入や要素の書き換えでも確保先は変わらないことがある）。
+	// 比較はフィルタ長＋ボーン数に比例するだけで、ボーン数×フィルタ長の探索よりずっと軽い
+	const TArray<FKawaiiPhysicsModifyBone>& Bones = Node.ModifyBones;
+	bool bValid = bBoneFilterCacheValid
+		&& BoneFilterCacheBoneNames.Num() == Bones.Num()
+		&& FilterNamesMatch(BoneFilterCacheApplyNames, ApplyBoneFilter)
+		&& FilterNamesMatch(BoneFilterCacheIgnoreNames, IgnoreBoneFilter);
+	for (int32 Index = 0; bValid && Index < Bones.Num(); ++Index)
+	{
+		bValid = BoneFilterCacheBoneNames[Index] == Bones[Index].BoneRef.BoneName;
+	}
+	if (bValid)
+	{
+		return;
+	}
+
+	CopyFilterNames(BoneFilterCacheApplyNames, ApplyBoneFilter);
+	CopyFilterNames(BoneFilterCacheIgnoreNames, IgnoreBoneFilter);
+	BoneFilterCacheBoneNames.Reset(Bones.Num());
+	BoneFilterCacheResults.Init(false, Bones.Num());
+	for (int32 Index = 0; Index < Bones.Num(); ++Index)
+	{
+		BoneFilterCacheBoneNames.Add(Bones[Index].BoneRef.BoneName);
+		BoneFilterCacheResults[Index] = EvaluateBoneFilters(Bones[Index]);
+	}
+	bBoneFilterCacheValid = true;
 }
 
 void FKawaiiPhysics_ExternalForce::ApplyToVelocity(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
@@ -137,7 +207,8 @@ void FKawaiiPhysics_ExternalForce::AnimDrawDebugForEditMode(const FKawaiiPhysics
                                                             const FAnimNode_KawaiiPhysics& Node,
                                                             FPrimitiveDrawInterface* PDI)
 {
-	if (IsDebugEnabled(true) && CanApply(ModifyBone))
+	// エディタ描画は評価スレッドと別に動くため、作り直し中かもしれないキャッシュではなく線形探索で判定する
+	if (IsDebugEnabled(true) && EvaluateBoneFilters(ModifyBone))
 	{
 		const FVector* ForcePtr = BoneForceMap.Find(GetBoneForceKey(ModifyBone));
 		if (!ForcePtr || ForcePtr->IsNearlyZero())
@@ -159,6 +230,22 @@ void FKawaiiPhysics_ExternalForce::AnimDrawDebugForEditMode(const FKawaiiPhysics
 #endif
 
 bool FKawaiiPhysics_ExternalForce::CanApply(const FKawaiiPhysicsModifyBone& Bone) const
+{
+	if (ApplyBoneFilter.IsEmpty() && IgnoreBoneFilter.IsEmpty())
+	{
+		return true;
+	}
+
+	// PreApply で作った結果を使う。ボーン名も照合するので、その後にボーンリストが作り直されても誤判定しない
+	if (bBoneFilterCacheValid && BoneFilterCacheBoneNames.IsValidIndex(Bone.Index)
+		&& BoneFilterCacheBoneNames[Bone.Index] == Bone.BoneRef.BoneName)
+	{
+		return BoneFilterCacheResults[Bone.Index];
+	}
+	return EvaluateBoneFilters(Bone);
+}
+
+bool FKawaiiPhysics_ExternalForce::EvaluateBoneFilters(const FKawaiiPhysicsModifyBone& Bone) const
 {
 	if (!ApplyBoneFilter.IsEmpty() && !ApplyBoneFilter.Contains(Bone.BoneRef))
 	{
