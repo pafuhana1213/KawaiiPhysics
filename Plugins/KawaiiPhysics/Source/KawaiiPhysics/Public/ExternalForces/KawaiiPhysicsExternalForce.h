@@ -136,6 +136,20 @@ public:
 	/** Prepares the external force before applying it */
 	virtual void PreApply(FAnimNode_KawaiiPhysics& Node, FComponentSpacePoseContext& PoseContext);
 
+	/**
+	 * ApplyBoneFilter / IgnoreBoneFilter の判定結果をボーン index ごとに作り直す。
+	 * 基底の PreApply の先頭と、ノードが各外力の PreApply を呼び終えた直後の 2 か所で呼ばれる。
+	 * そのため派生の PreApply が Super の後でフィルタを変えても、同じフレームの Apply から反映される。
+	 * 派生の PreApply 内でフィルタを変えた後に CanApply を使う場合は、その前にこれを呼ぶこと。
+	 * フィルタの中身とボーン名の列を前回と比べ、どちらかが変わったときだけ再計算する（変わらなければ照合のみ）。
+	 * Rebuilds the per-bone result of ApplyBoneFilter / IgnoreBoneFilter.
+	 * It runs at the start of the base PreApply and again right after the node's call to each force's PreApply returns,
+	 * so a filter a derived PreApply changes after Super applies from the same frame's Apply. A derived PreApply that
+	 * changes the filter and then calls CanApply must call this first. It recomputes only when the filter contents or the
+	 * bone names differ from the last build; otherwise it only compares them.
+	 */
+	void RefreshBoneFilterCache(const FAnimNode_KawaiiPhysics& Node);
+
 	// Applies the external force to the bone's velocity
 	virtual void ApplyToVelocity(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
 	                             FComponentSpacePoseContext& PoseContext, FVector& InOutVelocity);
@@ -174,8 +188,15 @@ protected:
 	                                              FComponentSpacePoseContext& PoseContext,
 	                                              const FVector& InForce) const;
 
-	/** Checks if the external force can be applied to a bone */
+	/** Checks if the external force can be applied to a bone (uses the cache built by RefreshBoneFilterCache) */
 	bool CanApply(const FKawaiiPhysicsModifyBone& Bone) const;
+
+	/**
+	 * フィルタを線形探索で判定する。評価と別スレッドで動くエディタ描画は、作り直し中のキャッシュを読まないようこちらを使う。
+	 * Evaluates the filters with a linear search. Editor drawing, which runs apart from the evaluation thread,
+	 * uses this so it never reads a cache that is being rebuilt.
+	 */
+	bool EvaluateBoneFilters(const FKawaiiPhysicsModifyBone& Bone) const;
 
 #if ENABLE_ANIM_DEBUG
 	/**
@@ -187,7 +208,15 @@ protected:
 
 private:
 	friend struct FKawaiiPhysicsExternalForcePostApply;
+	friend struct FKawaiiPhysicsTestAccessor;
 
 	// Runtime-only: the node destroys a one-shot after the complete virtual callback returns.
 	bool bRemovalRequestedAfterPostApply = false;
+
+	// 実行時のみのキャッシュ（シリアライズしない） / Runtime-only cache, not serialized
+	TArray<FName> BoneFilterCacheBoneNames;
+	TArray<FName> BoneFilterCacheApplyNames;
+	TArray<FName> BoneFilterCacheIgnoreNames;
+	TBitArray<> BoneFilterCacheResults;
+	bool bBoneFilterCacheValid = false;
 };
