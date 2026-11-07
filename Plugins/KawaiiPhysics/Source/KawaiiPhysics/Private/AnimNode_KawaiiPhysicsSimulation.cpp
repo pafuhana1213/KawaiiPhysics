@@ -734,6 +734,8 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		{
 			auto& Force = ExternalForces[i].GetMutable<FKawaiiPhysics_ExternalForce>();
 			Force.PreApply(*this, Output);
+			// ボーンフィルタの判定表は PreApply（派生側の処理を含む）が終わってから作る
+			Force.RefreshBoneFilterCache(*this);
 		}
 	}
 	for (int i = 0; i < TransientForceStore.Items.Num(); ++i)
@@ -743,6 +745,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 			if (auto* Force = TransientForceStore.Items[i].Force.GetMutablePtr<FKawaiiPhysics_ExternalForce>())
 			{
 				Force->PreApply(*this, Output);
+				Force->RefreshBoneFilterCache(*this);
 			}
 		}
 	}
