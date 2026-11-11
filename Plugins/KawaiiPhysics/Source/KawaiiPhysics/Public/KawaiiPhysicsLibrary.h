@@ -566,7 +566,7 @@ public:
 	 * @param OutHandle 早期除去に使うハンドル / Handle used for early removal.
 	 * @param KawaiiPhysics 対象の KawaiiPhysics ノード参照 / Target KawaiiPhysics node reference.
 	 * @param ExternalForce 追加する FKawaiiPhysics_ExternalForce 派生外力 / FKawaiiPhysics_ExternalForce-derived force to add.
-	 * @param LifetimeSeconds 自動除去までの寿命（秒） / Lifetime in seconds before automatic removal.
+	 * @param LifetimeSeconds 自動除去までの寿命（秒）。ノードの TimeScale に従って進む / Lifetime in seconds before automatic removal. Advances with the node's TimeScale.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
 		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
@@ -589,7 +589,7 @@ public:
 	 * @param MeshComp 対象の SkeletalMeshComponent / Target SkeletalMeshComponent.
 	 * @param OutHandle 早期除去に使うハンドル / Handle used for early removal.
 	 * @param ExternalForce 追加する FKawaiiPhysics_ExternalForce 派生外力 / FKawaiiPhysics_ExternalForce-derived force to add.
-	 * @param LifetimeSeconds 自動除去までの寿命（秒） / Lifetime in seconds before automatic removal.
+	 * @param LifetimeSeconds 自動除去までの寿命（秒）。ノードの TimeScale に従って進む / Lifetime in seconds before automatic removal. Advances with the node's TimeScale.
 	 * @param FilterTags ノードの KawaiiPhysicsTag に対するフィルタ（空なら全ノード対象） / Filter against each node KawaiiPhysicsTag; empty matches all nodes.
 	 * @param bFilterExactMatch タグを完全一致で比較するか / Whether tags must match exactly.
 	 * @return 一時外力リクエストをキューしたノード数 / Number of nodes where transient force requests were queued.
@@ -604,20 +604,20 @@ public:
 		bool bFilterExactMatch = false);
 
 	/**
-	 * ハンドルで停止できるランタイム専用 ProceduralWind Gust を開始する。Duration は Rise + Hold + Decay の合計実秒で、Hold = max(0, Duration - RiseTime - DecayTime)（KawaiiPhysics::ResolveWindGustEnvelope）。
-	 * bRealTimeEnvelope: true = 実秒で進行（TimeScale を 1 に強制）/ false = wind 時間で進行（ProceduralWind の TimeScale の影響を受ける。旧 Trigger API 相当）。同時に保持できる transient スロットは上限8で、超過時は最古が破棄される。破棄された風のハンドルは失効し Stop は no-op。URO/LOD で評価が止まると実時間が伸びる。
-	 * Start a runtime-only ProceduralWind gust that can be stopped by handle. Duration is the total real seconds of Rise + Hold + Decay, where Hold = max(0, Duration - RiseTime - DecayTime) (KawaiiPhysics::ResolveWindGustEnvelope).
-	 * bRealTimeEnvelope: true = progress in real seconds (forces TimeScale to 1) / false = progress in wind time (affected by ProceduralWind TimeScale; equivalent to the old Trigger API). Transient slots are capped at 8; beyond the cap, the oldest entry is evicted. Handles for evicted winds become stale and Stop is a no-op. If URO/LOD stops evaluation, real time is extended.
+	 * ハンドルで停止できるランタイム専用 ProceduralWind Gust を開始する。Duration は Rise + Hold + Decay の合計秒（ノードの物理の時間。ノードの TimeScale に従う）で、Hold = max(0, Duration - RiseTime - DecayTime)（KawaiiPhysics::ResolveWindGustEnvelope）。
+	 * bRealTimeEnvelope: true = ProceduralWind の TimeScale を無視して進行（ノードの TimeScale には従う）/ false = wind 時間で進行（ProceduralWind の TimeScale の影響を受ける。旧 Trigger API 相当）。同時に保持できる transient スロットは上限8で、超過時は最古が破棄される。破棄された風のハンドルは失効し Stop は no-op。URO/LOD で評価が止まると実時間が伸びる。
+	 * Start a runtime-only ProceduralWind gust that can be stopped by handle. Duration is the total seconds of Rise + Hold + Decay in the node's physics time (follows the node's TimeScale), where Hold = max(0, Duration - RiseTime - DecayTime) (KawaiiPhysics::ResolveWindGustEnvelope).
+	 * bRealTimeEnvelope: true = ignore ProceduralWind TimeScale (still follows the node's TimeScale) / false = progress in wind time (affected by ProceduralWind TimeScale; equivalent to the old Trigger API). Transient slots are capped at 8; beyond the cap, the oldest entry is evicted. Handles for evicted winds become stale and Stop is a no-op. If URO/LOD stops evaluation, real time is extended.
 	 * @param ExecResult ノード参照の解決結果 / Result of resolving the node reference.
 	 * @param OutHandle 停止に使うハンドル / Handle used to stop the gust.
 	 * @param KawaiiPhysics 対象の KawaiiPhysics ノード参照 / Target KawaiiPhysics node reference.
 	 * @param Strength Gust のピーク強度 / Peak gust strength.
-	 * @param Duration Rise + Hold + Decay の合計実秒。Hold = max(0, Duration - RiseTime - DecayTime) / Total real seconds of Rise + Hold + Decay. Hold = max(0, Duration - RiseTime - DecayTime).
+	 * @param Duration Rise + Hold + Decay の合計秒（ノードの物理の時間）。Hold = max(0, Duration - RiseTime - DecayTime) / Total seconds of Rise + Hold + Decay in the node's physics time. Hold = max(0, Duration - RiseTime - DecayTime).
 	 * @param RiseTime 0->ピークまでの立ち上がり時間（秒） / Time in seconds to rise from zero to peak.
 	 * @param DecayTime ピーク->0 までの減衰時間（秒） / Time in seconds to decay from peak to zero.
 	 * @param GustDirection Gust の方向（ワールド空間・非正規化可）。ゼロベクトルなら既存 ProceduralWind の風向き・空間・ボーンフィルタ等を継承 / Gust direction (world space; may be non-normalized). Zero vector inherits direction, space, and bone filters from an authored ProceduralWind if present.
 	 * @param ExternalForceIndex 方向継承元の ExternalForces インデックス（-1なら最初の有効な ProceduralWind から継承） / ExternalForces index used as the inheritance source; -1 falls back to the first enabled ProceduralWind.
-	 * @param bRealTimeEnvelope true = 実秒で進行（TimeScale を 1 に強制）/ false = wind 時間で進行（ProceduralWind の TimeScale の影響を受ける） / true = progress in real seconds (forces TimeScale to 1) / false = progress in wind time (affected by ProceduralWind TimeScale).
+	 * @param bRealTimeEnvelope true = ProceduralWind の TimeScale を無視して進行（ノードの TimeScale には従う）/ false = wind 時間で進行（ProceduralWind の TimeScale の影響を受ける） / true = ignore ProceduralWind TimeScale (still follows the node's TimeScale) / false = progress in wind time (affected by ProceduralWind TimeScale).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
 		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult", AdvancedDisplay = "GustDirection,ExternalForceIndex,bRealTimeEnvelope"))
@@ -666,24 +666,24 @@ public:
 		FKawaiiProceduralWindDynamicParams& OutParams);
 
 	/**
-	 * Component 内の対象 KawaiiPhysics ノードへ、ハンドルで停止できるランタイム専用 ProceduralWind Gust を開始する。Duration は Rise + Hold + Decay の合計実秒で、Hold = max(0, Duration - RiseTime - DecayTime)（KawaiiPhysics::ResolveWindGustEnvelope）。
-	 * bRealTimeEnvelope: true = 実秒で進行（TimeScale を 1 に強制）/ false = wind 時間で進行（ProceduralWind の TimeScale の影響を受ける。旧 Trigger API 相当）。同時に保持できる transient スロットは上限8で、超過時は最古が破棄される。破棄された風のハンドルは失効し Stop は no-op。URO/LOD で評価が止まると実時間が伸びる。InheritAllWinds ファンアウトが上限8を超えた場合、共通ハンドルは保持された transient のみを指す。
+	 * Component 内の対象 KawaiiPhysics ノードへ、ハンドルで停止できるランタイム専用 ProceduralWind Gust を開始する。Duration は Rise + Hold + Decay の合計秒（ノードの物理の時間。ノードの TimeScale に従う）で、Hold = max(0, Duration - RiseTime - DecayTime)（KawaiiPhysics::ResolveWindGustEnvelope）。
+	 * bRealTimeEnvelope: true = ProceduralWind の TimeScale を無視して進行（ノードの TimeScale には従う）/ false = wind 時間で進行（ProceduralWind の TimeScale の影響を受ける。旧 Trigger API 相当）。同時に保持できる transient スロットは上限8で、超過時は最古が破棄される。破棄された風のハンドルは失効し Stop は no-op。URO/LOD で評価が止まると実時間が伸びる。InheritAllWinds ファンアウトが上限8を超えた場合、共通ハンドルは保持された transient のみを指す。
 	 * Component / Linked AnimInstance / PostProcess から KawaiiPhysics ノード参照を収集する（FilterTags が空なら全件）。
 	 * AnimGraph の BlueprintThreadSafe 文脈から呼ぶ場合、対象は呼び出し元（呼び出しノード自身）の Component に限ります。
 	 * それ以外のオブジェクトから収集する場合は、そのオブジェクトが評価中でない GameThread で呼び出してください。
-	 * Start runtime-only ProceduralWind gusts on target KawaiiPhysics nodes in a component that can be stopped by handle. Duration is the total real seconds of Rise + Hold + Decay, where Hold = max(0, Duration - RiseTime - DecayTime) (KawaiiPhysics::ResolveWindGustEnvelope).
-	 * bRealTimeEnvelope: true = progress in real seconds (forces TimeScale to 1) / false = progress in wind time (affected by ProceduralWind TimeScale; equivalent to the old Trigger API). Transient slots are capped at 8; beyond the cap, the oldest entry is evicted. Handles for evicted winds become stale and Stop is a no-op. If URO/LOD stops evaluation, real time is extended. If InheritAllWinds fan-out exceeds the cap of 8, the shared handle only points to retained transients.
+	 * Start runtime-only ProceduralWind gusts on target KawaiiPhysics nodes in a component that can be stopped by handle. Duration is the total seconds of Rise + Hold + Decay in the node's physics time (follows the node's TimeScale), where Hold = max(0, Duration - RiseTime - DecayTime) (KawaiiPhysics::ResolveWindGustEnvelope).
+	 * bRealTimeEnvelope: true = ignore ProceduralWind TimeScale (still follows the node's TimeScale) / false = progress in wind time (affected by ProceduralWind TimeScale; equivalent to the old Trigger API). Transient slots are capped at 8; beyond the cap, the oldest entry is evicted. Handles for evicted winds become stale and Stop is a no-op. If URO/LOD stops evaluation, real time is extended. If InheritAllWinds fan-out exceeds the cap of 8, the shared handle only points to retained transients.
 	 * When called from an AnimGraph BlueprintThreadSafe context, the target must be the caller's (the calling node's) own Component. Collecting from any other object must be done from the GameThread while that object is not being evaluated.
 	 * @param MeshComp 対象の SkeletalMeshComponent / Target SkeletalMeshComponent.
 	 * @param OutHandle 停止に使うハンドル / Handle used to stop the gusts.
 	 * @param Strength Gust のピーク強度 / Peak gust strength.
-	 * @param Duration Rise + Hold + Decay の合計実秒。Hold = max(0, Duration - RiseTime - DecayTime) / Total real seconds of Rise + Hold + Decay. Hold = max(0, Duration - RiseTime - DecayTime).
+	 * @param Duration Rise + Hold + Decay の合計秒（ノードの物理の時間）。Hold = max(0, Duration - RiseTime - DecayTime) / Total seconds of Rise + Hold + Decay in the node's physics time. Hold = max(0, Duration - RiseTime - DecayTime).
 	 * @param RiseTime 0->ピークまでの立ち上がり時間（秒） / Time in seconds to rise from zero to peak.
 	 * @param DecayTime ピーク->0 までの減衰時間（秒） / Time in seconds to decay from peak to zero.
 	 * @param FilterTags ノードの KawaiiPhysicsTag に対するフィルタ（空なら全ノード対象） / Filter against each node KawaiiPhysicsTag; empty matches all nodes.
 	 * @param bFilterExactMatch タグを完全一致で比較するか / Whether tags must match exactly.
 	 * @param GustDirection Gust の方向（ワールド空間・非正規化可）。ゼロベクトルなら既存 ProceduralWind の風向き・空間・ボーンフィルタ等を継承 / Gust direction (world space; may be non-normalized). Zero vector inherits direction, space, and bone filters from authored ProceduralWind entries if present.
-	 * @param bRealTimeEnvelope true = 実秒で進行（TimeScale を 1 に強制）/ false = wind 時間で進行（ProceduralWind の TimeScale の影響を受ける） / true = progress in real seconds (forces TimeScale to 1) / false = progress in wind time (affected by ProceduralWind TimeScale).
+	 * @param bRealTimeEnvelope true = ProceduralWind の TimeScale を無視して進行（ノードの TimeScale には従う）/ false = wind 時間で進行（ProceduralWind の TimeScale の影響を受ける） / true = ignore ProceduralWind TimeScale (still follows the node's TimeScale) / false = progress in wind time (affected by ProceduralWind TimeScale).
 	 * @return Gust リクエストをキューしたノード数 / Number of nodes where gust requests were queued.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
@@ -747,7 +747,7 @@ public:
 	/**
 	 * 物理設定への一時的な倍率を開始する。ベースの設定値は書き換えず、毎フレーム再計算される各ボーンの実効値へ倍率を乗算するため、期間終了後は常に元の挙動へ戻る。
 	 * Duration は BlendInTime/BlendOutTime を含めた合計秒で、エンベロープは BlendIn→Hold→BlendOut の台形（Hold=max(0,Duration-BlendIn-BlendOut)、BlendIn+BlendOut>Duration は比例圧縮）。Duration < 0: Stop まで保持。解放時のフェード時間は StopPhysicsSettingsMultiplier 側の BlendOutTime で指定し、この呼び出しの BlendOutTime は無視される。Duration == 0: no-op。
-	 * 進行はアニメーションの DeltaTime ベースのため、URO や LOD で評価が止まると実時間としては長く伸びる。
+	 * 進行はノードの物理の時間（アニメーションの DeltaTime × ノードの TimeScale）ベースのため、URO や LOD で評価が止まったり TimeScale が 1 未満だったりすると、実時間としては長く伸びる。
 	 * 同一ハンドルの既存の倍率がある場合は置換される。Stop は外部駆動倍率にも有効で、現在の Alpha から BlendOutTime で 0 へフェードする。
 	 * 同時に保持できる倍率はノードあたり8件までで、超過時は最古が破棄される。破棄された倍率のハンドルは失効し Stop は no-op。ノード再初期化や BP 再コンパイルでも失われる。
 	 * 複数の倍率は各成分ごとに乗算で合成される。
@@ -755,7 +755,7 @@ public:
 	 * WorldDampingLocation/Rotation は実際の反映率が (1 - 値) のため意味が反転し、倍率1未満では揺れが増える。Radius の倍率0はワールドコリジョンのスイープと押し出しを実質無効にする。
 	 * Start a temporary multiplier for the physics settings. The base settings are never rewritten: the multipliers are applied to each bone's effective values, which are recomputed every frame, so the original behavior always comes back once the multiplier ends.
 	 * Duration is the total seconds including BlendInTime/BlendOutTime, and the envelope is a BlendIn-Hold-BlendOut trapezoid (Hold=max(0,Duration-BlendIn-BlendOut); BlendIn+BlendOut>Duration is scaled proportionally). Duration < 0: hold until Stop. The release fade is taken from StopPhysicsSettingsMultiplier's BlendOutTime; this call's BlendOutTime is ignored. Duration == 0: no-op.
-	 * Progress is driven by the animation DeltaTime, so if URO or LOD stops evaluation the multiplier lasts longer in real time.
+	 * Progress is driven by the node's physics time (animation DeltaTime x the node's TimeScale), so if URO or LOD stops evaluation or TimeScale is below 1, the multiplier lasts longer in real time.
 	 * An existing multiplier with the same handle is replaced. Stop also works on externally driven multipliers and fades from the current Alpha to 0 over BlendOutTime.
 	 * Multipliers are capped at 8 per node; beyond the cap, the oldest entry is evicted. Handles for evicted multipliers become stale and Stop is a no-op. They are also lost on node re-initialization or BP recompile.
 	 * Multiple multipliers are composed by multiplying each component.
@@ -803,7 +803,7 @@ public:
 	/**
 	 * Component 内の対象 KawaiiPhysics ノードへ、物理設定への一時的な倍率を共通の1ハンドルで開始する。ベースの設定値は書き換えず、毎フレーム再計算される各ボーンの実効値へ倍率を乗算するため、期間終了後は常に元の挙動へ戻る。
 	 * Duration は BlendInTime/BlendOutTime を含めた合計秒で、エンベロープは BlendIn→Hold→BlendOut の台形（Hold=max(0,Duration-BlendIn-BlendOut)、BlendIn+BlendOut>Duration は比例圧縮）。Duration < 0: Stop まで保持。解放時のフェード時間は StopPhysicsSettingsMultiplier 側の BlendOutTime で指定し、この呼び出しの BlendOutTime は無視される。Duration == 0: no-op。
-	 * 進行はアニメーションの DeltaTime ベースのため、URO や LOD で評価が止まると実時間としては長く伸びる。
+	 * 進行はノードの物理の時間（アニメーションの DeltaTime × ノードの TimeScale）ベースのため、URO や LOD で評価が止まったり TimeScale が 1 未満だったりすると、実時間としては長く伸びる。
 	 * 同一ハンドルの既存の倍率がある場合は置換される。Stop は外部駆動倍率にも有効で、現在の Alpha から BlendOutTime で 0 へフェードする。
 	 * 同時に保持できる倍率はノードあたり8件までで、超過時は最古が破棄される。破棄された倍率のハンドルは失効し Stop は no-op。ノード再初期化や BP 再コンパイルでも失われる。
 	 * 複数の倍率は各成分ごとに乗算で合成される。
@@ -814,7 +814,7 @@ public:
 	 * それ以外のオブジェクトから収集する場合は、そのオブジェクトが評価中でない GameThread で呼び出してください。
 	 * Start temporary multipliers for the physics settings on target KawaiiPhysics nodes in a component under one shared handle. The base settings are never rewritten: the multipliers are applied to each bone's effective values, which are recomputed every frame, so the original behavior always comes back once the multiplier ends.
 	 * Duration is the total seconds including BlendInTime/BlendOutTime, and the envelope is a BlendIn-Hold-BlendOut trapezoid (Hold=max(0,Duration-BlendIn-BlendOut); BlendIn+BlendOut>Duration is scaled proportionally). Duration < 0: hold until Stop. The release fade is taken from StopPhysicsSettingsMultiplier's BlendOutTime; this call's BlendOutTime is ignored. Duration == 0: no-op.
-	 * Progress is driven by the animation DeltaTime, so if URO or LOD stops evaluation the multiplier lasts longer in real time.
+	 * Progress is driven by the node's physics time (animation DeltaTime x the node's TimeScale), so if URO or LOD stops evaluation or TimeScale is below 1, the multiplier lasts longer in real time.
 	 * An existing multiplier with the same handle is replaced. Stop also works on externally driven multipliers and fades from the current Alpha to 0 over BlendOutTime.
 	 * Multipliers are capped at 8 per node; beyond the cap, the oldest entry is evicted. Handles for evicted multipliers become stale and Stop is a no-op. They are also lost on node re-initialization or BP recompile.
 	 * Multiple multipliers are composed by multiplying each component.

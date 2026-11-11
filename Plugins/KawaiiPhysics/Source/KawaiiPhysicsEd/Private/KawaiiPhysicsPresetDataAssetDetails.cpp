@@ -209,6 +209,17 @@ void FKawaiiPhysicsPresetDataAssetDetails::CustomizeDetails(IDetailLayoutBuilder
 	DetailBuilder.HideCategory(TEXT("Alpha"));
 	DetailBuilder.HideCategory(TEXT("Performance"));
 
+	// 実行時に切り替える値（TimeScale など）はプリセットにコピーも適用もされないため、編集できる項目として出さない
+	for (TFieldIterator<FProperty> It(FAnimNode_KawaiiPhysics::StaticStruct()); It; ++It)
+	{
+		if (UKawaiiPhysicsPresetDataAsset::ClassifyNodeProperty(**It) == EKawaiiPhysicsPresetPropertyClass::RuntimeOnly)
+		{
+			const FName PropertyPath(*FString::Printf(TEXT("%s.%s"),
+				GET_MEMBER_NAME_STRING_CHECKED(UKawaiiPhysicsPresetDataAsset, Node), *It->GetName()));
+			DetailBuilder.HideProperty(DetailBuilder.GetProperty(PropertyPath, UKawaiiPhysicsPresetDataAsset::StaticClass()));
+		}
+	}
+
 	// カテゴリの作成順が表示順になるため、DescriptionをDetails上部（Targetより前）に移動する。
 	DetailBuilder.EditCategory(TEXT("Description"));
 

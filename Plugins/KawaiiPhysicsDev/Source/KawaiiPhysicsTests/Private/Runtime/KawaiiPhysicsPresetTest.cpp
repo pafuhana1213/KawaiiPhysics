@@ -183,18 +183,22 @@ bool FKawaiiPhysicsPresetApplyExclusionsTest::RunTest(const FString& Parameters)
 		RuntimeBone.Location = FVector(10.0f, 20.0f, 30.0f);
 		TransientSourceNode.ModifyBones.Add(RuntimeBone);
 		TransientSourceNode.DeltaTime = 0.5f;
+		TransientSourceNode.TimeScale = 0.25f;
 
 		UKawaiiPhysicsPresetDataAsset* TransientPreset = NewObject<UKawaiiPhysicsPresetDataAsset>();
 		TransientPreset->CopyFromNode(TransientSourceNode);
 		bOk &= TestTrue(TEXT("ModifyBones is not copied into preset"), TransientPreset->Node.ModifyBones.IsEmpty());
 		bOk &= TestTrue(TEXT("DeltaTime is not copied into preset"), FMath::IsNearlyZero(TransientPreset->Node.DeltaTime));
+		bOk &= TestTrue(TEXT("TimeScale is not copied into preset"), FMath::IsNearlyEqual(TransientPreset->Node.TimeScale, 1.0f));
 
 		FAnimNode_KawaiiPhysics TransientTargetNode;
 		TransientTargetNode.ModifyBones.Add(RuntimeBone);
 		TransientTargetNode.DeltaTime = 1.0f;
+		TransientTargetNode.TimeScale = 0.5f;
 		TransientPreset->ApplyToNode(TransientTargetNode, FKawaiiPhysicsPresetApplyOptions(), TransientPreset);
 		bOk &= TestTrue(TEXT("ModifyBones is not applied"), TransientTargetNode.ModifyBones.Num() == 1);
 		bOk &= TestTrue(TEXT("DeltaTime is not applied"), FMath::IsNearlyEqual(TransientTargetNode.DeltaTime, 1.0f));
+		bOk &= TestTrue(TEXT("TimeScale is not applied"), FMath::IsNearlyEqual(TransientTargetNode.TimeScale, 0.5f));
 	}
 
 	// outer がない実行時ノードでは外部力を保護し、outer がある場合だけ適用する。

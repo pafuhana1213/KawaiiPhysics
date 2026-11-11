@@ -38,6 +38,9 @@ enum class EKawaiiPhysicsPresetPropertyClass : uint8
 	Deny,
 	BoneAssignment,
 	Tag,
+	// 実行時に切り替える状態。ノードプロパティ API からは読み書きできるが、プリセットのコピー・適用には含めない
+	// Runtime state: readable and writable through the node property API, but never copied into or applied from presets
+	RuntimeOnly,
 };
 
 /**

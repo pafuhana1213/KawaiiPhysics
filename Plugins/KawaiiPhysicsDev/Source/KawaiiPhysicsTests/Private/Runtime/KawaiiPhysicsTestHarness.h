@@ -788,24 +788,30 @@ struct FKawaiiPhysicsTestAccessor
 	 * (UpdateSkelCompMove -> SimulateModifyBones -> TeleportType reset -> AdvancePreSkelCompTransform).
 	 * Teleport detection, thresholds and the PreSkelCompTransform carry-over call the production functions.
 	 * The WorldSpace teleport simulation skip needs Output and is not supported (ComponentSpace only).
+	 * @return このフレームをテレポートと判定したか / Whether this frame was detected as a teleport
 	 */
-	void StepFrameWithComponentTransform(FComponentSpacePoseContext& Output, float FrameDt,
+	bool StepFrameWithComponentTransform(FComponentSpacePoseContext& Output, float FrameDt,
 	                                     const FTransform& ComponentTransform)
 	{
 		if (!ensureMsgf(Node.SimulationSpace == EKawaiiPhysicsSimulationSpace::ComponentSpace,
 		                TEXT("FKawaiiPhysicsTestAccessor: StepFrameWithComponentTransform supports ComponentSpace only.")))
 		{
-			return;
+			return false;
 		}
 		Node.UpdateSkelCompMove(Output, ComponentTransform);
 		StepFrame(FrameDt);
 		const bool bTeleportedThisFrame = (Node.TeleportType == ETeleportType::TeleportPhysics);
 		Node.TeleportType = ETeleportType::None;
 		Node.AdvancePreSkelCompTransform(ComponentTransform, bTeleportedThisFrame);
+		return bTeleportedThisFrame;
 	}
 
 	/** 前フレームのコンポーネント変換を設定する / Sets the previous-frame component transform. */
-	void SetPreSkelCompTransform(const FTransform& Transform) { Node.PreSkelCompTransform = Transform; }
+	void SetPreSkelCompTransform(const FTransform& Transform)
+	{
+		Node.PreSkelCompTransform = Transform;
+		Node.PrevFrameSkelCompTransform = Transform;
+	}
 	const FTransform& GetPreSkelCompTransform() const { return Node.PreSkelCompTransform; }
 	float GetSubstepAccumulator() const { return Node.SubstepAccumulator; }
 

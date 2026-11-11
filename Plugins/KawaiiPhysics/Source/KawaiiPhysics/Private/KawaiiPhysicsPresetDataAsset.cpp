@@ -56,6 +56,16 @@ namespace KawaiiPhysicsPresetDataAssetPrivate
 		return Names;
 	}
 
+	// 演出やゲームプレイで切り替える実行時の状態。揺れの調整値ではないためプリセットには含めないが、
+	// プロジェクト側から制御できるようにノードプロパティ API からは触れるようにする
+	static const TSet<FName>& GetRuntimeOnlyPropertyNames()
+	{
+		static const TSet<FName> Names = {
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, TimeScale),
+		};
+		return Names;
+	}
+
 	static const TSet<FName>& GetCopyTargetPropertyNames()
 	{
 		static const TSet<FName> Names = {
@@ -163,6 +173,11 @@ EKawaiiPhysicsPresetPropertyClass UKawaiiPhysicsPresetDataAsset::ClassifyNodePro
 		return EKawaiiPhysicsPresetPropertyClass::Deny;
 	}
 
+	if (KawaiiPhysicsPresetDataAssetPrivate::GetRuntimeOnlyPropertyNames().Contains(PropertyName))
+	{
+		return EKawaiiPhysicsPresetPropertyClass::RuntimeOnly;
+	}
+
 	if (KawaiiPhysicsPresetDataAssetPrivate::GetBoneAssignmentPropertyNames().Contains(PropertyName))
 	{
 		return EKawaiiPhysicsPresetPropertyClass::BoneAssignment;
@@ -192,6 +207,7 @@ bool UKawaiiPhysicsPresetDataAsset::ShouldApplyNodeProperty(const FProperty& Pro
 		return Options.bApplyBoneAssignment;
 	case EKawaiiPhysicsPresetPropertyClass::Tag:
 		return Options.bApplyTag;
+	case EKawaiiPhysicsPresetPropertyClass::RuntimeOnly:
 	case EKawaiiPhysicsPresetPropertyClass::Deny:
 	case EKawaiiPhysicsPresetPropertyClass::Unknown:
 	default:
