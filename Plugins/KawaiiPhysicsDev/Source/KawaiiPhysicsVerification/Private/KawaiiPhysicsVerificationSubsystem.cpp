@@ -426,20 +426,27 @@ bool UKawaiiPhysicsVerificationSubsystem::SpawnCell(UWorld& InWorld, const TShar
 	FCell Cell;
 	FString MeshPath;
 	FString AnimClassPath;
+	// anim_asset はアニメを単体再生し（Sequencer のアニメトラックと同じ構成）、KawaiiPhysics はメッシュの PostProcess ABP で動かす。
+	// anim_play_rate でアニメの再生速度だけを変えられる。
+	FString AnimAssetPath;
+	double AnimPlayRate = 1.0;
+	const bool bHasAnimAsset = CellObject.IsValid() && CellObject->TryGetStringField(TEXT("anim_asset"), AnimAssetPath);
 	if (!CellObject.IsValid() || !CellObject->TryGetStringField(TEXT("id"), Cell.Id) ||
 		!CellObject->TryGetStringField(TEXT("mesh"), MeshPath) ||
-		!CellObject->TryGetStringField(TEXT("anim_class"), AnimClassPath))
+		(!CellObject->TryGetStringField(TEXT("anim_class"), AnimClassPath) && !bHasAnimAsset))
 	{
-		UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("A cell needs id, mesh and anim_class."));
+		UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("A cell needs id, mesh and anim_class or anim_asset."));
 		return false;
 	}
+	CellObject->TryGetNumberField(TEXT("anim_play_rate"), AnimPlayRate);
 
 	USkeletalMesh* Mesh = LoadObject<USkeletalMesh>(nullptr, *MeshPath);
-	UClass* AnimClass = LoadClass<UAnimInstance>(nullptr, *AnimClassPath);
-	if (!Mesh || !AnimClass)
+	UClass* AnimClass = bHasAnimAsset ? nullptr : LoadClass<UAnimInstance>(nullptr, *AnimClassPath);
+	UAnimationAsset* AnimAsset = bHasAnimAsset ? LoadObject<UAnimationAsset>(nullptr, *AnimAssetPath) : nullptr;
+	if (!Mesh || (bHasAnimAsset ? !AnimAsset : !AnimClass))
 	{
 		UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("Cell %s: cannot load %s or %s."), *Cell.Id, *MeshPath,
-		       *AnimClassPath);
+		       bHasAnimAsset ? *AnimAssetPath : *AnimClassPath);
 		return false;
 	}
 
@@ -470,8 +477,15 @@ bool UKawaiiPhysicsVerificationSubsystem::SpawnCell(UWorld& InWorld, const TShar
 	Component->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 	// InitAnim 内の評価を止める。走ると上書き前の設定でボーンが作られ、ABP に保存した場合と別の経路を通ってしまう。
 	Component->bUseRefPoseOnInitAnim = true;
-	Component->SetAnimationMode(EAnimationMode::AnimationBlueprint);
-	Component->SetAnimInstanceClass(AnimClass);
+	if (bHasAnimAsset)
+	{
+		Component->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+	}
+	else
+	{
+		Component->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+		Component->SetAnimInstanceClass(AnimClass);
+	}
 	Component->SetSkeletalMeshAsset(Mesh);
 	Component->InitAnim(true);
 
@@ -481,7 +495,7 @@ bool UKawaiiPhysicsVerificationSubsystem::SpawnCell(UWorld& InWorld, const TShar
 		!UKawaiiPhysicsLibrary::CollectKawaiiPhysicsNodes(Nodes, Component, FGameplayTagContainer(), false))
 	{
 		UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("Cell %s: no KawaiiPhysics node in %s."), *Cell.Id,
-		       *AnimClassPath);
+		       bHasAnimAsset ? *MeshPath : *AnimClassPath);
 		return false;
 	}
 
@@ -585,6 +599,12 @@ bool UKawaiiPhysicsVerificationSubsystem::SpawnCell(UWorld& InWorld, const TShar
 	if (bRecordTransforms)
 	{
 		Cell.Samples.Reserve(NumFrames * Component->GetNumBones() * 7);
+	}
+	if (bHasAnimAsset)
+	{
+		// 上書き後の再初期化で単体再生の状態が消えるため、最後に再生を始める
+		Component->PlayAnimation(AnimAsset, true);
+		Component->SetPlayRate(static_cast<float>(AnimPlayRate));
 	}
 	ApplyMotion(Cell, 0.0);
 	Cells.Add(MoveTemp(Cell));
