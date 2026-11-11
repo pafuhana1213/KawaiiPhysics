@@ -617,6 +617,9 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 
 	if (DeltaTime <= 0.0f)
 	{
+		// 時間が進まない（TimeScale=0 の停止など）間の Component 移動は全量破棄する。
+		// 前フレームの消費割合のまま繰り越すと、停止中の移動が再開フレームに一度に慣性として掛かる
+		PreSkelCompTransformConsumeFraction = 1.0f;
 		return;
 	}
 

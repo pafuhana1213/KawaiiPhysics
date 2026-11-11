@@ -697,6 +697,8 @@ struct FKawaiiPhysicsTestAccessor
 	{
 		if (FrameDt <= 0.0f)
 		{
+			// 本番と同じく、時間が進まないフレームの Component 移動は全量破棄する
+			Node.PreSkelCompTransformConsumeFraction = 1.0f;
 			return;
 		}
 

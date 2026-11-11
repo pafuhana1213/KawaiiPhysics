@@ -528,6 +528,7 @@ void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* Ani
 	KawaiiPhysics->ExcludeBones = Node.ExcludeBones;
 	KawaiiPhysics->AdditionalRootBones = Node.AdditionalRootBones;
 	KawaiiPhysics->TargetFramerate = Node.TargetFramerate;
+	KawaiiPhysics->TimeScale = Node.TimeScale;
 
 	// Physics Settings
 	KawaiiPhysics->PhysicsSettings = Node.PhysicsSettings;

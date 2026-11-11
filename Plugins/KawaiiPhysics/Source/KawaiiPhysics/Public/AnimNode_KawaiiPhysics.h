@@ -293,6 +293,14 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	UPROPERTY(EditAnywhere, Category = "Physics Settings", meta = (ClampMin = "1", UIMin = "1"))
 	int32 TargetFramerate = 60;
 
+	/**
+	* 物理の時間の進む速さの倍率（0.5 で半分の速さ、2.0 で倍速、0 で停止）。ワールドや Actor の時間とは別に、このノードの物理だけを遅く・速くする
+	* Multiplier for how fast physics time advances (0.5 = half speed, 2.0 = double speed, 0 = paused). Slows down or speeds up only this node's physics, separately from world or actor time
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings",
+		meta = (PinHiddenByDefault, ClampMin = "0", UIMin = "0", UIMax = "2"))
+	float TimeScale = 1.0f;
+
 	/** 
 	* 物理の空回し回数。物理処理が落ち着いてから開始・表示したい際に使用
 	* Number of times physics has been idle. Used when you want to start/display after physics processing has settled down
@@ -1260,6 +1268,15 @@ public:
 	int32 GetEffectiveTargetFramerate() const
 	{
 		return FMath::Max(1, TargetFramerate);
+	}
+
+	/**
+	 * dt に掛ける TimeScale を返す。ピン経由で ClampMin を通らない値も来るため、負は 0、非有限は 1 に丸める。
+	 * Returns the TimeScale applied to dt. Pin values bypass ClampMin, so negatives become 0 and non-finite values become 1.
+	 */
+	float GetEffectiveTimeScale() const
+	{
+		return FMath::IsFinite(TimeScale) ? FMath::Max(TimeScale, 0.0f) : 1.0f;
 	}
 
 	/**

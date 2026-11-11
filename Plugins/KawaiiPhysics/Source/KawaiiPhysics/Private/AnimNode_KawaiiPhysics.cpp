@@ -546,7 +546,8 @@ void FAnimNode_KawaiiPhysics::UpdateInternal(const FAnimationUpdateContext& Cont
 {
 	FAnimNode_SkeletalControlBase::UpdateInternal(Context);
 
-	DeltaTime = Context.GetDeltaTime();
+	// 以降の dt 依存処理（サブステップ蓄積・外力・一時外力の寿命・Multiplier）はすべて DeltaTime を参照するため、ここで一度だけ TimeScale を掛ける
+	DeltaTime = Context.GetDeltaTime() * GetEffectiveTimeScale();
 }
 
 void FAnimNode_KawaiiPhysics::GatherDebugData(FNodeDebugData& DebugData)
