@@ -503,7 +503,7 @@ _GRAPH_NODE_SETTINGS_PROPERTIES = (
     'bBoneSubdivisionDensifyByRadius', 'BoneConstraintSubdivisionCount',
     'BoneConstraintSubdivisionFeedbackScale', 'BoneForwardAxis',
     'PhysicsSettings', 'SimulationSpace', 'SimulationBaseBone',
-    'TargetFramerate', 'bNeedWarmUp', 'WarmUpFrames',
+    'TargetFramerate', 'TimeScale', 'bNeedWarmUp', 'WarmUpFrames',
     'bUseWarmUpWhenResetDynamics', 'TeleportDistanceThreshold',
     'TeleportRotationThreshold', 'PlanarConstraint', 'SkelCompMoveScale',
     'bUpdatePhysicsSettingsInGame', 'ResetBoneTransformWhenBoneNotFound',

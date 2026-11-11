@@ -11,6 +11,7 @@
 #include "KawaiiPhysicsExternalForcePostApply.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
+#include "KawaiiPhysicsNodeWarning.h"
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Curves/CurveFloat.h"
@@ -617,9 +618,6 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 
 	if (DeltaTime <= 0.0f)
 	{
-		// 時間が進まない（TimeScale=0 の停止など）間の Component 移動は全量破棄する。
-		// 前フレームの消費割合のまま繰り越すと、停止中の移動が再開フレームに一度に慣性として掛かる
-		PreSkelCompTransformConsumeFraction = 1.0f;
 		return;
 	}
 
@@ -797,6 +795,17 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		// spiral of death 防止：超過分は破棄
 		SubstepAccumulator = FMath::Min(RawElapsed, MaxSubstepsCached * FixedDt);
 		const float DroppedTime = RawElapsed - SubstepAccumulator; // クランプで破棄された時間
+#if !UE_BUILD_SHIPPING
+		// TimeScale を掛けなければ収まっていた時間だけを捨てた場合に知らせる（ヒッチによる破棄は従来どおり黙って捨てる）
+		const float EffectiveTimeScale = GetEffectiveTimeScale();
+		if (DroppedTime > 0.0f && EffectiveTimeScale > 1.0f &&
+			RawElapsed - FrameDeltaTime + FrameDeltaTime / EffectiveTimeScale <= MaxSubstepsCached * FixedDt)
+		{
+			KAWAII_LOG_NODE_WARNING_ONCE(bTimeScaleDroppedTimeWarned, LogKawaiiPhysics,
+				TEXT("TimeScale %.2f needs more than MaxSubsteps (%d) steps per frame at TargetFramerate %d, so the extra time is dropped and the physics runs slower than requested. Raise MaxSubsteps or lower TimeScale."),
+				EffectiveTimeScale, MaxSubstepsCached, GetEffectiveTargetFramerate());
+		}
+#endif
 		const int32 NumSteps = FMath::FloorToInt(SubstepAccumulator / FixedDt);
 		SubstepAccumulator -= NumSteps * FixedDt;
 

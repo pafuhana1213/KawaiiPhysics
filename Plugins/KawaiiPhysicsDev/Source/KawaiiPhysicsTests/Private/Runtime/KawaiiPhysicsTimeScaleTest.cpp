@@ -86,7 +86,7 @@ namespace KawaiiPhysicsTimeScaleTestPrivate
 }
 
 // TimeScale=s・フレーム dt=d の結果が、TimeScale=1・フレーム dt=s*d と一致する。
-// 入口で一度だけ掛けていれば、外力や寿命・サブステップ蓄積も含めて同じ時間で進むはず。
+// TimeScale は入口（UpdateInternal）で dt に一度だけ掛けている。ここでは横向きの重力で振らせた髪で、積分とサブステップ蓄積を確かめる。
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTimeScaleMatchesScaledDeltaTest,
 	"KawaiiPhysics.TimeScale.MatchesScaledFrameDelta",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -148,26 +148,40 @@ bool FKawaiiPhysicsTimeScaleSlowMotionTest::RunTest(const FString& Parameters)
 	return bOk;
 }
 
-// TimeScale=0 で物理が止まり、1 に戻すと再開する。負の値は 0、非有限は 1 として扱う。
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTimeScalePauseTest,
-	"KawaiiPhysics.TimeScale.ZeroPausesAndResumes",
+// TimeScale は 0.01〜10 に丸め、非有限は 1 として扱う。0 以下でも物理は止まらず、0.01 と同じ速さで進む。
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTimeScaleClampTest,
+	"KawaiiPhysics.TimeScale.ClampsToRange",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FKawaiiPhysicsTimeScalePauseTest::RunTest(const FString& Parameters)
+bool FKawaiiPhysicsTimeScaleClampTest::RunTest(const FString& Parameters)
 {
 	using namespace KawaiiPhysicsTimeScaleTestPrivate;
 
 	bool bOk = true;
 	{
+		struct FExpect
+		{
+			float Value;
+			float Expected;
+			const TCHAR* What;
+		};
+		const FExpect Cases[] = {
+			{-1.0f, 0.01f, TEXT("negative")},
+			{0.0f, 0.01f, TEXT("zero")},
+			{0.001f, 0.01f, TEXT("below the minimum")},
+			{0.25f, 0.25f, TEXT("in range")},
+			{2.0f, 2.0f, TEXT("above 1")},
+			{100.0f, 10.0f, TEXT("above the maximum")},
+			{std::numeric_limits<float>::infinity(), 1.0f, TEXT("infinite")},
+			{std::numeric_limits<float>::quiet_NaN(), 1.0f, TEXT("NaN")},
+		};
 		FAnimNode_KawaiiPhysics Node;
-		Node.TimeScale = -1.0f;
-		bOk &= TestEqual(TEXT("negative TimeScale is treated as 0"), Node.GetEffectiveTimeScale(), 0.0f);
-		Node.TimeScale = std::numeric_limits<float>::infinity();
-		bOk &= TestEqual(TEXT("infinite TimeScale is treated as 1"), Node.GetEffectiveTimeScale(), 1.0f);
-		Node.TimeScale = std::numeric_limits<float>::quiet_NaN();
-		bOk &= TestEqual(TEXT("NaN TimeScale is treated as 1"), Node.GetEffectiveTimeScale(), 1.0f);
-		Node.TimeScale = 2.0f;
-		bOk &= TestEqual(TEXT("TimeScale above 1 is kept"), Node.GetEffectiveTimeScale(), 2.0f);
+		for (const FExpect& Case : Cases)
+		{
+			Node.TimeScale = Case.Value;
+			bOk &= TestEqual(FString::Printf(TEXT("%s TimeScale becomes %.2f"), Case.What, Case.Expected),
+				Node.GetEffectiveTimeScale(), Case.Expected);
+		}
 	}
 
 	for (const bool bFixed : {true, false})
@@ -176,29 +190,29 @@ bool FKawaiiPhysicsTimeScalePauseTest::RunTest(const FString& Parameters)
 		FMemMark MemMark(FMemStack::Get());
 		const FString Label = bFixed ? TEXT("FixedSubstep") : TEXT("Legacy");
 
-		FFixture Fixture(FCase{TEXT("Pause"), 60, 0, EFilterLayout::None});
-		Fixture.Node.Gravity = GSideGravity;
-		Run(Fixture, 10);
-		const TArray<FVector> BeforePause = Locations(Fixture);
+		// どちらも 10 フレーム通常速度で振らせてから、片方は 0、もう片方は 0.01 で進める
+		FFixture Zero(FCase{TEXT("Zero"), 60, 0, EFilterLayout::None});
+		Zero.Node.Gravity = GSideGravity;
+		FFixture Minimum(FCase{TEXT("Minimum"), 60, 0, EFilterLayout::None});
+		Minimum.Node.Gravity = GSideGravity;
+		Run(Zero, 10);
+		Run(Minimum, 10);
+		const TArray<FVector> BeforeSlow = Locations(Zero);
 
-		Fixture.Node.TimeScale = 0.0f;
-		Run(Fixture, 10);
-		bOk &= ExpectSameLocations(*this, Label + TEXT(".Paused"), Locations(Fixture), BeforePause, 0.0);
+		Zero.Node.TimeScale = 0.0f;
+		Minimum.Node.TimeScale = 0.01f;
+		Run(Zero, 200);
+		Run(Minimum, 200);
 
-		Fixture.Node.TimeScale = -0.5f;
-		Run(Fixture, 5);
-		bOk &= ExpectSameLocations(*this, Label + TEXT(".NegativePaused"), Locations(Fixture), BeforePause, 0.0);
-
-		Fixture.Node.TimeScale = 1.0f;
-		Run(Fixture, 5);
 		double MaxMoved = 0.0;
-		const TArray<FVector> AfterResume = Locations(Fixture);
-		for (int32 Index = 0; Index < AfterResume.Num(); ++Index)
+		const TArray<FVector> AfterSlow = Locations(Zero);
+		for (int32 Index = 0; Index < AfterSlow.Num(); ++Index)
 		{
-			MaxMoved = FMath::Max(MaxMoved, FVector::Dist(AfterResume[Index], BeforePause[Index]));
+			MaxMoved = FMath::Max(MaxMoved, FVector::Dist(AfterSlow[Index], BeforeSlow[Index]));
 		}
-		bOk &= TestTrue(FString::Printf(TEXT("%s: simulation resumes after the pause (moved %.4f cm)"), *Label, MaxMoved),
+		bOk &= TestTrue(FString::Printf(TEXT("%s: TimeScale 0 keeps simulating (moved %.4f cm)"), *Label, MaxMoved),
 			MaxMoved > 0.01);
+		bOk &= ExpectSameLocations(*this, Label + TEXT(".ZeroMatchesMinimum"), AfterSlow, Locations(Minimum), 0.0);
 	}
 	return bOk;
 }
@@ -233,32 +247,73 @@ bool FKawaiiPhysicsTimeScalePropertyAccessTest::RunTest(const FString& Parameter
 	return bOk;
 }
 
-// 停止中（dt=0）の Component 移動は全量破棄され、再開フレームに慣性として持ち越されない。
-// 直前のフレームでサブステップが走らず消費割合が 0 のままでも、停止フレームで PreSkelCompTransform が追いつく。
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTimeScalePauseDiscardsMoveTest,
-	"KawaiiPhysics.TimeScale.PauseDiscardsComponentMove",
+// テレポートの閾値は 1 フレームの Component の移動量と比べる。TimeScale が小さいとステップが数フレームに 1 回になり、
+// 繰り越した移動が溜まるが、1 フレームずつは閾値未満のふつうの旋回をテレポート扱いにしない（慣性として揺れに残る）。
+// 1 フレームで閾値を超える回転は、従来どおりテレポートとして破棄する。
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTimeScaleSlowTurnIsNotTeleportTest,
+	"KawaiiPhysics.TimeScale.SlowTurnIsNotTeleport",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FKawaiiPhysicsTimeScalePauseDiscardsMoveTest::RunTest(const FString& Parameters)
+bool FKawaiiPhysicsTimeScaleSlowTurnIsNotTeleportTest::RunTest(const FString& Parameters)
 {
-	FKawaiiPhysicsTestAccessor A;
-	A.BuildVerticalChain(4, 10.0f);
-	A.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
-	A.SetGravityInSimSpace(FVector::ZeroVector);
-	A.SetFixedSubstepping(true, 60, 8);
-	A.SetPreSkelCompTransform(FTransform::Identity);
+	// 縦チェーン（約 140cm）を X 軸まわりに回す。WorldDamping=0・重力なしなので、反映された回転はそのまま揺れになり、
+	// テレポートで破棄されればチェーンはポーズのまま動かない
+	struct FTurnResult
+	{
+		int32 Teleports = 0;
+		float MaxTipDeviation = 0.0f;
+	};
+	auto RunTurn = [](const float DegreesPerFrame, const int32 TurnFrames)
+	{
+		FKawaiiPhysicsTestAccessor A;
+		A.BuildVerticalChain(6, 28.0f);
 
-	FAnimInstanceProxy Proxy;
-	FComponentSpacePoseContext Output(&Proxy);
+		FKawaiiPhysicsSettings S;
+		S.Damping = 0.1f;
+		S.Stiffness = 0.05f;
+		S.WorldDampingLocation = 0.0f;
+		S.WorldDampingRotation = 0.0f;
+		S.LimitAngle = 0.0f;
+		S.Radius = 0.0f;
+		A.SetAllPhysicsSettings(S);
 
-	// 60Hz 固定ステップに対し半ステップの dt。ステップが走らず、消費割合 0 で移動を繰り越す状態にする
-	A.StepFrameWithComponentTransform(Output, 1.0f / 120.0f, FTransform::Identity);
+		A.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
+		A.SetGravityInSimSpace(FVector::ZeroVector);
+		A.SetFixedSubstepping(true, 60, 8);
+		A.Node.TeleportDistanceThreshold = 0.0f;
+		A.Node.TeleportRotationThreshold = 10.0f;
+		A.SetPreSkelCompTransform(FTransform::Identity);
 
-	const FTransform Moved(FVector(50.0, 0.0, 0.0));
-	A.StepFrameWithComponentTransform(Output, 0.0f, Moved);
+		FAnimInstanceProxy Proxy;
+		FComponentSpacePoseContext Output(&Proxy);
 
-	return TestTrue(TEXT("PreSkelCompTransform catches up to the component during the pause"),
-		A.GetPreSkelCompTransform().GetLocation().Equals(Moved.GetLocation(), KINDA_SMALL_NUMBER));
+		// 60fps で TimeScale 0.1 のときと同じ 1/600 秒。60Hz の固定ステップは 10 フレームに 1 回だけ走る
+		const float FrameDt = 1.0f / 600.0f;
+		FTurnResult Result;
+		for (int32 Frame = 0; Frame < 120; ++Frame)
+		{
+			const float Degrees = DegreesPerFrame * FMath::Min(Frame + 1, TurnFrames);
+			const FTransform Component(FQuat(FVector::XAxisVector, FMath::DegreesToRadians(Degrees)));
+			Result.Teleports += A.StepFrameWithComponentTransform(Output, FrameDt, Component) ? 1 : 0;
+			const FKawaiiPhysicsModifyBone& Tip = A.Bone(A.Num() - 1);
+			Result.MaxTipDeviation = FMath::Max(Result.MaxTipDeviation,
+				static_cast<float>((Tip.Location - Tip.PoseLocation).Size()));
+		}
+		return Result;
+	};
+
+	// 1 フレーム 5 度で 60 度まで回す。ステップ間（10 フレーム）では 50 度溜まるが、1 フレームずつは閾値 10 度未満
+	const FTurnResult SlowTurn = RunTurn(5.0f, 12);
+	bool bOk = TestEqual(TEXT("slow turn is never detected as a teleport"), SlowTurn.Teleports, 0);
+	bOk &= TestTrue(FString::Printf(TEXT("slow turn is kept as inertia: tip deviation %.4f cm"), SlowTurn.MaxTipDeviation),
+		SlowTurn.MaxTipDeviation > 5.0f);
+
+	// 1 フレームで 25 度回すのはテレポートとして破棄される
+	const FTurnResult Snap = RunTurn(25.0f, 1);
+	bOk &= TestEqual(TEXT("a 25 degree snap in one frame is one teleport"), Snap.Teleports, 1);
+	bOk &= TestTrue(FString::Printf(TEXT("a 25 degree snap is discarded: tip deviation %.4f cm"), Snap.MaxTipDeviation),
+		Snap.MaxTipDeviation < 0.01f);
+	return bOk;
 }
 
 #endif

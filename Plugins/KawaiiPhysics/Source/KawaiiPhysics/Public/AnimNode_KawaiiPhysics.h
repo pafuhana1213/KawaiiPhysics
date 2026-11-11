@@ -293,12 +293,14 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	UPROPERTY(EditAnywhere, Category = "Physics Settings", meta = (ClampMin = "1", UIMin = "1"))
 	int32 TargetFramerate = 60;
 
+	// 範囲は GetEffectiveTimeScale と揃える。固定サブステップでは 1 フレームのステップ数が MaxSubsteps を超えた分の時間は捨てられる
+	// Keep the range in sync with GetEffectiveTimeScale. With fixed substepping, time beyond MaxSubsteps steps per frame is dropped
 	/**
-	* 物理の時間の進む速さの倍率（0.5 で半分の速さ、2.0 で倍速、0 で停止）。ワールドや Actor の時間とは別に、このノードの物理だけを遅く・速くする
-	* Multiplier for how fast physics time advances (0.5 = half speed, 2.0 = double speed, 0 = paused). Slows down or speeds up only this node's physics, separately from world or actor time
+	* 物理の時間の進む速さの倍率（0.5 で半分の速さ、2.0 で倍速）。ワールドや Actor の時間とは別に、このノードの物理だけを遅く・速くする
+	* Multiplier for how fast physics time advances (0.5 = half speed, 2.0 = double speed). Slows down or speeds up only this node's physics, separately from world or actor time
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings",
-		meta = (PinHiddenByDefault, ClampMin = "0", UIMin = "0", UIMax = "2"))
+		meta = (PinHiddenByDefault, ClampMin = "0.01", ClampMax = "10", UIMin = "0.01", UIMax = "2"))
 	float TimeScale = 1.0f;
 
 	/** 
@@ -1003,6 +1005,14 @@ private:
 	FTransform PreSkelCompTransform;
 
 	/**
+	 * 直前に評価したフレームの Component の Transform。テレポート判定を 1 フレームの移動量で行うために使う。
+	 * PreSkelCompTransform はステップが走らないフレームの移動を繰り越すため、TimeScale が小さいと複数フレーム分が溜まる。
+	 * Component transform of the previously evaluated frame. Teleport detection uses it to judge one frame of movement,
+	 * because PreSkelCompTransform carries movement over frames without a step and accumulates several frames at a low TimeScale.
+	 */
+	FTransform PrevFrameSkelCompTransform;
+
+	/**
 	* Vector representing the movement of the skeletal component.
 	*/
 	FVector SkelCompMoveVector = FVector::ZeroVector;
@@ -1052,6 +1062,8 @@ private:
 	bool bMirrorSkeletonMissingWarned = false;
 	// BoneForwardAxis不一致警告をノードごと1回だけ出すためのガード / Guard to log the BoneForwardAxis mismatch warning once per node
 	bool bAngleLimitForwardAxisWarned = false;
+	// TimeScale が MaxSubsteps を超えて時間を捨てた警告をノードごと1回だけ出すためのガード / Guard to log the TimeScale dropped-time warning once per node
+	bool bTimeScaleDroppedTimeWarned = false;
 #endif
 
 	// PIE caches only skeleton-derived mirror tables. Immutable snapshots are safe across copied nodes.
@@ -1271,12 +1283,14 @@ public:
 	}
 
 	/**
-	 * dt に掛ける TimeScale を返す。ピン経由で ClampMin を通らない値も来るため、負は 0、非有限は 1 に丸める。
-	 * Returns the TimeScale applied to dt. Pin values bypass ClampMin, so negatives become 0 and non-finite values become 1.
+	 * dt に掛ける TimeScale を返す。ピン経由では ClampMin / ClampMax を通らないため、ここで 0.01〜10 に丸め、非有限は 1 とする。
+	 * 0 を許さないのは、時間が止まるとポーズや Component の動きだけが進み、再開時にまとめて揺れになるため。
+	 * Returns the TimeScale applied to dt. Pin values bypass ClampMin / ClampMax, so this clamps to 0.01-10 and treats non-finite values as 1.
+	 * 0 is not allowed because a stopped clock lets only the pose and component move, and that motion kicks the bones on resume.
 	 */
 	float GetEffectiveTimeScale() const
 	{
-		return FMath::IsFinite(TimeScale) ? FMath::Max(TimeScale, 0.0f) : 1.0f;
+		return FMath::IsFinite(TimeScale) ? FMath::Clamp(TimeScale, 0.01f, 10.0f) : 1.0f;
 	}
 
 	/**

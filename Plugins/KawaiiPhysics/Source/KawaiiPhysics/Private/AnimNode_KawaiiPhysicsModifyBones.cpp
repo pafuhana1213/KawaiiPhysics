@@ -624,14 +624,20 @@ void FAnimNode_KawaiiPhysics::UpdateSkelCompMove(FComponentSpacePoseContext& Out
 	SkelCompMoveVector *= SkelCompMoveScale;
 	SkelCompMoveRotation = ComponentTransform.InverseTransformRotation(PreSkelCompTransform.GetRotation());
 
+	// 閾値は 1 フレームの移動量と比べる。SkelCompMoveVector / Rotation はステップが走らないフレームの移動を
+	// 繰り越した累積なので、TimeScale が小さいとふつうの移動でも閾値を超えてしまう
+	const FVector FrameMoveVector =
+		ComponentTransform.InverseTransformPosition(PrevFrameSkelCompTransform.GetLocation()) * SkelCompMoveScale;
+	const FQuat FrameMoveRotation = ComponentTransform.InverseTransformRotation(PrevFrameSkelCompTransform.GetRotation());
+
 	if (TeleportDistanceThreshold > 0 &&
-		SkelCompMoveVector.SizeSquared() > TeleportDistanceThreshold * TeleportDistanceThreshold)
+		FrameMoveVector.SizeSquared() > TeleportDistanceThreshold * TeleportDistanceThreshold)
 	{
 		TeleportType = ETeleportType::TeleportPhysics;
 	}
 
 	if (TeleportRotationThreshold > 0 &&
-		FMath::RadiansToDegrees(SkelCompMoveRotation.GetAngle()) > TeleportRotationThreshold)
+		FMath::RadiansToDegrees(FrameMoveRotation.GetAngle()) > TeleportRotationThreshold)
 	{
 		TeleportType = ETeleportType::TeleportPhysics;
 	}
@@ -663,6 +669,7 @@ void FAnimNode_KawaiiPhysics::AdvancePreSkelCompTransform(const FTransform& Comp
 		PreSkelCompTransform.SetScale3D(
 			FMath::Lerp(PreSkelCompTransform.GetScale3D(), ComponentTransform.GetScale3D(), PreSkelCompConsumeFrac));
 	}
+	PrevFrameSkelCompTransform = ComponentTransform;
 }
 
 FTransform FAnimNode_KawaiiPhysics::ComputeBaseBoneStepTransform(
