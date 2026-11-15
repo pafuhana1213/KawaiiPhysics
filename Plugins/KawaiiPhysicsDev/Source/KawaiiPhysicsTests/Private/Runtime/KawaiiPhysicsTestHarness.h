@@ -24,6 +24,20 @@ struct FKawaiiPhysicsTestAccessor
 	FAnimNode_KawaiiPhysics Node;
 
 	void ApplyPhysicsAsset(const FBoneContainer& RequiredBones) { Node.ApplyPhysicsAsset(RequiredBones); }
+	void ApplyLimitsDataAsset(const FBoneContainer& RequiredBones) { Node.ApplyLimitsDataAsset(RequiredBones); }
+	/** LOD 変更時に CacheBones から呼ばれるボーン参照の初期化 / Bone reference initialization called from CacheBones on LOD change */
+	void CallInitializeBoneReferences(const FBoneContainer& RequiredBones) { Node.InitializeBoneReferences(RequiredBones); }
+	/** 評価の冒頭で行う、要求されたボーン参照の初期化とデータアセットの再適用 / Pending re-initialization done at the start of an evaluation */
+	void CallApplyPendingRuntimeReinit(const FBoneContainer& RequiredBones) { Node.ApplyPendingRuntimeReinit(RequiredBones); }
+	bool IsBoneReferencesReinitPending() const { return Node.bBoneReferencesNeedReinit; }
+	bool IsLimitAssetsReapplyPending() const { return Node.bLimitAssetsNeedReapply; }
+	bool IsModifyBonesReinitPending() const { return Node.bModifyBonesNeedsReinit; }
+	void ClearPendingReinitForTest()
+	{
+		Node.bBoneReferencesNeedReinit = false;
+		Node.bLimitAssetsNeedReapply = false;
+		Node.bModifyBonesNeedsReinit = false;
+	}
 
 #if WITH_EDITOR
 	void SetMirrorTableCacheForPIE(bool bEnabled) { Node.bCacheMirrorTablesForPIE = bEnabled; }

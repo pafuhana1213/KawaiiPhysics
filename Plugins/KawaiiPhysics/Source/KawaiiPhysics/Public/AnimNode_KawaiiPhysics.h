@@ -554,7 +554,28 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	/** シンプルワールドコリジョンの再初期化を要求 / Request simple world collision reinitialization */
 	void RequestSimpleWorldCollisionReinit();
 	/** ボーン構造に依存する設定変更後の再初期化を要求 / Request modify-bone rebuild after topology-affecting settings change */
-	void RequestModifyBonesReinit() { bModifyBonesNeedsReinit = true; }
+	void RequestModifyBonesReinit()
+	{
+		bModifyBonesNeedsReinit = true;
+		// 作り直しに使う RootBone などのボーン参照も、新しい値で初期化し直す
+		bBoneReferencesNeedReinit = true;
+	}
+	/**
+	 * ボーン参照（RootBone、コリジョンの DrivingBone、SyncBones など）を次の評価で初期化し直すよう要求
+	 * Request that bone references (RootBone, collision DrivingBones, SyncBones, ...) are re-initialized on the next evaluation
+	 */
+	void RequestBoneReferencesReinit() { bBoneReferencesNeedReinit = true; }
+	/**
+	 * データアセット由来のコリジョンと拘束（LimitsDataAsset / PhysicsAsset / Mirror / BoneConstraintsDataAsset）を
+	 * 次の評価で作り直すよう要求
+	 * Request that collisions and constraints from data assets (LimitsDataAsset / PhysicsAsset / Mirror /
+	 * BoneConstraintsDataAsset) are rebuilt on the next evaluation
+	 */
+	void RequestLimitAssetsReapply()
+	{
+		bLimitAssetsNeedReapply = true;
+		bBoneReferencesNeedReinit = true;
+	}
 
 	/**
 	* Bone Constraintで用いる剛性タイプ
@@ -2043,6 +2064,12 @@ private:
 	}
 
 	bool bModifyBonesNeedsReinit = false;
+	// 実行時の設定変更で、ボーン参照の初期化 / データアセット由来のコリジョンと拘束の作り直しが必要か。
+	// 全ビルド構成で評価の冒頭に処理する（エディタだけの毎フレーム同期に頼らない）
+	// Whether a runtime settings change needs bone references re-initialized / data-asset collisions and
+	// constraints rebuilt. Handled at the start of the evaluation in every build configuration.
+	bool bBoneReferencesNeedReinit = false;
+	bool bLimitAssetsNeedReapply = false;
 	int32 LastInitializedBoneSubdivisionCount = 0;
 	int32 LastInitializedBoneConstraintSubdivisionCount = 0;
 	// DensifyByRadiusは配置数（生成トポロジ）を左右するため再構築判定に含める。既定値はプロパティのデフォルトに合わせる
@@ -2060,6 +2087,12 @@ private:
 	 * (subdivision counts / DensifyByRadius / Radius / DummyBoneLength) since the last init.
 	 */
 	bool ShouldReinitModifyBones() const;
+
+	/**
+	 * 要求されたボーン参照の初期化とデータアセットの再適用を行う
+	 * Applies the requested bone reference re-initialization and data asset re-application
+	 */
+	void ApplyPendingRuntimeReinit(const FBoneContainer& BoneContainer);
 
 	// SimulationSpace conversion cache (per-evaluation)
 	struct FSimulationSpaceCache

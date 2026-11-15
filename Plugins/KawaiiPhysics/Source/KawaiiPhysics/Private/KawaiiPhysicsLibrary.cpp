@@ -160,6 +160,41 @@ namespace KawaiiPhysicsLibraryPrivate
 		return Names;
 	}
 
+	// FBoneReference を含むが ModifyBones の作り直しは要らないプロパティ。値を変えたらボーン参照だけ初期化し直す
+	// (RootBone など ModifyBones を作り直すものは RequestModifyBonesReinit がボーン参照の初期化も要求する)
+	static const TSet<FName>& GetNodeBoneReferencesReinitPropertyNames()
+	{
+		static const TSet<FName> Names = {
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, SimulationBaseBone),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, SphericalLimits),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, CapsuleLimits),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, TaperedCapsuleLimits),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, BoxLimits),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, PlanarLimits),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, SyncBones),
+		};
+		return Names;
+	}
+
+	// データアセット由来のコリジョン・拘束（LimitsDataAsset / PhysicsAsset / Mirror / BoneConstraintsDataAsset）を
+	// 作り直す必要があるプロパティ。ノードのコリジョン配列は Mirror の元になるので含める
+	static const TSet<FName>& GetNodeLimitAssetsReapplyPropertyNames()
+	{
+		static const TSet<FName> Names = {
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, LimitsDataAsset),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, PhysicsAssetForLimits),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, MirrorDataTableForLimits),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, bSkipMirroredBoneWithExistingCollision),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, BoneConstraintsDataAsset),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, SphericalLimits),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, CapsuleLimits),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, TaperedCapsuleLimits),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, BoxLimits),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, PlanarLimits),
+		};
+		return Names;
+	}
+
 	static const TSet<FName>& GetNodeSharedCollisionReinitPropertyNames()
 	{
 		static const TSet<FName> Names = {
@@ -1166,6 +1201,40 @@ bool UKawaiiPhysicsLibrary::DoesNodePropertyRequireModifyBonesReinit(FName Prope
 	return KawaiiPhysicsLibraryPrivate::GetNodeModifyBonesReinitPropertyNames().Contains(PropertyName);
 }
 
+bool UKawaiiPhysicsLibrary::DoesNodePropertyRequireBoneReferencesReinit(FName PropertyName)
+{
+	return KawaiiPhysicsLibraryPrivate::GetNodeBoneReferencesReinitPropertyNames().Contains(PropertyName);
+}
+
+bool UKawaiiPhysicsLibrary::DoesNodePropertyRequireLimitAssetsReapply(FName PropertyName)
+{
+	return KawaiiPhysicsLibraryPrivate::GetNodeLimitAssetsReapplyPropertyNames().Contains(PropertyName);
+}
+
+void UKawaiiPhysicsLibrary::RequestNodeReinitForChangedProperty(FAnimNode_KawaiiPhysics& Node, FName PropertyName)
+{
+	if (DoesNodePropertyRequireModifyBonesReinit(PropertyName))
+	{
+		Node.RequestModifyBonesReinit();
+	}
+	if (DoesNodePropertyRequireBoneReferencesReinit(PropertyName))
+	{
+		Node.RequestBoneReferencesReinit();
+	}
+	if (DoesNodePropertyRequireLimitAssetsReapply(PropertyName))
+	{
+		Node.RequestLimitAssetsReapply();
+	}
+	if (DoesNodePropertyRequireSharedCollisionReinit(PropertyName))
+	{
+		Node.RequestSharedCollisionReinit();
+	}
+	if (DoesNodePropertyRequireSimpleWorldCollisionReinit(PropertyName))
+	{
+		Node.RequestSimpleWorldCollisionReinit();
+	}
+}
+
 bool UKawaiiPhysicsLibrary::DoesNodePropertyRequireSharedCollisionReinit(FName PropertyName)
 {
 	return KawaiiPhysicsLibraryPrivate::GetNodeSharedCollisionReinitPropertyNames().Contains(PropertyName);
@@ -1187,18 +1256,12 @@ bool UKawaiiPhysicsLibrary::SetNodeWildcardPropertyValue(FAnimNode_KawaiiPhysics
 
 	if (void* NodeValuePtr = Property->ContainerPtrToValuePtr<void>(&Node))
 	{
+		// 同じ値を毎フレーム設定しても作り直しや物理状態のリセットが起きないよう、値が変わったときだけ再初期化を要求する
+		const bool bChanged = !Property->Identical(NodeValuePtr, ValuePtr, PPF_None);
 		Property->CopyCompleteValue(NodeValuePtr, ValuePtr);
-		if (DoesNodePropertyRequireModifyBonesReinit(PropertyName))
+		if (bChanged)
 		{
-			Node.RequestModifyBonesReinit();
-		}
-		if (DoesNodePropertyRequireSharedCollisionReinit(PropertyName))
-		{
-			Node.RequestSharedCollisionReinit();
-		}
-		if (DoesNodePropertyRequireSimpleWorldCollisionReinit(PropertyName))
-		{
-			Node.RequestSimpleWorldCollisionReinit();
+			RequestNodeReinitForChangedProperty(Node, PropertyName);
 		}
 		return true;
 	}
@@ -1235,23 +1298,25 @@ bool UKawaiiPhysicsLibrary::SetNodePropertyValueFromString(FAnimNode_KawaiiPhysi
 
 	if (void* NodeValuePtr = Property->ContainerPtrToValuePtr<void>(&Node))
 	{
+		// 同じ値を毎フレーム設定しても作り直しや物理状態のリセットが起きないよう、値が変わったときだけ再初期化を要求する
+		FString OldValueText;
 #if UE_VERSION_OLDER_THAN(5, 1, 0)
+		Property->ExportTextItem(OldValueText, NodeValuePtr, nullptr, nullptr, PPF_None);
 		if (Property->ImportText(*ValueText, NodeValuePtr, PPF_None, nullptr) != nullptr)
 #else
+		Property->ExportTextItem_Direct(OldValueText, NodeValuePtr, nullptr, nullptr, PPF_None);
 		if (Property->ImportText_Direct(*ValueText, NodeValuePtr, nullptr, PPF_None) != nullptr)
 #endif
 		{
-			if (DoesNodePropertyRequireModifyBonesReinit(PropertyName))
+			FString NewValueText;
+#if UE_VERSION_OLDER_THAN(5, 1, 0)
+			Property->ExportTextItem(NewValueText, NodeValuePtr, nullptr, nullptr, PPF_None);
+#else
+			Property->ExportTextItem_Direct(NewValueText, NodeValuePtr, nullptr, nullptr, PPF_None);
+#endif
+			if (!NewValueText.Equals(OldValueText, ESearchCase::CaseSensitive))
 			{
-				Node.RequestModifyBonesReinit();
-			}
-			if (DoesNodePropertyRequireSharedCollisionReinit(PropertyName))
-			{
-				Node.RequestSharedCollisionReinit();
-			}
-			if (DoesNodePropertyRequireSimpleWorldCollisionReinit(PropertyName))
-			{
-				Node.RequestSimpleWorldCollisionReinit();
+				RequestNodeReinitForChangedProperty(Node, PropertyName);
 			}
 			return true;
 		}
@@ -1302,6 +1367,8 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::ApplyPresetDataAsset(EKawaiiPhysi
 		{
 			Preset->ApplyToNode(InKawaiiPhysics, Options, nullptr);
 			InKawaiiPhysics.RequestModifyBonesReinit();
+			// プリセットはコリジョンやデータアセットも書き換えるので、データアセット由来のコリジョンも作り直す
+			InKawaiiPhysics.RequestLimitAssetsReapply();
 			InKawaiiPhysics.RequestSharedCollisionReinit();
 			ExecResult = EKawaiiPhysicsAccessResult::Valid;
 		});

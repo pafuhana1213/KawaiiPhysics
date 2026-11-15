@@ -62,6 +62,13 @@ void FAnimNode_KawaiiPhysics::InitializeBoneReferences(const FBoneContainer& Req
 	Initialize(BoxLimits);
 	Initialize(PlanarLimits);
 
+	// データアセット・PhysicsAsset・Mirror 由来のコリジョンも、LOD 変更で CompactPose のインデックスが変わる
+	Initialize(SphericalLimitsData);
+	Initialize(CapsuleLimitsData);
+	Initialize(TaperedCapsuleLimitsData);
+	Initialize(BoxLimitsData);
+	Initialize(PlanarLimitsData);
+
 	for (auto& BoneConstraint : BoneConstraints)
 	{
 		BoneConstraint.InitializeBone(RequiredBones);
