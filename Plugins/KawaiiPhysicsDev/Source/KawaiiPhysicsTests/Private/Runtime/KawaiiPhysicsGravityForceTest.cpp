@@ -11,6 +11,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "HAL/IConsoleManager.h"
 
 namespace KawaiiPhysicsGravityForceTestPrivate
 {
@@ -86,6 +87,20 @@ bool FKawaiiPhysicsGravityCharacterScaleDirectionTest::RunTest(const FString& Pa
 		const FVector Up = EvaluateCharacterGravityForce(*Movement, *Character, -0.5f, CharacterGravityZ);
 		bOk &= TestTrue(TEXT("Negative GravityScale pulls up by the character gravity"),
 			Up.Equals(FVector(0.0, 0.0, CharacterGravityZ), GGravityForceTestTol) && Up.Z > 0.0);
+
+		// 互換用 CVar を有効にすると、修正前の上向きの挙動に戻る
+		IConsoleVariable* LegacyCVar = IConsoleManager::Get().FindConsoleVariable(
+			TEXT("a.AnimNode.KawaiiPhysics.Gravity.LegacyCharacterGravityScaleSign"));
+		bOk &= TestNotNull(TEXT("Legacy sign CVar exists"), LegacyCVar);
+		if (LegacyCVar)
+		{
+			const bool bPrevLegacy = LegacyCVar->GetBool();
+			LegacyCVar->Set(true, ECVF_SetByCode);
+			const FVector Legacy = EvaluateCharacterGravityForce(*Movement, *Character, 1.0f, CharacterGravityZ);
+			LegacyCVar->Set(bPrevLegacy, ECVF_SetByCode);
+			bOk &= TestTrue(TEXT("Legacy CVar restores the old upward force"),
+				Legacy.Equals(FVector(0.0, 0.0, -CharacterGravityZ), GGravityForceTestTol) && Legacy.Z > 0.0);
+		}
 	}
 	World->DestroyWorld(false);
 	return bOk;
