@@ -1,209 +1,197 @@
 # Kawaii Physics
 
-![UE Version](https://img.shields.io/badge/Unreal%20Engine-5.3--5.8-0e1128?logo=unrealengine&logoColor=white)
-[![Docs](https://img.shields.io/badge/Docs-Portal-blue)](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs)
-[![GitHub release (latest by tag)](https://img.shields.io/github/v/release/pafuhana1213/KawaiiPhysics)](https://github.com/pafuhana1213/KawaiiPhysics/releases)
-[![Downloads](https://img.shields.io/github/downloads/pafuhana1213/KawaiiPhysics/total)](https://github.com/pafuhana1213/KawaiiPhysics/releases)
-[![Discussions](https://img.shields.io/github/discussions/pafuhana1213/KawaiiPhysics?logo=github)](https://github.com/pafuhana1213/KawaiiPhysics/discussions)
-[![GitHub contributors](https://img.shields.io/github/contributors/pafuhana1213/KawaiiPhysics?logo=github)](https://github.com/pafuhana1213/KawaiiPhysics/graphs/contributors)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/pafuhana1213/KawaiiPhysics)
-[![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/pafuhana1213?style=social)](https://twitter.com/pafuhana1213)
+![UE Version](https://img.shields.io/badge/Unreal%20Engine-5.3--5.8-0e1128?logo=unrealengine&logoColor=white) [![Docs](https://img.shields.io/badge/Docs-Portal-blue)](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs) [![GitHub release (latest by tag)](https://img.shields.io/github/v/release/pafuhana1213/KawaiiPhysics)](https://github.com/pafuhana1213/KawaiiPhysics/releases) [![Downloads](https://img.shields.io/github/downloads/pafuhana1213/KawaiiPhysics/total)](https://github.com/pafuhana1213/KawaiiPhysics/releases) [![Discussions](https://img.shields.io/github/discussions/pafuhana1213/KawaiiPhysics?logo=github)](https://github.com/pafuhana1213/KawaiiPhysics/discussions) [![GitHub contributors](https://img.shields.io/github/contributors/pafuhana1213/KawaiiPhysics?logo=github)](https://github.com/pafuhana1213/KawaiiPhysics/graphs/contributors) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/pafuhana1213/KawaiiPhysics) [![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/pafuhana1213?style=social)](https://twitter.com/pafuhana1213)
 
----
+* * *
 
 > [!TIP]
-> **日本語の説明はこちら → [README_ja.md（日本語版 README）](README_ja.md)**
+> **日本語の説明はこちら → [README_ja.md（日本語版 README）](README_ja.md)中文说明请见 → [README_zh-Hans.md（简体中文版 README）](README_zh-Hans.md)**
 
-Kawaii Physics is a simple pseudo-physics plugin for Unreal Engine.  
-It allows you to easily and cutely animate things that sway, such as hair, skirts, and breasts.
+Kawaii Physics 是虚幻引擎的一款简易伪物理插件。  
+它可以轻松又可爱地为头发、裙子、胸部等摇曳物体制作动画。
 
-<a href="https://youtu.be/0f-l-SP07Mo">
-  <img src="https://github.com/user-attachments/assets/0bc33f5c-c7db-49b3-8e98-75dc062a4e2a" alt="Demo Video" width="640px">
-</a>
+[![演示视频](https://github.com/user-attachments/assets/0bc33f5c-c7db-49b3-8e98-75dc062a4e2a)](https://youtu.be/0f-l-SP07Mo)
 
-[Demo Video](https://youtu.be/0f-l-SP07Mo)
+[演示视频](https://youtu.be/0f-l-SP07Mo)
 
-<details>
-<summary>Contents</summary>
+目录
 
-- [Gallery](#gallery)
-- [Features](#features)
-- [Getting Started](#getting-started)
-- [Documentation & Community](#documentation--community)
-- [Tutorials & Articles](#tutorials--articles)
-- [Sample](#sample)
-- [Showcase](#showcase)
-- [Related Tools](#related-tools)
-- [License](#license)
-- [Author](#author)
-- [Changelog](#changelog)
+-   [画廊](#gallery)
+-   [功能特性](#features)
+-   [快速开始](#getting-started)
+-   [文档与社区](#documentation--community)
+-   [教程与文章](#tutorials--articles)
+-   [示例](#sample)
+-   [案例展示](#showcase)
+-   [相关工具](#related-tools)
+-   [许可证](#license)
+-   [作者](#author)
+-   [更新日志](#changelog)
 
-</details>
+## 画廊
 
-## Gallery
+![compare](https://github.com/user-attachments/assets/fda69859-b60f-4fde-a683-62da3e2839e4)
 
-<img src="https://github.com/user-attachments/assets/fda69859-b60f-4fde-a683-62da3e2839e4" alt="compare" width="640px">
+*角色：[Gray-chan](http://rarihoma.xvs.jp/products/graychan)*
 
-*Character: [Gray-chan](http://rarihoma.xvs.jp/products/graychan)*
+![dance5](https://github.com/user-attachments/assets/28d72d0c-4423-41c7-bc52-c5c7c3886e02)
 
-<img src="https://github.com/user-attachments/assets/28d72d0c-4423-41c7-bc52-c5c7c3886e02" alt="dance5" width="640px">
+*角色：[原创 3D 模型 “Lzebul”](https://booth.pm/ja/items/4887691) / 动作：[Mirai Komachi](https://www.miraikomachi.com/download/)*
 
-*Character: [Original 3D Model "Lzebul"](https://booth.pm/ja/items/4887691) / Motion: [Mirai Komachi](https://www.miraikomachi.com/download/)*
+![danceKano](https://github.com/user-attachments/assets/63faed3c-8aaa-4d4d-ae33-e98f9c8c15fd)
 
-<img src="https://github.com/user-attachments/assets/63faed3c-8aaa-4d4d-ae33-e98f9c8c15fd" alt="danceKano" width="640px">
+*角色：[TA 风格 鹫宫加野](https://uzurig.com/ja/uzurig2-rigging-plugin-for-maya-jp/) / 动作：[Shikanokonokonokoshitantan](https://booth.pm/ja/items/5975857) / 设置：[TA Co., Ltd.](https://xta.co.jp/)*
 
-*Character: [TA-style Kano Saginomiya](https://uzurig.com/ja/uzurig2-rigging-plugin-for-maya-jp/) / Motion: [Shikanokonokonokoshitantan](https://booth.pm/ja/items/5975857) / Setup: [TA Co., Ltd.](https://xta.co.jp/)*
+## 功能特性
 
-## Features
+<table><tbody><tr><td><img src="https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics2.jpg?raw=true" width="320"></td><td><img src="https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics4.gif?raw=true" width="320"></td></tr></tbody></table>
 
-<table>
-  <tr>
-    <td><img src="https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics2.jpg?raw=true" width="320"></td>
-    <td><img src="https://github.com/pafuhana1213/Screenshot/blob/master/KawaiiPhysics4.gif?raw=true" width="320"></td>
-  </tr>
-</table>
+-   根据角色的动画和移动来驱动摇曳骨骼
+-   只需将一个 `KawaiiPhysics` 节点拖入动画图即可完成设置
+-   支持球体、胶囊和平面碰撞，全部可在视口中直接调整
+-   可在编辑器偏好设置中修改每种碰撞在视口中的颜色、不透明度和轮廓
+-   保持骨骼长度固定，即使模拟崩溃，骨骼也不会拉伸或塌缩
+-   使用简单的无 PhysX 算法，运行时保持轻量
+-   不仅可应用风和重力，还可应用自定义力来实现艺术效果
+-   可通过 `DataAsset` 和 `PhysicsAsset` 保存并复用设置
+-   可用圆锥限制弯曲角度，或按父骨骼的局部轴逐轴限制，以构建铰链和单向弯曲（逐轴）
+-   可约束骨骼间距离，防止裙子穿透腿部（BoneConstraint）
+-   可将动画驱动的骨骼（如腿部）同步到模拟中，使布料跟随身体并避免穿透（SyncBone）
+-   可在运行时从蓝图或 C++ 驱动参数和外力
+-   其他近期功能请参见[更新日志（KawaiiPhysics Portal）](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs/changelog)
 
-- Drives your sway bones from the character's animation and movement
-- Just drop a single `KawaiiPhysics` node into your AnimGraph and you're set
-- Supports sphere, capsule, and plane collisions, all adjustable right in the viewport
-- Change the color, opacity, and outline of each collision type in the viewport from Editor Preferences
-- Keeps bone lengths fixed, so bones never stretch or collapse even if the simulation breaks down
-- Uses a simple, PhysX-free algorithm, so it stays light at runtime
-- Apply not just wind and gravity, but also custom forces for artistic effect
-- Save and reuse your settings through `DataAsset` and `PhysicsAsset`
-- Limit the bending angle with a cone, or per local axis of the parent bone to build hinges and one-way bends (Per Axis)
-- Constrain the distance between bones to keep skirts from clipping through the legs (BoneConstraint)
-- Sync animation-driven bones (e.g. legs) into the simulation so cloth follows the body and avoids penetration (SyncBone)
-- Drive parameters and external forces at runtime from Blueprint or C++
-- For other recent features, see the [Changelog (KawaiiPhysics Portal)](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs/changelog)
+### 参考资料
 
-### Reference Material
+在实现物理行为时，我参考了以下资料：
 
-I referred to the following material while implementing the physics behavior:
-- [Next Idolmaster Graphics & Animation Programming Preview](https://cedil.cesa.or.jp/cedil_sessions/view/416)
+-   [Next Idolmaster Graphics & Animation Programming Preview](https://cedil.cesa.or.jp/cedil_sessions/view/416)
 
-## Getting Started
+## 快速开始
 
-### 1. Download
+### 1. 下载
 
-If you do not have a C++ build environment, please download the plugin from the following links:
+如果没有 C++ 构建环境，请从以下链接下载插件：
 
-- **[GitHub Releases](https://github.com/pafuhana1213/KawaiiPhysics/releases/)**
-- **[FAB](https://www.fab.com/ja/listings/f870c07e-0a02-4a78-a888-e52a22794572)** (Same content as the GitHub version)
-- **[Booth](https://pafuhana1213.booth.pm/items/5943534)** (Follow the store to receive update notifications)
+-   **[GitHub Releases](https://github.com/pafuhana1213/KawaiiPhysics/releases/)**
+-   **[FAB](https://www.fab.com/ja/listings/f870c07e-0a02-4a78-a888-e52a22794572)**（与 GitHub 版本内容相同）
+-   **[Booth](https://pafuhana1213.booth.pm/items/5943534)**（关注店铺可接收更新通知）
 
-### 2. Supported Versions
+### 2. 支持版本
 
-- **Unreal Engine 5.3 ~ 5.8**
-- UE4.27: [v1.11.1](https://github.com/pafuhana1213/KawaiiPhysics/releases/tag/20230830-v1.11.1)
+-   **虚幻引擎 5.3 ~ 5.8**
+-   UE4.27：[v1.11.1](https://github.com/pafuhana1213/KawaiiPhysics/releases/tag/20230830-v1.11.1)
 
-### 3. Installation
+### 3. 安装
 
-1. Create a `Plugins` folder in the root of your project.
-2. Copy the downloaded `KawaiiPhysics` folder to the `Plugins` folder.
+1.  在项目根目录创建 `Plugins` 文件夹。
+2.  将下载的 `KawaiiPhysics` 文件夹复制到 `Plugins` 文件夹中。
 
-### 4. How to Use
+### 4. 使用方法
 
-- Add and use the `KawaiiPhysics` node in the AnimGraph of the Animation Blueprint.
-- For detailed parameter settings, please refer to the [documentation](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs/parameters/physics).
+-   在动画蓝图的动画图中添加并使用 `KawaiiPhysics` 节点。
+-   详细参数设置请参考[文档](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs/parameters/physics)。
 
-> **Note:** An error may occur when packaging a project that only uses Blueprints. In that case, please convert it to a C++ project or refer to [this article](https://papersloth.hatenablog.com/entry/2024/02/14/201629).
+> **注意：** 对仅使用蓝图的工程进行打包时可能出错。此时请将其转换为 C++ 工程，或参考[这篇文章](https://papersloth.hatenablog.com/entry/2024/02/14/201629)。
 
-## Documentation & Community
+## 文档与社区
 
-- **[Portal](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs)**: Official documentation (latest)
-- **[Wiki](https://github.com/pafuhana1213/KawaiiPhysics/wiki)**: Legacy documentation (the latest information has moved to the Portal)
-- **[DeepWiki](https://deepwiki.com/pafuhana1213/KawaiiPhysics)**: AI-generated documentation
-- **[Discussions](https://github.com/pafuhana1213/KawaiiPhysics/discussions)**: For questions, requests, and general chat
-- **[Issues](https://github.com/pafuhana1213/KawaiiPhysics/issues)**: Bug reports
+-   **[Portal](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs)**：官方文档（最新）
+-   **[Wiki](https://github.com/pafuhana1213/KawaiiPhysics/wiki)**：旧版文档（最新信息已迁移至 Portal）
+-   **[DeepWiki](https://deepwiki.com/pafuhana1213/KawaiiPhysics)**：AI 生成的文档
+-   **[Discussions](https://github.com/pafuhana1213/KawaiiPhysics/discussions)**：用于提问、请求和一般交流
+-   **[Issues](https://github.com/pafuhana1213/KawaiiPhysics/issues)**：Bug 报告
 
-## Tutorials & Articles
+## 教程与文章
 
-### Official
+### 官方
 
-- [Internal Implementation Explanation of the Self-Made AnimNode "Kawaii Physics" Part 1](http://pafuhana1213.hatenablog.com/entry/2019/07/26/171046)
-- [Test of using #ControlRig to prevent skirt penetration in conjunction with #KawaiiPhysics](https://twitter.com/pafuhana1213/status/1300454762542817280)
+-   [自制 AnimNode “Kawaii Physics” 内部实现解说 第 1 部分](http://pafuhana1213.hatenablog.com/entry/2019/07/26/171046)
+-   [尝试使用 #ControlRig 配合 #KawaiiPhysics 防止裙子穿透](https://twitter.com/pafuhana1213/status/1300454762542817280)
 
-### Unofficial (Thank you!)
+### 非官方（感谢！）
 
-- [How To Setup Kawaii Physics in Unreal Engine 5](https://dev.epicgames.com/community/learning/tutorials/d1Z9/unreal-engine-how-to-setup-kawaii-physics-in-unreal)
+-   [How To Setup Kawaii Physics in Unreal Engine 5](https://dev.epicgames.com/community/learning/tutorials/d1Z9/unreal-engine-how-to-setup-kawaii-physics-in-unreal)
+    
+-   [The Hidden Physics “Engine” Behind Unreal's Most Stylish Games ...](https://www.youtube.com/watch?v=9ThmoMHnHhw)
+    
+-   日文内容
+    
+    -   [A Complete Beginner's Guide to Increasing a Female Character's Kawaii with KawaiiPhysics](https://qiita.com/YuukiOgino/items/7f3198a90dab43019f26)
+    -   [Swaying Objects and Control Rig: A Case Study in Virtual Live Using UE](https://www.docswell.com/s/indieusgames/K4Q2XJ-2024-06-14-175045)
+    -   [【UE】摇曳物体设置（Kawaii Physics）](https://techblog.sumelagi.co.jp/unrealengine/147/)
+    -   [【UE4】Kawaii Physics 教程 #1](https://www.youtube.com/watch?v=hlgXuVML_is)
+    -   [5 分钟学会 Kawaii Physics！【UE5】【教程】](https://www.youtube.com/watch?v=TliP9vSxm4c)
 
-- [The Hidden Physics “Engine” Behind Unreal's Most Stylish Games ...](https://www.youtube.com/watch?v=9ThmoMHnHhw)
-- In Japanese
-  - [A Complete Beginner's Guide to Increasing a Female Character's Kawaii with KawaiiPhysics](https://qiita.com/YuukiOgino/items/7f3198a90dab43019f26)
-  - [Swaying Objects and Control Rig: A Case Study in Virtual Live Using UE](https://www.docswell.com/s/indieusgames/K4Q2XJ-2024-06-14-175045)
-  - [【UE】Swaying Object Settings (Kawaii Physics)](https://techblog.sumelagi.co.jp/unrealengine/147/)
-  - [【UE4】Kawaii Physics Tutorial #1](https://www.youtube.com/watch?v=hlgXuVML_is)
-  - [Learn Kawaii Physics in 5 minutes!【UE5】【tutorial】](https://www.youtube.com/watch?v=TliP9vSxm4c)
+## 示例
 
-## Sample
+![sample2](https://github.com/user-attachments/assets/0d866ad2-f803-400b-bd23-2d46ab17b8ae)
 
-<img src="https://github.com/user-attachments/assets/0d866ad2-f803-400b-bd23-2d46ab17b8ae" alt="sample2" width="640px">
+GitHub 上的示例工程包含示例关卡和角色。
 
-The sample project on GitHub includes a sample level and characters.
-- **Engine Version**: UE 5.8
-- **Feature Samples**: `Content/KawaiiPhysicsSample/Examples/` has one level per topic. Each exhibit shows a single feature with its own AnimBlueprint, step by step. `Content/KawaiiPhysicsSample/L_KPS_AllExamples` loads every topic level side by side so you can browse all features in one place. In Play In Editor, press Z / X to jump to the previous / next exhibit in the current topic and PageUp / PageDown to jump to the previous / next topic. Press H to open the documentation page for the current exhibit on the [KawaiiPhysics Portal](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs). Press B to open the AnimBlueprint used by that exhibit in the editor. In the editor, the **Open Docs** and **Open AnimBP** buttons in the Details panel of each sign actor do the same. The descriptions on the signs follow the current language: Japanese when it is Japanese, English otherwise.
-  - `01_BoneChain` (RootBone / DummyBoneLength / ExcludeBones / AdditionalRootBones / multiple nodes and tags)
-  - `02_PhysicsSettings` (Damping / Stiffness / WorldDamping / LimitAngle / curves / teleport thresholds / warm-up / SkelCompMoveScale / Per Axis LimitAngle / TimeScale)
-  - `03_Collision` (sphere / capsule / tapered capsule / box / planar / LimitsDataAsset / PhysicsAsset / world collision)
-  - `04_Forces` (gravity / simple external force / external force presets / AnimNotify / external force space / force rate by bone length / legacy gravity)
-  - `05_Advanced` (bone constraints / bone subdivision / SyncBone / presets / shared collision)
-  - `06_RuntimeControl` (alpha, physics settings multiplier and wind gusts from Blueprint / settings multiplier AnimNotifyState / Sequencer track / post process AnimBlueprint for Sequencer / AnimNode function / external force volume)
-  - `07_SimpleWorldCollision` (automatic level collision / gathered shapes / skeletal mesh collision modes / gather radius)
-  - `08_Wind` (ProceduralWind components / wind preset DataAsset / trigger gust AnimNotify / Shared Publisher)
-  - `09_Showcase` (a complete setup on the TA-style Kano Saginomiya character, part by part)
-- **Characters Used**:
-  - **Gray-chan**: http://rarihoma.xvs.jp/products/graychan
-  - **TA-style Kano Saginomiya**: Provided by [TA Co., Ltd.](https://xta.co.jp/)
-    - Copyright (c) 2025 TA Co., Ltd. All rights reserved
-    - Terms of Use: https://uzurig.com/ja/terms_of_use_jp/
+-   **引擎版本**：UE 5.8
+-   **功能示例**：`Content/KawaiiPhysicsSample/Examples/` 中每个主题一个关卡。每个展项逐步展示单个功能，并配有各自的动画蓝图。`Content/KawaiiPhysicsSample/L_KPS_AllExamples` 会并排加载所有主题关卡，方便在一个地方浏览全部功能。在编辑器中运行时，按 Z / X 跳转到当前主题的上一个 / 下一个展项，按 PageUp / PageDown 跳转到上一个 / 下一个主题。按 H 可在 [KawaiiPhysics Portal](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs) 中打开当前展项的文档页面。按 B 可在编辑器中打开该展项使用的动画蓝图。在编辑器中，每个标志 Actor 细节面板中的 **Open Docs** 和 **Open AnimBP** 按钮作用相同。标志上的说明文字会跟随当前语言：日文环境显示日文，其他环境显示英文。
+    -   `01_BoneChain`（RootBone / DummyBoneLength / ExcludeBones / AdditionalRootBones / 多节点与标签）
+    -   `02_PhysicsSettings`（阻尼 / 刚度 / 世界阻尼 / 角度限制 / 曲线 / 瞬移阈值 / 预热 / SkelCompMoveScale / 逐轴角度限制 / 时间缩放）
+    -   `03_Collision`（球体 / 胶囊 / 锥形胶囊 / 盒形 / 平面 / LimitsDataAsset / PhysicsAsset / 世界碰撞）
+    -   `04_Forces`（重力 / 简易外力 / 外力预设 / AnimNotify / 外力空间 / 按骨骼长度的力强度 / 旧版重力）
+    -   `05_Advanced`（骨骼约束 / 骨骼细分 / SyncBone / 预设 / 共享碰撞）
+    -   `06_RuntimeControl`（来自蓝图的 Alpha、物理设置倍率和阵风 / 设置倍率 AnimNotifyState / Sequencer 轨道 / Sequencer 用后期处理动画蓝图 / AnimNode 函数 / 外力体积）
+    -   `07_SimpleWorldCollision`（自动关卡碰撞 / 收集形状 / 骨骼网格体碰撞模式 / 收集半径）
+    -   `08_Wind`（程序化风组件 / 风预设数据资产 / 触发阵风 AnimNotify / 共享发布器）
+    -   `09_Showcase`（TA 风格鹫宫加野角色上的完整设置，逐部分展示）
+-   **使用的角色**：
+    -   **Gray-chan**：[http://rarihoma.xvs.jp/products/graychan](http://rarihoma.xvs.jp/products/graychan)
+    -   **TA 风格 鹫宫加野**：由 [TA Co., Ltd.](https://xta.co.jp/) 提供
+        -   Copyright (c) 2025 TA Co., Ltd. All rights reserved
+        -   使用条款：[https://uzurig.com/ja/terms\_of\_use\_jp/](https://uzurig.com/ja/terms_of_use_jp/)
 
-### MCP (Experimental)
+### MCP（实验性）
 
-The sample project enables UE 5.8's experimental **Unreal MCP** plugin, so MCP clients can operate the editor. Kawaii Physics bundles its own toolset (`KawaiiPhysicsToolset`) that covers authoring (adding and editing KawaiiPhysics and Shared Publisher nodes, collision limits and external forces), presets and audits, verification in Play In Editor (runtime node info, bone and collision checks, bone and penetration samplers, temporary settings multipliers and wind gusts), and skirt check-and-tune helpers (ring bone constraints, radius by depth, motion recording and analysis).
+示例工程启用了 UE 5.8 的实验性 **Unreal MCP** 插件，因此 MCP 客户端可以操作编辑器。Kawaii Physics 自带工具集（`KawaiiPhysicsToolset`），涵盖创作（添加和编辑 KawaiiPhysics 与共享发布器节点、碰撞限制和外力）、预设与审计、在编辑器中运行时的验证（运行时节点信息、骨骼与碰撞检查、骨骼与穿透采样器、临时设置倍率和阵风），以及裙子检查与调整辅助工具（环形骨骼约束、按深度设置半径、运动记录与分析）。
 
-1. Start the MCP server with either of the following:
-   - Run the console command `ModelContextProtocol.StartServer` (starts immediately)
-   - Enable **Auto Start Server** under **Editor Preferences > General > Model Context Protocol** (applies from the next launch; saved per user)
-2. Connect your MCP client to `http://127.0.0.1:8000/mcp`. The `.mcp.json` in the project root already contains this setting.
+1.  通过以下任一方式启动 MCP 服务器：
+    -   运行控制台命令 `ModelContextProtocol.StartServer`（立即启动）
+    -   在 **编辑器偏好设置 > 常规 > Model Context Protocol** 中启用 **Auto Start Server**（从下次启动起生效，按用户保存）
+2.  将 MCP 客户端连接到 `http://127.0.0.1:8000/mcp`。项目根目录的 `.mcp.json` 已包含此设置。
 
-The toolset also registers an Agent Skill (`KawaiiPhysicsSetupSkill`) with tips for setting up, tuning and verifying KawaiiPhysics nodes through MCP.
+该工具集还注册了一个 Agent Skill（`KawaiiPhysicsSetupSkill`），其中包含通过 MCP 设置、调整和验证 KawaiiPhysics 节点的提示。
 
-The server lets clients control the editor. Start it only when you need it.
+服务器允许客户端控制编辑器，请仅在需要时启动。
 
-## Showcase
+## 案例展示
 
-Kawaii Physics is used in many projects!
-- **[Showcase List](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/adoption)**
-- Please share your work with us [here](https://github.com/pafuhana1213/KawaiiPhysics/discussions/65)!
-- When sharing your work on Twitter/X, please use the hashtag **[#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)**!
+Kawaii Physics 已被许多项目使用！
 
-## Related Tools
-- [A tool to convert VRM SpringBone to KawaiiPhysics](https://yumetengu.booth.pm/items/7943387)
+-   **[案例列表](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/adoption)**
+-   欢迎在[这里](https://github.com/pafuhana1213/KawaiiPhysics/discussions/65)分享你的作品！
+-   在 Twitter/X 分享作品时，请使用话题标签 **[#KawaiiPhysics](https://twitter.com/search?q=%23kawaiiphysics&src=typed_query&f=live)**！
 
-## License
+## 相关工具
+
+-   [将 VRM SpringBone 转换为 KawaiiPhysics 的工具](https://yumetengu.booth.pm/items/7943387)
+
+## 许可证
 
 [MIT License](https://github.com/pafuhana1213/KawaiiPhysics/blob/master/LICENSE)
 
-## Author
+## 作者
 
 [Okazu @pafuhana1213](https://twitter.com/pafuhana1213)
 
-## Changelog
+## 更新日志
 
-- [Announcements](https://github.com/pafuhana1213/KawaiiPhysics/discussions/categories/announcements-%E3%82%A2%E3%83%8A%E3%82%A6%E3%83%B3%E3%82%B9)
-- [Changelog (KawaiiPhysics Portal)](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs/changelog)
+-   [公告](https://github.com/pafuhana1213/KawaiiPhysics/discussions/categories/announcements-%E3%82%A2%E3%83%8A%E3%82%A6%E3%83%B3%E3%82%B9)
+-   [更新日志（KawaiiPhysics Portal）](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs/changelog)
 
----
+* * *
 
-## Support Me If You’d Like!
+## 支持我
 
-If this plugin has been even a little helpful for your UE projects, I’m truly glad to hear that!
+如果这个插件对你的 UE 项目有过一点点帮助，我会非常高兴！
 
-I’ve been developing it solo as both a hobby and a practical tool — squeezing out development time and even covering coffee costs out of my own pocket ☕  
-If you think “Hey, this is pretty good!”, your support via a purchase on FAB or through GitHub Sponsors would mean a lot to me and help keep development going.  
-(You can read more about the background behind the FAB launch [here](https://github.com/pafuhana1213/KawaiiPhysics/discussions/170).)
+我一直以个人爱好和实用工具的形式独自开发它——挤出开发时间，甚至自掏腰包支付咖啡费用 ☕  
+如果你觉得“嘿，这个还挺不错！”，通过 FAB 购买或 GitHub Sponsors 支持我，对我来说意义重大，也能帮助开发持续下去。  
+（关于 FAB 上线的背景可以阅读[这里](https://github.com/pafuhana1213/KawaiiPhysics/discussions/170)。）
 
-[💖 **Buy on FAB**](https://www.fab.com/ja/listings/f870c07e-0a02-4a78-a888-e52a22794572)  
-[💖 **Support via GitHub Sponsors**](https://github.com/sponsors/pafuhana1213)
+[💖 **在 FAB 上购买**](https://www.fab.com/ja/listings/f870c07e-0a02-4a78-a888-e52a22794572)  
+[💖 **通过 GitHub Sponsors 支持**](https://github.com/sponsors/pafuhana1213)
