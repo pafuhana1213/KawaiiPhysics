@@ -233,6 +233,22 @@ struct FKawaiiPhysicsTestAccessor
 	void SetGravityInSimSpace(const FVector& Gravity) { Node.GravityInSimSpace = Gravity; }
 	void SetSimpleExternalForceInSimSpace(const FVector& Force) { Node.SimpleExternalForceInSimSpace = Force; }
 	void SetSimulationSpace(EKawaiiPhysicsSimulationSpace Space) { Node.SimulationSpace = Space; }
+	/** 評価の最後に行う風の問い合わせ位置の保存を呼ぶ / Calls the end-of-evaluation store of wind query positions. */
+	void CallStoreWindSamplePositions(FComponentSpacePoseContext& Output) { Node.StoreWindSamplePositions(Output); }
+	/** PreUpdate（GameThread）の風の問い合わせを呼ぶ / Calls the PreUpdate (game thread) wind query. */
+	void CallSampleWindOnGameThread(const UWorld* World, const USkeletalMeshComponent* SkelComp = nullptr)
+	{
+		Node.SampleWindOnGameThread(World, SkelComp);
+	}
+	/** 従来の Wind の速度（WindScale・突風倍率込み）を返す / Returns the legacy Wind velocity (with WindScale and gust factor). */
+	FVector CallGetWindVelocity(FComponentSpacePoseContext& Output, int32 BoneIndex) const
+	{
+		return Node.GetWindVelocity(Output, Node.ModifyBones[BoneIndex]);
+	}
+	/** 直近の PreUpdate で取得した、ボーンごとの風の数 / Number of per-bone wind samples from the last PreUpdate. */
+	int32 GetWindBoneSampleCount() const { return Node.WindSample.BoneSpeeds.Num(); }
+	/** 直近の PreUpdate でノード中心の風を取得したか / Whether the last PreUpdate sampled the wind at the node center. */
+	bool HasWindCenterSample() const { return Node.WindSample.bHasCenterSample; }
 	/** テスト用のコンポーネント変換を評価中のワールド空間キャッシュへ設定する。 / Sets a test component transform in the evaluation world-space cache. */
 	void SetWorldSpaceTransformForTest(const FTransform& ComponentToWorld)
 	{

@@ -633,6 +633,7 @@ void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* Ani
 	KawaiiPhysics->bEnableWind = Node.bEnableWind;
 	KawaiiPhysics->WindScale = Node.WindScale;
 	KawaiiPhysics->WindDirectionNoiseAngle = Node.WindDirectionNoiseAngle;
+	KawaiiPhysics->WindSampleMode = Node.WindSampleMode;
 
 	// BoneConstraint
 	KawaiiPhysics->BoneConstraintGlobalComplianceType = Node.BoneConstraintGlobalComplianceType;

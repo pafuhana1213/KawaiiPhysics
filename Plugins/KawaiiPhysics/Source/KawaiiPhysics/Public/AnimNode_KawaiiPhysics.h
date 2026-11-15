@@ -172,6 +172,18 @@ enum class EKawaiiPhysicsSimpleWorldCollisionSource : uint8
 	Auto UMETA(DisplayName = "Auto"),
 };
 
+/**
+ * WindDirectionalSource の風を取得する位置 / Where to get the wind of WindDirectionalSource
+ */
+UENUM(BlueprintType)
+enum class EKawaiiPhysicsWindSampleMode : uint8
+{
+	/** ノードのボーン群の中心で1回だけ取得し、全ボーンで使う / Gets the wind once at the center of the node's bones and uses it for all bones. */
+	NodeCenter UMETA(DisplayName = "Node Center"),
+	/** ボーンごとに取得する。点風源がボーンの近くにある場合に正確だが、ゲームスレッドの負荷が増える / Gets the wind for each bone. Accurate for a point wind source near the bones, but costs more game thread time. */
+	PerBone UMETA(DisplayName = "Per Bone"),
+};
+
 USTRUCT(BlueprintType)
 struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalControlBase
 {
@@ -672,6 +684,13 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 		meta = (EditCondition = "bEnableWind", Units = "Degrees", ClampMin=0, PinHiddenByDefault))
 	float WindDirectionNoiseAngle = 0.0f;
 
+	/**
+	* WindDirectionalSourceの風を取得する位置。Windと外力のWindで共通
+	* Where to get the wind of WindDirectionalSource. Shared by Wind and the Wind external force
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Force", meta = (PinHiddenByDefault))
+	EKawaiiPhysicsWindSampleMode WindSampleMode = EKawaiiPhysicsWindSampleMode::NodeCenter;
+
 	// 単純な外力ベクトル
 	// Simple external force vector
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Force|External Force",
@@ -1167,6 +1186,37 @@ private:
 	mutable FQuat CachedWindNoiseRotation = FQuat::Identity;
 	mutable float CachedWindGustFactor = 1.0f;
 
+	/**
+	 * WindDirectionalSource の風の受け渡し。Scene の風源はゲームスレッドでしか安全に読めないため、
+	 * 評価の最後に問い合わせ位置を書き、次の PreUpdate（GameThread）で問い合わせ、評価中は結果だけを読む。
+	 * PreUpdate と評価は同じフレーム内で重ならないので、ロックは不要。
+	 * Hand-off of the WindDirectionalSource wind. Wind sources in the Scene are safe to read only on the game thread,
+	 * so the evaluation writes the query positions at its end, the next PreUpdate (game thread) runs the queries,
+	 * and the evaluation reads only the results. PreUpdate and the evaluation never overlap, so no lock is needed.
+	 */
+	struct FWindSampleState
+	{
+		// 評価 → PreUpdate：問い合わせ位置（ワールド空間）。BoneWorldPositions は PerBone のときだけ
+		// Evaluation -> PreUpdate: query positions in world space. BoneWorldPositions only for PerBone
+		TArray<FVector> BoneWorldPositions;
+		FVector CenterWorldPosition = FVector::ZeroVector;
+		bool bHasCenterWorldPosition = false;
+		// 直前の評価で風を使ったか（一時外力の Wind など、設定からは分からない利用も拾う）
+		// Whether the last evaluation used the wind (also catches uses not visible in settings, such as a transient Wind force)
+		bool bUsedInLastEvaluation = false;
+
+		// PreUpdate → 評価：問い合わせ結果（ワールド空間）。ボーンごとの結果は BoneWorldPositions と同じ並び
+		// PreUpdate -> evaluation: query results in world space. Per-bone results follow BoneWorldPositions
+		TArray<FVector> BoneDirections;
+		TArray<float> BoneSpeeds;
+		FVector CenterDirection = FVector::ZeroVector;
+		float CenterSpeed = 0.0f;
+		bool bHasCenterSample = false;
+	};
+	FWindSampleState WindSample;
+	// この評価で風の取得結果を読んだか / Whether this evaluation read a wind sample
+	mutable bool bWindSampleReadThisEvaluation = false;
+
 	// --- World Collision ランタイムキャッシュ / World Collision runtime caches ---
 	// IgnoreBoneNamePrefix のFString版（ホットパスでのFName::ToString回避。AdjustByWorldCollisionで遅延再構築）
 	// FString versions of IgnoreBoneNamePrefix (avoids FName::ToString in the hot path; lazily rebuilt in AdjustByWorldCollision)
@@ -1237,6 +1287,16 @@ public:
 	virtual void ResetDynamics(ETeleportType InTeleportType) override;
 	virtual bool HasPreUpdate() const override { return true; }
 	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
+
+	/**
+	 * PreUpdate（GameThread）で WindDirectionalSource から取得した風を返す。評価中（AnyThread）に呼ぶ。
+	 * WindSampleMode が PerBone で、ボーンごとの結果がそろっていればそのボーンの値、そうでなければノード中心の値を返す。
+	 * Returns the WindDirectionalSource wind sampled in PreUpdate (game thread). Call during evaluation (any thread).
+	 * Returns the bone's own sample when WindSampleMode is PerBone and per-bone results are available,
+	 * otherwise the sample at the node center.
+	 * @return 風が取得できていない（Scene が無いなど）場合は false / False when no wind was sampled (no Scene, etc.)
+	 */
+	bool GetWindSample(int32 ModifyBoneIndex, FVector& OutWorldDirection, float& OutSpeed) const;
 	// GameThreadで1回だけ呼ばれる初期化。警告ログ用の識別名収集とbEditing判定 / One-time game-thread initialization for diagnostics and editor state.
 	virtual bool NeedsOnInitializeAnimInstance() const override { return true; }
 	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
@@ -1804,7 +1864,7 @@ protected:
 	 * at the current GetStepDeltaTime(). Called once (legacy) or N times (fixed substepping) from SimulateModifyBones.
 	 */
 	void SimulateOnce(FComponentSpacePoseContext& Output, const FTransform& ComponentTransform,
-	                  const FSceneInterface* Scene, const USkeletalMeshComponent* SkelComp);
+	                  const USkeletalMeshComponent* SkelComp);
 
 	/**
 	 * Restores bone lengths and limits, then places collision-only subdivision dummies between real endpoints.
@@ -1817,13 +1877,12 @@ protected:
 	 * Simulates the physics for a single bone.
 	 *
 	 * @param Bone The bone to simulate.
-	 * @param Scene The scene interface.
 	 * @param ComponentTransform The component transform.
 	 * @param Exponent The exponent for the simulation.
 	 * @param SkelComp The skeletal mesh component.
 	 * @param Output The pose context.
 	 */
-	void Simulate(FKawaiiPhysicsModifyBone& Bone, const FSceneInterface* Scene, const FTransform& ComponentTransform,
+	void Simulate(FKawaiiPhysicsModifyBone& Bone, const FTransform& ComponentTransform,
 	              const float& Exponent, const USkeletalMeshComponent* SkelComp,
 	              FComponentSpacePoseContext& Output);
 
@@ -2008,14 +2067,19 @@ protected:
 	            FTransform& InOutComponentTransform);
 
 	/**
-	 * Gets the wind velocity for a given bone.
+	 * Gets the wind velocity for a given bone from the wind sampled in PreUpdate.
 	 *
-	 * @param Scene The scene interface.
 	 * @param Bone The bone to get the wind velocity for.
 	 * @return The wind velocity vector.
 	 */
-	FVector GetWindVelocity(FComponentSpacePoseContext& Output, const FSceneInterface* Scene,
-	                        const FKawaiiPhysicsModifyBone& Bone) const;
+	FVector GetWindVelocity(FComponentSpacePoseContext& Output, const FKawaiiPhysicsModifyBone& Bone) const;
+
+	// 設定から風（WindDirectionalSource）を使うと分かるか / Whether the settings show that the wind (WindDirectionalSource) is used
+	bool IsWindSampleNeededBySettings() const;
+	// 評価の最後に、次の PreUpdate で使う問い合わせ位置を保存する / Stores the query positions for the next PreUpdate at the end of an evaluation
+	void StoreWindSamplePositions(FComponentSpacePoseContext& Output);
+	// GameThread で Scene の風源に問い合わせる / Queries the Scene wind sources on the game thread
+	void SampleWindOnGameThread(const UWorld* World, const USkeletalMeshComponent* SkelComp);
 
 #if ENABLE_ANIM_DEBUG
 	void AnimDrawDebug(FComponentSpacePoseContext& Output);

@@ -121,6 +121,7 @@ namespace KawaiiPhysicsPresetDataAssetPrivate
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, bEnableWind),
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, WindScale),
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, WindDirectionNoiseAngle),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, WindSampleMode),
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, SimpleExternalForce),
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, bUseWorldSpaceSimpleExternalForce),
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, ExternalForces),
