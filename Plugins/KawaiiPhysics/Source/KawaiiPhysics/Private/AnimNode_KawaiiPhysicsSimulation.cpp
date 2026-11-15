@@ -729,11 +729,21 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 			CustomExternalForces[i]->PreApply(*this, SkelComp);
 		}
 	}
+	// 実行時に追加された外力（AddExternalForce・一時外力）は、ノードの Initialize を通っていないので最初に使う前に初期化する
+	const auto EnsureExternalForceInitialized = [&Output](FKawaiiPhysics_ExternalForce& Force)
+	{
+		if (!Force.IsRuntimeInitialized())
+		{
+			Force.Initialize(FAnimationInitializeContext(Output.AnimInstanceProxy));
+			Force.MarkRuntimeInitialized();
+		}
+	};
 	for (int i = 0; i < ExternalForces.Num(); ++i)
 	{
 		if (ExternalForces[i].IsValid())
 		{
 			auto& Force = ExternalForces[i].GetMutable<FKawaiiPhysics_ExternalForce>();
+			EnsureExternalForceInitialized(Force);
 			Force.PreApply(*this, Output);
 			// ボーンフィルタの判定表は PreApply（派生側の処理を含む）が終わってから作る
 			Force.RefreshBoneFilterCache(*this);
@@ -745,6 +755,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		{
 			if (auto* Force = TransientForceStore.Items[i].Force.GetMutablePtr<FKawaiiPhysics_ExternalForce>())
 			{
+				EnsureExternalForceInitialized(*Force);
 				Force->PreApply(*this, Output);
 				Force->RefreshBoneFilterCache(*this);
 			}

@@ -9,6 +9,8 @@ DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ExternalForce_Curve_Apply"), STAT_KawaiiP
 
 void FKawaiiPhysics_ExternalForce_Curve::InitMaxCurveTime()
 {
+	// 前回の値を引き継がない（カーブを短くした場合や、初期化し直した場合に古い長さが残らないように）
+	MaxCurveTime = 0.0f;
 	if (const FRichCurve* CurveX = ForceCurve.GetRichCurve(0); CurveX && !CurveX->IsEmpty())
 	{
 		MaxCurveTime = FMath::Max(MaxCurveTime, CurveX->GetLastKey().Time);

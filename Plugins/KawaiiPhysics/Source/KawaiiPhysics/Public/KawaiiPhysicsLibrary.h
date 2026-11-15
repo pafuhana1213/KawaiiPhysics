@@ -590,11 +590,11 @@ public:
 
 	/**
 	 * ランタイム専用の一時外力を追加する。LifetimeSeconds 経過で自動除去。ハンドルで StopTransientExternalForce による早期除去（汎用外力は寿命短縮のみ・フェード無し）が可能。
-	 * Initialize(Context) は呼ばれないため、Curve 等 Initialize 依存の外力は挙動制限あり（ProceduralWind は PreApply で RuntimeState を遅延生成するため安全）。
+	 * 外力の Initialize(Context) は、最初に使う前に呼ばれる。
 	 * BP再コンパイルやノード再初期化で失われる。transient スロット上限8、超過時最古破棄。
 	 * 一時外力ストレージはGC追跡外のため、liveなUObject参照（ExternalOwner・カーブアセット等）を含む外力は拒否される。
 	 * Add a runtime-only transient external force. Automatically removed after LifetimeSeconds. The handle can be used with StopTransientExternalForce for early removal (generic external forces only shorten lifetime and do not fade).
-	 * Initialize(Context) is not called, so forces that depend on Initialize, such as Curve-based forces, have limited behavior (ProceduralWind is safe because it lazily creates RuntimeState in PreApply).
+	 * The force's Initialize(Context) runs before its first use.
 	 * Lost on BP recompile or node re-initialization. Transient slots are capped at 8; beyond the cap, the oldest entry is evicted.
 	 * Transient force storage is not GC-tracked, so forces containing live UObject references (ExternalOwner, curve assets, etc.) are rejected.
 	 * @param ExecResult ノード参照と外力型の解決結果 / Result of resolving the node reference and external force type.
