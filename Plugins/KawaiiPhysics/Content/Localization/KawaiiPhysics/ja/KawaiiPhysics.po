@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: KawaiiPhysics\n"
-"POT-Creation-Date: 2026-11-11 15:02\n"
-"PO-Revision-Date: 2026-11-11 15:02\n"
+"POT-Creation-Date: 2026-11-15 08:27\n"
+"PO-Revision-Date: 2026-11-15 08:27\n"
 "Language-Team: \n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
@@ -2187,15 +2187,15 @@ msgstr "Character側で設定されたCustomGravityDirectionを使用するフ�
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityScale [BoolProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityScale [BoolProperty DisplayName meta-data]
 msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityScale"
-msgid "Use Character Gravity Scale"
-msgstr "CharacterのGravity Scaleを使用"
+msgid "Use Character Gravity"
+msgstr "Characterの重力を使用"
 
 #. Key:	KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityScale
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityScale [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityScale [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityScale"
-msgid "Character側で設定されたGravityScaleを使用するフラグ\nFlag to use GravityScale set on the Character side"
-msgstr "Character側で設定されたGravityScaleを使用するフラグ"
+msgid "Characterの重力加速度（ワールドの重力 × GravityScale）を力の大きさに使うフラグ\nFlag to use the Character's gravity acceleration (world gravity × GravityScale) as the force magnitude"
+msgstr "Characterの重力加速度（ワールドの重力 × GravityScale）を力の大きさに使うフラグ"
 
 #. Key:	KawaiiPhysics_ExternalForce_Gravity:bUseOverrideGravityDirection
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:bUseOverrideGravityDirection [BoolProperty DisplayName meta-data]
@@ -4521,6 +4521,13 @@ msgctxt "UObjectToolTips,KawaiiPhysicsSyncBone:bEnableDistanceAttenuation"
 msgid "SyncBoneとの距離に応じてTargetへの適用量(Alpha)を減衰させる設定\nAttenuation of application amount(Alpha) based on distance from SyncBone to each Target"
 msgstr "SyncBoneとの距離に応じてTargetへの適用量(Alpha)を減衰させる設定"
 
+#. Key:	Sync Bone
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty Category meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty Category meta-data]
+msgctxt "UObjectCategory,Sync Bone"
+msgid "Sync Bone"
+msgstr "同期ボーン"
+
 #. Key:	KawaiiPhysicsSyncBone:Bone
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty DisplayName meta-data]
@@ -4779,13 +4786,6 @@ msgstr "子Target（プレビュー）"
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncTargetRoot:ChildTargets"
 msgid "適用対象である子ボーン\nChild bones that are targets for application"
 msgstr "適用対象である子ボーン"
-
-#. Key:	Sync Bone
-#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty Category meta-data]
-#: /Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty Category meta-data]
-msgctxt "UObjectCategory,Sync Bone"
-msgid "Sync Bone"
-msgstr "同期ボーン"
 
 #. Key:	KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty DisplayName meta-data]
