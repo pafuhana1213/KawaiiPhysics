@@ -1184,6 +1184,9 @@ private:
 	// avoids the per-SimulateOnce TMap allocation and reuses capacity across frames.
 	TArray<FVector> BridgeFeedbackPushScratch;
 	TArray<float> BridgeFeedbackWeightScratch;
+	// コリジョン専用ダミーの押し出しを実ボーンへ返すときの、子ボーンごとの補正量（大きさが最大のもの）
+	// Per child bone correction (the largest one) when collision-only dummies feed their push back to real bones
+	TArray<FVector> CollisionOnlyDummyCorrectionScratch;
 
 	/**
 	* Stores the delta time from the previous frame.
@@ -1812,6 +1815,17 @@ protected:
 	 */
 	void RestoreBoneLengthsAndLimits();
 	void ApplyBridgeDummyCollisionFeedback();
+
+	/**
+	 * コリジョン専用モードで、コリジョンに押されたダミーの変位を実ボーン（区間の子）へ返す。
+	 * 長さ復元はダミーを実端点の間に置き直すため、返さないと押し出しが消える。
+	 * 親を固定して子を R/α 動かすと、区間がちょうど押されたダミーを通る（R = ダミー - 現在の実端点での補間位置）。
+	 * Feeds the displacement of collision-pushed dummies back to the real bones (the segment child) in
+	 * collision-only mode. The length restore re-places dummies between the real endpoints, so without this the
+	 * push is lost. Moving the child by R/alpha with the parent fixed makes the segment pass through the pushed dummy
+	 * (R = dummy - interpolation at the current real endpoints).
+	 */
+	void ApplyCollisionOnlyDummyFeedback();
 
 	/**
 	 * Simulates the physics for a single bone.

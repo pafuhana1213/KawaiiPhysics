@@ -1143,6 +1143,9 @@ void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
 		// bridge dummy のコリジョン変位を端点ボーンへ転送（実ボーンを押し出すフィードバック本体）。コリジョン後・Constraint/length復元前。
 		// Push = Location(押し出し後) - PoseLocation(LERP基準)。端点へ距離比 (1-α):α で配分し Scale で強さ調整。
 		ApplyBridgeDummyCollisionFeedback();
+
+		// コリジョン専用ダミーの押し出しを実ボーンへ返す。bridge のフィードバックで動いた実端点を基準に残差を取る
+		ApplyCollisionOnlyDummyFeedback();
 	}
 
 	// Adjust by Bone Constraints After Collision
@@ -1257,6 +1260,70 @@ void FAnimNode_KawaiiPhysics::ApplyBridgeDummyCollisionFeedback()
 			ModifyBones[EndpointIdx].Location +=
 				(BridgeFeedbackPushScratch[EndpointIdx] / FMath::Max(1.0f, W)) * BoneConstraintSubdivisionFeedbackScale;
 		}
+	}
+}
+
+void FAnimNode_KawaiiPhysics::ApplyCollisionOnlyDummyFeedback()
+{
+	if (!bBoneSubdivisionCollisionOnly)
+	{
+		return;
+	}
+
+	// 親の近くのダミー（α が小さい）は R/α で補正が大きく増幅されるので使わない
+	constexpr float MinAlpha = 0.1f;
+
+	const int32 NumBones = ModifyBones.Num();
+	CollisionOnlyDummyCorrectionScratch.Reset();
+	CollisionOnlyDummyCorrectionScratch.SetNumZeroed(NumBones);
+	bool bHasCorrection = false;
+
+	// 候補はすべて同じ状態（補正前の実端点）から求め、最後にまとめて適用する
+	for (const FKawaiiPhysicsModifyBone& Dummy : ModifyBones)
+	{
+		if (!Dummy.bInterBoneDummy || Dummy.bSkipSimulate || Dummy.InterBoneAlpha < MinAlpha ||
+			!ModifyBones.IsValidIndex(Dummy.InterBoneRealParentIndex) ||
+			!ModifyBones.IsValidIndex(Dummy.InterBoneRealChildIndex))
+		{
+			continue;
+		}
+
+		const FKawaiiPhysicsModifyBone& Parent = ModifyBones[Dummy.InterBoneRealParentIndex];
+		const FKawaiiPhysicsModifyBone& Child = ModifyBones[Dummy.InterBoneRealChildIndex];
+		if (Child.bSkipSimulate)
+		{
+			continue;
+		}
+
+		// 残差：端点の押し出しで既に解消した分は含まない
+		const FVector Residual = Dummy.Location - FMath::Lerp(Parent.Location, Child.Location, Dummy.InterBoneAlpha);
+		if (Residual.IsNearlyZero(KINDA_SMALL_NUMBER))
+		{
+			continue;
+		}
+
+		// 区間の長さを超える補正は、長さ復元で回転に変わるだけなので上限にする
+		const float SegmentLength = (Child.PoseLocation - Parent.PoseLocation).Size();
+		const FVector Correction = (Residual / Dummy.InterBoneAlpha).GetClampedToMaxSize(SegmentLength);
+
+		// 1 区間に複数のダミーがあるときは、子への補正が最も大きいものを使う
+		// （平均すると逆向きの押し出しが打ち消し合い、両方とも貫通したまま残るため）
+		FVector& Best = CollisionOnlyDummyCorrectionScratch[Dummy.InterBoneRealChildIndex];
+		if (Correction.SizeSquared() > Best.SizeSquared())
+		{
+			Best = Correction;
+			bHasCorrection = true;
+		}
+	}
+
+	if (!bHasCorrection)
+	{
+		return;
+	}
+
+	for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+	{
+		ModifyBones[BoneIndex].Location += CollisionOnlyDummyCorrectionScratch[BoneIndex];
 	}
 }
 
