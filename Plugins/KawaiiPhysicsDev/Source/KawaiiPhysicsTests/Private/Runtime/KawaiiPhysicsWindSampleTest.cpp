@@ -141,10 +141,13 @@ bool FKawaiiPhysicsWindSampleNodeCenterTest::RunTest(const FString& Parameters)
 			FMath::IsNearlyEqual(Speed, ExpectedSpeed, GWindSampleTestTol));
 	}
 
-	// 従来の Wind も同じ向き（WindScale・突風倍率は大きさだけを変える）
+	// 従来の Wind も同じ向き（WindScale・突風倍率は大きさだけを変える）。風源の範囲内なので 0 にはならない
+	bOk &= TestTrue(FString::Printf(TEXT("the center is inside the wind source (speed %.3f)"), ExpectedSpeed),
+		ExpectedSpeed > 1.0f);
 	const FVector Velocity = A.CallGetWindVelocity(Output, 2);
+	bOk &= TestFalse(FString::Printf(TEXT("legacy wind is not zero %s"), *Velocity.ToString()), Velocity.IsNearlyZero());
 	bOk &= TestTrue(FString::Printf(TEXT("legacy wind follows the sample %s"), *Velocity.ToString()),
-		Velocity.IsNearlyZero() || Velocity.GetSafeNormal().Equals(ExpectedDirection, GWindSampleTestTol));
+		Velocity.GetSafeNormal().Equals(ExpectedDirection, GWindSampleTestTol));
 	return bOk;
 }
 
