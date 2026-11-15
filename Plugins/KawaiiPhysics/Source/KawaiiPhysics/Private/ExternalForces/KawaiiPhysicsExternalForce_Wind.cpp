@@ -2,8 +2,6 @@
 
 #include "ExternalForces/KawaiiPhysicsExternalForce_Wind.h"
 
-#include "SceneInterface.h"
-
 #include UE_INLINE_GENERATED_CPP_BY_NAME(KawaiiPhysicsExternalForce_Wind)
 
 DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_ExternalForce_Wind_Apply"), STAT_KawaiiPhysics_ExternalForce_Wind_Apply,
@@ -13,21 +11,11 @@ void FKawaiiPhysics_ExternalForce_Wind::PreApply(FAnimNode_KawaiiPhysics& Node, 
 {
 	Super::PreApply(Node, PoseContext);
 
-	// SkeletalMeshComponentがnullの場合のクラッシュを回避
-	const USkeletalMeshComponent* SkelComp = PoseContext.AnimInstanceProxy->GetSkelMeshComponent();
-	World = SkelComp ? SkelComp->GetWorld() : nullptr;
-
-	// 風パラメータ（Scene問い合わせ）はフレーム1回だけ取得してキャッシュする。固定サブステップ時に
-	// ワーカースレッドから毎ステップ Scene を触らないため（§7-E）。サブステップ間は同じ風入力を使い回す。
+	// 風パラメータはフレーム1回だけ取得してキャッシュし、サブステップ間は同じ風入力を使い回す。
+	// Scene の風源はワーカースレッドから読まず、ノードが PreUpdate（GameThread）で取得した値を使う。
 	const int32 NumBones = Node.ModifyBones.Num();
 	CachedWindDirection.Reset();
 	CachedWindSpeed.Reset();
-
-	const FSceneInterface* Scene = World && World->Scene ? World->Scene : nullptr;
-	if (!Scene)
-	{
-		return;
-	}
 
 	// 添字でアクセスするため ModifyBones と同数で確保。未適用ボーンは Speed=負値のままにする。
 	CachedWindDirection.SetNumZeroed(NumBones);
@@ -41,11 +29,13 @@ void FKawaiiPhysics_ExternalForce_Wind::PreApply(FAnimNode_KawaiiPhysics& Node, 
 			continue;
 		}
 
+		// ノードの WindSampleMode に従い、ボーンごと、またはノード中心で取得した風を使う
 		FVector WindDirection = FVector::ZeroVector;
-		float WindSpeed = 0.0f, WindMinGust = 0.0f, WindMaxGust = 0.0f;
-		Scene->GetWindParameters(Node.ConvertSimulationSpaceVector(PoseContext, Node.SimulationSpace,
-			                         EKawaiiPhysicsSimulationSpace::WorldSpace, Bone.PoseLocation),
-		                         WindDirection, WindSpeed, WindMinGust, WindMaxGust);
+		float WindSpeed = 0.0f;
+		if (!Node.GetWindSample(BoneIndex, WindDirection, WindSpeed))
+		{
+			continue;
+		}
 
 		// SimulationSpace の風向きと風速を分けて保存。ForceRate・dt は Apply で毎ステップ適用。
 		// 方向ノイズ(VRandCone)はフレーム頭で1回だけここで適用し、サブステップ間で同一値を使う

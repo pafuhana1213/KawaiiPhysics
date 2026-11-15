@@ -38,13 +38,10 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Wind : public FKawaiiPhysi
 	float WindDirectionNoiseAngle = 0.0f;
 
 private:
-	UPROPERTY()
-	TObjectPtr<UWorld> World;
-
 	/**
-	* 風パラメータ（Scene 問い合わせ=game-thread 状態）をフレーム1回だけキャッシュし、ワーカースレッドから毎ステップ Scene を触らない（§7-E / FixedSubstepping.md）。
+	* 風パラメータ（ノードが PreUpdate で取得した値）をフレーム1回だけキャッシュし、サブステップ間で使い回す（§7-E / FixedSubstepping.md）。
 	* キーは ModifyBones の添字（ダミーボーンは BoneRef が空=NAME_None で衝突するため、ボーン名は使わない）。
-	* Per-frame cache of wind params (a Scene query = game-thread state) so the worker thread never touches the Scene per substep (§7-E / FixedSubstepping.md).
+	* Per-frame cache of the wind params the node sampled in PreUpdate, reused across substeps (§7-E / FixedSubstepping.md).
 	* Keyed by ModifyBones index (dummy bones have an empty BoneRef = NAME_None, which would collide, so bone name can't be the key).
 	*/
 	// SimulationSpace の風向き（VRandConeノイズ・風速乗算の前） / Wind direction in SimulationSpace (before VRandCone noise & speed multiply)

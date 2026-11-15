@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: KawaiiPhysics\n"
-"POT-Creation-Date: 2026-11-15 17:38\n"
-"PO-Revision-Date: 2026-11-15 17:38\n"
+"POT-Creation-Date: 2026-11-15 18:02\n"
+"PO-Revision-Date: 2026-11-15 18:02\n"
 "Language-Team: \n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
@@ -1258,6 +1258,20 @@ msgstr "Wind Direction Noise Angle"
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:WindDirectionNoiseAngle"
 msgid "WindDirectionalSourceによる風方向に与えるノイズ（角度）\nNoise(Degree) of wind by WindDirectionalSource. For use with Cloth and SpeedTree"
 msgstr "WindDirectionalSourceによる風方向に与えるノイズ（角度）\nNoise(Degree) of wind by WindDirectionalSource. For use with Cloth and SpeedTree"
+
+#. Key:	AnimNode_KawaiiPhysics:WindSampleMode
+#. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:WindSampleMode [EnumProperty DisplayName meta-data]
+#: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:WindSampleMode [EnumProperty DisplayName meta-data]
+msgctxt "UObjectDisplayNames,AnimNode_KawaiiPhysics:WindSampleMode"
+msgid "Wind Sample Mode"
+msgstr "Wind Sample Mode"
+
+#. Key:	AnimNode_KawaiiPhysics:WindSampleMode
+#. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:WindSampleMode [EnumProperty ToolTip meta-data]
+#: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:WindSampleMode [EnumProperty ToolTip meta-data]
+msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:WindSampleMode"
+msgid "WindDirectionalSourceの風を取得する位置。Windと外力のWindで共通\nWhere to get the wind of WindDirectionalSource. Shared by Wind and the Wind external force"
+msgstr "WindDirectionalSourceの風を取得する位置。Windと外力のWindで共通\nWhere to get the wind of WindDirectionalSource. Shared by Wind and the Wind external force"
 
 #. Key:	AnimNode_KawaiiPhysics:WindScale
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:WindScale [FloatProperty DisplayName meta-data]
@@ -2616,13 +2630,6 @@ msgstr "Wind Direction Noise Angle"
 msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_Wind:WindDirectionNoiseAngle"
 msgid "WindDirectionalSourceによる風方向に与えるノイズ（角度）\nNoise(Degree) of wind by WindDirectionalSource. For use with Cloth and SpeedTree"
 msgstr "WindDirectionalSourceによる風方向に与えるノイズ（角度）\nNoise(Degree) of wind by WindDirectionalSource. For use with Cloth and SpeedTree"
-
-#. Key:	KawaiiPhysics_ExternalForce_Wind:World
-#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Wind:World [ObjectProperty DisplayName meta-data]
-#: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Wind:World [ObjectProperty DisplayName meta-data]
-msgctxt "UObjectDisplayNames,KawaiiPhysics_ExternalForce_Wind:World"
-msgid "World"
-msgstr "World"
 
 #. Key:	KawaiiPhysicsAxisAngleRange
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsAxisAngleRange [ScriptStruct DisplayName meta-data]
@@ -6531,323 +6538,323 @@ msgid "Storm"
 msgstr "Storm"
 
 #. Key:	SimpleWorldCollisionAutoSharedPublisherInfo
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1024)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1024)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1025)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1025)
 msgctxt "KawaiiPhysics,SimpleWorldCollisionAutoSharedPublisherInfo"
 msgid "Gather settings are provided by Shared Publisher ({0}) when a Shared Publisher exists; otherwise this node gathers locally"
 msgstr "Gather settings are provided by Shared Publisher ({0}) when a Shared Publisher exists; otherwise this node gathers locally"
 
 #. Key:	SimpleWorldCollisionSharedPublisherInfo
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1028)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1028)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1029)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1029)
 msgctxt "KawaiiPhysics,SimpleWorldCollisionSharedPublisherInfo"
 msgid "Gather settings are provided by Shared Publisher ({0})"
 msgstr "Gather settings are provided by Shared Publisher ({0})"
 
 #. Key:	SharedWindFirstOfSuffix
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1052)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1052)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1053)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1053)
 msgctxt "KawaiiPhysics,SharedWindFirstOfSuffix"
 msgid " (first of {0})"
 msgstr " (first of {0})"
 
 #. Key:	WindAutoSharedPublisherInfo
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1058)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1058)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1059)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1059)
 msgctxt "KawaiiPhysics,WindAutoSharedPublisherInfo"
 msgid "Wind parameters are provided by the Shared Publisher ({0}) while it exists; otherwise this node computes wind locally{1}"
 msgstr "Wind parameters are provided by the Shared Publisher ({0}) while it exists; otherwise this node computes wind locally{1}"
 
 #. Key:	WindSharedPublisherInfo
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1063)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1063)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1064)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1064)
 msgctxt "KawaiiPhysics,WindSharedPublisherInfo"
 msgid "Wind parameters are provided by Shared Publisher ({0}){1}"
 msgstr "Wind parameters are provided by Shared Publisher ({0}){1}"
 
 #. Key:	GoToWindSharedPublisher
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1074)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1074)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1075)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1075)
 msgctxt "KawaiiPhysics,GoToWindSharedPublisher"
 msgid "Go to Publisher"
 msgstr "Go to Publisher"
 
 #. Key:	OpenWindScope
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1077)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1077)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1078)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1078)
 msgctxt "KawaiiPhysics,OpenWindScope"
 msgid "Wind Scope"
 msgstr "Wind Scope"
 
 #. Key:	OpenWindScopeToolTip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1083)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1083)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1084)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1084)
 msgctxt "KawaiiPhysics,OpenWindScopeToolTip"
 msgid "Opens the waveform preview tab for Procedural Wind."
 msgstr "Opens the waveform preview tab for Procedural Wind."
 
 #. Key:	Category_Bones_BoneSubdivision
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1131)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1131)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1132)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1132)
 msgctxt "KawaiiPhysics,Category_Bones_BoneSubdivision"
 msgid "Bones > Bone Subdivision"
 msgstr "Bones > Bone Subdivision"
 
 #. Key:	Category_PhysicsSettings_Curves
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1133)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1133)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1134)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1134)
 msgctxt "KawaiiPhysics,Category_PhysicsSettings_Curves"
 msgid "Physics Settings > Curves"
 msgstr "Physics Settings > Curves"
 
 #. Key:	Category_Collision_BoneConstraint
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1135)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1135)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1136)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1136)
 msgctxt "KawaiiPhysics,Category_Collision_BoneConstraint"
 msgid "Collision > Bone Constraint"
 msgstr "Collision > Bone Constraint"
 
 #. Key:	Category_Collision_SharedCollision
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1137)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1137)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1138)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1138)
 msgctxt "KawaiiPhysics,Category_Collision_SharedCollision"
 msgid "Collision > Shared Collision"
 msgstr "Collision > Shared Collision"
 
 #. Key:	Category_Collision_WorldCollision
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1139)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1139)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1140)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1140)
 msgctxt "KawaiiPhysics,Category_Collision_WorldCollision"
 msgid "Collision > World Collision"
 msgstr "Collision > World Collision"
 
 #. Key:	Category_Collision_SimpleWorldCollision
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1141)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1141)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1142)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1142)
 msgctxt "KawaiiPhysics,Category_Collision_SimpleWorldCollision"
 msgid "Collision > Simple World Collision"
 msgstr "Collision > Simple World Collision"
 
 #. Key:	Category_Force_ExternalForce
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1143)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1143)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1144)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1144)
 msgctxt "KawaiiPhysics,Category_Force_ExternalForce"
 msgid "Force > External Force"
 msgstr "Force > External Force"
 
 #. Key:	Category_Force_SyncBone
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1145)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1145)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1146)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1146)
 msgctxt "KawaiiPhysics,Category_Force_SyncBone"
 msgid "Force > Sync Bone"
 msgstr "Force > Sync Bone"
 
 #. Key:	OpenCreatedAsset
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1226)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1226)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1227)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1227)
 msgctxt "KawaiiPhysics,OpenCreatedAsset"
 msgid "Open Created Asset"
 msgstr "Open Created Asset"
 
 #. Key:	ExportCollisionDialogTitle
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1234)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1234)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1235)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1235)
 msgctxt "KawaiiPhysics,ExportCollisionDialogTitle"
 msgid "Choose Location for Collision Data Asset"
 msgstr "Choose Location for Collision Data Asset"
 
 #. Key:	ExportedCollisionDataAsset
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1279)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1279)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1280)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1280)
 msgctxt "KawaiiPhysics,ExportedCollisionDataAsset"
 msgid "Exported Collision Data Asset: {0}"
 msgstr "Exported Collision Data Asset: {0}"
 
 #. Key:	ExportBoneConstraintsDialogTitle
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1288)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1288)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1289)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1289)
 msgctxt "KawaiiPhysics,ExportBoneConstraintsDialogTitle"
 msgid "Choose Location for BoneConstraints Data Asset"
 msgstr "Choose Location for BoneConstraints Data Asset"
 
 #. Key:	ExportedBoneConstraintsDataAsset
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1327)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1327)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1328)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1328)
 msgctxt "KawaiiPhysics,ExportedBoneConstraintsDataAsset"
 msgid "Exported BoneConstraints Data Asset: {0}"
 msgstr "Exported BoneConstraints Data Asset: {0}"
 
 #. Key:	ExportPresetDialogTitle
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1337)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1337)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1338)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1338)
 msgctxt "KawaiiPhysics,ExportPresetDialogTitle"
 msgid "Choose Location for Preset Data Asset"
 msgstr "Choose Location for Preset Data Asset"
 
 #. Key:	ExportedPresetDataAssetDescription
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1364)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1364)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1365)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1365)
 msgctxt "KawaiiPhysics,ExportedPresetDataAssetDescription"
 msgid "Exported from Anim Blueprint: {0}"
 msgstr "Exported from Anim Blueprint: {0}"
 
 #. Key:	ExportedPresetDataAsset
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1379)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1379)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1380)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1380)
 msgctxt "KawaiiPhysics,ExportedPresetDataAsset"
 msgid "Exported Preset Data Asset: {0}"
 msgstr "Exported Preset Data Asset: {0}"
 
 #. Key:	ExportedPresetDataAssetNoTag
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1383)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1383)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1384)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1384)
 msgctxt "KawaiiPhysics,ExportedPresetDataAssetNoTag"
 msgid "Exported Preset Data Asset: {0}\nWarning: this node has no KawaiiPhysicsTag, so TargetTags is empty. Set a tag to include it in Reapply/Audit."
 msgstr "Exported Preset Data Asset: {0}\nWarning: this node has no KawaiiPhysicsTag, so TargetTags is empty. Set a tag to include it in Reapply/Audit."
 
 #. Key:	ApplyPresetDialogTitle
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1394)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1394)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1395)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1395)
 msgctxt "KawaiiPhysics,ApplyPresetDialogTitle"
 msgid "Choose Kawaii Physics Preset"
 msgstr "Choose Kawaii Physics Preset"
 
 #. Key:	ApplyPresetLoadFailed
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1411)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1411)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1412)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1412)
 msgctxt "KawaiiPhysics,ApplyPresetLoadFailed"
 msgid "Failed to load selected Kawaii Physics preset."
 msgstr "Failed to load selected Kawaii Physics preset."
 
 #. Key:	ApplyPresetFailed
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1440)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1440)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1441)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1441)
 msgctxt "KawaiiPhysics,ApplyPresetFailed"
 msgid "Failed to apply Preset: {0}"
 msgstr "Failed to apply Preset: {0}"
 
 #. Key:	OpenPresetAsset
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1442)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1442)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1443)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1443)
 msgctxt "KawaiiPhysics,OpenPresetAsset"
 msgid "Open Preset"
 msgstr "Open Preset"
 
 #. Key:	OpenAppliedPresetAsset
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1470)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1470)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1471)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1471)
 msgctxt "KawaiiPhysics,OpenAppliedPresetAsset"
 msgid "Open Preset"
 msgstr "Open Preset"
 
 #. Key:	NoPresetTargetsNodeTag
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1482)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1482)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1483)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1483)
 msgctxt "KawaiiPhysics,NoPresetTargetsNodeTag"
 msgid "No preset targets this node's tag."
 msgstr "No preset targets this node's tag."
 
 #. Key:	CheckPresetDiffContextLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1516)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1516)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1517)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1517)
 msgctxt "KawaiiPhysics,CheckPresetDiffContextLabel"
 msgid "{0}  |  {1}  |  Tag: {2}"
 msgstr "{0}  |  {1}  |  Tag: {2}"
 
 #. Key:	CheckPresetDiffUnknownAnimBlueprint
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1520)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1520)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1521)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1521)
 msgctxt "KawaiiPhysics,CheckPresetDiffUnknownAnimBlueprint"
 msgid "(Unknown AnimBlueprint)"
 msgstr "(Unknown AnimBlueprint)"
 
 #. Key:	NoProceduralWindExternalForce
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1550)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1550)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1551)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1551)
 msgctxt "KawaiiPhysics,NoProceduralWindExternalForce"
 msgid "No Procedural Wind external force on this node."
 msgstr "No Procedural Wind external force on this node."
 
 #. Key:	KawaiiPhysicsContextMenuSection
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1580)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1580)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1581)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1581)
 msgctxt "KawaiiPhysics,KawaiiPhysicsContextMenuSection"
 msgid "Kawaii Physics"
 msgstr "Kawaii Physics"
 
 #. Key:	CheckPresetDiffMenuLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1587)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1587)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1588)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1588)
 msgctxt "KawaiiPhysics,CheckPresetDiffMenuLabel"
 msgid "Check Preset Diff"
 msgstr "Check Preset Diff"
 
 #. Key:	CheckPresetDiffMenuToolTip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1588)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1588)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1589)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1589)
 msgctxt "KawaiiPhysics,CheckPresetDiffMenuToolTip"
 msgid "Shows the diff between this node and its presets in a tab."
 msgstr "Shows the diff between this node and its presets in a tab."
 
 #. Key:	ApplyPresetMenuLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1595)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1595)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1596)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1596)
 msgctxt "KawaiiPhysics,ApplyPresetMenuLabel"
 msgid "Apply Preset..."
 msgstr "Apply Preset..."
 
 #. Key:	ApplyPresetMenuToolTip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1596)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1596)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1597)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1597)
 msgctxt "KawaiiPhysics,ApplyPresetMenuToolTip"
 msgid "Applies a preset data asset to this node."
 msgstr "Applies a preset data asset to this node."
 
 #. Key:	GoToSharedPublisherMenuLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1605)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1605)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1606)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1606)
 msgctxt "KawaiiPhysics,GoToSharedPublisherMenuLabel"
 msgid "Go to Shared Publisher"
 msgstr "Go to Shared Publisher"
 
 #. Key:	GoToSharedPublisherMenuToolTip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1606)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1606)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1607)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1607)
 msgctxt "KawaiiPhysics,GoToSharedPublisherMenuToolTip"
 msgid "Opens the Shared Publisher with the same Shared Tag in this Animation Blueprint."
 msgstr "Opens the Shared Publisher with the same Shared Tag in this Animation Blueprint."
 
 #. Key:	GoToSharedPublisherWindMenuLabel
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1625)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1625)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1626)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1626)
 msgctxt "KawaiiPhysics,GoToSharedPublisherWindMenuLabel"
 msgid "Go to Shared Publisher (Wind)"
 msgstr "Go to Shared Publisher (Wind)"
 
 #. Key:	GoToSharedPublisherWindMenuToolTip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1626)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1626)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1627)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1627)
 msgctxt "KawaiiPhysics,GoToSharedPublisherWindMenuToolTip"
 msgid "Opens the Shared Publisher that provides shared wind parameters in this Animation Blueprint."
 msgstr "Opens the Shared Publisher that provides shared wind parameters in this Animation Blueprint."
 
 #. Key:	WindScopeContextMenuWithForceIndex
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1656)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1656)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1657)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1657)
 msgctxt "KawaiiPhysics,WindScopeContextMenuWithForceIndex"
 msgid "Wind Scope (Force [{0}])"
 msgstr "Wind Scope (Force [{0}])"
 
 #. Key:	WindScopeMenuToolTip
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1658)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1658)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1659)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1659)
 msgctxt "KawaiiPhysics,WindScopeMenuToolTip"
 msgid "Opens the waveform preview tab for Procedural Wind."
 msgstr "Opens the waveform preview tab for Procedural Wind."
 
 #. Key:	WindScopeContextMenu
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1672)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1672)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1673)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(1673)
 msgctxt "KawaiiPhysics,WindScopeContextMenu"
 msgid "Wind Scope"
 msgstr "Wind Scope"
@@ -6909,78 +6916,78 @@ msgid "{ControllerDescription}\nRoot: {RootBoneName}"
 msgstr "{ControllerDescription}\nRoot: {RootBoneName}"
 
 #. Key:	KawaiiPhysicsToolsCategory
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(668)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(668)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(669)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(669)
 msgctxt "KawaiiPhysics,KawaiiPhysicsToolsCategory"
 msgid "Kawaii Physics Tools"
 msgstr "Kawaii Physics Tools"
 
 #. Key:	CategoryFilterRow
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(675)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(675)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(676)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(676)
 msgctxt "KawaiiPhysics,CategoryFilterRow"
 msgid "Category Filter"
 msgstr "Category Filter"
 
 #. Key:	CategoryFilter_All
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(697)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(697)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(698)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(698)
 msgctxt "KawaiiPhysics,CategoryFilter_All"
 msgid "All"
 msgstr "All"
 
 #. Key:	CategoryFilter_Bones
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(699)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(699)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(700)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(700)
 msgctxt "KawaiiPhysics,CategoryFilter_Bones"
 msgid "Bones"
 msgstr "Bones"
 
 #. Key:	CategoryFilter_Physics
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(701)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(701)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(702)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(702)
 msgctxt "KawaiiPhysics,CategoryFilter_Physics"
 msgid "Physics"
 msgstr "Physics"
 
 #. Key:	CategoryFilter_Collision
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(703)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(703)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(704)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(704)
 msgctxt "KawaiiPhysics,CategoryFilter_Collision"
 msgid "Collision"
 msgstr "Collision"
 
 #. Key:	CategoryFilter_Force
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(705)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(705)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(706)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(706)
 msgctxt "KawaiiPhysics,CategoryFilter_Force"
 msgid "Force"
 msgstr "Force"
 
 #. Key:	KawaiiPhysics
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(708)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(708)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(709)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(709)
 msgctxt "KawaiiPhysics,KawaiiPhysics"
 msgid "KawaiiPhysicsTools"
 msgstr "KawaiiPhysicsTools"
 
 #. Key:	ExportCollisionButton
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(730)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(730)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(731)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(731)
 msgctxt "KawaiiPhysics,ExportCollisionButton"
 msgid "Export Collision"
 msgstr "Export Collision"
 
 #. Key:	DebugVisualizationCategory
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(821)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(821)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(822)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(822)
 msgctxt "KawaiiPhysics,DebugVisualizationCategory"
 msgid "Debug Visualization"
 msgstr "Debug Visualization"
 
 #. Key:	ToggleDebugVisualizationButtonRow
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(823)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(823)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(824)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/AnimGraphNode_KawaiiPhysics.cpp(824)
 msgctxt "KawaiiPhysics,ToggleDebugVisualizationButtonRow"
 msgid "DebugVisualization"
 msgstr "DebugVisualization"

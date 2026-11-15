@@ -1033,6 +1033,9 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		SimulateModifyBones(Output, ComponentTransform);
 	}
 
+	// 次の PreUpdate（GameThread）で風を問い合わせる位置を保存する
+	StoreWindSamplePositions(Output);
+
 	// 計算済みコリジョンをSubsystemに書き込み
 	{
 		KAWAIIPHYSICS_SCOPE_TIMING(SharedCollision);
@@ -1111,6 +1114,9 @@ void FAnimNode_KawaiiPhysics::PreUpdate(const UAnimInstance* InAnimInstance)
 	CachedSharedCollisionSubsystem = World ? World->GetSubsystem<UKawaiiPhysicsSharedCollisionSubsystem>() : nullptr;
 	CachedSimpleWorldCollisionSkelComp = SkelComp;
 	CachedSharedCollisionOwnerActor = SkelComp ? SkelComp->GetOwner() : nullptr;
+
+	// Scene の風源はゲームスレッドでしか安全に読めないので、ここで問い合わせて評価に渡す
+	SampleWindOnGameThread(World, SkelComp);
 }
 
 void FAnimNode_KawaiiPhysics::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)

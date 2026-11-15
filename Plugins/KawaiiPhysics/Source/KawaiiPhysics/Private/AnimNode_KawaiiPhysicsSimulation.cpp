@@ -10,6 +10,7 @@
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
 #include "KawaiiPhysicsExternalForcePostApply.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
+#include "ExternalForces/KawaiiPhysicsExternalForce_Wind.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
 #include "KawaiiPhysicsNodeWarning.h"
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
@@ -762,13 +763,10 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		}
 	}
 
-	// ===== サブステップ設定キャッシュ & Scene 取得（毎フレーム1回） =====
+	// ===== サブステップ設定キャッシュ（毎フレーム1回） =====
 	const UKawaiiPhysicsDeveloperSettings* KawaiiSettings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
 	bUseFixedSubsteppingCached = KawaiiSettings->bUseFixedSubstepping;
 	MaxSubstepsCached = FMath::Max(1, KawaiiSettings->MaxSubsteps);
-
-	const UWorld* World = SkelComp ? SkelComp->GetWorld() : nullptr;
-	const FSceneInterface* Scene = World ? World->Scene : nullptr;
 
 	// 現フレームのポーズ目標をスナップショット（サブステップ中 PoseLocation を補間で上書きするため退避）。
 	// 初回/リセット後は前フレーム値と出力補間のオフセットを現在値で初期化（補間で飛ばないように）。
@@ -790,7 +788,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		bUseBaseBoneStepTransforms = false;
 		// ===== Legacy: 実フレーム時間で1ステップ（GetStepDeltaTime()==DeltaTime） =====
 		bInSubstep = false;
-		SimulateOnce(Output, ComponentTransform, Scene, SkelComp);
+		SimulateOnce(Output, ComponentTransform, SkelComp);
 		CapturePlanarCollisionStep();
 		DeltaTimeOld = DeltaTime;
 		PreSkelCompTransformConsumeFraction = 1.0f; // legacyは毎フレーム全消費
@@ -859,7 +857,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 			SkelCompMoveVector = FullSkelCompMove * MoveFrac;
 			SkelCompMoveRotation = FQuat::Slerp(FQuat::Identity, FullSkelCompRot, MoveFrac).GetNormalized();
 
-			SimulateOnce(Output, ComponentTransform, Scene, SkelComp);
+			SimulateOnce(Output, ComponentTransform, SkelComp);
 			CapturePlanarCollisionStep();
 			CaptureSubstepPoseOffsets();
 		}
@@ -888,7 +886,6 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 
 void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
                                            const FTransform& ComponentTransform,
-                                           const FSceneInterface* Scene,
                                            const USkeletalMeshComponent* SkelComp)
 {
 #if KAWAIIPHYSICS_CSV_STATS
@@ -956,7 +953,7 @@ void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
 				continue;
 			}
 
-			Simulate(Bone, Scene, ComponentTransform, Exponent, SkelComp, Output);
+			Simulate(Bone, ComponentTransform, Exponent, SkelComp, Output);
 		}
 
 		// コリジョン専用モード: 全実ボーンのシミュレーション完了後、シミュレーション済みのLocation間にダミーを配置
@@ -1428,7 +1425,7 @@ FTransform FAnimNode_KawaiiPhysics::ResolveExternalForceBoneTransform(
 	return FTransform::Identity;
 }
 
-void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSceneInterface* Scene,
+void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone,
                                        const FTransform& ComponentTransform,
                                        const float& Exponent, const USkeletalMeshComponent* SkelComp,
                                        FComponentSpacePoseContext& Output)
@@ -1439,9 +1436,9 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone, const FSc
 
 	// wind（Output依存）を計算。減衰後の速度に足し込む寄与として ComputeVerletStepVelocity へ渡す。
 	FVector WindVelocity = FVector::ZeroVector;
-	if (bEnableWind && Scene)
+	if (bEnableWind)
 	{
-		WindVelocity = GetWindVelocity(Output, Scene, Bone) * GetEffectiveTargetFramerate();
+		WindVelocity = GetWindVelocity(Output, Bone) * GetEffectiveTargetFramerate();
 	}
 
 	// このステップの速度を作る（速度再構成 → damping → +wind → gravity）。
@@ -1638,25 +1635,151 @@ void FAnimNode_KawaiiPhysics::ApplyStiffnessPull(FKawaiiPhysicsModifyBone& Bone,
 		(1.0f - FMath::Pow(1.0f - Bone.PhysicsSettings.Stiffness, Exponent));
 }
 
-FVector FAnimNode_KawaiiPhysics::GetWindVelocity(FComponentSpacePoseContext& Output, const FSceneInterface* Scene,
+bool FAnimNode_KawaiiPhysics::GetWindSample(const int32 ModifyBoneIndex, FVector& OutWorldDirection,
+                                            float& OutSpeed) const
+{
+	bWindSampleReadThisEvaluation = true;
+
+	// ボーンごとの結果は、問い合わせたときとボーン数が同じ場合だけ使う（LOD やボーン構成の作り直し直後は中心の値）
+	if (WindSampleMode == EKawaiiPhysicsWindSampleMode::PerBone &&
+		WindSample.BoneSpeeds.Num() == ModifyBones.Num() && WindSample.BoneSpeeds.IsValidIndex(ModifyBoneIndex))
+	{
+		OutWorldDirection = WindSample.BoneDirections[ModifyBoneIndex];
+		OutSpeed = WindSample.BoneSpeeds[ModifyBoneIndex];
+		return true;
+	}
+
+	if (WindSample.bHasCenterSample)
+	{
+		OutWorldDirection = WindSample.CenterDirection;
+		OutSpeed = WindSample.CenterSpeed;
+		return true;
+	}
+
+	OutWorldDirection = FVector::ZeroVector;
+	OutSpeed = 0.0f;
+	return false;
+}
+
+bool FAnimNode_KawaiiPhysics::IsWindSampleNeededBySettings() const
+{
+	if (bEnableWind && WindScale != 0.0f)
+	{
+		return true;
+	}
+
+	for (const FInstancedStruct& ExternalForce : ExternalForces)
+	{
+		const FKawaiiPhysics_ExternalForce_Wind* Wind = ExternalForce.GetPtr<FKawaiiPhysics_ExternalForce_Wind>();
+		if (Wind && Wind->bIsEnabled)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void FAnimNode_KawaiiPhysics::StoreWindSamplePositions(FComponentSpacePoseContext& Output)
+{
+	// 一時外力の Wind など、設定からは分からない利用も次のフレームで問い合わせられるようにする
+	WindSample.bUsedInLastEvaluation = bWindSampleReadThisEvaluation;
+	const bool bNeeded = bWindSampleReadThisEvaluation || IsWindSampleNeededBySettings();
+	bWindSampleReadThisEvaluation = false;
+
+	WindSample.BoneComponentPositions.Reset();
+	WindSample.bHasCenterComponentPosition = false;
+	if (!bNeeded || ModifyBones.IsEmpty())
+	{
+		return;
+	}
+
+	const bool bPerBone = WindSampleMode == EKawaiiPhysicsWindSampleMode::PerBone;
+	if (bPerBone)
+	{
+		WindSample.BoneComponentPositions.Reserve(ModifyBones.Num());
+	}
+
+	FBox ComponentBounds(ForceInit);
+	for (const FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+	{
+		const FVector ComponentPosition = ConvertSimulationSpaceLocation(
+			Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::ComponentSpace, Bone.PoseLocation);
+		ComponentBounds += ComponentPosition;
+		if (bPerBone)
+		{
+			WindSample.BoneComponentPositions.Add(ComponentPosition);
+		}
+	}
+	WindSample.CenterComponentPosition = ComponentBounds.GetCenter();
+	WindSample.bHasCenterComponentPosition = true;
+	WindSample.EvaluatedComponentToWorld = GetSimulationSpaceCacheFor(Output, EKawaiiPhysicsSimulationSpace::WorldSpace).ComponentToTargetSpace;
+}
+
+void FAnimNode_KawaiiPhysics::SampleWindOnGameThread(const UWorld* World, const USkeletalMeshComponent* SkelComp)
+{
+	WindSample.BoneDirections.Reset();
+	WindSample.BoneSpeeds.Reset();
+	WindSample.bHasCenterSample = false;
+
+	const FSceneInterface* Scene = World ? World->Scene : nullptr;
+	if (!Scene)
+	{
+		return;
+	}
+
+	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_GetWindVelocity);
+
+	// ノード中心の風は、風を使っていないノードでも毎フレーム 1 回だけ取得する（風源の数だけのループで軽い）。
+	// 一時 Wind 外力が追加された最初のフレームや、実行時に bEnableWind を有効にしたフレームにも風の値があるようにするため。
+	// ボーンごとの問い合わせ（PerBone）は、風を使うときだけ行う
+
+	float MinGust = 0.0f;
+	float MaxGust = 0.0f;
+
+	// 保存した位置はコンポーネント空間なので、今のコンポーネントの変換でワールド位置にする（移動中・評価が飛んだ後も今の位置）
+	const FTransform ComponentToWorld = SkelComp ? SkelComp->GetComponentTransform() : WindSample.EvaluatedComponentToWorld;
+	// 初回など、まだ評価で位置を保存していないときはコンポーネントの位置で代用する
+	const FVector CenterPosition = WindSample.bHasCenterComponentPosition
+		                               ? ComponentToWorld.TransformPosition(WindSample.CenterComponentPosition)
+		                               : ComponentToWorld.GetLocation();
+	Scene->GetWindParameters_GameThread(CenterPosition, WindSample.CenterDirection, WindSample.CenterSpeed,
+	                                    MinGust, MaxGust);
+	WindSample.bHasCenterSample = true;
+
+	if (WindSampleMode != EKawaiiPhysicsWindSampleMode::PerBone || WindSample.BoneComponentPositions.IsEmpty() ||
+		!(WindSample.bUsedInLastEvaluation || IsWindSampleNeededBySettings()))
+	{
+		return;
+	}
+
+	const int32 NumBones = WindSample.BoneComponentPositions.Num();
+	WindSample.BoneDirections.SetNumUninitialized(NumBones);
+	WindSample.BoneSpeeds.SetNumUninitialized(NumBones);
+	for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+	{
+		Scene->GetWindParameters_GameThread(ComponentToWorld.TransformPosition(WindSample.BoneComponentPositions[BoneIndex]),
+		                                    WindSample.BoneDirections[BoneIndex], WindSample.BoneSpeeds[BoneIndex],
+		                                    MinGust, MaxGust);
+	}
+}
+
+FVector FAnimNode_KawaiiPhysics::GetWindVelocity(FComponentSpacePoseContext& Output,
                                                  const FKawaiiPhysicsModifyBone& Bone) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_GetWindVelocity);
 
-	if (WindScale == 0.0f || !Scene)
+	if (WindScale == 0.0f)
 	{
 		return FVector::ZeroVector;
 	}
 
+	// Scene の風源はワーカースレッドから読まない。PreUpdate（GameThread）で取得した値を使う
 	FVector WindDirection = FVector::ZeroVector;
 	float WindSpeed = 0.0f;
-	float WindMinGust = 0.0f;
-	float WindMaxGust = 0.0f;
-	
-	Scene->GetWindParameters(
-		ConvertSimulationSpaceLocation(Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::WorldSpace,
-		                               Bone.PoseLocation),
-		WindDirection, WindSpeed, WindMinGust, WindMaxGust);
+	if (!GetWindSample(Bone.Index, WindDirection, WindSpeed))
+	{
+		return FVector::ZeroVector;
+	}
 
 	WindDirection =
 		ConvertSimulationSpaceVector(Output, EKawaiiPhysicsSimulationSpace::WorldSpace, SimulationSpace, WindDirection);

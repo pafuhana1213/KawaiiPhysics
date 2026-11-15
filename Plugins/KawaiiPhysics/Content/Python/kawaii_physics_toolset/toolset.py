@@ -520,7 +520,7 @@ _GRAPH_NODE_SETTINGS_PROPERTIES = (
     'bAutoAddChildDummyBoneConstraint', 'BoneConstraints',
     'BoneConstraintsDataAsset', 'SyncBones', 'Gravity', 'bUseLegacyGravity',
     'bUseDefaultGravityZProjectSetting', 'bUseWorldSpaceGravity',
-    'bEnableWind', 'WindScale', 'WindDirectionNoiseAngle',
+    'bEnableWind', 'WindScale', 'WindDirectionNoiseAngle', 'WindSampleMode',
     'SimpleExternalForce', 'bUseWorldSpaceSimpleExternalForce',
     'CustomExternalForces', 'bAllowWorldCollision',
     'bOverrideCollisionParams', 'CollisionChannelSettings',
