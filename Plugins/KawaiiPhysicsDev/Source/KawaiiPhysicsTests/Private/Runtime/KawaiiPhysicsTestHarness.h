@@ -24,6 +24,22 @@ struct FKawaiiPhysicsTestAccessor
 	FAnimNode_KawaiiPhysics Node;
 
 	void ApplyPhysicsAsset(const FBoneContainer& RequiredBones) { Node.ApplyPhysicsAsset(RequiredBones); }
+	void ApplyLimitsDataAsset(const FBoneContainer& RequiredBones) { Node.ApplyLimitsDataAsset(RequiredBones); }
+	/** LOD 変更時に CacheBones から呼ばれるボーン参照の初期化 / Bone reference initialization called from CacheBones on LOD change */
+	void CallInitializeBoneReferences(const FBoneContainer& RequiredBones) { Node.InitializeBoneReferences(RequiredBones); }
+	/** 評価の冒頭で行う、要求されたボーン参照の初期化とデータアセットの再適用 / Pending re-initialization done at the start of an evaluation */
+	void CallApplyPendingRuntimeReinit(const FBoneContainer& RequiredBones) { Node.ApplyPendingRuntimeReinit(RequiredBones); }
+	bool IsBoneReferencesReinitPending() const { return Node.bBoneReferencesNeedReinit; }
+	bool IsLimitAssetsReapplyPending() const { return Node.bLimitAssetsNeedReapply; }
+	bool IsModifyBonesReinitPending() const { return Node.bModifyBonesNeedsReinit; }
+	bool IsSyncBonesReinitPending() const { return Node.bSyncBonesNeedReinit; }
+	void ClearPendingReinitForTest()
+	{
+		Node.bBoneReferencesNeedReinit = false;
+		Node.bLimitAssetsNeedReapply = false;
+		Node.bModifyBonesNeedsReinit = false;
+		Node.bSyncBonesNeedReinit = false;
+	}
 
 #if WITH_EDITOR
 	void SetMirrorTableCacheForPIE(bool bEnabled) { Node.bCacheMirrorTablesForPIE = bEnabled; }
@@ -204,6 +220,7 @@ struct FKawaiiPhysicsTestAccessor
 		const int32 TipIndex = Node.ModifyBones.Add(Tip);
 		Node.ModifyBones[TipParentIndex].ChildIndices.Add(TipIndex);
 		Node.FinalizeInterBoneDummyBones(Node.ModifyBones, InsertedIndices, TipIndex);
+		Node.UpdateHasInterBoneDummies();
 
 		TArray<FTransform> RefBonePose;
 		RefBonePose.Add(FTransform::Identity);
@@ -834,6 +851,9 @@ struct FKawaiiPhysicsTestAccessor
 	/** 本番の ApplySimulateResult が使う出力位置を計算する / Computes the output locations used by ApplySimulateResult. */
 	void CallUpdateOutputLocations() { Node.UpdateOutputLocations(); }
 	void CallWorldSpaceTeleport(const FTransform& ComponentTransform) { Node.ApplyWorldSpaceTeleport(ComponentTransform); }
+	/** 取り込み済みの一時外力の数と、その外力 / Number of consumed transient forces, and one of them */
+	int32 GetTransientForceCount() const { return Node.TransientForceStore.Items.Num(); }
+	FInstancedStruct& GetTransientForce(int32 Index) { return Node.TransientForceStore.Items[Index].Force; }
 	void SetSubstepPoseInitialized(bool bInitialized) { Node.bSubstepPoseInitialized = bInitialized; }
 	void CallResetSubstepPoseOffsets(FKawaiiPhysicsModifyBone& Bone) { FAnimNode_KawaiiPhysics::ResetSubstepPoseOffsets(Bone); }
 	void CallCaptureSubstepPoseOffsets() { Node.CaptureSubstepPoseOffsets(); }
@@ -1002,6 +1022,13 @@ struct FKawaiiPhysicsTestAccessor
 		return TargetRoot;
 	}
 
+	/** 本番の InitSyncBone を呼ぶ / Calls the production InitSyncBone. */
+	void CallInitSyncBone(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer,
+	                      FKawaiiPhysicsSyncBone& SyncBone)
+	{
+		Node.InitSyncBone(Output, BoneContainer, SyncBone);
+	}
+
 	// ApplySyncBones の target 適用部（root → child targets）を Output 無しで再現。
 	void ApplySyncTargetsForRoot(FKawaiiPhysicsSyncTargetRoot& TargetRoot, const FVector& Translation)
 	{
@@ -1032,6 +1059,9 @@ struct FKawaiiPhysicsTestAccessor
 
 	void CallRestoreBoneLengthsAndLimits() { Node.RestoreBoneLengthsAndLimits(); }
 	void CallApplyBridgeDummyCollisionFeedback() { Node.ApplyBridgeDummyCollisionFeedback(); }
+	void CallApplyCollisionOnlyDummyFeedback() { Node.ApplyCollisionOnlyDummyFeedback(); }
+	void CallCaptureCollisionOnlyDummyPreCollision() { Node.CaptureCollisionOnlyDummyPreCollision(); }
+	int32 GetCollisionOnlyDummyPreCollisionScratchNum() const { return Node.CollisionOnlyDummyPreCollisionScratch.Num(); }
 
 	// 直接呼び出しテスト用の時間状態（bInSubstep=false なので GetStepDeltaTime()==Dt）。
 	void SetTimeState(float Dt, float DtOld)
@@ -1080,6 +1110,12 @@ struct FKawaiiPhysicsTestAccessor
 	static bool IsBoneFilterCacheValid(const FKawaiiPhysics_ExternalForce& Force)
 	{
 		return Force.bBoneFilterCacheValid;
+	}
+
+	/** 外力が PreApply で計算した力（基底クラスの protected メンバー） */
+	static FVector GetExternalForceVector(const FKawaiiPhysics_ExternalForce& Force)
+	{
+		return Force.Force;
 	}
 
 	/** 全ボーン位置が有限（NaN/Inf 無し）か */

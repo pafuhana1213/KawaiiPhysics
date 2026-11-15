@@ -617,8 +617,16 @@ void UAnimGraphNode_KawaiiPhysics::CopyNodeDataToPreviewNode(FAnimNode_Base* Ani
 			if (const UScriptStruct* ScriptStruct =
 				KawaiiPhysicsEdUtils::GetExternalForceScriptStruct(Node.ExternalForces[Index]))
 			{
+				// 初期化済みの印はコピーで上書きしない（ProceduralWind の Initialize は実行中の状態を消すため）
+				const FKawaiiPhysics_ExternalForce* PreviewForce =
+					KawaiiPhysics->ExternalForces[Index].GetPtr<FKawaiiPhysics_ExternalForce>();
+				const bool bWasInitialized = PreviewForce && PreviewForce->IsRuntimeInitialized();
 				ScriptStruct->CopyScriptStruct(KawaiiPhysics->ExternalForces[Index].GetMutableMemory(),
 				                               Node.ExternalForces[Index].GetMemory());
+				if (bWasInitialized)
+				{
+					KawaiiPhysics->ExternalForces[Index].GetMutable<FKawaiiPhysics_ExternalForce>().MarkRuntimeInitialized();
+				}
 			}
 		}
 	}

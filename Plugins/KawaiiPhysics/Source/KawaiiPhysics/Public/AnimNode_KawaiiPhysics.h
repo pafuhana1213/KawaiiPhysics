@@ -343,8 +343,8 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	float TeleportDistanceThreshold = 300.0f;
 
 	/** 
-	* 1フレームにおけるSkeletalMeshComponentの回転量が設定値を超えた場合、その回転量を物理制御に反映しない
-	* If the rotation amount of SkeletalMeshComponent in one frame exceeds the set value, the rotation amount will not be reflected in the physics control.
+	* 1フレームにおけるSkeletalMeshComponentの回転量が設定値を超えた場合、その回転量を物理制御に反映しない。回転量は短い側の角度（0～180度）なので、180以上では回転で判定しない
+	* If the rotation amount of SkeletalMeshComponent in one frame exceeds the set value, the rotation amount will not be reflected in the physics control. The rotation is the shorter angle (0 to 180 degrees), so 180 or more disables the rotation check.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault, Units = "Degrees"))
 	float TeleportRotationThreshold = 10.0f;
@@ -566,7 +566,38 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	/** シンプルワールドコリジョンの再初期化を要求 / Request simple world collision reinitialization */
 	void RequestSimpleWorldCollisionReinit();
 	/** ボーン構造に依存する設定変更後の再初期化を要求 / Request modify-bone rebuild after topology-affecting settings change */
-	void RequestModifyBonesReinit() { bModifyBonesNeedsReinit = true; }
+	void RequestModifyBonesReinit()
+	{
+		bModifyBonesNeedsReinit = true;
+		// 作り直しに使う RootBone などのボーン参照も、新しい値で初期化し直す
+		bBoneReferencesNeedReinit = true;
+	}
+	/**
+	 * ボーン参照（RootBone、コリジョンの DrivingBone、SyncBones など）を次の評価で初期化し直すよう要求
+	 * Request that bone references (RootBone, collision DrivingBones, SyncBones, ...) are re-initialized on the next evaluation
+	 */
+	void RequestBoneReferencesReinit() { bBoneReferencesNeedReinit = true; }
+	/**
+	 * データアセット由来のコリジョンと拘束（LimitsDataAsset / PhysicsAsset / Mirror / BoneConstraintsDataAsset）を
+	 * 次の評価で作り直すよう要求
+	 * Request that collisions and constraints from data assets (LimitsDataAsset / PhysicsAsset / Mirror /
+	 * BoneConstraintsDataAsset) are rebuilt on the next evaluation
+	 */
+	void RequestLimitAssetsReapply()
+	{
+		bLimitAssetsNeedReapply = true;
+		bBoneReferencesNeedReinit = true;
+	}
+	/**
+	 * SyncBones の対象（子ボーン一覧・ModifyBone の番号など）を次の評価で作り直すよう要求。ModifyBones は作り直さない
+	 * Request that the SyncBones targets (child target lists, ModifyBone indices, ...) are rebuilt on the next
+	 * evaluation. ModifyBones are not rebuilt
+	 */
+	void RequestSyncBonesReinit()
+	{
+		bSyncBonesNeedReinit = true;
+		bBoneReferencesNeedReinit = true;
+	}
 
 	/**
 	* Bone Constraintで用いる剛性タイプ
@@ -729,22 +760,18 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 
 	/**
 	 * 実行時専用の一時外力をリクエストする。任意スレッド可で、Mutex 保護されたキューへ積む。
-	 * BP再コンパイルやノード再初期化で失われる。Initialize(Context) は呼ばれないため汎用外力では制限あり
-	 * （ProceduralWind は PreApply で RuntimeState を遅延生成するため安全）。
+	 * BP再コンパイルやノード再初期化で失われる。外力の Initialize(Context) は、最初に使う前に評価中のワーカースレッドで呼ばれる。
 	 * ストアはGC追跡外。UObject参照を含む外力を渡す場合は呼び出し側が参照の生存を保証すること / The store is not GC-tracked; callers passing forces with UObject references must keep those objects alive.
 	 * Request a runtime-only transient external force. Callable from any thread; it is queued under a mutex.
-	 * Lost on BP recompile or node re-init. Initialize(Context) is not called, which limits generic use
-	 * (ProceduralWind is safe because it lazily creates RuntimeState in PreApply).
+	 * Lost on BP recompile or node re-init. The force's Initialize(Context) runs on the evaluating worker thread before its first use.
 	 */
 	int64 RequestTransientExternalForce(FInstancedStruct&& InForce, float InLifetimeSeconds, int64 InHandleId = 0);
 
 	/**
 	 * 実行時専用の一時突風をリクエストする。任意スレッド可で、Mutex 保護されたキューへパラメータだけを積む。
-	 * BP再コンパイルやノード再初期化で失われる。Initialize(Context) は呼ばれないため汎用外力では制限あり
-	 * （ProceduralWind は PreApply で RuntimeState を遅延生成するため安全）。
+	 * BP再コンパイルやノード再初期化で失われる。外力の Initialize(Context) は、最初に使う前に評価中のワーカースレッドで呼ばれる。
 	 * Request a runtime-only transient gust. Callable from any thread; only parameters are queued under a mutex.
-	 * Lost on BP recompile or node re-init. Initialize(Context) is not called, which limits generic use
-	 * (ProceduralWind is safe because it lazily creates RuntimeState in PreApply).
+	 * Lost on BP recompile or node re-init. The force's Initialize(Context) runs on the evaluating worker thread before its first use.
 	 */
 	int64 RequestTransientGust(float Strength, float RiseTime, float DecayTime,
 	                           const FVector& GustDirection, int32 InheritForceIndex = INDEX_NONE,
@@ -755,11 +782,9 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 
 	/**
 	 * キュー済み一時外力を worker で取り込み、寿命切れを掃除する。worker 専用で 1 evaluate 1 回だけ呼ぶ。
-	 * BP再コンパイルやノード再初期化で失われる。Initialize(Context) は呼ばれないため汎用外力では制限あり
-	 * （ProceduralWind は PreApply で RuntimeState を遅延生成するため安全）。
+	 * BP再コンパイルやノード再初期化で失われる。外力の Initialize(Context) は、最初に使う前に評価中のワーカースレッドで呼ばれる。
 	 * Consume queued transient forces on the worker and remove expired entries. Worker-only; call once per evaluate.
-	 * Lost on BP recompile or node re-init. Initialize(Context) is not called, which limits generic use
-	 * (ProceduralWind is safe because it lazily creates RuntimeState in PreApply).
+	 * Lost on BP recompile or node re-init. The force's Initialize(Context) runs on the evaluating worker thread before its first use.
 	 */
 	void ConsumeAndRemoveExpiredTransientExternalForces(float InFrameDeltaTime);
 
@@ -1238,6 +1263,15 @@ private:
 	// avoids the per-SimulateOnce TMap allocation and reuses capacity across frames.
 	TArray<FVector> BridgeFeedbackPushScratch;
 	TArray<float> BridgeFeedbackWeightScratch;
+	// コリジョン専用ダミーの押し出しを実ボーンへ返すときの、子ボーンごとの補正量（大きさが最大のもの）
+	// Per child bone correction (the largest one) when collision-only dummies feed their push back to real bones
+	TArray<FVector> CollisionOnlyDummyCorrectionScratch;
+	// コリジョン直前の位置（コリジョン専用ダミーがコリジョン自身で押された分を求めるため）
+	// Locations just before collision (to get how far collision itself pushed each collision-only dummy)
+	TArray<FVector> CollisionOnlyDummyPreCollisionScratch;
+	// ModifyBones にボーン間のダミーがあるか（無ければコリジョン専用ダミーのフィードバックを丸ごと飛ばす）
+	// Whether ModifyBones has inter-bone dummies (the collision-only dummy feedback is skipped entirely when not)
+	bool bHasInterBoneDummies = false;
 
 	/**
 	* Stores the delta time from the previous frame.
@@ -1878,6 +1912,24 @@ protected:
 	void ApplyBridgeDummyCollisionFeedback();
 
 	/**
+	 * コリジョン専用モードで、コリジョンに押されたダミーの変位を実ボーン（区間の子）へ返す。
+	 * 長さ復元はダミーを実端点の間に置き直すため、返さないと押し出しが消える。
+	 * 親を固定して子を R/α 動かすと、区間がちょうど押されたダミーを通る（R = ダミー - 現在の実端点での補間位置）。
+	 * Feeds the displacement of collision-pushed dummies back to the real bones (the segment child) in
+	 * collision-only mode. The length restore re-places dummies between the real endpoints, so without this the
+	 * push is lost. Moving the child by R/alpha with the parent fixed makes the segment pass through the pushed dummy
+	 * (R = dummy - interpolation at the current real endpoints).
+	 * コリジョンで押されたダミーだけを対象にし、押された向きの未解消分だけを返す（端点自身の押し出しを打ち消さない）。
+	 * Only dummies that collision pushed count, and only the unresolved part along their push is fed back, so the
+	 * endpoints' own pushes are never undone.
+	 */
+	void ApplyCollisionOnlyDummyFeedback();
+	/** コリジョン直前に、コリジョン専用ダミーの位置を控える / Records collision-only dummy locations just before collision */
+	void CaptureCollisionOnlyDummyPreCollision();
+	/** ModifyBones を作ったあとに、ボーン間のダミーがあるかを記録し直す / Re-records whether ModifyBones has inter-bone dummies */
+	void UpdateHasInterBoneDummies();
+
+	/**
 	 * Simulates the physics for a single bone.
 	 *
 	 * @param Bone The bone to simulate.
@@ -2111,6 +2163,15 @@ private:
 	}
 
 	bool bModifyBonesNeedsReinit = false;
+	// 実行時の設定変更で、ボーン参照の初期化 / データアセット由来のコリジョンと拘束の作り直しが必要か。
+	// 全ビルド構成で評価の冒頭に処理する（エディタだけの毎フレーム同期に頼らない）
+	// Whether a runtime settings change needs bone references re-initialized / data-asset collisions and
+	// constraints rebuilt. Handled at the start of the evaluation in every build configuration.
+	bool bBoneReferencesNeedReinit = false;
+	bool bLimitAssetsNeedReapply = false;
+	// SyncBones の対象だけを作り直す（ModifyBones の構築時にも作られるので、そのときは不要）
+	// Rebuild only the SyncBones targets (they are also built when ModifyBones are built)
+	bool bSyncBonesNeedReinit = false;
 	int32 LastInitializedBoneSubdivisionCount = 0;
 	int32 LastInitializedBoneConstraintSubdivisionCount = 0;
 	// DensifyByRadiusは配置数（生成トポロジ）を左右するため再構築判定に含める。既定値はプロパティのデフォルトに合わせる
@@ -2128,6 +2189,23 @@ private:
 	 * (subdivision counts / DensifyByRadius / Radius / DummyBoneLength) since the last init.
 	 */
 	bool ShouldReinitModifyBones() const;
+
+	/**
+	 * 要求されたボーン参照の初期化とデータアセットの再適用を行う
+	 * Applies the requested bone reference re-initialization and data asset re-application
+	 */
+	void ApplyPendingRuntimeReinit(const FBoneContainer& BoneContainer);
+
+	// 最後に適用したデータアセットなど。アニメーショングラフのピンは setter を通らずに書き込むので、
+	// 評価ごとに今の値と比べて変更を検出する / Values last applied. Graph pins write without going through the
+	// setters, so the current values are compared with these on every evaluation to detect changes
+	TWeakObjectPtr<UKawaiiPhysicsLimitsDataAsset> AppliedLimitsDataAsset;
+	TWeakObjectPtr<UPhysicsAsset> AppliedPhysicsAssetForLimits;
+	TWeakObjectPtr<UMirrorDataTable> AppliedMirrorDataTableForLimits;
+	TWeakObjectPtr<UKawaiiPhysicsBoneConstraintsDataAsset> AppliedBoneConstraintsDataAsset;
+	bool bAppliedSkipMirroredBoneWithExistingCollision = true;
+	void RecordAppliedLimitAssets();
+	bool HaveLimitAssetsChangedSinceApplied() const;
 
 	// SimulationSpace conversion cache (per-evaluation)
 	struct FSimulationSpaceCache
