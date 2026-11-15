@@ -331,8 +331,8 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	float TeleportDistanceThreshold = 300.0f;
 
 	/** 
-	* 1フレームにおけるSkeletalMeshComponentの回転量が設定値を超えた場合、その回転量を物理制御に反映しない
-	* If the rotation amount of SkeletalMeshComponent in one frame exceeds the set value, the rotation amount will not be reflected in the physics control.
+	* 1フレームにおけるSkeletalMeshComponentの回転量が設定値を超えた場合、その回転量を物理制御に反映しない。回転量は短い側の角度（0～180度）なので、180以上では回転で判定しない
+	* If the rotation amount of SkeletalMeshComponent in one frame exceeds the set value, the rotation amount will not be reflected in the physics control. The rotation is the shorter angle (0 to 180 degrees), so 180 or more disables the rotation check.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault, Units = "Degrees"))
 	float TeleportRotationThreshold = 10.0f;

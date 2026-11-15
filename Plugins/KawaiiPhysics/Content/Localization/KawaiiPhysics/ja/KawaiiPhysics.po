@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: KawaiiPhysics\n"
-"POT-Creation-Date: 2026-11-11 15:02\n"
-"PO-Revision-Date: 2026-11-11 15:02\n"
+"POT-Creation-Date: 2026-11-15 16:40\n"
+"PO-Revision-Date: 2026-11-15 16:40\n"
 "Language-Team: \n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
@@ -1214,8 +1214,8 @@ msgstr "Teleport回転しきい値"
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TeleportRotationThreshold [FloatProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TeleportRotationThreshold [FloatProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,AnimNode_KawaiiPhysics:TeleportRotationThreshold"
-msgid "1フレームにおけるSkeletalMeshComponentの回転量が設定値を超えた場合、その回転量を物理制御に反映しない\nIf the rotation amount of SkeletalMeshComponent in one frame exceeds the set value, the rotation amount will not be reflected in the physics control."
-msgstr "1フレームにおけるSkeletalMeshComponentの回転量が設定値を超えた場合、その回転量を物理制御に反映しない"
+msgid "1フレームにおけるSkeletalMeshComponentの回転量が設定値を超えた場合、その回転量を物理制御に反映しない。回転量は短い側の角度（0～180度）なので、180以上では回転で判定しない\nIf the rotation amount of SkeletalMeshComponent in one frame exceeds the set value, the rotation amount will not be reflected in the physics control. The rotation is the shorter angle (0 to 180 degrees), so 180 or more disables the rotation check."
+msgstr "1フレームにおけるSkeletalMeshComponentの回転量が設定値を超えた場合、その回転量を物理制御に反映しない。回転量は短い側の角度（0～180度）なので、180以上では回転で判定しない"
 
 #. Key:	AnimNode_KawaiiPhysics:TimeScale
 #. SourceLocation:	/Script/KawaiiPhysics.AnimNode_KawaiiPhysics:TimeScale [FloatProperty DisplayName meta-data]
