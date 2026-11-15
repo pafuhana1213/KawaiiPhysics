@@ -13,6 +13,7 @@
 #include "KawaiiPhysicsEditorSettings.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce.h"
 #include "KawaiiPhysicsLimitsDataAsset.h"
+#include "KawaiiPhysicsSyncBonePreview.h"
 #include "ScopedTransaction.h"
 #include "SceneManagement.h"
 #include "SceneView.h"
@@ -372,8 +373,9 @@ void FKawaiiPhysicsEditMode::EnterMode(UAnimGraphNode_Base* InEditorNode, FAnimN
 	GraphNode->Node.BoneConstraintsData = RuntimeNode->BoneConstraintsData;
 	GraphNode->Node.MergedBoneConstraints = RuntimeNode->MergedBoneConstraints;
 
-	// SyncBone
-	GraphNode->Node.SyncBones = RuntimeNode->SyncBones;
+	// SyncBone：プレビュー用の値だけを写す。実行時は無効なターゲットを取り除いているので、
+	// 配列をまるごと写すと選択しただけでユーザーの設定が消える
+	KawaiiPhysicsSyncBonePreview::CopyPreviewValues(GraphNode->Node.SyncBones, RuntimeNode->SyncBones);
 
 	NodePropertyDelegateHandle = GraphNode->OnNodePropertyChanged().AddSP(
 		this, &FKawaiiPhysicsEditMode::OnExternalNodePropertyChange);

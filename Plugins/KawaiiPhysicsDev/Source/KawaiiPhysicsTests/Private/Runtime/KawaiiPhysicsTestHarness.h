@@ -986,6 +986,13 @@ struct FKawaiiPhysicsTestAccessor
 		return TargetRoot;
 	}
 
+	/** 本番の InitSyncBone を呼ぶ / Calls the production InitSyncBone. */
+	void CallInitSyncBone(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer,
+	                      FKawaiiPhysicsSyncBone& SyncBone)
+	{
+		Node.InitSyncBone(Output, BoneContainer, SyncBone);
+	}
+
 	// ApplySyncBones の target 適用部（root → child targets）を Output 無しで再現。
 	void ApplySyncTargetsForRoot(FKawaiiPhysicsSyncTargetRoot& TargetRoot, const FVector& Translation)
 	{
