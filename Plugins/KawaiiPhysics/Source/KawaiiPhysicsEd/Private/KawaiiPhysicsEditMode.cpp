@@ -1271,8 +1271,10 @@ void FKawaiiPhysicsEditMode::OnExternalNodePropertyChange(FPropertyChangedEvent&
 	if (InPropertyEvent.Property &&
 		InPropertyEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, LimitsDataAsset))
 	{
-		// LimitsDataAsset差し替え時は旧アセットのdelegateを外してから新アセットへbindし直す（多重bind/解放後通知を防ぐ）
-		RebindLimitsDataAsset(RuntimeNode ? RuntimeNode->LimitsDataAsset.Get() : nullptr);
+		// LimitsDataAsset差し替え時は旧アセットのdelegateを外してから新アセットへbindし直す（多重bind/解放後通知を防ぐ）。
+		// この通知はグラフノードの PostEditChangeProperty から来て、プレビュー（RuntimeNode）へのコピーはその後なので、
+		// 新しいアセットはグラフノード側から取る（RuntimeNode はまだ旧アセットを指している）
+		RebindLimitsDataAsset(GraphNode ? GraphNode->Node.LimitsDataAsset.Get() : nullptr);
 	}
 }
 
