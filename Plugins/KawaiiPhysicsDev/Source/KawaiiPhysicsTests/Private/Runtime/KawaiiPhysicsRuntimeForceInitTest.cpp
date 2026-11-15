@@ -19,15 +19,10 @@ namespace KawaiiPhysicsRuntimeForceInitTestPrivate
 {
 constexpr float GRuntimeForceInitDt = 1.0f / 60.0f;
 
-// Gravity 外力の、PreApply で計算した力を読むためだけの型（メンバーは追加しない）
-struct FGravityForceView : FKawaiiPhysics_ExternalForce_Gravity
+// Gravity 外力の、PreApply で計算した力を読む
+FVector ReadGravityForce(const FInstancedStruct& Item)
 {
-	using FKawaiiPhysics_ExternalForce_Gravity::Force;
-};
-
-FVector ReadGravityForce(FInstancedStruct& Item)
-{
-	return static_cast<FGravityForceView&>(Item.GetMutable<FKawaiiPhysics_ExternalForce_Gravity>()).Force;
+	return FKawaiiPhysicsTestAccessor::GetExternalForceVector(Item.Get<FKawaiiPhysics_ExternalForce_Gravity>());
 }
 
 struct FRuntimeForceInitProxy : FAnimInstanceProxy

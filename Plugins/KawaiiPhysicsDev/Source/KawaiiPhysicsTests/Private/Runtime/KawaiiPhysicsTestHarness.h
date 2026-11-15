@@ -1069,6 +1069,12 @@ struct FKawaiiPhysicsTestAccessor
 		return Force.bBoneFilterCacheValid;
 	}
 
+	/** 外力が PreApply で計算した力（基底クラスの protected メンバー） */
+	static FVector GetExternalForceVector(const FKawaiiPhysics_ExternalForce& Force)
+	{
+		return Force.Force;
+	}
+
 	/** 全ボーン位置が有限（NaN/Inf 無し）か */
 	bool AllFinite() const
 	{
