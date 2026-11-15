@@ -1187,6 +1187,9 @@ private:
 	// コリジョン専用ダミーの押し出しを実ボーンへ返すときの、子ボーンごとの補正量（大きさが最大のもの）
 	// Per child bone correction (the largest one) when collision-only dummies feed their push back to real bones
 	TArray<FVector> CollisionOnlyDummyCorrectionScratch;
+	// コリジョン直前の位置（コリジョン専用ダミーがコリジョン自身で押された分を求めるため）
+	// Locations just before collision (to get how far collision itself pushed each collision-only dummy)
+	TArray<FVector> CollisionOnlyDummyPreCollisionScratch;
 
 	/**
 	* Stores the delta time from the previous frame.
@@ -1824,8 +1827,13 @@ protected:
 	 * collision-only mode. The length restore re-places dummies between the real endpoints, so without this the
 	 * push is lost. Moving the child by R/alpha with the parent fixed makes the segment pass through the pushed dummy
 	 * (R = dummy - interpolation at the current real endpoints).
+	 * コリジョンで押されたダミーだけを対象にし、押された向きの未解消分だけを返す（端点自身の押し出しを打ち消さない）。
+	 * Only dummies that collision pushed count, and only the unresolved part along their push is fed back, so the
+	 * endpoints' own pushes are never undone.
 	 */
 	void ApplyCollisionOnlyDummyFeedback();
+	/** コリジョン直前に、コリジョン専用ダミーの位置を控える / Records collision-only dummy locations just before collision */
+	void CaptureCollisionOnlyDummyPreCollision();
 
 	/**
 	 * Simulates the physics for a single bone.

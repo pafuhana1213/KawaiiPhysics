@@ -1085,6 +1085,8 @@ void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
 	// コリジョンによる補正
 	{
 		KAWAIIPHYSICS_SCOPE_TIMING(Collision);
+		// コリジョン専用ダミーがコリジョン自身で押された分だけを後で取り出せるよう、コリジョン直前の位置を控える
+		CaptureCollisionOnlyDummyPreCollision();
 		// NOTE: 形状ごとにループを分けると ModifyBones を複数回走査してキャッシュ効率が落ちるため
 		// （ボーン数が多いケースで負荷増）、従来どおりボーン外側の1パスで全形状を処理する。
 		// World判定の時間は関数内の既存STAT（STAT_KawaiiPhysics_WorldCollision）で計測する。
@@ -1263,6 +1265,21 @@ void FAnimNode_KawaiiPhysics::ApplyBridgeDummyCollisionFeedback()
 	}
 }
 
+void FAnimNode_KawaiiPhysics::CaptureCollisionOnlyDummyPreCollision()
+{
+	if (!bBoneSubdivisionCollisionOnly)
+	{
+		return;
+	}
+
+	const int32 NumBones = ModifyBones.Num();
+	CollisionOnlyDummyPreCollisionScratch.SetNumUninitialized(NumBones);
+	for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+	{
+		CollisionOnlyDummyPreCollisionScratch[BoneIndex] = ModifyBones[BoneIndex].Location;
+	}
+}
+
 void FAnimNode_KawaiiPhysics::ApplyCollisionOnlyDummyFeedback()
 {
 	if (!bBoneSubdivisionCollisionOnly)
@@ -1270,18 +1287,25 @@ void FAnimNode_KawaiiPhysics::ApplyCollisionOnlyDummyFeedback()
 		return;
 	}
 
-	// 親の近くのダミー（α が小さい）は R/α で補正が大きく増幅されるので使わない
+	const int32 NumBones = ModifyBones.Num();
+	if (CollisionOnlyDummyPreCollisionScratch.Num() != NumBones)
+	{
+		return;
+	}
+
+	// 親の近くのダミー（α が小さい）は R/α で補正が大きく増幅されるので、割る値の下限にする
+	// （除外すると、親の近くで押されたダミーの押し出しが消える）
 	constexpr float MinAlpha = 0.1f;
 
-	const int32 NumBones = ModifyBones.Num();
 	CollisionOnlyDummyCorrectionScratch.Reset();
 	CollisionOnlyDummyCorrectionScratch.SetNumZeroed(NumBones);
 	bool bHasCorrection = false;
 
 	// 候補はすべて同じ状態（補正前の実端点）から求め、最後にまとめて適用する
-	for (const FKawaiiPhysicsModifyBone& Dummy : ModifyBones)
+	for (int32 DummyIndex = 0; DummyIndex < NumBones; ++DummyIndex)
 	{
-		if (!Dummy.bInterBoneDummy || Dummy.bSkipSimulate || Dummy.InterBoneAlpha < MinAlpha ||
+		const FKawaiiPhysicsModifyBone& Dummy = ModifyBones[DummyIndex];
+		if (!Dummy.bInterBoneDummy || Dummy.bSkipSimulate ||
 			!ModifyBones.IsValidIndex(Dummy.InterBoneRealParentIndex) ||
 			!ModifyBones.IsValidIndex(Dummy.InterBoneRealChildIndex))
 		{
@@ -1295,16 +1319,27 @@ void FAnimNode_KawaiiPhysics::ApplyCollisionOnlyDummyFeedback()
 			continue;
 		}
 
-		// 残差：端点の押し出しで既に解消した分は含まない
+		// ダミー自身がコリジョンで押された向き。押されていないダミーは何も返さない
+		// （端点だけが押された・拘束で動いた場合に、その動きを打ち消さないため）
+		const FVector Push = Dummy.Location - CollisionOnlyDummyPreCollisionScratch[DummyIndex];
+		const FVector PushDir = Push.GetSafeNormal();
+		if (PushDir.IsZero())
+		{
+			continue;
+		}
+
+		// 残差のうち押された向きの成分だけが未解消の押し出し。端点の押し出しで既に解消していれば 0 以下になる
 		const FVector Residual = Dummy.Location - FMath::Lerp(Parent.Location, Child.Location, Dummy.InterBoneAlpha);
-		if (Residual.IsNearlyZero(KINDA_SMALL_NUMBER))
+		const double Unresolved = Residual | PushDir;
+		if (Unresolved <= UE_KINDA_SMALL_NUMBER)
 		{
 			continue;
 		}
 
 		// 区間の長さを超える補正は、長さ復元で回転に変わるだけなので上限にする
 		const float SegmentLength = (Child.PoseLocation - Parent.PoseLocation).Size();
-		const FVector Correction = (Residual / Dummy.InterBoneAlpha).GetClampedToMaxSize(SegmentLength);
+		const FVector Correction =
+			(PushDir * (Unresolved / FMath::Max(Dummy.InterBoneAlpha, MinAlpha))).GetClampedToMaxSize(SegmentLength);
 
 		// 1 区間に複数のダミーがあるときは、子への補正が最も大きいものを使う
 		// （平均すると逆向きの押し出しが打ち消し合い、両方とも貫通したまま残るため）

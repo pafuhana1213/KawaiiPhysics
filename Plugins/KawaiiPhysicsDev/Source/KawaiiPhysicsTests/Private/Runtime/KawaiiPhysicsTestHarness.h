@@ -1017,6 +1017,7 @@ struct FKawaiiPhysicsTestAccessor
 	void CallRestoreBoneLengthsAndLimits() { Node.RestoreBoneLengthsAndLimits(); }
 	void CallApplyBridgeDummyCollisionFeedback() { Node.ApplyBridgeDummyCollisionFeedback(); }
 	void CallApplyCollisionOnlyDummyFeedback() { Node.ApplyCollisionOnlyDummyFeedback(); }
+	void CallCaptureCollisionOnlyDummyPreCollision() { Node.CaptureCollisionOnlyDummyPreCollision(); }
 
 	// 直接呼び出しテスト用の時間状態（bInSubstep=false なので GetStepDeltaTime()==Dt）。
 	void SetTimeState(float Dt, float DtOld)
