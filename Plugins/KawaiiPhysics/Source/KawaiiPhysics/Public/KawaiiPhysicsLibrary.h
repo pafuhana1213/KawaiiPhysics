@@ -241,8 +241,13 @@ public:
 		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 			TEXT("SetDummyBoneLength"),
 			[DummyBoneLength](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
-				InKawaiiPhysics.DummyBoneLength = FMath::Max(DummyBoneLength, 0.0f);
-				InKawaiiPhysics.RequestModifyBonesReinit();
+				// 同じ値なら何もしない（毎フレーム設定しても作り直しや物理状態のリセットを起こさない）
+				const auto NewValue = FMath::Max(DummyBoneLength, 0.0f);
+				if (InKawaiiPhysics.DummyBoneLength != NewValue)
+				{
+					InKawaiiPhysics.DummyBoneLength = NewValue;
+					InKawaiiPhysics.RequestModifyBonesReinit();
+				}
 			});
 		return KawaiiPhysics;
 	}
@@ -261,8 +266,13 @@ public:
 		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 			TEXT("SetBoneSubdivisionCount"),
 			[BoneSubdivisionCount](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
-				InKawaiiPhysics.BoneSubdivisionCount = FMath::Clamp(BoneSubdivisionCount, 0, 10);
-				InKawaiiPhysics.RequestModifyBonesReinit();
+				// 同じ値なら何もしない（毎フレーム設定しても作り直しや物理状態のリセットを起こさない）
+				const auto NewValue = FMath::Clamp(BoneSubdivisionCount, 0, 10);
+				if (InKawaiiPhysics.BoneSubdivisionCount != NewValue)
+				{
+					InKawaiiPhysics.BoneSubdivisionCount = NewValue;
+					InKawaiiPhysics.RequestModifyBonesReinit();
+				}
 			});
 		return KawaiiPhysics;
 	}
@@ -281,8 +291,13 @@ public:
 		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 			TEXT("SetBoneSubdivisionCollisionOnly"),
 			[bBoneSubdivisionCollisionOnly](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
-				InKawaiiPhysics.bBoneSubdivisionCollisionOnly = bBoneSubdivisionCollisionOnly;
-				InKawaiiPhysics.RequestModifyBonesReinit();
+				// 同じ値なら何もしない（毎フレーム設定しても作り直しや物理状態のリセットを起こさない）
+				const auto NewValue = bBoneSubdivisionCollisionOnly;
+				if (InKawaiiPhysics.bBoneSubdivisionCollisionOnly != NewValue)
+				{
+					InKawaiiPhysics.bBoneSubdivisionCollisionOnly = NewValue;
+					InKawaiiPhysics.RequestModifyBonesReinit();
+				}
 			});
 		return KawaiiPhysics;
 	}
@@ -301,8 +316,13 @@ public:
 		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 			TEXT("SetBoneConstraintSubdivisionCount"),
 			[BoneConstraintSubdivisionCount](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
-				InKawaiiPhysics.BoneConstraintSubdivisionCount = FMath::Clamp(BoneConstraintSubdivisionCount, 0, 10);
-				InKawaiiPhysics.RequestModifyBonesReinit();
+				// 同じ値なら何もしない（毎フレーム設定しても作り直しや物理状態のリセットを起こさない）
+				const auto NewValue = FMath::Clamp(BoneConstraintSubdivisionCount, 0, 10);
+				if (InKawaiiPhysics.BoneConstraintSubdivisionCount != NewValue)
+				{
+					InKawaiiPhysics.BoneConstraintSubdivisionCount = NewValue;
+					InKawaiiPhysics.RequestModifyBonesReinit();
+				}
 			});
 		return KawaiiPhysics;
 	}
@@ -430,13 +450,13 @@ public:
 		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 			TEXT("SetLimitsDataAsset"),
 			[LimitsDataAsset](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
-				// 同じ値を毎フレーム設定してもコリジョンを作り直さないよう、変わったときだけ再適用する
+				// 同じ値なら何もしない（毎フレーム設定しても作り直しや物理状態のリセットを起こさない）
 				if (InKawaiiPhysics.LimitsDataAsset != LimitsDataAsset)
 				{
+					InKawaiiPhysics.LimitsDataAsset = LimitsDataAsset;
 					InKawaiiPhysics.RequestLimitAssetsReapply();
+					InKawaiiPhysics.RequestModifyBonesReinit();
 				}
-				InKawaiiPhysics.LimitsDataAsset = LimitsDataAsset;
-				InKawaiiPhysics.RequestModifyBonesReinit();
 			});
 		return KawaiiPhysics;
 	}
@@ -459,12 +479,13 @@ public:
 		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 			TEXT("SetMirrorDataTableForLimits"),
 			[MirrorDataTableForLimits](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
+				// 同じ値なら何もしない（毎フレーム設定しても作り直しや物理状態のリセットを起こさない）
 				if (InKawaiiPhysics.MirrorDataTableForLimits != MirrorDataTableForLimits)
 				{
+					InKawaiiPhysics.MirrorDataTableForLimits = MirrorDataTableForLimits;
 					InKawaiiPhysics.RequestLimitAssetsReapply();
+					InKawaiiPhysics.RequestModifyBonesReinit();
 				}
-				InKawaiiPhysics.MirrorDataTableForLimits = MirrorDataTableForLimits;
-				InKawaiiPhysics.RequestModifyBonesReinit();
 			});
 		return KawaiiPhysics;
 	}
@@ -490,12 +511,13 @@ public:
 		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 			TEXT("SetSkipMirroredBoneWithExistingCollision"),
 			[bSkipMirroredBoneWithExistingCollision](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
+				// 同じ値なら何もしない（毎フレーム設定しても作り直しや物理状態のリセットを起こさない）
 				if (InKawaiiPhysics.bSkipMirroredBoneWithExistingCollision != bSkipMirroredBoneWithExistingCollision)
 				{
+					InKawaiiPhysics.bSkipMirroredBoneWithExistingCollision = bSkipMirroredBoneWithExistingCollision;
 					InKawaiiPhysics.RequestLimitAssetsReapply();
+					InKawaiiPhysics.RequestModifyBonesReinit();
 				}
-				InKawaiiPhysics.bSkipMirroredBoneWithExistingCollision = bSkipMirroredBoneWithExistingCollision;
-				InKawaiiPhysics.RequestModifyBonesReinit();
 			});
 		return KawaiiPhysics;
 	}
@@ -2042,11 +2064,11 @@ bool UKawaiiPhysicsLibrary::SetNodeStructPropertyValue(FAnimNode_KawaiiPhysics& 
 
 	if (void* ValuePtr = StructProperty->ContainerPtrToValuePtr<void>(&Node))
 	{
-		// 同じ値を毎フレーム設定しても作り直しや物理状態のリセットが起きないよう、値が変わったときだけ再初期化を要求する
-		const bool bChanged = !StructProperty->Identical(ValuePtr, &Value, PPF_None);
-		StructProperty->CopyCompleteValue(ValuePtr, &Value);
-		if (bChanged)
+		// 値が変わったときだけ書き込み、再初期化を要求する（FBoneReference は名前しか比較されないので、
+		// 同じ名前の未初期化の参照で上書きすると初期化済みのボーン番号が消える）
+		if (!StructProperty->Identical(ValuePtr, &Value, PPF_None))
 		{
+			StructProperty->CopyCompleteValue(ValuePtr, &Value);
 			RequestNodeReinitForChangedProperty(Node, PropertyName);
 		}
 		return true;

@@ -156,6 +156,8 @@ namespace KawaiiPhysicsLibraryPrivate
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, BoneConstraintSubdivisionCount),
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, BoneConstraints),
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, BoneConstraintsDataAsset),
+			// SyncBones の対象（子ボーン一覧・ModifyBone の番号）は ModifyBones の構築時（InitSyncBones）に作られる
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, SyncBones),
 		};
 		return Names;
 	}
@@ -171,7 +173,6 @@ namespace KawaiiPhysicsLibraryPrivate
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, TaperedCapsuleLimits),
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, BoxLimits),
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, PlanarLimits),
-			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, SyncBones),
 		};
 		return Names;
 	}
@@ -1256,11 +1257,12 @@ bool UKawaiiPhysicsLibrary::SetNodeWildcardPropertyValue(FAnimNode_KawaiiPhysics
 
 	if (void* NodeValuePtr = Property->ContainerPtrToValuePtr<void>(&Node))
 	{
-		// 同じ値を毎フレーム設定しても作り直しや物理状態のリセットが起きないよう、値が変わったときだけ再初期化を要求する
-		const bool bChanged = !Property->Identical(NodeValuePtr, ValuePtr, PPF_None);
-		Property->CopyCompleteValue(NodeValuePtr, ValuePtr);
-		if (bChanged)
+		// 値が変わったときだけ書き込み、再初期化を要求する。同じ値を毎フレーム設定しても作り直しや物理状態のリセットが
+		// 起きないようにするため。また FBoneReference は名前しか比較されないので、同じ名前の未初期化の参照で上書きすると
+		// 初期化済みのボーン番号が消え、再初期化も要求されないままノードが止まる
+		if (!Property->Identical(NodeValuePtr, ValuePtr, PPF_None))
 		{
+			Property->CopyCompleteValue(NodeValuePtr, ValuePtr);
 			RequestNodeReinitForChangedProperty(Node, PropertyName);
 		}
 		return true;
@@ -1298,28 +1300,24 @@ bool UKawaiiPhysicsLibrary::SetNodePropertyValueFromString(FAnimNode_KawaiiPhysi
 
 	if (void* NodeValuePtr = Property->ContainerPtrToValuePtr<void>(&Node))
 	{
-		// 同じ値を毎フレーム設定しても作り直しや物理状態のリセットが起きないよう、値が変わったときだけ再初期化を要求する
-		FString OldValueText;
+		// 現在値のコピーへ読み込み、値が変わったときだけノードへ書き戻す。配列は読み込みで要素が作り直されるので、
+		// 同じ値でも直接読み込むと FBoneReference の初期化済みのボーン番号が消える（再初期化は要求されない）
+		void* TempValue = FMemory::Malloc(Property->GetSize(), Property->GetMinAlignment());
+		Property->InitializeValue(TempValue);
+		Property->CopyCompleteValue(TempValue, NodeValuePtr);
 #if UE_VERSION_OLDER_THAN(5, 1, 0)
-		Property->ExportTextItem(OldValueText, NodeValuePtr, nullptr, nullptr, PPF_None);
-		if (Property->ImportText(*ValueText, NodeValuePtr, PPF_None, nullptr) != nullptr)
+		const bool bImported = Property->ImportText(*ValueText, TempValue, PPF_None, nullptr) != nullptr;
 #else
-		Property->ExportTextItem_Direct(OldValueText, NodeValuePtr, nullptr, nullptr, PPF_None);
-		if (Property->ImportText_Direct(*ValueText, NodeValuePtr, nullptr, PPF_None) != nullptr)
+		const bool bImported = Property->ImportText_Direct(*ValueText, TempValue, nullptr, PPF_None) != nullptr;
 #endif
+		if (bImported && !Property->Identical(NodeValuePtr, TempValue, PPF_None))
 		{
-			FString NewValueText;
-#if UE_VERSION_OLDER_THAN(5, 1, 0)
-			Property->ExportTextItem(NewValueText, NodeValuePtr, nullptr, nullptr, PPF_None);
-#else
-			Property->ExportTextItem_Direct(NewValueText, NodeValuePtr, nullptr, nullptr, PPF_None);
-#endif
-			if (!NewValueText.Equals(OldValueText, ESearchCase::CaseSensitive))
-			{
-				RequestNodeReinitForChangedProperty(Node, PropertyName);
-			}
-			return true;
+			Property->CopyCompleteValue(NodeValuePtr, TempValue);
+			RequestNodeReinitForChangedProperty(Node, PropertyName);
 		}
+		Property->DestroyValue(TempValue);
+		FMemory::Free(TempValue);
+		return bImported;
 	}
 
 	return false;
@@ -1396,8 +1394,12 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetRootBoneName(const FKawaiiPhys
 		TEXT("SetRootBoneName"),
 		[RootBoneName](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 		{
-			InKawaiiPhysics.RootBone = FBoneReference(RootBoneName);
-			InKawaiiPhysics.RequestModifyBonesReinit();
+			// 同じ名前なら何もしない（作り直しで物理状態をリセットせず、初期化済みのボーン番号も消さない）
+			if (InKawaiiPhysics.RootBone.BoneName != RootBoneName)
+			{
+				InKawaiiPhysics.RootBone = FBoneReference(RootBoneName);
+				InKawaiiPhysics.RequestModifyBonesReinit();
+			}
 		});
 
 	return KawaiiPhysics;
@@ -1424,6 +1426,16 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::SetExcludeBoneNames(const FKawaii
 		TEXT("SetExcludeBoneNames"),
 		[&ExcludeBoneNames](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 		{
+			// 同じ並びなら何もしない（作り直しで物理状態をリセットせず、初期化済みのボーン番号も消さない）
+			bool bSame = InKawaiiPhysics.ExcludeBones.Num() == ExcludeBoneNames.Num();
+			for (int32 Index = 0; bSame && Index < ExcludeBoneNames.Num(); ++Index)
+			{
+				bSame = InKawaiiPhysics.ExcludeBones[Index].BoneName == ExcludeBoneNames[Index];
+			}
+			if (bSame)
+			{
+				return;
+			}
 			InKawaiiPhysics.ExcludeBones.Empty();
 			for (auto& ExcludeBoneName : ExcludeBoneNames)
 			{

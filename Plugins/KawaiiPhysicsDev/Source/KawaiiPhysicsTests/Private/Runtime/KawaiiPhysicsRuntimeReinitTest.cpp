@@ -176,6 +176,9 @@ bool FKawaiiPhysicsRuntimeReinitCollisionFromStringTest::RunTest(const FString& 
 	// 同じ値を書き戻しても何も要求しない
 	bool bOk = TestTrue(TEXT("same value import succeeds"), UKawaiiPhysicsLibrary::SetNodePropertyValueFromString(A.Node, PropertyName, Text));
 	bOk &= TestFalse(TEXT("same value does not request bone reference reinit"), A.IsBoneReferencesReinitPending());
+	// 配列は読み込みで要素が作り直されるので、同じ値でも書き込むと初期化済みのボーン番号が消える
+	bOk &= TestTrue(TEXT("same value keeps the initialized bone reference"),
+		A.Node.SphericalLimits[0].DrivingBone.IsValidToEvaluate(Container));
 
 	// DrivingBone の名前だけを書き換える（古い BoneIndex が残る経路）
 	Text = Text.Replace(TEXT("hair_a"), TEXT("hair_b"));
@@ -188,6 +191,64 @@ bool FKawaiiPhysicsRuntimeReinitCollisionFromStringTest::RunTest(const FString& 
 		FMeshPoseBoneIndex(Container.GetPoseBoneIndexForBoneName(TEXT("hair_b"))));
 	bOk &= TestEqual(TEXT("collision uses the new bone"),
 		A.Node.SphericalLimits[0].DrivingBone.GetCompactPoseIndex(Container).GetInt(), Expected.GetInt());
+	return bOk;
+}
+
+// 同じ名前の（未初期化の）ボーン参照を汎用 setter で渡しても、初期化済みのボーン番号を消さない。
+// 消えると再初期化も要求されないまま RootBone の判定に失敗し、ノードが止まる
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsRuntimeReinitSameBoneReferenceTest,
+                                 "KawaiiPhysics.RuntimeReinit.SameBoneReferenceKeepsIndex",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsRuntimeReinitSameBoneReferenceTest::RunTest(const FString& Parameters)
+{
+	const TStrongObjectPtr<USkeleton> Skeleton = MakeRuntimeReinitTestSkeleton();
+	FBoneContainer Container;
+	InitRuntimeReinitTestContainer(Container, *Skeleton, {0, 1, 2, 3});
+
+	FKawaiiPhysicsTestAccessor A;
+	A.Node.RootBone = FBoneReference(TEXT("hair_a"));
+	FKawaiiPhysicsRootBoneSetting& Additional = A.Node.AdditionalRootBones.AddDefaulted_GetRef();
+	Additional.RootBone = FBoneReference(TEXT("hair_b"));
+	A.CallInitializeBoneReferences(Container);
+	A.ClearPendingReinitForTest();
+
+	// ワイルドカード（構造体）：同じ名前の未初期化の参照
+	const FName RootBoneName = GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, RootBone);
+	const FProperty* RootProperty = FAnimNode_KawaiiPhysics::StaticStruct()->FindPropertyByName(RootBoneName);
+	FBoneReference SameRoot(TEXT("hair_a"));
+	bool bOk = TestTrue(TEXT("wildcard setter succeeds"),
+		UKawaiiPhysicsLibrary::SetNodeWildcardPropertyValue(A.Node, RootBoneName, RootProperty, &SameRoot));
+	bOk &= TestTrue(TEXT("RootBone stays valid"), A.Node.RootBone.IsValidToEvaluate(Container));
+	bOk &= TestFalse(TEXT("same RootBone does not rebuild bones"), A.IsModifyBonesReinitPending());
+
+	// 文字列（配列）：同じ内容
+	const FName AdditionalName = GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, AdditionalRootBones);
+	FString Text;
+	UKawaiiPhysicsLibrary::GetNodePropertyValueAsString(A.Node, AdditionalName, Text);
+	bOk &= TestTrue(TEXT("string setter succeeds"),
+		UKawaiiPhysicsLibrary::SetNodePropertyValueFromString(A.Node, AdditionalName, Text));
+	bOk &= TestTrue(TEXT("additional root stays valid"),
+		A.Node.AdditionalRootBones[0].RootBone.IsValidToEvaluate(Container));
+	bOk &= TestFalse(TEXT("same additional roots do not rebuild bones"), A.IsModifyBonesReinitPending());
+	return bOk;
+}
+
+// SyncBones の対象（子ボーン一覧など）は ModifyBones の構築時に作られるので、変えたら作り直しを要求する
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsRuntimeReinitSyncBonesTest,
+                                 "KawaiiPhysics.RuntimeReinit.SyncBonesRebuildBones",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsRuntimeReinitSyncBonesTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor A;
+	A.ClearPendingReinitForTest();
+	const FName SyncName = GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, SyncBones);
+	const bool bSet = UKawaiiPhysicsLibrary::SetNodePropertyValueFromString(
+		A.Node, SyncName, TEXT("((Bone=(BoneName=\"spine\"),TargetRoots=((Bone=(BoneName=\"hair_a\")))))"));
+	bool bOk = TestTrue(TEXT("SyncBones import succeeds"), bSet);
+	bOk &= TestTrue(TEXT("changing SyncBones rebuilds bones"), A.IsModifyBonesReinitPending());
+	bOk &= TestTrue(TEXT("changing SyncBones re-initializes bone references"), A.IsBoneReferencesReinitPending());
 	return bOk;
 }
 
