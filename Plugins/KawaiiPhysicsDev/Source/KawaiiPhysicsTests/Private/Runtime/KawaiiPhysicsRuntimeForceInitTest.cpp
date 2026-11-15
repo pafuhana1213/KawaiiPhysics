@@ -224,6 +224,33 @@ bool FKawaiiPhysicsRuntimeForceInitTransientGustTest::RunTest(const FString& Par
 	return bOk;
 }
 
+// 突風を予約した ProceduralWind を一時外力として渡しても、使う前の初期化で予約が消えない
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsRuntimeForceInitRequestedGustTest,
+                                 "KawaiiPhysics.ExternalForce.RuntimeInit.GustRequestedBeforeTransient",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsRuntimeForceInitRequestedGustTest::RunTest(const FString& Parameters)
+{
+	FRuntimeForceInitFixture Fixture;
+	Fixture.Evaluate();
+
+	FInstancedStruct Item = FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+	Item.GetMutable<FKawaiiPhysics_ExternalForce_ProceduralWind>().RequestGust(1.0f, 0.2f, 0.2f);
+	Fixture.A.Node.RequestTransientExternalForce(MoveTemp(Item), 5.0f);
+	Fixture.Evaluate();
+
+	bool bOk = TestEqual(TEXT("transient wind is consumed"), Fixture.A.GetTransientForceCount(), 1);
+	if (Fixture.A.GetTransientForceCount() != 1)
+	{
+		return false;
+	}
+	const FKawaiiPhysics_ExternalForce_ProceduralWind& Wind =
+		Fixture.A.GetTransientForce(0).Get<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+	bOk &= TestTrue(TEXT("the gust requested before handing over is active"),
+		Wind.RuntimeState.IsValid() && Wind.RuntimeState->ActiveGust.bIsActive);
+	return bOk;
+}
+
 } // namespace KawaiiPhysicsRuntimeForceInitTestPrivate
 
 #endif

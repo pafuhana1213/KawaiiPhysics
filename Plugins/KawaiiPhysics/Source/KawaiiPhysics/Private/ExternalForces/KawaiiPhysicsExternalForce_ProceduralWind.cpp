@@ -963,28 +963,21 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::Initialize(const FAnimationIni
 {
 	Super::Initialize(Context);
 
-	// 初期化前に届いた要求（パラメータ変更・突風・突風の停止）は捨てずに引き継ぐ。
-	// 実行時に追加された外力は最初の評価の直前に初期化されるので、ここで消すと追加直後の要求が黙って失われる
-	TOptional<FKawaiiProceduralWindDynamicParams> PendingParams;
-	TOptional<FKawaiiProceduralWindGustRequest> PendingGust;
-	TOptional<float> PendingGustStop;
-	if (RuntimeState.IsValid())
-	{
-		FScopeLock Lock(&RuntimeState->Mutex);
-		PendingParams = MoveTemp(RuntimeState->PendingParams);
-		PendingGust = MoveTemp(RuntimeState->PendingGust);
-		PendingGustStop = MoveTemp(RuntimeState->PendingGustStop);
-	}
-
-	// ノード初期化時に RuntimeState の中身を初期化し、前回の再生状態（Time/ActiveGust等）を引き継がない
-	ResetRuntimeState();
-
-	{
-		FScopeLock Lock(&RuntimeState->Mutex);
-		RuntimeState->PendingParams = MoveTemp(PendingParams);
-		RuntimeState->PendingGust = MoveTemp(PendingGust);
-		RuntimeState->PendingGustStop = MoveTemp(PendingGustStop);
-	}
+	// ノード初期化時に RuntimeState の中身を初期化し、前回の再生状態（Time/ActiveGust等）を引き継がない。
+	// ただし初期化前に届いた要求（パラメータ変更・突風・突風の停止）は捨てずに引き継ぐ。実行時に追加された外力は
+	// 最初の評価の直前に初期化されるので、ここで消すと追加直後の要求が黙って失われる。
+	// 要求は別スレッドからも届くので、退避・初期化・復元を 1 つのロック区間で行う（途中に届いた要求を古い値で上書きしない）
+	const auto State = EnsureRuntimeState();
+	// Shared を採用したまま初期化すると共有値が authored 値として焼き付くため、中身を消す前にローカル値へ戻す
+	RestoreLocalSharedParams();
+	FScopeLock Lock(&State->Mutex);
+	TOptional<FKawaiiProceduralWindDynamicParams> PendingParams = MoveTemp(State->PendingParams);
+	TOptional<FKawaiiProceduralWindGustRequest> PendingGust = MoveTemp(State->PendingGust);
+	TOptional<float> PendingGustStop = MoveTemp(State->PendingGustStop);
+	KawaiiPhysicsExternalForceProceduralWindPrivate::InitializeRuntimeStateContents(*State);
+	State->PendingParams = MoveTemp(PendingParams);
+	State->PendingGust = MoveTemp(PendingGust);
+	State->PendingGustStop = MoveTemp(PendingGustStop);
 }
 
 namespace KawaiiPhysicsProceduralWindInternal
