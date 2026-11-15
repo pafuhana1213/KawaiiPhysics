@@ -74,8 +74,17 @@ bool FKawaiiPhysicsGravityCharacterScaleDirectionTest::RunTest(const FString& Pa
 	ACharacter* Character = World->SpawnActor<ACharacter>();
 	UCharacterMovementComponent* Movement = Character ? Character->GetCharacterMovement() : nullptr;
 	bool bOk = TestNotNull(TEXT("Character movement exists"), Movement);
-	if (Movement)
+	// 互換用 CVar の今の値に結果が左右されないよう、検証中は最も優先度の高い設定方法（Console）で値を切り替え、
+	// 最後に元の値と優先度へ戻す（Code で設定すると、コンソールや ini で設定済みの値に負けて無視される）
+	IConsoleVariable* LegacyCVar = IConsoleManager::Get().FindConsoleVariable(
+		TEXT("a.AnimNode.KawaiiPhysics.Gravity.LegacyCharacterGravityScaleSign"));
+	bOk &= TestNotNull(TEXT("Legacy sign CVar exists"), LegacyCVar);
+	if (Movement && LegacyCVar)
 	{
+		const bool bPrevLegacy = LegacyCVar->GetBool();
+		const EConsoleVariableFlags PrevFlags = LegacyCVar->GetFlags();
+		LegacyCVar->Set(false, ECVF_SetByConsole);
+
 		// 通常の GravityScale では、ワールドの重力と同じ下向きになる
 		float CharacterGravityZ = 0.0f;
 		const FVector Down = EvaluateCharacterGravityForce(*Movement, *Character, 1.0f, CharacterGravityZ);
@@ -89,18 +98,13 @@ bool FKawaiiPhysicsGravityCharacterScaleDirectionTest::RunTest(const FString& Pa
 			Up.Equals(FVector(0.0, 0.0, CharacterGravityZ), GGravityForceTestTol) && Up.Z > 0.0);
 
 		// 互換用 CVar を有効にすると、修正前の上向きの挙動に戻る
-		IConsoleVariable* LegacyCVar = IConsoleManager::Get().FindConsoleVariable(
-			TEXT("a.AnimNode.KawaiiPhysics.Gravity.LegacyCharacterGravityScaleSign"));
-		bOk &= TestNotNull(TEXT("Legacy sign CVar exists"), LegacyCVar);
-		if (LegacyCVar)
-		{
-			const bool bPrevLegacy = LegacyCVar->GetBool();
-			LegacyCVar->Set(true, ECVF_SetByCode);
-			const FVector Legacy = EvaluateCharacterGravityForce(*Movement, *Character, 1.0f, CharacterGravityZ);
-			LegacyCVar->Set(bPrevLegacy, ECVF_SetByCode);
-			bOk &= TestTrue(TEXT("Legacy CVar restores the old upward force"),
-				Legacy.Equals(FVector(0.0, 0.0, -CharacterGravityZ), GGravityForceTestTol) && Legacy.Z > 0.0);
-		}
+		LegacyCVar->Set(true, ECVF_SetByConsole);
+		const FVector Legacy = EvaluateCharacterGravityForce(*Movement, *Character, 1.0f, CharacterGravityZ);
+		bOk &= TestTrue(TEXT("Legacy CVar restores the old upward force"),
+			Legacy.Equals(FVector(0.0, 0.0, -CharacterGravityZ), GGravityForceTestTol) && Legacy.Z > 0.0);
+
+		LegacyCVar->Set(bPrevLegacy, ECVF_SetByConsole);
+		LegacyCVar->SetFlags(PrevFlags);
 	}
 	World->DestroyWorld(false);
 	return bOk;
