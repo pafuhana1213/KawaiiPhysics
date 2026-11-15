@@ -37,10 +37,10 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Gravity : public FKawaiiPh
 	bool bUseCharacterGravityDirection = false;
 
 	/**
-	* Character側で設定されたGravityScaleを使用するフラグ
-	* Flag to use GravityScale set on the Character side
+	* Characterの重力加速度（ワールドの重力 × GravityScale）を力の大きさに使うフラグ
+	* Flag to use the Character's gravity acceleration (world gravity × GravityScale) as the force magnitude
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce", meta=(DisplayName="Use Character Gravity"))
 	bool bUseCharacterGravityScale = false;
 
 	/**
