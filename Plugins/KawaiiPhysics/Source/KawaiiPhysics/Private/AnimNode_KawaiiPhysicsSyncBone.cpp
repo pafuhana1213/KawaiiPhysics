@@ -58,7 +58,12 @@ void FAnimNode_KawaiiPhysics::InitSyncBone(FComponentSpacePoseContext& Output, c
 			FAnimationRuntime::GetComponentSpaceTransformRefPose(BoneContainer.GetReferenceSkeleton(),
 			                                                     SyncBone.Bone.BoneIndex).GetLocation();
 
-	// 無効なターゲットを除去
+	// 無効なターゲットを除去する前に、ターゲットのボーン参照を初期化する。グラフノードからコピーされた直後は
+	// ボーン番号が未初期化で、PIE 中はボーン参照の一括初期化も走らないため、存在するボーンまで無効と判定されてしまう
+	for (FKawaiiPhysicsSyncTargetRoot& TargetRoot : SyncBone.TargetRoots)
+	{
+		TargetRoot.Bone.Initialize(BoneContainer);
+	}
 	SyncBone.TargetRoots.RemoveAll([&](const FKawaiiPhysicsSyncTarget& Target)
 	{
 		return !Target.IsValid(BoneContainer);
