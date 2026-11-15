@@ -220,6 +220,7 @@ struct FKawaiiPhysicsTestAccessor
 		const int32 TipIndex = Node.ModifyBones.Add(Tip);
 		Node.ModifyBones[TipParentIndex].ChildIndices.Add(TipIndex);
 		Node.FinalizeInterBoneDummyBones(Node.ModifyBones, InsertedIndices, TipIndex);
+		Node.UpdateHasInterBoneDummies();
 
 		TArray<FTransform> RefBonePose;
 		RefBonePose.Add(FTransform::Identity);
@@ -1042,6 +1043,9 @@ struct FKawaiiPhysicsTestAccessor
 
 	void CallRestoreBoneLengthsAndLimits() { Node.RestoreBoneLengthsAndLimits(); }
 	void CallApplyBridgeDummyCollisionFeedback() { Node.ApplyBridgeDummyCollisionFeedback(); }
+	void CallApplyCollisionOnlyDummyFeedback() { Node.ApplyCollisionOnlyDummyFeedback(); }
+	void CallCaptureCollisionOnlyDummyPreCollision() { Node.CaptureCollisionOnlyDummyPreCollision(); }
+	int32 GetCollisionOnlyDummyPreCollisionScratchNum() const { return Node.CollisionOnlyDummyPreCollisionScratch.Num(); }
 
 	// 直接呼び出しテスト用の時間状態（bInSubstep=false なので GetStepDeltaTime()==Dt）。
 	void SetTimeState(float Dt, float DtOld)

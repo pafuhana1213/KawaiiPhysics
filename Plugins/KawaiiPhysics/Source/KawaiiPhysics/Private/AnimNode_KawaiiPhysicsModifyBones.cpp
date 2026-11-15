@@ -178,6 +178,15 @@ void FAnimNode_KawaiiPhysics::InitModifyBones(FComponentSpacePoseContext& Output
 			             ? AdditionalRootBone.OverrideExcludeBones
 			             : ExcludeBones);
 	}
+	UpdateHasInterBoneDummies();
+}
+
+void FAnimNode_KawaiiPhysics::UpdateHasInterBoneDummies()
+{
+	bHasInterBoneDummies = ModifyBones.ContainsByPredicate([](const FKawaiiPhysicsModifyBone& Bone)
+	{
+		return Bone.bInterBoneDummy;
+	});
 }
 
 int32 FAnimNode_KawaiiPhysics::AddModifyBone(TArray<FKawaiiPhysicsModifyBone>& InModifyBones,
