@@ -4,6 +4,14 @@
 
 #include "Misc/AutomationTest.h"
 #include "KawaiiPhysicsTestHarness.h"
+#include "Animation/AnimInstance.h"
+#include "Animation/AnimInstanceProxy.h"
+#include "Animation/Skeleton.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/World.h"
+#include "GameFramework/Actor.h"
+#include "ReferenceSkeleton.h"
+#include "UObject/StrongObjectPtr.h"
 
 namespace KawaiiPhysicsCollisionOnlyDummyFeedbackTestPrivate
 {
@@ -226,6 +234,145 @@ bool FKawaiiPhysicsCollisionOnlyDummyFeedbackNoDummiesTest::RunTest(const FStrin
 	WithDummies.CallCaptureCollisionOnlyDummyPreCollision();
 	bOk &= TestEqual(TEXT("with dummies: locations are recorded"),
 		WithDummies.GetCollisionOnlyDummyPreCollisionScratchNum(), WithDummies.Num());
+	return bOk;
+}
+
+struct FFeedbackNodeProxy : FAnimInstanceProxy
+{
+	using FAnimInstanceProxy::FAnimInstanceProxy;
+	using FAnimInstanceProxy::PreUpdate;
+};
+
+// root → chain_0(0,0,0) → chain_1(12,0,0) → chain_2(18,0,0) の骨格を、本番と同じ経路
+// （UpdateInternal → EvaluateSkeletalControl_AnyThread）で評価する。ボーン間ダミーは BoneSubdivisionCount = 1
+struct FFeedbackNodeFixture
+{
+	static constexpr float FrameDt = 1.0f / 60.0f;
+	TStrongObjectPtr<USkeleton> Skeleton{NewObject<USkeleton>()};
+	UWorld* World = nullptr;
+	UAnimInstance* Anim = nullptr;
+	TUniquePtr<FFeedbackNodeProxy> Proxy;
+	FKawaiiPhysicsTestAccessor A;
+	TArray<FBoneTransform> OutTransforms;
+
+	explicit FFeedbackNodeFixture(const FSphericalLimit& Sphere)
+	{
+		TArray<FBoneIndexType> RequiredIndices{0, 1, 2, 3};
+		{
+			FReferenceSkeletonModifier Modifier(Skeleton.Get());
+			Modifier.Add(FMeshBoneInfo(TEXT("root"), TEXT("root"), INDEX_NONE), FTransform::Identity);
+			Modifier.Add(FMeshBoneInfo(TEXT("chain_0"), TEXT("chain_0"), 0), FTransform::Identity);
+			Modifier.Add(FMeshBoneInfo(TEXT("chain_1"), TEXT("chain_1"), 1), FTransform(FVector(GSegmentLength, 0.0, 0.0)));
+			Modifier.Add(FMeshBoneInfo(TEXT("chain_2"), TEXT("chain_2"), 2), FTransform(FVector(GTipLength, 0.0, 0.0)));
+		}
+
+		const UWorld::InitializationValues Values = UWorld::InitializationValues()
+			.AllowAudioPlayback(false).CreatePhysicsScene(false).CreateNavigation(false)
+			.CreateAISystem(false).ShouldSimulatePhysics(false).CreateFXSystem(false);
+		World = UWorld::CreateWorld(EWorldType::Game, false, NAME_None, nullptr, true, ERHIFeatureLevel::Num, &Values);
+		AActor* Actor = World->SpawnActor<AActor>();
+		USkeletalMeshComponent* Component = NewObject<USkeletalMeshComponent>(Actor);
+		Actor->AddInstanceComponent(Component);
+		Actor->SetRootComponent(Component);
+		Anim = NewObject<UAnimInstance>(Component);
+		Proxy = MakeUnique<FFeedbackNodeProxy>(Anim);
+		Proxy->PreUpdate(Anim, FrameDt);
+		Proxy->GetRequiredBones().InitializeTo(RequiredIndices, UE::Anim::FCurveFilterSettings(), *Skeleton);
+
+		FAnimNode_KawaiiPhysics& Node = A.Node;
+		Node.RootBone.BoneName = TEXT("chain_0");
+		Node.DummyBoneLength = 0.0f;
+		Node.WarmUpFrames = 0;
+		Node.bAllowWorldCollision = false;
+		Node.bUseSimpleWorldCollision = false;
+		Node.Gravity = FVector::ZeroVector;
+		Node.PhysicsSettings.Radius = 0.0f;
+		Node.BoneSubdivisionCount = 1;
+		Node.bBoneSubdivisionCollisionOnly = true;
+		Node.SphericalLimits.Add(Sphere);
+		Node.SphericalLimits[0].DrivingBone.BoneName = TEXT("root");
+
+		Node.OnInitializeAnimInstance(Proxy.Get(), Anim);
+		Node.Initialize_AnyThread(FAnimationInitializeContext(Proxy.Get()));
+		Node.CacheBones_AnyThread(FAnimationCacheBonesContext(Proxy.Get()));
+		Node.PreUpdate(Anim);
+	}
+
+	~FFeedbackNodeFixture()
+	{
+		Proxy.Reset();
+		World->DestroyWorld(false);
+	}
+
+	void Evaluate()
+	{
+		// ポーズのメモリは FMemStack から確保される
+		FMemMark MemMark(FMemStack::Get());
+		FComponentSpacePoseContext Context(Proxy.Get());
+		Context.Pose.InitPose(&Proxy->GetRequiredBones());
+		A.Node.UpdateInternal(FAnimationUpdateContext(Proxy.Get(), FrameDt));
+		OutTransforms.Reset();
+		A.Node.EvaluateSkeletalControl_AnyThread(Context, OutTransforms);
+	}
+
+	int32 FindBone(const FName Name) const
+	{
+		for (int32 Index = 0; Index < A.Node.ModifyBones.Num(); ++Index)
+		{
+			if (!A.Node.ModifyBones[Index].bInterBoneDummy && A.Node.ModifyBones[Index].BoneRef.BoneName == Name)
+			{
+				return Index;
+			}
+		}
+		return INDEX_NONE;
+	}
+};
+
+// 本番の評価経路でも、ダミーだけが当たる球の押し出しが子へ返る（シミュレーションの中でフィードバックが呼ばれている）
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsCollisionOnlyDummyFeedbackProductionPathTest,
+                                 "KawaiiPhysics.Simulation.CollisionOnlyDummyFeedback.ProductionPath",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsCollisionOnlyDummyFeedbackProductionPathTest::RunTest(const FString& Parameters)
+{
+	// chain_0 と chain_1 の中央のダミー(6,0,0)だけに 1 めり込む球（root からのオフセット）
+	FSphericalLimit Sphere = MakeSphere(FVector::ZeroVector, 3.0f);
+	Sphere.OffsetLocation = FVector(6.0, -2.0, 0.0);
+	FFeedbackNodeFixture Fixture(Sphere);
+	// ボーン（ダミーを含む）は最初の評価で作られる
+	Fixture.Evaluate();
+
+	const int32 ParentIndex = Fixture.FindBone(TEXT("chain_0"));
+	const int32 ChildIndex = Fixture.FindBone(TEXT("chain_1"));
+	int32 DummyIndex = INDEX_NONE;
+	for (int32 Index = 0; Index < Fixture.A.Num(); ++Index)
+	{
+		const FKawaiiPhysicsModifyBone& Bone = Fixture.A.Bone(Index);
+		if (Bone.bInterBoneDummy && Bone.InterBoneRealParentIndex == ParentIndex && Bone.InterBoneRealChildIndex == ChildIndex)
+		{
+			DummyIndex = Index;
+		}
+	}
+	bool bOk = TestTrue(TEXT("the chain and its dummy are built"),
+		ParentIndex != INDEX_NONE && ChildIndex != INDEX_NONE && DummyIndex != INDEX_NONE);
+	if (!bOk)
+	{
+		return false;
+	}
+
+	float MaxPenetration = Penetration(Fixture.A.Bone(DummyIndex).Location, Fixture.A.Node.SphericalLimits[0]);
+	for (int32 Frame = 1; Frame < 10; ++Frame)
+	{
+		Fixture.Evaluate();
+		MaxPenetration = FMath::Max(MaxPenetration,
+			Penetration(Fixture.A.Bone(DummyIndex).Location, Fixture.A.Node.SphericalLimits[0]));
+	}
+	bOk &= TestTrue(FString::Printf(TEXT("the sphere is placed at the dummy %s"), *Fixture.A.Node.SphericalLimits[0].Location.ToString()),
+		Fixture.A.Node.SphericalLimits[0].Location.Equals(FVector(6.0, -2.0, 0.0), GFeedbackTol));
+	bOk &= TestTrue(FString::Printf(TEXT("dummy stays almost outside the sphere on every frame: %.4f"), MaxPenetration),
+		MaxPenetration < 0.05f);
+	bOk &= TestTrue(FString::Printf(TEXT("child moved away from the sphere: %s"), *Fixture.A.Bone(ChildIndex).Location.ToString()),
+		Fixture.A.Bone(ChildIndex).Location.Y > 1.0);
 	return bOk;
 }
 
