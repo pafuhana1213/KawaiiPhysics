@@ -1267,7 +1267,8 @@ void FAnimNode_KawaiiPhysics::ApplyBridgeDummyCollisionFeedback()
 
 void FAnimNode_KawaiiPhysics::CaptureCollisionOnlyDummyPreCollision()
 {
-	if (!bBoneSubdivisionCollisionOnly)
+	// ダミーが無ければ補正も無いので、サブステップごとに全ボーンを余分にたどらない（初期設定の分割数 0 がこれ）
+	if (!bBoneSubdivisionCollisionOnly || !bHasInterBoneDummies)
 	{
 		return;
 	}
@@ -1282,7 +1283,7 @@ void FAnimNode_KawaiiPhysics::CaptureCollisionOnlyDummyPreCollision()
 
 void FAnimNode_KawaiiPhysics::ApplyCollisionOnlyDummyFeedback()
 {
-	if (!bBoneSubdivisionCollisionOnly)
+	if (!bBoneSubdivisionCollisionOnly || !bHasInterBoneDummies)
 	{
 		return;
 	}

@@ -203,6 +203,32 @@ bool FKawaiiPhysicsCollisionOnlyDummyFeedbackLimitsTest::RunTest(const FString& 
 	return bOk;
 }
 
+// ボーン間のダミーが無いノード（初期設定の BoneSubdivisionCount = 0 など）では、コリジョン直前の位置を控える処理も
+// 補正の走査もしない（どのみち補正は無い。サブステップごとに全ボーンを余分にたどらない）
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsCollisionOnlyDummyFeedbackNoDummiesTest,
+                                 "KawaiiPhysics.Simulation.CollisionOnlyDummyFeedback.NoDummiesSkipped",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsCollisionOnlyDummyFeedbackNoDummiesTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor A;
+	A.Node.bBoneSubdivisionCollisionOnly = true;
+	A.BuildVerticalChain(4, 10.0f);
+	A.CallCaptureCollisionOnlyDummyPreCollision();
+	bool bOk = TestEqual(TEXT("no dummies: locations are not recorded"), A.GetCollisionOnlyDummyPreCollisionScratchNum(), 0);
+	A.CallApplyCollisionOnlyDummyFeedback();
+	bOk &= TestTrue(TEXT("no dummies: bones are unchanged"),
+		A.Bone(3).Location.Equals(FVector(0.0, 0.0, -30.0), GFeedbackTol));
+
+	// ダミーがあるノードは今まで通り控える
+	FKawaiiPhysicsTestAccessor WithDummies;
+	BuildFeedbackChain(WithDummies, 1);
+	WithDummies.CallCaptureCollisionOnlyDummyPreCollision();
+	bOk &= TestEqual(TEXT("with dummies: locations are recorded"),
+		WithDummies.GetCollisionOnlyDummyPreCollisionScratchNum(), WithDummies.Num());
+	return bOk;
+}
+
 } // namespace KawaiiPhysicsCollisionOnlyDummyFeedbackTestPrivate
 
 #endif

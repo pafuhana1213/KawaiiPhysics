@@ -1190,6 +1190,9 @@ private:
 	// コリジョン直前の位置（コリジョン専用ダミーがコリジョン自身で押された分を求めるため）
 	// Locations just before collision (to get how far collision itself pushed each collision-only dummy)
 	TArray<FVector> CollisionOnlyDummyPreCollisionScratch;
+	// ModifyBones にボーン間のダミーがあるか（無ければコリジョン専用ダミーのフィードバックを丸ごと飛ばす）
+	// Whether ModifyBones has inter-bone dummies (the collision-only dummy feedback is skipped entirely when not)
+	bool bHasInterBoneDummies = false;
 
 	/**
 	* Stores the delta time from the previous frame.
@@ -1834,6 +1837,8 @@ protected:
 	void ApplyCollisionOnlyDummyFeedback();
 	/** コリジョン直前に、コリジョン専用ダミーの位置を控える / Records collision-only dummy locations just before collision */
 	void CaptureCollisionOnlyDummyPreCollision();
+	/** ModifyBones を作ったあとに、ボーン間のダミーがあるかを記録し直す / Re-records whether ModifyBones has inter-bone dummies */
+	void UpdateHasInterBoneDummies();
 
 	/**
 	 * Simulates the physics for a single bone.
