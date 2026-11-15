@@ -234,9 +234,9 @@ bool FKawaiiPhysicsRuntimeReinitSameBoneReferenceTest::RunTest(const FString& Pa
 	return bOk;
 }
 
-// SyncBones の対象（子ボーン一覧など）は ModifyBones の構築時に作られるので、変えたら作り直しを要求する
+// SyncBones を変えたら対象（子ボーン一覧など）だけを作り直す。ModifyBones は作り直さない（物理状態をリセットしない）
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsRuntimeReinitSyncBonesTest,
-                                 "KawaiiPhysics.RuntimeReinit.SyncBonesRebuildBones",
+                                 "KawaiiPhysics.RuntimeReinit.SyncBonesReinitTargets",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FKawaiiPhysicsRuntimeReinitSyncBonesTest::RunTest(const FString& Parameters)
@@ -247,8 +247,31 @@ bool FKawaiiPhysicsRuntimeReinitSyncBonesTest::RunTest(const FString& Parameters
 	const bool bSet = UKawaiiPhysicsLibrary::SetNodePropertyValueFromString(
 		A.Node, SyncName, TEXT("((Bone=(BoneName=\"spine\"),TargetRoots=((Bone=(BoneName=\"hair_a\")))))"));
 	bool bOk = TestTrue(TEXT("SyncBones import succeeds"), bSet);
-	bOk &= TestTrue(TEXT("changing SyncBones rebuilds bones"), A.IsModifyBonesReinitPending());
+	bOk &= TestTrue(TEXT("changing SyncBones rebuilds the sync targets"), A.IsSyncBonesReinitPending());
+	bOk &= TestFalse(TEXT("changing SyncBones does not rebuild bones"), A.IsModifyBonesReinitPending());
 	bOk &= TestTrue(TEXT("changing SyncBones re-initializes bone references"), A.IsBoneReferencesReinitPending());
+
+	// 作り直しで InitSyncBones が実行時のキャッシュ（UPROPERTY）を埋めた状態にする
+	FKawaiiPhysicsSyncTargetRoot& Target = A.Node.SyncBones[0].TargetRoots[0];
+	Target.ModifyBoneIndex = 3;
+	Target.ChildTargets.Add(FKawaiiPhysicsSyncTarget(4));
+	A.Node.SyncBones[0].InitialPoseLocation = FVector(1.0, 2.0, 3.0);
+	A.ClearPendingReinitForTest();
+
+	// 設定だけを組み立てた同じ値を毎フレーム渡しても、キャッシュの違いで「変更あり」にしない（物理をリセットし続けない）
+	UKawaiiPhysicsLibrary::SetNodePropertyValueFromString(
+		A.Node, SyncName, TEXT("((Bone=(BoneName=\"spine\"),TargetRoots=((Bone=(BoneName=\"hair_a\")))))"));
+	bOk &= TestFalse(TEXT("same SyncBones settings do not rebuild the sync targets"), A.IsSyncBonesReinitPending());
+	bOk &= TestEqual(TEXT("runtime caches are kept"), A.Node.SyncBones[0].TargetRoots[0].ChildTargets.Num(), 1);
+
+	FProperty* SyncProperty = FAnimNode_KawaiiPhysics::StaticStruct()->FindPropertyByName(SyncName);
+	TArray<FKawaiiPhysicsSyncBone> SameSettings;
+	FKawaiiPhysicsSyncBone& SameSyncBone = SameSettings.AddDefaulted_GetRef();
+	SameSyncBone.Bone.BoneName = TEXT("spine");
+	SameSyncBone.TargetRoots.AddDefaulted_GetRef().Bone.BoneName = TEXT("hair_a");
+	UKawaiiPhysicsLibrary::SetNodeWildcardPropertyValue(A.Node, SyncName, SyncProperty, &SameSettings);
+	bOk &= TestFalse(TEXT("same SyncBones settings through the wildcard setter do not rebuild the sync targets"),
+		A.IsSyncBonesReinitPending());
 	return bOk;
 }
 

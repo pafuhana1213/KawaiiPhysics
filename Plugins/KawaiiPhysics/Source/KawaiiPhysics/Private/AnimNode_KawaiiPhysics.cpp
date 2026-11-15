@@ -768,6 +768,13 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		}
 	}
 
+	// SyncBones だけが変わった場合は、既存の ModifyBones から対象を作り直す（物理状態はリセットしない）
+	if (bSyncBonesNeedReinit && ModifyBones.Num() > 0)
+	{
+		InitSyncBones(Output);
+	}
+	bSyncBonesNeedReinit = false;
+
 	if (ModifyBones.Num() == 0)
 	{
 		InitModifyBones(Output, BoneContainer);

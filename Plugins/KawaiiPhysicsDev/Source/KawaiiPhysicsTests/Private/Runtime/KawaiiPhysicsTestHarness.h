@@ -32,11 +32,13 @@ struct FKawaiiPhysicsTestAccessor
 	bool IsBoneReferencesReinitPending() const { return Node.bBoneReferencesNeedReinit; }
 	bool IsLimitAssetsReapplyPending() const { return Node.bLimitAssetsNeedReapply; }
 	bool IsModifyBonesReinitPending() const { return Node.bModifyBonesNeedsReinit; }
+	bool IsSyncBonesReinitPending() const { return Node.bSyncBonesNeedReinit; }
 	void ClearPendingReinitForTest()
 	{
 		Node.bBoneReferencesNeedReinit = false;
 		Node.bLimitAssetsNeedReapply = false;
 		Node.bModifyBonesNeedsReinit = false;
+		Node.bSyncBonesNeedReinit = false;
 	}
 
 #if WITH_EDITOR

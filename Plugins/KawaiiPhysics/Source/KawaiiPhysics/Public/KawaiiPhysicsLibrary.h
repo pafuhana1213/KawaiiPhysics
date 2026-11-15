@@ -1418,6 +1418,11 @@ public:
 	 * Requests every re-initialization the property needs after a node property was written
 	 */
 	static void RequestNodeReinitForChangedProperty(FAnimNode_KawaiiPhysics& Node, FName PropertyName);
+	/**
+	 * ノードのプロパティの値が設定として同じか（SyncBone の実行時キャッシュは比較しない）
+	 * Whether two node property values are the same settings (SyncBone runtime caches are not compared)
+	 */
+	static bool AreNodePropertySettingsIdentical(const FProperty* Property, const void* A, const void* B);
 	static bool SetNodeWildcardPropertyValue(FAnimNode_KawaiiPhysics& Node, FName PropertyName,
 	                                         const FProperty* ValueProperty, const void* ValuePtr);
 	static bool GetNodeWildcardPropertyValue(const FAnimNode_KawaiiPhysics& Node, FName PropertyName,
@@ -2066,7 +2071,7 @@ bool UKawaiiPhysicsLibrary::SetNodeStructPropertyValue(FAnimNode_KawaiiPhysics& 
 	{
 		// 値が変わったときだけ書き込み、再初期化を要求する（FBoneReference は名前しか比較されないので、
 		// 同じ名前の未初期化の参照で上書きすると初期化済みのボーン番号が消える）
-		if (!StructProperty->Identical(ValuePtr, &Value, PPF_None))
+		if (!AreNodePropertySettingsIdentical(StructProperty, ValuePtr, &Value))
 		{
 			StructProperty->CopyCompleteValue(ValuePtr, &Value);
 			RequestNodeReinitForChangedProperty(Node, PropertyName);

@@ -156,8 +156,6 @@ namespace KawaiiPhysicsLibraryPrivate
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, BoneConstraintSubdivisionCount),
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, BoneConstraints),
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, BoneConstraintsDataAsset),
-			// SyncBones の対象（子ボーン一覧・ModifyBone の番号）は ModifyBones の構築時（InitSyncBones）に作られる
-			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, SyncBones),
 		};
 		return Names;
 	}
@@ -194,6 +192,76 @@ namespace KawaiiPhysicsLibraryPrivate
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, PlanarLimits),
 		};
 		return Names;
+	}
+
+	// SyncBone の中で、実行時に書き込まれるキャッシュ（設定ではない）。同じ設定かどうかの比較から外す
+	static const TSet<FName>& GetSyncBoneRuntimeCachePropertyNames()
+	{
+		static const TSet<FName> Names = {
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysicsSyncBone, InitialPoseLocation),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysicsSyncTarget, ScaleByLengthRateCurve),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysicsSyncTarget, LengthRateFromSyncTargetRoot),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysicsSyncTarget, ModifyBoneIndex),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysicsSyncTargetRoot, ChildTargets),
+#if WITH_EDITORONLY_DATA
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysicsSyncBone, DeltaDistance),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysicsSyncBone, ScaledDeltaDistance),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysicsSyncTarget, IsShowPreviewBone),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysicsSyncTarget, PreviewBone),
+			GET_MEMBER_NAME_CHECKED(FKawaiiPhysicsSyncTarget, TranslationBySyncBone),
+#endif
+		};
+		return Names;
+	}
+
+	static bool IsSyncBoneStruct(const UScriptStruct* Struct)
+	{
+		return Struct && (Struct->IsChildOf(FKawaiiPhysicsSyncBone::StaticStruct()) ||
+			Struct->IsChildOf(FKawaiiPhysicsSyncTarget::StaticStruct()));
+	}
+
+	// 設定として同じか。SyncBone は実行時のキャッシュも UPROPERTY なので、比較から外さないと、設定だけを組み立てた
+	// 同じ値を毎フレーム渡したときに毎回「変更あり」になり、ボーンの作り直しで物理状態がリセットされ続ける
+	static bool AreSettingsIdentical(const FProperty* Property, const void* A, const void* B)
+	{
+		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
+		{
+			FScriptArrayHelper ArrayA(ArrayProperty, A);
+			FScriptArrayHelper ArrayB(ArrayProperty, B);
+			if (ArrayA.Num() != ArrayB.Num())
+			{
+				return false;
+			}
+			for (int32 Index = 0; Index < ArrayA.Num(); ++Index)
+			{
+				if (!AreSettingsIdentical(ArrayProperty->Inner, ArrayA.GetRawPtr(Index), ArrayB.GetRawPtr(Index)))
+				{
+					return false;
+				}
+			}
+			return true;
+		}
+		if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property);
+			StructProperty && IsSyncBoneStruct(StructProperty->Struct))
+		{
+			for (TFieldIterator<FProperty> It(StructProperty->Struct); It; ++It)
+			{
+				if (GetSyncBoneRuntimeCachePropertyNames().Contains(It->GetFName()))
+				{
+					continue;
+				}
+				for (int32 ArrayIndex = 0; ArrayIndex < It->ArrayDim; ++ArrayIndex)
+				{
+					if (!AreSettingsIdentical(*It, It->ContainerPtrToValuePtr<void>(A, ArrayIndex),
+					                          It->ContainerPtrToValuePtr<void>(B, ArrayIndex)))
+					{
+						return false;
+					}
+				}
+			}
+			return true;
+		}
+		return Property->Identical(A, B, PPF_None);
 	}
 
 	static const TSet<FName>& GetNodeSharedCollisionReinitPropertyNames()
@@ -1226,6 +1294,12 @@ void UKawaiiPhysicsLibrary::RequestNodeReinitForChangedProperty(FAnimNode_Kawaii
 	{
 		Node.RequestLimitAssetsReapply();
 	}
+	// SyncBones の対象（子ボーン一覧・ModifyBone の番号）は InitSyncBones でしか作られない。ModifyBones は作り直さず、
+	// 対象だけを作り直す（設定を毎フレーム動かしても物理状態をリセットしない）
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, SyncBones))
+	{
+		Node.RequestSyncBonesReinit();
+	}
 	if (DoesNodePropertyRequireSharedCollisionReinit(PropertyName))
 	{
 		Node.RequestSharedCollisionReinit();
@@ -1246,6 +1320,11 @@ bool UKawaiiPhysicsLibrary::DoesNodePropertyRequireSimpleWorldCollisionReinit(FN
 	return KawaiiPhysicsLibraryPrivate::GetNodeSimpleWorldCollisionReinitPropertyNames().Contains(PropertyName);
 }
 
+bool UKawaiiPhysicsLibrary::AreNodePropertySettingsIdentical(const FProperty* Property, const void* A, const void* B)
+{
+	return KawaiiPhysicsLibraryPrivate::AreSettingsIdentical(Property, A, B);
+}
+
 bool UKawaiiPhysicsLibrary::SetNodeWildcardPropertyValue(FAnimNode_KawaiiPhysics& Node, FName PropertyName,
                                                          const FProperty* ValueProperty, const void* ValuePtr)
 {
@@ -1260,7 +1339,7 @@ bool UKawaiiPhysicsLibrary::SetNodeWildcardPropertyValue(FAnimNode_KawaiiPhysics
 		// 値が変わったときだけ書き込み、再初期化を要求する。同じ値を毎フレーム設定しても作り直しや物理状態のリセットが
 		// 起きないようにするため。また FBoneReference は名前しか比較されないので、同じ名前の未初期化の参照で上書きすると
 		// 初期化済みのボーン番号が消え、再初期化も要求されないままノードが止まる
-		if (!Property->Identical(NodeValuePtr, ValuePtr, PPF_None))
+		if (!AreNodePropertySettingsIdentical(Property, NodeValuePtr, ValuePtr))
 		{
 			Property->CopyCompleteValue(NodeValuePtr, ValuePtr);
 			RequestNodeReinitForChangedProperty(Node, PropertyName);
@@ -1310,7 +1389,7 @@ bool UKawaiiPhysicsLibrary::SetNodePropertyValueFromString(FAnimNode_KawaiiPhysi
 #else
 		const bool bImported = Property->ImportText_Direct(*ValueText, TempValue, nullptr, PPF_None) != nullptr;
 #endif
-		if (bImported && !Property->Identical(NodeValuePtr, TempValue, PPF_None))
+		if (bImported && !AreNodePropertySettingsIdentical(Property, NodeValuePtr, TempValue))
 		{
 			Property->CopyCompleteValue(NodeValuePtr, TempValue);
 			RequestNodeReinitForChangedProperty(Node, PropertyName);

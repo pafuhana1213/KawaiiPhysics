@@ -576,6 +576,16 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 		bLimitAssetsNeedReapply = true;
 		bBoneReferencesNeedReinit = true;
 	}
+	/**
+	 * SyncBones の対象（子ボーン一覧・ModifyBone の番号など）を次の評価で作り直すよう要求。ModifyBones は作り直さない
+	 * Request that the SyncBones targets (child target lists, ModifyBone indices, ...) are rebuilt on the next
+	 * evaluation. ModifyBones are not rebuilt
+	 */
+	void RequestSyncBonesReinit()
+	{
+		bSyncBonesNeedReinit = true;
+		bBoneReferencesNeedReinit = true;
+	}
 
 	/**
 	* Bone Constraintで用いる剛性タイプ
@@ -2070,6 +2080,9 @@ private:
 	// constraints rebuilt. Handled at the start of the evaluation in every build configuration.
 	bool bBoneReferencesNeedReinit = false;
 	bool bLimitAssetsNeedReapply = false;
+	// SyncBones の対象だけを作り直す（ModifyBones の構築時にも作られるので、そのときは不要）
+	// Rebuild only the SyncBones targets (they are also built when ModifyBones are built)
+	bool bSyncBonesNeedReinit = false;
 	int32 LastInitializedBoneSubdivisionCount = 0;
 	int32 LastInitializedBoneConstraintSubdivisionCount = 0;
 	// DensifyByRadiusは配置数（生成トポロジ）を左右するため再構築判定に含める。既定値はプロパティのデフォルトに合わせる
