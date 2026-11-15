@@ -1572,8 +1572,8 @@ void FAnimNode_KawaiiPhysics::StoreWindSamplePositions(FComponentSpacePoseContex
 	const bool bNeeded = bWindSampleReadThisEvaluation || IsWindSampleNeededBySettings();
 	bWindSampleReadThisEvaluation = false;
 
-	WindSample.BoneWorldPositions.Reset();
-	WindSample.bHasCenterWorldPosition = false;
+	WindSample.BoneComponentPositions.Reset();
+	WindSample.bHasCenterComponentPosition = false;
 	if (!bNeeded || ModifyBones.IsEmpty())
 	{
 		return;
@@ -1582,22 +1582,23 @@ void FAnimNode_KawaiiPhysics::StoreWindSamplePositions(FComponentSpacePoseContex
 	const bool bPerBone = WindSampleMode == EKawaiiPhysicsWindSampleMode::PerBone;
 	if (bPerBone)
 	{
-		WindSample.BoneWorldPositions.Reserve(ModifyBones.Num());
+		WindSample.BoneComponentPositions.Reserve(ModifyBones.Num());
 	}
 
-	FBox WorldBounds(ForceInit);
+	FBox ComponentBounds(ForceInit);
 	for (const FKawaiiPhysicsModifyBone& Bone : ModifyBones)
 	{
-		const FVector WorldPosition = ConvertSimulationSpaceLocation(
-			Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::WorldSpace, Bone.PoseLocation);
-		WorldBounds += WorldPosition;
+		const FVector ComponentPosition = ConvertSimulationSpaceLocation(
+			Output, SimulationSpace, EKawaiiPhysicsSimulationSpace::ComponentSpace, Bone.PoseLocation);
+		ComponentBounds += ComponentPosition;
 		if (bPerBone)
 		{
-			WindSample.BoneWorldPositions.Add(WorldPosition);
+			WindSample.BoneComponentPositions.Add(ComponentPosition);
 		}
 	}
-	WindSample.CenterWorldPosition = WorldBounds.GetCenter();
-	WindSample.bHasCenterWorldPosition = true;
+	WindSample.CenterComponentPosition = ComponentBounds.GetCenter();
+	WindSample.bHasCenterComponentPosition = true;
+	WindSample.EvaluatedComponentToWorld = GetSimulationSpaceCacheFor(Output, EKawaiiPhysicsSimulationSpace::WorldSpace).ComponentToTargetSpace;
 }
 
 void FAnimNode_KawaiiPhysics::SampleWindOnGameThread(const UWorld* World, const USkeletalMeshComponent* SkelComp)
@@ -1607,35 +1608,42 @@ void FAnimNode_KawaiiPhysics::SampleWindOnGameThread(const UWorld* World, const 
 	WindSample.bHasCenterSample = false;
 
 	const FSceneInterface* Scene = World ? World->Scene : nullptr;
-	if (!Scene || !(WindSample.bUsedInLastEvaluation || IsWindSampleNeededBySettings()))
+	if (!Scene)
 	{
 		return;
 	}
 
 	SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_GetWindVelocity);
 
+	// ノード中心の風は、風を使っていないノードでも毎フレーム 1 回だけ取得する（風源の数だけのループで軽い）。
+	// 一時 Wind 外力が追加された最初のフレームや、実行時に bEnableWind を有効にしたフレームにも風の値があるようにするため。
+	// ボーンごとの問い合わせ（PerBone）は、風を使うときだけ行う
+
 	float MinGust = 0.0f;
 	float MaxGust = 0.0f;
 
+	// 保存した位置はコンポーネント空間なので、今のコンポーネントの変換でワールド位置にする（移動中・評価が飛んだ後も今の位置）
+	const FTransform ComponentToWorld = SkelComp ? SkelComp->GetComponentTransform() : WindSample.EvaluatedComponentToWorld;
 	// 初回など、まだ評価で位置を保存していないときはコンポーネントの位置で代用する
-	const FVector CenterPosition = WindSample.bHasCenterWorldPosition
-		                               ? WindSample.CenterWorldPosition
-		                               : (SkelComp ? SkelComp->GetComponentLocation() : FVector::ZeroVector);
+	const FVector CenterPosition = WindSample.bHasCenterComponentPosition
+		                               ? ComponentToWorld.TransformPosition(WindSample.CenterComponentPosition)
+		                               : ComponentToWorld.GetLocation();
 	Scene->GetWindParameters_GameThread(CenterPosition, WindSample.CenterDirection, WindSample.CenterSpeed,
 	                                    MinGust, MaxGust);
 	WindSample.bHasCenterSample = true;
 
-	if (WindSampleMode != EKawaiiPhysicsWindSampleMode::PerBone || WindSample.BoneWorldPositions.IsEmpty())
+	if (WindSampleMode != EKawaiiPhysicsWindSampleMode::PerBone || WindSample.BoneComponentPositions.IsEmpty() ||
+		!(WindSample.bUsedInLastEvaluation || IsWindSampleNeededBySettings()))
 	{
 		return;
 	}
 
-	const int32 NumBones = WindSample.BoneWorldPositions.Num();
+	const int32 NumBones = WindSample.BoneComponentPositions.Num();
 	WindSample.BoneDirections.SetNumUninitialized(NumBones);
 	WindSample.BoneSpeeds.SetNumUninitialized(NumBones);
 	for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
 	{
-		Scene->GetWindParameters_GameThread(WindSample.BoneWorldPositions[BoneIndex],
+		Scene->GetWindParameters_GameThread(ComponentToWorld.TransformPosition(WindSample.BoneComponentPositions[BoneIndex]),
 		                                    WindSample.BoneDirections[BoneIndex], WindSample.BoneSpeeds[BoneIndex],
 		                                    MinGust, MaxGust);
 	}

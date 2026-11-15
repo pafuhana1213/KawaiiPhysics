@@ -11,6 +11,12 @@
 #include "Engine/WindDirectionalSource.h"
 #include "Engine/World.h"
 #include "SceneInterface.h"
+#include "Animation/AnimInstance.h"
+#include "Animation/Skeleton.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "GameFramework/Actor.h"
+#include "ReferenceSkeleton.h"
+#include "UObject/StrongObjectPtr.h"
 
 namespace KawaiiPhysicsWindSampleTestPrivate
 {
@@ -205,9 +211,10 @@ bool FKawaiiPhysicsWindSamplePerBoneTest::RunTest(const FString& Parameters)
 	return bOk;
 }
 
-// 風を使わないノードは GameThread で問い合わせない
+// ノード中心の風は、風を使わないノードでも取得する（一時外力の最初のフレームに備える）。
+// ボーンごとの問い合わせ（PerBone）は、風を使うときだけ行う
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsWindSampleSkippedTest,
-                                 "KawaiiPhysics.Wind.Sample.SkippedWhenUnused",
+                                 "KawaiiPhysics.Wind.Sample.PerBoneSkippedWhenUnused",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FKawaiiPhysicsWindSampleSkippedTest::RunTest(const FString& Parameters)
@@ -216,21 +223,181 @@ bool FKawaiiPhysicsWindSampleSkippedTest::RunTest(const FString& Parameters)
 	FKawaiiPhysicsTestAccessor A;
 	SetUpWindSampleChain(A);
 	A.Node.bEnableWind = false;
+	A.Node.WindSampleMode = EKawaiiPhysicsWindSampleMode::PerBone;
 
 	FAnimInstanceProxy Proxy;
 	FComponentSpacePoseContext Output(&Proxy);
 	A.CallStoreWindSamplePositions(Output);
 	A.CallSampleWindOnGameThread(TestWorld.World);
 
-	bool bOk = TestFalse(TEXT("no wind query without wind users"), A.HasWindCenterSample());
+	bool bOk = TestTrue(TEXT("the center wind is sampled even without wind users"), A.HasWindCenterSample());
+	bOk &= TestEqual(TEXT("no per-bone queries without wind users"), A.GetWindBoneSampleCount(), 0);
 
-	// 一時外力の Wind のように設定からは分からない利用でも、評価で読まれたら次のフレームから問い合わせる
+	// 一時外力の Wind のように設定からは分からない利用でも、評価で読まれたら次のフレームからボーンごとに問い合わせる
 	FVector Direction;
 	float Speed;
 	A.Node.GetWindSample(0, Direction, Speed);
 	A.CallStoreWindSamplePositions(Output);
 	A.CallSampleWindOnGameThread(TestWorld.World);
-	bOk &= TestTrue(TEXT("a wind read during evaluation enables the next query"), A.HasWindCenterSample());
+	bOk &= TestEqual(TEXT("a wind read during evaluation enables per-bone queries"), A.GetWindBoneSampleCount(), A.Num());
+	return bOk;
+}
+
+struct FWindEvalProxy : FAnimInstanceProxy
+{
+	using FAnimInstanceProxy::FAnimInstanceProxy;
+	using FAnimInstanceProxy::PreUpdate;
+};
+
+// 点風源のあるワールドで、本番と同じ PreUpdate → UpdateInternal → EvaluateSkeletalControl_AnyThread を回す
+struct FWindEvalFixture
+{
+	FWindSampleTestWorld TestWorld;
+	TStrongObjectPtr<USkeleton> Skeleton{NewObject<USkeleton>()};
+	UAnimInstance* Anim = nullptr;
+	USkeletalMeshComponent* Component = nullptr;
+	TUniquePtr<FWindEvalProxy> Proxy;
+	FKawaiiPhysicsTestAccessor A;
+	TArray<FBoneTransform> OutTransforms;
+	float FrameDt = 1.0f / 60.0f;
+
+	FWindEvalFixture()
+	{
+		TArray<FBoneIndexType> RequiredIndices{0, 1, 2, 3};
+		{
+			FReferenceSkeletonModifier Modifier(Skeleton.Get());
+			Modifier.Add(FMeshBoneInfo(TEXT("root"), TEXT("root"), INDEX_NONE), FTransform::Identity);
+			for (int32 Link = 0; Link < 3; ++Link)
+			{
+				const FName Name(*FString::Printf(TEXT("chain_%d"), Link));
+				Modifier.Add(FMeshBoneInfo(Name, Name.ToString(), Link), FTransform(FVector(0.0, 0.0, -20.0)));
+			}
+		}
+		AActor* Actor = TestWorld.World->SpawnActor<AActor>(GComponentLocation, FRotator::ZeroRotator);
+		Component = NewObject<USkeletalMeshComponent>(Actor);
+		Actor->SetRootComponent(Component);
+		Component->RegisterComponent();
+		Component->SetWorldLocation(GComponentLocation);
+		Anim = NewObject<UAnimInstance>(Component);
+		Proxy = MakeUnique<FWindEvalProxy>(Anim);
+		Proxy->PreUpdate(Anim, FrameDt);
+		Proxy->GetRequiredBones().InitializeTo(RequiredIndices, UE::Anim::FCurveFilterSettings(), *Skeleton);
+
+		FAnimNode_KawaiiPhysics& Node = A.Node;
+		Node.RootBone.BoneName = TEXT("chain_0");
+		Node.DummyBoneLength = 0.0f;
+		Node.WarmUpFrames = 0;
+		Node.bAllowWorldCollision = false;
+		Node.bUseSimpleWorldCollision = false;
+		Node.Gravity = FVector::ZeroVector;
+		Node.OnInitializeAnimInstance(Proxy.Get(), Anim);
+		Node.Initialize_AnyThread(FAnimationInitializeContext(Proxy.Get()));
+		Node.CacheBones_AnyThread(FAnimationCacheBonesContext(Proxy.Get()));
+	}
+
+	~FWindEvalFixture() { Proxy.Reset(); }
+
+	void PreUpdate() { A.Node.PreUpdate(Anim); }
+
+	void Evaluate()
+	{
+		FMemMark MemMark(FMemStack::Get());
+		FComponentSpacePoseContext Context(Proxy.Get());
+		Context.Pose.InitPose(&Proxy->GetRequiredBones());
+		A.Node.UpdateInternal(FAnimationUpdateContext(Proxy.Get(), FrameDt));
+		OutTransforms.Reset();
+		A.Node.EvaluateSkeletalControl_AnyThread(Context, OutTransforms);
+	}
+
+	// 先端のボーンが、ポーズからどれだけ動いたか
+	float TipDeviation() const
+	{
+		const FKawaiiPhysicsModifyBone& Tip = A.Node.ModifyBones.Last();
+		return static_cast<float>((Tip.Location - Tip.PoseLocation).Size());
+	}
+};
+
+// 寿命 1 フレームの一時 Wind 外力も、風源の風を受ける（要求のタイミングはアクターの Tick 相当と AnimBP 相当の両方）
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsWindSampleShortTransientTest,
+                                 "KawaiiPhysics.Wind.Sample.ShortLivedTransientWind",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsWindSampleShortTransientTest::RunTest(const FString& Parameters)
+{
+	bool bOk = true;
+	for (const bool bRequestBeforePreUpdate : {true, false})
+	{
+		FWindEvalFixture Fixture;
+		if (!Fixture.TestWorld.HasRenderScene(*this))
+		{
+			return true;
+		}
+		// 風を使わない状態で数フレーム回す
+		for (int32 Frame = 0; Frame < 3; ++Frame)
+		{
+			Fixture.PreUpdate();
+			Fixture.Evaluate();
+		}
+
+		auto Request = [&Fixture]()
+		{
+			Fixture.A.Node.RequestTransientExternalForce(FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_Wind>(),
+			                                             Fixture.FrameDt);
+		};
+		float MaxDeviation = 0.0f;
+		for (int32 Frame = 0; Frame < 3; ++Frame)
+		{
+			if (Frame == 0 && bRequestBeforePreUpdate)
+			{
+				Request();
+			}
+			Fixture.PreUpdate();
+			if (Frame == 0 && !bRequestBeforePreUpdate)
+			{
+				Request();
+			}
+			Fixture.Evaluate();
+			MaxDeviation = FMath::Max(MaxDeviation, Fixture.TipDeviation());
+		}
+		bOk &= TestTrue(FString::Printf(TEXT("short-lived transient wind moves the chain (requested %s PreUpdate): %.4f cm"),
+			bRequestBeforePreUpdate ? TEXT("before") : TEXT("after"), MaxDeviation), MaxDeviation > 0.01f);
+	}
+	return bOk;
+}
+
+// コンポーネントが動いたら、次の PreUpdate は動いた後の位置で風を問い合わせる（前回の評価時のワールド位置ではない）
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsWindSampleMovedComponentTest,
+                                 "KawaiiPhysics.Wind.Sample.FollowsMovedComponent",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsWindSampleMovedComponentTest::RunTest(const FString& Parameters)
+{
+	bool bOk = true;
+	for (const EKawaiiPhysicsWindSampleMode Mode : {EKawaiiPhysicsWindSampleMode::NodeCenter, EKawaiiPhysicsWindSampleMode::PerBone})
+	{
+		FWindEvalFixture Fixture;
+		if (!Fixture.TestWorld.HasRenderScene(*this))
+		{
+			return true;
+		}
+		Fixture.A.Node.bEnableWind = true;
+		Fixture.A.Node.WindSampleMode = Mode;
+		for (int32 Frame = 0; Frame < 3; ++Frame)
+		{
+			Fixture.PreUpdate();
+			Fixture.Evaluate();
+		}
+
+		// 点風源(0,0,-50)の反対側へ動かす。風は風源から外向きなので、向きの X の符号が反転するはず
+		Fixture.Component->SetWorldLocation(FVector(-GComponentLocation.X, 0.0, 0.0));
+		Fixture.PreUpdate();
+		FVector Direction;
+		float Speed;
+		Fixture.A.Node.GetWindSample(1, Direction, Speed);
+		bOk &= TestTrue(FString::Printf(TEXT("%s: wind is sampled at the moved component (%s)"),
+			Mode == EKawaiiPhysicsWindSampleMode::PerBone ? TEXT("PerBone") : TEXT("NodeCenter"), *Direction.ToString()),
+			Direction.X < 0.0);
+	}
 	return bOk;
 }
 

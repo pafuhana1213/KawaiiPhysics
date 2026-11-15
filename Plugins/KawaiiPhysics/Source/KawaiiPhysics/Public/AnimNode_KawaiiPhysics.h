@@ -1196,17 +1196,21 @@ private:
 	 */
 	struct FWindSampleState
 	{
-		// 評価 → PreUpdate：問い合わせ位置（ワールド空間）。BoneWorldPositions は PerBone のときだけ
-		// Evaluation -> PreUpdate: query positions in world space. BoneWorldPositions only for PerBone
-		TArray<FVector> BoneWorldPositions;
-		FVector CenterWorldPosition = FVector::ZeroVector;
-		bool bHasCenterWorldPosition = false;
+		// 評価 → PreUpdate：問い合わせ位置（コンポーネント空間）。PreUpdate で、その時点のコンポーネントの変換を掛けて
+		// ワールド位置にする（移動中や評価が飛んだ後も、今の位置で問い合わせるため）。BoneComponentPositions は PerBone のときだけ
+		// Evaluation -> PreUpdate: query positions in component space. PreUpdate applies the component transform of that
+		// moment, so the query follows a moving component and skipped evaluations. BoneComponentPositions only for PerBone
+		TArray<FVector> BoneComponentPositions;
+		FVector CenterComponentPosition = FVector::ZeroVector;
+		bool bHasCenterComponentPosition = false;
+		// コンポーネントが分からないときの代わり（評価時のコンポーネントの変換） / Fallback when no component is given (component transform at evaluation)
+		FTransform EvaluatedComponentToWorld = FTransform::Identity;
 		// 直前の評価で風を使ったか（一時外力の Wind など、設定からは分からない利用も拾う）
 		// Whether the last evaluation used the wind (also catches uses not visible in settings, such as a transient Wind force)
 		bool bUsedInLastEvaluation = false;
 
-		// PreUpdate → 評価：問い合わせ結果（ワールド空間）。ボーンごとの結果は BoneWorldPositions と同じ並び
-		// PreUpdate -> evaluation: query results in world space. Per-bone results follow BoneWorldPositions
+		// PreUpdate → 評価：問い合わせ結果（ワールド空間）。ボーンごとの結果は BoneComponentPositions と同じ並び
+		// PreUpdate -> evaluation: query results in world space. Per-bone results follow BoneComponentPositions
 		TArray<FVector> BoneDirections;
 		TArray<float> BoneSpeeds;
 		FVector CenterDirection = FVector::ZeroVector;
