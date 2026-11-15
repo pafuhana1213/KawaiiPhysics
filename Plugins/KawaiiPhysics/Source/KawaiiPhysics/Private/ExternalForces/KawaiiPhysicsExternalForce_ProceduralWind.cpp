@@ -963,8 +963,28 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::Initialize(const FAnimationIni
 {
 	Super::Initialize(Context);
 
+	// 初期化前に届いた要求（パラメータ変更・突風・突風の停止）は捨てずに引き継ぐ。
+	// 実行時に追加された外力は最初の評価の直前に初期化されるので、ここで消すと追加直後の要求が黙って失われる
+	TOptional<FKawaiiProceduralWindDynamicParams> PendingParams;
+	TOptional<FKawaiiProceduralWindGustRequest> PendingGust;
+	TOptional<float> PendingGustStop;
+	if (RuntimeState.IsValid())
+	{
+		FScopeLock Lock(&RuntimeState->Mutex);
+		PendingParams = MoveTemp(RuntimeState->PendingParams);
+		PendingGust = MoveTemp(RuntimeState->PendingGust);
+		PendingGustStop = MoveTemp(RuntimeState->PendingGustStop);
+	}
+
 	// ノード初期化時に RuntimeState の中身を初期化し、前回の再生状態（Time/ActiveGust等）を引き継がない
 	ResetRuntimeState();
+
+	{
+		FScopeLock Lock(&RuntimeState->Mutex);
+		RuntimeState->PendingParams = MoveTemp(PendingParams);
+		RuntimeState->PendingGust = MoveTemp(PendingGust);
+		RuntimeState->PendingGustStop = MoveTemp(PendingGustStop);
+	}
 }
 
 namespace KawaiiPhysicsProceduralWindInternal

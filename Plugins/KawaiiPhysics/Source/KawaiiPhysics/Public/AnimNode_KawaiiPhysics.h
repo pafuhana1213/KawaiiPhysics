@@ -710,22 +710,18 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 
 	/**
 	 * 実行時専用の一時外力をリクエストする。任意スレッド可で、Mutex 保護されたキューへ積む。
-	 * BP再コンパイルやノード再初期化で失われる。Initialize(Context) は呼ばれないため汎用外力では制限あり
-	 * （ProceduralWind は PreApply で RuntimeState を遅延生成するため安全）。
+	 * BP再コンパイルやノード再初期化で失われる。外力の Initialize(Context) は、最初に使う前に評価中のワーカースレッドで呼ばれる。
 	 * ストアはGC追跡外。UObject参照を含む外力を渡す場合は呼び出し側が参照の生存を保証すること / The store is not GC-tracked; callers passing forces with UObject references must keep those objects alive.
 	 * Request a runtime-only transient external force. Callable from any thread; it is queued under a mutex.
-	 * Lost on BP recompile or node re-init. Initialize(Context) is not called, which limits generic use
-	 * (ProceduralWind is safe because it lazily creates RuntimeState in PreApply).
+	 * Lost on BP recompile or node re-init. The force's Initialize(Context) runs on the evaluating worker thread before its first use.
 	 */
 	int64 RequestTransientExternalForce(FInstancedStruct&& InForce, float InLifetimeSeconds, int64 InHandleId = 0);
 
 	/**
 	 * 実行時専用の一時突風をリクエストする。任意スレッド可で、Mutex 保護されたキューへパラメータだけを積む。
-	 * BP再コンパイルやノード再初期化で失われる。Initialize(Context) は呼ばれないため汎用外力では制限あり
-	 * （ProceduralWind は PreApply で RuntimeState を遅延生成するため安全）。
+	 * BP再コンパイルやノード再初期化で失われる。外力の Initialize(Context) は、最初に使う前に評価中のワーカースレッドで呼ばれる。
 	 * Request a runtime-only transient gust. Callable from any thread; only parameters are queued under a mutex.
-	 * Lost on BP recompile or node re-init. Initialize(Context) is not called, which limits generic use
-	 * (ProceduralWind is safe because it lazily creates RuntimeState in PreApply).
+	 * Lost on BP recompile or node re-init. The force's Initialize(Context) runs on the evaluating worker thread before its first use.
 	 */
 	int64 RequestTransientGust(float Strength, float RiseTime, float DecayTime,
 	                           const FVector& GustDirection, int32 InheritForceIndex = INDEX_NONE,
@@ -736,11 +732,9 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 
 	/**
 	 * キュー済み一時外力を worker で取り込み、寿命切れを掃除する。worker 専用で 1 evaluate 1 回だけ呼ぶ。
-	 * BP再コンパイルやノード再初期化で失われる。Initialize(Context) は呼ばれないため汎用外力では制限あり
-	 * （ProceduralWind は PreApply で RuntimeState を遅延生成するため安全）。
+	 * BP再コンパイルやノード再初期化で失われる。外力の Initialize(Context) は、最初に使う前に評価中のワーカースレッドで呼ばれる。
 	 * Consume queued transient forces on the worker and remove expired entries. Worker-only; call once per evaluate.
-	 * Lost on BP recompile or node re-init. Initialize(Context) is not called, which limits generic use
-	 * (ProceduralWind is safe because it lazily creates RuntimeState in PreApply).
+	 * Lost on BP recompile or node re-init. The force's Initialize(Context) runs on the evaluating worker thread before its first use.
 	 */
 	void ConsumeAndRemoveExpiredTransientExternalForces(float InFrameDeltaTime);
 

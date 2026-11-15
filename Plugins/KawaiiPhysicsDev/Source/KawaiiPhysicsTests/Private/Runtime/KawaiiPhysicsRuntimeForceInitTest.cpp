@@ -5,6 +5,7 @@
 #include "Misc/AutomationTest.h"
 #include "KawaiiPhysicsTestHarness.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce_Gravity.h"
+#include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/Skeleton.h"
@@ -166,6 +167,60 @@ bool FKawaiiPhysicsRuntimeForceInitTransientForceTest::RunTest(const FString& Pa
 	const FVector Force = ReadGravityForce(Fixture.A.GetTransientForce(0));
 	bOk &= TestTrue(FString::Printf(TEXT("transient gravity uses the character (|force| %.1f)"), Force.Size()),
 		FMath::IsNearlyEqual(Force.Size(), FMath::Abs(Fixture.CharacterGravityZ()), 1.0));
+	return bOk;
+}
+
+// 実行時に追加した ProceduralWind へ、最初の評価より前に送ったパラメータ変更が、使う前の初期化で消えない
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsRuntimeForceInitWindParamsTest,
+                                 "KawaiiPhysics.ExternalForce.RuntimeInit.ProceduralWindParamsBeforeFirstUse",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsRuntimeForceInitWindParamsTest::RunTest(const FString& Parameters)
+{
+	FRuntimeForceInitFixture Fixture;
+	Fixture.Evaluate();
+
+	Fixture.A.Node.ExternalForces.Add(FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_ProceduralWind>());
+	FKawaiiPhysics_ExternalForce_ProceduralWind& Wind =
+		Fixture.A.Node.ExternalForces[0].GetMutable<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+	FKawaiiProceduralWindDynamicParams Params;
+	Params.bOverrideConstantForce = true;
+	Params.ConstantForce = Wind.ConstantForce + 7.0f;
+	const float Expected = Params.ConstantForce;
+	Wind.RequestDynamicParams(Params);
+
+	Fixture.Evaluate();
+	const FKawaiiPhysics_ExternalForce_ProceduralWind& Used =
+		Fixture.A.Node.ExternalForces[0].Get<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+	bool bOk = TestTrue(TEXT("wind is initialized before use"), Used.IsRuntimeInitialized());
+	bOk &= TestTrue(FString::Printf(TEXT("the parameter change survives initialization (%.2f)"), Used.ConstantForce),
+		FMath::IsNearlyEqual(Used.ConstantForce, Expected));
+	return bOk;
+}
+
+// ノードが作る一時の突風が、使う前の初期化を通っても予約したまま発動する（本番の評価経路）
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsRuntimeForceInitTransientGustTest,
+                                 "KawaiiPhysics.ExternalForce.RuntimeInit.TransientGust",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsRuntimeForceInitTransientGustTest::RunTest(const FString& Parameters)
+{
+	FRuntimeForceInitFixture Fixture;
+	Fixture.Evaluate();
+
+	Fixture.A.Node.RequestTransientGust(1.0f, 0.2f, 0.2f, FVector(1.0, 0.0, 0.0));
+	Fixture.Evaluate();
+
+	bool bOk = TestEqual(TEXT("gust is consumed"), Fixture.A.GetTransientForceCount(), 1);
+	if (Fixture.A.GetTransientForceCount() != 1)
+	{
+		return false;
+	}
+	const FKawaiiPhysics_ExternalForce_ProceduralWind& Gust =
+		Fixture.A.GetTransientForce(0).Get<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+	bOk &= TestTrue(TEXT("gust force is initialized before use"), Gust.IsRuntimeInitialized());
+	bOk &= TestTrue(TEXT("the requested gust is active"),
+		Gust.RuntimeState.IsValid() && Gust.RuntimeState->ActiveGust.bIsActive);
 	return bOk;
 }
 

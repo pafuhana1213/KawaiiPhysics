@@ -72,9 +72,6 @@ namespace AnimNodeKawaiiPhysicsSimulationPrivate
 			Node.TransientForceStore.Items.Pop();
 			return;
 		}
-		// ここで組み立てて突風を予約する。ProceduralWind の Initialize は実行中の状態を消す（予約した突風も消える）ので、
-		// 初期化済みとして扱い、使う前の初期化を走らせない
-		Wind->MarkRuntimeInitialized();
 
 		if (Source)
 		{
