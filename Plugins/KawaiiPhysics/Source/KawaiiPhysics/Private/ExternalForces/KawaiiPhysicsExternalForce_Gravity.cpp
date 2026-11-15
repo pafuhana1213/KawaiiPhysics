@@ -40,7 +40,9 @@ void FKawaiiPhysics_ExternalForce_Gravity::PreApply(FAnimNode_KawaiiPhysics& Nod
 		{
 			if (const UCharacterMovementComponent* CharacterMovementComponent = OwnerCharacter->GetCharacterMovement())
 			{
-				Force *= CharacterMovementComponent->GetGravityZ();
+				// GetGravityZは下向きが負の値。下向きの方向ベクトルに掛けるので符号を反転する
+				// (Absにしないのは、負のGravityScaleなどで重力が反転している場合に向きを保つため)
+				Force *= -CharacterMovementComponent->GetGravityZ();
 			}
 		}
 	}
