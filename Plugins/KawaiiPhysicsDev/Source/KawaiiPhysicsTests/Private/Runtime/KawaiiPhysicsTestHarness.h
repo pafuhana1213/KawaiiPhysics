@@ -24,9 +24,6 @@ struct FKawaiiPhysicsTestAccessor
 	FAnimNode_KawaiiPhysics Node;
 
 	void ApplyPhysicsAsset(const FBoneContainer& RequiredBones) { Node.ApplyPhysicsAsset(RequiredBones); }
-	/** 取り込み済みの一時外力の数と、その外力 / Number of consumed transient forces, and one of them */
-	int32 GetTransientForceCount() const { return Node.TransientForceStore.Items.Num(); }
-	FInstancedStruct& GetTransientForce(int32 Index) { return Node.TransientForceStore.Items[Index].Force; }
 
 #if WITH_EDITOR
 	void SetMirrorTableCacheForPIE(bool bEnabled) { Node.bCacheMirrorTablesForPIE = bEnabled; }
@@ -821,6 +818,9 @@ struct FKawaiiPhysicsTestAccessor
 	/** 本番の ApplySimulateResult が使う出力位置を計算する / Computes the output locations used by ApplySimulateResult. */
 	void CallUpdateOutputLocations() { Node.UpdateOutputLocations(); }
 	void CallWorldSpaceTeleport(const FTransform& ComponentTransform) { Node.ApplyWorldSpaceTeleport(ComponentTransform); }
+	/** 取り込み済みの一時外力の数と、その外力 / Number of consumed transient forces, and one of them */
+	int32 GetTransientForceCount() const { return Node.TransientForceStore.Items.Num(); }
+	FInstancedStruct& GetTransientForce(int32 Index) { return Node.TransientForceStore.Items[Index].Force; }
 	void SetSubstepPoseInitialized(bool bInitialized) { Node.bSubstepPoseInitialized = bInitialized; }
 	void CallResetSubstepPoseOffsets(FKawaiiPhysicsModifyBone& Bone) { FAnimNode_KawaiiPhysics::ResetSubstepPoseOffsets(Bone); }
 	void CallCaptureSubstepPoseOffsets() { Node.CaptureSubstepPoseOffsets(); }
