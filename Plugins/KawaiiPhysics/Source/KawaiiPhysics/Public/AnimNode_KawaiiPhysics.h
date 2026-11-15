@@ -554,7 +554,38 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	/** シンプルワールドコリジョンの再初期化を要求 / Request simple world collision reinitialization */
 	void RequestSimpleWorldCollisionReinit();
 	/** ボーン構造に依存する設定変更後の再初期化を要求 / Request modify-bone rebuild after topology-affecting settings change */
-	void RequestModifyBonesReinit() { bModifyBonesNeedsReinit = true; }
+	void RequestModifyBonesReinit()
+	{
+		bModifyBonesNeedsReinit = true;
+		// 作り直しに使う RootBone などのボーン参照も、新しい値で初期化し直す
+		bBoneReferencesNeedReinit = true;
+	}
+	/**
+	 * ボーン参照（RootBone、コリジョンの DrivingBone、SyncBones など）を次の評価で初期化し直すよう要求
+	 * Request that bone references (RootBone, collision DrivingBones, SyncBones, ...) are re-initialized on the next evaluation
+	 */
+	void RequestBoneReferencesReinit() { bBoneReferencesNeedReinit = true; }
+	/**
+	 * データアセット由来のコリジョンと拘束（LimitsDataAsset / PhysicsAsset / Mirror / BoneConstraintsDataAsset）を
+	 * 次の評価で作り直すよう要求
+	 * Request that collisions and constraints from data assets (LimitsDataAsset / PhysicsAsset / Mirror /
+	 * BoneConstraintsDataAsset) are rebuilt on the next evaluation
+	 */
+	void RequestLimitAssetsReapply()
+	{
+		bLimitAssetsNeedReapply = true;
+		bBoneReferencesNeedReinit = true;
+	}
+	/**
+	 * SyncBones の対象（子ボーン一覧・ModifyBone の番号など）を次の評価で作り直すよう要求。ModifyBones は作り直さない
+	 * Request that the SyncBones targets (child target lists, ModifyBone indices, ...) are rebuilt on the next
+	 * evaluation. ModifyBones are not rebuilt
+	 */
+	void RequestSyncBonesReinit()
+	{
+		bSyncBonesNeedReinit = true;
+		bBoneReferencesNeedReinit = true;
+	}
 
 	/**
 	* Bone Constraintで用いる剛性タイプ
@@ -2043,6 +2074,15 @@ private:
 	}
 
 	bool bModifyBonesNeedsReinit = false;
+	// 実行時の設定変更で、ボーン参照の初期化 / データアセット由来のコリジョンと拘束の作り直しが必要か。
+	// 全ビルド構成で評価の冒頭に処理する（エディタだけの毎フレーム同期に頼らない）
+	// Whether a runtime settings change needs bone references re-initialized / data-asset collisions and
+	// constraints rebuilt. Handled at the start of the evaluation in every build configuration.
+	bool bBoneReferencesNeedReinit = false;
+	bool bLimitAssetsNeedReapply = false;
+	// SyncBones の対象だけを作り直す（ModifyBones の構築時にも作られるので、そのときは不要）
+	// Rebuild only the SyncBones targets (they are also built when ModifyBones are built)
+	bool bSyncBonesNeedReinit = false;
 	int32 LastInitializedBoneSubdivisionCount = 0;
 	int32 LastInitializedBoneConstraintSubdivisionCount = 0;
 	// DensifyByRadiusは配置数（生成トポロジ）を左右するため再構築判定に含める。既定値はプロパティのデフォルトに合わせる
@@ -2060,6 +2100,23 @@ private:
 	 * (subdivision counts / DensifyByRadius / Radius / DummyBoneLength) since the last init.
 	 */
 	bool ShouldReinitModifyBones() const;
+
+	/**
+	 * 要求されたボーン参照の初期化とデータアセットの再適用を行う
+	 * Applies the requested bone reference re-initialization and data asset re-application
+	 */
+	void ApplyPendingRuntimeReinit(const FBoneContainer& BoneContainer);
+
+	// 最後に適用したデータアセットなど。アニメーショングラフのピンは setter を通らずに書き込むので、
+	// 評価ごとに今の値と比べて変更を検出する / Values last applied. Graph pins write without going through the
+	// setters, so the current values are compared with these on every evaluation to detect changes
+	TWeakObjectPtr<UKawaiiPhysicsLimitsDataAsset> AppliedLimitsDataAsset;
+	TWeakObjectPtr<UPhysicsAsset> AppliedPhysicsAssetForLimits;
+	TWeakObjectPtr<UMirrorDataTable> AppliedMirrorDataTableForLimits;
+	TWeakObjectPtr<UKawaiiPhysicsBoneConstraintsDataAsset> AppliedBoneConstraintsDataAsset;
+	bool bAppliedSkipMirroredBoneWithExistingCollision = true;
+	void RecordAppliedLimitAssets();
+	bool HaveLimitAssetsChangedSinceApplied() const;
 
 	// SimulationSpace conversion cache (per-evaluation)
 	struct FSimulationSpaceCache

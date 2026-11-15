@@ -17,6 +17,7 @@
 #include "Runtime/Launch/Resources/Version.h"
 #include "SceneInterface.h"
 #include "PhysicsEngine/PhysicsAsset.h"
+#include "Animation/MirrorDataTable.h"
 #include "Engine/World.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -290,6 +291,7 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 	ApplyPhysicsAsset(RequiredBones);
 	ApplyMirrorLimits(RequiredBones);
 	ApplyBoneConstraintDataAsset(RequiredBones);
+	RecordAppliedLimitAssets();
 
 	ModifyBones.Empty();
 
@@ -559,6 +561,50 @@ void FAnimNode_KawaiiPhysics::GatherDebugData(FNodeDebugData& DebugData)
 	Super::GatherDebugData(DebugData);
 }
 
+void FAnimNode_KawaiiPhysics::RecordAppliedLimitAssets()
+{
+	AppliedLimitsDataAsset = LimitsDataAsset;
+	AppliedPhysicsAssetForLimits = PhysicsAssetForLimits;
+	AppliedMirrorDataTableForLimits = MirrorDataTableForLimits;
+	AppliedBoneConstraintsDataAsset = BoneConstraintsDataAsset;
+	bAppliedSkipMirroredBoneWithExistingCollision = bSkipMirroredBoneWithExistingCollision;
+}
+
+bool FAnimNode_KawaiiPhysics::HaveLimitAssetsChangedSinceApplied() const
+{
+	return AppliedLimitsDataAsset.Get() != LimitsDataAsset.Get() ||
+		AppliedPhysicsAssetForLimits.Get() != PhysicsAssetForLimits.Get() ||
+		AppliedMirrorDataTableForLimits.Get() != MirrorDataTableForLimits.Get() ||
+		AppliedBoneConstraintsDataAsset.Get() != BoneConstraintsDataAsset.Get() ||
+		bAppliedSkipMirroredBoneWithExistingCollision != bSkipMirroredBoneWithExistingCollision;
+}
+
+void FAnimNode_KawaiiPhysics::ApplyPendingRuntimeReinit(const FBoneContainer& BoneContainer)
+{
+	// setter からの要求に加えて、ピンなど setter を通らない変更も、最後に適用した値との比較で拾う
+	if (bLimitAssetsNeedReapply || HaveLimitAssetsChangedSinceApplied())
+	{
+		bLimitAssetsNeedReapply = false;
+		// 拘束のマージ結果は ModifyBones の構築時（InitBoneConstraints）に作られるので、拘束のアセットが変わったら作り直す
+		if (AppliedBoneConstraintsDataAsset.Get() != BoneConstraintsDataAsset.Get())
+		{
+			bModifyBonesNeedsReinit = true;
+		}
+		// Initialize_AnyThread と同じ順序（Mirror は先に作ったコリジョンを元に作る）
+		ApplyLimitsDataAsset(BoneContainer);
+		ApplyPhysicsAsset(BoneContainer);
+		ApplyMirrorLimits(BoneContainer);
+		ApplyBoneConstraintDataAsset(BoneContainer);
+		RecordAppliedLimitAssets();
+	}
+
+	if (bBoneReferencesNeedReinit)
+	{
+		bBoneReferencesNeedReinit = false;
+		InitializeBoneReferences(BoneContainer);
+	}
+}
+
 bool FAnimNode_KawaiiPhysics::ShouldReinitModifyBones() const
 {
 	// 明示的なreinit要求
@@ -655,6 +701,10 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 	FTransform ComponentTransform = Output.AnimInstanceProxy->GetComponentTransform();
 
+	// 実行時の設定変更（ライブラリの setter やプリセット適用）を、SimulationBaseBone や RootBone を使う前に反映する。
+	// エディタでは下の毎フレームの同期で隠れるが、パッケージ版ではここでしか反映されない
+	ApplyPendingRuntimeReinit(BoneContainer);
+
 	// 固定サブステップの未消費分は前回の基準ボーン変換に残す
 	if (SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
 	{
@@ -743,6 +793,13 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 			return;
 		}
 	}
+
+	// SyncBones だけが変わった場合は、既存の ModifyBones から対象を作り直す（物理状態はリセットしない）
+	if (bSyncBonesNeedReinit && ModifyBones.Num() > 0)
+	{
+		InitSyncBones(Output);
+	}
+	bSyncBonesNeedReinit = false;
 
 	if (ModifyBones.Num() == 0)
 	{
