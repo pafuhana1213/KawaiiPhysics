@@ -46,12 +46,19 @@ public:
 protected:
 	void OnExternalNodePropertyChange(FPropertyChangedEvent& InPropertyEvent);
 	FDelegateHandle NodePropertyDelegateHandle;
+	/** OnNodePropertyChangedをbind中のグラフノード（複数選択でEnterModeが重なっても旧ノードからRemoveするため保持） */
+	TWeakObjectPtr<UAnimGraphNode_KawaiiPhysics> BoundGraphNode;
 
 	void OnLimitDataAssetPropertyChange(FPropertyChangedEvent& InPropertyEvent);
 	bool IsSelectAnimNodeCollision() const;
 	FDelegateHandle LimitsDataAssetPropertyDelegateHandle;
 	/** OnLimitsChangedをbind中のDataAsset（差し替え時に旧アセットからRemoveするため保持） */
 	TWeakObjectPtr<UKawaiiPhysicsLimitsDataAsset> BoundLimitsDataAsset;
+
+	/** LimitsDataAssetのOnLimitsChangedをbindし直す（旧アセットからは必ず外す） */
+	void RebindLimitsDataAsset(UKawaiiPhysicsLimitsDataAsset* NewAsset);
+	/** グラフノードとLimitsDataAssetへのbindをすべて外す */
+	void UnbindDelegates();
 
 private:
 	void RenderModifyBones(FPrimitiveDrawInterface* PDI) const;
