@@ -214,14 +214,44 @@ namespace KawaiiPhysicsLibraryPrivate
 		return Names;
 	}
 
-	static bool IsSyncBoneStruct(const UScriptStruct* Struct)
+	// コリジョンの中で、評価のたびにノードが書き込む欄（設定ではない）。同じ設定かどうかの比較から外す
+	static const TSet<FName>& GetCollisionLimitRuntimePropertyNames()
 	{
-		return Struct && (Struct->IsChildOf(FKawaiiPhysicsSyncBone::StaticStruct()) ||
-			Struct->IsChildOf(FKawaiiPhysicsSyncTarget::StaticStruct()));
+		static const TSet<FName> Names = {
+			GET_MEMBER_NAME_CHECKED(FCollisionLimitBase, Location),
+			GET_MEMBER_NAME_CHECKED(FCollisionLimitBase, Rotation),
+			GET_MEMBER_NAME_CHECKED(FCollisionLimitBase, bEnable),
+			GET_MEMBER_NAME_CHECKED(FPlanarLimit, Plane),
+#if WITH_EDITORONLY_DATA
+			GET_MEMBER_NAME_CHECKED(FCollisionLimitBase, Guid),
+			GET_MEMBER_NAME_CHECKED(FCollisionLimitBase, Type),
+#endif
+		};
+		return Names;
 	}
 
-	// 設定として同じか。SyncBone は実行時のキャッシュも UPROPERTY なので、比較から外さないと、設定だけを組み立てた
-	// 同じ値を毎フレーム渡したときに毎回「変更あり」になり、ボーンの作り直しで物理状態がリセットされ続ける
+	// 比較から外す実行時の欄。対象外の構造体は nullptr
+	static const TSet<FName>* GetRuntimeOnlyPropertyNames(const UScriptStruct* Struct)
+	{
+		if (!Struct)
+		{
+			return nullptr;
+		}
+		if (Struct->IsChildOf(FKawaiiPhysicsSyncBone::StaticStruct()) ||
+			Struct->IsChildOf(FKawaiiPhysicsSyncTarget::StaticStruct()))
+		{
+			return &GetSyncBoneRuntimeCachePropertyNames();
+		}
+		if (Struct->IsChildOf(FCollisionLimitBase::StaticStruct()))
+		{
+			return &GetCollisionLimitRuntimePropertyNames();
+		}
+		return nullptr;
+	}
+
+	// 設定として同じか。SyncBone の実行時のキャッシュやコリジョンの Location などは UPROPERTY なので、比較から外さないと、
+	// 設定だけを組み立てた同じ値を毎フレーム渡したときに毎回「変更あり」になり、作り直し（SyncBone は物理状態のリセット、
+	// コリジョンはボーン参照の初期化とアセット由来のコリジョンの作り直し）が毎フレーム走る
 	static bool AreSettingsIdentical(const FProperty* Property, const void* A, const void* B)
 	{
 		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
@@ -241,12 +271,12 @@ namespace KawaiiPhysicsLibraryPrivate
 			}
 			return true;
 		}
-		if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property);
-			StructProperty && IsSyncBoneStruct(StructProperty->Struct))
+		const FStructProperty* StructProperty = CastField<FStructProperty>(Property);
+		if (const TSet<FName>* RuntimeOnlyNames = StructProperty ? GetRuntimeOnlyPropertyNames(StructProperty->Struct) : nullptr)
 		{
 			for (TFieldIterator<FProperty> It(StructProperty->Struct); It; ++It)
 			{
-				if (GetSyncBoneRuntimeCachePropertyNames().Contains(It->GetFName()))
+				if (RuntimeOnlyNames->Contains(It->GetFName()))
 				{
 					continue;
 				}

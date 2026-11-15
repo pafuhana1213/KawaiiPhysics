@@ -194,6 +194,65 @@ bool FKawaiiPhysicsRuntimeReinitCollisionFromStringTest::RunTest(const FString& 
 	return bOk;
 }
 
+// コリジョンの Location / Rotation / bEnable / Plane（とエディタの Guid / Type）は実行時にノードが書き込む欄で、設定ではない。
+// 設定だけを書いた同じ値を毎フレーム渡しても「変更あり」にしない（ボーン参照の初期化とアセット由来のコリジョンの作り直しを
+// 毎フレーム走らせない。パッケージ版では DataAsset 由来の平面の前ステップの履歴も毎回消えてしまう）
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsRuntimeReinitCollisionRuntimeFieldsTest,
+                                 "KawaiiPhysics.RuntimeReinit.CollisionRuntimeFieldsIgnored",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsRuntimeReinitCollisionRuntimeFieldsTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor A;
+	const FName SphericalName = GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, SphericalLimits);
+	const FName PlanarName = GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, PlanarLimits);
+	const TCHAR* SphericalText = TEXT("((DrivingBone=(BoneName=\"hair_a\"),Radius=5.000000))");
+	const TCHAR* PlanarText = TEXT("((DrivingBone=(BoneName=\"spine\"),OffsetLocation=(X=0.000000,Y=0.000000,Z=10.000000)))");
+	bool bOk = TestTrue(TEXT("spherical import succeeds"),
+		UKawaiiPhysicsLibrary::SetNodePropertyValueFromString(A.Node, SphericalName, SphericalText));
+	bOk &= TestTrue(TEXT("planar import succeeds"),
+		UKawaiiPhysicsLibrary::SetNodePropertyValueFromString(A.Node, PlanarName, PlanarText));
+	if (!bOk || A.Node.SphericalLimits.Num() != 1 || A.Node.PlanarLimits.Num() != 1)
+	{
+		return false;
+	}
+
+	// 評価でノードが書き込む欄を埋めた状態にする
+	FSphericalLimit& Sphere = A.Node.SphericalLimits[0];
+	Sphere.Location = FVector(1.0, 2.0, 3.0);
+	Sphere.Rotation = FQuat(FVector::UpVector, 0.5);
+	Sphere.bEnable = false;
+	FPlanarLimit& Plane = A.Node.PlanarLimits[0];
+	Plane.Location = FVector(0.0, 0.0, 10.0);
+	Plane.Rotation = FQuat(FVector::ForwardVector, 0.25);
+	Plane.Plane = FPlane(Plane.Location, Plane.Rotation.GetUpVector());
+	A.ClearPendingReinitForTest();
+
+	// 文字列の setter：設定だけを書いた同じ値（読み込みで作られる要素は Location などが初期値、エディタでは Guid も新しい）
+	UKawaiiPhysicsLibrary::SetNodePropertyValueFromString(A.Node, SphericalName, SphericalText);
+	UKawaiiPhysicsLibrary::SetNodePropertyValueFromString(A.Node, PlanarName, PlanarText);
+	bOk &= TestFalse(TEXT("same collision settings do not re-apply the limit assets"), A.IsLimitAssetsReapplyPending());
+	bOk &= TestFalse(TEXT("same collision settings do not re-initialize bone references"), A.IsBoneReferencesReinitPending());
+	bOk &= TestEqual(TEXT("runtime location is kept"), A.Node.SphericalLimits[0].Location, FVector(1.0, 2.0, 3.0));
+
+	// ワイルドカードの setter：新しく作った同じ設定の要素
+	const FProperty* SphericalProperty = FAnimNode_KawaiiPhysics::StaticStruct()->FindPropertyByName(SphericalName);
+	TArray<FSphericalLimit> SameSettings;
+	FSphericalLimit& SameSphere = SameSettings.AddDefaulted_GetRef();
+	SameSphere.DrivingBone.BoneName = TEXT("hair_a");
+	SameSphere.Radius = 5.0f;
+	UKawaiiPhysicsLibrary::SetNodeWildcardPropertyValue(A.Node, SphericalName, SphericalProperty, &SameSettings);
+	bOk &= TestFalse(TEXT("same collision settings through the wildcard setter do not re-apply"),
+		A.IsLimitAssetsReapplyPending());
+
+	// 設定が変われば今まで通り作り直す
+	SameSettings[0].Radius = 8.0f;
+	UKawaiiPhysicsLibrary::SetNodeWildcardPropertyValue(A.Node, SphericalName, SphericalProperty, &SameSettings);
+	bOk &= TestTrue(TEXT("a changed radius re-applies the limit assets"), A.IsLimitAssetsReapplyPending());
+	bOk &= TestEqual(TEXT("the changed radius is written"), A.Node.SphericalLimits[0].Radius, 8.0f);
+	return bOk;
+}
+
 // 同じ名前の（未初期化の）ボーン参照を汎用 setter で渡しても、初期化済みのボーン番号を消さない。
 // 消えると再初期化も要求されないまま RootBone の判定に失敗し、ノードが止まる
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsRuntimeReinitSameBoneReferenceTest,
