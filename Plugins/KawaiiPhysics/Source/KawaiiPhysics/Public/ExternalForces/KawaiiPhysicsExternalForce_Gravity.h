@@ -37,10 +37,10 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Gravity : public FKawaiiPh
 	bool bUseCharacterGravityDirection = false;
 
 	/**
-	* Character側で設定されたGravityScaleを使用するフラグ
-	* Flag to use GravityScale set on the Character side
+	* Characterの重力加速度（ワールドの重力 × GravityScale）を力の大きさに使うフラグ
+	* Flag to use the Character's gravity acceleration (world gravity × GravityScale) as the force magnitude
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce", meta=(DisplayName="Use Character Gravity"))
 	bool bUseCharacterGravityScale = false;
 
 	/**
@@ -64,8 +64,14 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Gravity : public FKawaiiPh
 	bool bUseOverrideGravityDirection = false;
 
 private:
-	UPROPERTY()
-	TObjectPtr<ACharacter> OwnerCharacter;
+	/**
+	 * Initialize で取得し直す実行時の参照。保存しない（Transient）。一時外力の保存領域は GC の追跡対象外なので、
+	 * 強参照ではなく弱参照で持つ
+	 * Runtime reference re-acquired in Initialize; not saved (Transient). The transient force store is not tracked
+	 * by GC, so this is a weak reference instead of a strong one
+	 */
+	UPROPERTY(Transient)
+	TWeakObjectPtr<ACharacter> OwnerCharacter;
 
 protected:
 	virtual void Initialize(const FAnimationInitializeContext& Context) override;

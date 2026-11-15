@@ -62,6 +62,13 @@ void FAnimNode_KawaiiPhysics::InitializeBoneReferences(const FBoneContainer& Req
 	Initialize(BoxLimits);
 	Initialize(PlanarLimits);
 
+	// データアセット・PhysicsAsset・Mirror 由来のコリジョンも、LOD 変更で CompactPose のインデックスが変わる
+	Initialize(SphericalLimitsData);
+	Initialize(CapsuleLimitsData);
+	Initialize(TaperedCapsuleLimitsData);
+	Initialize(BoxLimitsData);
+	Initialize(PlanarLimitsData);
+
 	for (auto& BoneConstraint : BoneConstraints)
 	{
 		BoneConstraint.InitializeBone(RequiredBones);
@@ -171,6 +178,15 @@ void FAnimNode_KawaiiPhysics::InitModifyBones(FComponentSpacePoseContext& Output
 			             ? AdditionalRootBone.OverrideExcludeBones
 			             : ExcludeBones);
 	}
+	UpdateHasInterBoneDummies();
+}
+
+void FAnimNode_KawaiiPhysics::UpdateHasInterBoneDummies()
+{
+	bHasInterBoneDummies = ModifyBones.ContainsByPredicate([](const FKawaiiPhysicsModifyBone& Bone)
+	{
+		return Bone.bInterBoneDummy;
+	});
 }
 
 int32 FAnimNode_KawaiiPhysics::AddModifyBone(TArray<FKawaiiPhysicsModifyBone>& InModifyBones,

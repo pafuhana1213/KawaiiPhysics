@@ -241,8 +241,13 @@ public:
 		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 			TEXT("SetDummyBoneLength"),
 			[DummyBoneLength](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
-				InKawaiiPhysics.DummyBoneLength = FMath::Max(DummyBoneLength, 0.0f);
-				InKawaiiPhysics.RequestModifyBonesReinit();
+				// 同じ値なら何もしない（毎フレーム設定しても作り直しや物理状態のリセットを起こさない）
+				const auto NewValue = FMath::Max(DummyBoneLength, 0.0f);
+				if (InKawaiiPhysics.DummyBoneLength != NewValue)
+				{
+					InKawaiiPhysics.DummyBoneLength = NewValue;
+					InKawaiiPhysics.RequestModifyBonesReinit();
+				}
 			});
 		return KawaiiPhysics;
 	}
@@ -261,8 +266,13 @@ public:
 		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 			TEXT("SetBoneSubdivisionCount"),
 			[BoneSubdivisionCount](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
-				InKawaiiPhysics.BoneSubdivisionCount = FMath::Clamp(BoneSubdivisionCount, 0, 10);
-				InKawaiiPhysics.RequestModifyBonesReinit();
+				// 同じ値なら何もしない（毎フレーム設定しても作り直しや物理状態のリセットを起こさない）
+				const auto NewValue = FMath::Clamp(BoneSubdivisionCount, 0, 10);
+				if (InKawaiiPhysics.BoneSubdivisionCount != NewValue)
+				{
+					InKawaiiPhysics.BoneSubdivisionCount = NewValue;
+					InKawaiiPhysics.RequestModifyBonesReinit();
+				}
 			});
 		return KawaiiPhysics;
 	}
@@ -281,8 +291,13 @@ public:
 		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 			TEXT("SetBoneSubdivisionCollisionOnly"),
 			[bBoneSubdivisionCollisionOnly](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
-				InKawaiiPhysics.bBoneSubdivisionCollisionOnly = bBoneSubdivisionCollisionOnly;
-				InKawaiiPhysics.RequestModifyBonesReinit();
+				// 同じ値なら何もしない（毎フレーム設定しても作り直しや物理状態のリセットを起こさない）
+				const auto NewValue = bBoneSubdivisionCollisionOnly;
+				if (InKawaiiPhysics.bBoneSubdivisionCollisionOnly != NewValue)
+				{
+					InKawaiiPhysics.bBoneSubdivisionCollisionOnly = NewValue;
+					InKawaiiPhysics.RequestModifyBonesReinit();
+				}
 			});
 		return KawaiiPhysics;
 	}
@@ -301,8 +316,13 @@ public:
 		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 			TEXT("SetBoneConstraintSubdivisionCount"),
 			[BoneConstraintSubdivisionCount](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
-				InKawaiiPhysics.BoneConstraintSubdivisionCount = FMath::Clamp(BoneConstraintSubdivisionCount, 0, 10);
-				InKawaiiPhysics.RequestModifyBonesReinit();
+				// 同じ値なら何もしない（毎フレーム設定しても作り直しや物理状態のリセットを起こさない）
+				const auto NewValue = FMath::Clamp(BoneConstraintSubdivisionCount, 0, 10);
+				if (InKawaiiPhysics.BoneConstraintSubdivisionCount != NewValue)
+				{
+					InKawaiiPhysics.BoneConstraintSubdivisionCount = NewValue;
+					InKawaiiPhysics.RequestModifyBonesReinit();
+				}
 			});
 		return KawaiiPhysics;
 	}
@@ -430,8 +450,13 @@ public:
 		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 			TEXT("SetLimitsDataAsset"),
 			[LimitsDataAsset](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
-				InKawaiiPhysics.LimitsDataAsset = LimitsDataAsset;
-				InKawaiiPhysics.RequestModifyBonesReinit();
+				// 同じ値なら何もしない（毎フレーム設定しても作り直しや物理状態のリセットを起こさない）
+				if (InKawaiiPhysics.LimitsDataAsset != LimitsDataAsset)
+				{
+					InKawaiiPhysics.LimitsDataAsset = LimitsDataAsset;
+					InKawaiiPhysics.RequestLimitAssetsReapply();
+					InKawaiiPhysics.RequestModifyBonesReinit();
+				}
 			});
 		return KawaiiPhysics;
 	}
@@ -444,8 +469,8 @@ public:
 	}
 
 	/**
-	 * コリジョンのミラーリング設定を設定（反映は次回ノード初期化時）
-	 * Set the collision mirroring source (applied on the next node initialization).
+	 * コリジョンのミラーリング設定を設定（反映は次の評価時）
+	 * Set the collision mirroring source (applied on the next evaluation).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
 	static FKawaiiPhysicsReference SetMirrorDataTableForLimits(const FKawaiiPhysicsReference& KawaiiPhysics,
@@ -454,8 +479,13 @@ public:
 		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 			TEXT("SetMirrorDataTableForLimits"),
 			[MirrorDataTableForLimits](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
-				InKawaiiPhysics.MirrorDataTableForLimits = MirrorDataTableForLimits;
-				InKawaiiPhysics.RequestModifyBonesReinit();
+				// 同じ値なら何もしない（毎フレーム設定しても作り直しや物理状態のリセットを起こさない）
+				if (InKawaiiPhysics.MirrorDataTableForLimits != MirrorDataTableForLimits)
+				{
+					InKawaiiPhysics.MirrorDataTableForLimits = MirrorDataTableForLimits;
+					InKawaiiPhysics.RequestLimitAssetsReapply();
+					InKawaiiPhysics.RequestModifyBonesReinit();
+				}
 			});
 		return KawaiiPhysics;
 	}
@@ -471,8 +501,8 @@ public:
 	}
 
 	/**
-	 * ミラー先ボーンに同形状コリジョンがある場合にミラー生成をスキップするかを設定（反映は次回ノード初期化時）
-	 * Set whether to skip mirrored collision generation when the mirrored bone already has a collision of the same shape type (applied on the next node initialization).
+	 * ミラー先ボーンに同形状コリジョンがある場合にミラー生成をスキップするかを設定（反映は次の評価時）
+	 * Set whether to skip mirrored collision generation when the mirrored bone already has a collision of the same shape type (applied on the next evaluation).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics", meta=(BlueprintThreadSafe))
 	static FKawaiiPhysicsReference SetSkipMirroredBoneWithExistingCollision(
@@ -481,8 +511,13 @@ public:
 		KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 			TEXT("SetSkipMirroredBoneWithExistingCollision"),
 			[bSkipMirroredBoneWithExistingCollision](FAnimNode_KawaiiPhysics& InKawaiiPhysics) {
-				InKawaiiPhysics.bSkipMirroredBoneWithExistingCollision = bSkipMirroredBoneWithExistingCollision;
-				InKawaiiPhysics.RequestModifyBonesReinit();
+				// 同じ値なら何もしない（毎フレーム設定しても作り直しや物理状態のリセットを起こさない）
+				if (InKawaiiPhysics.bSkipMirroredBoneWithExistingCollision != bSkipMirroredBoneWithExistingCollision)
+				{
+					InKawaiiPhysics.bSkipMirroredBoneWithExistingCollision = bSkipMirroredBoneWithExistingCollision;
+					InKawaiiPhysics.RequestLimitAssetsReapply();
+					InKawaiiPhysics.RequestModifyBonesReinit();
+				}
 			});
 		return KawaiiPhysics;
 	}
@@ -555,11 +590,11 @@ public:
 
 	/**
 	 * ランタイム専用の一時外力を追加する。LifetimeSeconds 経過で自動除去。ハンドルで StopTransientExternalForce による早期除去（汎用外力は寿命短縮のみ・フェード無し）が可能。
-	 * Initialize(Context) は呼ばれないため、Curve 等 Initialize 依存の外力は挙動制限あり（ProceduralWind は PreApply で RuntimeState を遅延生成するため安全）。
+	 * 外力の Initialize(Context) は、最初に使う前に呼ばれる。
 	 * BP再コンパイルやノード再初期化で失われる。transient スロット上限8、超過時最古破棄。
 	 * 一時外力ストレージはGC追跡外のため、liveなUObject参照（ExternalOwner・カーブアセット等）を含む外力は拒否される。
 	 * Add a runtime-only transient external force. Automatically removed after LifetimeSeconds. The handle can be used with StopTransientExternalForce for early removal (generic external forces only shorten lifetime and do not fade).
-	 * Initialize(Context) is not called, so forces that depend on Initialize, such as Curve-based forces, have limited behavior (ProceduralWind is safe because it lazily creates RuntimeState in PreApply).
+	 * The force's Initialize(Context) runs before its first use.
 	 * Lost on BP recompile or node re-initialization. Transient slots are capped at 8; beyond the cap, the oldest entry is evicted.
 	 * Transient force storage is not GC-tracked, so forces containing live UObject references (ExternalOwner, curve assets, etc.) are rejected.
 	 * @param ExecResult ノード参照と外力型の解決結果 / Result of resolving the node reference and external force type.
@@ -1374,8 +1409,20 @@ public:
 	static bool IsNodePropertyAccessible(const FProperty* Property);
 	static bool IsNodePropertyAccessible(FName PropertyName);
 	static bool DoesNodePropertyRequireModifyBonesReinit(FName PropertyName);
+	static bool DoesNodePropertyRequireBoneReferencesReinit(FName PropertyName);
+	static bool DoesNodePropertyRequireLimitAssetsReapply(FName PropertyName);
 	static bool DoesNodePropertyRequireSharedCollisionReinit(FName PropertyName);
 	static bool DoesNodePropertyRequireSimpleWorldCollisionReinit(FName PropertyName);
+	/**
+	 * ノードのプロパティを書き換えた後に、そのプロパティに必要な再初期化をすべて要求する
+	 * Requests every re-initialization the property needs after a node property was written
+	 */
+	static void RequestNodeReinitForChangedProperty(FAnimNode_KawaiiPhysics& Node, FName PropertyName);
+	/**
+	 * ノードのプロパティの値が設定として同じか（SyncBone の実行時キャッシュは比較しない）
+	 * Whether two node property values are the same settings (SyncBone runtime caches are not compared)
+	 */
+	static bool AreNodePropertySettingsIdentical(const FProperty* Property, const void* A, const void* B);
 	static bool SetNodeWildcardPropertyValue(FAnimNode_KawaiiPhysics& Node, FName PropertyName,
 	                                         const FProperty* ValueProperty, const void* ValuePtr);
 	static bool GetNodeWildcardPropertyValue(const FAnimNode_KawaiiPhysics& Node, FName PropertyName,
@@ -1959,18 +2006,12 @@ bool UKawaiiPhysicsLibrary::SetNodePropertyValue(FAnimNode_KawaiiPhysics& Node, 
 
 	if (void* ValuePtr = Property->ContainerPtrToValuePtr<void>(&Node))
 	{
+		// 同じ値を毎フレーム設定しても作り直しや物理状態のリセットが起きないよう、値が変わったときだけ再初期化を要求する
+		const bool bChanged = !(Property->GetPropertyValue(ValuePtr) == Value);
 		Property->SetPropertyValue(ValuePtr, Value);
-		if (DoesNodePropertyRequireModifyBonesReinit(PropertyName))
+		if (bChanged)
 		{
-			Node.RequestModifyBonesReinit();
-		}
-		if (DoesNodePropertyRequireSharedCollisionReinit(PropertyName))
-		{
-			Node.RequestSharedCollisionReinit();
-		}
-		if (DoesNodePropertyRequireSimpleWorldCollisionReinit(PropertyName))
-		{
-			Node.RequestSimpleWorldCollisionReinit();
+			RequestNodeReinitForChangedProperty(Node, PropertyName);
 		}
 		return true;
 	}
@@ -2028,18 +2069,12 @@ bool UKawaiiPhysicsLibrary::SetNodeStructPropertyValue(FAnimNode_KawaiiPhysics& 
 
 	if (void* ValuePtr = StructProperty->ContainerPtrToValuePtr<void>(&Node))
 	{
-		StructProperty->CopyCompleteValue(ValuePtr, &Value);
-		if (DoesNodePropertyRequireModifyBonesReinit(PropertyName))
+		// 値が変わったときだけ書き込み、再初期化を要求する（FBoneReference は名前しか比較されないので、
+		// 同じ名前の未初期化の参照で上書きすると初期化済みのボーン番号が消える）
+		if (!AreNodePropertySettingsIdentical(StructProperty, ValuePtr, &Value))
 		{
-			Node.RequestModifyBonesReinit();
-		}
-		if (DoesNodePropertyRequireSharedCollisionReinit(PropertyName))
-		{
-			Node.RequestSharedCollisionReinit();
-		}
-		if (DoesNodePropertyRequireSimpleWorldCollisionReinit(PropertyName))
-		{
-			Node.RequestSimpleWorldCollisionReinit();
+			StructProperty->CopyCompleteValue(ValuePtr, &Value);
+			RequestNodeReinitForChangedProperty(Node, PropertyName);
 		}
 		return true;
 	}

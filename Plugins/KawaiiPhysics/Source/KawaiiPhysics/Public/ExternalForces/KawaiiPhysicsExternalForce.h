@@ -128,8 +128,24 @@ protected:
 	UPROPERTY(BlueprintReadWrite, Category="Kawaii Physics|ExternalForce")
 	bool bSupportsRandomForceScaleRange = true;
 
+private:
+	/**
+	 * ノードがこの外力の Initialize を呼んだか（UPROPERTY ではない実行時の状態）。
+	 * 実行時に追加された外力を、最初に使う前に初期化するために使う。印はノードが立てるので、
+	 * 派生クラスの Initialize が Super を呼ばなくても毎フレーム初期化し直されることはない
+	 * Whether the node has called Initialize on this force (runtime state, not a UPROPERTY). Used to initialize
+	 * forces added at runtime before their first use. The node sets it, so a derived Initialize that does not call
+	 * Super is not re-run every frame.
+	 */
+	bool bRuntimeInitialized = false;
+
 public:
 	virtual ~FKawaiiPhysics_ExternalForce() = default;
+
+	bool IsRuntimeInitialized() const { return bRuntimeInitialized; }
+	void MarkRuntimeInitialized() { bRuntimeInitialized = true; }
+	/** 別のノードへ追加するときなど、次に使う前に初期化し直させる / Makes the force initialize again before its next use (e.g. when added to another node) */
+	void ResetRuntimeInitialized() { bRuntimeInitialized = false; }
 
 	virtual void Initialize(const FAnimationInitializeContext& Context);
 
