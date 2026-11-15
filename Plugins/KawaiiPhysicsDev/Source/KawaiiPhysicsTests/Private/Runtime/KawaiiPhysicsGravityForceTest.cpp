@@ -12,6 +12,7 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/EngineVersionComparison.h"
 
 namespace KawaiiPhysicsGravityForceTestPrivate
 {
@@ -38,7 +39,8 @@ struct FGravityForceTestProxy : FAnimInstanceProxy
 
 // Character の GravityScale を使う Gravity 外力の、PreApply 後の力を返す
 FVector EvaluateCharacterGravityForce(UCharacterMovementComponent& Movement, ACharacter& Character,
-                                      float GravityScale, float& OutCharacterGravityZ)
+                                      float GravityScale, float& OutCharacterGravityZ,
+                                      bool bUseCharacterGravityDirection = false)
 {
 	Movement.GravityScale = GravityScale;
 	OutCharacterGravityZ = Movement.GetGravityZ();
@@ -49,6 +51,7 @@ FVector EvaluateCharacterGravityForce(UCharacterMovementComponent& Movement, ACh
 
 	FGravityForceTestAccessor Gravity;
 	Gravity.bUseCharacterGravityScale = true;
+	Gravity.bUseCharacterGravityDirection = bUseCharacterGravityDirection;
 	Gravity.Initialize(FAnimationInitializeContext(&Proxy));
 
 	FKawaiiPhysicsTestAccessor Accessor;
@@ -102,6 +105,18 @@ bool FKawaiiPhysicsGravityCharacterScaleDirectionTest::RunTest(const FString& Pa
 		const FVector Legacy = EvaluateCharacterGravityForce(*Movement, *Character, 1.0f, CharacterGravityZ);
 		bOk &= TestTrue(TEXT("Legacy CVar restores the old upward force"),
 			Legacy.Equals(FVector(0.0, 0.0, -CharacterGravityZ), GGravityForceTestTol) && Legacy.Z > 0.0);
+		LegacyCVar->Set(false, ECVF_SetByConsole);
+
+#if !UE_VERSION_OLDER_THAN(5, 4, 0)
+		// Character のカスタム重力方向（横向き）を使うときも、力は重力の方向へ Character の重力の大きさで引く
+		const FVector CustomDirection(1.0, 0.0, 0.0);
+		Movement->SetGravityDirection(CustomDirection);
+		const FVector Sideways = EvaluateCharacterGravityForce(*Movement, *Character, 1.0f, CharacterGravityZ, true);
+		bOk &= TestTrue(FString::Printf(TEXT("Custom gravity direction pulls along it by the character gravity %s"),
+			*Sideways.ToString()),
+			Sideways.Equals(CustomDirection * FMath::Abs(CharacterGravityZ), GGravityForceTestTol));
+		Movement->SetGravityDirection(FVector::DownVector);
+#endif
 
 		LegacyCVar->Set(bPrevLegacy, ECVF_SetByConsole);
 		LegacyCVar->SetFlags(PrevFlags);
