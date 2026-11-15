@@ -355,6 +355,10 @@ FKawaiiPhysicsEditMode::FKawaiiPhysicsEditMode()
 
 void FKawaiiPhysicsEditMode::EnterMode(UAnimGraphNode_Base* InEditorNode, FAnimNode_Base* InRuntimeNode)
 {
+	// 複数ノード選択時、エンジンはノードの数だけEnterModeを呼ぶがExitModeは1回しか呼ばない。
+	// 前のノードへのbindを残すと、後でそのノードやアセットの変更通知が来たときに無効なポインタを参照するため、先に外す。
+	UnbindDelegates();
+
 	RuntimeNode = static_cast<FAnimNode_KawaiiPhysics*>(InRuntimeNode);
 	GraphNode = CastChecked<UAnimGraphNode_KawaiiPhysics>(InEditorNode);
 
@@ -373,13 +377,8 @@ void FKawaiiPhysicsEditMode::EnterMode(UAnimGraphNode_Base* InEditorNode, FAnimN
 
 	NodePropertyDelegateHandle = GraphNode->OnNodePropertyChanged().AddSP(
 		this, &FKawaiiPhysicsEditMode::OnExternalNodePropertyChange);
-	if (RuntimeNode->LimitsDataAsset)
-	{
-		LimitsDataAssetPropertyDelegateHandle =
-			RuntimeNode->LimitsDataAsset->OnLimitsChanged.AddRaw(
-				this, &FKawaiiPhysicsEditMode::OnLimitDataAssetPropertyChange);
-		BoundLimitsDataAsset = RuntimeNode->LimitsDataAsset;
-	}
+	BoundGraphNode = GraphNode;
+	RebindLimitsDataAsset(RuntimeNode->LimitsDataAsset);
 
 	UMaterialInterface* BaseCollisionMaterial = LoadObject<UMaterialInterface>(
 		nullptr, KawaiiPhysicsEditModePrivate::CollisionMaterialPath, nullptr, LOAD_None, nullptr);
@@ -404,14 +403,7 @@ void FKawaiiPhysicsEditMode::EnterMode(UAnimGraphNode_Base* InEditorNode, FAnimN
 
 void FKawaiiPhysicsEditMode::ExitMode()
 {
-	GraphNode->OnNodePropertyChanged().Remove(NodePropertyDelegateHandle);
-	// bind時のアセット基準で外す（実行中にLimitsDataAssetが差し替わっていても確実にRemoveできる）
-	if (UKawaiiPhysicsLimitsDataAsset* BoundAsset = BoundLimitsDataAsset.Get())
-	{
-		BoundAsset->OnLimitsChanged.Remove(LimitsDataAssetPropertyDelegateHandle);
-	}
-	BoundLimitsDataAsset = nullptr;
-	LimitsDataAssetPropertyDelegateHandle.Reset();
+	UnbindDelegates();
 
 	GraphNode = nullptr;
 	RuntimeNode = nullptr;
@@ -1280,24 +1272,47 @@ void FKawaiiPhysicsEditMode::OnExternalNodePropertyChange(FPropertyChangedEvent&
 		InPropertyEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, LimitsDataAsset))
 	{
 		// LimitsDataAsset差し替え時は旧アセットのdelegateを外してから新アセットへbindし直す（多重bind/解放後通知を防ぐ）
-		if (UKawaiiPhysicsLimitsDataAsset* OldAsset = BoundLimitsDataAsset.Get())
-		{
-			OldAsset->OnLimitsChanged.Remove(LimitsDataAssetPropertyDelegateHandle);
-		}
-		LimitsDataAssetPropertyDelegateHandle.Reset();
-		BoundLimitsDataAsset = nullptr;
-
-		if (RuntimeNode->LimitsDataAsset)
-		{
-			LimitsDataAssetPropertyDelegateHandle = RuntimeNode->LimitsDataAsset->OnLimitsChanged.AddRaw(
-				this, &FKawaiiPhysicsEditMode::OnLimitDataAssetPropertyChange);
-			BoundLimitsDataAsset = RuntimeNode->LimitsDataAsset;
-		}
+		RebindLimitsDataAsset(RuntimeNode ? RuntimeNode->LimitsDataAsset.Get() : nullptr);
 	}
+}
+
+void FKawaiiPhysicsEditMode::RebindLimitsDataAsset(UKawaiiPhysicsLimitsDataAsset* NewAsset)
+{
+	// bind時のアセット基準で外す（実行中にLimitsDataAssetが差し替わっていても確実にRemoveできる）
+	if (UKawaiiPhysicsLimitsDataAsset* OldAsset = BoundLimitsDataAsset.Get())
+	{
+		OldAsset->OnLimitsChanged.Remove(LimitsDataAssetPropertyDelegateHandle);
+	}
+	LimitsDataAssetPropertyDelegateHandle.Reset();
+	BoundLimitsDataAsset = nullptr;
+
+	if (NewAsset)
+	{
+		LimitsDataAssetPropertyDelegateHandle = NewAsset->OnLimitsChanged.AddSP(
+			this, &FKawaiiPhysicsEditMode::OnLimitDataAssetPropertyChange);
+		BoundLimitsDataAsset = NewAsset;
+	}
+}
+
+void FKawaiiPhysicsEditMode::UnbindDelegates()
+{
+	if (UAnimGraphNode_KawaiiPhysics* OldGraphNode = BoundGraphNode.Get())
+	{
+		OldGraphNode->OnNodePropertyChanged().Remove(NodePropertyDelegateHandle);
+	}
+	NodePropertyDelegateHandle.Reset();
+	BoundGraphNode = nullptr;
+
+	RebindLimitsDataAsset(nullptr);
 }
 
 void FKawaiiPhysicsEditMode::OnLimitDataAssetPropertyChange(FPropertyChangedEvent& InPropertyEvent)
 {
+	if (!GraphNode || !RuntimeNode)
+	{
+		return;
+	}
+
 	GraphNode->Node.SphericalLimitsData = RuntimeNode->SphericalLimitsData;
 	GraphNode->Node.CapsuleLimitsData = RuntimeNode->CapsuleLimitsData;
 	GraphNode->Node.TaperedCapsuleLimitsData = RuntimeNode->TaperedCapsuleLimitsData;
