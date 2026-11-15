@@ -652,10 +652,15 @@ void FAnimNode_KawaiiPhysics::UpdateSkelCompMove(FComponentSpacePoseContext& Out
 		TeleportType = ETeleportType::TeleportPhysics;
 	}
 
-	if (TeleportRotationThreshold > 0 &&
-		FMath::RadiansToDegrees(FrameMoveRotation.GetAngle()) > TeleportRotationThreshold)
+	if (TeleportRotationThreshold > 0)
 	{
-		TeleportType = ETeleportType::TeleportPhysics;
+		// q と -q は同じ回転。GetAngle() は 2*acos(W) なので、ヨーが ±180 度をまたいで Quat の符号が反転すると
+		// わずかな回転でも 360 度近くになる。|W| を使って常に短い側の角度で比べる
+		const double FrameMoveAngle = 2.0 * FMath::Acos(FMath::Min(FMath::Abs(static_cast<double>(FrameMoveRotation.W)), 1.0));
+		if (FMath::RadiansToDegrees(FrameMoveAngle) > TeleportRotationThreshold)
+		{
+			TeleportType = ETeleportType::TeleportPhysics;
+		}
 	}
 }
 
