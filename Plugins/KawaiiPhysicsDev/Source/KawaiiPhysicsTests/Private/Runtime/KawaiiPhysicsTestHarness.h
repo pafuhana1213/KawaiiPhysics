@@ -24,6 +24,9 @@ struct FKawaiiPhysicsTestAccessor
 	FAnimNode_KawaiiPhysics Node;
 
 	void ApplyPhysicsAsset(const FBoneContainer& RequiredBones) { Node.ApplyPhysicsAsset(RequiredBones); }
+	/** 取り込み済みの一時外力の数と、その外力 / Number of consumed transient forces, and one of them */
+	int32 GetTransientForceCount() const { return Node.TransientForceStore.Items.Num(); }
+	FInstancedStruct& GetTransientForce(int32 Index) { return Node.TransientForceStore.Items[Index].Force; }
 
 #if WITH_EDITOR
 	void SetMirrorTableCacheForPIE(bool bEnabled) { Node.bCacheMirrorTablesForPIE = bEnabled; }

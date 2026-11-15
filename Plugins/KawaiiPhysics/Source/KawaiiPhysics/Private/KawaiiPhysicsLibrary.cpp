@@ -1411,6 +1411,8 @@ bool UKawaiiPhysicsLibrary::AddExternalForce(const FKawaiiPhysicsReference& Kawa
 		{
 			ExternalForcePtr->ExternalOwner = Owner;
 			ExternalForcePtr->bIsOneShot = bIsOneShot;
+			// 追加先のノードで最初に使う前に初期化させる（別のノードから取得した外力でも初期化し直す）
+			ExternalForcePtr->ResetRuntimeInitialized();
 
 			KawaiiPhysics.CallAnimNodeFunction<FAnimNode_KawaiiPhysics>(
 				TEXT("AddExternalForce"),

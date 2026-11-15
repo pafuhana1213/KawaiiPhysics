@@ -27,7 +27,7 @@ void FKawaiiPhysics_ExternalForce_Gravity::PreApply(FAnimNode_KawaiiPhysics& Nod
 	Force = bUseOverrideGravityDirection ? OverrideGravityDirection.GetSafeNormal() : FVector(0, 0, -1.0f);
 
 	// Characterのカスタム重力方向に対応
-	if (OwnerCharacter)
+	if (OwnerCharacter.IsValid())
 	{
 #if !UE_VERSION_OLDER_THAN(5, 3, 0)
 		if (bUseCharacterGravityDirection)

@@ -309,6 +309,7 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 		{
 			auto& Force = ExternalForces[i].GetMutable<FKawaiiPhysics_ExternalForce>();
 			Force.Initialize(Context);
+			Force.MarkRuntimeInitialized();
 		}
 	}
 
@@ -362,6 +363,11 @@ int64 FAnimNode_KawaiiPhysics::RequestTransientExternalForce(FInstancedStruct&& 
 
 	FKawaiiPhysicsTransientExternalForce Entry;
 	Entry.Force = MoveTemp(InForce);
+	// 別のノードで使った外力を渡されても、このノードで使う前に初期化し直す
+	if (FKawaiiPhysics_ExternalForce* Force = Entry.Force.GetMutablePtr<FKawaiiPhysics_ExternalForce>())
+	{
+		Force->ResetRuntimeInitialized();
+	}
 	Entry.RemainingLifetime = InLifetimeSeconds;
 	Entry.HandleId = HandleId;
 
