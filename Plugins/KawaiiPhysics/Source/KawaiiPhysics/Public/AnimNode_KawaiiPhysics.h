@@ -2107,6 +2107,17 @@ private:
 	 */
 	void ApplyPendingRuntimeReinit(const FBoneContainer& BoneContainer);
 
+	// 最後に適用したデータアセットなど。アニメーショングラフのピンは setter を通らずに書き込むので、
+	// 評価ごとに今の値と比べて変更を検出する / Values last applied. Graph pins write without going through the
+	// setters, so the current values are compared with these on every evaluation to detect changes
+	TWeakObjectPtr<UKawaiiPhysicsLimitsDataAsset> AppliedLimitsDataAsset;
+	TWeakObjectPtr<UPhysicsAsset> AppliedPhysicsAssetForLimits;
+	TWeakObjectPtr<UMirrorDataTable> AppliedMirrorDataTableForLimits;
+	TWeakObjectPtr<UKawaiiPhysicsBoneConstraintsDataAsset> AppliedBoneConstraintsDataAsset;
+	bool bAppliedSkipMirroredBoneWithExistingCollision = true;
+	void RecordAppliedLimitAssets();
+	bool HaveLimitAssetsChangedSinceApplied() const;
+
 	// SimulationSpace conversion cache (per-evaluation)
 	struct FSimulationSpaceCache
 	{

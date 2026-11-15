@@ -275,6 +275,43 @@ bool FKawaiiPhysicsRuntimeReinitSyncBonesTest::RunTest(const FString& Parameters
 	return bOk;
 }
 
+// アニメーショングラフのピンは setter を通らずにノードへ直接書き込む。ピンで LimitsDataAsset を差し替えても、
+// 評価の冒頭（全ビルド構成で走る処理）でコリジョンが作り直される（パッケージ版ではここでしか反映されない）
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsRuntimeReinitPinAssetTest,
+                                 "KawaiiPhysics.RuntimeReinit.LimitsDataAssetSetByPin",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsRuntimeReinitPinAssetTest::RunTest(const FString& Parameters)
+{
+	const TStrongObjectPtr<USkeleton> Skeleton = MakeRuntimeReinitTestSkeleton();
+	FBoneContainer Container;
+	InitRuntimeReinitTestContainer(Container, *Skeleton, {0, 1, 2, 3});
+
+	TStrongObjectPtr<UKawaiiPhysicsLimitsDataAsset> AssetA(NewObject<UKawaiiPhysicsLimitsDataAsset>(GetTransientPackage()));
+	AssetA->SphericalLimits.Add(MakeRuntimeReinitTestLimit(TEXT("hair_a"), ECollisionSourceType::DataAsset));
+	TStrongObjectPtr<UKawaiiPhysicsLimitsDataAsset> AssetB(NewObject<UKawaiiPhysicsLimitsDataAsset>(GetTransientPackage()));
+	AssetB->SphericalLimits.Add(MakeRuntimeReinitTestLimit(TEXT("hair_b"), ECollisionSourceType::DataAsset));
+	AssetB->SphericalLimits.Add(MakeRuntimeReinitTestLimit(TEXT("spine"), ECollisionSourceType::DataAsset));
+
+	FKawaiiPhysicsTestAccessor A;
+	A.Node.LimitsDataAsset = AssetA.Get();
+	A.CallApplyPendingRuntimeReinit(Container);
+	A.ApplyLimitsDataAsset(Container);
+	A.ClearPendingReinitForTest();
+	A.CallApplyPendingRuntimeReinit(Container);
+
+	// ピンと同じく、直接書き込む
+	A.Node.LimitsDataAsset = AssetB.Get();
+	A.CallApplyPendingRuntimeReinit(Container);
+	bool bOk = TestEqual(TEXT("limits follow the asset set by the pin"), A.Node.SphericalLimitsData.Num(), 2);
+
+	// ピンで外す
+	A.Node.LimitsDataAsset = nullptr;
+	A.CallApplyPendingRuntimeReinit(Container);
+	bOk &= TestEqual(TEXT("clearing the asset by the pin removes its limits"), A.Node.SphericalLimitsData.Num(), 0);
+	return bOk;
+}
+
 } // namespace KawaiiPhysicsRuntimeReinitTestPrivate
 
 #endif

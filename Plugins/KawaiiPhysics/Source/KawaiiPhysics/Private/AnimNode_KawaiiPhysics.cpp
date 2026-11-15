@@ -17,6 +17,7 @@
 #include "Runtime/Launch/Resources/Version.h"
 #include "SceneInterface.h"
 #include "PhysicsEngine/PhysicsAsset.h"
+#include "Animation/MirrorDataTable.h"
 #include "Engine/World.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -290,6 +291,7 @@ void FAnimNode_KawaiiPhysics::Initialize_AnyThread(const FAnimationInitializeCon
 	ApplyPhysicsAsset(RequiredBones);
 	ApplyMirrorLimits(RequiredBones);
 	ApplyBoneConstraintDataAsset(RequiredBones);
+	RecordAppliedLimitAssets();
 
 	ModifyBones.Empty();
 
@@ -559,17 +561,41 @@ void FAnimNode_KawaiiPhysics::GatherDebugData(FNodeDebugData& DebugData)
 	Super::GatherDebugData(DebugData);
 }
 
+void FAnimNode_KawaiiPhysics::RecordAppliedLimitAssets()
+{
+	AppliedLimitsDataAsset = LimitsDataAsset;
+	AppliedPhysicsAssetForLimits = PhysicsAssetForLimits;
+	AppliedMirrorDataTableForLimits = MirrorDataTableForLimits;
+	AppliedBoneConstraintsDataAsset = BoneConstraintsDataAsset;
+	bAppliedSkipMirroredBoneWithExistingCollision = bSkipMirroredBoneWithExistingCollision;
+}
+
+bool FAnimNode_KawaiiPhysics::HaveLimitAssetsChangedSinceApplied() const
+{
+	return AppliedLimitsDataAsset.Get() != LimitsDataAsset.Get() ||
+		AppliedPhysicsAssetForLimits.Get() != PhysicsAssetForLimits.Get() ||
+		AppliedMirrorDataTableForLimits.Get() != MirrorDataTableForLimits.Get() ||
+		AppliedBoneConstraintsDataAsset.Get() != BoneConstraintsDataAsset.Get() ||
+		bAppliedSkipMirroredBoneWithExistingCollision != bSkipMirroredBoneWithExistingCollision;
+}
+
 void FAnimNode_KawaiiPhysics::ApplyPendingRuntimeReinit(const FBoneContainer& BoneContainer)
 {
-	if (bLimitAssetsNeedReapply)
+	// setter からの要求に加えて、ピンなど setter を通らない変更も、最後に適用した値との比較で拾う
+	if (bLimitAssetsNeedReapply || HaveLimitAssetsChangedSinceApplied())
 	{
 		bLimitAssetsNeedReapply = false;
-		// Initialize_AnyThread と同じ順序（Mirror は先に作ったコリジョンを元に作る）。
-		// 拘束のマージ結果は ModifyBones の構築時（InitBoneConstraints）に作り直す
+		// 拘束のマージ結果は ModifyBones の構築時（InitBoneConstraints）に作られるので、拘束のアセットが変わったら作り直す
+		if (AppliedBoneConstraintsDataAsset.Get() != BoneConstraintsDataAsset.Get())
+		{
+			bModifyBonesNeedsReinit = true;
+		}
+		// Initialize_AnyThread と同じ順序（Mirror は先に作ったコリジョンを元に作る）
 		ApplyLimitsDataAsset(BoneContainer);
 		ApplyPhysicsAsset(BoneContainer);
 		ApplyMirrorLimits(BoneContainer);
 		ApplyBoneConstraintDataAsset(BoneContainer);
+		RecordAppliedLimitAssets();
 	}
 
 	if (bBoneReferencesNeedReinit)
