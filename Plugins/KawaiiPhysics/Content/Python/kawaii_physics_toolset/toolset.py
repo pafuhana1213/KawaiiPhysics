@@ -2654,14 +2654,13 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             tag: str | None = None,
             properties_json: str | None = None,
             graph_name: str | None = None,
-            comment: str | None = None,
-            prompt: str | None = None) -> unreal.KawaiiPhysicsGraphNodeHandle:
+            comment: str | None = None) -> unreal.KawaiiPhysicsGraphNodeHandle:
         """Adds one KawaiiPhysics node auto-positioned and auto-connected before Result.
 
         Always adds a new node; the pose chain upstream of Result is then laid
         out on one row as in layout_anim_graph. tag is a registered gameplay tag name.
         properties_json is applied like set_graph_node_properties; if a property
-        fails the node stays in the graph. comment/prompt behave as in
+        fails the node stays in the graph. comment behaves as in
         add_kawaii_physics_nodes.
         """
         # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
@@ -2671,7 +2670,6 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
         properties_json = properties_json or ''
         graph_name = graph_name or ''
         comment = comment or ''
-        prompt = prompt or ''
         _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
         if not root_bone:
             raise ValueError('root_bone must not be empty.')
@@ -2705,7 +2703,6 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             unreal.KawaiiPhysicsPlacementMatchKey.NONE,
             graph_name,
             comment,
-            prompt,
         )
         if not handles:
             raise RuntimeError(
@@ -2723,20 +2720,18 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             requests: list[unreal.KawaiiPhysicsNodePlacementRequest],
             match_key: unreal.KawaiiPhysicsPlacementMatchKey,
             graph_name: str,
-            comment: str | None = None,
-            prompt: str | None = None) -> list[unreal.KawaiiPhysicsGraphNodeHandle]:
+            comment: str | None = None) -> list[unreal.KawaiiPhysicsGraphNodeHandle]:
         """Adds or updates KawaiiPhysics nodes; auto_connect wires before Result.
 
         A non-empty comment creates an MCP comment frame with the configured
-        prefix. The prompt is stored in that frame's Details. Requests may set
-        placement_direction; project settings also control node direction/wrap/spacing.
+        prefix. Requests may set placement_direction; project settings also
+        control node direction/wrap/spacing.
         When a request sets both auto_position and auto_connect, the nodes are
         finally laid out with the upstream pose chain on Result's row, as in
         layout_anim_graph (placement_direction then applies only to unconnected nodes).
         """
         # MCP スキーマで任意引数にするため None を受け、未指定は従来の既定値として扱う
         comment = comment or ''
-        prompt = prompt or ''
         _raise_for_invalid_object(anim_blueprint, 'anim_blueprint')
         _validate_requests_or_raise(anim_blueprint, requests)
 
@@ -2746,7 +2741,6 @@ class KawaiiPhysicsToolset(unreal.ToolsetDefinition):
             match_key,
             graph_name,
             comment,
-            prompt,
         )
 
     @toolset_registry.tool_call

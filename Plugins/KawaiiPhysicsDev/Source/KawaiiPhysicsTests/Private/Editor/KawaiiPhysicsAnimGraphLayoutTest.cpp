@@ -220,12 +220,17 @@ namespace KawaiiPhysicsAnimGraphLayoutTestPrivate
 		{
 			return false;
 		}
+		bOk &= Test.TestTrue(*FString::Printf(TEXT("%s: comment title has the MCP prefix"), *Context),
+		                      CommentInfo->bMcpComment);
 
 		const UEdGraphNode_Comment* CommentNode = CommentInfo->CommentNode;
 		bOk &= Test.TestNotNull(*FString::Printf(TEXT("%s: comment info references the comment node"), *Context),
 		                        CommentNode);
 		if (CommentNode)
 		{
+			bOk &= Test.TestEqual(
+				*FString::Printf(TEXT("%s: comment uses the standard node class"), *Context),
+				CommentNode->GetClass(), UEdGraphNode_Comment::StaticClass());
 			bOk &= Test.TestTrue(
 				*FString::Printf(TEXT("%s: comment info position matches the node"), *Context),
 				CommentInfo->NodePosition.Equals(FVector2D(static_cast<double>(CommentNode->NodePosX), static_cast<double>(CommentNode->NodePosY))));

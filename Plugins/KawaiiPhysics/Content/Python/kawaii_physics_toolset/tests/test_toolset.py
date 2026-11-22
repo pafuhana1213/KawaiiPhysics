@@ -1198,7 +1198,6 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         anim_blueprint = self._create_anim_blueprint('ABP_AddNodesWithComment')
         request = _make_request('TwintailA_L')
         comment = 'Twintail left physics'
-        prompt = 'Add KawaiiPhysics to the left twintail chain.'
         comment_prefix = unreal.get_default_object(
             unreal.KawaiiPhysicsDeveloperSettings,
         ).get_editor_property('mcp_comment_prefix')
@@ -1209,7 +1208,6 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
             unreal.KawaiiPhysicsPlacementMatchKey.NONE,
             '',
             comment,
-            prompt,
         )
         unreal.BlueprintEditorLibrary.compile_blueprint(anim_blueprint)
         comments = KawaiiPhysicsToolset.get_anim_graph_comments(anim_blueprint, '')
@@ -1217,7 +1215,6 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         self.assertEqual(len(handles), 1)
         self.assertEqual(len(comments), 1)
         self.assertEqual(comments[0].get_editor_property('title'), comment_prefix + comment)
-        self.assertEqual(comments[0].get_editor_property('prompt'), prompt)
         self.assertTrue(comments[0].get_editor_property('mcp_comment'))
 
 
@@ -1644,7 +1641,6 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
             '{"WindScale": 2.0, "bUseSimpleWorldCollision": true}',
             '',
             '',
-            '',
         )
 
         self.assertTrue(KawaiiPhysicsToolset.is_graph_node_handle_valid(handle))
@@ -1669,7 +1665,7 @@ class KawaiiPhysicsToolsetTestCase(ToolCallTestCase):
         second_handle = KawaiiPhysicsToolset.add_kawaii_physics_node(
             anim_blueprint, 'TwintailA_L', ['TwintailD_L'], ['TwintailA_R'],
             REAPPLY_TAG, '{"WindScale": 2.0, "bUseSimpleWorldCollision": true}',
-            '', '', '')
+            '', '')
         self.assertTrue(KawaiiPhysicsToolset.is_graph_node_handle_valid(second_handle))
         self.assertEqual(len(KawaiiPhysicsToolset.collect_kawaii_physics_graph_nodes(
             anim_blueprint, [], False)), 2)

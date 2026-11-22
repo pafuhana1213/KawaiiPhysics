@@ -117,19 +117,7 @@ struct KAWAIIPHYSICSED_API FKawaiiPhysicsAnimGraphCommentInfo
 	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
 	FString Title;
 
-	/** MCPコメントの指示プロンプト全文（手動コメントは空） / Full prompt for MCP comments (empty for manual comments). */
-	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
-	FString Prompt;
-
-	/** MCPコメント枠の作成日時 / Creation time for MCP comment frames. */
-	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
-	FDateTime CreatedAt;
-
-	/** MCPコメント枠の最終更新日時 / Last update time for MCP comment frames. */
-	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
-	FDateTime UpdatedAt;
-
-	/** MCPコメント枠か / Whether this is an MCP comment frame. */
+	/** タイトルが MCP コメント接頭辞で始まるか / Whether the title starts with the MCP comment prefix. */
 	UPROPERTY(BlueprintReadOnly, Category = "Kawaii Physics|Editor")
 	bool bMcpComment = false;
 
@@ -416,14 +404,13 @@ public:
 	 * Add or update KawaiiPhysics nodes into an AnimGraph. When bAutoConnect is set, nodes are connected in series just before the Result node. A non-empty Comment adds an MCP comment frame. When any request sets both bAutoPosition and bAutoConnect, the pose chain upstream of Result is finally laid out on one row, as LayoutKawaiiPhysicsAnimGraph does.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Editor",
-		meta=(AutoCreateRefTerm = "Requests,Comment,Prompt"))
+		meta=(AutoCreateRefTerm = "Requests,Comment"))
 	static TArray<FKawaiiPhysicsGraphNodeHandle> AddKawaiiPhysicsNodes(
 		UAnimBlueprint* AnimBlueprint,
 		const TArray<FKawaiiPhysicsNodePlacementRequest>& Requests,
 		EKawaiiPhysicsPlacementMatchKey MatchKey = EKawaiiPhysicsPlacementMatchKey::None,
 		FName GraphName = NAME_None,
-		const FString& Comment = TEXT(""),
-		const FString& Prompt = TEXT(""));
+		const FString& Comment = TEXT(""));
 
 	/**
 	 * AnimGraph に KawaiiPhysics Shared Publisher ノードを追加する。bReuseExisting 指定時は同 Tag の既存ノードを返す。
