@@ -49,7 +49,6 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "KawaiiPhysicsDeveloperSettings.h"
 #include "Logging/TokenizedMessage.h"
-#include "KawaiiPhysicsMcpCommentNode.h"
 #include "KawaiiPhysicsPresetDiffSnapshot.h"
 #include "K2Node_FunctionEntry.h"
 #include "Misc/App.h"
@@ -1120,16 +1119,9 @@ namespace KawaiiPhysicsEditorLibraryPrivate
 		return ComputeMcpCommentBoundsForNodes(Nodes, OutNodePosX, OutNodePosY, OutNodeWidth, OutNodeHeight);
 	}
 
-	// UE5.5未満ではUEdGraphNode_Comment継承クラスがリンクできないため、素のコメント枠を使う
-#if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
-	void ApplyMcpCommentNodeState(UKawaiiPhysicsMcpCommentNode* CommentNode,
-#else
 	void ApplyMcpCommentNodeState(UEdGraphNode_Comment* CommentNode,
-#endif
 	                              const TArray<FKawaiiPhysicsGraphNodeHandle>& Handles,
-	                              const FString& CommentText,
-	                              const FString& Prompt,
-	                              bool bNewCommentNode)
+	                              const FString& CommentText)
 	{
 		if (!CommentNode)
 		{
@@ -1147,20 +1139,6 @@ namespace KawaiiPhysicsEditorLibraryPrivate
 
 		// コメント枠の位置とサイズを対象ノード群に合わせて更新する。
 		CommentNode->NodeComment = CommentText;
-#if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
-		const FDateTime Now = FDateTime::Now();
-		// MCPメタデータとしてPromptと作成・更新時刻を保持する。
-		CommentNode->Prompt = Prompt;
-		if (bNewCommentNode)
-		{
-			CommentNode->CreatedAt = Now;
-		}
-		CommentNode->UpdatedAt = Now;
-#else
-		(void)Prompt;
-		(void)bNewCommentNode;
-#endif
-
 		// 設定色とGroupMovementを適用し、コメント枠として一緒に動く状態にする。
 		if (const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>())
 		{
@@ -1185,8 +1163,7 @@ namespace KawaiiPhysicsEditorLibraryPrivate
 
 	bool FindOrAddMcpCommentNode(UEdGraph* Graph,
 	                          const TArray<FKawaiiPhysicsGraphNodeHandle>& Handles,
-	                          const FString& CommentText,
-	                          const FString& Prompt)
+	                          const FString& CommentText)
 	{
 		if (!Graph || Handles.IsEmpty())
 		{
@@ -1196,37 +1173,25 @@ namespace KawaiiPhysicsEditorLibraryPrivate
 		// 同じコメント本文の枠があれば更新し、なければ新規作成する。戻り値は新規作成の有無を表す。
 		for (UEdGraphNode* Node : Graph->Nodes)
 		{
-#if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
-			UKawaiiPhysicsMcpCommentNode* CommentNode = Cast<UKawaiiPhysicsMcpCommentNode>(Node);
-			if (!CommentNode ||
-				CommentNode->GetClass() != UKawaiiPhysicsMcpCommentNode::StaticClass() ||
-				CommentNode->NodeComment != CommentText)
-#else
 			UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node);
 			if (!CommentNode ||
 				CommentNode->GetClass() != UEdGraphNode_Comment::StaticClass() ||
 				CommentNode->NodeComment != CommentText)
-#endif
 			{
 				continue;
 			}
 
 			CommentNode->Modify();
-			ApplyMcpCommentNodeState(CommentNode, Handles, CommentText, Prompt, false);
+			ApplyMcpCommentNodeState(CommentNode, Handles, CommentText);
 			Graph->NotifyNodeChanged(CommentNode);
 			return false;
 		}
 
 		Graph->Modify();
-#if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
-		FGraphNodeCreator<UKawaiiPhysicsMcpCommentNode> NodeCreator(*Graph);
-		UKawaiiPhysicsMcpCommentNode* CommentNode = NodeCreator.CreateNode(false);
-#else
 		FGraphNodeCreator<UEdGraphNode_Comment> NodeCreator(*Graph);
 		UEdGraphNode_Comment* CommentNode = NodeCreator.CreateNode(false);
-#endif
 		NodeCreator.Finalize();
-		ApplyMcpCommentNodeState(CommentNode, Handles, CommentText, Prompt, true);
+		ApplyMcpCommentNodeState(CommentNode, Handles, CommentText);
 		Graph->NotifyNodeChanged(CommentNode);
 		return true;
 	}
@@ -1271,6 +1236,8 @@ namespace KawaiiPhysicsEditorLibraryPrivate
 			A.Max.Y > B.Min.Y;
 	}
 
+	bool IsMcpCommentNodeForLayout(const UEdGraphNode* Node);
+
 	bool DoesAutoPlacementOverlapExistingNode(UEdGraph* Graph, const FVector2D& NodePosition)
 	{
 		if (!Graph)
@@ -1306,9 +1273,9 @@ namespace KawaiiPhysicsEditorLibraryPrivate
 				continue;
 			}
 
-#if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
-			if (const UKawaiiPhysicsMcpCommentNode* CommentNode = Cast<UKawaiiPhysicsMcpCommentNode>(Node))
+			if (IsMcpCommentNodeForLayout(Node))
 			{
+				const UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node);
 				if (DoPlacementRectsOverlap(
 					CandidateRect,
 					MakePlacementRect(
@@ -1321,7 +1288,6 @@ namespace KawaiiPhysicsEditorLibraryPrivate
 				}
 				continue;
 			}
-#endif
 
 			// 素のコメント枠（囲いのみ）は障害物として扱わない
 			if (Node->IsA<UEdGraphNode_Comment>())
@@ -1876,10 +1842,7 @@ namespace KawaiiPhysicsEditorLibraryPrivate
 
 	bool IsMcpCommentNodeForLayout(const UEdGraphNode* Node)
 	{
-#if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
-		return Node && Node->IsA<UKawaiiPhysicsMcpCommentNode>();
-#else
-		// 5.5未満ではMCPコメント枠も素のコメントノードのため、設定の接頭辞で始まるタイトルで見分ける
+		// MCPコメント枠は設定の接頭辞で始まるタイトルで見分ける
 		const UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node);
 		const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
 		return CommentNode &&
@@ -1887,7 +1850,6 @@ namespace KawaiiPhysicsEditorLibraryPrivate
 			Settings &&
 			!Settings->McpCommentPrefix.IsEmpty() &&
 			CommentNode->NodeComment.StartsWith(Settings->McpCommentPrefix);
-#endif
 	}
 
 	UEdGraphPin* FindFirstLinkedPoseInputPinForLayout(UEdGraphNode* Node)
@@ -2392,8 +2354,7 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 	const TArray<FKawaiiPhysicsNodePlacementRequest>& Requests,
 	EKawaiiPhysicsPlacementMatchKey MatchKey,
 	FName GraphName,
-	const FString& Comment,
-	const FString& Prompt)
+	const FString& Comment)
 {
 	TArray<FKawaiiPhysicsGraphNodeHandle> Result;
 	if (!AnimBlueprint || Requests.IsEmpty())
@@ -2563,7 +2524,7 @@ TArray<FKawaiiPhysicsGraphNodeHandle> UKawaiiPhysicsEditorLibrary::AddKawaiiPhys
 		// 生成・更新したノード群を囲むMCPコメント枠を検索または追加する。
 		const UKawaiiPhysicsDeveloperSettings* Settings = GetDefault<UKawaiiPhysicsDeveloperSettings>();
 		const FString CommentPrefix = Settings ? Settings->McpCommentPrefix : TEXT("[MCP] ");
-		bAddedCommentNode = KawaiiPhysicsEditorLibraryPrivate::FindOrAddMcpCommentNode(Graph, Result, CommentPrefix + TrimmedComment, Prompt);
+		bAddedCommentNode = KawaiiPhysicsEditorLibraryPrivate::FindOrAddMcpCommentNode(Graph, Result, CommentPrefix + TrimmedComment);
 	}
 
 	// コメント枠の登録後にレイアウトし、移動したノードに合わせて枠も整える
@@ -3037,15 +2998,7 @@ TArray<FKawaiiPhysicsAnimGraphCommentInfo> UKawaiiPhysicsEditorLibrary::GetAnimG
 		Info.NodeSize = FVector2D(
 			static_cast<double>(CommentNode->NodeWidth),
 			static_cast<double>(CommentNode->NodeHeight));
-#if KAWAII_PHYSICS_MCP_COMMENT_NODE_SUPPORTED
-		if (const UKawaiiPhysicsMcpCommentNode* McpCommentNode = Cast<UKawaiiPhysicsMcpCommentNode>(CommentNode))
-		{
-			Info.Prompt = McpCommentNode->Prompt;
-			Info.CreatedAt = McpCommentNode->CreatedAt;
-			Info.UpdatedAt = McpCommentNode->UpdatedAt;
-			Info.bMcpComment = true;
-		}
-#endif
+		Info.bMcpComment = KawaiiPhysicsEditorLibraryPrivate::IsMcpCommentNodeForLayout(CommentNode);
 		Result.Add(Info);
 	}
 
