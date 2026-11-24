@@ -26,7 +26,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsMirrorTableCache
 	SIZE_T GetAllocatedSize() const;
 
 	TCustomBoneIndexArray<FSkeletonPoseBoneIndex, FSkeletonPoseBoneIndex> MirrorBoneIndexes;
-	TArray<FQuat> CSRefRotations;
+	TArray<FTransform> CSRefTransforms;
 
 private:
 	struct FMeshBoneSnapshot
@@ -34,6 +34,7 @@ private:
 		FName Name;
 		int32 ParentIndex;
 		FQuat Rotation;
+		FVector Scale;
 	};
 
 	FObjectKey TableKey;

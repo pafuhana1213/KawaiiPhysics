@@ -29,10 +29,11 @@ FKawaiiPhysicsMirrorTableCache::FKawaiiPhysicsMirrorTableCache(const FInputs& In
 	for (int32 Index = 0; Index < Inputs.MeshRefSkeleton.GetNum(); ++Index)
 	{
 		MeshBones.Add({ Inputs.MeshRefSkeleton.GetBoneName(Index), Inputs.MeshRefSkeleton.GetParentIndex(Index),
-			Inputs.MeshRefSkeleton.GetRefBonePose()[Index].GetRotation() });
+			Inputs.MeshRefSkeleton.GetRefBonePose()[Index].GetRotation(),
+			Inputs.MeshRefSkeleton.GetRefBonePose()[Index].GetScale3D() });
 	}
 	Inputs.Table.FillMirrorBoneIndexes(&Inputs.Skeleton, MirrorBoneIndexes);
-	KawaiiPhysicsMirrorUtils::BuildComponentSpaceRefRotations(Inputs.MeshRefSkeleton, CSRefRotations);
+	KawaiiPhysicsMirrorUtils::BuildComponentSpaceRefTransforms(Inputs.MeshRefSkeleton, CSRefTransforms);
 }
 
 bool FKawaiiPhysicsMirrorTableCache::Matches(const FInputs& Inputs) const
@@ -74,7 +75,8 @@ bool FKawaiiPhysicsMirrorTableCache::Matches(const FInputs& Inputs) const
 		const FMeshBoneSnapshot& Bone = MeshBones[Index];
 		if (Bone.Name != Inputs.MeshRefSkeleton.GetBoneName(Index)
 			|| Bone.ParentIndex != Inputs.MeshRefSkeleton.GetParentIndex(Index)
-			|| Bone.Rotation != Inputs.MeshRefSkeleton.GetRefBonePose()[Index].GetRotation())
+			|| Bone.Rotation != Inputs.MeshRefSkeleton.GetRefBonePose()[Index].GetRotation()
+			|| Bone.Scale != Inputs.MeshRefSkeleton.GetRefBonePose()[Index].GetScale3D())
 		{
 			return false;
 		}
@@ -84,7 +86,7 @@ bool FKawaiiPhysicsMirrorTableCache::Matches(const FInputs& Inputs) const
 
 SIZE_T FKawaiiPhysicsMirrorTableCache::GetAllocatedSize() const
 {
-	return MirrorBoneIndexes.GetAllocatedSize() + CSRefRotations.GetAllocatedSize() + Rows.GetAllocatedSize()
+	return MirrorBoneIndexes.GetAllocatedSize() + CSRefTransforms.GetAllocatedSize() + Rows.GetAllocatedSize()
 		+ SkeletonBoneNames.GetAllocatedSize() + MeshBones.GetAllocatedSize();
 }
 

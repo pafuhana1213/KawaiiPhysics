@@ -57,15 +57,25 @@ bool FKawaiiPhysicsMirrorTableCacheInvalidationTest::RunTest(const FString& Para
 	TestTrue(TEXT("Unchanged tables reuse their snapshot"), Cache.Matches(Fixture.Inputs()));
 
 	TCustomBoneIndexArray<FSkeletonPoseBoneIndex, FSkeletonPoseBoneIndex> ExpectedIndexes;
-	TArray<FQuat> ExpectedRotations;
+	TArray<FTransform> ExpectedTransforms;
 	Fixture.Table->FillMirrorBoneIndexes(Fixture.Skeleton.Get(), ExpectedIndexes);
-	KawaiiPhysicsMirrorUtils::BuildComponentSpaceRefRotations(Fixture.MeshRef, ExpectedRotations);
+	KawaiiPhysicsMirrorUtils::BuildComponentSpaceRefTransforms(Fixture.MeshRef, ExpectedTransforms);
 	TestEqual(TEXT("Mirror index count matches the uncached engine output"), Cache.MirrorBoneIndexes.Num(), ExpectedIndexes.Num());
 	for (int32 Index = 0; Index < ExpectedIndexes.Num(); ++Index)
 	{
 		TestEqual(TEXT("Mirror indexes are unchanged"), Cache.MirrorBoneIndexes[FSkeletonPoseBoneIndex(Index)].GetInt(),
 			ExpectedIndexes[FSkeletonPoseBoneIndex(Index)].GetInt());
-		TestTrue(TEXT("Reference rotations are unchanged"), Cache.CSRefRotations[Index] == ExpectedRotations[Index]);
+	}
+	TestEqual(TEXT("Reference transform count matches the uncached output"), Cache.CSRefTransforms.Num(), ExpectedTransforms.Num());
+	TestEqual(TEXT("Reference transform count matches the mesh bone count"), ExpectedTransforms.Num(), Fixture.MeshRef.GetNum());
+	for (int32 Index = 0; Index < ExpectedTransforms.Num() && Index < Cache.CSRefTransforms.Num(); ++Index)
+	{
+		TestTrue(TEXT("Reference rotation is unchanged"),
+			Cache.CSRefTransforms[Index].GetRotation() == ExpectedTransforms[Index].GetRotation());
+		TestTrue(TEXT("Reference location is unchanged"),
+			Cache.CSRefTransforms[Index].GetLocation() == ExpectedTransforms[Index].GetLocation());
+		TestTrue(TEXT("Reference scale is unchanged"),
+			Cache.CSRefTransforms[Index].GetScale3D() == ExpectedTransforms[Index].GetScale3D());
 	}
 
 	Fixture.Table->MirrorAxis = EAxis::Y;
@@ -92,6 +102,17 @@ bool FKawaiiPhysicsMirrorTableCacheInvalidationTest::RunTest(const FString& Para
 		Modifier.UpdateRefPoseTransform(1, FTransform(FRotator(40, 20, 10)));
 	}
 	TestFalse(TEXT("Reference rotation edits invalidate without a notification"), Cache.Matches(Fixture.Inputs()));
+	{
+		FReferenceSkeletonModifier Modifier(Fixture.MeshRef, Fixture.Skeleton.Get());
+		Modifier.UpdateRefPoseTransform(1, OriginalPose);
+	}
+	FTransform ScaleOnlyPose = OriginalPose;
+	ScaleOnlyPose.SetScale3D(FVector(2, 3, 4));
+	{
+		FReferenceSkeletonModifier Modifier(Fixture.MeshRef, Fixture.Skeleton.Get());
+		Modifier.UpdateRefPoseTransform(1, ScaleOnlyPose);
+	}
+	TestFalse(TEXT("Reference scale-only edits invalidate without a notification"), Cache.Matches(Fixture.Inputs()));
 	{
 		FReferenceSkeletonModifier Modifier(Fixture.MeshRef, Fixture.Skeleton.Get());
 		Modifier.UpdateRefPoseTransform(1, OriginalPose);
