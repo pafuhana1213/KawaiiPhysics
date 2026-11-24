@@ -102,7 +102,7 @@ namespace KawaiiPhysicsLibraryPrivate
 	                          float SizeScale, FKawaiiPhysicsRuntimeLimitInfo& OutInfo)
 	{
 		OutInfo.LimitType = ECollisionLimitType::Box;
-		OutInfo.Extent = Limit.Extent * SizeScale;
+		OutInfo.Extent = Limit.GetClampedExtent() * SizeScale;
 	}
 
 	static void SetRuntimeLimitShape(const FPlanarLimit& Limit, const FTransform& SimulationToComponent,

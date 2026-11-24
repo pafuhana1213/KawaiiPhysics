@@ -591,17 +591,17 @@ namespace KawaiiPhysicsSharedCollisionSubsystemPrivate
 			const FTaperedCapsuleLimit& Limit = LocalLimits.TaperedCapsuleLimits[TaperedCapsuleOffset + LimitIndex];
 			const FVector LocationWS = Transform.TransformPosition(Limit.Location);
 			const FQuat RotationWS = Transform.TransformRotation(Limit.Rotation);
-			const float AverageRadius = (Limit.Radius0 + Limit.Radius1) * 0.5f;
-			DrawDebugCapsule(&World, LocationWS, Limit.Length * 0.5f, AverageRadius, RotationWS, ShapeColor, false,
-				-1.0f, DepthPriority, ShapeThickness);
+			const float AverageRadius = (Limit.GetClampedRadius0() + Limit.GetClampedRadius1()) * 0.5f;
+			DrawDebugCapsule(&World, LocationWS, Limit.GetEffectiveLength() * 0.5f, AverageRadius, RotationWS,
+				ShapeColor, false, -1.0f, DepthPriority, ShapeThickness);
 		}
 		for (int32 LimitIndex = 0; LimitIndex < NumBoxes; ++LimitIndex)
 		{
 			const FBoxLimit& Limit = LocalLimits.BoxLimits[BoxOffset + LimitIndex];
 			const FVector LocationWS = Transform.TransformPosition(Limit.Location);
 			const FQuat RotationWS = Transform.TransformRotation(Limit.Rotation);
-			DrawDebugBox(&World, LocationWS, Limit.Extent, RotationWS, ShapeColor, false, -1.0f, DepthPriority,
-				ShapeThickness);
+			DrawDebugBox(&World, LocationWS, Limit.GetClampedExtent(), RotationWS, ShapeColor, false, -1.0f,
+				DepthPriority, ShapeThickness);
 		}
 		for (int32 LimitIndex = 0; LimitIndex < NumConvexes; ++LimitIndex)
 		{
@@ -719,7 +719,7 @@ namespace KawaiiPhysicsSharedCollisionSubsystemPrivate
 		// 地面Box
 		if (Entry.bHasGroundBox)
 		{
-			DrawDebugBox(&World, Entry.GroundBox.Location, Entry.GroundBox.Extent, Entry.GroundBox.Rotation,
+			DrawDebugBox(&World, Entry.GroundBox.Location, Entry.GroundBox.GetClampedExtent(), Entry.GroundBox.Rotation,
 				GetSimpleWorldGroundDebugColor(Entry.GroundBoxSource), false, -1.0f, DepthPriority, ShapeThickness);
 		}
 	}
@@ -2150,7 +2150,7 @@ void UKawaiiPhysicsSharedCollisionSubsystem::FillSimpleWorldCollisionDebugInfo(
 	OutInfo.GroundBoxSource = Entry.GroundBoxSource;
 	OutInfo.GroundBoxLocation = Entry.GroundBox.Location;
 	OutInfo.GroundBoxRotation = Entry.GroundBox.Rotation.Rotator();
-	OutInfo.GroundBoxExtent = Entry.GroundBox.Extent;
+	OutInfo.GroundBoxExtent = Entry.GroundBox.GetClampedExtent();
 	OutInfo.GatherRadius = Entry.LastGatherRadius;
 	OutInfo.TimeSinceLastGather = Entry.TimeSinceLastGather == FLT_MAX ? -1.0f : Entry.TimeSinceLastGather;
 	OutInfo.bHasGatheredOnce = Entry.bHasGatheredOnce;

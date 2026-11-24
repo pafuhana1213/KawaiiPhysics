@@ -116,12 +116,12 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 				// Box limit
 				for (const auto& BoxLimit : BoxLimits)
 				{
-					this->AnimDrawDebugBox(Output, BoxLimit.Location, BoxLimit.Rotation, BoxLimit.Extent,
+					this->AnimDrawDebugBox(Output, BoxLimit.Location, BoxLimit.Rotation, BoxLimit.GetClampedExtent(),
 					                       FColor::Orange, LineThickness);
 				}
 				for (const auto& BoxLimit : BoxLimitsData)
 				{
-					this->AnimDrawDebugBox(Output, BoxLimit.Location, BoxLimit.Rotation, BoxLimit.Extent,
+					this->AnimDrawDebugBox(Output, BoxLimit.Location, BoxLimit.Rotation, BoxLimit.GetClampedExtent(),
 					                       FColor::Blue, LineThickness);
 				}
 
@@ -149,15 +149,15 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 				for (const auto& TaperedCapsuleLimit : TaperedCapsuleLimits)
 				{
 					this->AnimDrawDebugTaperedCapsule(Output, TaperedCapsuleLimit.Location,
-					                                  TaperedCapsuleLimit.Rotation, TaperedCapsuleLimit.Radius0,
-					                                  TaperedCapsuleLimit.Radius1, TaperedCapsuleLimit.Length,
+					                                  TaperedCapsuleLimit.Rotation, TaperedCapsuleLimit.GetClampedRadius0(),
+					                                  TaperedCapsuleLimit.GetClampedRadius1(), TaperedCapsuleLimit.GetEffectiveLength(),
 					                                  FColor::Orange, LineThickness);
 				}
 				for (const auto& TaperedCapsuleLimit : TaperedCapsuleLimitsData)
 				{
 					this->AnimDrawDebugTaperedCapsule(Output, TaperedCapsuleLimit.Location,
-					                                  TaperedCapsuleLimit.Rotation, TaperedCapsuleLimit.Radius0,
-					                                  TaperedCapsuleLimit.Radius1, TaperedCapsuleLimit.Length,
+					                                  TaperedCapsuleLimit.Rotation, TaperedCapsuleLimit.GetClampedRadius0(),
+					                                  TaperedCapsuleLimit.GetClampedRadius1(), TaperedCapsuleLimit.GetEffectiveLength(),
 					                                  FColor::Blue, LineThickness);
 				}
 
@@ -202,7 +202,7 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 
 					for (const auto& BoxLimit : SharedBoxLimits)
 					{
-						this->AnimDrawDebugBox(Output, BoxLimit.Location, BoxLimit.Rotation, BoxLimit.Extent,
+						this->AnimDrawDebugBox(Output, BoxLimit.Location, BoxLimit.Rotation, BoxLimit.GetClampedExtent(),
 						                       FColor::Green, LineThickness);
 					}
 
@@ -219,8 +219,8 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 					for (const auto& TaperedCapsuleLimit : SharedTaperedCapsuleLimits)
 					{
 						this->AnimDrawDebugTaperedCapsule(Output, TaperedCapsuleLimit.Location,
-						                                  TaperedCapsuleLimit.Rotation, TaperedCapsuleLimit.Radius0,
-						                                  TaperedCapsuleLimit.Radius1, TaperedCapsuleLimit.Length,
+						                                  TaperedCapsuleLimit.Rotation, TaperedCapsuleLimit.GetClampedRadius0(),
+						                                  TaperedCapsuleLimit.GetClampedRadius1(), TaperedCapsuleLimit.GetEffectiveLength(),
 						                                  FColor::Green, LineThickness);
 					}
 
@@ -256,13 +256,13 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 
 					for (const auto& BoxLimit : SimpleWorldBoxLimits)
 					{
-						this->AnimDrawDebugBox(Output, BoxLimit.Location, BoxLimit.Rotation, BoxLimit.Extent,
+						this->AnimDrawDebugBox(Output, BoxLimit.Location, BoxLimit.Rotation, BoxLimit.GetClampedExtent(),
 						                       FColor::Cyan, LineThickness);
 					}
 
 					for (const auto& BoxLimit : SimpleWorldGroundBoxLimits)
 					{
-						this->AnimDrawDebugBox(Output, BoxLimit.Location, BoxLimit.Rotation, BoxLimit.Extent,
+						this->AnimDrawDebugBox(Output, BoxLimit.Location, BoxLimit.Rotation, BoxLimit.GetClampedExtent(),
 						                       FColor::Cyan, LineThickness);
 					}
 
@@ -305,8 +305,8 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebug(FComponentSpacePoseContext& Output)
 					for (const auto& TaperedCapsuleLimit : SimpleWorldTaperedCapsuleLimits)
 					{
 						this->AnimDrawDebugTaperedCapsule(Output, TaperedCapsuleLimit.Location,
-						                                  TaperedCapsuleLimit.Rotation, TaperedCapsuleLimit.Radius0,
-						                                  TaperedCapsuleLimit.Radius1, TaperedCapsuleLimit.Length,
+						                                  TaperedCapsuleLimit.Rotation, TaperedCapsuleLimit.GetClampedRadius0(),
+						                                  TaperedCapsuleLimit.GetClampedRadius1(), TaperedCapsuleLimit.GetEffectiveLength(),
 						                                  FColor::Cyan, LineThickness);
 					}
 
@@ -394,6 +394,7 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebugTaperedCapsule(FComponentSpacePoseCon
                                                           float Length, const FColor& Color,
                                                           float LineThickness) const
 {
+	// 呼び出し側で切り詰め済みの寸法を受け取る。
 	const auto AnimInstanceProxy = Output.AnimInstanceProxy;
 	if (!AnimInstanceProxy)
 	{
@@ -406,19 +407,16 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebugTaperedCapsule(FComponentSpacePoseCon
 		                                FTransform(RotationSim, CenterLocationSim));
 	const FVector CenterWS = TransformWS.GetLocation();
 	const FQuat RotationWS = TransformWS.GetRotation();
-	const float R0 = FMath::Max(Radius0, 0.0f);
-	const float R1 = FMath::Max(Radius1, 0.0f);
-	const float EffectiveLength = FMath::Max(Length, 0.0f);
-	const float HalfLength = EffectiveLength * 0.5f;
+	const float HalfLength = Length * 0.5f;
 
 	const FVector AxisX = RotationWS.GetAxisX();
 	const FVector AxisY = RotationWS.GetAxisY();
 	const FVector AxisZ = RotationWS.GetAxisZ();
 	// FTaperedCapsuleLimit::UsesSphereFallback と同条件。一方の端球が他方を包含する場合は衝突判定と同じく大きい端球だけを描く
-	if (EffectiveLength <= FMath::Abs(R0 - R1) + KINDA_SMALL_NUMBER)
+	if (Length <= FMath::Abs(Radius0 - Radius1) + KINDA_SMALL_NUMBER)
 	{
-		const float SphereRadius = FMath::Max(R0, R1);
-		const float Direction = R0 >= R1 ? 1.0f : -1.0f;
+		const float SphereRadius = FMath::Max(Radius0, Radius1);
+		const float Direction = Radius0 >= Radius1 ? 1.0f : -1.0f;
 		AnimInstanceProxy->AnimDrawDebugSphere(CenterWS + AxisZ * HalfLength * Direction, SphereRadius, 8,
 		                                       Color, false, -1, LineThickness, SDPG_Foreground);
 		return;
@@ -436,14 +434,14 @@ void FAnimNode_KawaiiPhysics::AnimDrawDebugTaperedCapsule(FComponentSpacePoseCon
 	for (int32 Index = 0; Index < CapSegments; ++Index)
 	{
 		const float Angle = HALF_PI * static_cast<float>(Index) / static_cast<float>(CapSegments);
-		Profile.Add({R0 * FMath::Sin(Angle), HalfLength + R0 * FMath::Cos(Angle)});
+		Profile.Add({Radius0 * FMath::Sin(Angle), HalfLength + Radius0 * FMath::Cos(Angle)});
 	}
-	Profile.Add({R0, HalfLength});
-	Profile.Add({R1, -HalfLength});
+	Profile.Add({Radius0, HalfLength});
+	Profile.Add({Radius1, -HalfLength});
 	for (int32 Index = 1; Index <= CapSegments; ++Index)
 	{
 		const float Angle = HALF_PI + HALF_PI * static_cast<float>(Index) / static_cast<float>(CapSegments);
-		Profile.Add({R1 * FMath::Sin(Angle), -HalfLength + R1 * FMath::Cos(Angle)});
+		Profile.Add({Radius1 * FMath::Sin(Angle), -HalfLength + Radius1 * FMath::Cos(Angle)});
 	}
 
 	const auto ToWorld = [&](const FProfilePoint& Point, const float Angle)
