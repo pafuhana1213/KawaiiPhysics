@@ -41,35 +41,36 @@ void FKawaiiPhysics_ExternalForce_Gravity::PreApply(FAnimNode_KawaiiPhysics& Nod
 	if (OwnerCharacter.IsValid())
 	{
 #if !UE_VERSION_OLDER_THAN(5, 3, 0)
-		if (bUseCharacterGravityDirection)
+		if (bUseCharacterGravityDirection && !bUseOverrideGravityDirection)
 		{
 			Force = OwnerCharacter->GetGravityDirection();
 		}
 #endif
+	}
 
-		if (bUseCharacterGravityScale)
+	if (bUseCharacterGravityScale)
+	{
+		const UCharacterMovementComponent* CharacterMovementComponent = OwnerCharacter.IsValid()
+			? OwnerCharacter->GetCharacterMovement() : nullptr;
+		const float GravityZ = CharacterMovementComponent
+			? CharacterMovementComponent->GetGravityZ() : Node.GetWorldGravityZ();
+		// GetGravityZは下向きが負の値。下向きの方向ベクトルに掛けるので符号を反転する
+		// (Absにしないのは、負のGravityScaleなどで重力が反転している場合に向きを保つため)
+		if (CVarKawaiiPhysicsGravityLegacyCharacterGravityScaleSign.GetValueOnAnyThread())
 		{
-			if (const UCharacterMovementComponent* CharacterMovementComponent = OwnerCharacter->GetCharacterMovement())
+			static std::atomic<bool> bWarnedLegacySign{false};
+			if (!bWarnedLegacySign.exchange(true))
 			{
-				// GetGravityZは下向きが負の値。下向きの方向ベクトルに掛けるので符号を反転する
-				// (Absにしないのは、負のGravityScaleなどで重力が反転している場合に向きを保つため)
-				if (CVarKawaiiPhysicsGravityLegacyCharacterGravityScaleSign.GetValueOnAnyThread())
-				{
-					static std::atomic<bool> bWarnedLegacySign{false};
-					if (!bWarnedLegacySign.exchange(true))
-					{
-						UE_LOG(LogKawaiiPhysics, Warning,
-						       TEXT("a.AnimNode.KawaiiPhysics.Gravity.LegacyCharacterGravityScaleSign is enabled: "
-							       "the Gravity external force with bUseCharacterGravityScale pushes upward (legacy behavior). "
-							       "This setting is deprecated and will be removed in a future version."));
-					}
-					Force *= CharacterMovementComponent->GetGravityZ();
-				}
-				else
-				{
-					Force *= -CharacterMovementComponent->GetGravityZ();
-				}
+				UE_LOG(LogKawaiiPhysics, Warning,
+				       TEXT("a.AnimNode.KawaiiPhysics.Gravity.LegacyCharacterGravityScaleSign is enabled: "
+					       "the Gravity external force with bUseCharacterGravityScale pushes upward (legacy behavior). "
+					       "This setting is deprecated and will be removed in a future version."));
 			}
+			Force *= GravityZ;
+		}
+		else
+		{
+			Force *= -GravityZ;
 		}
 	}
 

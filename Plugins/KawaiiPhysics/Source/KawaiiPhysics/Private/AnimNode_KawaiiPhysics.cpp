@@ -1059,6 +1059,18 @@ void FAnimNode_KawaiiPhysics::PreUpdate(const UAnimInstance* InAnimInstance)
 
 	// Scene の風源はゲームスレッドでしか安全に読めないので、ここで問い合わせて評価に渡す
 	SampleWindOnGameThread(World, SkelComp);
+	CacheWorldGravityOnGameThread(World);
+}
+
+void FAnimNode_KawaiiPhysics::CacheWorldGravityOnGameThread(const UWorld* World)
+{
+	CachedWorldGravityZ = World ? World->GetGravityZ() : UPhysicsSettings::Get()->DefaultGravityZ;
+	bHasCachedWorldGravityZ = true;
+}
+
+float FAnimNode_KawaiiPhysics::GetWorldGravityZ() const
+{
+	return bHasCachedWorldGravityZ ? CachedWorldGravityZ : UPhysicsSettings::Get()->DefaultGravityZ;
 }
 
 void FAnimNode_KawaiiPhysics::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
