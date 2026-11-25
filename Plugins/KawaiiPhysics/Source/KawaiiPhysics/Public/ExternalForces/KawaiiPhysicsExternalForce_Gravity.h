@@ -30,15 +30,15 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Gravity : public FKawaiiPh
 	FRuntimeFloatCurve ForceRateByBoneLengthRate;
 
 	/**
-	* Character側で設定されたCustomGravityDirectionを使用するフラグ(UE5.4以降)
-	* Flag to use CustomGravityDirection set on the Character side (UE5.4 and later)
+	* Character側で設定されたCustomGravityDirectionを使用するフラグ(UE5.3以降)。OverrideがONならOverrideを優先する。
+	* Flag to use CustomGravityDirection set on the Character side (UE5.3 and later). Override takes priority when enabled.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce", meta=(EditCondition="!bUseOverrideGravityDirection"))
 	bool bUseCharacterGravityDirection = false;
 
 	/**
-	* Characterの重力加速度（ワールドの重力 × GravityScale）を力の大きさに使うフラグ
-	* Flag to use the Character's gravity acceleration (world gravity × GravityScale) as the force magnitude
+	* Characterの重力加速度（ワールドの重力 × GravityScale）を力の大きさに使うフラグ。Characterが無ければワールドの重力で代用する。
+	* Flag to use the Character's gravity acceleration (world gravity × GravityScale) as the force magnitude. Uses world gravity when no Character exists.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce", meta=(DisplayName="Use Character Gravity"))
 	bool bUseCharacterGravityScale = false;

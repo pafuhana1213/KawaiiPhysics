@@ -1307,6 +1307,8 @@ private:
 	TOptional<double> SharedWindGameTimeSeconds;
 	TWeakObjectPtr<UWorld> SharedWindWorld;
 	uint32 SharedWindClockGeneration = 0;
+	float CachedWorldGravityZ = 0.0f;
+	bool bHasCachedWorldGravityZ = false;
 
 #if WITH_EDITORONLY_DATA
 	bool bEditing = false;
@@ -1415,6 +1417,7 @@ public:
 
 	const TOptional<double>& GetSharedWindGameTimeSeconds() const { return SharedWindGameTimeSeconds; }
 	uint32 GetSharedWindClockGeneration() const { return SharedWindClockGeneration; }
+	float GetWorldGravityZ() const;
 
 	/**
 	 * 現在読み込んでいるシンプルワールドコリジョン形状数を返す。
@@ -2177,6 +2180,7 @@ private:
 protected:
 	// GameThread で Scene の風源に問い合わせる / Queries the Scene wind sources on the game thread
 	void SampleWindOnGameThread(const UWorld* World, const USkeletalMeshComponent* SkelComp);
+	void CacheWorldGravityOnGameThread(const UWorld* World);
 
 #if ENABLE_ANIM_DEBUG
 	void AnimDrawDebug(FComponentSpacePoseContext& Output);
