@@ -611,6 +611,15 @@ void FAnimNode_KawaiiPhysics::ApplyPhysicsAsset(const FBoneContainer& RequiredBo
 
 void FAnimNode_KawaiiPhysics::ApplyMirrorLimits(const FBoneContainer& RequiredBones)
 {
+	// 再生成する Mirror 平面だけの前回ステップ履歴を控える。
+	TArray<FPlanarLimit> PreviousPlanarLimits;
+	for (const FPlanarLimit& Limit : PlanarLimitsData)
+	{
+		if (Limit.SourceType == ECollisionSourceType::Mirror)
+		{
+			PreviousPlanarLimits.Add(Limit);
+		}
+	}
 	auto RemoveAllSourceMirrors = [](auto& Targets)
 	{
 		Targets.RemoveAll([](const FCollisionLimitBase& Limit)
@@ -655,9 +664,9 @@ void FAnimNode_KawaiiPhysics::ApplyMirrorLimits(const FBoneContainer& RequiredBo
 	}
 
 	TCustomBoneIndexArray<FSkeletonPoseBoneIndex, FSkeletonPoseBoneIndex> UncachedMirrorBoneIndexes;
-	TArray<FQuat> UncachedCSRefRotations;
+	TArray<FTransform> UncachedCSRefTransforms;
 	const auto* MirrorBoneIndexesPtr = &UncachedMirrorBoneIndexes;
-	const auto* CSRefRotationsPtr = &UncachedCSRefRotations;
+	const auto* CSRefTransformsPtr = &UncachedCSRefTransforms;
 	const FReferenceSkeleton& MeshRefSkeleton = RequiredBones.GetReferenceSkeleton();
 #if WITH_EDITOR
 	if (bCacheMirrorTablesForPIE)
@@ -669,16 +678,16 @@ void FAnimNode_KawaiiPhysics::ApplyMirrorLimits(const FBoneContainer& RequiredBo
 			CachedMirrorTables = MakeShared<FKawaiiPhysicsMirrorTableCache, ESPMode::ThreadSafe>(Inputs);
 		}
 		MirrorBoneIndexesPtr = &CachedMirrorTables->MirrorBoneIndexes;
-		CSRefRotationsPtr = &CachedMirrorTables->CSRefRotations;
+		CSRefTransformsPtr = &CachedMirrorTables->CSRefTransforms;
 	}
 	else
 #endif
 	{
 		MirrorDataTableForLimits->FillMirrorBoneIndexes(Skeleton, UncachedMirrorBoneIndexes);
-		KawaiiPhysicsMirrorUtils::BuildComponentSpaceRefRotations(MeshRefSkeleton, UncachedCSRefRotations);
+		KawaiiPhysicsMirrorUtils::BuildComponentSpaceRefTransforms(MeshRefSkeleton, UncachedCSRefTransforms);
 	}
 	const auto& MirrorBoneIndexes = *MirrorBoneIndexesPtr;
-	const auto& CSRefRotations = *CSRefRotationsPtr;
+	const auto& CSRefTransforms = *CSRefTransformsPtr;
 
 	const FReferenceSkeleton& SkeletonRefSkeleton = Skeleton->GetReferenceSkeleton();
 	const auto ResolveMirrorBoneName = [&SkeletonRefSkeleton, &MirrorBoneIndexes](FName BoneName) -> FName
@@ -709,7 +718,7 @@ void FAnimNode_KawaiiPhysics::ApplyMirrorLimits(const FBoneContainer& RequiredBo
 		return MeshRefSkeleton.FindBoneIndex(BoneName);
 	};
 
-	auto AppendMirrored = [&RequiredBones, &ResolveMirrorBoneName, &FindBoneIndex, &CSRefRotations, MirrorAxis,
+	auto AppendMirrored = [&RequiredBones, &ResolveMirrorBoneName, &FindBoneIndex, &CSRefTransforms, MirrorAxis,
 	                       this](const auto& NodeLimits, auto& MergedLimits)
 	{
 		using TLimit = typename TRemoveReference<decltype(MergedLimits)>::Type::ElementType;
@@ -718,11 +727,11 @@ void FAnimNode_KawaiiPhysics::ApplyMirrorLimits(const FBoneContainer& RequiredBo
 		KawaiiPhysicsMirrorUtils::AppendMirroredLimits(NodeLimits, NodeLimits, MergedLimits,
 		                                          bSkipMirroredBoneWithExistingCollision,
 		                                          ResolveMirrorBoneName, FindBoneIndex,
-		                                          CSRefRotations, MirrorAxis, NewLimits);
+		                                          CSRefTransforms, MirrorAxis, NewLimits);
 		KawaiiPhysicsMirrorUtils::AppendMirroredLimits(MergedLimits, NodeLimits, MergedLimits,
 		                                          bSkipMirroredBoneWithExistingCollision,
 		                                          ResolveMirrorBoneName, FindBoneIndex,
-		                                          CSRefRotations, MirrorAxis, NewLimits);
+		                                          CSRefTransforms, MirrorAxis, NewLimits);
 
 		for (auto& NewLimit : NewLimits)
 		{
@@ -736,6 +745,7 @@ void FAnimNode_KawaiiPhysics::ApplyMirrorLimits(const FBoneContainer& RequiredBo
 	AppendMirrored(TaperedCapsuleLimits, TaperedCapsuleLimitsData);
 	AppendMirrored(BoxLimits, BoxLimitsData);
 	AppendMirrored(PlanarLimits, PlanarLimitsData);
+	KawaiiPhysicsMirrorUtils::RestoreMirroredPlanarHistory(PreviousPlanarLimits, PlanarLimitsData);
 }
 
 void FAnimNode_KawaiiPhysics::ApplyBoneConstraintDataAsset(const FBoneContainer& RequiredBones)
