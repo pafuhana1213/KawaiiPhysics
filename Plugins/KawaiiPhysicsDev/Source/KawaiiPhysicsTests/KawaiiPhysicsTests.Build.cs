@@ -14,6 +14,8 @@ public class KawaiiPhysicsTests : ModuleRules
 			"Core",
 			"CoreUObject",
 			"Engine",
+			"RenderCore",
+			"RHI",
 			"AnimGraphRuntime",
 			"PhysicsCore",
 			"AnimGraph",

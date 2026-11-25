@@ -9,10 +9,12 @@
 #include "KawaiiPhysicsTestHarness.h"
 #include "Misc/MemStack.h"
 
-// 外力のボーンフィルタの性能計測。master にある公開 API だけを使うので、変更前後で同じ計測ができる。
 namespace KawaiiPhysicsExternalForceFilterPerfTestPrivate
 {
-	using namespace KawaiiPhysicsHairNodeFixture;
+// 外力のボーンフィルタの性能計測。master にある公開 API だけを使うので、変更前後で同じ計測ができる。
+	using KawaiiPhysicsHairNodeFixture::FFixture;
+	using KawaiiPhysicsHairNodeFixture::FCase;
+	using KawaiiPhysicsHairNodeFixture::EFilterLayout;
 
 	constexpr int32 GNodeWarmupFrames = 120;
 	constexpr int32 GNodeMeasureFrames = 600;
@@ -32,11 +34,11 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerfExternalForceFilterNodeTest,
 
 bool FKawaiiPhysicsPerfExternalForceFilterNodeTest::RunTest(const FString& Parameters)
 {
-	UKawaiiPhysicsDeveloperSettings* Settings = GetMutableDefault<UKawaiiPhysicsDeveloperSettings>();
-	const bool bOldFixed = Settings->bUseFixedSubstepping;
-	const int32 OldMaxSubsteps = Settings->MaxSubsteps;
-	Settings->bUseFixedSubstepping = true;
-	Settings->MaxSubsteps = 4;
+	KawaiiPhysicsNodeFixture::FScopedDeveloperSettings Scoped([](UKawaiiPhysicsDeveloperSettings& Settings)
+	{
+		Settings.bUseFixedSubstepping = true;
+		Settings.MaxSubsteps = 4;
+	});
 
 	TArray<FCase> Cases;
 	for (const int32 Fps : {60, 30})
@@ -94,8 +96,6 @@ bool FKawaiiPhysicsPerfExternalForceFilterNodeTest::RunTest(const FString& Param
 
 	Contexts.Reset();
 	Fixtures.Reset();
-	Settings->bUseFixedSubstepping = bOldFixed;
-	Settings->MaxSubsteps = OldMaxSubsteps;
 	return bOk;
 }
 
