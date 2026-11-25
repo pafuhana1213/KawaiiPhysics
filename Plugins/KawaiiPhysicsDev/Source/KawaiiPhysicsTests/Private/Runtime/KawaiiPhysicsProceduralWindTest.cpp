@@ -106,6 +106,7 @@ void PrimeApplyCache(FKawaiiPhysicsProceduralWindApplyTestForce& Wind, const flo
 	Wind.RuntimeState->CachedStrengthCycle = Sample.StrengthCycle;
 	Wind.RuntimeState->CachedRandom = Sample.Random;
 	Wind.RuntimeState->CachedGust = Sample.Gust;
+	Wind.RuntimeState->CachedRipplePeriod = FMath::Max(Wind.RipplePeriod, 0.01f);
 	Wind.RuntimeState->CachedWindVector = Wind.WindDirection.GetSafeNormal();
 	Wind.SetRandomizedForceScaleForTest(1.0f);
 }
