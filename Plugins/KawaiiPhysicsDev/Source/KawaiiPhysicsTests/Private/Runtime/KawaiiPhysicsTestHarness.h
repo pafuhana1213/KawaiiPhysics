@@ -33,6 +33,14 @@ struct FKawaiiPhysicsTestAccessor
 	bool IsLimitAssetsReapplyPending() const { return Node.bLimitAssetsNeedReapply; }
 	bool IsModifyBonesReinitPending() const { return Node.bModifyBonesNeedsReinit; }
 	bool IsSyncBonesReinitPending() const { return Node.bSyncBonesNeedReinit; }
+	bool IsSharedCollisionReinitPending() const { return Node.bSharedCollisionNeedsReinit; }
+	bool IsPhysicsSettingsRefreshPending() const { return Node.bPhysicsSettingsRefreshRequested; }
+	static bool HasPendingRuntimeApplyRequest(const FAnimNode_KawaiiPhysics& TargetNode)
+	{
+		return TargetNode.bModifyBonesNeedsReinit || TargetNode.bBoneReferencesNeedReinit ||
+			TargetNode.bLimitAssetsNeedReapply || TargetNode.bSyncBonesNeedReinit ||
+			TargetNode.bSharedCollisionNeedsReinit || TargetNode.bPhysicsSettingsRefreshRequested;
+	}
 	void ClearPendingReinitForTest()
 	{
 		Node.bBoneReferencesNeedReinit = false;

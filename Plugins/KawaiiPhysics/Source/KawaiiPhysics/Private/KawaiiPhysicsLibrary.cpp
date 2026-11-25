@@ -145,15 +145,12 @@ namespace KawaiiPhysicsLibraryPrivate
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, AdditionalRootBones),
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, DummyBoneLength),
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, BoneSubdivisionCount),
-			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, bBoneSubdivisionCollisionOnly),
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, bBoneSubdivisionDensifyByRadius),
+			// 末端ダミーの初期位置と、そこから作る自動拘束の長さ・bridge ダミーの要否に効く
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, BoneForwardAxis),
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, RadiusCurveData),
-			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, LimitsDataAsset),
-			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, PhysicsAssetForLimits),
-			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, MirrorDataTableForLimits),
-			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, bSkipMirroredBoneWithExistingCollision),
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, BoneConstraintSubdivisionCount),
+			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, bAutoAddChildDummyBoneConstraint),
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, BoneConstraints),
 			GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, BoneConstraintsDataAsset),
 		};
@@ -1456,6 +1453,46 @@ bool UKawaiiPhysicsLibrary::GetNodePropertyValueAsString(const FAnimNode_KawaiiP
 	return false;
 }
 
+int32 UKawaiiPhysicsLibrary::ApplyPresetDataAssetToNode(FAnimNode_KawaiiPhysics& Node,
+	const UKawaiiPhysicsPresetDataAsset& Preset, const FKawaiiPhysicsPresetApplyOptions& Options)
+{
+	int32 ChangedPropertyCount = 0;
+	const float PreviousRadius = Node.PhysicsSettings.Radius;
+	for (TFieldIterator<FProperty> PropertyIt(FAnimNode_KawaiiPhysics::StaticStruct(), EFieldIteratorFlags::ExcludeSuper);
+	     PropertyIt; ++PropertyIt)
+	{
+		const FProperty& Property = **PropertyIt;
+		const FName PropertyName = Property.GetFName();
+		if (!UKawaiiPhysicsPresetDataAsset::ShouldApplyNodeProperty(Property, Options) ||
+			PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, ExternalForces) ||
+			PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, CustomExternalForces) ||
+			PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, bNeedWarmUp))
+		{
+			continue;
+		}
+
+		void* NodeValuePtr = Property.ContainerPtrToValuePtr<void>(&Node);
+		const void* PresetValuePtr = Property.ContainerPtrToValuePtr<void>(&Preset.Node);
+		if (!AreNodePropertySettingsIdentical(&Property, NodeValuePtr, PresetValuePtr))
+		{
+			Property.CopyCompleteValue(NodeValuePtr, PresetValuePtr);
+			RequestNodeReinitForChangedProperty(Node, PropertyName);
+			++ChangedPropertyCount;
+		}
+	}
+	if (ChangedPropertyCount > 0)
+	{
+		Node.RequestPhysicsSettingsRefresh();
+	}
+	// BoneConstraint の分割で入る bridge ダミーは構築時の Radius で要否が決まるので、Radius が変わったら作り直す
+	// （Densify の場合は ShouldReinitModifyBones が Radius の変化を検知する）
+	if (Node.BoneConstraintSubdivisionCount > 0 && !FMath::IsNearlyEqual(PreviousRadius, Node.PhysicsSettings.Radius))
+	{
+		Node.RequestModifyBonesReinit();
+	}
+	return ChangedPropertyCount;
+}
+
 FKawaiiPhysicsReference UKawaiiPhysicsLibrary::ApplyPresetDataAsset(EKawaiiPhysicsAccessResult& ExecResult,
                                                                     const FKawaiiPhysicsReference& KawaiiPhysics,
                                                                     UKawaiiPhysicsPresetDataAsset* Preset,
@@ -1472,11 +1509,7 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::ApplyPresetDataAsset(EKawaiiPhysi
 		TEXT("ApplyPresetDataAsset"),
 		[&ExecResult, Preset, Options](FAnimNode_KawaiiPhysics& InKawaiiPhysics)
 		{
-			Preset->ApplyToNode(InKawaiiPhysics, Options, nullptr);
-			InKawaiiPhysics.RequestModifyBonesReinit();
-			// プリセットはコリジョンやデータアセットも書き換えるので、データアセット由来のコリジョンも作り直す
-			InKawaiiPhysics.RequestLimitAssetsReapply();
-			InKawaiiPhysics.RequestSharedCollisionReinit();
+			ApplyPresetDataAssetToNode(InKawaiiPhysics, *Preset, Options);
 			ExecResult = EKawaiiPhysicsAccessResult::Valid;
 		});
 

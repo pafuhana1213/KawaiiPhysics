@@ -1136,6 +1136,7 @@ bool FAnimNode_KawaiiPhysics::ApplyPhysicsSettingsUpdateGate()
 	{
 		KAWAIIPHYSICS_SCOPE_TIMING(UpdatePhysicsSettings);
 		UpdatePhysicsSettingsOfModifyBones();
+		bPhysicsSettingsRefreshRequested = false;
 		bPhysicsSettingsMultiplierAppliedLastUpdate = bHasActiveSettingsMultiplier;
 
 #if WITH_EDITORONLY_DATA

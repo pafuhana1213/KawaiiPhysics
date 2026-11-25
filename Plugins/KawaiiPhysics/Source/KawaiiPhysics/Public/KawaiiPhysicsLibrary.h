@@ -1442,13 +1442,16 @@ public:
 	static bool GetNodeStructPropertyValue(const FAnimNode_KawaiiPhysics& Node, FName PropertyName,
 	                                       ValueType& OutValue);
 
-	/** プリセットDataAssetをランタイムノードへ適用（ExternalForces と CustomExternalForces は安全のため除外） / Apply a preset data asset to a runtime node; ExternalForces and CustomExternalForces are skipped for runtime safety. */
+	/** 値が違うプロパティだけ書く。物理状態は保ち、ボーン構成が変わるときだけ作り直す。ポーズへ戻したいときは ResetDynamics を呼ぶ。ExternalForces と CustomExternalForces は除外。 / Write only changed properties and preserve physics state, rebuilding bones only when topology changes. Call ResetDynamics to return to the pose. ExternalForces and CustomExternalForces are skipped. */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
 		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
 	static FKawaiiPhysicsReference ApplyPresetDataAsset(EKawaiiPhysicsAccessResult& ExecResult,
 	                                                    const FKawaiiPhysicsReference& KawaiiPhysics,
 	                                                    UKawaiiPhysicsPresetDataAsset* Preset,
 	                                                    FKawaiiPhysicsPresetApplyOptions Options);
+	static int32 ApplyPresetDataAssetToNode(FAnimNode_KawaiiPhysics& Node,
+	                                       const UKawaiiPhysicsPresetDataAsset& Preset,
+	                                       const FKawaiiPhysicsPresetApplyOptions& Options);
 
 	/** ノードの bool プロパティを名前で設定 / Set KawaiiPhysics node bool property by name. */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
