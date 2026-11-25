@@ -123,6 +123,10 @@ namespace KawaiiPhysics
 	// Rise+Decay > Duration の場合は Rise/Decay を Duration/(Rise+Decay) で比例圧縮し合計を Duration に一致させる。Duration <= 0 は全て 0
 	KAWAIIPHYSICS_API FWindGustEnvelope ResolveWindGustEnvelope(float Duration, float RiseTime, float DecayTime);
 
+#if WITH_DEV_AUTOMATION_TESTS
+	KAWAIIPHYSICS_API void ResetInvalidGustDurationWarningForTests();
+#endif
+
 	// 台形エンベロープ（線形 rise → hold → 線形 decay）を 0..1 で評価する。総時間を超えた ElapsedTime は 0
 	KAWAIIPHYSICS_API float EvaluateEnvelopeAlpha01(float RiseTime, float HoldTime, float DecayTime, float ElapsedTime);
 

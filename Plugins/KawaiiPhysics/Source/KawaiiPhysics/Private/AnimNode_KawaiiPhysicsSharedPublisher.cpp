@@ -17,6 +17,21 @@
 
 namespace AnimNodeKawaiiPhysicsSharedPublisherPrivate
 {
+	// 共有風の時計を進める。増分や結果が非有限なら、その分は進めない（PW-7。消費側へ NaN の時刻を配らない）
+	static void AdvanceSharedWindClock(FKawaiiProceduralWindRuntimeState& State, const float DeltaTime,
+	                                   const float TimeScale)
+	{
+		const float Increment = DeltaTime * TimeScale;
+		if (FMath::IsFinite(Increment) && FMath::IsFinite(State.Time + Increment))
+		{
+			State.Time += Increment;
+		}
+		if (FMath::IsFinite(State.UnscaledTime + DeltaTime))
+		{
+			State.UnscaledTime += DeltaTime;
+		}
+	}
+
 	static bool AreSimpleWorldSettingsEqual(
 		const FKawaiiPhysicsSimpleWorldCollisionSettings& Lhs,
 		const FKawaiiPhysicsSimpleWorldCollisionSettings& Rhs)
@@ -238,8 +253,8 @@ bool FKawaiiPhysicsSharedPublishHelper::Update(
 			: Inputs.SharedWind->TimeScale;
 		if (bCarriedEnabled)
 		{
-			Inputs.SharedWind->RuntimeState->Time += EffectiveDeltaTime * CarriedTimeScale;
-			Inputs.SharedWind->RuntimeState->UnscaledTime += EffectiveDeltaTime;
+			AnimNodeKawaiiPhysicsSharedPublisherPrivate::AdvanceSharedWindClock(
+				*Inputs.SharedWind->RuntimeState, EffectiveDeltaTime, CarriedTimeScale);
 		}
 	}
 
@@ -277,8 +292,8 @@ bool FKawaiiPhysicsSharedPublishHelper::Update(
 		if (!Inputs.SharedWind && WindRuntimeState.IsValid() && Inputs.bWindEnabled && bEffectiveEnabled)
 		{
 			// SharedWind 本体が無い既存テスト互換経路では、従来どおり publish 前に Time だけを直接進める。
-			WindRuntimeState->Time += EffectiveDeltaTime * Inputs.WindTimeScale;
-			WindRuntimeState->UnscaledTime += EffectiveDeltaTime;
+			AnimNodeKawaiiPhysicsSharedPublisherPrivate::AdvanceSharedWindClock(
+				*WindRuntimeState, EffectiveDeltaTime, Inputs.WindTimeScale);
 		}
 
 		FKawaiiPhysicsSimpleWorldCollisionDesc Desc;

@@ -24,6 +24,8 @@
 #include "UObject/UObjectIterator.h"
 #include "AnimNode_KawaiiPhysicsInternal.h"
 
+#include <atomic>
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(KawaiiPhysicsLibrary)
 
 DEFINE_LOG_CATEGORY_STATIC(LogKawaiiPhysicsLibrary, Verbose, All);
@@ -33,6 +35,22 @@ extern TAutoConsoleVariable<int32> CVarSimpleWorldCollisionEnable;
 
 namespace KawaiiPhysicsLibraryPrivate
 {
+	static std::atomic<bool> bInvalidGustDurationWarningLogged{false};
+
+	static bool IsValidGustDuration(const float Duration, const TCHAR* FunctionName)
+	{
+		if (FMath::IsFinite(Duration) && Duration > 0.0f)
+		{
+			return true;
+		}
+		if (!bInvalidGustDurationWarningLogged.exchange(true))
+		{
+			UE_LOG(LogKawaiiPhysicsLibrary, Warning, TEXT("%s: Invalid gust Duration (%g); gust was not started."),
+				FunctionName, Duration);
+		}
+		return false;
+	}
+
 	// AnimNode_KawaiiPhysicsCollision.cpp の AdjustBySphereCollision は無効設定と半径 0 以下をスキップする。
 	static bool IsRuntimeLimitEnabled(const FSphericalLimit& Limit, bool bSourceEnabled)
 	{
@@ -576,6 +594,13 @@ namespace KawaiiPhysicsLibraryPrivate
 		FConsoleCommandDelegate::CreateStatic(&DumpKawaiiPhysicsNodes));
 #endif
 } // namespace KawaiiPhysicsLibraryPrivate
+
+#if WITH_DEV_AUTOMATION_TESTS
+void KawaiiPhysics::ResetInvalidGustDurationWarningForTests()
+{
+	KawaiiPhysicsLibraryPrivate::bInvalidGustDurationWarningLogged.store(false);
+}
+#endif
 
 KawaiiPhysics::FWindGustEnvelope KawaiiPhysics::ResolveWindGustEnvelope(const float Duration, const float RiseTime,
                                                                         const float DecayTime)
@@ -1121,6 +1146,10 @@ bool UKawaiiPhysicsLibrary::StartProceduralWindGustOnSharedPublisher(
 	const float DecayTime,
 	const bool bRealTimeEnvelope)
 {
+	if (!KawaiiPhysicsLibraryPrivate::IsValidGustDuration(Duration, TEXT("StartProceduralWindGustOnSharedPublisher")))
+	{
+		return false;
+	}
 	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry =
 		KawaiiPhysicsLibraryPrivate::ResolveLiveSharedPublisherEntry(Actor, SharedGroupTag);
 	if (!Entry.IsValid())
@@ -1818,6 +1847,10 @@ FKawaiiPhysicsReference UKawaiiPhysicsLibrary::StartProceduralWindGust(
 {
 	ExecResult = EKawaiiPhysicsAccessExternalForceResult::NotValid;
 	OutHandle.Id = 0;
+	if (!KawaiiPhysicsLibraryPrivate::IsValidGustDuration(Duration, TEXT("StartProceduralWindGust")))
+	{
+		return KawaiiPhysics;
+	}
 
 	const ::KawaiiPhysics::FWindGustEnvelope Envelope =
 		::KawaiiPhysics::ResolveWindGustEnvelope(Duration, RiseTime, DecayTime);
@@ -1916,6 +1949,10 @@ int32 UKawaiiPhysicsLibrary::StartProceduralWindGustOnComponent(
 	const bool bRealTimeEnvelope)
 {
 	OutHandle.Id = 0;
+	if (!KawaiiPhysicsLibraryPrivate::IsValidGustDuration(Duration, TEXT("StartProceduralWindGustOnComponent")))
+	{
+		return 0;
+	}
 	int32 AppliedNodeCount = 0;
 
 	const ::KawaiiPhysics::FWindGustEnvelope Envelope =

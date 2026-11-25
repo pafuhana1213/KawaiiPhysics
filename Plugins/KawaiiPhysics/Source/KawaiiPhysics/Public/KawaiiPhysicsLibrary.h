@@ -640,8 +640,10 @@ public:
 
 	/**
 	 * ハンドルで停止できるランタイム専用 ProceduralWind Gust を開始する。Duration は Rise + Hold + Decay の合計秒（ノードの物理の時間。ノードの TimeScale に従う）で、Hold = max(0, Duration - RiseTime - DecayTime)（KawaiiPhysics::ResolveWindGustEnvelope）。
+	 * Duration が 0 以下または非有限なら突風を作らず、警告をプロセスで 1 回出す。
 	 * bRealTimeEnvelope: true = ProceduralWind の TimeScale を無視して進行（ノードの TimeScale には従う）/ false = wind 時間で進行（ProceduralWind の TimeScale の影響を受ける。旧 Trigger API 相当）。同時に保持できる transient スロットは上限8で、超過時は最古が破棄される。破棄された風のハンドルは失効し Stop は no-op。URO/LOD で評価が止まると実時間が伸びる。
 	 * Start a runtime-only ProceduralWind gust that can be stopped by handle. Duration is the total seconds of Rise + Hold + Decay in the node's physics time (follows the node's TimeScale), where Hold = max(0, Duration - RiseTime - DecayTime) (KawaiiPhysics::ResolveWindGustEnvelope).
+	 * A non-positive or non-finite Duration creates no gust and emits one warning per process.
 	 * bRealTimeEnvelope: true = ignore ProceduralWind TimeScale (still follows the node's TimeScale) / false = progress in wind time (affected by ProceduralWind TimeScale; equivalent to the old Trigger API). Transient slots are capped at 8; beyond the cap, the oldest entry is evicted. Handles for evicted winds become stale and Stop is a no-op. If URO/LOD stops evaluation, real time is extended.
 	 * @param ExecResult ノード参照の解決結果 / Result of resolving the node reference.
 	 * @param OutHandle 停止に使うハンドル / Handle used to stop the gust.
@@ -702,11 +704,13 @@ public:
 
 	/**
 	 * Component 内の対象 KawaiiPhysics ノードへ、ハンドルで停止できるランタイム専用 ProceduralWind Gust を開始する。Duration は Rise + Hold + Decay の合計秒（ノードの物理の時間。ノードの TimeScale に従う）で、Hold = max(0, Duration - RiseTime - DecayTime)（KawaiiPhysics::ResolveWindGustEnvelope）。
+	 * Duration が 0 以下または非有限なら突風を作らず、警告をプロセスで 1 回出す。
 	 * bRealTimeEnvelope: true = ProceduralWind の TimeScale を無視して進行（ノードの TimeScale には従う）/ false = wind 時間で進行（ProceduralWind の TimeScale の影響を受ける。旧 Trigger API 相当）。同時に保持できる transient スロットは上限8で、超過時は最古が破棄される。破棄された風のハンドルは失効し Stop は no-op。URO/LOD で評価が止まると実時間が伸びる。InheritAllWinds ファンアウトが上限8を超えた場合、共通ハンドルは保持された transient のみを指す。
 	 * Component / Linked AnimInstance / PostProcess から KawaiiPhysics ノード参照を収集する（FilterTags が空なら全件）。
 	 * AnimGraph の BlueprintThreadSafe 文脈から呼ぶ場合、対象は呼び出し元（呼び出しノード自身）の Component に限ります。
 	 * それ以外のオブジェクトから収集する場合は、そのオブジェクトが評価中でない GameThread で呼び出してください。
 	 * Start runtime-only ProceduralWind gusts on target KawaiiPhysics nodes in a component that can be stopped by handle. Duration is the total seconds of Rise + Hold + Decay in the node's physics time (follows the node's TimeScale), where Hold = max(0, Duration - RiseTime - DecayTime) (KawaiiPhysics::ResolveWindGustEnvelope).
+	 * A non-positive or non-finite Duration creates no gust and emits one warning per process.
 	 * bRealTimeEnvelope: true = ignore ProceduralWind TimeScale (still follows the node's TimeScale) / false = progress in wind time (affected by ProceduralWind TimeScale; equivalent to the old Trigger API). Transient slots are capped at 8; beyond the cap, the oldest entry is evicted. Handles for evicted winds become stale and Stop is a no-op. If URO/LOD stops evaluation, real time is extended. If InheritAllWinds fan-out exceeds the cap of 8, the shared handle only points to retained transients.
 	 * When called from an AnimGraph BlueprintThreadSafe context, the target must be the caller's (the calling node's) own Component. Collecting from any other object must be done from the GameThread while that object is not being evaluated.
 	 * @param MeshComp 対象の SkeletalMeshComponent / Target SkeletalMeshComponent.
@@ -1315,8 +1319,10 @@ public:
 	/**
 	 * 同じ Actor ファミリーの Shared Publisher（Tag）に突風を積む。Publisher の次の Update で消費され、Shared の全消費ノードに同時に届く。Publisher が無ければ false。
 	 * Duration は Rise + Hold + Decay の合計。既定では Wind の TimeScale を無視するゲーム内秒。Hold = max(0, Duration - RiseTime - DecayTime)。
+	 * Duration が 0 以下または非有限なら突風を作らず、警告をプロセスで 1 回出す。
 	 * Queues a gust on the Shared Publisher (tag) of this actor family. Consumed on the publisher's next Update and delivered to every Shared consumer at once. Returns false when no publisher exists.
 	 * Duration is the total Rise + Hold + Decay, in game seconds ignoring wind TimeScale by default. Hold = max(0, Duration - RiseTime - DecayTime).
+	 * A non-positive or non-finite Duration creates no gust and emits one warning per process.
 	 * @param Actor 対象 Actor ファミリー内の Actor / Actor in the target actor family.
 	 * @param SharedGroupTag 対象 Shared Publisher の Tag / Target Shared Publisher tag.
 	 * @param Strength Gust のピーク強度 / Peak gust strength.

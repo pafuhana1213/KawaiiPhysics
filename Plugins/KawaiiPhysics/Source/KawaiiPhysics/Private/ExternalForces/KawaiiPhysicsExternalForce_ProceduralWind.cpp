@@ -21,6 +21,31 @@ namespace KawaiiPhysicsExternalForceProceduralWindPrivate
 {
 constexpr float TwoPi = UE_PI * 2.0f;
 
+static float ComputeSafePeriod(const float Period)
+{
+	return FMath::IsFinite(Period) ? FMath::Max(Period, 0.01f) : 0.01f;
+}
+
+static float ComputeRipple(const float RippleForce, const float Time, const float Period,
+	const float LengthRate, const float TipPhaseDelay, const float PhaseOffset)
+{
+	return RippleForce * FMath::Sin(TwoPi * Time / Period -
+		FMath::DegreesToRadians(LengthRate * TipPhaseDelay) + FMath::DegreesToRadians(PhaseOffset));
+}
+
+static float ComputeBoneTotal(const FKawaiiProceduralWindRuntimeState& State, const float Ripple)
+{
+	const float Total = (State.CachedSinesWithoutRipple + Ripple) * State.CachedStrengthCycle +
+		State.CachedRandom + State.CachedGust;
+	if (FMath::IsFinite(Total))
+	{
+		return Total;
+	}
+	const float WithoutRipple = State.CachedSinesWithoutRipple * State.CachedStrengthCycle +
+		State.CachedRandom + State.CachedGust;
+	return FMath::IsFinite(WithoutRipple) ? WithoutRipple : 0.0f;
+}
+
 // WindScope プレビュー用のリングバッファサイズ。SKawaiiPhysicsWindScopeWindow の描画解像度と対応する
 constexpr int32 ScopeBufferSize = 512;
 
@@ -124,7 +149,7 @@ static float ComputeDebugTotalRate(const FKawaiiPhysics_ExternalForce_Procedural
 	const float MaxRandom = FMath::Abs(Force.RandomForce);
 	// 基準値が0にならないよう下限1.0を保証（ゼロ除算防止）
 	const float Reference = FMath::Max(MaxSine * MaxStrengthCycle + MaxRandom, 1.0f);
-	return FMath::Abs(Total) / Reference;
+	return FMath::IsFinite(Reference) ? FMath::Abs(Total) / Reference : 0.0f;
 }
 
 static void InitializeRuntimeStateContents(FKawaiiProceduralWindRuntimeState& State)
@@ -140,6 +165,7 @@ static void InitializeRuntimeStateContents(FKawaiiProceduralWindRuntimeState& St
 	State.CachedStrengthCycle = 1.0f;
 	State.CachedRandom = 0.0f;
 	State.CachedGust = 0.0f;
+	State.CachedRipplePeriod = 0.01f;
 	State.CachedWindVector = FVector::ZeroVector;
 	State.SharedPublisherEntry.Reset();
 	State.ResolvedSharedTag = FGameplayTag();
@@ -638,9 +664,16 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::RequestDynamicParams(
 void FKawaiiPhysics_ExternalForce_ProceduralWind::AdvanceWindTime(const float DeltaTime)
 {
 	const auto State = EnsureRuntimeState();
-	const float Dt = FMath::Max(DeltaTime, 0.0f);
-	State->Time += Dt * TimeScale;
-	State->UnscaledTime += Dt;
+	const float Dt = FMath::IsFinite(DeltaTime) ? FMath::Max(DeltaTime, 0.0f) : 0.0f;
+	const float Increment = Dt * TimeScale;
+	if (FMath::IsFinite(Increment) && FMath::IsFinite(State->Time + Increment))
+	{
+		State->Time += Increment;
+	}
+	if (FMath::IsFinite(State->UnscaledTime + Dt))
+	{
+		State->UnscaledTime += Dt;
+	}
 }
 
 // 現在時刻のサンプルを計算して記録する（PreApply 以外の呼び出し元用の薄いラッパ）
@@ -878,10 +911,10 @@ FKawaiiPhysicsProceduralWindSample FKawaiiPhysics_ExternalForce_ProceduralWind::
 	FKawaiiPhysicsProceduralWindSample Sample;
 
 	// 周期パラメータのゼロ除算防止クランプ
-	const float SafeSwayPeriod = FMath::Max(SwayPeriod, 0.01f);
-	const float SafeRipplePeriod = FMath::Max(RipplePeriod, 0.01f);
-	const float SafeRandomForcePeriod = FMath::Max(RandomForcePeriod, 0.01f);
-	const float SafeStrengthCyclePeriod = FMath::Max(StrengthCyclePeriod, 0.01f);
+	const float SafeSwayPeriod = KawaiiPhysicsExternalForceProceduralWindPrivate::ComputeSafePeriod(SwayPeriod);
+	const float SafeRipplePeriod = KawaiiPhysicsExternalForceProceduralWindPrivate::ComputeSafePeriod(RipplePeriod);
+	const float SafeRandomForcePeriod = KawaiiPhysicsExternalForceProceduralWindPrivate::ComputeSafePeriod(RandomForcePeriod);
+	const float SafeStrengthCyclePeriod = KawaiiPhysicsExternalForceProceduralWindPrivate::ComputeSafePeriod(StrengthCyclePeriod);
 
 	// 定常(Constant)成分
 	Sample.Constant = ConstantForce;
@@ -889,8 +922,8 @@ FKawaiiPhysicsProceduralWindSample FKawaiiPhysics_ExternalForce_ProceduralWind::
 	Sample.Sway = SwayForce * FMath::Sin(KawaiiPhysicsExternalForceProceduralWindPrivate::TwoPi * InTime / SafeSwayPeriod + FMath::DegreesToRadians(SwayPhaseOffset));
 	// ボーン列に沿って伝わる波揺れ(Ripple)。InLengthRate（毛先方向の距離率）ぶんだけ位相をずらし、根元から毛先へ
 	// 波が伝播しているように見せる
-	Sample.Ripple = RippleForce * FMath::Sin(KawaiiPhysicsExternalForceProceduralWindPrivate::TwoPi * InTime / SafeRipplePeriod -
-		FMath::DegreesToRadians(InLengthRate * RippleTipPhaseDelay) + FMath::DegreesToRadians(RipplePhaseOffset));
+	Sample.Ripple = KawaiiPhysicsExternalForceProceduralWindPrivate::ComputeRipple(
+		RippleForce, InTime, SafeRipplePeriod, InLengthRate, RippleTipPhaseDelay, RipplePhaseOffset);
 	// 低周波の強弱サイクル(StrengthCycle)変調。sin を [0,1] に正規化してから StrengthCycleRange の Min-Max 間を補間する
 	Sample.StrengthCycle = FMath::Lerp(StrengthCycleRange.Min, StrengthCycleRange.Max,
 		0.5f * (1.0f + FMath::Sin(KawaiiPhysicsExternalForceProceduralWindPrivate::TwoPi * InTime / SafeStrengthCyclePeriod + FMath::DegreesToRadians(StrengthCyclePhaseOffset))));
@@ -903,10 +936,18 @@ FKawaiiPhysicsProceduralWindSample FKawaiiPhysics_ExternalForce_ProceduralWind::
 		Sample.Gust = KawaiiPhysicsExternalForceProceduralWindPrivate::EvaluateActiveGust(RuntimeState->ActiveGust,
 			RuntimeState->ActiveGust.bRealTimeEnvelope ? RuntimeState->UnscaledTime : InTime);
 	}
+	// 異常値は系列ごとに捨て、強弱サイクルだけ中立倍率へ戻す。
+	if (!FMath::IsFinite(Sample.Constant)) { Sample.Constant = 0.0f; }
+	if (!FMath::IsFinite(Sample.Sway)) { Sample.Sway = 0.0f; }
+	if (!FMath::IsFinite(Sample.Ripple)) { Sample.Ripple = 0.0f; }
+	if (!FMath::IsFinite(Sample.StrengthCycle)) { Sample.StrengthCycle = 1.0f; }
+	if (!FMath::IsFinite(Sample.Random)) { Sample.Random = 0.0f; }
+	if (!FMath::IsFinite(Sample.Gust)) { Sample.Gust = 0.0f; }
 
 	// 最終合成: (定常 + 一斉揺れ + 波揺れ) × 強弱サイクル + random + gust
 	Sample.Total = (Sample.Constant + Sample.Sway + Sample.Ripple) * Sample.StrengthCycle +
 		Sample.Random + Sample.Gust;
+	if (!FMath::IsFinite(Sample.Total)) { Sample.Total = 0.0f; }
 	return Sample;
 }
 
@@ -1179,8 +1220,10 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::PreApply(FAnimNode_KawaiiPhysi
 				// 新しい serial も同じ基準時刻へ外挿する。warm-up や評価回数で時計を二重に進めない。
 				const float Elapsed = RuntimeState->bPublisherWindDisabled ? 0.0f : static_cast<float>(FMath::Max(
 					0.0, Node.GetSharedWindGameTimeSeconds().GetValue() - RuntimeState->SharedGameTimeAtPublish.GetValue()));
-				RuntimeState->Time = RuntimeState->SharedWindTimeAtPublish + Elapsed * RuntimeState->CachedPublisherTimeScale;
-				RuntimeState->UnscaledTime = RuntimeState->SharedUnscaledTimeAtPublish + Elapsed;
+				const float ExtrapolatedTime = RuntimeState->SharedWindTimeAtPublish + Elapsed * RuntimeState->CachedPublisherTimeScale;
+				const float ExtrapolatedUnscaledTime = RuntimeState->SharedUnscaledTimeAtPublish + Elapsed;
+				if (FMath::IsFinite(ExtrapolatedTime)) { RuntimeState->Time = ExtrapolatedTime; }
+				if (FMath::IsFinite(ExtrapolatedUnscaledTime)) { RuntimeState->UnscaledTime = ExtrapolatedUnscaledTime; }
 			}
 			else if (!bNewSharedState)
 			{
@@ -1191,8 +1234,10 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::PreApply(FAnimNode_KawaiiPhysi
 				// warm-up 後の通常の 1 回で通常どおり外挿する
 				if (!RuntimeState->bPublisherWindDisabled && !Node.IsWarmingUp())
 				{
-					RuntimeState->Time += Node.GetStepDeltaTime() * RuntimeState->CachedPublisherTimeScale;
-					RuntimeState->UnscaledTime += Node.GetStepDeltaTime();
+					const float ExtrapolatedTime = RuntimeState->Time + Node.GetStepDeltaTime() * RuntimeState->CachedPublisherTimeScale;
+					const float ExtrapolatedUnscaledTime = RuntimeState->UnscaledTime + Node.GetStepDeltaTime();
+					if (FMath::IsFinite(ExtrapolatedTime)) { RuntimeState->Time = ExtrapolatedTime; }
+					if (FMath::IsFinite(ExtrapolatedUnscaledTime)) { RuntimeState->UnscaledTime = ExtrapolatedUnscaledTime; }
 				}
 			}
 		}
@@ -1217,6 +1262,7 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::PreApply(FAnimNode_KawaiiPhysi
 	RuntimeState->CachedStrengthCycle = Sample.StrengthCycle;
 	RuntimeState->CachedRandom = Sample.Random;
 	RuntimeState->CachedGust = Sample.Gust;
+	RuntimeState->CachedRipplePeriod = KawaiiPhysicsExternalForceProceduralWindPrivate::ComputeSafePeriod(RipplePeriod);
 
 	// 風向きに円錐状の揺らぎを加える（WindDirectionNoiseAngle>0のときのみ）。X/Y で異なる Channel を使い、
 	// 独立した2軸のノイズ系列にする
@@ -1226,11 +1272,14 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::PreApply(FAnimNode_KawaiiPhysi
 	}
 	else
 	{
-		const FVector BaseWindDirection = KawaiiPhysicsExternalForceProceduralWindPrivate::SafeDirectionOrForward(WindDirection);
+		// 0 の判定は旧 SafeDirectionOrForward が ForwardVector に倒していた条件（正規化できない長さ）と同じにする
+		const bool bInvalidDirection = WindDirection.ContainsNaN() || WindDirection.GetSafeNormal().IsNearlyZero();
+		const FVector BaseWindDirection = bInvalidDirection ? FVector::ZeroVector :
+			KawaiiPhysicsExternalForceProceduralWindPrivate::SafeDirectionOrForward(WindDirection);
 		FVector NoisyWindDirection = BaseWindDirection;
-		if (WindDirectionNoiseAngle > 0.0f)
+		if (!bInvalidDirection && FMath::IsFinite(WindDirectionNoiseAngle) && WindDirectionNoiseAngle > 0.0f)
 		{
-			const float SafeWindDirectionNoisePeriod = FMath::Max(WindDirectionNoisePeriod, 0.01f);
+			const float SafeWindDirectionNoisePeriod = KawaiiPhysicsExternalForceProceduralWindPrivate::ComputeSafePeriod(WindDirectionNoisePeriod);
 			const float DirectionNoiseU = RuntimeState->Time / SafeWindDirectionNoisePeriod;
 			const float NoiseX = SampleSmoothNoise(DirectionNoiseU, Seed, 1);
 			const float NoiseY = SampleSmoothNoise(DirectionNoiseU, Seed, 2);
@@ -1238,6 +1287,7 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::PreApply(FAnimNode_KawaiiPhysi
 		}
 		// BoneSpace はボーンローカルの生ベクトルをキャッシュし、Apply 側で BoneTM を1回だけ掛ける
 		RuntimeState->CachedWindVector = ConvertExternalForceToSimulationSpace(Node, PoseContext, NoisyWindDirection);
+		if (RuntimeState->CachedWindVector.ContainsNaN()) { RuntimeState->CachedWindVector = FVector::ZeroVector; }
 	}
 
 	// 上で求めた Sample をそのまま渡し、Wind Scope 記録での再計算を避ける
@@ -1261,15 +1311,16 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::Apply(FKawaiiPhysicsModifyBone
 
 	// Ripple はボーンごとの LengthRateFromRoot に依存するためここで個別に計算し、PreApply でキャッシュした
 	// 他成分と合算する。式は ComputeWindSample の Sample.Ripple 計算と一致させること
-	const float Ripple = RippleForce * FMath::Sin(KawaiiPhysicsExternalForceProceduralWindPrivate::TwoPi * RuntimeState->Time / FMath::Max(RipplePeriod, 0.01f) -
-		FMath::DegreesToRadians(Bone.LengthRateFromRoot * RippleTipPhaseDelay) + FMath::DegreesToRadians(RipplePhaseOffset));
-	const float Total = (RuntimeState->CachedSinesWithoutRipple + Ripple) * RuntimeState->CachedStrengthCycle +
-		RuntimeState->CachedRandom + RuntimeState->CachedGust;
+	const float Ripple = KawaiiPhysicsExternalForceProceduralWindPrivate::ComputeRipple(
+		RippleForce, RuntimeState->Time, RuntimeState->CachedRipplePeriod, Bone.LengthRateFromRoot,
+		RippleTipPhaseDelay, RipplePhaseOffset);
+	const float Total = KawaiiPhysicsExternalForceProceduralWindPrivate::ComputeBoneTotal(*RuntimeState, Ripple);
 
 	float ForceRate = 1.0f;
 	if (const auto Curve = ForceRateByBoneLengthRate.GetRichCurve(); !Curve->IsEmpty())
 	{
 		ForceRate = Curve->Eval(Bone.LengthRateFromRoot);
+		if (!FMath::IsFinite(ForceRate)) { ForceRate = 0.0f; }
 	}
 
 	// 基底の RandomForceScaleRange / RandomizedForceScale は本外力では意図的に無視する
@@ -1309,16 +1360,16 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::AnimDrawDebugForEditMode(
 	}
 
 	// Ripple/Total の再計算は Apply と同じ式（ComputeWindSample の Sample.Ripple と一致させること）
-	const float Ripple = RippleForce * FMath::Sin(KawaiiPhysicsExternalForceProceduralWindPrivate::TwoPi * RuntimeState->Time / FMath::Max(RipplePeriod, 0.01f) -
-		FMath::DegreesToRadians(ModifyBone.LengthRateFromRoot * RippleTipPhaseDelay) +
-		FMath::DegreesToRadians(RipplePhaseOffset));
-	const float Total = (RuntimeState->CachedSinesWithoutRipple + Ripple) * RuntimeState->CachedStrengthCycle +
-		RuntimeState->CachedRandom + RuntimeState->CachedGust;
+	const float Ripple = KawaiiPhysicsExternalForceProceduralWindPrivate::ComputeRipple(
+		RippleForce, RuntimeState->Time, RuntimeState->CachedRipplePeriod, ModifyBone.LengthRateFromRoot,
+		RippleTipPhaseDelay, RipplePhaseOffset);
+	const float Total = KawaiiPhysicsExternalForceProceduralWindPrivate::ComputeBoneTotal(*RuntimeState, Ripple);
 
 	float ForceRate = 1.0f;
 	if (const auto Curve = ForceRateByBoneLengthRate.GetRichCurve(); !Curve->IsEmpty())
 	{
 		ForceRate = Curve->Eval(ModifyBone.LengthRateFromRoot);
+		if (!FMath::IsFinite(ForceRate)) { ForceRate = 0.0f; }
 	}
 
 	// 風向きの矢印を該当ボーン位置に描画。BaseBoneSpace の場合はコンポーネント空間へ変換してから配置する

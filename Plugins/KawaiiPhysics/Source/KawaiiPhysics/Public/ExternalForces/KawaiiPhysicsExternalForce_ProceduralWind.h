@@ -94,7 +94,7 @@ struct KAWAIIPHYSICS_API FKawaiiProceduralWindDynamicParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	bool bOverrideWindDirection = false;
 
-	/** 風方向。内部で正規化するため非正規化でも可 / Wind direction. Non-normalized values are allowed because this is normalized internally. */
+	/** 風方向。内部で正規化するため非正規化でも可。0 ベクトルまたは NaN / Inf のときは吹かない / Wind direction. Non-normalized values are allowed because this is normalized internally. A zero vector or NaN / Inf produces no wind. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Kawaii Physics|ExternalForce|Procedural Wind|DynamicParams")
 	FVector WindDirection = FVector::ForwardVector;
 
@@ -264,6 +264,7 @@ struct FKawaiiProceduralWindRuntimeState
 	float CachedStrengthCycle = 1.0f;
 	float CachedRandom = 0.0f;
 	float CachedGust = 0.0f;
+	float CachedRipplePeriod = 0.01f;
 	FVector CachedWindVector = FVector::ZeroVector;
 
 	// 以下の共有風状態は PreApply を回す Worker だけが読み書きする。Mutex の保護対象には含めない。
@@ -338,8 +339,8 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	EKawaiiProceduralWindParameterMode ParameterMode = EKawaiiProceduralWindParameterMode::Simple;
 
 	/**
-	* 風の吹く方向。BP からは SetExternalForceVectorProperty("WindDirection") で変更可能。内部で正規化するため非正規化でも可
-	* Direction the wind blows. Controllable from BP via SetExternalForceVectorProperty("WindDirection"). Non-normalized values are allowed because this is normalized internally.
+	* 風の吹く方向。BP からは SetExternalForceVectorProperty("WindDirection") で変更可能。内部で正規化するため非正規化でも可。0 ベクトルまたは NaN / Inf のときは吹かない
+	* Direction the wind blows. Controllable from BP via SetExternalForceVectorProperty("WindDirection"). Non-normalized values are allowed because this is normalized internally. A zero vector or NaN / Inf produces no wind.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayPriority=3, PinHiddenByDefault),
 		Category="Kawaii Physics|ExternalForce|Procedural Wind")
