@@ -212,11 +212,6 @@ namespace KawaiiPhysicsEditModePrivate
 	                                   const FMaterialRenderProxy* MaterialProxy, const FHitProxyId HitProxyId,
 	                                   const FKawaiiPhysicsCollisionDrawStyle& Style)
 	{
-		// solver と同じく負値は 0 に丸める
-		Radius0 = FMath::Max(Radius0, 0.0f);
-		Radius1 = FMath::Max(Radius1, 0.0f);
-		Length = FMath::Max(Length, 0.0f);
-
 		// FTaperedCapsuleLimit::UsesSphereFallback と同条件。一方の端球が他方を包含する場合は大きい端球（Length 0）として描く
 		if (Length <= FMath::Abs(Radius0 - Radius1) + KINDA_SMALL_NUMBER)
 		{
@@ -802,7 +797,8 @@ void FKawaiiPhysicsEditMode::RenderTaperedCapsuleLimit(FPrimitiveDrawInterface* 
 	auto DrawTaperedCapsule = [&](const auto& TaperedCapsule, int32 Index, const FMaterialRenderProxy* MaterialProxy,
 	                              bool bUseHit)
 	{
-		if (TaperedCapsule.bEnable && (TaperedCapsule.Radius0 > 0 || TaperedCapsule.Radius1 > 0))
+		if (TaperedCapsule.bEnable &&
+		    (TaperedCapsule.GetClampedRadius0() > 0 || TaperedCapsule.GetClampedRadius1() > 0))
 		{
 			FVector Location = TaperedCapsule.Location;
 			FQuat Rotation = TaperedCapsule.Rotation;
@@ -821,11 +817,11 @@ void FKawaiiPhysicsEditMode::RenderTaperedCapsuleLimit(FPrimitiveDrawInterface* 
 				                                      : nullptr;
 			PDI->SetHitProxy(HitProxy);
 
-			KawaiiPhysicsEditModePrivate::DrawTaperedCapsuleSolverShape(PDI, Location, Rotation, TaperedCapsule.Radius0,
-			                               TaperedCapsule.Radius1, TaperedCapsule.Length, MaterialProxy,
+			KawaiiPhysicsEditModePrivate::DrawTaperedCapsuleSolverShape(PDI, Location, Rotation, TaperedCapsule.GetClampedRadius0(),
+			                               TaperedCapsule.GetClampedRadius1(), TaperedCapsule.GetEffectiveLength(), MaterialProxy,
 			                               HitProxy ? HitProxy->Id : FHitProxyId(), Style);
 			DrawCoordinateSystem(PDI, Location, Rotation.Rotator(),
-			                     FMath::Max(TaperedCapsule.Radius0, TaperedCapsule.Radius1), SDPG_World + 1);
+			                     TaperedCapsule.GetFallbackSphereRadius(), SDPG_World + 1);
 			PDI->SetHitProxy(nullptr);
 		}
 	};
@@ -845,7 +841,8 @@ void FKawaiiPhysicsEditMode::RenderBoxLimit(FPrimitiveDrawInterface* PDI) const
 
 	auto DrawBoxLimit = [&](const auto& Box, int32 Index, const FMaterialRenderProxy* MaterialProxy, bool bUseHit)
 	{
-		if (Box.bEnable && Box.Extent.Size() > 0)
+		const FVector ClampedExtent = Box.GetClampedExtent();
+		if (Box.bEnable && ClampedExtent.SizeSquared() > 0)
 		{
 			FTransform BoxTransform(Box.Rotation, Box.Location);
 			if (RuntimeNode->SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
@@ -858,13 +855,13 @@ void FKawaiiPhysicsEditMode::RenderBoxLimit(FPrimitiveDrawInterface* PDI) const
 				                 ? new HKawaiiPhysicsHitProxy(ECollisionLimitType::Box, Index, Box.SourceType)
 				                 : nullptr);
 
-			DrawBox(PDI, BoxTransform.ToMatrixWithScale(), Box.Extent, MaterialProxy, SDPG_World);
+			DrawBox(PDI, BoxTransform.ToMatrixWithScale(), ClampedExtent, MaterialProxy, SDPG_World);
 			if (Style.bDrawBorder)
 			{
-				DrawWireBox(PDI, BoxTransform.ToMatrixWithScale(), FBox(-Box.Extent, Box.Extent), Style.BorderColor,
+				DrawWireBox(PDI, BoxTransform.ToMatrixWithScale(), FBox(-ClampedExtent, ClampedExtent), Style.BorderColor,
 				            SDPG_World, Style.BorderThickness);
 			}
-			DrawCoordinateSystem(PDI, BoxTransform.GetLocation(), BoxTransform.Rotator(), Box.Extent.Size(),
+			DrawCoordinateSystem(PDI, BoxTransform.GetLocation(), BoxTransform.Rotator(), ClampedExtent.Size(),
 			                     SDPG_World + 1);
 			PDI->SetHitProxy(nullptr);
 		}
