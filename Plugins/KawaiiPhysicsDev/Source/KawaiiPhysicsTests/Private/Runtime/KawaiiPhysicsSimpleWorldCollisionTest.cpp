@@ -2192,6 +2192,51 @@ bool FKawaiiPhysicsSimpleWorldNonUniformScaleMappingIsConservativeTest::RunTest(
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldNonUniformNegativeDimensionsMappingTest,
+	"KawaiiPhysics.SimpleWorld.NonUniformNegativeDimensionsMapping",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsSimpleWorldNonUniformNegativeDimensionsMappingTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor Accessor;
+	Accessor.SetComponentSpaceCollisionTransform(FTransform(
+		FQuat::Identity, FVector::ZeroVector, FVector(2.0, 1.0, 0.5)));
+	FBoxLimit Box;
+	Box.Location = FVector::ZeroVector;
+	Box.Rotation = FQuat::Identity;
+	Box.Extent = FVector(-5.0, 10.0, 10.0);
+	FTaperedCapsuleLimit Tapered;
+	Tapered.Location = FVector::ZeroVector;
+	Tapered.Rotation = FQuat::Identity;
+	Tapered.Radius0 = -2.0f;
+	Tapered.Radius1 = -4.0f;
+	Tapered.Length = -6.0f;
+	FKawaiiPhysicsSharedCollisionData WorldData;
+	WorldData.BoxLimits.Add(Box);
+	WorldData.TaperedCapsuleLimits.Add(Tapered);
+	const auto Entry = MakeShared<FKawaiiPhysicsSimpleWorldCollisionEntry>();
+	Entry->Slot.Publish(WorldData);
+	Accessor.SetSimpleWorldEntry(Entry);
+	FAnimInstanceProxy Proxy;
+	FComponentSpacePoseContext Output(&Proxy);
+	Accessor.UpdateSimpleWorldCollisionLimits(Output);
+	if (!TestEqual(TEXT("One mapped negative box"), Accessor.GetSimpleWorldBoxLimits().Num(), 1)
+		|| !TestEqual(TEXT("One mapped negative tapered capsule"), Accessor.GetSimpleWorldTaperedCapsuleLimits().Num(), 1))
+	{
+		return false;
+	}
+	// ワールドからコンポーネントへの逆スケールは (0.5,1,2)。負の X は厚み 0 の板のまま写す。
+	TestTrue(TEXT("Mapped negative box keeps zero X extent"),
+		Accessor.GetSimpleWorldBoxLimits()[0].Extent.Equals(FVector(0.0, 10.0, 20.0), GSimpleWorldTol));
+	const FTaperedCapsuleLimit& MappedTapered = Accessor.GetSimpleWorldTaperedCapsuleLimits()[0];
+	// 負の長さと両端半径を 0 にしてから写すため、寸法はすべて 0 のままになる。
+	TestTrue(TEXT("Mapped negative tapered capsule keeps zero dimensions"),
+		FMath::IsNearlyZero(MappedTapered.Length, GSimpleWorldTol)
+		&& FMath::IsNearlyZero(MappedTapered.Radius0, GSimpleWorldTol)
+		&& FMath::IsNearlyZero(MappedTapered.Radius1, GSimpleWorldTol));
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSharedCollisionScaledSourceAndTargetRoundTripTest,
                                  "KawaiiPhysics.SharedCollision.ScaledSourceAndTargetRoundTrip",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

@@ -121,17 +121,17 @@ namespace AnimNodeKawaiiPhysicsCollisionPrivate
 	template <typename LimitType, typename ConvertLocationType>
 	static void ApplyScaledCapsuleAxis(
 		LimitType& Target, const LimitType& Source, const FLimitDimensionMapping& Map,
-		ConvertLocationType ConvertLocation)
+		ConvertLocationType ConvertLocation, float SourceLength)
 	{
 		if (Map.bUniform)
 		{
 			// 相似変換では長さだけを拡縮し、呼び出し元が変換した位置と回転を保持する。
-			Target.Length = Source.Length * Map.UniformScale;
+			Target.Length = SourceLength * Map.UniformScale;
 			return;
 		}
 
 		// 非一様な写像では端点を変換して中心・長さ・軸方向を求める。
-		const FVector Offset = Source.Rotation.GetAxisZ() * Source.Length * 0.5;
+		const FVector Offset = Source.Rotation.GetAxisZ() * SourceLength * 0.5;
 		const FVector Q0 = ConvertLocation(Source.Location + Offset);
 		const FVector Q1 = ConvertLocation(Source.Location - Offset);
 		const FVector Segment = Q0 - Q1;
@@ -151,7 +151,7 @@ namespace AnimNodeKawaiiPhysicsCollisionPrivate
 		ConvertLocationType ConvertLocation)
 	{
 		Target.Radius = Source.Radius * (Map.bUniform ? Map.UniformScale : Map.ConservativeScale);
-		ApplyScaledCapsuleAxis(Target, Source, Map, ConvertLocation);
+		ApplyScaledCapsuleAxis(Target, Source, Map, ConvertLocation, Source.Length);
 	}
 
 	template <typename ConvertLocationType>
@@ -161,27 +161,29 @@ namespace AnimNodeKawaiiPhysicsCollisionPrivate
 	{
 		if (Map.bUniform)
 		{
-			Target.Radius0 = Source.Radius0 * Map.UniformScale;
-			Target.Radius1 = Source.Radius1 * Map.UniformScale;
+			Target.Radius0 = Source.GetClampedRadius0() * Map.UniformScale;
+			Target.Radius1 = Source.GetClampedRadius1() * Map.UniformScale;
 		}
 		else
 		{
 			// 非相似写像では点の線分への射影位置が変わり、ソルバが射影位置で補間する半径が細い端へ寄って包含が崩れ得る。
 			// 両端を大きい方の半径 × σ_max 上界にそろえ、像を包含する通常のカプセルとして扱う（保守側の近似）。
-			const float MaxRadius = FMath::Max(Source.Radius0, Source.Radius1) * Map.ConservativeScale;
+			const float MaxRadius =
+				FMath::Max(Source.GetClampedRadius0(), Source.GetClampedRadius1()) * Map.ConservativeScale;
 			Target.Radius0 = MaxRadius;
 			Target.Radius1 = MaxRadius;
 		}
-		ApplyScaledCapsuleAxis(Target, Source, Map, ConvertLocation);
+		ApplyScaledCapsuleAxis(Target, Source, Map, ConvertLocation, Source.GetEffectiveLength());
 	}
 
 	template <typename ConvertLocationType>
 	static void ApplyScaledBoxDimensions(
 		FBoxLimit& Target, const FBoxLimit& Source, const FLimitDimensionMapping& Map, ConvertLocationType ConvertLocation)
 	{
+		const FVector ClampedExtent = Source.GetClampedExtent();
 		if (Map.bUniform)
 		{
-			Target.Extent = Source.Extent * Map.UniformScale;
+			Target.Extent = ClampedExtent * Map.UniformScale;
 			return;
 		}
 
@@ -191,9 +193,9 @@ namespace AnimNodeKawaiiPhysicsCollisionPrivate
 		for (int32 Corner = 0; Corner < 8; ++Corner)
 		{
 			const FVector Offset(
-				(Corner & 1) ? Source.Extent.X : -Source.Extent.X,
-				(Corner & 2) ? Source.Extent.Y : -Source.Extent.Y,
-				(Corner & 4) ? Source.Extent.Z : -Source.Extent.Z);
+				(Corner & 1) ? ClampedExtent.X : -ClampedExtent.X,
+				(Corner & 2) ? ClampedExtent.Y : -ClampedExtent.Y,
+				(Corner & 4) ? ClampedExtent.Z : -ClampedExtent.Z);
 			const FVector Position = ConvertLocation(Source.Location + Source.Rotation.RotateVector(Offset));
 			const FVector LocalPosition = InverseRotation.RotateVector(Position - Target.Location);
 			Extent = Extent.ComponentMax(LocalPosition.GetAbs());
@@ -1241,7 +1243,13 @@ void FAnimNode_KawaiiPhysics::AdjustByTaperedCapsuleCollision(FKawaiiPhysicsModi
 {
 	for (auto& TaperedCapsule : Limits)
 	{
-		if (!TaperedCapsule.bEnable || (TaperedCapsule.Radius0 <= 0.0f && TaperedCapsule.Radius1 <= 0.0f))
+		if (!TaperedCapsule.bEnable)
+		{
+			continue;
+		}
+		const float Radius0 = TaperedCapsule.GetClampedRadius0();
+		const float Radius1 = TaperedCapsule.GetClampedRadius1();
+		if (Radius0 <= 0.0f && Radius1 <= 0.0f)
 		{
 			continue;
 		}
@@ -1263,7 +1271,7 @@ void FAnimNode_KawaiiPhysics::AdjustByTaperedCapsuleCollision(FKawaiiPhysicsModi
 			                             0.0f, 1.0f);
 			ClosestPoint = StartPoint + Segment * T;
 			// 半径は T で LERP（Chaos PhiWithNormal 準拠の近似。厳密な 2 球凸包 SDF ではなく、Edit Mode 表示もこの形状に合わせる）
-			TaperedRadius = FMath::Max(FMath::Lerp(TaperedCapsule.Radius0, TaperedCapsule.Radius1, T), 0.0f);
+			TaperedRadius = FMath::Lerp(Radius0, Radius1, T);
 		}
 
 		const float LimitDistance = Bone.PhysicsSettings.Radius + TaperedRadius;
@@ -1312,7 +1320,7 @@ void FAnimNode_KawaiiPhysics::AdjustByBoxCollision(FKawaiiPhysicsModifyBone& Bon
 			// 境界のごく直外（Distance ≤ KINDA_SMALL_NUMBER）も含める（GetSafeNormal がゼロになる隙間を塞ぐ）。
 			if (bCenterInsideOrOnBox)
 			{
-				const FVector Penetration = Box.Extent - LocalSphereCenter.GetAbs();
+				const FVector Penetration = Box.CachedLocalBox.Max - LocalSphereCenter.GetAbs();
 				int32 Axis;
 				// 同値では X → Y → Z の順に選ぶ。
 				if (Penetration.X <= Penetration.Y && Penetration.X <= Penetration.Z)
@@ -1330,13 +1338,13 @@ void FAnimNode_KawaiiPhysics::AdjustByBoxCollision(FKawaiiPhysicsModifyBone& Bon
 
 				const double Sign = LocalSphereCenter[Axis] >= 0.0 ? 1.0 : -1.0;
 				FVector NewLocalSphereCenter = LocalSphereCenter;
-				NewLocalSphereCenter[Axis] = Sign * (Box.Extent[Axis] + SphereRadius);
+				NewLocalSphereCenter[Axis] = Sign * (Box.CachedLocalBox.Max[Axis] + SphereRadius);
 				Bone.Location = BoxTransform.TransformPosition(NewLocalSphereCenter);
 				continue;
 			}
 
 			// 外部の中心は従来どおり最近点から半径だけ押し出す。
-			if (Distance <= SphereRadius)
+			if (Distance < SphereRadius)
 			{
 				FVector PushOutDirection = PushOutVector.GetSafeNormal();
 				FVector NewLocalSphereCenter = ClosestPoint + PushOutDirection * SphereRadius;

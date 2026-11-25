@@ -238,8 +238,9 @@ struct FTaperedCapsuleLimit : public FCollisionLimitBase
 	{
 		const FVector AxisZ = Rotation.GetAxisZ();
 		// Start = +Z 端（Radius0）、End = -Z 端（Radius1）。衝突判定の LERP は T=0 で Radius0 になる
-		CachedStartPoint = Location + AxisZ * Length * 0.5f;
-		CachedEndPoint = Location - AxisZ * Length * 0.5f;
+		const float HalfLength = GetEffectiveLength() * 0.5f;
+		CachedStartPoint = Location + AxisZ * HalfLength;
+		CachedEndPoint = Location - AxisZ * HalfLength;
 		CachedSegment = CachedEndPoint - CachedStartPoint;
 		CachedSegmentSizeSq = CachedSegment.SizeSquared();
 		CachedFallbackPushDir = Rotation.GetAxisX();
@@ -262,9 +263,9 @@ struct FTaperedCapsuleLimit : public FCollisionLimitBase
 
 	/**
 	 * Length <= |Radius0 - Radius1| では小さい端球が大きい端球に包含され、2 球の凸包は大きい端球そのものになる。
-	 * 衝突・Edit Mode・Debug 描画はすべてこの球へ縮退させる（Edit Mode / Debug は生値から同条件を再計算するため判定を揃えること）。
+	 * 衝突・Edit Mode・Debug 描画はすべて切り詰めた寸法で判定し、この球へ縮退させる。
 	 * When Length <= |Radius0 - Radius1|, the smaller endpoint sphere lies inside the larger one, so their hull is just the larger sphere.
-	 * Collision, Edit Mode and debug drawing all collapse to it (Edit Mode / debug recompute this condition from raw values; keep them in sync).
+	 * Collision, Edit Mode and debug drawing use clamped dimensions and all collapse to this sphere.
 	 */
 	bool UsesSphereFallback() const
 	{
@@ -313,8 +314,14 @@ struct FBoxLimit : public FCollisionLimitBase
 	}
 
 	/** ボックスの各軸方向のサイズ（半分の大きさ） / The extent of the box defining the box limit */
-	UPROPERTY(EditAnywhere, Category = "Box Limit")
+	UPROPERTY(EditAnywhere, Category = "Box Limit", meta = (ClampMin = "0"))
 	FVector Extent = FVector(5.0f, 5.0f, 5.0f);
+
+	FVector GetClampedExtent() const
+	{
+		return FVector(FMath::Max(Extent.X, FVector::FReal(0)), FMath::Max(Extent.Y, FVector::FReal(0)),
+		               FMath::Max(Extent.Z, FVector::FReal(0)));
+	}
 
 	// 実行時キャッシュ（毎ステップ再計算、シリアライズ対象外） / Runtime cache (recomputed every step, not serialized)
 	FTransform CachedBoxTransform = FTransform::Identity;
@@ -324,7 +331,8 @@ struct FBoxLimit : public FCollisionLimitBase
 	void UpdateRuntimeCache()
 	{
 		CachedBoxTransform = FTransform(Rotation, Location);
-		CachedLocalBox = FBox(-Extent, Extent);
+		const FVector ClampedExtent = GetClampedExtent();
+		CachedLocalBox = FBox(-ClampedExtent, ClampedExtent);
 	}
 
 	/** Assignment operator */

@@ -59,6 +59,16 @@ namespace KawaiiPhysicsCollisionTestPrivate
 
 	constexpr float GCollisionTol = 0.01f; // 0.1mm スケール
 
+	bool HasSameLocationBits(const FVector& A, const FVector& B)
+	{
+		return FMemory::Memcmp(&A, &B, sizeof(FVector)) == 0;
+	}
+
+	bool HasFiniteLocation(const FVector& Location)
+	{
+		return FMath::IsFinite(Location.X) && FMath::IsFinite(Location.Y) && FMath::IsFinite(Location.Z);
+	}
+
 // ---------------------------------------------------------------------------
 //  Sphere (Outer)
 // ---------------------------------------------------------------------------
@@ -207,7 +217,7 @@ bool FKawaiiPhysicsTaperedCapsuleTest::RunTest(const FString& Parameters)
 	TArray<FTaperedCapsuleLimit> NegativeEndLimits;
 	NegativeEndLimits.Add(NegativeEndCapsule);
 
-	// 片端負半径: +Z端で t=0, R=Max(Lerp(-2,6,0),0)=0, LimitDistance=3+0=3 → (3,0,5)。
+	// 片端負半径: +Z端で t=0、先に R0=Max(-2,0)=0 として Lerp(0,6,0)=0。LimitDistance=3 → (3,0,5)。
 	FKawaiiPhysicsModifyBone NegativeEndBone = MakeBone(FVector(1, 0, 5), 3.0f, FVector(1, 0, 5));
 	A.CallTaperedCapsuleCollision(NegativeEndBone, NegativeEndLimits);
 	TestTrue(FString::Printf(TEXT("Tapered capsule negative end radius: got %s expected (3,0,5)"),
@@ -244,6 +254,86 @@ bool FKawaiiPhysicsTaperedCapsuleTest::RunTest(const FString& Parameters)
 	                         *BoundaryTaperBone.Location.ToString()),
 	         BoundaryTaperBone.Location.Equals(FVector(0, 0, 4.5f), GCollisionTol));
 
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTaperedCapsuleNegativeDimensionsTest,
+                                 "KawaiiPhysics.Collision.TaperedCapsuleNegativeDimensions",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsTaperedCapsuleNegativeDimensionsTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor A;
+	FTaperedCapsuleLimit Negative;
+	Negative.Location = FVector::ZeroVector;
+	Negative.Rotation = FQuat::Identity;
+	Negative.Radius0 = -2.0f;
+	Negative.Radius1 = 6.0f;
+	Negative.Length = 10.0f;
+	Negative.bEnable = true;
+	TArray<FTaperedCapsuleLimit> NegativeLimits{Negative};
+
+	// +Z端から 1/4 の z=2.5 では半径が Lerp(0,6,0.25)=1.5。ボーン半径 1 を足して x=2.5。
+	FKawaiiPhysicsModifyBone Side = MakeBone(FVector(1.0, 0.0, 2.5), 1.0f, FVector(1.0, 0.0, 2.5));
+	A.CallTaperedCapsuleCollision(Side, NegativeLimits);
+	TestTrue(TEXT("Clamped side radius pushes to x=2.5"),
+	         Side.Location.Equals(FVector(2.5, 0.0, 2.5), GCollisionTol));
+
+	FTaperedCapsuleLimit Zero = Negative;
+	Zero.Radius0 = 0.0f;
+	TArray<FTaperedCapsuleLimit> ZeroLimits{Zero};
+	const FVector Starts[] = {FVector(1.0, 0.0, 2.5), FVector(2.0, 0.0, 0.0),
+	                          FVector(0.0, 0.0, 5.0), FVector(0.0, 0.0, -4.0), FVector(8.0, 0.0, 0.0)};
+	for (const FVector& Start : Starts)
+	{
+		// 負の R0 は補間前に 0 となるので、軸上・側面・外側の各点は R0=0 の形状とビット一致する。
+		FKawaiiPhysicsModifyBone NegativeBone = MakeBone(Start, 1.0f, Start);
+		FKawaiiPhysicsModifyBone ZeroBone = MakeBone(Start, 1.0f, Start);
+		A.CallTaperedCapsuleCollision(NegativeBone, NegativeLimits);
+		A.CallTaperedCapsuleCollision(ZeroBone, ZeroLimits);
+		TestTrue(TEXT("Negative radius matches zero radius bitwise"),
+		         HasSameLocationBits(NegativeBone.Location, ZeroBone.Location));
+	}
+
+	FTaperedCapsuleLimit NegativeLength = Negative;
+	NegativeLength.Radius0 = 3.0f;
+	NegativeLength.Radius1 = 1.0f;
+	NegativeLength.Length = -5.0f;
+	FTaperedCapsuleLimit ZeroLength = NegativeLength;
+	ZeroLength.Length = 0.0f;
+	TArray<FTaperedCapsuleLimit> NegativeLengthLimits{NegativeLength};
+	TArray<FTaperedCapsuleLimit> ZeroLengthLimits{ZeroLength};
+	// 長さ -5 は 0 となり両端点は原点。大きい端球の半径 3 とボーン半径 1 から x=4。
+	FKawaiiPhysicsModifyBone ShortBone = MakeBone(FVector(1.0, 0.0, 0.0), 1.0f, FVector(1.0, 0.0, 0.0));
+	FKawaiiPhysicsModifyBone ZeroLengthBone = ShortBone;
+	A.CallTaperedCapsuleCollision(ShortBone, NegativeLengthLimits);
+	A.CallTaperedCapsuleCollision(ZeroLengthBone, ZeroLengthLimits);
+	TestTrue(TEXT("Negative length start stays at center"),
+	         NegativeLengthLimits[0].CachedStartPoint.Equals(FVector::ZeroVector, 0.0));
+	TestTrue(TEXT("Negative length end stays at center"),
+	         NegativeLengthLimits[0].CachedEndPoint.Equals(FVector::ZeroVector, 0.0));
+	TestTrue(TEXT("Negative length falls back to radius-three sphere"),
+	         ShortBone.Location.Equals(FVector(4.0, 0.0, 0.0), GCollisionTol));
+	TestTrue(TEXT("Negative length matches zero length bitwise"),
+	         HasSameLocationBits(ShortBone.Location, ZeroLengthBone.Location));
+
+	// 半径・長さが 0、中心一致、半径 0、および細長い有限形状でも有限座標を保つ。
+	FTaperedCapsuleLimit Thin = Negative;
+	Thin.Radius0 = 1e-3f;
+	Thin.Radius1 = 1e-3f;
+	Thin.Length = 1e5f;
+	TArray<FTaperedCapsuleLimit> ThinLimits{Thin};
+	FKawaiiPhysicsModifyBone ThinBone = MakeBone(FVector::ZeroVector, 0.0f, FVector::ZeroVector);
+	A.CallTaperedCapsuleCollision(ThinBone, ThinLimits);
+	TestTrue(TEXT("Thin finite capsule keeps finite position"), HasFiniteLocation(ThinBone.Location));
+	FTaperedCapsuleLimit Empty = Negative;
+	Empty.Radius0 = 0.0f;
+	Empty.Radius1 = 0.0f;
+	Empty.Length = 0.0f;
+	TArray<FTaperedCapsuleLimit> EmptyLimits{Empty};
+	FKawaiiPhysicsModifyBone EmptyBone = MakeBone(FVector::ZeroVector, 0.0f, FVector::ZeroVector);
+	A.CallTaperedCapsuleCollision(EmptyBone, EmptyLimits);
+	TestTrue(TEXT("Zero capsule keeps finite position"), HasFiniteLocation(EmptyBone.Location));
 	return true;
 }
 
@@ -348,6 +438,98 @@ bool FKawaiiPhysicsBoxInteriorPushOutToNearestFaceTest::RunTest(const FString& P
 	// (i) 地面 Box でも端では側面が最近面となり、横に抜ける。
 	CheckPushOut(TEXT("Nearest side face at ground edge"), FVector(99.5, 0, 0), 1.0f, FVector(101, 0, 0));
 
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsBoxNegativeExtentTest,
+                                 "KawaiiPhysics.Collision.BoxNegativeExtent",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsBoxNegativeExtentTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor A;
+	FBoxLimit Negative;
+	Negative.Location = FVector::ZeroVector;
+	Negative.Rotation = FQuat::Identity;
+	Negative.bEnable = true;
+	const FVector NegativeExtents[] = {FVector(-5.0, 10.0, 10.0), FVector(-5.0, -5.0, 10.0)};
+	const FVector ZeroExtents[] = {FVector(0.0, 10.0, 10.0), FVector(0.0, 0.0, 10.0)};
+	const FVector Starts[] = {FVector::ZeroVector, FVector(0.5, 0.0, 0.0),
+	                          FVector(2.0, 0.0, 0.0), FVector(0.0, 0.0, 12.0)};
+	for (int32 Index = 0; Index < 2; ++Index)
+	{
+		Negative.Extent = NegativeExtents[Index];
+		FBoxLimit Zero = Negative;
+		Zero.Extent = ZeroExtents[Index];
+		TArray<FBoxLimit> NegativeLimits{Negative};
+		TArray<FBoxLimit> ZeroLimits{Zero};
+		for (const FVector& Start : Starts)
+		{
+			// 負の軸は 0 の板となるため、面上・近接・離隔の各点で 0 寸法と同じ位置になる。
+			FKawaiiPhysicsModifyBone NegativeBone = MakeBone(Start, 2.0f, Start);
+			FKawaiiPhysicsModifyBone ZeroBone = MakeBone(Start, 2.0f, Start);
+			A.CallBoxCollision(NegativeBone, NegativeLimits);
+			A.CallBoxCollision(ZeroBone, ZeroLimits);
+			TestTrue(TEXT("Negative extent matches zero extent bitwise"),
+			         HasSameLocationBits(NegativeBone.Location, ZeroBone.Location));
+		}
+	}
+
+	Negative.Extent = FVector(-5.0, 10.0, 10.0);
+	TArray<FBoxLimit> SlabLimits{Negative};
+	// x=0.5 は厚み 0 の板から距離 0.5。半径 2 との重なりを板の面 x=0 から x=2 へ押し出す。
+	FKawaiiPhysicsModifyBone SlabBone = MakeBone(FVector(0.5, 0.0, 0.0), 2.0f, FVector(0.5, 0.0, 0.0));
+	A.CallBoxCollision(SlabBone, SlabLimits);
+	TestTrue(TEXT("Zero-thickness slab pushes to x=2"),
+	         SlabBone.Location.Equals(FVector(2.0, 0.0, 0.0), GCollisionTol));
+	// 板の中心 x=0 では内側規則の貫通深さが 0。半径 2 だけ正側へ押し出す。
+	FKawaiiPhysicsModifyBone CenterBone = MakeBone(FVector::ZeroVector, 2.0f, FVector::ZeroVector);
+	A.CallBoxCollision(CenterBone, SlabLimits);
+	TestTrue(TEXT("Slab center uses zero penetration"),
+	         CenterBone.Location.Equals(FVector(2.0, 0.0, 0.0), GCollisionTol));
+	// (-1,-5,10) は (0,0,10) へ切り詰める。中心で X・Y の貫通深さが同値なので X を選び、半径 2 の分だけ押し出す。
+	// 貫通深さだけ生の Extent に戻すと Y の -5 が最小となり、(0,2,0) へ押し出される。
+	Negative.Extent = FVector(-1.0, -5.0, 10.0);
+	TArray<FBoxLimit> UnequalNegativeLimits{Negative};
+	FKawaiiPhysicsModifyBone UnequalNegativeBone = MakeBone(FVector::ZeroVector, 2.0f, FVector::ZeroVector);
+	A.CallBoxCollision(UnequalNegativeBone, UnequalNegativeLimits);
+	TestTrue(TEXT("Unequal negative axes choose clamped X penetration"),
+	         UnequalNegativeBone.Location.Equals(FVector(2.0, 0.0, 0.0), GCollisionTol));
+
+	// 全軸 0、中心一致、ボーン半径 0 でも有限座標を保つ。
+	Negative.Extent = FVector::ZeroVector;
+	TArray<FBoxLimit> PointLimits{Negative};
+	FKawaiiPhysicsModifyBone PointBone = MakeBone(FVector::ZeroVector, 0.0f, FVector::ZeroVector);
+	A.CallBoxCollision(PointBone, PointLimits);
+	TestTrue(TEXT("Zero extent and radius keep finite position"), HasFiniteLocation(PointBone.Location));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsBoxBoundaryExactRadiusTest,
+                                 "KawaiiPhysics.Collision.BoxBoundaryExactRadius",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKawaiiPhysicsBoxBoundaryExactRadiusTest::RunTest(const FString& Parameters)
+{
+	FKawaiiPhysicsTestAccessor A;
+	FBoxLimit Box;
+	Box.Location = FVector::ZeroVector;
+	Box.Rotation = FQuat::Identity;
+	Box.Extent = FVector(10.0, 10.0, 10.0);
+	Box.bEnable = true;
+	TArray<FBoxLimit> Limits{Box};
+	// x=12 から表面 x=10 までの距離は厳密に 2。負の 0 も含めて入力ビットを保つ。
+	const FVector TangentStart(12.0, -0.0, -0.0);
+	FKawaiiPhysicsModifyBone TangentBone = MakeBone(TangentStart, 2.0f, TangentStart);
+	A.CallBoxCollision(TangentBone, Limits);
+	TestTrue(TEXT("Exact-radius exterior contact leaves all bits untouched"),
+	         HasSameLocationBits(TangentBone.Location, TangentStart));
+	// x=11.5 なら表面まで 1.5 < 半径 2。最近面 x=10 から x=12 へ押し出す。
+	FKawaiiPhysicsModifyBone OverlapBone = MakeBone(FVector(11.5, 0.0, 0.0), 2.0f,
+	                                              FVector(11.5, 0.0, 0.0));
+	A.CallBoxCollision(OverlapBone, Limits);
+	TestTrue(TEXT("Exterior overlap pushes to x=12"),
+	         OverlapBone.Location.Equals(FVector(12.0, 0.0, 0.0), GCollisionTol));
 	return true;
 }
 
