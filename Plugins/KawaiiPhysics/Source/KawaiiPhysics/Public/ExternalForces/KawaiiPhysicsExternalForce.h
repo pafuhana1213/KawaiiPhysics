@@ -157,14 +157,18 @@ public:
 	 * 基底の PreApply の先頭と、ノードが各外力の PreApply を呼び終えた直後の 2 か所で呼ばれる。
 	 * そのため派生の PreApply が Super の後でフィルタを変えても、同じフレームの Apply から反映される。
 	 * 派生の PreApply 内でフィルタを変えた後に CanApply を使う場合は、その前にこれを呼ぶこと。
-	 * フィルタの中身とボーン名の列を前回と比べ、どちらかが変わったときだけ再計算する（変わらなければ照合のみ）。
+	 * フィルタの中身、ボーン名と解決先の列を前回と比べ、変わったときだけ再計算する。
+	 * キャッシュ外の CanApply はボーン列を持たないため、自分の BoneRef で判定する（v1.21 と同じ）。
 	 * Rebuilds the per-bone result of ApplyBoneFilter / IgnoreBoneFilter.
 	 * It runs at the start of the base PreApply and again right after the node's call to each force's PreApply returns,
 	 * so a filter a derived PreApply changes after Super applies from the same frame's Apply. A derived PreApply that
 	 * changes the filter and then calls CanApply must call this first. It recomputes only when the filter contents or the
-	 * bone names differ from the last build; otherwise it only compares them.
+	 * bone names or resolved indices differ from the last build; otherwise it only compares them.
+	 * Outside the cache, CanApply has no bone array and checks the bone's own BoneRef, as in v1.21.
 	 */
 	void RefreshBoneFilterCache(const FAnimNode_KawaiiPhysics& Node);
+	static const FKawaiiPhysicsModifyBone& ResolveFilterBone(const FKawaiiPhysicsModifyBone& Bone,
+		const TArray<FKawaiiPhysicsModifyBone>& Bones);
 
 	// Applies the external force to the bone's velocity
 	virtual void ApplyToVelocity(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
@@ -213,6 +217,8 @@ protected:
 	 * uses this so it never reads a cache that is being rebuilt.
 	 */
 	bool EvaluateBoneFilters(const FKawaiiPhysicsModifyBone& Bone) const;
+	bool EvaluateBoneFilters(const FKawaiiPhysicsModifyBone& Bone,
+		const TArray<FKawaiiPhysicsModifyBone>& Bones) const;
 
 #if ENABLE_ANIM_DEBUG
 	/**
@@ -231,6 +237,7 @@ private:
 
 	// 実行時のみのキャッシュ（シリアライズしない） / Runtime-only cache, not serialized
 	TArray<FName> BoneFilterCacheBoneNames;
+	TArray<int32> BoneFilterCacheResolvedIndices;
 	TArray<FName> BoneFilterCacheApplyNames;
 	TArray<FName> BoneFilterCacheIgnoreNames;
 	TBitArray<> BoneFilterCacheResults;
