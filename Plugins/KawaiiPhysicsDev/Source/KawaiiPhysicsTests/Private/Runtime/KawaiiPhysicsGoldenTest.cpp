@@ -2,21 +2,45 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "HAL/PlatformMisc.h"
 #include "Misc/AutomationTest.h"
+#include "Misc/CommandLine.h"
+#include "Misc/EngineVersion.h"
+#include "Misc/Parse.h"
 #include "KawaiiPhysicsTestHarness.h"
 
 namespace KawaiiPhysicsGoldenTestPrivate
 {
 	static_assert(sizeof(double) == sizeof(uint64));
+	static const TCHAR* const Golden_Environment = TEXT("5.8.4-58902052+++UE5+Release-5.8|MSVC 194435222|AMD Ryzen 9 3950X 16-Core Processor            ");
 
-	// 期待値（採取済みリテラル）。空のうちは「採取モード」として貼り付け用のログだけを出す。
+	FString BuildGoldenEnvironment()
+	{
+		FString Compiler;
+#if defined(_MSC_FULL_VER)
+		Compiler = FString::Printf(TEXT("MSVC %d"), _MSC_FULL_VER);
+#elif defined(__clang__)
+		Compiler = FString::Printf(TEXT("Clang %d.%d.%d"),
+			__clang_major__, __clang_minor__, __clang_patchlevel__);
+#elif defined(__GNUC__)
+		Compiler = FString::Printf(TEXT("GCC %d.%d.%d"),
+			__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__);
+#else
+		Compiler = TEXT("unknown");
+#endif
+		return FString::Printf(TEXT("%s|%s|%s"), *FEngineVersion::Current().ToString(),
+			*Compiler, *FPlatformMisc::GetCPUBrand());
+	}
+
+	// 期待値（採取済みリテラル）。採取モードを明示した場合だけ貼り付け用のログを出す。
 	// 要素数0の生配列はC++として不正なため TArray で保持する。
 	//
 	// 【運用注意】比較は uint64 のビット厳密一致。シナリオは Pow / Slerp 等の超越関数を含み、
 	// その実装は CRT / CPU の ISA（FMA3/AVX2 有無等）でディスパッチが変わるため、
 	// 別マシンや CRT 更新後は最下位ビットが変わり false positive になりうる（コード退行ではない）。
-	// 環境起因の不一致が出たら: 該当 Golden_* 配列を空にする → テスト実行で採取モードになり
+	// 環境起因の不一致が出たら: -KPGoldenCapture を付けてテストを実行し
 	// "GOLDEN <シナリオ名> 0x..." がログに出る → その値でリテラルを貼り直して再キャプチャする。
+	// 採取環境が未記録なら失敗し、実行環境と違う場合は警告を出して比較を省く。
 	// ChainLegacy: 12 bones
 	static const TArray<uint64> Golden_ChainLegacy = {
 		0x0000000000000000ULL, 0x0000000000000000ULL, 0x0000000000000000ULL,
@@ -111,10 +135,8 @@ namespace KawaiiPhysicsGoldenTestPrivate
 	{
 		const int32 ExpectedNum = Expected.Num();
 		const int32 ActualNum = Actual.Num() * 3;
-		if (ExpectedNum != ActualNum)
+		if (FParse::Param(FCommandLine::Get(), TEXT("KPGoldenCapture")))
 		{
-			Test.AddWarning(FString::Printf(TEXT("GoldenPositions not captured: %s expected %d actual %d"),
-			                                ScenarioName, ExpectedNum, ActualNum));
 			for (int32 BoneIndex = 0; BoneIndex < Actual.Num(); ++BoneIndex)
 			{
 				for (int32 ComponentIndex = 0; ComponentIndex < 3; ++ComponentIndex)
@@ -125,6 +147,13 @@ namespace KawaiiPhysicsGoldenTestPrivate
 				}
 			}
 			return true;
+		}
+		if (ExpectedNum == 0 || ExpectedNum != ActualNum)
+		{
+			Test.AddError(FString::Printf(
+				TEXT("GoldenPositions expected count invalid: %s expected %d actual %d; rerun with -KPGoldenCapture"),
+				ScenarioName, ExpectedNum, ActualNum));
+			return false;
 		}
 
 		for (int32 BoneIndex = 0; BoneIndex < Actual.Num(); ++BoneIndex)
@@ -240,7 +269,7 @@ namespace KawaiiPhysicsGoldenTestPrivate
 		return CollectLocations(A);
 	}
 
-	TArray<FVector> RunCollisionScenario(FAutomationTestBase& Test)
+	TArray<FVector> RunCollisionScenario(FAutomationTestBase& Test, const bool bCapture)
 	{
 		FKawaiiPhysicsTestAccessor A;
 		A.BuildVerticalChain(12, 10.0f);
@@ -291,6 +320,10 @@ namespace KawaiiPhysicsGoldenTestPrivate
 		}
 		Test.TestTrue(TEXT("Collision scenario actually pushes bones (differs from a no-collider run)"), bAnyDiffers);
 
+		if (bCapture)
+		{
+			return WithLimits;
+		}
 		return WithLimits;
 	}
 
@@ -300,11 +333,32 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsGoldenPositionsTest,
 
 bool FKawaiiPhysicsGoldenPositionsTest::RunTest(const FString& Parameters)
 {
+	const bool bCapture = FParse::Param(FCommandLine::Get(), TEXT("KPGoldenCapture"));
+	if (bCapture)
+	{
+		AddInfo(FString::Printf(TEXT("GOLDEN_ENV GoldenPositions \"%s\""), *BuildGoldenEnvironment()));
+		AddWarning(TEXT("採取モードのため比較していない"));
+	}
+	else if (Golden_Environment[0] == 0)
+	{
+		AddError(TEXT("採取環境が空のため比較できない。-KPGoldenCapture で取り直す"));
+		return false;
+	}
+	else
+	{
+		const FString CurrentEnvironment = BuildGoldenEnvironment();
+		if (CurrentEnvironment != Golden_Environment)
+		{
+			AddWarning(FString::Printf(TEXT("採取環境 \"%s\" と実行環境 \"%s\" が違うため比較しない"),
+				Golden_Environment, *CurrentEnvironment));
+			return true;
+		}
+	}
 	bool bOk = true;
 	bOk &= CheckOrCapture(*this, TEXT("Chain"), RunChainScenario(), Golden_Chain);
 	bOk &= CheckOrCapture(*this, TEXT("ChainLegacy"), RunChainLegacyScenario(), Golden_ChainLegacy);
 	bOk &= CheckOrCapture(*this, TEXT("Constraint"), RunConstraintScenario(), Golden_Constraint);
-	bOk &= CheckOrCapture(*this, TEXT("Collision"), RunCollisionScenario(*this), Golden_Collision);
+	bOk &= CheckOrCapture(*this, TEXT("Collision"), RunCollisionScenario(*this, bCapture), Golden_Collision);
 	return bOk;
 }
 
