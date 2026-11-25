@@ -32,7 +32,7 @@ void FKawaiiPhysics_ExternalForce::PreApply(FAnimNode_KawaiiPhysics& Node,
 
 namespace KawaiiPhysicsExternalForcePrivate
 {
-	bool FilterNamesMatch(const TArray<FName>& CachedNames, const TArray<FBoneReference>& Filter)
+	static bool FilterNamesMatch(const TArray<FName>& CachedNames, const TArray<FBoneReference>& Filter)
 	{
 		if (CachedNames.Num() != Filter.Num())
 		{
@@ -48,7 +48,7 @@ namespace KawaiiPhysicsExternalForcePrivate
 		return true;
 	}
 
-	void CopyFilterNames(TArray<FName>& OutNames, const TArray<FBoneReference>& Filter)
+	static void CopyFilterNames(TArray<FName>& OutNames, const TArray<FBoneReference>& Filter)
 	{
 		OutNames.Reset(Filter.Num());
 		for (const FBoneReference& BoneRef : Filter)
@@ -56,6 +56,28 @@ namespace KawaiiPhysicsExternalForcePrivate
 			OutNames.Add(BoneRef.BoneName);
 		}
 	}
+}
+
+const FKawaiiPhysicsModifyBone& FKawaiiPhysics_ExternalForce::ResolveFilterBone(
+	const FKawaiiPhysicsModifyBone& Bone, const TArray<FKawaiiPhysicsModifyBone>& Bones)
+{
+	const FKawaiiPhysicsModifyBone* Current = &Bone;
+	for (int32 Depth = 0; Depth < Bones.Num() && Current->bDummy; ++Depth)
+	{
+		const int32 ParentIndex = Bones.IsValidIndex(Current->InterBoneRealParentIndex)
+			? Current->InterBoneRealParentIndex
+			: (Current->bBridgeDummy ? INDEX_NONE : Current->ParentIndex);
+		if (!Bones.IsValidIndex(ParentIndex))
+		{
+			break;
+		}
+		Current = &Bones[ParentIndex];
+		if (Bone.bBridgeDummy || Current->bBridgeDummy)
+		{
+			break;
+		}
+	}
+	return *Current;
 }
 
 void FKawaiiPhysics_ExternalForce::RefreshBoneFilterCache(const FAnimNode_KawaiiPhysics& Node)
@@ -74,11 +96,15 @@ void FKawaiiPhysics_ExternalForce::RefreshBoneFilterCache(const FAnimNode_Kawaii
 	const TArray<FKawaiiPhysicsModifyBone>& Bones = Node.ModifyBones;
 	bool bValid = bBoneFilterCacheValid
 		&& BoneFilterCacheBoneNames.Num() == Bones.Num()
+		&& BoneFilterCacheResolvedIndices.Num() == Bones.Num()
 		&& FilterNamesMatch(BoneFilterCacheApplyNames, ApplyBoneFilter)
 		&& FilterNamesMatch(BoneFilterCacheIgnoreNames, IgnoreBoneFilter);
+	// 照合は毎フレーム走るので、実親をたどるのはダミーだけにする（実ボーンの解決先は自分自身）
 	for (int32 Index = 0; bValid && Index < Bones.Num(); ++Index)
 	{
-		bValid = BoneFilterCacheBoneNames[Index] == Bones[Index].BoneRef.BoneName;
+		const FKawaiiPhysicsModifyBone& Bone = Bones[Index];
+		bValid = BoneFilterCacheBoneNames[Index] == Bone.BoneRef.BoneName
+			&& BoneFilterCacheResolvedIndices[Index] == (Bone.bDummy ? static_cast<int32>(&ResolveFilterBone(Bone, Bones) - Bones.GetData()) : Index);
 	}
 	if (bValid)
 	{
@@ -88,11 +114,14 @@ void FKawaiiPhysics_ExternalForce::RefreshBoneFilterCache(const FAnimNode_Kawaii
 	CopyFilterNames(BoneFilterCacheApplyNames, ApplyBoneFilter);
 	CopyFilterNames(BoneFilterCacheIgnoreNames, IgnoreBoneFilter);
 	BoneFilterCacheBoneNames.Reset(Bones.Num());
+	BoneFilterCacheResolvedIndices.Reset(Bones.Num());
 	BoneFilterCacheResults.Init(false, Bones.Num());
 	for (int32 Index = 0; Index < Bones.Num(); ++Index)
 	{
 		BoneFilterCacheBoneNames.Add(Bones[Index].BoneRef.BoneName);
-		BoneFilterCacheResults[Index] = EvaluateBoneFilters(Bones[Index]);
+		const FKawaiiPhysicsModifyBone& FilterBone = ResolveFilterBone(Bones[Index], Bones);
+		BoneFilterCacheResolvedIndices.Add(static_cast<int32>(&FilterBone - Bones.GetData()));
+		BoneFilterCacheResults[Index] = EvaluateBoneFilters(Bones[Index], Bones);
 	}
 	bBoneFilterCacheValid = true;
 }
@@ -208,7 +237,7 @@ void FKawaiiPhysics_ExternalForce::AnimDrawDebugForEditMode(const FKawaiiPhysics
                                                             FPrimitiveDrawInterface* PDI)
 {
 	// エディタ描画は評価スレッドと別に動くため、作り直し中かもしれないキャッシュではなく線形探索で判定する
-	if (IsDebugEnabled(true) && EvaluateBoneFilters(ModifyBone))
+	if (IsDebugEnabled(true) && EvaluateBoneFilters(ModifyBone, Node.ModifyBones))
 	{
 		const FVector* ForcePtr = BoneForceMap.Find(GetBoneForceKey(ModifyBone));
 		if (!ForcePtr || ForcePtr->IsNearlyZero())
@@ -258,4 +287,10 @@ bool FKawaiiPhysics_ExternalForce::EvaluateBoneFilters(const FKawaiiPhysicsModif
 	}
 
 	return true;
+}
+
+bool FKawaiiPhysics_ExternalForce::EvaluateBoneFilters(const FKawaiiPhysicsModifyBone& Bone,
+	const TArray<FKawaiiPhysicsModifyBone>& Bones) const
+{
+	return EvaluateBoneFilters(ResolveFilterBone(Bone, Bones));
 }

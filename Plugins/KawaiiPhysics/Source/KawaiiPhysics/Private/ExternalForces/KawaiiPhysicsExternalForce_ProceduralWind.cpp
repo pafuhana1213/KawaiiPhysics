@@ -1302,7 +1302,7 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::AnimDrawDebugForEditMode(
 	const FKawaiiPhysicsModifyBone& ModifyBone, const FAnimNode_KawaiiPhysics& Node, FPrimitiveDrawInterface* PDI)
 {
 	// エディタ描画は評価スレッドと別に動くため、キャッシュではなく線形探索でフィルタを判定する
-	if (!IsDebugEnabled(true) || !EvaluateBoneFilters(ModifyBone) || !RuntimeState.IsValid() ||
+	if (!IsDebugEnabled(true) || !EvaluateBoneFilters(ModifyBone, Node.ModifyBones) || !RuntimeState.IsValid() ||
 		RuntimeState->CachedWindVector.IsNearlyZero())
 	{
 		return;
