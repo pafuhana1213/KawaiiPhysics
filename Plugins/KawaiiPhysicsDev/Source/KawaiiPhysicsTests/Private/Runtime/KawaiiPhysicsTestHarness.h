@@ -270,6 +270,30 @@ struct FKawaiiPhysicsTestAccessor
 	int32 GetWindBoneSampleCount() const { return Node.WindSample.BoneSpeeds.Num(); }
 	/** 直近の PreUpdate でノード中心の風を取得したか / Whether the last PreUpdate sampled the wind at the node center. */
 	bool HasWindCenterSample() const { return Node.WindSample.bHasCenterSample; }
+	FTransform ResolveWindSampleComponentTransform(const USkeletalMeshComponent* Component = nullptr) const
+	{
+		return Node.ResolveWindSampleComponentTransform(Component);
+	}
+	FVector ComputeWindSampleCenterPosition(const FTransform& Transform) const
+	{
+		return Node.ComputeWindSampleCenterPosition(Transform);
+	}
+	bool ShouldSampleWindPerBone() const { return Node.ShouldSampleWindPerBone(); }
+	FVector ComputeWindSampleBonePosition(const FTransform& Transform, int32 BoneIndex) const
+	{
+		return Node.ComputeWindSampleBonePosition(Transform, BoneIndex);
+	}
+	void SetWindCenterSample(const FVector& Direction, float Speed)
+	{
+		Node.WindSample.CenterDirection = Direction;
+		Node.WindSample.CenterSpeed = Speed;
+		Node.WindSample.bHasCenterSample = true;
+	}
+	void SetWindBoneSamples(const TArray<FVector>& Directions, const TArray<float>& Speeds)
+	{
+		Node.WindSample.BoneDirections = Directions;
+		Node.WindSample.BoneSpeeds = Speeds;
+	}
 	/** テスト用のコンポーネント変換を評価中のワールド空間キャッシュへ設定する。 / Sets a test component transform in the evaluation world-space cache. */
 	void SetWorldSpaceTransformForTest(const FTransform& ComponentToWorld)
 	{
