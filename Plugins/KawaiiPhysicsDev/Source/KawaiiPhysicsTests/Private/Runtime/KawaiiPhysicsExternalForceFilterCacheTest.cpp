@@ -8,9 +8,9 @@
 #include "KawaiiPhysicsTestHarness.h"
 #include "Misc/MemStack.h"
 
-// 外力のボーンフィルタ判定表（RefreshBoneFilterCache）が、線形探索と同じ結果を返し続けるかを確かめる。
 namespace KawaiiPhysicsExternalForceFilterCacheTestPrivate
 {
+// 外力のボーンフィルタ判定表（RefreshBoneFilterCache）が、線形探索と同じ結果を返し続けるかを確かめる。
 	FName FilterBoneName(const int32 Index)
 	{
 		return FName(TEXT("FilterBone"), Index + 1);
@@ -271,9 +271,10 @@ bool FKawaiiPhysicsExternalForceFilterCacheNodeTest::RunTest(const FString& Para
 {
 	using namespace KawaiiPhysicsHairNodeFixture;
 
-	UKawaiiPhysicsDeveloperSettings* Settings = GetMutableDefault<UKawaiiPhysicsDeveloperSettings>();
-	const bool bOldFixed = Settings->bUseFixedSubstepping;
-	Settings->bUseFixedSubstepping = true;
+	KawaiiPhysicsNodeFixture::FScopedDeveloperSettings Scoped([](UKawaiiPhysicsDeveloperSettings& Settings)
+	{
+		Settings.bUseFixedSubstepping = true;
+	});
 
 	bool bOk = true;
 	{
@@ -293,7 +294,6 @@ bool FKawaiiPhysicsExternalForceFilterCacheNodeTest::RunTest(const FString& Para
 				FKawaiiPhysicsTestAccessor::IsBoneFilterCacheValid(Force));
 		}
 	}
-	Settings->bUseFixedSubstepping = bOldFixed;
 	return bOk;
 }
 

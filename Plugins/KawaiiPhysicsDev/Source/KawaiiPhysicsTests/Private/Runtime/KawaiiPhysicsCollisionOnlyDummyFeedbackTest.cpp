@@ -4,6 +4,7 @@
 
 #include "Misc/AutomationTest.h"
 #include "KawaiiPhysicsTestHarness.h"
+#include "KawaiiPhysicsNodeFixture.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/Skeleton.h"
@@ -237,82 +238,44 @@ bool FKawaiiPhysicsCollisionOnlyDummyFeedbackNoDummiesTest::RunTest(const FStrin
 	return bOk;
 }
 
-struct FFeedbackNodeProxy : FAnimInstanceProxy
+struct FFeedbackNodeFixture : KawaiiPhysicsNodeFixture::FFixture
 {
-	using FAnimInstanceProxy::FAnimInstanceProxy;
-	using FAnimInstanceProxy::PreUpdate;
-};
+	FKawaiiPhysicsTestAccessor& A = Accessor;
 
-// root → chain_0(0,0,0) → chain_1(12,0,0) → chain_2(18,0,0) の骨格を、本番と同じ経路
-// （UpdateInternal → EvaluateSkeletalControl_AnyThread）で評価する。ボーン間ダミーは BoneSubdivisionCount = 1
-struct FFeedbackNodeFixture
-{
-	static constexpr float FrameDt = 1.0f / 60.0f;
-	TStrongObjectPtr<USkeleton> Skeleton{NewObject<USkeleton>()};
-	UWorld* World = nullptr;
-	UAnimInstance* Anim = nullptr;
-	TUniquePtr<FFeedbackNodeProxy> Proxy;
-	FKawaiiPhysicsTestAccessor A;
-	TArray<FBoneTransform> OutTransforms;
+	static KawaiiPhysicsNodeFixture::FOptions MakeOptions(const FSphericalLimit& Sphere)
+	{
+		KawaiiPhysicsNodeFixture::FOptions Options;
+		Options.FrameDt = 1.0f / 60.0f;
+		Options.Bones = {
+			{TEXT("root"), INDEX_NONE, FTransform::Identity},
+			{TEXT("chain_0"), 0, FTransform::Identity},
+			{TEXT("chain_1"), 1, FTransform(FVector(GSegmentLength, 0.0, 0.0))},
+			{TEXT("chain_2"), 2, FTransform(FVector(GTipLength, 0.0, 0.0))},
+		};
+		Options.ConfigureNode = [Sphere](FAnimNode_KawaiiPhysics& InNode)
+		{
+			InNode.RootBone.BoneName = TEXT("chain_0");
+			InNode.DummyBoneLength = 0.0f;
+			InNode.WarmUpFrames = 0;
+			InNode.bAllowWorldCollision = false;
+			InNode.bUseSimpleWorldCollision = false;
+			InNode.Gravity = FVector::ZeroVector;
+			InNode.PhysicsSettings.Radius = 0.0f;
+			InNode.BoneSubdivisionCount = 1;
+			InNode.bBoneSubdivisionCollisionOnly = true;
+			InNode.SphericalLimits.Add(Sphere);
+			InNode.SphericalLimits[0].DrivingBone.BoneName = TEXT("root");
+
+		};
+		return Options;
+	}
 
 	explicit FFeedbackNodeFixture(const FSphericalLimit& Sphere)
-	{
-		TArray<FBoneIndexType> RequiredIndices{0, 1, 2, 3};
-		{
-			FReferenceSkeletonModifier Modifier(Skeleton.Get());
-			Modifier.Add(FMeshBoneInfo(TEXT("root"), TEXT("root"), INDEX_NONE), FTransform::Identity);
-			Modifier.Add(FMeshBoneInfo(TEXT("chain_0"), TEXT("chain_0"), 0), FTransform::Identity);
-			Modifier.Add(FMeshBoneInfo(TEXT("chain_1"), TEXT("chain_1"), 1), FTransform(FVector(GSegmentLength, 0.0, 0.0)));
-			Modifier.Add(FMeshBoneInfo(TEXT("chain_2"), TEXT("chain_2"), 2), FTransform(FVector(GTipLength, 0.0, 0.0)));
-		}
-
-		const UWorld::InitializationValues Values = UWorld::InitializationValues()
-			.AllowAudioPlayback(false).CreatePhysicsScene(false).CreateNavigation(false)
-			.CreateAISystem(false).ShouldSimulatePhysics(false).CreateFXSystem(false);
-		World = UWorld::CreateWorld(EWorldType::Game, false, NAME_None, nullptr, true, ERHIFeatureLevel::Num, &Values);
-		AActor* Actor = World->SpawnActor<AActor>();
-		USkeletalMeshComponent* Component = NewObject<USkeletalMeshComponent>(Actor);
-		Actor->AddInstanceComponent(Component);
-		Actor->SetRootComponent(Component);
-		Anim = NewObject<UAnimInstance>(Component);
-		Proxy = MakeUnique<FFeedbackNodeProxy>(Anim);
-		Proxy->PreUpdate(Anim, FrameDt);
-		Proxy->GetRequiredBones().InitializeTo(RequiredIndices, UE::Anim::FCurveFilterSettings(), *Skeleton);
-
-		FAnimNode_KawaiiPhysics& Node = A.Node;
-		Node.RootBone.BoneName = TEXT("chain_0");
-		Node.DummyBoneLength = 0.0f;
-		Node.WarmUpFrames = 0;
-		Node.bAllowWorldCollision = false;
-		Node.bUseSimpleWorldCollision = false;
-		Node.Gravity = FVector::ZeroVector;
-		Node.PhysicsSettings.Radius = 0.0f;
-		Node.BoneSubdivisionCount = 1;
-		Node.bBoneSubdivisionCollisionOnly = true;
-		Node.SphericalLimits.Add(Sphere);
-		Node.SphericalLimits[0].DrivingBone.BoneName = TEXT("root");
-
-		Node.OnInitializeAnimInstance(Proxy.Get(), Anim);
-		Node.Initialize_AnyThread(FAnimationInitializeContext(Proxy.Get()));
-		Node.CacheBones_AnyThread(FAnimationCacheBonesContext(Proxy.Get()));
-		Node.PreUpdate(Anim);
-	}
-
-	~FFeedbackNodeFixture()
-	{
-		Proxy.Reset();
-		World->DestroyWorld(false);
-	}
+		: KawaiiPhysicsNodeFixture::FFixture(MakeOptions(Sphere)) {}
 
 	void Evaluate()
 	{
-		// ポーズのメモリは FMemStack から確保される
-		FMemMark MemMark(FMemStack::Get());
-		FComponentSpacePoseContext Context(Proxy.Get());
-		Context.Pose.InitPose(&Proxy->GetRequiredBones());
-		A.Node.UpdateInternal(FAnimationUpdateContext(Proxy.Get(), FrameDt));
-		OutTransforms.Reset();
-		A.Node.EvaluateSkeletalControl_AnyThread(Context, OutTransforms);
+		EvaluateFrame();
 	}
 
 	int32 FindBone(const FName Name) const
