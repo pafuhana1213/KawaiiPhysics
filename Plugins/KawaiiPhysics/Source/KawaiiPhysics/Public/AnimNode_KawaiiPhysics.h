@@ -2165,6 +2165,16 @@ protected:
 	bool IsWindSampleNeededBySettings() const;
 	// 評価の最後に、次の PreUpdate で使う問い合わせ位置を保存する / Stores the query positions for the next PreUpdate at the end of an evaluation
 	void StoreWindSamplePositions(FComponentSpacePoseContext& Output);
+private:
+	// 問い合わせ時のコンポーネント変換を選ぶ / Resolve the component transform at query time
+	FTransform ResolveWindSampleComponentTransform(const USkeletalMeshComponent* SkelComp) const;
+	// 中心の問い合わせ位置を求める / Compute the center query position
+	FVector ComputeWindSampleCenterPosition(const FTransform& ComponentToWorld) const;
+	// ボーンごとの問い合わせが必要か調べる / Check whether per-bone queries are needed
+	bool ShouldSampleWindPerBone() const;
+	// ボーンの問い合わせ位置を求める / Compute one bone query position
+	FVector ComputeWindSampleBonePosition(const FTransform& ComponentToWorld, int32 BoneIndex) const;
+protected:
 	// GameThread で Scene の風源に問い合わせる / Queries the Scene wind sources on the game thread
 	void SampleWindOnGameThread(const UWorld* World, const USkeletalMeshComponent* SkelComp);
 
