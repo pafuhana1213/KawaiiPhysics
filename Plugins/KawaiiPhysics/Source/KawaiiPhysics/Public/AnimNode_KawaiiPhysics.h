@@ -1894,6 +1894,37 @@ protected:
 	void SimulateModifyBones(FComponentSpacePoseContext& Output,
 	                         const FTransform& ComponentTransform);
 
+private:
+	// フレーム先頭のシミュレーション除外判定 / Resolve simulation skip flags at the start of a frame
+	void ResolveSkipSimulateFlags();
+
+	// 固定サブステップの積算結果 / Fixed-substep accumulation result
+	struct FKawaiiPhysicsSubstepPlan
+	{
+		float FixedDt;
+		float RawElapsed;
+		float DroppedTime;
+		float RemainingAccumulator;
+		float MoveFrac;
+		float ConsumeFraction;
+		int32 NumSteps;
+	};
+
+	// 固定サブステップの積算を計算する / Compute fixed-substep accumulation without changing node state
+	static FKawaiiPhysicsSubstepPlan ComputeSubstepPlan(float InSubstepAccumulator, float InFrameDeltaTime,
+		int32 InMaxSubsteps, int32 InTargetFramerate);
+
+	// ポーズ補間とシミュレーションを進める / Advance pose interpolation and simulation steps
+	void StepSubsteps(FComponentSpacePoseContext& Output, const FTransform& ComponentTransform,
+		const USkeletalMeshComponent* SkelComp);
+
+	// 物理設定の更新ゲートを適用する / Apply the physics settings update gate
+	bool ApplyPhysicsSettingsUpdateGate();
+
+	// SimpleWorld コリジョンを準備する / Prepare SimpleWorld collision
+	void PrepareSimpleWorldCollision(FComponentSpacePoseContext& Output);
+
+protected:
 	/**
 	 * シミュレーションの1ステップ分（Simulate ループ＋ダミー配置＋コリジョン＋拘束＋長さ復元）を
 	 * 現在の GetStepDeltaTime() で1回実行する。SimulateModifyBones から legacy で1回、

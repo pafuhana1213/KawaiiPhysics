@@ -634,32 +634,7 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 	}
 
 	// Prev/Pose 情報を保存し、SkipSimulate を判定
-	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
-	{
-		// bridge dummyは縦親(ParentIndex<0)を持たないが、コリジョン代理として非skipにする
-		// （Simulate()/長さ復元は別途スキップ。下のParentIndex<0分岐に落ちると誤ってskip&Pose固定される）
-		if (Bone.bBridgeDummy)
-		{
-			Bone.bSkipSimulate = false;
-			continue;
-		}
-
-		if (Bone.BoneRef.BoneIndex < 0 && !Bone.bDummy)
-		{
-			Bone.bSkipSimulate = true;
-			continue;
-		}
-
-		if (Bone.ParentIndex < 0)
-		{
-			// root: kinematic。実ポーズ追従（PrevLocation/Location更新）は SimulateOnce 内で、
-			// サブステップ補間後のポーズに対して毎ステップ行う。
-			Bone.bSkipSimulate = true;
-			continue;
-		}
-
-		Bone.bSkipSimulate = false;
-	}
+	ResolveSkipSimulateFlags();
 
 #if KAWAIIPHYSICS_CSV_STATS
 	if (bCsvCountersActive)
@@ -768,6 +743,43 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 	bUseFixedSubsteppingCached = KawaiiSettings->bUseFixedSubstepping;
 	MaxSubstepsCached = FMath::Max(1, KawaiiSettings->MaxSubsteps);
 
+	StepSubsteps(Output, ComponentTransform, SkelComp);
+}
+
+void FAnimNode_KawaiiPhysics::ResolveSkipSimulateFlags()
+{
+	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
+	{
+		// bridge dummyは縦親(ParentIndex<0)を持たないが、コリジョン代理として非skipにする
+		// （Simulate()/長さ復元は別途スキップ。下のParentIndex<0分岐に落ちると誤ってskip&Pose固定される）
+		if (Bone.bBridgeDummy)
+		{
+			Bone.bSkipSimulate = false;
+			continue;
+		}
+
+		if (Bone.BoneRef.BoneIndex < 0 && !Bone.bDummy)
+		{
+			Bone.bSkipSimulate = true;
+			continue;
+		}
+
+		if (Bone.ParentIndex < 0)
+		{
+			// root: kinematic。実ポーズ追従（PrevLocation/Location更新）は SimulateOnce 内で、
+			// サブステップ補間後のポーズに対して毎ステップ行う。
+			Bone.bSkipSimulate = true;
+			continue;
+		}
+
+		Bone.bSkipSimulate = false;
+	}
+}
+
+void FAnimNode_KawaiiPhysics::StepSubsteps(FComponentSpacePoseContext& Output,
+	const FTransform& ComponentTransform, const USkeletalMeshComponent* SkelComp)
+{
+
 	// 現フレームのポーズ目標をスナップショット（サブステップ中 PoseLocation を補間で上書きするため退避）。
 	// 初回/リセット後は前フレーム値と出力補間のオフセットを現在値で初期化（補間で飛ばないように）。
 	for (FKawaiiPhysicsModifyBone& Bone : ModifyBones)
@@ -798,13 +810,13 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 	else
 	{
 		// ===== 固定タイムステップ・サブステップ（§4） =====
-		const float FixedDt = 1.0f / GetEffectiveTargetFramerate();
-		// クランプ前の蓄積実時間
-		const float RawElapsed = FMath::Max(SubstepAccumulator + FrameDeltaTime, KINDA_SMALL_NUMBER);
-		// spiral of death 防止：超過分は破棄
-		SubstepAccumulator = FMath::Min(RawElapsed, MaxSubstepsCached * FixedDt);
-		const float DroppedTime = RawElapsed - SubstepAccumulator; // クランプで破棄された時間
+		const FKawaiiPhysicsSubstepPlan Plan = ComputeSubstepPlan(
+			SubstepAccumulator, FrameDeltaTime, MaxSubstepsCached, GetEffectiveTargetFramerate());
+		const float FixedDt = Plan.FixedDt;
+		SubstepAccumulator = Plan.RemainingAccumulator;
 #if !UE_BUILD_SHIPPING
+		const float RawElapsed = Plan.RawElapsed;
+		const float DroppedTime = Plan.DroppedTime;
 		// TimeScale を掛けなければ収まっていた時間だけを捨てた場合に知らせる（ヒッチによる破棄は従来どおり黙って捨てる）
 		const float EffectiveTimeScale = GetEffectiveTimeScale();
 		if (DroppedTime > 0.0f && EffectiveTimeScale > 1.0f &&
@@ -815,14 +827,9 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 				EffectiveTimeScale, MaxSubstepsCached, GetEffectiveTargetFramerate());
 		}
 #endif
-		const int32 NumSteps = FMath::FloorToInt(SubstepAccumulator / FixedDt);
-		SubstepAccumulator -= NumSteps * FixedDt;
-
-		// world移動を各サブステップへ分配。RawElapsed 基準にし、ステップ未消費(NumSteps==0)でも取りこぼし/二重適用しない。
-		const float MoveFrac = FixedDt / RawElapsed;
-		// PreSkelCompTransform を「消費(NumSteps*FixedDt)＋破棄(DroppedTime)」割合だけ前進させ残りを繰り越す。破棄分は復活させない（超過分破棄と整合）。
-		PreSkelCompTransformConsumeFraction =
-			FMath::Clamp((NumSteps * FixedDt + DroppedTime) / RawElapsed, 0.0f, 1.0f);
+		const int32 NumSteps = Plan.NumSteps;
+		const float MoveFrac = Plan.MoveFrac;
+		PreSkelCompTransformConsumeFraction = Plan.ConsumeFraction;
 		const FVector FullSkelCompMove = SkelCompMoveVector;
 		const FQuat FullSkelCompRot = SkelCompMoveRotation;
 		bUseBaseBoneStepTransforms = SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace &&
@@ -882,6 +889,27 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 		Bone.PrevPoseLocation = Bone.CurrentPoseLocation;
 		Bone.PrevPoseRotation = Bone.CurrentPoseRotation;
 	}
+}
+
+FAnimNode_KawaiiPhysics::FKawaiiPhysicsSubstepPlan FAnimNode_KawaiiPhysics::ComputeSubstepPlan(
+	float InSubstepAccumulator, float InFrameDeltaTime, int32 InMaxSubsteps, int32 InTargetFramerate)
+{
+	float Accumulator = InSubstepAccumulator;
+	const float FixedDt = 1.0f / InTargetFramerate;
+	// クランプ前の蓄積実時間
+	const float RawElapsed = FMath::Max(Accumulator + InFrameDeltaTime, KINDA_SMALL_NUMBER);
+	// spiral of death 防止：超過分は破棄
+	Accumulator = FMath::Min(RawElapsed, InMaxSubsteps * FixedDt);
+	const float DroppedTime = RawElapsed - Accumulator; // クランプで破棄された時間
+	const int32 NumSteps = FMath::FloorToInt(Accumulator / FixedDt);
+	Accumulator -= NumSteps * FixedDt;
+
+	// world移動を各サブステップへ分配。RawElapsed 基準にし、ステップ未消費(NumSteps==0)でも取りこぼし/二重適用しない。
+	const float MoveFrac = FixedDt / RawElapsed;
+	// PreSkelCompTransform を「消費(NumSteps*FixedDt)＋破棄(DroppedTime)」割合だけ前進させ残りを繰り越す。破棄分は復活させない（超過分破棄と整合）。
+	const float ConsumeFraction =
+		FMath::Clamp((NumSteps * FixedDt + DroppedTime) / RawElapsed, 0.0f, 1.0f);
+	return {FixedDt, RawElapsed, DroppedTime, Accumulator, MoveFrac, ConsumeFraction, NumSteps};
 }
 
 void FAnimNode_KawaiiPhysics::SimulateOnce(FComponentSpacePoseContext& Output,
