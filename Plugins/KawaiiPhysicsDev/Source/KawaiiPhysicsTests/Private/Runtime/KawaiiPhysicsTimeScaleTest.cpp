@@ -12,24 +12,17 @@
 
 #include <limits>
 
-// TimeScale が本番の評価経路（UpdateInternal → EvaluateSkeletalControl_AnyThread）で dt に掛かり、
-// シミュレーションの時間だけを遅く・速くすることを確かめる。
 namespace KawaiiPhysicsTimeScaleTestPrivate
 {
-	using namespace KawaiiPhysicsHairNodeFixture;
+// TimeScale が本番の評価経路（UpdateInternal → EvaluateSkeletalControl_AnyThread）で dt に掛かり、
+// シミュレーションの時間だけを遅く・速くすることを確かめる。
+	using KawaiiPhysicsHairNodeFixture::FFixture;
+	using KawaiiPhysicsHairNodeFixture::FCase;
+	using KawaiiPhysicsHairNodeFixture::EFilterLayout;
 
 	// 髪は根元から -Z に垂れているので、横向きの重力で振らせて動きのある状態を作る
 	const FVector GSideGravity(980.0, 0.0, 0.0);
 
-	/** bUseFixedSubstepping をテスト中だけ切り替え、終了時に戻す */
-	struct FScopedFixedSubstepping
-	{
-		UKawaiiPhysicsDeveloperSettings* Settings = GetMutableDefault<UKawaiiPhysicsDeveloperSettings>();
-		bool bOld = Settings->bUseFixedSubstepping;
-
-		explicit FScopedFixedSubstepping(const bool bEnable) { Settings->bUseFixedSubstepping = bEnable; }
-		~FScopedFixedSubstepping() { Settings->bUseFixedSubstepping = bOld; }
-	};
 
 	void Run(FFixture& Fixture, const int32 NumFrames)
 	{
@@ -83,7 +76,6 @@ namespace KawaiiPhysicsTimeScaleTestPrivate
 		return Test.TestTrue(FString::Printf(TEXT("%s: max bone difference %.6f cm (bone %d) <= %.6f"),
 			*What, MaxDiff, MaxIndex, Tolerance), MaxDiff <= Tolerance);
 	}
-}
 
 // TimeScale=s・フレーム dt=d の結果が、TimeScale=1・フレーム dt=s*d と一致する。
 // TimeScale は入口（UpdateInternal）で dt に一度だけ掛けている。ここでは横向きの重力で振らせた髪で、積分とサブステップ蓄積を確かめる。
@@ -93,12 +85,13 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTimeScaleMatchesScaledDeltaTest,
 
 bool FKawaiiPhysicsTimeScaleMatchesScaledDeltaTest::RunTest(const FString& Parameters)
 {
-	using namespace KawaiiPhysicsTimeScaleTestPrivate;
-
 	bool bOk = true;
 	for (const bool bFixed : {true, false})
 	{
-		FScopedFixedSubstepping Scoped(bFixed);
+		KawaiiPhysicsNodeFixture::FScopedDeveloperSettings Scoped([bFixed](UKawaiiPhysicsDeveloperSettings& Settings)
+		{
+			Settings.bUseFixedSubstepping = bFixed;
+		});
 		FMemMark MemMark(FMemStack::Get());
 		const FString Label = bFixed ? TEXT("FixedSubstep") : TEXT("Legacy");
 
@@ -127,9 +120,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTimeScaleSlowMotionTest,
 
 bool FKawaiiPhysicsTimeScaleSlowMotionTest::RunTest(const FString& Parameters)
 {
-	using namespace KawaiiPhysicsTimeScaleTestPrivate;
-
-	FScopedFixedSubstepping Scoped(true);
+	KawaiiPhysicsNodeFixture::FScopedDeveloperSettings Scoped([](UKawaiiPhysicsDeveloperSettings& Settings)
+	{
+		Settings.bUseFixedSubstepping = true;
+	});
 	FMemMark MemMark(FMemStack::Get());
 
 	// TargetFramerate=120 に対し、Slow は 1 フレーム 1 ステップ、Normal は 1 フレーム 2 ステップ（どちらも端数なし）
@@ -155,8 +149,6 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTimeScaleClampTest,
 
 bool FKawaiiPhysicsTimeScaleClampTest::RunTest(const FString& Parameters)
 {
-	using namespace KawaiiPhysicsTimeScaleTestPrivate;
-
 	bool bOk = true;
 	{
 		struct FExpect
@@ -186,7 +178,10 @@ bool FKawaiiPhysicsTimeScaleClampTest::RunTest(const FString& Parameters)
 
 	for (const bool bFixed : {true, false})
 	{
-		FScopedFixedSubstepping Scoped(bFixed);
+		KawaiiPhysicsNodeFixture::FScopedDeveloperSettings Scoped([bFixed](UKawaiiPhysicsDeveloperSettings& Settings)
+		{
+			Settings.bUseFixedSubstepping = bFixed;
+		});
 		FMemMark MemMark(FMemStack::Get());
 		const FString Label = bFixed ? TEXT("FixedSubstep") : TEXT("Legacy");
 
@@ -315,5 +310,7 @@ bool FKawaiiPhysicsTimeScaleSlowTurnIsNotTeleportTest::RunTest(const FString& Pa
 		Snap.MaxTipDeviation < 0.01f);
 	return bOk;
 }
+
+} // namespace KawaiiPhysicsTimeScaleTestPrivate
 
 #endif

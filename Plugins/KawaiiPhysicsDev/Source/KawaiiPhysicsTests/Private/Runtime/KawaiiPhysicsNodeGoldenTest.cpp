@@ -13,19 +13,20 @@
 #include "HAL/PlatformMisc.h"
 #include "KawaiiPhysicsDeveloperSettings.h"
 #include "KawaiiPhysicsTestHarness.h"
+#include "KawaiiPhysicsNodeFixture.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/CommandLine.h"
 #include "Misc/EngineVersion.h"
 #include "Misc/Parse.h"
 #include "UObject/StrongObjectPtr.h"
 
+namespace KawaiiPhysicsNodeGoldenTestPrivate
+{
 // 積分結果の解析的な基準値は用意できないため、このテストは本番経路の回帰検出専用とする。
 // 【運用注意】全軌跡の位置と回転はビット厳密一致、最終フレームは位置だけを比較する。
 // CPU・CRT・コンパイラが変わると最下位ビットが変わり得るため、同じ PC での変更前後の比較に使う。
 // 環境が変わったら -KPGoldenCapture で採り直して期待値を更新する。
 // 採取環境が未記録なら失敗し、実行環境と違う場合は警告を出して比較を省く。
-namespace KawaiiPhysicsNodeGoldenTestPrivate
-{
 	static_assert(sizeof(double) == sizeof(uint64));
 	static const TCHAR* const Golden_Environment = TEXT("5.8.4-58902052+++UE5+Release-5.8|MSVC 194435222|AMD Ryzen 9 3950X 16-Core Processor            ");
 
@@ -119,264 +120,208 @@ namespace KawaiiPhysicsNodeGoldenTestPrivate
 		EScenarioFeature Feature;
 	};
 
-	struct FScopedSubstepping
+	struct FFixture : KawaiiPhysicsNodeFixture::FFixture
 	{
-		UKawaiiPhysicsDeveloperSettings* Settings = GetMutableDefault<UKawaiiPhysicsDeveloperSettings>();
-		const bool bPreviousFixed = Settings->bUseFixedSubstepping;
-		const int32 PreviousMaxSubsteps = Settings->MaxSubsteps;
-
-		explicit FScopedSubstepping(const bool bFixed)
+		static KawaiiPhysicsNodeFixture::FOptions MakeOptions(const FScenario& Scenario)
 		{
-			Settings->bUseFixedSubstepping = bFixed;
-			Settings->MaxSubsteps = 4;
-		}
-
-		~FScopedSubstepping()
-		{
-			Settings->bUseFixedSubstepping = bPreviousFixed;
-			Settings->MaxSubsteps = PreviousMaxSubsteps;
-		}
-	};
-
-	struct FProxy : FAnimInstanceProxy
-	{
-		using FAnimInstanceProxy::FAnimInstanceProxy;
-		using FAnimInstanceProxy::PreUpdate;
-	};
-
-	struct FFixture
-	{
-		TStrongObjectPtr<USkeleton> Skeleton{NewObject<USkeleton>()};
-		UWorld* World = nullptr;
-		USkeletalMeshComponent* Component = nullptr;
-		UAnimInstance* Anim = nullptr;
-		TUniquePtr<FProxy> Proxy;
-		FKawaiiPhysicsTestAccessor Accessor;
-		FAnimNode_KawaiiPhysics& Node = Accessor.Node;
-		TArray<FBoneTransform> OutTransforms;
-		float FrameDt = 1.0f / 60.0f;
-
-		explicit FFixture(const FScenario& Scenario)
-		{
-			FrameDt = 1.0f / static_cast<float>(Scenario.Fps);
-			TArray<FBoneIndexType> RequiredIndices;
+			KawaiiPhysicsNodeFixture::FOptions Options;
+			Options.FrameDt = 1.0f / static_cast<float>(Scenario.Fps);
+			Options.Bones = KawaiiPhysicsNodeFixture::BuildVerticalChain(GBoneCount, FVector(10.0, 0.0, 0.0));
+			Options.bPreUpdateEveryFrame = true;
+			Options.bUseLocalPose = true;
+			Options.ConfigureNode = [Scenario](FAnimNode_KawaiiPhysics& InNode)
 			{
-				FReferenceSkeletonModifier Modifier(Skeleton.Get());
-				Modifier.Add(FMeshBoneInfo(TEXT("root"), TEXT("root"), INDEX_NONE), FTransform::Identity);
-				RequiredIndices.Add(0);
-				for (int32 BoneIndex = 1; BoneIndex < GBoneCount; ++BoneIndex)
+				InNode.RootBone.BoneName = TEXT("root");
+				InNode.SimulationSpace = Scenario.Space;
+				InNode.SimulationBaseBone.BoneName = Scenario.Space == EKawaiiPhysicsSimulationSpace::BaseBoneSpace ||
+					Scenario.Feature == EScenarioFeature::SpaceSwitch
+					? TEXT("chain_1") : TEXT("root");
+				InNode.TargetFramerate = 60;
+				InNode.BoneSubdivisionCount = 0;
+				InNode.DummyBoneLength = 0.0f;
+				InNode.WarmUpFrames = 0;
+				InNode.bNeedWarmUp = false;
+				InNode.bAllowWorldCollision = false;
+				InNode.bUseSimpleWorldCollision = false;
+				InNode.Gravity = FVector(0.0, 0.0, -980.0);
+				InNode.PhysicsSettings.Damping = 0.15f;
+				InNode.PhysicsSettings.WorldDampingLocation = 0.2f;
+				InNode.PhysicsSettings.WorldDampingRotation = 0.3f;
+				InNode.PhysicsSettings.Stiffness = 0.07f;
+				InNode.PhysicsSettings.Radius = 2.0f;
+				InNode.PhysicsSettings.LimitAngle = 0.0f;
+				InNode.TeleportRotationThreshold = 180.0f;
+
+				if (Scenario.bUseForce)
 				{
-					const FName Name(*FString::Printf(TEXT("chain_%d"), BoneIndex));
-					Modifier.Add(FMeshBoneInfo(Name, Name.ToString(), BoneIndex - 1),
-						FTransform(FVector(10.0, 0.0, 0.0)));
-					RequiredIndices.Add(static_cast<FBoneIndexType>(BoneIndex));
+					FInstancedStruct& Item = InNode.ExternalForces.Add_GetRef(
+						FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_Basic>());
+					FKawaiiPhysics_ExternalForce_Basic& Force =
+						Item.GetMutable<FKawaiiPhysics_ExternalForce_Basic>();
+					Force.ExternalForceSpace = Scenario.ForceSpace;
+					Force.ForceDir = FVector(60.0, 25.0, 0.0);
+					Force.Interval = 0.0f;
+					Force.RandomForceScaleRange = FFloatInterval(1.0f, 1.0f);
 				}
-			}
 
-			const UWorld::InitializationValues Values = UWorld::InitializationValues()
-				.AllowAudioPlayback(false).CreatePhysicsScene(false).CreateNavigation(false)
-				.CreateAISystem(false).ShouldSimulatePhysics(false).CreateFXSystem(false);
-			World = UWorld::CreateWorld(EWorldType::Game, false, NAME_None, nullptr, true,
-				ERHIFeatureLevel::Num, &Values);
-			AActor* Actor = World->SpawnActor<AActor>();
-			Component = NewObject<USkeletalMeshComponent>(Actor);
-			Actor->AddInstanceComponent(Component);
-			Actor->SetRootComponent(Component);
-			Anim = NewObject<UAnimInstance>(Component);
-			Proxy = MakeUnique<FProxy>(Anim);
-			Proxy->PreUpdate(Anim, FrameDt);
-			Proxy->GetRequiredBones().InitializeTo(RequiredIndices, UE::Anim::FCurveFilterSettings(), *Skeleton);
-
-			Node.RootBone.BoneName = TEXT("root");
-			Node.SimulationSpace = Scenario.Space;
-			Node.SimulationBaseBone.BoneName = Scenario.Space == EKawaiiPhysicsSimulationSpace::BaseBoneSpace ||
-				Scenario.Feature == EScenarioFeature::SpaceSwitch
-				? TEXT("chain_1") : TEXT("root");
-			Node.TargetFramerate = 60;
-			Node.BoneSubdivisionCount = 0;
-			Node.DummyBoneLength = 0.0f;
-			Node.WarmUpFrames = 0;
-			Node.bNeedWarmUp = false;
-			Node.bAllowWorldCollision = false;
-			Node.bUseSimpleWorldCollision = false;
-			Node.Gravity = FVector(0.0, 0.0, -980.0);
-			Node.PhysicsSettings.Damping = 0.15f;
-			Node.PhysicsSettings.WorldDampingLocation = 0.2f;
-			Node.PhysicsSettings.WorldDampingRotation = 0.3f;
-			Node.PhysicsSettings.Stiffness = 0.07f;
-			Node.PhysicsSettings.Radius = 2.0f;
-			Node.PhysicsSettings.LimitAngle = 0.0f;
-			Node.TeleportRotationThreshold = 180.0f;
-
-			if (Scenario.bUseForce)
-			{
-				FInstancedStruct& Item = Node.ExternalForces.Add_GetRef(
-					FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_Basic>());
-				FKawaiiPhysics_ExternalForce_Basic& Force =
-					Item.GetMutable<FKawaiiPhysics_ExternalForce_Basic>();
-				Force.ExternalForceSpace = Scenario.ForceSpace;
-				Force.ForceDir = FVector(60.0, 25.0, 0.0);
-				Force.Interval = 0.0f;
-				Force.RandomForceScaleRange = FFloatInterval(1.0f, 1.0f);
-			}
-
-			if (Scenario.bUseLimits)
-			{
-				FSphericalLimit& Sphere = Node.SphericalLimits.AddDefaulted_GetRef();
-				Sphere.DrivingBone.BoneName = TEXT("root");
-				Sphere.OffsetLocation = FVector(20.0, 0.0, -3.0);
-				Sphere.Radius = 8.0f;
-				Sphere.LimitType = ESphericalLimitType::Outer;
-				FCapsuleLimit& Capsule = Node.CapsuleLimits.AddDefaulted_GetRef();
-				Capsule.DrivingBone.BoneName = TEXT("root");
-				Capsule.OffsetLocation = FVector(40.0, 0.0, -3.0);
-				Capsule.Radius = 7.0f;
-				Capsule.Length = 18.0f;
-#if WITH_EDITORONLY_DATA
-				Sphere.Guid = FGuid(1, 0, 0, 0);
-				Capsule.Guid = FGuid(2, 0, 0, 0);
-#endif
-			}
-
-			switch (Scenario.Feature)
-			{
-			case EScenarioFeature::BoneConstraint:
-			{
-				// 拘束前後の反復と bridge dummy の配置・押し戻しを通す。
-				Node.BoneConstraintIterationCountBeforeCollision = 2;
-				Node.BoneConstraintIterationCountAfterCollision = 2;
-				Node.BoneConstraintSubdivisionCount = 1;
-				FModifyBoneConstraint& Constraint = Node.BoneConstraints.AddDefaulted_GetRef();
-				Constraint.Bone1.BoneName = TEXT("chain_1");
-				Constraint.Bone2.BoneName = TEXT("chain_4");
-				FSphericalLimit& BridgeSphere = Node.SphericalLimits.AddDefaulted_GetRef();
-				BridgeSphere.DrivingBone.BoneName = TEXT("root");
-				BridgeSphere.OffsetLocation = FVector(25.0, 0.0, -2.0);
-				BridgeSphere.Radius = 3.0f;
-				BridgeSphere.LimitType = ESphericalLimitType::Outer;
-#if WITH_EDITORONLY_DATA
-				BridgeSphere.Guid = FGuid(3, 0, 0, 0);
-#endif
-				break;
-			}
-			case EScenarioFeature::SubdivisionDynamic:
-			case EScenarioFeature::SubdivisionCollisionOnly:
-			{
-				// 前者は中間ダミーの積分、後者は補間配置と衝突変位の実ボーンへの転送を通す。
-				Node.BoneSubdivisionCount = 1;
-				Node.bBoneSubdivisionCollisionOnly =
-					Scenario.Feature == EScenarioFeature::SubdivisionCollisionOnly;
-				FSphericalLimit& MidpointSphere = Node.SphericalLimits.AddDefaulted_GetRef();
-				MidpointSphere.DrivingBone.BoneName = TEXT("root");
-				MidpointSphere.OffsetLocation = FVector(5.0, 0.0, -2.0);
-				MidpointSphere.Radius = 3.0f;
-				MidpointSphere.LimitType = ESphericalLimitType::Outer;
-#if WITH_EDITORONLY_DATA
-				MidpointSphere.Guid = FGuid(4, 0, 0, 0);
-#endif
-				break;
-			}
-			case EScenarioFeature::WorldLimits:
-			{
-				// WorldSpace の Box・Tapered Capsule・Planar と長さ復元後の Planar 再押し出しを通す。
-				FBoxLimit& Box = Node.BoxLimits.AddDefaulted_GetRef();
-				Box.DrivingBone.BoneName = TEXT("root");
-				Box.OffsetLocation = FVector(20.0, 0.0, -3.0);
-				Box.Extent = FVector(6.0, 6.0, 6.0);
-				FTaperedCapsuleLimit& Tapered = Node.TaperedCapsuleLimits.AddDefaulted_GetRef();
-				Tapered.DrivingBone.BoneName = TEXT("root");
-				Tapered.OffsetLocation = FVector(35.0, 0.0, -3.0);
-				Tapered.Radius0 = 7.0f;
-				Tapered.Radius1 = 3.0f;
-				Tapered.Length = 14.0f;
-				FPlanarLimit& Planar = Node.PlanarLimits.AddDefaulted_GetRef();
-				Planar.DrivingBone.BoneName = TEXT("root");
-				Planar.OffsetLocation = FVector(0.0, 0.0, -4.0);
-#if WITH_EDITORONLY_DATA
-				Box.Guid = FGuid(5, 0, 0, 0);
-				Tapered.Guid = FGuid(6, 0, 0, 0);
-				Planar.Guid = FGuid(7, 0, 0, 0);
-#endif
-				break;
-			}
-			case EScenarioFeature::LimitAngle:
-				// 角度制限とボーン長復元を通す。
-				Node.PhysicsSettings.LimitAngle = 25.0f;
-				break;
-			case EScenarioFeature::DummyBone:
-				// 末端ダミーの積分と末端ボーンの回転出力を通す。
-				Node.DummyBoneLength = 7.0f;
-				break;
-			case EScenarioFeature::DistanceTeleport:
-				Node.TeleportDistanceThreshold = 15.0f;
-				break;
-			case EScenarioFeature::RotationTeleport:
-			case EScenarioFeature::YawWrap:
-				Node.TeleportRotationThreshold = 20.0f;
-				break;
-			case EScenarioFeature::SlowRotation:
-				Node.TeleportRotationThreshold = 12.0f;
-				Node.TimeScale = 0.1f;
-				break;
-			case EScenarioFeature::DummyNearParent:
-				Node.BoneSubdivisionCount = 10;
-				Node.bBoneSubdivisionCollisionOnly = true;
-				Node.PhysicsSettings.Radius = 0.1f;
-				Node.Gravity = FVector::ZeroVector;
+				if (Scenario.bUseLimits)
 				{
-					FSphericalLimit& Sphere = Node.SphericalLimits.AddDefaulted_GetRef();
+					FSphericalLimit& Sphere = InNode.SphericalLimits.AddDefaulted_GetRef();
 					Sphere.DrivingBone.BoneName = TEXT("root");
-					Sphere.OffsetLocation = FVector(10.0 / 11.0, 0.0, -0.4);
-					Sphere.Radius = 0.5f;
+					Sphere.OffsetLocation = FVector(20.0, 0.0, -3.0);
+					Sphere.Radius = 8.0f;
 					Sphere.LimitType = ESphericalLimitType::Outer;
-#if WITH_EDITORONLY_DATA
-					Sphere.Guid = FGuid(8, 0, 0, 0);
-#endif
+					FCapsuleLimit& Capsule = InNode.CapsuleLimits.AddDefaulted_GetRef();
+					Capsule.DrivingBone.BoneName = TEXT("root");
+					Capsule.OffsetLocation = FVector(40.0, 0.0, -3.0);
+					Capsule.Radius = 7.0f;
+					Capsule.Length = 18.0f;
+	#if WITH_EDITORONLY_DATA
+					Sphere.Guid = FGuid(1, 0, 0, 0);
+					Capsule.Guid = FGuid(2, 0, 0, 0);
+	#endif
 				}
-				break;
-			case EScenarioFeature::DummyOblique:
-			case EScenarioFeature::DummyResolved:
-				Node.BoneSubdivisionCount = 1;
-				Node.bBoneSubdivisionCollisionOnly = true;
-				Node.PhysicsSettings.Radius = 0.1f;
-				Node.Gravity = FVector::ZeroVector;
+
+				switch (Scenario.Feature)
 				{
-					FSphericalLimit& Midpoint = Node.SphericalLimits.AddDefaulted_GetRef();
-					Midpoint.DrivingBone.BoneName = TEXT("root");
-					Midpoint.OffsetLocation = FVector(5.0, 0.0, -2.0);
-					Midpoint.Radius = 2.4f;
-					Midpoint.LimitType = ESphericalLimitType::Outer;
-#if WITH_EDITORONLY_DATA
-					Midpoint.Guid = FGuid(9, 0, 0, 0);
-#endif
-					FSphericalLimit& Endpoint = Node.SphericalLimits.AddDefaulted_GetRef();
-					Endpoint.DrivingBone.BoneName = TEXT("root");
-					Endpoint.OffsetLocation = Scenario.Feature == EScenarioFeature::DummyOblique
-						? FVector(10.0, -1.0, 0.0) : FVector(10.0, 0.0, -1.0);
-					Endpoint.Radius = Scenario.Feature == EScenarioFeature::DummyOblique ? 2.9f : 3.9f;
-					Endpoint.LimitType = ESphericalLimitType::Outer;
-#if WITH_EDITORONLY_DATA
-					Endpoint.Guid = FGuid(10, 0, 0, 0);
-#endif
+				case EScenarioFeature::BoneConstraint:
+				{
+					// 拘束前後の反復と bridge dummy の配置・押し戻しを通す。
+					InNode.BoneConstraintIterationCountBeforeCollision = 2;
+					InNode.BoneConstraintIterationCountAfterCollision = 2;
+					InNode.BoneConstraintSubdivisionCount = 1;
+					FModifyBoneConstraint& Constraint = InNode.BoneConstraints.AddDefaulted_GetRef();
+					Constraint.Bone1.BoneName = TEXT("chain_1");
+					Constraint.Bone2.BoneName = TEXT("chain_4");
+					FSphericalLimit& BridgeSphere = InNode.SphericalLimits.AddDefaulted_GetRef();
+					BridgeSphere.DrivingBone.BoneName = TEXT("root");
+					BridgeSphere.OffsetLocation = FVector(25.0, 0.0, -2.0);
+					BridgeSphere.Radius = 3.0f;
+					BridgeSphere.LimitType = ESphericalLimitType::Outer;
+	#if WITH_EDITORONLY_DATA
+					BridgeSphere.Guid = FGuid(3, 0, 0, 0);
+	#endif
+					break;
 				}
-				break;
-			case EScenarioFeature::SpaceSwitch:
-			case EScenarioFeature::None:
-				break;
-			}
+				case EScenarioFeature::SubdivisionDynamic:
+				case EScenarioFeature::SubdivisionCollisionOnly:
+				{
+					// 前者は中間ダミーの積分、後者は補間配置と衝突変位の実ボーンへの転送を通す。
+					InNode.BoneSubdivisionCount = 1;
+					InNode.bBoneSubdivisionCollisionOnly =
+						Scenario.Feature == EScenarioFeature::SubdivisionCollisionOnly;
+					FSphericalLimit& MidpointSphere = InNode.SphericalLimits.AddDefaulted_GetRef();
+					MidpointSphere.DrivingBone.BoneName = TEXT("root");
+					MidpointSphere.OffsetLocation = FVector(5.0, 0.0, -2.0);
+					MidpointSphere.Radius = 3.0f;
+					MidpointSphere.LimitType = ESphericalLimitType::Outer;
+	#if WITH_EDITORONLY_DATA
+					MidpointSphere.Guid = FGuid(4, 0, 0, 0);
+	#endif
+					break;
+				}
+				case EScenarioFeature::WorldLimits:
+				{
+					// WorldSpace の Box・Tapered Capsule・Planar と長さ復元後の Planar 再押し出しを通す。
+					FBoxLimit& Box = InNode.BoxLimits.AddDefaulted_GetRef();
+					Box.DrivingBone.BoneName = TEXT("root");
+					Box.OffsetLocation = FVector(20.0, 0.0, -3.0);
+					Box.Extent = FVector(6.0, 6.0, 6.0);
+					FTaperedCapsuleLimit& Tapered = InNode.TaperedCapsuleLimits.AddDefaulted_GetRef();
+					Tapered.DrivingBone.BoneName = TEXT("root");
+					Tapered.OffsetLocation = FVector(35.0, 0.0, -3.0);
+					Tapered.Radius0 = 7.0f;
+					Tapered.Radius1 = 3.0f;
+					Tapered.Length = 14.0f;
+					FPlanarLimit& Planar = InNode.PlanarLimits.AddDefaulted_GetRef();
+					Planar.DrivingBone.BoneName = TEXT("root");
+					Planar.OffsetLocation = FVector(0.0, 0.0, -4.0);
+	#if WITH_EDITORONLY_DATA
+					Box.Guid = FGuid(5, 0, 0, 0);
+					Tapered.Guid = FGuid(6, 0, 0, 0);
+					Planar.Guid = FGuid(7, 0, 0, 0);
+	#endif
+					break;
+				}
+				case EScenarioFeature::LimitAngle:
+					// 角度制限とボーン長復元を通す。
+					InNode.PhysicsSettings.LimitAngle = 25.0f;
+					break;
+				case EScenarioFeature::DummyBone:
+					// 末端ダミーの積分と末端ボーンの回転出力を通す。
+					InNode.DummyBoneLength = 7.0f;
+					break;
+				case EScenarioFeature::DistanceTeleport:
+					InNode.TeleportDistanceThreshold = 15.0f;
+					break;
+				case EScenarioFeature::RotationTeleport:
+				case EScenarioFeature::YawWrap:
+					InNode.TeleportRotationThreshold = 20.0f;
+					break;
+				case EScenarioFeature::SlowRotation:
+					InNode.TeleportRotationThreshold = 12.0f;
+					InNode.TimeScale = 0.1f;
+					break;
+				case EScenarioFeature::DummyNearParent:
+					InNode.BoneSubdivisionCount = 10;
+					InNode.bBoneSubdivisionCollisionOnly = true;
+					InNode.PhysicsSettings.Radius = 0.1f;
+					InNode.Gravity = FVector::ZeroVector;
+					{
+						FSphericalLimit& Sphere = InNode.SphericalLimits.AddDefaulted_GetRef();
+						Sphere.DrivingBone.BoneName = TEXT("root");
+						Sphere.OffsetLocation = FVector(10.0 / 11.0, 0.0, -0.4);
+						Sphere.Radius = 0.5f;
+						Sphere.LimitType = ESphericalLimitType::Outer;
+	#if WITH_EDITORONLY_DATA
+						Sphere.Guid = FGuid(8, 0, 0, 0);
+	#endif
+					}
+					break;
+				case EScenarioFeature::DummyOblique:
+				case EScenarioFeature::DummyResolved:
+					InNode.BoneSubdivisionCount = 1;
+					InNode.bBoneSubdivisionCollisionOnly = true;
+					InNode.PhysicsSettings.Radius = 0.1f;
+					InNode.Gravity = FVector::ZeroVector;
+					{
+						FSphericalLimit& Midpoint = InNode.SphericalLimits.AddDefaulted_GetRef();
+						Midpoint.DrivingBone.BoneName = TEXT("root");
+						Midpoint.OffsetLocation = FVector(5.0, 0.0, -2.0);
+						Midpoint.Radius = 2.4f;
+						Midpoint.LimitType = ESphericalLimitType::Outer;
+	#if WITH_EDITORONLY_DATA
+						Midpoint.Guid = FGuid(9, 0, 0, 0);
+	#endif
+						FSphericalLimit& Endpoint = InNode.SphericalLimits.AddDefaulted_GetRef();
+						Endpoint.DrivingBone.BoneName = TEXT("root");
+						Endpoint.OffsetLocation = Scenario.Feature == EScenarioFeature::DummyOblique
+							? FVector(10.0, -1.0, 0.0) : FVector(10.0, 0.0, -1.0);
+						Endpoint.Radius = Scenario.Feature == EScenarioFeature::DummyOblique ? 2.9f : 3.9f;
+						Endpoint.LimitType = ESphericalLimitType::Outer;
+	#if WITH_EDITORONLY_DATA
+						Endpoint.Guid = FGuid(10, 0, 0, 0);
+	#endif
+					}
+					break;
+				case EScenarioFeature::SpaceSwitch:
+				case EScenarioFeature::None:
+					break;
+				}
 
-			Node.OnInitializeAnimInstance(Proxy.Get(), Anim);
-			Node.Initialize_AnyThread(FAnimationInitializeContext(Proxy.Get()));
-			Node.CacheBones_AnyThread(FAnimationCacheBonesContext(Proxy.Get()));
-			Node.PreUpdate(Anim);
-			OutTransforms.Reserve(GBoneCount);
+			};
+			Options.SetInputPose = [Scenario](FCompactPose& LocalPose, const int32 Frame)
+			{
+				if (Scenario.bMovePose)
+				{
+					const double Angle = 0.25 * FMath::Sin(static_cast<double>(Frame) * 0.13);
+					LocalPose[FCompactPoseBoneIndex(0)].SetRotation(FQuat(FVector::UpVector, Angle));
+				}
+			};
+			return Options;
 		}
 
-		~FFixture()
-		{
-			Proxy.Reset();
-			World->DestroyWorld(false);
-		}
+		explicit FFixture(const FScenario& Scenario) : KawaiiPhysicsNodeFixture::FFixture(MakeOptions(Scenario)) {}
 
 		void EvaluateFrame(const FScenario& Scenario, const int32 Frame)
 		{
@@ -413,25 +358,7 @@ namespace KawaiiPhysicsNodeGoldenTestPrivate
 				Component->SetWorldLocation(Location);
 				Component->SetWorldRotation(Rotation);
 			}
-			Proxy->PreUpdate(Anim, FrameDt);
-			Node.PreUpdate(Anim);
-
-			// ポーズの一時領域は各フレームで解放する。
-			FMemMark MemMark(FMemStack::Get());
-			FComponentSpacePoseContext Context(Proxy.Get());
-			// FCSPose::GetPose() は const なので、入力ポーズはローカル空間で組んでから InitPose に渡す。
-			FCompactPose LocalPose;
-			LocalPose.SetBoneContainer(&Proxy->GetRequiredBones());
-			LocalPose.ResetToRefPose();
-			if (Scenario.bMovePose)
-			{
-				const double Angle = 0.25 * FMath::Sin(static_cast<double>(Frame) * 0.13);
-				LocalPose[FCompactPoseBoneIndex(0)].SetRotation(FQuat(FVector::UpVector, Angle));
-			}
-			Context.Pose.InitPose(LocalPose);
-			Node.UpdateInternal(FAnimationUpdateContext(Proxy.Get(), FrameDt));
-			OutTransforms.Reset();
-			Node.EvaluateSkeletalControl_AnyThread(Context, OutTransforms);
+			KawaiiPhysicsNodeFixture::FFixture::EvaluateFrame(Frame);
 		}
 	};
 
@@ -488,7 +415,11 @@ namespace KawaiiPhysicsNodeGoldenTestPrivate
 
 	bool RunScenario(FAutomationTestBase& Test, const FScenario& Scenario, TArray<uint64>& Bits)
 	{
-		FScopedSubstepping Substepping(Scenario.bFixedSubstep);
+		KawaiiPhysicsNodeFixture::FScopedDeveloperSettings Substepping([&Scenario](UKawaiiPhysicsDeveloperSettings& Settings)
+		{
+			Settings.bUseFixedSubstepping = Scenario.bFixedSubstep;
+			Settings.MaxSubsteps = 4;
+		});
 		FFixture Fixture(Scenario);
 		Bits.Reserve(GFrameCount * GBoneCount * GHashComponentsPerBone);
 		for (int32 Frame = 0; Frame < GFrameCount; ++Frame)
