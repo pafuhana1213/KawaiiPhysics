@@ -598,6 +598,8 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 		bSyncBonesNeedReinit = true;
 		bBoneReferencesNeedReinit = true;
 	}
+	/** 次の評価で各ボーンの物理設定を更新 / Refresh per-bone physics settings on the next evaluation */
+	void RequestPhysicsSettingsRefresh() { bPhysicsSettingsRefreshRequested = true; }
 
 	/**
 	* Bone Constraintで用いる剛性タイプ
@@ -827,7 +829,7 @@ struct KAWAIIPHYSICS_API FAnimNode_KawaiiPhysics : public FAnimNode_SkeletalCont
 	bool ShouldUpdatePhysicsSettings(const bool bHasActiveSettingsMultiplier) const
 	{
 		// bUpdatePhysicsSettingsInGame が無効でも、倍率の有効中と終了直後の1回は更新してベース値へ戻す
-		return !bInitPhysicsSettings || bUpdatePhysicsSettingsInGame ||
+		return !bInitPhysicsSettings || bUpdatePhysicsSettingsInGame || bPhysicsSettingsRefreshRequested ||
 			bHasActiveSettingsMultiplier || bPhysicsSettingsMultiplierAppliedLastUpdate;
 	}
 
@@ -2217,6 +2219,7 @@ private:
 	// SyncBones の対象だけを作り直す（ModifyBones の構築時にも作られるので、そのときは不要）
 	// Rebuild only the SyncBones targets (they are also built when ModifyBones are built)
 	bool bSyncBonesNeedReinit = false;
+	bool bPhysicsSettingsRefreshRequested = false;
 	int32 LastInitializedBoneSubdivisionCount = 0;
 	int32 LastInitializedBoneConstraintSubdivisionCount = 0;
 	// DensifyByRadiusは配置数（生成トポロジ）を左右するため再構築判定に含める。既定値はプロパティのデフォルトに合わせる
