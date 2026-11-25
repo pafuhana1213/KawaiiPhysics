@@ -5,6 +5,7 @@
 #include "Misc/AutomationTest.h"
 #include "HAL/IConsoleManager.h"
 #include "KawaiiPhysicsTestHarness.h"
+#include "KawaiiPhysicsNodeFixture.h"
 #include "AnimNode_KawaiiPhysicsInternal.h"
 #include "KawaiiPhysicsSimpleWorldCollision.h"
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
@@ -25,29 +26,8 @@
 
 namespace KawaiiPhysicsSimpleWorldCollisionTestPrivate
 {
-struct FScopedSimpleWorldEnable
-{
-	IConsoleVariable* Variable = IConsoleManager::Get().FindConsoleVariable(
-		TEXT("a.AnimNode.KawaiiPhysics.SimpleWorldCollision.Enable"));
-	int32 PreviousValue = Variable ? Variable->GetInt() : 1;
-	EConsoleVariableFlags PreviousFlags = Variable ? Variable->GetFlags() : ECVF_Default;
-
-	FScopedSimpleWorldEnable()
-	{
-		if (Variable)
-		{
-			Variable->Set(1, ECVF_SetByConsole);
-		}
-	}
-	~FScopedSimpleWorldEnable()
-	{
-		if (Variable)
-		{
-			Variable->Set(PreviousValue, ECVF_SetByConsole);
-			Variable->SetFlags(PreviousFlags);
-		}
-	}
-};
+// ハーネスは本番の外側条件（bUseSimpleWorldCollision と CVar）を通るので、CVar をテストの間だけ有効にする
+static const TCHAR* const GSimpleWorldEnableCVarName = TEXT("a.AnimNode.KawaiiPhysics.SimpleWorldCollision.Enable");
 
 KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsSimpleWorldRegistryX, "KawaiiPhysics.Test.SimpleWorld.Registry.X");
 KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsSimpleWorldRegistryY, "KawaiiPhysics.Test.SimpleWorld.Registry.Y");
@@ -2810,7 +2790,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldThrottledReaderDetects
 
 bool FKawaiiPhysicsSimpleWorldThrottledReaderDetectsPinChangeTest::RunTest(const FString& Parameters)
 {
-	FScopedSimpleWorldEnable SimpleWorldEnable;
+	KawaiiPhysicsNodeFixture::FScopedCVar SimpleWorldEnable(GSimpleWorldEnableCVarName, TEXT("1"));
 	constexpr uint64 ProviderID = 0xFFFF1006;
 	constexpr int32 NumNoChangeEvaluations = 1;
 
@@ -3196,7 +3176,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldMissingProviderInitIsT
 
 bool FKawaiiPhysicsSimpleWorldMissingProviderInitIsThrottledTest::RunTest(const FString& Parameters)
 {
-	FScopedSimpleWorldEnable SimpleWorldEnable;
+	KawaiiPhysicsNodeFixture::FScopedCVar SimpleWorldEnable(GSimpleWorldEnableCVarName, TEXT("1"));
 	constexpr uint64 ProviderID = 0xFFFF1004;
 	constexpr int32 NumEvaluations = 130;
 
