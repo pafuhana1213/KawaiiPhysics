@@ -25,6 +25,30 @@
 
 namespace KawaiiPhysicsSimpleWorldCollisionTestPrivate
 {
+struct FScopedSimpleWorldEnable
+{
+	IConsoleVariable* Variable = IConsoleManager::Get().FindConsoleVariable(
+		TEXT("a.AnimNode.KawaiiPhysics.SimpleWorldCollision.Enable"));
+	int32 PreviousValue = Variable ? Variable->GetInt() : 1;
+	EConsoleVariableFlags PreviousFlags = Variable ? Variable->GetFlags() : ECVF_Default;
+
+	FScopedSimpleWorldEnable()
+	{
+		if (Variable)
+		{
+			Variable->Set(1, ECVF_SetByConsole);
+		}
+	}
+	~FScopedSimpleWorldEnable()
+	{
+		if (Variable)
+		{
+			Variable->Set(PreviousValue, ECVF_SetByConsole);
+			Variable->SetFlags(PreviousFlags);
+		}
+	}
+};
+
 KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsSimpleWorldRegistryX, "KawaiiPhysics.Test.SimpleWorld.Registry.X");
 KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsSimpleWorldRegistryY, "KawaiiPhysics.Test.SimpleWorld.Registry.Y");
 
@@ -2786,6 +2810,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldThrottledReaderDetects
 
 bool FKawaiiPhysicsSimpleWorldThrottledReaderDetectsPinChangeTest::RunTest(const FString& Parameters)
 {
+	FScopedSimpleWorldEnable SimpleWorldEnable;
 	constexpr uint64 ProviderID = 0xFFFF1006;
 	constexpr int32 NumNoChangeEvaluations = 1;
 
@@ -2827,6 +2852,7 @@ bool FKawaiiPhysicsSimpleWorldThrottledReaderDetectsPinChangeTest::RunTest(const
 			FKawaiiPhysicsSimpleWorldRegistryKey::MakeLocalKey(SkelComp);
 
 		FKawaiiPhysicsTestAccessor Accessor;
+		Accessor.Node.bUseSimpleWorldCollision = true;
 		Accessor.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
 		Accessor.SetSimpleWorldOwnSkelComp(SkelComp);
 		Accessor.SetSimpleWorldSubsystem(Subsystem);
@@ -2876,6 +2902,7 @@ bool FKawaiiPhysicsSimpleWorldThrottledReaderDetectsPinChangeTest::RunTest(const
 		USkeletalMeshComponent* SkelComp = NewObject<USkeletalMeshComponent>(GetTransientPackage());
 
 		FKawaiiPhysicsTestAccessor Accessor;
+		Accessor.Node.bUseSimpleWorldCollision = true;
 		Accessor.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
 		Accessor.SetSimpleWorldOwnSkelComp(SkelComp);
 		Accessor.SetSimpleWorldSubsystem(Subsystem);
@@ -3169,6 +3196,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSimpleWorldMissingProviderInitIsT
 
 bool FKawaiiPhysicsSimpleWorldMissingProviderInitIsThrottledTest::RunTest(const FString& Parameters)
 {
+	FScopedSimpleWorldEnable SimpleWorldEnable;
 	constexpr uint64 ProviderID = 0xFFFF1004;
 	constexpr int32 NumEvaluations = 130;
 
@@ -3194,6 +3222,7 @@ bool FKawaiiPhysicsSimpleWorldMissingProviderInitIsThrottledTest::RunTest(const 
 	ReaderKey.Tag = TAG_KawaiiPhysicsSimpleWorldRegistryX;
 
 	FKawaiiPhysicsTestAccessor Accessor;
+	Accessor.Node.bUseSimpleWorldCollision = true;
 	Accessor.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
 	Accessor.SetSimpleWorldOwnSkelComp(SkelComp);
 	Accessor.SetSimpleWorldSubsystem(Subsystem);

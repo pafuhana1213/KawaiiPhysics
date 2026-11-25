@@ -877,22 +877,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	}
 
 	// 倍率は UpdatePhysicsSettingsOfModifyBones より前に取り込み、このフレームの倍率を確定させる
-	const bool bHasActiveSettingsMultiplier = ConsumeAndAdvancePhysicsSettingsMultipliers(DeltaTime);
-
-	// 各パラメータとコリジョンを更新する
-	if (ShouldUpdatePhysicsSettings(bHasActiveSettingsMultiplier))
-	{
-		KAWAIIPHYSICS_SCOPE_TIMING(UpdatePhysicsSettings);
-		UpdatePhysicsSettingsOfModifyBones();
-		bPhysicsSettingsMultiplierAppliedLastUpdate = bHasActiveSettingsMultiplier;
-
-#if WITH_EDITORONLY_DATA
-		if (!bEditing)
-#endif
-		{
-			bInitPhysicsSettings = true;
-		}
-	}
+	ApplyPhysicsSettingsUpdateGate();
 
 	// 各コリジョンの更新
 	{
@@ -928,50 +913,7 @@ void FAnimNode_KawaiiPhysics::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 
 	// シンプルワールドコリジョン（Subsystemが収集したレベル上のsimple collisionをWorkerから読むだけ）
 	// CVarで全体無効化されている間はUpdateを行わず、else側でSimpleWorldXxxLimitsをResetして適用もスキップする
-	{
-		KAWAIIPHYSICS_SCOPE_TIMING(SimpleWorldCollision);
-		if (bUseSimpleWorldCollision && CVarSimpleWorldCollisionEnable.GetValueOnAnyThread())
-		{
-			// provider不在のreaderはEntryの作成→解放を毎評価繰り返すため、再試行だけUpdate側と同じスロットルに通す。
-			// 初回（RetryCount == 0）とRequestSimpleWorldCollisionReinit直後は従来どおり即時に初期化する。
-			const bool bShouldInitializeSimpleWorldCollision =
-				!bSimpleWorldCollisionInitialized
-				&& (!bSimpleWorldReaderMode
-					|| SimpleWorldReaderRetryCount == 0
-					|| ShouldRetrySimpleWorldReaderInitialize());
-			if (bShouldInitializeSimpleWorldCollision)
-			{
-				InitializeSimpleWorldCollision();
-			}
-			if (CachedSimpleWorldEntry.IsValid() || bSimpleWorldReaderMode)
-			{
-				// ここで初期化を試みた評価かを伝え、Update側のreader再試行と二重にInitializeしない
-				UpdateSimpleWorldCollisionLimits(Output, bShouldInitializeSimpleWorldCollision);
-				if (TeleportType == ETeleportType::TeleportPhysics && CachedSimpleWorldEntry.IsValid())
-				{
-					CachedSimpleWorldEntry->RequestRegather();
-				}
-			}
-		}
-		else if (bSimpleWorldCollisionInitialized || CachedSimpleWorldEntry.IsValid())
-		{
-			// ランタイム無効化時は自Descを即時解除し、古い押し出しを残さない
-			ReleaseSimpleWorldCollision();
-			SimpleWorldMergedScratch.Reset();
-			SimpleWorldGroundScratch.Reset();
-			SimpleWorldSphericalLimits.Reset();
-			SimpleWorldCapsuleLimits.Reset();
-			SimpleWorldTaperedCapsuleLimits.Reset();
-			SimpleWorldBoxLimits.Reset();
-			SimpleWorldGroundBoxLimits.Reset();
-			SimpleWorldConvexLimits.Reset();
-			LastReadSimpleWorldShapeSerial = 0;
-			LastReadSimpleWorldGroundSerial = 0;
-			LastReadSimpleWorldMemberSerialSum = 0;
-			SimpleWorldReaderRetryCount = 0;
-			bSimpleWorldReaderWarningLogged = false;
-		}
-	}
+	PrepareSimpleWorldCollision(Output);
 #if KAWAIIPHYSICS_CSV_STATS
 	if (bCsvCountersActive)
 	{
@@ -1183,6 +1125,76 @@ const FVector& FAnimNode_KawaiiPhysics::GetSkelCompMoveVector() const
 const FQuat& FAnimNode_KawaiiPhysics::GetSkelCompMoveRotation() const
 {
 	return this->SkelCompMoveRotation;
+}
+
+bool FAnimNode_KawaiiPhysics::ApplyPhysicsSettingsUpdateGate()
+{
+	const bool bHasActiveSettingsMultiplier = ConsumeAndAdvancePhysicsSettingsMultipliers(DeltaTime);
+
+	// 各パラメータとコリジョンを更新する
+	if (ShouldUpdatePhysicsSettings(bHasActiveSettingsMultiplier))
+	{
+		KAWAIIPHYSICS_SCOPE_TIMING(UpdatePhysicsSettings);
+		UpdatePhysicsSettingsOfModifyBones();
+		bPhysicsSettingsMultiplierAppliedLastUpdate = bHasActiveSettingsMultiplier;
+
+#if WITH_EDITORONLY_DATA
+		if (!bEditing)
+#endif
+		{
+			bInitPhysicsSettings = true;
+		}
+		return true;
+	}
+	return false;
+}
+
+void FAnimNode_KawaiiPhysics::PrepareSimpleWorldCollision(FComponentSpacePoseContext& Output)
+{
+	{
+		KAWAIIPHYSICS_SCOPE_TIMING(SimpleWorldCollision);
+		if (bUseSimpleWorldCollision && CVarSimpleWorldCollisionEnable.GetValueOnAnyThread())
+		{
+			// provider不在のreaderはEntryの作成→解放を毎評価繰り返すため、再試行だけUpdate側と同じスロットルに通す。
+			// 初回（RetryCount == 0）とRequestSimpleWorldCollisionReinit直後は従来どおり即時に初期化する。
+			const bool bShouldInitializeSimpleWorldCollision =
+				!bSimpleWorldCollisionInitialized
+				&& (!bSimpleWorldReaderMode
+					|| SimpleWorldReaderRetryCount == 0
+					|| ShouldRetrySimpleWorldReaderInitialize());
+			if (bShouldInitializeSimpleWorldCollision)
+			{
+				InitializeSimpleWorldCollision();
+			}
+			if (CachedSimpleWorldEntry.IsValid() || bSimpleWorldReaderMode)
+			{
+				// ここで初期化を試みた評価かを伝え、Update側のreader再試行と二重にInitializeしない
+				UpdateSimpleWorldCollisionLimits(Output, bShouldInitializeSimpleWorldCollision);
+				if (TeleportType == ETeleportType::TeleportPhysics && CachedSimpleWorldEntry.IsValid())
+				{
+					CachedSimpleWorldEntry->RequestRegather();
+				}
+			}
+		}
+		else if (bSimpleWorldCollisionInitialized || CachedSimpleWorldEntry.IsValid())
+		{
+			// ランタイム無効化時は自Descを即時解除し、古い押し出しを残さない
+			ReleaseSimpleWorldCollision();
+			SimpleWorldMergedScratch.Reset();
+			SimpleWorldGroundScratch.Reset();
+			SimpleWorldSphericalLimits.Reset();
+			SimpleWorldCapsuleLimits.Reset();
+			SimpleWorldTaperedCapsuleLimits.Reset();
+			SimpleWorldBoxLimits.Reset();
+			SimpleWorldGroundBoxLimits.Reset();
+			SimpleWorldConvexLimits.Reset();
+			LastReadSimpleWorldShapeSerial = 0;
+			LastReadSimpleWorldGroundSerial = 0;
+			LastReadSimpleWorldMemberSerialSum = 0;
+			SimpleWorldReaderRetryCount = 0;
+			bSimpleWorldReaderWarningLogged = false;
+		}
+	}
 }
 
 float FAnimNode_KawaiiPhysics::GetDeltaTimeOld() const

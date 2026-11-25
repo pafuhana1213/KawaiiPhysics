@@ -10,18 +10,18 @@
 #include "KawaiiPhysicsCollisionLimits.h"
 #include "KawaiiPhysicsSharedPublisherTypes.h"
 #include "UObject/Package.h"
+#include "UObject/StrongObjectPtr.h"
+#include "Animation/AnimInstanceProxy.h"
+#include "Animation/Skeleton.h"
+#include "ReferenceSkeleton.h"
 
-/**
- * 自動テスト用アクセサ
- *
- * FAnimNode_KawaiiPhysics の friend として private/protected の sim 状態・物理計算・コリジョン関数へアクセスし、Output 無しで物理コアをヘッドレス実行する。
- *
- * StepOnce()/StepFrame() は SimulateOnce()/SimulateModifyBones() の Output 非依存部分を単純な縦チェーン用に複製する（数式は本番と同一関数を呼ぶので数式リグレッションを検出でき、複製は呼び出し順序のみ＝本番と二重管理。ダミー/ブリッジ/LOD/外力/world collision(Output依存のsweep)/BaseBoneSpace は非対応。
- * simple world collision は SetSimpleWorldLimits() による配列への手動注入なら対応（Subsystemによる収集自体は対象外））。
- */
+/** Test accessor backed by production simulation and a minimal pose. */
 struct FKawaiiPhysicsTestAccessor
 {
 	FAnimNode_KawaiiPhysics Node;
+	TStrongObjectPtr<USkeleton> PoseSkeleton;
+	TUniquePtr<FAnimInstanceProxy> PoseProxy;
+	bool bHasSteppedFrame = false;
 
 	void ApplyPhysicsAsset(const FBoneContainer& RequiredBones) { Node.ApplyPhysicsAsset(RequiredBones); }
 	void ApplyLimitsDataAsset(const FBoneContainer& RequiredBones) { Node.ApplyLimitsDataAsset(RequiredBones); }
@@ -78,6 +78,7 @@ struct FKawaiiPhysicsTestAccessor
 		{
 			Node.ModifyBones[i - 1].ChildIndices.Add(i);
 		}
+		InitializeHarnessState();
 	}
 
 	/**
@@ -110,6 +111,7 @@ struct FKawaiiPhysicsTestAccessor
 				Node.ModifyBones[BaseIndex + i - 1].ChildIndices.Add(BaseIndex + i);
 			}
 		}
+		InitializeHarnessState();
 	}
 
 	/**
@@ -168,6 +170,7 @@ struct FKawaiiPhysicsTestAccessor
 		Node.ModifyBones[1].ChildIndices = {2};
 		Node.ModifyBones[2].ChildIndices = {3};
 		Node.ModifyBones[3].ChildIndices = {4};
+		InitializeHarnessState();
 	}
 
 	int32 BuildSyncBoneSubdivisionLengthFixture(int32 SubdivisionCount, float SegmentLength, float TipLength)
@@ -235,6 +238,7 @@ struct FKawaiiPhysicsTestAccessor
 			}
 		}
 
+		InitializeHarnessState();
 		return ChildIndex;
 	}
 
@@ -441,31 +445,11 @@ struct FKawaiiPhysicsTestAccessor
 		return Node.NumSimpleWorldInitializeAttempts;
 	}
 
-	/**
-	 * 本番 Evaluate（EvaluateSkeletalControl_AnyThread の SimpleWorld ブロック）の初期化ゲート → 読み取り更新の順序を複製する。
-	 * bUseSimpleWorldCollision / CVar による全体無効化と TeleportPhysics の再収集要求は複製しない。
-	 * 条件を変えたら AnimNode_KawaiiPhysics.cpp 側と両方を直すこと。
-	 * Duplicates the production Evaluate order (initialize gate, then the read update) from the SimpleWorld block of
-	 * EvaluateSkeletalControl_AnyThread. The bUseSimpleWorldCollision / CVar master switch and the TeleportPhysics
-	 * regather request are not duplicated. Any condition change must be applied to AnimNode_KawaiiPhysics.cpp as well.
-	 */
+	/** Calls production SimpleWorld preparation. */
 	void EvaluateSimpleWorldCollision(FComponentSpacePoseContext& Output)
 	{
-		const bool bShouldInitializeSimpleWorldCollision =
-			!Node.bSimpleWorldCollisionInitialized
-			&& (!Node.bSimpleWorldReaderMode
-				|| Node.SimpleWorldReaderRetryCount == 0
-				|| Node.ShouldRetrySimpleWorldReaderInitialize());
-		if (bShouldInitializeSimpleWorldCollision)
-		{
-			Node.InitializeSimpleWorldCollision();
-		}
-		if (Node.CachedSimpleWorldEntry.IsValid() || Node.bSimpleWorldReaderMode)
-		{
-			Node.UpdateSimpleWorldCollisionLimits(Output, bShouldInitializeSimpleWorldCollision);
-		}
+		Node.PrepareSimpleWorldCollision(Output);
 	}
-
 	void InjectSharedPublisherState(const FKawaiiPhysicsSharedPublisherState& State,
 	                                const TSharedPtr<FKawaiiPhysicsSimpleWorldCollisionEntry>& Entry,
 	                                uint64 ProviderID = 0xFFFF0001,
@@ -687,6 +671,17 @@ struct FKawaiiPhysicsTestAccessor
 		Node.bUseFixedSubsteppingCached = bEnable;
 		Node.TargetFramerate = FMath::Max(1, TargetFps);
 		Node.MaxSubstepsCached = FMath::Max(1, MaxSubsteps);
+		if (!bHasSteppedFrame)
+		{
+			Node.DeltaTimeOld = 1.0f / static_cast<float>(Node.GetEffectiveTargetFramerate());
+		}
+	}
+
+	auto ComputeSubstepPlanForTest(float Accumulator, float FrameDeltaTime, int32 MaxSubsteps,
+		int32 TargetFramerate) const
+	{
+		return FAnimNode_KawaiiPhysics::ComputeSubstepPlan(
+			Accumulator, FrameDeltaTime, MaxSubsteps, TargetFramerate);
 	}
 
 	void SetBoneConstraintIterations(int32 BeforeCollision, int32 AfterCollision)
@@ -722,94 +717,10 @@ struct FKawaiiPhysicsTestAccessor
 	//  ステップ実行
 	// ========================================================================
 
-	/**
-	 * 1フレーム分を進める（SimulateModifyBones の純粋部分を複製）。
-	 * SkelComp 移動量のサブステップ分配は本番と同じ割合で各固定ステップへ割り当てる。
-	 */
+	/** Advances a frame using production skip resolution and substeps. */
 	void StepFrame(float FrameDt)
 	{
-		if (FrameDt <= 0.0f)
-		{
-			return;
-		}
-
-		// ハーネスの未対応ケースは黙って通さず、警告を出して即座に中断する（Output依存のため未実装）。
-		if (!ensureMsgf(Node.SimulationSpace != EKawaiiPhysicsSimulationSpace::BaseBoneSpace,
-		                TEXT("FKawaiiPhysicsTestAccessor: BaseBoneSpace is not supported headlessly (needs Output-side "
-			                "space conversion). Use ComponentSpace/WorldSpace, or a real-mesh integration test.")))
-		{
-			return;
-		}
-		Node.DeltaTime = FrameDt;
-		Node.FrameDeltaTime = FrameDt;
-		PrepareFrame();
-
-		if (!Node.bUseFixedSubsteppingCached)
-		{
-			// ===== Legacy: 実フレーム時間で1ステップ =====
-			Node.bInSubstep = false;
-			// 初回フレームの DeltaTimeOld=0 による 0/0 を回避。本番 Initialize と同じ初期値に揃える
-			// （AnimNode_KawaiiPhysics.cpp:153 の DeltaTimeOld = 1/TargetFramerate）。
-			if (Node.DeltaTimeOld <= 0.0f)
-			{
-				Node.DeltaTimeOld = 1.0f / Node.GetEffectiveTargetFramerate();
-			}
-			StepOnce();
-			Node.CapturePlanarCollisionStep();
-			Node.DeltaTimeOld = FrameDt;
-			Node.PreSkelCompTransformConsumeFraction = 1.0f;
-			Node.bSubstepPoseInitialized = false;
-		}
-		else
-		{
-			// ===== 固定タイムステップ・サブステップ（フレームレート非依存化） =====
-			const float FixedDt = 1.0f / Node.GetEffectiveTargetFramerate();
-			const float RawElapsed = FMath::Max(Node.SubstepAccumulator + Node.FrameDeltaTime, KINDA_SMALL_NUMBER);
-			Node.SubstepAccumulator = FMath::Min(RawElapsed, Node.MaxSubstepsCached * FixedDt);
-			const float DroppedTime = RawElapsed - Node.SubstepAccumulator;
-			const int32 NumSteps = FMath::FloorToInt(Node.SubstepAccumulator / FixedDt);
-			Node.SubstepAccumulator -= NumSteps * FixedDt;
-			const float MoveFrac = FixedDt / RawElapsed;
-			// 本番と同じく PreSkelCompTransform の前進割合（消費＋破棄）を記録する（StepFrameWithComponentTransform が使う）
-			Node.PreSkelCompTransformConsumeFraction =
-				FMath::Clamp((NumSteps * FixedDt + DroppedTime) / RawElapsed, 0.0f, 1.0f);
-			const FVector FullSkelCompMove = Node.SkelCompMoveVector;
-			const FQuat FullSkelCompRot = Node.SkelCompMoveRotation;
-
-			Node.bInSubstep = true;
-			Node.StepDeltaTime = FixedDt;
-			Node.DeltaTimeOld = FixedDt;
-			for (int32 SubstepIndex = 0; SubstepIndex < NumSteps; ++SubstepIndex)
-			{
-				const float SubstepAlpha = static_cast<float>(SubstepIndex + 1) / static_cast<float>(NumSteps);
-				for (FKawaiiPhysicsModifyBone& Bone : Node.ModifyBones)
-				{
-					Bone.PoseLocation = FMath::Lerp(Bone.PrevPoseLocation, Bone.CurrentPoseLocation, SubstepAlpha);
-					Bone.PoseRotation =
-						FQuat::Slerp(Bone.PrevPoseRotation, Bone.CurrentPoseRotation, SubstepAlpha).GetNormalized();
-				}
-				Node.SkelCompMoveVector = FullSkelCompMove * MoveFrac;
-				Node.SkelCompMoveRotation = FQuat::Slerp(FQuat::Identity, FullSkelCompRot, MoveFrac).GetNormalized();
-				StepOnce();
-				Node.CapturePlanarCollisionStep();
-				Node.CaptureSubstepPoseOffsets();
-			}
-			Node.bInSubstep = false;
-			Node.SkelCompMoveVector = FullSkelCompMove;
-			Node.SkelCompMoveRotation = FullSkelCompRot;
-
-			for (FKawaiiPhysicsModifyBone& Bone : Node.ModifyBones)
-			{
-				Bone.PoseLocation = Bone.CurrentPoseLocation;
-				Bone.PoseRotation = Bone.CurrentPoseRotation;
-			}
-		}
-
-		for (FKawaiiPhysicsModifyBone& Bone : Node.ModifyBones)
-		{
-			Bone.PrevPoseLocation = Bone.CurrentPoseLocation;
-			Bone.PrevPoseRotation = Bone.CurrentPoseRotation;
-		}
+		StepFrameInternal(FrameDt, FTransform::Identity);
 	}
 
 	/**
@@ -832,7 +743,7 @@ struct FKawaiiPhysicsTestAccessor
 			return false;
 		}
 		Node.UpdateSkelCompMove(Output, ComponentTransform);
-		StepFrame(FrameDt);
+		StepFrameInternal(FrameDt, ComponentTransform);
 		const bool bTeleportedThisFrame = (Node.TeleportType == ETeleportType::TeleportPhysics);
 		Node.TeleportType = ETeleportType::None;
 		Node.AdvancePreSkelCompTransform(ComponentTransform, bTeleportedThisFrame);
@@ -995,25 +906,12 @@ struct FKawaiiPhysicsTestAccessor
 	bool IsPhysicsSettingsMultiplierAppliedLastUpdate() const { return Node.bPhysicsSettingsMultiplierAppliedLastUpdate; }
 	void SetPhysicsSettingsMultiplierAppliedLastUpdate(const bool bValue) { Node.bPhysicsSettingsMultiplierAppliedLastUpdate = bValue; }
 
-	/**
-	 * EvaluateSkeletalControl_AnyThread の物理設定更新 gating（判定は ShouldUpdatePhysicsSettings を共有）を Output 無しで実行する
-	 * （bEditing は WITH_EDITORONLY_DATA 既定の false 相当として扱う）。
-	 * @return このフレームで UpdatePhysicsSettingsOfModifyBones が走ったか
-	 */
+	/** Calls the production physics settings update gate. */
 	bool RunPhysicsSettingsUpdateGate(float FrameDt)
 	{
-		const bool bHasActiveSettingsMultiplier = Node.ConsumeAndAdvancePhysicsSettingsMultipliers(FrameDt);
-		if (Node.ShouldUpdatePhysicsSettings(bHasActiveSettingsMultiplier))
-		{
-			Node.UpdatePhysicsSettingsOfModifyBones();
-			Node.bPhysicsSettingsMultiplierAppliedLastUpdate = bHasActiveSettingsMultiplier;
-			Node.bInitPhysicsSettings = true;
-			return true;
-		}
-
-		return false;
+		Node.DeltaTime = FrameDt;
+		return Node.ApplyPhysicsSettingsUpdateGate();
 	}
-
 	FKawaiiPhysicsSyncTargetRoot CollectSyncChildTargetsForRoot(int32 RootIndex)
 	{
 		FKawaiiPhysicsSyncTargetRoot TargetRoot;
@@ -1146,132 +1044,93 @@ struct FKawaiiPhysicsTestAccessor
 	}
 
 private:
-	/**
-	 * フレーム冒頭の準備（SimulateModifyBones の skip フラグ設定 + ポーズ・スナップショットを複製）。
-	 * 単純チェーン用: root(ParentIndex<0) を kinematic として skip、それ以外を simulate。
-	 */
-	void PrepareFrame()
+	void StepFrameInternal(float FrameDt, const FTransform& ComponentTransform)
 	{
-		for (FKawaiiPhysicsModifyBone& Bone : Node.ModifyBones)
+		if (FrameDt <= 0.0f)
 		{
-			Bone.bSkipSimulate = (Bone.ParentIndex < 0);
-
-			Bone.CurrentPoseLocation = Bone.PoseLocation;
-			Bone.CurrentPoseRotation = Bone.PoseRotation;
-			if (!Node.bSubstepPoseInitialized)
-			{
-				Bone.PrevPoseLocation = Bone.PoseLocation;
-				Bone.PrevPoseRotation = Bone.PoseRotation;
-				FAnimNode_KawaiiPhysics::ResetSubstepPoseOffsets(Bone);
-			}
+			return;
 		}
-		Node.bSubstepPoseInitialized = true;
+		if (!ensureMsgf(Node.SimulationSpace != EKawaiiPhysicsSimulationSpace::BaseBoneSpace,
+		                TEXT("FKawaiiPhysicsTestAccessor: BaseBoneSpace is not supported headlessly (needs Output-side "
+			                "space conversion). Use ComponentSpace/WorldSpace, or a real-mesh integration test.")))
+		{
+			return;
+		}
+		if (!PoseProxy)
+		{
+			InitializeHarnessState();
+		}
+		PrepareFrame();
+		Node.DeltaTime = FrameDt;
+		Node.FrameDeltaTime = FrameDt;
+		// InitPose は MemStack から確保するので、本番の評価と同じく Mark を張る
+		FMemMark MemMark(FMemStack::Get());
+		FComponentSpacePoseContext Output(PoseProxy.Get());
+		Output.Pose.InitPose(&PoseProxy->GetRequiredBones());
+		Node.StepSubsteps(Output, ComponentTransform, nullptr);
+		bHasSteppedFrame = true;
 	}
 
-	/**
-	 * 1ステップ分（SimulateOnce の純粋部分を複製）。
-	 * 順序: root follow → 物理計算 → BoneConstraint(before) → コリジョン → BoneConstraint(after) → 角度制限+平面拘束+長さ復元。
-	 */
-	void StepOnce()
+	void InitializeHarnessState()
 	{
-		// root bone の kinematic follow（SimulateOnce 274-281）
-		for (FKawaiiPhysicsModifyBone& Bone : Node.ModifyBones)
+		PoseSkeleton.Reset(NewObject<USkeleton>());
+		TArray<FBoneIndexType> RequiredIndices;
+		TArray<int32> CompactIndices;
+		CompactIndices.Init(INDEX_NONE, Node.ModifyBones.Num());
 		{
-			if (Bone.ParentIndex < 0)
+			FReferenceSkeletonModifier Modifier(PoseSkeleton.Get());
+			Modifier.Add(FMeshBoneInfo(TEXT("HarnessRoot"), TEXT("HarnessRoot"), INDEX_NONE),
+				FTransform::Identity);
+			RequiredIndices.Add(0);
+			for (int32 Index = 0; Index < Node.ModifyBones.Num(); ++Index)
 			{
-				Bone.PrevLocation = Bone.Location;
-				Bone.Location = Bone.PoseLocation;
-			}
-		}
-
-		const float Exponent = Node.GetEffectiveTargetFramerate() * Node.GetStepDeltaTime();
-
-		// 積分（Simulate() の純粋部分。wind/外力なし）
-		for (FKawaiiPhysicsModifyBone& Bone : Node.ModifyBones)
-		{
-			if (Bone.bSkipSimulate)
-			{
-				continue;
-			}
-			const FVector Velocity = Node.ComputeVerletStepVelocity(Bone, FVector::ZeroVector);
-			Node.IntegrateVerletStepPosition(Bone, Velocity);
-			Node.ApplySimpleExternalForce(Bone);
-			Node.ApplyWorldMoveFollowNonBaseBone(Bone);
-			Node.ApplyStiffnessPull(Bone, Node.ModifyBones[Bone.ParentIndex], Exponent);
-		}
-
-		// BoneConstraint before collision（SimulateOnce 397-403）
-		if (Node.BoneConstraintIterationCountBeforeCollision > 0)
-		{
-			for (FModifyBoneConstraint& BoneConstraint : Node.MergedBoneConstraints)
-			{
-				BoneConstraint.Lambda = 0.0f;
-			}
-			for (int32 i = 0; i < Node.BoneConstraintIterationCountBeforeCollision; ++i)
-			{
-				Node.AdjustByBoneConstraints();
-			}
-		}
-
-		// 本番 SimulateOnce と同様、形状キャッシュはステップ毎に再計算
-		Node.PrepareCollisionShapeCaches();
-
-		// コリジョン（SimulateOnce 413-445、AnimNode 側 limits のみ）
-		for (FKawaiiPhysicsModifyBone& Bone : Node.ModifyBones)
-		{
-			if (Bone.bSkipSimulate)
-			{
-				continue;
-			}
-			Node.AdjustBySphereCollision(Bone, Node.SphericalLimits);
-			Node.AdjustBySphereCollision(Bone, Node.SphericalLimitsData);
-			Node.AdjustByCapsuleCollision(Bone, Node.CapsuleLimits);
-			Node.AdjustByCapsuleCollision(Bone, Node.CapsuleLimitsData);
-			Node.AdjustByTaperedCapsuleCollision(Bone, Node.TaperedCapsuleLimits);
-			Node.AdjustByTaperedCapsuleCollision(Bone, Node.TaperedCapsuleLimitsData);
-			Node.AdjustByBoxCollision(Bone, Node.BoxLimits);
-			Node.AdjustByBoxCollision(Bone, Node.BoxLimitsData);
-			Node.AdjustByPlanarCollision(Bone, Node.PlanarLimits);
-			Node.AdjustByPlanarCollision(Bone, Node.PlanarLimitsData);
-
-			// シンプルワールドコリジョン（本体 Simulation.cpp と同じ条件・同じ位置＝Sharedの後・WorldCollisionの前に相当）
-			if (Node.bUseSimpleWorldCollision)
-			{
-				Node.AdjustBySphereCollision(Bone, Node.SimpleWorldSphericalLimits);
-				Node.AdjustByCapsuleCollision(Bone, Node.SimpleWorldCapsuleLimits);
-				Node.AdjustByTaperedCapsuleCollision(Bone, Node.SimpleWorldTaperedCapsuleLimits);
-				Node.AdjustByBoxCollision(Bone, Node.SimpleWorldBoxLimits);
-				Node.AdjustByBoxCollision(Bone, Node.SimpleWorldGroundBoxLimits);
-				Node.AdjustByConvexCollision(Bone, Node.SimpleWorldConvexLimits);
-			}
-		}
-
-		// BoneConstraint after collision（SimulateOnce 516-522）
-		if (Node.BoneConstraintIterationCountAfterCollision > 0)
-		{
-			for (FModifyBoneConstraint& BoneConstraint : Node.MergedBoneConstraints)
-			{
-				BoneConstraint.Lambda = 0.0f;
-			}
-			for (int32 i = 0; i < Node.BoneConstraintIterationCountAfterCollision; ++i)
-			{
-				Node.AdjustByBoneConstraints();
-			}
-		}
-
-		Node.RestoreBoneLengthsAndLimits();
-		if (Node.SimulationSpace == EKawaiiPhysicsSimulationSpace::WorldSpace)
-		{
-			for (FKawaiiPhysicsModifyBone& Bone : Node.ModifyBones)
-			{
-				if (Bone.bSkipSimulate)
+				FKawaiiPhysicsModifyBone& Bone = Node.ModifyBones[Index];
+				if (Bone.bDummy || Bone.bBridgeDummy)
 				{
 					continue;
 				}
-				Node.AdjustByPlanarCollision(Bone, Node.PlanarLimits, true);
-				Node.AdjustByPlanarCollision(Bone, Node.PlanarLimitsData, true);
+				int32 ParentIndex = Bone.ParentIndex;
+				while (Node.ModifyBones.IsValidIndex(ParentIndex) && CompactIndices[ParentIndex] == INDEX_NONE)
+				{
+					ParentIndex = Node.ModifyBones[ParentIndex].ParentIndex;
+				}
+				const int32 CompactIndex = RequiredIndices.Num();
+				const int32 CompactParent = Node.ModifyBones.IsValidIndex(ParentIndex)
+					? CompactIndices[ParentIndex] : 0;
+				const FName Name = Bone.BoneRef.BoneName.IsNone()
+					? FName(*FString::Printf(TEXT("HarnessBone_%d"), CompactIndex)) : Bone.BoneRef.BoneName;
+				Modifier.Add(FMeshBoneInfo(Name, Name.ToString(), CompactParent), FTransform::Identity);
+				RequiredIndices.Add(static_cast<FBoneIndexType>(CompactIndex));
+				CompactIndices[Index] = CompactIndex;
+				Bone.BoneRef.BoneName = Name;
+				Bone.BoneRef.BoneIndex = CompactIndex;
+				Bone.BoneRef.CachedCompactPoseIndex = FCompactPoseBoneIndex(CompactIndex);
 			}
 		}
+		PoseProxy = MakeUnique<FAnimInstanceProxy>();
+		PoseProxy->GetRequiredBones().InitializeTo(
+			RequiredIndices, UE::Anim::FCurveFilterSettings(), *PoseSkeleton);
+		Node.DeltaTimeOld = 1.0f / static_cast<float>(Node.GetEffectiveTargetFramerate());
+		Node.SubstepAccumulator = 0.0f;
+		Node.bSubstepPoseInitialized = false;
+		bHasSteppedFrame = false;
+	}
+
+	void PrepareFrame()
+	{
+		Node.ResolveSkipSimulateFlags();
+	}
+
+	void StepOnce()
+	{
+		if (!PoseProxy)
+		{
+			InitializeHarnessState();
+		}
+		FMemMark MemMark(FMemStack::Get());
+		FComponentSpacePoseContext Output(PoseProxy.Get());
+		Output.Pose.InitPose(&PoseProxy->GetRequiredBones());
+		Node.SimulateOnce(Output, FTransform::Identity, nullptr);
 	}
 };
 
