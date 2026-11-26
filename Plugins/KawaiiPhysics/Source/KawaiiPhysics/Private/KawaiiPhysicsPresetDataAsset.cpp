@@ -3,6 +3,7 @@
 #include "KawaiiPhysicsPresetDataAsset.h"
 
 #include "KawaiiPhysicsCustomExternalForce.h"
+#include "KawaiiPhysicsPropertyCompare.h"
 #include "Serialization/CustomVersion.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/UnrealType.h"
@@ -302,9 +303,16 @@ bool UKawaiiPhysicsPresetDataAsset::MatchesNode(const FAnimNode_KawaiiPhysics& T
 			OutComparedProperties->Add(PropertyName);
 		}
 
-		if (!Property.Identical_InContainer(&Node, &TargetNode, 0, KawaiiPhysicsPresetDataAssetPrivate::KawaiiPhysicsPresetIdenticalPortFlags))
+		for (int32 ArrayIndex = 0; ArrayIndex < Property.ArrayDim; ++ArrayIndex)
 		{
-			OutDiffProperties.Add(PropertyName);
+			if (!KawaiiPhysicsPropertyComparePrivate::ArePropertyValuesIdentical(&Property,
+				Property.ContainerPtrToValuePtr<void>(&Node, ArrayIndex),
+				Property.ContainerPtrToValuePtr<void>(&TargetNode, ArrayIndex),
+				KawaiiPhysicsPresetDataAssetPrivate::KawaiiPhysicsPresetIdenticalPortFlags))
+			{
+				OutDiffProperties.Add(PropertyName);
+				break;
+			}
 		}
 	}
 

@@ -38,17 +38,11 @@ namespace KawaiiPhysicsControlSpecSetupTestPrivate
 			ConfiguredNode.PhysicsSettings.LimitAngleMode = EKawaiiPhysicsLimitAngleMode::PerAxis;
 			ConfiguredNode.PhysicsSettings.PerAxisLimitAngle.X.Min = -75.0f;
 			ConfiguredNode.PhysicsSettings.PerAxisLimitAngle.Y.Max = 80.0f;
-			// アセットから読んだカーブと同じく、ノード側のカーブは KeyHandle を持たない形にする。
-			// ノードのカーブへ直接 AddKey すると Transient の KeyHandlesToIndices が残り、
-			// プリセット適用の同値判定がキーの同じカーブも変更と数える（本番の挙動として別途報告）。
-			FRuntimeFloatCurve DampingCurve;
-			DampingCurve.GetRichCurve()->AddKey(0.0f, 0.25f);
-			DampingCurve.GetRichCurve()->AddKey(1.0f, 0.75f);
-			FRuntimeFloatCurve StiffnessCurve;
-			StiffnessCurve.GetRichCurve()->AddKey(0.0f, 0.4f);
-			StiffnessCurve.GetRichCurve()->AddKey(1.0f, 0.9f);
-			ConfiguredNode.DampingCurveData = DampingCurve;
-			ConfiguredNode.StiffnessCurveData = StiffnessCurve;
+			// 実行時に直接作ったカーブでも、Transient の KeyHandle は設定の比較に影響しない。
+			ConfiguredNode.DampingCurveData.GetRichCurve()->AddKey(0.0f, 0.25f);
+			ConfiguredNode.DampingCurveData.GetRichCurve()->AddKey(1.0f, 0.75f);
+			ConfiguredNode.StiffnessCurveData.GetRichCurve()->AddKey(0.0f, 0.4f);
+			ConfiguredNode.StiffnessCurveData.GetRichCurve()->AddKey(1.0f, 0.9f);
 		};
 		return ChainOptions;
 	}
@@ -326,9 +320,9 @@ namespace KawaiiPhysicsControlSpecSetupTestPrivate
 		return bOk;
 	}
 
-	// PR-09・PR-U4。mutant なし。構成だけが変われば再構築、物理設定だけなら再構築しない。変更は一件だけと数える。
-	// ノードのカーブは KeyHandle を持たない形で作る（MakeChainOptions）。KeyHandle のあるカーブは、キーが同じでも
-	// 適用のたびに変更と数えられる（本番の同値判定が Transient の KeyHandlesToIndices まで比べるため。別途報告）。
+	// PR-03・PR-09・PR-11・FX-34・PR-U4。構成だけが変われば再構築、物理設定だけなら再構築しない。
+	// 修正前は直接 AddKey した二つのカーブも変更と数え、同じプリセットの変更数 0・要求なし・MatchesNode と差分 0、
+	// 単独変更の件数 1 が落ちる。比較は件数と真偽値の完全一致。
 	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsControlSpecSetupPresetTopologyTest,
 		"KawaiiPhysics.ControlSpec.Setup.PresetTopology", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 	bool FKawaiiPhysicsControlSpecSetupPresetTopologyTest::RunTest(const FString& Parameters)
@@ -341,16 +335,27 @@ namespace KawaiiPhysicsControlSpecSetupTestPrivate
 			bOk &= TestTrue(TEXT("構成比較の対照にボーンがある"), TargetFixture.Node.ModifyBones.Num() > 0);
 			TStrongObjectPtr<UKawaiiPhysicsPresetDataAsset> PresetAsset(NewObject<UKawaiiPhysicsPresetDataAsset>());
 			PresetAsset->CopyFromNode(TargetFixture.Node);
+			FKawaiiPhysicsPresetApplyOptions ApplyOptions;
+			ApplyOptions.bApplyBoneAssignment = true;
+			bOk &= TestEqual(TEXT("同じプリセットの再適用は変更なし"),
+				UKawaiiPhysicsLibrary::ApplyPresetDataAssetToNode(TargetFixture.Node, *PresetAsset, ApplyOptions), 0);
+			bOk &= TestFalse(TEXT("同じプリセットでは要求なし"),
+				FKawaiiPhysicsTestAccessor::HasPendingRuntimeApplyRequest(TargetFixture.Node));
+			TArray<FName> DiffProperties;
+			bOk &= TestTrue(TEXT("同じプリセットは MatchesNode で一致"),
+				PresetAsset->MatchesNode(TargetFixture.Node, ApplyOptions, DiffProperties));
+			bOk &= TestEqual(TEXT("同じプリセットの差分は空"), DiffProperties.Num(), 0);
 			if (ChangeKind == 0) { PresetAsset->Node.RootBone.BoneName = TEXT("chain_1"); }
 			if (ChangeKind == 1) { PresetAsset->Node.ExcludeBones.Add(FBoneReference(TEXT("chain_3"))); }
 			if (ChangeKind == 2) { ++PresetAsset->Node.BoneSubdivisionCount; }
 			if (ChangeKind == 3) { PresetAsset->Node.PhysicsSettings.Damping = 0.75f; }
-			FKawaiiPhysicsPresetApplyOptions ApplyOptions;
-			ApplyOptions.bApplyBoneAssignment = true;
 			bOk &= TestEqual(TEXT("単独の変更が適用される"),
 				UKawaiiPhysicsLibrary::ApplyPresetDataAssetToNode(TargetFixture.Node, *PresetAsset, ApplyOptions), 1);
 			bOk &= TestEqual(TEXT("構成変更の場合だけ再構築する"),
 				TargetFixture.Accessor.IsModifyBonesReinitPending(), ChangeKind < 3);
+			bOk &= TestTrue(TEXT("変更適用後は MatchesNode で一致"),
+				PresetAsset->MatchesNode(TargetFixture.Node, ApplyOptions, DiffProperties));
+			bOk &= TestEqual(TEXT("変更適用後の差分は空"), DiffProperties.Num(), 0);
 		}
 		KawaiiPhysicsNodeFixture::FFixture LimitFixture(MakeChainOptions());
 		LimitFixture.EvaluateFrame();
@@ -675,8 +680,9 @@ namespace KawaiiPhysicsControlSpecSetupTestPrivate
 		return false;
 	}
 
-	// PR-04・PR-U2。mutant なし。固定表の 73 CopyTarget を全部既定値から変えて往復させる。
-	// 六つのカーブは KeyHandle を除いた設定で比べる（KeyHandle は値のコピーで写らず、Identical では常に不一致になる）。
+	// PR-03・PR-04・PR-U2。固定表の 73 CopyTarget を全部既定値から変えて往復させる。
+	// 修正前は六つのカーブの KeyHandle の有無が異なるため、元ノードの MatchesNode と差分 0 が落ちる。
+	// カーブの値は独立した比較でも検査する。件数・設定値は完全一致。
 	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsControlSpecSetupPresetCopyAllTargetsTest,
 		"KawaiiPhysics.ControlSpec.Setup.PresetCopyAllTargets", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 	bool FKawaiiPhysicsControlSpecSetupPresetCopyAllTargetsTest::RunTest(const FString& Parameters)
@@ -715,7 +721,7 @@ namespace KawaiiPhysicsControlSpecSetupTestPrivate
 			if (const FStructProperty* CurveProperty = CastField<FStructProperty>(TargetProperty);
 				CurveProperty && CurveProperty->Struct == FRuntimeFloatCurve::StaticStruct())
 			{
-				// Identical は KeyHandle の有無だけでも false になるので、キーそのものが既定値と違うことも確かめる。
+				// 変更したキーそのものが既定値と違うことを独立した比較で確かめる。
 				bOk &= TestFalse(FString::Printf(TEXT("%s のキーは既定値と違う"), *PropertyName), AreCurveSettingsEqual(
 					*CurveProperty->ContainerPtrToValuePtr<FRuntimeFloatCurve>(&SourceNode),
 					*CurveProperty->ContainerPtrToValuePtr<FRuntimeFloatCurve>(&DefaultNode)));
@@ -735,8 +741,7 @@ namespace KawaiiPhysicsControlSpecSetupTestPrivate
 			if (const FStructProperty* CurveProperty = CastField<FStructProperty>(TargetProperty);
 				CurveProperty && CurveProperty->Struct == FRuntimeFloatCurve::StaticStruct())
 			{
-				// カーブは Transient の KeyHandlesToIndices を除いた設定（キー・既定値・外挿・外部カーブ）で比べる。
-				// KeyHandle は値のコピーで写らないので、Identical では正しくコピーできたカーブも不一致になる。
+				// キー・既定値・外挿・外部カーブを独立した比較で検査し、MatchesNode の結果も下で検査する。
 				bOk &= TestTrue(FString::Printf(TEXT("%s は往復後も一致"), *PropertyName), AreCurveSettingsEqual(
 					*CurveProperty->ContainerPtrToValuePtr<FRuntimeFloatCurve>(&SourceNode),
 					*CurveProperty->ContainerPtrToValuePtr<FRuntimeFloatCurve>(&AppliedNode)));
@@ -745,6 +750,13 @@ namespace KawaiiPhysicsControlSpecSetupTestPrivate
 			bOk &= TestTrue(FString::Printf(TEXT("%s は往復後も一致"), *PropertyName),
 				TargetProperty->Identical_InContainer(&SourceNode, &AppliedNode));
 		}
+		TArray<FName> DiffProperties;
+		bOk &= TestTrue(TEXT("KeyHandle のある元ノードも MatchesNode で一致"),
+			PresetAsset->MatchesNode(SourceNode, {}, DiffProperties));
+		bOk &= TestEqual(TEXT("元ノードの差分は空"), DiffProperties.Num(), 0);
+		bOk &= TestTrue(TEXT("適用後のノードは MatchesNode で一致"),
+			PresetAsset->MatchesNode(AppliedNode, {}, DiffProperties));
+		bOk &= TestEqual(TEXT("適用後の差分は空"), DiffProperties.Num(), 0);
 		return bOk;
 	}
 }
