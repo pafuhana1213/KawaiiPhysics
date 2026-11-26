@@ -655,6 +655,7 @@ public:
 	 * @param GustDirection Gust の方向（ワールド空間・非正規化可）。ゼロベクトルなら既存 ProceduralWind の風向き・空間・ボーンフィルタ等を継承 / Gust direction (world space; may be non-normalized). Zero vector inherits direction, space, and bone filters from an authored ProceduralWind if present.
 	 * @param ExternalForceIndex 方向継承元の ExternalForces インデックス（-1なら最初の有効な ProceduralWind から継承） / ExternalForces index used as the inheritance source; -1 falls back to the first enabled ProceduralWind.
 	 * @param bRealTimeEnvelope true = ProceduralWind の TimeScale を無視して進行（ノードの TimeScale には従う）/ false = wind 時間で進行（ProceduralWind の TimeScale の影響を受ける） / true = ignore ProceduralWind TimeScale (still follows the node's TimeScale) / false = progress in wind time (affected by ProceduralWind TimeScale).
+	 * 呼ぶたびに一時外力として重なる（一時外力は汎用の外力と合わせてノードごとに最大 8 件。超えたら最古から消える）。/ Each call stacks as a transient force (up to eight transient forces per node including generic ones; the oldest is dropped beyond that).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
 		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult", AdvancedDisplay = "GustDirection,ExternalForceIndex,bRealTimeEnvelope"))
@@ -723,6 +724,7 @@ public:
 	 * @param bFilterExactMatch タグを完全一致で比較するか / Whether tags must match exactly.
 	 * @param GustDirection Gust の方向（ワールド空間・非正規化可）。ゼロベクトルなら既存 ProceduralWind の風向き・空間・ボーンフィルタ等を継承 / Gust direction (world space; may be non-normalized). Zero vector inherits direction, space, and bone filters from authored ProceduralWind entries if present.
 	 * @param bRealTimeEnvelope true = ProceduralWind の TimeScale を無視して進行（ノードの TimeScale には従う）/ false = wind 時間で進行（ProceduralWind の TimeScale の影響を受ける） / true = ignore ProceduralWind TimeScale (still follows the node's TimeScale) / false = progress in wind time (affected by ProceduralWind TimeScale).
+	 * 呼ぶたびに一時外力として重なる（一時外力は汎用の外力と合わせてノードごとに最大 8 件。超えたら最古から消える）。/ Each call stacks as a transient force (up to eight transient forces per node including generic ones; the oldest is dropped beyond that).
 	 * @return Gust リクエストをキューしたノード数 / Number of nodes where gust requests were queued.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
@@ -740,12 +742,12 @@ public:
 		bool bRealTimeEnvelope = true);
 
 	/**
-	 * ハンドルに一致する一時外力の停止をリクエストする。ProceduralWind は現在値から BlendOutTime（wind 時間）で線形フェードし、汎用外力は寿命短縮のみ行う。BlendOutTime=0 は即時除去。ハンドル不一致は no-op。
-	 * Request stopping a transient external force that matches the handle. ProceduralWind fades linearly from the current value over BlendOutTime (wind time); generic external forces only have their lifetime shortened. BlendOutTime=0 removes immediately. Handle mismatch is a no-op.
+	 * ハンドルに一致する一時外力の停止をリクエストする。ProceduralWind は各突風の時計で現在値から線形フェードし、汎用外力は寿命短縮のみ行う。BlendOutTime=0 または非有限は即時除去。ハンドル不一致は no-op。
+	 * Request stopping a transient external force that matches the handle. ProceduralWind fades linearly in each gust's clock; generic forces only have their lifetime shortened. Zero or non-finite BlendOutTime removes immediately. Handle mismatch is a no-op.
 	 * @param ExecResult ノード参照の解決結果 / Result of resolving the node reference.
 	 * @param KawaiiPhysics 対象の KawaiiPhysics ノード参照 / Target KawaiiPhysics node reference.
 	 * @param Handle 停止対象のハンドル / Handle to stop.
-	 * @param BlendOutTime フェードアウト時間（wind 時間） / Fade-out time in wind time.
+	 * @param BlendOutTime 各突風の時計でのフェードアウト時間。非有限なら即時除去 / Fade-out time in each gust's clock; non-finite values remove immediately.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
 		meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "ExecResult"))
@@ -756,17 +758,17 @@ public:
 		float BlendOutTime = 0.5f);
 
 	/**
-	 * Component 内の対象 KawaiiPhysics ノードへ、ハンドルに一致する一時外力の停止をリクエストする。ProceduralWind は現在値から BlendOutTime（wind 時間）で線形フェードし、汎用外力は寿命短縮のみ行う。BlendOutTime=0 は即時除去。ハンドル不一致は no-op。
+	 * Component 内の対象 KawaiiPhysics ノードへ、ハンドルに一致する一時外力の停止をリクエストする。ProceduralWind は各突風の時計で現在値から線形フェードし、汎用外力は寿命短縮のみ行う。BlendOutTime=0 または非有限は即時除去。ハンドル不一致は no-op。
 	 * Component / Linked AnimInstance / PostProcess から KawaiiPhysics ノード参照を収集する（FilterTags が空なら全件）。
 	 * AnimGraph の BlueprintThreadSafe 文脈から呼ぶ場合、対象は呼び出し元（呼び出しノード自身）の Component に限ります。
 	 * それ以外のオブジェクトから収集する場合は、そのオブジェクトが評価中でない GameThread で呼び出してください。
-	 * Request stopping transient external forces that match the handle on target KawaiiPhysics nodes in a component. ProceduralWind fades linearly from the current value over BlendOutTime (wind time); generic external forces only have their lifetime shortened. BlendOutTime=0 removes immediately. Handle mismatch is a no-op.
+	 * Request stopping transient external forces that match the handle on target KawaiiPhysics nodes in a component. ProceduralWind fades linearly in each gust's clock; generic forces only have their lifetime shortened. Zero or non-finite BlendOutTime removes immediately. Handle mismatch is a no-op.
 	 * When called from an AnimGraph BlueprintThreadSafe context, the target must be the caller's (the calling node's) own Component. Collecting from any other object must be done from the GameThread while that object is not being evaluated.
 	 * @param MeshComp 対象の SkeletalMeshComponent / Target SkeletalMeshComponent.
 	 * @param Handle 停止対象のハンドル / Handle to stop.
 	 * @param FilterTags ノードの KawaiiPhysicsTag に対するフィルタ（空なら全ノード対象） / Filter against each node KawaiiPhysicsTag; empty matches all nodes.
 	 * @param bFilterExactMatch タグを完全一致で比較するか / Whether tags must match exactly.
-	 * @param BlendOutTime フェードアウト時間（wind 時間） / Fade-out time in wind time.
+	 * @param BlendOutTime 各突風の時計でのフェードアウト時間。非有限なら即時除去 / Fade-out time in each gust's clock; non-finite values remove immediately.
 	 * @return 停止リクエストを送ったノード数 / Number of nodes where stop requests were sent.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics",
@@ -1330,6 +1332,7 @@ public:
 	 * @param RiseTime 0->ピークまでの立ち上がり時間（秒） / Time in seconds to rise from zero to peak.
 	 * @param DecayTime ピーク->0 までの減衰時間（秒） / Time in seconds to decay from peak to zero.
 	 * @param bRealTimeEnvelope true は Wind の TimeScale を無視する（ゲーム全体のポーズ・時間倍率には従う）。false は wind 時間 / True ignores wind TimeScale but follows game pause and time dilation; false uses wind time.
+	 * Publisher の突風は最大 8 件まで重なる。/ Publisher gusts stack, up to eight.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Shared Publisher")
 	static bool StartProceduralWindGustOnSharedPublisher(
@@ -1342,11 +1345,11 @@ public:
 		bool bRealTimeEnvelope = true);
 
 	/**
-	 * 同じ Actor ファミリーの Shared Publisher（Tag）へ現在の突風停止を積む。Publisher が無ければ false。
-	 * Queues a stop request for the current gust on the Shared Publisher (tag) of this actor family. Returns false when no publisher exists.
+	 * 同じ Actor ファミリーの Shared Publisher（Tag）へ全突風の停止を積む。Publisher が無ければ false。
+	 * Queues a stop request for all gusts on the Shared Publisher (tag) of this actor family. Returns false when no publisher exists.
 	 * @param Actor 対象 Actor ファミリー内の Actor / Actor in the target actor family.
 	 * @param SharedGroupTag 対象 Shared Publisher の Tag / Target Shared Publisher tag.
-	 * @param BlendOutTime フェードアウト時間（wind 時間） / Fade-out time in wind time.
+	 * @param BlendOutTime 各突風の時計でのフェードアウト時間。非有限なら即時停止 / Fade-out time in each gust's clock; non-finite values stop immediately.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Kawaii Physics|Shared Publisher")
 	static bool StopProceduralWindGustOnSharedPublisher(

@@ -33,6 +33,28 @@ struct FKawaiiProceduralWindActiveGust
 	bool bIsActive = false;
 	/** StartTime とエンベロープの時計種別 / Clock used for StartTime and the envelope. */
 	bool bRealTimeEnvelope = false;
+	bool bIsStopping = false;
+};
+
+struct FKawaiiProceduralWindGusts
+{
+	static constexpr int32 MaxGusts = 8;
+	FKawaiiProceduralWindActiveGust Items[MaxGusts];
+	int32 Num = 0;
+};
+
+struct FKawaiiProceduralWindPendingGustRequest
+{
+	FKawaiiProceduralWindGustRequest Gust;
+	float BlendOutTime = 0.0f;
+	bool bStop = false;
+};
+
+struct FKawaiiProceduralWindPendingGusts
+{
+	static constexpr int32 MaxRequests = 16;
+	FKawaiiProceduralWindPendingGustRequest Items[MaxRequests];
+	int32 Num = 0;
 };
 
 struct FKawaiiPhysicsProceduralWindSample
@@ -251,11 +273,14 @@ struct FKawaiiProceduralWindRuntimeState
 {
 	FCriticalSection Mutex;
 	TOptional<FKawaiiProceduralWindDynamicParams> PendingParams;
-	TOptional<FKawaiiProceduralWindGustRequest> PendingGust;
-	TOptional<float> PendingGustStop;
+	FKawaiiProceduralWindPendingGusts PendingGusts;
 
 	float Time = 0.0f;
-	FKawaiiProceduralWindActiveGust ActiveGust;
+	FKawaiiProceduralWindGusts Gusts;
+	bool bUseInheritedClock = false;
+	float InheritedTime = 0.0f;
+	float InheritedUnscaledTime = 0.0f;
+	uint32 InheritedClockGeneration = 0;
 	// Wind の TimeScale を掛けないエンベロープ時刻 / Envelope time without the wind TimeScale.
 	float UnscaledTime = 0.0f;
 	uint32 ClockGeneration = 0;
@@ -528,10 +553,12 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_ProceduralWind : public FK
 	void RequestGust(float Strength, float RiseTime, float DecayTime, float HoldTime = 0.0f,
 	                 bool bRealTimeEnvelope = false);
 	// transient 突風用に Local へ戻してから突風を要求する / Forces Local source and requests a gust for transient gusts
-	void RequestLocalGust(float Strength, float RiseTime, float DecayTime, float HoldTime = 0.0f);
+	void RequestLocalGust(float Strength, float RiseTime, float DecayTime, float HoldTime = 0.0f,
+		bool bRealTimeEnvelope = false);
 	// 現在のガストを指定時間でフェードアウト停止する
 	void RequestGustStop(float BlendOutTime);
 	void ConsumePendingRequests();
+	void RemoveExpiredGusts();
 
 	FKawaiiPhysicsProceduralWindSample ComputeWindSample(float InTime, float InLengthRate = 0.0f) const;
 	static uint32 ComputeStableHash(int32 Seed, int32 GridIndex, int32 Channel);

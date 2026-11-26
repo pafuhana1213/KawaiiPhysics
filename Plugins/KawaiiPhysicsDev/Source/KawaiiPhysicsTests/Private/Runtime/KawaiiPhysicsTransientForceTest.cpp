@@ -270,12 +270,12 @@ bool FKawaiiPhysicsTransientForceGustConsumeCreatesActiveGustTest::RunTest(const
 
 	RunPreApply(Node, *Wind);
 
-	bOk &= TestTrue(TEXT("ActiveGust active"), Wind->RuntimeState->ActiveGust.bIsActive);
-	TestTransientForceFloatNear(*this, TEXT("ActiveGust Strength"), Wind->RuntimeState->ActiveGust.Strength, 4.0f);
-	TestTransientForceFloatNear(*this, TEXT("ActiveGust RiseTime"), Wind->RuntimeState->ActiveGust.RiseTime, 0.2f);
-	TestTransientForceFloatNear(*this, TEXT("ActiveGust DecayTime"), Wind->RuntimeState->ActiveGust.DecayTime, 0.6f);
+	bOk &= TestTrue(TEXT("ActiveGust active"), Wind->RuntimeState->Gusts.Items[0].bIsActive);
+	TestTransientForceFloatNear(*this, TEXT("ActiveGust Strength"), Wind->RuntimeState->Gusts.Items[0].Strength, 4.0f);
+	TestTransientForceFloatNear(*this, TEXT("ActiveGust RiseTime"), Wind->RuntimeState->Gusts.Items[0].RiseTime, 0.2f);
+	TestTransientForceFloatNear(*this, TEXT("ActiveGust DecayTime"), Wind->RuntimeState->Gusts.Items[0].DecayTime, 0.6f);
 	TestTransientForceFloatNear(*this, TEXT("RemainingLifetime"),
-	              Node.TransientForceStore.Items[0].RemainingLifetime, 1.0f);
+	              Node.TransientForceStore.Items[0].RemainingLifetime, 0.2f);
 
 	return bOk;
 }
@@ -328,7 +328,7 @@ bool FKawaiiPhysicsTransientForceGustCopyForcesLocalWindSourceTest::RunTest(cons
 	bOk &= TestTrue(TEXT("Transient source forced Local"),
 	                TransientWind->WindSource == EKawaiiPhysicsProceduralWindSource::Local);
 	bOk &= TestFalse(TEXT("Transient shared entry reset"), TransientWind->RuntimeState->SharedPublisherEntry.IsValid());
-	bOk &= TestTrue(TEXT("Transient pending gust set"), TransientWind->RuntimeState->PendingGust.IsSet());
+	bOk &= TestTrue(TEXT("Transient pending gust set"), (TransientWind->RuntimeState->PendingGusts.Num > 0));
 	// 継承する共有 13 項目（ここでは風向き）は復元されず、コピー時点の実効値＝共有値のまま
 	bOk &= TestTrue(TEXT("Transient inherits the effective shared direction"),
 	                TransientWind->WindDirection.Equals(FVector(1.0f, 0.0f, 0.0f)));
@@ -340,9 +340,9 @@ bool FKawaiiPhysicsTransientForceGustCopyForcesLocalWindSourceTest::RunTest(cons
 	bOk &= TestEqual(TEXT("No gust forwarded to shared entry"), Requests.Num(), 0);
 
 	RunPreApply(Node, *TransientWind);
-	bOk &= TestTrue(TEXT("Transient active gust"), TransientWind->RuntimeState->ActiveGust.bIsActive);
+	bOk &= TestTrue(TEXT("Transient active gust"), TransientWind->RuntimeState->Gusts.Items[0].bIsActive);
 	bOk &= TestTransientForceFloatNear(*this, TEXT("Transient gust strength"),
-	                                   TransientWind->RuntimeState->ActiveGust.Strength, 5.0f);
+	                                   TransientWind->RuntimeState->Gusts.Items[0].Strength, 5.0f);
 	return bOk;
 }
 
@@ -428,7 +428,7 @@ bool FKawaiiPhysicsTransientForceInheritFromAuthoredTest::RunTest(const FString&
 			bOk &= TestTransientForceFloatNear(*this, TEXT("Indexed WindDirectionNoiseAngle"), Wind->WindDirectionNoiseAngle, 15.0f);
 			bOk &= TestTransientForceFloatNear(*this, TEXT("Indexed WindDirectionNoisePeriod"), Wind->WindDirectionNoisePeriod, 0.5f);
 			bOk &= TestEqual(TEXT("Indexed Seed"), Wind->Seed, 42);
-			bOk &= TestTransientForceFloatNear(*this, TEXT("Indexed lifetime"), Node.TransientForceStore.Items[0].RemainingLifetime, 0.6f);
+			bOk &= TestTransientForceFloatNear(*this, TEXT("GU-7: cleanup margin"), Node.TransientForceStore.Items[0].RemainingLifetime, 0.2f);
 		}
 	}
 
@@ -508,8 +508,8 @@ bool FKawaiiPhysicsTransientForceSpreadAcrossAuthoredWindsTest::RunTest(const FS
 		{
 			bOk &= TestTrue(TEXT("Spread Wind1 direction"), Wind1->WindDirection.Equals(FVector(0.0f, 0.0f, 1.0f)));
 			bOk &= TestTransientForceFloatNear(*this, TEXT("Spread Wind1 TimeScale"), Wind1->TimeScale, 2.0f);
-			bOk &= TestTransientForceFloatNear(*this, TEXT("Spread Wind1 lifetime"),
-			                      Node.TransientForceStore.Items[1].RemainingLifetime, 0.4f);
+			bOk &= TestTransientForceFloatNear(*this, TEXT("GU-7: spread cleanup margin"),
+			                      Node.TransientForceStore.Items[1].RemainingLifetime, 0.2f);
 		}
 	}
 
@@ -595,8 +595,8 @@ bool FKawaiiPhysicsTransientForceGustLifetimeTest::RunTest(const FString& Parame
 		bOk &= TestEqual(TEXT("Hold Items.Num"), Node.TransientForceStore.Items.Num(), 1);
 		if (Node.TransientForceStore.Items.IsValidIndex(0))
 		{
-			bOk &= TestTransientForceFloatNear(*this, TEXT("Hold RemainingLifetime"),
-				Node.TransientForceStore.Items[0].RemainingLifetime, 2.0f);
+			bOk &= TestTransientForceFloatNear(*this, TEXT("GU-7: hold cleanup margin"),
+				Node.TransientForceStore.Items[0].RemainingLifetime, 0.2f);
 		}
 	}
 	{
@@ -609,12 +609,12 @@ bool FKawaiiPhysicsTransientForceGustLifetimeTest::RunTest(const FString& Parame
 		bOk &= TestTrue(TEXT("Real-time Wind valid"), Wind != nullptr);
 		if (Wind)
 		{
-			bOk &= TestTransientForceFloatNear(*this, TEXT("Real-time TimeScale"), Wind->TimeScale, 1.0f);
+			bOk &= TestTransientForceFloatNear(*this, TEXT("GU-9: source TimeScale is retained"), Wind->TimeScale, 2.0f);
 		}
 		if (Node.TransientForceStore.Items.IsValidIndex(0))
 		{
-			bOk &= TestTransientForceFloatNear(*this, TEXT("Real-time RemainingLifetime"),
-				Node.TransientForceStore.Items[0].RemainingLifetime, 2.0f);
+			bOk &= TestTransientForceFloatNear(*this, TEXT("GU-7: real-time cleanup margin"),
+				Node.TransientForceStore.Items[0].RemainingLifetime, 0.2f);
 		}
 	}
 	{
@@ -635,10 +635,15 @@ bool FKawaiiPhysicsTransientForceGustLifetimeTest::RunTest(const FString& Parame
 		Node.RequestTransientGust(1.0f, 0.05f, 0.0f, FVector::ForwardVector, INDEX_NONE);
 		Node.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
 		bOk &= TestEqual(TEXT("Initial consume"), Node.TransientForceStore.Items.Num(), 1);
+		Node.TransientForceStore.Items[0].bGustEvaluated = true;
+		GetTransientWind(Node)->ConsumePendingRequests();
+		GetTransientWind(Node)->RuntimeState->Time = 0.05f;
+		GetTransientWind(Node)->RemoveExpiredGusts();
+		// TW-GU-12: 空になったフレームから 0.2 秒（+1 フレーム）以内に除去。0.2 − 0.13 = 0.07 → 0.07 − 0.13 < 0
 		Node.ConsumeAndRemoveExpiredTransientExternalForces(0.13f);
 		bOk &= TestEqual(TEXT("Still alive"), Node.TransientForceStore.Items.Num(), 1);
 		Node.ConsumeAndRemoveExpiredTransientExternalForces(0.13f);
-		bOk &= TestEqual(TEXT("Expired"), Node.TransientForceStore.Items.Num(), 0);
+		bOk &= TestEqual(TEXT("GU-7: 終了から 0.2 秒で除去"), Node.TransientForceStore.Items.Num(), 0);
 	}
 	return bOk;
 }
@@ -706,17 +711,17 @@ bool FKawaiiPhysicsTransientForceStopTest::RunTest(const FString& Parameters)
 		Node.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
 
 		bOk &= TestEqual(TEXT("Stop Items.Num"), Node.TransientForceStore.Items.Num(), 2);
-		bOk &= TestTransientForceFloatNear(*this, TEXT("Stopped lifetime"), Node.TransientForceStore.Items[0].RemainingLifetime, 0.7f);
-		bOk &= TestTransientForceFloatNear(*this, TEXT("Unmatched lifetime"), Node.TransientForceStore.Items[1].RemainingLifetime, 2.0f);
+		bOk &= TestTransientForceFloatNear(*this, TEXT("GU-7: stopped gust cleanup margin"), Node.TransientForceStore.Items[0].RemainingLifetime, 0.2f);
+		bOk &= TestTransientForceFloatNear(*this, TEXT("GU-7: unmatched gust cleanup margin"), Node.TransientForceStore.Items[1].RemainingLifetime, 0.2f);
 		FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = GetTransientWind(Node, 0);
 		bOk &= TestTrue(TEXT("Stopped wind valid"), Wind != nullptr);
 		if (Wind && Wind->RuntimeState.IsValid())
 		{
-			bOk &= TestTrue(TEXT("PendingGustStop set"), Wind->RuntimeState->PendingGustStop.IsSet());
-			if (Wind->RuntimeState->PendingGustStop.IsSet())
+			bOk &= TestTrue(TEXT("PendingGustStop set"), (Wind->RuntimeState->PendingGusts.Num > 0));
+			if ((Wind->RuntimeState->PendingGusts.Num > 0))
 			{
 				bOk &= TestTransientForceFloatNear(*this, TEXT("PendingGustStop BlendOut"),
-				                      Wind->RuntimeState->PendingGustStop.GetValue(), 0.5f);
+				                      Wind->RuntimeState->PendingGusts.Items[1].BlendOutTime, 0.5f);
 			}
 		}
 
@@ -724,7 +729,7 @@ bool FKawaiiPhysicsTransientForceStopTest::RunTest(const FString& Parameters)
 		Node.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
 		bOk &= TestEqual(TEXT("No-op Items.Num"), Node.TransientForceStore.Items.Num(), 2);
 		bOk &= TestTransientForceFloatNear(*this, TEXT("No-op lifetime"),
-		                      Node.TransientForceStore.Items[1].RemainingLifetime, 2.0f);
+			                      Node.TransientForceStore.Items[1].RemainingLifetime, 0.2f);
 	}
 
 	{
@@ -748,12 +753,12 @@ bool FKawaiiPhysicsTransientForceStopTest::RunTest(const FString& Parameters)
 
 		bOk &= TestEqual(TEXT("StartStop Items.Num"), Node.TransientForceStore.Items.Num(), 1);
 		bOk &= TestTransientForceFloatNear(*this, TEXT("StartStop lifetime"),
-		                      Node.TransientForceStore.Items[0].RemainingLifetime, 0.5f);
+			                      Node.TransientForceStore.Items[0].RemainingLifetime, 0.2f);
 		FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = GetTransientWind(Node);
 		bOk &= TestTrue(TEXT("StartStop wind valid"), Wind != nullptr);
 		if (Wind && Wind->RuntimeState.IsValid())
 		{
-			bOk &= TestTrue(TEXT("StartStop PendingGustStop set"), Wind->RuntimeState->PendingGustStop.IsSet());
+			bOk &= TestTrue(TEXT("StartStop PendingGustStop set"), (Wind->RuntimeState->PendingGusts.Num > 0));
 		}
 	}
 
@@ -767,19 +772,12 @@ bool FKawaiiPhysicsTransientForceStopTest::RunTest(const FString& Parameters)
 	}
 
 	{
-		// C2回帰: 自然終了間際（旧RemainingLifetimeがBlendOutTimeより短い）にStopすると、
-		// RequestGustStopがエンベロープを新フェードへ完全に置き換えるため、
-		// RemainingLifetimeもMinではなく新フェード全体をカバーするよう延長される必要がある。
+		// GU-7: 突風の寿命はエンベロープ終了後に始まる。Stop は生成時の推定寿命を延ばさない。
 		FAnimNode_KawaiiPhysics Node;
 		Node.RequestTransientGust(4.0f, 0.2f, 0.6f, FVector::ForwardVector, INDEX_NONE, 0.0f, 606);
 		Node.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
-		bOk &= TestTransientForceFloatNear(*this, TEXT("Extend initial lifetime"),
-		                      Node.TransientForceStore.Items[0].RemainingLifetime, 1.0f);
-
-		// 自然終了間際まで経過させ、残寿命をこれから要求するBlendOutTimeより短くしておく
-		Node.ConsumeAndRemoveExpiredTransientExternalForces(0.85f);
-		bOk &= TestTransientForceFloatNear(*this, TEXT("Extend near-expiry lifetime"),
-		                      Node.TransientForceStore.Items[0].RemainingLifetime, 0.15f);
+		bOk &= TestTransientForceFloatNear(*this, TEXT("GU-7: 初期マージン"),
+		                      Node.TransientForceStore.Items[0].RemainingLifetime, 0.2f);
 
 		Node.RequestStopTransientExternalForce(606, 2.0f);
 		Node.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
@@ -787,9 +785,8 @@ bool FKawaiiPhysicsTransientForceStopTest::RunTest(const FString& Parameters)
 		bOk &= TestEqual(TEXT("Extend Items.Num"), Node.TransientForceStore.Items.Num(), 1);
 		if (Node.TransientForceStore.Items.IsValidIndex(0))
 		{
-			// 2.0 (BlendOutTime) / 1.0 (TimeScale) + 0.2 (margin) = 2.2 まで延長されるはず
-			bOk &= TestTransientForceFloatNear(*this, TEXT("Extended lifetime covers new fade"),
-			                      Node.TransientForceStore.Items[0].RemainingLifetime, 2.2f);
+			bOk &= TestTransientForceFloatNear(*this, TEXT("GU-7: Stop 後も終了時点から測る"),
+			                      Node.TransientForceStore.Items[0].RemainingLifetime, 0.2f);
 		}
 	}
 
@@ -802,7 +799,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTransientForceStopCoalesceTest,
 
 bool FKawaiiPhysicsTransientForceStopCoalesceTest::RunTest(const FString& Parameters)
 {
-	// 同一ハンドルへの停止要求は最後の blend 時間を消費する。
+	// GU-3: 同一ハンドルへの再 Stop は最短の期限を保つ。
 	FAnimNode_KawaiiPhysics Node;
 	Node.RequestTransientExternalForce(FInstancedStruct::Make<FKawaiiPhysics_ExternalForce>(), 5.0f, 777);
 	Node.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
@@ -813,8 +810,8 @@ bool FKawaiiPhysicsTransientForceStopCoalesceTest::RunTest(const FString& Parame
 	Node.ConsumeAndRemoveExpiredTransientExternalForces(0.0f);
 	if (Node.TransientForceStore.Items.IsValidIndex(0))
 	{
-		bOk &= TestTransientForceFloatNear(*this, TEXT("Last stop wins RemainingLifetime"),
-			Node.TransientForceStore.Items[0].RemainingLifetime, 0.3f);
+		bOk &= TestTransientForceFloatNear(*this, TEXT("GU-3: shortest stop wins RemainingLifetime"),
+			Node.TransientForceStore.Items[0].RemainingLifetime, 0.1f);
 	}
 	for (int32 Index = 0; Index < 12; ++Index)
 	{

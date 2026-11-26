@@ -46,6 +46,7 @@ class UKawaiiPhysicsLimitsDataAsset;
 class UKawaiiPhysicsBoneConstraintsDataAsset;
 class UMirrorDataTable;
 struct FKawaiiPhysicsMirrorTableCache;
+struct FKawaiiPhysics_ExternalForce_ProceduralWind;
 
 #if ENABLE_ANIM_DEBUG
 extern KAWAIIPHYSICS_API TAutoConsoleVariable<bool> CVarAnimNodeKawaiiPhysicsEnable;
@@ -62,6 +63,21 @@ struct FKawaiiPhysicsTransientExternalForce
 	FInstancedStruct Force;
 	float RemainingLifetime = 0.0f;
 	int64 HandleId = 0;
+	// 一時突風の時刻の継承元（ExternalForces の index と、照合専用のポインタ。読むのは照合が通ったときだけ）。
+	// 元が消えた・無効になった・配列が変わったら INDEX_NONE / nullptr に戻し、以後は自分の時計で進む（GU-9）
+	// Source of the transient gust's clock (ExternalForces index plus a pointer used only for identity checks).
+	int32 SourceForceIndex = INDEX_NONE;
+	const FKawaiiPhysics_ExternalForce_ProceduralWind* SourceWind = nullptr;
+	// 構築時の元の時刻。最初の評価で一時突風の時計をここから始め、最初のサンプルを τ=dt にする
+	// Source clock at build time; the first evaluation starts the gust's clock from here so the first sample is at dt.
+	float SourceTimeAtRequest = 0.0f;
+	float SourceUnscaledTimeAtRequest = 0.0f;
+	// 一度でも PreApply を通ったか。通るまでは寿命を減らさない / Whether PreApply has run once; lifetime is held until then.
+	bool bGustEvaluated = false;
+	// 中の突風が終わり、片付けまでの猶予を数え始めたか / Whether the post-gust cleanup margin has started.
+	bool bGustCompletionStarted = false;
+	// ProceduralWind の一時突風か（汎用の一時外力と寿命の扱いが違う） / Whether this is a transient gust (lifetime handled differently from generic forces).
+	bool bIsTransientGust = false;
 };
 
 // 一時突風の構築リクエスト

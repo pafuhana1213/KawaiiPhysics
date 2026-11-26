@@ -232,7 +232,7 @@ bool FKawaiiPhysicsSharedClockRegressionTest::RunTest(const FString& Parameters)
 	Fixture.Publish(Publisher, 3.2);
 	Fixture.Consume(Accessor, Consumer, 3.2);
 	TestEqual(TEXT("Physics reset resets clock anchor"), Consumer.RuntimeState->Time, 0.0f);
-	TestFalse(TEXT("Physics reset clears gust"), Consumer.RuntimeState->ActiveGust.bIsActive);
+	TestEqual(TEXT("Physics reset clears gust"), Consumer.RuntimeState->Gusts.Num, 0);
 	{
 		FSharedRegressionWorld OtherWorld;
 		Publisher.SharedWind.RuntimeState->Time = 10.0f;
@@ -294,9 +294,9 @@ bool FKawaiiPhysicsRealGustRegressionTest::RunTest(const FString& Parameters)
 	Wind.RequestGustStop(1.0f);
 	Wind.ConsumePendingRequests();
 	TestEqual(TEXT("Stop starts at original envelope strength"), Wind.ComputeWindSample(Wind.RuntimeState->Time).Gust, 50.0f);
-	TestFalse(TEXT("Stop fade switches to wind clock"), Wind.RuntimeState->ActiveGust.bRealTimeEnvelope);
+	TestTrue(TEXT("GU-8: Stop fade keeps real-time clock"), Wind.RuntimeState->Gusts.Items[0].bRealTimeEnvelope);
 	Wind.AdvanceWindTime(1.0f);
-	TestEqual(TEXT("Stop fade retains wind duration"), Wind.ComputeWindSample(Wind.RuntimeState->Time).Gust, 25.0f);
+	TestEqual(TEXT("GU-8: Stop fade ends after one real second"), Wind.ComputeWindSample(Wind.RuntimeState->Time).Gust, 0.0f);
 	Wind.AdvanceWindTime(1.0f);
 	TestEqual(TEXT("Stop fade ends"), Wind.ComputeWindSample(Wind.RuntimeState->Time).Gust, 0.0f);
 
@@ -317,8 +317,12 @@ bool FKawaiiPhysicsRealGustRegressionTest::RunTest(const FString& Parameters)
 	Consumer.SharedWindTag = TAG_KawaiiPhysicsRegressionA;
 	Fixture.Consume(Accessor, Consumer, 1.0);
 	TestEqual(TEXT("Shared stop starts from real envelope"), Consumer.RuntimeState->CachedGust, 50.0f);
+	// GU-8: 実秒の突風の Stop は実秒のまま BlendOut する（Publisher の TimeScale=0.5 に依らない）。
+	// 1.0 秒で Stop、B=1.0 → 1.5 秒で 50 × (1 − 0.5 / 1) = 25、2.0 秒で 0。
+	Fixture.Consume(Accessor, Consumer, 1.5);
+	TestEqual(TEXT("GU-8: Shared stop fades in real seconds"), Consumer.RuntimeState->CachedGust, 25.0f);
 	Fixture.Consume(Accessor, Consumer, 2.0);
-	TestEqual(TEXT("Shared stop extrapolates in wind time"), Consumer.RuntimeState->CachedGust, 25.0f);
+	TestEqual(TEXT("GU-8: Shared stop ends after one real second"), Consumer.RuntimeState->CachedGust, 0.0f);
 	Fixture.Publish(Publisher, 3.0);
 	Fixture.Consume(Accessor, Consumer, 3.0);
 	TestEqual(TEXT("Shared stop finishes after wind duration"), Consumer.RuntimeState->CachedGust, 0.0f);
@@ -330,7 +334,7 @@ bool FKawaiiPhysicsRealGustRegressionTest::RunTest(const FString& Parameters)
 	Notify->DecayTime = 2.0f;
 	Notify->Notify(Fixture.Anim->GetSkelMeshComponent(), nullptr, FAnimNotifyEventReference());
 	Fixture.Publish(Publisher, 3.0);
-	TestFalse(TEXT("Shared Notify selects legacy wind time"), Publisher.SharedWind.RuntimeState->ActiveGust.bRealTimeEnvelope);
+	TestFalse(TEXT("Shared Notify selects legacy wind time"), Publisher.SharedWind.RuntimeState->Gusts.Items[0].bRealTimeEnvelope);
 	Fixture.Publish(Publisher, 5.0);
 	Fixture.Consume(Accessor, Consumer, 5.0);
 	TestEqual(TEXT("Shared Notify preserves authored duration"), Consumer.RuntimeState->CachedGust, 50.0f);

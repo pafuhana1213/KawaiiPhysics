@@ -210,8 +210,9 @@ bool FKawaiiPhysicsSharedPublisherEntryPublishReadTest::RunTest(const FString& P
 	State.Wind.PublisherTimeScale = 0.5f;
 	State.Wind.Params.bOverrideConstantForce = true;
 	State.Wind.Params.ConstantForce = 3.0f;
-	State.Wind.ActiveGust.bIsActive = true;
-	State.Wind.ActiveGust.Strength = 7.0f;
+	State.Wind.Gusts.Items[0].bIsActive = true;
+	State.Wind.Gusts.Num = 1;
+	State.Wind.Gusts.Items[0].Strength = 7.0f;
 
 	TestTrue(TEXT("Initial provider publishes"), Entry.PublishState(State, 11, 100, 10));
 	TestEqual(TEXT("Publish serial after first publish"), Entry.GetPublishSerial(), static_cast<uint64>(1));
@@ -972,7 +973,7 @@ bool FKawaiiPhysicsSharedPublisherStaleProviderHandoffTest::RunTest(const FStrin
 		HelperB.Update(InputsB, SharedWindB.RuntimeState, 0.0f, 100, MaxAgeFrames));
 	bOk &= TestEqual(TEXT("Provider B consumes the pending ConstantForce"), SharedWindB.ConstantForce, 42.0f);
 	bOk &= TestTrue(TEXT("Provider B consumes the pending gust"),
-		SharedWindB.RuntimeState.IsValid() && SharedWindB.RuntimeState->ActiveGust.bIsActive);
+		SharedWindB.RuntimeState.IsValid() && SharedWindB.RuntimeState->Gusts.Num == 1 && SharedWindB.RuntimeState->Gusts.Items[0].bIsActive);
 	bOk &= TestEqual(TEXT("Entry provider is now B"), PublisherEntry->GetProviderID(), SourceIDB);
 
 	AddExpectedError(TEXT("Kawaii Physics Shared Publisher rejected publish"),
@@ -1050,8 +1051,8 @@ bool FKawaiiPhysicsSharedPublisherPublishHelperWindParamsTest::RunTest(const FSt
 	PublisherEntry->RequestGust(50.0f, 0.1f, 0.2f, 0.3f);
 	bOk &= TestTrue(TEXT("Gust update publishes"), Helper.Update(Inputs, SharedWind.RuntimeState, 0.1f, 2, 60));
 	PublisherEntry->ReadWindState(ReadWind);
-	bOk &= TestTrue(TEXT("SharedWind has active gust"), SharedWind.RuntimeState->ActiveGust.bIsActive);
-	bOk &= TestEqual(TEXT("Published gust strength"), ReadWind.ActiveGust.Strength, 50.0f);
+	bOk &= TestTrue(TEXT("SharedWind has active gust"), SharedWind.RuntimeState->Gusts.Num == 1 && SharedWind.RuntimeState->Gusts.Items[0].bIsActive);
+	bOk &= TestEqual(TEXT("Published gust strength"), ReadWind.Gusts.Items[0].Strength, 50.0f);
 
 	FKawaiiProceduralWindDynamicParams Params;
 	Params.bOverrideConstantForce = true;
