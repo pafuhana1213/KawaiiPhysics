@@ -1067,6 +1067,7 @@ bool FKawaiiPhysicsTeleportDiscardsComponentMoveTest::RunTest(const FString& Par
 	return true;
 }
 
+// FX-24。mutant 2026 は本番経路の SolverSpec.Substep.BaseBoneFollowAcrossRates で落とす。
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsBaseBoneFollowSubstepTest,
 	"KawaiiPhysics.Simulation.BaseBoneFollowSubstep",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -1074,10 +1075,11 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsBaseBoneFollowSubstepTest,
 bool FKawaiiPhysicsBaseBoneFollowSubstepTest::RunTest(const FString& Parameters)
 {
 	FKawaiiPhysicsTestAccessor Accessor;
-	const FTransform Start = FTransform::Identity;
-	const FTransform End(FQuat(FVector::UpVector, PI / 2.0f));
+	const FTransform Start(FQuat(FVector::UpVector, PI / 2.0f), FVector(10.0f, 20.0f, 5.0f));
+	const FTransform End(FQuat(FVector::UpVector, PI), FVector(30.0f, 40.0f, 5.0f));
 	const FVector InitialLocation(100.0f, 0.0f, 0.0f);
-	const FVector ExpectedLocation = End.InverseTransformPosition(InitialLocation);
+	// Start で (10,120,5)、End の局所では (20,-80,0)。比較対象を本番の変換関数から作らない。
+	const FVector ExpectedLocation(20.0f, -80.0f, 0.0f);
 	const float Tolerance = 0.001f;
 
 	// 1ステップでは従来どおり前回と現在の変換を全量使用する。
@@ -1090,7 +1092,7 @@ bool FKawaiiPhysicsBaseBoneFollowSubstepTest::RunTest(const FString& Parameters)
 	const FVector FirstStepLocation = Half.InverseTransformPosition(Start.TransformPosition(InitialLocation));
 	const FVector TwoStepLocation = End.InverseTransformPosition(Half.TransformPosition(FirstStepLocation));
 	TestTrue(TEXT("First of two steps applies half the rotation"),
-		FirstStepLocation.Equals(FVector(70.710678f, -70.710678f, 0.0f), Tolerance));
+		FirstStepLocation.Equals(FVector(70.710678f, -56.568542f, 0.0f), Tolerance));
 	TestTrue(TEXT("Two steps apply one full rotation"), TwoStepLocation.Equals(ExpectedLocation, Tolerance));
 
 	// 0ステップでは変換を据え置き、次の1ステップで両フレーム分を使用する。
