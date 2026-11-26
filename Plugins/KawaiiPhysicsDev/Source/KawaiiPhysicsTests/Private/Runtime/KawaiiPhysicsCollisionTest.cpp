@@ -391,6 +391,7 @@ bool FKawaiiPhysicsTaperedCapsulePhysicsAssetImportTest::RunTest(const FString& 
 //  Box
 // ---------------------------------------------------------------------------
 // 内部の最近面への押し出し。地面 Box でも端では側面から横に抜ける仕様を含む。
+// BX-08（v1.22 テスト見直しで修正）: 「Rotated box interior」は 3 辺が違う Box を 3 軸すべてが効く回転にし、回転を無視した答えと区別する。狙う生き残り mutant なし。
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsBoxInteriorPushOutToNearestFaceTest,
                                  "KawaiiPhysics.Collision.BoxInteriorPushOutToNearestFace",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -427,9 +428,19 @@ bool FKawaiiPhysicsBoxInteriorPushOutToNearestFaceTest::RunTest(const FString& P
 	CheckPushOut(TEXT("Cube center tie chooses X"), FVector::ZeroVector, 1.0f, FVector(6, 0, 0));
 	Limits[0].Extent = Box.Extent;
 
-	// (g) Z 軸正方向に 90 度回転し、ローカル (10,0,3) はワールド (0,10,3) になる。
-	Limits[0].Rotation = FQuat(FVector::ZAxisVector, FMath::DegreesToRadians(90.0f));
-	CheckPushOut(TEXT("Rotated box interior"), FVector(0, 10, 1), 1.0f, FVector(0, 10, 3));
+	// BX-08、mutant なし。三軸回転と異なる三辺で、最浅の X 面へ出る局所解 (1+r,0.5,0.5) を検証。
+	Limits[0].Extent = FVector(1, 2, 3);
+	Limits[0].Rotation = FRotator(10, 20, 30).Quaternion();
+	const FVector RotatedCenter(7, -11, 13);
+	Limits[0].Location = RotatedCenter;
+	const FVector RotatedStart = RotatedCenter + Limits[0].Rotation.RotateVector(FVector(0.5, 0.5, 0.5));
+	const FVector RotatedExpected = RotatedCenter + Limits[0].Rotation.RotateVector(FVector(2, 0.5, 0.5));
+	// float の回転と逆変換の丸めを 1e-4 cm まで許す。
+	CheckPushOut(TEXT("Rotated box interior"), RotatedStart, 1.0f, RotatedExpected);
+	TestTrue(TEXT("回転を無視した解と分離する入力"),
+		FVector::Dist(RotatedExpected, RotatedCenter + FVector(2, 0.5, 0.5)) > 1e-2);
+	Limits[0].Location = FVector::ZeroVector;
+	Limits[0].Extent = Box.Extent;
 	Limits[0].Rotation = FQuat::Identity;
 
 	// (h) 外部の交差は従来の最近点 + 法線 * 半径、非交差は不変。
