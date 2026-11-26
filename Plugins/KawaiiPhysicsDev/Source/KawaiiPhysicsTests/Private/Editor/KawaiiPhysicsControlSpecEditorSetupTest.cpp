@@ -183,20 +183,7 @@ namespace KawaiiPhysicsControlSpecEditorSetupTestPrivate
 		LimitAsset->TaperedCapsuleLimits.AddDefaulted_GetRef().DrivingBone.BoneName = TEXT("root");
 		LimitAsset->BoxLimits.AddDefaulted_GetRef().DrivingBone.BoneName = TEXT("root");
 		LimitAsset->PlanarLimits.AddDefaulted_GetRef().DrivingBone.BoneName = TEXT("root");
-		// エディタで配列に要素を足したとき（PostEditChangeChainProperty の ArrayAdd）と同じく SourceType = DataAsset を付ける。
-		// 付けないとノードは DataAsset 由来と判定できず、評価のたびに足し直したり nullptr で外せなかったりする。
-		auto MarkLimits = [](auto& Limits)
-		{
-			for (auto& Limit : Limits)
-			{
-				Limit.SourceType = ECollisionSourceType::DataAsset;
-			}
-		};
-		MarkLimits(LimitAsset->SphericalLimits);
-		MarkLimits(LimitAsset->CapsuleLimits);
-		MarkLimits(LimitAsset->TaperedCapsuleLimits);
-		MarkLimits(LimitAsset->BoxLimits);
-		MarkLimits(LimitAsset->PlanarLimits);
+		// SourceType を付けないスクリプト作成のアセットでも、評価ごとに件数が増えない。
 		FAnimNode_KawaiiPhysics& TargetNode = NodeReferences[0].GetAnimNode<FAnimNode_KawaiiPhysics>();
 		UKawaiiPhysicsLibrary::SetLimitsDataAsset(NodeReferences[0], LimitAsset.Get());
 		bool bOk = TestTrue(TEXT("差し替えの要求が届く"), FKawaiiPhysicsTestAccessor::HasPendingRuntimeApplyRequest(TargetNode));
