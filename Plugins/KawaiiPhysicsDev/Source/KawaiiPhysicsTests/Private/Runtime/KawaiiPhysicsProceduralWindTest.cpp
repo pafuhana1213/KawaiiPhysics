@@ -4,9 +4,11 @@
 
 #include "Misc/AutomationTest.h"
 #include "KawaiiPhysicsTestHarness.h"
+#include "KawaiiPhysicsNodeFixture.h"
 #include "AnimNode_KawaiiPhysicsSharedPublisherInternal.h"
 #include "ExternalForces/KawaiiPhysicsExternalForce_ProceduralWind.h"
 #include "KawaiiPhysicsSharedTags.h"
+#include "KawaiiPhysicsWindPresetTags.h"
 
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNodeBase.h"
@@ -695,20 +697,241 @@ bool FKawaiiPhysicsProceduralWindRequestDynamicParamsMergeTest::RunTest(const FS
 	return true;
 }
 
+// TW-PW-35・TW-PW-36。固定サブステップを無視する mutant は一定風の Location 比較で落ち、Ripple を固定ステップだけ無視する mutant は中間ボーンの全系列位置比較で落ちる。
+// PreApply のスカラーキャッシュを更新しない mutant は非零の対照で、風時計をサブステップごとに進める mutant は 12.5 秒と全系列入力比較で落ちる。
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindFramerateIndependenceTest,
                                  "KawaiiPhysics.ProceduralWind.FramerateIndependence",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FKawaiiPhysicsProceduralWindFramerateIndependenceTest::RunTest(const FString& Parameters)
 {
-	// 同一フレーム内でキャッシュ済みの波を一括適用しても分割適用しても変位合計が一致することを確認する。
-	const FVector OneStep = ApplyProceduralWindDisplacement(1);
-	const FVector FourSteps = ApplyProceduralWindDisplacement(4);
-	// 両者はfloat演算順序の違いによる誤差のみを含むはずなので、既定のGProceduralWindTolより厳しい許容誤差で比較する
-	TestTrue(FString::Printf(TEXT("Apply displacement 1 vs 4: %s vs %s"), *OneStep.ToString(), *FourSteps.ToString()),
-	         OneStep.Equals(FourSteps, 0.000001f));
-	TestTrue(TEXT("Ripple-including displacement is non-zero"), !OneStep.IsNearlyZero());
-	return true;
+	struct FFrameWindInput { float Time; float Total; float Ripple; float Sway; float Random; float StrengthCycle; float Gust; FVector Direction; };
+	const auto EvaluateInputs = [this](const int32 FramesPerSecond, const bool bFixed)
+	{
+		KawaiiPhysicsNodeFixture::FOptions NodeOptions;
+		NodeOptions.Bones = KawaiiPhysicsNodeFixture::BuildVerticalChain(3);
+		NodeOptions.FrameDt = 1.0f / FramesPerSecond;
+		NodeOptions.ConfigureDeveloperSettings = [bFixed](UKawaiiPhysicsDeveloperSettings& DeveloperSettings)
+		{
+			DeveloperSettings.bUseFixedSubstepping = bFixed;
+			DeveloperSettings.MaxSubsteps = 4;
+		};
+		NodeOptions.ConfigureNode = [](FAnimNode_KawaiiPhysics& AnimNode)
+		{
+			AnimNode.RootBone.BoneName = TEXT("root");
+			AnimNode.WarmUpFrames = 0;
+			AnimNode.Gravity = FVector::ZeroVector;
+			AnimNode.TargetFramerate = 120;
+			auto& ProceduralWind = KawaiiPhysicsNodeFixture::AddExternalForce<FKawaiiPhysics_ExternalForce_ProceduralWind>(AnimNode);
+			ProceduralWind.ExternalForceSpace = EExternalForceSpace::ComponentSpace;
+			ProceduralWind.ConstantForce = 100.0f;
+			ProceduralWind.SwayForce = 2.0f;
+			ProceduralWind.SwayPeriod = 0.7f;
+			ProceduralWind.RippleForce = 4.0f;
+			ProceduralWind.RipplePeriod = 0.75f;
+			ProceduralWind.RippleTipPhaseDelay = 120.0f;
+			ProceduralWind.StrengthCycleRange = FFloatInterval(0.5f, 1.5f);
+			ProceduralWind.StrengthCyclePeriod = 4.0f;
+			ProceduralWind.RandomForce = 2.0f;
+			ProceduralWind.RandomForcePeriod = 0.3f;
+			ProceduralWind.WindDirectionNoiseAngle = 15.0f;
+			ProceduralWind.WindDirectionNoisePeriod = 0.4f;
+			ProceduralWind.Seed = 291;
+			ProceduralWind.TimeScale = 1.25f;
+		};
+		KawaiiPhysicsNodeFixture::FFixture NodeFixture(NodeOptions);
+		TArray<FFrameWindInput> Inputs;
+		Inputs.Reserve(FramesPerSecond * 10);
+		for (int32 Frame = 0; Frame < FramesPerSecond * 10; ++Frame)
+		{
+			NodeFixture.EvaluateFrame();
+			auto& ProceduralWind = NodeFixture.Node.ExternalForces[0].GetMutable<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+			// 初期化後、各 fps で同じ実時間の一秒時点に突風を要求する。Frame は 0 始まりなので、fps−1 フレーム目を終えた時点がちょうど 1 秒。
+			if (Frame == FramesPerSecond - 1) ProceduralWind.RequestGust(8.0f, 0.5f, 1.0f, 12.0f);
+			const float WindTime = ProceduralWind.RuntimeState->Time;
+			const auto& CachedState = *ProceduralWind.RuntimeState;
+			const float BoneRate = NodeFixture.Node.ModifyBones[1].LengthRateFromRoot;
+			// 中間ボーンの Ripple を独立した三角関数で求め、PreApply の各系列と合成する。
+			const float Ripple = ProceduralWind.RippleForce * FMath::Sin(2.0f * UE_PI * WindTime / ProceduralWind.RipplePeriod -
+				FMath::DegreesToRadians(BoneRate * ProceduralWind.RippleTipPhaseDelay));
+			const float Sway = CachedState.CachedSinesWithoutRipple - ProceduralWind.ConstantForce;
+			const float Total = (CachedState.CachedSinesWithoutRipple + Ripple) * CachedState.CachedStrengthCycle +
+				CachedState.CachedRandom + CachedState.CachedGust;
+			Inputs.Add({WindTime, Total, Ripple, Sway, CachedState.CachedRandom,
+				CachedState.CachedStrengthCycle, CachedState.CachedGust, CachedState.CachedWindVector});
+		}
+		TestTrue(TEXT("対照: 中間ボーンの長さ比"), NodeFixture.Node.ModifyBones.Num() > 2 &&
+			NodeFixture.Node.ModifyBones[1].LengthRateFromRoot > 0.0f &&
+			NodeFixture.Node.ModifyBones[1].LengthRateFromRoot < 1.0f);
+		// 長さ比 0.5 の中間ボーンは t=12.5 で Ripple の位相が 2π·12.5/0.75−π/3=33π となり零点に当たる。
+		// Ripple だけは全フレームの最大振幅で効いていることを確かめる（振幅 4 の 1/4 を下限にする）。
+		float MaxAbsRipple = 0.0f;
+		for (const FFrameWindInput& Input : Inputs) MaxAbsRipple = FMath::Max(MaxAbsRipple, FMath::Abs(Input.Ripple));
+		TestTrue(TEXT("対照: 全系列と全風量が非零"), Inputs.Last().Total > 90.0f &&
+			MaxAbsRipple > 1.0f && FMath::Abs(Inputs.Last().Sway) > 1e-3f &&
+			FMath::Abs(Inputs.Last().Random) > 1e-3f &&
+			FMath::Abs(Inputs.Last().StrengthCycle - 1.0f) > 1e-3f && Inputs.Last().Gust > 1.0f);
+		return Inputs;
+	};
+	const auto Inputs30 = EvaluateInputs(30, false);
+	const auto Inputs60 = EvaluateInputs(60, false);
+	const auto Inputs120 = EvaluateInputs(120, false);
+	bool bOk = true;
+	// T×TimeScale=10×1.25=12.5。float の逐次加算の丸めを 1e-3 秒許す。
+	for (const auto* Inputs : {&Inputs30, &Inputs60, &Inputs120})
+	{
+		bOk &= TestTrue(TEXT("10 秒後の風時計は 12.5 秒"), FMath::IsNearlyEqual(Inputs->Last().Time, 12.5f, 1e-3f));
+	}
+	bOk &= TestTrue(TEXT("30 と 120 fps の時刻差"), FMath::Abs(Inputs30.Last().Time - Inputs120.Last().Time) <= 1e-3f);
+	// 各 fps の風時計は float の逐次加算なので、同じ実時間でも時刻がわずかに違う。
+	// 全系列 Total の時間傾きの上限は Sway 27、Ripple 4·2π/0.75·1.5=50.3、
+	// (100+2+4)×StrengthCycle 傾き π/4=83.3、Random 20、Gust 8/0.5=16。計 196.6 を 200 に切り上げる。
+	// float のサンプル丸めをさらに 1e-4 許す。時刻差そのものは TW-PW-35 の 1e-4·T で抑える。
+	// 突風は各 fps の実時間 1 秒の風時計から立ち上がるので、開始時刻も同じ 1 秒時点の時刻差だけずれる。
+	// Gust を開始時刻で微分した傾きの上限は立ち上がり 8/0.5=16（減衰 8/1=8 より大きい）なので、その時刻差 ×16 を足す。
+	constexpr float TotalSlopeBound = 200.0f;
+	constexpr float GustStartSlopeBound = 16.0f;
+	// 30fps で突風を要求したフレーム（実時間 1 秒）。60・120fps の対応フレームは下の比較と同じ添字で引く。
+	constexpr int32 GustRequestFrame30 = 29;
+	for (int32 Frame = 0; Frame < 300; ++Frame)
+	{
+		// 同じ実時間を終えた 30・60・120 fps のフレームを比較する。
+		const FFrameWindInput& Input30 = Inputs30[Frame];
+		const TPair<const FFrameWindInput*, const FFrameWindInput*> Others[] = {
+			{&Inputs60[2 * Frame + 1], &Inputs60[2 * GustRequestFrame30 + 1]},
+			{&Inputs120[4 * Frame + 3], &Inputs120[4 * GustRequestFrame30 + 3]}};
+		for (const auto& [Other, OtherGustStart] : Others)
+		{
+			const float TimeDelta = FMath::Abs(Input30.Time - Other->Time);
+			const float GustStartDelta = FMath::Abs(Inputs30[GustRequestFrame30].Time - OtherGustStart->Time);
+			bOk &= TestTrue(TEXT("fps ごとの同時刻の風時計"), TimeDelta <= 1e-4f * 10.0f);
+			bOk &= TestTrue(TEXT("fps ごとの同時刻の中間ボーン全風量"),
+				FMath::Abs(Input30.Total - Other->Total) <=
+					TotalSlopeBound * TimeDelta + GustStartSlopeBound * GustStartDelta + 1e-4f);
+		}
+	}
+	const auto InputsFixed = EvaluateInputs(30, true);
+	for (int32 Frame = 0; Frame < 300; ++Frame)
+	{
+		const float ExpectedAdvance = (Frame + 1) * (1.25f / 30.0f);
+		bOk &= TestTrue(TEXT("四サブステップでも風時計は一フレーム分"),
+			FMath::IsNearlyEqual(InputsFixed[Frame].Time, ExpectedAdvance, 1e-3f));
+		const float TimeDelta = FMath::Abs(InputsFixed[Frame].Time - Inputs30[Frame].Time);
+		bOk &= TestTrue(TEXT("固定ステップの有無で中間ボーン全風量は同じ"),
+			FMath::Abs(InputsFixed[Frame].Total - Inputs30[Frame].Total) <=
+				TotalSlopeBound * TimeDelta + 1e-4f &&
+			InputsFixed[Frame].Direction.Equals(Inputs30[Frame].Direction, 1e-3f));
+	}
+	// 実行ステップ数の公開カウンタはないため、静止ポーズと一定風で固定 30fps の一フレームを通常 120fps の四フレームと照合する。
+	// 最終 Location と PrevLocation の両方を比べ、通常 30fps の一ステップとの差を対照にする。
+	struct FBoneStepState { FVector Location; FVector PrevLocation; int32 ModifyBoneCount; };
+	const auto EvaluateStepState = [](const int32 FramesPerSecond, const bool bFixed, const int32 FrameCount)
+	{
+		KawaiiPhysicsNodeFixture::FOptions NodeOptions;
+		NodeOptions.Bones = KawaiiPhysicsNodeFixture::BuildVerticalChain(2);
+		NodeOptions.FrameDt = 1.0f / FramesPerSecond;
+		NodeOptions.ConfigureDeveloperSettings = [bFixed](UKawaiiPhysicsDeveloperSettings& DeveloperSettings)
+		{
+			DeveloperSettings.bUseFixedSubstepping = bFixed;
+			DeveloperSettings.MaxSubsteps = 4;
+		};
+		NodeOptions.ConfigureNode = [](FAnimNode_KawaiiPhysics& AnimNode)
+		{
+			AnimNode.RootBone.BoneName = TEXT("root");
+			AnimNode.WarmUpFrames = 0;
+			AnimNode.Gravity = FVector::ZeroVector;
+			AnimNode.TargetFramerate = 120;
+			auto& ConstantWind = KawaiiPhysicsNodeFixture::AddExternalForce<FKawaiiPhysics_ExternalForce_ProceduralWind>(AnimNode);
+			ConstantWind.ExternalForceSpace = EExternalForceSpace::ComponentSpace;
+			ConstantWind.ConstantForce = 200.0f;
+			ConstantWind.SwayForce = 0.0f;
+			ConstantWind.RippleForce = 0.0f;
+			ConstantWind.RandomForce = 0.0f;
+			ConstantWind.WindDirectionNoiseAngle = 0.0f;
+			ConstantWind.StrengthCycleRange = FFloatInterval(1.0f, 1.0f);
+		};
+		KawaiiPhysicsNodeFixture::FFixture StepFixture(NodeOptions);
+		for (int32 FrameIndex = 0; FrameIndex < FrameCount; ++FrameIndex) StepFixture.EvaluateFrame();
+		const auto& SimulatedBone = StepFixture.Node.ModifyBones[1];
+		return FBoneStepState{SimulatedBone.Location, SimulatedBone.PrevLocation, StepFixture.Node.ModifyBones.Num()};
+	};
+	const FBoneStepState FixedFour = EvaluateStepState(30, true, 1);
+	const FBoneStepState ReferenceFour = EvaluateStepState(120, false, 4);
+	const FBoneStepState LegacyOne = EvaluateStepState(30, false, 1);
+	bOk &= TestTrue(TEXT("対照: 三条件とも実ボーンがある"),
+		FixedFour.ModifyBoneCount > 1 && ReferenceFour.ModifyBoneCount > 1 && LegacyOne.ModifyBoneCount > 1);
+	bOk &= TestTrue(TEXT("対照: 一ステップと四ステップの位置が異なる"),
+		(FixedFour.Location - LegacyOne.Location).Size() > 1e-4f);
+	// 同じ 1/120 秒の四回積分。float の時刻加算と Verlet の丸めを 1e-4 cm 許す。
+	bOk &= TestTrue(TEXT("固定 30fps は通常 120fps の四ステップに一致"),
+		FixedFour.Location.Equals(ReferenceFour.Location, 1e-4f) &&
+		FixedFour.PrevLocation.Equals(ReferenceFour.PrevLocation, 1e-4f));
+	// 初期化後に突風を要求し、三フレーム目の中間ボーンを比べる。通常 120fps は四フレームごとに同じ時刻へ達する。
+	struct FDynamicStepState { FVector Location; FVector PrevLocation; float Ripple; float Sway; float Random; float StrengthCycle; float Gust; float BoneRate; int32 ModifyBoneCount; };
+	const auto EvaluateDynamicStepState = [](const int32 FramesPerSecond, const bool bFixed)
+	{
+		KawaiiPhysicsNodeFixture::FOptions DynamicOptions;
+		DynamicOptions.Bones = KawaiiPhysicsNodeFixture::BuildVerticalChain(3);
+		DynamicOptions.FrameDt = 1.0f / FramesPerSecond;
+		DynamicOptions.ConfigureDeveloperSettings = [bFixed](UKawaiiPhysicsDeveloperSettings& DeveloperSettings)
+		{
+			DeveloperSettings.bUseFixedSubstepping = bFixed;
+			DeveloperSettings.MaxSubsteps = 4;
+		};
+		DynamicOptions.ConfigureNode = [](FAnimNode_KawaiiPhysics& AnimNode)
+		{
+			AnimNode.RootBone.BoneName = TEXT("root");
+			AnimNode.WarmUpFrames = 0;
+			AnimNode.Gravity = FVector::ZeroVector;
+			AnimNode.TargetFramerate = 120;
+			auto& DynamicWind = KawaiiPhysicsNodeFixture::AddExternalForce<FKawaiiPhysics_ExternalForce_ProceduralWind>(AnimNode);
+			DynamicWind.ExternalForceSpace = EExternalForceSpace::ComponentSpace;
+			DynamicWind.ConstantForce = 200.0f;
+			DynamicWind.SwayForce = 3.0f;
+			DynamicWind.SwayPeriod = 2.0f;
+			DynamicWind.RippleForce = 20.0f;
+			DynamicWind.RipplePeriod = 4.0f;
+			DynamicWind.RippleTipPhaseDelay = 120.0f;
+			DynamicWind.RandomForce = 2.0f;
+			DynamicWind.RandomForcePeriod = 1.0f;
+			DynamicWind.StrengthCycleRange = FFloatInterval(0.95f, 1.05f);
+			DynamicWind.StrengthCyclePeriod = 4.0f;
+			DynamicWind.Seed = 291;
+		};
+		KawaiiPhysicsNodeFixture::FFixture DynamicFixture(DynamicOptions);
+		const int32 FramesPerBlock = FramesPerSecond / 30;
+		for (int32 FrameIndex = 0; FrameIndex < FramesPerBlock; ++FrameIndex) DynamicFixture.EvaluateFrame();
+		auto& DynamicWind = DynamicFixture.Node.ExternalForces[0].GetMutable<FKawaiiPhysics_ExternalForce_ProceduralWind>();
+		DynamicWind.RequestGust(8.0f, 0.5f, 1.0f, 2.0f);
+		for (int32 FrameIndex = 0; FrameIndex < 2 * FramesPerBlock; ++FrameIndex) DynamicFixture.EvaluateFrame();
+		const auto& SimulatedBone = DynamicFixture.Node.ModifyBones[1];
+		const auto& CachedState = *DynamicWind.RuntimeState;
+		const float Ripple = DynamicWind.RippleForce * FMath::Sin(2.0f * UE_PI * CachedState.Time / DynamicWind.RipplePeriod -
+			FMath::DegreesToRadians(SimulatedBone.LengthRateFromRoot * DynamicWind.RippleTipPhaseDelay));
+		return FDynamicStepState{SimulatedBone.Location, SimulatedBone.PrevLocation, Ripple,
+			CachedState.CachedSinesWithoutRipple - DynamicWind.ConstantForce, CachedState.CachedRandom,
+			CachedState.CachedStrengthCycle, CachedState.CachedGust, SimulatedBone.LengthRateFromRoot,
+			DynamicFixture.Node.ModifyBones.Num()};
+	};
+	const FDynamicStepState DynamicFixed = EvaluateDynamicStepState(30, true);
+	const FDynamicStepState DynamicReference = EvaluateDynamicStepState(120, false);
+	const FDynamicStepState DynamicLegacy = EvaluateDynamicStepState(30, false);
+	bOk &= TestTrue(TEXT("対照: 全条件に中間ボーンがある"), DynamicFixed.ModifyBoneCount > 2 &&
+		DynamicReference.ModifyBoneCount > 2 && DynamicLegacy.ModifyBoneCount > 2 &&
+		DynamicFixed.BoneRate > 0.0f && DynamicFixed.BoneRate < 1.0f);
+	bOk &= TestTrue(TEXT("対照: 中間ボーンの全系列が有効"),
+		FMath::Abs(DynamicFixed.Ripple) > 1.0f && FMath::Abs(DynamicFixed.Sway) > 1e-3f &&
+		FMath::Abs(DynamicFixed.Random) > 1e-3f &&
+		FMath::Abs(DynamicFixed.StrengthCycle - 1.0f) > 1e-3f && DynamicFixed.Gust > 0.0f);
+	bOk &= TestTrue(TEXT("対照: 通常 30fps の一ステップと位置が異なる"),
+		(DynamicFixed.Location - DynamicLegacy.Location).Size() > 1e-4f);
+	// 三ブロックの時間内で、各フレーム末のキャッシュと途中サンプルの差は最大 0.025 秒。
+	// Sway 10、Ripple 35、StrengthCycle 17、Random 6、Gust 16 の傾き合計 84 を 90 に切り上げ、
+	// 0.025×90×(3/30)=0.225 cm と Verlet の丸め・拘束差を合わせて 0.25 cm 許す。
+	bOk &= TestTrue(TEXT("全系列の固定 30fps は通常 120fps の四ステップに一致"),
+		DynamicFixed.Location.Equals(DynamicReference.Location, 0.25f) &&
+		DynamicFixed.PrevLocation.Equals(DynamicReference.PrevLocation, 0.25f));
+	return bOk;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindResetRuntimeStateTest,
@@ -1459,73 +1682,66 @@ bool FKawaiiPhysicsProceduralWindBoneSpaceDirectionWorldSimTest::RunTest(const F
 	return bOk;
 }
 
+// TW-SH-14。生き残り mutant なし。無効な Publisher の残留で Local が復帰しなければ Total=100 と方向 (0.6,0.8,0) の比較で落ちる。
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsProceduralWindSharedTagClearedRestoresLocalWindTest,
                                  "KawaiiPhysics.ProceduralWind.SharedTagClearedRestoresLocalWind",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FKawaiiPhysicsProceduralWindSharedTagClearedRestoresLocalWindTest::RunTest(const FString& Parameters)
 {
-	// 無効な Publisher（bPublisherWindEnabled=false）を採用すると bPublisherWindDisabled が立つ。
-	// その後 SharedWindTag を None にしても Local の風が0のまま戻らない回帰を防ぐ
-	// （Shared を離れる全経路でこのフラグを戻す契約：ResolveSharedWindSource の Tag無効経路と
-	// PreApply の Tag変化ブロックの両方）
 	FKawaiiPhysicsTestAccessor Accessor;
 	Accessor.BuildVerticalChain(2, 10.0f);
 	constexpr float Dt = 1.0f / 60.0f;
-
-	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
-	Wind.WindSource = EKawaiiPhysicsProceduralWindSource::Shared;
-	Wind.bIsEnabled = true;
-	Wind.ConstantForce = 100.0f;
-	Wind.WindDirection = FVector(1.0f, 0.0f, 0.0f);
-
-	const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry = MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
-	FKawaiiPhysicsSharedPublisherState State;
-	State.bPublisherEnabled = true;
-	State.Wind.bPublisherWindEnabled = false;
-	// Params は既定（bOverride* が全て false）のままにし、ConstantForce / WindDirection をローカル値のまま保つ
-	FKawaiiPhysicsTestAccessor::PublishSharedPublisherState(Entry, State);
-	FKawaiiPhysicsTestAccessor::BindSharedWindEntry(Wind, Entry);
-
-	RunProceduralWindPreApply(Accessor, Wind, Dt);
-	bool bOk = TestTrue(TEXT("Disabled publisher sets bPublisherWindDisabled"),
-	                    Wind.RuntimeState->bPublisherWindDisabled);
-	bOk &= TestTrue(TEXT("Disabled publisher zeroes cached wind vector"),
-	                Wind.RuntimeState->CachedWindVector.IsNearlyZero());
-
-	// Tag を None にする（setter を使わず直接代入。Persona の in-place 同期を模す）
-	Wind.SharedWindTag = FGameplayTag();
-	RunProceduralWindPreApply(Accessor, Wind, Dt);
-	bOk &= TestFalse(TEXT("Clearing the tag restores bPublisherWindDisabled"),
-	                 Wind.RuntimeState->bPublisherWindDisabled);
-	bOk &= TestTrue(TEXT("Clearing the tag resolves to Local"),
-	                Wind.RuntimeState->ResolvedSource == EKawaiiPhysicsProceduralWindSource::Local);
-	bOk &= TestFalse(TEXT("Clearing the tag drops the shared entry"),
-	                 Wind.RuntimeState->SharedPublisherEntry.IsValid());
-
-	RunProceduralWindPreApply(Accessor, Wind, Dt);
-	bOk &= TestFalse(TEXT("Local wind resumes with a non-zero cached vector"),
-	                 Wind.RuntimeState->CachedWindVector.IsNearlyZero());
-	bOk &= TestTrue(TEXT("Local ConstantForce still drives a positive sample"),
-	                Wind.ComputeWindSample(Wind.RuntimeState->Time, 0.0f).Total > 0.0f);
-
-	// 対称ケース: Tag を外さず WindSource = Local へ切り替える既存経路も戻ることを確認する
-	FKawaiiPhysics_ExternalForce_ProceduralWind LocalSwitchWind;
-	LocalSwitchWind.WindSource = EKawaiiPhysicsProceduralWindSource::Shared;
-	LocalSwitchWind.bIsEnabled = true;
-	const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> LocalSwitchEntry =
-		MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
-	FKawaiiPhysicsTestAccessor::PublishSharedPublisherState(LocalSwitchEntry, State);
-	FKawaiiPhysicsTestAccessor::BindSharedWindEntry(LocalSwitchWind, LocalSwitchEntry);
-	RunProceduralWindPreApply(Accessor, LocalSwitchWind, Dt);
-	bOk &= TestTrue(TEXT("Symmetric case: disabled publisher sets the flag"),
-	                LocalSwitchWind.RuntimeState->bPublisherWindDisabled);
-
-	LocalSwitchWind.WindSource = EKawaiiPhysicsProceduralWindSource::Local;
-	RunProceduralWindPreApply(Accessor, LocalSwitchWind, Dt);
-	bOk &= TestFalse(TEXT("Symmetric case: switching WindSource to Local also clears the flag"),
-	                 LocalSwitchWind.RuntimeState->bPublisherWindDisabled);
-
+	bool bOk = true;
+	for (int32 Route = 0; Route < 4; ++Route)
+	{
+		FKawaiiPhysics_ExternalForce_ProceduralWind MeasuredWind;
+		MeasuredWind.WindSource = EKawaiiPhysicsProceduralWindSource::Shared;
+		MeasuredWind.SharedWindTag = TAG_KawaiiPhysics_Shared_Default;
+		MeasuredWind.ConstantForce = 100.0f;
+		MeasuredWind.WindDirection = FVector(3.0f, 4.0f, 0.0f);
+		MeasuredWind.StrengthCycleRange = FFloatInterval(1.0f, 1.0f);
+		const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> PublisherEntry = MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
+		FKawaiiPhysicsSharedPublisherState PublishedState;
+		PublishedState.bPublisherEnabled = true;
+		PublishedState.Wind.bPublisherWindEnabled = false;
+		FKawaiiPhysicsTestAccessor::PublishSharedPublisherState(PublisherEntry, PublishedState);
+		FKawaiiPhysicsTestAccessor::BindSharedWindEntry(MeasuredWind, PublisherEntry);
+		RunProceduralWindPreApply(Accessor, MeasuredWind, Dt);
+		bOk &= TestTrue(TEXT("対照: 無効 Publisher を採用"), MeasuredWind.RuntimeState->bPublisherWindDisabled);
+		bOk &= TestEqual(TEXT("対照: 無効 Publisher の基本波形は零"),
+			MeasuredWind.RuntimeState->CachedSinesWithoutRipple, 0.0f);
+		bOk &= TestTrue(TEXT("対照: 無効 Publisher の向きは零"),
+			MeasuredWind.RuntimeState->CachedWindVector.IsNearlyZero());
+#if WITH_EDITOR
+		const int32 DisabledSampleIndex = (MeasuredWind.RuntimeState->ScopeWriteIndex - 1 +
+			MeasuredWind.RuntimeState->ScopeBuffer.Num()) % MeasuredWind.RuntimeState->ScopeBuffer.Num();
+		bOk &= TestEqual(TEXT("対照: 無効 Publisher の Total は零"),
+			MeasuredWind.RuntimeState->ScopeBuffer[DisabledSampleIndex].Sample.Total, 0.0f);
+#endif
+		switch (Route)
+		{
+		case 0: MeasuredWind.SharedWindTag = FGameplayTag(); break;
+		case 1: MeasuredWind.SharedWindTag = TAG_KawaiiPhysics_WindPreset_Breeze; break;
+		case 2: PublisherEntry->MarkExpired(); break;
+		default: MeasuredWind.WindSource = EKawaiiPhysicsProceduralWindSource::Local; break;
+		}
+		RunProceduralWindPreApply(Accessor, MeasuredWind, Dt);
+		bOk &= TestFalse(TEXT("Shared を離れると無効フラグを解除"), MeasuredWind.RuntimeState->bPublisherWindDisabled);
+		bOk &= TestTrue(TEXT("Shared を離れると Local を選ぶ"),
+			MeasuredWind.RuntimeState->ResolvedSource == EKawaiiPhysicsProceduralWindSource::Local);
+		// Constant のみなので Total=C=100。方向 (3,4,0) の長さは 5。
+		bOk &= TestEqual(TEXT("次のフレームに Local の強さを復帰"),
+			MeasuredWind.ComputeWindSample(MeasuredWind.RuntimeState->Time).Total, 100.0f);
+#if WITH_EDITOR
+		const int32 RestoredSampleIndex = (MeasuredWind.RuntimeState->ScopeWriteIndex - 1 +
+			MeasuredWind.RuntimeState->ScopeBuffer.Num()) % MeasuredWind.RuntimeState->ScopeBuffer.Num();
+		bOk &= TestEqual(TEXT("実際に記録した Local の Total は C"),
+			MeasuredWind.RuntimeState->ScopeBuffer[RestoredSampleIndex].Sample.Total, 100.0f);
+#endif
+		bOk &= TestTrue(TEXT("次のフレームに Local の向きを復帰"),
+			MeasuredWind.RuntimeState->CachedWindVector.Equals(FVector(0.6f, 0.8f, 0.0f), 1e-4f));
+	}
 	return bOk;
 }
 
