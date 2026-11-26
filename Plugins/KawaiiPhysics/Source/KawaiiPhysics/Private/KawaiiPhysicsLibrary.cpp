@@ -17,6 +17,7 @@
 #include "GameFramework/Actor.h"
 #include "HAL/IConsoleManager.h"
 #include "KawaiiPhysics.h"
+#include "KawaiiPhysicsPropertyCompare.h"
 #include "KawaiiPhysicsRuntimeInfoTypes.h"
 #include "KawaiiPhysicsSharedCollisionSubsystem.h"
 #include "KawaiiPhysicsWindPresetDataAsset.h"
@@ -291,7 +292,7 @@ namespace KawaiiPhysicsLibraryPrivate
 		{
 			for (TFieldIterator<FProperty> It(StructProperty->Struct); It; ++It)
 			{
-				if (RuntimeOnlyNames->Contains(It->GetFName()))
+				if (RuntimeOnlyNames->Contains(It->GetFName()) || KawaiiPhysicsPropertyComparePrivate::IsCurveKeyHandleMapProperty(**It))
 				{
 					continue;
 				}
@@ -306,7 +307,7 @@ namespace KawaiiPhysicsLibraryPrivate
 			}
 			return true;
 		}
-		return Property->Identical(A, B, PPF_None);
+		return KawaiiPhysicsPropertyComparePrivate::ArePropertyValuesIdentical(Property, A, B, PPF_None);
 	}
 
 	static const TSet<FName>& GetNodeSharedCollisionReinitPropertyNames()
