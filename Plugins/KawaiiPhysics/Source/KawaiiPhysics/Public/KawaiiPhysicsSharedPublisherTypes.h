@@ -131,7 +131,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSharedWindState
 	// 両時計に対応するゲーム内時刻。未設定は従来の dt 積算 / Game timestamp for both clocks; unset uses legacy delta accumulation.
 	TOptional<double> GameTimeSeconds;
 	float PublisherTimeScale = 1.0f;
-	FKawaiiProceduralWindActiveGust ActiveGust;
+	FKawaiiProceduralWindGusts Gusts;
 };
 
 /**

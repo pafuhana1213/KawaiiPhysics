@@ -57,7 +57,7 @@ static FVector SafeDirectionOrForward(const FVector& InVector)
 }
 
 // アクティブな gust envelope を経過時間から評価する（線形 rise → hold → 線形 decay の台形エンベロープ）。
-// Strength/RiseTime/DecayTime/HoldTime は StartProceduralWindGust API 経由で ActiveGust にセットされる
+// Strength/RiseTime/DecayTime/HoldTime は StartProceduralWindGust API 経由で各突風にセットされる
 static float EvaluateActiveGust(const FKawaiiProceduralWindActiveGust& ActiveGust, const float InTime)
 {
 	if (!ActiveGust.bIsActive)
@@ -100,6 +100,30 @@ static float EvaluateActiveGust(const FKawaiiProceduralWindActiveGust& ActiveGus
 	}
 
 	return 0.0f;
+}
+
+// 満杯の要求列から最古の Start を除き、Stop だけなら隣接する 2 件を早い期限にまとめる。
+static void MakeRoomForGustRequest(FKawaiiProceduralWindPendingGusts& Pending)
+{
+	if (Pending.Num < FKawaiiProceduralWindPendingGusts::MaxRequests) { return; }
+	int32 OldestStart = INDEX_NONE;
+	for (int32 Index = 0; Index < Pending.Num; ++Index)
+	{
+		if (!Pending.Items[Index].bStop) { OldestStart = Index; break; }
+	}
+	if (OldestStart == INDEX_NONE)
+	{
+		const float First = Pending.Items[0].BlendOutTime;
+		const float Second = Pending.Items[1].BlendOutTime;
+		Pending.Items[1].BlendOutTime = !FMath::IsFinite(First) || !FMath::IsFinite(Second)
+			? 0.0f : FMath::Min(First, Second);
+		OldestStart = 0;
+	}
+	for (int32 Index = OldestStart; Index + 1 < Pending.Num; ++Index)
+	{
+		Pending.Items[Index] = Pending.Items[Index + 1];
+	}
+	--Pending.Num;
 }
 
 // 基準方向 InDirection を軸とする円錐内で、(NoiseX, NoiseY) の向きへ ConeHalfAngleDegrees を上限にぶれさせる
@@ -155,12 +179,12 @@ static float ComputeDebugTotalRate(const FKawaiiPhysics_ExternalForce_Procedural
 static void InitializeRuntimeStateContents(FKawaiiProceduralWindRuntimeState& State)
 {
 	State.PendingParams.Reset();
-	State.PendingGust.Reset();
-	State.PendingGustStop.Reset();
+	State.PendingGusts.Num = 0;
 	State.Time = 0.0f;
 	State.UnscaledTime = 0.0f;
 	State.ClockGeneration = 0;
-	State.ActiveGust = FKawaiiProceduralWindActiveGust();
+	State.Gusts.Num = 0;
+	State.bUseInheritedClock = false;
 	State.CachedSinesWithoutRipple = 0.0f;
 	State.CachedStrengthCycle = 1.0f;
 	State.CachedRandom = 0.0f;
@@ -344,7 +368,7 @@ FKawaiiPhysics_ExternalForce_ProceduralWind& FKawaiiPhysics_ExternalForce_Proced
 	RandomForcePeriod = Other.RandomForcePeriod;
 	Seed = Other.Seed;
 
-	// RuntimeState はインスタンス間でコピー・共有しない。代入先が有効な RuntimeState を持つ場合はポインタと中身（Time/ActiveGust/PendingParams）を保持し、
+	// RuntimeState はインスタンス間でコピー・共有しない。代入先が有効な RuntimeState を持つ場合はポインタと中身（Time/Gusts/PendingParams）を保持し、
 	// Persona の CopyNodeDataToPreviewNode などのインプレース同期でシミュレーション時刻をリセットしない。無効な代入先だけ新規生成する。
 	const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> LocalRuntimeState = EnsureRuntimeState();
 	if (bSharedKeyChanged)
@@ -745,7 +769,7 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::ApplySharedWindState(
 	LocalRuntimeState->SharedGameTimeAtPublish = State.GameTimeSeconds;
 	LocalRuntimeState->SharedWindTimeAtPublish = State.Time;
 	LocalRuntimeState->SharedUnscaledTimeAtPublish = State.UnscaledTime;
-	LocalRuntimeState->ActiveGust = State.ActiveGust;
+	LocalRuntimeState->Gusts = State.Gusts;
 	LocalRuntimeState->bPublisherWindDisabled = !State.bPublisherWindEnabled;
 	LocalRuntimeState->CachedPublisherTimeScale = State.PublisherTimeScale;
 	LocalRuntimeState->LastAppliedSharedSerial = Serial;
@@ -772,20 +796,23 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::RequestGust(
 	const float Strength, const float RiseTime, const float DecayTime, const float HoldTime,
 	const bool bRealTimeEnvelope)
 {
+	// F2: 非有限の突風は列に入れない（空きを作る前に弾き、正常な要求を押し出さない）
+	if (!FMath::IsFinite(Strength) || !FMath::IsFinite(RiseTime) ||
+		!FMath::IsFinite(HoldTime) || !FMath::IsFinite(DecayTime))
+	{
+		return;
+	}
 	const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> LocalRuntimeState = EnsureRuntimeState();
 	FScopeLock Lock(&LocalRuntimeState->Mutex);
-	LocalRuntimeState->PendingGust = FKawaiiProceduralWindGustRequest{
-		Strength,
-		RiseTime,
-		DecayTime,
-		HoldTime,
-		bRealTimeEnvelope
-	};
+	auto& Pending = LocalRuntimeState->PendingGusts;
+	KawaiiPhysicsExternalForceProceduralWindPrivate::MakeRoomForGustRequest(Pending);
+	Pending.Items[Pending.Num++] = { { Strength, RiseTime, DecayTime, HoldTime, bRealTimeEnvelope }, 0.0f, false };
 }
 
 // transient 用の突風はコピー元が Shared でも必ずローカルキューへ積む
 void FKawaiiPhysics_ExternalForce_ProceduralWind::RequestLocalGust(
-	const float Strength, const float RiseTime, const float DecayTime, const float HoldTime)
+	const float Strength, const float RiseTime, const float DecayTime, const float HoldTime,
+	const bool bRealTimeEnvelope)
 {
 	const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> LocalRuntimeState = EnsureRuntimeState();
 	WindSource = EKawaiiPhysicsProceduralWindSource::Local;
@@ -796,16 +823,18 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::RequestLocalGust(
 	LocalRuntimeState->ResolvedSharedTag = FGameplayTag();
 	LocalRuntimeState->LastAppliedSharedSerial = 0;
 	LocalRuntimeState->bPublisherWindDisabled = false;
-	RequestGust(Strength, RiseTime, DecayTime, HoldTime);
+	RequestGust(Strength, RiseTime, DecayTime, HoldTime, bRealTimeEnvelope);
 }
 
-// アクティブな突風の早期停止要求を PendingGustStop として積み、次回 PreApply で反映する
+// 全突風の早期停止要求を到着順の列に積み、次回 PreApply で反映する
 //（Shared の消費側での転送は RequestGust と同じく Worker の PreApply が行う）
 void FKawaiiPhysics_ExternalForce_ProceduralWind::RequestGustStop(const float BlendOutTime)
 {
 	const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> LocalRuntimeState = EnsureRuntimeState();
 	FScopeLock Lock(&LocalRuntimeState->Mutex);
-	LocalRuntimeState->PendingGustStop = BlendOutTime;
+	auto& Pending = LocalRuntimeState->PendingGusts;
+	KawaiiPhysicsExternalForceProceduralWindPrivate::MakeRoomForGustRequest(Pending);
+	Pending.Items[Pending.Num++] = { {}, BlendOutTime, true };
 }
 
 // 溜まった突風要求を Shared Publisher Entry へ転送する。Worker（PreApply）からのみ呼ぶこと。
@@ -817,27 +846,20 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::SendPendingGustRequestsToShare
 		return;
 	}
 
-	TOptional<FKawaiiProceduralWindGustRequest> Gust;
-	TOptional<float> GustStop;
+	FKawaiiProceduralWindPendingGusts Pending;
 	{
 		FScopeLock Lock(&RuntimeState->Mutex);
-		Gust = MoveTemp(RuntimeState->PendingGust);
-		GustStop = MoveTemp(RuntimeState->PendingGustStop);
-		RuntimeState->PendingGust.Reset();
-		RuntimeState->PendingGustStop.Reset();
+		Pending = RuntimeState->PendingGusts;
+		RuntimeState->PendingGusts.Num = 0;
 	}
 
-	// RuntimeState の Mutex を抜けてから Entry を触り、ロックの入れ子を作らない。
-	// 起動 → 停止の順に積み、同フレームに両方来たときの停止優先をローカル経路と揃える
-	if (Gust.IsSet())
+	// RuntimeState の Mutex を抜け、到着順で Entry に積む。
+	for (int32 Index = 0; Index < Pending.Num; ++Index)
 	{
-		const FKawaiiProceduralWindGustRequest& Request = Gust.GetValue();
-		RuntimeState->SharedPublisherEntry->RequestGust(
-			Request.Strength, Request.RiseTime, Request.DecayTime, Request.HoldTime, Request.bRealTimeEnvelope);
-	}
-	if (GustStop.IsSet())
-	{
-		RuntimeState->SharedPublisherEntry->RequestGustStop(GustStop.GetValue());
+		const auto& Request = Pending.Items[Index];
+		if (Request.bStop) { RuntimeState->SharedPublisherEntry->RequestGustStop(Request.BlendOutTime); }
+		else { RuntimeState->SharedPublisherEntry->RequestGust(Request.Gust.Strength, Request.Gust.RiseTime,
+			Request.Gust.DecayTime, Request.Gust.HoldTime, Request.Gust.bRealTimeEnvelope); }
 	}
 }
 
@@ -859,46 +881,77 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::ConsumePendingRequests()
 		LocalRuntimeState->PendingParams.Reset();
 	}
 
-	// gust 要求を ActiveGust として起動する（StartTime は現在のシミュレーション内時間を基準にする）
-	if (LocalRuntimeState->PendingGust.IsSet())
+	auto& Gusts = LocalRuntimeState->Gusts;
+	for (int32 RequestIndex = 0; RequestIndex < LocalRuntimeState->PendingGusts.Num; ++RequestIndex)
 	{
-		const FKawaiiProceduralWindGustRequest& PendingGust = LocalRuntimeState->PendingGust.GetValue();
-		LocalRuntimeState->ActiveGust.bRealTimeEnvelope = PendingGust.bRealTimeEnvelope;
-		LocalRuntimeState->ActiveGust.StartTime = PendingGust.bRealTimeEnvelope
-			? LocalRuntimeState->UnscaledTime : LocalRuntimeState->Time;
-		LocalRuntimeState->ActiveGust.Strength = PendingGust.Strength;
-		LocalRuntimeState->ActiveGust.RiseTime = PendingGust.RiseTime;
-		LocalRuntimeState->ActiveGust.DecayTime = PendingGust.DecayTime;
-		LocalRuntimeState->ActiveGust.HoldTime = PendingGust.HoldTime;
-		LocalRuntimeState->ActiveGust.bIsActive = true;
-		LocalRuntimeState->PendingGust.Reset();
-	}
-
-	// gust 停止要求は起動要求の後に処理し、同フレームでは停止を優先する
-	if (LocalRuntimeState->PendingGustStop.IsSet())
-	{
-		const float BlendOutTime = LocalRuntimeState->PendingGustStop.GetValue();
-		if (LocalRuntimeState->ActiveGust.bIsActive)
+		const auto& Pending = LocalRuntimeState->PendingGusts.Items[RequestIndex];
+		if (!Pending.bStop)
 		{
-			if (BlendOutTime <= KINDA_SMALL_NUMBER)
+			const auto& Request = Pending.Gust;
+			if (!FMath::IsFinite(Request.Strength) || !FMath::IsFinite(Request.RiseTime) ||
+				!FMath::IsFinite(Request.HoldTime) || !FMath::IsFinite(Request.DecayTime)) { continue; }
+			if (Gusts.Num == FKawaiiProceduralWindGusts::MaxGusts)
 			{
-				LocalRuntimeState->ActiveGust.bIsActive = false;
+				UE_LOG(LogKawaiiPhysics, Verbose, TEXT("Procedural wind gust cap exceeded; dropping oldest gust."));
+				for (int32 Index = 1; Index < Gusts.Num; ++Index) { Gusts.Items[Index - 1] = Gusts.Items[Index]; }
+				--Gusts.Num;
 			}
-			else
+			auto& Gust = Gusts.Items[Gusts.Num++];
+			Gust.bRealTimeEnvelope = Request.bRealTimeEnvelope;
+			Gust.StartTime = Request.bRealTimeEnvelope ? LocalRuntimeState->UnscaledTime : LocalRuntimeState->Time;
+			Gust.Strength = Request.Strength;
+			Gust.RiseTime = Request.RiseTime;
+			Gust.DecayTime = Request.DecayTime;
+			Gust.HoldTime = Request.HoldTime;
+			Gust.bIsActive = true;
+			Gust.bIsStopping = false;
+		}
+		else if (!FMath::IsFinite(Pending.BlendOutTime) || Pending.BlendOutTime <= KINDA_SMALL_NUMBER)
+		{
+			Gusts.Num = 0;
+		}
+		else
+		{
+			for (int32 Index = Gusts.Num - 1; Index >= 0; --Index)
 			{
-				const float CurrentGust = KawaiiPhysicsExternalForceProceduralWindPrivate::EvaluateActiveGust(LocalRuntimeState->ActiveGust,
-					LocalRuntimeState->ActiveGust.bRealTimeEnvelope ? LocalRuntimeState->UnscaledTime : LocalRuntimeState->Time);
-				// 停止の BlendOutTime は従来どおり wind 時間。切り替え前の時計で現在強度を求めてから移行する。
-				LocalRuntimeState->ActiveGust.bRealTimeEnvelope = false;
-				LocalRuntimeState->ActiveGust.StartTime = LocalRuntimeState->Time;
-				LocalRuntimeState->ActiveGust.Strength = CurrentGust;
-				LocalRuntimeState->ActiveGust.RiseTime = 0.0f;
-				LocalRuntimeState->ActiveGust.DecayTime = BlendOutTime;
-				LocalRuntimeState->ActiveGust.HoldTime = 0.0f;
-				LocalRuntimeState->ActiveGust.bIsActive = true;
+				auto& Gust = Gusts.Items[Index];
+				const float CurrentTime = Gust.bRealTimeEnvelope ? LocalRuntimeState->UnscaledTime : LocalRuntimeState->Time;
+				const float CurrentGust = KawaiiPhysicsExternalForceProceduralWindPrivate::EvaluateActiveGust(Gust, CurrentTime);
+				if (!FMath::IsFinite(CurrentGust) || CurrentGust == 0.0f)
+				{
+					for (int32 Next = Index + 1; Next < Gusts.Num; ++Next) { Gusts.Items[Next - 1] = Gusts.Items[Next]; }
+					--Gusts.Num;
+					continue;
+				}
+				const float Remaining = Gust.bIsStopping
+					? FMath::Max(0.0f, Gust.StartTime + Gust.DecayTime - CurrentTime) : Pending.BlendOutTime;
+				Gust.StartTime = CurrentTime;
+				Gust.Strength = CurrentGust;
+				Gust.RiseTime = 0.0f;
+				Gust.DecayTime = FMath::Min(Pending.BlendOutTime, Remaining);
+				Gust.HoldTime = 0.0f;
+				Gust.bIsStopping = true;
 			}
 		}
-		LocalRuntimeState->PendingGustStop.Reset();
+	}
+	LocalRuntimeState->PendingGusts.Num = 0;
+}
+
+void FKawaiiPhysics_ExternalForce_ProceduralWind::RemoveExpiredGusts()
+{
+	if (!RuntimeState.IsValid()) { return; }
+	auto& Gusts = RuntimeState->Gusts;
+	for (int32 Index = Gusts.Num - 1; Index >= 0; --Index)
+	{
+		const auto& Gust = Gusts.Items[Index];
+		const float CurrentTime = Gust.bRealTimeEnvelope ? RuntimeState->UnscaledTime : RuntimeState->Time;
+		const float EndTime = Gust.StartTime + FMath::Max(Gust.RiseTime, 0.0f) +
+			FMath::Max(Gust.HoldTime, 0.0f) + FMath::Max(Gust.DecayTime, 0.0f);
+		if (CurrentTime >= EndTime)
+		{
+			for (int32 Next = Index + 1; Next < Gusts.Num; ++Next) { Gusts.Items[Next - 1] = Gusts.Items[Next]; }
+			--Gusts.Num;
+		}
 	}
 }
 
@@ -933,8 +986,13 @@ FKawaiiPhysicsProceduralWindSample FKawaiiPhysics_ExternalForce_ProceduralWind::
 	// アクティブな gust があれば加算
 	if (RuntimeState.IsValid())
 	{
-		Sample.Gust = KawaiiPhysicsExternalForceProceduralWindPrivate::EvaluateActiveGust(RuntimeState->ActiveGust,
-			RuntimeState->ActiveGust.bRealTimeEnvelope ? RuntimeState->UnscaledTime : InTime);
+		for (int32 Index = 0; Index < RuntimeState->Gusts.Num; ++Index)
+		{
+			const auto& Gust = RuntimeState->Gusts.Items[Index];
+			const float Value = KawaiiPhysicsExternalForceProceduralWindPrivate::EvaluateActiveGust(Gust,
+				Gust.bRealTimeEnvelope ? RuntimeState->UnscaledTime : InTime);
+			if (FMath::IsFinite(Value)) { Sample.Gust += Value; }
+		}
 	}
 	// 異常値は系列ごとに捨て、強弱サイクルだけ中立倍率へ戻す。
 	if (!FMath::IsFinite(Sample.Constant)) { Sample.Constant = 0.0f; }
@@ -1004,7 +1062,7 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::Initialize(const FAnimationIni
 {
 	Super::Initialize(Context);
 
-	// ノード初期化時に RuntimeState の中身を初期化し、前回の再生状態（Time/ActiveGust等）を引き継がない。
+	// ノード初期化時に RuntimeState の中身を初期化し、前回の再生状態（Time/Gusts等）を引き継がない。
 	// ただし初期化前に届いた要求（パラメータ変更・突風・突風の停止）は捨てずに引き継ぐ。実行時に追加された外力は
 	// 最初の評価の直前に初期化されるので、ここで消すと追加直後の要求が黙って失われる。
 	// 要求は別スレッドからも届くので、退避・初期化・復元を 1 つのロック区間で行う（途中に届いた要求を古い値で上書きしない）
@@ -1013,12 +1071,10 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::Initialize(const FAnimationIni
 	RestoreLocalSharedParams();
 	FScopeLock Lock(&State->Mutex);
 	TOptional<FKawaiiProceduralWindDynamicParams> PendingParams = MoveTemp(State->PendingParams);
-	TOptional<FKawaiiProceduralWindGustRequest> PendingGust = MoveTemp(State->PendingGust);
-	TOptional<float> PendingGustStop = MoveTemp(State->PendingGustStop);
+	FKawaiiProceduralWindPendingGusts PendingGusts = State->PendingGusts;
 	KawaiiPhysicsExternalForceProceduralWindPrivate::InitializeRuntimeStateContents(*State);
 	State->PendingParams = MoveTemp(PendingParams);
-	State->PendingGust = MoveTemp(PendingGust);
-	State->PendingGustStop = MoveTemp(PendingGustStop);
+	State->PendingGusts = PendingGusts;
 }
 
 namespace KawaiiPhysicsProceduralWindInternal
@@ -1156,7 +1212,13 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::PreApply(FAnimNode_KawaiiPhysi
 		RuntimeState->ResolvedSource = EKawaiiPhysicsProceduralWindSource::Local;
 		RuntimeState->SharedPublisherEntry.Reset();
 		RuntimeState->bPublisherWindDisabled = false;
-		AdvanceWindTime(Node.GetStepDeltaTime());
+		if (RuntimeState->bUseInheritedClock)
+		{
+			RuntimeState->Time = RuntimeState->InheritedTime;
+			RuntimeState->UnscaledTime = RuntimeState->InheritedUnscaledTime;
+			RuntimeState->ClockGeneration = RuntimeState->InheritedClockGeneration;
+		}
+		else { AdvanceWindTime(Node.GetStepDeltaTime()); }
 	}
 	else
 	{
@@ -1252,6 +1314,7 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::PreApply(FAnimNode_KawaiiPhysi
 		}
 	}
 
+	RemoveExpiredGusts();
 	// ボーンに依存しない成分（Constant/Sway/StrengthCycle/Random/Gust）はここで1回だけ計算してキャッシュする。
 	// Apply は全ボーンで呼ばれるため、毎ボーン再計算しないための最適化（Rippleのみボーン依存で Apply 側が再計算する）
 	const FKawaiiPhysicsProceduralWindSample Sample =

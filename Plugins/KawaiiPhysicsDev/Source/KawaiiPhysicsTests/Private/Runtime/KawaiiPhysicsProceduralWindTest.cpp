@@ -468,12 +468,13 @@ bool FKawaiiPhysicsProceduralWindGustEnvelopeTest::RunTest(const FString& Parame
 	// HoldTime を含む台形ガストが立ち上がり、保持、減衰の各区間で評価されることを確認する。
 	FKawaiiPhysics_ExternalForce_ProceduralWind Wind;
 	Wind.ResetRuntimeState();
-	Wind.RuntimeState->ActiveGust.StartTime = 0.0f;
-	Wind.RuntimeState->ActiveGust.Strength = 5.0f;
-	Wind.RuntimeState->ActiveGust.RiseTime = 1.0f;
-	Wind.RuntimeState->ActiveGust.DecayTime = 2.0f;
-	Wind.RuntimeState->ActiveGust.HoldTime = 2.0f;
-	Wind.RuntimeState->ActiveGust.bIsActive = true;
+	Wind.RuntimeState->Gusts.Items[0].StartTime = 0.0f;
+	Wind.RuntimeState->Gusts.Items[0].Strength = 5.0f;
+	Wind.RuntimeState->Gusts.Items[0].RiseTime = 1.0f;
+	Wind.RuntimeState->Gusts.Items[0].DecayTime = 2.0f;
+	Wind.RuntimeState->Gusts.Items[0].HoldTime = 2.0f;
+	Wind.RuntimeState->Gusts.Items[0].bIsActive = true;
+	Wind.RuntimeState->Gusts.Num = 1;
 
 	TestSampleNear(*this, TEXT("Hold Gust t=0.5"), Wind.ComputeWindSample(0.5f, 0.0f).Gust, 2.5f);
 	TestSampleNear(*this, TEXT("Hold Gust t=1.0"), Wind.ComputeWindSample(1.0f, 0.0f).Gust, 5.0f);
@@ -484,18 +485,19 @@ bool FKawaiiPhysicsProceduralWindGustEnvelopeTest::RunTest(const FString& Parame
 	TestSampleNear(*this, TEXT("Hold Gust t=6.0"), Wind.ComputeWindSample(6.0f, 0.0f).Gust, 0.0f);
 
 	// HoldTime=0 でもピークと終了時刻が維持される。
-	Wind.RuntimeState->ActiveGust.HoldTime = 0.0f;
+	Wind.RuntimeState->Gusts.Items[0].HoldTime = 0.0f;
 	TestSampleNear(*this, TEXT("No hold peak"), Wind.ComputeWindSample(1.0f, 0.0f).Gust, 5.0f);
 	TestSampleNear(*this, TEXT("No hold end"), Wind.ComputeWindSample(3.0f, 0.0f).Gust, 0.0f);
 
 	FKawaiiPhysics_ExternalForce_ProceduralWind StepWind;
 	StepWind.ResetRuntimeState();
-	StepWind.RuntimeState->ActiveGust.StartTime = 0.0f;
-	StepWind.RuntimeState->ActiveGust.Strength = 5.0f;
-	StepWind.RuntimeState->ActiveGust.RiseTime = 0.0f;
-	StepWind.RuntimeState->ActiveGust.DecayTime = 0.0f;
-	StepWind.RuntimeState->ActiveGust.HoldTime = 1.0f;
-	StepWind.RuntimeState->ActiveGust.bIsActive = true;
+	StepWind.RuntimeState->Gusts.Items[0].StartTime = 0.0f;
+	StepWind.RuntimeState->Gusts.Items[0].Strength = 5.0f;
+	StepWind.RuntimeState->Gusts.Items[0].RiseTime = 0.0f;
+	StepWind.RuntimeState->Gusts.Items[0].DecayTime = 0.0f;
+	StepWind.RuntimeState->Gusts.Items[0].HoldTime = 1.0f;
+	StepWind.RuntimeState->Gusts.Items[0].bIsActive = true;
+	StepWind.RuntimeState->Gusts.Num = 1;
 
 	TestSampleNear(*this, TEXT("Step Gust t=0.5"), StepWind.ComputeWindSample(0.5f, 0.0f).Gust, 5.0f);
 	TestSampleNear(*this, TEXT("Step Gust t=1.001"), StepWind.ComputeWindSample(1.001f, 0.0f).Gust, 0.0f);
@@ -513,11 +515,12 @@ bool FKawaiiPhysicsProceduralWindRequestGustStopTest::RunTest(const FString& Par
 	FKawaiiPhysics_ExternalForce_ProceduralWind BlendOutWind;
 	BlendOutWind.ResetRuntimeState();
 	BlendOutWind.RuntimeState->Time = 1.0f;
-	BlendOutWind.RuntimeState->ActiveGust.StartTime = 0.0f;
-	BlendOutWind.RuntimeState->ActiveGust.Strength = 10.0f;
-	BlendOutWind.RuntimeState->ActiveGust.RiseTime = 2.0f;
-	BlendOutWind.RuntimeState->ActiveGust.DecayTime = 3.0f;
-	BlendOutWind.RuntimeState->ActiveGust.bIsActive = true;
+	BlendOutWind.RuntimeState->Gusts.Items[0].StartTime = 0.0f;
+	BlendOutWind.RuntimeState->Gusts.Items[0].Strength = 10.0f;
+	BlendOutWind.RuntimeState->Gusts.Items[0].RiseTime = 2.0f;
+	BlendOutWind.RuntimeState->Gusts.Items[0].DecayTime = 3.0f;
+	BlendOutWind.RuntimeState->Gusts.Items[0].bIsActive = true;
+	BlendOutWind.RuntimeState->Gusts.Num = 1;
 
 	BlendOutWind.RequestGustStop(1.0f);
 	BlendOutWind.ConsumePendingRequests();
@@ -530,16 +533,17 @@ bool FKawaiiPhysicsProceduralWindRequestGustStopTest::RunTest(const FString& Par
 	FKawaiiPhysics_ExternalForce_ProceduralWind ImmediateWind;
 	ImmediateWind.ResetRuntimeState();
 	ImmediateWind.RuntimeState->Time = 0.5f;
-	ImmediateWind.RuntimeState->ActiveGust.StartTime = 0.0f;
-	ImmediateWind.RuntimeState->ActiveGust.Strength = 10.0f;
-	ImmediateWind.RuntimeState->ActiveGust.RiseTime = 1.0f;
-	ImmediateWind.RuntimeState->ActiveGust.DecayTime = 1.0f;
-	ImmediateWind.RuntimeState->ActiveGust.bIsActive = true;
+	ImmediateWind.RuntimeState->Gusts.Items[0].StartTime = 0.0f;
+	ImmediateWind.RuntimeState->Gusts.Items[0].Strength = 10.0f;
+	ImmediateWind.RuntimeState->Gusts.Items[0].RiseTime = 1.0f;
+	ImmediateWind.RuntimeState->Gusts.Items[0].DecayTime = 1.0f;
+	ImmediateWind.RuntimeState->Gusts.Items[0].bIsActive = true;
+	ImmediateWind.RuntimeState->Gusts.Num = 1;
 
 	ImmediateWind.RequestGustStop(0.0f);
 	ImmediateWind.ConsumePendingRequests();
 
-	TestFalse(TEXT("Immediate stop deactivates gust"), ImmediateWind.RuntimeState->ActiveGust.bIsActive);
+	TestEqual(TEXT("Immediate stop deactivates gust"), ImmediateWind.RuntimeState->Gusts.Num, 0);
 	TestSampleNear(*this, TEXT("Immediate stop gust"), ImmediateWind.ComputeWindSample(0.5f, 0.0f).Gust, 0.0f);
 
 	// 非アクティブ時の停止要求は何もせず、クラッシュせずに消費される。
@@ -548,25 +552,26 @@ bool FKawaiiPhysicsProceduralWindRequestGustStopTest::RunTest(const FString& Par
 	InactiveWind.RequestGustStop(1.0f);
 	InactiveWind.ConsumePendingRequests();
 
-	TestFalse(TEXT("Inactive stop keeps gust inactive"), InactiveWind.RuntimeState->ActiveGust.bIsActive);
+	TestEqual(TEXT("Inactive stop keeps gust inactive"), InactiveWind.RuntimeState->Gusts.Num, 0);
 	TestSampleNear(*this, TEXT("Inactive stop gust"), InactiveWind.ComputeWindSample(1.0f, 0.0f).Gust, 0.0f);
-	TestFalse(TEXT("Inactive stop pending reset"), InactiveWind.RuntimeState->PendingGustStop.IsSet());
+	TestFalse(TEXT("Inactive stop pending reset"), (InactiveWind.RuntimeState->PendingGusts.Num > 0));
 
-	// consume 前に複数停止要求が来た場合は最後の BlendOutTime が勝つ。
+	// GU-8: 再 Stop でも先の停止期限を延ばさない。
 	FKawaiiPhysics_ExternalForce_ProceduralWind LastWinsWind;
 	LastWinsWind.ResetRuntimeState();
 	LastWinsWind.RuntimeState->Time = 1.0f;
-	LastWinsWind.RuntimeState->ActiveGust.StartTime = 0.0f;
-	LastWinsWind.RuntimeState->ActiveGust.Strength = 10.0f;
-	LastWinsWind.RuntimeState->ActiveGust.RiseTime = 2.0f;
-	LastWinsWind.RuntimeState->ActiveGust.DecayTime = 3.0f;
-	LastWinsWind.RuntimeState->ActiveGust.bIsActive = true;
+	LastWinsWind.RuntimeState->Gusts.Items[0].StartTime = 0.0f;
+	LastWinsWind.RuntimeState->Gusts.Items[0].Strength = 10.0f;
+	LastWinsWind.RuntimeState->Gusts.Items[0].RiseTime = 2.0f;
+	LastWinsWind.RuntimeState->Gusts.Items[0].DecayTime = 3.0f;
+	LastWinsWind.RuntimeState->Gusts.Items[0].bIsActive = true;
+	LastWinsWind.RuntimeState->Gusts.Num = 1;
 
 	LastWinsWind.RequestGustStop(0.25f);
 	LastWinsWind.RequestGustStop(2.0f);
 	LastWinsWind.ConsumePendingRequests();
 
-	TestSampleNear(*this, TEXT("Last stop request wins"), LastWinsWind.ComputeWindSample(2.0f, 0.0f).Gust, 2.5f);
+	TestSampleNear(*this, TEXT("Repeated stop keeps the earlier deadline"), LastWinsWind.ComputeWindSample(2.0f, 0.0f).Gust, 0.0f);
 
 	// 同フレームに起動と即時停止が来た場合は停止を優先する。
 	FKawaiiPhysics_ExternalForce_ProceduralWind SameFrameWind;
@@ -577,9 +582,9 @@ bool FKawaiiPhysicsProceduralWindRequestGustStopTest::RunTest(const FString& Par
 	SameFrameWind.RequestGustStop(0.0f);
 	SameFrameWind.ConsumePendingRequests();
 
-	TestFalse(TEXT("Same-frame stop wins"), SameFrameWind.RuntimeState->ActiveGust.bIsActive);
+	TestEqual(TEXT("Same-frame stop wins"), SameFrameWind.RuntimeState->Gusts.Num, 0);
 	TestSampleNear(*this, TEXT("Same-frame stop gust"), SameFrameWind.ComputeWindSample(3.0f, 0.0f).Gust, 0.0f);
-	TestFalse(TEXT("Same-frame stop pending reset"), SameFrameWind.RuntimeState->PendingGustStop.IsSet());
+	TestFalse(TEXT("Same-frame stop pending reset"), (SameFrameWind.RuntimeState->PendingGusts.Num > 0));
 
 	return true;
 }
@@ -717,15 +722,19 @@ bool FKawaiiPhysicsProceduralWindResetRuntimeStateTest::RunTest(const FString& P
 	const TSharedPtr<FKawaiiProceduralWindRuntimeState, ESPMode::ThreadSafe> InitialRuntimeState = Wind.RuntimeState;
 	TestTrue(TEXT("RuntimeState starts valid"), InitialRuntimeState.IsValid());
 	Wind.RuntimeState->Time = 2.5f;
-	Wind.RuntimeState->ActiveGust.StartTime = 0.0f;
-	Wind.RuntimeState->ActiveGust.Strength = 4.0f;
-	Wind.RuntimeState->ActiveGust.RiseTime = 0.5f;
-	Wind.RuntimeState->ActiveGust.DecayTime = 3.0f;
-	Wind.RuntimeState->ActiveGust.HoldTime = 1.0f;
-	Wind.RuntimeState->ActiveGust.bIsActive = true;
+	Wind.RuntimeState->Gusts.Items[0].StartTime = 0.0f;
+	Wind.RuntimeState->Gusts.Items[0].Strength = 4.0f;
+	Wind.RuntimeState->Gusts.Items[0].RiseTime = 0.5f;
+	Wind.RuntimeState->Gusts.Items[0].DecayTime = 3.0f;
+	Wind.RuntimeState->Gusts.Items[0].HoldTime = 1.0f;
+	Wind.RuntimeState->Gusts.Items[0].bIsActive = true;
+	Wind.RuntimeState->Gusts.Num = 1;
 	Wind.RuntimeState->PendingParams = FKawaiiProceduralWindDynamicParams();
-	Wind.RuntimeState->PendingGust = FKawaiiProceduralWindGustRequest{1.0f, 0.2f, 0.3f};
-	Wind.RuntimeState->PendingGustStop = 0.4f;
+	Wind.RuntimeState->PendingGusts.Items[0].Gust = FKawaiiProceduralWindGustRequest{1.0f, 0.2f, 0.3f};
+	Wind.RuntimeState->PendingGusts.Num = 1;
+	Wind.RuntimeState->PendingGusts.Items[1].BlendOutTime = 0.4f;
+	Wind.RuntimeState->PendingGusts.Items[1].bStop = true;
+	Wind.RuntimeState->PendingGusts.Num = 2;
 	TestTrue(TEXT("Gust is active before reset"), Wind.ComputeWindSample(1.0f, 0.0f).Gust > 0.0f);
 
 	// ResetRuntimeStateはRuntimeStateを差し替えず、Mutex配下で中身だけを初期状態へ戻す
@@ -733,10 +742,10 @@ bool FKawaiiPhysicsProceduralWindResetRuntimeStateTest::RunTest(const FString& P
 	TestTrue(TEXT("RuntimeState pointer is preserved"), Wind.RuntimeState.Get() == InitialRuntimeState.Get());
 	TestSampleNear(*this, TEXT("Gust after reset"), Wind.ComputeWindSample(1.0f, 0.0f).Gust, 0.0f);
 	TestSampleNear(*this, TEXT("Time after reset"), Wind.RuntimeState->Time, 0.0f);
-	TestFalse(TEXT("ActiveGust inactive after reset"), Wind.RuntimeState->ActiveGust.bIsActive);
+	TestEqual(TEXT("ActiveGust inactive after reset"), Wind.RuntimeState->Gusts.Num, 0);
 	TestFalse(TEXT("PendingParams reset"), Wind.RuntimeState->PendingParams.IsSet());
-	TestFalse(TEXT("PendingGust reset"), Wind.RuntimeState->PendingGust.IsSet());
-	TestFalse(TEXT("PendingGustStop reset"), Wind.RuntimeState->PendingGustStop.IsSet());
+	TestFalse(TEXT("PendingGust reset"), (Wind.RuntimeState->PendingGusts.Num > 0));
+	TestFalse(TEXT("PendingGustStop reset"), (Wind.RuntimeState->PendingGusts.Num > 0));
 #if WITH_EDITOR
 	TestTrue(TEXT("ScopeBuffer allocated after reset"), Wind.RuntimeState->ScopeBuffer.Num() > 0);
 #endif
@@ -822,26 +831,26 @@ bool FKawaiiPhysicsProceduralWindRequestCreatesRuntimeStateTest::RunTest(const F
 	GustWind.RequestGust(4.0f, 0.2f, 0.6f, 0.75f);
 
 	TestTrue(TEXT("RequestGust creates RuntimeState"), GustWind.RuntimeState.IsValid());
-	TestTrue(TEXT("PendingGust set after request"), GustWind.RuntimeState->PendingGust.IsSet());
+	TestTrue(TEXT("PendingGust set after request"), (GustWind.RuntimeState->PendingGusts.Num > 0));
 	GustWind.RuntimeState->Time = 2.25f;
 	GustWind.ConsumePendingRequests();
-	TestTrue(TEXT("ActiveGust active after consume"), GustWind.RuntimeState->ActiveGust.bIsActive);
-	TestSampleNear(*this, TEXT("ActiveGust StartTime"), GustWind.RuntimeState->ActiveGust.StartTime, 2.25f);
-	TestSampleNear(*this, TEXT("ActiveGust Strength applied"), GustWind.RuntimeState->ActiveGust.Strength, 4.0f);
-	TestSampleNear(*this, TEXT("ActiveGust RiseTime applied"), GustWind.RuntimeState->ActiveGust.RiseTime, 0.2f);
-	TestSampleNear(*this, TEXT("ActiveGust DecayTime applied"), GustWind.RuntimeState->ActiveGust.DecayTime, 0.6f);
-	TestSampleNear(*this, TEXT("ActiveGust HoldTime applied"), GustWind.RuntimeState->ActiveGust.HoldTime, 0.75f);
-	TestFalse(TEXT("PendingGust reset after consume"), GustWind.RuntimeState->PendingGust.IsSet());
+	TestTrue(TEXT("ActiveGust active after consume"), GustWind.RuntimeState->Gusts.Items[0].bIsActive);
+	TestSampleNear(*this, TEXT("ActiveGust StartTime"), GustWind.RuntimeState->Gusts.Items[0].StartTime, 2.25f);
+	TestSampleNear(*this, TEXT("ActiveGust Strength applied"), GustWind.RuntimeState->Gusts.Items[0].Strength, 4.0f);
+	TestSampleNear(*this, TEXT("ActiveGust RiseTime applied"), GustWind.RuntimeState->Gusts.Items[0].RiseTime, 0.2f);
+	TestSampleNear(*this, TEXT("ActiveGust DecayTime applied"), GustWind.RuntimeState->Gusts.Items[0].DecayTime, 0.6f);
+	TestSampleNear(*this, TEXT("ActiveGust HoldTime applied"), GustWind.RuntimeState->Gusts.Items[0].HoldTime, 0.75f);
+	TestFalse(TEXT("PendingGust reset after consume"), (GustWind.RuntimeState->PendingGusts.Num > 0));
 
 	FKawaiiPhysics_ExternalForce_ProceduralWind StopWind;
 	StopWind.RuntimeState.Reset();
 	StopWind.RequestGustStop(0.5f);
 
 	TestTrue(TEXT("RequestGustStop creates RuntimeState"), StopWind.RuntimeState.IsValid());
-	TestTrue(TEXT("PendingGustStop set after request"), StopWind.RuntimeState->PendingGustStop.IsSet());
+	TestTrue(TEXT("PendingGustStop set after request"), (StopWind.RuntimeState->PendingGusts.Num > 0));
 	StopWind.ConsumePendingRequests();
-	TestFalse(TEXT("PendingGustStop reset after consume"), StopWind.RuntimeState->PendingGustStop.IsSet());
-	TestFalse(TEXT("Inactive gust remains inactive after stop consume"), StopWind.RuntimeState->ActiveGust.bIsActive);
+	TestFalse(TEXT("PendingGustStop reset after consume"), (StopWind.RuntimeState->PendingGusts.Num > 0));
+	TestEqual(TEXT("Inactive gust remains inactive after stop consume"), StopWind.RuntimeState->Gusts.Num, 0);
 
 	return true;
 }
@@ -1044,12 +1053,13 @@ bool FKawaiiPhysicsProceduralWindSharedWarmUpHoldsClockTest::RunTest(const FStri
 	const TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> Entry = MakeShared<FKawaiiPhysicsSharedPublisherEntry>();
 	FKawaiiPhysicsSharedPublisherState State = MakeSharedWindStateForTest(1.0f, 1.0f);
 	// 採用時点で hold フェーズにいる突風を載せ、warm-up 中にエンベロープが流れ切らないことも見る
-	State.Wind.ActiveGust.bIsActive = true;
-	State.Wind.ActiveGust.StartTime = 0.94f;
-	State.Wind.ActiveGust.Strength = 40.0f;
-	State.Wind.ActiveGust.RiseTime = 0.05f;
-	State.Wind.ActiveGust.HoldTime = 0.05f;
-	State.Wind.ActiveGust.DecayTime = 0.05f;
+	State.Wind.Gusts.Items[0].bIsActive = true;
+	State.Wind.Gusts.Num = 1;
+	State.Wind.Gusts.Items[0].StartTime = 0.94f;
+	State.Wind.Gusts.Items[0].Strength = 40.0f;
+	State.Wind.Gusts.Items[0].RiseTime = 0.05f;
+	State.Wind.Gusts.Items[0].HoldTime = 0.05f;
+	State.Wind.Gusts.Items[0].DecayTime = 0.05f;
 	FKawaiiPhysicsTestAccessor::PublishSharedPublisherState(Entry, State);
 	FKawaiiPhysicsTestAccessor::BindSharedWindEntry(Wind, Entry);
 
@@ -1058,8 +1068,8 @@ bool FKawaiiPhysicsProceduralWindSharedWarmUpHoldsClockTest::RunTest(const FStri
 	const float AdoptedTime = Wind.RuntimeState->Time;
 	bool bOk = TestEqual(TEXT("Initial Time adopted"), AdoptedTime, 1.0f);
 	bOk &= TestFalse(TEXT("Publisher wind is enabled"), Wind.RuntimeState->bPublisherWindDisabled);
-	bOk &= TestTrue(TEXT("Gust adopted"), Wind.RuntimeState->ActiveGust.bIsActive);
-	const float AdoptedGustStartTime = Wind.RuntimeState->ActiveGust.StartTime;
+	bOk &= TestTrue(TEXT("Gust adopted"), Wind.RuntimeState->Gusts.Items[0].bIsActive);
+	const float AdoptedGustStartTime = Wind.RuntimeState->Gusts.Items[0].StartTime;
 	const float AdoptedGust = Wind.RuntimeState->CachedGust;
 	bOk &= TestTrue(TEXT("Adopted gust is in the hold phase"), AdoptedGust > 0.0f);
 
@@ -1073,9 +1083,9 @@ bool FKawaiiPhysicsProceduralWindSharedWarmUpHoldsClockTest::RunTest(const FStri
 		bOk &= TestFalse(FString::Printf(TEXT("Publisher wind stays enabled %d"), Index),
 		                 Wind.RuntimeState->bPublisherWindDisabled);
 	}
-	bOk &= TestTrue(TEXT("Warm-up keeps the gust active"), Wind.RuntimeState->ActiveGust.bIsActive);
+	bOk &= TestTrue(TEXT("Warm-up keeps the gust active"), Wind.RuntimeState->Gusts.Items[0].bIsActive);
 	bOk &= TestTrue(TEXT("Warm-up keeps the gust StartTime"),
-	                FMath::IsNearlyEqual(Wind.RuntimeState->ActiveGust.StartTime, AdoptedGustStartTime,
+	                FMath::IsNearlyEqual(Wind.RuntimeState->Gusts.Items[0].StartTime, AdoptedGustStartTime,
 	                                     TimeTolerance));
 	bOk &= TestTrue(TEXT("Warm-up keeps the gust envelope"),
 	                FMath::IsNearlyEqual(Wind.RuntimeState->CachedGust, AdoptedGust, 0.0001f));
@@ -1125,15 +1135,15 @@ bool FKawaiiPhysicsProceduralWindSharedGustForwardedTest::RunTest(const FString&
 
 	// 消費側の突風要求は呼び出しスレッドでは積むだけで、Entry への転送は Worker の PreApply が行う
 	ConsumerWind.RequestGust(50.0f, 0.1f, 0.2f, 0.3f);
-	bool bOk = TestTrue(TEXT("Consumer queues the gust locally"), ConsumerWind.RuntimeState->PendingGust.IsSet());
+	bool bOk = TestTrue(TEXT("Consumer queues the gust locally"), (ConsumerWind.RuntimeState->PendingGusts.Num > 0));
 	TArray<FKawaiiPhysicsSharedPublisherGustRequest> Requests;
 	Entry->ConsumePendingGustRequests(Requests);
 	bOk &= TestEqual(TEXT("Nothing forwarded before PreApply"), Requests.Num(), 0);
 
 	RunProceduralWindPreApply(Accessor, ConsumerWind);
-	bOk &= TestFalse(TEXT("PreApply clears the local pending gust"), ConsumerWind.RuntimeState->PendingGust.IsSet());
+	bOk &= TestFalse(TEXT("PreApply clears the local pending gust"), (ConsumerWind.RuntimeState->PendingGusts.Num > 0));
 	bOk &= TestFalse(TEXT("Consumer does not start the gust locally"),
-	                 ConsumerWind.RuntimeState->ActiveGust.bIsActive);
+	                 ConsumerWind.RuntimeState->Gusts.Items[0].bIsActive);
 	Requests.Reset();
 	Entry->ConsumePendingGustRequests(Requests);
 	bOk &= TestEqual(TEXT("Forwarded gust count"), Requests.Num(), 1);
@@ -1143,19 +1153,20 @@ bool FKawaiiPhysicsProceduralWindSharedGustForwardedTest::RunTest(const FString&
 	}
 
 	FKawaiiPhysicsSharedPublisherState State = MakeSharedWindStateForTest(0.1f, 1.0f);
-	State.Wind.ActiveGust.bIsActive = true;
-	State.Wind.ActiveGust.StartTime = 0.0f;
-	State.Wind.ActiveGust.Strength = 50.0f;
-	State.Wind.ActiveGust.RiseTime = 0.1f;
-	State.Wind.ActiveGust.DecayTime = 0.2f;
-	State.Wind.ActiveGust.HoldTime = 0.3f;
+	State.Wind.Gusts.Items[0].bIsActive = true;
+	State.Wind.Gusts.Num = 1;
+	State.Wind.Gusts.Items[0].StartTime = 0.0f;
+	State.Wind.Gusts.Items[0].Strength = 50.0f;
+	State.Wind.Gusts.Items[0].RiseTime = 0.1f;
+	State.Wind.Gusts.Items[0].DecayTime = 0.2f;
+	State.Wind.Gusts.Items[0].HoldTime = 0.3f;
 	FKawaiiPhysicsTestAccessor::PublishSharedPublisherState(Entry, State);
 	RunProceduralWindPreApply(Accessor, ConsumerWind);
-	bOk &= TestEqual(TEXT("Consumer adopted gust strength"), ConsumerWind.RuntimeState->ActiveGust.Strength, 50.0f);
+	bOk &= TestEqual(TEXT("Consumer adopted gust strength"), ConsumerWind.RuntimeState->Gusts.Items[0].Strength, 50.0f);
 
 	ConsumerWind.RequestGustStop(0.25f);
 	RunProceduralWindPreApply(Accessor, ConsumerWind);
-	bOk &= TestFalse(TEXT("PreApply clears the local pending stop"), ConsumerWind.RuntimeState->PendingGustStop.IsSet());
+	bOk &= TestFalse(TEXT("PreApply clears the local pending stop"), (ConsumerWind.RuntimeState->PendingGusts.Num > 0));
 	Requests.Reset();
 	Entry->ConsumePendingGustRequests(Requests);
 	bOk &= TestEqual(TEXT("Forwarded stop count"), Requests.Num(), 1);
@@ -1372,8 +1383,9 @@ bool FKawaiiPhysicsProceduralWindAssignmentCopiesWindSourceTest::RunTest(const F
 	FKawaiiPhysicsTestAccessor::BindSharedWindEntry(B, Entry);
 	B.RuntimeState->LastAppliedSharedSerial = 3;
 	B.RuntimeState->Time = 8.0f;
-	B.RuntimeState->ActiveGust.bIsActive = true;
-	B.RuntimeState->ActiveGust.Strength = 9.0f;
+	B.RuntimeState->Gusts.Items[0].bIsActive = true;
+	B.RuntimeState->Gusts.Num = 1;
+	B.RuntimeState->Gusts.Items[0].Strength = 9.0f;
 	// Shared 採用済み（退避あり）の状態を作る
 	B.RuntimeState->LocalSharedParamsBackup = B.BuildSharedWindParams();
 	B = A;
@@ -1388,8 +1400,8 @@ bool FKawaiiPhysicsProceduralWindAssignmentCopiesWindSourceTest::RunTest(const F
 	bOk &= TestFalse(TEXT("Changed tag clears resolved tag"), B.RuntimeState->ResolvedSharedTag.IsValid());
 	bOk &= TestEqual(TEXT("Changed tag resets serial"), B.RuntimeState->LastAppliedSharedSerial, static_cast<uint64>(0));
 	bOk &= TestEqual(TEXT("Changed tag preserves time"), B.RuntimeState->Time, 8.0f);
-	bOk &= TestTrue(TEXT("Changed tag preserves gust"), B.RuntimeState->ActiveGust.bIsActive);
-	bOk &= TestEqual(TEXT("Changed tag preserves gust strength"), B.RuntimeState->ActiveGust.Strength, 9.0f);
+	bOk &= TestTrue(TEXT("Changed tag preserves gust"), B.RuntimeState->Gusts.Items[0].bIsActive);
+	bOk &= TestEqual(TEXT("Changed tag preserves gust strength"), B.RuntimeState->Gusts.Items[0].Strength, 9.0f);
 	// 代入で共有 13 項目は A の値に置き換わるため、退避値は復元せず捨てる
 	bOk &= TestFalse(TEXT("Changed tag drops local params backup"),
 	                 B.RuntimeState->LocalSharedParamsBackup.IsSet());

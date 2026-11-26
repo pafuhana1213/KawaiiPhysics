@@ -320,10 +320,10 @@ bool FKawaiiPhysicsSharedPublishHelper::Update(
 			if (Inputs.SharedWind)
 			{
 				State.Wind.Params = Inputs.SharedWind->BuildSharedWindParams();
-				// ActiveGust はこの直前の ConsumePendingRequests と同じ Worker 上でのみ更新されるため、ここでは Mutex を取らない。
-				State.Wind.ActiveGust = Inputs.SharedWind->RuntimeState.IsValid()
-					? Inputs.SharedWind->RuntimeState->ActiveGust
-					: FKawaiiProceduralWindActiveGust();
+				// Gusts はこの直前の ConsumePendingRequests と同じ Worker 上でのみ更新されるため、ここでは Mutex を取らない。
+				State.Wind.Gusts = Inputs.SharedWind->RuntimeState.IsValid()
+					? Inputs.SharedWind->RuntimeState->Gusts
+					: FKawaiiProceduralWindGusts();
 			}
 		};
 
@@ -378,7 +378,11 @@ bool FKawaiiPhysicsSharedPublishHelper::Update(
 					}
 				}
 
+				// Time は Update の冒頭で当フレーム分まで進め済みなので、取り込みの前に終わった突風を外す
+				//（残したままだと上限 8 の判定で、まだ吹いている最古の突風を捨ててしまう）
+				Inputs.SharedWind->RemoveExpiredGusts();
 				Inputs.SharedWind->ConsumePendingRequests();
+				Inputs.SharedWind->RemoveExpiredGusts();
 				// Time は当フレーム分まで Update の冒頭で進め済み。ここで新しい TimeScale / 有効フラグを掛け直すと、
 				// 先に評価された消費側が旧 scale で外挿した値より手前を publish して巻き戻す
 				Inputs.SharedWind->RecordScopeSample();

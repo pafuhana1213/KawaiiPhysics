@@ -62,9 +62,24 @@ namespace AnimNodeKawaiiPhysicsSimulationPrivate
 	                                       const FKawaiiPhysicsTransientGustRequest& Request,
 	                                       FKawaiiPhysics_ExternalForce_ProceduralWind* Source)
 	{
+		if (!FMath::IsFinite(Request.Strength) || !FMath::IsFinite(Request.RiseTime) ||
+			!FMath::IsFinite(Request.HoldTime) || !FMath::IsFinite(Request.DecayTime)) { return; }
 		FKawaiiPhysicsTransientExternalForce& Entry = Node.TransientForceStore.Items.AddDefaulted_GetRef();
 		Entry.Force = FInstancedStruct::Make<FKawaiiPhysics_ExternalForce_ProceduralWind>();
 		Entry.HandleId = Request.HandleId;
+		Entry.bIsTransientGust = true;
+		if (Source)
+		{
+			for (int32 Index = 0; Index < Node.ExternalForces.Num(); ++Index)
+			{
+				if (GetMutableProceduralWindInNode(Node.ExternalForces[Index]) == Source)
+				{
+					Entry.SourceForceIndex = Index;
+					Entry.SourceWind = Source;
+					break;
+				}
+			}
+		}
 
 		FKawaiiPhysics_ExternalForce_ProceduralWind* Wind =
 			Entry.Force.GetMutablePtr<FKawaiiPhysics_ExternalForce_ProceduralWind>();
@@ -82,11 +97,6 @@ namespace AnimNodeKawaiiPhysicsSimulationPrivate
 			Wind->RandomForceScaleRange = Source->RandomForceScaleRange;
 			Wind->TimeScale = Source->TimeScale;
 		}
-		if (Request.bRealTimeEnvelope)
-		{
-			// TimeScale 継承後に 1.0 へ戻し、突風エンベロープの持続時間を実秒基準に固定する。
-			Wind->TimeScale = 1.0f;
-		}
 
 		// 明示方向は決定論的なバーストとしてノイズ無し、方向継承時は旧挙動（authored のノイズ入り方向）に合わせて揺らぎも継承する。
 		if (!Request.Direction.IsNearlyZero(KINDA_SMALL_NUMBER))
@@ -103,15 +113,17 @@ namespace AnimNodeKawaiiPhysicsSimulationPrivate
 			Wind->Seed = Source->Seed;
 		}
 
-		const float EffectiveTimeScale = Wind->TimeScale;
-		Entry.RemainingLifetime =
-			(FMath::Max(Request.RiseTime, 0.0f) + FMath::Max(Request.HoldTime, 0.0f) +
-				FMath::Max(Request.DecayTime, 0.0f)) /
-			FMath::Max(EffectiveTimeScale, KINDA_SMALL_NUMBER) + TransientGustLifetimeMargin;
+		Entry.RemainingLifetime = TransientGustLifetimeMargin;
+		if (Source && Source->RuntimeState.IsValid())
+		{
+			Entry.SourceTimeAtRequest = Source->RuntimeState->Time;
+			Entry.SourceUnscaledTimeAtRequest = Source->RuntimeState->UnscaledTime;
+		}
 
 		// RequestGust後にProceduralWind本体をコピーするとRuntimeState内のPendingGustが失われる。
 		// Shared のコピーは Local に戻す（Entry へ転送すると全消費者に飛ぶ）。
-		Wind->RequestLocalGust(Request.Strength, Request.RiseTime, Request.DecayTime, Request.HoldTime);
+		Wind->RequestLocalGust(Request.Strength, Request.RiseTime, Request.DecayTime, Request.HoldTime,
+			Request.bRealTimeEnvelope);
 	}
 
 	// worker上で突風用ProceduralWindを構築する
@@ -318,8 +330,35 @@ void FAnimNode_KawaiiPhysics::ConsumeAndRemoveExpiredTransientExternalForces(con
 {
 	for (int32 i = TransientForceStore.Items.Num() - 1; i >= 0; --i)
 	{
-		TransientForceStore.Items[i].RemainingLifetime -= InFrameDeltaTime;
-		if (TransientForceStore.Items[i].RemainingLifetime <= 0.0f)
+		auto& Item = TransientForceStore.Items[i];
+		if (Item.bIsTransientGust)
+		{
+			const FKawaiiPhysics_ExternalForce_ProceduralWind* Wind =
+				AnimNodeKawaiiPhysicsSimulationPrivate::GetMutableProceduralWindInNode(Item.Force);
+			if (Wind && Wind->RuntimeState.IsValid())
+			{
+				// まだ一度も評価されていない突風は寿命を減らさない（Simulate を飛ばすフレームが続いても、吹く前に消えないように）。
+				// 吹いている間も減らさない（終わる時刻は中の突風の時計で決まる。GU-7）
+				if (!Item.bGustEvaluated || Wind->RuntimeState->Gusts.Num > 0)
+				{
+					continue;
+				}
+				// 中の突風が空になったフレームから、ノードの物理の時間で TransientGustLifetimeMargin 後に除去する（TW-GU-12）
+				if (!Item.bGustCompletionStarted)
+				{
+					Item.RemainingLifetime = AnimNodeKawaiiPhysicsSimulationPrivate::TransientGustLifetimeMargin;
+					Item.bGustCompletionStarted = true;
+				}
+				Item.RemainingLifetime -= InFrameDeltaTime;
+				if (Item.RemainingLifetime <= 0.0f)
+				{
+					TransientForceStore.Items.RemoveAt(i);
+				}
+				continue;
+			}
+		}
+		Item.RemainingLifetime -= InFrameDeltaTime;
+		if (Item.RemainingLifetime <= 0.0f)
 		{
 			TransientForceStore.Items.RemoveAt(i);
 		}
@@ -358,7 +397,7 @@ void FAnimNode_KawaiiPhysics::ConsumeAndRemoveExpiredTransientExternalForces(con
 			continue;
 		}
 
-		if (PendingStop.BlendOutTime <= KINDA_SMALL_NUMBER)
+		if (!FMath::IsFinite(PendingStop.BlendOutTime) || PendingStop.BlendOutTime <= KINDA_SMALL_NUMBER)
 		{
 			for (int32 i = TransientForceStore.Items.Num() - 1; i >= 0; --i)
 			{
@@ -380,11 +419,6 @@ void FAnimNode_KawaiiPhysics::ConsumeAndRemoveExpiredTransientExternalForces(con
 			if (FKawaiiPhysics_ExternalForce_ProceduralWind* Wind = AnimNodeKawaiiPhysicsSimulationPrivate::GetMutableProceduralWindInNode(Item.Force))
 			{
 				Wind->RequestGustStop(PendingStop.BlendOutTime);
-				// RequestGustStopはエンベロープを現在値からのフェードへ完全に置き換えるため、
-				// 寿命も新フェードに合わせて再設定する（Minで旧残寿命を採用するとフェード途中で掃除されポップが出る）
-				Item.RemainingLifetime =
-					PendingStop.BlendOutTime / FMath::Max(Wind->TimeScale, KINDA_SMALL_NUMBER) +
-					AnimNodeKawaiiPhysicsSimulationPrivate::TransientGustLifetimeMargin;
 			}
 			else
 			{
@@ -727,11 +761,47 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 	}
 	for (int i = 0; i < TransientForceStore.Items.Num(); ++i)
 	{
-		if (TransientForceStore.Items[i].Force.IsValid())
+		auto& Item = TransientForceStore.Items[i];
+		if (Item.Force.IsValid())
 		{
-			if (auto* Force = TransientForceStore.Items[i].Force.GetMutablePtr<FKawaiiPhysics_ExternalForce>())
+			if (auto* Force = Item.Force.GetMutablePtr<FKawaiiPhysics_ExternalForce>())
 			{
 				EnsureExternalForceInitialized(*Force);
+				if (Item.bIsTransientGust)
+				{
+					auto* Wind = AnimNodeKawaiiPhysicsSimulationPrivate::GetMutableProceduralWindInNode(Item.Force);
+					if (Wind)
+					{
+						if (Wind->RuntimeState.IsValid())
+						{
+							Wind->RuntimeState->bUseInheritedClock = false;
+							if (Item.SourceWind)
+							{
+								const auto* Source = ExternalForces.IsValidIndex(Item.SourceForceIndex)
+									? AnimNodeKawaiiPhysicsSimulationPrivate::GetMutableProceduralWindInNode(ExternalForces[Item.SourceForceIndex]) : nullptr;
+								if (Source != Item.SourceWind || !Source || !Source->bIsEnabled || !Source->RuntimeState.IsValid())
+								{
+									Item.SourceWind = nullptr;
+									Item.SourceForceIndex = INDEX_NONE;
+								}
+								else
+								{
+									auto& State = *Wind->RuntimeState;
+									if (!Item.bGustEvaluated)
+									{
+										State.Time = Item.SourceTimeAtRequest;
+										State.UnscaledTime = Item.SourceUnscaledTimeAtRequest;
+									}
+									State.bUseInheritedClock = true;
+									State.InheritedTime = Source->RuntimeState->Time;
+									State.InheritedUnscaledTime = Source->RuntimeState->UnscaledTime;
+									State.InheritedClockGeneration = Source->RuntimeState->ClockGeneration;
+								}
+							}
+						}
+						Item.bGustEvaluated = true;
+					}
+				}
 				Force->PreApply(*this, Output);
 				Force->RefreshBoneFilterCache(*this);
 			}

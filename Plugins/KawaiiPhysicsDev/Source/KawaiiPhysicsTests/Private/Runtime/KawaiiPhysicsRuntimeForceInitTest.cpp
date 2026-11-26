@@ -215,7 +215,7 @@ bool FKawaiiPhysicsRuntimeForceInitTransientGustTest::RunTest(const FString& Par
 		Fixture.A.GetTransientForce(0).Get<FKawaiiPhysics_ExternalForce_ProceduralWind>();
 	bOk &= TestTrue(TEXT("gust force is initialized before use"), Gust.IsRuntimeInitialized());
 	bOk &= TestTrue(TEXT("the requested gust is active"),
-		Gust.RuntimeState.IsValid() && Gust.RuntimeState->ActiveGust.bIsActive);
+		Gust.RuntimeState.IsValid() && Gust.RuntimeState->Gusts.Num == 1 && Gust.RuntimeState->Gusts.Items[0].bIsActive);
 	return bOk;
 }
 
@@ -242,7 +242,7 @@ bool FKawaiiPhysicsRuntimeForceInitRequestedGustTest::RunTest(const FString& Par
 	const FKawaiiPhysics_ExternalForce_ProceduralWind& Wind =
 		Fixture.A.GetTransientForce(0).Get<FKawaiiPhysics_ExternalForce_ProceduralWind>();
 	bOk &= TestTrue(TEXT("the gust requested before handing over is active"),
-		Wind.RuntimeState.IsValid() && Wind.RuntimeState->ActiveGust.bIsActive);
+		Wind.RuntimeState.IsValid() && Wind.RuntimeState->Gusts.Num == 1 && Wind.RuntimeState->Gusts.Items[0].bIsActive);
 	return bOk;
 }
 

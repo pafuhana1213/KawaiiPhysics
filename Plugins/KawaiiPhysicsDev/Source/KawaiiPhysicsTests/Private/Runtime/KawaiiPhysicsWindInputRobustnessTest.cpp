@@ -252,7 +252,7 @@ bool FWindInputSharedDurationTest::RunTest(const FString& Parameters)
 	FComponentSpacePoseContext PoseContext(&ConsumerProxy);
 	Consumer.PreApply(Accessor.Node, PoseContext);
 	bOk &= TestEqual(TEXT("共有消費側に突風の寄与なし"), Consumer.RuntimeState->CachedGust, 0.0f);
-	bOk &= TestFalse(TEXT("共有側に突風スロットなし"), Publisher.SharedWind.RuntimeState->ActiveGust.bIsActive);
+	bOk &= TestEqual(TEXT("共有側に突風スロットなし"), Publisher.SharedWind.RuntimeState->Gusts.Num, 0);
 	// 対照: Publisher の解決が成り立っていること（有効な Duration は受け付ける）。これが無いと解決失敗でも素通りする
 	bOk &= TestTrue(TEXT("有効な共有突風は受け付ける"), UKawaiiPhysicsLibrary::StartProceduralWindGustOnSharedPublisher(
 		TestActor, TAG_KawaiiPhysicsWindInputRobustness, 100.0f, 1.0f, 0.0f, 0.0f));

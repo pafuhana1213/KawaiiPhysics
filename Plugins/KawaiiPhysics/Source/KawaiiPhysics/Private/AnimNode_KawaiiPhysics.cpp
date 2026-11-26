@@ -382,6 +382,13 @@ int64 FAnimNode_KawaiiPhysics::RequestTransientGust(const float Strength, const 
                                                     const float HoldTime, const int64 InHandleId,
                                                     const bool bRealTimeEnvelope)
 {
+	// F2: 非有限の突風はキューに積まない（満杯時の最古破棄より前に弾き、正常な要求を押し出さない）
+	if (!FMath::IsFinite(Strength) || !FMath::IsFinite(RiseTime) ||
+		!FMath::IsFinite(HoldTime) || !FMath::IsFinite(DecayTime))
+	{
+		return InHandleId;
+	}
+
 	FKawaiiPhysicsTransientGustRequest Request;
 	Request.Strength = Strength;
 	Request.RiseTime = RiseTime;
@@ -410,7 +417,9 @@ void FAnimNode_KawaiiPhysics::RequestStopTransientExternalForce(const int64 Hand
 	{
 		if (PendingStop.HandleId == HandleId)
 		{
-			PendingStop.BlendOutTime = BlendOutTime;
+			// GU-3 / F2: 同じハンドルへの再 Stop で期限を延ばさず、非有限は即時停止にする。
+			PendingStop.BlendOutTime = !FMath::IsFinite(BlendOutTime) || !FMath::IsFinite(PendingStop.BlendOutTime)
+				? 0.0f : FMath::Min(PendingStop.BlendOutTime, BlendOutTime);
 			return;
 		}
 	}
