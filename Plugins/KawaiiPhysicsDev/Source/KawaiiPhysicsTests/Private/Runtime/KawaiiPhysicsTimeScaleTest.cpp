@@ -5,6 +5,7 @@
 #include "Misc/AutomationTest.h"
 #include "KawaiiPhysicsDeveloperSettings.h"
 #include "KawaiiPhysicsHairNodeFixture.h"
+#include "KawaiiPhysicsNodeFixture.h"
 #include "KawaiiPhysicsLibrary.h"
 #include "KawaiiPhysicsPresetDataAsset.h"
 #include "KawaiiPhysicsTestHarness.h"
@@ -242,7 +243,7 @@ bool FKawaiiPhysicsTimeScalePropertyAccessTest::RunTest(const FString& Parameter
 	return bOk;
 }
 
-// テレポートの閾値は 1 フレームの Component の移動量と比べる。TimeScale が小さいとステップが数フレームに 1 回になり、
+// TS-09・TS-10。mutant なし。テレポートの閾値は 1 フレームの Component の移動量と比べる。TimeScale が小さいとステップが数フレームに 1 回になり、
 // 繰り越した移動が溜まるが、1 フレームずつは閾値未満のふつうの旋回をテレポート扱いにしない（慣性として揺れに残る）。
 // 1 フレームで閾値を超える回転は、従来どおりテレポートとして破棄する。
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTimeScaleSlowTurnIsNotTeleportTest,
@@ -251,63 +252,82 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsTimeScaleSlowTurnIsNotTeleportTes
 
 bool FKawaiiPhysicsTimeScaleSlowTurnIsNotTeleportTest::RunTest(const FString& Parameters)
 {
-	// 縦チェーン（約 140cm）を X 軸まわりに回す。WorldDamping=0・重力なしなので、反映された回転はそのまま揺れになり、
-	// テレポートで破棄されればチェーンはポーズのまま動かない
-	struct FTurnResult
+	auto MakeTurnOptions = [](const float TimeScale, const float Threshold, const float DegreesPerFrame)
 	{
-		int32 Teleports = 0;
-		float MaxTipDeviation = 0.0f;
-	};
-	auto RunTurn = [](const float DegreesPerFrame, const int32 TurnFrames)
-	{
-		FKawaiiPhysicsTestAccessor A;
-		A.BuildVerticalChain(6, 28.0f);
-
-		FKawaiiPhysicsSettings S;
-		S.Damping = 0.1f;
-		S.Stiffness = 0.05f;
-		S.WorldDampingLocation = 0.0f;
-		S.WorldDampingRotation = 0.0f;
-		S.LimitAngle = 0.0f;
-		S.Radius = 0.0f;
-		A.SetAllPhysicsSettings(S);
-
-		A.SetSimulationSpace(EKawaiiPhysicsSimulationSpace::ComponentSpace);
-		A.SetGravityInSimSpace(FVector::ZeroVector);
-		A.SetFixedSubstepping(true, 60, 8);
-		A.Node.TeleportDistanceThreshold = 0.0f;
-		A.Node.TeleportRotationThreshold = 10.0f;
-		A.SetPreSkelCompTransform(FTransform::Identity);
-
-		FAnimInstanceProxy Proxy;
-		FComponentSpacePoseContext Output(&Proxy);
-
-		// 60fps で TimeScale 0.1 のときと同じ 1/600 秒。60Hz の固定ステップは 10 フレームに 1 回だけ走る
-		const float FrameDt = 1.0f / 600.0f;
-		FTurnResult Result;
-		for (int32 Frame = 0; Frame < 120; ++Frame)
+		KawaiiPhysicsNodeFixture::FOptions TurnOptions;
+		TurnOptions.Bones = KawaiiPhysicsNodeFixture::BuildVerticalChain(6, FVector(0.0, 0.0, -28.0));
+		TurnOptions.FrameDt = 1.0f / 60.0f;
+		TurnOptions.ConfigureDeveloperSettings = [](UKawaiiPhysicsDeveloperSettings& DeveloperSettings)
 		{
-			const float Degrees = DegreesPerFrame * FMath::Min(Frame + 1, TurnFrames);
-			const FTransform Component(FQuat(FVector::XAxisVector, FMath::DegreesToRadians(Degrees)));
-			Result.Teleports += A.StepFrameWithComponentTransform(Output, FrameDt, Component) ? 1 : 0;
-			const FKawaiiPhysicsModifyBone& Tip = A.Bone(A.Num() - 1);
-			Result.MaxTipDeviation = FMath::Max(Result.MaxTipDeviation,
-				static_cast<float>((Tip.Location - Tip.PoseLocation).Size()));
-		}
-		return Result;
+			DeveloperSettings.bUseFixedSubstepping = true;
+			DeveloperSettings.MaxSubsteps = 8;
+		};
+		TurnOptions.ConfigureNode = [TimeScale, Threshold](FAnimNode_KawaiiPhysics& PhysicsNode)
+		{
+			PhysicsNode.RootBone.BoneName = TEXT("root");
+			PhysicsNode.TimeScale = TimeScale;
+			PhysicsNode.TargetFramerate = 60;
+			PhysicsNode.DummyBoneLength = 0.0f;
+			PhysicsNode.Gravity = FVector::ZeroVector;
+			PhysicsNode.TeleportDistanceThreshold = 0.0f;
+			PhysicsNode.TeleportRotationThreshold = Threshold;
+			PhysicsNode.PhysicsSettings.Damping = 0.1f;
+			PhysicsNode.PhysicsSettings.Stiffness = 0.05f;
+			PhysicsNode.PhysicsSettings.WorldDampingLocation = 0.0f;
+			PhysicsNode.PhysicsSettings.WorldDampingRotation = 0.0f;
+			PhysicsNode.PhysicsSettings.LimitAngle = 0.0f;
+		};
+		TurnOptions.GetComponentTransform = [DegreesPerFrame](const int32 Frame)
+		{
+			return FTransform(FQuat(FVector::XAxisVector, FMath::DegreesToRadians(Frame * DegreesPerFrame)));
+		};
+		return TurnOptions;
 	};
 
-	// 1 フレーム 5 度で 60 度まで回す。ステップ間（10 フレーム）では 50 度溜まるが、1 フレームずつは閾値 10 度未満
-	const FTurnResult SlowTurn = RunTurn(5.0f, 12);
-	bool bOk = TestEqual(TEXT("slow turn is never detected as a teleport"), SlowTurn.Teleports, 0);
-	bOk &= TestTrue(FString::Printf(TEXT("slow turn is kept as inertia: tip deviation %.4f cm"), SlowTurn.MaxTipDeviation),
-		SlowTurn.MaxTipDeviation > 5.0f);
+	KawaiiPhysicsNodeFixture::FFixture SlowTurn(MakeTurnOptions(0.1f, 10.0f, 1.0f));
+	KawaiiPhysicsNodeFixture::FFixture NoThreshold(MakeTurnOptions(0.1f, 0.0f, 1.0f));
+	bool bOk = true;
+	double MaxInertia = 0.0;
+	SlowTurn.EvaluateFrame();
+	NoThreshold.EvaluateFrame();
+	for (int32 Frame = 0; Frame < 60; ++Frame)
+	{
+		SlowTurn.EvaluateFrame();
+		NoThreshold.EvaluateFrame();
+		bOk &= TestTrue(TEXT("両セルに ModifyBones がある"), SlowTurn.Node.ModifyBones.Num() > 0 && NoThreshold.Node.ModifyBones.Num() > 0);
+		bOk &= TestEqual(TEXT("全ボーンの数が一致"), SlowTurn.Node.ModifyBones.Num(), NoThreshold.Node.ModifyBones.Num());
+		for (int32 Index = 0; Index < FMath::Min(SlowTurn.Node.ModifyBones.Num(), NoThreshold.Node.ModifyBones.Num()); ++Index)
+		{
+			// 同じ入力を二経路で評価する差。float の 60 フレーム分の丸めとして 1e-3cm。
+			bOk &= TestTrue(TEXT("閾値 10 は判定なしと同じ位置"),
+				FVector::Dist(SlowTurn.Node.ModifyBones[Index].Location, NoThreshold.Node.ModifyBones[Index].Location) <= 0.001);
+		}
+		if (!SlowTurn.Node.ModifyBones.IsEmpty())
+		{
+			MaxInertia = FMath::Max(MaxInertia,
+				FVector::Dist(SlowTurn.Node.ModifyBones.Last().Location, SlowTurn.Node.ModifyBones.Last().PoseLocation));
+		}
+	}
+	bOk &= TestTrue(TEXT("旋回が実際に慣性を生む"), MaxInertia > 0.1);
 
-	// 1 フレームで 25 度回すのはテレポートとして破棄される
-	const FTurnResult Snap = RunTurn(25.0f, 1);
-	bOk &= TestEqual(TEXT("a 25 degree snap in one frame is one teleport"), Snap.Teleports, 1);
-	bOk &= TestTrue(FString::Printf(TEXT("a 25 degree snap is discarded: tip deviation %.4f cm"), Snap.MaxTipDeviation),
-		Snap.MaxTipDeviation < 0.01f);
+	for (const float Scale : {1.0f, 2.0f})
+	{
+		KawaiiPhysicsNodeFixture::FFixture Snap(MakeTurnOptions(Scale, 10.0f, 25.0f));
+		KawaiiPhysicsNodeFixture::FFixture Unsuppressed(MakeTurnOptions(Scale, 0.0f, 25.0f));
+		Snap.EvaluateFrame();
+		Unsuppressed.EvaluateFrame();
+		Snap.EvaluateFrame();
+		Unsuppressed.EvaluateFrame();
+		bOk &= TestTrue(TEXT("Snap の ModifyBones がある"), Snap.Node.ModifyBones.Num() > 0);
+		if (!Snap.Node.ModifyBones.IsEmpty() && !Unsuppressed.Node.ModifyBones.IsEmpty())
+		{
+			// 25° > 10° でテレポートしたセルは揺れを破棄する。float の変換丸めに 0.01cm。
+			bOk &= TestTrue(TEXT("Snap はポーズへ戻る"),
+				FVector::Dist(Snap.Node.ModifyBones.Last().Location, Snap.Node.ModifyBones.Last().PoseLocation) < 0.01);
+			bOk &= TestTrue(TEXT("閾値なしの対照は揺れる"),
+				FVector::Dist(Unsuppressed.Node.ModifyBones.Last().Location, Unsuppressed.Node.ModifyBones.Last().PoseLocation) > 0.1);
+		}
+	}
 	return bOk;
 }
 
