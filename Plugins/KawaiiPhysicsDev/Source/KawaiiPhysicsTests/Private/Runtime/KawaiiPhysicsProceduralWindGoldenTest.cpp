@@ -340,6 +340,4 @@ bool FKawaiiPhysicsProceduralWindGoldenPositionsTest::RunTest(const FString& Par
 
 } // namespace KawaiiPhysicsProceduralWindGoldenTestPrivate
 
-#undef KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC
-
 #endif
