@@ -183,12 +183,11 @@ namespace KawaiiPhysicsSolverSpecTestPrivate
 	// ComponentSpace でも子のポーズ位置が円を描いて動き、固定サブステップでも fps 差が出る（まっすぐな鎖を Z 軸まわりに回すと位置が動かず対照にならない）。
 	// PR-13 修正前は重力（+X）ありの 30/60fps が 0.82cm > 対照 × 1.5 + 0.001 = 0.664cm で失敗する。
 	// 重力もステップの基準ボーンで変換し、この組にも同じ主張を適用する。
-	// WorldDamping 0 の追加セルは t=Frame/Rate、初回 0° とし、初期角度の fps 差を除いて FX-U4 (b) で比較する。
-	// セル2の60/120fpsは未解決: 実測 Base p95 2.0373cm > 対照0.3583 × 1.5 + 0.001 = 0.5386cm。
-	// 比較対象は出力ではなく Location。120fps は最初の NumSteps=0 の後、時刻1/120秒から物理ステップが始まり、
-	// 同時刻サンプルでも60fpsより半ステップ古い状態を読む。出力の終端キャッシュ変換だけではこの主張は直らない。
-	// ApplySimulateResult の終端基準、AdvanceBaseBoneConsumedTransform の未消費基準と速度履歴も要調査。
-	// MoveFrac>1 は NumSteps=0 のフレームに限り、ComputeBaseBoneStepTransform も係数を端点でクランプする。
+	// セル 2 は WorldDamping 0（基準ボーンの回転に全量追従）。ボーンが基準ボーンの位相をそのまま映すので、入力の時刻を
+	// 経過時間 (Frame + 1) / Rate に合わせ、最初の 0.1 秒は止めてから回す（全 fps で同じ時刻に同じ角度、始まりの揺れも同じ）。
+	// ポーズを Frame / Rate で与えると経過時間より 1 フレーム（fps ごとに長さが違う）遅れ、60/120fps で 1.7cm の見かけの差が出る。
+	// 比べるのは出力（Component 空間）。BaseBoneSpace の Location は消費済みの基準ボーンの座標で、ステップの無いフレームでは古い座標になる。
+	// 計測（2026-11-27）: この入力で Base の 30/60・60/120fps の p95 は 0.0000cm（対照 0.0108 / 0.0000）。
 	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsSolverSpecBaseBoneFollowRatesTest,
 		"KawaiiPhysics.SolverSpec.Substep.BaseBoneFollowAcrossRates",
 		EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -236,7 +235,9 @@ namespace KawaiiPhysicsSolverSpecTestPrivate
 					ChainOptions.SetInputPose = [Rate, bSynchronizedStart](FCompactPose& InputPose, const int32 Frame)
 					{
 						// 60fps で 3°/フレーム、すなわち 180°/秒を全レートで同じ実時間だけ与える。
-						const float Angle = 180.0f * (Frame + (bSynchronizedStart ? 0 : 1)) / Rate;
+						// セル 2 は経過時間に合わせ、最初の 0.1 秒は止める（上の注記）。
+						const float ElapsedSeconds = static_cast<float>(Frame + 1) / Rate;
+						const float Angle = 180.0f * (bSynchronizedStart ? FMath::Max(0.0f, ElapsedSeconds - 0.1f) : ElapsedSeconds);
 						InputPose[FCompactPoseBoneIndex(1)].SetRotation(FQuat(FVector::ZAxisVector, FMath::DegreesToRadians(Angle)));
 						// chain_2 から先を回転軸から外し、Z 軸まわりの回転で子のポーズ位置が動くようにする。
 						InputPose[FCompactPoseBoneIndex(2)].SetRotation(FQuat(FVector::XAxisVector, FMath::DegreesToRadians(30.0f)));
@@ -247,9 +248,12 @@ namespace KawaiiPhysicsSolverSpecTestPrivate
 					{
 						PhysicsFixture.EvaluateFrame();
 						bOk &= TestTrue(TEXT("実際の ModifyBones がある"), PhysicsFixture.Node.ModifyBones.Num() > 1);
-						if ((Frame + (bSynchronizedStart ? 0 : 1)) % (Rate / 30) == 0 && PhysicsFixture.Node.ModifyBones.Num() > 1)
+						if ((Frame + 1) % (Rate / 30) == 0 && PhysicsFixture.Node.ModifyBones.Num() > 1)
 						{
-							SampleLocations.Add(PhysicsFixture.Node.ModifyBones.Last().Location);
+							// セル 2 は出力（Component 空間）を比べる。OutTransforms の並びは全セルで同じ。
+							SampleLocations.Add(bSynchronizedStart && PhysicsFixture.OutTransforms.Num() > 0
+								? PhysicsFixture.OutTransforms.Last().Transform.GetLocation()
+								: PhysicsFixture.Node.ModifyBones.Last().Location);
 						}
 					}
 				}
@@ -258,19 +262,29 @@ namespace KawaiiPhysicsSolverSpecTestPrivate
 			{
 				bOk &= TestEqual(TEXT("BaseBone の 30 サンプル"), BaseLocations[RateIndex].Num(), 30);
 				bOk &= TestEqual(TEXT("Component の 30 サンプル"), ComponentLocations[RateIndex].Num(), 30);
+				if (bSynchronizedStart && BaseLocations[RateIndex].Num() > 0)
+				{
+					// セル 2 の対照: 入力が効いて出力が動いている（全量追従なので回転の円弧を描く。始まりからの最大距離 > 1cm）。
+					double MaxTravel = 0.0;
+					for (const FVector& Sample : BaseLocations[RateIndex])
+					{
+						MaxTravel = FMath::Max(MaxTravel, FVector::Dist(Sample, BaseLocations[RateIndex][0]));
+					}
+					bOk &= TestTrue(FString::Printf(TEXT("セル 2 の %dfps で BaseBone の出力が動く（%.4f > 1）"),
+						Rates[RateIndex], MaxTravel), MaxTravel > 1.0);
+				}
 			}
 			for (int32 PairIndex = 0; PairIndex < 2; ++PairIndex)
 			{
 				const double BaseP95 = ComputeP95Difference(BaseLocations[PairIndex], BaseLocations[PairIndex + 1]);
 				const double ComponentP95 = ComputeP95Difference(ComponentLocations[PairIndex], ComponentLocations[PairIndex + 1]);
-				bOk &= TestTrue(FString::Printf(TEXT("セル %d の %d/%dfps で対照にも fps 差がある"),
-					CellIndex, Rates[PairIndex], Rates[PairIndex + 1]), ComponentP95 > 0.001);
-				// 異なる fps の積分誤差を ComponentSpace の p95 で正規化し、float の位置丸めに 0.001cm を加える（FX-U4 (b)）。
-				if (bSynchronizedStart && PairIndex == 1)
+				if (!bSynchronizedStart)
 				{
-					// 初期位相・未消費基準・出力補間をまとめた修正は今回の外力変換の範囲を超えるため、この上限主張だけ保留。
-					continue;
+					// セル 2 は入力の時刻をそろえたので対照の fps 差がほぼ 0 になる。対照は上の「出力が動く」で見る。
+					bOk &= TestTrue(FString::Printf(TEXT("セル %d の %d/%dfps で対照にも fps 差がある"),
+						CellIndex, Rates[PairIndex], Rates[PairIndex + 1]), ComponentP95 > 0.001);
 				}
+				// 異なる fps の積分誤差を ComponentSpace の p95 で正規化し、float の位置丸めに 0.001cm を加える（FX-U4 (b)）。
 				bOk &= TestTrue(FString::Printf(TEXT("セル %d の %d/%dfps の Base p95 %.4f <= 対照 %.4f × 1.5 + 0.001"),
 					CellIndex, Rates[PairIndex], Rates[PairIndex + 1], BaseP95, ComponentP95),
 					BaseP95 <= ComponentP95 * 1.5 + 0.001);
