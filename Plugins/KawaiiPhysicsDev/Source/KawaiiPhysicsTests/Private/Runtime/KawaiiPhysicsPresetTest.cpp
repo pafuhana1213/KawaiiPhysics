@@ -99,35 +99,97 @@ KP_DEFINE_TEST_GAMEPLAY_TAG_STATIC(TAG_KawaiiPhysicsPresetTarget, "KawaiiPhysics
 		return UGameplayTagsManager::Get().RequestGameplayTag(FName(TagName), false);
 	}
 
+	TMap<FName, EKawaiiPhysicsPresetPropertyClass> GetExpectedPropertyClasses()
+	{
+		TMap<FName, EKawaiiPhysicsPresetPropertyClass> ExpectedClasses;
+		auto AddNames = [&ExpectedClasses](const TCHAR* Names, const EKawaiiPhysicsPresetPropertyClass PropertyClass)
+		{
+			TArray<FString> PropertyNames;
+			FString(Names).ParseIntoArray(PropertyNames, TEXT(","), true);
+			for (FString& PropertyName : PropertyNames)
+			{
+				PropertyName.TrimStartAndEndInline();
+				ExpectedClasses.Add(FName(*PropertyName), PropertyClass);
+			}
+		};
+		// PR-U2 で承認された 87 件の固定表。分類関数から期待表を作らない。
+		AddNames(TEXT("DummyBoneLength,BoneSubdivisionCount,bBoneSubdivisionCollisionOnly,bBoneSubdivisionDensifyByRadius,"
+			"BoneConstraintSubdivisionCount,BoneConstraintSubdivisionFeedbackScale,BoneForwardAxis,PhysicsSettings,"
+			"SimulationSpace,SimulationBaseBone,TargetFramerate,WarmUpFrames,bUseWarmUpWhenResetDynamics,bNeedWarmUp,"
+			"TeleportDistanceThreshold,TeleportRotationThreshold,PlanarConstraint,SkelCompMoveScale,"
+			"bUpdatePhysicsSettingsInGame,ResetBoneTransformWhenBoneNotFound,DampingCurveData,StiffnessCurveData,"
+			"WorldDampingLocationCurveData,WorldDampingRotationCurveData,RadiusCurveData,LimitAngleCurveData,"
+			"SphericalLimits,CapsuleLimits,TaperedCapsuleLimits,BoxLimits,PlanarLimits,LimitsDataAsset,"
+			"PhysicsAssetForLimits,MirrorDataTableForLimits,bSkipMirroredBoneWithExistingCollision,"
+			"bSharedCollisionSource,bUseSharedCollision,SharedCollisionGroupTag,BoneConstraintGlobalComplianceType,"
+			"BoneConstraintIterationCountBeforeCollision,BoneConstraintIterationCountAfterCollision,"
+			"bAutoAddChildDummyBoneConstraint,BoneConstraints,BoneConstraintsDataAsset,SyncBones,Gravity,bUseLegacyGravity,"
+			"bUseDefaultGravityZProjectSetting,bUseWorldSpaceGravity,bEnableWind,WindScale,WindDirectionNoiseAngle,"
+			"WindSampleMode,SimpleExternalForce,bUseWorldSpaceSimpleExternalForce,ExternalForces,CustomExternalForces,"
+			"bAllowWorldCollision,bOverrideCollisionParams,CollisionChannelSettings,bIgnoreSelfComponent,IgnoreBones,"
+			"IgnoreBoneNamePrefix,bUseSimpleWorldCollision,SimpleWorldCollisionGatherInterval,SimpleWorldCollisionObjectTypes,"
+			"SimpleWorldCollisionConvexFallbackShape,bOverrideSimpleWorldCollisionGatherRadius,SimpleWorldCollisionGatherRadius,"
+			"bSimpleWorldCollisionGroundCollision,SimpleWorldCollisionSkeletalMeshCollision,SimpleWorldCollisionSource,"
+			"SimpleWorldCollisionSharedTag"), EKawaiiPhysicsPresetPropertyClass::CopyTarget);
+		AddNames(TEXT("RootBone,ExcludeBones,AdditionalRootBones"), EKawaiiPhysicsPresetPropertyClass::BoneAssignment);
+		AddNames(TEXT("KawaiiPhysicsTag"), EKawaiiPhysicsPresetPropertyClass::Tag);
+		AddNames(TEXT("TimeScale"), EKawaiiPhysicsPresetPropertyClass::RuntimeOnly);
+		AddNames(TEXT("SphericalLimitsData,CapsuleLimitsData,TaperedCapsuleLimitsData,BoxLimitsData,PlanarLimitsData,"
+			"BoneConstraintsData,MergedBoneConstraints,ModifyBones,DeltaTime"), EKawaiiPhysicsPresetPropertyClass::Deny);
+		return ExpectedClasses;
+	}
+
+// PR-02・PR-04・PR-17。mutant なし。元ノードの非既定値を、固定表の CopyTarget として比較する。
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPresetRoundTripTest,
                                  "KawaiiPhysics.Preset.RoundTrip",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FKawaiiPhysicsPresetRoundTripTest::RunTest(const FString& Parameters)
 {
-	const FAnimNode_KawaiiPhysics SourceNode = MakePresetSourceNode();
-	FAnimNode_KawaiiPhysics TargetNode;
+	FAnimNode_KawaiiPhysics SourceNode = MakePresetSourceNode();
+	SourceNode.TimeScale = 0.25f;
+	SourceNode.DeltaTime = 0.125f;
 
 	UKawaiiPhysicsPresetDataAsset* Preset = NewObject<UKawaiiPhysicsPresetDataAsset>();
 	Preset->CopyFromNode(SourceNode);
-
-	FKawaiiPhysicsPresetApplyOptions Options;
-	Options.bApplyBoneAssignment = true;
-	Options.bApplyTag = true;
-	Preset->ApplyToNode(TargetNode, Options, Preset);
-
 	bool bOk = true;
-	for (TFieldIterator<FProperty> PropertyIt(FAnimNode_KawaiiPhysics::StaticStruct(), EFieldIteratorFlags::ExcludeSuper);
-	     PropertyIt; ++PropertyIt)
+	bOk &= TestEqual(TEXT("TimeScale は保存されない"), Preset->Node.TimeScale, 1.0f);
+	const TMap<FName, EKawaiiPhysicsPresetPropertyClass> ExpectedClasses = GetExpectedPropertyClasses();
+	const FAnimNode_KawaiiPhysics DefaultNode;
+	int32 ChangedCopyTargets = 0;
+	for (const TPair<FName, EKawaiiPhysicsPresetPropertyClass>& Expected : ExpectedClasses)
 	{
-		const FProperty& Property = **PropertyIt;
-		if (UKawaiiPhysicsPresetDataAsset::ShouldApplyNodeProperty(Property, Options))
+		if (Expected.Value == EKawaiiPhysicsPresetPropertyClass::CopyTarget)
 		{
-			bOk &= TestTrue(FString::Printf(TEXT("%s round-trips"), *Property.GetName()),
-			                Property.Identical_InContainer(&Preset->Node,
-			                                               &TargetNode,
-			                                      0,
-			                                      KawaiiPhysicsPresetTestIdenticalPortFlags));
+			ChangedCopyTargets += !IsNodePropertyIdentical(Expected.Key, SourceNode, DefaultNode) ? 1 : 0;
+			bOk &= TestTrue(FString::Printf(TEXT("%s は元ノードから保存される"), *Expected.Key.ToString()),
+				IsNodePropertyIdentical(Expected.Key, SourceNode, Preset->Node));
+		}
+	}
+	bOk &= TestTrue(TEXT("既定値だけの往復ではない"), ChangedCopyTargets >= 20);
+	for (const bool bApplyBoneAssignment : {false, true})
+	{
+		for (const bool bApplyTag : {false, true})
+		{
+			FAnimNode_KawaiiPhysics TargetNode;
+			TargetNode.TimeScale = 2.0f;
+			TargetNode.DeltaTime = 0.5f;
+			TargetNode.RootBone = FBoneReference(TEXT("untouched_root"));
+			TargetNode.KawaiiPhysicsTag = TAG_KawaiiPhysicsPresetTarget;
+			const FAnimNode_KawaiiPhysics BeforeApply = TargetNode;
+			FKawaiiPhysicsPresetApplyOptions ApplyOptions;
+			ApplyOptions.bApplyBoneAssignment = bApplyBoneAssignment;
+			ApplyOptions.bApplyTag = bApplyTag;
+			Preset->ApplyToNode(TargetNode, ApplyOptions, Preset);
+			for (const TPair<FName, EKawaiiPhysicsPresetPropertyClass>& Expected : ExpectedClasses)
+			{
+				const bool bShouldCopy = Expected.Value == EKawaiiPhysicsPresetPropertyClass::CopyTarget ||
+					(Expected.Value == EKawaiiPhysicsPresetPropertyClass::BoneAssignment && bApplyBoneAssignment) ||
+					(Expected.Value == EKawaiiPhysicsPresetPropertyClass::Tag && bApplyTag);
+				const FAnimNode_KawaiiPhysics& ReferenceNode = bShouldCopy ? SourceNode : BeforeApply;
+				bOk &= TestTrue(FString::Printf(TEXT("%s のフラグ %d/%d"), *Expected.Key.ToString(), bApplyBoneAssignment, bApplyTag),
+					IsNodePropertyIdentical(Expected.Key, ReferenceNode, TargetNode));
+			}
 		}
 	}
 	return bOk;
@@ -289,6 +351,7 @@ bool FKawaiiPhysicsPresetTargetTagsTest::RunTest(const FString& Parameters)
 	return bOk;
 }
 
+// PR-03・PR-05・PR-U3。mutant なし。適用先の別ノードと比較し、TimeScale を比較対象から除く。
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPresetMatchTest,
                                  "KawaiiPhysics.Preset.Match",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -303,66 +366,64 @@ bool FKawaiiPhysicsPresetMatchTest::RunTest(const FString& Parameters)
 	Options.bApplyBoneAssignment = true;
 	Options.bApplyTag = true;
 
+	FAnimNode_KawaiiPhysics AppliedNode;
+	Preset->ApplyToNode(AppliedNode, Options, Preset);
 	TArray<FName> DiffProperties;
+	TArray<FName> ComparedProperties;
 	bool bOk = true;
-	bOk &= TestTrue(TEXT("Copied node matches preset"),
-	                Preset->MatchesNode(Preset->Node, Options, DiffProperties));
-	FAnimNode_KawaiiPhysics ChangedNode = Preset->Node;
+	bOk &= TestTrue(TEXT("別ノードへ適用した値は一致"),
+	                Preset->MatchesNode(AppliedNode, Options, DiffProperties, &ComparedProperties));
+	bOk &= TestEqual(TEXT("一致すると差分は空"), DiffProperties.Num(), 0);
+	FAnimNode_KawaiiPhysics RuntimeOnlyNode = AppliedNode;
+	RuntimeOnlyNode.TimeScale = 0.25f;
+	bOk &= TestTrue(TEXT("TimeScale だけの差は一致"),
+		Preset->MatchesNode(RuntimeOnlyNode, Options, DiffProperties, &ComparedProperties));
+	bOk &= TestEqual(TEXT("TimeScale は差分に出ない"), DiffProperties.Num(), 0);
+	bOk &= TestFalse(TEXT("TimeScale は比較項目に出ない"),
+		ComparedProperties.Contains(GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, TimeScale)));
+	FAnimNode_KawaiiPhysics ChangedNode = AppliedNode;
 	ChangedNode.DummyBoneLength += 1.0f;
-	ChangedNode.RootBone = FBoneReference(TEXT("changed_root"));
-	ChangedNode.KawaiiPhysicsTag = TAG_KawaiiPhysicsPresetTarget;
-
-	bOk &= TestFalse(TEXT("Changed node does not match"),
-	                 Preset->MatchesNode(ChangedNode, Options, DiffProperties));
-	bOk &= TestTrue(TEXT("DummyBoneLength difference is reported"),
-	                DiffProperties.Contains(GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, DummyBoneLength)));
-	bOk &= TestTrue(TEXT("RootBone difference is reported when bone assignment is applied"),
-	                DiffProperties.Contains(GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, RootBone)));
-	bOk &= TestTrue(TEXT("KawaiiPhysicsTag difference is reported when tag is applied"),
-	                DiffProperties.Contains(GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, KawaiiPhysicsTag)));
-
-	FKawaiiPhysicsPresetApplyOptions ProtectedOptions;
-	bOk &= TestFalse(TEXT("Changed node still differs by regular property"),
-	                 Preset->MatchesNode(ChangedNode, ProtectedOptions, DiffProperties));
-	bOk &= TestFalse(TEXT("RootBone difference is hidden when bone assignment is protected"),
-	                 DiffProperties.Contains(GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, RootBone)));
-	bOk &= TestFalse(TEXT("KawaiiPhysicsTag difference is hidden when tag is protected"),
-	                 DiffProperties.Contains(GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, KawaiiPhysicsTag)));
+	bOk &= TestFalse(TEXT("CopyTarget を一つ変えると不一致"),
+		Preset->MatchesNode(ChangedNode, Options, DiffProperties, &ComparedProperties));
+	bOk &= TestEqual(TEXT("差分は一件だけ"), DiffProperties.Num(), 1);
+	bOk &= TestTrue(TEXT("差分名は DummyBoneLength"),
+		DiffProperties.Contains(GET_MEMBER_NAME_CHECKED(FAnimNode_KawaiiPhysics, DummyBoneLength)));
 	return bOk;
 }
 
+// PR-U2。mutant なし。固定表との照合により分類漏れと誤分類を個別の名前で報告する。
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPresetPropertyClassificationTest,
                                  "KawaiiPhysics.Preset.PropertyClassification",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FKawaiiPhysicsPresetPropertyClassificationTest::RunTest(const FString& Parameters)
 {
-	TArray<FName> UnclassifiedProperties;
+	TMap<FName, EKawaiiPhysicsPresetPropertyClass> ExpectedClasses = GetExpectedPropertyClasses();
+	bool bOk = TestEqual(TEXT("固定表は 87 件"), ExpectedClasses.Num(), 87);
+	int32 SeenCount = 0;
 	for (TFieldIterator<FProperty> PropertyIt(FAnimNode_KawaiiPhysics::StaticStruct(), EFieldIteratorFlags::ExcludeSuper);
 	     PropertyIt; ++PropertyIt)
 	{
 		const FProperty& Property = **PropertyIt;
-		if (UKawaiiPhysicsPresetDataAsset::ClassifyNodeProperty(Property) ==
-			EKawaiiPhysicsPresetPropertyClass::Unknown)
+		const EKawaiiPhysicsPresetPropertyClass* ExpectedClass = ExpectedClasses.Find(Property.GetFName());
+		const EKawaiiPhysicsPresetPropertyClass ActualClass = UKawaiiPhysicsPresetDataAsset::ClassifyNodeProperty(Property);
+		if (!ExpectedClass || *ExpectedClass != ActualClass)
 		{
-			UnclassifiedProperties.Add(Property.GetFName());
+			AddError(FString::Printf(TEXT("%s: 期待分類 %d、実際 %d"), *Property.GetName(),
+				ExpectedClass ? static_cast<int32>(*ExpectedClass) : -1, static_cast<int32>(ActualClass)));
+			bOk = false;
 		}
+		ExpectedClasses.Remove(Property.GetFName());
+		++SeenCount;
 	}
-
-	FString UnclassifiedList;
-	for (const FName PropertyName : UnclassifiedProperties)
+	for (const TPair<FName, EKawaiiPhysicsPresetPropertyClass>& Missing : ExpectedClasses)
 	{
-		if (!UnclassifiedList.IsEmpty())
-		{
-			UnclassifiedList += TEXT(", ");
-		}
-		UnclassifiedList += PropertyName.ToString();
+		AddError(FString::Printf(TEXT("固定表の %s がノードに無い。期待分類 %d"), *Missing.Key.ToString(),
+			static_cast<int32>(Missing.Value)));
+		bOk = false;
 	}
-
-	TestTrue(FString::Printf(TEXT("All own properties are classified. Unclassified: %s"),
-	                         *UnclassifiedList),
-	         UnclassifiedProperties.IsEmpty());
-	return true;
+	bOk &= TestEqual(TEXT("ノード自身の UPROPERTY は 87 件"), SeenCount, 87);
+	return bOk;
 }
 
 } // namespace KawaiiPhysicsPresetTestPrivate
