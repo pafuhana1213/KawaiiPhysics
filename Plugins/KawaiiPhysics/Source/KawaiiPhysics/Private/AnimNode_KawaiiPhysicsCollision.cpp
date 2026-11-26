@@ -482,15 +482,27 @@ void FAnimNode_KawaiiPhysics::ApplyLimitsDataAsset(const FBoneContainer& Require
 
 	if (LimitsDataAsset)
 	{
-		SphericalLimitsData.Append(LimitsDataAsset->SphericalLimits);
-		CapsuleLimitsData.Append(LimitsDataAsset->CapsuleLimits);
-		TaperedCapsuleLimitsData.Append(LimitsDataAsset->TaperedCapsuleLimits);
-		BoxLimitsData.Append(LimitsDataAsset->BoxLimits);
+		// スクリプトで作ったアセットの形状は SourceType が AnimNode のままなので、
+		// 外すときの目印として、取り込む側のコピーに DataAsset を付ける。
+		auto AppendDataAssetLimits = [](auto& Targets, const auto& Sources)
+		{
+			const int32 FirstNewIndex = Targets.Num();
+			Targets.Append(Sources);
+			for (int32 Index = FirstNewIndex; Index < Targets.Num(); ++Index)
+			{
+				Targets[Index].SourceType = ECollisionSourceType::DataAsset;
+			}
+		};
+		AppendDataAssetLimits(SphericalLimitsData, LimitsDataAsset->SphericalLimits);
+		AppendDataAssetLimits(CapsuleLimitsData, LimitsDataAsset->CapsuleLimits);
+		AppendDataAssetLimits(TaperedCapsuleLimitsData, LimitsDataAsset->TaperedCapsuleLimits);
+		AppendDataAssetLimits(BoxLimitsData, LimitsDataAsset->BoxLimits);
 		PlanarLimitsData.Append(LimitsDataAsset->PlanarLimits);
 		// 編集中の DataAsset 再同期では同じ平面のステップ履歴を引き継ぐ。
 		for (int32 NewIndex = OldPlanarCount; NewIndex < PlanarLimitsData.Num(); ++NewIndex)
 		{
 			FPlanarLimit& NewLimit = PlanarLimitsData[NewIndex];
+			NewLimit.SourceType = ECollisionSourceType::DataAsset;
 			for (int32 OldIndex = 0; OldIndex < OldPlanarCount; ++OldIndex)
 			{
 				const FPlanarLimit& OldLimit = PlanarLimitsData[OldIndex];
