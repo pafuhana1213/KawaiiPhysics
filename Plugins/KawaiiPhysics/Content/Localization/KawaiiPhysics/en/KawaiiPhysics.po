@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: KawaiiPhysics\n"
-"POT-Creation-Date: 2026-11-15 18:02\n"
-"PO-Revision-Date: 2026-11-15 18:02\n"
+"POT-Creation-Date: 2026-11-26 18:12\n"
+"PO-Revision-Date: 2026-11-26 18:12\n"
 "Language-Team: \n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
@@ -2194,8 +2194,8 @@ msgstr "Use Character Gravity Direction"
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityDirection [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityDirection [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityDirection"
-msgid "Character側で設定されたCustomGravityDirectionを使用するフラグ(UE5.4以降)\nFlag to use CustomGravityDirection set on the Character side (UE5.4 and later)"
-msgstr "Character側で設定されたCustomGravityDirectionを使用するフラグ(UE5.4以降)\nFlag to use CustomGravityDirection set on the Character side (UE5.4 and later)"
+msgid "Character側で設定されたCustomGravityDirectionを使用するフラグ(UE5.3以降)。OverrideがONならOverrideを優先する。\nFlag to use CustomGravityDirection set on the Character side (UE5.3 and later). Override takes priority when enabled."
+msgstr "Character側で設定されたCustomGravityDirectionを使用するフラグ(UE5.3以降)。OverrideがONならOverrideを優先する。\nFlag to use CustomGravityDirection set on the Character side (UE5.3 and later). Override takes priority when enabled."
 
 #. Key:	KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityScale
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityScale [BoolProperty DisplayName meta-data]
@@ -2208,8 +2208,8 @@ msgstr "Use Character Gravity"
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityScale [BoolProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityScale [BoolProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_Gravity:bUseCharacterGravityScale"
-msgid "Characterの重力加速度（ワールドの重力 × GravityScale）を力の大きさに使うフラグ\nFlag to use the Character's gravity acceleration (world gravity × GravityScale) as the force magnitude"
-msgstr "Characterの重力加速度（ワールドの重力 × GravityScale）を力の大きさに使うフラグ\nFlag to use the Character's gravity acceleration (world gravity × GravityScale) as the force magnitude"
+msgid "Characterの重力加速度（ワールドの重力 × GravityScale）を力の大きさに使うフラグ。Characterが無ければワールドの重力で代用する。\nFlag to use the Character's gravity acceleration (world gravity × GravityScale) as the force magnitude. Uses world gravity when no Character exists."
+msgstr "Characterの重力加速度（ワールドの重力 × GravityScale）を力の大きさに使うフラグ。Characterが無ければワールドの重力で代用する。\nFlag to use the Character's gravity acceleration (world gravity × GravityScale) as the force magnitude. Uses world gravity when no Character exists."
 
 #. Key:	KawaiiPhysics_ExternalForce_Gravity:bUseOverrideGravityDirection
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_Gravity:bUseOverrideGravityDirection [BoolProperty DisplayName meta-data]
@@ -2544,8 +2544,8 @@ msgstr "Wind Direction"
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WindDirection [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WindDirection [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiPhysics_ExternalForce_ProceduralWind:WindDirection"
-msgid "風の吹く方向。BP からは SetExternalForceVectorProperty(\"WindDirection\") で変更可能。内部で正規化するため非正規化でも可\nDirection the wind blows. Controllable from BP via SetExternalForceVectorProperty(\"WindDirection\"). Non-normalized values are allowed because this is normalized internally."
-msgstr "風の吹く方向。BP からは SetExternalForceVectorProperty(\"WindDirection\") で変更可能。内部で正規化するため非正規化でも可\nDirection the wind blows. Controllable from BP via SetExternalForceVectorProperty(\"WindDirection\"). Non-normalized values are allowed because this is normalized internally."
+msgid "風の吹く方向。BP からは SetExternalForceVectorProperty(\"WindDirection\") で変更可能。内部で正規化するため非正規化でも可。0 ベクトルまたは NaN / Inf のときは吹かない\nDirection the wind blows. Controllable from BP via SetExternalForceVectorProperty(\"WindDirection\"). Non-normalized values are allowed because this is normalized internally. A zero vector or NaN / Inf produces no wind."
+msgstr "風の吹く方向。BP からは SetExternalForceVectorProperty(\"WindDirection\") で変更可能。内部で正規化するため非正規化でも可。0 ベクトルまたは NaN / Inf のときは吹かない\nDirection the wind blows. Controllable from BP via SetExternalForceVectorProperty(\"WindDirection\"). Non-normalized values are allowed because this is normalized internally. A zero vector or NaN / Inf produces no wind."
 
 #. Key:	KawaiiPhysics_ExternalForce_ProceduralWind:WindDirectionNoiseAngle
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysics_ExternalForce_ProceduralWind:WindDirectionNoiseAngle [FloatProperty DisplayName meta-data]
@@ -4535,6 +4535,13 @@ msgctxt "UObjectToolTips,KawaiiPhysicsSyncBone:bEnableDistanceAttenuation"
 msgid "SyncBoneとの距離に応じてTargetへの適用量(Alpha)を減衰させる設定\nAttenuation of application amount(Alpha) based on distance from SyncBone to each Target"
 msgstr "SyncBoneとの距離に応じてTargetへの適用量(Alpha)を減衰させる設定\nAttenuation of application amount(Alpha) based on distance from SyncBone to each Target"
 
+#. Key:	Sync Bone
+#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty Category meta-data]
+#: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty Category meta-data]
+msgctxt "UObjectCategory,Sync Bone"
+msgid "Sync Bone"
+msgstr "Sync Bone"
+
 #. Key:	KawaiiPhysicsSyncBone:Bone
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty DisplayName meta-data]
 #: /Script/KawaiiPhysics.KawaiiPhysicsSyncBone:Bone [StructProperty DisplayName meta-data]
@@ -4793,13 +4800,6 @@ msgstr "ChildTargets(Preview)"
 msgctxt "UObjectToolTips,KawaiiPhysicsSyncTargetRoot:ChildTargets"
 msgid "適用対象である子ボーン\nChild bones that are targets for application"
 msgstr "適用対象である子ボーン\nChild bones that are targets for application"
-
-#. Key:	Sync Bone
-#. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty Category meta-data]
-#: /Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty Category meta-data]
-msgctxt "UObjectCategory,Sync Bone"
-msgid "Sync Bone"
-msgstr "Sync Bone"
 
 #. Key:	KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiPhysicsSyncTargetRoot:ScaleCurveByBoneLengthRate [StructProperty DisplayName meta-data]
@@ -5379,8 +5379,8 @@ msgstr "Wind Direction"
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:WindDirection [StructProperty ToolTip meta-data]
 #: /Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:WindDirection [StructProperty ToolTip meta-data]
 msgctxt "UObjectToolTips,KawaiiProceduralWindDynamicParams:WindDirection"
-msgid "風方向。内部で正規化するため非正規化でも可 / Wind direction. Non-normalized values are allowed because this is normalized internally."
-msgstr "風方向。内部で正規化するため非正規化でも可 / Wind direction. Non-normalized values are allowed because this is normalized internally."
+msgid "風方向。内部で正規化するため非正規化でも可。0 ベクトルまたは NaN / Inf のときは吹かない / Wind direction. Non-normalized values are allowed because this is normalized internally. A zero vector or NaN / Inf produces no wind."
+msgstr "風方向。内部で正規化するため非正規化でも可。0 ベクトルまたは NaN / Inf のときは吹かない / Wind direction. Non-normalized values are allowed because this is normalized internally. A zero vector or NaN / Inf produces no wind."
 
 #. Key:	KawaiiProceduralWindDynamicParams:WindDirectionNoiseAngle
 #. SourceLocation:	/Script/KawaiiPhysics.KawaiiProceduralWindDynamicParams:WindDirectionNoiseAngle [FloatProperty DisplayName meta-data]
@@ -7175,120 +7175,120 @@ msgid "Kawaii Physics"
 msgstr "Kawaii Physics"
 
 #. Key:	DeleteKawaiiCollision
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1112)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1112)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1109)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1109)
 msgctxt "KawaiiPhysicsEditMode,DeleteKawaiiCollision"
 msgid "Delete KawaiiPhysics Collision"
 msgstr "Delete KawaiiPhysics Collision"
 
 #. Key:	PerAxisLimitForwardAxisMismatch
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1738)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1738)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1735)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditMode.cpp(1735)
 msgctxt "KawaiiPhysicsEditMode,PerAxisLimitForwardAxisMismatch"
 msgid "Per Axis Limit: {0} bone(s) are more than 45 degrees off Bone Forward Axis. X/Y/Z may not match the parent bone's local axes"
 msgstr "Per Axis Limit: {0} bone(s) are more than 45 degrees off Bone Forward Axis. X/Y/Z may not match the parent bone's local axes"
 
 #. Key:	AddKawaiiPhysicsNodes
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2416)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2416)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2377)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2377)
 msgctxt "KawaiiPhysicsEditorLibrary,AddKawaiiPhysicsNodes"
 msgid "Add Kawaii Physics Nodes"
 msgstr "Add Kawaii Physics Nodes"
 
 #. Key:	AddKawaiiPhysicsSharedPublisherNode
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2626)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2626)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2587)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2587)
 msgctxt "KawaiiPhysicsEditorLibrary,AddKawaiiPhysicsSharedPublisherNode"
 msgid "Add Kawaii Physics Shared Publisher Node"
 msgstr "Add Kawaii Physics Shared Publisher Node"
 
 #. Key:	SetAnimGraphInputAnimation
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2707)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2707)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2668)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2668)
 msgctxt "KawaiiPhysicsEditorLibrary,SetAnimGraphInputAnimation"
 msgid "Set Anim Graph Input Animation"
 msgstr "Set Anim Graph Input Animation"
 
 #. Key:	SetAnimGraphInputPose
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2845)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2845)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2806)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2806)
 msgctxt "KawaiiPhysicsEditorLibrary,SetAnimGraphInputPose"
 msgid "Set Anim Graph Input Pose"
 msgstr "Set Anim Graph Input Pose"
 
 #. Key:	LayoutKawaiiPhysicsAnimGraph
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2959)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2959)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2920)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(2920)
 msgctxt "KawaiiPhysicsEditorLibrary,LayoutKawaiiPhysicsAnimGraph"
 msgid "Layout Kawaii Physics Anim Graph"
 msgstr "Layout Kawaii Physics Anim Graph"
 
 #. Key:	BindGraphNodeAnimNodeFunction
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3180)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3180)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3133)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3133)
 msgctxt "KawaiiPhysicsEditorLibrary,BindGraphNodeAnimNodeFunction"
 msgid "Bind AnimNode Function"
 msgstr "Bind AnimNode Function"
 
 #. Key:	SetGraphNodePropertyFromString
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3312)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3312)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3265)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3265)
 msgctxt "KawaiiPhysicsEditorLibrary,SetGraphNodePropertyFromString"
 msgid "Set Kawaii Physics Graph Node Property"
 msgstr "Set Kawaii Physics Graph Node Property"
 
 #. Key:	SetGraphNodeExternalForcesFromJson
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3544)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3544)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3497)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3497)
 msgctxt "KawaiiPhysicsEditorLibrary,SetGraphNodeExternalForcesFromJson"
 msgid "Set Kawaii Physics External Forces"
 msgstr "Set Kawaii Physics External Forces"
 
 #. Key:	SetSharedPublisherNodePropertyFromString
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3611)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3611)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3564)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3564)
 msgctxt "KawaiiPhysicsEditorLibrary,SetSharedPublisherNodePropertyFromString"
 msgid "Set Kawaii Physics Shared Publisher Node Property"
 msgstr "Set Kawaii Physics Shared Publisher Node Property"
 
 #. Key:	SetGraphNodeTag
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3742)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3742)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3695)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3695)
 msgctxt "KawaiiPhysicsEditorLibrary,SetGraphNodeTag"
 msgid "Set Kawaii Physics Graph Node Tag"
 msgstr "Set Kawaii Physics Graph Node Tag"
 
 #. Key:	SetGraphNodeRootBoneName
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3771)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3771)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3724)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3724)
 msgctxt "KawaiiPhysicsEditorLibrary,SetGraphNodeRootBoneName"
 msgid "Set Kawaii Physics Graph Node Root Bone"
 msgstr "Set Kawaii Physics Graph Node Root Bone"
 
 #. Key:	ApplyPresetToGraphNode
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3806)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3806)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3759)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3759)
 msgctxt "KawaiiPhysicsEditorLibrary,ApplyPresetToGraphNode"
 msgid "Apply Kawaii Physics Preset"
 msgstr "Apply Kawaii Physics Preset"
 
 #. Key:	ExportGraphNodeToPreset
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3893)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3893)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3846)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3846)
 msgctxt "KawaiiPhysicsEditorLibrary,ExportGraphNodeToPreset"
 msgid "Export Kawaii Physics Graph Node To Preset"
 msgstr "Export Kawaii Physics Graph Node To Preset"
 
 #. Key:	ApplyPresetToProjectProgress
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3934)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3934)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3887)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(3887)
 msgctxt "KawaiiPhysicsEditorLibrary,ApplyPresetToProjectProgress"
 msgid "Applying Kawaii Physics preset to AnimBlueprints..."
 msgstr "Applying Kawaii Physics preset to AnimBlueprints..."
 
 #. Key:	SetGraphNodeWildcardProperty
-#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(4098)
-#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(4098)
+#. SourceLocation:	Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(4051)
+#: Plugins/KawaiiPhysics/Source/KawaiiPhysicsEd/Private/KawaiiPhysicsEditorLibrary.cpp(4051)
 msgctxt "KawaiiPhysicsEditorLibrary,SetGraphNodeWildcardProperty"
 msgid "Set Kawaii Physics Graph Node Wildcard Property"
 msgstr "Set Kawaii Physics Graph Node Wildcard Property"
