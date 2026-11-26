@@ -191,6 +191,9 @@ static void InitializeRuntimeStateContents(FKawaiiProceduralWindRuntimeState& St
 	State.CachedGust = 0.0f;
 	State.CachedRipplePeriod = 0.01f;
 	State.CachedWindVector = FVector::ZeroVector;
+	State.CachedWindVectorInComponentSpace = FVector::ZeroVector;
+	State.WindVectorInSimSpaceAtPreApply = FVector::ZeroVector;
+	State.WindVectorPreApplySerial = 0;
 	State.SharedPublisherEntry.Reset();
 	State.ResolvedSharedTag = FGameplayTag();
 	State.LastAppliedSharedSerial = 0;
@@ -1332,6 +1335,7 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::PreApply(FAnimNode_KawaiiPhysi
 	if (RuntimeState->bPublisherWindDisabled)
 	{
 		RuntimeState->CachedWindVector = FVector::ZeroVector;
+		RuntimeState->CachedWindVectorInComponentSpace = FVector::ZeroVector;
 	}
 	else
 	{
@@ -1349,12 +1353,17 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::PreApply(FAnimNode_KawaiiPhysi
 			NoisyWindDirection = KawaiiPhysicsExternalForceProceduralWindPrivate::ApplyConeNoiseToDirection(BaseWindDirection, NoiseX, NoiseY, WindDirectionNoiseAngle);
 		}
 		// BoneSpace はボーンローカルの生ベクトルをキャッシュし、Apply 側で BoneTM を1回だけ掛ける
+		RuntimeState->CachedWindVectorInComponentSpace = ConvertExternalForceToComponentSpace(Node, PoseContext, NoisyWindDirection);
+		if (RuntimeState->CachedWindVectorInComponentSpace.ContainsNaN()) { RuntimeState->CachedWindVectorInComponentSpace = FVector::ZeroVector; }
 		RuntimeState->CachedWindVector = ConvertExternalForceToSimulationSpace(Node, PoseContext, NoisyWindDirection);
 		if (RuntimeState->CachedWindVector.ContainsNaN()) { RuntimeState->CachedWindVector = FVector::ZeroVector; }
 	}
 
+	RuntimeState->WindVectorInSimSpaceAtPreApply = RuntimeState->CachedWindVector;
+
 	// 上で求めた Sample をそのまま渡し、Wind Scope 記録での再計算を避ける
 	RecordScopeSample(Sample);
+	RuntimeState->WindVectorPreApplySerial = Node.GetExternalForcePreApplySerial();
 }
 
 void FKawaiiPhysics_ExternalForce_ProceduralWind::Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
@@ -1400,12 +1409,18 @@ void FKawaiiPhysics_ExternalForce_ProceduralWind::Apply(FKawaiiPhysicsModifyBone
 	}
 	else
 	{
-		Bone.Location += RuntimeState->CachedWindVector * Total * ForceRate *
+		const FVector StepForce = Node.IsUsingBaseBoneStepTransforms()
+			&& RuntimeState->WindVectorPreApplySerial == Node.GetExternalForcePreApplySerial()
+			&& FMemory::Memcmp(&RuntimeState->CachedWindVector, &RuntimeState->WindVectorInSimSpaceAtPreApply,
+				sizeof(FVector)) == 0
+			? Node.ConvertComponentVectorToSimulationSpace(PoseContext, RuntimeState->CachedWindVectorInComponentSpace)
+			: RuntimeState->CachedWindVector;
+		Bone.Location += StepForce * Total * ForceRate *
 			Node.GetStepDeltaTime();
 
 #if ENABLE_ANIM_DEBUG
 		BoneForceMap.Add(GetBoneForceKey(Bone),
-		                 RuntimeState->CachedWindVector * Total * ForceRate);
+		                 StepForce * Total * ForceRate);
 #endif
 	}
 }

@@ -103,7 +103,10 @@ void FKawaiiPhysics_ExternalForce_Curve::PreApply(FAnimNode_KawaiiPhysics& Node,
 	}
 
 	// BoneSpace はボーンローカルの生ベクトルをキャッシュし、Apply 側で BoneTM を1回だけ掛ける
+	ForceInComponentSpace = ConvertExternalForceToComponentSpace(Node, PoseContext, Force);
 	Force = ConvertExternalForceToSimulationSpace(Node, PoseContext, Force);
+	ForceInSimSpaceAtPreApply = Force;
+	ForcePreApplySerial = Node.GetExternalForcePreApplySerial();
 }
 
 void FKawaiiPhysics_ExternalForce_Curve::Apply(FKawaiiPhysicsModifyBone& Bone, FAnimNode_KawaiiPhysics& Node,
@@ -133,10 +136,14 @@ void FKawaiiPhysics_ExternalForce_Curve::Apply(FKawaiiPhysicsModifyBone& Bone, F
 	}
 	else
 	{
-		Bone.Location += Force * ForceRate * Node.GetStepDeltaTime();
+		// この評価で未準備、または派生が Force を置き換えた場合は、従来の sim 空間の値を使う。
+		const FVector StepForce = Node.IsUsingBaseBoneStepTransforms() && ForcePreApplySerial == Node.GetExternalForcePreApplySerial()
+			&& FMemory::Memcmp(&Force, &ForceInSimSpaceAtPreApply, sizeof(FVector)) == 0
+			? Node.ConvertComponentVectorToSimulationSpace(PoseContext, ForceInComponentSpace) : Force;
+		Bone.Location += StepForce * ForceRate * Node.GetStepDeltaTime();
 
 #if ENABLE_ANIM_DEBUG
-		BoneForceMap.Add(GetBoneForceKey(Bone), Force * ForceRate);
+		BoneForceMap.Add(GetBoneForceKey(Bone), StepForce * ForceRate);
 #endif
 	}
 }

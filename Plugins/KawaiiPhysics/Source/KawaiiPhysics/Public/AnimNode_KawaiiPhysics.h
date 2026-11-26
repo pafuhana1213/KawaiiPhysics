@@ -1096,6 +1096,9 @@ private:
 
 	// Cached simple external force in current SimulationSpace (computed once per SimulateModifyBones)
 	FVector SimpleExternalForceInSimSpace = FVector::ZeroVector;
+	// PreApply 前の入力を保持し、固定サブステップでは基準ボーンの変換だけを掛ける / Inputs cached before PreApply for base bone substeps
+	FVector GravityInComponentSpace = FVector::ZeroVector;
+	FVector SimpleExternalForceInComponentSpace = FVector::ZeroVector;
 	
 	/**
 	 *	 The last simulation space used for the physics simulation.
@@ -1110,6 +1113,8 @@ private:
 	FTransform BaseBoneStepPrevToComponent = FTransform::Identity;
 	FTransform BaseBoneStepComponentToCurrent = FTransform::Identity;
 	bool bUseBaseBoneStepTransforms = false;
+	// 外力の PreApply を回す評価番号。0 は未準備として予約する。
+	uint32 ExternalForcePreApplySerial = 0;
 
 #if !UE_BUILD_SHIPPING
 	// --- 警告ログ用診断 / Diagnostics for warning logs ---
@@ -1571,6 +1576,13 @@ public:
 	                                     EKawaiiPhysicsSimulationSpace From,
 	                                     EKawaiiPhysicsSimulationSpace To,
 	                                     const FVector& InVector) const;
+
+	// 外力の PreApply を回す現在の評価番号。0 は未準備を表す。
+	uint32 GetExternalForcePreApplySerial() const { return ExternalForcePreApplySerial; }
+	// 現在ステップの変換の使用状態。サブステップの中でだけ意味があり、PreApply では使わない。
+	bool IsUsingBaseBoneStepTransforms() const { return bUseBaseBoneStepTransforms; }
+	FVector ConvertComponentVectorToSimulationSpace(FComponentSpacePoseContext& Output,
+	                                               const FVector& InVector) const;
 
 	// Convert a location from one simulation space to another (internal cache-aware)
 	FVector ConvertSimulationSpaceLocation(FComponentSpacePoseContext& Output,

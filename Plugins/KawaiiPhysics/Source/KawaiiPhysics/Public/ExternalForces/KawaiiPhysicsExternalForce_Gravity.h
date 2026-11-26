@@ -64,6 +64,11 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Gravity : public FKawaiiPh
 	bool bUseOverrideGravityDirection = false;
 
 private:
+	FVector ForceInComponentSpace = FVector::ZeroVector;
+	FVector ForceInSimSpaceAtPreApply = FVector::ZeroVector;
+	// 現在の評価で組み込みの PreApply を通ったキャッシュだけを使う。0 は未準備。
+	uint32 ForcePreApplySerial = 0;
+
 	/**
 	 * Initialize で取得し直す実行時の参照。保存しない（Transient）。一時外力の保存領域は GC の追跡対象外なので、
 	 * 強参照ではなく弱参照で持つ

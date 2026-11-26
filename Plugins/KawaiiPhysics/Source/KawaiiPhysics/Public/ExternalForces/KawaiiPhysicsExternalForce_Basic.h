@@ -37,6 +37,11 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Basic : public FKawaiiPhys
 	                   const FTransform& BoneTM = FTransform::Identity) override;
 
 private:
+	FVector ForceInComponentSpace = FVector::ZeroVector;
+	FVector ForceInSimSpaceAtPreApply = FVector::ZeroVector;
+	// 現在の評価で組み込みの PreApply を通ったキャッシュだけを使う。0 は未準備。
+	uint32 ForcePreApplySerial = 0;
+
 	/** Current time */
 	UPROPERTY()
 	float Time = 0.0f;

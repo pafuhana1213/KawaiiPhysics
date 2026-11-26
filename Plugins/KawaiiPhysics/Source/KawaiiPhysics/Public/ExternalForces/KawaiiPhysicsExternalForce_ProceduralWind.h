@@ -291,6 +291,10 @@ struct FKawaiiProceduralWindRuntimeState
 	float CachedGust = 0.0f;
 	float CachedRipplePeriod = 0.01f;
 	FVector CachedWindVector = FVector::ZeroVector;
+	FVector CachedWindVectorInComponentSpace = FVector::ZeroVector;
+	FVector WindVectorInSimSpaceAtPreApply = FVector::ZeroVector;
+	// 現在の評価で準備した方向だけを使い、派生の直接置換も尊重する。0 は未準備。
+	uint32 WindVectorPreApplySerial = 0;
 
 	// 以下の共有風状態は PreApply を回す Worker だけが読み書きする。Mutex の保護対象には含めない。
 	TSharedPtr<FKawaiiPhysicsSharedPublisherEntry> SharedPublisherEntry;

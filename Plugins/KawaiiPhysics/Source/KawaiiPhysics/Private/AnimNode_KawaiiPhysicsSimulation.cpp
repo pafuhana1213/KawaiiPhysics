@@ -731,6 +731,31 @@ void FAnimNode_KawaiiPhysics::SimulateModifyBones(FComponentSpacePoseContext& Ou
 	}
 
 	// External Force : PreApply
+	if (SimulationSpace == EKawaiiPhysicsSimulationSpace::BaseBoneSpace)
+	{
+		// PreApply が入力を変更しても、このフレームの重力・Simple External Force は従来と同じ入力で固定する。
+		// ワールドから Component への変換と重力倍率はフレームに一度だけ求める。
+		GravityInComponentSpace = ConvertSimulationSpaceVector(Output,
+			bUseWorldSpaceGravity ? EKawaiiPhysicsSimulationSpace::WorldSpace
+				: EKawaiiPhysicsSimulationSpace::ComponentSpace,
+			EKawaiiPhysicsSimulationSpace::ComponentSpace, Gravity);
+		if (bUseDefaultGravityZProjectSetting)
+		{
+			GravityInComponentSpace *= FMath::Abs(UPhysicsSettings::Get()->DefaultGravityZ);
+		}
+		SimpleExternalForceInComponentSpace = bUseWorldSpaceSimpleExternalForce && !SimpleExternalForce.IsNearlyZero()
+			? ConvertSimulationSpaceVector(Output, EKawaiiPhysicsSimulationSpace::WorldSpace,
+				EKawaiiPhysicsSimulationSpace::ComponentSpace, SimpleExternalForce)
+			: FVector::ZeroVector;
+	}
+
+	// 仮想 PreApply の外で進め、Super を呼ばない派生でも前の評価の準備を無効にする。
+	// 永続外力と一時外力で同じ番号を使い、折り返し時も未準備の 0 は使わない。
+	if (++ExternalForcePreApplySerial == 0)
+	{
+		++ExternalForcePreApplySerial;
+	}
+
 	// 注: foreach を使うと問題が起きうる（ranged-for 中に配列が変化する）
 	for (int i = 0; i < CustomExternalForces.Num(); ++i)
 	{
@@ -906,6 +931,8 @@ void FAnimNode_KawaiiPhysics::StepSubsteps(FComponentSpacePoseContext& Output,
 			(NumSteps > 1 || MoveFrac < 1.0f);
 		const FTransform BaseBoneStart = PrevBaseBoneSpace2ComponentSpace;
 		const FTransform& BaseBoneEnd = CurrentEvalSimSpaceCache.TargetSpaceToComponent;
+		const FVector FrameGravityInSimSpace = GravityInSimSpace;
+		const FVector FrameSimpleExternalForceInSimSpace = SimpleExternalForceInSimSpace;
 
 		bInSubstep = true;
 		StepDeltaTime = FixedDt;
@@ -919,6 +946,11 @@ void FAnimNode_KawaiiPhysics::StepSubsteps(FComponentSpacePoseContext& Output,
 				const FTransform StepCurrent = ComputeBaseBoneStepTransform(
 					BaseBoneStart, BaseBoneEnd, (SubstepIndex + 1) * MoveFrac);
 				BaseBoneStepComponentToCurrent = StepCurrent.Inverse();
+				GravityInSimSpace = BaseBoneStepComponentToCurrent.TransformVector(GravityInComponentSpace);
+				if (bUseWorldSpaceSimpleExternalForce)
+				{
+					SimpleExternalForceInSimSpace = BaseBoneStepComponentToCurrent.TransformVector(SimpleExternalForceInComponentSpace);
+				}
 			}
 			// 注: ローカル名は基底クラスのメンバ Alpha（ブレンド係数）を隠さないよう SubstepAlpha とする
 			const float SubstepAlpha = static_cast<float>(SubstepIndex + 1) / static_cast<float>(NumSteps);
@@ -939,6 +971,11 @@ void FAnimNode_KawaiiPhysics::StepSubsteps(FComponentSpacePoseContext& Output,
 			CaptureSubstepPoseOffsets();
 		}
 		bInSubstep = false;
+		if (bUseBaseBoneStepTransforms)
+		{
+			GravityInSimSpace = FrameGravityInSimSpace;
+			SimpleExternalForceInSimSpace = FrameSimpleExternalForceInSimSpace;
+		}
 		bUseBaseBoneStepTransforms = false;
 
 		// world移動メンバを元へ（次フレームの UpdateSkelCompMove で再計算されるが安全のため）
@@ -1581,9 +1618,10 @@ void FAnimNode_KawaiiPhysics::Simulate(FKawaiiPhysicsModifyBone& Bone,
 	{
 		// BaseBoneSpace は Output 依存の空間変換が必要なため、別関数に切り出さずここで実行。
 		// Follow Translation
-		const FVector SkelCompMoveVectorBBS =
-			ConvertSimulationSpaceVector(Output, EKawaiiPhysicsSimulationSpace::ComponentSpace,
-			                             EKawaiiPhysicsSimulationSpace::BaseBoneSpace, SkelCompMoveVector);
+		const FVector SkelCompMoveVectorBBS = bUseBaseBoneStepTransforms
+			? BaseBoneStepComponentToCurrent.TransformVector(SkelCompMoveVector)
+			: ConvertSimulationSpaceVector(Output, EKawaiiPhysicsSimulationSpace::ComponentSpace,
+			                               EKawaiiPhysicsSimulationSpace::BaseBoneSpace, SkelCompMoveVector);
 		Bone.Location += SkelCompMoveVectorBBS * (1.0f - Bone.PhysicsSettings.WorldDampingLocation);
 
 		// Follow Rotation
@@ -1900,8 +1938,10 @@ FVector FAnimNode_KawaiiPhysics::GetWindVelocity(FComponentSpacePoseContext& Out
 		return FVector::ZeroVector;
 	}
 
-	WindDirection =
-		ConvertSimulationSpaceVector(Output, EKawaiiPhysicsSimulationSpace::WorldSpace, SimulationSpace, WindDirection);
+	WindDirection = bUseBaseBoneStepTransforms
+		? BaseBoneStepComponentToCurrent.TransformVector(ConvertSimulationSpaceVector(Output,
+			EKawaiiPhysicsSimulationSpace::WorldSpace, EKawaiiPhysicsSimulationSpace::ComponentSpace, WindDirection))
+		: ConvertSimulationSpaceVector(Output, EKawaiiPhysicsSimulationSpace::WorldSpace, SimulationSpace, WindDirection);
 
 	// 乱数(gust/cone)はフレーム頭で1回だけサンプルし、サブステップ間で同一値を使う（NumStepsに依存しない＝フレームレート非依存）
 	const uint64 CurrentFrame = GFrameCounter;
@@ -2156,6 +2196,14 @@ void FAnimNode_KawaiiPhysics::ApplySimulateResult(FComponentSpacePoseContext& Ou
 
 	// FCSPose<PoseType>::LocalBlendCSBoneTransforms 内のチェック用
 	OutBoneTransforms.Sort(FCompareBoneTransformIndex());
+}
+
+FVector FAnimNode_KawaiiPhysics::ConvertComponentVectorToSimulationSpace(FComponentSpacePoseContext& Output,
+                                                                       const FVector& InVector) const
+{
+	return bUseBaseBoneStepTransforms
+		? BaseBoneStepComponentToCurrent.TransformVector(InVector)
+		: ConvertSimulationSpaceVector(Output, EKawaiiPhysicsSimulationSpace::ComponentSpace, SimulationSpace, InVector);
 }
 
 FTransform FAnimNode_KawaiiPhysics::GetBoneTransformInSimSpace(FComponentSpacePoseContext& Output,
