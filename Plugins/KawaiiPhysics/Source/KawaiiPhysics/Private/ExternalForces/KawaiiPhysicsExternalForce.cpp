@@ -174,6 +174,16 @@ bool FKawaiiPhysics_ExternalForce::IsDebugEnabled(bool bInPersona)
 	return false;
 }
 
+FVector FKawaiiPhysics_ExternalForce::ConvertExternalForceToComponentSpace(FAnimNode_KawaiiPhysics& Node,
+                                                                          FComponentSpacePoseContext& PoseContext,
+                                                                          const FVector& InForce) const
+{
+	return ExternalForceSpace == EExternalForceSpace::WorldSpace
+		? Node.ConvertSimulationSpaceVector(PoseContext, EKawaiiPhysicsSimulationSpace::WorldSpace,
+			EKawaiiPhysicsSimulationSpace::ComponentSpace, InForce)
+		: InForce;
+}
+
 FVector FKawaiiPhysics_ExternalForce::ConvertExternalForceToSimulationSpace(FAnimNode_KawaiiPhysics& Node,
                                                                             FComponentSpacePoseContext& PoseContext,
                                                                             const FVector& InForce) const

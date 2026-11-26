@@ -38,13 +38,20 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce_Wind : public FKawaiiPhysi
 	float WindDirectionNoiseAngle = 0.0f;
 
 private:
+	// CachedWindDirection と同じ添字の、ステップ変換用のノイズ適用済み方向。
+	TArray<FVector> CachedWindDirectionInComponentSpace;
+	// このフレームの PreApply でステップ用の方向を作ったか（BaseBoneSpace・BoneSpace 以外・写像に逆がある）。
+	bool bUseStepWindDirection = false;
+	// ステップ用の方向を作った評価の番号（ノードの ExternalForcePreApplySerial。0 は未準備）。
+	uint32 StepWindDirectionSerial = 0;
+
 	/**
 	* 風パラメータ（ノードが PreUpdate で取得した値）をフレーム1回だけキャッシュし、サブステップ間で使い回す（§7-E / FixedSubstepping.md）。
 	* キーは ModifyBones の添字（ダミーボーンは BoneRef が空=NAME_None で衝突するため、ボーン名は使わない）。
 	* Per-frame cache of the wind params the node sampled in PreUpdate, reused across substeps (§7-E / FixedSubstepping.md).
 	* Keyed by ModifyBones index (dummy bones have an empty BoneRef = NAME_None, which would collide, so bone name can't be the key).
 	*/
-	// SimulationSpace の風向き（VRandConeノイズ・風速乗算の前） / Wind direction in SimulationSpace (before VRandCone noise & speed multiply)
+	// SimulationSpace の風向き（VRandConeノイズ適用後・風速乗算の前） / Wind direction in SimulationSpace (after VRandCone noise, before speed multiply)
 	TArray<FVector> CachedWindDirection;
 	// 風速スカラー。負値＝このボーンには未適用（CanApply不可 / Scene無効） / Wind speed scalar; negative = not applicable to this bone (CanApply false / no Scene)
 	TArray<float> CachedWindSpeed;

@@ -75,8 +75,13 @@ void FKawaiiPhysics_ExternalForce_Gravity::PreApply(FAnimNode_KawaiiPhysics& Nod
 	}
 
 	Force *= RandomizedForceScale;
+	// Gravity は従来どおり WorldSpace の入力を使い、既存キャッシュの計算順は保つ。
+	ForceInComponentSpace = Node.ConvertSimulationSpaceVector(PoseContext, EKawaiiPhysicsSimulationSpace::WorldSpace,
+		EKawaiiPhysicsSimulationSpace::ComponentSpace, Force);
 	Force = Node.ConvertSimulationSpaceVector(PoseContext, EKawaiiPhysicsSimulationSpace::WorldSpace,
 	                                          Node.SimulationSpace, Force);
+	ForceInSimSpaceAtPreApply = Force;
+	ForcePreApplySerial = Node.GetExternalForcePreApplySerial();
 }
 
 void FKawaiiPhysics_ExternalForce_Gravity::ApplyToVelocity(FKawaiiPhysicsModifyBone& Bone,
@@ -97,10 +102,15 @@ void FKawaiiPhysics_ExternalForce_Gravity::ApplyToVelocity(FKawaiiPhysicsModifyB
 		ForceRate = Curve->Eval(Bone.LengthRateFromRoot, 1.0f);
 	}
 
-	InOutVelocity += Force * ForceRate * Node.GetStepDeltaTime();
+	// この評価で未準備、または派生が Force を置き換えた場合は、従来の sim 空間の値を使う。
+	const FVector StepForce = Node.IsUsingBaseBoneStepTransforms() && ExternalForceSpace != EExternalForceSpace::BoneSpace
+		&& ForcePreApplySerial == Node.GetExternalForcePreApplySerial()
+		&& FMemory::Memcmp(&Force, &ForceInSimSpaceAtPreApply, sizeof(FVector)) == 0
+		? Node.ConvertComponentVectorToSimulationSpace(PoseContext, ForceInComponentSpace) : Force;
+	InOutVelocity += StepForce * ForceRate * Node.GetStepDeltaTime();
 
 #if ENABLE_ANIM_DEBUG
-	BoneForceMap.Add(GetBoneForceKey(Bone), Force * ForceRate);
+	BoneForceMap.Add(GetBoneForceKey(Bone), StepForce * ForceRate);
 #endif
 }
 

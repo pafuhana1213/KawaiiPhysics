@@ -108,6 +108,10 @@ struct KAWAIIPHYSICS_API FKawaiiPhysics_ExternalForce
 #endif
 
 protected:
+	// 組み込み外力が明示的にキャッシュする入力用。既存の派生外力には自動適用しない。
+	FVector ConvertExternalForceToComponentSpace(FAnimNode_KawaiiPhysics& Node,
+	                                           FComponentSpacePoseContext& PoseContext, const FVector& InForce) const;
+
 	/** Randomized scale of the force */
 	UPROPERTY()
 	float RandomizedForceScale = 0.0f;
