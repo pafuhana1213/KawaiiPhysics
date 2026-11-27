@@ -847,7 +847,7 @@ bool UKawaiiPhysicsVerificationSubsystem::AdvanceCsvCapture()
 		{
 			return true;
 		}
-		if (FCsvProfiler::IsCapturing() || !IFileManager::Get().MakeDirectory(*CsvDirectory, true))
+		if (Profiler->IsCapturing() || !IFileManager::Get().MakeDirectory(*CsvDirectory, true))
 		{
 			UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("CSV capture is already active or its directory cannot be created."));
 			return false;
@@ -860,7 +860,7 @@ bool UKawaiiPhysicsVerificationSubsystem::AdvanceCsvCapture()
 		CsvState = ECsvCaptureState::Starting;
 		return true;
 	case ECsvCaptureState::Starting:
-		if (FCsvProfiler::IsCapturing())
+		if (Profiler->IsCapturing())
 		{
 			CsvStartRunnerFrame = FrameIndex;
 			CsvStartCsvFrame = Profiler->GetCaptureFrameNumber() - 1;
@@ -874,7 +874,7 @@ bool UKawaiiPhysicsVerificationSubsystem::AdvanceCsvCapture()
 		}
 		return true;
 	case ECsvCaptureState::Capturing:
-		if (!FCsvProfiler::IsCapturing())
+		if (!Profiler->IsCapturing())
 		{
 			UE_LOG(LogKawaiiPhysicsVerification, Error, TEXT("CSV capture ended unexpectedly."));
 			return false;
