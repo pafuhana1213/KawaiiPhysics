@@ -1089,6 +1089,65 @@ bool FBaseBoneNoisyWindStepScalesTest::RunTest(const FString& Parameters)
 	return bOk;
 }
 
+// FX-24・TW-WS-15・FX-U4 (a)。5109: 回転 Component の world→Component キャッシュ変換を飛ばすと、
+// Basic / Curve / ProceduralWind の二ステップが +X/-Y でなく +Y/+X 側になり、解析変位との一致が落ちる。
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBaseBoneRemutRotatedComponentWorldForcesTest,
+	"KawaiiPhysics.SolverSpec.RemutRotatedComponentWorldForceSteps",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FBaseBoneRemutRotatedComponentWorldForcesTest::RunTest(const FString& Parameters)
+{
+	bool bPassed = true;
+	for (const EForceCase RotatedForceCase : {EForceCase::BasicWorld, EForceCase::CurveWorld, EForceCase::ProceduralWorld})
+	{
+		TArray<FVector> UnrotatedDeltas;
+		for (const bool bRotateComponent : {false, true})
+		{
+			auto RotatedOptions = MakeAnalyticalOptions(30);
+			RotatedOptions.GetComponentTransform = [bRotateComponent](const int32 SampleIndex)
+			{
+				return bRotateComponent ? FTransform(FRotator(0, 90, 0)) : FTransform::Identity;
+			};
+			RotatedOptions.SetInputPose = [](FCompactPose& InputPose, const int32 SampleIndex)
+			{
+				InputPose[FCompactPoseBoneIndex(0)].SetRotation(FQuat(FVector::ZAxisVector,
+					FMath::DegreesToRadians(90.0f * SampleIndex)));
+			};
+			KawaiiPhysicsNodeFixture::FFixture RotatedForceFixture(RotatedOptions);
+			RotatedForceFixture.EvaluateFrame();
+			if (!TestEqual(TEXT("対照: 回転 Component の二本の実ボーン"), RotatedForceFixture.Node.ModifyBones.Num(), 2)) return false;
+			// Component を Yaw 90° 回すセルでは入力の世界方向も +X→+Y とし、同じ物理を作る。
+			ConfigureForce(RotatedForceFixture.Node, RotatedForceCase,
+				bRotateComponent ? FVector::YAxisVector : FVector::XAxisVector, 0.0f, 60.0f);
+			RotatedForceFixture.Node.ExternalForces.Reserve(3);
+			RotatedForceFixture.Node.ExternalForces.Insert(FInstancedStruct::Make<FKawaiiPhysics_ExternalForce>(), 0);
+			RotatedForceFixture.Node.ExternalForces.Add(FInstancedStruct::Make<FKawaiiPhysics_ExternalForce>());
+			InitializePlainForce<FBeforeForceProbe>(RotatedForceFixture.Node.ExternalForces[0]);
+			InitializePlainForce<FAfterForceProbe>(RotatedForceFixture.Node.ExternalForces[2]);
+			FForceTrace RotatedForceTrace;
+			TGuardValue<FForceTrace*> RotatedTraceScope(ActiveForceTrace, &RotatedForceTrace);
+			RotatedForceFixture.EvaluateFrame();
+			if (!TestEqual(TEXT("対照: 外力前の二ステップを観測"), RotatedForceTrace.BeforeLocation.Num(), 2) ||
+				!TestEqual(TEXT("対照: 外力後の二ステップを観測"), RotatedForceTrace.AfterLocation.Num(), 2) ||
+				!TestEqual(TEXT("対照: 二ステップの変換状態を観測"), RotatedForceTrace.StepTransforms.Num(), 2)) return false;
+			for (int32 ForceStep = 0; ForceStep < 2; ++ForceStep)
+			{
+				const FVector AppliedDelta = RotatedForceTrace.AfterLocation[ForceStep] - RotatedForceTrace.BeforeLocation[ForceStep];
+				bPassed &= TestTrue(TEXT("対照: 基準ボーンのステップ変換を実際に使う"), RotatedForceTrace.StepTransforms[ForceStep]);
+				bPassed &= TestTrue(TEXT("対照: 風または外力が位置を動かす"), AppliedDelta.Size() > 0.5);
+				// 速度 60cm/s×1/60 秒=1cm。基準ボーンの 45° / 90° に対して +X を -45° / -90° 回す。
+				const FVector ExpectedDelta = ForceStep == 0
+					? FVector(FMath::Sqrt(0.5), -FMath::Sqrt(0.5), 0) : FVector(0, -1, 0);
+				// float の dt と回転、および変位差の丸めに 1e-5cm。FX-U4 (a) の 0.01cm より厳しい局所比較。
+				bPassed &= TestTrue(TEXT("各ステップの変位は解析した方向と一致"), AppliedDelta.Equals(ExpectedDelta, 1.e-5));
+				if (!bRotateComponent) UnrotatedDeltas.Add(AppliedDelta);
+				else bPassed &= TestTrue(TEXT("世界全体を回した対照とも一致"), AppliedDelta.Equals(UnrotatedDeltas[ForceStep], 1.e-5));
+			}
+		}
+	}
+	return bPassed;
+}
+
 }
 
 #endif
