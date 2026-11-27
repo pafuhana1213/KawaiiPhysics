@@ -76,6 +76,10 @@ It allows you to easily and cutely animate things that sway, such as hair, skirt
 - Constrain the distance between bones to keep skirts from clipping through the legs (BoneConstraint)
 - Sync animation-driven bones (e.g. legs) into the simulation so cloth follows the body and avoids penetration (SyncBone)
 - Drive parameters and external forces at runtime from Blueprint or C++
+- Collide with world geometry without per-bone traces (Simple World Collision), and share collision and wind across nodes and components (Shared Publisher)
+- Add natural, time-varying wind with Procedural Wind, and preview and tune it in the Wind Scope window
+- Temporarily scale physics settings from Blueprint, AnimNotify or a Sequencer track (Physics Settings Multiplier), and run a node's physics slower or faster than world time (TimeScale)
+- Save node settings as presets and apply them by tag, from the editor or from Blueprint / Python scripts
 - For other recent features, see the [Changelog (KawaiiPhysics Portal)](https://pafuhana1213.github.io/KawaiiPhysics-Portal/en/docs/changelog)
 
 ### Reference Material
@@ -147,7 +151,7 @@ The sample project on GitHub includes a sample level and characters.
   - `01_BoneChain` (RootBone / DummyBoneLength / ExcludeBones / AdditionalRootBones / multiple nodes and tags)
   - `02_PhysicsSettings` (Damping / Stiffness / WorldDamping / LimitAngle / curves / teleport thresholds / warm-up / SkelCompMoveScale / Per Axis LimitAngle / TimeScale)
   - `03_Collision` (sphere / capsule / tapered capsule / box / planar / LimitsDataAsset / PhysicsAsset / world collision)
-  - `04_Forces` (gravity / simple external force / external force presets / AnimNotify / external force space / force rate by bone length / legacy gravity)
+  - `04_Forces` (gravity / simple external force / external force presets / AnimNotify / external force space / force rate by bone length / legacy gravity / character gravity)
   - `05_Advanced` (bone constraints / bone subdivision / SyncBone / presets / shared collision)
   - `06_RuntimeControl` (alpha, physics settings multiplier and wind gusts from Blueprint / settings multiplier AnimNotifyState / Sequencer track / post process AnimBlueprint for Sequencer / AnimNode function / external force volume)
   - `07_SimpleWorldCollision` (automatic level collision / gathered shapes / skeletal mesh collision modes / gather radius)
