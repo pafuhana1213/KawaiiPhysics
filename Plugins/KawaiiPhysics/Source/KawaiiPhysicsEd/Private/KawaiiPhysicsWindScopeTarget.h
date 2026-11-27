@@ -54,6 +54,13 @@ struct FKawaiiPhysicsWindScopeTarget
 		{
 			return nullptr;
 		}
+		// 削除したノードは Undo の履歴が持つので GC されず、弱参照は生きたまま残る。
+		// グラフに入っていないノードは対象なしとして扱う（Undo でグラフに戻れば、また対象になる）
+		const UEdGraph* Graph = Node->GetGraph();
+		if (!Graph || !Graph->Nodes.Contains(Node))
+		{
+			return nullptr;
+		}
 
 		switch (Kind)
 		{
