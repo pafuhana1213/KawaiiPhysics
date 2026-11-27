@@ -75,6 +75,10 @@ Kawaii Physicsは、Unreal Engine向けのシンプルな疑似物理プラグ�
 - ボーン間の距離制約で、スカートの裾が足を貫通するのを抑えられます（BoneConstraint)
 - アニメ制御下のボーン（足など）の動きを揺れものに同期させ、追従や貫通対策ができます（SyncBone）
 - Blueprint・C++から、実行中にパラメータや外力を動的に制御できます
+- トレースを使わずにワールドの地形と当たり判定ができ（Simple World Collision）、コリジョンや風を複数のノード・コンポーネントで共有できます（Shared Publisher）
+- 時間で変化する自然な風を Procedural Wind で加えられ、Wind Scope ウィンドウで確認・調整できます
+- Blueprint・AnimNotify・Sequencer トラックから物理設定を一時的に倍率で変えられ（Physics Settings Multiplier）、ノードの物理だけをスローや倍速にできます（TimeScale）
+- ノードの設定をプリセットとして保存し、タグで対象を選んで適用できます（エディタ・Blueprint / Python スクリプト）
 - その他の最新機能は [更新履歴（KawaiiPhysics Portal）](https://pafuhana1213.github.io/KawaiiPhysics-Portal/docs/changelog) を参照
 
 ### 参考資料
@@ -142,7 +146,7 @@ C++ビルド環境がない方は、以下のリンクからプラグインを�
   - `01_BoneChain`（RootBone / DummyBoneLength / ExcludeBones / AdditionalRootBones / 複数ノードとタグ）
   - `02_PhysicsSettings`（Damping / Stiffness / WorldDamping / LimitAngle / カーブ / テレポートしきい値 / ウォームアップ / SkelCompMoveScale / Per Axis LimitAngle / TimeScale）
   - `03_Collision`（球 / カプセル / テーパードカプセル / 箱 / 平面 / LimitsDataAsset / PhysicsAsset / ワールドコリジョン）
-  - `04_Forces`（重力 / SimpleExternalForce / 外力プリセット / AnimNotify / 外力の座標系 / ボーン長による外力の倍率 / 従来方式の重力）
+  - `04_Forces`（重力 / SimpleExternalForce / 外力プリセット / AnimNotify / 外力の座標系 / ボーン長による外力の倍率 / 従来方式の重力 / キャラの重力）
   - `05_Advanced`（ボーン拘束 / ボーン細分化 / SyncBone / プリセット / 共有コリジョン）
   - `06_RuntimeControl`（Blueprint からの Alpha・設定倍率・突風 / 設定倍率の AnimNotifyState / Sequencer トラック / Sequencer 用の PostProcess ABP / AnimNode Function / 外力ボリューム）
   - `07_SimpleWorldCollision`（レベルのコリジョンの自動収集 / 対応形状 / スケルタルメッシュとの当たり / 収集半径）
