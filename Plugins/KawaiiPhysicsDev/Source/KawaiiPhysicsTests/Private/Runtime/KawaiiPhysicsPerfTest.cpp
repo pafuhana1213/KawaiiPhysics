@@ -807,7 +807,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKawaiiPhysicsPerfScopeOverheadTest,
 
 bool FKawaiiPhysicsPerfScopeOverheadTest::RunTest(const FString& Parameters)
 {
-	if (FCsvProfiler::IsCapturing())
+	// UE 5.8 より前の IsCapturing は static でないので、インスタンス経由で呼ぶ
+	if (FCsvProfiler::Get()->IsCapturing())
 	{
 		AddError(TEXT("ScopeOverhead には CSV 記録停止中の実行が必要です。"));
 		return false;

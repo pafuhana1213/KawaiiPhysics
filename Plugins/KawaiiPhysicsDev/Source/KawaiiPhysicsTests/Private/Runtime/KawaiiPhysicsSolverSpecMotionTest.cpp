@@ -775,9 +775,10 @@ namespace KawaiiPhysicsSolverSpecMotionTestPrivate
 			PhysicsNode.TargetFramerate = 60;
 			PhysicsNode.TimeScale = 1.0f;
 		};
-		// Warning として 1 回だけ出ることを Automation 側で確かめる（Verbosity を Warning に限り、正規表現にしない）。
-		AddExpectedMessage(TEXT("TimeScale 2.00 needs more than MaxSubsteps"), ELogVerbosity::Warning,
-			EAutomationExpectedMessageFlags::Contains, 1, false);
+		// Warning として 1 回だけ出ることを Automation 側で確かめる（Verbosity を Warning に限る）。
+		// UE 5.3 には IsRegex 引数が無く常に正規表現なので、"." をエスケープして文字どおりに一致させる。
+		AddExpectedMessage(TEXT("TimeScale 2\\.00 needs more than MaxSubsteps"), ELogVerbosity::Warning,
+			EAutomationExpectedMessageFlags::Contains, 1);
 		FWarningCapture WarningCapture;
 		KawaiiPhysicsNodeFixture::FFixture ScaledFixture(ScaledOptions);
 		KawaiiPhysicsNodeFixture::FFixture HitchFixture(HitchOptions);
